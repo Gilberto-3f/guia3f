@@ -1,0 +1,108 @@
+'use client'
+
+import { useState } from 'react'
+import { DollarSign, FileText, CheckCircle, Eye } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+
+/**
+ * @param {{
+ *   item: {
+ *     id: string
+ *     tipo: string
+ *     titulo: string
+ *     mensagem: string | null
+ *     valor: number | null
+ *     anexo_url: string | null
+ *     lida_por_profissional: boolean
+ *     lida_por_empresa: boolean
+ *     created_at: string
+ *     profissional_nome: string
+ *     empresa_nome: string
+ *   }
+ *   userTipo: 'profissional' | 'empresa'
+ * }} props
+ */
+export default function CanalFinanceiroItem({ item, userTipo }) {
+  const [marcandoLida, setMarcandoLida] = useState(false)
+
+  const getIcon = () => {
+    switch (item.tipo) {
+      case 'comissao':
+        return <DollarSign size={20} className="text-green-500" aria-hidden />
+      case 'pagamento':
+        return <CheckCircle size={20} className="text-blue-500" aria-hidden />
+      case 'manifesto':
+        return <FileText size={20} className="text-purple-500" aria-hidden />
+      default:
+        return <FileText size={20} className="text-gray-500" aria-hidden />
+    }
+  }
+
+  const marcarComoLida = async () => {
+    setMarcandoLida(true)
+    try {
+      const patch =
+        userTipo === 'profissional' ? { lida_por_profissional: true } : { lida_por_empresa: true }
+
+      const { error } = await supabase.from('canal_financeiro').update(patch).eq('id', item.id)
+
+      if (error) throw error
+    } catch (e) {
+      console.error('Erro ao marcar como lida:', e)
+    } finally {
+      setMarcandoLida(false)
+    }
+  }
+
+  const estaLida = userTipo === 'profissional' ? item.lida_por_profissional : item.lida_por_empresa
+  const valorNum = item.valor != null ? Number(item.valor) : null
+
+  return (
+    <div className={`rounded-xl bg-white p-4 shadow-sm ${!estaLida ? 'border-l-4 border-[#0097b2]' : ''}`}>
+      <div className="flex gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100">{getIcon()}</div>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <h3 className="font-medium text-gray-800">{item.titulo}</h3>
+            {!estaLida ? <span className="rounded-full bg-[#0097b2] px-2 py-0.5 text-xs text-white">Nova</span> : null}
+          </div>
+
+          <p className="mb-2 text-sm text-gray-600">
+            {userTipo === 'profissional' ? item.empresa_nome : item.profissional_nome}
+          </p>
+
+          {item.mensagem ? <p className="mb-2 text-sm text-gray-500">{item.mensagem}</p> : null}
+
+          {valorNum != null && valorNum > 0 ? (
+            <p className="mb-2 text-lg font-bold text-[#0097b2]">R$ {valorNum.toFixed(2)}</p>
+          ) : null}
+
+          {item.anexo_url ? (
+            <a
+              href={item.anexo_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-2 inline-flex items-center gap-1 text-sm text-[#0097b2]"
+            >
+              <Eye size={14} aria-hidden />
+              Ver comprovante
+            </a>
+          ) : null}
+
+          <p className="text-xs text-gray-400">{new Date(item.created_at).toLocaleString('pt-BR')}</p>
+
+          {!estaLida ? (
+            <button
+              type="button"
+              onClick={() => void marcarComoLida()}
+              disabled={marcandoLida}
+              className="mt-2 text-xs text-gray-400 hover:text-[#0097b2] disabled:opacity-50"
+            >
+              Marcar como lida
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}

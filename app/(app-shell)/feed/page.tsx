@@ -1,0 +1,309 @@
+'use client'
+
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { pickAutorDisplay } from '@/lib/feed-autor'
+import StoriesBar from '@/components/StoriesBar'
+import PostCard from '@/components/PostCard'
+import StoryViewer from '@/components/StoryViewer'
+
+const PAGE_SIZE = 12
+
+const POST_SELECT = `
+  id,
+  tipo,
+  texto,
+  foto_url,
+  conteudo_url,
+  total_curtidas,
+  total_comentarios,
+  total_compartilhamentos,
+  avaliacao_meta,
+  created_at,
+  usuarios (
+    id,
+    email,
+    role,
+    turistas (nome_completo, nome_usuario, foto_perfil_url),
+    profissionais (nome_completo, nome_usuario, foto_perfil_url),
+    empresas (id, nome_fantasia, nome_usuario, foto_url)
+  )
+`
+
+type PostFeedRow = {
+  id: string
+  tipo: string
+  texto: string | null
+  foto_url: string | null
+  conteudo_url: string | null
+  total_curtidas: number
+  total_comentarios: number
+  total_compartilhamentos: number
+  avaliacao_meta: Record<string, unknown> | null
+  created_at: string
+  autor: {
+    nome: string
+    username: string
+    foto_perfil_url: string | null
+    usuario_id: string
+    empresa_id: string
+    role: string
+  }
+}
+
+type StoryViewerState = {
+  id: string
+  tipo: string
+  conteudo_url: string
+  texto_sobreposto: { texto?: string | null; posicao_x?: number; posicao_y?: number } | null
+  link: string | null
+  duracao_segundos: number | null
+}
+
+function FeedPageInner() {
+  const searchParams = useSearchParams()
+  const postParam = searchParams.get('post')
+  const comentarioParam = searchParams.get('comentario')
+
+  const [posts, setPosts] = useState<PostFeedRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const pageRef = useRef(0)
+  const sentinelRef = useRef(/** @type {HTMLDivElement | null} */ (null))
+  const fetchPostAttempted = useRef<string | null>(null)
+
+  const [meuId, setMeuId] = useState<string | null>(null)
+  const [email, setEmail] = useState<string | null>(null)
+  const [storiesHidden, setStoriesHidden] = useState(false)
+
+  const [storyAberto, setStoryAberto] = useState<StoryViewerState | null>(null)
+
+  useEffect(() => {
+    const boot = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      setMeuId(session?.user?.id ?? null)
+      setEmail(session?.user?.email ?? null)
+    }
+    void boot()
+  }, [])
+
+  useEffect(() => {
+    const onScroll = () => {
+      const y = typeof window !== 'undefined' ? window.scrollY || document.documentElement.scrollTop : 0
+      setStoriesHidden(y > 48)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const mapRow = useCallback((post: unknown) => {
+    const p = post as Record<string, unknown>
+    const u = p.usuarios
+    const autor = pickAutorDisplay(u)
+    return {
+      id: String(p.id),
+      tipo: p.tipo != null ? String(p.tipo) : 'texto',
+      texto: p.texto != null ? String(p.texto) : null,
+      foto_url: p.foto_url != null ? String(p.foto_url) : null,
+      conteudo_url: p.conteudo_url != null ? String(p.conteudo_url) : null,
+      total_curtidas: Number(p.total_curtidas) || 0,
+      total_comentarios: Number(p.total_comentarios) || 0,
+      total_compartilhamentos: Number(p.total_compartilhamentos) || 0,
+      avaliacao_meta:
+        p.avaliacao_meta && typeof p.avaliacao_meta === 'object' && !Array.isArray(p.avaliacao_meta)
+          ? (p.avaliacao_meta as Record<string, unknown>)
+          : null,
+      created_at: String(p.created_at ?? ''),
+      autor,
+    }
+  }, [])
+
+  const fetchPage = useCallback(
+    async (pageIndex: number) => {
+      const from = pageIndex * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
+      const { data, error } = await supabase
+        .from('posts')
+        .select(POST_SELECT)
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+      if (error) throw error
+      const rows = (data ?? []).map(mapRow)
+      return rows
+    },
+    [mapRow]
+  )
+
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true)
+      pageRef.current = 0
+      setHasMore(true)
+      try {
+        const first = await fetchPage(0)
+        setPosts(first)
+        setHasMore(first.length === PAGE_SIZE)
+        pageRef.current = 1
+      } catch (e) {
+        console.error(e)
+        setPosts([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    void run()
+  }, [fetchPage])
+
+  useEffect(() => {
+    fetchPostAttempted.current = null
+  }, [postParam])
+
+  useEffect(() => {
+    if (!postParam || loading) return
+    if (posts.some((p) => p.id === postParam)) return
+    if (fetchPostAttempted.current === postParam) return
+    fetchPostAttempted.current = postParam
+    void (async () => {
+      const { data, error } = await supabase.from('posts').select(POST_SELECT).eq('id', postParam).maybeSingle()
+      if (error || !data) {
+        fetchPostAttempted.current = null
+        return
+      }
+      const row = mapRow(data)
+      setPosts((prev) => {
+        if (prev.some((p) => p.id === row.id)) return prev
+        return [row, ...prev]
+      })
+    })()
+  }, [postParam, loading, posts, mapRow])
+
+  useEffect(() => {
+    if (!postParam || posts.length === 0) return
+    const t = window.setTimeout(() => {
+      document.getElementById(`feed-post-${postParam}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 400)
+    return () => clearTimeout(t)
+  }, [postParam, posts])
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return
+    setLoadingMore(true)
+    try {
+      const next = pageRef.current
+      const chunk = await fetchPage(next)
+      setPosts((prev) => [...prev, ...chunk])
+      setHasMore(chunk.length === PAGE_SIZE)
+      pageRef.current = next + 1
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [fetchPage, hasMore, loadingMore])
+
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void loadMore()
+      },
+      { rootMargin: '120px' }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [loadMore, posts.length])
+
+  const abrirStory = async (id: string) => {
+    const { data, error } = await supabase
+      .from('stories')
+      .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos')
+      .eq('id', id)
+      .maybeSingle()
+    if (!error && data) {
+      const ts = data.texto_sobreposto
+      const textoParsed =
+        ts && typeof ts === 'object' && !Array.isArray(ts)
+          ? (ts as { texto?: string | null; posicao_x?: number; posicao_y?: number })
+          : null
+      setStoryAberto({
+        id: String(data.id),
+        tipo: data.tipo != null ? String(data.tipo) : 'foto',
+        conteudo_url: String(data.conteudo_url ?? ''),
+        texto_sobreposto: textoParsed,
+        link: data.link != null ? String(data.link) : null,
+        duracao_segundos: data.duracao_segundos != null ? Number(data.duracao_segundos) : null,
+      })
+    }
+  }
+
+  const removerPost = (postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId))
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="animate-pulse text-gray-400">Carregando feed...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-24">
+      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
+        <div className="p-4">
+          <h1 className="text-xl font-bold text-gray-800">Feed</h1>
+        </div>
+      </div>
+
+      <StoriesBar hidden={storiesHidden} userEmail={email} onOpenStory={(id) => void abrirStory(id)} />
+
+      <div className="space-y-4 p-4">
+        {posts.length === 0 ? (
+          <div className="py-8 text-center">
+            <p className="text-gray-400">Nenhuma publicação ainda</p>
+            <p className="mt-1 text-sm text-gray-400">Crie um post ou aguarde novidades da rede.</p>
+          </div>
+        ) : (
+          posts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              meuUsuarioId={meuId}
+              onRemove={removerPost}
+              abrirComentariosInicial={postParam === post.id && Boolean(comentarioParam)}
+              destacarComentarioId={postParam === post.id ? comentarioParam : null}
+            />
+          ))
+        )}
+        <div ref={sentinelRef} className="h-4 w-full" aria-hidden />
+        {loadingMore ? <p className="py-2 text-center text-sm text-gray-400">Carregando…</p> : null}
+        {!hasMore && posts.length > 0 ? <p className="py-2 text-center text-xs text-gray-300">Fim do feed</p> : null}
+      </div>
+
+      {storyAberto ? (
+        <StoryViewer story={storyAberto} userEmail={email} onFechar={() => setStoryAberto(null)} />
+      ) : null}
+    </div>
+  )
+}
+
+export default function FeedPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-gray-50">
+          <div className="animate-pulse text-gray-400">Carregando feed...</div>
+        </div>
+      }
+    >
+      <FeedPageInner />
+    </Suspense>
+  )
+}

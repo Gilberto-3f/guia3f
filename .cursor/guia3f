@@ -1,0 +1,190 @@
+
+
+# Guia 3F - Regras do Projeto (Cursor Rules)
+
+## 👑 PRIORIDADE MÁXIMA: PERFIL ADMIN
+
+### Admin - Regras de Negócio
+- **Acesso**: Usuários com `role = 'admin'` na tabela `usuarios`
+- **Níveis**:
+  - `admin_level = 1`: ADM GERAL (acesso total)
+  - `admin_level = 2`: Moderador (verificação, denúncias)
+  - `admin_level = 3`: Financeiro (planos, comissões)
+  - `admin_level = 4`: Suporte (atendimento)
+
+### Admin - Funcionalidades
+- Dashboard ADM (acesso exclusivo)
+- Modo Apresentação (apenas ADM GERAL)
+- Verificação de cadastros (moderador)
+- Gestão de denúncias
+- Configurações do sistema
+
+### Admin - Banco de Dados
+```sql
+-- Tabela usuarios já tem:
+ALTER TABLE usuarios ADD COLUMN admin_level INTEGER;
+-- admin_level = 1 (ADM GERAL), 2 (Moderador), 3 (Financeiro), 4 (Suporte)
+
+--------------
+🎨 DESIGN SYSTEM
+Cores
+Uso	Cor	Classe Tailwind
+Primária	#0097b2	bg-blue-600, text-blue-600
+Secundária	#001f3f	text-blue-900
+Sucesso	#4CAF50	text-green-600, bg-green-500
+Alerta	#F44336	text-red-600, bg-red-500
+Cinza texto	#666666	text-gray-600
+Cinza borda	#E0E0E0	border-gray-200
+Tipografia
+Família: Inter (padrão do Next.js)
+
+Tamanhos:
+
+Títulos: text-2xl (24px), text-xl (20px)
+
+Corpo: text-base (16px)
+
+Auxiliar: text-sm (14px), text-xs (12px)
+
+Ícones
+Pacote: lucide-react
+
+Instalação: npm install lucide-react
+
+-----------------
+🏗️ PADRÕES DE CÓDIGO
+Componentes
+
+// Sempre começar com 'use client' para componentes interativos
+'use client'
+
+import { useState } from 'react'
+
+export default function MeuComponente() {
+  return <div>...</div>
+}
+
+Hooks
+useState para estado local
+
+useEffect para efeitos colaterais
+
+useRouter para navegação
+
+supabase de @/lib/supabase para banco
+
+Nomenclatura
+Arquivos: kebab-case.tsx
+
+Pastas: kebab-case
+
+Componentes: PascalCase
+
+Funções: camelCase
+
+-------------------
+📁 ESTRUTURA DE PASTAS
+
+📁 3f-guia/
+├── 📁 .cursor/
+│   └── 📁 rules/
+│       └── 📄 guia3f.mdc          # Este arquivo
+├── 📁 app/
+│   ├── 📄 layout.tsx              # Layout principal
+│   ├── 📄 page.tsx                # Página inicial (bem-vindo)
+│   ├── 📁 cadastro/
+│   │   ├── 📁 turista/
+│   │   │   └── 📄 page.tsx
+│   │   ├── 📁 profissional/
+│   │   │   └── 📄 page.tsx
+│   │   └── 📁 empresa/
+│   │       └── 📄 page.tsx
+│   ├── 📁 guia/
+│   │   └── 📄 page.tsx
+│   └── 📁 dashboard/
+│       └── 📁 admin/
+│           └── 📄 page.tsx
+├── 📁 components/
+│   ├── 📁 ui/                     # Botões, inputs, cards
+│   ├── 📁 guia/                   # Componentes do guia
+│   └── 📁 perfil/                 # Componentes do perfil
+├── 📁 lib/
+│   └── 📄 supabase.js             # Cliente Supabase
+├── 📁 public/                     # Arquivos estáticos
+├── 📄 .env.local                  # Variáveis de ambiente
+├── 📄 .gitignore
+└── 📄 package.json
+
+------------------------
+🔌 INTEGRAÇÃO COM SUPABASE
+
+Cliente (lib/supabase.js)
+
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+Tabelas principais
+
+-- Usuários (base)
+CREATE TABLE usuarios (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT UNIQUE NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
+    admin_level INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Turistas
+CREATE TABLE turistas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID NOT NULL UNIQUE REFERENCES usuarios(id),
+    nome_completo TEXT NOT NULL,
+    nome_usuario TEXT UNIQUE NOT NULL,
+    documento_frente_url TEXT NOT NULL,
+    documento_verso_url TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Profissionais
+CREATE TABLE profissionais (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID NOT NULL UNIQUE REFERENCES usuarios(id),
+    nome_completo TEXT NOT NULL,
+    nome_usuario TEXT UNIQUE NOT NULL,
+    categorias JSONB NOT NULL,
+    placa_vermelha BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Empresas
+CREATE TABLE empresas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id UUID NOT NULL UNIQUE REFERENCES usuarios(id),
+    nome_fantasia TEXT NOT NULL,
+    nome_usuario TEXT UNIQUE NOT NULL,
+    categoria TEXT NOT NULL,
+    cidade TEXT NOT NULL,
+    endereco TEXT NOT NULL,
+    descricao_curta TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+--------------------------
+✅ CHECKLIST DE QUALIDADE
+Antes de cada commit:
+
+Testou localmente com npm run dev
+
+Revisou os diffs antes de aceitar
+
+Não há console.log em produção (use em desenvolvimento)
+
+Cores seguem o design system
+
+Componentes têm 'use client' quando necessário
+
+Variáveis de ambiente estão no .env.local (não commitado)
