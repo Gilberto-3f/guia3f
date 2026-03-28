@@ -208,7 +208,10 @@ export default function CadastroTuristaPage() {
 
   const validarFormulario = () => {
     if (!nomeSocial.trim()) return 'Informe o nome social.'
-    if (!usernameLimpo || usernameStatus !== 'available') return 'Escolha um nome de usuario disponivel.'
+    // 🔧 CORREÇÃO: Removemos a verificação do usernameStatus === 'available'
+    // Agora só verifica se o username não está vazio e se tem formato válido
+    if (!usernameLimpo) return 'Escolha um nome de usuario.'
+    if (!usernameRegex.test(usernameLimpo)) return 'Use 3-20 caracteres: letras minúsculas, números, ponto e _'
     if (!emailValido) return 'Informe um e-mail valido.'
     if (!senhaValida) return 'A senha deve ter no mínimo 8 caracteres, com letras e números.'
     if (senha !== confirmarSenha) return 'As senhas não coincidem.'
