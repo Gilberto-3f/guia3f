@@ -6,12 +6,14 @@ import { usePermissao } from '../../hooks/usePermissao'
 export default function AcoesDenuncia({
   aberto,
   onClose,
+  denuncia,
   onMarcarInvestigacao,
   onAplicarPenalidade,
   onArquivar,
 }: {
   aberto: boolean
   onClose: () => void
+  denuncia: any
   onMarcarInvestigacao: () => Promise<void>
   onAplicarPenalidade: (payload: { acao: 'advertir' | 'suspender' | 'banir'; suspensao_dias?: number; motivo: string }) => Promise<void>
   onArquivar: (motivo: string) => Promise<void>
