@@ -26,22 +26,6 @@ function getDataLimite(periodo: FunilPeriodo): string {
   return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()
 }
 
-async function safeCount(
-  table: string,
-  build: (q: ReturnType<typeof supabase.from>) => ReturnType<typeof supabase.from>
-): Promise<number> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const base = supabase.from(table as any) as any
-    const q = build(base).select('*', { count: 'exact', head: true })
-    const { count, error } = await q
-    if (error) return 0
-    return count ?? 0
-  } catch {
-    return 0
-  }
-}
-
 export function useFunilConversao(empresaId: string | null, periodo: FunilPeriodo) {
   const [dados, setDados] = useState<DadosFunil | null>(null)
   const [loading, setLoading] = useState(true)
@@ -73,24 +57,75 @@ export function useFunilConversao(empresaId: string | null, periodo: FunilPeriod
       const empresaNome = empresa?.nome_fantasia ?? ''
       const empresaUsuarioId = (empresa as { usuario_id?: string | null } | null)?.usuario_id ?? null
 
-      // Funil (tabelas podem não existir ainda → fallback 0)
-      const visualizacoes = await safeCount('log_visita', (q) => q.eq('empresa_id', empresaId).gte('created_at', since))
+      // 1. Visualizações
+      let visualizacoes = 0
+      try {
+        const { count, error } = await supabase
+          .from('log_visita')
+          .select('*', { count: 'exact', head: true })
+          .eq('empresa_id', empresaId)
+          .gte('created_at', since)
+        if (!error && count !== null) visualizacoes = count
+      } catch {
+        visualizacoes = 0
+      }
 
-      const seguidores = empresaUsuarioId
-        ? await safeCount('redecontatos', (q) =>
-            q.eq('seguido_id', empresaUsuarioId).eq('seguido_tipo', 'empresa').gte('created_at', since)
-          )
-        : 0
+      // 2. Seguidores
+      let seguidores = 0
+      if (empresaUsuarioId) {
+        try {
+          const { count, error } = await supabase
+            .from('redecontatos')
+            .select('*', { count: 'exact', head: true })
+            .eq('seguido_id', empresaUsuarioId)
+            .eq('seguido_tipo', 'empresa')
+            .gte('created_at', since)
+          if (!error && count !== null) seguidores = count
+        } catch {
+          seguidores = 0
+        }
+      }
 
-      const recomendacoes = await safeCount('recomendacoes', (q) => q.eq('empresa_id', empresaId).gte('created_at', since))
+      // 3. Recomendações
+      let recomendacoes = 0
+      try {
+        const { count, error } = await supabase
+          .from('recomendacoes')
+          .select('*', { count: 'exact', head: true })
+          .eq('empresa_id', empresaId)
+          .gte('created_at', since)
+        if (!error && count !== null) recomendacoes = count
+      } catch {
+        recomendacoes = 0
+      }
 
-      const pax = await safeCount('manifesto', (q) =>
-        q.eq('empresa_destino_id', empresaId).eq('status', 'confirmado').gte('created_at', since)
-      )
+      // 4. PAX (manifesto)
+      let pax = 0
+      try {
+        const { count, error } = await supabase
+          .from('manifesto')
+          .select('*', { count: 'exact', head: true })
+          .eq('empresa_destino_id', empresaId)
+          .eq('status', 'confirmado')
+          .gte('created_at', since)
+        if (!error && count !== null) pax = count
+      } catch {
+        pax = 0
+      }
 
-      const vendas = await safeCount('comissoes', (q) =>
-        q.eq('empresa_id', empresaId).eq('tipo', 'venda_direta').gte('created_at', since)
-      )
+      // 5. Vendas (comissao)
+      let vendas = 0
+      try {
+        const { count, error } = await supabase
+          .from('comissoes')
+          .select('*', { count: 'exact', head: true })
+          .eq('empresa_id', empresaId)
+          .eq('tipo', 'venda_direta')
+          .gte('created_at', since)
+        if (!error && count !== null) vendas = count
+      } catch {
+        vendas = 0
+      }
 
       const visualizacoesVal = visualizacoes || 0
       const seguidoresVal = seguidores || 0
@@ -125,4 +160,3 @@ export function useFunilConversao(empresaId: string | null, periodo: FunilPeriod
 
   return { dados, loading, error, refetch: fetchDados }
 }
-
