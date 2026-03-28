@@ -96,6 +96,9 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     setLoading(true)
     setError(null)
     try {
+      // 🔧 CONVERSÃO DE nivel PARA NÚMERO
+      const nivelNum = typeof nivel === 'string' ? parseInt(nivel, 10) : nivel
+
       const tipo = filtros.perfil === 'turistas' ? 'turista' : filtros.perfil === 'profissionais' ? 'profissional' : 'empresa'
       let query = supabase
         .from('denuncias')
@@ -112,7 +115,8 @@ export function useDenuncias(filtros: DenunciasFiltros) {
 
       let rows = (data ?? []) as DenunciaRow[]
 
-      if (tipo === 'profissional' && nivel === 2) {
+      // 🔧 USAR nivelNum AQUI
+      if (tipo === 'profissional' && nivelNum === 2) {
         const comunidade = String(getComunidade() ?? '').toLowerCase()
         if (comunidade) {
           const allowedIds = new Set<string>()
@@ -265,3 +269,4 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     refetch: fetchDenuncias,
   }
 }
+    // ... resto do código (igual)
