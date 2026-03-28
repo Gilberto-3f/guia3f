@@ -60,7 +60,7 @@ export default function AcoesDenuncia({
 
         {!acaoSelecionada ? (
           <div className="space-y-2">
-            {denuncia.status === 'pendente' ? (
+            {denuncia?.status === 'pendente' ? (
               <button type="button" onClick={() => void run(onMarcarInvestigacao)} className="w-full rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-left text-sm font-semibold text-yellow-900">
                 Marcar em investigação
               </button>
