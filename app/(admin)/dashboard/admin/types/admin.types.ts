@@ -1,0 +1,291 @@
+export type AdminRoleBase = 'admin'
+
+export type AdminNivel = 0 | 1
+
+export type AdminPermissoes = {
+  verificacao?: {
+    turistas?: boolean
+    profissionais?: boolean
+    empresas?: boolean
+  }
+  denuncias?: {
+    turistas?: boolean
+    profissionais?: boolean
+    empresas?: boolean
+  }
+  espacoAdm?: {
+    graficos?: boolean
+    empresas?: boolean
+    financeiro?: boolean
+    gerencia?: boolean
+  }
+  configuracoes?: {
+    apis?: boolean
+    logs?: boolean
+    geral?: boolean
+    seguranca?: boolean
+  }
+}
+
+export type AdminUser = {
+  id: string
+  username?: string | null
+  email?: string | null
+  role: AdminRoleBase
+  admin_level: AdminNivel
+  admin_permissoes: AdminPermissoes
+}
+
+export type Periodo = '7d' | '30d' | '90d' | '12m'
+export type PerfilVisaoGeral = 'turistas' | 'profissionais' | 'empresas'
+
+export type FiltrosVisaoGeral = {
+  periodo: Periodo
+}
+
+export type DadoCrescimento = {
+  mes: string
+  total: number
+}
+
+export type DadoAtivo = {
+  status: 'ativo' | 'offline'
+  total: number
+}
+
+export type DadoRosca = {
+  atual: number
+  anterior: number
+  variacao: number
+}
+
+export type DadoBarras = {
+  label: string
+  total: number
+}
+
+export type TopoCardResumo = {
+  total: number
+  variacao: number
+}
+
+export type DadosTopoCards = {
+  turistas: TopoCardResumo
+  profissionais: TopoCardResumo
+  empresas: TopoCardResumo
+}
+
+export type PerfilVerificacao = 'turistas' | 'profissionais' | 'empresas'
+
+export type PeriodoVerificacao = 'hoje' | '7d' | '30d'
+
+export type PendenteTurista = {
+  id: string
+  usuario_id: string
+  nome_completo: string
+  nome_usuario: string
+  foto_url: string | null
+  documento_frente_url: string | null
+  documento_verso_url: string | null
+  docs_verificado: boolean
+  docs_verificado_por: string | null
+  docs_verificado_em: string | null
+  created_at: string
+}
+
+export type PendenteProfissional = {
+  id: string
+  usuario_id: string
+  nome_completo: string
+  nome_usuario: string
+  foto_url: string | null
+  categorias: string[]
+  placa_vermelha: boolean
+  documentos: Record<string, string>
+  docs_verificado: boolean
+  docs_verificado_por: string | null
+  docs_verificado_em: string | null
+  created_at: string
+}
+
+export type PendenteEmpresa = {
+  id: string
+  usuario_id: string
+  nome_fantasia: string
+  nome_usuario: string
+  categoria: string
+  cidade: string
+  documento_url: string | null
+  fotos_url: string[]
+  docs_verificado: boolean
+  docs_verificado_por: string | null
+  docs_verificado_em: string | null
+  created_at: string
+}
+
+export type PendenteVerificacao = PendenteTurista | PendenteProfissional | PendenteEmpresa
+
+export type ContadoresVerificacao = {
+  turistas: number
+  profissionais: number
+  empresas: number
+}
+
+export type SolicitacaoPerfilTipo = 'turista' | 'profissional' | 'empresa'
+export type SolicitacaoStatus = 'pendente' | 'aprovado' | 'recusado' | 'revogado' | 'expirado'
+
+export type SolicitacaoAcesso = {
+  id: string
+  solicitante_id: string
+  solicitante_email: string
+  solicitante_nome: string
+  perfil_tipo: SolicitacaoPerfilTipo
+  perfil_id: string
+  perfil_nome: string
+  perfil_username: string
+  motivo: string | null
+  status: SolicitacaoStatus
+  aprovado_por: string | null
+  aprovado_por_email: string | null
+  aprovado_em: string | null
+  recusado_por: string | null
+  recusado_por_email: string | null
+  recusado_em: string | null
+  motivo_recusa: string | null
+  revogado_por: string | null
+  revogado_por_email: string | null
+  revogado_em: string | null
+  motivo_revogacao: string | null
+  conceder_acesso_ate: string | null
+  created_at: string
+}
+
+export type AprovarSolicitacaoParams = {
+  solicitacao_id: string
+  conceder_acesso_ate?: Date
+}
+
+export type RecusarSolicitacaoParams = {
+  solicitacao_id: string
+  motivo: string
+}
+
+export type RevogarAcessoParams = {
+  solicitacao_id: string
+  motivo: string
+}
+
+export type DenunciaStatus = 'pendente' | 'em_investigacao' | 'encerrada' | 'arquivada'
+export type DenunciaGravidade = 'leve' | 'media' | 'grave'
+export type DenunciaPenalidade = 'advertencia' | 'suspensao' | 'banimento'
+export type DenunciaPerfil = 'turistas' | 'profissionais' | 'empresas'
+
+export type Denuncia = {
+  id: string
+  denunciante_id: string
+  denunciante_email: string
+  denunciante_nome: string
+  denunciado_id: string
+  denunciado_tipo: 'turista' | 'profissional' | 'empresa'
+  denunciado_email: string
+  denunciado_nome: string
+  denunciado_username: string
+  motivo: string
+  descricao: string | null
+  evidencias: string[]
+  status: DenunciaStatus
+  gravidade: DenunciaGravidade | null
+  responsavel_id: string | null
+  responsavel_email: string | null
+  analisado_em: string | null
+  analisado_por: string | null
+  penalidade_aplicada: DenunciaPenalidade | null
+  penalidade_detalhes: {
+    dias?: number
+    motivo?: string
+    prazo_reenvio?: number
+  } | null
+  prazo_analise_ate?: string | null
+  prazo_estourado?: boolean
+  total_denuncias_anteriores?: number
+  created_at: string
+  updated_at: string
+}
+
+export type AplicarPenalidadeParams = {
+  denuncia_id: string
+  acao: 'advertir' | 'suspender' | 'banir'
+  suspensao_dias?: number
+  motivo: string
+}
+
+export type DenunciasFiltros = {
+  perfil: DenunciaPerfil
+  status: DenunciaStatus | 'todas'
+  periodo: 'hoje' | '7d' | '30d'
+  busca: string
+  categoria?: string
+}
+
+// ================================
+// Espaço ADM — Gerência (permissões)
+// ================================
+
+export type AdminCargo = 'ADM_GERAL' | 'MODERADOR' | 'FINANCEIRO' | 'SUPORTE'
+
+export type AdminPermissoesGranulares = {
+  comunidade?: string | null
+  modulos?: string[]
+  recursos?: string[]
+}
+
+// ================================
+// Espaço ADM — Empresas (funil)
+// ================================
+
+export type FunilPeriodo = '7d' | '30d' | '90d'
+
+export type DadosFunil = {
+  empresa_id: string
+  empresa_nome: string
+  visualizacoes: number
+  seguidores: number
+  recomendacoes: number
+  pax: number
+  vendas: number
+  conversao_seguidores: number
+  conversao_recomendacoes: number
+  conversao_pax: number
+  conversao_vendas: number
+}
+
+// ================================
+// Configurações (Dashboard Admin)
+// ================================
+
+export type ConfigAmbienteAPI = 'teste' | 'producao'
+
+export type ConfigAPIs = {
+  id?: string
+  gateway: string
+  chave_publica: string
+  chave_secreta: string
+  webhook_secret: string
+  ambiente: ConfigAmbienteAPI
+  moedas: string[]
+  api_mobilidade_url: string
+  api_mobilidade_key: string
+}
+
+export type ConfigGeral = {
+  id?: string
+  politicas_privacidade: string
+  termos_uso: string
+  regras_ecossistema: string
+  prazo_pre_aprovacao_turista: number
+  prazo_verificacao_documentos: number
+  limite_fotos_empresa: number
+  limite_reservas_ativas: number
+  tempo_pagamento_reserva: number
+}
+

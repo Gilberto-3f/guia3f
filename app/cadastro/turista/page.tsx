@@ -16,6 +16,37 @@ const senhaForteRegex = /^(?=.*[A-Za-zÀ-ÿ])(?=.*\d).{8,}$/
 
 const VERDE = '#00D443'
 
+// #region agent log
+function agentDebugLog(entry: {
+  hypothesisId: string
+  location: string
+  message: string
+  runId?: string
+  data?: Record<string, unknown>
+}) {
+  const payload = {
+    sessionId: 'c04398',
+    timestamp: Date.now(),
+    runId: entry.runId ?? 'initial',
+    hypothesisId: entry.hypothesisId,
+    location: entry.location,
+    message: entry.message,
+    data: entry.data,
+  }
+  const body = JSON.stringify(payload)
+  fetch('http://127.0.0.1:7821/ingest/9d2f7c20-7591-4880-9936-a08cc2da302f', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c04398' },
+    body,
+  }).catch(() => {})
+  fetch('/api/debug-c04398', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  }).catch(() => {})
+}
+// #endregion
+
 export default function CadastroTuristaPage() {
   const router = useRouter()
 
@@ -59,12 +90,30 @@ export default function CadastroTuristaPage() {
   }, [fotoPerfilFile])
 
   useEffect(() => {
+    agentDebugLog({
+      hypothesisId: 'H1',
+      location: 'app/cadastro/turista/page.tsx:username-effect',
+      message: 'username effect triggered',
+      data: { nomeUsuarioRaw: nomeUsuario, usernameLimpo },
+    })
     if (!usernameLimpo) {
+      agentDebugLog({
+        hypothesisId: 'H2',
+        location: 'app/cadastro/turista/page.tsx:username-empty',
+        message: 'username empty after normalize',
+        data: { nomeUsuarioRaw: nomeUsuario, usernameLimpo },
+      })
       setUsernameStatus('idle')
       setUsernameFeedback('')
       return
     }
     if (!usernameRegex.test(usernameLimpo)) {
+      agentDebugLog({
+        hypothesisId: 'H3',
+        location: 'app/cadastro/turista/page.tsx:username-regex',
+        message: 'username failed regex',
+        data: { usernameLimpo, regex: '^[a-z0-9._]{3,20}$' },
+      })
       setUsernameStatus('unavailable')
       setUsernameFeedback('Use 3-20 caracteres: letras minúsculas, números, ponto e _')
       return
@@ -73,12 +122,32 @@ export default function CadastroTuristaPage() {
     setUsernameStatus('checking')
     setUsernameFeedback('Verificando disponibilidade...')
     const timer = setTimeout(async () => {
+      agentDebugLog({
+        hypothesisId: 'H4',
+        location: 'app/cadastro/turista/page.tsx:debounce-query-start',
+        message: 'starting username availability query',
+        data: { usernameLimpo },
+      })
       const [turistasResp, profissionaisResp, empresasResp] = await Promise.all([
         supabase.from('turistas').select('id').eq('nome_usuario', usernameLimpo).limit(1),
         supabase.from('profissionais').select('id').eq('nome_usuario', usernameLimpo).limit(1),
         supabase.from('empresas').select('id').eq('nome_usuario', usernameLimpo).limit(1),
       ])
       if (!ativo) return
+      agentDebugLog({
+        hypothesisId: 'H5',
+        location: 'app/cadastro/turista/page.tsx:debounce-query-done',
+        message: 'username query finished',
+        data: {
+          usernameLimpo,
+          turistasCount: turistasResp.data?.length ?? 0,
+          profissionaisCount: profissionaisResp.data?.length ?? 0,
+          empresasCount: empresasResp.data?.length ?? 0,
+          turistasError: turistasResp.error?.message ?? null,
+          profissionaisError: profissionaisResp.error?.message ?? null,
+          empresasError: empresasResp.error?.message ?? null,
+        },
+      })
       if (turistasResp.error || profissionaisResp.error || empresasResp.error) {
         setUsernameStatus('unavailable')
         setUsernameFeedback('Nao foi possivel validar agora. Tente novamente.')
@@ -100,7 +169,16 @@ export default function CadastroTuristaPage() {
       ativo = false
       clearTimeout(timer)
     }
-  }, [usernameLimpo])
+  }, [usernameLimpo, nomeUsuario])
+
+  useEffect(() => {
+    agentDebugLog({
+      hypothesisId: 'H6',
+      location: 'app/cadastro/turista/page.tsx:username-status',
+      message: 'username status changed',
+      data: { usernameLimpo, usernameStatus, usernameFeedback },
+    })
+  }, [usernameLimpo, usernameStatus, usernameFeedback])
 
   const onFileChange = (
     event: ChangeEvent<HTMLInputElement>,

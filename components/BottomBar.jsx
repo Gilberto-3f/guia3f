@@ -12,7 +12,7 @@ import {
   Heart,
   User,
   Building2,
-  LayoutDashboard,
+  BarChart3,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -29,6 +29,7 @@ function matchPath(path, pathname) {
   if (path === '/perfil' && (pathname === '/perfil' || pathname.startsWith('/perfil/'))) return true
   if (path === '/favoritos' && pathname === '/favoritos') return true
   if (path === '/dashboard/empresa' && pathname.startsWith('/dashboard/empresa')) return true
+  if (path === '/empresa/menu' && pathname.startsWith('/empresa/menu')) return true
   if (path.startsWith('/empresa/') && pathname === path) return true
   return false
 }
@@ -144,16 +145,14 @@ export default function BottomBar() {
   }
 
   const getQuintoHref = () => {
-    if (userRole === 'empresa' && empresaId) return `/empresa/${empresaId}`
+    if (userRole === 'empresa') return '/empresa/menu'
     if (authUserId && (userRole === 'turista' || userRole === 'profissional')) return `/perfil/${authUserId}`
     return '/perfil'
   }
 
   const isQuintoActive = () => {
     const href = getQuintoHref()
-    if (userRole === 'empresa' && empresaId && href.startsWith('/empresa/')) {
-      return pathname === href
-    }
+    if (userRole === 'empresa') return pathname != null && pathname.startsWith('/empresa/menu')
     return pathname === '/perfil' || (pathname != null && pathname.startsWith('/perfil/'))
   }
 
@@ -197,7 +196,7 @@ export default function BottomBar() {
 
         <Link href={getQuartoHref()} className="relative flex flex-col items-center p-2" aria-label={userRole === 'empresa' ? 'Dashboard' : 'Atividades'}>
           {userRole === 'empresa' ? (
-            <LayoutDashboard
+            <BarChart3
               size={24}
               className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'}
               aria-hidden

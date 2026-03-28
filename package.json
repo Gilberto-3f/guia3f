@@ -6,14 +6,16 @@
     "dev": "next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:admin:auth": "node scripts/supabase/seed-admin-auth-users.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.100.0",
     "lucide-react": "^0.468.0",
     "next": "16.2.1",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

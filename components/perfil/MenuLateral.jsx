@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { ArrowLeft, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useInfracoes } from '@/app/(admin)/dashboard/admin/hooks/useInfracoes'
 
 import Emergencia from '@/components/perfil/subpaginas/Emergencia'
 import EditarPerfil from '@/components/perfil/subpaginas/EditarPerfil'
@@ -17,6 +18,7 @@ import TabelaValores from '@/components/perfil/subpaginas/TabelaValores'
 import MeusManifestos from '@/components/perfil/subpaginas/MeusManifestos'
 import EditarPaginaEmpresa from '@/components/perfil/subpaginas/EditarPaginaEmpresa'
 import CadastrarComissao from '@/components/perfil/subpaginas/CadastrarComissao'
+import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 
 /**
  * @typedef {{ tipo: 'menu', titulo: string, itens: MenuItem[] } | { tipo: 'pagina', titulo: string, id: string, historicoTipo?: string }} HistoricoEntry
@@ -28,6 +30,7 @@ import CadastrarComissao from '@/components/perfil/subpaginas/CadastrarComissao'
  *   label: string
  *   subpagina?: string
  *   href?: string
+ *   badge?: number
  *   acao?: 'logout' | 'simulacao'
  *   simRole?: 'turista' | 'profissional' | 'empresa'
  *   subitens?: MenuItem[]
@@ -60,6 +63,7 @@ function itensTurista() {
       ],
     },
     { icon: '👤', label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
+    { icon: '🛡️', label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
     { icon: '🔔', label: 'Configurações', subpagina: 'configuracoes' },
     { icon: '🚪', label: 'Sair', acao: 'logout' },
   ]
@@ -94,6 +98,7 @@ function itensProfissional(ctx) {
       ],
     },
     { icon: '👤', label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
+    { icon: '🛡️', label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
     { icon: '🔔', label: 'Configurações', subpagina: 'configuracoes' },
     { icon: '🚪', label: 'Sair', acao: 'logout' },
   ])
@@ -106,10 +111,12 @@ function itensProfissional(ctx) {
  */
 function itensEmpresa() {
   return [
-    { icon: '✏️', label: 'Editar Página', subpagina: 'editar-pagina' },
-    { icon: '💰', label: 'Cadastrar Comissão', subpagina: 'cadastrar-comissao' },
-    { icon: '👤', label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-    { icon: '🔔', label: 'Configurações', subpagina: 'configuracoes' },
+    { icon: '🏢', label: 'Menu Empresa', href: '/empresa/menu/publicidade' },
+    { icon: '📢', label: 'Publicidade', href: '/empresa/menu/publicidade' },
+    { icon: '💬', label: 'Chat ADM', href: '/empresa/menu/chat-adm' },
+    { icon: '⚠️', label: 'Denúncias', href: '/empresa/menu/denuncias' },
+    { icon: '🛍️', label: 'Compras Paraguai', href: '/empresa/menu/compras-paraguai' },
+    { icon: '💎', label: 'Planos', href: '/empresa/menu/planos' },
     { icon: '🚪', label: 'Sair', acao: 'logout' },
   ]
 }
@@ -143,6 +150,7 @@ function itensAdmin(ctx) {
       ],
     },
     { icon: '👤', label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
+    { icon: '🛡️', label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
     { icon: '🔔', label: 'Configurações', subpagina: 'configuracoes' },
     { icon: '🚪', label: 'Sair', acao: 'logout' },
   ])
@@ -186,6 +194,8 @@ export default function MenuLateral({
   const [historico, setHistorico] = useState(/** @type {HistoricoEntry[]} */ ([]))
   const [logoutEtapa, setLogoutEtapa] = useState(0)
   const [modalLogout, setModalLogout] = useState(false)
+  const [historicoNaoLido, setHistoricoNaoLido] = useState(0)
+  const { historico: historicoDecisoes, fetchHistoricoUsuario } = useInfracoes()
 
   useEffect(() => {
     if (!aberto) {
@@ -194,6 +204,15 @@ export default function MenuLateral({
       setModalLogout(false)
     }
   }, [aberto])
+
+  useEffect(() => {
+    if (!aberto || !usuarioId) return
+    void fetchHistoricoUsuario(usuarioId)
+  }, [aberto, fetchHistoricoUsuario, usuarioId])
+
+  useEffect(() => {
+    setHistoricoNaoLido((historicoDecisoes ?? []).filter((h) => !h.visualizado).length)
+  }, [historicoDecisoes])
 
   const ctx = { variant: variant || 'turista', placaVermelha, adminLevel }
 
@@ -271,8 +290,18 @@ export default function MenuLateral({
         compras: 'Compras',
         parcerias: 'Parcerias',
         recomendacoes: 'Recomendações',
+        'historico-decisoes': 'Histórico de Decisões',
       }
       const t = titulos[item.subpagina] || item.label
+      if (item.subpagina === 'historico-decisoes') {
+        const unreadIds = (historicoDecisoes ?? []).filter((h) => !h.visualizado).map((h) => h.id)
+        if (unreadIds.length > 0) {
+          void Promise.all(unreadIds.map((id) => supabase.from('historico_decisoes').update({ visualizado: true }).eq('id', id))).then(() => {
+            setHistoricoNaoLido(0)
+            void fetchHistoricoUsuario(usuarioId || undefined)
+          })
+        }
+      }
       if (['contratacoes', 'compras', 'parcerias', 'recomendacoes'].includes(item.subpagina)) {
         abrirPagina(t, 'meu-historico', item.subpagina)
       } else {
@@ -328,6 +357,7 @@ export default function MenuLateral({
     if (id === 'tabela') return <TabelaValores />
     if (id === 'manifestos') return <MeusManifestos />
     if (id === 'meu-historico') return <MeuHistorico tipo={histTipo} />
+    if (id === 'historico-decisoes') return <HistoricoDecisoes />
     if (id === 'editar-pagina' && empresa && empresaId)
       return <EditarPaginaEmpresa empresa={empresa} empresaId={empresaId} onSalvo={onPerfilAtualizado} />
     if (id === 'cadastrar-comissao' && empresaId) return <CadastrarComissao empresaId={empresaId} />
@@ -347,7 +377,12 @@ export default function MenuLateral({
             <span className="text-lg" aria-hidden>
               {item.icon}
             </span>
-            {item.label}
+            <span className="flex-1">{item.label}</span>
+            {(item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)) > 0 ? (
+              <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                {item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)}
+              </span>
+            ) : null}
           </button>
         </li>
       ))}
