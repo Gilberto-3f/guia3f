@@ -76,6 +76,7 @@ export default function CardDenuncia({
       <AcoesDenuncia
         aberto={acoesOpen}
         onClose={() => setAcoesOpen(false)}
+        denuncia={denuncia}
         onMarcarInvestigacao={onMarcarInvestigacao}
         onAplicarPenalidade={onAplicarPenalidade}
         onArquivar={onArquivar}
@@ -83,4 +84,3 @@ export default function CardDenuncia({
     </>
   )
 }
-
