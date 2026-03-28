@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { Suspense, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -19,7 +19,8 @@ function coerceAba(tab: string | null): AbaPrincipalId {
   return 'visao-geral'
 }
 
-export default function DashboardAdminPage() {
+// Componente que usa useSearchParams (precisa estar dentro do Suspense)
+function DashboardAdminContent() {
   const router = useRouter()
   const sp = useSearchParams()
 
@@ -101,3 +102,11 @@ export default function DashboardAdminPage() {
   )
 }
 
+// Página principal com Suspense
+export default function DashboardAdminPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Carregando...</div>}>
+      <DashboardAdminContent />
+    </Suspense>
+  )
+}
