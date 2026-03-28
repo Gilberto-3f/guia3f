@@ -21,8 +21,11 @@ export function DenunciasContainer({ sub }: { sub: string }) {
   const [categoria, setCategoria] = useState('')
   const [badges, setBadges] = useState<Partial<Record<'turistas' | 'profissionais' | 'empresas', number>>>({})
 
-  const podeVerProfissionais = nivel === 1 || nivel === 2
-  const podeVerEmpresas = nivel === 1 || nivel === 3
+  // CORREÇÃO: converte nivel para número
+  const nivelNum = typeof nivel === 'string' ? parseInt(nivel, 10) : nivel
+
+  const podeVerProfissionais = nivelNum === 1 || nivelNum === 2
+  const podeVerEmpresas = nivelNum === 1 || nivelNum === 3
 
   useEffect(() => {
     const next = coerceSub(sub)
@@ -46,20 +49,20 @@ export function DenunciasContainer({ sub }: { sub: string }) {
       base.profissionais = p ?? 0
       base.empresas = e ?? 0
 
-      if (nivel === 2) {
+      if (nivelNum === 2) {
         base.empresas = 0
       }
-      if (nivel === 3) {
+      if (nivelNum === 3) {
         base.turistas = 0
         base.profissionais = 0
       }
-      if (nivel === 4) {
+      if (nivelNum === 4) {
         base.profissionais = 0
         base.empresas = 0
       }
 
       const comunidade = String(getComunidade() ?? '').toLowerCase()
-      if (nivel === 2 && comunidade) {
+      if (nivelNum === 2 && comunidade) {
         const { data: profs } = await supabase.from('profissionais').select('id, categorias')
         const allowed = new Set(
           (profs ?? [])
@@ -72,7 +75,7 @@ export function DenunciasContainer({ sub }: { sub: string }) {
       setBadges(base)
     }
     void run()
-  }, [getComunidade, nivel])
+  }, [getComunidade, nivelNum])
 
   return (
     <div className="space-y-4">
