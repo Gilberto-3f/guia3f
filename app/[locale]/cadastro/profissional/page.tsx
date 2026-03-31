@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -18,7 +19,6 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const usernameRegex = /^[a-z0-9._]{3,20}$/
 const senhaMinima = 8
 
-const AZUL = '#0097b2'
 const VERDE = '#00D443'
 const categoriasDisponiveis: CategoriaProfissional[] = [
   'Guia',
@@ -28,8 +28,25 @@ const categoriasDisponiveis: CategoriaProfissional[] = [
   'Anfitriao',
 ]
 
+function labelCategoria(c: CategoriaProfissional, tc: (key: string) => string) {
+  switch (c) {
+    case 'Guia':
+      return tc('profissional.categoria.Guia')
+    case 'Taxista':
+      return tc('profissional.categoria.Taxista')
+    case 'Van':
+      return tc('profissional.categoria.Van')
+    case 'Motorista de App':
+      return tc('profissional.categoria.motoristaApp')
+    case 'Anfitriao':
+      return tc('profissional.categoria.Anfitriao')
+  }
+}
+
 export default function CadastroProfissionalPage() {
   const router = useRouter()
+  const locale = useLocale()
+  const t = useTranslations('Cadastro')
 
   const [nomeCompleto, setNomeCompleto] = useState('')
   const [nomeUsuario, setNomeUsuario] = useState('')
@@ -81,13 +98,13 @@ export default function CadastroProfissionalPage() {
 
     if (!usernameRegex.test(usernameLimpo)) {
       setUsernameStatus('unavailable')
-      setUsernameFeedback('Use 3-20 caracteres: letras minusculas, numeros, ponto e _')
+      setUsernameFeedback(t('username.rulesHint'))
       return
     }
 
     let ativo = true
     setUsernameStatus('checking')
-    setUsernameFeedback('Verificando disponibilidade...')
+    setUsernameFeedback(t('username.checking'))
 
     const timer = setTimeout(async () => {
       const [turistasResp, profissionaisResp, empresasResp] = await Promise.all([
@@ -100,7 +117,7 @@ export default function CadastroProfissionalPage() {
 
       if (turistasResp.error || profissionaisResp.error || empresasResp.error) {
         setUsernameStatus('unavailable')
-        setUsernameFeedback('Nao foi possivel validar agora. Tente novamente.')
+        setUsernameFeedback(t('username.validateError'))
         return
       }
 
@@ -111,10 +128,10 @@ export default function CadastroProfissionalPage() {
 
       if (indisponivel) {
         setUsernameStatus('unavailable')
-        setUsernameFeedback('🔴 Indisponivel')
+        setUsernameFeedback(t('username.unavailable'))
       } else {
         setUsernameStatus('available')
-        setUsernameFeedback('🟢 Disponivel')
+        setUsernameFeedback(t('username.available'))
       }
     }, 400)
 
@@ -122,7 +139,7 @@ export default function CadastroProfissionalPage() {
       ativo = false
       clearTimeout(timer)
     }
-  }, [usernameLimpo])
+  }, [usernameLimpo, locale, t])
 
   const onFileChange = (
     event: ChangeEvent<HTMLInputElement>,
@@ -151,14 +168,14 @@ export default function CadastroProfissionalPage() {
   }
 
   const validarFormulario = () => {
-    if (!nomeCompleto.trim()) return 'Informe o nome completo.'
-    if (!usernameLimpo || usernameStatus !== 'available') return 'Escolha um nome de usuario disponivel.'
-    if (!emailValido) return 'Informe um e-mail valido.'
-    if (!senhaValida) return `A senha deve ter pelo menos ${senhaMinima} caracteres.`
+    if (!nomeCompleto.trim()) return t('profissional.valFullName')
+    if (!usernameLimpo || usernameStatus !== 'available') return t('profissional.valUsername')
+    if (!emailValido) return t('profissional.valEmail')
+    if (!senhaValida) return t('profissional.valPassword', { min: senhaMinima })
     if (!identidadeFile || !comprovanteResidenciaFile || !comprovanteProfissaoFile) {
-      return 'Envie todos os documentos obrigatorios.'
+      return t('profissional.valDocs')
     }
-    if (!aceitePoliticas) return 'Voce precisa aceitar as politicas.'
+    if (!aceitePoliticas) return t('profissional.valPolicies')
     return ''
   }
 
@@ -186,7 +203,7 @@ export default function CadastroProfissionalPage() {
       if (authResp.error) throw new Error(authResp.error.message)
 
       const userId = authResp.data.user?.id
-      if (!userId) throw new Error('Nao foi possivel obter o usuario autenticado.')
+      if (!userId) throw new Error(t('authUserError'))
 
       const identidadeUrl = await uploadArquivo(identidadeFile as File, 'documentos', userId)
       const comprovanteResidenciaUrl = await uploadArquivo(
@@ -243,7 +260,7 @@ export default function CadastroProfissionalPage() {
 
       router.push(`/confirmar-email?email=${encodeURIComponent(email.trim().toLowerCase())}`)
     } catch (error) {
-      const mensagem = error instanceof Error ? error.message : 'Erro inesperado ao concluir cadastro.'
+      const mensagem = error instanceof Error ? error.message : t('unexpectedError')
       setErroEnvio(mensagem)
     } finally {
       setEnviando(false)
@@ -256,13 +273,13 @@ export default function CadastroProfissionalPage() {
         <div className="flex justify-center mb-6">
           <Image src="/logo.png" width={150} height={50} alt="Guia 3F" priority />
         </div>
-        <h1 className="text-2xl font-bold text-[#0097b2] text-center">Cadastro de Profissional</h1>
-        <p className="mt-2 text-sm text-[#001f3f] text-center">Preencha os dados para continuar.</p>
+        <h1 className="text-2xl font-bold text-[#0097b2] text-center">{t('profissional.pageTitle')}</h1>
+        <p className="mt-2 text-sm text-[#001f3f] text-center">{t('profissional.subtitle')}</p>
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="fotoPerfil" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Foto de perfil (opcional)
+              {t('profissional.profilePhoto')} {t('common.optional')}
             </label>
             <input
               id="fotoPerfil"
@@ -274,7 +291,7 @@ export default function CadastroProfissionalPage() {
             {fotoPerfilPreview && (
               <img
                 src={fotoPerfilPreview}
-                alt="Preview da foto de perfil"
+                alt={t('profissional.previewProfilePhoto')}
                 className="mt-3 h-24 w-24 rounded-full border border-gray-200 object-cover"
               />
             )}
@@ -282,7 +299,7 @@ export default function CadastroProfissionalPage() {
 
           <div>
             <label htmlFor="nomeCompleto" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Nome completo *
+              {t('profissional.fullName')} {t('common.required')}
             </label>
             <input
               id="nomeCompleto"
@@ -296,7 +313,7 @@ export default function CadastroProfissionalPage() {
 
           <div>
             <label htmlFor="nomeUsuario" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Nome de usuario @ *
+              {t('profissional.username')} {t('common.required')}
             </label>
             <input
               id="nomeUsuario"
@@ -304,7 +321,7 @@ export default function CadastroProfissionalPage() {
               required
               value={nomeUsuario}
               onChange={(e) => setNomeUsuario(e.target.value)}
-              placeholder="@seuusuario"
+              placeholder={t('profissional.usernamePlaceholder')}
               className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
             />
             <p className="mt-1 text-xs text-[#001f3f]">{usernameFeedback}</p>
@@ -312,7 +329,7 @@ export default function CadastroProfissionalPage() {
 
           <div>
             <label htmlFor="email" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              E-mail *
+              {t('email')} {t('common.required')}
             </label>
             <input
               id="email"
@@ -323,13 +340,13 @@ export default function CadastroProfissionalPage() {
               className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
             />
             <p className={`mt-1 text-xs ${email && !emailValido ? 'text-red-600' : 'text-[#001f3f]'}`}>
-              {email && !emailValido ? 'E-mail invalido.' : 'Use um e-mail valido para acesso.'}
+              {email && !emailValido ? t('common.emailInvalid') : t('common.emailHint')}
             </p>
           </div>
 
           <div>
             <label htmlFor="senha" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Senha *
+              {t('password')} {t('common.required')}
             </label>
             <input
               id="senha"
@@ -342,14 +359,14 @@ export default function CadastroProfissionalPage() {
             />
             <p className={`mt-1 text-xs ${senha && !senhaValida ? 'text-red-600' : 'text-[#001f3f]'}`}>
               {senha && !senhaValida
-                ? `Senha curta. Minimo de ${senhaMinima} caracteres.`
-                : `Senha com pelo menos ${senhaMinima} caracteres.`}
+                ? t('profissional.passwordShort', { min: senhaMinima })
+                : t('profissional.passwordOk', { min: senhaMinima })}
             </p>
           </div>
 
           <div>
             <label htmlFor="categoria" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Categoria profissional *
+              {t('profissional.category')} {t('common.required')}
             </label>
             <select
               id="categoria"
@@ -359,19 +376,20 @@ export default function CadastroProfissionalPage() {
             >
               {categoriasDisponiveis.map((item) => (
                 <option key={item} value={item}>
-                  {item}
+                  {labelCategoria(item, t)}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="rounded-lg bg-white border border-[#0097b2] px-3 py-2 text-sm text-[#001f3f]">
-            <span className="font-medium">Placa vermelha:</span> {placaVermelha ? 'Sim' : 'Nao'}
+            <span className="font-medium">{t('profissional.redPlate')}</span>{' '}
+            {placaVermelha ? t('profissional.redPlateYes') : t('profissional.redPlateNo')}
           </div>
 
           <div>
             <label htmlFor="identidade" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Documento de identidade *
+              {t('profissional.idDocument')} {t('common.required')}
             </label>
             <input
               id="identidade"
@@ -385,7 +403,7 @@ export default function CadastroProfissionalPage() {
 
           <div>
             <label htmlFor="comprovanteResidencia" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Comprovante de residencia *
+              {t('profissional.addressProof')} {t('common.required')}
             </label>
             <input
               id="comprovanteResidencia"
@@ -399,7 +417,7 @@ export default function CadastroProfissionalPage() {
 
           <div>
             <label htmlFor="comprovanteProfissao" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Comprovante de profissao *
+              {t('profissional.professionProof')} {t('common.required')}
             </label>
             <input
               id="comprovanteProfissao"
@@ -418,7 +436,7 @@ export default function CadastroProfissionalPage() {
               onChange={(e) => setAceitePoliticas(e.target.checked)}
               className="mt-0.5 h-4 w-4 rounded border-gray-300"
             />
-            <span>Li e aceito as politicas de uso e privacidade.</span>
+            <span>{t('profissional.acceptPolicies')}</span>
           </label>
 
           {erroEnvio && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erroEnvio}</p>}
@@ -429,7 +447,7 @@ export default function CadastroProfissionalPage() {
             className="w-full rounded-lg px-4 py-3 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-70 hover:bg-[#00b838]"
             style={{ backgroundColor: VERDE }}
           >
-            {enviando ? 'Enviando...' : 'CONFIRMAR'}
+            {enviando ? t('sending') : t('submit')}
           </button>
         </form>
       </section>

@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -65,6 +66,7 @@ async function gerarUsernameUnico(baseEmail: string, userId: string): Promise<st
 
 export default function CadastroTuristaPage() {
   const router = useRouter()
+  const t = useTranslations('Cadastro')
 
   const [nomeSocial, setNomeSocial] = useState('')
   const [email, setEmail] = useState('')
@@ -125,12 +127,12 @@ export default function CadastroTuristaPage() {
     'block w-full rounded-lg bg-[#0097b2] text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white file:italic px-3 py-2 text-sm placeholder:italic placeholder:text-white/80'
 
   const validarFormulario = () => {
-    if (!nomeSocial.trim()) return 'Informe o nome social.'
-    if (!emailValido) return 'Informe um e-mail valido.'
-    if (!senhaValida) return 'A senha deve ter no mínimo 8 caracteres, com letras e números.'
-    if (senha !== confirmarSenha) return 'As senhas não coincidem.'
-    if (!documentoFrenteFile || !documentoVersoFile) return 'Envie frente e verso do documento.'
-    if (!aceitePolitica || !aceiteTermos) return 'Aceite a política de privacidade e os termos de uso.'
+    if (!nomeSocial.trim()) return t('turista.valSocialName')
+    if (!emailValido) return t('turista.valEmail')
+    if (!senhaValida) return t('turista.valPassword')
+    if (senha !== confirmarSenha) return t('turista.valPasswordMatch')
+    if (!documentoFrenteFile || !documentoVersoFile) return t('turista.valDocs')
+    if (!aceitePolitica || !aceiteTermos) return t('turista.valPolicies')
     return ''
   }
 
@@ -153,7 +155,7 @@ export default function CadastroTuristaPage() {
       })
       if (authResp.error) throw new Error(authResp.error.message)
       const userId = authResp.data.user?.id
-      if (!userId) throw new Error('Nao foi possivel obter o usuario autenticado.')
+      if (!userId) throw new Error(t('authUserError'))
 
       const usernameProvisorio = await gerarUsernameUnico(email.trim().toLowerCase(), userId)
 
@@ -192,7 +194,7 @@ export default function CadastroTuristaPage() {
       if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
       router.push(`/confirmar-email?email=${encodeURIComponent(email.trim().toLowerCase())}`)
     } catch (error) {
-      const mensagem = error instanceof Error ? error.message : 'Erro inesperado ao concluir cadastro.'
+      const mensagem = error instanceof Error ? error.message : t('unexpectedError')
       setErroEnvio(mensagem)
     } finally {
       setEnviando(false)
@@ -206,13 +208,13 @@ export default function CadastroTuristaPage() {
       </div>
 
       <section className="bg-white rounded-2xl border-2 border-[#0097b2] p-6 w-full max-w-md shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)]">
-        <h1 className="text-xl font-bold text-[#0097b2] text-center mb-4">Ficha de Cadastro TURISTA</h1>
+        <h1 className="text-xl font-bold text-[#0097b2] text-center mb-4">{t('turista.pageTitle')}</h1>
 
         <div className="rounded-xl bg-gray-100 p-5">
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="nomeSocial" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
-                Nome social
+                {t('turista.socialName')}
               </label>
               <input
                 id="nomeSocial"
@@ -227,7 +229,7 @@ export default function CadastroTuristaPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="fotoPerfil" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
-                  Foto
+                  {t('turista.photo')}
                 </label>
                 <input
                   id="fotoPerfil"
@@ -235,7 +237,7 @@ export default function CadastroTuristaPage() {
                   accept="image/*"
                   onChange={(e) => onFileChange(e, setFotoPerfilFile)}
                   className={inputFileClass}
-                  aria-label="anexar arquivo foto"
+                  aria-label={t('turista.photoFileAria')}
                 />
                 {fotoPerfilPreview && (
                   <img
@@ -247,10 +249,10 @@ export default function CadastroTuristaPage() {
               </div>
               <div>
                 <div className="mb-1 flex items-center gap-2">
-                  <span className="text-xs font-medium italic text-[#001f3f]">Documento</span>
+                  <span className="text-xs font-medium italic text-[#001f3f]">{t('turista.document')}</span>
                   <button
                     type="button"
-                    aria-label="Por que cadastrar meu documento?"
+                    aria-label={t('turista.docWhyAria')}
                     onClick={() => setModalDocumentoAberto(true)}
                     className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#001f3f] text-xs font-bold text-[#001f3f] hover:bg-[#001f3f] hover:text-white"
                   >
@@ -264,7 +266,7 @@ export default function CadastroTuristaPage() {
                   required
                   onChange={(e) => onFileChange(e, setDocumentoFrenteFile)}
                   className={`${inputFileClass} mb-2`}
-                  aria-label="Documento frente"
+                  aria-label={t('turista.docFrontAria')}
                 />
                 <input
                   id="documentoVerso"
@@ -273,15 +275,15 @@ export default function CadastroTuristaPage() {
                   required
                   onChange={(e) => onFileChange(e, setDocumentoVersoFile)}
                   className={inputFileClass}
-                  aria-label="Documento verso"
+                  aria-label={t('turista.docBackAria')}
                 />
-                <p className="mt-1 text-[10px] italic text-[#001f3f]/80">Frente e Verso</p>
+                <p className="mt-1 text-[10px] italic text-[#001f3f]/80">{t('turista.docFrontBack')}</p>
               </div>
             </div>
 
             <div>
               <label htmlFor="email" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
-                E-mail
+                {t('email')}
               </label>
               <input
                 id="email"
@@ -292,13 +294,13 @@ export default function CadastroTuristaPage() {
                 className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none"
               />
               <p className={`mt-1 text-xs ${email && !emailValido ? 'text-red-600' : 'text-[#001f3f]'} not-italic`}>
-                {email && !emailValido ? 'E-mail invalido.' : ''}
+                {email && !emailValido ? t('common.emailInvalid') : ''}
               </p>
             </div>
 
             <div>
               <label htmlFor="senha" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
-                Senha
+                {t('password')}
               </label>
               <input
                 id="senha"
@@ -312,7 +314,7 @@ export default function CadastroTuristaPage() {
 
             <div>
               <label htmlFor="confirmarSenha" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
-                Confirmar Senha
+                {t('confirmPassword')}
               </label>
               <input
                 id="confirmarSenha"
@@ -320,7 +322,7 @@ export default function CadastroTuristaPage() {
                 required
                 value={confirmarSenha}
                 onChange={(e) => setConfirmarSenha(e.target.value)}
-                placeholder="mínimo de 8 caracteres (com letras e números)"
+                placeholder={t('turista.confirmPasswordPlaceholder')}
                 className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/75 px-4 py-3 text-sm outline-none"
               />
             </div>
@@ -334,7 +336,7 @@ export default function CadastroTuristaPage() {
                   className="h-4 w-4 rounded border-gray-400"
                 />
                 <Link href="/politicas" className="underline hover:text-[#0097b2]">
-                  Política de privacidade
+                  {t('turista.privacy')}
                 </Link>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
@@ -345,7 +347,7 @@ export default function CadastroTuristaPage() {
                   className="h-4 w-4 rounded border-gray-400"
                 />
                 <Link href="/regras" className="underline hover:text-[#0097b2]">
-                  Termos de uso
+                  {t('turista.terms')}
                 </Link>
               </label>
             </div>
@@ -358,7 +360,7 @@ export default function CadastroTuristaPage() {
               className="w-full rounded-full px-4 py-3.5 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-70 hover:bg-[#00b838]"
               style={{ backgroundColor: VERDE }}
             >
-              {enviando ? 'Enviando...' : 'CONFIRMAR'}
+              {enviando ? t('sending') : t('submit')}
             </button>
           </form>
         </div>
@@ -373,26 +375,18 @@ export default function CadastroTuristaPage() {
         >
           <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border-2 border-[#0097b2] bg-white p-6 shadow-xl">
             <h2 id="doc-modal-title" className="mb-4 text-center text-lg font-bold text-[#0097b2]">
-              Porque cadastrar meu documento?
+              {t('turista.docModalTitle')}
             </h2>
             <div className="space-y-3 text-sm text-[#001f3f]">
+              <p>{t('turista.docModalP1')}</p>
               <p>
-                Seu documento de identificação é necessário para garantir mais segurança para você comprar ingressos ou
-                contratar serviços, protegendo sua conta contra acessos indevidos e garantindo que apenas você realize
-                transações.
+                <span className="font-bold">{t('turista.docModalSecurity')}</span> {t('turista.docModalSecurityText')}
               </p>
               <p>
-                <span className="font-bold">Segurança:</span> O uso de autenticação digital proporciona maior segurança
-                nas transações, reduzindo riscos de fraudes para você comprar com tranquilidade e sem preocupações.
+                <span className="font-bold">{t('turista.docModalData')}</span> {t('turista.docModalDataText')}
               </p>
               <p>
-                <span className="font-bold">Proteção de dados:</span> Seus dados serão armazenados de forma criptografada,
-                seguindo as normas de proteção de informações.
-              </p>
-              <p>
-                <span className="font-bold">Estudos econômicos:</span> Nossa plataforma também trabalha para oferecer
-                estatísticas assertivas para o comércio da tríplice fronteira, para melhorarmos os serviços oferecidos na
-                região; um cadastro seguro ajuda a evitar fraudes na base de dados.
+                <span className="font-bold">{t('turista.docModalEcon')}</span> {t('turista.docModalEconText')}
               </p>
             </div>
             <button
@@ -400,7 +394,7 @@ export default function CadastroTuristaPage() {
               onClick={() => setModalDocumentoAberto(false)}
               className="mt-6 w-full rounded-full bg-[#0097b2] py-3 font-bold text-white hover:opacity-95"
             >
-              ENTENDI
+              {t('turista.docModalOk')}
             </button>
           </div>
         </div>

@@ -117,35 +117,29 @@ export default function LoginPage() {
 
           <div className="mt-10 space-y-4 text-center text-sm leading-relaxed text-[#001f3f]">
             <h2 className="text-lg font-bold" style={{ color: TEAL }}>
-              Não tem cadastro no GUIA 3F?
+              {t("marketingHeadline")}
             </h2>
-            <p>
-              Nosso aplicativo oferece um <span className="font-semibold">ecossistema</span> completo de serviços e
-              empresas locais.
-            </p>
-            <p>
-              Crie sua conta agora mesmo na melhor comunidade do turismo da{" "}
-              <span className="font-semibold">Tríplice Fronteira</span> e desfrute de benefícios exclusivos como:
-            </p>
+            <p>{t("marketingBody1")}</p>
+            <p>{t("marketingBody2")}</p>
             <div className="mx-auto grid max-w-sm grid-cols-2 gap-x-6 gap-y-2 pt-1 text-left text-sm">
               <ul className="space-y-2">
                 <li className="flex items-center gap-2">
                   <span className="font-bold" style={{ color: TEAL }}>
                     →
                   </span>
-                  Mobilidade
+                  {t("benefitMobility")}
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="font-bold" style={{ color: TEAL }}>
                     →
                   </span>
-                  Descontos
+                  {t("benefitDiscounts")}
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="font-bold" style={{ color: TEAL }}>
                     →
                   </span>
-                  Praticidade
+                  {t("benefitPracticality")}
                 </li>
               </ul>
               <ul className="space-y-2">
@@ -153,19 +147,19 @@ export default function LoginPage() {
                   <span className="font-bold" style={{ color: TEAL }}>
                     →
                   </span>
-                  Guia Turístico
+                  {t("benefitGuide")}
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="font-bold" style={{ color: TEAL }}>
                     →
                   </span>
-                  Segurança
+                  {t("benefitSecurity")}
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="font-bold" style={{ color: TEAL }}>
                     →
                   </span>
-                  Parcerias
+                  {t("benefitPartnerships")}
                 </li>
               </ul>
             </div>

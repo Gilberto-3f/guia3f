@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -22,7 +23,6 @@ const senhaMinima = 6
 const minimoFotos = 3
 const maxDescricao = 170
 
-const AZUL = '#0097b2'
 const VERDE = '#00D443'
 
 const categorias: CategoriaEmpresa[] = [
@@ -35,8 +35,33 @@ const categorias: CategoriaEmpresa[] = [
 const cidades: CidadeEmpresa[] = ['Foz do Iguacu', 'Ciudad del Este', 'Puerto Iguazu']
 const diasSemana = ['Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado', 'Domingo']
 
+const catMessageKey: Record<CategoriaEmpresa, string> = {
+  Restaurantes: 'empresa.cat.Restaurantes',
+  Atrativos: 'empresa.cat.Atrativos',
+  Lojas: 'empresa.cat.Lojas',
+  Hospedagem: 'empresa.cat.Hospedagem',
+  'Compras Paraguai': 'empresa.cat.comprasParaguai',
+}
+
+function catLabel(cat: CategoriaEmpresa, t: (k: string) => string) {
+  return t(catMessageKey[cat])
+}
+
+function cidadeLabel(cidade: CidadeEmpresa, t: (k: string) => string) {
+  switch (cidade) {
+    case 'Foz do Iguacu':
+      return t('empresa.cidade.fozDoIguacu')
+    case 'Ciudad del Este':
+      return t('empresa.cidade.ciudadDelEste')
+    case 'Puerto Iguazu':
+      return t('empresa.cidade.puertoIguazu')
+  }
+}
+
 export default function CadastroEmpresaPage() {
   const router = useRouter()
+  const locale = useLocale()
+  const t = useTranslations('Cadastro')
 
   const [nomeFantasia, setNomeFantasia] = useState('')
   const [nomeUsuario, setNomeUsuario] = useState('')
@@ -108,13 +133,13 @@ export default function CadastroEmpresaPage() {
 
     if (!usernameRegex.test(usernameLimpo)) {
       setUsernameStatus('unavailable')
-      setUsernameFeedback('Use 3-20 caracteres: letras minusculas, numeros, ponto e _')
+      setUsernameFeedback(t('username.rulesHint'))
       return
     }
 
     let ativo = true
     setUsernameStatus('checking')
-    setUsernameFeedback('Verificando disponibilidade...')
+    setUsernameFeedback(t('username.checking'))
 
     const timer = setTimeout(async () => {
       const [turistasResp, profissionaisResp, empresasResp] = await Promise.all([
@@ -127,7 +152,7 @@ export default function CadastroEmpresaPage() {
 
       if (turistasResp.error || profissionaisResp.error || empresasResp.error) {
         setUsernameStatus('unavailable')
-        setUsernameFeedback('Nao foi possivel validar agora. Tente novamente.')
+        setUsernameFeedback(t('username.validateError'))
         return
       }
 
@@ -138,10 +163,10 @@ export default function CadastroEmpresaPage() {
 
       if (indisponivel) {
         setUsernameStatus('unavailable')
-        setUsernameFeedback('🔴 Indisponivel')
+        setUsernameFeedback(t('username.unavailable'))
       } else {
         setUsernameStatus('available')
-        setUsernameFeedback('🟢 Disponivel')
+        setUsernameFeedback(t('username.available'))
       }
     }, 400)
 
@@ -149,7 +174,7 @@ export default function CadastroEmpresaPage() {
       ativo = false
       clearTimeout(timer)
     }
-  }, [usernameLimpo])
+  }, [usernameLimpo, locale, t])
 
   const onSingleFileChange = (
     event: ChangeEvent<HTMLInputElement>,
@@ -193,17 +218,17 @@ export default function CadastroEmpresaPage() {
   }
 
   const validarFormulario = () => {
-    if (!nomeFantasia.trim()) return 'Informe o nome fantasia.'
-    if (!usernameLimpo || usernameStatus !== 'available') return 'Escolha um nome de usuario disponivel.'
-    if (!emailValido) return 'Informe um e-mail valido.'
-    if (!senhaValida) return `A senha precisa ter no minimo ${senhaMinima} caracteres.`
-    if (!enderecoCompleto.trim()) return 'Informe o endereco completo.'
-    if (!telefone.trim()) return 'Informe o telefone.'
-    if (!whatsApp.trim()) return 'Informe o WhatsApp.'
-    if (!descricaoValida) return `Descricao obrigatoria com ate ${maxDescricao} caracteres.`
-    if (totalFotos < minimoFotos) return `Envie no minimo ${minimoFotos} fotos.`
-    if (!documentoComercialFile) return 'Envie o documento comercial (CNPJ/RUC/CUIT).'
-    if (!aceitePoliticas) return 'Voce precisa aceitar as politicas.'
+    if (!nomeFantasia.trim()) return t('empresa.valTradeName')
+    if (!usernameLimpo || usernameStatus !== 'available') return t('empresa.valUsername')
+    if (!emailValido) return t('empresa.valEmail')
+    if (!senhaValida) return t('empresa.valPassword', { min: senhaMinima })
+    if (!enderecoCompleto.trim()) return t('empresa.valAddress')
+    if (!telefone.trim()) return t('empresa.valPhone')
+    if (!whatsApp.trim()) return t('empresa.valWhatsapp')
+    if (!descricaoValida) return t('empresa.valDescription', { max: maxDescricao })
+    if (totalFotos < minimoFotos) return t('empresa.valPhotos', { min: minimoFotos })
+    if (!documentoComercialFile) return t('empresa.valDoc')
+    if (!aceitePoliticas) return t('empresa.valPolicies')
     return ''
   }
 
@@ -231,7 +256,7 @@ export default function CadastroEmpresaPage() {
       if (authResp.error) throw new Error(authResp.error.message)
 
       const userId = authResp.data.user?.id
-      if (!userId) throw new Error('Nao foi possivel obter o usuario autenticado.')
+      if (!userId) throw new Error(t('authUserError'))
 
       const [logoUrl, fotosUrls, documentoComercialUrl, geo] = await Promise.all([
         logoFile ? uploadArquivo('empresas', 'logos', userId, logoFile) : Promise.resolve(null),
@@ -298,7 +323,7 @@ export default function CadastroEmpresaPage() {
 
       router.push(`/confirmar-email?email=${encodeURIComponent(emailGestor.trim().toLowerCase())}`)
     } catch (error) {
-      const mensagem = error instanceof Error ? error.message : 'Erro inesperado ao concluir cadastro.'
+      const mensagem = error instanceof Error ? error.message : t('unexpectedError')
       setErroEnvio(mensagem)
     } finally {
       setEnviando(false)
@@ -311,13 +336,13 @@ export default function CadastroEmpresaPage() {
         <div className="flex justify-center mb-6">
           <Image src="/logo.png" width={150} height={50} alt="Guia 3F" priority />
         </div>
-        <h1 className="text-2xl font-bold text-[#0097b2] text-center">Cadastro de Empresa</h1>
-        <p className="mt-2 text-sm text-[#001f3f] text-center">Preencha os dados para continuar.</p>
+        <h1 className="text-2xl font-bold text-[#0097b2] text-center">{t('empresa.pageTitle')}</h1>
+        <p className="mt-2 text-sm text-[#001f3f] text-center">{t('empresa.subtitle')}</p>
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="logo" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Logo (opcional)
+              {t('empresa.logo')} {t('common.optional')}
             </label>
             <input
               id="logo"
@@ -329,7 +354,7 @@ export default function CadastroEmpresaPage() {
             {logoPreview && (
               <img
                 src={logoPreview}
-                alt="Preview da logo"
+                alt={t('empresa.previewLogo')}
                 className="mt-3 h-24 w-24 rounded-lg border border-gray-200 object-cover"
               />
             )}
@@ -337,7 +362,7 @@ export default function CadastroEmpresaPage() {
 
           <div>
             <label htmlFor="nomeFantasia" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Nome fantasia *
+              {t('empresa.tradeName')} {t('common.required')}
             </label>
             <input
               id="nomeFantasia"
@@ -351,7 +376,7 @@ export default function CadastroEmpresaPage() {
 
           <div>
             <label htmlFor="nomeUsuario" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Nome de usuario @ *
+              {t('empresa.username')} {t('common.required')}
             </label>
             <input
               id="nomeUsuario"
@@ -359,7 +384,7 @@ export default function CadastroEmpresaPage() {
               required
               value={nomeUsuario}
               onChange={(e) => setNomeUsuario(e.target.value)}
-              placeholder="@suaempresa"
+              placeholder={t('empresa.usernamePlaceholder')}
               className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
             />
             <p className="mt-1 text-xs text-[#001f3f]">{usernameFeedback}</p>
@@ -367,7 +392,7 @@ export default function CadastroEmpresaPage() {
 
           <div>
             <label htmlFor="emailGestor" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              E-mail do gestor *
+              {t('empresa.managerEmail')} {t('common.required')}
             </label>
             <input
               id="emailGestor"
@@ -378,13 +403,13 @@ export default function CadastroEmpresaPage() {
               className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
             />
             <p className={`mt-1 text-xs ${emailGestor && !emailValido ? 'text-red-600' : 'text-[#001f3f]'}`}>
-              {emailGestor && !emailValido ? 'E-mail invalido.' : 'Use um e-mail valido para acesso.'}
+              {emailGestor && !emailValido ? t('common.emailInvalid') : t('common.emailHint')}
             </p>
           </div>
 
           <div>
             <label htmlFor="senha" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Senha *
+              {t('password')} {t('common.required')}
             </label>
             <input
               id="senha"
@@ -397,14 +422,14 @@ export default function CadastroEmpresaPage() {
             />
             <p className={`mt-1 text-xs ${senha && !senhaValida ? 'text-red-600' : 'text-[#001f3f]'}`}>
               {senha && !senhaValida
-                ? `Senha curta. Minimo de ${senhaMinima} caracteres.`
-                : `Senha com pelo menos ${senhaMinima} caracteres.`}
+                ? t('empresa.passwordShort', { min: senhaMinima })
+                : t('empresa.passwordOk', { min: senhaMinima })}
             </p>
           </div>
 
           <div>
             <label htmlFor="categoria" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Categoria *
+              {t('empresa.category')} {t('common.required')}
             </label>
             <select
               id="categoria"
@@ -414,7 +439,7 @@ export default function CadastroEmpresaPage() {
             >
               {categorias.map((item) => (
                 <option key={item} value={item}>
-                  {item}
+                  {catLabel(item, t)}
                 </option>
               ))}
             </select>
@@ -422,7 +447,7 @@ export default function CadastroEmpresaPage() {
 
           <div>
             <label htmlFor="cidade" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Cidade *
+              {t('empresa.city')} {t('common.required')}
             </label>
             <select
               id="cidade"
@@ -432,7 +457,7 @@ export default function CadastroEmpresaPage() {
             >
               {cidades.map((item) => (
                 <option key={item} value={item}>
-                  {item}
+                  {cidadeLabel(item, t)}
                 </option>
               ))}
             </select>
@@ -440,7 +465,7 @@ export default function CadastroEmpresaPage() {
 
           <div>
             <label htmlFor="enderecoCompleto" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Endereco completo *
+              {t('empresa.fullAddress')} {t('common.required')}
             </label>
             <input
               id="enderecoCompleto"
@@ -454,7 +479,7 @@ export default function CadastroEmpresaPage() {
 
           <div>
             <label htmlFor="telefone" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Telefone *
+              {t('empresa.phone')} {t('common.required')}
             </label>
             <input
               id="telefone"
@@ -468,7 +493,7 @@ export default function CadastroEmpresaPage() {
 
           <div>
             <label htmlFor="whatsApp" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              WhatsApp *
+              {t('empresa.whatsapp')} {t('common.required')}
             </label>
             <input
               id="whatsApp"
@@ -482,7 +507,8 @@ export default function CadastroEmpresaPage() {
 
           <div>
             <label htmlFor="descricaoCurta" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Descricao curta ({descricaoCurta.length}/{maxDescricao}) *
+              {t('empresa.shortDescription', { count: descricaoCurta.length, max: maxDescricao })}{' '}
+              {t('common.required')}
             </label>
             <textarea
               id="descricaoCurta"
@@ -497,18 +523,21 @@ export default function CadastroEmpresaPage() {
 
           <fieldset>
             <legend className="mb-2 block text-sm font-medium text-[#001f3f]">
-              Horarios de funcionamento *
+              {t('empresa.openingHours')} {t('common.required')}
             </legend>
             <div className="grid grid-cols-2 gap-2">
               {diasSemana.map((dia) => (
-                <label key={dia} className="flex items-center gap-2 rounded-lg border border-[#0097b2] p-2 text-sm text-[#001f3f]">
+                <label
+                  key={dia}
+                  className="flex items-center gap-2 rounded-lg border border-[#0097b2] p-2 text-sm text-[#001f3f]"
+                >
                   <input
                     type="checkbox"
                     checked={horariosSelecionados.includes(dia)}
                     onChange={() => toggleDia(dia)}
                     className="h-4 w-4 rounded border-gray-300"
                   />
-                  <span>{dia}</span>
+                  <span>{t(`empresa.weekday.${dia}`)}</span>
                 </label>
               ))}
             </div>
@@ -516,7 +545,7 @@ export default function CadastroEmpresaPage() {
 
           <div>
             <label htmlFor="fotosEmpresa" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Fotos da empresa *
+              {t('empresa.companyPhotos')} {t('common.required')}
             </label>
             <input
               id="fotosEmpresa"
@@ -527,10 +556,10 @@ export default function CadastroEmpresaPage() {
               className="block w-full rounded-lg bg-[#0097b2] text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white px-3 py-2 text-sm"
             />
             <p className={`mt-1 text-xs ${totalFotos < minimoFotos ? 'text-red-600' : 'text-green-600'}`}>
-              {totalFotos}/{minimoFotos} fotos
+              {t('empresa.photosCount', { count: totalFotos, min: minimoFotos })}
             </p>
             {totalFotos < minimoFotos && (
-              <p className="mt-1 text-xs text-red-600">Envie no minimo 3 fotos para continuar.</p>
+              <p className="mt-1 text-xs text-red-600">{t('empresa.photosNeedMore')}</p>
             )}
             {fotosPreview.length > 0 && (
               <div className="mt-3 grid grid-cols-3 gap-2">
@@ -538,7 +567,7 @@ export default function CadastroEmpresaPage() {
                   <img
                     key={`${url}-${index}`}
                     src={url}
-                    alt={`Preview da foto ${index + 1}`}
+                    alt={t('empresa.previewPhoto', { n: index + 1 })}
                     className="h-20 w-full rounded-lg border border-gray-200 object-cover"
                   />
                 ))}
@@ -548,7 +577,7 @@ export default function CadastroEmpresaPage() {
 
           <div>
             <label htmlFor="documentoComercial" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              Documento comercial (CNPJ/RUC/CUIT) *
+              {t('empresa.commercialDoc')} {t('common.required')}
             </label>
             <input
               id="documentoComercial"
@@ -567,7 +596,7 @@ export default function CadastroEmpresaPage() {
               onChange={(e) => setAceitePoliticas(e.target.checked)}
               className="mt-0.5 h-4 w-4 rounded border-gray-300"
             />
-            <span>Li e aceito as politicas de uso e privacidade.</span>
+            <span>{t('empresa.acceptPolicies')}</span>
           </label>
 
           {erroEnvio && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erroEnvio}</p>}
@@ -578,7 +607,7 @@ export default function CadastroEmpresaPage() {
             className="w-full rounded-lg px-4 py-3 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-70 hover:bg-[#00b838]"
             style={{ backgroundColor: VERDE }}
           >
-            {enviando ? 'Enviando...' : 'CONFIRMAR'}
+            {enviando ? t('sending') : t('submit')}
           </button>
         </form>
       </section>
