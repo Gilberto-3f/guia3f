@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 import {
   Home,
@@ -35,6 +36,7 @@ function matchPath(path, pathname) {
 }
 
 export default function BottomBar() {
+  const t = useTranslations('BottomBar')
   const pathname = usePathname()
   const [userRole, setUserRole] = useState(/** @type {string | null} */ (null))
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
@@ -178,11 +180,11 @@ export default function BottomBar() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-lg">
       <div className="flex items-center justify-around py-2">
-        <Link href="/guia" className="flex flex-col items-center p-2" aria-label="Início">
+        <Link href="/guia" className="flex flex-col items-center p-2" aria-label={t('home')}>
           <Home size={24} className={matchPath('/guia', pathname) ? 'text-[#0097b2]' : 'text-gray-400'} />
         </Link>
 
-        <Link href="/canal" className="flex flex-col items-center p-2" aria-label="Canal">
+        <Link href="/canal" className="flex flex-col items-center p-2" aria-label={t('channel')}>
           <MessageCircle
             size={24}
             className={matchPath('/canal', pathname) ? 'text-[#0097b2]' : 'text-gray-400'}
@@ -190,11 +192,19 @@ export default function BottomBar() {
           />
         </Link>
 
-        <Link href={getTerceiroHref()} className="flex flex-col items-center p-2" aria-label={isFeedPage ? 'Nova publicação' : 'Feed'}>
+        <Link
+          href={getTerceiroHref()}
+          className="flex flex-col items-center p-2"
+          aria-label={isFeedPage ? t('newPost') : t('feed')}
+        >
           <span className={terceiroActive ? 'text-[#0097b2]' : 'text-gray-400'}>{getTerceiroIcone()}</span>
         </Link>
 
-        <Link href={getQuartoHref()} className="relative flex flex-col items-center p-2" aria-label={userRole === 'empresa' ? 'Dashboard' : 'Atividades'}>
+        <Link
+          href={getQuartoHref()}
+          className="relative flex flex-col items-center p-2"
+          aria-label={userRole === 'empresa' ? t('dashboard') : t('activities')}
+        >
           {userRole === 'empresa' ? (
             <BarChart3
               size={24}
@@ -213,7 +223,7 @@ export default function BottomBar() {
           )}
         </Link>
 
-        <Link href={getQuintoHref()} className="flex flex-col items-center p-2" aria-label="Perfil">
+        <Link href={getQuintoHref()} className="flex flex-col items-center p-2" aria-label={t('profile')}>
           {getQuintoIcone()}
         </Link>
       </div>

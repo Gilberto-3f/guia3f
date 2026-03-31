@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { ArrowLeft, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { useInfracoes } from '@/app/(admin)/dashboard/admin/hooks/useInfracoes'
+import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
 
 import Emergencia from '@/components/perfil/subpaginas/Emergencia'
 import EditarPerfil from '@/components/perfil/subpaginas/EditarPerfil'

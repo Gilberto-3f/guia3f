@@ -1,0 +1,51 @@
+{
+  "Login": {
+    "title": "Entrar",
+    "email": "E-mail",
+    "password": "Senha",
+    "forgotPassword": "Esqueceu a senha?",
+    "loginButton": "Entrar",
+    "noAccount": "Não tem cadastro?",
+    "createAccount": "Criar Conta",
+    "invalidEmail": "Informe um e-mail válido para entrar.",
+    "genericError": "Erro ao entrar. Tente novamente."
+  },
+  "Home": {
+    "loading": "Carregando...",
+    "adSpace": "ESPAÇO PUBLICITÁRIO",
+    "adHere": "Anuncie aqui"
+  },
+  "Mobilidade": {
+    "comingSoon": "Em breve",
+    "description": "O módulo de mobilidade está sendo desenvolvido"
+  },
+  "Common": {
+    "welcome": "Bem-vindo ao Guia 3F",
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "back": "Voltar",
+    "error": "Erro ao carregar"
+  },
+  "BottomBar": {
+    "home": "Início",
+    "channel": "Canal",
+    "feed": "Feed",
+    "newPost": "Nova publicação",
+    "activities": "Atividades",
+    "profile": "Perfil",
+    "dashboard": "Dashboard"
+  },
+  "Guia": {
+    "title": "Guia Turístico",
+    "categories": "Categorias",
+    "gastronomia": "Gastronomia",
+    "passeios": "Passeios",
+    "lojas": "Lojas",
+    "hospedagem": "Hospedagem",
+    "compras": "Compras Paraguai",
+    "favoritos": "Meus Favoritos",
+    "tabGuia": "GUIA",
+    "tabMobilidade": "MOBILIDADE"
+  }
+}

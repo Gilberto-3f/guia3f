@@ -1,12 +1,12 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from "@supabase/ssr";
+import createMiddleware from "next-intl/middleware";
+import { type NextRequest, NextResponse } from "next/server";
+import { routing } from "./i18n/routing";
 
-export async function middleware(req: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: req.headers,
-    },
-  })
+const intlMiddleware = createMiddleware(routing);
+
+export default async function middleware(request: NextRequest) {
+  const response = intlMiddleware(request);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,42 +14,36 @@ export async function middleware(req: NextRequest) {
     {
       cookies: {
         getAll() {
-          return req.cookies.getAll()
+          return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value))
-          response = NextResponse.next({
-            request: {
-              headers: req.headers,
-            },
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          )
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
         },
       },
     }
-  )
+  );
 
   const {
     data: { session },
-  } = await supabase.auth.getSession()
+  } = await supabase.auth.getSession();
 
-  const protectedRoutes = ['/guia', '/feed', '/perfil', '/atividades', '/canal']
-  const isProtectedRoute = protectedRoutes.some((route) => req.nextUrl.pathname.startsWith(route))
+  const pathname = request.nextUrl.pathname;
+  const protectedRoutes = ["/guia", "/feed", "/perfil", "/atividades", "/canal"];
+  const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
 
   if (isProtectedRoute && !session) {
-    const redirectUrl = new URL('/login', req.url)
-    return NextResponse.redirect(redirectUrl)
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (session && (req.nextUrl.pathname === '/login' || req.nextUrl.pathname === '/escolha-perfil')) {
-    return NextResponse.redirect(new URL('/guia', req.url))
+  if (session && (pathname === "/login" || pathname === "/escolha-perfil")) {
+    return NextResponse.redirect(new URL("/guia", request.url));
   }
 
-  return response
+  return response;
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
-}
+  matcher: ["/((?!api|_next|.*\\..*).*)"],
+};

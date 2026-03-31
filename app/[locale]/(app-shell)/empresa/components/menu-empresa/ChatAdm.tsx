@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useDashboardEmpresa } from '@/app/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
+import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import { useChatAdm } from '../../hooks/useChatAdm'
 
 function formatHour(value: string) {

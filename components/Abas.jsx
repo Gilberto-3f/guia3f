@@ -1,9 +1,13 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+
 /**
  * @param {{ activeTab: 'guia' | 'mobilidade', onTabChange: (tab: 'guia' | 'mobilidade') => void }} props
  */
 export default function Abas({ activeTab, onTabChange }) {
+  const t = useTranslations('Guia')
+
   return (
     <div className="border-b border-gray-100 bg-white px-4">
       <div className="flex gap-4">
@@ -14,7 +18,7 @@ export default function Abas({ activeTab, onTabChange }) {
             activeTab === 'guia' ? 'text-[#0097b2]' : 'text-gray-500'
           }`}
         >
-          GUIA
+          {t('tabGuia')}
           {activeTab === 'guia' ? (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-[#0097b2]" />
           ) : null}
@@ -26,7 +30,7 @@ export default function Abas({ activeTab, onTabChange }) {
             activeTab === 'mobilidade' ? 'text-[#0097b2]' : 'text-gray-500'
           }`}
         >
-          MOBILIDADE
+          {t('tabMobilidade')}
           {activeTab === 'mobilidade' ? (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-[#0097b2]" />
           ) : null}

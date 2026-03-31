@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useDashboardEmpresa } from '@/app/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
+import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import { useDenunciasEmpresa } from '../../hooks/useDenunciasEmpresa'
 
 function formatDate(value: string) {

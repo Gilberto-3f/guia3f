@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 let supabaseHostname = "localhost";
 try {
@@ -18,7 +21,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  allowedDevOrigins: ['192.168.0.103', 'localhost', '127.0.0.1'],
+  allowedDevOrigins: ["192.168.0.103", "localhost", "127.0.0.1"],
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

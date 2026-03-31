@@ -1,0 +1,51 @@
+{
+  "Login": {
+    "title": "Iniciar Sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "loginButton": "Iniciar Sesión",
+    "noAccount": "¿No tienes cuenta?",
+    "createAccount": "Crear Cuenta",
+    "invalidEmail": "Introduce un correo electrónico válido.",
+    "genericError": "Error al iniciar sesión. Inténtalo de nuevo."
+  },
+  "Home": {
+    "loading": "Cargando...",
+    "adSpace": "ESPACIO PUBLICITARIO",
+    "adHere": "Anuncia aquí"
+  },
+  "Mobilidade": {
+    "comingSoon": "Próximamente",
+    "description": "El módulo de movilidad está en desarrollo"
+  },
+  "Common": {
+    "welcome": "Bienvenido a Guia 3F",
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "back": "Volver",
+    "error": "Error al cargar"
+  },
+  "BottomBar": {
+    "home": "Inicio",
+    "channel": "Canal",
+    "feed": "Feed",
+    "newPost": "Nueva publicación",
+    "activities": "Actividades",
+    "profile": "Perfil",
+    "dashboard": "Panel"
+  },
+  "Guia": {
+    "title": "Guía Turístico",
+    "categories": "Categorías",
+    "gastronomia": "Gastronomía",
+    "passeios": "Paseos",
+    "lojas": "Tiendas",
+    "hospedagem": "Alojamiento",
+    "compras": "Compras Paraguay",
+    "favoritos": "Mis Favoritos",
+    "tabGuia": "GUÍA",
+    "tabMobilidade": "MOVILIDAD"
+  }
+}

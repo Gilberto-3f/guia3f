@@ -2,12 +2,15 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Logo from '@/components/Logo'
 import Abas from '@/components/Abas'
 import GradeFiltros from '@/components/GradeFiltros'
 import PopupFavoritos from '@/components/PopupFavoritos'
 
 export default function GuiaPage() {
+  const tHome = useTranslations('Home')
+  const tMobilidade = useTranslations('Mobilidade')
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'guia' | 'mobilidade'>('guia')
   const [popupFavoritosAberto, setPopupFavoritosAberto] = useState(false)
@@ -33,13 +36,14 @@ export default function GuiaPage() {
             <GradeFiltros onFiltroClick={handleFiltroClick} />
 
             <div className="mx-4 mb-6 rounded-xl bg-gray-100 p-4 text-center">
-              <p className="text-sm text-gray-400">ESPAÇO PUBLICITÁRIO</p>
-              <p className="mt-1 text-xs text-gray-300">Anuncie aqui</p>
+              <p className="text-sm text-gray-400">{tHome('adSpace')}</p>
+              <p className="mt-1 text-xs text-gray-300">{tHome('adHere')}</p>
             </div>
           </>
         ) : (
-          <div className="p-8 text-center">
-            <p className="text-gray-400">Em breve</p>
+          <div className="space-y-3 p-8 text-center">
+            <p className="text-lg font-medium text-gray-600">{tMobilidade('comingSoon')}</p>
+            <p className="text-sm text-gray-500">{tMobilidade('description')}</p>
           </div>
         )}
 

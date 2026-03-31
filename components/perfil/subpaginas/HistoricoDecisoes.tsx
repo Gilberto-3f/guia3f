@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useInfracoes } from '@/app/(admin)/dashboard/admin/hooks/useInfracoes'
+import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
 
 export default function HistoricoDecisoes() {
   const { historico, loading, error, fetchHistoricoUsuario, marcarHistoricoComoVisualizado } = useInfracoes()

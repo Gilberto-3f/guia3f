@@ -1,22 +1,6 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
+import type { ReactNode } from "react";
 
-const inter = Inter({ subsets: ['latin'] })
-
-export const metadata: Metadata = {
-  title: 'Guia 3F',
-  description: 'Guia da tríplice fronteira',
-}
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
-  return (
-    <html lang="pt-BR" className={`${inter.className} h-full antialiased`}>
-      <body className="min-h-full">{children}</body>
-    </html>
-  )
+/** Raiz mínima: html/body ficam em `app/[locale]/layout.tsx` (next-intl + [locale]). */
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  return children;
 }

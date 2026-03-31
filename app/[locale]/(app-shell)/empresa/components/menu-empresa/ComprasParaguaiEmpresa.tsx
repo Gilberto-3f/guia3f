@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
-import { useDashboardEmpresa } from '@/app/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
+import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 
 type ProdutoForm = {
   nome: string

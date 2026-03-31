@@ -1,20 +1,22 @@
 'use client'
 
 import { Utensils, Ticket, ShoppingBag, Hotel, TrendingUp, Heart } from 'lucide-react'
-
-const filtros = [
-  { id: 'gastronomia', nome: 'Gastronomia', icon: Utensils, cor: '#FF6B6B' },
-  { id: 'passeios', nome: 'Passeios', icon: Ticket, cor: '#4ECDC4' },
-  { id: 'lojas', nome: 'Lojas', icon: ShoppingBag, cor: '#96CEB4' },
-  { id: 'hospedagem', nome: 'Hospedagem', icon: Hotel, cor: '#45B7D1' },
-  { id: 'compras', nome: 'Compras Paraguai', icon: TrendingUp, cor: '#FFEAA7' },
-  { id: 'favoritos', nome: 'Meus Favoritos', icon: Heart, cor: '#FF6B6B' },
-]
+import { useTranslations } from 'next-intl'
 
 /**
  * @param {{ onFiltroClick: (filtroId: string) => void }} props
  */
 export default function GradeFiltros({ onFiltroClick }) {
+  const t = useTranslations('Guia')
+  const filtros = [
+    { id: 'gastronomia', nome: t('gastronomia'), icon: Utensils, cor: '#FF6B6B' },
+    { id: 'passeios', nome: t('passeios'), icon: Ticket, cor: '#4ECDC4' },
+    { id: 'lojas', nome: t('lojas'), icon: ShoppingBag, cor: '#96CEB4' },
+    { id: 'hospedagem', nome: t('hospedagem'), icon: Hotel, cor: '#45B7D1' },
+    { id: 'compras', nome: t('compras'), icon: TrendingUp, cor: '#FFEAA7' },
+    { id: 'favoritos', nome: t('favoritos'), icon: Heart, cor: '#FF6B6B' },
+  ]
+
   return (
     <div className="grid grid-cols-3 gap-4 p-4">
       {filtros.map((filtro) => {

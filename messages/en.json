@@ -1,0 +1,51 @@
+{
+  "Login": {
+    "title": "Login",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "loginButton": "Login",
+    "noAccount": "Don't have an account?",
+    "createAccount": "Create Account",
+    "invalidEmail": "Please enter a valid email address.",
+    "genericError": "Something went wrong. Please try again."
+  },
+  "Home": {
+    "loading": "Loading...",
+    "adSpace": "AD SPACE",
+    "adHere": "Advertise here"
+  },
+  "Mobilidade": {
+    "comingSoon": "Coming soon",
+    "description": "The mobility module is under development"
+  },
+  "Common": {
+    "welcome": "Welcome to Guia 3F",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back",
+    "error": "Error loading"
+  },
+  "BottomBar": {
+    "home": "Home",
+    "channel": "Channel",
+    "feed": "Feed",
+    "newPost": "New post",
+    "activities": "Activities",
+    "profile": "Profile",
+    "dashboard": "Dashboard"
+  },
+  "Guia": {
+    "title": "Tourist Guide",
+    "categories": "Categories",
+    "gastronomia": "Gastronomy",
+    "passeios": "Tours",
+    "lojas": "Stores",
+    "hospedagem": "Accommodation",
+    "compras": "Paraguay Shopping",
+    "favoritos": "My Favorites",
+    "tabGuia": "GUIDE",
+    "tabMobilidade": "MOBILITY"
+  }
+}
