@@ -86,17 +86,31 @@ export default function BottomBar() {
         if (role === 'turista') {
           const { data: perfil } = await supabase
             .from('turistas')
-            .select('foto_perfil_url')
+            .select('foto_perfil_url, foto_url')
             .eq('usuario_id', uid)
             .maybeSingle()
-          if (ativo) setFotoPerfil(perfil?.foto_perfil_url != null ? String(perfil.foto_perfil_url) : null)
+          if (ativo)
+            setFotoPerfil(
+              perfil?.foto_perfil_url != null
+                ? String(perfil.foto_perfil_url)
+                : perfil?.foto_url != null
+                  ? String(perfil.foto_url)
+                  : null
+            )
         } else if (role === 'profissional') {
           const { data: perfil } = await supabase
             .from('profissionais')
-            .select('foto_perfil_url')
+            .select('foto_perfil_url, foto_url')
             .eq('usuario_id', uid)
             .maybeSingle()
-          if (ativo) setFotoPerfil(perfil?.foto_perfil_url != null ? String(perfil.foto_perfil_url) : null)
+          if (ativo)
+            setFotoPerfil(
+              perfil?.foto_perfil_url != null
+                ? String(perfil.foto_perfil_url)
+                : perfil?.foto_url != null
+                  ? String(perfil.foto_url)
+                  : null
+            )
         } else if (ativo) {
           setFotoPerfil(null)
         }
@@ -117,8 +131,13 @@ export default function BottomBar() {
     }
 
     void getUserData()
+    const onPerfilAtualizado = () => {
+      void getUserData()
+    }
+    window.addEventListener('perfil-atualizado', onPerfilAtualizado)
     return () => {
       ativo = false
+      window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
     }
   }, [pathname])
 

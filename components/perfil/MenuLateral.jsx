@@ -347,6 +347,7 @@ export default function MenuLateral({
           nomeInicial={nome}
           usernameInicial={username}
           bioInicial={bioText}
+          fotoInicial={fotoUrl}
           onSalvo={onPerfilAtualizado}
         />
       )
