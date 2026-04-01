@@ -37,9 +37,6 @@ type RepublicadoLinha = {
   usernameOriginal: string | null
 }
 
-/**
- * @param {string | null | undefined} texto
- */
 function parsePostIdFromRepublicado(texto: string | null | undefined) {
   if (!texto) return null
   const m = texto.match(/post=([a-f0-9-]{36})/i)
@@ -88,20 +85,12 @@ export default function PerfilSocialPage() {
     try {
       const { data: u, error: eu } = await supabase
         .from('usuarios')
-        .select(
-          `
-          id, email, role,
-          turistas (nome_completo, nome_usuario, foto_perfil_url, bio, foto_capa_url),
-          profissionais (nome_completo, nome_usuario, foto_perfil_url, bio, foto_capa_url),
-          empresas (id, nome_fantasia)
-        `
-        )
+        .select('id, email, role')
         .eq('id', profileId)
         .maybeSingle()
 
       if (eu || !u) {
         setErro('Perfil não encontrado')
-        setLoading(false)
         return
       }
 
@@ -110,28 +99,63 @@ export default function PerfilSocialPage() {
 
       if (role === 'empresa') {
         setErro('Use a página da empresa para perfis comerciais.')
-        setLoading(false)
         return
       }
 
       if (role !== 'turista' && role !== 'profissional' && role !== 'admin') {
         setErro('Perfil social disponível apenas para turistas, profissionais e administradores.')
-        setLoading(false)
         return
       }
 
-      const disp = pickAutorDisplay(u)
-      setNome(disp.nome)
-      setUsername(disp.username)
-      setFotoPerfil(disp.foto_perfil_url)
+      let perfilRow: Record<string, unknown> | null = null
+      if (role === 'turista' || role === 'admin') {
+        const { data: tur, error: et } = await supabase
+          .from('turistas')
+          .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url')
+          .eq('usuario_id', profileId)
+          .maybeSingle()
+        if (et) throw et
+        if (tur && typeof tur === 'object' && !Array.isArray(tur)) {
+          perfilRow = tur as Record<string, unknown>
+        }
+      }
 
-      const tur = u.turistas && typeof u.turistas === 'object' && !Array.isArray(u.turistas) ? u.turistas : null
-      const prof = u.profissionais && typeof u.profissionais === 'object' && !Array.isArray(u.profissionais) ? u.profissionais : null
-      const row =
-        role === 'turista' ? tur : role === 'profissional' ? prof : tur || prof
-      const r = (row && typeof row === 'object' ? row : null) as Record<string, unknown> | null
-      setBio(r && r.bio != null ? String(r.bio) : null)
-      setCapaUrl(r && r.foto_capa_url != null ? String(r.foto_capa_url) : null)
+      if (!perfilRow && (role === 'profissional' || role === 'admin')) {
+        const { data: prof, error: ep } = await supabase
+          .from('profissionais')
+          .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url')
+          .eq('usuario_id', profileId)
+          .maybeSingle()
+        if (ep) throw ep
+        if (prof && typeof prof === 'object' && !Array.isArray(prof)) {
+          perfilRow = prof as Record<string, unknown>
+        }
+      }
+
+      const nomePerfil =
+        perfilRow?.nome_completo != null
+          ? String(perfilRow.nome_completo)
+          : u.email
+            ? String(u.email).split('@')[0]
+            : 'Usuário'
+      const usernamePerfil =
+        perfilRow?.nome_usuario != null
+          ? String(perfilRow.nome_usuario)
+          : u.email
+            ? String(u.email).split('@')[0]
+            : 'usuario'
+      const fotoPerfilRow =
+        perfilRow?.foto_url != null
+          ? String(perfilRow.foto_url)
+          : perfilRow?.foto_perfil_url != null
+            ? String(perfilRow.foto_perfil_url)
+            : null
+
+      setNome(nomePerfil)
+      setUsername(usernamePerfil)
+      setFotoPerfil(fotoPerfilRow)
+      setBio(perfilRow?.bio != null ? String(perfilRow.bio) : null)
+      setCapaUrl(perfilRow?.foto_capa_url != null ? String(perfilRow.foto_capa_url) : null)
 
       const [{ count: cFav }, { count: cSegU }, { count: cSegMe }, { count: cAval }] = await Promise.all([
         supabase.from('favoritos').select('id', { count: 'exact', head: true }).eq('usuario_id', profileId),
