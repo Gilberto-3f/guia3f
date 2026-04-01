@@ -367,7 +367,7 @@ export default function PerfilSocialPage() {
         </div>
       </div>
 
-      <div className="mt-3 space-y-2 px-4">
+      <div className="mt-3 space-y-2 px-4 text-left">
         <NomeSocial nome={nome} />
         <Username username={username} />
         <DescricaoCurta texto={bio} />

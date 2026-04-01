@@ -22,10 +22,10 @@ export default function FotoCapa({ src, nomeFallback = '', onOpenMenu, mostrarMe
         <button
           type="button"
           onClick={onOpenMenu}
-          className="absolute right-4 top-4 z-10 rounded-full bg-black/30 px-3 py-2 text-lg font-bold leading-none text-white backdrop-blur-sm"
+          className="absolute right-4 top-4 z-10 h-10 w-10 rounded-full bg-black/35 text-xl font-bold leading-none text-white backdrop-blur-sm"
           aria-label="Menu"
         >
-          ☰⋮
+          ⋮
         </button>
       ) : null}
     </div>
