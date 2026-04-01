@@ -6,7 +6,6 @@ import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
-import IdiomaSelector from "@/components/IdiomaSelector";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -36,13 +35,8 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} className={`${inter.className} h-full antialiased`}>
-      <body className="relative min-h-full">
+      <body className="min-h-full">
         <NextIntlClientProvider messages={messages}>
-          <div className="pointer-events-none fixed top-4 right-4 z-[100]">
-            <div className="pointer-events-auto">
-              <IdiomaSelector />
-            </div>
-          </div>
           {children}
         </NextIntlClientProvider>
       </body>

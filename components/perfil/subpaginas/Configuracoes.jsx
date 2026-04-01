@@ -2,28 +2,39 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useLocale } from 'next-intl'
+import { useRouter } from 'next/navigation'
+import { setCookie } from 'cookies-next'
 
 const APP_VERSION = '1.0.0'
 
 export default function Configuracoes() {
-  const [idioma, setIdioma] = useState('pt')
+  const router = useRouter()
+  const locale = useLocale()
   const [modoNoturno, setModoNoturno] = useState(false)
   const [notificacoes, setNotificacoes] = useState(true)
+  const [idiomaModalAberto, setIdiomaModalAberto] = useState(false)
+
+  const mudarIdioma = (codigo) => {
+    setCookie('NEXT_LOCALE', codigo, { path: '/' })
+    setIdiomaModalAberto(false)
+    router.refresh()
+  }
 
   return (
     <div className="scrollbar-perfil max-h-[70vh] space-y-6 overflow-y-auto px-1 pb-4">
       <div>
         <label className="font-medium text-gray-800">🌐 Idioma</label>
-        <select
-          value={idioma}
-          onChange={(e) => setIdioma(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm"
+        <button
+          type="button"
+          onClick={() => setIdiomaModalAberto(true)}
+          className="mt-1 flex w-full items-center justify-between rounded-lg border border-gray-200 p-2 text-sm text-gray-800"
         >
-          <option value="pt">🇧🇷 Português</option>
-          <option value="es">🇪🇸 Español</option>
-          <option value="en">🇺🇸 English</option>
-        </select>
-        <p className="mt-1 text-xs text-gray-400">Preferência local (UI completa em breve).</p>
+          <span>
+            {locale === 'pt' ? '🇧🇷 Português' : locale === 'en' ? '🇺🇸 English' : '🇪🇸 Español'}
+          </span>
+          <span className="text-gray-400">▾</span>
+        </button>
       </div>
 
       <div className="flex items-center justify-between gap-3">
@@ -76,6 +87,50 @@ export default function Configuracoes() {
       >
         🗑️ Excluir conta
       </button>
+
+      {idiomaModalAberto ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-xl">
+            <h3 className="mb-3 text-base font-semibold text-gray-900">Selecionar idioma</h3>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => mudarIdioma('pt')}
+                className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
+                  locale === 'pt' ? 'border-[#0097b2] text-[#0097b2]' : 'border-gray-200 text-gray-700'
+                }`}
+              >
+                🇧🇷 Português
+              </button>
+              <button
+                type="button"
+                onClick={() => mudarIdioma('en')}
+                className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
+                  locale === 'en' ? 'border-[#0097b2] text-[#0097b2]' : 'border-gray-200 text-gray-700'
+                }`}
+              >
+                🇺🇸 English
+              </button>
+              <button
+                type="button"
+                onClick={() => mudarIdioma('es')}
+                className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
+                  locale === 'es' ? 'border-[#0097b2] text-[#0097b2]' : 'border-gray-200 text-gray-700'
+                }`}
+              >
+                🇪🇸 Español
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIdiomaModalAberto(false)}
+              className="mt-4 w-full rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-700"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

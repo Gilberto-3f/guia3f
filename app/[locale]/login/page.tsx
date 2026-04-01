@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { setCookie } from "cookies-next";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 
 const VERDE = "#00D443";
@@ -14,6 +15,7 @@ const emailOuUsuarioRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginPage() {
   const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations("Login");
   const tCommon = useTranslations("Common");
   const [loginId, setLoginId] = useState("");
@@ -50,6 +52,11 @@ export default function LoginPage() {
   const inputClass =
     "w-full rounded-full bg-[#0097b2] text-white placeholder:italic placeholder:text-white/95 outline-none px-6 py-3.5 text-base";
 
+  const mudarIdioma = (value: string) => {
+    setCookie("NEXT_LOCALE", value, { path: "/" });
+    router.refresh();
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <header className="flex w-full shrink-0 justify-center bg-[#0097b2] py-5">
@@ -65,6 +72,25 @@ export default function LoginPage() {
 
       <div className="flex flex-1 flex-col bg-white">
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pt-5">
+          <div className="mb-4">
+            <select
+              value={locale}
+              onChange={(e) => mudarIdioma(e.target.value)}
+              className="w-full appearance-none rounded-full bg-[#0097b2] px-6 py-3.5 text-base text-white outline-none"
+              aria-label="Selecionar idioma"
+            >
+              <option value="pt" className="text-black">
+                Português
+              </option>
+              <option value="en" className="text-black">
+                English
+              </option>
+              <option value="es" className="text-black">
+                Español
+              </option>
+            </select>
+          </div>
+
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <input
               id="loginId"
