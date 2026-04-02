@@ -1,6 +1,6 @@
 'use client'
 
-import { Utensils, Ticket, ShoppingBag, Hotel, TrendingUp, Heart } from 'lucide-react'
+import { Utensils, Ticket, ShoppingBag, Hotel, ShoppingCart, Heart } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 /**
@@ -9,12 +9,12 @@ import { useTranslations } from 'next-intl'
 export default function GradeFiltros({ onFiltroClick }) {
   const t = useTranslations('Guia')
   const filtros = [
-    { id: 'gastronomia', nome: t('gastronomia'), icon: Utensils, cor: '#FF6B6B' },
-    { id: 'passeios', nome: t('passeios'), icon: Ticket, cor: '#4ECDC4' },
-    { id: 'lojas', nome: t('lojas'), icon: ShoppingBag, cor: '#96CEB4' },
-    { id: 'hospedagem', nome: t('hospedagem'), icon: Hotel, cor: '#45B7D1' },
-    { id: 'compras', nome: t('compras'), icon: TrendingUp, cor: '#FFEAA7' },
-    { id: 'favoritos', nome: t('favoritos'), icon: Heart, cor: '#FF6B6B' },
+    { id: 'gastronomia', nome: t('gastronomia'), icon: Utensils },
+    { id: 'passeios', nome: t('passeios'), icon: Ticket },
+    { id: 'lojas', nome: t('lojas'), icon: ShoppingBag },
+    { id: 'hospedagem', nome: t('hospedagem'), icon: Hotel },
+    { id: 'compras', nome: t('compras'), icon: ShoppingCart },
+    { id: 'favoritos', nome: t('favoritos'), icon: Heart },
   ]
 
   return (
@@ -26,15 +26,12 @@ export default function GradeFiltros({ onFiltroClick }) {
             key={filtro.id}
             type="button"
             onClick={() => onFiltroClick(filtro.id)}
-            className="flex flex-col items-center gap-2 rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white py-6 shadow-sm transition-shadow hover:shadow-md"
           >
-            <div
-              className="flex h-12 w-12 items-center justify-center rounded-full"
-              style={{ backgroundColor: `${filtro.cor}20` }}
-            >
-              <Icon size={24} style={{ color: filtro.cor }} />
-            </div>
-            <span className="text-center text-sm font-medium text-gray-700">{filtro.nome}</span>
+            <Icon className="mb-2 h-8 w-8 shrink-0 text-[#001f3f]" strokeWidth={2} aria-hidden />
+            <span className="text-center text-xs font-semibold uppercase leading-tight text-[#001f3f] sm:text-sm">
+              {filtro.nome}
+            </span>
           </button>
         )
       })}
