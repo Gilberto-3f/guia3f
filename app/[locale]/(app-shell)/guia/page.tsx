@@ -33,14 +33,14 @@ export default function GuiaPage() {
         </div>
 
         <div className="bg-[#0097b2] pb-3">
-          <div className="flex w-full items-stretch justify-between gap-4 px-3 sm:px-4">
+          <div className="flex w-full items-stretch gap-0">
             <button
               type="button"
               onClick={() => setAbaAtiva('guia')}
-              className={`min-w-0 shrink rounded-none px-3 py-1.5 text-center text-sm font-semibold transition-colors sm:px-4 sm:py-2 ${
+              className={`min-w-0 flex-1 rounded-none py-1.5 text-center text-sm font-semibold transition-colors sm:py-2 ${
                 abaAtiva === 'guia'
                   ? 'bg-white text-[#0097b2]'
-                  : 'border border-white/50 bg-[#0097b2] text-white'
+                  : 'border-y border-l border-r-0 border-white/50 bg-[#0097b2] text-white'
               }`}
             >
               {tGuia('tabGuia')}
@@ -48,10 +48,10 @@ export default function GuiaPage() {
             <button
               type="button"
               onClick={() => setAbaAtiva('mobilidade')}
-              className={`min-w-0 shrink rounded-none px-3 py-1.5 text-center text-sm font-semibold transition-colors sm:px-4 sm:py-2 ${
+              className={`min-w-0 flex-1 rounded-none py-1.5 text-center text-sm font-semibold transition-colors sm:py-2 ${
                 abaAtiva === 'mobilidade'
                   ? 'bg-white text-[#0097b2]'
-                  : 'border border-white/50 bg-[#0097b2] text-white'
+                  : 'border-y border-r border-l-0 border-white/50 bg-[#0097b2] text-white'
               }`}
             >
               {tGuia('tabMobilidade')}
