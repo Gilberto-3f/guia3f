@@ -169,7 +169,13 @@
   },
   "Mobilidade": {
     "comingSoon": "Coming soon",
-    "description": "The mobility module is under development"
+    "description": "The mobility module is under development",
+    "gridOnibus": "City buses",
+    "gridTaxi": "Taxi & apps",
+    "gridMapas": "Maps & routes",
+    "gridRodoviaria": "Bus terminal",
+    "gridBike": "Bikes",
+    "gridEstacionamento": "Parking"
   },
   "Common": {
     "welcome": "Welcome to Guia 3F",

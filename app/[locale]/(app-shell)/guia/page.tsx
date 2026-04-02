@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import GradeFiltros from '@/components/GradeFiltros'
+import GradeMobilidade from '@/components/GradeMobilidade'
 import PopupFavoritos from '@/components/PopupFavoritos'
 
 export default function GuiaPage() {
@@ -72,9 +73,12 @@ export default function GuiaPage() {
           </div>
         </main>
       ) : (
-        <main className="flex flex-1 flex-col items-center justify-start bg-gray-50 px-4 py-8 text-center">
-          <p className="text-lg font-medium text-gray-600">{tMobilidade('comingSoon')}</p>
-          <p className="mt-2 max-w-md text-sm text-gray-500">{tMobilidade('description')}</p>
+        <main className="flex flex-1 flex-col bg-gray-50">
+          <div className="px-4 pt-6 text-center">
+            <p className="text-lg font-medium text-gray-600">{tMobilidade('comingSoon')}</p>
+            <p className="mt-2 max-w-md mx-auto text-sm text-gray-500">{tMobilidade('description')}</p>
+          </div>
+          <GradeMobilidade />
         </main>
       )}
 
