@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import FotoCapa from '@/components/perfil/FotoCapa'
@@ -357,16 +356,6 @@ export default function PerfilSocialPage() {
         mostrarMenu={Boolean(menuVariant)}
       />
 
-      <div className="-mt-10 flex justify-center px-4">
-        <div className="relative z-[5] h-24 w-24 overflow-hidden rounded-full border-4 border-white bg-gray-200 shadow-md">
-          {fotoPerfil ? (
-            <Image src={fotoPerfil} alt="" fill className="object-cover" sizes="96px" />
-          ) : (
-            <div className="flex h-full items-center justify-center text-2xl text-gray-400">{nome.charAt(0)}</div>
-          )}
-        </div>
-      </div>
-
       <div className="mt-3 space-y-2 px-4 text-left">
         <NomeSocial nome={nome} />
         <Username username={username} />
@@ -375,9 +364,9 @@ export default function PerfilSocialPage() {
 
       <div className="mt-6">
         <MetricasPerfil
-          favoritos={favoritosTotal}
-          seguidores={nSeguidores}
-          avaliacoes={nAval}
+          favoritosCount={favoritosTotal}
+          seguidoresCount={nSeguidores}
+          avaliacoesCount={nAval}
           onFavoritos={() => setPopFav(true)}
           onSeguidores={() => setPopSeg(true)}
           onAvaliacoes={() => setPopAval(true)}
