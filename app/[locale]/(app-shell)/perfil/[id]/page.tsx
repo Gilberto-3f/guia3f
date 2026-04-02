@@ -350,7 +350,7 @@ export default function PerfilSocialPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <FotoCapa
-        src={capaUrl}
+        src={fotoPerfil}
         nomeFallback={nome}
         onOpenMenu={() => setMenuAberto(true)}
         mostrarMenu={Boolean(menuVariant)}
