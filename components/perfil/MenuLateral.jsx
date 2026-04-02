@@ -195,14 +195,22 @@ export default function MenuLateral({
   const [logoutEtapa, setLogoutEtapa] = useState(0)
   const [modalLogout, setModalLogout] = useState(false)
   const [historicoNaoLido, setHistoricoNaoLido] = useState(0)
+  const [drawerEntered, setDrawerEntered] = useState(false)
   const { historico: historicoDecisoes, fetchHistoricoUsuario } = useInfracoes()
 
   useEffect(() => {
     if (!aberto) {
+      setDrawerEntered(false)
       setHistorico([])
       setLogoutEtapa(0)
       setModalLogout(false)
+      return
     }
+    setDrawerEntered(false)
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setDrawerEntered(true))
+    })
+    return () => cancelAnimationFrame(id)
   }, [aberto])
 
   useEffect(() => {
@@ -396,26 +404,33 @@ export default function MenuLateral({
   const mostrarVoltar = historico.length > 0
 
   return (
-    <div className="fixed inset-0 z-[200] flex justify-end">
+    <div className="fixed inset-0 z-50">
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar menu" onClick={onFechar} />
-      <aside className="relative flex h-full w-[min(100%,360px)] flex-col bg-white shadow-2xl transition-transform duration-200 ease-out">
-        <div className="flex items-center gap-2 border-b border-gray-200 p-3">
-          {mostrarVoltar ? (
-            <button type="button" onClick={voltar} className="rounded-full p-2 hover:bg-gray-100" aria-label="Voltar">
-              <ArrowLeft size={22} className="text-gray-700" />
+      <aside
+        className={`absolute right-0 top-0 flex h-full w-2/3 min-w-0 flex-col overflow-hidden bg-white shadow-xl transition-transform duration-300 ease-out ${
+          drawerEntered ? 'translate-x-0' : 'translate-x-full'
+        }`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu lateral"
+      >
+        <div className="flex shrink-0 items-center gap-2 border-b border-gray-200 p-3">
+          <span className="min-w-0 flex-1 truncate pr-2 text-sm font-semibold text-gray-900">{tituloHeader}</span>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {mostrarVoltar ? (
+              <button type="button" onClick={voltar} className="rounded-full p-2 hover:bg-gray-100" aria-label="Voltar">
+                <ArrowLeft size={22} className="text-gray-700" />
+              </button>
+            ) : null}
+            <button type="button" onClick={onFechar} className="rounded-full p-2 hover:bg-gray-100" aria-label="Fechar">
+              <X size={22} />
             </button>
-          ) : (
-            <span className="w-10" />
-          )}
-          <span className="flex-1 truncate text-center text-sm font-semibold text-gray-900">{tituloHeader}</span>
-          <button type="button" onClick={onFechar} className="rounded-full p-2 hover:bg-gray-100" aria-label="Fechar">
-            <X size={22} />
-          </button>
+          </div>
         </div>
 
         {!topo ? (
           <>
-            <div className="border-b border-gray-100 px-4 py-4">
+            <div className="shrink-0 border-b border-gray-100 px-4 py-4">
               <div className="flex items-center gap-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-gray-200">
                   {fotoUrl ? <Image src={fotoUrl} alt="" fill className="object-cover" sizes="56px" /> : null}
@@ -430,12 +445,12 @@ export default function MenuLateral({
               ) : null}
             </div>
 
-            <nav className="scrollbar-perfil flex-1 overflow-y-auto p-3">{renderListaItens(itensRaiz)}</nav>
+            <nav className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto p-3">{renderListaItens(itensRaiz)}</nav>
           </>
         ) : topo.tipo === 'menu' ? (
-          <nav className="scrollbar-perfil flex-1 overflow-y-auto p-3">{renderListaItens(topo.itens)}</nav>
+          <nav className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto p-3">{renderListaItens(topo.itens)}</nav>
         ) : (
-          <div className="scrollbar-perfil flex-1 overflow-y-auto p-3">{renderPagina()}</div>
+          <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto p-3">{renderPagina()}</div>
         )}
 
         {modalLogout ? (

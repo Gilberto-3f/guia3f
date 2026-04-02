@@ -66,7 +66,7 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
   return (
     <div className="fixed inset-x-0 bottom-0 z-50">
       <div
-        className="flex h-full w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl"
+        className="animate-perfil-sheet flex h-full w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl"
         style={{ height: 'calc(100vh - 9cm)' }}
         role="dialog"
         aria-modal="true"

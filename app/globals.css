@@ -41,3 +41,18 @@ body {
   background: #0097b2;
   border-radius: 3px;
 }
+
+@keyframes perfil-sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-perfil-sheet {
+  animation: perfil-sheet-in 220ms ease-out;
+}
