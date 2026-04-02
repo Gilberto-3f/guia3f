@@ -4,15 +4,15 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import Abas from '@/components/Abas'
 import GradeFiltros from '@/components/GradeFiltros'
 import PopupFavoritos from '@/components/PopupFavoritos'
 
 export default function GuiaPage() {
   const tHome = useTranslations('Home')
   const tMobilidade = useTranslations('Mobilidade')
+  const tGuia = useTranslations('Guia')
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'guia' | 'mobilidade'>('guia')
+  const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
   const [popupFavoritosAberto, setPopupFavoritosAberto] = useState(false)
 
   const handleFiltroClick = (filtroId: string) => {
@@ -28,20 +28,39 @@ export default function GuiaPage() {
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       <header className="shrink-0 bg-[#0097b2]">
-        <div className="flex justify-center py-6">
-          <Image
-            src="/logo.png"
-            alt="Guia 3F"
-            width={150}
-            height={50}
-            className="h-auto w-auto max-w-[150px] object-contain"
-            priority
-          />
+        <div className="flex justify-center bg-[#0097b2] py-2">
+          <Image src="/logo.png" alt="Guia 3F" width={120} height={40} priority className="h-auto w-auto object-contain" />
         </div>
-        <Abas activeTab={activeTab} onTabChange={setActiveTab} />
+
+        <div className="bg-[#0097b2] pb-3">
+          <div className="flex justify-center gap-3 px-4">
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('guia')}
+              className={`w-28 rounded-full py-1.5 text-center text-sm font-semibold transition-colors ${
+                abaAtiva === 'guia'
+                  ? 'bg-white text-[#0097b2]'
+                  : 'border border-white/50 bg-[#0097b2] text-white'
+              }`}
+            >
+              {tGuia('tabGuia')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('mobilidade')}
+              className={`w-28 rounded-full py-1.5 text-center text-sm font-semibold transition-colors ${
+                abaAtiva === 'mobilidade'
+                  ? 'bg-white text-[#0097b2]'
+                  : 'border border-white/50 bg-[#0097b2] text-white'
+              }`}
+            >
+              {tGuia('tabMobilidade')}
+            </button>
+          </div>
+        </div>
       </header>
 
-      {activeTab === 'guia' ? (
+      {abaAtiva === 'guia' ? (
         <main className="flex flex-1 flex-col">
           <GradeFiltros onFiltroClick={handleFiltroClick} />
 
