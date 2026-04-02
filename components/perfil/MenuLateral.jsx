@@ -409,7 +409,7 @@ export default function MenuLateral({
         aria-modal="true"
         aria-label="Menu lateral"
       >
-        <div className="flex shrink-0 justify-end p-4 pb-2">
+        <div className="flex shrink-0 justify-end p-2 pb-0">
           {mostrarVoltar ? (
             <button
               type="button"
@@ -434,7 +434,7 @@ export default function MenuLateral({
 
         {!topo ? (
           <>
-            <div className="shrink-0 border-b border-gray-100 px-4 py-4">
+            <div className="shrink-0 border-b border-gray-100 px-4 pt-1 pb-2">
               <div className="flex items-center gap-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-gray-200">
                   {fotoUrl ? <Image src={fotoUrl} alt="" fill className="object-cover" sizes="56px" /> : null}
@@ -449,12 +449,12 @@ export default function MenuLateral({
               ) : null}
             </div>
 
-            <nav className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto p-3">{renderListaItens(itensRaiz)}</nav>
+            <nav className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-3">{renderListaItens(itensRaiz)}</nav>
           </>
         ) : topo.tipo === 'menu' ? (
-          <nav className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto p-3">{renderListaItens(topo.itens)}</nav>
+          <nav className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-3">{renderListaItens(topo.itens)}</nav>
         ) : (
-          <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto p-3">{renderPagina()}</div>
+          <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-3">{renderPagina()}</div>
         )}
 
         {modalLogout ? (
