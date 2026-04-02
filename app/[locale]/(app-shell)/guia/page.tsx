@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { MapPin, Truck } from 'lucide-react'
+import { Car, MapPin } from 'lucide-react'
 import GradeFiltros from '@/components/GradeFiltros'
 import PopupFavoritos from '@/components/PopupFavoritos'
 
@@ -41,7 +41,7 @@ export default function GuiaPage() {
             className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-none px-2 py-2 text-center text-base transition-colors sm:gap-2.5 sm:py-2.5 ${
               abaAtiva === 'guia'
                 ? 'bg-white font-bold text-[#0097b2]'
-                : 'border-b border-l border-r-0 border-gray-300/80 bg-gray-200 font-normal text-white'
+                : 'border-b border-l border-r-0 border-gray-400/50 bg-[#d9dce2] font-normal text-white'
             }`}
           >
             <MapPin className="h-5 w-5 shrink-0 opacity-95 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
@@ -53,10 +53,10 @@ export default function GuiaPage() {
             className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-none px-2 py-2 text-center text-base transition-colors sm:gap-2.5 sm:py-2.5 ${
               abaAtiva === 'mobilidade'
                 ? 'bg-white font-bold text-[#0097b2]'
-                : 'border-b border-r border-l-0 border-gray-300/80 bg-gray-200 font-normal text-white'
+                : 'border-b border-r border-l-0 border-gray-400/50 bg-[#d9dce2] font-normal text-white'
             }`}
           >
-            <Truck className="h-5 w-5 shrink-0 opacity-95 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
+            <Car className="h-5 w-5 shrink-0 opacity-95 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
             <span>{tGuia('tabMobilidade')}</span>
           </button>
         </div>
