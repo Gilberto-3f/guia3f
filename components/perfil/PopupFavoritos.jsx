@@ -89,53 +89,53 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
   const lista = aba === 'empresas' ? emps : users
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-8" onClick={onFechar}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onFechar}>
       <div
         className="flex max-h-[75vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
       >
-        <div className="sticky top-0 z-10 mb-2 flex items-center justify-between border-b border-gray-100 bg-white px-4 pb-2 pt-4">
-          <h2 className="text-lg font-semibold text-[#001f3f]">Favoritos</h2>
-          <button type="button" onClick={onFechar} className="rounded-full p-1 hover:bg-gray-100" aria-label="Fechar">
+        <div className="relative border-b border-gray-100 bg-white pt-4 pb-2">
+          <h2 className="text-center text-xl font-bold text-gray-800">FAVORITOS</h2>
+          <button type="button" onClick={onFechar} className="absolute right-3 top-3 rounded-full p-1 hover:bg-gray-100" aria-label="Fechar">
             <X size={22} />
           </button>
         </div>
 
-        <div className="flex border-b border-[#E0E0E0] px-2">
+        <div className="flex justify-center gap-4 px-4 pb-2">
           <button
             type="button"
             onClick={() => setAba('empresas')}
-            className={`flex-1 py-2 text-xs font-semibold ${aba === 'empresas' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'}`}
+            className={`flex-1 py-2 text-center text-sm ${aba === 'empresas' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'}`}
           >
             EMPRESAS ({emps.length})
           </button>
           <button
             type="button"
             onClick={() => setAba('usuarios')}
-            className={`flex-1 py-2 text-xs font-semibold ${aba === 'usuarios' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'}`}
+            className={`flex-1 py-2 text-center text-sm ${aba === 'usuarios' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'}`}
           >
             USUÁRIOS ({users.length})
           </button>
         </div>
 
-        <div className="scrollbar-perfil flex-1 overflow-y-auto px-4 pb-4">
-          {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-400">Nada aqui</p> : null}
+        <div className="scrollbar-perfil max-h-[60vh] flex-1 overflow-y-auto px-4 py-2">
+          {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
           {lista.map((row) => (
-            <div key={row.id} className="flex items-center gap-3 border-b border-gray-50 py-3 last:border-0">
-              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gray-100">
-                {row.foto ? <Image src={row.foto} alt="" fill className="object-cover" sizes="44px" /> : null}
+            <div key={row.id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
+              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
+                {row.foto ? <Image src={row.foto} alt="" fill className="object-cover" sizes="40px" /> : null}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-[#001f3f]">{row.nome}</p>
+                <p className="truncate text-sm font-semibold text-gray-800">{row.nome}</p>
                 <p className="truncate text-xs text-gray-500">@{row.username}</p>
               </div>
               {souEu ? (
                 <button
                   type="button"
                   onClick={() => (aba === 'empresas' ? setConfirmEmp(row.id) : setConfirmUser(row.id))}
-                  className="shrink-0 rounded border border-[#0097b2] px-2 py-1 text-[10px] font-bold text-[#0097b2]"
+                  className="ml-auto shrink-0 rounded-full border border-[#0097b2] px-3 py-1 text-sm font-semibold text-[#0097b2]"
                 >
                   SEGUINDO
                 </button>
