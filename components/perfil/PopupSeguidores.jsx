@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Image from 'next/image'
-import { X } from 'lucide-react'
+import { Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
 
@@ -76,18 +76,21 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onFechar}>
       <div
-        className="flex max-h-[75vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl"
+        className="flex w-full max-w-md flex-col overflow-hidden rounded-lg bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
       >
         <div className="relative border-b border-gray-100 bg-white pt-4 pb-2">
-          <h2 className="text-center text-xl font-bold text-gray-800">SEGUIDORES</h2>
+          <div className="flex items-center justify-center gap-2">
+            <Users className="h-5 w-5 text-[#0097b2]" />
+            <h2 className="text-xl font-bold text-[#0097b2]">SEGUIDORES</h2>
+          </div>
           <button type="button" onClick={onFechar} className="absolute right-3 top-3 rounded-full p-1 hover:bg-gray-100" aria-label="Fechar">
             <X size={22} />
           </button>
         </div>
-        <div className="scrollbar-perfil max-h-[60vh] flex-1 overflow-y-auto px-4 py-2">
+        <div className="scrollbar-perfil flex-1 overflow-y-auto px-4 py-2">
           {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
           {lista.map((row) => (
             <div key={row.id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
