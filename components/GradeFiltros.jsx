@@ -18,7 +18,7 @@ export default function GradeFiltros({ onFiltroClick }) {
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-4 p-4">
+    <div className="grid grid-cols-3 gap-3 p-4">
       {filtros.map((filtro) => {
         const Icon = filtro.icon
         return (
@@ -26,10 +26,10 @@ export default function GradeFiltros({ onFiltroClick }) {
             key={filtro.id}
             type="button"
             onClick={() => onFiltroClick(filtro.id)}
-            className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white py-6 shadow-sm transition-shadow hover:shadow-md"
+            className="flex aspect-square flex-col items-center justify-center rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-md"
           >
-            <Icon className="mb-2 h-8 w-8 shrink-0 text-[#001f3f]" strokeWidth={2} aria-hidden />
-            <span className="text-center text-xs font-semibold uppercase leading-tight text-[#001f3f] sm:text-sm">
+            <Icon className="mb-1 h-7 w-7 shrink-0 text-[#0097b2]" strokeWidth={2} aria-hidden />
+            <span className="px-1 text-center text-[11px] font-semibold leading-tight text-[#0097b2]">
               {filtro.nome}
             </span>
           </button>
