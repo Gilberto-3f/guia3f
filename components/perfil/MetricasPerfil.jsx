@@ -1,5 +1,7 @@
 'use client'
 
+import { Heart, Star, Users } from 'lucide-react'
+
 /**
  * @param {{
  *   favoritosCount?: number
@@ -19,9 +21,9 @@ export default function MetricasPerfil({
   onAvaliacoes,
 }) {
   const items = [
-    { icon: '❤️', label: 'FAVORITOS', count: favoritosCount, onClick: onFavoritos },
-    { icon: '👥', label: 'SEGUIDORES', count: seguidoresCount, onClick: onSeguidores },
-    { icon: '⭐', label: 'AVALIAÇÕES', count: avaliacoesCount, onClick: onAvaliacoes },
+    { icon: <Heart className="h-6 w-6" />, label: 'FAVORITOS', count: favoritosCount, onClick: onFavoritos },
+    { icon: <Users className="h-6 w-6" />, label: 'SEGUIDORES', count: seguidoresCount, onClick: onSeguidores },
+    { icon: <Star className="h-6 w-6" />, label: 'AVALIAÇÕES', count: avaliacoesCount, onClick: onAvaliacoes },
   ]
 
   return (

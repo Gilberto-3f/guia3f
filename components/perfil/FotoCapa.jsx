@@ -12,7 +12,7 @@ import Image from 'next/image'
  */
 export default function FotoCapa({ src, nomeFallback = '', onOpenMenu, mostrarMenu = true }) {
   return (
-    <div className="relative h-[33vh] w-full overflow-hidden bg-gradient-to-br from-[#0097b2]/40 to-[#001f3f]/60">
+    <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-[#0097b2]/40 to-[#001f3f]/60">
       {src ? (
         <Image src={src} alt="" fill className="object-cover" sizes="100vw" priority />
       ) : (
@@ -25,7 +25,7 @@ export default function FotoCapa({ src, nomeFallback = '', onOpenMenu, mostrarMe
           className="absolute right-4 top-4 z-10 h-10 w-10 rounded-full bg-black/35 text-xl font-bold leading-none text-white backdrop-blur-sm"
           aria-label="Menu"
         >
-          ⋮
+          ☰⋮
         </button>
       ) : null}
     </div>
