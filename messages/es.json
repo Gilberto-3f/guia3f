@@ -169,13 +169,7 @@
   },
   "Mobilidade": {
     "comingSoon": "Próximamente",
-    "description": "El módulo de movilidad está en desarrollo",
-    "gridOnibus": "Ómnibus urbano",
-    "gridTaxi": "Taxi y apps",
-    "gridMapas": "Mapas y rutas",
-    "gridRodoviaria": "Terminal",
-    "gridBike": "Bicicletas",
-    "gridEstacionamento": "Estacionamiento"
+    "description": "El módulo de movilidad está en desarrollo"
   },
   "Common": {
     "welcome": "Bienvenido a Guia 3F",
