@@ -89,12 +89,13 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
   const lista = aba === 'empresas' ? emps : users
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50">
+    <div className="fixed inset-0 z-50 bg-black/50" onClick={onFechar} role="presentation">
       <div
-        className="animate-perfil-sheet flex h-full w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl"
+        className="animate-perfil-sheet absolute inset-x-0 bottom-0 flex h-full w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl"
         style={{ height: 'calc(100vh - 9cm)' }}
         role="dialog"
         aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="relative border-b border-gray-100 bg-white pt-4 pb-2">
           <div className="flex items-center justify-center gap-2">
@@ -149,7 +150,10 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
       </div>
 
       {confirmEmp ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="max-w-sm rounded-lg bg-white p-4 shadow-xl">
             <p className="text-sm text-gray-700">Deixar de seguir esta empresa?</p>
             <div className="mt-3 flex justify-end gap-2">
@@ -165,7 +169,10 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
       ) : null}
 
       {confirmUser ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="max-w-sm rounded-lg bg-white p-4 shadow-xl">
             <p className="text-sm text-gray-700">Deixar de seguir este usuário?</p>
             <div className="mt-3 flex justify-end gap-2">

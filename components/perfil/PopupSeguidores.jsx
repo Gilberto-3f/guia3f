@@ -74,12 +74,13 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
   if (!aberto) return null
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50">
+    <div className="fixed inset-0 z-50 bg-black/50" onClick={onFechar} role="presentation">
       <div
-        className="animate-perfil-sheet flex h-full w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl"
+        className="animate-perfil-sheet absolute inset-x-0 bottom-0 flex h-full w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl"
         style={{ height: 'calc(100vh - 9cm)' }}
         role="dialog"
         aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="relative border-b border-gray-100 bg-white pt-4 pb-2">
           <div className="flex items-center justify-center gap-2">

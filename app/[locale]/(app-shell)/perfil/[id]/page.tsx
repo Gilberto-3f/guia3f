@@ -313,6 +313,24 @@ export default function PerfilSocialPage() {
 
   const favoritosTotal = nFavEmp + nFavUsers
 
+  const abrirFavoritos = useCallback(() => {
+    setPopSeg(false)
+    setPopAval(false)
+    setPopFav(true)
+  }, [])
+
+  const abrirSeguidores = useCallback(() => {
+    setPopFav(false)
+    setPopAval(false)
+    setPopSeg(true)
+  }, [])
+
+  const abrirAvaliacoes = useCallback(() => {
+    setPopFav(false)
+    setPopSeg(false)
+    setPopAval(true)
+  }, [])
+
   const perfilTipo = perfilRole === 'profissional' ? 'profissional' : 'turista'
 
   const menuVariant =
@@ -369,9 +387,9 @@ export default function PerfilSocialPage() {
           favoritosCount={favoritosTotal}
           seguidoresCount={nSeguidores}
           avaliacoesCount={nAval}
-          onFavoritos={() => setPopFav(true)}
-          onSeguidores={() => setPopSeg(true)}
-          onAvaliacoes={() => setPopAval(true)}
+          onFavoritos={abrirFavoritos}
+          onSeguidores={abrirSeguidores}
+          onAvaliacoes={abrirAvaliacoes}
         />
       </div>
 

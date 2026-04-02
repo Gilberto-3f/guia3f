@@ -36,10 +36,10 @@ export default function MetricasPerfil({
             type="button"
             onClick={item.onClick}
             aria-label={item.label}
-            className="flex items-center justify-center gap-1 rounded-lg bg-gray-100 px-2 py-1.5 transition-colors hover:bg-gray-200"
+            className="flex items-center justify-center gap-1 rounded-lg bg-[#0097b2] px-2 py-1.5 transition-colors hover:bg-[#0086a0] active:bg-[#007a92]"
           >
-            <Icon className="h-4 w-4 text-[#0097b2]" />
-            <span className="text-sm font-semibold text-[#0097b2]">{item.count}</span>
+            <Icon className="h-4 w-4 text-white" />
+            <span className="text-sm font-semibold text-white">{item.count}</span>
           </button>
         )
       })}
