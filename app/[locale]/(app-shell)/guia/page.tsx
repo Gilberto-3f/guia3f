@@ -37,10 +37,10 @@ export default function GuiaPage() {
             <button
               type="button"
               onClick={() => setAbaAtiva('guia')}
-              className={`min-w-0 flex-1 rounded-none py-1.5 text-center text-sm font-semibold transition-colors sm:py-2 ${
+              className={`min-w-0 flex-1 rounded-none py-1.5 text-center text-sm transition-colors sm:py-2 ${
                 abaAtiva === 'guia'
-                  ? 'bg-white text-[#0097b2]'
-                  : 'border-y border-l border-r-0 border-gray-300/80 bg-gray-200 text-gray-600'
+                  ? 'bg-white font-bold text-[#0097b2]'
+                  : 'border-y border-l border-r-0 border-gray-300/80 bg-gray-200 font-normal text-white'
               }`}
             >
               {tGuia('tabGuia')}
@@ -48,10 +48,10 @@ export default function GuiaPage() {
             <button
               type="button"
               onClick={() => setAbaAtiva('mobilidade')}
-              className={`min-w-0 flex-1 rounded-none py-1.5 text-center text-sm font-semibold transition-colors sm:py-2 ${
+              className={`min-w-0 flex-1 rounded-none py-1.5 text-center text-sm transition-colors sm:py-2 ${
                 abaAtiva === 'mobilidade'
-                  ? 'bg-white text-[#0097b2]'
-                  : 'border-y border-r border-l-0 border-gray-300/80 bg-gray-200 text-gray-600'
+                  ? 'bg-white font-bold text-[#0097b2]'
+                  : 'border-y border-r border-l-0 border-gray-300/80 bg-gray-200 font-normal text-white'
               }`}
             >
               {tGuia('tabMobilidade')}
