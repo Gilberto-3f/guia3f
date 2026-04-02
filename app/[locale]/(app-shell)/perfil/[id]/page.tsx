@@ -144,10 +144,10 @@ export default function PerfilSocialPage() {
             ? String(u.email).split('@')[0]
             : 'usuario'
       const fotoPerfilRow =
-        perfilRow?.foto_url != null
-          ? String(perfilRow.foto_url)
-          : perfilRow?.foto_perfil_url != null
+        perfilRow?.foto_perfil_url != null
             ? String(perfilRow.foto_perfil_url)
+          : perfilRow?.foto_url != null
+            ? String(perfilRow.foto_url)
             : null
 
       setNome(nomePerfil)

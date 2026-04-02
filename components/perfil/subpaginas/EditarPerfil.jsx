@@ -110,19 +110,37 @@ export default function EditarPerfil({
     return data.publicUrl
   }
 
+  const atualizarPerfilComFallbackFoto = async (tabelaAlvo, payloadBase, fotoUrl) => {
+    const payloads = fotoUrl
+      ? [
+          { ...payloadBase, foto_perfil_url: fotoUrl, foto_url: fotoUrl },
+          { ...payloadBase, foto_perfil_url: fotoUrl },
+          { ...payloadBase, foto_url: fotoUrl },
+        ]
+      : [payloadBase]
+
+    let ultimoErro = null
+    for (const payload of payloads) {
+      const { error } = await supabase.from(tabelaAlvo).update(payload).eq('usuario_id', usuarioId)
+      if (!error) return null
+      ultimoErro = error
+    }
+    return ultimoErro
+  }
+
   const salvar = async () => {
     setSalvando(true)
     setMsg(null)
     setErroFoto(null)
     try {
-      const payload = {
+      const payloadBase = {
         nome_completo: nome.trim(),
         nome_usuario: username.trim().replace(/^@/, ''),
         bio: bio.trim() || null,
       }
+      let fotoUrl = null
       if (novaFotoArquivo) {
-        const fotoUrl = await uploadFotoPerfil(novaFotoArquivo, usuarioId)
-        payload.foto_perfil_url = fotoUrl
+        fotoUrl = await uploadFotoPerfil(novaFotoArquivo, usuarioId)
         setFotoAtual(fotoUrl)
       }
       let error = null
@@ -134,11 +152,9 @@ export default function EditarPerfil({
           return
         }
         const tabelaAlvo = temTurista ? 'turistas' : 'profissionais'
-        const res = await supabase.from(tabelaAlvo).update(payload).eq('usuario_id', usuarioId)
-        error = res.error
+        error = await atualizarPerfilComFallbackFoto(tabelaAlvo, payloadBase, fotoUrl)
       } else {
-        const res = await supabase.from(tabela).update(payload).eq('usuario_id', usuarioId)
-        error = res.error
+        error = await atualizarPerfilComFallbackFoto(tabela, payloadBase, fotoUrl)
       }
 
       if (error) {
@@ -150,6 +166,9 @@ export default function EditarPerfil({
       if (fileInputRef.current) fileInputRef.current.value = ''
       onSalvo?.()
       window.dispatchEvent(new Event('perfil-atualizado'))
+    } catch (e) {
+      const erroMsg = e instanceof Error ? e.message : 'Erro ao salvar perfil.'
+      setMsg(erroMsg)
     } finally {
       setSalvando(false)
     }
