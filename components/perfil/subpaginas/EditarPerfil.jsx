@@ -160,21 +160,15 @@ export default function EditarPerfil({
       <div>
         <label className="text-xs font-medium text-gray-500">Foto de perfil</label>
         <div className="mt-2 flex flex-col items-center gap-3">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="relative flex h-[120px] w-[120px] items-center justify-center overflow-hidden rounded-full border-[3px] border-[#0097b2] bg-gray-100"
-            aria-label="Trocar foto de perfil"
-          >
+          <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-gray-100">
             {fotoExibida ? (
-              <img src={fotoExibida} alt="" className="h-full w-full object-cover" />
+              <img src={fotoExibida} alt="Foto de perfil" className="h-full w-full object-cover" />
             ) : (
-              <span className="text-4xl font-semibold text-gray-500">{inicialNome}</span>
+              <div className="flex h-full w-full items-center justify-center text-4xl text-gray-400">
+                {inicialNome || '?'}
+              </div>
             )}
-            <span className="absolute bottom-1 right-1 rounded-full bg-white p-1 text-[#0097b2] shadow">
-              <Camera size={18} />
-            </span>
-          </button>
+          </div>
 
           <input
             ref={fileInputRef}
