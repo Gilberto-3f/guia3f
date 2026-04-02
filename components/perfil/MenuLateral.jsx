@@ -409,7 +409,9 @@ export default function MenuLateral({
         aria-modal="true"
         aria-label="Menu lateral"
       >
-        <div className="flex shrink-0 justify-end p-2 pb-0">
+        <div
+          className={`flex shrink-0 justify-end ${mostrarVoltar ? 'p-2 pb-0' : 'px-2 pt-0 pb-0'}`}
+        >
           {mostrarVoltar ? (
             <button
               type="button"
@@ -424,7 +426,7 @@ export default function MenuLateral({
             <button
               type="button"
               onClick={onFechar}
-              className="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              className="rounded-full p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
               aria-label="Fechar"
             >
               <X size={22} />
@@ -434,7 +436,7 @@ export default function MenuLateral({
 
         {!topo ? (
           <>
-            <div className="shrink-0 border-b border-gray-100 px-4 pt-1 pb-2">
+            <div className="shrink-0 border-b border-gray-100 px-4 pt-0 pb-2">
               <div className="flex items-center gap-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-gray-200">
                   {fotoUrl ? <Image src={fotoUrl} alt="" fill className="object-cover" sizes="56px" /> : null}
@@ -449,7 +451,7 @@ export default function MenuLateral({
               ) : null}
             </div>
 
-            <nav className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-3">{renderListaItens(itensRaiz)}</nav>
+            <nav className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto px-3 pt-0 pb-3">{renderListaItens(itensRaiz)}</nav>
           </>
         ) : topo.tipo === 'menu' ? (
           <nav className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-3">{renderListaItens(topo.itens)}</nav>
