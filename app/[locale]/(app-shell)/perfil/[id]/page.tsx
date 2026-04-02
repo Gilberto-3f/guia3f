@@ -356,10 +356,12 @@ export default function PerfilSocialPage() {
         mostrarMenu={Boolean(menuVariant)}
       />
 
-      <div className="mt-3 space-y-1 px-4 text-left">
+      <div className="mt-3 px-4 text-left">
         <NomeSocial nome={nome} />
         <Username username={username} />
-        <DescricaoCurta texto={bio} />
+        <div className="mt-1">
+          <DescricaoCurta texto={bio} />
+        </div>
       </div>
 
       <div className="mt-6">
