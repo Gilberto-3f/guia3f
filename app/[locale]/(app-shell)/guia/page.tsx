@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { BusFront, Map } from 'lucide-react'
 import GradeFiltros from '@/components/GradeFiltros'
 import PopupFavoritos from '@/components/PopupFavoritos'
 
@@ -32,29 +33,31 @@ export default function GuiaPage() {
           <Image src="/logo.png" alt="Guia 3F" width={120} height={40} priority className="h-auto w-auto object-contain" />
         </div>
 
-        <div className="border-b border-[#0097b2]">
+        <div className="border-t border-white border-b border-[#0097b2]">
           <div className="flex w-full items-stretch gap-0">
             <button
               type="button"
               onClick={() => setAbaAtiva('guia')}
-              className={`min-w-0 flex-1 rounded-none py-1.5 text-center text-sm transition-colors sm:py-2 ${
+              className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-none px-2 py-2 text-center text-base transition-colors sm:gap-2.5 sm:py-2.5 ${
                 abaAtiva === 'guia'
                   ? 'bg-white font-bold text-[#0097b2]'
-                  : 'border-y border-l border-r-0 border-gray-300/80 bg-gray-200 font-normal text-white'
+                  : 'border-b border-l border-r-0 border-gray-300/80 bg-gray-200 font-normal text-white'
               }`}
             >
-              {tGuia('tabGuia')}
+              <Map className="h-5 w-5 shrink-0 opacity-95 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
+              <span>{tGuia('tabGuia')}</span>
             </button>
             <button
               type="button"
               onClick={() => setAbaAtiva('mobilidade')}
-              className={`min-w-0 flex-1 rounded-none py-1.5 text-center text-sm transition-colors sm:py-2 ${
+              className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-none px-2 py-2 text-center text-base transition-colors sm:gap-2.5 sm:py-2.5 ${
                 abaAtiva === 'mobilidade'
                   ? 'bg-white font-bold text-[#0097b2]'
-                  : 'border-y border-r border-l-0 border-gray-300/80 bg-gray-200 font-normal text-white'
+                  : 'border-b border-r border-l-0 border-gray-300/80 bg-gray-200 font-normal text-white'
               }`}
             >
-              {tGuia('tabMobilidade')}
+              <BusFront className="h-5 w-5 shrink-0 opacity-95 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
+              <span>{tGuia('tabMobilidade')}</span>
             </button>
           </div>
         </div>
