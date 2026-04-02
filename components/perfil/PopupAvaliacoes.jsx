@@ -64,10 +64,10 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
   if (!aberto) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onFechar}>
+    <div className="fixed inset-x-0 bottom-0 z-50">
       <div
-        className="flex w-full max-w-md flex-col overflow-hidden rounded-lg bg-white shadow-xl"
-        onClick={(e) => e.stopPropagation()}
+        className="flex h-full w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl"
+        style={{ height: 'calc(100vh - 9cm)' }}
         role="dialog"
         aria-modal="true"
       >
@@ -98,7 +98,7 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
           </button>
         </div>
 
-        <div className="scrollbar-perfil flex-1 overflow-y-auto px-4 py-2">
+        <div className="scrollbar-perfil overflow-y-auto px-4 py-2" style={{ height: 'calc(100% - 100px)' }}>
           {filtradas.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
           {filtradas.map((r) => (
             <div key={r.id} className="border-b border-gray-100 py-2 last:border-0">
