@@ -27,12 +27,12 @@ export default function GuiaPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      <header className="shrink-0 bg-[#0097b2]">
+      <header className="shrink-0">
         <div className="flex justify-center bg-[#0097b2] py-2">
           <Image src="/logo.png" alt="Guia 3F" width={120} height={40} priority className="h-auto w-auto object-contain" />
         </div>
 
-        <div className="bg-[#0097b2] pb-3">
+        <div className="border-b border-[#0097b2]">
           <div className="flex w-full items-stretch gap-0">
             <button
               type="button"
@@ -40,7 +40,7 @@ export default function GuiaPage() {
               className={`min-w-0 flex-1 rounded-none py-1.5 text-center text-sm font-semibold transition-colors sm:py-2 ${
                 abaAtiva === 'guia'
                   ? 'bg-white text-[#0097b2]'
-                  : 'border-y border-l border-r-0 border-white/50 bg-[#0097b2] text-white'
+                  : 'border-y border-l border-r-0 border-gray-300/80 bg-gray-200 text-gray-600'
               }`}
             >
               {tGuia('tabGuia')}
@@ -51,7 +51,7 @@ export default function GuiaPage() {
               className={`min-w-0 flex-1 rounded-none py-1.5 text-center text-sm font-semibold transition-colors sm:py-2 ${
                 abaAtiva === 'mobilidade'
                   ? 'bg-white text-[#0097b2]'
-                  : 'border-y border-r border-l-0 border-white/50 bg-[#0097b2] text-white'
+                  : 'border-y border-r border-l-0 border-gray-300/80 bg-gray-200 text-gray-600'
               }`}
             >
               {tGuia('tabMobilidade')}
