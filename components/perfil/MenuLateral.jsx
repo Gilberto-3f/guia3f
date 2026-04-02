@@ -400,32 +400,41 @@ export default function MenuLateral({
 
   if (!aberto || !variant) return null
 
-  const tituloHeader = topo ? (topo.tipo === 'menu' ? topo.titulo : topo.titulo) : 'Menu'
   const mostrarVoltar = historico.length > 0
 
   return (
     <div className="fixed inset-0 z-50">
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar menu" onClick={onFechar} />
       <aside
-        className={`absolute right-0 top-0 flex h-full w-2/3 min-w-0 flex-col overflow-hidden bg-white shadow-xl transition-transform duration-300 ease-out ${
+        className={`absolute right-0 top-0 flex h-full w-[75%] min-w-0 flex-col overflow-hidden bg-white shadow-xl transition-transform duration-300 ease-out ${
           drawerEntered ? 'translate-x-0' : 'translate-x-full'
         }`}
         role="dialog"
         aria-modal="true"
         aria-label="Menu lateral"
       >
-        <div className="flex shrink-0 items-center gap-2 border-b border-gray-200 p-3">
-          <span className="min-w-0 flex-1 truncate pr-2 text-sm font-semibold text-gray-900">{tituloHeader}</span>
-          <div className="flex shrink-0 items-center gap-0.5">
-            {mostrarVoltar ? (
-              <button type="button" onClick={voltar} className="rounded-full p-2 hover:bg-gray-100" aria-label="Voltar">
-                <ArrowLeft size={22} className="text-gray-700" />
-              </button>
-            ) : null}
-            <button type="button" onClick={onFechar} className="rounded-full p-2 hover:bg-gray-100" aria-label="Fechar">
-              <X size={22} />
+        <div
+          className={`flex shrink-0 items-center p-4 pb-2 ${mostrarVoltar ? 'justify-between' : 'justify-end'}`}
+        >
+          {mostrarVoltar ? (
+            <button
+              type="button"
+              onClick={voltar}
+              className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+              aria-label="Voltar"
+            >
+              <ArrowLeft size={20} className="shrink-0" />
+              Voltar
             </button>
-          </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={onFechar}
+            className="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            aria-label="Fechar"
+          >
+            <X size={22} />
+          </button>
         </div>
 
         {!topo ? (
