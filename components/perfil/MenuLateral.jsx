@@ -233,12 +233,8 @@ export default function MenuLateral({
     return []
   })()
 
-  const voltar = useCallback(() => {
-    setHistorico((h) => {
-      const n = [...h]
-      n.pop()
-      return n
-    })
+  const voltarAoMenuPrincipal = useCallback(() => {
+    setHistorico([])
   }, [])
 
   const topo = historico.length ? historico[historico.length - 1] : null
@@ -413,28 +409,27 @@ export default function MenuLateral({
         aria-modal="true"
         aria-label="Menu lateral"
       >
-        <div
-          className={`flex shrink-0 items-center p-4 pb-2 ${mostrarVoltar ? 'justify-between' : 'justify-end'}`}
-        >
+        <div className="flex shrink-0 justify-end p-4 pb-2">
           {mostrarVoltar ? (
             <button
               type="button"
-              onClick={voltar}
+              onClick={voltarAoMenuPrincipal}
               className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
-              aria-label="Voltar"
+              aria-label="Voltar ao menu principal"
             >
               <ArrowLeft size={20} className="shrink-0" />
               Voltar
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={onFechar}
-            className="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-            aria-label="Fechar"
-          >
-            <X size={22} />
-          </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onFechar}
+              className="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              aria-label="Fechar"
+            >
+              <X size={22} />
+            </button>
+          )}
         </div>
 
         {!topo ? (
