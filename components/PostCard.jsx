@@ -12,6 +12,7 @@ import MenuPost from '@/components/MenuPost'
 import AvaliacaoCard from '@/components/AvaliacaoCard'
 import { supabase } from '@/lib/supabase'
 import { STORY_RING_GRADIENT, emailVisualizouStory } from '@/lib/feed-autor'
+import AvatarImage from '@/components/AvatarImage'
 
 /**
  * @param {{
@@ -56,13 +57,13 @@ export default function PostCard({
   const [jaSegueUsuario, setJaSegueUsuario] = useState(false)
   const [tickSeguir, setTickSeguir] = useState(0)
 
-  const empresaId = post.autor.empresa_id || ''
-  const autorId = post.autor.usuario_id || ''
+  const empresaId = post.autor?.empresa_id || ''
+  const autorId = post.autor?.usuario_id || ''
 
   const mostrarSeguirUsuario =
     Boolean(!empresaId && meuUsuarioId && autorId && autorId !== meuUsuarioId)
 
-  const seguidoTipo = post.autor.role || 'turista'
+  const seguidoTipo = post.autor?.role || 'turista'
 
   const usuarioAlvo = useMemo(() => {
     if (!mostrarSeguirUsuario) return null
@@ -205,11 +206,17 @@ export default function PostCard({
             >
               <button
                 type="button"
-                className="block rounded-full p-0"
+                className="relative block h-10 w-10 overflow-hidden rounded-md bg-gray-100 p-0"
                 onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
-                aria-label={`Story de ${post.autor.nome}`}
+                aria-label={`Story de ${post.autor?.nome ?? 'autor'}`}
               >
-                {avatarInner}
+                <AvatarImage
+                  src={post.autor?.foto_perfil_url}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="object-cover"
+                />
               </button>
             </div>
           ) : (
@@ -224,9 +231,9 @@ export default function PostCard({
             </div>
           )}
           <div>
-            <p className="text-sm font-medium text-gray-800">{post.autor.nome}</p>
+            <p className="text-sm font-medium text-gray-800">{post.autor?.nome ?? ''}</p>
             <p className="text-xs text-gray-500">
-              @{post.autor.username} ·{' '}
+              @{post.autor?.username ?? ''} ·{' '}
               {new Date(post.created_at).toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: '2-digit',

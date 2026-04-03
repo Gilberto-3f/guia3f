@@ -69,29 +69,33 @@ function FeedPageInner() {
   }, [])
 
   const carregarStoriesAutores = useCallback(async (lista: PostFeedRow[]) => {
-    const ids = [...new Set(lista.map((p) => p.autor.usuario_id).filter(Boolean))]
-    if (ids.length === 0) {
-      setStoriesPorAutor({})
-      return
-    }
-    const { data, error } = await supabase
-      .from('stories')
-      .select('id, autor_id, visualizado_por, created_at')
-      .in('autor_id', ids)
-      .gt('expira_em', new Date().toISOString())
-      .order('created_at', { ascending: false })
-    if (error) {
-      console.error(error)
-      return
-    }
-    const map: Record<string, { id: string; visualizado_por: unknown }> = {}
-    for (const row of data ?? []) {
-      const aid = String(row.autor_id)
-      if (!map[aid]) {
-        map[aid] = { id: String(row.id), visualizado_por: row.visualizado_por }
+    try {
+      const ids = [...new Set(lista.map((p) => p.autor?.usuario_id).filter(Boolean))]
+      if (ids.length === 0) {
+        setStoriesPorAutor({})
+        return
       }
+      const { data, error } = await supabase
+        .from('stories')
+        .select('id, autor_id, visualizado_por, created_at')
+        .in('autor_id', ids)
+        .gt('expira_em', new Date().toISOString())
+        .order('created_at', { ascending: false })
+      if (error) {
+        console.error(error)
+        return
+      }
+      const map: Record<string, { id: string; visualizado_por: unknown }> = {}
+      for (const row of data ?? []) {
+        const aid = String(row.autor_id)
+        if (!map[aid]) {
+          map[aid] = { id: String(row.id), visualizado_por: row.visualizado_por }
+        }
+      }
+      setStoriesPorAutor(map)
+    } catch (e) {
+      console.error(e)
     }
-    setStoriesPorAutor(map)
   }, [])
 
   useEffect(() => {
@@ -290,7 +294,7 @@ function FeedPageInner() {
               post={post}
               meuUsuarioId={meuId}
               userEmail={email}
-              storyAtivo={storiesPorAutor[post.autor.usuario_id] ?? null}
+              storyAtivo={storiesPorAutor[post.autor?.usuario_id ?? ''] ?? null}
               onAbrirStory={(id) => void abrirStory(id)}
               onRemove={removerPost}
               abrirComentariosInicial={postParam === post.id && Boolean(comentarioParam)}

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import AvatarImage from '@/components/AvatarImage'
 import { Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
@@ -15,8 +15,6 @@ import {
 import StoryCircle from '@/components/StoryCircle'
 
 const MAX_STORY_RINGS = 12
-
-const AVATAR_DEFAULT = '/avatar-default.png'
 
 /** @param {unknown} tipo */
 function isAutorEmpresa(tipo) {
@@ -340,8 +338,8 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
         <div className="flex w-[75px] shrink-0 flex-col items-center gap-0.5">
           <div className="relative">
             <div
-              className={`rounded-none p-[3px] ${
-                meuTemStory && meuVisto ? 'bg-gray-300' : !meuTemStory ? 'border-2 border-white/95 bg-white/10' : ''
+              className={`rounded-full p-[3px] ${
+                meuTemStory && meuVisto ? 'bg-gray-300' : !meuTemStory ? 'border-2 border-gray-300/90 bg-white' : ''
               }`}
               style={meuTemStory && !meuVisto ? { background: STORY_RING_GRADIENT } : undefined}
             >
@@ -352,9 +350,9 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
                   className="relative block h-[75px] w-[75px] overflow-hidden rounded-full bg-gray-100"
                   aria-label={meuTemStory ? 'Ver seu story' : 'Criar story'}
                 >
-                  <Image
+                  <AvatarImage
                     key={meuSlot.avatarUrl || 'def'}
-                    src={meuSlot.avatarUrl || AVATAR_DEFAULT}
+                    src={meuSlot.avatarUrl}
                     alt=""
                     fill
                     className="object-cover"

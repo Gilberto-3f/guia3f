@@ -1,10 +1,8 @@
 'use client'
 
-import Image from 'next/image'
 import { Play } from 'lucide-react'
+import AvatarImage from '@/components/AvatarImage'
 import { STORY_RING_GRADIENT, visualizadoPorEmails } from '@/lib/feed-autor'
-
-const AVATAR_DEFAULT = '/avatar-default.png'
 
 /**
  * @param {{
@@ -48,7 +46,7 @@ export default function StoryCircle({
       >
         <div className="rounded-full bg-white p-[2px]">
           <div className="relative h-[75px] w-[75px] overflow-hidden rounded-full bg-gray-100">
-            <Image src={avatarUrl || AVATAR_DEFAULT} alt="" fill className="object-cover" sizes="75px" />
+            <AvatarImage src={avatarUrl} alt="" fill className="object-cover" sizes="75px" />
             {isVideo ? (
               <span
                 className="absolute bottom-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/55"
