@@ -11,6 +11,7 @@ import ModalCompartilhar from '@/components/ModalCompartilhar'
 import MenuPost from '@/components/MenuPost'
 import AvaliacaoCard from '@/components/AvaliacaoCard'
 import { supabase } from '@/lib/supabase'
+import { STORY_RING_GRADIENT, emailVisualizouStory } from '@/lib/feed-autor'
 
 /**
  * @param {{
@@ -28,12 +29,24 @@ import { supabase } from '@/lib/supabase'
  *     autor: { nome: string, username: string, foto_perfil_url: string | null, usuario_id: string, empresa_id: string, role: string }
  *   }
  *   meuUsuarioId: string | null
+ *   userEmail?: string | null
+ *   storyAtivo?: { id: string, visualizado_por: unknown } | null
+ *   onAbrirStory?: (storyId: string) => void
  *   onRemove?: (postId: string) => void
  *   abrirComentariosInicial?: boolean
  *   destacarComentarioId?: string | null
  * }} props
  */
-export default function PostCard({ post, meuUsuarioId, onRemove, abrirComentariosInicial = false, destacarComentarioId = null }) {
+export default function PostCard({
+  post,
+  meuUsuarioId,
+  userEmail = null,
+  storyAtivo = null,
+  onAbrirStory,
+  onRemove,
+  abrirComentariosInicial = false,
+  destacarComentarioId = null,
+}) {
   const [comentAberto, setComentAberto] = useState(false)
   const deepLinkComentAberto = useRef(/** @type {string | null} */ (null))
   const [shareAberto, setShareAberto] = useState(false)
@@ -106,6 +119,9 @@ export default function PostCard({ post, meuUsuarioId, onRemove, abrirComentario
   const mediaUrl = post.conteudo_url || post.foto_url
   const hasMedia = Boolean(mediaUrl)
   const tipoNorm = String(post.tipo || '').toLowerCase()
+
+  const temStoryNoAutor = Boolean(storyAtivo?.id)
+  const storyDoAutorVisto = temStoryNoAutor ? emailVisualizouStory(storyAtivo?.visualizado_por, userEmail) : true
 
   const resumo = (post.texto || 'Publicação').slice(0, 80)
   const postUrl =
@@ -182,15 +198,31 @@ export default function PostCard({ post, meuUsuarioId, onRemove, abrirComentario
     <article id={`feed-post-${post.id}`} className="overflow-hidden rounded-xl bg-white shadow-sm">
       <div className="flex items-center justify-between p-4 pb-2">
         <div className="flex items-center gap-3">
-          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-none">
-            <Image
-              src={post.autor.foto_perfil_url || '/avatar-default.png'}
-              alt=""
-              width={40}
-              height={40}
-              className="object-cover"
-            />
-          </div>
+          {temStoryNoAutor ? (
+            <div
+              className={`relative shrink-0 rounded-full p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
+              style={!storyDoAutorVisto ? { background: STORY_RING_GRADIENT } : undefined}
+            >
+              <button
+                type="button"
+                className="block rounded-full p-0"
+                onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
+                aria-label={`Story de ${post.autor.nome}`}
+              >
+                {avatarInner}
+              </button>
+            </div>
+          ) : (
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+              <Image
+                src={post.autor.foto_perfil_url || '/avatar-default.png'}
+                alt=""
+                width={40}
+                height={40}
+                className="object-cover"
+              />
+            </div>
+          )}
           <div>
             <p className="text-sm font-medium text-gray-800">{post.autor.nome}</p>
             <p className="text-xs text-gray-500">

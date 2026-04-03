@@ -60,9 +60,38 @@ function FeedPageInner() {
   const [email, setEmail] = useState<string | null>(null)
   const [storyAberto, setStoryAberto] = useState<StoryViewerState | null>(null)
   const [storiesBarReload, setStoriesBarReload] = useState(0)
+  const [storiesPorAutor, setStoriesPorAutor] = useState<
+    Record<string, { id: string; visualizado_por: unknown }>
+  >({})
 
   const bumpStoriesBar = useCallback(() => {
     setStoriesBarReload((n) => n + 1)
+  }, [])
+
+  const carregarStoriesAutores = useCallback(async (lista: PostFeedRow[]) => {
+    const ids = [...new Set(lista.map((p) => p.autor.usuario_id).filter(Boolean))]
+    if (ids.length === 0) {
+      setStoriesPorAutor({})
+      return
+    }
+    const { data, error } = await supabase
+      .from('stories')
+      .select('id, autor_id, visualizado_por, created_at')
+      .in('autor_id', ids)
+      .gt('expira_em', new Date().toISOString())
+      .order('created_at', { ascending: false })
+    if (error) {
+      console.error(error)
+      return
+    }
+    const map: Record<string, { id: string; visualizado_por: unknown }> = {}
+    for (const row of data ?? []) {
+      const aid = String(row.autor_id)
+      if (!map[aid]) {
+        map[aid] = { id: String(row.id), visualizado_por: row.visualizado_por }
+      }
+    }
+    setStoriesPorAutor(map)
   }, [])
 
   useEffect(() => {
@@ -203,6 +232,10 @@ function FeedPageInner() {
     return () => obs.disconnect()
   }, [loadMore, posts.length])
 
+  useEffect(() => {
+    void carregarStoriesAutores(posts)
+  }, [posts, storiesBarReload, carregarStoriesAutores])
+
   const abrirStory = async (id: string) => {
     const { data, error } = await supabase
       .from('stories')
@@ -240,7 +273,7 @@ function FeedPageInner() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="bg-[#0097b2]">
+      <div className="bg-gray-100">
         <StoriesBar userEmail={email} reloadSignal={storiesBarReload} onOpenStory={(id) => void abrirStory(id)} />
       </div>
 
@@ -256,6 +289,9 @@ function FeedPageInner() {
               key={post.id}
               post={post}
               meuUsuarioId={meuId}
+              userEmail={email}
+              storyAtivo={storiesPorAutor[post.autor.usuario_id] ?? null}
+              onAbrirStory={(id) => void abrirStory(id)}
               onRemove={removerPost}
               abrirComentariosInicial={postParam === post.id && Boolean(comentarioParam)}
               destacarComentarioId={postParam === post.id ? comentarioParam : null}
