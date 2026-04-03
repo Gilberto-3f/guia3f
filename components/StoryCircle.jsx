@@ -11,14 +11,15 @@ const GRADIENT =
  * @param {{
  *   id: string
  *   label: string
- *   previewUrl: string | null
+ *   avatarUrl: string | null
  *   isVideo?: boolean
  *   visualizado_por: unknown
  *   userEmail: string | null
  *   onOpen: (id: string) => void
  * }} props
+ * avatarUrl: foto de perfil do autor (não a mídia do story).
  */
-export default function StoryCircle({ id, label, previewUrl, isVideo = false, visualizado_por, userEmail, onOpen }) {
+export default function StoryCircle({ id, label, avatarUrl, isVideo = false, visualizado_por, userEmail, onOpen }) {
   const emails = visualizadoPorEmails(visualizado_por)
   const visto = userEmail ? emails.includes(userEmail) : false
 
@@ -35,12 +36,10 @@ export default function StoryCircle({ id, label, previewUrl, isVideo = false, vi
       >
         <div className="rounded-full bg-white p-[2px]">
           <div className="relative h-14 w-14 overflow-hidden rounded-full bg-gray-100">
-            {isVideo && previewUrl ? (
-              <video src={previewUrl} className="absolute inset-0 h-full w-full object-cover" muted playsInline preload="metadata" />
-            ) : previewUrl ? (
-              <Image src={previewUrl} alt="" fill className="object-cover" sizes="56px" />
+            {avatarUrl ? (
+              <Image src={avatarUrl} alt="" fill className="object-cover" sizes="56px" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-lg text-gray-400">{label.charAt(0)}</div>
+              <div className="flex h-full w-full items-center justify-center text-lg font-medium text-gray-400">{label.charAt(0)}</div>
             )}
             {isVideo ? (
               <span

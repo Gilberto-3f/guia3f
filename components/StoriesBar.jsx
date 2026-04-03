@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { pickAutorDisplay } from '@/lib/feed-autor'
+import { pickAutorDisplay, visualizadoPorEmails } from '@/lib/feed-autor'
 import StoryCircle from '@/components/StoryCircle'
 
 const MAX_STORY_RINGS = 12
@@ -37,14 +37,24 @@ function intercalar(seguidos, obrigatorio, len) {
 }
 
 /**
+ * @param {unknown} visualizado_por
+ * @param {string | null} userEmail
+ */
+function foiVisualizado(visualizado_por, userEmail) {
+  if (!userEmail) return false
+  return visualizadoPorEmails(visualizado_por).includes(userEmail)
+}
+
+/**
  * @param {{
  *   hidden?: boolean
  *   userEmail: string | null
  *   onOpenStory: (id: string) => void
+ *   reloadSignal?: number
  * }} props
  */
-export default function StoriesBar({ hidden = false, userEmail, onOpenStory }) {
-  /** @type {{ id: string, label: string, previewUrl: string | null, isVideo: boolean, visualizado_por: unknown }[]} */
+export default function StoriesBar({ hidden = false, userEmail, onOpenStory, reloadSignal = 0 }) {
+  /** @type {{ id: string, label: string, avatarUrl: string | null, isVideo: boolean, visualizado_por: unknown }[]} */
   const [rings, setRings] = useState([])
 
   const load = useCallback(async () => {
@@ -57,6 +67,10 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory }) {
     }
 
     const uid = session.user.id
+
+    const { data: seguidosRows } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid)
+
+    const seguidosIds = new Set((seguidosRows ?? []).map((r) => String(r.seguido_id)))
 
     const { data: favs } = await supabase.from('favoritos').select('empresa_id').eq('usuario_id', uid).not('empresa_id', 'is', null)
 
@@ -105,42 +119,65 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory }) {
       obrAutor = uma?.usuario_id != null ? String(uma.usuario_id) : null
     }
 
-    const ordemEmpresa = intercalar(
-      autorSeguidos.filter((a) => byAutor.has(a)),
-      obrAutor && byAutor.has(obrAutor) ? obrAutor : autorSeguidos.find((a) => byAutor.has(a)) ?? null,
-      24
-    )
-
     /** @type {string[]} */
     const ordered = []
     const seen = new Set()
 
-    if (byAutor.has(uid)) {
-      ordered.push(uid)
-      seen.add(uid)
-    }
-
-    for (const aid of ordemEmpresa) {
-      if (ordered.length >= MAX_STORY_RINGS) break
-      if (seen.has(aid) || !byAutor.has(aid)) continue
+    const pushAid = (aid) => {
+      if (ordered.length >= MAX_STORY_RINGS) return false
+      if (seen.has(aid) || !byAutor.has(aid)) return false
       ordered.push(aid)
       seen.add(aid)
+      return true
     }
 
-    const outrosCandidates = [...byAutor.entries()]
-      .filter(([aid, s]) => !seen.has(aid) && !isAutorEmpresa(s.autor_tipo))
+    // 1) Próprio utilizador
+    if (byAutor.has(uid)) {
+      pushAid(uid)
+    }
+
+    // 2) Utilizadores seguidos (turista/profissional), mais recentes primeiro
+    const seguidosNaoEmpresa = [...byAutor.entries()]
+      .filter(([aid, s]) => aid !== uid && seguidosIds.has(aid) && !isAutorEmpresa(s.autor_tipo))
       .sort((a, b) => {
         const ta = new Date(/** @type {string} */ (a[1].created_at ?? 0)).getTime()
         const tb = new Date(/** @type {string} */ (b[1].created_at ?? 0)).getTime()
         return tb - ta
       })
-
-    for (const [aid] of outrosCandidates) {
+    for (const [aid] of seguidosNaoEmpresa) {
       if (ordered.length >= MAX_STORY_RINGS) break
-      ordered.push(aid)
-      seen.add(aid)
+      pushAid(aid)
     }
 
+    // 3) Empresas (intercalado: favoritos + destaque)
+    const empresaSeguidosComStory = autorSeguidos.filter((a) => {
+      const s = byAutor.get(a)
+      return s != null && isAutorEmpresa(s.autor_tipo)
+    })
+    const sObr = obrAutor ? byAutor.get(obrAutor) : null
+    const obrEmpresa =
+      obrAutor && sObr && isAutorEmpresa(sObr.autor_tipo) ? obrAutor : empresaSeguidosComStory.find((a) => byAutor.has(a)) ?? null
+
+    const ordemEmpresa = intercalar(empresaSeguidosComStory, obrEmpresa, 24)
+    for (const aid of ordemEmpresa) {
+      if (ordered.length >= MAX_STORY_RINGS) break
+      pushAid(aid)
+    }
+
+    // 4) Outros utilizadores não seguidos (não empresa)
+    const outrosNaoSeguidos = [...byAutor.entries()]
+      .filter(([aid, s]) => !seen.has(aid) && !isAutorEmpresa(s.autor_tipo) && aid !== uid && !seguidosIds.has(aid))
+      .sort((a, b) => {
+        const ta = new Date(/** @type {string} */ (a[1].created_at ?? 0)).getTime()
+        const tb = new Date(/** @type {string} */ (b[1].created_at ?? 0)).getTime()
+        return tb - ta
+      })
+    for (const [aid] of outrosNaoSeguidos) {
+      if (ordered.length >= MAX_STORY_RINGS) break
+      pushAid(aid)
+    }
+
+    // 5) Empresas restantes (ex.: não favoritas)
     const restantesEmpresa = [...byAutor.entries()]
       .filter(([aid, s]) => !seen.has(aid) && isAutorEmpresa(s.autor_tipo))
       .sort((a, b) => {
@@ -148,11 +185,9 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory }) {
         const tb = new Date(/** @type {string} */ (b[1].created_at ?? 0)).getTime()
         return tb - ta
       })
-
     for (const [aid] of restantesEmpresa) {
       if (ordered.length >= MAX_STORY_RINGS) break
-      ordered.push(aid)
-      seen.add(aid)
+      pushAid(aid)
     }
 
     const labels = /** @type {Record<string, string>} */ ({})
@@ -196,29 +231,31 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory }) {
       .map((aid) => {
         const s = byAutor.get(aid)
         if (!s) return null
-        const url = s.conteudo_url != null ? String(s.conteudo_url) : null
         const isVideo = String(s.tipo ?? '') === 'video'
-        const previewUrl = isVideo
-          ? url
-          : url && url.match(/\.(jpg|jpeg|png|webp|gif)/i)
-            ? url
-            : previews[aid] ?? null
+        const avatarUrl = previews[aid] ?? null
         return {
           id: String(s.id),
           label: labels[aid] ?? 'Story',
-          previewUrl,
+          avatarUrl,
           isVideo,
           visualizado_por: s.visualizado_por,
         }
       })
       .filter(Boolean)
 
-    setRings(/** @type {NonNullable<(typeof built)[0]>[]} */ (built))
-  }, [])
+    const naoVistos = /** @type {NonNullable<(typeof built)[0]>[]} */ (
+      built.filter((b) => b && !foiVisualizado(b.visualizado_por, userEmail))
+    )
+    const vistos = /** @type {NonNullable<(typeof built)[0]>[]} */ (
+      built.filter((b) => b && foiVisualizado(b.visualizado_por, userEmail))
+    )
+
+    setRings([...naoVistos, ...vistos])
+  }, [userEmail])
 
   useEffect(() => {
     void load()
-  }, [load])
+  }, [load, reloadSignal])
 
   useEffect(() => {
     const onVisible = () => {
@@ -257,7 +294,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory }) {
             key={s.id}
             id={s.id}
             label={s.label}
-            previewUrl={s.previewUrl}
+            avatarUrl={s.avatarUrl}
             isVideo={s.isVideo}
             visualizado_por={s.visualizado_por}
             userEmail={userEmail}

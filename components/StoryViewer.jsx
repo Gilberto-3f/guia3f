@@ -17,9 +17,10 @@ import { supabase } from '@/lib/supabase'
  *   } | null
  *   userEmail: string | null
  *   onFechar: () => void
+ *   onVisualizado?: () => void
  * }} props
  */
-export default function StoryViewer({ story, userEmail, onFechar }) {
+export default function StoryViewer({ story, userEmail, onFechar, onVisualizado }) {
   const videoRef = useRef(/** @type {HTMLVideoElement | null} */ (null))
   const [muted, setMuted] = useState(true)
   const [progress, setProgress] = useState(0)
@@ -27,8 +28,11 @@ export default function StoryViewer({ story, userEmail, onFechar }) {
 
   useEffect(() => {
     if (!story?.id || !userEmail) return
-    void supabase.rpc('append_story_viewer', { sid: story.id, viewer_email: userEmail })
-  }, [story?.id, userEmail])
+    void (async () => {
+      const { error } = await supabase.rpc('append_story_viewer', { sid: story.id, viewer_email: userEmail })
+      if (!error) onVisualizado?.()
+    })()
+  }, [story?.id, userEmail, onVisualizado])
 
   useEffect(() => {
     const v = videoRef.current

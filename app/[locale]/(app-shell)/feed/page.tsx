@@ -61,6 +61,11 @@ function FeedPageInner() {
   const [storiesHidden, setStoriesHidden] = useState(false)
 
   const [storyAberto, setStoryAberto] = useState<StoryViewerState | null>(null)
+  const [storiesBarReload, setStoriesBarReload] = useState(0)
+
+  const bumpStoriesBar = useCallback(() => {
+    setStoriesBarReload((n) => n + 1)
+  }, [])
 
   useEffect(() => {
     const boot = async () => {
@@ -252,7 +257,12 @@ function FeedPageInner() {
         </div>
       </div>
 
-      <StoriesBar hidden={storiesHidden} userEmail={email} onOpenStory={(id) => void abrirStory(id)} />
+      <StoriesBar
+        hidden={storiesHidden}
+        userEmail={email}
+        reloadSignal={storiesBarReload}
+        onOpenStory={(id) => void abrirStory(id)}
+      />
 
       <div className="space-y-4 p-4">
         {posts.length === 0 ? (
@@ -278,7 +288,15 @@ function FeedPageInner() {
       </div>
 
       {storyAberto ? (
-        <StoryViewer story={storyAberto} userEmail={email} onFechar={() => setStoryAberto(null)} />
+        <StoryViewer
+          story={storyAberto}
+          userEmail={email}
+          onVisualizado={bumpStoriesBar}
+          onFechar={() => {
+            setStoryAberto(null)
+            bumpStoriesBar()
+          }}
+        />
       ) : null}
     </div>
   )
