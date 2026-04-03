@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Car, MapPin } from 'lucide-react'
-import CarrosselPublicidadeHome from '@/components/CarrosselPublicidadeHome'
+import PublicidadeHome from '@/components/PublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
 import PopupFavoritos from '@/components/PopupFavoritos'
 
@@ -27,7 +27,7 @@ export default function GuiaPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <div className="flex h-[calc(100dvh-5rem)] flex-col overflow-hidden bg-gray-50">
       <header className="shrink-0">
         <div className="flex justify-center bg-[#0097b2] py-2">
           <Image src="/logo.png" alt="Guia 3F" width={120} height={40} priority className="h-auto w-auto object-contain" />
@@ -64,13 +64,14 @@ export default function GuiaPage() {
       </header>
 
       {abaAtiva === 'guia' ? (
-        <main className="flex flex-1 flex-col">
-          <GradeFiltros onFiltroClick={handleFiltroClick} />
-
-          <CarrosselPublicidadeHome />
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            <GradeFiltros onFiltroClick={handleFiltroClick} />
+            <PublicidadeHome />
+          </div>
         </main>
       ) : (
-        <main className="flex flex-1 flex-col items-center justify-start bg-gray-50 px-4 py-8 text-center">
+        <main className="flex min-h-0 flex-1 flex-col items-center justify-start overflow-y-auto bg-gray-50 px-4 py-8 text-center">
           <p className="text-lg font-medium text-gray-600">{tMobilidade('comingSoon')}</p>
           <p className="mt-2 max-w-md text-sm text-gray-500">{tMobilidade('description')}</p>
         </main>
