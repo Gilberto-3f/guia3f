@@ -5,11 +5,11 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Car, MapPin } from 'lucide-react'
+import CarrosselPublicidadeHome from '@/components/CarrosselPublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
 import PopupFavoritos from '@/components/PopupFavoritos'
 
 export default function GuiaPage() {
-  const tHome = useTranslations('Home')
   const tMobilidade = useTranslations('Mobilidade')
   const tGuia = useTranslations('Guia')
   const router = useRouter()
@@ -67,12 +67,7 @@ export default function GuiaPage() {
         <main className="flex flex-1 flex-col">
           <GradeFiltros onFiltroClick={handleFiltroClick} />
 
-          <div className="p-4 pt-0">
-            <div className="rounded-lg bg-gray-100 p-8 text-center">
-              <p className="font-medium text-gray-400">{tHome('adSpace')}</p>
-              <p className="mt-1 text-sm text-gray-400">{tHome('adHere')}</p>
-            </div>
-          </div>
+          <CarrosselPublicidadeHome />
         </main>
       ) : (
         <main className="flex flex-1 flex-col items-center justify-start bg-gray-50 px-4 py-8 text-center">

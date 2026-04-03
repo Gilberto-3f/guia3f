@@ -165,7 +165,12 @@
   "Home": {
     "loading": "Cargando...",
     "adSpace": "ESPACIO PUBLICITARIO",
-    "adHere": "Anuncia aquí"
+    "adHere": "Anuncia aquí",
+    "carouselPrev": "Anuncio anterior",
+    "carouselNext": "Siguiente anuncio",
+    "adImageAlt": "Publicidad",
+    "carouselDot": "Ir al anuncio {n}",
+    "carouselDotsLabel": "Indicadores del carrusel de publicidad"
   },
   "Mobilidade": {
     "comingSoon": "Próximamente",
