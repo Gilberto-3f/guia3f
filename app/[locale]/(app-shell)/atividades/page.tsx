@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { ArrowLeft, MoreHorizontal } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
 import AbasAtividades from '@/components/atividades/AbasAtividades'
@@ -92,7 +90,6 @@ const USUARIOS_SELECT = `
 `
 
 export default function AtividadesPage() {
-  const router = useRouter()
   const [aba, setAba] = useState<'amigos' | 'minha'>('amigos')
   const [meuId, setMeuId] = useState<string | null>(null)
   const [meuRole, setMeuRole] = useState<string | null>(null)
@@ -103,8 +100,6 @@ export default function AtividadesPage() {
   const [postUrlMap, setPostUrlMap] = useState<Record<string, string>>({})
   const [empresaMap, setEmpresaMap] = useState<Record<string, { id: string; nome: string }>>({})
   const [seguidoEmpresaMap, setSeguidoEmpresaMap] = useState<Record<string, string>>({})
-  const [naoLidasMinha, setNaoLidasMinha] = useState(0)
-  const [naoLidasAmigos, setNaoLidasAmigos] = useState(0)
 
   const coletarIdsPerfis = useCallback((rows: AtividadeRow[]) => {
     const ids = new Set<string>()
@@ -239,14 +234,6 @@ export default function AtividadesPage() {
     setListaAmigos(amigos)
     setListaMinha(minha)
 
-    const nMinha = minha.filter((a) => !a.lida).length
-    setNaoLidasMinha(nMinha)
-
-    let vistoEm = typeof window !== 'undefined' ? window.localStorage.getItem(LS_AMIGOS_VISTO) : null
-    if (!vistoEm) vistoEm = new Date(0).toISOString()
-    const nAmigos = amigos.filter((a) => new Date(a.created_at) > new Date(vistoEm)).length
-    setNaoLidasAmigos(nAmigos)
-
     const todos = [...amigos, ...minha]
     await carregarPerfis(todos)
 
@@ -278,7 +265,6 @@ export default function AtividadesPage() {
     if (!meuId) return
     await supabase.from('atividades').update({ lida: true }).eq('usuario_id', meuId).eq('lida', false)
     setListaMinha((prev) => prev.map((r) => ({ ...r, lida: true })))
-    setNaoLidasMinha(0)
   }, [meuId])
 
   const onAba = useCallback(
@@ -287,7 +273,6 @@ export default function AtividadesPage() {
       if (a === 'minha') void marcarMinhaLidas()
       if (a === 'amigos' && typeof window !== 'undefined') {
         window.localStorage.setItem(LS_AMIGOS_VISTO, new Date().toISOString())
-        setNaoLidasAmigos(0)
       }
     },
     [marcarMinhaLidas]
@@ -413,12 +398,11 @@ export default function AtividadesPage() {
   if (meuRole === 'empresa') {
     return (
       <div className="min-h-screen bg-gray-50 pb-24">
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-3 py-3">
-          <button type="button" onClick={() => router.back()} className="p-2 text-gray-600" aria-label="Voltar">
-            <ArrowLeft size={22} />
-          </button>
-          <h1 className="text-lg font-bold text-gray-900">Atividades</h1>
-          <span className="w-10" />
+        <header className="sticky top-0 z-10 border-b border-white/20 bg-[#0097b2] px-4 py-4">
+          <h1 className="flex items-center justify-center gap-2 text-center text-base font-bold tracking-wide text-white">
+            <span aria-hidden>❤️</span>
+            <span>ATIVIDADES</span>
+          </h1>
         </header>
         <p className="p-6 text-gray-600">O feed de atividades está disponível para contas de turista e profissional.</p>
       </div>
@@ -438,18 +422,14 @@ export default function AtividadesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-2 py-2">
-        <button type="button" onClick={() => router.back()} className="flex items-center gap-1 p-2 text-gray-700" aria-label="Voltar">
-          <ArrowLeft size={22} />
-          <span className="text-sm">Voltar</span>
-        </button>
-        <h1 className="text-base font-bold tracking-wide text-gray-900">ATIVIDADES</h1>
-        <button type="button" className="p-2 text-gray-500" aria-label="Menu">
-          <MoreHorizontal size={22} />
-        </button>
+      <header className="sticky top-0 z-10 border-b border-white/20 bg-[#0097b2] px-4 py-4">
+        <h1 className="flex items-center justify-center gap-2 text-center text-base font-bold tracking-wide text-white sm:text-lg">
+          <span aria-hidden>❤️</span>
+          <span>ATIVIDADES</span>
+        </h1>
       </header>
 
-      <AbasAtividades aba={aba} onAba={onAba} naoLidasAmigos={naoLidasAmigos} naoLidasMinha={naoLidasMinha} />
+      <AbasAtividades aba={aba} onAba={onAba} />
 
       <div className="p-4">
         {blocosComTitulo.length === 0 ? (
