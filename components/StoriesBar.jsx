@@ -4,7 +4,15 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { pickAutorDisplay } from '@/lib/feed-autor'
 import StoryCircle from '@/components/StoryCircle'
+
+const MAX_STORY_RINGS = 12
+
+/** @param {unknown} tipo */
+function isAutorEmpresa(tipo) {
+  return String(tipo ?? '').toLowerCase() === 'empresa'
+}
 
 /**
  * Intercala até `len` itens: a,a,a,b,a,a,a,b,...
@@ -65,14 +73,20 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory }) {
       autorSeguidos = emps.map((e) => String(e.usuario_id)).filter(Boolean)
     }
 
-    const { data: storiesRows } = await supabase
+    const { data: storiesRows, error: storiesErr } = await supabase
       .from('stories')
-      .select('id, autor_id, conteudo_url, visualizado_por, created_at, tipo')
+      .select('id, autor_id, conteudo_url, visualizado_por, created_at, tipo, autor_tipo')
       .gt('expira_em', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(80)
 
-    const byAutor = /** @type {Map<string, typeof storiesRows[0]>} */ (new Map())
+    if (storiesErr) {
+      console.error(storiesErr)
+      setRings([])
+      return
+    }
+
+    const byAutor = /** @type {Map<string, NonNullable<typeof storiesRows>[0]>} */ (new Map())
     for (const s of storiesRows ?? []) {
       const aid = String(s.autor_id)
       if (!byAutor.has(aid)) byAutor.set(aid, s)
@@ -91,11 +105,55 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory }) {
       obrAutor = uma?.usuario_id != null ? String(uma.usuario_id) : null
     }
 
-    const ordemIds = intercalar(
+    const ordemEmpresa = intercalar(
       autorSeguidos.filter((a) => byAutor.has(a)),
       obrAutor && byAutor.has(obrAutor) ? obrAutor : autorSeguidos.find((a) => byAutor.has(a)) ?? null,
-      12
+      24
     )
+
+    /** @type {string[]} */
+    const ordered = []
+    const seen = new Set()
+
+    if (byAutor.has(uid)) {
+      ordered.push(uid)
+      seen.add(uid)
+    }
+
+    for (const aid of ordemEmpresa) {
+      if (ordered.length >= MAX_STORY_RINGS) break
+      if (seen.has(aid) || !byAutor.has(aid)) continue
+      ordered.push(aid)
+      seen.add(aid)
+    }
+
+    const outrosCandidates = [...byAutor.entries()]
+      .filter(([aid, s]) => !seen.has(aid) && !isAutorEmpresa(s.autor_tipo))
+      .sort((a, b) => {
+        const ta = new Date(/** @type {string} */ (a[1].created_at ?? 0)).getTime()
+        const tb = new Date(/** @type {string} */ (b[1].created_at ?? 0)).getTime()
+        return tb - ta
+      })
+
+    for (const [aid] of outrosCandidates) {
+      if (ordered.length >= MAX_STORY_RINGS) break
+      ordered.push(aid)
+      seen.add(aid)
+    }
+
+    const restantesEmpresa = [...byAutor.entries()]
+      .filter(([aid, s]) => !seen.has(aid) && isAutorEmpresa(s.autor_tipo))
+      .sort((a, b) => {
+        const ta = new Date(/** @type {string} */ (a[1].created_at ?? 0)).getTime()
+        const tb = new Date(/** @type {string} */ (b[1].created_at ?? 0)).getTime()
+        return tb - ta
+      })
+
+    for (const [aid] of restantesEmpresa) {
+      if (ordered.length >= MAX_STORY_RINGS) break
+      ordered.push(aid)
+      seen.add(aid)
+    }
 
     const labels = /** @type {Record<string, string>} */ ({})
     const previews = /** @type {Record<string, string | null>} */ ({})
@@ -108,7 +166,33 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory }) {
       previews[String(destaque.usuario_id)] = destaque.foto_url != null ? String(destaque.foto_url) : null
     }
 
-    const built = ordemIds
+    const precisaPerfil = ordered.filter((aid) => labels[aid] == null)
+    if (precisaPerfil.length > 0) {
+      const { data: usuariosRows, error: uErr } = await supabase
+        .from('usuarios')
+        .select(
+          `
+          id,
+          email,
+          role,
+          turistas (nome_completo, nome_usuario, foto_perfil_url),
+          profissionais (nome_completo, nome_usuario, foto_perfil_url),
+          empresas (id, nome_fantasia, nome_usuario, foto_url)
+        `
+        )
+        .in('id', precisaPerfil)
+
+      if (!uErr && usuariosRows?.length) {
+        for (const u of usuariosRows) {
+          const d = pickAutorDisplay(u)
+          const id = String(u.id)
+          labels[id] = d.nome
+          previews[id] = d.foto_perfil_url
+        }
+      }
+    }
+
+    const built = ordered
       .map((aid) => {
         const s = byAutor.get(aid)
         if (!s) return null
@@ -134,6 +218,23 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory }) {
 
   useEffect(() => {
     void load()
+  }, [load])
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void load()
+    }
+    const onFocus = () => {
+      void load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('pageshow', onFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('pageshow', onFocus)
+    }
   }, [load])
 
   if (hidden) return null
