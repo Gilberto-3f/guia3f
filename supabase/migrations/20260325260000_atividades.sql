@@ -1,10 +1,10 @@
 -- Feed de atividades / notificações
--- usuario_id = destinatário (MINHA CONTA); ator_id = quem fez a ação (AMIGOS)
+-- usuario_id = destinatário (MINHA CONTA); autor_id = quem fez a ação (AMIGOS)
 
 CREATE TABLE IF NOT EXISTS atividades (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
   usuario_id UUID NOT NULL REFERENCES usuarios (id) ON DELETE CASCADE,
-  ator_id UUID NOT NULL REFERENCES usuarios (id) ON DELETE CASCADE,
+  autor_id UUID NOT NULL REFERENCES usuarios (id) ON DELETE CASCADE,
   tipo VARCHAR (30) NOT NULL,
   alvo_id UUID NOT NULL,
   alvo_tipo VARCHAR (20) NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS atividades (
 
 CREATE INDEX IF NOT EXISTS idx_atividades_destinatario ON atividades (usuario_id);
 
-CREATE INDEX IF NOT EXISTS idx_atividades_ator ON atividades (ator_id);
+CREATE INDEX IF NOT EXISTS idx_atividades_autor ON atividades (autor_id);
 
 CREATE INDEX IF NOT EXISTS idx_atividades_created ON atividades (created_at DESC);
 
@@ -32,31 +32,31 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_autor UUID;
+  v_autor_post UUID;
 BEGIN
   IF NEW.post_id IS NULL THEN
     RETURN NEW;
   END IF;
 
   SELECT
-    autor_id INTO v_autor
+    autor_id INTO v_autor_post
   FROM
     posts
   WHERE
     id = NEW.post_id
     AND deleted_at IS NULL;
 
-  IF NOT FOUND OR v_autor IS NULL THEN
+  IF NOT FOUND OR v_autor_post IS NULL THEN
     RETURN NEW;
   END IF;
 
-  IF v_autor = NEW.usuario_id THEN
+  IF v_autor_post = NEW.usuario_id THEN
     RETURN NEW;
   END IF;
 
-  INSERT INTO atividades (usuario_id, ator_id, tipo, alvo_id, alvo_tipo, dados_extras)
+  INSERT INTO atividades (usuario_id, autor_id, tipo, alvo_id, alvo_tipo, dados_extras)
   VALUES (
-    v_autor,
+    v_autor_post,
     NEW.usuario_id,
     'curtiu_post',
     NEW.post_id,
@@ -83,7 +83,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_autor_com UUID;
+  v_autor_comentario UUID;
   v_post UUID;
   v_texto TEXT;
 BEGIN
@@ -94,7 +94,7 @@ BEGIN
   SELECT
     autor_id,
     post_id,
-    texto INTO v_autor_com,
+    texto INTO v_autor_comentario,
     v_post,
     v_texto
   FROM
@@ -103,17 +103,17 @@ BEGIN
     id = NEW.comentario_id
     AND deleted_at IS NULL;
 
-  IF NOT FOUND OR v_autor_com IS NULL THEN
+  IF NOT FOUND OR v_autor_comentario IS NULL THEN
     RETURN NEW;
   END IF;
 
-  IF v_autor_com = NEW.usuario_id THEN
+  IF v_autor_comentario = NEW.usuario_id THEN
     RETURN NEW;
   END IF;
 
-  INSERT INTO atividades (usuario_id, ator_id, tipo, alvo_id, alvo_tipo, dados_extras)
+  INSERT INTO atividades (usuario_id, autor_id, tipo, alvo_id, alvo_tipo, dados_extras)
   VALUES (
-    v_autor_com,
+    v_autor_comentario,
     NEW.usuario_id,
     'curtiu_comentario',
     NEW.comentario_id,
@@ -149,27 +149,27 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_autor UUID;
+  v_autor_post UUID;
 BEGIN
   SELECT
-    autor_id INTO v_autor
+    autor_id INTO v_autor_post
   FROM
     posts
   WHERE
     id = NEW.post_id
     AND deleted_at IS NULL;
 
-  IF NOT FOUND OR v_autor IS NULL THEN
+  IF NOT FOUND OR v_autor_post IS NULL THEN
     RETURN NEW;
   END IF;
 
-  IF v_autor = NEW.autor_id THEN
+  IF v_autor_post = NEW.autor_id THEN
     RETURN NEW;
   END IF;
 
-  INSERT INTO atividades (usuario_id, ator_id, tipo, alvo_id, alvo_tipo, dados_extras)
+  INSERT INTO atividades (usuario_id, autor_id, tipo, alvo_id, alvo_tipo, dados_extras)
   VALUES (
-    v_autor,
+    v_autor_post,
     NEW.autor_id,
     'comentou',
     NEW.post_id,
@@ -195,7 +195,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO atividades (usuario_id, ator_id, tipo, alvo_id, alvo_tipo, dados_extras)
+  INSERT INTO atividades (usuario_id, autor_id, tipo, alvo_id, alvo_tipo, dados_extras)
   VALUES (
     NEW.seguido_id,
     NEW.seguidor_id,
@@ -240,7 +240,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  INSERT INTO atividades (usuario_id, ator_id, tipo, alvo_id, alvo_tipo, dados_extras)
+  INSERT INTO atividades (usuario_id, autor_id, tipo, alvo_id, alvo_tipo, dados_extras)
   VALUES (
     v_gestor,
     NEW.usuario_id,
@@ -280,7 +280,7 @@ SELECT
         redecontatos r
       WHERE
         r.seguidor_id = auth.uid ()
-        AND r.seguido_id = atividades.ator_id
+        AND r.seguido_id = atividades.autor_id
     )
   );
 

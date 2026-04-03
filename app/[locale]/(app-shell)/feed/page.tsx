@@ -10,26 +10,8 @@ import StoryViewer from '@/components/StoryViewer'
 
 const PAGE_SIZE = 12
 
-const POST_SELECT = `
-  id,
-  tipo,
-  texto,
-  foto_url,
-  conteudo_url,
-  total_curtidas,
-  total_comentarios,
-  total_compartilhamentos,
-  avaliacao_meta,
-  created_at,
-  usuarios (
-    id,
-    email,
-    role,
-    turistas (nome_completo, nome_usuario, foto_perfil_url),
-    profissionais (nome_completo, nome_usuario, foto_perfil_url),
-    empresas (id, nome_fantasia, nome_usuario, foto_url)
-  )
-`
+/** View no Supabase: posts + JSON `usuarios` (perfil do autor). Realtime continua na tabela `posts`. */
+const POSTS_FEED_VIEW = 'posts_com_autores'
 
 type PostFeedRow = {
   id: string
@@ -102,7 +84,15 @@ function FeedPageInner() {
 
   const mapRow = useCallback((post: unknown) => {
     const p = post as Record<string, unknown>
-    const u = p.usuarios
+    const rawU = p.usuarios
+    let u: unknown = rawU
+    if (typeof rawU === 'string') {
+      try {
+        u = JSON.parse(rawU) as unknown
+      } catch {
+        u = null
+      }
+    }
     const autor = pickAutorDisplay(u)
     return {
       id: String(p.id),
@@ -127,8 +117,8 @@ function FeedPageInner() {
       const from = pageIndex * PAGE_SIZE
       const to = from + PAGE_SIZE - 1
       const { data, error } = await supabase
-        .from('posts')
-        .select(POST_SELECT)
+        .from(POSTS_FEED_VIEW)
+        .select('*')
         .order('created_at', { ascending: false })
         .range(from, to)
 
@@ -169,7 +159,7 @@ function FeedPageInner() {
     if (fetchPostAttempted.current === postParam) return
     fetchPostAttempted.current = postParam
     void (async () => {
-      const { data, error } = await supabase.from('posts').select(POST_SELECT).eq('id', postParam).maybeSingle()
+      const { data, error } = await supabase.from(POSTS_FEED_VIEW).select('*').eq('id', postParam).maybeSingle()
       if (error || !data) {
         fetchPostAttempted.current = null
         return
