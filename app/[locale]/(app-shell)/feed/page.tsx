@@ -251,18 +251,14 @@ function FeedPageInner() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
-        <div className="p-4">
-          <h1 className="text-xl font-bold text-gray-800">Feed</h1>
-        </div>
+      <div className="sticky top-0 z-10 bg-[#0097b2]">
+        <StoriesBar
+          hidden={storiesHidden}
+          userEmail={email}
+          reloadSignal={storiesBarReload}
+          onOpenStory={(id) => void abrirStory(id)}
+        />
       </div>
-
-      <StoriesBar
-        hidden={storiesHidden}
-        userEmail={email}
-        reloadSignal={storiesBarReload}
-        onOpenStory={(id) => void abrirStory(id)}
-      />
 
       <div className="space-y-4 p-4">
         {posts.length === 0 ? (

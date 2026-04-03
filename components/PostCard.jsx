@@ -183,11 +183,11 @@ export default function PostCard({ post, meuUsuarioId, onRemove, abrirComentario
       <div className="flex items-center justify-between p-4 pb-2">
         <div className="flex items-center gap-3">
           {post.autor.foto_perfil_url ? (
-            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-none">
               <Image src={post.autor.foto_perfil_url} alt="" width={40} height={40} className="object-cover" />
             </div>
           ) : (
-            <div className="h-10 w-10 shrink-0 rounded-full bg-gray-200" aria-hidden />
+            <div className="h-10 w-10 shrink-0 rounded-none bg-gray-200" aria-hidden />
           )}
           <div>
             <p className="text-sm font-medium text-gray-800">{post.autor.nome}</p>

@@ -2,12 +2,17 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay, visualizadoPorEmails } from '@/lib/feed-autor'
 import StoryCircle from '@/components/StoryCircle'
 
 const MAX_STORY_RINGS = 12
+
+const GRADIENT =
+  'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)'
 
 /** @param {unknown} tipo */
 function isAutorEmpresa(tipo) {
@@ -54,8 +59,17 @@ function foiVisualizado(visualizado_por, userEmail) {
  * }} props
  */
 export default function StoriesBar({ hidden = false, userEmail, onOpenStory, reloadSignal = 0 }) {
+  /** @type {{ avatarUrl: string | null, storyId: string | null, visualizado_por: unknown }} */
+  const [meuSlot, setMeuSlot] = useState({
+    avatarUrl: null,
+    storyId: null,
+    visualizado_por: null,
+  })
+
   /** @type {{ id: string, label: string, avatarUrl: string | null, isVideo: boolean, visualizado_por: unknown }[]} */
   const [rings, setRings] = useState([])
+
+  const router = useRouter()
 
   const load = useCallback(async () => {
     const {
@@ -63,10 +77,31 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     } = await supabase.auth.getSession()
     if (!session?.user) {
       setRings([])
+      setMeuSlot({ avatarUrl: null, storyId: null, visualizado_por: null })
       return
     }
 
     const uid = session.user.id
+
+    const { data: meU, error: meErr } = await supabase
+      .from('usuarios')
+      .select(
+        `
+        id,
+        email,
+        role,
+        turistas (nome_completo, nome_usuario, foto_perfil_url),
+        profissionais (nome_completo, nome_usuario, foto_perfil_url),
+        empresas (id, nome_fantasia, nome_usuario, foto_url)
+      `
+      )
+      .eq('id', uid)
+      .maybeSingle()
+
+    let meuAvatarUrl = null
+    if (!meErr && meU) {
+      meuAvatarUrl = pickAutorDisplay(meU).foto_perfil_url
+    }
 
     const { data: seguidosRows } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid)
 
@@ -97,6 +132,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     if (storiesErr) {
       console.error(storiesErr)
       setRings([])
+      setMeuSlot({ avatarUrl: meuAvatarUrl, storyId: null, visualizado_por: null })
       return
     }
 
@@ -105,6 +141,13 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       const aid = String(s.autor_id)
       if (!byAutor.has(aid)) byAutor.set(aid, s)
     }
+
+    const meuStoryRow = byAutor.get(uid)
+    setMeuSlot({
+      avatarUrl: meuAvatarUrl,
+      storyId: meuStoryRow ? String(meuStoryRow.id) : null,
+      visualizado_por: meuStoryRow?.visualizado_por ?? null,
+    })
 
     const { data: destaque } = await supabase
       .from('empresas')
@@ -131,12 +174,10 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       return true
     }
 
-    // 1) Próprio utilizador
-    if (byAutor.has(uid)) {
-      pushAid(uid)
-    }
+    // Próprio utilizador: slot fixo à parte — não entra na lista horizontal
+    seen.add(uid)
 
-    // 2) Utilizadores seguidos (turista/profissional), mais recentes primeiro
+    // 1) Seguidos (não empresa)
     const seguidosNaoEmpresa = [...byAutor.entries()]
       .filter(([aid, s]) => aid !== uid && seguidosIds.has(aid) && !isAutorEmpresa(s.autor_tipo))
       .sort((a, b) => {
@@ -149,7 +190,6 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       pushAid(aid)
     }
 
-    // 3) Empresas (intercalado: favoritos + destaque)
     const empresaSeguidosComStory = autorSeguidos.filter((a) => {
       const s = byAutor.get(a)
       return s != null && isAutorEmpresa(s.autor_tipo)
@@ -164,7 +204,6 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       pushAid(aid)
     }
 
-    // 4) Outros utilizadores não seguidos (não empresa)
     const outrosNaoSeguidos = [...byAutor.entries()]
       .filter(([aid, s]) => !seen.has(aid) && !isAutorEmpresa(s.autor_tipo) && aid !== uid && !seguidosIds.has(aid))
       .sort((a, b) => {
@@ -177,7 +216,6 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       pushAid(aid)
     }
 
-    // 5) Empresas restantes (ex.: não favoritas)
     const restantesEmpresa = [...byAutor.entries()]
       .filter(([aid, s]) => !seen.has(aid) && isAutorEmpresa(s.autor_tipo))
       .sort((a, b) => {
@@ -276,19 +314,55 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
 
   if (hidden) return null
 
+  const meuVisto = foiVisualizado(meuSlot.visualizado_por, userEmail)
+  const meuTemStory = Boolean(meuSlot.storyId)
+
+  const abrirMeuStory = () => {
+    if (meuSlot.storyId) onOpenStory(meuSlot.storyId)
+    else router.push('/feed/story/criar')
+  }
+
   return (
-    <div className="border-b border-gray-100 bg-white px-2 py-3">
+    <div className="border-b border-white/20 bg-transparent px-2 py-3">
       <div className="flex items-start gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <Link
-          href="/feed/story/criar"
-          className="flex w-16 shrink-0 flex-col items-center gap-1 text-[#0097b2]"
-          aria-label="Criar story"
-        >
-          <div className="flex h-[62px] w-[62px] items-center justify-center rounded-full border-2 border-dashed border-[#0097b2] bg-[#0097b2]/5">
-            <Plus size={28} strokeWidth={2.5} />
+        {/* Slot fixo estilo Instagram: foto do utilizador + criar story */}
+        <div className="flex w-20 shrink-0 flex-col items-center gap-1">
+          <div className="relative">
+            <div
+              className={`rounded-none p-[3px] ${
+                meuTemStory && meuVisto ? 'bg-gray-300' : !meuTemStory ? 'border-2 border-white/95 bg-white/10' : ''
+              }`}
+              style={meuTemStory && !meuVisto ? { background: GRADIENT } : undefined}
+            >
+              <div className="rounded-none bg-white p-[2px]">
+                <button
+                  type="button"
+                  onClick={() => abrirMeuStory()}
+                  className="relative block h-20 w-20 overflow-hidden rounded-none bg-gray-100"
+                  aria-label={meuTemStory ? 'Ver seu story' : 'Criar story'}
+                >
+                  {meuSlot.avatarUrl ? (
+                    <Image src={meuSlot.avatarUrl} alt="" fill className="object-cover" sizes="80px" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-lg font-medium text-gray-400">
+                      {(userEmail || '?').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </button>
+              </div>
+            </div>
+            <Link
+              href="/feed/story/criar"
+              onClick={(e) => e.stopPropagation()}
+              className="absolute -bottom-0.5 -right-0.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#0097b2] text-white shadow-md ring-2 ring-white"
+              aria-label="Novo story"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+            </Link>
           </div>
-          <span className="text-[10px]">Novo</span>
-        </Link>
+          <span className="max-w-[5rem] truncate text-center text-xs text-white/95">Seu story</span>
+        </div>
+
         {rings.map((s) => (
           <StoryCircle
             key={s.id}
@@ -299,6 +373,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
             visualizado_por={s.visualizado_por}
             userEmail={userEmail}
             onOpen={onOpenStory}
+            labelOnDark
           />
         ))}
       </div>
