@@ -58,8 +58,6 @@ function FeedPageInner() {
 
   const [meuId, setMeuId] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
-  const [storiesHidden, setStoriesHidden] = useState(false)
-
   const [storyAberto, setStoryAberto] = useState<StoryViewerState | null>(null)
   const [storiesBarReload, setStoriesBarReload] = useState(0)
 
@@ -76,15 +74,6 @@ function FeedPageInner() {
       setEmail(session?.user?.email ?? null)
     }
     void boot()
-  }, [])
-
-  useEffect(() => {
-    const onScroll = () => {
-      const y = typeof window !== 'undefined' ? window.scrollY || document.documentElement.scrollTop : 0
-      setStoriesHidden(y > 48)
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   const mapRow = useCallback((post: unknown) => {
@@ -251,13 +240,8 @@ function FeedPageInner() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="sticky top-0 z-10 bg-[#0097b2]">
-        <StoriesBar
-          hidden={storiesHidden}
-          userEmail={email}
-          reloadSignal={storiesBarReload}
-          onOpenStory={(id) => void abrirStory(id)}
-        />
+      <div className="bg-[#0097b2]">
+        <StoriesBar userEmail={email} reloadSignal={storiesBarReload} onOpenStory={(id) => void abrirStory(id)} />
       </div>
 
       <div className="space-y-4 p-4">

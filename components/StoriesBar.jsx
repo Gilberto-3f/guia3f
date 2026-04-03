@@ -11,6 +11,8 @@ import StoryCircle from '@/components/StoryCircle'
 
 const MAX_STORY_RINGS = 12
 
+const AVATAR_DEFAULT = '/avatar-default.png'
+
 const GRADIENT =
   'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)'
 
@@ -323,10 +325,10 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
   }
 
   return (
-    <div className="border-b border-white/20 bg-transparent px-2 py-3">
-      <div className="flex items-start gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="border-b border-white/20 bg-transparent px-2 py-1.5">
+      <div className="flex items-start gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Slot fixo estilo Instagram: foto do utilizador + criar story */}
-        <div className="flex w-20 shrink-0 flex-col items-center gap-1">
+        <div className="flex w-[75px] shrink-0 flex-col items-center gap-0.5">
           <div className="relative">
             <div
               className={`rounded-none p-[3px] ${
@@ -338,29 +340,29 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
                 <button
                   type="button"
                   onClick={() => abrirMeuStory()}
-                  className="relative block h-20 w-20 overflow-hidden rounded-none bg-gray-100"
+                  className="relative block h-[75px] w-[75px] overflow-hidden rounded-none bg-gray-100"
                   aria-label={meuTemStory ? 'Ver seu story' : 'Criar story'}
                 >
-                  {meuSlot.avatarUrl ? (
-                    <Image src={meuSlot.avatarUrl} alt="" fill className="object-cover" sizes="80px" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-lg font-medium text-gray-400">
-                      {(userEmail || '?').charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <Image
+                    src={meuSlot.avatarUrl || AVATAR_DEFAULT}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="75px"
+                  />
                 </button>
               </div>
             </div>
             <Link
               href="/feed/story/criar"
               onClick={(e) => e.stopPropagation()}
-              className="absolute -bottom-0.5 -right-0.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#0097b2] text-white shadow-md ring-2 ring-white"
+              className="absolute -bottom-0.5 -right-0.5 z-10 flex h-6 w-6 items-center justify-center rounded-none bg-[#0097b2] text-white shadow-md ring-2 ring-white"
               aria-label="Novo story"
             >
               <Plus size={16} strokeWidth={2.5} />
             </Link>
           </div>
-          <span className="max-w-[5rem] truncate text-center text-xs text-white/95">Seu story</span>
+          <span className="max-w-[5rem] truncate text-center text-xs leading-tight text-white/95">Seu story</span>
         </div>
 
         {rings.map((s) => (

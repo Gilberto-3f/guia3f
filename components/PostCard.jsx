@@ -182,13 +182,15 @@ export default function PostCard({ post, meuUsuarioId, onRemove, abrirComentario
     <article id={`feed-post-${post.id}`} className="overflow-hidden rounded-xl bg-white shadow-sm">
       <div className="flex items-center justify-between p-4 pb-2">
         <div className="flex items-center gap-3">
-          {post.autor.foto_perfil_url ? (
-            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-none">
-              <Image src={post.autor.foto_perfil_url} alt="" width={40} height={40} className="object-cover" />
-            </div>
-          ) : (
-            <div className="h-10 w-10 shrink-0 rounded-none bg-gray-200" aria-hidden />
-          )}
+          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-none">
+            <Image
+              src={post.autor.foto_perfil_url || '/avatar-default.png'}
+              alt=""
+              width={40}
+              height={40}
+              className="object-cover"
+            />
+          </div>
           <div>
             <p className="text-sm font-medium text-gray-800">{post.autor.nome}</p>
             <p className="text-xs text-gray-500">
