@@ -16,7 +16,7 @@ type AnuncioSlide = {
   link_url: string | null
 }
 
-const AUTO_INTERVAL_MS = 5000
+const AUTO_INTERVAL_MS = 15000
 
 function isSupabasePublicStorageUrl(url: string): boolean {
   try {
@@ -128,30 +128,34 @@ export default function PublicidadeHome() {
   }, [])
 
   const primeiro = anuncios[0]
-  const restantes = anuncios.slice(1)
-  const nRest = restantes.length
+  const temCarrossel = anuncios.length >= 2
+  const anunciosCarrossel = anuncios.slice(1)
+  const nCarrossel = anunciosCarrossel.length
 
   useEffect(() => {
-    if (nRest <= 1 || pausadoCarrossel) return
+    if (nCarrossel <= 1 || pausadoCarrossel) return
     const id = window.setInterval(() => {
-      setIndiceCarrossel((prev) => (prev + 1) % nRest)
+      setIndiceCarrossel((prev) => (prev + 1) % nCarrossel)
     }, AUTO_INTERVAL_MS)
     return () => window.clearInterval(id)
-  }, [nRest, pausadoCarrossel])
+  }, [nCarrossel, pausadoCarrossel])
 
   useEffect(() => {
-    if (nRest > 0 && indiceCarrossel >= nRest) setIndiceCarrossel(0)
-  }, [indiceCarrossel, nRest])
+    if (nCarrossel > 0 && indiceCarrossel >= nCarrossel)
+      setIndiceCarrossel(0)
+  }, [indiceCarrossel, nCarrossel])
 
   const anterior = useCallback(() => {
-    setIndiceCarrossel((prev) => (prev === 0 ? nRest - 1 : prev - 1))
-  }, [nRest])
+    setIndiceCarrossel((prev) => (prev === 0 ? nCarrossel - 1 : prev - 1))
+  }, [nCarrossel])
 
   const proximo = useCallback(() => {
-    setIndiceCarrossel((prev) => (prev === nRest - 1 ? 0 : prev + 1))
-  }, [nRest])
+    setIndiceCarrossel((prev) =>
+      prev === nCarrossel - 1 ? 0 : prev + 1
+    )
+  }, [nCarrossel])
 
-  const atualCarrossel = restantes[indiceCarrossel]
+  const atualCarrossel = anunciosCarrossel[indiceCarrossel]
 
   if (carregando) {
     return (
@@ -188,7 +192,7 @@ export default function PublicidadeHome() {
         )}
       </div>
 
-      {nRest > 0 ? (
+      {temCarrossel ? (
         <div
           className="relative pb-1"
           onMouseEnter={() => setPausadoCarrossel(true)}
@@ -196,7 +200,7 @@ export default function PublicidadeHome() {
         >
           <div className="relative">
             <div className="relative">
-              {nRest > 1 ? (
+              {nCarrossel > 1 ? (
                 <>
                   <button
                     type="button"
@@ -226,19 +230,19 @@ export default function PublicidadeHome() {
                     <BlocoImagemBanner
                       anuncio={atualCarrossel}
                       alt={alt}
-                      classNameHeight="h-24 sm:h-28"
+                      classNameHeight="h-24"
                     />
                   )
                 : null}
             </div>
 
-            {nRest > 1 ? (
+            {nCarrossel > 1 ? (
               <div
                 className="mt-2 flex justify-center gap-1.5"
                 role="tablist"
                 aria-label={t('carouselDotsLabel')}
               >
-                {restantes.map((a, idx) => (
+                {anunciosCarrossel.map((a, idx) => (
                   <button
                     key={a.id}
                     type="button"

@@ -18,7 +18,7 @@ export default function GradeFiltros({ onFiltroClick }) {
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-3 p-4">
+    <div className="grid grid-cols-3 gap-2 p-3 sm:gap-3 sm:p-4">
       {filtros.map((filtro) => {
         const Icon = filtro.icon
         return (
