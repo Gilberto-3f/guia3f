@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { Heart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
 import AbasAtividades from '@/components/atividades/AbasAtividades'
@@ -400,7 +401,7 @@ export default function AtividadesPage() {
       <div className="min-h-screen bg-gray-50 pb-24">
         <header className="sticky top-0 z-10 border-b border-white/20 bg-[#0097b2] px-4 py-4">
           <h1 className="flex items-center justify-center gap-2 text-center text-base font-bold tracking-wide text-white">
-            <span aria-hidden>❤️</span>
+            <Heart className="h-6 w-6 shrink-0 text-white" strokeWidth={2} aria-hidden />
             <span>ATIVIDADES</span>
           </h1>
         </header>
@@ -424,7 +425,7 @@ export default function AtividadesPage() {
     <div className="min-h-screen bg-gray-50 pb-24">
       <header className="sticky top-0 z-10 border-b border-white/20 bg-[#0097b2] px-4 py-4">
         <h1 className="flex items-center justify-center gap-2 text-center text-base font-bold tracking-wide text-white sm:text-lg">
-          <span aria-hidden>❤️</span>
+          <Heart className="h-6 w-6 shrink-0 text-white sm:h-7 sm:w-7" strokeWidth={2} aria-hidden />
           <span>ATIVIDADES</span>
         </h1>
       </header>
