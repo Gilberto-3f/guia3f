@@ -65,10 +65,10 @@ export default function GuiaPage() {
 
       {abaAtiva === 'guia' ? (
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             <GradeFiltros onFiltroClick={handleFiltroClick} />
+            <PublicidadeHome />
           </div>
-          <PublicidadeHome />
         </main>
       ) : (
         <main className="flex min-h-0 flex-1 flex-col items-center justify-start overflow-y-auto bg-gray-50 px-4 py-8 text-center">
