@@ -128,7 +128,7 @@ export default function PublicidadeHome() {
   }, [])
 
   const primeiro = anuncios[0]
-  const temCarrossel = anuncios.length >= 2
+  /** Demais criativos após o primeiro (campo fixo reservado ao 1.º anunciante). */
   const anunciosCarrossel = anuncios.slice(1)
   const nCarrossel = anunciosCarrossel.length
 
@@ -192,76 +192,85 @@ export default function PublicidadeHome() {
         )}
       </div>
 
-      {temCarrossel ? (
-        <div
-          className="relative pb-1"
-          onMouseEnter={() => setPausadoCarrossel(true)}
-          onMouseLeave={() => setPausadoCarrossel(false)}
-        >
-          <div className="relative">
-            <div className="relative">
-              {nCarrossel > 1 ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={anterior}
-                    className="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-x-1 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-md"
-                    aria-label={t('carouselPrev')}
-                  >
-                    <ChevronLeft className="h-5 w-5 text-gray-700" aria-hidden />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={proximo}
-                    className="absolute right-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 translate-x-1 items-center justify-center rounded-full bg-white shadow-md"
-                    aria-label={t('carouselNext')}
-                  >
-                    <ChevronRight
-                      className="h-5 w-5 text-gray-700"
-                      aria-hidden
-                    />
-                  </button>
-                </>
-              ) : null}
-
-              {atualCarrossel
-                ? envolveLink(
-                    atualCarrossel,
-                    <BlocoImagemBanner
-                      anuncio={atualCarrossel}
-                      alt={alt}
-                      classNameHeight="h-24"
-                    />
-                  )
-                : null}
-            </div>
-
-            {nCarrossel > 1 ? (
-              <div
-                className="mt-2 flex justify-center gap-1.5"
-                role="tablist"
-                aria-label={t('carouselDotsLabel')}
-              >
-                {anunciosCarrossel.map((a, idx) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    role="tab"
-                    onClick={() => setIndiceCarrossel(idx)}
-                    aria-selected={idx === indiceCarrossel}
-                    aria-label={t('carouselDot', { n: idx + 1 })}
-                    className={`h-1.5 rounded-full transition-all ${
-                      idx === indiceCarrossel
-                        ? 'w-3 bg-[#0097b2]'
-                        : 'w-1.5 bg-gray-300'
-                    }`}
-                  />
-                ))}
-              </div>
-            ) : null}
+      <section className="relative pb-1">
+        {nCarrossel === 0 ? (
+          <div
+            className="flex h-24 w-full flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 text-center"
+          >
+            <p className="text-xs font-medium text-gray-400 sm:text-sm">
+              {t('adCarouselEmpty')}
+            </p>
           </div>
-        </div>
-      ) : null}
+        ) : (
+          <div
+            onMouseEnter={() => setPausadoCarrossel(true)}
+            onMouseLeave={() => setPausadoCarrossel(false)}
+          >
+            <div className="relative">
+              <div className="relative">
+                {nCarrossel > 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={anterior}
+                      className="absolute left-0 top-1/2 z-10 flex h-8 w-8 -translate-x-1 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-md"
+                      aria-label={t('carouselPrev')}
+                    >
+                      <ChevronLeft className="h-5 w-5 text-gray-700" aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={proximo}
+                      className="absolute right-0 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 translate-x-1 items-center justify-center rounded-full bg-white shadow-md"
+                      aria-label={t('carouselNext')}
+                    >
+                      <ChevronRight
+                        className="h-5 w-5 text-gray-700"
+                        aria-hidden
+                      />
+                    </button>
+                  </>
+                ) : null}
+
+                {atualCarrossel
+                  ? envolveLink(
+                      atualCarrossel,
+                      <BlocoImagemBanner
+                        anuncio={atualCarrossel}
+                        alt={alt}
+                        classNameHeight="h-24"
+                      />
+                    )
+                  : null}
+              </div>
+
+              {nCarrossel > 1 ? (
+                <div
+                  className="mt-2 flex justify-center gap-1.5"
+                  role="tablist"
+                  aria-label={t('carouselDotsLabel')}
+                >
+                  {anunciosCarrossel.map((a, idx) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      role="tab"
+                      onClick={() => setIndiceCarrossel(idx)}
+                      aria-selected={idx === indiceCarrossel}
+                      aria-label={t('carouselDot', { n: idx + 1 })}
+                      className={`h-1.5 rounded-full transition-all ${
+                        idx === indiceCarrossel
+                          ? 'w-3 bg-[#0097b2]'
+                          : 'w-1.5 bg-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

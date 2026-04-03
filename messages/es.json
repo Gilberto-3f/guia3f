@@ -170,7 +170,8 @@
     "carouselNext": "Siguiente anuncio",
     "adImageAlt": "Publicidad",
     "carouselDot": "Ir al anuncio {n}",
-    "carouselDotsLabel": "Indicadores del carrusel de publicidad"
+    "carouselDotsLabel": "Indicadores del carrusel de publicidad",
+    "adCarouselEmpty": "Carrusel: pronto más anunciantes"
   },
   "Mobilidade": {
     "comingSoon": "Próximamente",
