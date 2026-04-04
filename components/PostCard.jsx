@@ -130,7 +130,7 @@ export default function PostCard({
 
   const menuProps = {
     postId: post.id,
-    autorUsuarioId: post.autor.usuario_id,
+    autorUsuarioId: post.autor?.usuario_id,
     meuUsuarioId,
     empresaAlvo: empresaId ? { empresaId, jaSegue: jaSegueEmpresa } : null,
     usuarioAlvo,
@@ -201,7 +201,7 @@ export default function PostCard({
         <div className="flex items-center gap-3">
           {temStoryNoAutor ? (
             <div
-              className={`relative shrink-0 rounded-full p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
+              className={`relative shrink-0 rounded-md p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
               style={!storyDoAutorVisto ? { background: STORY_RING_GRADIENT } : undefined}
             >
               <button
@@ -215,14 +215,14 @@ export default function PostCard({
                   alt=""
                   width={40}
                   height={40}
-                  className="object-cover"
+                  className="h-full w-full object-cover"
                 />
               </button>
             </div>
           ) : (
             <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
-              <Image
-                src={post.autor.foto_perfil_url || '/avatar-default.png'}
+              <AvatarImage
+                src={post.autor?.foto_perfil_url}
                 alt=""
                 width={40}
                 height={40}
