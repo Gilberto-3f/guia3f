@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ArrowLeft, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
 
@@ -20,6 +19,7 @@ import MeusManifestos from '@/components/perfil/subpaginas/MeusManifestos'
 import EditarPaginaEmpresa from '@/components/perfil/subpaginas/EditarPaginaEmpresa'
 import CadastrarComissao from '@/components/perfil/subpaginas/CadastrarComissao'
 import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
+import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
 
 /**
  * @typedef {{ tipo: 'menu', titulo: string, itens: MenuItem[] } | { tipo: 'pagina', titulo: string, id: string, historicoTipo?: string }} HistoricoEntry
@@ -48,10 +48,9 @@ import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
  */
 
 /**
- * @param {string} locale
  * @returns {MenuItem[]}
  */
-function itensTurista(locale) {
+function itensTurista() {
   return [
     { icon: '🆘', label: 'EMERGÊNCIA', subpagina: 'emergencia' },
     { icon: '👤', label: 'Editar Perfil', subpagina: 'editar-perfil' },
@@ -64,7 +63,7 @@ function itensTurista(locale) {
       ],
     },
     { icon: '👤', label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-    { icon: '🔖', label: 'Salvos', href: `/${locale}/perfil/salvos` },
+    { icon: '🔖', label: 'Salvos', subpagina: 'salvos' },
     { icon: '🛡️', label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
     { icon: '🔔', label: 'Configurações', subpagina: 'configuracoes' },
     { icon: '🚪', label: 'Sair', acao: 'logout' },
@@ -73,10 +72,9 @@ function itensTurista(locale) {
 
 /**
  * @param {MenuContext} ctx
- * @param {string} locale
  * @returns {MenuItem[]}
  */
-function itensProfissional(ctx, locale) {
+function itensProfissional(ctx) {
   const base = /** @type {MenuItem[]} */ ([
     { icon: '💰', label: 'Comissões', subpagina: 'comissoes' },
     {
@@ -101,7 +99,7 @@ function itensProfissional(ctx, locale) {
       ],
     },
     { icon: '👤', label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-    { icon: '🔖', label: 'Salvos', href: `/${locale}/perfil/salvos` },
+    { icon: '🔖', label: 'Salvos', subpagina: 'salvos' },
     { icon: '🛡️', label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
     { icon: '🔔', label: 'Configurações', subpagina: 'configuracoes' },
     { icon: '🚪', label: 'Sair', acao: 'logout' },
@@ -127,10 +125,9 @@ function itensEmpresa() {
 
 /**
  * @param {MenuContext} ctx
- * @param {string} locale
  * @returns {MenuItem[]}
  */
-function itensAdmin(ctx, locale) {
+function itensAdmin(ctx) {
   const base = /** @type {MenuItem[]} */ ([
     { icon: '📊', label: 'Dashboard ADM', href: '/dashboard/admin' },
     {
@@ -155,7 +152,7 @@ function itensAdmin(ctx, locale) {
       ],
     },
     { icon: '👤', label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-    { icon: '🔖', label: 'Salvos', href: `/${locale}/perfil/salvos` },
+    { icon: '🔖', label: 'Salvos', subpagina: 'salvos' },
     { icon: '🛡️', label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
     { icon: '🔔', label: 'Configurações', subpagina: 'configuracoes' },
     { icon: '🚪', label: 'Sair', acao: 'logout' },
@@ -196,7 +193,6 @@ export default function MenuLateral({
   bioText = '',
 }) {
   const router = useRouter()
-  const locale = useLocale()
   /** @type {[HistoricoEntry[], (h: HistoricoEntry[]) => void]} */
   const [historico, setHistorico] = useState(/** @type {HistoricoEntry[]} */ ([]))
   const [logoutEtapa, setLogoutEtapa] = useState(0)
@@ -233,10 +229,10 @@ export default function MenuLateral({
 
   const itensRaiz = (() => {
     if (!variant) return []
-    if (variant === 'turista') return itensTurista(locale)
-    if (variant === 'profissional') return itensProfissional(ctx, locale)
+    if (variant === 'turista') return itensTurista()
+    if (variant === 'profissional') return itensProfissional(ctx)
     if (variant === 'empresa') return itensEmpresa()
-    if (variant === 'admin') return itensAdmin(ctx, locale)
+    if (variant === 'admin') return itensAdmin(ctx)
     return []
   })()
 
@@ -302,6 +298,7 @@ export default function MenuLateral({
         parcerias: 'Parcerias',
         recomendacoes: 'Recomendações',
         'historico-decisoes': 'Histórico de Decisões',
+        salvos: 'Salvos',
       }
       const t = titulos[item.subpagina] || item.label
       if (item.subpagina === 'historico-decisoes') {
@@ -363,6 +360,7 @@ export default function MenuLateral({
         />
       )
     if (id === 'minhas-atividades') return <MinhasAtividades usuarioId={usuarioId} />
+    if (id === 'salvos') return <SalvosDrawer usuarioId={usuarioId} />
     if (id === 'configuracoes') return <Configuracoes />
     if (id === 'comissoes') return <Comissoes />
     if (id === 'agendamento') return <AgendamentoAutomatico />

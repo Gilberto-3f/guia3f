@@ -92,6 +92,7 @@ const USUARIOS_SELECT = `
 
 export default function AtividadesPage() {
   const [aba, setAba] = useState<'amigos' | 'minha'>('amigos')
+  const [busca, setBusca] = useState('')
   const [meuId, setMeuId] = useState<string | null>(null)
   const [meuRole, setMeuRole] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
@@ -279,11 +280,37 @@ export default function AtividadesPage() {
     [marcarMinhaLidas]
   )
 
-  const itensAgrupados = useMemo(() => {
+  const listaAtividadesFiltrada = useMemo(() => {
     const fonte = aba === 'amigos' ? listaAmigos : listaMinha
-    const ord = [...fonte].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    const q = busca.trim().toLowerCase()
+    if (!q) return fonte
+
+    const perfilCombina = (uid: string) => {
+      const p = perfilMap[uid]
+      if (!p) return false
+      const un = (p.username ?? '').toLowerCase()
+      const nm = (p.nome ?? '').toLowerCase()
+      const needle = q.replace(/^@/, '')
+      return un.includes(needle) || nm.includes(needle) || un.includes(q) || nm.includes(q)
+    }
+
+    return fonte.filter((r) => {
+      if (perfilCombina(r.ator_id)) return true
+      if (r.tipo === 'seguiu' && r.dados_extras && typeof r.dados_extras === 'object') {
+        const ex = r.dados_extras
+        const seguido = typeof ex.seguido_id === 'string' ? ex.seguido_id : null
+        const seguidor = typeof ex.seguidor_id === 'string' ? ex.seguidor_id : null
+        if (seguido && perfilCombina(seguido)) return true
+        if (seguidor && perfilCombina(seguidor)) return true
+      }
+      return false
+    })
+  }, [aba, listaAmigos, listaMinha, busca, perfilMap])
+
+  const itensAgrupados = useMemo(() => {
+    const ord = [...listaAtividadesFiltrada].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     return agruparCurtidasPost(ord)
-  }, [aba, listaAmigos, listaMinha])
+  }, [listaAtividadesFiltrada])
 
   const blocosComTitulo = useMemo(() => {
     const blocos: { titulo: string; key: string; itens: typeof itensAgrupados }[] = []
@@ -429,6 +456,17 @@ export default function AtividadesPage() {
           <span>ATIVIDADES</span>
         </h1>
       </header>
+
+      <div className="border-b border-gray-100 bg-white p-4">
+        <input
+          type="text"
+          placeholder="Pesquisar usuário por @ ou nome..."
+          className="w-full rounded-lg border border-gray-200 p-2 text-sm text-gray-900 placeholder:text-gray-400"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          aria-label="Pesquisar atividades por usuário"
+        />
+      </div>
 
       <AbasAtividades aba={aba} onAba={onAba} />
 

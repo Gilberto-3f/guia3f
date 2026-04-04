@@ -38,6 +38,7 @@ import AvatarImage from '@/components/AvatarImage'
  *   onRepublicouPrepend?: (row: Record<string, unknown>) => void
  *   onPostLocalPatch?: (postId: string, patch: Partial<{ texto: string | null }>) => void
  *   onItemSalvoChange?: (postId: string, salvo: boolean) => void
+ *   onRepostRemovido?: (repostPostId: string) => void
  * }} props
  */
 export default function PostCard({
@@ -52,6 +53,7 @@ export default function PostCard({
   onRepublicouPrepend,
   onPostLocalPatch,
   onItemSalvoChange,
+  onRepostRemovido,
 }) {
   const [comentAberto, setComentAberto] = useState(false)
   const deepLinkComentAberto = useRef(/** @type {string | null} */ (null))
@@ -65,6 +67,7 @@ export default function PostCard({
   const [jaSegueUsuario, setJaSegueUsuario] = useState(false)
   const [tickSeguir, setTickSeguir] = useState(0)
   const [autorOriginalUsername, setAutorOriginalUsername] = useState(/** @type {string | null} */ (null))
+  const [meuRepostPostId, setMeuRepostPostId] = useState(/** @type {string | null} */ (null))
 
   const empresaId = post.autor?.empresa_id || ''
   const autorId = post.autor?.usuario_id || ''
@@ -191,6 +194,21 @@ export default function PostCard({
     }
   }, [postOriginalId])
 
+  useEffect(() => {
+    if (!meuUsuarioId || !post.id) {
+      setMeuRepostPostId(null)
+      return
+    }
+    void supabase
+      .from('posts')
+      .select('id')
+      .eq('post_original_id', post.id)
+      .eq('autor_id', meuUsuarioId)
+      .is('deleted_at', null)
+      .maybeSingle()
+      .then(({ data }) => setMeuRepostPostId(data?.id != null ? String(data.id) : null))
+  }, [post.id, meuUsuarioId])
+
   const mediaUrl = post.conteudo_url || post.foto_url
   const hasMedia = Boolean(mediaUrl)
   const tipoNorm = String(post.tipo || '').toLowerCase()
@@ -242,6 +260,23 @@ export default function PostCard({
 
   const handleRepostar = async () => {
     if (!meuUsuarioId) return
+
+    if (meuRepostPostId) {
+      const rid = meuRepostPostId
+      const { error: delErr } = await supabase.from('posts').delete().eq('id', rid).eq('autor_id', meuUsuarioId)
+      if (delErr) {
+        console.error(delErr)
+        alert('Não foi possível remover o repost.')
+        return
+      }
+      const { error: rpcErr } = await supabase.rpc('decrementar_reposts', { post_id: post.id })
+      if (rpcErr) console.error(rpcErr)
+      setMeuRepostPostId(null)
+      setRepostTotal((n) => Math.max(0, n - 1))
+      onRepostRemovido?.(rid)
+      return
+    }
+
     const { data: postOriginal, error: e1 } = await supabase
       .from('posts')
       .select('*')
@@ -254,15 +289,17 @@ export default function PostCard({
       return
     }
     const o = /** @type {Record<string, unknown>} */ (postOriginal)
-    const { data: ins, error: e2 } = await supabase.from('posts').insert({
-      autor_id: meuUsuarioId,
-      tipo: o.tipo != null ? String(o.tipo) : 'texto',
-      texto: o.texto != null ? String(o.texto) : null,
-      foto_url: o.foto_url != null ? String(o.foto_url) : null,
-      conteudo_url: o.conteudo_url != null ? String(o.conteudo_url) : null,
-      avaliacao_meta: o.avaliacao_meta && typeof o.avaliacao_meta === 'object' ? o.avaliacao_meta : null,
-      post_original_id: post.id,
-    })
+    const { data: ins, error: e2 } = await supabase
+      .from('posts')
+      .insert({
+        autor_id: meuUsuarioId,
+        tipo: o.tipo != null ? String(o.tipo) : 'texto',
+        texto: o.texto != null ? String(o.texto) : null,
+        foto_url: o.foto_url != null ? String(o.foto_url) : null,
+        conteudo_url: o.conteudo_url != null ? String(o.conteudo_url) : null,
+        avaliacao_meta: o.avaliacao_meta && typeof o.avaliacao_meta === 'object' ? o.avaliacao_meta : null,
+        post_original_id: post.id,
+      })
       .select('id')
       .maybeSingle()
     if (e2 || !ins?.id) {
@@ -270,10 +307,12 @@ export default function PostCard({
       alert('Não foi possível republicar.')
       return
     }
+    const novoId = String(ins.id)
+    setMeuRepostPostId(novoId)
     const { error: rpcErr } = await supabase.rpc('incrementar_reposts', { post_id: post.id })
     if (rpcErr) console.error(rpcErr)
     setRepostTotal((n) => n + 1)
-    const { data: viewRow, error: e3 } = await supabase.from('posts_com_autores').select('*').eq('id', ins.id).maybeSingle()
+    const { data: viewRow, error: e3 } = await supabase.from('posts_com_autores').select('*').eq('id', novoId).maybeSingle()
     if (e3) console.error('posts_com_autores após repost:', e3)
     if (!e3 && viewRow) onRepublicouPrepend?.(/** @type {Record<string, unknown>} */ (viewRow))
   }
@@ -320,44 +359,45 @@ export default function PostCard({
     ) : null
 
   const acoesPost = (
-    <div className="flex items-center justify-between px-3 py-2">
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={() => void handleCurtir()}
-          disabled={!meuUsuarioId}
-          className="flex items-center gap-1 text-sm text-gray-800 disabled:opacity-50"
-        >
-          <Heart className={`h-5 w-5 shrink-0 ${curtiu ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} aria-hidden />
-          <span>{curtTotal}</span>
-        </button>
-        <button type="button" onClick={handleComentar} className="flex items-center gap-1 text-sm text-gray-800">
-          <MessageCircle className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
-          <span>{nComent}</span>
-        </button>
-        <button
-          type="button"
-          onClick={abrirModalCompartilhar}
-          className="flex items-center gap-1 text-sm text-gray-800"
-          aria-label="Compartilhar"
-        >
-          <Share2 className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
-        </button>
-        <button
-          type="button"
-          onClick={() => void handleRepostar()}
-          disabled={!meuUsuarioId}
-          className="flex items-center gap-1 text-sm text-gray-800 disabled:opacity-50"
-        >
-          <Repeat2 className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
-          <span>{repostTotal}</span>
-        </button>
-      </div>
+    <div className="flex w-full items-center justify-around px-2 py-2">
+      <button
+        type="button"
+        onClick={() => void handleCurtir()}
+        disabled={!meuUsuarioId}
+        className="flex items-center gap-1 text-sm text-gray-800 disabled:opacity-50"
+      >
+        <Heart className={`h-5 w-5 shrink-0 ${curtiu ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} aria-hidden />
+        <span>{curtTotal}</span>
+      </button>
+      <button type="button" onClick={handleComentar} className="flex items-center gap-1 text-sm text-gray-800">
+        <MessageCircle className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+        <span>{nComent}</span>
+      </button>
+      <button
+        type="button"
+        onClick={abrirModalCompartilhar}
+        className="flex items-center gap-1 text-sm text-gray-800"
+        aria-label="Compartilhar"
+      >
+        <Share2 className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() => void handleRepostar()}
+        disabled={!meuUsuarioId}
+        className="flex items-center gap-1 text-sm text-gray-800 disabled:opacity-50"
+      >
+        <Repeat2
+          className={`h-5 w-5 shrink-0 ${meuRepostPostId ? 'text-[#0097b2]' : 'text-gray-500'}`}
+          aria-hidden
+        />
+        <span>{repostTotal}</span>
+      </button>
       <button
         type="button"
         onClick={() => void handleSalvar()}
         disabled={!meuUsuarioId}
-        className="text-gray-600 disabled:opacity-50"
+        className="flex items-center gap-1 text-gray-600 disabled:opacity-50"
         aria-label="Salvar"
       >
         <Bookmark className={`h-5 w-5 ${salvo ? 'fill-[#0097b2] text-[#0097b2]' : 'text-gray-500'}`} aria-hidden />
@@ -414,26 +454,26 @@ export default function PostCard({
             >
               <button
                 type="button"
-                className="relative block h-11 w-11 overflow-hidden rounded-md bg-gray-100 p-0"
+                className="relative block h-10 w-10 overflow-hidden rounded-md bg-gray-100 p-0"
                 onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
                 aria-label={`Story de ${post.autor?.nome ?? 'autor'}`}
               >
                 <AvatarImage
                   src={post.autor?.foto_perfil_url}
                   alt=""
-                  width={44}
-                  height={44}
+                  width={40}
+                  height={40}
                   className="h-full w-full object-cover"
                 />
               </button>
             </div>
           ) : (
-            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-md bg-gray-100">
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
               <AvatarImage
                 src={post.autor?.foto_perfil_url}
                 alt=""
-                width={44}
-                height={44}
+                width={40}
+                height={40}
                 className="object-cover"
               />
             </div>

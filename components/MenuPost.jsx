@@ -58,10 +58,6 @@ export default function MenuPost({
       setPassoExcluir(1)
       return
     }
-    if (!confirm('Confirma exclusão permanente?')) {
-      setPassoExcluir(0)
-      return
-    }
     await supabase.from('posts').update({ deleted_at: new Date().toISOString() }).eq('id', postId).eq('autor_id', meuUsuarioId ?? '')
     setPassoExcluir(0)
     setAberto(false)
