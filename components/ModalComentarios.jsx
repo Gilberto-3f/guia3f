@@ -4,23 +4,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import Comentario from '@/components/Comentario'
-import { fetchFotoPerfilUsuario, pickAutorDisplay } from '@/lib/feed-autor'
+import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 import AvatarImage from '@/components/AvatarImage'
 
-const SELECT_COMENTARIO_AUTOR = `
+const USUARIOS_SELECT = `
   id,
-  texto,
-  created_at,
-  total_curtidas,
-  autor_id,
-  usuarios (
-    id,
-    email,
-    role,
-    turistas (nome_completo, nome_usuario, foto_perfil_url),
-    profissionais (nome_completo, nome_usuario, foto_perfil_url),
-    empresas (nome_fantasia, nome_usuario, foto_url)
-  )
+  email,
+  role,
+  turistas (nome_completo, nome_usuario, foto_perfil_url),
+  profissionais (nome_completo, nome_usuario, foto_perfil_url),
+  empresas (nome_fantasia, nome_usuario, foto_url)
 `
 
 /**
@@ -38,43 +31,55 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
   const [novoComentario, setNovoComentario] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [minhaFotoUrl, setMinhaFotoUrl] = useState(/** @type {string | null} */ (null))
-  const [tecladoAberto, setTecladoAberto] = useState(false)
+  const [composeAberto, setComposeAberto] = useState(false)
+  const [tecladoInset, setTecladoInset] = useState(0)
   const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
-  const touchStartY = useRef(/** @type {number | null} */ (null))
 
-  const formatarLinhas = useCallback((data) => {
-    if (!data?.length) return []
-    return data.map((row) => {
-      const r = /** @type {Record<string, unknown>} */ (row)
-      const rawU = r.usuarios
-      const u = Array.isArray(rawU) ? rawU[0] : rawU
-      const a = pickAutorDisplay(u)
+  const formatarComAutores = useCallback(async (rows) => {
+    if (!rows?.length) return []
+    const ids = [...new Set(rows.map((r) => String(r.autor_id)))]
+    const { data: users, error } = await supabase.from('usuarios').select(USUARIOS_SELECT).in('id', ids)
+    if (error) {
+      console.error('ModalComentarios usuarios:', error)
+    }
+    const { pickAutorDisplay } = await import('@/lib/feed-autor')
+    const map = new Map()
+    for (const u of users ?? []) {
+      const row = /** @type {{ id?: unknown }} */ (u)
+      const id = row.id != null ? String(row.id) : ''
+      if (id) map.set(id, pickAutorDisplay(u))
+    }
+    return rows.map((r) => {
+      const rr = /** @type {Record<string, unknown>} */ (r)
+      const aid = String(rr.autor_id ?? '')
+      const a = map.get(aid) ?? { nome: 'Usuário', username: 'usuario', foto_perfil_url: null }
       return {
-        id: String(r.id),
-        texto: String(r.texto ?? ''),
-        created_at: String(r.created_at ?? ''),
-        total_curtidas: Number(r.total_curtidas) || 0,
+        id: String(rr.id),
+        texto: String(rr.texto ?? ''),
+        created_at: String(rr.created_at ?? ''),
+        total_curtidas: Number(rr.total_curtidas) || 0,
         autor: { nome: a.nome, username: a.username, foto_perfil_url: a.foto_perfil_url },
       }
     })
   }, [])
 
   const carregar = useCallback(async () => {
-    const { data, error } = await supabase
+    const { data: rows, error } = await supabase
       .from('comentarios')
-      .select(SELECT_COMENTARIO_AUTOR)
+      .select('id, texto, created_at, total_curtidas, autor_id')
       .eq('post_id', postId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
 
     if (error) {
-      console.error('ModalComentarios carregar:', error)
+      console.error('ModalComentarios comentarios:', error)
       setLista([])
       return
     }
 
-    setLista(formatarLinhas(data ?? []))
-  }, [postId, formatarLinhas])
+    const formatados = await formatarComAutores(rows ?? [])
+    setLista(formatados)
+  }, [postId, formatarComAutores])
 
   useEffect(() => {
     if (!aberto || !postId) return
@@ -82,7 +87,7 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
 
     const ch = supabase
       .channel(`comentarios-${postId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comentarios', filter: `post_id=eq.${postId}` }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comentarios', filter: `post_id=eq.${postId}` }, () => {
         void carregar()
       })
       .subscribe()
@@ -101,18 +106,16 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
   }, [aberto, usuarioId])
 
   useEffect(() => {
-    if (!aberto) {
-      setTecladoAberto(false)
+    if (!aberto || !composeAberto) {
+      setTecladoInset(0)
       return
     }
     const vv = typeof window !== 'undefined' ? window.visualViewport : null
     if (!vv) return
-
     const atualizar = () => {
-      const ratio = vv.height / window.innerHeight
-      setTecladoAberto(ratio < 0.72)
+      const gap = window.innerHeight - vv.height - vv.offsetTop
+      setTecladoInset(Math.max(0, Math.round(gap)))
     }
-
     atualizar()
     vv.addEventListener('resize', atualizar)
     vv.addEventListener('scroll', atualizar)
@@ -120,6 +123,10 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
       vv.removeEventListener('resize', atualizar)
       vv.removeEventListener('scroll', atualizar)
     }
+  }, [aberto, composeAberto])
+
+  useEffect(() => {
+    if (!aberto) setComposeAberto(false)
   }, [aberto])
 
   useEffect(() => {
@@ -130,14 +137,23 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
     return () => clearTimeout(t)
   }, [aberto, destacarComentarioId, lista])
 
-  const handleResponder = useCallback((textoMencao) => {
-    setNovoComentario(textoMencao)
+  const abrirCompose = useCallback((textoInicial = '') => {
+    setNovoComentario(textoInicial)
+    setComposeAberto(true)
     requestAnimationFrame(() => textareaRef.current?.focus())
   }, [])
 
-  const recolherPainel = useCallback(() => {
-    textareaRef.current?.blur()
-    setTecladoAberto(false)
+  const handleResponder = useCallback(
+    (textoMencao) => {
+      abrirCompose(textoMencao)
+    },
+    [abrirCompose]
+  )
+
+  const fecharCompose = useCallback(() => {
+    setComposeAberto(false)
+    setNovoComentario('')
+    setTecladoInset(0)
   }, [])
 
   const enviarComentario = async () => {
@@ -150,7 +166,7 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
         texto: novoComentario.trim(),
       })
       if (error) return
-      setNovoComentario('')
+      fecharCompose()
       await carregar()
       onComentou?.()
     } finally {
@@ -160,84 +176,113 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
 
   if (!aberto) return null
 
-  const alturaPainel = tecladoAberto ? '100dvh' : 'min(66dvh, 85vh)'
-
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
-      <div
-        className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl transition-[height] duration-200 ease-out sm:max-h-[85vh] sm:rounded-2xl"
-        style={{ height: alturaPainel, maxHeight: '100dvh' }}
-      >
-        <div
-          className="shrink-0 border-b border-gray-100 px-4 pt-2 pb-1"
-          onTouchStart={(e) => {
-            touchStartY.current = e.touches[0]?.clientY ?? null
-          }}
-          onTouchEnd={(e) => {
-            const start = touchStartY.current
-            touchStartY.current = null
-            if (start == null) return
-            const end = e.changedTouches[0]?.clientY
-            if (end != null && end - start > 48) recolherPainel()
-          }}
-        >
-          <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-gray-300 sm:hidden" aria-hidden />
-          <div className="flex items-center justify-between py-2">
-            <h3 className="font-bold text-black">Comentários</h3>
-            <button type="button" onClick={onFechar} className="p-1 text-black" aria-label="Fechar">
-              <X size={22} />
-            </button>
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black">
-          {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-900">Nenhum comentário</p> : null}
-          {lista.map((c, index) => (
-            <Comentario
-              key={c.id}
-              comentario={c}
-              usuarioId={usuarioId}
-              destacado={Boolean(destacarComentarioId && c.id === destacarComentarioId)}
-              mostrarResponder={index > 0}
-              onResponder={handleResponder}
-            />
-          ))}
-        </div>
-
-        <div className="shrink-0 border-t border-gray-200 bg-white p-3 [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="flex items-end gap-2">
-            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
-              {minhaFotoUrl ? (
-                <AvatarImage src={minhaFotoUrl} alt="" width={32} height={32} className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">?</div>
-              )}
+    <>
+      {!composeAberto ? (
+        <div className="fixed inset-0 z-[230] flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
+          <div
+            className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
+            style={{ height: 'min(70vh, 85vh)' }}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3">
+              <h3 className="font-bold text-black">Comentários</h3>
+              <button type="button" onClick={onFechar} className="p-1 text-black" aria-label="Fechar">
+                <X size={22} />
+              </button>
             </div>
-            <textarea
-              ref={textareaRef}
-              className="max-h-28 min-h-[40px] flex-1 resize-none rounded-lg border border-gray-200 p-2 text-sm text-black"
-              rows={1}
-              placeholder="Adicione um comentário..."
-              value={novoComentario}
-              onChange={(e) => setNovoComentario(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  void enviarComentario()
-                }
-              }}
-            />
-            <button
-              type="button"
-              disabled={!novoComentario.trim() || enviando || !usuarioId}
-              onClick={() => void enviarComentario()}
-              className="shrink-0 px-2 py-2 text-sm font-bold text-[#0097b2] disabled:opacity-40"
-            >
-              Enviar
-            </button>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black">
+              {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-900">Nenhum comentário</p> : null}
+              {lista.map((c, index) => (
+                <Comentario
+                  key={c.id}
+                  comentario={c}
+                  usuarioId={usuarioId}
+                  destacado={Boolean(destacarComentarioId && c.id === destacarComentarioId)}
+                  mostrarResponder={index > 0}
+                  onResponder={handleResponder}
+                />
+              ))}
+            </div>
+            <div className="shrink-0 border-t border-gray-200 bg-white p-3">
+              <button
+                type="button"
+                onClick={() => abrirCompose('')}
+                disabled={!usuarioId}
+                className="w-full rounded-xl border border-[#0097b2] py-3 text-center text-sm font-semibold text-[#0097b2] disabled:opacity-50"
+              >
+                Adicionar comentário
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      ) : null}
+
+      {composeAberto ? (
+        <div
+          className="fixed inset-0 z-[235] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) fecharCompose()
+          }}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl"
+            style={{ marginBottom: tecladoInset }}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="modal-comentario-titulo"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h4 id="modal-comentario-titulo" className="text-base font-bold text-gray-900">
+                {novoComentario.trim().startsWith('@') ? 'Responder' : 'Novo comentário'}
+              </h4>
+              <button type="button" onClick={fecharCompose} className="p-1 text-gray-600" aria-label="Fechar">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex items-end gap-2">
+              <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                {minhaFotoUrl ? (
+                  <AvatarImage src={minhaFotoUrl} alt="" width={32} height={32} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">?</div>
+                )}
+              </div>
+              <textarea
+                ref={textareaRef}
+                className="max-h-40 min-h-[100px] flex-1 resize-y rounded-lg border border-gray-200 p-2 text-sm text-black"
+                placeholder="Adicione um comentário..."
+                value={novoComentario}
+                onChange={(e) => setNovoComentario(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault()
+                    void enviarComentario()
+                  }
+                }}
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-400">Enter nova linha · Ctrl+Enter envia</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={fecharCompose}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={!novoComentario.trim() || enviando || !usuarioId}
+                onClick={() => void enviarComentario()}
+                className="rounded-lg bg-[#0097b2] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                Enviar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   )
 }

@@ -58,7 +58,17 @@ export default function MenuPost({
       setPassoExcluir(1)
       return
     }
-    await supabase.from('posts').update({ deleted_at: new Date().toISOString() }).eq('id', postId).eq('autor_id', meuUsuarioId ?? '')
+    const { error } = await supabase
+      .from('posts')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', postId)
+      .eq('autor_id', meuUsuarioId ?? '')
+    if (!error) {
+      const { error: rpcErr } = await supabase.rpc('limpar_dados_ao_excluir_post', { p_post_id: postId })
+      if (rpcErr && rpcErr.message && !String(rpcErr.message).includes('not_allowed')) {
+        console.error('limpar_dados_ao_excluir_post:', rpcErr)
+      }
+    }
     setPassoExcluir(0)
     setAberto(false)
     onApagou?.()

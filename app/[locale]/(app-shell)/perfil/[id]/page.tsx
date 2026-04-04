@@ -27,6 +27,14 @@ type PostLinha = {
   total_comentarios: number
 }
 
+type FotoPostItem = {
+  id: string
+  url: string
+  texto: string | null
+  total_curtidas: number
+  total_comentarios: number
+}
+
 type RepublicadoLinha = {
   id: string
   created_at: string
@@ -65,7 +73,7 @@ export default function PerfilSocialPage() {
   const [nAval, setNAval] = useState(0)
 
   const [aba, setAba] = useState<'fotos' | 'posts' | 'republicados'>('fotos')
-  const [urlsFotos, setUrlsFotos] = useState<string[]>([])
+  const [postsFotos, setPostsFotos] = useState<FotoPostItem[]>([])
   const [postsTexto, setPostsTexto] = useState<PostLinha[]>([])
   const [republicados, setRepublicados] = useState<RepublicadoLinha[]>([])
 
@@ -168,20 +176,27 @@ export default function PerfilSocialPage() {
 
       const { data: postsFoto } = await supabase
         .from('posts')
-        .select('id, conteudo_url, foto_url, tipo')
+        .select('id, conteudo_url, foto_url, tipo, texto, total_curtidas, total_comentarios')
         .eq('autor_id', profileId)
         .is('deleted_at', null)
         .in('tipo', ['foto', 'misto'])
         .order('created_at', { ascending: false })
 
-      const urls =
+      const fotosRows: FotoPostItem[] =
         postsFoto
           ?.map((p) => {
             const uu = p.conteudo_url || p.foto_url
-            return uu != null ? String(uu) : null
+            if (uu == null) return null
+            return {
+              id: String(p.id),
+              url: String(uu),
+              texto: p.texto != null ? String(p.texto) : null,
+              total_curtidas: Number(p.total_curtidas) || 0,
+              total_comentarios: Number(p.total_comentarios) || 0,
+            }
           })
-          .filter((x): x is string => x != null) ?? []
-      setUrlsFotos(urls)
+          .filter((x): x is FotoPostItem => x != null) ?? []
+      setPostsFotos(fotosRows)
 
       const { data: postsTxt } = await supabase
         .from('posts')
@@ -397,7 +412,7 @@ export default function PerfilSocialPage() {
       <div className="mt-4">
         <AbasPerfil ativa={aba} onChange={setAba} counts={counts} />
         <div className="min-h-[200px] bg-gray-50 py-2">
-          {aba === 'fotos' ? <AbaFotos urls={urlsFotos} onOpen={(i) => setModalFoto({ aberto: true, i })} /> : null}
+          {aba === 'fotos' ? <AbaFotos posts={postsFotos} onOpen={(i) => setModalFoto({ aberto: true, i })} /> : null}
           {aba === 'posts' ? <AbaPosts posts={postsTexto} /> : null}
           {aba === 'republicados' ? <AbaRepublicados itens={republicados} /> : null}
         </div>
@@ -426,7 +441,15 @@ export default function PerfilSocialPage() {
         perfilTipo={perfilTipo}
       />
 
-      <ModalFoto urls={urlsFotos} indiceInicial={modalFoto.i} aberto={modalFoto.aberto} onFechar={() => setModalFoto({ aberto: false, i: 0 })} />
+      <ModalFoto
+        posts={postsFotos}
+        indiceInicial={modalFoto.i}
+        aberto={modalFoto.aberto}
+        onFechar={() => setModalFoto({ aberto: false, i: 0 })}
+        meuUsuarioId={meuId}
+        autor={{ nome, username, foto_perfil_url: fotoPerfil }}
+        onPatchPost={patchFotoPost}
+      />
     </div>
   )
 }

@@ -2,7 +2,35 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Image from 'next/image'
-import { ArrowLeft, X } from 'lucide-react'
+import {
+  Activity,
+  AlertTriangle,
+  ArrowLeft,
+  Bookmark,
+  Building2,
+  Calendar,
+  Car,
+  ClipboardList,
+  DollarSign,
+  Gem,
+  Handshake,
+  History,
+  LayoutDashboard,
+  LogOut,
+  Megaphone,
+  MessageSquare,
+  Scale,
+  Settings,
+  ShieldAlert,
+  ShoppingBag,
+  ShoppingCart,
+  Speaker,
+  Star,
+  Table,
+  User,
+  Users,
+  X,
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
@@ -27,7 +55,7 @@ import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
 
 /**
  * @typedef {{
- *   icon: string
+ *   Icon: import('react').ComponentType<{ className?: string, size?: number }>
  *   label: string
  *   subpagina?: string
  *   href?: string
@@ -52,21 +80,21 @@ import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
  */
 function itensTurista() {
   return [
-    { icon: '🆘', label: 'EMERGÊNCIA', subpagina: 'emergencia' },
-    { icon: '👤', label: 'Editar Perfil', subpagina: 'editar-perfil' },
+    { Icon: ShieldAlert, label: 'EMERGÊNCIA', subpagina: 'emergencia' },
+    { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
     {
-      icon: '📜',
+      Icon: History,
       label: 'Meu Histórico',
       subitens: [
-        { icon: '🚗', label: 'Contratações', subpagina: 'contratacoes' },
-        { icon: '🛒', label: 'Compras', subpagina: 'compras' },
+        { Icon: Car, label: 'Contratações', subpagina: 'contratacoes' },
+        { Icon: ShoppingBag, label: 'Compras', subpagina: 'compras' },
       ],
     },
-    { icon: '👤', label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-    { icon: '🔖', label: 'Salvos', subpagina: 'salvos' },
-    { icon: '🛡️', label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
-    { icon: '🔔', label: 'Configurações', subpagina: 'configuracoes' },
-    { icon: '🚪', label: 'Sair', acao: 'logout' },
+    { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
+    { Icon: Bookmark, label: 'Salvos', subpagina: 'salvos' },
+    { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
+    { Icon: Settings, label: 'Configurações', subpagina: 'configuracoes' },
+    { Icon: LogOut, label: 'Sair', acao: 'logout' },
   ]
 }
 
@@ -76,33 +104,33 @@ function itensTurista() {
  */
 function itensProfissional(ctx) {
   const base = /** @type {MenuItem[]} */ ([
-    { icon: '💰', label: 'Comissões', subpagina: 'comissoes' },
+    { Icon: DollarSign, label: 'Comissões', subpagina: 'comissoes' },
     {
-      icon: '⭐',
+      Icon: Star,
       label: 'Profissionais do Turismo',
       subitens: [
-        { icon: '📅', label: 'Agendamento Automático', subpagina: 'agendamento' },
-        { icon: '💰', label: 'Tabela de Valores', subpagina: 'tabela' },
-        { icon: '📋', label: 'Meus Manifestos', subpagina: 'manifestos' },
+        { Icon: Calendar, label: 'Agendamento Automático', subpagina: 'agendamento' },
+        { Icon: Table, label: 'Tabela de Valores', subpagina: 'tabela' },
+        { Icon: ClipboardList, label: 'Meus Manifestos', subpagina: 'manifestos' },
       ],
       condicional: (c) => c.placaVermelha === true,
     },
-    { icon: '👤', label: 'Editar Perfil', subpagina: 'editar-perfil' },
+    { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
     {
-      icon: '📜',
+      Icon: History,
       label: 'Meu Histórico',
       subitens: [
-        { icon: '🤝', label: 'Parcerias', subpagina: 'parcerias' },
-        { icon: '📢', label: 'Recomendações', subpagina: 'recomendacoes' },
-        { icon: '🚗', label: 'Contratações', subpagina: 'contratacoes' },
-        { icon: '🛒', label: 'Compras', subpagina: 'compras' },
+        { Icon: Handshake, label: 'Parcerias', subpagina: 'parcerias' },
+        { Icon: Speaker, label: 'Recomendações', subpagina: 'recomendacoes' },
+        { Icon: Car, label: 'Contratações', subpagina: 'contratacoes' },
+        { Icon: ShoppingBag, label: 'Compras', subpagina: 'compras' },
       ],
     },
-    { icon: '👤', label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-    { icon: '🔖', label: 'Salvos', subpagina: 'salvos' },
-    { icon: '🛡️', label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
-    { icon: '🔔', label: 'Configurações', subpagina: 'configuracoes' },
-    { icon: '🚪', label: 'Sair', acao: 'logout' },
+    { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
+    { Icon: Bookmark, label: 'Salvos', subpagina: 'salvos' },
+    { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
+    { Icon: Settings, label: 'Configurações', subpagina: 'configuracoes' },
+    { Icon: LogOut, label: 'Sair', acao: 'logout' },
   ])
   return base.filter((item) => (item.condicional ? item.condicional(ctx) : true))
 }
@@ -113,13 +141,13 @@ function itensProfissional(ctx) {
  */
 function itensEmpresa() {
   return [
-    { icon: '🏢', label: 'Menu Empresa', href: '/empresa/menu/publicidade' },
-    { icon: '📢', label: 'Publicidade', href: '/empresa/menu/publicidade' },
-    { icon: '💬', label: 'Chat ADM', href: '/empresa/menu/chat-adm' },
-    { icon: '⚠️', label: 'Denúncias', href: '/empresa/menu/denuncias' },
-    { icon: '🛍️', label: 'Compras Paraguai', href: '/empresa/menu/compras-paraguai' },
-    { icon: '💎', label: 'Planos', href: '/empresa/menu/planos' },
-    { icon: '🚪', label: 'Sair', acao: 'logout' },
+    { Icon: Building2, label: 'Menu Empresa', href: '/empresa/menu/publicidade' },
+    { Icon: Megaphone, label: 'Publicidade', href: '/empresa/menu/publicidade' },
+    { Icon: MessageSquare, label: 'Chat ADM', href: '/empresa/menu/chat-adm' },
+    { Icon: AlertTriangle, label: 'Denúncias', href: '/empresa/menu/denuncias' },
+    { Icon: ShoppingCart, label: 'Compras Paraguai', href: '/empresa/menu/compras-paraguai' },
+    { Icon: Gem, label: 'Planos', href: '/empresa/menu/planos' },
+    { Icon: LogOut, label: 'Sair', acao: 'logout' },
   ]
 }
 
@@ -129,33 +157,33 @@ function itensEmpresa() {
  */
 function itensAdmin(ctx) {
   const base = /** @type {MenuItem[]} */ ([
-    { icon: '📊', label: 'Dashboard ADM', href: '/dashboard/admin' },
+    { Icon: LayoutDashboard, label: 'Dashboard ADM', href: '/dashboard/admin' },
     {
-      icon: '🎭',
+      Icon: Users,
       label: 'Modo Apresentação',
       subitens: [
-        { icon: '👤', label: 'Turista', acao: 'simulacao', simRole: 'turista' },
-        { icon: '🚗', label: 'Profissional', acao: 'simulacao', simRole: 'profissional' },
-        { icon: '🏢', label: 'Empresa', acao: 'simulacao', simRole: 'empresa' },
+        { Icon: User, label: 'Turista', acao: 'simulacao', simRole: 'turista' },
+        { Icon: Car, label: 'Profissional', acao: 'simulacao', simRole: 'profissional' },
+        { Icon: Building2, label: 'Empresa', acao: 'simulacao', simRole: 'empresa' },
       ],
       condicional: (c) => c.adminLevel === 1,
     },
-    { icon: '👤', label: 'Editar Perfil', subpagina: 'editar-perfil' },
+    { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
     {
-      icon: '📜',
+      Icon: History,
       label: 'Meu Histórico',
       subitens: [
-        { icon: '🤝', label: 'Parcerias', subpagina: 'parcerias' },
-        { icon: '📢', label: 'Recomendações', subpagina: 'recomendacoes' },
-        { icon: '🚗', label: 'Contratações', subpagina: 'contratacoes' },
-        { icon: '🛒', label: 'Compras', subpagina: 'compras' },
+        { Icon: Handshake, label: 'Parcerias', subpagina: 'parcerias' },
+        { Icon: Speaker, label: 'Recomendações', subpagina: 'recomendacoes' },
+        { Icon: Car, label: 'Contratações', subpagina: 'contratacoes' },
+        { Icon: ShoppingBag, label: 'Compras', subpagina: 'compras' },
       ],
     },
-    { icon: '👤', label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-    { icon: '🔖', label: 'Salvos', subpagina: 'salvos' },
-    { icon: '🛡️', label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
-    { icon: '🔔', label: 'Configurações', subpagina: 'configuracoes' },
-    { icon: '🚪', label: 'Sair', acao: 'logout' },
+    { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
+    { Icon: Bookmark, label: 'Salvos', subpagina: 'salvos' },
+    { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
+    { Icon: Settings, label: 'Configurações', subpagina: 'configuracoes' },
+    { Icon: LogOut, label: 'Sair', acao: 'logout' },
   ])
   return base.filter((item) => (item.condicional ? item.condicional(ctx) : true))
 }
@@ -377,15 +405,17 @@ export default function MenuLateral({
   /** @param {MenuItem[]} lista */
   const renderListaItens = (lista) => (
     <ul className="space-y-1">
-      {lista.map((item, idx) => (
+      {lista.map((item, idx) => {
+        const Ico = item.Icon
+        return (
         <li key={`${item.label}-${idx}`}>
           <button
             type="button"
             onClick={() => executarItem(item)}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-gray-800 transition hover:bg-gray-100"
           >
-            <span className="text-lg" aria-hidden>
-              {item.icon}
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-700" aria-hidden>
+              <Ico size={20} strokeWidth={1.75} />
             </span>
             <span className="flex-1">{item.label}</span>
             {(item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)) > 0 ? (
@@ -395,7 +425,8 @@ export default function MenuLateral({
             ) : null}
           </button>
         </li>
-      ))}
+        )
+      })}
     </ul>
   )
 
@@ -452,7 +483,7 @@ export default function MenuLateral({
                 </div>
               </div>
               {variant === 'admin' || adminLevel >= 1 ? (
-                <p className="mt-2 text-xs font-semibold text-amber-700">👑 ADMIN</p>
+                <p className="mt-2 text-xs font-semibold text-amber-700">ADMIN</p>
               ) : null}
             </div>
 

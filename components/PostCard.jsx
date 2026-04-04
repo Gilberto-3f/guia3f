@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { Bookmark, Heart, MessageCircle, Repeat2, Share2 } from 'lucide-react'
 import ModalComentarios from '@/components/ModalComentarios'
+import ModalCurtidas from '@/components/ModalCurtidas'
 import ModalCompartilhar from '@/components/ModalCompartilhar'
 import MenuPost from '@/components/MenuPost'
 import AvaliacaoCard from '@/components/AvaliacaoCard'
@@ -56,6 +57,7 @@ export default function PostCard({
   onRepostRemovido,
 }) {
   const [comentAberto, setComentAberto] = useState(false)
+  const [curtidasAberto, setCurtidasAberto] = useState(false)
   const deepLinkComentAberto = useRef(/** @type {string | null} */ (null))
   const [shareAberto, setShareAberto] = useState(false)
   const [nComent, setNComent] = useState(post.total_comentarios ?? 0)
@@ -414,15 +416,20 @@ export default function PostCard({
 
   const acoesPost = (
     <div className="flex w-full items-center justify-around px-2 py-2">
-      <button
-        type="button"
-        onClick={() => void handleCurtir()}
-        disabled={!meuUsuarioId}
-        className="flex items-center gap-1 text-sm text-gray-800 disabled:opacity-50"
-      >
-        <Heart className={`h-5 w-5 shrink-0 ${curtiu ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} aria-hidden />
-        <span>{curtTotal}</span>
-      </button>
+      <div className="flex items-center gap-0.5 text-sm text-gray-800">
+        <button
+          type="button"
+          onClick={() => void handleCurtir()}
+          disabled={!meuUsuarioId}
+          className="flex items-center p-1 disabled:opacity-50"
+          aria-label="Curtir"
+        >
+          <Heart className={`h-5 w-5 shrink-0 ${curtiu ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} aria-hidden />
+        </button>
+        <button type="button" onClick={() => setCurtidasAberto(true)} className="min-w-[1.25rem] py-1 text-left">
+          {curtTotal}
+        </button>
+      </div>
       <button type="button" onClick={handleComentar} className="flex items-center gap-1 text-sm text-gray-800">
         <MessageCircle className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
         <span>{nComent}</span>
@@ -490,6 +497,12 @@ export default function PostCard({
           usuarioId={meuUsuarioId}
           onComentou={() => setNComent((n) => n + 1)}
           destacarComentarioId={destacarComentarioId}
+        />
+        <ModalCurtidas
+          postId={post.id}
+          aberto={curtidasAberto}
+          onFechar={() => setCurtidasAberto(false)}
+          meuUsuarioId={meuUsuarioId}
         />
         {shareModal}
         {modalEditar}
@@ -572,6 +585,12 @@ export default function PostCard({
         usuarioId={meuUsuarioId}
         onComentou={() => setNComent((n) => n + 1)}
         destacarComentarioId={destacarComentarioId}
+      />
+      <ModalCurtidas
+        postId={post.id}
+        aberto={curtidasAberto}
+        onFechar={() => setCurtidasAberto(false)}
+        meuUsuarioId={meuUsuarioId}
       />
       {shareModal}
       {modalEditar}
