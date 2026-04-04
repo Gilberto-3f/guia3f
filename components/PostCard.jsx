@@ -164,10 +164,9 @@ export default function PostCard({
     return (
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-50 px-4 pt-3">
-          <div className="flex items-center gap-2 text-xs text-gray-400">
-            <span className="font-medium text-gray-700">{post.autor.nome}</span>
-            <span>·</span>
-            <time>{tempo}</time>
+          <div>
+            <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+            <time className="text-xs text-gray-400">{tempo}</time>
           </div>
           <MenuPost {...menuProps} />
         </div>
@@ -198,7 +197,7 @@ export default function PostCard({
   return (
     <article id={`feed-post-${post.id}`} className="overflow-hidden rounded-xl bg-white shadow-sm">
       <div className="flex items-center justify-between p-4 pb-2">
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           {temStoryNoAutor ? (
             <div
               className={`relative shrink-0 rounded-md p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
@@ -231,16 +230,15 @@ export default function PostCard({
             </div>
           )}
           <div>
-            <p className="text-sm font-medium text-gray-800">{post.autor?.nome ?? ''}</p>
-            <p className="text-xs text-gray-500">
-              @{post.autor?.username ?? ''} ·{' '}
+            <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+            <time className="mt-0.5 block text-xs text-gray-400">
               {new Date(post.created_at).toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
               })}
-            </p>
+            </time>
           </div>
         </div>
         <MenuPost {...menuProps} />
@@ -252,11 +250,7 @@ export default function PostCard({
         </div>
       ) : null}
 
-      {post.texto ? (
-        <p className={`px-4 text-gray-800 ${hasMedia ? 'mt-3 pb-1' : 'py-2 pt-0'}`}>{post.texto}</p>
-      ) : null}
-
-      <div className="flex items-center justify-between px-3 py-3">
+      <div className="flex items-center justify-between px-3 py-2">
         <div className="flex items-center gap-3">
           <BotaoCurtir postId={post.id} totalInicial={post.total_curtidas ?? 0} usuarioId={meuUsuarioId} />
           <BotaoComentar total={nComent} onClick={() => setComentAberto(true)} />
@@ -264,6 +258,10 @@ export default function PostCard({
         </div>
         <BotaoSalvar postId={post.id} usuarioId={meuUsuarioId} />
       </div>
+
+      {post.texto ? (
+        <p className={`px-4 text-sm text-gray-800 ${hasMedia ? 'pb-3 pt-1' : 'py-2 pt-0'}`}>{post.texto}</p>
+      ) : null}
 
       <ModalComentarios
         postId={post.id}

@@ -143,11 +143,6 @@ export default function BottomBar() {
 
   const isFeedPage = pathname === '/feed'
 
-  const getTerceiroIcone = () => {
-    if (isFeedPage) return <Plus size={24} aria-hidden />
-    return <Menu size={24} aria-hidden />
-  }
-
   const getTerceiroHref = () => {
     if (isFeedPage) return '/feed/criar'
     return '/feed'
@@ -213,10 +208,18 @@ export default function BottomBar() {
 
         <Link
           href={getTerceiroHref()}
-          className="flex flex-col items-center p-2"
+          className={`flex flex-col items-center ${isFeedPage ? 'p-1' : 'p-2'}`}
           aria-label={isFeedPage ? t('newPost') : t('feed')}
         >
-          <span className={terceiroActive ? 'text-[#0097b2]' : 'text-gray-400'}>{getTerceiroIcone()}</span>
+          {isFeedPage ? (
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0097b2] shadow-lg">
+              <Plus className="h-6 w-6 text-white" strokeWidth={2.5} aria-hidden />
+            </span>
+          ) : (
+            <span className={terceiroActive ? 'text-[#0097b2]' : 'text-gray-400'}>
+              <Menu size={24} aria-hidden />
+            </span>
+          )}
         </Link>
 
         <Link
