@@ -151,6 +151,19 @@ export default function PostCard({
     />
   )
 
+  const acoesPost = (
+    <div className="flex items-center justify-between gap-4 px-3 py-2">
+      <div className="flex flex-1 items-center justify-start gap-6">
+        <BotaoCurtir postId={post.id} totalInicial={post.total_curtidas ?? 0} usuarioId={meuUsuarioId} />
+        <BotaoComentar total={nComent} onClick={() => setComentAberto(true)} />
+        <BotaoCompartilhar total={shareTotal} onClick={() => setShareAberto(true)} />
+      </div>
+      <div className="shrink-0 pl-2">
+        <BotaoSalvar postId={post.id} usuarioId={meuUsuarioId} />
+      </div>
+    </div>
+  )
+
   if (tipoNorm === 'avaliacao' && post.avaliacao_meta && typeof post.avaliacao_meta === 'object') {
     const meta = /** @type {{ empresa_id?: string, nome_fantasia?: string, foto_url?: string | null, nota?: number, feedback?: string | null }} */ (
       post.avaliacao_meta
@@ -173,13 +186,15 @@ export default function PostCard({
         <div className="p-4 pt-3">
           <AvaliacaoCard meta={meta} />
         </div>
-        <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-4 border-t border-gray-100 px-3 py-2">
+          <div className="flex flex-1 items-center justify-start gap-6">
             <BotaoCurtir postId={post.id} totalInicial={post.total_curtidas ?? 0} usuarioId={meuUsuarioId} />
             <BotaoComentar total={nComent} onClick={() => setComentAberto(true)} />
             <BotaoCompartilhar total={shareTotal} onClick={() => setShareAberto(true)} />
           </div>
-          <BotaoSalvar postId={post.id} usuarioId={meuUsuarioId} />
+          <div className="shrink-0 pl-2">
+            <BotaoSalvar postId={post.id} usuarioId={meuUsuarioId} />
+          </div>
         </div>
         <ModalComentarios
           postId={post.id}
@@ -205,26 +220,26 @@ export default function PostCard({
             >
               <button
                 type="button"
-                className="relative block h-10 w-10 overflow-hidden rounded-md bg-gray-100 p-0"
+                className="relative block h-12 w-12 overflow-hidden rounded-md bg-gray-100 p-0"
                 onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
                 aria-label={`Story de ${post.autor?.nome ?? 'autor'}`}
               >
                 <AvatarImage
                   src={post.autor?.foto_perfil_url}
                   alt=""
-                  width={40}
-                  height={40}
+                  width={48}
+                  height={48}
                   className="h-full w-full object-cover"
                 />
               </button>
             </div>
           ) : (
-            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
               <AvatarImage
                 src={post.autor?.foto_perfil_url}
                 alt=""
-                width={40}
-                height={40}
+                width={48}
+                height={48}
                 className="object-cover"
               />
             </div>
@@ -245,23 +260,19 @@ export default function PostCard({
       </div>
 
       {hasMedia ? (
-        <div className="relative aspect-[4/3] w-full bg-gray-100">
-          <Image src={mediaUrl} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 480px" />
-        </div>
-      ) : null}
-
-      <div className="flex items-center justify-between px-3 py-2">
-        <div className="flex items-center gap-3">
-          <BotaoCurtir postId={post.id} totalInicial={post.total_curtidas ?? 0} usuarioId={meuUsuarioId} />
-          <BotaoComentar total={nComent} onClick={() => setComentAberto(true)} />
-          <BotaoCompartilhar total={shareTotal} onClick={() => setShareAberto(true)} />
-        </div>
-        <BotaoSalvar postId={post.id} usuarioId={meuUsuarioId} />
-      </div>
-
-      {post.texto ? (
-        <p className={`px-4 text-sm text-gray-800 ${hasMedia ? 'pb-3 pt-1' : 'py-2 pt-0'}`}>{post.texto}</p>
-      ) : null}
+        <>
+          <div className="relative aspect-[4/3] w-full bg-gray-100">
+            <Image src={mediaUrl} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 480px" />
+          </div>
+          {acoesPost}
+          {post.texto ? <p className="px-4 pb-3 pt-1 text-sm text-gray-800">{post.texto}</p> : null}
+        </>
+      ) : (
+        <>
+          {post.texto ? <p className="px-4 py-2 pt-0 text-sm text-gray-800">{post.texto}</p> : null}
+          {acoesPost}
+        </>
+      )}
 
       <ModalComentarios
         postId={post.id}

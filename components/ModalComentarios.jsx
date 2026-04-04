@@ -21,32 +21,70 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
 
-  const carregar = async () => {
-    const { data, error } = await supabase
-      .from('comentarios')
-      .select(
-        `
-        id,
-        texto,
-        created_at,
-        total_curtidas,
-        usuarios (
+  const selectAutorEmbed = `usuarios!autor_id (
           id, email,
           turistas (nome_completo, nome_usuario, foto_perfil_url),
           profissionais (nome_completo, nome_usuario, foto_perfil_url),
           empresas (nome_fantasia, nome_usuario, foto_url)
-        )
-      `
-      )
-      .eq('post_id', postId)
-      .order('created_at', { ascending: true })
+        )`
 
-    if (error) return
+  const selectAutorPlain = `usuarios (
+          id, email,
+          turistas (nome_completo, nome_usuario, foto_perfil_url),
+          profissionais (nome_completo, nome_usuario, foto_perfil_url),
+          empresas (nome_fantasia, nome_usuario, foto_url)
+        )`
+
+  const carregar = async () => {
+    const base = () =>
+      supabase
+        .from('comentarios')
+        .select(
+          `
+        id,
+        texto,
+        created_at,
+        total_curtidas,
+        ${selectAutorEmbed}
+      `
+        )
+        .eq('post_id', postId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true })
+
+    let { data, error } = await base()
+
+    if (error) {
+      const retry = await supabase
+        .from('comentarios')
+        .select(
+          `
+        id,
+        texto,
+        created_at,
+        total_curtidas,
+        ${selectAutorPlain}
+      `
+        )
+        .eq('post_id', postId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true })
+      data = retry.data
+      error = retry.error
+    }
+
+    if (error) {
+      console.error('ModalComentarios carregar:', error)
+      setLista([])
+      return
+    }
 
     const formatados =
       data?.map((row) => {
         const r = /** @type {Record<string, unknown>} */ (row)
-        const a = pickAutorDisplay(r.usuarios)
+        const rawU = r.usuarios
+        const u = Array.isArray(rawU) ? rawU[0] : rawU
+        const a = pickAutorDisplay(u)
         return {
           id: String(r.id),
           texto: String(r.texto ?? ''),
@@ -104,15 +142,18 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
   if (!aberto) return null
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 sm:items-center">
-      <div className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-2xl bg-white sm:rounded-2xl">
-        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
+      <div
+        className="flex w-full max-w-lg flex-col rounded-t-2xl bg-white sm:max-h-[85vh] sm:rounded-2xl"
+        style={{ height: 'min(66dvh, 85vh)' }}
+      >
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3">
           <h3 className="font-semibold text-gray-800">Comentários</h3>
           <button type="button" onClick={onFechar} className="p-1" aria-label="Fechar">
             <X size={22} />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">
           {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-400">Nenhum comentário</p> : null}
           {lista.map((c) => (
             <Comentario
@@ -123,7 +164,7 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
             />
           ))}
         </div>
-        <div className="border-t border-gray-100 p-3">
+        <div className="shrink-0 border-t border-gray-100 p-3">
           <div className="flex gap-2">
             <input
               value={texto}
