@@ -2,11 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import BotaoCurtir from '@/components/BotaoCurtir'
-import BotaoComentar from '@/components/BotaoComentar'
-import BotaoCompartilhar from '@/components/BotaoCompartilhar'
-import BotaoRepostar from '@/components/BotaoRepostar'
-import BotaoSalvar from '@/components/BotaoSalvar'
 import ModalComentarios from '@/components/ModalComentarios'
 import ModalCompartilhar from '@/components/ModalCompartilhar'
 import MenuPost from '@/components/MenuPost'
@@ -38,6 +33,7 @@ import AvatarImage from '@/components/AvatarImage'
  *   onRemove?: (postId: string) => void
  *   abrirComentariosInicial?: boolean
  *   destacarComentarioId?: string | null
+ *   onRepublicouPrepend?: (row: Record<string, unknown>) => void
  * }} props
  */
 export default function PostCard({
@@ -49,13 +45,16 @@ export default function PostCard({
   onRemove,
   abrirComentariosInicial = false,
   destacarComentarioId = null,
+  onRepublicouPrepend,
 }) {
   const [comentAberto, setComentAberto] = useState(false)
   const deepLinkComentAberto = useRef(/** @type {string | null} */ (null))
   const [shareAberto, setShareAberto] = useState(false)
   const [nComent, setNComent] = useState(post.total_comentarios ?? 0)
-  const [shareTotal, setShareTotal] = useState(post.total_compartilhamentos ?? 0)
   const [repostTotal, setRepostTotal] = useState(post.total_reposts ?? 0)
+  const [curtTotal, setCurtTotal] = useState(post.total_curtidas ?? 0)
+  const [curtiu, setCurtiu] = useState(false)
+  const [salvo, setSalvo] = useState(false)
   const [jaSegueEmpresa, setJaSegueEmpresa] = useState(false)
   const [jaSegueUsuario, setJaSegueUsuario] = useState(false)
   const [tickSeguir, setTickSeguir] = useState(0)
@@ -89,12 +88,40 @@ export default function PostCard({
   }, [abrirComentariosInicial, post.id, destacarComentarioId])
 
   useEffect(() => {
-    setShareTotal(post.total_compartilhamentos ?? 0)
-  }, [post.total_compartilhamentos, post.id])
-
-  useEffect(() => {
     setRepostTotal(post.total_reposts ?? 0)
   }, [post.total_reposts, post.id])
+
+  useEffect(() => {
+    setCurtTotal(post.total_curtidas ?? 0)
+  }, [post.total_curtidas, post.id])
+
+  useEffect(() => {
+    if (!meuUsuarioId || !post.id) {
+      setCurtiu(false)
+      return
+    }
+    void supabase
+      .from('curtidas')
+      .select('id')
+      .eq('post_id', post.id)
+      .eq('usuario_id', meuUsuarioId)
+      .maybeSingle()
+      .then(({ data }) => setCurtiu(Boolean(data)))
+  }, [post.id, meuUsuarioId])
+
+  useEffect(() => {
+    if (!meuUsuarioId || !post.id) {
+      setSalvo(false)
+      return
+    }
+    void supabase
+      .from('item_salvo')
+      .select('id')
+      .eq('post_id', post.id)
+      .eq('usuario_id', meuUsuarioId)
+      .maybeSingle()
+      .then(({ data }) => setSalvo(Boolean(data)))
+  }, [post.id, meuUsuarioId])
 
   useEffect(() => {
     if (!empresaId || !meuUsuarioId) {
@@ -150,31 +177,47 @@ export default function PostCard({
     <ModalCompartilhar aberto={shareAberto} onFechar={() => setShareAberto(false)} postUrl={postUrl} tituloResumo={resumo} />
   )
 
-  const republicar = async () => {
+  const handleCurtir = async () => {
     if (!meuUsuarioId) return
-    const { data: orig, error: e1 } = await supabase
+    if (curtiu) {
+      await supabase.from('curtidas').delete().eq('post_id', post.id).eq('usuario_id', meuUsuarioId)
+      setCurtiu(false)
+      setCurtTotal((t) => Math.max(0, t - 1))
+    } else {
+      const { error } = await supabase.from('curtidas').insert({ post_id: post.id, usuario_id: meuUsuarioId })
+      if (error) return
+      setCurtiu(true)
+      setCurtTotal((t) => t + 1)
+    }
+  }
+
+  const handleComentar = () => setComentAberto(true)
+
+  const abrirModalCompartilhar = () => setShareAberto(true)
+
+  const handleRepostar = async () => {
+    if (!meuUsuarioId) return
+    const { data: postOriginal, error: e1 } = await supabase
       .from('posts')
       .select('*')
       .eq('id', post.id)
       .is('deleted_at', null)
       .maybeSingle()
-    if (e1 || !orig) {
+    if (e1 || !postOriginal) {
       console.error(e1)
       alert('Não foi possível republicar.')
       return
     }
-    const o = /** @type {Record<string, unknown>} */ (orig)
-    const { data: ins, error: e2 } = await supabase
-      .from('posts')
-      .insert({
-        autor_id: meuUsuarioId,
-        texto: o.texto != null ? String(o.texto) : null,
-        foto_url: o.foto_url != null ? String(o.foto_url) : null,
-        conteudo_url: o.conteudo_url != null ? String(o.conteudo_url) : null,
-        tipo: o.tipo != null ? String(o.tipo) : 'texto',
-        avaliacao_meta: o.avaliacao_meta && typeof o.avaliacao_meta === 'object' ? o.avaliacao_meta : null,
-        post_original_id: post.id,
-      })
+    const o = /** @type {Record<string, unknown>} */ (postOriginal)
+    const { data: ins, error: e2 } = await supabase.from('posts').insert({
+      autor_id: meuUsuarioId,
+      tipo: o.tipo != null ? String(o.tipo) : 'texto',
+      texto: o.texto != null ? String(o.texto) : null,
+      foto_url: o.foto_url != null ? String(o.foto_url) : null,
+      conteudo_url: o.conteudo_url != null ? String(o.conteudo_url) : null,
+      avaliacao_meta: o.avaliacao_meta && typeof o.avaliacao_meta === 'object' ? o.avaliacao_meta : null,
+      post_original_id: post.id,
+    })
       .select('id')
       .maybeSingle()
     if (e2 || !ins?.id) {
@@ -190,17 +233,36 @@ export default function PostCard({
     if (!e3 && viewRow) onRepublicouPrepend?.(/** @type {Record<string, unknown>} */ (viewRow))
   }
 
+  const handleSalvar = async () => {
+    if (!meuUsuarioId) return
+    if (salvo) {
+      await supabase.from('item_salvo').delete().eq('post_id', post.id).eq('usuario_id', meuUsuarioId)
+      setSalvo(false)
+    } else {
+      const { error } = await supabase.from('item_salvo').insert({ post_id: post.id, usuario_id: meuUsuarioId })
+      if (!error) setSalvo(true)
+    }
+  }
+
   const acoesPost = (
-    <div className="flex items-center justify-between gap-4 px-3 py-2">
-      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-start gap-6">
-        <BotaoCurtir postId={post.id} totalInicial={post.total_curtidas ?? 0} usuarioId={meuUsuarioId} />
-        <BotaoComentar total={nComent} onClick={() => setComentAberto(true)} />
-        <BotaoCompartilhar total={shareTotal} onClick={() => setShareAberto(true)} />
-        <BotaoRepostar total={repostTotal} onClick={() => void republicar()} disabled={!meuUsuarioId} />
+    <div className="flex items-center justify-between px-3 py-2">
+      <div className="flex items-center gap-4">
+        <button type="button" onClick={() => void handleCurtir()} disabled={!meuUsuarioId} className="text-sm text-gray-800 disabled:opacity-50">
+          <span className={curtiu ? 'text-red-500' : ''}>❤️</span> {curtTotal}
+        </button>
+        <button type="button" onClick={handleComentar} className="text-sm text-gray-800">
+          💬 {nComent}
+        </button>
+        <button type="button" onClick={abrirModalCompartilhar} className="text-sm text-gray-800" aria-label="Compartilhar">
+          ↗️
+        </button>
+        <button type="button" onClick={() => void handleRepostar()} disabled={!meuUsuarioId} className="text-sm text-gray-800 disabled:opacity-50">
+          ↩️ {repostTotal}
+        </button>
       </div>
-      <div className="shrink-0 pl-2">
-        <BotaoSalvar postId={post.id} usuarioId={meuUsuarioId} />
-      </div>
+      <button type="button" onClick={() => void handleSalvar()} disabled={!meuUsuarioId} className="text-sm text-gray-800 disabled:opacity-50" aria-label="Salvar">
+        🔖
+      </button>
     </div>
   )
 
@@ -226,17 +288,7 @@ export default function PostCard({
         <div className="p-4 pt-3">
           <AvaliacaoCard meta={meta} />
         </div>
-        <div className="flex items-center justify-between gap-4 border-t border-gray-100 px-3 py-2">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-start gap-6">
-            <BotaoCurtir postId={post.id} totalInicial={post.total_curtidas ?? 0} usuarioId={meuUsuarioId} />
-            <BotaoComentar total={nComent} onClick={() => setComentAberto(true)} />
-            <BotaoCompartilhar total={shareTotal} onClick={() => setShareAberto(true)} />
-            <BotaoRepostar total={repostTotal} onClick={() => void republicar()} disabled={!meuUsuarioId} />
-          </div>
-          <div className="shrink-0 pl-2">
-            <BotaoSalvar postId={post.id} usuarioId={meuUsuarioId} />
-          </div>
-        </div>
+        <div className="border-t border-gray-100">{acoesPost}</div>
         <ModalComentarios
           postId={post.id}
           aberto={comentAberto}
@@ -261,26 +313,26 @@ export default function PostCard({
             >
               <button
                 type="button"
-                className="relative block h-12 w-12 overflow-hidden rounded-md bg-gray-100 p-0"
+                className="relative block h-11 w-11 overflow-hidden rounded-md bg-gray-100 p-0"
                 onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
                 aria-label={`Story de ${post.autor?.nome ?? 'autor'}`}
               >
                 <AvatarImage
                   src={post.autor?.foto_perfil_url}
                   alt=""
-                  width={48}
-                  height={48}
+                  width={44}
+                  height={44}
                   className="h-full w-full object-cover"
                 />
               </button>
             </div>
           ) : (
-            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
+            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-md bg-gray-100">
               <AvatarImage
                 src={post.autor?.foto_perfil_url}
                 alt=""
-                width={48}
-                height={48}
+                width={44}
+                height={44}
                 className="object-cover"
               />
             </div>
