@@ -32,7 +32,7 @@ export default function BotaoSalvar({ postId, usuarioId }) {
 
   return (
     <button type="button" onClick={() => void toggle()} className="p-1 text-gray-600" disabled={!usuarioId} aria-label="Salvar">
-      <Bookmark size={22} className={salvo ? 'fill-[#0097b2] text-[#0097b2]' : 'text-gray-500'} />
+      <Bookmark className={`h-5 w-5 ${salvo ? 'fill-[#0097b2] text-[#0097b2]' : 'text-gray-500'}`} aria-hidden />
     </button>
   )
 }

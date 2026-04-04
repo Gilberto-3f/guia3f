@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
+import { Bookmark, Heart, MessageCircle, Repeat2, Share2 } from 'lucide-react'
 import ModalComentarios from '@/components/ModalComentarios'
 import ModalCompartilhar from '@/components/ModalCompartilhar'
 import MenuPost from '@/components/MenuPost'
 import AvaliacaoCard from '@/components/AvaliacaoCard'
 import { supabase } from '@/lib/supabase'
-import { STORY_RING_GRADIENT, emailVisualizouStory } from '@/lib/feed-autor'
+import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/lib/feed-autor'
 import AvatarImage from '@/components/AvatarImage'
 
 /**
@@ -24,6 +25,7 @@ import AvatarImage from '@/components/AvatarImage'
  *     total_reposts?: number
  *     avaliacao_meta: Record<string, unknown> | null
  *     created_at: string
+ *     post_original_id?: string | null
  *     autor: { nome: string, username: string, foto_perfil_url: string | null, usuario_id: string, empresa_id: string, role: string }
  *   }
  *   meuUsuarioId: string | null
@@ -34,6 +36,8 @@ import AvatarImage from '@/components/AvatarImage'
  *   abrirComentariosInicial?: boolean
  *   destacarComentarioId?: string | null
  *   onRepublicouPrepend?: (row: Record<string, unknown>) => void
+ *   onPostLocalPatch?: (postId: string, patch: Partial<{ texto: string | null }>) => void
+ *   onItemSalvoChange?: (postId: string, salvo: boolean) => void
  * }} props
  */
 export default function PostCard({
@@ -46,6 +50,8 @@ export default function PostCard({
   abrirComentariosInicial = false,
   destacarComentarioId = null,
   onRepublicouPrepend,
+  onPostLocalPatch,
+  onItemSalvoChange,
 }) {
   const [comentAberto, setComentAberto] = useState(false)
   const deepLinkComentAberto = useRef(/** @type {string | null} */ (null))
@@ -58,6 +64,7 @@ export default function PostCard({
   const [jaSegueEmpresa, setJaSegueEmpresa] = useState(false)
   const [jaSegueUsuario, setJaSegueUsuario] = useState(false)
   const [tickSeguir, setTickSeguir] = useState(0)
+  const [autorOriginalUsername, setAutorOriginalUsername] = useState(/** @type {string | null} */ (null))
 
   const empresaId = post.autor?.empresa_id || ''
   const autorId = post.autor?.usuario_id || ''
@@ -151,6 +158,39 @@ export default function PostCard({
       .then(({ data }) => setJaSegueUsuario(Boolean(data)))
   }, [mostrarSeguirUsuario, meuUsuarioId, autorId, tickSeguir])
 
+  const postOriginalId = post.post_original_id != null && post.post_original_id !== '' ? String(post.post_original_id) : null
+
+  useEffect(() => {
+    if (!postOriginalId) {
+      setAutorOriginalUsername(null)
+      return
+    }
+    let cancel = false
+    void supabase
+      .from('posts_com_autores')
+      .select('*')
+      .eq('id', postOriginalId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancel || error || !data) return
+        const p = /** @type {Record<string, unknown>} */ (data)
+        const rawU = p.usuarios
+        let u = rawU
+        if (typeof rawU === 'string') {
+          try {
+            u = JSON.parse(rawU)
+          } catch {
+            u = null
+          }
+        }
+        const a = pickAutorDisplay(u)
+        setAutorOriginalUsername(a.username || null)
+      })
+    return () => {
+      cancel = true
+    }
+  }, [postOriginalId])
+
   const mediaUrl = post.conteudo_url || post.foto_url
   const hasMedia = Boolean(mediaUrl)
   const tipoNorm = String(post.tipo || '').toLowerCase()
@@ -162,15 +202,20 @@ export default function PostCard({
   const postUrl =
     typeof window !== 'undefined' ? `${window.location.origin}/feed?post=${encodeURIComponent(post.id)}` : ''
 
-  const menuProps = {
-    postId: post.id,
-    autorUsuarioId: post.autor?.usuario_id,
-    meuUsuarioId,
-    empresaAlvo: empresaId ? { empresaId, jaSegue: jaSegueEmpresa } : null,
-    usuarioAlvo,
-    onApagou: () => onRemove?.(post.id),
-    onSeguiuEmpresa: () => setTickSeguir((t) => t + 1),
-    onSeguiuUsuario: () => setTickSeguir((t) => t + 1),
+  const handleEditarPost = () => {
+    if (!meuUsuarioId) return
+    const atual = post.texto ?? ''
+    const novo = window.prompt('Editar texto da publicação:', atual)
+    if (novo === null) return
+    const texto = novo.trim() ? novo.trim() : null
+    void (async () => {
+      const { error } = await supabase.from('posts').update({ texto }).eq('id', post.id).eq('autor_id', meuUsuarioId)
+      if (error) {
+        alert('Não foi possível salvar.')
+        return
+      }
+      onPostLocalPatch?.(post.id, { texto })
+    })()
   }
 
   const shareModal = (
@@ -238,30 +283,84 @@ export default function PostCard({
     if (salvo) {
       await supabase.from('item_salvo').delete().eq('post_id', post.id).eq('usuario_id', meuUsuarioId)
       setSalvo(false)
+      onItemSalvoChange?.(post.id, false)
     } else {
       const { error } = await supabase.from('item_salvo').insert({ post_id: post.id, usuario_id: meuUsuarioId })
-      if (!error) setSalvo(true)
+      if (!error) {
+        setSalvo(true)
+        onItemSalvoChange?.(post.id, true)
+      }
     }
   }
+
+  const menuProps = {
+    postId: post.id,
+    autorUsuarioId: post.autor?.usuario_id,
+    meuUsuarioId,
+    empresaAlvo: empresaId ? { empresaId, jaSegue: jaSegueEmpresa } : null,
+    usuarioAlvo,
+    salvo,
+    onApagou: () => onRemove?.(post.id),
+    onSeguiuEmpresa: () => setTickSeguir((t) => t + 1),
+    onSeguiuUsuario: () => setTickSeguir((t) => t + 1),
+    onEditar: handleEditarPost,
+    onSalvar: () => void handleSalvar(),
+    onRepublicar: () => void handleRepostar(),
+  }
+
+  const repostEhFoto = tipoNorm === 'foto' || tipoNorm === 'misto'
+
+  const linhaRepost =
+    postOriginalId && autorOriginalUsername ? (
+      <div className="mb-2 text-xs text-gray-500">
+        <span className="font-semibold text-gray-700">@{post.autor?.username ?? ''}</span> repostou
+        {repostEhFoto ? ' foto de ' : ' post de '}
+        <span className="font-semibold text-gray-700">@{autorOriginalUsername}</span>
+      </div>
+    ) : null
 
   const acoesPost = (
     <div className="flex items-center justify-between px-3 py-2">
       <div className="flex items-center gap-4">
-        <button type="button" onClick={() => void handleCurtir()} disabled={!meuUsuarioId} className="text-sm text-gray-800 disabled:opacity-50">
-          <span className={curtiu ? 'text-red-500' : ''}>❤️</span> {curtTotal}
+        <button
+          type="button"
+          onClick={() => void handleCurtir()}
+          disabled={!meuUsuarioId}
+          className="flex items-center gap-1 text-sm text-gray-800 disabled:opacity-50"
+        >
+          <Heart className={`h-5 w-5 shrink-0 ${curtiu ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} aria-hidden />
+          <span>{curtTotal}</span>
         </button>
-        <button type="button" onClick={handleComentar} className="text-sm text-gray-800">
-          💬 {nComent}
+        <button type="button" onClick={handleComentar} className="flex items-center gap-1 text-sm text-gray-800">
+          <MessageCircle className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+          <span>{nComent}</span>
         </button>
-        <button type="button" onClick={abrirModalCompartilhar} className="text-sm text-gray-800" aria-label="Compartilhar">
-          ↗️
+        <button
+          type="button"
+          onClick={abrirModalCompartilhar}
+          className="flex items-center gap-1 text-sm text-gray-800"
+          aria-label="Compartilhar"
+        >
+          <Share2 className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
         </button>
-        <button type="button" onClick={() => void handleRepostar()} disabled={!meuUsuarioId} className="text-sm text-gray-800 disabled:opacity-50">
-          ↩️ {repostTotal}
+        <button
+          type="button"
+          onClick={() => void handleRepostar()}
+          disabled={!meuUsuarioId}
+          className="flex items-center gap-1 text-sm text-gray-800 disabled:opacity-50"
+        >
+          <Repeat2 className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+          <span>{repostTotal}</span>
         </button>
       </div>
-      <button type="button" onClick={() => void handleSalvar()} disabled={!meuUsuarioId} className="text-sm text-gray-800 disabled:opacity-50" aria-label="Salvar">
-        🔖
+      <button
+        type="button"
+        onClick={() => void handleSalvar()}
+        disabled={!meuUsuarioId}
+        className="text-gray-600 disabled:opacity-50"
+        aria-label="Salvar"
+      >
+        <Bookmark className={`h-5 w-5 ${salvo ? 'fill-[#0097b2] text-[#0097b2]' : 'text-gray-500'}`} aria-hidden />
       </button>
     </div>
   )
@@ -278,6 +377,7 @@ export default function PostCard({
     })
     return (
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
+        {linhaRepost ? <div className="border-b border-gray-50 px-4 pt-3">{linhaRepost}</div> : null}
         <div className="flex items-center justify-between border-b border-gray-50 px-4 pt-3">
           <div>
             <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
@@ -304,6 +404,7 @@ export default function PostCard({
 
   return (
     <article id={`feed-post-${post.id}`} className="overflow-hidden rounded-xl bg-white shadow-sm">
+      {linhaRepost ? <div className="px-4 pt-4 pb-0">{linhaRepost}</div> : null}
       <div className="flex items-center justify-between p-4 pb-2">
         <div className="flex items-start gap-3">
           {temStoryNoAutor ? (

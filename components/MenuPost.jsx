@@ -11,9 +11,13 @@ import { supabase } from '@/lib/supabase'
  *   meuUsuarioId: string | null
  *   empresaAlvo?: { empresaId: string, jaSegue: boolean } | null
  *   usuarioAlvo?: { seguidoId: string, seguidoTipo: string, jaSegue: boolean } | null
+ *   salvo?: boolean
  *   onApagou?: () => void
  *   onSeguiuEmpresa?: () => void
  *   onSeguiuUsuario?: () => void
+ *   onEditar?: () => void
+ *   onSalvar?: () => void
+ *   onRepublicar?: () => void
  * }} props
  */
 export default function MenuPost({
@@ -22,9 +26,13 @@ export default function MenuPost({
   meuUsuarioId,
   empresaAlvo,
   usuarioAlvo,
+  salvo = false,
   onApagou,
   onSeguiuEmpresa,
   onSeguiuUsuario,
+  onEditar,
+  onSalvar,
+  onRepublicar,
 }) {
   const [aberto, setAberto] = useState(false)
   const [passoExcluir, setPassoExcluir] = useState(0)
@@ -86,44 +94,67 @@ export default function MenuPost({
     onSeguiuUsuario?.()
   }
 
+  const itemClass = 'block w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50'
+
   return (
     <div className="relative" ref={ref}>
       <button type="button" onClick={() => setAberto((v) => !v)} className="rounded p-1 text-gray-500 hover:bg-gray-100" aria-label="Menu">
         <MoreHorizontal size={22} />
       </button>
       {aberto ? (
-        <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-lg border border-gray-100 bg-white py-1 shadow-lg">
+        <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-lg border border-gray-100 bg-white py-1 text-black shadow-lg">
           {meuPost ? (
             <>
-              <button type="button" onClick={() => void excluir()} className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-gray-50">
-                {passoExcluir === 0 ? 'Excluir…' : 'Confirmar exclusão'}
+              <button
+                type="button"
+                onClick={() => {
+                  setAberto(false)
+                  onEditar?.()
+                }}
+                className={itemClass}
+              >
+                ✏️ Editar
               </button>
-              <button type="button" onClick={denunciar} className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">
-                Denunciar
+              <button type="button" onClick={() => void excluir()} className={`${itemClass} text-red-600`}>
+                {passoExcluir === 0 ? '🗑️ Excluir…' : '🗑️ Confirmar exclusão'}
               </button>
             </>
           ) : (
             <>
               {empresaAlvo ? (
-                <button
-                  type="button"
-                  onClick={() => void toggleSeguirEmpresa()}
-                  className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  {empresaAlvo.jaSegue ? 'Deixar de seguir empresa' : 'Seguir empresa'}
+                <button type="button" onClick={() => void toggleSeguirEmpresa()} className={itemClass}>
+                  {empresaAlvo.jaSegue ? '🔴 Deixar de seguir' : '➕ Seguir'}
                 </button>
               ) : null}
               {usuarioAlvo ? (
-                <button
-                  type="button"
-                  onClick={() => void toggleSeguirUsuario()}
-                  className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  {usuarioAlvo.jaSegue ? 'Deixar de seguir' : 'Seguir'}
+                <button type="button" onClick={() => void toggleSeguirUsuario()} className={itemClass}>
+                  {usuarioAlvo.jaSegue ? '🔴 Deixar de seguir' : '➕ Seguir'}
                 </button>
               ) : null}
-              <button type="button" onClick={denunciar} className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">
-                Denunciar
+              <button
+                type="button"
+                onClick={() => {
+                  setAberto(false)
+                  onSalvar?.()
+                }}
+                disabled={!meuUsuarioId}
+                className={`${itemClass} disabled:opacity-50`}
+              >
+                {salvo ? '🔖 Remover dos salvos' : '🔖 Salvar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAberto(false)
+                  onRepublicar?.()
+                }}
+                disabled={!meuUsuarioId}
+                className={`${itemClass} disabled:opacity-50`}
+              >
+                ↩️ Republicar
+              </button>
+              <button type="button" onClick={denunciar} className={itemClass}>
+                ⚠️ Denunciar
               </button>
             </>
           )}

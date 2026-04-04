@@ -25,6 +25,7 @@ type PostFeedRow = {
   total_reposts: number
   avaliacao_meta: Record<string, unknown> | null
   created_at: string
+  post_original_id: string | null
   autor: {
     nome: string
     username: string
@@ -137,6 +138,7 @@ function FeedPageInner() {
           ? (p.avaliacao_meta as Record<string, unknown>)
           : null,
       created_at: String(p.created_at ?? ''),
+      post_original_id: p.post_original_id != null ? String(p.post_original_id) : null,
       autor,
     }
   }, [])
@@ -304,6 +306,9 @@ function FeedPageInner() {
               onRepublicouPrepend={(raw) => {
                 const row = mapRow(raw)
                 setPosts((prev) => (prev.some((x) => x.id === row.id) ? prev : [row, ...prev]))
+              }}
+              onPostLocalPatch={(postId, patch) => {
+                setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, ...patch } : x)))
               }}
             />
           ))
