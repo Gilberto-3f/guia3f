@@ -15,9 +15,17 @@ import { supabase } from '@/lib/supabase'
  *   }
  *   usuarioId: string | null
  *   destacado?: boolean
+ *   mostrarResponder?: boolean
+ *   onResponder?: (texto: string) => void
  * }} props
  */
-export default function Comentario({ comentario, usuarioId, destacado = false }) {
+export default function Comentario({
+  comentario,
+  usuarioId,
+  destacado = false,
+  mostrarResponder = false,
+  onResponder,
+}) {
   const [curtiu, setCurtiu] = useState(false)
   const [total, setTotal] = useState(comentario.total_curtidas ?? 0)
 
@@ -60,6 +68,8 @@ export default function Comentario({ comentario, usuarioId, destacado = false })
     minute: '2-digit',
   })
 
+  const mencao = `@${comentario.autor?.username ?? 'usuario'} `
+
   return (
     <div
       id={`comentario-${comentario.id}`}
@@ -69,6 +79,15 @@ export default function Comentario({ comentario, usuarioId, destacado = false })
         <p className="text-sm font-medium text-gray-900">{comentario.autor.nome}</p>
         <p className="text-xs text-gray-600">@{comentario.autor.username} · {tempo}</p>
         <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{comentario.texto}</p>
+        {mostrarResponder && onResponder ? (
+          <button
+            type="button"
+            onClick={() => onResponder(mencao)}
+            className="mt-1 text-xs text-gray-500 hover:text-[#0097b2]"
+          >
+            Responder
+          </button>
+        ) : null}
       </div>
       <button
         type="button"

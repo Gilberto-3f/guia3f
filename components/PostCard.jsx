@@ -68,6 +68,8 @@ export default function PostCard({
   const [tickSeguir, setTickSeguir] = useState(0)
   const [autorOriginalUsername, setAutorOriginalUsername] = useState(/** @type {string | null} */ (null))
   const [meuRepostPostId, setMeuRepostPostId] = useState(/** @type {string | null} */ (null))
+  const [editando, setEditando] = useState(false)
+  const [textoEditado, setTextoEditado] = useState('')
 
   const empresaId = post.autor?.empresa_id || ''
   const autorId = post.autor?.usuario_id || ''
@@ -222,19 +224,71 @@ export default function PostCard({
 
   const handleEditarPost = () => {
     if (!meuUsuarioId) return
-    const atual = post.texto ?? ''
-    const novo = window.prompt('Editar texto da publicação:', atual)
-    if (novo === null) return
-    const texto = novo.trim() ? novo.trim() : null
-    void (async () => {
-      const { error } = await supabase.from('posts').update({ texto }).eq('id', post.id).eq('autor_id', meuUsuarioId)
-      if (error) {
-        alert('Não foi possível salvar.')
-        return
-      }
-      onPostLocalPatch?.(post.id, { texto })
-    })()
+    setTextoEditado(post.texto ?? '')
+    setEditando(true)
   }
+
+  const salvarEdicao = async () => {
+    if (!meuUsuarioId) return
+    const texto = textoEditado.trim() ? textoEditado.trim() : null
+    const { error } = await supabase.from('posts').update({ texto }).eq('id', post.id).eq('autor_id', meuUsuarioId)
+    if (error) {
+      alert('Não foi possível salvar.')
+      return
+    }
+    onPostLocalPatch?.(post.id, { texto })
+    setEditando(false)
+  }
+
+  const modalEditar =
+    editando && meuUsuarioId ? (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setEditando(false)
+        }}
+        role="presentation"
+      >
+        <div
+          className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-xl"
+          role="dialog"
+          aria-labelledby="editar-post-titulo"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="border-b border-gray-100 px-4 py-3">
+            <h3 id="editar-post-titulo" className="text-lg font-bold text-gray-900">
+              Editar post
+            </h3>
+            <p className="mt-1 text-xs text-gray-500">Ajuste o texto da publicação abaixo.</p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <textarea
+              className="min-h-[180px] w-full resize-y rounded-lg border border-gray-200 p-3 text-sm text-gray-900"
+              rows={8}
+              value={textoEditado}
+              onChange={(e) => setTextoEditado(e.target.value)}
+              placeholder="Escreva aqui…"
+            />
+          </div>
+          <div className="flex justify-end gap-2 border-t border-gray-100 p-4">
+            <button
+              type="button"
+              onClick={() => setEditando(false)}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => void salvarEdicao()}
+              className="rounded-lg bg-[#0097b2] px-4 py-2 text-sm font-medium text-white hover:opacity-95"
+            >
+              Salvar
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null
 
   const shareModal = (
     <ModalCompartilhar aberto={shareAberto} onFechar={() => setShareAberto(false)} postUrl={postUrl} tituloResumo={resumo} />
@@ -438,6 +492,7 @@ export default function PostCard({
           destacarComentarioId={destacarComentarioId}
         />
         {shareModal}
+        {modalEditar}
       </article>
     )
   }
@@ -519,6 +574,7 @@ export default function PostCard({
         destacarComentarioId={destacarComentarioId}
       />
       {shareModal}
+      {modalEditar}
     </article>
   )
 }

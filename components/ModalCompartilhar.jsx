@@ -12,9 +12,17 @@ import { X } from 'lucide-react'
  */
 export default function ModalCompartilhar({ aberto, onFechar, postUrl, tituloResumo }) {
   const compartilharWhatsApp = () => {
-    const u = `https://wa.me/?text=${encodeURIComponent(`${tituloResumo} ${postUrl}`)}`
-    window.open(u, '_blank')
+    const texto = `${tituloResumo} ${postUrl}`.trim()
+    const u = `https://wa.me/?text=${encodeURIComponent(texto)}`
     onFechar()
+    requestAnimationFrame(() => {
+      const mobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+      if (mobile) {
+        window.location.assign(u)
+      } else {
+        window.open(u, '_blank', 'noopener,noreferrer')
+      }
+    })
   }
 
   const copiarLink = async () => {

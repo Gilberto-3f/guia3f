@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Heart } from 'lucide-react'
+import { Heart, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
 import AbasAtividades from '@/components/atividades/AbasAtividades'
@@ -92,7 +92,8 @@ const USUARIOS_SELECT = `
 
 export default function AtividadesPage() {
   const [aba, setAba] = useState<'amigos' | 'minha'>('amigos')
-  const [busca, setBusca] = useState('')
+  const [buscaEdicao, setBuscaEdicao] = useState('')
+  const [buscaAplicada, setBuscaAplicada] = useState('')
   const [meuId, setMeuId] = useState<string | null>(null)
   const [meuRole, setMeuRole] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
@@ -280,9 +281,13 @@ export default function AtividadesPage() {
     [marcarMinhaLidas]
   )
 
+  const buscarUsuario = useCallback(() => {
+    setBuscaAplicada(buscaEdicao.trim())
+  }, [buscaEdicao])
+
   const listaAtividadesFiltrada = useMemo(() => {
     const fonte = aba === 'amigos' ? listaAmigos : listaMinha
-    const q = busca.trim().toLowerCase()
+    const q = buscaAplicada.trim().toLowerCase()
     if (!q) return fonte
 
     const perfilCombina = (uid: string) => {
@@ -305,7 +310,7 @@ export default function AtividadesPage() {
       }
       return false
     })
-  }, [aba, listaAmigos, listaMinha, busca, perfilMap])
+  }, [aba, listaAmigos, listaMinha, buscaAplicada, perfilMap])
 
   const itensAgrupados = useMemo(() => {
     const ord = [...listaAtividadesFiltrada].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -457,15 +462,28 @@ export default function AtividadesPage() {
         </h1>
       </header>
 
-      <div className="border-b border-gray-100 bg-white p-4">
+      <div className="flex items-center gap-2 border-b border-gray-100 bg-white p-4">
         <input
           type="text"
           placeholder="Pesquisar usuário por @ ou nome..."
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm text-gray-900 placeholder:text-gray-400"
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
+          className="min-w-0 flex-1 rounded-lg border border-white/30 bg-[#0097b2] p-2 text-sm text-white placeholder:text-white/70"
+          value={buscaEdicao}
+          onChange={(e) => setBuscaEdicao(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') buscarUsuario()
+          }}
           aria-label="Pesquisar atividades por usuário"
         />
+        {buscaEdicao.trim() ? (
+          <button
+            type="button"
+            onClick={buscarUsuario}
+            className="shrink-0 rounded-lg p-2 text-[#0097b2] hover:bg-[#0097b2]/10"
+            aria-label="Pesquisar"
+          >
+            <Search className="h-6 w-6" strokeWidth={2.25} aria-hidden />
+          </button>
+        ) : null}
       </div>
 
       <AbasAtividades aba={aba} onAba={onAba} />
