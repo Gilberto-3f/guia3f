@@ -22,6 +22,7 @@ type PostFeedRow = {
   total_curtidas: number
   total_comentarios: number
   total_compartilhamentos: number
+  total_reposts: number
   avaliacao_meta: Record<string, unknown> | null
   created_at: string
   autor: {
@@ -130,6 +131,7 @@ function FeedPageInner() {
       total_curtidas: Number(p.total_curtidas) || 0,
       total_comentarios: Number(p.total_comentarios) || 0,
       total_compartilhamentos: Number(p.total_compartilhamentos) || 0,
+      total_reposts: Number(p.total_reposts) || 0,
       avaliacao_meta:
         p.avaliacao_meta && typeof p.avaliacao_meta === 'object' && !Array.isArray(p.avaliacao_meta)
           ? (p.avaliacao_meta as Record<string, unknown>)
@@ -299,6 +301,10 @@ function FeedPageInner() {
               onRemove={removerPost}
               abrirComentariosInicial={postParam === post.id && Boolean(comentarioParam)}
               destacarComentarioId={postParam === post.id ? comentarioParam : null}
+              onRepublicouPrepend={(raw) => {
+                const row = mapRow(raw)
+                setPosts((prev) => (prev.some((x) => x.id === row.id) ? prev : [row, ...prev]))
+              }}
             />
           ))
         )}

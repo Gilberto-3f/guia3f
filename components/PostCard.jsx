@@ -5,6 +5,7 @@ import Image from 'next/image'
 import BotaoCurtir from '@/components/BotaoCurtir'
 import BotaoComentar from '@/components/BotaoComentar'
 import BotaoCompartilhar from '@/components/BotaoCompartilhar'
+import BotaoRepostar from '@/components/BotaoRepostar'
 import BotaoSalvar from '@/components/BotaoSalvar'
 import ModalComentarios from '@/components/ModalComentarios'
 import ModalCompartilhar from '@/components/ModalCompartilhar'
@@ -25,6 +26,7 @@ import AvatarImage from '@/components/AvatarImage'
  *     total_curtidas: number
  *     total_comentarios: number
  *     total_compartilhamentos: number
+ *     total_reposts?: number
  *     avaliacao_meta: Record<string, unknown> | null
  *     created_at: string
  *     autor: { nome: string, username: string, foto_perfil_url: string | null, usuario_id: string, empresa_id: string, role: string }
@@ -53,6 +55,7 @@ export default function PostCard({
   const [shareAberto, setShareAberto] = useState(false)
   const [nComent, setNComent] = useState(post.total_comentarios ?? 0)
   const [shareTotal, setShareTotal] = useState(post.total_compartilhamentos ?? 0)
+  const [repostTotal, setRepostTotal] = useState(post.total_reposts ?? 0)
   const [jaSegueEmpresa, setJaSegueEmpresa] = useState(false)
   const [jaSegueUsuario, setJaSegueUsuario] = useState(false)
   const [tickSeguir, setTickSeguir] = useState(0)
@@ -88,6 +91,10 @@ export default function PostCard({
   useEffect(() => {
     setShareTotal(post.total_compartilhamentos ?? 0)
   }, [post.total_compartilhamentos, post.id])
+
+  useEffect(() => {
+    setRepostTotal(post.total_reposts ?? 0)
+  }, [post.total_reposts, post.id])
 
   useEffect(() => {
     if (!empresaId || !meuUsuarioId) {
@@ -140,23 +147,56 @@ export default function PostCard({
   }
 
   const shareModal = (
-    <ModalCompartilhar
-      aberto={shareAberto}
-      onFechar={() => setShareAberto(false)}
-      postUrl={postUrl}
-      postId={post.id}
-      tituloResumo={resumo}
-      usuarioId={meuUsuarioId}
-      onCompartilhouFeed={() => setShareTotal((n) => n + 1)}
-    />
+    <ModalCompartilhar aberto={shareAberto} onFechar={() => setShareAberto(false)} postUrl={postUrl} tituloResumo={resumo} />
   )
+
+  const republicar = async () => {
+    if (!meuUsuarioId) return
+    const { data: orig, error: e1 } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('id', post.id)
+      .is('deleted_at', null)
+      .maybeSingle()
+    if (e1 || !orig) {
+      console.error(e1)
+      alert('Não foi possível republicar.')
+      return
+    }
+    const o = /** @type {Record<string, unknown>} */ (orig)
+    const { data: ins, error: e2 } = await supabase
+      .from('posts')
+      .insert({
+        autor_id: meuUsuarioId,
+        texto: o.texto != null ? String(o.texto) : null,
+        foto_url: o.foto_url != null ? String(o.foto_url) : null,
+        conteudo_url: o.conteudo_url != null ? String(o.conteudo_url) : null,
+        tipo: o.tipo != null ? String(o.tipo) : 'texto',
+        avaliacao_meta: o.avaliacao_meta && typeof o.avaliacao_meta === 'object' ? o.avaliacao_meta : null,
+        post_original_id: post.id,
+      })
+      .select('id')
+      .maybeSingle()
+    if (e2 || !ins?.id) {
+      console.error(e2)
+      alert('Não foi possível republicar.')
+      return
+    }
+    const { error: rpcErr } = await supabase.rpc('incrementar_reposts', { post_id: post.id })
+    if (rpcErr) console.error(rpcErr)
+    setRepostTotal((n) => n + 1)
+    const { data: viewRow, error: e3 } = await supabase.from('posts_com_autores').select('*').eq('id', ins.id).maybeSingle()
+    if (e3) console.error('posts_com_autores após repost:', e3)
+    if (!e3 && viewRow) onRepublicouPrepend?.(/** @type {Record<string, unknown>} */ (viewRow))
+  }
 
   const acoesPost = (
     <div className="flex items-center justify-between gap-4 px-3 py-2">
-      <div className="flex flex-1 items-center justify-start gap-6">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-start gap-6">
         <BotaoCurtir postId={post.id} totalInicial={post.total_curtidas ?? 0} usuarioId={meuUsuarioId} />
         <BotaoComentar total={nComent} onClick={() => setComentAberto(true)} />
         <BotaoCompartilhar total={shareTotal} onClick={() => setShareAberto(true)} />
+        <BotaoRepostar total={repostTotal} onClick={() => void republicar()} disabled={!meuUsuarioId} />
       </div>
       <div className="shrink-0 pl-2">
         <BotaoSalvar postId={post.id} usuarioId={meuUsuarioId} />
@@ -187,10 +227,11 @@ export default function PostCard({
           <AvaliacaoCard meta={meta} />
         </div>
         <div className="flex items-center justify-between gap-4 border-t border-gray-100 px-3 py-2">
-          <div className="flex flex-1 items-center justify-start gap-6">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-start gap-6">
             <BotaoCurtir postId={post.id} totalInicial={post.total_curtidas ?? 0} usuarioId={meuUsuarioId} />
             <BotaoComentar total={nComent} onClick={() => setComentAberto(true)} />
             <BotaoCompartilhar total={shareTotal} onClick={() => setShareAberto(true)} />
+            <BotaoRepostar total={repostTotal} onClick={() => void republicar()} disabled={!meuUsuarioId} />
           </div>
           <div className="shrink-0 pl-2">
             <BotaoSalvar postId={post.id} usuarioId={meuUsuarioId} />
@@ -269,7 +310,9 @@ export default function PostCard({
         </>
       ) : (
         <>
-          {post.texto ? <p className="px-4 py-2 pt-0 text-sm text-gray-800">{post.texto}</p> : null}
+          {post.texto ? (
+            <p className="whitespace-pre-wrap px-4 py-2 pt-0 text-sm text-gray-800">{post.texto}</p>
+          ) : null}
           {acoesPost}
         </>
       )}

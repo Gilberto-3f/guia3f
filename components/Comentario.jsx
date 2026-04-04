@@ -66,9 +66,9 @@ export default function Comentario({ comentario, usuarioId, destacado = false })
       className={`flex gap-2 border-b border-gray-100 py-3 last:border-0 ${destacado ? 'rounded-lg bg-[#0097b2]/10 ring-2 ring-[#0097b2]/40' : ''}`}
     >
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-gray-800">{comentario.autor.nome}</p>
-        <p className="text-xs text-gray-500">@{comentario.autor.username} · {tempo}</p>
-        <p className="mt-1 text-sm text-gray-700">{comentario.texto}</p>
+        <p className="text-sm font-medium text-gray-900">{comentario.autor.nome}</p>
+        <p className="text-xs text-gray-600">@{comentario.autor.username} · {tempo}</p>
+        <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{comentario.texto}</p>
       </div>
       <button
         type="button"

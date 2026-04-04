@@ -99,7 +99,7 @@ export default function CriarPublicacaoPage() {
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           placeholder="O que você está pensando?"
-          className="w-full resize-none rounded-lg border border-gray-200 p-3 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+          className="w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
           rows={6}
         />
 

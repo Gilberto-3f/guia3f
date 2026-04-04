@@ -31,15 +31,13 @@ type RepublicadoLinha = {
   id: string
   created_at: string
   texto: string | null
+  foto_url: string | null
+  conteudo_url: string | null
+  tipo: string
+  avaliacao_meta: Record<string, unknown> | null
   originalId: string | null
   autorOriginal: string | null
   usernameOriginal: string | null
-}
-
-function parsePostIdFromRepublicado(texto: string | null | undefined) {
-  if (!texto) return null
-  const m = texto.match(/post=([a-f0-9-]{36})/i)
-  return m ? m[1] : null
 }
 
 export default function PerfilSocialPage() {
@@ -187,9 +185,10 @@ export default function PerfilSocialPage() {
 
       const { data: postsTxt } = await supabase
         .from('posts')
-        .select('id, texto, created_at, total_curtidas, total_comentarios, tipo')
+        .select('id, texto, created_at, total_curtidas, total_comentarios, tipo, post_original_id')
         .eq('autor_id', profileId)
         .is('deleted_at', null)
+        .is('post_original_id', null)
         .in('tipo', ['postagem', 'texto'])
         .order('created_at', { ascending: false })
 
@@ -216,19 +215,14 @@ export default function PerfilSocialPage() {
 
       const { data: reps } = await supabase
         .from('posts')
-        .select('id, texto, created_at')
+        .select('id, texto, created_at, foto_url, conteudo_url, tipo, post_original_id, avaliacao_meta')
         .eq('autor_id', profileId)
-        .eq('tipo', 'postagem')
+        .not('post_original_id', 'is', null)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
-      const repFiltered =
-        reps?.filter((p) => {
-          const tx = String(p.texto || '')
-          return tx.includes('Confira:') && tx.includes('post=')
-        }) ?? []
-
-      const origIds = [...new Set(repFiltered.map((p) => parsePostIdFromRepublicado(String(p.texto))).filter(Boolean))]
+      const repRows = reps ?? []
+      const origIds = [...new Set(repRows.map((p) => (p.post_original_id != null ? String(p.post_original_id) : null)).filter((x): x is string => Boolean(x)))]
       const origMap = /** @type {Map<string, { autor: ReturnType<typeof pickAutorDisplay> }>} */ (new Map())
       if (origIds.length) {
         const { data: origPosts } = await supabase
@@ -244,19 +238,26 @@ export default function PerfilSocialPage() {
 
         for (const op of origPosts ?? []) {
           const oid = String(op.id)
-          const autor = pickAutorDisplay(op.usuarios)
+          const rawU = op.usuarios
+          const u = Array.isArray(rawU) ? rawU[0] : rawU
+          const autor = pickAutorDisplay(u)
           origMap.set(oid, { autor })
         }
       }
 
       setRepublicados(
-        repFiltered.map((p) => {
-          const oid = parsePostIdFromRepublicado(String(p.texto))
+        repRows.map((p) => {
+          const oid = p.post_original_id != null ? String(p.post_original_id) : null
           const o = oid ? origMap.get(oid) : undefined
+          const am = p.avaliacao_meta
           return {
             id: String(p.id),
             created_at: String(p.created_at ?? ''),
             texto: p.texto != null ? String(p.texto) : null,
+            foto_url: p.foto_url != null ? String(p.foto_url) : null,
+            conteudo_url: p.conteudo_url != null ? String(p.conteudo_url) : null,
+            tipo: p.tipo != null ? String(p.tipo) : 'texto',
+            avaliacao_meta: am && typeof am === 'object' && !Array.isArray(am) ? (am as Record<string, unknown>) : null,
             originalId: oid,
             autorOriginal: o?.autor.nome ?? null,
             usernameOriginal: o?.autor.username ?? null,

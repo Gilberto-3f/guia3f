@@ -16,7 +16,7 @@ export default function AbaPosts({ posts }) {
     <ul className="space-y-3 px-3">
       {posts.map((p) => (
         <li key={p.id} className="rounded-lg border border-[#E0E0E0] bg-white p-3 shadow-sm">
-          <p className="text-sm text-[#666666]">{p.texto || '—'}</p>
+          <p className="whitespace-pre-wrap text-sm text-[#666666]">{p.texto || '—'}</p>
           <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
             <span className="flex items-center gap-1">
               <Heart size={14} className="text-gray-400" aria-hidden />

@@ -144,17 +144,17 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
   return (
     <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
       <div
-        className="flex w-full max-w-lg flex-col rounded-t-2xl bg-white sm:max-h-[85vh] sm:rounded-2xl"
+        className="flex w-full max-w-lg flex-col rounded-t-2xl bg-white text-gray-900 sm:max-h-[85vh] sm:rounded-2xl"
         style={{ height: 'min(66dvh, 85vh)' }}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3">
-          <h3 className="font-semibold text-gray-800">Comentários</h3>
-          <button type="button" onClick={onFechar} className="p-1" aria-label="Fechar">
+          <h3 className="font-semibold text-gray-900">Comentários</h3>
+          <button type="button" onClick={onFechar} className="p-1 text-gray-900" aria-label="Fechar">
             <X size={22} />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">
-          {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-400">Nenhum comentário</p> : null}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-gray-900">
+          {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum comentário</p> : null}
           {lista.map((c) => (
             <Comentario
               key={c.id}
@@ -164,20 +164,26 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
             />
           ))}
         </div>
-        <div className="shrink-0 border-t border-gray-100 p-3">
+        <div className="shrink-0 border-t border-gray-100 bg-white p-3">
           <div className="flex gap-2">
-            <input
+            <textarea
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               placeholder="Escreva um comentário..."
-              className="flex-1 rounded-full border border-gray-200 px-3 py-2 text-sm"
-              onKeyDown={(e) => e.key === 'Enter' && void enviar()}
+              rows={2}
+              className="min-h-[44px] flex-1 resize-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault()
+                  void enviar()
+                }
+              }}
             />
             <button
               type="button"
               disabled={!texto.trim() || enviando || !usuarioId}
               onClick={() => void enviar()}
-              className="rounded-full bg-[#0097b2] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="self-end rounded-full bg-[#0097b2] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               Enviar
             </button>
