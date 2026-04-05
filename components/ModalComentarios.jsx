@@ -102,14 +102,15 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
           raw && typeof raw === 'object'
             ? pickAutorDisplay(raw)
             : aid
-              ? (extra.get(aid) ?? { nome: 'Usuário', username: 'usuario', foto_perfil_url: null })
-              : { nome: 'Usuário', username: 'usuario', foto_perfil_url: null }
+              ? (extra.get(aid) ?? { nome: 'Usuário', username: 'usuario', foto_perfil_url: null, usuario_id: '' })
+              : { nome: 'Usuário', username: 'usuario', foto_perfil_url: null, usuario_id: '' }
+        const autorUsuarioId = String((a && 'usuario_id' in a && a.usuario_id) || aid || '')
         return {
           id: String(rr.id),
           texto: String(rr.texto ?? ''),
           created_at: String(rr.created_at ?? ''),
           total_curtidas: Number(rr.total_curtidas) || 0,
-          autor: { nome: a.nome, username: a.username, foto_perfil_url: a.foto_perfil_url },
+          autor: { nome: a.nome, username: a.username, foto_perfil_url: a.foto_perfil_url, usuario_id: autorUsuarioId },
         }
       })
     )
@@ -211,112 +212,102 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
   if (!aberto) return null
 
   return (
-    <>
-      {!composeAberto ? (
-        <div className="fixed inset-0 z-[230] flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
-          <div
-            className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
-            style={{ height: 'min(70vh, 85vh)' }}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3">
-              <h3 className="font-bold text-black">Comentários</h3>
-              <button type="button" onClick={onFechar} className="p-1 text-black" aria-label="Fechar">
-                <X size={22} />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black">
-              {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-900">Nenhum comentário</p> : null}
-              {lista.map((c, index) => (
-                <Comentario
-                  key={c.id}
-                  comentario={c}
-                  usuarioId={usuarioId}
-                  destacado={Boolean(destacarComentarioId && c.id === destacarComentarioId)}
-                  mostrarResponder={index > 0}
-                  onResponder={handleResponder}
-                />
-              ))}
-            </div>
-            <div className="shrink-0 border-t border-gray-200 bg-white p-3">
-              <button
-                type="button"
-                onClick={() => abrirCompose('')}
-                disabled={!usuarioId}
-                className="w-full rounded-xl border border-[#0097b2] py-3 text-center text-sm font-semibold text-[#0097b2] disabled:opacity-50"
-              >
-                Adicionar comentário
-              </button>
-            </div>
-          </div>
+    <div className="fixed inset-0 z-[230] flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
+      <div
+        className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
+        style={{ height: 'min(70vh, 85vh)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-comentarios-titulo"
+      >
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3">
+          <h3 id="modal-comentarios-titulo" className="font-bold text-black">
+            Comentários
+          </h3>
+          <button type="button" onClick={onFechar} className="p-1 text-black" aria-label="Fechar">
+            <X size={22} />
+          </button>
         </div>
-      ) : null}
-
-      {composeAberto ? (
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black">
+          {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-900">Nenhum comentário</p> : null}
+          {lista.map((c, index) => (
+            <Comentario
+              key={c.id}
+              comentario={c}
+              usuarioId={usuarioId}
+              destacado={Boolean(destacarComentarioId && c.id === destacarComentarioId)}
+              mostrarResponder={index > 0}
+              onResponder={handleResponder}
+            />
+          ))}
+        </div>
         <div
-          className="fixed inset-0 z-[235] flex items-end justify-center bg-black/50 p-4 sm:items-center"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) fecharCompose()
-          }}
-          role="presentation"
+          className="shrink-0 border-t border-gray-200 bg-white p-3"
+          style={composeAberto ? { paddingBottom: Math.max(12, tecladoInset) } : undefined}
         >
-          <div
-            className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl"
-            style={{ marginBottom: tecladoInset }}
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-labelledby="modal-comentario-titulo"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h4 id="modal-comentario-titulo" className="text-base font-bold text-gray-900">
-                {novoComentario.trim().startsWith('@') ? 'Responder' : 'Novo comentário'}
-              </h4>
-              <button type="button" onClick={fecharCompose} className="p-1 text-gray-600" aria-label="Fechar">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex items-end gap-2">
-              <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                {minhaFotoUrl ? (
-                  <AvatarImage src={minhaFotoUrl} alt="" width={32} height={32} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">?</div>
-                )}
+          {composeAberto ? (
+            <div aria-labelledby="modal-comentario-compose-titulo">
+              <div className="mb-2 flex items-center justify-between">
+                <h4 id="modal-comentario-compose-titulo" className="text-sm font-bold text-gray-900">
+                  {novoComentario.trim().startsWith('@') ? 'Responder' : 'Novo comentário'}
+                </h4>
+                <button type="button" onClick={fecharCompose} className="p-1 text-gray-600" aria-label="Fechar edição">
+                  <X size={20} />
+                </button>
               </div>
-              <textarea
-                ref={textareaRef}
-                className="max-h-40 min-h-[100px] flex-1 resize-y rounded-lg border border-gray-200 p-2 text-sm text-black"
-                placeholder="Adicione um comentário..."
-                value={novoComentario}
-                onChange={(e) => setNovoComentario(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault()
-                    void enviarComentario()
-                  }
-                }}
-              />
+              <div className="flex items-end gap-2">
+                <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  {minhaFotoUrl ? (
+                    <AvatarImage src={minhaFotoUrl} alt="" width={32} height={32} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">?</div>
+                  )}
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  className="max-h-32 min-h-[80px] flex-1 resize-y rounded-lg border border-gray-200 p-2 text-sm text-black"
+                  placeholder="Adicione um comentário…"
+                  value={novoComentario}
+                  onChange={(e) => setNovoComentario(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                      e.preventDefault()
+                      void enviarComentario()
+                    }
+                  }}
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-400">Enter nova linha · Ctrl+Enter envia</p>
+              <div className="mt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={fecharCompose}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={!novoComentario.trim() || enviando || !usuarioId}
+                  onClick={() => void enviarComentario()}
+                  className="rounded-lg bg-[#0097b2] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  Enviar
+                </button>
+              </div>
             </div>
-            <p className="mt-1 text-xs text-gray-400">Enter nova linha · Ctrl+Enter envia</p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={fecharCompose}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={!novoComentario.trim() || enviando || !usuarioId}
-                onClick={() => void enviarComentario()}
-                className="rounded-lg bg-[#0097b2] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                Enviar
-              </button>
-            </div>
-          </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => abrirCompose('')}
+              disabled={!usuarioId}
+              className="w-full rounded-xl border border-[#0097b2] py-3 text-center text-sm font-semibold text-[#0097b2] disabled:opacity-50"
+            >
+              Adicionar comentário
+            </button>
+          )}
         </div>
-      ) : null}
-    </>
+      </div>
+    </div>
   )
 }

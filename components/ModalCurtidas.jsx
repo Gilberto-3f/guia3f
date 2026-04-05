@@ -1,13 +1,18 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
 import AvatarImage from '@/components/AvatarImage'
 
-const CURTIDAS_COM_USUARIOS = `
+/** Ordem: tenta relação padrão; se o PostgREST falhar, use variante com FK explícita. */
+const CURTIDAS_SELECT_VARIANTS = [
+  `
+  id,
   usuario_id,
+  created_at,
   usuarios (
     id,
     email,
@@ -16,7 +21,21 @@ const CURTIDAS_COM_USUARIOS = `
     profissionais (nome_completo, nome_usuario, foto_perfil_url),
     empresas (id, nome_fantasia, nome_usuario, foto_url)
   )
-`
+`,
+  `
+  id,
+  usuario_id,
+  created_at,
+  usuarios!curtidas_usuario_id_fkey (
+    id,
+    email,
+    role,
+    turistas (nome_completo, nome_usuario, foto_perfil_url),
+    profissionais (nome_completo, nome_usuario, foto_perfil_url),
+    empresas (id, nome_fantasia, nome_usuario, foto_url)
+  )
+`,
+]
 
 const USUARIOS_SELECT = `
   id,
@@ -49,22 +68,77 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
     }
     setCarregando(true)
     try {
-      const { data: rows, error: e0 } = await supabase.from('curtidas').select(CURTIDAS_COM_USUARIOS).eq('post_id', postId)
-      if (e0) {
-        console.error('ModalCurtidas curtidas+usuarios:', e0)
+      let rows = /** @type {Record<string, unknown>[] | null} */ (null)
+      for (const sel of CURTIDAS_SELECT_VARIANTS) {
+        const res = await supabase
+          .from('curtidas')
+          .select(sel)
+          .eq('post_id', postId)
+          .is('comentario_id', null)
+          .order('created_at', { ascending: false })
+        if (!res.error && res.data) {
+          rows = /** @type {Record<string, unknown>[]} */ (res.data)
+          break
+        }
+        if (res.error) console.warn('ModalCurtidas select:', res.error.message, res.error)
+      }
+
+      if (!rows) {
+        console.error('ModalCurtidas: nenhuma variante de select em curtidas funcionou')
         setLista([])
         setSeguindoMap({})
         return
       }
 
-      const byId = new Map()
-      const faltando = new Set()
+      if (rows.length === 0) {
+        setLista([])
+        setSeguindoMap({})
+        return
+      }
 
-      for (const raw of rows ?? []) {
+      /** Preserva ordem da query (mais recente primeiro): um usuário por linha (índice único post+user). */
+      const ordemIds = []
+      const visto = new Set()
+      const faltando = new Set()
+      /** @type {Map<string, { id: string, username: string, foto: string | null, role: string, empresaId: string }>} */
+      const byId = new Map()
+
+      for (const raw of rows) {
         const r = /** @type {Record<string, unknown>} */ (raw)
+        const uidRaw = r.usuario_id != null ? String(r.usuario_id) : ''
         const emb = r.usuarios
         const u = Array.isArray(emb) ? emb[0] : emb
         if (u && typeof u === 'object') {
+          const a = pickAutorDisplay(u)
+          const row = /** @type {{ id?: string }} */ (u)
+          const id = row.id != null ? String(row.id) : ''
+          if (id) {
+            if (!visto.has(id)) {
+              visto.add(id)
+              ordemIds.push(id)
+            }
+            byId.set(id, {
+              id,
+              username: a.username,
+              foto: a.foto_perfil_url,
+              role: a.role || 'user',
+              empresaId: a.empresa_id || '',
+            })
+          }
+        } else if (uidRaw) {
+          faltando.add(uidRaw)
+          if (!visto.has(uidRaw)) {
+            visto.add(uidRaw)
+            ordemIds.push(uidRaw)
+          }
+        }
+      }
+
+      if (faltando.size > 0) {
+        const ids = [...faltando]
+        const { data: users, error: e2 } = await supabase.from('usuarios').select(USUARIOS_SELECT).in('id', ids)
+        if (e2) console.error('ModalCurtidas usuarios fallback:', e2)
+        for (const u of users ?? []) {
           const a = pickAutorDisplay(u)
           const row = /** @type {{ id?: string }} */ (u)
           const id = row.id != null ? String(row.id) : ''
@@ -77,33 +151,15 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
               empresaId: a.empresa_id || '',
             })
           }
-        } else {
-          const uid = r.usuario_id != null ? String(r.usuario_id) : ''
-          if (uid) faltando.add(uid)
         }
       }
 
-      if (faltando.size > 0) {
-        const ids = [...faltando]
-        const { data: users, error: e2 } = await supabase.from('usuarios').select(USUARIOS_SELECT).in('id', ids)
-        if (e2) console.error('ModalCurtidas usuarios fallback:', e2)
-        for (const u of users ?? []) {
-          const a = pickAutorDisplay(u)
-          const row = /** @type {{ id?: string }} */ (u)
-          const id = row.id != null ? String(row.id) : ''
-          if (id && !byId.has(id)) {
-            byId.set(id, {
-              id,
-              username: a.username,
-              foto: a.foto_perfil_url,
-              role: a.role || 'user',
-              empresaId: a.empresa_id || '',
-            })
-          }
-        }
+      const linhas = ordemIds.map((id) => byId.get(id)).filter((l) => l != null && l.id)
+      if (linhas.length === 0 && rows.length > 0) {
+        console.warn(
+          'ModalCurtidas: curtidas retornaram linhas mas nenhum usuário resolvido (embed usuarios vazio e fallback falhou?). Verifique RLS em usuarios/turistas/profissionais e FK usuario_id.'
+        )
       }
-
-      const linhas = [...byId.values()].filter((l) => l.id)
       setLista(linhas)
 
       if (meuUsuarioId && linhas.length) {
@@ -185,7 +241,10 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
               const seguindo = Boolean(seguindoMap[u.id])
               return (
                 <div key={u.id} className="flex items-center justify-between gap-2 border-b border-gray-100 py-3 last:border-0">
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <Link
+                    href={`/perfil/${u.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50"
+                  >
                     <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
                       {u.foto ? (
                         <AvatarImage src={u.foto} alt="" width={40} height={40} className="h-full w-full object-cover" />
@@ -194,7 +253,7 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
                       )}
                     </div>
                     <p className="truncate text-sm font-semibold text-gray-900">@{u.username}</p>
-                  </div>
+                  </Link>
                   {!ehEu && meuUsuarioId ? (
                     <button
                       type="button"

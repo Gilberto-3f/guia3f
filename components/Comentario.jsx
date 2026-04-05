@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Heart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
@@ -13,7 +14,7 @@ import AvatarImage from '@/components/AvatarImage'
  *     texto: string
  *     created_at: string
  *     total_curtidas: number
- *     autor: { nome: string, username: string, foto_perfil_url: string | null }
+ *     autor: { nome: string, username: string, foto_perfil_url: string | null, usuario_id?: string }
  *   }
  *   usuarioId: string | null
  *   destacado?: boolean
@@ -67,21 +68,33 @@ export default function Comentario({
 
   const mencao = `@${comentario.autor?.username ?? 'usuario'} `
   const avatar = comentario.autor?.foto_perfil_url
+  const perfilHref = comentario.autor?.usuario_id ? `/perfil/${comentario.autor.usuario_id}` : null
+  const avatarInner = avatar ? (
+    <AvatarImage src={avatar} alt="" width={32} height={32} className="h-full w-full object-cover" />
+  ) : (
+    <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">?</div>
+  )
 
   return (
     <div
       id={`comentario-${comentario.id}`}
       className={`flex gap-2 border-b border-gray-100 py-3 last:border-0 ${destacado ? 'rounded-lg bg-[#0097b2]/10 ring-2 ring-[#0097b2]/40' : ''}`}
     >
-      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
-        {avatar ? (
-          <AvatarImage src={avatar} alt="" width={32} height={32} className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">?</div>
-        )}
-      </div>
+      {perfilHref ? (
+        <Link href={perfilHref} className="relative block h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
+          {avatarInner}
+        </Link>
+      ) : (
+        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">{avatarInner}</div>
+      )}
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-gray-900">@{comentario.autor?.username ?? 'usuario'}</p>
+        {perfilHref ? (
+          <Link href={perfilHref} className="text-sm font-semibold text-gray-900 hover:text-[#0097b2]">
+            @{comentario.autor?.username ?? 'usuario'}
+          </Link>
+        ) : (
+          <p className="text-sm font-semibold text-gray-900">@{comentario.autor?.username ?? 'usuario'}</p>
+        )}
         <p className="text-xs text-gray-400">{tempo}</p>
         <p
           className={`mt-1 whitespace-pre-wrap text-sm text-gray-800 ${destacado ? 'font-bold' : ''}`}

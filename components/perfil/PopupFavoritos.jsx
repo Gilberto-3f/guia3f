@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Heart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
@@ -128,13 +129,18 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
           {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
           {lista.map((row) => (
             <div key={row.id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
-              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
-                {row.foto ? <Image src={row.foto} alt="" fill className="object-cover" sizes="40px" /> : null}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-gray-800">{row.nome}</p>
-                <p className="truncate text-xs text-gray-500">@{row.username}</p>
-              </div>
+              <Link
+                href={aba === 'empresas' ? `/empresa/${row.id}` : `/perfil/${row.id}`}
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50"
+              >
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
+                  {row.foto ? <Image src={row.foto} alt="" fill className="object-cover" sizes="40px" /> : null}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-gray-800">{row.nome}</p>
+                  <p className="truncate text-xs text-gray-500">@{row.username}</p>
+                </div>
+              </Link>
               {souEu ? (
                 <button
                   type="button"

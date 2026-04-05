@@ -17,7 +17,8 @@ const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
 type AtividadeRow = {
   id: string
   usuario_id: string
-  ator_id: string
+  /** Quem realizou a ação (alinha à coluna `autor_id` em `public.atividades`). */
+  autor_id: string
   tipo: string
   alvo_id: string
   alvo_tipo: string
@@ -55,7 +56,7 @@ function tituloBlocoData(iso: string) {
 
 function agruparCurtidasPost(ordenadoDesc: AtividadeRow[]) {
   const resultado: (
-    | { kind: 'curtiu_post_grupo'; ator_id: string; rows: AtividadeRow[]; created_at: string }
+    | { kind: 'curtiu_post_grupo'; autor_id: string; rows: AtividadeRow[]; created_at: string }
     | { kind: 'outro'; row: AtividadeRow }
   )[] = []
   let i = 0
@@ -63,16 +64,16 @@ function agruparCurtidasPost(ordenadoDesc: AtividadeRow[]) {
     const r = ordenadoDesc[i]
     if (r.tipo === 'curtiu_post') {
       const dk = dayKey(r.created_at)
-      const ator = r.ator_id
+      const autor = r.autor_id
       const grupo: AtividadeRow[] = [r]
       i++
       while (i < ordenadoDesc.length) {
         const x = ordenadoDesc[i]
-        if (x.tipo !== 'curtiu_post' || x.ator_id !== ator || dayKey(x.created_at) !== dk) break
+        if (x.tipo !== 'curtiu_post' || x.autor_id !== autor || dayKey(x.created_at) !== dk) break
         grupo.push(x)
         i++
       }
-      resultado.push({ kind: 'curtiu_post_grupo', ator_id: ator, rows: grupo, created_at: grupo[0].created_at })
+      resultado.push({ kind: 'curtiu_post_grupo', autor_id: autor, rows: grupo, created_at: grupo[0].created_at })
     } else {
       resultado.push({ kind: 'outro', row: r })
       i++
@@ -103,11 +104,12 @@ export default function AtividadesPage() {
   const [postUrlMap, setPostUrlMap] = useState<Record<string, string>>({})
   const [empresaMap, setEmpresaMap] = useState<Record<string, { id: string; nome: string }>>({})
   const [seguidoEmpresaMap, setSeguidoEmpresaMap] = useState<Record<string, string>>({})
+  const [qtdSeguindo, setQtdSeguindo] = useState(0)
 
   const coletarIdsPerfis = useCallback((rows: AtividadeRow[]) => {
     const ids = new Set<string>()
     for (const r of rows) {
-      ids.add(r.ator_id)
+      ids.add(r.autor_id)
       const ex = r.dados_extras
       if (ex && typeof ex === 'object') {
         const seguidor = ex.seguidor_id
@@ -207,6 +209,7 @@ export default function AtividadesPage() {
       setCarregando(false)
       setListaAmigos([])
       setListaMinha([])
+      setQtdSeguindo(0)
       return
     }
 
@@ -218,15 +221,22 @@ export default function AtividadesPage() {
       setCarregando(false)
       setListaAmigos([])
       setListaMinha([])
+      setQtdSeguindo(0)
       return
     }
 
     const { data: segRows } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid)
     const seguindo = (segRows ?? []).map((r) => String((r as { seguido_id: string }).seguido_id))
+    setQtdSeguindo(seguindo.length)
 
     const [amigosRes, minhaRes] = await Promise.all([
       seguindo.length
-        ? supabase.from('atividades').select('*').in('ator_id', seguindo).order('created_at', { ascending: false }).limit(200)
+        ? supabase
+            .from('atividades')
+            .select('*')
+            .in('autor_id', seguindo)
+            .order('created_at', { ascending: false })
+            .limit(200)
         : Promise.resolve({ data: [] as AtividadeRow[], error: null }),
       supabase.from('atividades').select('*').eq('usuario_id', uid).order('created_at', { ascending: false }).limit(200),
     ])
@@ -300,7 +310,7 @@ export default function AtividadesPage() {
     }
 
     return fonte.filter((r) => {
-      if (perfilCombina(r.ator_id)) return true
+      if (perfilCombina(r.autor_id)) return true
       if (r.tipo === 'seguiu' && r.dados_extras && typeof r.dados_extras === 'object') {
         const ex = r.dados_extras
         const seguido = typeof ex.seguido_id === 'string' ? ex.seguido_id : null
@@ -339,15 +349,15 @@ export default function AtividadesPage() {
 
   const renderItem = (item: (typeof itensAgrupados)[number], idx: number) => {
     if (item.kind === 'curtiu_post_grupo') {
-      const ator = perfilMap[item.ator_id]
+      const ator = perfilMap[item.autor_id]
       const urlsBrutas = item.rows.map((r) => postUrlMap[r.alvo_id]).filter((u): u is string => Boolean(u))
       const urlsGrid = urlsBrutas.length ? urlsBrutas : item.rows.map(() => '/window.svg')
       const username = ator?.username ?? 'usuario'
       return (
         <AtividadeCurtidas
-          key={`cg-${item.ator_id}-${item.created_at}-${idx}`}
+          key={`cg-${item.autor_id}-${item.created_at}-${idx}`}
           usernameAtor={username}
-          usuarioAtorId={item.ator_id}
+          usuarioAtorId={item.autor_id}
           urls={urlsGrid}
           totalCurtidas={item.rows.length}
         />
@@ -355,7 +365,7 @@ export default function AtividadesPage() {
     }
 
     const r = item.row
-    const ator = perfilMap[r.ator_id]
+    const ator = perfilMap[r.autor_id]
 
     if (r.tipo === 'curtiu_comentario') {
       const ex = r.dados_extras ?? {}
@@ -390,7 +400,7 @@ export default function AtividadesPage() {
 
     if (r.tipo === 'seguiu') {
       const ex = r.dados_extras ?? {}
-      const seguidorId = typeof ex.seguidor_id === 'string' ? ex.seguidor_id : r.ator_id
+      const seguidorId = typeof ex.seguidor_id === 'string' ? ex.seguidor_id : r.autor_id
       const seguidoId = typeof ex.seguido_id === 'string' ? ex.seguido_id : r.usuario_id
       const seguidoTipo = typeof ex.seguido_tipo === 'string' ? ex.seguido_tipo : 'turista'
       const uSeg = perfilMap[seguidorId]
@@ -499,7 +509,11 @@ export default function AtividadesPage() {
 
       <div className="p-4">
         {blocosComTitulo.length === 0 ? (
-          <p className="py-10 text-center text-sm text-gray-400">Nenhuma atividade por aqui ainda.</p>
+          <p className="py-10 text-center text-sm text-gray-400">
+            {aba === 'amigos' && qtdSeguindo === 0
+              ? 'Siga pessoas no perfil delas para ver aqui o que estão curtindo, comentando e fazendo no app.'
+              : 'Nenhuma atividade por aqui ainda.'}
+          </p>
         ) : (
           blocosComTitulo.map((bloco) => (
             <section key={bloco.key} className="mb-6">

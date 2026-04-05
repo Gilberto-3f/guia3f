@@ -13,13 +13,28 @@ export default function AbasAtividades({ aba, onAba }) {
     }`
 
   return (
-    <div className="flex border-b border-gray-200 bg-white">
-      <button type="button" className={tabCls(aba === 'amigos')} onClick={() => onAba('amigos')}>
-        AMIGOS
-      </button>
-      <button type="button" className={tabCls(aba === 'minha')} onClick={() => onAba('minha')}>
-        MINHA CONTA
-      </button>
+    <div className="border-b border-gray-200 bg-white">
+      <div className="flex">
+        <button type="button" className={tabCls(aba === 'amigos')} onClick={() => onAba('amigos')}>
+          AMIGOS
+        </button>
+        <button type="button" className={tabCls(aba === 'minha')} onClick={() => onAba('minha')}>
+          MINHA CONTA
+        </button>
+      </div>
+      <p className="px-4 pb-3 text-xs leading-snug text-gray-500">
+        {aba === 'amigos' ? (
+          <>
+            Atividades de <strong className="font-medium text-gray-600">quem você segue</strong>: curtidas, comentários,
+            novos seguidores e avaliações que eles fizeram.
+          </>
+        ) : (
+          <>
+            <strong className="font-medium text-gray-600">Sua caixa de notificações</strong>: interações com seus posts e
+            perfil (curtidas, comentários, seguidores novos, etc.).
+          </>
+        )}
+      </p>
     </div>
   )
 }

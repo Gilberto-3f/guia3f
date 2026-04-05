@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Bookmark, Heart, MessageCircle, Repeat2, Share2 } from 'lucide-react'
 import ModalComentarios from '@/components/ModalComentarios'
 import ModalCurtidas from '@/components/ModalCurtidas'
@@ -481,7 +482,13 @@ export default function PostCard({
         {linhaRepost ? <div className="border-b border-gray-50 px-4 pt-3">{linhaRepost}</div> : null}
         <div className="flex items-center justify-between border-b border-gray-50 px-4 pt-3">
           <div>
-            <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+            {autorId ? (
+              <Link href={`/perfil/${autorId}`} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
+                @{post.autor?.username ?? ''}
+              </Link>
+            ) : (
+              <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+            )}
             <time className="text-xs text-gray-400">{tempo}</time>
           </div>
           <MenuPost {...menuProps} />
@@ -541,6 +548,14 @@ export default function PostCard({
                 />
               </button>
             </div>
+          ) : autorId ? (
+            <Link
+              href={`/perfil/${autorId}`}
+              className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+              aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
+            >
+              <AvatarImage src={post.autor?.foto_perfil_url} alt="" width={40} height={40} className="object-cover" />
+            </Link>
           ) : (
             <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
               <AvatarImage
@@ -553,7 +568,13 @@ export default function PostCard({
             </div>
           )}
           <div>
-            <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+            {autorId ? (
+              <Link href={`/perfil/${autorId}`} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
+                @{post.autor?.username ?? ''}
+              </Link>
+            ) : (
+              <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+            )}
             <time className="mt-0.5 block text-xs text-gray-400">{formatarDataRelativaPublicacao(post.created_at)}</time>
           </div>
         </div>

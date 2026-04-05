@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 /**
@@ -20,11 +19,15 @@ function postEmb(p) {
 }
 
 /**
- * @param {{ usuarioId: string }} props
+ * @param {{
+ *   usuarioId: string
+ *   onAbrirPublicacao: (postId: string, comentarioId?: string | null) => void
+ * }} props
  */
-export default function MinhasAtividades({ usuarioId }) {
+export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
   const [linhas, setLinhas] = useState(/** @type {LinhaInteracao[]} */ ([]))
   const [carregando, setCarregando] = useState(true)
+  const [aba, setAba] = useState(/** @type {'curtidas' | 'comentarios'} */ ('curtidas'))
 
   useEffect(() => {
     if (!usuarioId) return
@@ -152,6 +155,11 @@ export default function MinhasAtividades({ usuarioId }) {
     }
   }, [usuarioId])
 
+  const linhasFiltradas = useMemo(() => {
+    if (aba === 'comentarios') return linhas.filter((L) => L.kind === 'comentario')
+    return linhas.filter((L) => L.kind !== 'comentario')
+  }, [linhas, aba])
+
   const trunc = (s, n = 80) => (s.length <= n ? s : `${s.slice(0, n)}…`)
 
   const rotulo = (k) => {
@@ -161,11 +169,10 @@ export default function MinhasAtividades({ usuarioId }) {
     return 'Republicou'
   }
 
-  const hrefLinha = (/** @type {LinhaInteracao} */ L) => {
-    const base = `/perfil/atividades/${encodeURIComponent(L.postId)}`
-    if (L.kind === 'comentario' && L.comentarioId) return `${base}?comentario=${encodeURIComponent(L.comentarioId)}`
-    return base
-  }
+  const tabCls = (ativo) =>
+    `flex-1 py-2.5 text-center text-xs font-semibold tracking-wide transition-colors ${
+      ativo ? 'border-b-[3px] border-[#0097b2] text-[#0097b2]' : 'border-b-[3px] border-transparent text-gray-500'
+    }`
 
   return (
     <div className="px-1">
@@ -173,18 +180,41 @@ export default function MinhasAtividades({ usuarioId }) {
         Publicações do feed com as quais você interagiu (curtir, comentar, salvar ou republicar).
       </p>
 
+      <div className="mb-1 flex border-b border-gray-200">
+        <button type="button" className={tabCls(aba === 'curtidas')} onClick={() => setAba('curtidas')}>
+          CURTIDAS
+        </button>
+        <button type="button" className={tabCls(aba === 'comentarios')} onClick={() => setAba('comentarios')}>
+          COMENTÁRIOS
+        </button>
+      </div>
+      <p className="mb-3 text-[11px] leading-snug text-gray-400">
+        {aba === 'curtidas'
+          ? 'Inclui curtidas, salvos e republicações (tudo exceto comentários).'
+          : 'Somente publicações nas quais você comentou.'}
+      </p>
+
       {carregando ? <p className="py-6 text-center text-sm text-gray-400">Carregando…</p> : null}
 
       {!carregando ? (
         <ul className="space-y-2">
-          {linhas.length === 0 ? (
-            <li className="py-6 text-center text-sm text-gray-400">Nenhuma interação ainda.</li>
+          {linhasFiltradas.length === 0 ? (
+            <li className="py-6 text-center text-sm text-gray-400">
+              {aba === 'comentarios' ? 'Nenhum comentário ainda.' : 'Nenhuma interação nesta aba ainda.'}
+            </li>
           ) : (
-            linhas.map((L) => (
+            linhasFiltradas.map((L) => (
               <li key={L.id}>
-                <Link
-                  href={hrefLinha(L)}
-                  className="flex gap-3 rounded-lg border border-gray-100 p-2 transition hover:bg-gray-50"
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (L.kind === 'comentario' && L.comentarioId) {
+                      onAbrirPublicacao(L.postId, L.comentarioId)
+                    } else {
+                      onAbrirPublicacao(L.postId, null)
+                    }
+                  }}
+                  className="flex w-full gap-3 rounded-lg border border-gray-100 p-2 text-left transition hover:bg-gray-50"
                 >
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
                     {L.thumb ? <Image src={L.thumb} alt="" fill className="object-cover" sizes="56px" /> : null}
@@ -197,7 +227,7 @@ export default function MinhasAtividades({ usuarioId }) {
                     </p>
                     <p className="line-clamp-2 text-sm text-gray-700">{L.texto ? trunc(L.texto) : 'Post'}</p>
                   </div>
-                </Link>
+                </button>
               </li>
             ))
           )}

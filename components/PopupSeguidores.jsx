@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { X, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -108,7 +109,7 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
           ) : (
             <div className="space-y-3">
               {seguidores.map((seguidor) => (
-                <div key={seguidor.id} className="flex items-center gap-3">
+                <Link key={seguidor.id} href={`/perfil/${seguidor.id}`} className="flex items-center gap-3 rounded-lg py-1 hover:bg-gray-50">
                   {seguidor.foto_url ? (
                     <Image
                       src={seguidor.foto_url}
@@ -126,7 +127,7 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
                     <p className="font-medium text-gray-800">{seguidor.nome}</p>
                     <p className="text-sm text-gray-500">@{seguidor.username}</p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

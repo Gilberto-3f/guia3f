@@ -2,8 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Play, Volume2, VolumeX, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
+import AvatarImage from '@/components/AvatarImage'
 
 /**
  * @param {{
@@ -14,6 +17,7 @@ import { supabase } from '@/lib/supabase'
  *     texto_sobreposto: { texto?: string | null, posicao_x?: number, posicao_y?: number } | null
  *     link: string | null
  *     duracao_segundos?: number | null
+ *     autorUsuarioId?: string | null
  *   } | null
  *   userEmail: string | null
  *   onFechar: () => void
@@ -25,6 +29,7 @@ export default function StoryViewer({ story, userEmail, onFechar, onVisualizado 
   const [muted, setMuted] = useState(true)
   const [progress, setProgress] = useState(0)
   const [playing, setPlaying] = useState(true)
+  const [fotoAutor, setFotoAutor] = useState(/** @type {string | null} */ (null))
 
   useEffect(() => {
     if (!story?.id || !userEmail) return
@@ -44,6 +49,22 @@ export default function StoryViewer({ story, userEmail, onFechar, onVisualizado 
     const v = videoRef.current
     if (v) v.muted = muted
   }, [muted])
+
+  const autorId = story?.autorUsuarioId != null && story.autorUsuarioId !== '' ? String(story.autorUsuarioId) : null
+
+  useEffect(() => {
+    if (!autorId) {
+      setFotoAutor(null)
+      return
+    }
+    let ativo = true
+    void fetchFotoPerfilUsuario(supabase, autorId).then((url) => {
+      if (ativo) setFotoAutor(url)
+    })
+    return () => {
+      ativo = false
+    }
+  }, [autorId])
 
   if (!story) return null
 
@@ -74,7 +95,25 @@ export default function StoryViewer({ story, userEmail, onFechar, onVisualizado 
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-black">
-      <div className="flex items-start justify-end gap-2 p-3">
+      <div className="flex items-start justify-between gap-2 p-3">
+        {autorId ? (
+          <Link
+            href={`/perfil/${autorId}`}
+            className="flex min-w-0 items-center gap-2 rounded-lg bg-white/10 py-1 pl-1 pr-3 text-white hover:bg-white/20"
+          >
+            <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-full bg-white/20">
+              {fotoAutor ? (
+                <AvatarImage src={fotoAutor} alt="" width={36} height={36} className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center text-xs text-white/80">?</span>
+              )}
+            </span>
+            <span className="truncate text-sm font-medium">Ver perfil</span>
+          </Link>
+        ) : (
+          <span />
+        )}
+        <div className="flex shrink-0 items-start gap-2">
         {isVideo ? (
           <button
             type="button"
@@ -88,6 +127,7 @@ export default function StoryViewer({ story, userEmail, onFechar, onVisualizado 
         <button type="button" onClick={onFechar} className="rounded-full bg-white/10 p-2 text-white" aria-label="Fechar">
           <X size={24} />
         </button>
+        </div>
       </div>
 
       <div className="relative min-h-0 flex-1">

@@ -39,6 +39,7 @@ import Emergencia from '@/components/perfil/subpaginas/Emergencia'
 import EditarPerfil from '@/components/perfil/subpaginas/EditarPerfil'
 import MeuHistorico from '@/components/perfil/subpaginas/MeuHistorico'
 import MinhasAtividades from '@/components/perfil/subpaginas/MinhasAtividades'
+import PostIsoladoDrawer from '@/components/perfil/subpaginas/PostIsoladoDrawer'
 import Configuracoes from '@/components/perfil/subpaginas/Configuracoes'
 import Comissoes from '@/components/perfil/subpaginas/Comissoes'
 import AgendamentoAutomatico from '@/components/perfil/subpaginas/AgendamentoAutomatico'
@@ -50,7 +51,7 @@ import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
 
 /**
- * @typedef {{ tipo: 'menu', titulo: string, itens: MenuItem[] } | { tipo: 'pagina', titulo: string, id: string, historicoTipo?: string }} HistoricoEntry
+ * @typedef {{ tipo: 'menu', titulo: string, itens: MenuItem[] } | { tipo: 'pagina', titulo: string, id: string, historicoTipo?: string, postId?: string, comentarioId?: string | null }} HistoricoEntry
  */
 
 /**
@@ -264,8 +265,9 @@ export default function MenuLateral({
     return []
   })()
 
-  const voltarAoMenuPrincipal = useCallback(() => {
-    setHistorico([])
+  /** Remove um nível do stack (ex.: publicação isolada → Minhas Atividades → menu raiz). */
+  const voltarUmNivel = useCallback(() => {
+    setHistorico((h) => h.slice(0, -1))
   }, [])
 
   const topo = historico.length ? historico[historico.length - 1] : null
@@ -387,7 +389,26 @@ export default function MenuLateral({
           onSalvo={onPerfilAtualizado}
         />
       )
-    if (id === 'minhas-atividades') return <MinhasAtividades usuarioId={usuarioId} />
+    if (id === 'minhas-atividades')
+      return (
+        <MinhasAtividades
+          usuarioId={usuarioId}
+          onAbrirPublicacao={(postId, comentarioId = null) => {
+            setHistorico((h) => [
+              ...h,
+              {
+                tipo: 'pagina',
+                titulo: 'Publicação',
+                id: 'post-isolado',
+                postId,
+                comentarioId: comentarioId ?? null,
+              },
+            ])
+          }}
+        />
+      )
+    if (id === 'post-isolado' && topo && 'postId' in topo && topo.postId)
+      return <PostIsoladoDrawer postId={String(topo.postId)} comentarioId={topo.comentarioId ?? null} />
     if (id === 'salvos') return <SalvosDrawer usuarioId={usuarioId} />
     if (id === 'configuracoes') return <Configuracoes />
     if (id === 'comissoes') return <Comissoes />
@@ -451,9 +472,9 @@ export default function MenuLateral({
           {mostrarVoltar ? (
             <button
               type="button"
-              onClick={voltarAoMenuPrincipal}
+              onClick={voltarUmNivel}
               className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
-              aria-label="Voltar ao menu principal"
+              aria-label="Voltar"
             >
               <ArrowLeft size={20} className="shrink-0" />
               Voltar

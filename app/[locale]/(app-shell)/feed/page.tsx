@@ -43,6 +43,7 @@ type StoryViewerState = {
   texto_sobreposto: { texto?: string | null; posicao_x?: number; posicao_y?: number } | null
   link: string | null
   duracao_segundos: number | null
+  autorUsuarioId: string | null
 }
 
 function FeedPageInner() {
@@ -247,7 +248,7 @@ function FeedPageInner() {
   const abrirStory = async (id: string) => {
     const { data, error } = await supabase
       .from('stories')
-      .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos')
+      .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos, autor_id')
       .eq('id', id)
       .maybeSingle()
     if (!error && data) {
@@ -263,6 +264,7 @@ function FeedPageInner() {
         texto_sobreposto: textoParsed,
         link: data.link != null ? String(data.link) : null,
         duracao_segundos: data.duracao_segundos != null ? Number(data.duracao_segundos) : null,
+        autorUsuarioId: data.autor_id != null ? String(data.autor_id) : null,
       })
     }
   }
