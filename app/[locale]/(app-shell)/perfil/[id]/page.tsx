@@ -83,6 +83,20 @@ export default function PerfilSocialPage() {
   const [popAval, setPopAval] = useState(false)
   const [modalFoto, setModalFoto] = useState({ aberto: false, i: 0 })
 
+  const patchFotoPost = useCallback((postId: string, updates: { total_curtidas?: number; total_comentarios?: number }) => {
+    setPostsFotos((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? {
+              ...p,
+              total_curtidas: updates.total_curtidas ?? p.total_curtidas,
+              total_comentarios: updates.total_comentarios ?? p.total_comentarios,
+            }
+          : p
+      )
+    )
+  }, [])
+
   const carregar = useCallback(async () => {
     if (!profileId) return
     setLoading(true)
@@ -320,11 +334,11 @@ export default function PerfilSocialPage() {
 
   const counts = useMemo(
     () => ({
-      fotos: urlsFotos.length,
+      fotos: postsFotos.length,
       posts: postsTexto.length,
       republicados: republicados.length,
     }),
-    [urlsFotos.length, postsTexto.length, republicados.length]
+    [postsFotos.length, postsTexto.length, republicados.length]
   )
 
   const favoritosTotal = nFavEmp + nFavUsers
