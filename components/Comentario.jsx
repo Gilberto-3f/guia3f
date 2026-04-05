@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Heart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
+import { formatarDataComentarioCurta } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 
 /**
@@ -18,17 +18,10 @@ import AvatarImage from '@/components/AvatarImage'
  *   }
  *   usuarioId: string | null
  *   destacado?: boolean
- *   mostrarResponder?: boolean
  *   onResponder?: (texto: string) => void
  * }} props
  */
-export default function Comentario({
-  comentario,
-  usuarioId,
-  destacado = false,
-  mostrarResponder = false,
-  onResponder,
-}) {
+export default function Comentario({ comentario, usuarioId, destacado = false, onResponder }) {
   const [curtiu, setCurtiu] = useState(false)
   const [total, setTotal] = useState(comentario.total_curtidas ?? 0)
 
@@ -64,8 +57,7 @@ export default function Comentario({
     }
   }
 
-  const tempo = formatarDataRelativaPublicacao(comentario.created_at)
-
+  const tempo = formatarDataComentarioCurta(comentario.created_at)
   const mencao = `@${comentario.autor?.username ?? 'usuario'} `
   const avatar = comentario.autor?.foto_perfil_url
   const perfilHref = comentario.autor?.usuario_id ? `/perfil/${comentario.autor.usuario_id}` : null
@@ -88,33 +80,35 @@ export default function Comentario({
         <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">{avatarInner}</div>
       )}
       <div className="min-w-0 flex-1">
-        {perfilHref ? (
-          <Link href={perfilHref} className="text-sm font-semibold text-gray-900 hover:text-[#0097b2]">
-            @{comentario.autor?.username ?? 'usuario'}
-          </Link>
-        ) : (
-          <p className="text-sm font-semibold text-gray-900">@{comentario.autor?.username ?? 'usuario'}</p>
-        )}
-        <p className="text-xs text-gray-400">{tempo}</p>
-        <p
-          className={`mt-1 whitespace-pre-wrap text-sm text-gray-800 ${destacado ? 'font-bold' : ''}`}
-        >
+        <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
+          {perfilHref ? (
+            <Link href={perfilHref} className="text-sm font-semibold text-gray-900 hover:text-[#0097b2]">
+              @{comentario.autor?.username ?? 'usuario'}
+            </Link>
+          ) : (
+            <span className="text-sm font-semibold text-gray-900">@{comentario.autor?.username ?? 'usuario'}</span>
+          )}
+          <span className="text-xs text-gray-400">· {tempo}</span>
+        </div>
+        <p className={`mt-0.5 whitespace-pre-wrap text-sm text-gray-800 ${destacado ? 'font-bold' : ''}`}>
           {comentario.texto}
         </p>
-        {mostrarResponder && onResponder ? (
-          <button
-            type="button"
-            onClick={() => onResponder(mencao)}
-            className="mt-1 text-xs text-gray-500 hover:text-[#0097b2]"
-          >
-            Responder
-          </button>
+        {onResponder ? (
+          <div className="mt-2 flex justify-end">
+            <button
+              type="button"
+              onClick={() => onResponder(mencao)}
+              className="text-xs font-medium text-gray-500 hover:text-[#0097b2]"
+            >
+              Responder
+            </button>
+          </div>
         ) : null}
       </div>
       <button
         type="button"
         onClick={() => void toggle()}
-        className="flex shrink-0 flex-col items-center gap-0.5 text-xs text-gray-500"
+        className="flex shrink-0 flex-col items-center gap-0.5 self-start text-xs text-gray-500"
         disabled={!usuarioId}
       >
         <Heart size={18} className={curtiu ? 'fill-red-500 text-red-500' : ''} aria-hidden />

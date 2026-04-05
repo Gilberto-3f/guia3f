@@ -35,9 +35,9 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
   const [novoComentario, setNovoComentario] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [minhaFotoUrl, setMinhaFotoUrl] = useState(/** @type {string | null} */ (null))
-  const [composeAberto, setComposeAberto] = useState(false)
   const [tecladoInset, setTecladoInset] = useState(0)
   const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
+  const listaScrollRef = useRef(/** @type {HTMLDivElement | null} */ (null))
 
   const carregar = useCallback(async () => {
     const { pickAutorDisplay } = await import('@/lib/feed-autor')
@@ -56,7 +56,7 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
         .select(sel)
         .eq('post_id', postId)
         .is('deleted_at', null)
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
       if (!res.error && res.data) {
         data = /** @type {Record<string, unknown>[]} */ (res.data)
         break
@@ -116,6 +116,13 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
     )
   }, [postId])
 
+  const scrollListaTopo = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = listaScrollRef.current
+      if (el) el.scrollTop = 0
+    })
+  }, [])
+
   useEffect(() => {
     if (!aberto || !postId) return
     void carregar()
@@ -141,7 +148,7 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
   }, [aberto, usuarioId])
 
   useEffect(() => {
-    if (!aberto || !composeAberto) {
+    if (!aberto) {
       setTecladoInset(0)
       return
     }
@@ -158,52 +165,37 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
       vv.removeEventListener('resize', atualizar)
       vv.removeEventListener('scroll', atualizar)
     }
-  }, [aberto, composeAberto])
-
-  useEffect(() => {
-    if (!aberto) setComposeAberto(false)
   }, [aberto])
 
   useEffect(() => {
     if (!aberto || !destacarComentarioId) return
     const t = window.setTimeout(() => {
       document.getElementById(`comentario-${destacarComentarioId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }, 200)
+    }, 300)
     return () => clearTimeout(t)
   }, [aberto, destacarComentarioId, lista])
 
-  const abrirCompose = useCallback((textoInicial = '') => {
-    setNovoComentario(textoInicial)
-    setComposeAberto(true)
+  const handleResponder = useCallback((textoMencao) => {
+    setNovoComentario(textoMencao)
     requestAnimationFrame(() => textareaRef.current?.focus())
   }, [])
 
-  const handleResponder = useCallback(
-    (textoMencao) => {
-      abrirCompose(textoMencao)
-    },
-    [abrirCompose]
-  )
-
-  const fecharCompose = useCallback(() => {
-    setComposeAberto(false)
-    setNovoComentario('')
-    setTecladoInset(0)
-  }, [])
-
-  const enviarComentario = async () => {
-    if (!novoComentario.trim() || !usuarioId) return
+  const handleEnviarComentario = async () => {
+    const texto = novoComentario.trim()
+    if (!texto || !usuarioId) return
     setEnviando(true)
     try {
       const { error } = await supabase.from('comentarios').insert({
         post_id: postId,
         autor_id: usuarioId,
-        texto: novoComentario.trim(),
+        texto,
       })
       if (error) return
-      fecharCompose()
+      setNovoComentario('')
       await carregar()
+      scrollListaTopo()
       onComentou?.()
+      textareaRef.current?.blur()
     } finally {
       setEnviando(false)
     }
@@ -228,84 +220,59 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
             <X size={22} />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black">
+        <div
+          ref={listaScrollRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black"
+        >
           {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-900">Nenhum comentário</p> : null}
-          {lista.map((c, index) => (
+          {lista.map((c) => (
             <Comentario
               key={c.id}
               comentario={c}
               usuarioId={usuarioId}
               destacado={Boolean(destacarComentarioId && c.id === destacarComentarioId)}
-              mostrarResponder={index > 0}
               onResponder={handleResponder}
             />
           ))}
         </div>
         <div
           className="shrink-0 border-t border-gray-200 bg-white p-3"
-          style={composeAberto ? { paddingBottom: Math.max(12, tecladoInset) } : undefined}
+          style={{ paddingBottom: Math.max(12, tecladoInset) }}
         >
-          {composeAberto ? (
-            <div aria-labelledby="modal-comentario-compose-titulo">
-              <div className="mb-2 flex items-center justify-between">
-                <h4 id="modal-comentario-compose-titulo" className="text-sm font-bold text-gray-900">
-                  {novoComentario.trim().startsWith('@') ? 'Responder' : 'Novo comentário'}
-                </h4>
-                <button type="button" onClick={fecharCompose} className="p-1 text-gray-600" aria-label="Fechar edição">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="flex items-end gap-2">
-                <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                  {minhaFotoUrl ? (
-                    <AvatarImage src={minhaFotoUrl} alt="" width={32} height={32} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">?</div>
-                  )}
-                </div>
-                <textarea
-                  ref={textareaRef}
-                  className="max-h-32 min-h-[80px] flex-1 resize-y rounded-lg border border-gray-200 p-2 text-sm text-black"
-                  placeholder="Adicione um comentário…"
-                  value={novoComentario}
-                  onChange={(e) => setNovoComentario(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                      e.preventDefault()
-                      void enviarComentario()
-                    }
-                  }}
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-400">Enter nova linha · Ctrl+Enter envia</p>
-              <div className="mt-3 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={fecharCompose}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={!novoComentario.trim() || enviando || !usuarioId}
-                  onClick={() => void enviarComentario()}
-                  className="rounded-lg bg-[#0097b2] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                >
-                  Enviar
-                </button>
-              </div>
+          <div className="flex items-end gap-2">
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+              {minhaFotoUrl ? (
+                <AvatarImage src={minhaFotoUrl} alt="" width={40} height={40} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">?</div>
+              )}
             </div>
-          ) : (
+            <textarea
+              ref={textareaRef}
+              rows={2}
+              className="max-h-28 min-h-[40px] flex-1 resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm text-black placeholder:text-gray-400"
+              placeholder="Escreva um comentário…"
+              value={novoComentario}
+              disabled={!usuarioId}
+              onChange={(e) => setNovoComentario(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  void handleEnviarComentario()
+                }
+              }}
+            />
             <button
               type="button"
-              onClick={() => abrirCompose('')}
-              disabled={!usuarioId}
-              className="w-full rounded-xl border border-[#0097b2] py-3 text-center text-sm font-semibold text-[#0097b2] disabled:opacity-50"
+              disabled={!novoComentario.trim() || enviando || !usuarioId}
+              onClick={() => void handleEnviarComentario()}
+              className="shrink-0 rounded-xl bg-[#0097b2] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
             >
-              Adicionar comentário
+              {enviando ? '…' : 'Enviar'}
             </button>
-          )}
+          </div>
+          {!usuarioId ? <p className="mt-2 text-center text-xs text-gray-500">Entre na conta para comentar.</p> : null}
+          <p className="mt-1 text-center text-[11px] text-gray-400">Enter envia · Shift+Enter nova linha</p>
         </div>
       </div>
     </div>
