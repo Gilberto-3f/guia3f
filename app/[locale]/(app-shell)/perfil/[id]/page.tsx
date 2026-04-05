@@ -131,28 +131,30 @@ export default function PerfilSocialPage() {
         return
       }
 
+      /** Duas consultas separadas (sem embed em `usuarios`) — profissional/anfitrião antes; turista como fallback p/ admin. */
       let perfilRow: Record<string, unknown> | null = null
-      if (role === 'turista' || role === 'admin') {
-        const { data: tur, error: et } = await supabase
-          .from('turistas')
-          .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url')
-          .eq('usuario_id', profileId)
-          .maybeSingle()
-        if (et) throw et
-        if (tur && typeof tur === 'object' && !Array.isArray(tur)) {
-          perfilRow = tur as Record<string, unknown>
-        }
-      }
 
-      if (!perfilRow && (role === 'profissional' || role === 'admin')) {
+      if (role === 'profissional' || role === 'admin') {
         const { data: prof, error: ep } = await supabase
           .from('profissionais')
           .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url')
           .eq('usuario_id', profileId)
           .maybeSingle()
-        if (ep) throw ep
-        if (prof && typeof prof === 'object' && !Array.isArray(prof)) {
+        if (ep) console.warn('Perfil profissionais:', ep.message)
+        if (!ep && prof && typeof prof === 'object' && !Array.isArray(prof)) {
           perfilRow = prof as Record<string, unknown>
+        }
+      }
+
+      if (!perfilRow && (role === 'turista' || role === 'admin')) {
+        const { data: tur, error: et } = await supabase
+          .from('turistas')
+          .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url')
+          .eq('usuario_id', profileId)
+          .maybeSingle()
+        if (et) console.warn('Perfil turistas:', et.message)
+        if (!et && tur && typeof tur === 'object' && !Array.isArray(tur)) {
+          perfilRow = tur as Record<string, unknown>
         }
       }
 
@@ -169,10 +171,10 @@ export default function PerfilSocialPage() {
             ? String(u.email).split('@')[0]
             : 'usuario'
       const fotoPerfilRow =
-        perfilRow?.foto_perfil_url != null
+        perfilRow?.foto_url != null
+          ? String(perfilRow.foto_url)
+          : perfilRow?.foto_perfil_url != null
             ? String(perfilRow.foto_perfil_url)
-          : perfilRow?.foto_url != null
-            ? String(perfilRow.foto_url)
             : null
 
       setNome(nomePerfil)
@@ -266,22 +268,26 @@ export default function PerfilSocialPage() {
       const origIds = [...new Set(repRows.map((p) => (p.post_original_id != null ? String(p.post_original_id) : null)).filter((x): x is string => Boolean(x)))]
       const origMap = /** @type {Map<string, { autor: ReturnType<typeof pickAutorDisplay> }>} */ (new Map())
       if (origIds.length) {
-        const { data: origPosts } = await supabase
-          .from('posts')
-          .select(
-            `
-            id,
-            usuarios (id, email, turistas(nome_completo, nome_usuario), profissionais(nome_completo, nome_usuario), empresas(nome_fantasia, nome_usuario))
-          `
-          )
+        const { data: origPosts, error: origViewErr } = await supabase
+          .from('posts_com_autores')
+          .select('*')
           .in('id', origIds)
           .is('deleted_at', null)
+        if (origViewErr) console.warn('Perfil republicados posts_com_autores:', origViewErr.message)
 
         for (const op of origPosts ?? []) {
-          const oid = String(op.id)
-          const rawU = op.usuarios
-          const u = Array.isArray(rawU) ? rawU[0] : rawU
-          const autor = pickAutorDisplay(u)
+          const raw = op as Record<string, unknown>
+          const oid = String(raw.id ?? '')
+          if (!oid) continue
+          let rawU: unknown = raw.usuarios
+          if (typeof raw.usuarios === 'string') {
+            try {
+              rawU = JSON.parse(raw.usuarios)
+            } catch {
+              rawU = null
+            }
+          }
+          const autor = pickAutorDisplay(rawU)
           origMap.set(oid, { autor })
         }
       }
