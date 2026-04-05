@@ -13,7 +13,7 @@ import {
   Heart,
   User,
   Building2,
-  BarChart3,
+  LayoutDashboard,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -171,14 +171,17 @@ export default function BottomBar() {
   }
 
   const getQuintoHref = () => {
-    if (userRole === 'empresa') return '/empresa/menu'
+    if (userRole === 'empresa') {
+      return empresaId ? `/empresa/${empresaId}` : '/dashboard/empresa'
+    }
     if (authUserId && (userRole === 'turista' || userRole === 'profissional')) return `/perfil/${authUserId}`
     return '/perfil'
   }
 
   const isQuintoActive = () => {
-    const href = getQuintoHref()
-    if (userRole === 'empresa') return pathname != null && pathname.startsWith('/empresa/menu')
+    if (userRole === 'empresa') {
+      return Boolean(empresaId && pathname != null && pathname === `/empresa/${empresaId}`)
+    }
     return pathname === '/perfil' || (pathname != null && pathname.startsWith('/perfil/'))
   }
 
@@ -238,7 +241,7 @@ export default function BottomBar() {
           aria-label={userRole === 'empresa' ? t('dashboard') : t('activities')}
         >
           {userRole === 'empresa' ? (
-            <BarChart3
+            <LayoutDashboard
               size={24}
               className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'}
               aria-hidden
@@ -255,7 +258,11 @@ export default function BottomBar() {
           )}
         </Link>
 
-        <Link href={getQuintoHref()} className="flex flex-col items-center p-2" aria-label={t('profile')}>
+        <Link
+          href={getQuintoHref()}
+          className="flex flex-col items-center p-2"
+          aria-label={userRole === 'empresa' ? t('companyGuia') : t('profile')}
+        >
           {getQuintoIcone()}
         </Link>
       </div>
