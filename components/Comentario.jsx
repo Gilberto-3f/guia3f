@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Heart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 
 /**
@@ -62,13 +63,7 @@ export default function Comentario({
     }
   }
 
-  const tempo = new Date(comentario.created_at).toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const tempo = formatarDataRelativaPublicacao(comentario.created_at)
 
   const mencao = `@${comentario.autor?.username ?? 'usuario'} `
   const avatar = comentario.autor?.foto_perfil_url
@@ -88,7 +83,11 @@ export default function Comentario({
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-gray-900">@{comentario.autor?.username ?? 'usuario'}</p>
         <p className="text-xs text-gray-400">{tempo}</p>
-        <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{comentario.texto}</p>
+        <p
+          className={`mt-1 whitespace-pre-wrap text-sm text-gray-800 ${destacado ? 'font-bold' : ''}`}
+        >
+          {comentario.texto}
+        </p>
         {mostrarResponder && onResponder ? (
           <button
             type="button"

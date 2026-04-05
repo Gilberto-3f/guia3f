@@ -26,7 +26,8 @@ function matchPath(path, pathname) {
   if (path === '/guia' && pathname === '/guia') return true
   if (path === '/canal' && pathname === '/canal') return true
   if (path === '/feed' && (pathname === '/feed' || pathname.startsWith('/feed/'))) return true
-  if (path === '/atividades' && pathname === '/atividades') return true
+  if (path === '/atividades' && (pathname === '/atividades' || pathname.endsWith('/atividades') || pathname.includes('/atividades/')))
+    return true
   if (path === '/perfil' && (pathname === '/perfil' || pathname.startsWith('/perfil/'))) return true
   if (path === '/favoritos' && pathname === '/favoritos') return true
   if (path === '/dashboard/empresa' && pathname.startsWith('/dashboard/empresa')) return true
@@ -157,7 +158,7 @@ export default function BottomBar() {
 
   const isQuartoActive = () => {
     if (userRole === 'empresa') return pathname != null && pathname.startsWith('/dashboard/empresa')
-    return pathname === '/atividades'
+    return pathname === '/atividades' || pathname.endsWith('/atividades') || pathname.includes('/atividades/')
   }
 
   const getQuintoHref = () => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Bookmark, Heart, MessageCircle, Repeat2, Share2 } from 'lucide-react'
 import ModalComentarios from '@/components/ModalComentarios'
@@ -10,6 +10,7 @@ import MenuPost from '@/components/MenuPost'
 import AvaliacaoCard from '@/components/AvaliacaoCard'
 import { supabase } from '@/lib/supabase'
 import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/lib/feed-autor'
+import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 
 /**
@@ -60,7 +61,6 @@ export default function PostCard({
 }) {
   const [comentAberto, setComentAberto] = useState(false)
   const [curtidasAberto, setCurtidasAberto] = useState(false)
-  const deepLinkComentAberto = useRef(/** @type {string | null} */ (null))
   const [shareAberto, setShareAberto] = useState(false)
   const [nComent, setNComent] = useState(post.total_comentarios ?? 0)
   const [repostTotal, setRepostTotal] = useState(post.total_reposts ?? 0)
@@ -93,15 +93,10 @@ export default function PostCard({
   }, [post.total_comentarios, post.id])
 
   useEffect(() => {
-    if (!abrirComentariosInicial) {
-      deepLinkComentAberto.current = null
-      return
+    if (abrirComentariosInicial) {
+      setComentAberto(true)
     }
-    const key = `${post.id}:${destacarComentarioId ?? ''}`
-    if (deepLinkComentAberto.current === key) return
-    deepLinkComentAberto.current = key
-    setComentAberto(true)
-  }, [abrirComentariosInicial, post.id, destacarComentarioId])
+  }, [abrirComentariosInicial, destacarComentarioId, post.id])
 
   useEffect(() => {
     setRepostTotal(post.total_reposts ?? 0)
@@ -480,12 +475,7 @@ export default function PostCard({
     const meta = /** @type {{ empresa_id?: string, nome_fantasia?: string, foto_url?: string | null, nota?: number, feedback?: string | null }} */ (
       post.avaliacao_meta
     )
-    const tempo = new Date(post.created_at).toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    const tempo = formatarDataRelativaPublicacao(post.created_at)
     return (
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
         {linhaRepost ? <div className="border-b border-gray-50 px-4 pt-3">{linhaRepost}</div> : null}
@@ -564,14 +554,7 @@ export default function PostCard({
           )}
           <div>
             <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
-            <time className="mt-0.5 block text-xs text-gray-400">
-              {new Date(post.created_at).toLocaleString('pt-BR', {
-                day: '2-digit',
-                month: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </time>
+            <time className="mt-0.5 block text-xs text-gray-400">{formatarDataRelativaPublicacao(post.created_at)}</time>
           </div>
         </div>
         <MenuPost {...menuProps} />

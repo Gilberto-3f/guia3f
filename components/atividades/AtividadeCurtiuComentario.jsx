@@ -11,7 +11,7 @@ import Link from 'next/link'
  * }} props
  */
 export default function AtividadeCurtiuComentario({ usernameAtor, textoComentario, postId, comentarioId }) {
-  const href = `/feed?post=${encodeURIComponent(postId)}&comentario=${encodeURIComponent(comentarioId)}`
+  const href = `/atividades/${encodeURIComponent(postId)}?comentario=${encodeURIComponent(comentarioId)}`
 
   return (
     <Link

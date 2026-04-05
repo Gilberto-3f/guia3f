@@ -91,7 +91,6 @@ export default function EditarPerfil({
     /** @type {{ x: number, y: number, width: number, height: number } | null} */ (null)
   )
   const [aplicandoCrop, setAplicandoCrop] = useState(false)
-  const [escolhaFotoAberta, setEscolhaFotoAberta] = useState(false)
   const galeriaInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const cameraInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
 
@@ -307,14 +306,24 @@ export default function EditarPerfil({
             onChange={onSelecionarFoto}
           />
 
-          <button
-            type="button"
-            onClick={() => setEscolhaFotoAberta(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-[#0097b2] px-3 py-2 text-sm font-medium text-[#0097b2]"
-          >
-            <Camera size={16} />
-            TROCAR FOTO
-          </button>
+          <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row sm:justify-center">
+            <button
+              type="button"
+              onClick={() => galeriaInputRef.current?.click()}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#0097b2] px-3 py-2 text-sm font-medium text-[#0097b2]"
+            >
+              <Image className="h-4 w-4 shrink-0" aria-hidden />
+              Galeria
+            </button>
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-medium text-white"
+            >
+              <Camera className="h-4 w-4 shrink-0" aria-hidden />
+              Tirar foto
+            </button>
+          </div>
 
           {novaFotoArquivo ? (
             <button
@@ -371,7 +380,7 @@ export default function EditarPerfil({
 
       {cropModal && cropSrc ? (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-[240] flex items-center justify-center bg-black/70 p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) fecharCrop()
           }}
@@ -422,58 +431,6 @@ export default function EditarPerfil({
         </div>
       ) : null}
 
-      {escolhaFotoAberta ? (
-        <div
-          className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setEscolhaFotoAberta(false)
-          }}
-          role="presentation"
-        >
-          <div
-            className="w-full max-w-md rounded-t-2xl bg-white p-4 shadow-xl sm:rounded-2xl"
-            onClick={(ev) => ev.stopPropagation()}
-            role="dialog"
-            aria-labelledby="escolha-foto-titulo"
-          >
-            <h3 id="escolha-foto-titulo" className="text-base font-bold text-gray-900">
-              Alterar foto de perfil
-            </h3>
-            <p className="mt-1 text-xs text-gray-500">Escolha de onde virá a imagem.</p>
-            <div className="mt-4 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setEscolhaFotoAberta(false)
-                  requestAnimationFrame(() => galeriaInputRef.current?.click())
-                }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#0097b2] py-3 text-sm font-semibold text-[#0097b2]"
-              >
-                <Image className="h-5 w-5 shrink-0" aria-hidden />
-                Galeria
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEscolhaFotoAberta(false)
-                  requestAnimationFrame(() => cameraInputRef.current?.click())
-                }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0097b2] py-3 text-sm font-semibold text-white"
-              >
-                <Camera className="h-5 w-5 shrink-0" aria-hidden />
-                Tirar foto
-              </button>
-              <button
-                type="button"
-                onClick={() => setEscolhaFotoAberta(false)}
-                className="py-2 text-center text-sm font-medium text-gray-600 hover:text-gray-900"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   )
 }

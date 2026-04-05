@@ -7,13 +7,20 @@ import Comentario from '@/components/Comentario'
 import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 import AvatarImage from '@/components/AvatarImage'
 
-const USUARIOS_SELECT = `
+const COMENTARIOS_COM_AUTOR = `
   id,
-  email,
-  role,
-  turistas (nome_completo, nome_usuario, foto_perfil_url),
-  profissionais (nome_completo, nome_usuario, foto_perfil_url),
-  empresas (id, nome_fantasia, nome_usuario, foto_url)
+  texto,
+  created_at,
+  total_curtidas,
+  autor_id,
+  usuarios (
+    id,
+    email,
+    role,
+    turistas (nome_completo, nome_usuario, foto_perfil_url),
+    profissionais (nome_completo, nome_usuario, foto_perfil_url),
+    empresas (id, nome_fantasia, nome_usuario, foto_url)
+  )
 `
 
 /**
@@ -35,35 +42,44 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
   const [tecladoInset, setTecladoInset] = useState(0)
   const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
 
-  const formatarComAutores = useCallback(async (rows) => {
-    if (!rows?.length) return []
-    const ids = [...new Set(rows.map((r) => String(r.autor_id)))]
-    const { data: users, error } = await supabase.from('usuarios').select(USUARIOS_SELECT).in('id', ids)
-    if (error) {
-      console.error('ModalComentarios usuarios:', error)
-    }
-    const { pickAutorDisplay } = await import('@/lib/feed-autor')
-    const map = new Map()
-    for (const u of users ?? []) {
-      const row = /** @type {{ id?: unknown }} */ (u)
-      const id = row.id != null ? String(row.id) : ''
-      if (id) map.set(id, pickAutorDisplay(u))
-    }
-    return rows.map((r) => {
-      const rr = /** @type {Record<string, unknown>} */ (r)
-      const aid = String(rr.autor_id ?? '')
-      const a = map.get(aid) ?? { nome: 'Usuário', username: 'usuario', foto_perfil_url: null }
-      return {
-        id: String(rr.id),
-        texto: String(rr.texto ?? ''),
-        created_at: String(rr.created_at ?? ''),
-        total_curtidas: Number(rr.total_curtidas) || 0,
-        autor: { nome: a.nome, username: a.username, foto_perfil_url: a.foto_perfil_url },
-      }
-    })
-  }, [])
-
   const carregar = useCallback(async () => {
+    const { pickAutorDisplay } = await import('@/lib/feed-autor')
+
+    const mapComEmbed = (rows) =>
+      (rows ?? []).map((r) => {
+        const rr = /** @type {Record<string, unknown>} */ (r)
+        const emb = rr.usuarios
+        const u = Array.isArray(emb) ? emb[0] : emb
+        const a =
+          u && typeof u === 'object' ? pickAutorDisplay(u) : { nome: 'Usuário', username: 'usuario', foto_perfil_url: null }
+        return {
+          id: String(rr.id),
+          texto: String(rr.texto ?? ''),
+          created_at: String(rr.created_at ?? ''),
+          total_curtidas: Number(rr.total_curtidas) || 0,
+          autor: { nome: a.nome, username: a.username, foto_perfil_url: a.foto_perfil_url },
+        }
+      })
+
+    const emb = await supabase
+      .from('comentarios')
+      .select(COMENTARIOS_COM_AUTOR)
+      .eq('post_id', postId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true })
+
+    if (!emb.error && emb.data) {
+      setLista(mapComEmbed(emb.data))
+      return
+    }
+    if (emb.error) console.warn('ModalComentarios embed autor:', emb.error)
+
+    const USUARIOS_SELECT = `
+      id, email, role,
+      turistas (nome_completo, nome_usuario, foto_perfil_url),
+      profissionais (nome_completo, nome_usuario, foto_perfil_url),
+      empresas (id, nome_fantasia, nome_usuario, foto_url)
+    `
     const { data: rows, error } = await supabase
       .from('comentarios')
       .select('id, texto, created_at, total_curtidas, autor_id')
@@ -77,9 +93,34 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
       return
     }
 
-    const formatados = await formatarComAutores(rows ?? [])
-    setLista(formatados)
-  }, [postId, formatarComAutores])
+    const ids = [...new Set((rows ?? []).map((r) => String(r.autor_id)).filter(Boolean))]
+    if (ids.length === 0) {
+      setLista([])
+      return
+    }
+    const { data: users, error: eu } = await supabase.from('usuarios').select(USUARIOS_SELECT).in('id', ids)
+    if (eu) console.error('ModalComentarios usuarios:', eu)
+    const map = new Map()
+    for (const u of users ?? []) {
+      const row = /** @type {{ id?: unknown }} */ (u)
+      const id = row.id != null ? String(row.id) : ''
+      if (id) map.set(id, pickAutorDisplay(u))
+    }
+    setLista(
+      (rows ?? []).map((r) => {
+        const rr = /** @type {Record<string, unknown>} */ (r)
+        const aid = String(rr.autor_id ?? '')
+        const a = map.get(aid) ?? { nome: 'Usuário', username: 'usuario', foto_perfil_url: null }
+        return {
+          id: String(rr.id),
+          texto: String(rr.texto ?? ''),
+          created_at: String(rr.created_at ?? ''),
+          total_curtidas: Number(rr.total_curtidas) || 0,
+          autor: { nome: a.nome, username: a.username, foto_perfil_url: a.foto_perfil_url },
+        }
+      })
+    )
+  }, [postId])
 
   useEffect(() => {
     if (!aberto || !postId) return

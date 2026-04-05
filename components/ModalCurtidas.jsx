@@ -6,16 +6,13 @@ import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
 import AvatarImage from '@/components/AvatarImage'
 
-const CURTIDAS_COM_USUARIOS = `
-  usuario_id,
-  usuarios (
-    id,
-    email,
-    role,
-    turistas (nome_completo, nome_usuario, foto_perfil_url),
-    profissionais (nome_completo, nome_usuario, foto_perfil_url),
-    empresas (id, nome_fantasia, nome_usuario, foto_url)
-  )
+const USUARIOS_SELECT = `
+  id,
+  email,
+  role,
+  turistas (nome_completo, nome_usuario, foto_perfil_url),
+  profissionais (nome_completo, nome_usuario, foto_perfil_url),
+  empresas (id, nome_fantasia, nome_usuario, foto_url)
 `
 
 /**
@@ -40,40 +37,47 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
     }
     setCarregando(true)
     try {
-      const { data: rows, error: e1 } = await supabase.from('curtidas').select(CURTIDAS_COM_USUARIOS).eq('post_id', postId)
+      const { data: likes, error: e1 } = await supabase.from('curtidas').select('usuario_id').eq('post_id', postId)
       if (e1) {
         console.error('ModalCurtidas curtidas:', e1)
         setLista([])
         return
       }
+      const ids = [...new Set((likes ?? []).map((r) => String(r.usuario_id)).filter(Boolean))]
+      if (ids.length === 0) {
+        setLista([])
+        setSeguindoMap({})
+        return
+      }
 
-      const linhas = []
-      for (const raw of rows ?? []) {
-        const r = /** @type {Record<string, unknown>} */ (raw)
-        const emb = r.usuarios
-        const u = Array.isArray(emb) ? emb[0] : emb
-        if (!u || typeof u !== 'object') continue
+      const { data: users, error: e2 } = await supabase.from('usuarios').select(USUARIOS_SELECT).in('id', ids)
+      if (e2) {
+        console.error('ModalCurtidas usuarios:', e2)
+        setLista([])
+        return
+      }
+
+      const linhas = (users ?? []).map((u) => {
         const a = pickAutorDisplay(u)
         const row = /** @type {{ id?: string }} */ (u)
         const id = row.id != null ? String(row.id) : ''
-        if (!id) continue
-        linhas.push({
+        return {
           id,
           username: a.username,
           foto: a.foto_perfil_url,
           role: a.role || 'user',
           empresaId: a.empresa_id || '',
-        })
-      }
-      setLista(linhas)
+        }
+      })
+      setLista(linhas.filter((l) => l.id))
 
-      const ids = linhas.map((l) => l.id)
-      if (meuUsuarioId && ids.length) {
+      if (meuUsuarioId && linhas.length) {
+        const idList = linhas.map((l) => l.id).filter(Boolean)
         const { data: rede } = await supabase
           .from('redecontatos')
           .select('seguido_id')
           .eq('seguidor_id', meuUsuarioId)
-          .in('seguido_id', ids)
+          .in('seguido_id', idList)
         const m = /** @type {Record<string, boolean>} */ ({})
         for (const r of rede ?? []) {
           m[String(r.seguido_id)] = true
