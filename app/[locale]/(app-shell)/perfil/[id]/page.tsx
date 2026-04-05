@@ -31,8 +31,13 @@ type FotoPostItem = {
   id: string
   url: string
   texto: string | null
+  created_at: string
+  tipo: string
   total_curtidas: number
   total_comentarios: number
+  total_compartilhamentos: number
+  total_reposts: number
+  post_original_id: string | null
 }
 
 type RepublicadoLinha = {
@@ -190,7 +195,9 @@ export default function PerfilSocialPage() {
 
       const { data: postsFoto } = await supabase
         .from('posts')
-        .select('id, conteudo_url, foto_url, tipo, texto, total_curtidas, total_comentarios')
+        .select(
+          'id, conteudo_url, foto_url, tipo, texto, total_curtidas, total_comentarios, total_compartilhamentos, total_reposts, post_original_id, created_at'
+        )
         .eq('autor_id', profileId)
         .is('deleted_at', null)
         .in('tipo', ['foto', 'misto'])
@@ -205,8 +212,13 @@ export default function PerfilSocialPage() {
               id: String(p.id),
               url: String(uu),
               texto: p.texto != null ? String(p.texto) : null,
+              created_at: String(p.created_at ?? ''),
+              tipo: p.tipo != null ? String(p.tipo) : 'foto',
               total_curtidas: Number(p.total_curtidas) || 0,
               total_comentarios: Number(p.total_comentarios) || 0,
+              total_compartilhamentos: Number(p.total_compartilhamentos) || 0,
+              total_reposts: Number(p.total_reposts) || 0,
+              post_original_id: p.post_original_id != null ? String(p.post_original_id) : null,
             }
           })
           .filter((x): x is FotoPostItem => x != null) ?? []
@@ -461,8 +473,15 @@ export default function PerfilSocialPage() {
         aberto={modalFoto.aberto}
         onFechar={() => setModalFoto({ aberto: false, i: 0 })}
         meuUsuarioId={meuId}
-        autor={{ nome, username, foto_perfil_url: fotoPerfil }}
+        autor={{
+          nome,
+          username,
+          foto_perfil_url: fotoPerfil,
+          usuario_id: profileId,
+          role: perfilRole,
+        }}
         onPatchPost={patchFotoPost}
+        onRemovePost={(postId) => setPostsFotos((prev) => prev.filter((p) => p.id !== postId))}
       />
     </div>
   )

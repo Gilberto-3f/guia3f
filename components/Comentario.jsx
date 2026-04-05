@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Heart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import AvatarImage from '@/components/AvatarImage'
 
 /**
  * @param {{
@@ -64,20 +65,29 @@ export default function Comentario({
   const tempo = new Date(comentario.created_at).toLocaleString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
+    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   })
 
   const mencao = `@${comentario.autor?.username ?? 'usuario'} `
+  const avatar = comentario.autor?.foto_perfil_url
 
   return (
     <div
       id={`comentario-${comentario.id}`}
       className={`flex gap-2 border-b border-gray-100 py-3 last:border-0 ${destacado ? 'rounded-lg bg-[#0097b2]/10 ring-2 ring-[#0097b2]/40' : ''}`}
     >
+      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
+        {avatar ? (
+          <AvatarImage src={avatar} alt="" width={32} height={32} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">?</div>
+        )}
+      </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-gray-900">{comentario.autor.nome}</p>
-        <p className="text-xs text-gray-600">@{comentario.autor.username} · {tempo}</p>
+        <p className="text-sm font-semibold text-gray-900">@{comentario.autor?.username ?? 'usuario'}</p>
+        <p className="text-xs text-gray-400">{tempo}</p>
         <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{comentario.texto}</p>
         {mostrarResponder && onResponder ? (
           <button

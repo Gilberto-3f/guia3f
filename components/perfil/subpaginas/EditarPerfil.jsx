@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Camera } from 'lucide-react'
+import { Camera, Image } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 
@@ -91,7 +91,9 @@ export default function EditarPerfil({
     /** @type {{ x: number, y: number, width: number, height: number } | null} */ (null)
   )
   const [aplicandoCrop, setAplicandoCrop] = useState(false)
-  const fileInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
+  const [escolhaFotoAberta, setEscolhaFotoAberta] = useState(false)
+  const galeriaInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
+  const cameraInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
 
   useEffect(() => {
     setNome(nomeInicial)
@@ -127,7 +129,8 @@ export default function EditarPerfil({
     setCrop({ x: 0, y: 0 })
     setZoom(1)
     setCroppedAreaPixels(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (galeriaInputRef.current) galeriaInputRef.current.value = ''
+    if (cameraInputRef.current) cameraInputRef.current.value = ''
   }, [cropSrc])
 
   const onSelecionarFoto = (/** @type {React.ChangeEvent<HTMLInputElement>} */ e) => {
@@ -164,6 +167,7 @@ export default function EditarPerfil({
     } else {
       setNovaFotoArquivo(file)
     }
+    e.target.value = ''
   }
 
   const aplicarRecorte = async () => {
@@ -187,7 +191,8 @@ export default function EditarPerfil({
     setNovaFotoArquivo(null)
     setPreviewFoto(null)
     setErroFoto(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (galeriaInputRef.current) galeriaInputRef.current.value = ''
+    if (cameraInputRef.current) cameraInputRef.current.value = ''
   }
 
   const uploadFotoPerfil = async (file, userId) => {
@@ -259,7 +264,8 @@ export default function EditarPerfil({
       }
       setMsg('Perfil atualizado.')
       setNovaFotoArquivo(null)
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      if (galeriaInputRef.current) galeriaInputRef.current.value = ''
+      if (cameraInputRef.current) cameraInputRef.current.value = ''
       onSalvo?.()
       window.dispatchEvent(new Event('perfil-atualizado'))
     } catch (e) {
@@ -286,16 +292,24 @@ export default function EditarPerfil({
           </div>
 
           <input
-            ref={fileInputRef}
+            ref={galeriaInputRef}
             type="file"
-            accept=".jpg,.jpeg,.png,.heic,.heif,image/jpeg,image/png,image/heic,image/heif"
+            accept="image/jpeg,image/png,image/heic,image/heif,image/*"
+            className="hidden"
+            onChange={onSelecionarFoto}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/heic,image/heif,image/*"
+            capture="environment"
             className="hidden"
             onChange={onSelecionarFoto}
           />
 
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setEscolhaFotoAberta(true)}
             className="inline-flex items-center gap-2 rounded-lg border border-[#0097b2] px-3 py-2 text-sm font-medium text-[#0097b2]"
           >
             <Camera size={16} />
@@ -373,7 +387,7 @@ export default function EditarPerfil({
               <h3 id="crop-titulo" className="text-base font-bold text-gray-900">
                 Ajustar foto
               </h3>
-              <p className="mt-1 text-xs text-gray-500">Arraste e use o zoom para enquadrar o rosto ou a área desejada.</p>
+              <p className="mt-1 text-xs text-gray-500">Arraste e use gestos de pinça no celular para aproximar ou afastar.</p>
             </div>
             <div className="relative h-72 w-full bg-gray-900">
               <Cropper
@@ -381,21 +395,10 @@ export default function EditarPerfil({
                 crop={crop}
                 zoom={zoom}
                 aspect={1}
+                zoomWithScroll={false}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
                 onCropComplete={(_, areaPixels) => setCroppedAreaPixels(areaPixels)}
-              />
-            </div>
-            <div className="px-4 pt-3">
-              <label className="text-xs text-gray-500">Zoom</label>
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={0.01}
-                value={zoom}
-                onChange={(ev) => setZoom(Number(ev.target.value))}
-                className="mt-1 w-full"
               />
             </div>
             <div className="flex justify-end gap-2 border-t border-gray-100 p-4">
@@ -413,6 +416,59 @@ export default function EditarPerfil({
                 className="rounded-lg bg-[#0097b2] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {aplicandoCrop ? 'Processando…' : 'Aplicar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {escolhaFotoAberta ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEscolhaFotoAberta(false)
+          }}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-md rounded-t-2xl bg-white p-4 shadow-xl sm:rounded-2xl"
+            onClick={(ev) => ev.stopPropagation()}
+            role="dialog"
+            aria-labelledby="escolha-foto-titulo"
+          >
+            <h3 id="escolha-foto-titulo" className="text-base font-bold text-gray-900">
+              Alterar foto de perfil
+            </h3>
+            <p className="mt-1 text-xs text-gray-500">Escolha de onde virá a imagem.</p>
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEscolhaFotoAberta(false)
+                  requestAnimationFrame(() => galeriaInputRef.current?.click())
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#0097b2] py-3 text-sm font-semibold text-[#0097b2]"
+              >
+                <Image className="h-5 w-5 shrink-0" aria-hidden />
+                Galeria
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEscolhaFotoAberta(false)
+                  requestAnimationFrame(() => cameraInputRef.current?.click())
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0097b2] py-3 text-sm font-semibold text-white"
+              >
+                <Camera className="h-5 w-5 shrink-0" aria-hidden />
+                Tirar foto
+              </button>
+              <button
+                type="button"
+                onClick={() => setEscolhaFotoAberta(false)}
+                className="py-2 text-center text-sm font-medium text-gray-600 hover:text-gray-900"
+              >
+                Cancelar
               </button>
             </div>
           </div>

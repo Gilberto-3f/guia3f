@@ -40,6 +40,7 @@ import AvatarImage from '@/components/AvatarImage'
  *   onPostLocalPatch?: (postId: string, patch: Partial<{ texto: string | null }>) => void
  *   onItemSalvoChange?: (postId: string, salvo: boolean) => void
  *   onRepostRemovido?: (repostPostId: string) => void
+ *   onEngagementChange?: (postId: string, patch: { total_curtidas?: number; total_comentarios?: number }) => void
  * }} props
  */
 export default function PostCard({
@@ -55,6 +56,7 @@ export default function PostCard({
   onPostLocalPatch,
   onItemSalvoChange,
   onRepostRemovido,
+  onEngagementChange,
 }) {
   const [comentAberto, setComentAberto] = useState(false)
   const [curtidasAberto, setCurtidasAberto] = useState(false)
@@ -301,12 +303,20 @@ export default function PostCard({
     if (curtiu) {
       await supabase.from('curtidas').delete().eq('post_id', post.id).eq('usuario_id', meuUsuarioId)
       setCurtiu(false)
-      setCurtTotal((t) => Math.max(0, t - 1))
+      setCurtTotal((t) => {
+        const n = Math.max(0, t - 1)
+        onEngagementChange?.(post.id, { total_curtidas: n })
+        return n
+      })
     } else {
       const { error } = await supabase.from('curtidas').insert({ post_id: post.id, usuario_id: meuUsuarioId })
       if (error) return
       setCurtiu(true)
-      setCurtTotal((t) => t + 1)
+      setCurtTotal((t) => {
+        const n = t + 1
+        onEngagementChange?.(post.id, { total_curtidas: n })
+        return n
+      })
     }
   }
 
@@ -495,7 +505,13 @@ export default function PostCard({
           aberto={comentAberto}
           onFechar={() => setComentAberto(false)}
           usuarioId={meuUsuarioId}
-          onComentou={() => setNComent((n) => n + 1)}
+          onComentou={() =>
+            setNComent((n) => {
+              const v = n + 1
+              onEngagementChange?.(post.id, { total_comentarios: v })
+              return v
+            })
+          }
           destacarComentarioId={destacarComentarioId}
         />
         <ModalCurtidas
@@ -583,7 +599,13 @@ export default function PostCard({
         aberto={comentAberto}
         onFechar={() => setComentAberto(false)}
         usuarioId={meuUsuarioId}
-        onComentou={() => setNComent((n) => n + 1)}
+        onComentou={() =>
+          setNComent((n) => {
+            const v = n + 1
+            onEngagementChange?.(post.id, { total_comentarios: v })
+            return v
+          })
+        }
         destacarComentarioId={destacarComentarioId}
       />
       <ModalCurtidas

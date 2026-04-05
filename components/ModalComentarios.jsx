@@ -13,7 +13,7 @@ const USUARIOS_SELECT = `
   role,
   turistas (nome_completo, nome_usuario, foto_perfil_url),
   profissionais (nome_completo, nome_usuario, foto_perfil_url),
-  empresas (nome_fantasia, nome_usuario, foto_url)
+  empresas (id, nome_fantasia, nome_usuario, foto_url)
 `
 
 /**

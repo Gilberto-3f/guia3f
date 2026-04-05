@@ -376,7 +376,16 @@ export default function AtividadesPage() {
       const ex = r.dados_extras ?? {}
       const texto = trunc(ex.texto ?? '')
       const postId = typeof ex.post_id === 'string' ? ex.post_id : r.alvo_id
-      return <AtividadeComentario key={r.id} usernameAtor={ator?.username ?? 'usuario'} textoComentario={texto} postId={postId} />
+      const comentarioId = typeof ex.comentario_id === 'string' ? ex.comentario_id : null
+      return (
+        <AtividadeComentario
+          key={r.id}
+          usernameAtor={ator?.username ?? 'usuario'}
+          textoComentario={texto}
+          postId={postId}
+          comentarioId={comentarioId}
+        />
+      )
     }
 
     if (r.tipo === 'seguiu') {

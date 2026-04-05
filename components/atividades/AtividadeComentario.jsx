@@ -7,10 +7,14 @@ import Link from 'next/link'
  *   usernameAtor: string
  *   textoComentario: string
  *   postId: string
+ *   comentarioId?: string | null
  * }} props
  */
-export default function AtividadeComentario({ usernameAtor, textoComentario, postId }) {
-  const href = `/feed?post=${encodeURIComponent(postId)}`
+export default function AtividadeComentario({ usernameAtor, textoComentario, postId, comentarioId = null }) {
+  const href =
+    comentarioId != null && comentarioId !== ''
+      ? `/feed?post=${encodeURIComponent(postId)}&comentario=${encodeURIComponent(comentarioId)}`
+      : `/feed?post=${encodeURIComponent(postId)}`
 
   return (
     <Link
