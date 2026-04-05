@@ -137,12 +137,12 @@ export default function EditarPerfil({
     setErroFoto(null)
     if (!file) return
 
-    const tiposPermitidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/heic', 'image/heif']
+    const tiposPermitidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
     const ext = (file.name.split('.').pop() || '').toLowerCase()
-    const extOk = ['jpg', 'jpeg', 'png', 'heic', 'heif'].includes(ext)
+    const extOk = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(ext)
     const tipoOk = tiposPermitidos.includes(file.type) || extOk
     if (!tipoOk) {
-      setErroFoto('Formato não suportado. Envie JPG, PNG ou HEIC.')
+      setErroFoto('Formato não suportado. Envie JPG, PNG, WebP ou HEIC.')
       e.target.value = ''
       return
     }
@@ -155,7 +155,10 @@ export default function EditarPerfil({
     }
 
     const podeRecortar =
-      ['jpg', 'jpeg', 'png'].includes(ext) || file.type === 'image/jpeg' || file.type === 'image/png'
+      ['jpg', 'jpeg', 'png', 'webp'].includes(ext) ||
+      file.type === 'image/jpeg' ||
+      file.type === 'image/png' ||
+      file.type === 'image/webp'
     if (podeRecortar) {
       const url = URL.createObjectURL(file)
       setCrop({ x: 0, y: 0 })
@@ -293,14 +296,14 @@ export default function EditarPerfil({
           <input
             ref={galeriaInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/heic,image/heif,image/*"
+            accept="image/jpeg,image/png,image/webp"
             className="hidden"
             onChange={onSelecionarFoto}
           />
           <input
             ref={cameraInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/heic,image/heif,image/*"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
             capture="environment"
             className="hidden"
             onChange={onSelecionarFoto}

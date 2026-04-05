@@ -33,7 +33,7 @@ type PostFeedRow = {
   }
 }
 
-function AtividadePostInner() {
+function PerfilAtividadePostInner() {
   const params = useParams()
   const searchParams = useSearchParams()
   const postId = typeof params.id === 'string' ? params.id : params.id?.[0] ?? ''
@@ -117,8 +117,8 @@ function AtividadePostInner() {
     return (
       <div className="min-h-screen bg-gray-50 p-4 pb-24">
         <p className="text-gray-600">Publicação inválida.</p>
-        <Link href="/atividades" className="mt-4 inline-block text-[#0097b2]">
-          Voltar às atividades
+        <Link href="/perfil" className="mt-4 inline-block text-[#0097b2]">
+          Voltar ao perfil
         </Link>
       </div>
     )
@@ -136,8 +136,8 @@ function AtividadePostInner() {
     return (
       <div className="min-h-screen bg-gray-50 p-4 pb-24">
         <p className="text-gray-600">Esta publicação não está mais disponível.</p>
-        <Link href="/atividades" className="mt-4 inline-block text-[#0097b2]">
-          Voltar às atividades
+        <Link href="/perfil" className="mt-4 inline-block text-[#0097b2]">
+          Voltar ao perfil
         </Link>
       </div>
     )
@@ -147,11 +147,11 @@ function AtividadePostInner() {
     <div className="min-h-screen bg-gray-50 pb-24">
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-200 bg-white px-3 py-3">
         <Link
-          href="/atividades"
+          href="/perfil"
           className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-gray-800 hover:bg-gray-100"
         >
           <ArrowLeft className="h-5 w-5" aria-hidden />
-          Atividades
+          Perfil
         </Link>
       </header>
       <div className="p-4">
@@ -169,7 +169,7 @@ function AtividadePostInner() {
   )
 }
 
-export default function AtividadePostPage() {
+export default function PerfilAtividadePostPage() {
   return (
     <Suspense
       fallback={
@@ -178,7 +178,7 @@ export default function AtividadePostPage() {
         </div>
       }
     >
-      <AtividadePostInner />
+      <PerfilAtividadePostInner />
     </Suspense>
   )
 }

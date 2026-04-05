@@ -196,7 +196,7 @@ export default function CadastroProfissionalPage() {
         email: email.trim().toLowerCase(),
         password: senha,
         options: {
-          emailRedirectTo: `${window.location.origin}/confirmar-email`,
+          emailRedirectTo: `${window.location.origin}/login`,
         },
       })
 
@@ -258,7 +258,7 @@ export default function CadastroProfissionalPage() {
 
       if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
 
-      router.push(`/confirmar-email?email=${encodeURIComponent(email.trim().toLowerCase())}`)
+      router.push(`/login?verificar_email=1`)
     } catch (error) {
       const mensagem = error instanceof Error ? error.message : t('unexpectedError')
       setErroEnvio(mensagem)

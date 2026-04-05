@@ -13,8 +13,8 @@ import Link from 'next/link'
 export default function AtividadeComentario({ usernameAtor, textoComentario, postId, comentarioId = null }) {
   const href =
     comentarioId != null && comentarioId !== ''
-      ? `/atividades/${encodeURIComponent(postId)}?comentario=${encodeURIComponent(comentarioId)}`
-      : `/atividades/${encodeURIComponent(postId)}`
+      ? `/perfil/atividades/${encodeURIComponent(postId)}?comentario=${encodeURIComponent(comentarioId)}`
+      : `/perfil/atividades/${encodeURIComponent(postId)}`
 
   return (
     <Link
