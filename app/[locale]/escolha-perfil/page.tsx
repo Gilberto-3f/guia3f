@@ -2,9 +2,8 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { supabase } from '@/lib/supabase'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
 
 const VERDE = '#00D443'
@@ -49,40 +48,11 @@ function PainelBeneficios({ perfil }: { perfil: PerfilKey }) {
 }
 
 export default function EscolhaPerfilPage() {
-  const router = useRouter()
   const t = useTranslations('EscolhaPerfil')
   const [aberto, setAberto] = useState<PerfilKey | null>(null)
-  const [verificandoSessao, setVerificandoSessao] = useState(true)
-
-  useEffect(() => {
-    let ativo = true
-    const run = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!ativo) return
-      if (!session?.user) {
-        router.replace('/login')
-        return
-      }
-      setVerificandoSessao(false)
-    }
-    void run()
-    return () => {
-      ativo = false
-    }
-  }, [router])
 
   const toggle = (key: PerfilKey) => {
     setAberto((prev) => (prev === key ? null : key))
-  }
-
-  if (verificandoSessao) {
-    return (
-      <GuiaAuthShell>
-        <p className="text-center text-[#001f3f]">{t('loading')}</p>
-      </GuiaAuthShell>
-    )
   }
 
   const btnPerfilBase =
