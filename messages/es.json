@@ -17,20 +17,7 @@
     "benefitPracticality": "Practicidad",
     "benefitGuide": "Guía turística",
     "benefitSecurity": "Seguridad",
-    "benefitPartnerships": "Alianzas",
-    "magicLinkHeading": "Entrar con enlace por correo",
-    "passwordLoginHeading": "Entrar con contraseña",
-    "sendMagicLink": "ENVIAR ENLACE AL CORREO",
-    "magicLinkSent": "Revise su correo y abra el enlace para continuar.",
-    "firstTimeHint": "¿Primera vez? Use el enlace por correo arriba; luego elija turista, profesional o empresa.",
-    "magicLinkSuccessTitle": "¡Enlace de confirmación enviado!",
-    "magicLinkSuccessBody": "Enviamos un enlace a su correo. Ábralo para activar su cuenta y empezar a usar GUIA 3F.",
-    "magicLinkSpamHint": "¿No lo recibió? Revise el spam o intente reenviar.",
-    "magicLinkResend": "Reenviar enlace",
-    "magicLinkFirstAccess": "¿Primera vez? Enlace por correo",
-    "labelEmail": "Correo electrónico",
-    "labelPassword": "Contraseña",
-    "magicLinkConfigError": "No pudimos enviar el enlace ahora. Intente de nuevo en unos momentos o use contraseña."
+    "benefitPartnerships": "Alianzas"
   },
   "EscolhaPerfil": {
     "title": "¿Cómo desea registrarse?",
@@ -40,36 +27,15 @@
     "footerRules": "Reglas del ecosistema",
     "turista": {
       "label": "Turista",
-      "welcome": "Bienvenido(a),",
-      "intro": "En nuestro ecosistema encontrará las mejores experiencias de la Triple Frontera, además de profesionales locales preparados para ayudarle en lo que necesite.",
-      "benefitsLead": "Disfrute de beneficios como:",
-      "b1": "Movilidad urbana",
-      "b2": "Movilidad entre aduanas",
-      "b3": "Seguridad en la triple frontera",
-      "b4": "Alojamiento de calidad",
-      "b5": "Entradas rápidas y con descuentos"
+      "panelBody": "Para contratar servicios privados, comprar entradas con descuento, reservar en posadas o restaurantes y conocer las tiendas del tercer mayor polo comercial del planeta."
     },
     "profissional": {
       "label": "Profesional",
-      "welcome": "¡Bienvenido(a), profesional!",
-      "intro": "Forme parte del mayor ecosistema de servicios de la Triple Frontera y conéctese con empresas y turistas que buscan experiencias auténticas.",
-      "benefitsLead": "Disfrute de beneficios como:",
-      "b1": "Visibilidad para su trabajo",
-      "b2": "Indicaciones de otros profesionales",
-      "b3": "Sistema de comisiones y alianzas",
-      "b4": "Agenda automática de atenciones",
-      "b5": "Canal exclusivo con empresas asociadas"
+      "panelBody": "Para trabajar en la plataforma como guía, taxista, van, conductor de app o anfitrión, conectando con turistas y empresas de la Triple Frontera."
     },
     "empresa": {
       "label": "Empresa",
-      "welcome": "¡Bienvenido(a), empresa!",
-      "intro": "Conecte su negocio al ecosistema que impulsa la Triple Frontera y llegue a turistas de todo el mundo que visitan la región.",
-      "benefitsLead": "Disfrute de beneficios como:",
-      "b1": "Destaque y canal de ventas en la Guía Turística",
-      "b2": "Publique ofertas y comisiones para profesionales",
-      "b3": "Reciba evaluaciones y mejore su reputación",
-      "b4": "Tour 360° para mostrar su establecimiento",
-      "b5": "Informes de mercado y tendencias"
+      "panelBody": "Para promocionar su negocio, vender productos, atraer clientes e integrarse al ecosistema turístico y comercial de la región."
     }
   },
   "Cadastro": {
