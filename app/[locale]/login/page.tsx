@@ -208,35 +208,31 @@ export default function LoginPage() {
         <h2 className="text-lg font-bold text-[#0097b2]">{t("marketingHeadline")}</h2>
         <p>{t("marketingBody1")}</p>
         <p>{t("marketingBody2")}</p>
-        <div className="mx-auto grid max-w-sm grid-cols-2 gap-x-6 gap-y-2 pt-2 text-left text-sm">
-          <ul className="space-y-2">
-            <li className="flex items-center gap-2">
-              <span className="shrink-0 font-bold text-[#0097b2]">→</span>
-              {t("benefitMobility")}
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="shrink-0 font-bold text-[#0097b2]">→</span>
-              {t("benefitDiscounts")}
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="shrink-0 font-bold text-[#0097b2]">→</span>
-              {t("benefitPracticality")}
-            </li>
-          </ul>
-          <ul className="space-y-2">
-            <li className="flex items-center gap-2">
-              <span className="shrink-0 font-bold text-[#0097b2]">→</span>
-              {t("benefitGuide")}
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="shrink-0 font-bold text-[#0097b2]">→</span>
-              {t("benefitSecurity")}
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="shrink-0 font-bold text-[#0097b2]">→</span>
-              {t("benefitPartnerships")}
-            </li>
-          </ul>
+        <div className="mx-auto mt-2 grid max-w-sm grid-cols-2 gap-x-8 gap-y-1 text-left text-sm">
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 font-bold text-[#0097b2]">→</span>
+            {t("benefitMobility")}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 font-bold text-[#0097b2]">→</span>
+            {t("benefitGuide")}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 font-bold text-[#0097b2]">→</span>
+            {t("benefitDiscounts")}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 font-bold text-[#0097b2]">→</span>
+            {t("benefitSecurity")}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 font-bold text-[#0097b2]">→</span>
+            {t("benefitPracticality")}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 font-bold text-[#0097b2]">→</span>
+            {t("benefitPartnerships")}
+          </div>
         </div>
       </div>
 
