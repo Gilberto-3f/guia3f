@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { setCookie } from "cookies-next";
 import { ChevronDown } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { getPostAuthRedirectPath } from "@/lib/postAuthRedirect";
@@ -239,8 +239,7 @@ export default function LoginPage() {
       <button
         type="button"
         onClick={() => router.push("/escolha-perfil")}
-        className="mx-auto mt-8 block w-36 rounded-full py-2 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
-        style={{ backgroundColor: VERDE }}
+        className="mx-auto mt-8 block w-36 rounded-full bg-[#00D443] py-2 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
       >
         {t("createAccount")}
       </button>
