@@ -1,11 +1,11 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
+import GuiaAuthShell from '@/components/GuiaAuthShell'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -225,22 +225,18 @@ export default function CadastroTuristaPage() {
 
   if (!bootOk) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0097b2] p-4">
-        <p className="text-white">{tCommon('loading')}</p>
-      </main>
+      <GuiaAuthShell>
+        <p className="text-center text-[#001f3f]">{tCommon('loading')}</p>
+      </GuiaAuthShell>
     )
   }
 
   return (
-    <main className="min-h-screen bg-[#0097b2] flex flex-col items-center justify-center p-4">
-      <div className="flex justify-center mb-4 w-full max-w-md">
-        <Image src="/logo.png" width={150} height={50} alt="Guia 3F" priority />
-      </div>
+    <GuiaAuthShell>
+      <h1 className="mb-2 text-center text-xl font-bold text-[#0097b2] sm:text-2xl">{t('turista.pageTitle')}</h1>
+      <p className="mb-6 text-center text-sm text-[#001f3f]">{t('subtitleContinue')}</p>
 
-      <section className="bg-white rounded-2xl border-2 border-[#0097b2] p-6 w-full max-w-md shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)]">
-        <h1 className="text-xl font-bold text-[#0097b2] text-center mb-4">{t('turista.pageTitle')}</h1>
-
-        <div className="rounded-xl bg-gray-100 p-5">
+      <div className="rounded-xl bg-gray-100 p-5">
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="nomeSocial" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
@@ -352,11 +348,10 @@ export default function CadastroTuristaPage() {
               className="w-full rounded-full px-4 py-3.5 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-70 hover:bg-[#00b838]"
               style={{ backgroundColor: VERDE }}
             >
-              {enviando ? t('sending') : t('submit')}
+              {enviando ? t('sending') : t('submitRegister')}
             </button>
           </form>
         </div>
-      </section>
 
       {modalDocumentoAberto ? (
         <div
@@ -391,6 +386,6 @@ export default function CadastroTuristaPage() {
           </div>
         </div>
       ) : null}
-    </main>
+    </GuiaAuthShell>
   )
 }

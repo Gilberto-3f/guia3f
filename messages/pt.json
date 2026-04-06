@@ -4,7 +4,7 @@
     "email": "E-mail",
     "password": "Senha",
     "forgotPassword": "Esqueceu a senha?",
-    "loginButton": "Entrar",
+    "loginButton": "LOGIN",
     "noAccount": "Não tem cadastro?",
     "createAccount": "Criar Conta",
     "invalidEmail": "Informe um e-mail válido para entrar.",
@@ -20,12 +20,61 @@
     "benefitPartnerships": "Parcerias",
     "magicLinkHeading": "Entrar com link no e-mail",
     "passwordLoginHeading": "Entrar com senha",
-    "sendMagicLink": "Enviar link de acesso",
+    "sendMagicLink": "ENVIAR LINK NO E-MAIL",
     "magicLinkSent": "Verifique sua caixa de entrada e abra o link para continuar.",
-    "firstTimeHint": "Primeira vez? Use o link por e-mail acima; depois você escolhe turista, profissional ou empresa."
+    "firstTimeHint": "Primeira vez? Use o link por e-mail acima; depois você escolhe turista, profissional ou empresa.",
+    "magicLinkSuccessTitle": "Link de confirmação enviado!",
+    "magicLinkSuccessBody": "Enviamos um link para seu e-mail. Clique nele para ativar sua conta e começar a usar o GUIA 3F.",
+    "magicLinkSpamHint": "Não recebeu? Verifique sua caixa de spam ou tente reenviar.",
+    "magicLinkResend": "Reenviar link",
+    "magicLinkFirstAccess": "Primeiro acesso? Link no e-mail",
+    "labelEmail": "E-mail",
+    "labelPassword": "Senha",
+    "magicLinkConfigError": "Não foi possível enviar o link agora. Tente de novo em instantes ou use o login com senha."
+  },
+  "EscolhaPerfil": {
+    "title": "Como você deseja se cadastrar?",
+    "loading": "Carregando…",
+    "register": "Cadastrar",
+    "footerPrivacy": "Políticas de Privacidade",
+    "footerRules": "Regras do Ecossistema",
+    "turista": {
+      "label": "Turista",
+      "welcome": "Seja bem-vindo(a),",
+      "intro": "em nosso ecossistema você vai encontrar as melhores experiências da Tríplice Fronteira, além de profissionais nativos da região super preparados para lhe auxiliar no que precisar.",
+      "benefitsLead": "Aproveite benefícios como:",
+      "b1": "Mobilidade urbana",
+      "b2": "Mobilidade entre as aduanas",
+      "b3": "Segurança na tríplice fronteira",
+      "b4": "Hospedagem de qualidade",
+      "b5": "Ingressos rápidos e com descontos"
+    },
+    "profissional": {
+      "label": "Profissional",
+      "welcome": "Seja bem-vindo(a), profissional!",
+      "intro": "Faça parte do maior ecossistema de serviços da Tríplice Fronteira e conecte-se com empresas e turistas que buscam experiências autênticas.",
+      "benefitsLead": "Aproveite benefícios como:",
+      "b1": "Visibilidade para seu trabalho",
+      "b2": "Receba indicações de outros profissionais",
+      "b3": "Sistema de comissões e parcerias",
+      "b4": "Agendamento automático de atendimentos",
+      "b5": "Canal exclusivo com empresas parceiras"
+    },
+    "empresa": {
+      "label": "Empresa",
+      "welcome": "Seja bem-vindo(a), empresa!",
+      "intro": "Conecte seu negócio ao ecossistema que movimenta a Tríplice Fronteira e alcance turistas de todo o mundo que visitam a região.",
+      "benefitsLead": "Aproveite benefícios como:",
+      "b1": "Destaque e canal de vendas no Guia Turístico",
+      "b2": "Divulgue ofertas e comissões para profissionais",
+      "b3": "Receba avaliações e aumente sua reputação",
+      "b4": "Tour 360° para mostrar seu estabelecimento",
+      "b5": "Relatórios de mercado e tendências"
+    }
   },
   "Cadastro": {
     "title": "Cadastro",
+    "subtitleContinue": "Preencha os dados para continuar.",
     "name": "Nome completo",
     "email": "E-mail",
     "password": "Senha",
@@ -49,7 +98,7 @@
       "available": "🟢 Disponível"
     },
     "turista": {
-      "pageTitle": "Ficha de Cadastro TURISTA",
+      "pageTitle": "Cadastro de Turista",
       "socialName": "Nome social",
       "photo": "Foto",
       "document": "Documento",

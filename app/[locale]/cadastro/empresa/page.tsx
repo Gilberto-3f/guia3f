@@ -1,10 +1,10 @@
 'use client'
 
-import Image from 'next/image'
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import GuiaAuthShell from '@/components/GuiaAuthShell'
 
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'unavailable'
 
@@ -358,22 +358,18 @@ export default function CadastroEmpresaPage() {
 
   if (!bootOk) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0097b2] p-4">
-        <p className="text-white">{tCommon('loading')}</p>
-      </main>
+      <GuiaAuthShell>
+        <p className="text-center text-[#001f3f]">{tCommon('loading')}</p>
+      </GuiaAuthShell>
     )
   }
 
   return (
-    <main className="min-h-screen bg-[#0097b2] flex items-center justify-center p-4">
-      <section className="bg-white rounded-2xl border-2 border-[#0097b2] p-8 w-full max-w-md shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)]">
-        <div className="flex justify-center mb-6">
-          <Image src="/logo.png" width={150} height={50} alt="Guia 3F" priority />
-        </div>
-        <h1 className="text-2xl font-bold text-[#0097b2] text-center">{t('empresa.pageTitle')}</h1>
-        <p className="mt-2 text-sm text-[#001f3f] text-center">{t('empresa.subtitle')}</p>
+    <GuiaAuthShell>
+      <h1 className="mb-2 text-center text-xl font-bold text-[#0097b2] sm:text-2xl">{t('empresa.pageTitle')}</h1>
+      <p className="mb-6 text-center text-sm text-[#001f3f]">{t('subtitleContinue')}</p>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="logo" className="mb-1 block text-sm font-medium text-[#001f3f]">
               {t('empresa.logo')} {t('common.optional')}
@@ -611,13 +607,12 @@ export default function CadastroEmpresaPage() {
           <button
             type="submit"
             disabled={enviando}
-            className="w-full rounded-lg px-4 py-3 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-70 hover:bg-[#00b838]"
+            className="w-full rounded-full px-4 py-3.5 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-70 hover:bg-[#00b838]"
             style={{ backgroundColor: VERDE }}
           >
-            {enviando ? t('sending') : t('submit')}
+            {enviando ? t('sending') : t('submitRegister')}
           </button>
         </form>
-      </section>
-    </main>
+    </GuiaAuthShell>
   )
 }

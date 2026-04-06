@@ -4,7 +4,7 @@
     "email": "Email",
     "password": "Password",
     "forgotPassword": "Forgot password?",
-    "loginButton": "Login",
+    "loginButton": "LOGIN",
     "noAccount": "Don't have an account?",
     "createAccount": "Create Account",
     "invalidEmail": "Please enter a valid email address.",
@@ -20,12 +20,61 @@
     "benefitPartnerships": "Partnerships",
     "magicLinkHeading": "Sign in with email link",
     "passwordLoginHeading": "Sign in with password",
-    "sendMagicLink": "Send access link",
+    "sendMagicLink": "SEND EMAIL LINK",
     "magicLinkSent": "Check your inbox and open the link to continue.",
-    "firstTimeHint": "First time? Use the email link above; then choose tourist, professional, or company."
+    "firstTimeHint": "First time? Use the email link above; then choose tourist, professional, or company.",
+    "magicLinkSuccessTitle": "Confirmation link sent!",
+    "magicLinkSuccessBody": "We sent a link to your email. Open it to activate your account and start using GUIA 3F.",
+    "magicLinkSpamHint": "Didn't get it? Check your spam folder or try sending again.",
+    "magicLinkResend": "Resend link",
+    "magicLinkFirstAccess": "First time? Email link",
+    "labelEmail": "Email",
+    "labelPassword": "Password",
+    "magicLinkConfigError": "We couldn't send the link right now. Try again shortly or sign in with a password."
+  },
+  "EscolhaPerfil": {
+    "title": "How do you want to register?",
+    "loading": "Loading…",
+    "register": "Register",
+    "footerPrivacy": "Privacy policy",
+    "footerRules": "Ecosystem rules",
+    "turista": {
+      "label": "Tourist",
+      "welcome": "Welcome,",
+      "intro": "In our ecosystem you will find the best experiences in the Triple Frontier, plus local professionals ready to help with whatever you need.",
+      "benefitsLead": "Enjoy benefits such as:",
+      "b1": "Urban mobility",
+      "b2": "Mobility across border crossings",
+      "b3": "Safety in the triple border",
+      "b4": "Quality lodging",
+      "b5": "Fast tickets with discounts"
+    },
+    "profissional": {
+      "label": "Professional",
+      "welcome": "Welcome, professional!",
+      "intro": "Join the largest service ecosystem in the Triple Frontier and connect with businesses and tourists looking for authentic experiences.",
+      "benefitsLead": "Enjoy benefits such as:",
+      "b1": "Visibility for your work",
+      "b2": "Referrals from other professionals",
+      "b3": "Commissions and partnerships",
+      "b4": "Automatic scheduling of appointments",
+      "b5": "Exclusive channel with partner businesses"
+    },
+    "empresa": {
+      "label": "Business",
+      "welcome": "Welcome, business!",
+      "intro": "Connect your business to the ecosystem that drives the Triple Frontier and reach tourists from around the world visiting the region.",
+      "benefitsLead": "Enjoy benefits such as:",
+      "b1": "Spotlight and sales channel in the Tourist Guide",
+      "b2": "Promote offers and commissions for professionals",
+      "b3": "Receive reviews and grow your reputation",
+      "b4": "360° tour to showcase your venue",
+      "b5": "Market reports and trends"
+    }
   },
   "Cadastro": {
     "title": "Sign up",
+    "subtitleContinue": "Fill in your details to continue.",
     "name": "Full name",
     "email": "Email",
     "password": "Password",
@@ -49,7 +98,7 @@
       "available": "🟢 Available"
     },
     "turista": {
-      "pageTitle": "TOURIST Registration Form",
+      "pageTitle": "Tourist registration",
       "socialName": "Social name",
       "photo": "Photo",
       "document": "Document",
