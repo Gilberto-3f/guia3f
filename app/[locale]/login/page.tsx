@@ -2,11 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { setCookie } from "cookies-next";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
+import { getPostAuthRedirectPath } from "@/lib/postAuthRedirect";
 
 const VERDE = "#00D443";
 const TEAL = "#0097b2";
@@ -20,8 +21,32 @@ export default function LoginPage() {
   const tCommon = useTranslations("Common");
   const [loginId, setLoginId] = useState("");
   const [senha, setSenha] = useState("");
+  const [otpEmail, setOtpEmail] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [carregandoOtp, setCarregandoOtp] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [bootSessao, setBootSessao] = useState(true);
+
+  useEffect(() => {
+    let ativo = true;
+    const run = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!ativo) return;
+      if (session?.user?.id) {
+        const path = await getPostAuthRedirectPath(supabase, session.user.id);
+        router.replace(path);
+        return;
+      }
+      setBootSessao(false);
+    };
+    void run();
+    return () => {
+      ativo = false;
+    };
+  }, [router]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -41,11 +66,46 @@ export default function LoginPage() {
         setErro(authError.message);
         return;
       }
-      router.push("/guia");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const uid = session?.user?.id;
+      if (uid) {
+        const path = await getPostAuthRedirectPath(supabase, uid);
+        router.replace(path);
+      }
     } catch {
       setErro(t("genericError"));
     } finally {
       setCarregando(false);
+    }
+  };
+
+  const handleMagicLink = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setErro("");
+    setMagicLinkSent(false);
+    const id = otpEmail.trim().toLowerCase();
+    if (!emailOuUsuarioRegex.test(id)) {
+      setErro(t("invalidEmail"));
+      return;
+    }
+    setCarregandoOtp(true);
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { error } = await supabase.auth.signInWithOtp({
+        email: id,
+        options: { emailRedirectTo: redirectTo },
+      });
+      if (error) {
+        setErro(error.message);
+        return;
+      }
+      setMagicLinkSent(true);
+    } catch {
+      setErro(t("genericError"));
+    } finally {
+      setCarregandoOtp(false);
     }
   };
 
@@ -56,6 +116,14 @@ export default function LoginPage() {
     setCookie("NEXT_LOCALE", value, { path: "/" });
     router.refresh();
   };
+
+  if (bootSessao) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white">
+        <p className="text-[#001f3f]">{tCommon("loading")}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -91,6 +159,38 @@ export default function LoginPage() {
             </select>
           </div>
 
+          <h2 className="mb-3 text-center text-base font-bold" style={{ color: TEAL }}>
+            {t("magicLinkHeading")}
+          </h2>
+          <form onSubmit={handleMagicLink} className="mb-6 flex flex-col gap-3">
+            <input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              required
+              value={otpEmail}
+              onChange={(e) => setOtpEmail(e.target.value)}
+              placeholder={t("email")}
+              className={inputClass}
+            />
+            <button
+              type="submit"
+              disabled={carregandoOtp}
+              className="rounded-full px-10 py-3 text-base font-bold text-white transition-colors disabled:opacity-60 hover:bg-[#00b838]"
+              style={{ backgroundColor: TEAL }}
+            >
+              {carregandoOtp ? tCommon("loading") : t("sendMagicLink")}
+            </button>
+            {magicLinkSent ? (
+              <p className="text-center text-sm text-[#001f3f]">{t("magicLinkSent")}</p>
+            ) : null}
+          </form>
+
+          <div className="mb-3 border-t border-gray-200 pt-4" />
+
+          <h2 className="mb-3 text-center text-base font-bold" style={{ color: TEAL }}>
+            {t("passwordLoginHeading")}
+          </h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <input
               id="loginId"
@@ -191,13 +291,9 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <Link
-            href="/escolha-perfil"
-            className="mt-8 w-full rounded-full py-3.5 text-center text-base font-bold text-white transition-colors hover:bg-[#00b838]"
-            style={{ backgroundColor: VERDE }}
-          >
-            {t("createAccount")}
-          </Link>
+          <p className="mt-8 rounded-2xl border border-[#0097b2]/40 bg-gray-50 px-4 py-4 text-center text-sm text-[#001f3f]">
+            {t("firstTimeHint")}
+          </p>
         </div>
       </div>
     </div>

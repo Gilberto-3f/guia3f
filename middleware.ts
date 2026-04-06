@@ -2,8 +2,18 @@ import { createServerClient } from "@supabase/ssr";
 import createMiddleware from "next-intl/middleware";
 import { type NextRequest, NextResponse } from "next/server";
 import { routing } from "./i18n/routing";
+import {
+  isProfileIncomplete,
+  ROTAS_EXIGEM_PERFIL_COMPLETO,
+} from "./lib/postAuthRedirect.js";
 
 const intlMiddleware = createMiddleware(routing);
+
+function pathExigePerfilCompleto(pathname: string): boolean {
+  return ROTAS_EXIGEM_PERFIL_COMPLETO.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
 
 export default async function middleware(request: NextRequest) {
   const response = intlMiddleware(request);
@@ -30,15 +40,28 @@ export default async function middleware(request: NextRequest) {
   } = await supabase.auth.getSession();
 
   const pathname = request.nextUrl.pathname;
-  const protectedRoutes = ["/guia", "/feed", "/perfil", "/atividades", "/canal"];
-  const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
+  const protectedRoutes = [
+    "/guia",
+    "/feed",
+    "/perfil",
+    "/atividades",
+    "/canal",
+    "/dashboard",
+  ];
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
 
   if (isProtectedRoute && !session) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (session && (pathname === "/login" || pathname === "/escolha-perfil")) {
-    return NextResponse.redirect(new URL("/guia", request.url));
+  if (
+    session?.user?.id &&
+    pathExigePerfilCompleto(pathname) &&
+    (await isProfileIncomplete(supabase, session.user.id))
+  ) {
+    return NextResponse.redirect(new URL("/escolha-perfil", request.url));
   }
 
   return response;

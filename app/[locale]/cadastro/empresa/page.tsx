@@ -19,7 +19,6 @@ type CidadeEmpresa = 'Foz do Iguacu' | 'Ciudad del Este' | 'Puerto Iguazu'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const usernameRegex = /^[a-z0-9._]{3,20}$/
-const senhaMinima = 6
 const minimoFotos = 3
 const maxDescricao = 170
 
@@ -62,11 +61,11 @@ export default function CadastroEmpresaPage() {
   const router = useRouter()
   const locale = useLocale()
   const t = useTranslations('Cadastro')
+  const tCommon = useTranslations('Common')
 
   const [nomeFantasia, setNomeFantasia] = useState('')
   const [nomeUsuario, setNomeUsuario] = useState('')
-  const [emailGestor, setEmailGestor] = useState('')
-  const [senha, setSenha] = useState('')
+  const [emailSessao, setEmailSessao] = useState('')
   const [categoria, setCategoria] = useState<CategoriaEmpresa>('Restaurantes')
   const [cidade, setCidade] = useState<CidadeEmpresa>('Foz do Iguacu')
   const [enderecoCompleto, setEnderecoCompleto] = useState('')
@@ -86,18 +85,45 @@ export default function CadastroEmpresaPage() {
   const [usernameFeedback, setUsernameFeedback] = useState('')
   const [erroEnvio, setErroEnvio] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [bootOk, setBootOk] = useState(false)
 
   const usernameLimpo = useMemo(
     () => nomeUsuario.trim().toLowerCase().replace(/^@+/, ''),
     [nomeUsuario]
   )
-  const emailValido = useMemo(() => emailRegex.test(emailGestor), [emailGestor])
-  const senhaValida = useMemo(() => senha.length >= senhaMinima, [senha])
+  const emailValido = useMemo(() => emailRegex.test(emailSessao), [emailSessao])
   const descricaoValida = useMemo(
     () => descricaoCurta.trim().length > 0 && descricaoCurta.length <= maxDescricao,
     [descricaoCurta]
   )
   const totalFotos = fotosFiles.length
+
+  useEffect(() => {
+    let ativo = true
+    const boot = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!ativo) return
+      if (!session?.user?.id) {
+        router.replace('/login')
+        return
+      }
+      setEmailSessao((session.user.email ?? '').trim().toLowerCase())
+
+      const { data: existente } = await supabase.from('empresas').select('id').eq('usuario_id', session.user.id).maybeSingle()
+      if (!ativo) return
+      if (existente) {
+        router.replace('/guia')
+        return
+      }
+      setBootOk(true)
+    }
+    void boot()
+    return () => {
+      ativo = false
+    }
+  }, [router])
 
   useEffect(() => {
     if (!logoFile) {
@@ -221,7 +247,6 @@ export default function CadastroEmpresaPage() {
     if (!nomeFantasia.trim()) return t('empresa.valTradeName')
     if (!usernameLimpo || usernameStatus !== 'available') return t('empresa.valUsername')
     if (!emailValido) return t('empresa.valEmail')
-    if (!senhaValida) return t('empresa.valPassword', { min: senhaMinima })
     if (!enderecoCompleto.trim()) return t('empresa.valAddress')
     if (!telefone.trim()) return t('empresa.valPhone')
     if (!whatsApp.trim()) return t('empresa.valWhatsapp')
@@ -245,18 +270,23 @@ export default function CadastroEmpresaPage() {
     try {
       setEnviando(true)
 
-      const authResp = await supabase.auth.signUp({
-        email: emailGestor.trim().toLowerCase(),
-        password: senha,
-        options: {
-          emailRedirectTo: `${window.location.origin}/login`,
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const userId = session?.user?.id
+      const emailUser = (session?.user?.email ?? emailSessao).trim().toLowerCase()
+      if (!userId || !emailUser) throw new Error(t('authUserError'))
+
+      const upsertUsuario = await supabase.from('usuarios').upsert(
+        {
+          id: userId,
+          email: emailUser,
+          role: 'empresa',
+          status: 'pre_aprovado',
         },
-      })
-
-      if (authResp.error) throw new Error(authResp.error.message)
-
-      const userId = authResp.data.user?.id
-      if (!userId) throw new Error(t('authUserError'))
+        { onConflict: 'id' }
+      )
+      if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
 
       const [logoUrl, fotosUrls, documentoComercialUrl, geo] = await Promise.all([
         logoFile ? uploadArquivo('empresas', 'logos', userId, logoFile) : Promise.resolve(null),
@@ -283,6 +313,7 @@ export default function CadastroEmpresaPage() {
         geocoding_status: geo.status,
         latitude: geo.latitude,
         longitude: geo.longitude,
+        status: 'aguardando_aprovacao',
       }
 
       if (logoUrl) {
@@ -304,30 +335,33 @@ export default function CadastroEmpresaPage() {
           cidade,
           endereco: enderecoCompleto.trim(),
           descricao_curta: descricaoCurta.trim(),
+          status: 'aguardando_aprovacao',
         }
         insertEmpresa = await supabase.from('empresas').insert(payloadMinimo)
       }
 
+      if (insertEmpresa.error && insertEmpresa.error.message.toLowerCase().includes('status')) {
+        delete payloadCompleto.status
+        insertEmpresa = await supabase.from('empresas').insert(payloadCompleto)
+      }
+
       if (insertEmpresa.error) throw new Error(insertEmpresa.error.message)
 
-      const upsertUsuario = await supabase.from('usuarios').upsert(
-        {
-          id: userId,
-          email: emailGestor.trim().toLowerCase(),
-          role: 'empresa',
-        },
-        { onConflict: 'id' }
-      )
-
-      if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
-
-      router.push(`/login?verificar_email=1`)
+      router.push('/guia')
     } catch (error) {
       const mensagem = error instanceof Error ? error.message : t('unexpectedError')
       setErroEnvio(mensagem)
     } finally {
       setEnviando(false)
     }
+  }
+
+  if (!bootOk) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#0097b2] p-4">
+        <p className="text-white">{tCommon('loading')}</p>
+      </main>
+    )
   }
 
   return (
@@ -391,39 +425,12 @@ export default function CadastroEmpresaPage() {
           </div>
 
           <div>
-            <label htmlFor="emailGestor" className="mb-1 block text-sm font-medium text-[#001f3f]">
+            <span className="mb-1 block text-sm font-medium text-[#001f3f]">
               {t('empresa.managerEmail')} {t('common.required')}
-            </label>
-            <input
-              id="emailGestor"
-              type="email"
-              required
-              value={emailGestor}
-              onChange={(e) => setEmailGestor(e.target.value)}
-              className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
-            />
-            <p className={`mt-1 text-xs ${emailGestor && !emailValido ? 'text-red-600' : 'text-[#001f3f]'}`}>
-              {emailGestor && !emailValido ? t('common.emailInvalid') : t('common.emailHint')}
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="senha" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('password')} {t('common.required')}
-            </label>
-            <input
-              id="senha"
-              type="password"
-              required
-              minLength={senhaMinima}
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
-            />
-            <p className={`mt-1 text-xs ${senha && !senhaValida ? 'text-red-600' : 'text-[#001f3f]'}`}>
-              {senha && !senhaValida
-                ? t('empresa.passwordShort', { min: senhaMinima })
-                : t('empresa.passwordOk', { min: senhaMinima })}
+            </span>
+            <p className="w-full rounded-lg bg-gray-200 px-4 py-3 text-sm text-[#001f3f]">{emailSessao || '—'}</p>
+            <p className={`mt-1 text-xs ${emailSessao && !emailValido ? 'text-red-600' : 'text-[#001f3f]'}`}>
+              {emailSessao && !emailValido ? t('common.emailInvalid') : t('common.emailHint')}
             </p>
           </div>
 

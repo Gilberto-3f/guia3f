@@ -71,6 +71,8 @@ export default function PerfilSocialPage() {
   const [capaUrl, setCapaUrl] = useState<string | null>(null)
   const [bio, setBio] = useState<string | null>(null)
   const [perfilRole, setPerfilRole] = useState<string | null>(null)
+  /** status em `usuarios` (pre_aprovado, ativo, …) */
+  const [perfilContaStatus, setPerfilContaStatus] = useState<string | null>(null)
 
   const [nFavEmp, setNFavEmp] = useState(0)
   const [nFavUsers, setNFavUsers] = useState(0)
@@ -109,7 +111,7 @@ export default function PerfilSocialPage() {
     try {
       const { data: u, error: eu } = await supabase
         .from('usuarios')
-        .select('id, email, role')
+        .select('id, email, role, status')
         .eq('id', profileId)
         .maybeSingle()
 
@@ -120,6 +122,7 @@ export default function PerfilSocialPage() {
 
       const role = u.role != null ? String(u.role) : null
       setPerfilRole(role)
+      setPerfilContaStatus(u.status != null ? String(u.status) : null)
 
       if (role === 'empresa') {
         setErro('Use a página da empresa para perfis comerciais.')
@@ -413,6 +416,11 @@ export default function PerfilSocialPage() {
     )
   }
 
+  const mostrarFaixaAnalise =
+    perfilContaStatus != null &&
+    perfilContaStatus !== 'ativo' &&
+    (perfilRole === 'profissional' || perfilRole === 'turista')
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <FotoCapa
@@ -421,6 +429,12 @@ export default function PerfilSocialPage() {
         onOpenMenu={() => setMenuAberto(true)}
         mostrarMenu={Boolean(menuVariant)}
       />
+
+      {mostrarFaixaAnalise ? (
+        <div className="mx-4 mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-950">
+          Perfil em análise. Após aprovação do administrador, todos os recursos do ecossistema ficam liberados.
+        </div>
+      ) : null}
 
       <div className="mt-3 px-4 text-left">
         <NomeSocial nome={nome} />

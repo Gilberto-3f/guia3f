@@ -17,8 +17,6 @@ type CategoriaProfissional =
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const usernameRegex = /^[a-z0-9._]{3,20}$/
-const senhaMinima = 8
-
 const VERDE = '#00D443'
 const categoriasDisponiveis: CategoriaProfissional[] = [
   'Guia',
@@ -47,11 +45,11 @@ export default function CadastroProfissionalPage() {
   const router = useRouter()
   const locale = useLocale()
   const t = useTranslations('Cadastro')
+  const tCommon = useTranslations('Common')
 
   const [nomeCompleto, setNomeCompleto] = useState('')
   const [nomeUsuario, setNomeUsuario] = useState('')
-  const [email, setEmail] = useState('')
-  const [senha, setSenha] = useState('')
+  const [emailSessao, setEmailSessao] = useState('')
   const [categoria, setCategoria] = useState<CategoriaProfissional>('Guia')
   const [aceitePoliticas, setAceitePoliticas] = useState(false)
 
@@ -65,9 +63,9 @@ export default function CadastroProfissionalPage() {
   const [usernameFeedback, setUsernameFeedback] = useState('')
   const [erroEnvio, setErroEnvio] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [bootOk, setBootOk] = useState(false)
 
-  const emailValido = useMemo(() => emailRegex.test(email), [email])
-  const senhaValida = useMemo(() => senha.length >= senhaMinima, [senha])
+  const emailValido = useMemo(() => emailRegex.test(emailSessao), [emailSessao])
   const usernameLimpo = useMemo(
     () => nomeUsuario.trim().toLowerCase().replace(/^@+/, ''),
     [nomeUsuario]
@@ -76,6 +74,37 @@ export default function CadastroProfissionalPage() {
     () => categoria === 'Guia' || categoria === 'Taxista' || categoria === 'Van',
     [categoria]
   )
+
+  useEffect(() => {
+    let ativo = true
+    const boot = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!ativo) return
+      if (!session?.user?.id) {
+        router.replace('/login')
+        return
+      }
+      setEmailSessao((session.user.email ?? '').trim().toLowerCase())
+
+      const { data: existente } = await supabase
+        .from('profissionais')
+        .select('id')
+        .eq('usuario_id', session.user.id)
+        .maybeSingle()
+      if (!ativo) return
+      if (existente) {
+        router.replace('/guia')
+        return
+      }
+      setBootOk(true)
+    }
+    void boot()
+    return () => {
+      ativo = false
+    }
+  }, [router])
 
   useEffect(() => {
     if (!fotoPerfilFile) {
@@ -171,7 +200,6 @@ export default function CadastroProfissionalPage() {
     if (!nomeCompleto.trim()) return t('profissional.valFullName')
     if (!usernameLimpo || usernameStatus !== 'available') return t('profissional.valUsername')
     if (!emailValido) return t('profissional.valEmail')
-    if (!senhaValida) return t('profissional.valPassword', { min: senhaMinima })
     if (!identidadeFile || !comprovanteResidenciaFile || !comprovanteProfissaoFile) {
       return t('profissional.valDocs')
     }
@@ -192,18 +220,23 @@ export default function CadastroProfissionalPage() {
     try {
       setEnviando(true)
 
-      const authResp = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password: senha,
-        options: {
-          emailRedirectTo: `${window.location.origin}/login`,
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const userId = session?.user?.id
+      const emailUser = (session?.user?.email ?? emailSessao).trim().toLowerCase()
+      if (!userId || !emailUser) throw new Error(t('authUserError'))
+
+      const upsertUsuario = await supabase.from('usuarios').upsert(
+        {
+          id: userId,
+          email: emailUser,
+          role: 'profissional',
+          status: 'pre_aprovado',
         },
-      })
-
-      if (authResp.error) throw new Error(authResp.error.message)
-
-      const userId = authResp.data.user?.id
-      if (!userId) throw new Error(t('authUserError'))
+        { onConflict: 'id' }
+      )
+      if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
 
       const identidadeUrl = await uploadArquivo(identidadeFile as File, 'documentos', userId)
       const comprovanteResidenciaUrl = await uploadArquivo(
@@ -229,6 +262,7 @@ export default function CadastroProfissionalPage() {
         identidade_url: identidadeUrl,
         comprovante_residencia_url: comprovanteResidenciaUrl,
         comprovante_profissao_url: comprovanteProfissaoUrl,
+        status: 'pendente',
       }
 
       if (fotoPerfilUrl) {
@@ -245,26 +279,28 @@ export default function CadastroProfissionalPage() {
         }
       }
 
+      if (insertProfissional.error && insertProfissional.error.message.toLowerCase().includes('status')) {
+        delete payloadProfissional.status
+        insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
+      }
+
       if (insertProfissional.error) throw new Error(insertProfissional.error.message)
 
-      const upsertUsuario = await supabase.from('usuarios').upsert(
-        {
-          id: userId,
-          email: email.trim().toLowerCase(),
-          role: 'profissional',
-        },
-        { onConflict: 'id' }
-      )
-
-      if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
-
-      router.push(`/login?verificar_email=1`)
+      router.push('/guia')
     } catch (error) {
       const mensagem = error instanceof Error ? error.message : t('unexpectedError')
       setErroEnvio(mensagem)
     } finally {
       setEnviando(false)
     }
+  }
+
+  if (!bootOk) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#0097b2] p-4">
+        <p className="text-white">{tCommon('loading')}</p>
+      </main>
+    )
   }
 
   return (
@@ -328,39 +364,12 @@ export default function CadastroProfissionalPage() {
           </div>
 
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-[#001f3f]">
+            <span className="mb-1 block text-sm font-medium text-[#001f3f]">
               {t('email')} {t('common.required')}
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
-            />
-            <p className={`mt-1 text-xs ${email && !emailValido ? 'text-red-600' : 'text-[#001f3f]'}`}>
-              {email && !emailValido ? t('common.emailInvalid') : t('common.emailHint')}
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="senha" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('password')} {t('common.required')}
-            </label>
-            <input
-              id="senha"
-              type="password"
-              required
-              minLength={senhaMinima}
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
-            />
-            <p className={`mt-1 text-xs ${senha && !senhaValida ? 'text-red-600' : 'text-[#001f3f]'}`}>
-              {senha && !senhaValida
-                ? t('profissional.passwordShort', { min: senhaMinima })
-                : t('profissional.passwordOk', { min: senhaMinima })}
+            </span>
+            <p className="w-full rounded-lg bg-gray-200 px-4 py-3 text-sm text-[#001f3f]">{emailSessao || '—'}</p>
+            <p className={`mt-1 text-xs ${emailSessao && !emailValido ? 'text-red-600' : 'text-[#001f3f]'}`}>
+              {emailSessao && !emailValido ? t('common.emailInvalid') : t('common.emailHint')}
             </p>
           </div>
 

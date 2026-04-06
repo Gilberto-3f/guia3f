@@ -17,7 +17,12 @@
     "benefitPracticality": "Practicidad",
     "benefitGuide": "Guía turística",
     "benefitSecurity": "Seguridad",
-    "benefitPartnerships": "Alianzas"
+    "benefitPartnerships": "Alianzas",
+    "magicLinkHeading": "Entrar con enlace por correo",
+    "passwordLoginHeading": "Entrar con contraseña",
+    "sendMagicLink": "Enviar enlace de acceso",
+    "magicLinkSent": "Revise su correo y abra el enlace para continuar.",
+    "firstTimeHint": "¿Primera vez? Use el enlace por correo arriba; luego elija turista, profesional o empresa."
   },
   "Cadastro": {
     "title": "Registro",

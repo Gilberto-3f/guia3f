@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -16,6 +17,7 @@ type Periodo = '7d' | '30d' | '90d'
 type GateState =
   | { status: 'loading' }
   | { status: 'forbidden' }
+  | { status: 'pending' }
   | { status: 'allowed'; userId: string }
 
 export default function DashboardEmpresaPage() {
@@ -38,11 +40,20 @@ export default function DashboardEmpresaPage() {
         return
       }
 
-      const { data: urow } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
+      const { data: urow } = await supabase.from('usuarios').select('role, status').eq('id', uid).maybeSingle()
       const role = urow?.role != null ? String(urow.role) : null
+      const uStatus =
+        urow && typeof urow === 'object' && 'status' in urow && urow.status != null
+          ? String(urow.status)
+          : 'ativo'
 
       if (role !== 'empresa') {
         if (ativo) setGate({ status: 'forbidden' })
+        return
+      }
+
+      if (uStatus !== 'ativo') {
+        if (ativo) setGate({ status: 'pending' })
         return
       }
 
@@ -56,8 +67,7 @@ export default function DashboardEmpresaPage() {
   }, [])
 
   useEffect(() => {
-    if (gate.status !== 'forbidden') return
-    router.push('/login')
+    if (gate.status === 'forbidden') router.push('/login')
   }, [gate.status, router])
 
   const conteudo = useMemo(() => {
@@ -66,10 +76,29 @@ export default function DashboardEmpresaPage() {
     return <DrenaStok />
   }, [abaAtiva, periodo])
 
+  if (gate.status === 'pending') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-50 p-6 text-center">
+        <p className="max-w-md text-[#001f3f]">
+          O painel da empresa fica disponível após a aprovação do administrador. Enquanto isso, use o app como guia
+          turístico.
+        </p>
+        <Link
+          href="/guia"
+          className="rounded-full bg-[#0097b2] px-6 py-3 font-semibold text-white hover:opacity-95"
+        >
+          Ir para o guia
+        </Link>
+      </div>
+    )
+  }
+
   if (gate.status !== 'allowed') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0097b2]">
-        <div className="text-white">{gate.status === 'loading' ? 'Carregando...' : 'Redirecionando...'}</div>
+        <div className="text-white">
+          {gate.status === 'loading' ? 'Carregando...' : 'Redirecionando...'}
+        </div>
       </div>
     )
   }

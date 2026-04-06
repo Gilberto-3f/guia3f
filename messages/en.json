@@ -17,7 +17,12 @@
     "benefitPracticality": "Convenience",
     "benefitGuide": "Tourist Guide",
     "benefitSecurity": "Security",
-    "benefitPartnerships": "Partnerships"
+    "benefitPartnerships": "Partnerships",
+    "magicLinkHeading": "Sign in with email link",
+    "passwordLoginHeading": "Sign in with password",
+    "sendMagicLink": "Send access link",
+    "magicLinkSent": "Check your inbox and open the link to continue.",
+    "firstTimeHint": "First time? Use the email link above; then choose tourist, professional, or company."
   },
   "Cadastro": {
     "title": "Sign up",

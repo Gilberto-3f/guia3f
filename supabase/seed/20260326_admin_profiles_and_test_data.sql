@@ -95,13 +95,14 @@ WITH admin_targets AS (
       )
   ) t(email, admin_level, admin_permissoes)
 )
-INSERT INTO usuarios (id, email, role, admin_level, admin_permissoes)
+INSERT INTO usuarios (id, email, role, admin_level, admin_permissoes, status)
 SELECT
   au.id,
   at.email,
   'admin',
   at.admin_level,
-  at.admin_permissoes
+  at.admin_permissoes,
+  'ativo'
 FROM admin_targets at
 JOIN auth.users au
   ON lower(au.email) = lower(at.email)
@@ -109,7 +110,8 @@ ON CONFLICT (id) DO UPDATE SET
   email = EXCLUDED.email,
   role = EXCLUDED.role,
   admin_level = EXCLUDED.admin_level,
-  admin_permissoes = EXCLUDED.admin_permissoes;
+  admin_permissoes = EXCLUDED.admin_permissoes,
+  status = 'ativo';
 
 -- Promover usuario existente para ADM GERAL
 WITH target_auth AS (
@@ -118,7 +120,7 @@ WITH target_auth AS (
   WHERE lower(email) = lower('grupocaciquebr@gmail.com')
   LIMIT 1
 )
-INSERT INTO usuarios (id, email, role, admin_level, admin_permissoes)
+INSERT INTO usuarios (id, email, role, admin_level, admin_permissoes, status)
 SELECT
   ta.id,
   ta.email,
@@ -130,13 +132,15 @@ SELECT
     "modulos": ["*"],
     "recursos": ["*"],
     "comunidade": null
-  }'::jsonb
+  }'::jsonb,
+  'ativo'
 FROM target_auth ta
 ON CONFLICT (id) DO UPDATE SET
   email = EXCLUDED.email,
   role = 'admin',
   admin_level = 1,
-  admin_permissoes = EXCLUDED.admin_permissoes;
+  admin_permissoes = EXCLUDED.admin_permissoes,
+  status = 'ativo';
 
 -- Turistas de teste
 DO $$

@@ -2,7 +2,8 @@
 
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { supabase } from '@/lib/supabase'
 
 const VERDE = '#00D443'
 
@@ -20,9 +21,37 @@ function BeneficioLinha({ children }: { children: ReactNode }) {
 export default function EscolhaPerfilPage() {
   const router = useRouter()
   const [aberto, setAberto] = useState<PerfilKey | null>('turista')
+  const [verificandoSessao, setVerificandoSessao] = useState(true)
+
+  useEffect(() => {
+    let ativo = true
+    const run = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!ativo) return
+      if (!session?.user) {
+        router.replace('/login')
+        return
+      }
+      setVerificandoSessao(false)
+    }
+    void run()
+    return () => {
+      ativo = false
+    }
+  }, [router])
 
   const toggle = (key: PerfilKey) => {
     setAberto((prev) => (prev === key ? null : key))
+  }
+
+  if (verificandoSessao) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0097b2] p-4">
+        <p className="text-white">Carregando…</p>
+      </div>
+    )
   }
 
   return (

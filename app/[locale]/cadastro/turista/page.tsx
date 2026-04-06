@@ -8,9 +8,6 @@ import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const senhaMinima = 8
-/** Mínimo 8 caracteres com pelo menos uma letra e um número */
-const senhaForteRegex = /^(?=.*[A-Za-zÀ-ÿ])(?=.*\d).{8,}$/
 
 const VERDE = '#00D443'
 
@@ -67,11 +64,10 @@ async function gerarUsernameUnico(baseEmail: string, userId: string): Promise<st
 export default function CadastroTuristaPage() {
   const router = useRouter()
   const t = useTranslations('Cadastro')
+  const tCommon = useTranslations('Common')
 
   const [nomeSocial, setNomeSocial] = useState('')
-  const [email, setEmail] = useState('')
-  const [senha, setSenha] = useState('')
-  const [confirmarSenha, setConfirmarSenha] = useState('')
+  const [emailSessao, setEmailSessao] = useState('')
   const [aceitePolitica, setAceitePolitica] = useState(false)
   const [aceiteTermos, setAceiteTermos] = useState(false)
 
@@ -83,12 +79,38 @@ export default function CadastroTuristaPage() {
   const [erroEnvio, setErroEnvio] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [modalDocumentoAberto, setModalDocumentoAberto] = useState(false)
+  const [bootOk, setBootOk] = useState(false)
 
-  const emailValido = useMemo(() => emailRegex.test(email), [email])
-  const senhaValida = useMemo(
-    () => senha.length >= senhaMinima && senhaForteRegex.test(senha),
-    [senha]
-  )
+  const emailValido = useMemo(() => emailRegex.test(emailSessao), [emailSessao])
+
+  useEffect(() => {
+    let ativo = true
+    const boot = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!ativo) return
+      if (!session?.user?.id) {
+        router.replace('/login')
+        return
+      }
+      const uid = session.user.id
+      const mail = (session.user.email ?? '').trim().toLowerCase()
+      setEmailSessao(mail)
+
+      const { data: existente } = await supabase.from('turistas').select('id').eq('usuario_id', uid).maybeSingle()
+      if (!ativo) return
+      if (existente) {
+        router.replace('/guia')
+        return
+      }
+      setBootOk(true)
+    }
+    void boot()
+    return () => {
+      ativo = false
+    }
+  }, [router])
 
   useEffect(() => {
     if (!fotoPerfilFile) {
@@ -129,8 +151,6 @@ export default function CadastroTuristaPage() {
   const validarFormulario = () => {
     if (!nomeSocial.trim()) return t('turista.valSocialName')
     if (!emailValido) return t('turista.valEmail')
-    if (!senhaValida) return t('turista.valPassword')
-    if (senha !== confirmarSenha) return t('turista.valPasswordMatch')
     if (!documentoFrenteFile || !documentoVersoFile) return t('turista.valDocs')
     if (!aceitePolitica || !aceiteTermos) return t('turista.valPolicies')
     return ''
@@ -146,18 +166,25 @@ export default function CadastroTuristaPage() {
     }
     try {
       setEnviando(true)
-      const authResp = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password: senha,
-        options: {
-          emailRedirectTo: `${window.location.origin}/login`,
-        },
-      })
-      if (authResp.error) throw new Error(authResp.error.message)
-      const userId = authResp.data.user?.id
-      if (!userId) throw new Error(t('authUserError'))
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const userId = session?.user?.id
+      const emailUser = (session?.user?.email ?? emailSessao).trim().toLowerCase()
+      if (!userId || !emailUser) throw new Error(t('authUserError'))
 
-      const usernameProvisorio = await gerarUsernameUnico(email.trim().toLowerCase(), userId)
+      const upsertUsuario = await supabase.from('usuarios').upsert(
+        {
+          id: userId,
+          email: emailUser,
+          role: 'turista',
+          status: 'pre_aprovado',
+        },
+        { onConflict: 'id' }
+      )
+      if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
+
+      const usernameProvisorio = await gerarUsernameUnico(emailUser, userId)
 
       const documentoFrenteUrl = await uploadArquivo(documentoFrenteFile as File, 'documentos', userId)
       const documentoVersoUrl = await uploadArquivo(documentoVersoFile as File, 'documentos', userId)
@@ -187,18 +214,21 @@ export default function CadastroTuristaPage() {
         insertTurista = await supabase.from('turistas').insert(payloadTurista)
       }
       if (insertTurista.error) throw new Error(insertTurista.error.message)
-      const upsertUsuario = await supabase.from('usuarios').upsert(
-        { id: userId, email: email.trim().toLowerCase(), role: 'turista' },
-        { onConflict: 'id' }
-      )
-      if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
-      router.push(`/login?verificar_email=1`)
+      router.push('/guia')
     } catch (error) {
       const mensagem = error instanceof Error ? error.message : t('unexpectedError')
       setErroEnvio(mensagem)
     } finally {
       setEnviando(false)
     }
+  }
+
+  if (!bootOk) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#0097b2] p-4">
+        <p className="text-white">{tCommon('loading')}</p>
+      </main>
+    )
   }
 
   return (
@@ -282,49 +312,11 @@ export default function CadastroTuristaPage() {
             </div>
 
             <div>
-              <label htmlFor="email" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
-                {t('email')}
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none"
-              />
-              <p className={`mt-1 text-xs ${email && !emailValido ? 'text-red-600' : 'text-[#001f3f]'} not-italic`}>
-                {email && !emailValido ? t('common.emailInvalid') : ''}
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="senha" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
-                {t('password')}
-              </label>
-              <input
-                id="senha"
-                type="password"
-                required
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                className="w-full rounded-lg bg-[#0097b2] text-white px-4 py-3 text-sm outline-none"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="confirmarSenha" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
-                {t('confirmPassword')}
-              </label>
-              <input
-                id="confirmarSenha"
-                type="password"
-                required
-                value={confirmarSenha}
-                onChange={(e) => setConfirmarSenha(e.target.value)}
-                placeholder={t('turista.confirmPasswordPlaceholder')}
-                className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/75 px-4 py-3 text-sm outline-none"
-              />
+              <span className="mb-1 block text-xs font-medium italic text-[#001f3f]">{t('email')}</span>
+              <p className="w-full rounded-lg bg-gray-200 px-4 py-3 text-sm text-[#001f3f]">{emailSessao || '—'}</p>
+              {!emailValido ? (
+                <p className="mt-1 text-xs text-red-600 not-italic">{t('common.emailInvalid')}</p>
+              ) : null}
             </div>
 
             <div className="flex flex-wrap items-start gap-4 text-xs italic text-[#001f3f]">
