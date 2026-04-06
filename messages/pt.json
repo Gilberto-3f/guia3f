@@ -19,6 +19,20 @@
     "benefitSecurity": "Segurança",
     "benefitPartnerships": "Parcerias"
   },
+  "Registro": {
+    "title": "Criar conta",
+    "subtitle": "Informe e-mail e senha. Depois você escolhe o perfil e completa o cadastro.",
+    "submit": "CRIAR CONTA",
+    "checkEmailTitle": "Confirme seu e-mail",
+    "checkEmailBody": "Enviamos um link para o endereço informado. Abra-o para ativar a conta e continuar no app.",
+    "checkEmailHint": "Não recebeu? Verifique a pasta de spam.",
+    "alreadyHaveAccount": "Já tem conta?",
+    "loginLink": "Entrar",
+    "valEmail": "Informe um e-mail válido.",
+    "valPassword": "A senha deve ter no mínimo 8 caracteres, com letras e números.",
+    "valPasswordMatch": "As senhas não coincidem.",
+    "signUpError": "Não foi possível criar a conta. Tente novamente."
+  },
   "EscolhaPerfil": {
     "title": "Como você deseja se cadastrar?",
     "loading": "Carregando…",

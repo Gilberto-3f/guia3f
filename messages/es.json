@@ -19,6 +19,20 @@
     "benefitSecurity": "Seguridad",
     "benefitPartnerships": "Alianzas"
   },
+  "Registro": {
+    "title": "Crear cuenta",
+    "subtitle": "Indique correo y contraseña. Luego elija su perfil y complete el registro.",
+    "submit": "CREAR CUENTA",
+    "checkEmailTitle": "Confirme su correo",
+    "checkEmailBody": "Enviamos un enlace a la dirección indicada. Ábralo para activar la cuenta y continuar.",
+    "checkEmailHint": "¿No lo recibió? Revise la carpeta de spam.",
+    "alreadyHaveAccount": "¿Ya tiene cuenta?",
+    "loginLink": "Iniciar sesión",
+    "valEmail": "Introduzca un correo electrónico válido.",
+    "valPassword": "La contraseña debe tener al menos 8 caracteres, con letras y números.",
+    "valPasswordMatch": "Las contraseñas no coinciden.",
+    "signUpError": "No se pudo crear la cuenta. Inténtelo de nuevo."
+  },
   "EscolhaPerfil": {
     "title": "¿Cómo desea registrarse?",
     "loading": "Cargando…",

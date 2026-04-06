@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
+import { supabase } from '@/lib/supabase'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
 
 type PerfilKey = 'turista' | 'profissional' | 'empresa'
@@ -27,8 +28,29 @@ function PainelCadastro({ perfil }: { perfil: PerfilKey }) {
 }
 
 export default function EscolhaPerfilPage() {
+  const router = useRouter()
   const t = useTranslations('EscolhaPerfil')
   const [painelAberto, setPainelAberto] = useState<PerfilKey | null>(null)
+  const [verificandoSessao, setVerificandoSessao] = useState(true)
+
+  useEffect(() => {
+    let ativo = true
+    const run = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!ativo) return
+      if (!session?.user) {
+        router.replace('/login')
+        return
+      }
+      setVerificandoSessao(false)
+    }
+    void run()
+    return () => {
+      ativo = false
+    }
+  }, [router])
 
   const alternarPainel = (key: PerfilKey) => {
     setPainelAberto((prev) => (prev === key ? null : key))
@@ -36,6 +58,14 @@ export default function EscolhaPerfilPage() {
 
   const btnPerfilBase =
     'mx-auto block w-full max-w-64 rounded-lg py-3.5 text-center text-lg font-bold transition-shadow sm:max-w-xs'
+
+  if (verificandoSessao) {
+    return (
+      <GuiaAuthShell largeHeaderLogo>
+        <p className="text-center text-[#001f3f]">{t('loading')}</p>
+      </GuiaAuthShell>
+    )
+  }
 
   return (
     <GuiaAuthShell

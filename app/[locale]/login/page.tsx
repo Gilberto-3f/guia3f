@@ -238,7 +238,7 @@ export default function LoginPage() {
 
       <button
         type="button"
-        onClick={() => router.push("/escolha-perfil")}
+        onClick={() => router.push("/registro")}
         className="mx-auto mt-8 block w-36 rounded-full bg-[#00D443] py-2 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
       >
         {t("createAccount")}

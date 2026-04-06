@@ -19,6 +19,20 @@
     "benefitSecurity": "Security",
     "benefitPartnerships": "Partnerships"
   },
+  "Registro": {
+    "title": "Create account",
+    "subtitle": "Enter your email and password. Then choose your profile and complete registration.",
+    "submit": "CREATE ACCOUNT",
+    "checkEmailTitle": "Confirm your email",
+    "checkEmailBody": "We sent a link to the address you provided. Open it to activate your account and continue.",
+    "checkEmailHint": "Didn't receive it? Check your spam folder.",
+    "alreadyHaveAccount": "Already have an account?",
+    "loginLink": "Sign in",
+    "valEmail": "Please enter a valid email address.",
+    "valPassword": "Password must be at least 8 characters with letters and numbers.",
+    "valPasswordMatch": "Passwords do not match.",
+    "signUpError": "Could not create your account. Please try again."
+  },
   "EscolhaPerfil": {
     "title": "How do you want to register?",
     "loading": "Loading…",
