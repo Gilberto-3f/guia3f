@@ -60,6 +60,7 @@ export default function EscolhaPerfilPage() {
 
   return (
     <GuiaAuthShell
+      largeHeaderLogo
       footer={
         <div className="border-t border-gray-100 px-5 py-4 text-center text-sm text-gray-500 sm:px-6">
           <Link href="/politicas" className="text-[#0097b2] hover:underline">
