@@ -3,18 +3,23 @@
 import Image from 'next/image'
 
 /**
- * @param {{ variant?: 'default' | 'header' }} props
+ * @param {{ variant?: 'default' | 'header', largeHeader?: boolean }} props
  * - default: barra branca (uso embutido em telas com fundo claro)
  * - header: só a logo, para cabeçalho sobre fundo #0097b2
+ * - largeHeader: largura maior no header (ex.: tela de login)
  */
-export default function Logo({ variant = 'default' }) {
+export default function Logo({ variant = 'default', largeHeader = false }) {
   const img = (
     <Image
       src="/logo.png"
       alt="Guia 3F"
-      width={150}
-      height={50}
-      className="h-auto max-h-12 w-auto object-contain sm:max-h-14"
+      width={largeHeader ? 180 : 150}
+      height={largeHeader ? 60 : 50}
+      className={
+        largeHeader
+          ? 'mx-auto h-auto w-auto max-w-[180px] object-contain'
+          : 'h-auto max-h-12 w-auto object-contain sm:max-h-14'
+      }
       priority
     />
   )
