@@ -52,25 +52,36 @@ export default function EscolhaPerfilPage() {
         </div>
       }
     >
-      <h1 className="mb-8 text-center text-xl font-bold text-[#0097b2] sm:text-2xl">{t('title')}</h1>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <h1 className="mb-8 text-center text-xl font-bold text-[#0097b2] sm:text-2xl">{t('title')}</h1>
 
-      <div className="space-y-5">
-        {(['turista', 'profissional', 'empresa'] as const).map((key) => (
-          <div key={key}>
-            <button
-              type="button"
-              onClick={() => alternarPainel(key)}
-              className={`${btnPerfilBase} shadow-md ${
-                painelAberto === key
-                  ? 'bg-[#0097b2] text-white'
-                  : 'border-2 border-[#0097b2] bg-white text-[#0097b2] shadow-[0_2px_8px_rgba(0,151,178,0.2)]'
-              }`}
-            >
-              {t(`${key}.label`)}
-            </button>
-            {painelAberto === key ? <PainelCadastro perfil={key} /> : null}
-          </div>
-        ))}
+        <div className="shrink-0 space-y-5">
+          {(['turista', 'profissional', 'empresa'] as const).map((key) => (
+            <div key={key}>
+              <button
+                type="button"
+                onClick={() => alternarPainel(key)}
+                className={`${btnPerfilBase} shadow-md ${
+                  painelAberto === key
+                    ? 'bg-[#0097b2] text-white'
+                    : 'border-2 border-[#0097b2] bg-white text-[#0097b2] shadow-[0_2px_8px_rgba(0,151,178,0.2)]'
+                }`}
+              >
+                {t(`${key}.label`)}
+              </button>
+              {painelAberto === key ? <PainelCadastro perfil={key} /> : null}
+            </div>
+          ))}
+        </div>
+
+        <div
+          className="mt-auto flex shrink-0 justify-center gap-2 text-2xl leading-none"
+          aria-hidden="true"
+        >
+          <span title="Brasil">🇧🇷</span>
+          <span title="Paraguai">🇵🇾</span>
+          <span title="Argentina">🇦🇷</span>
+        </div>
       </div>
     </GuiaAuthShell>
   )

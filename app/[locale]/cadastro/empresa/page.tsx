@@ -458,7 +458,7 @@ export default function CadastroEmpresaPage() {
 
   if (!bootOk) {
     return (
-      <GuiaAuthShell>
+      <GuiaAuthShell largeHeaderLogo>
         <p className="text-center text-[#001f3f]">{tCommon('loading')}</p>
       </GuiaAuthShell>
     )
@@ -466,7 +466,7 @@ export default function CadastroEmpresaPage() {
 
   if (magicLinkEnviado) {
     return (
-      <GuiaAuthShell>
+      <GuiaAuthShell largeHeaderLogo>
         <h1 className="mb-4 text-center text-xl font-bold text-[#0097b2]">{t('magicLinkSentTitle')}</h1>
         <p className="mx-auto mb-3 max-w-md text-center text-sm leading-relaxed text-[#001f3f]">
           {t('magicLinkSentBody')}
@@ -482,7 +482,7 @@ export default function CadastroEmpresaPage() {
   }
 
   return (
-    <GuiaAuthShell>
+    <GuiaAuthShell largeHeaderLogo>
       <h1 className="mb-2 text-center text-xl font-bold text-[#0097b2] sm:text-2xl">{t('empresa.pageTitle')}</h1>
       <p className="mb-6 text-center text-sm text-[#001f3f]">{t('subtitleContinue')}</p>
 
