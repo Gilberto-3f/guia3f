@@ -110,7 +110,7 @@ export default function LoginPage() {
 
       <form
         onSubmit={handleSubmit}
-        className="mx-auto flex w-full max-w-80 flex-col items-center gap-1.5"
+        className="mx-auto flex w-full max-w-72 flex-col items-center gap-1.5"
       >
         <div className="w-full">
           <input
