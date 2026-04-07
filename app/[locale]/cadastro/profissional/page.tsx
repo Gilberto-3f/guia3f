@@ -27,6 +27,41 @@ const categoriasDisponiveis: CategoriaProfissional[] = [
   'Anfitriao',
 ]
 
+const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
+
+type PaisProfissional = 'Brasil' | 'Paraguai' | 'Argentina'
+type CidadeProfissional = 'Foz do Iguacu' | 'Ciudad del Este' | 'Puerto Iguazu'
+
+const paisesProfissional: PaisProfissional[] = ['Brasil', 'Paraguai', 'Argentina']
+const cidadesProfissional: CidadeProfissional[] = [
+  'Foz do Iguacu',
+  'Ciudad del Este',
+  'Puerto Iguazu',
+]
+
+function mapApiProfissionalError(code: string | undefined, t: (key: string) => string): string {
+  switch (code) {
+    case 'email_exists':
+      return t('apiErrorEmailExists')
+    case 'invalid_password':
+      return t('apiErrorInvalidPassword')
+    case 'server_config':
+      return t('apiErrorServerConfig')
+    case 'username_taken':
+      return t('username.unavailable')
+    case 'id_docs_required':
+    case 'address_proof_required':
+    case 'profession_proof_required':
+      return t('profissional.valDocs')
+    case 'policies':
+      return t('profissional.valPolicies')
+    case 'invalid_username':
+      return t('profissional.valUsername')
+    default:
+      return t('apiErrorDefault')
+  }
+}
+
 function labelCategoria(c: CategoriaProfissional, tc: (key: string) => string) {
   switch (c) {
     case 'Guia':
@@ -51,12 +86,18 @@ export default function CadastroProfissionalPage() {
   const [nomeCompleto, setNomeCompleto] = useState('')
   const [nomeUsuario, setNomeUsuario] = useState('')
   const [emailSessao, setEmailSessao] = useState('')
+  const [senha, setSenha] = useState('')
+  const [senhaConfirma, setSenhaConfirma] = useState('')
+  const [modoLogado, setModoLogado] = useState(false)
+  const [pais, setPais] = useState<PaisProfissional>('Brasil')
+  const [cidadeAtuacao, setCidadeAtuacao] = useState<CidadeProfissional>('Foz do Iguacu')
   const [categoria, setCategoria] = useState<CategoriaProfissional>('Guia')
   const [aceitePoliticas, setAceitePoliticas] = useState(false)
 
   const [fotoPerfilFile, setFotoPerfilFile] = useState<File | null>(null)
   const [fotoPerfilPreview, setFotoPerfilPreview] = useState('')
-  const [identidadeFile, setIdentidadeFile] = useState<File | null>(null)
+  const [identidadeFrenteFile, setIdentidadeFrenteFile] = useState<File | null>(null)
+  const [identidadeVersoFile, setIdentidadeVersoFile] = useState<File | null>(null)
   const [comprovanteResidenciaFile, setComprovanteResidenciaFile] = useState<File | null>(null)
   const [comprovanteProfissaoFile, setComprovanteProfissaoFile] = useState<File | null>(null)
 
@@ -84,21 +125,20 @@ export default function CadastroProfissionalPage() {
         data: { session },
       } = await supabase.auth.getSession()
       if (!ativo) return
-      if (!session?.user?.id) {
-        router.replace('/login')
-        return
-      }
-      setEmailSessao((session.user.email ?? '').trim().toLowerCase())
-
-      const { data: existente } = await supabase
-        .from('profissionais')
-        .select('id')
-        .eq('usuario_id', session.user.id)
-        .maybeSingle()
-      if (!ativo) return
-      if (existente) {
-        router.replace('/guia')
-        return
+      if (session?.user?.id) {
+        const uid = session.user.id
+        const { data: existente } = await supabase
+          .from('profissionais')
+          .select('id')
+          .eq('usuario_id', uid)
+          .maybeSingle()
+        if (!ativo) return
+        if (existente) {
+          router.replace('/guia')
+          return
+        }
+        setEmailSessao((session.user.email ?? '').trim().toLowerCase())
+        setModoLogado(true)
       }
       setBootOk(true)
     }
@@ -130,6 +170,12 @@ export default function CadastroProfissionalPage() {
     if (!usernameRegex.test(usernameLimpo)) {
       setUsernameStatus('unavailable')
       setUsernameFeedback(t('username.rulesHint'))
+      return
+    }
+
+    if (!modoLogado) {
+      setUsernameStatus('available')
+      setUsernameFeedback(t('username.available'))
       return
     }
 
@@ -170,7 +216,7 @@ export default function CadastroProfissionalPage() {
       ativo = false
       clearTimeout(timer)
     }
-  }, [usernameLimpo, locale, t])
+  }, [usernameLimpo, modoLogado, locale, t])
 
   const onFileChange = (
     event: ChangeEvent<HTMLInputElement>,
@@ -202,10 +248,19 @@ export default function CadastroProfissionalPage() {
     if (!nomeCompleto.trim()) return t('profissional.valFullName')
     if (!usernameLimpo || usernameStatus !== 'available') return t('profissional.valUsername')
     if (!emailValido) return t('profissional.valEmail')
-    if (!identidadeFile || !comprovanteResidenciaFile || !comprovanteProfissaoFile) {
+    if (
+      !identidadeFrenteFile ||
+      !identidadeVersoFile ||
+      !comprovanteResidenciaFile ||
+      !comprovanteProfissaoFile
+    ) {
       return t('profissional.valDocs')
     }
     if (!aceitePoliticas) return t('profissional.valPolicies')
+    if (!modoLogado) {
+      if (!senhaRegex.test(senha)) return t('apiErrorInvalidPassword')
+      if (senha !== senhaConfirma) return t('signUpPasswordMatch')
+    }
     return ''
   }
 
@@ -216,6 +271,48 @@ export default function CadastroProfissionalPage() {
     const erroValidacao = validarFormulario()
     if (erroValidacao) {
       setErroEnvio(erroValidacao)
+      return
+    }
+
+    if (!modoLogado) {
+      if (
+        !identidadeFrenteFile ||
+        !identidadeVersoFile ||
+        !comprovanteResidenciaFile ||
+        !comprovanteProfissaoFile
+      ) {
+        return
+      }
+      try {
+        setEnviando(true)
+        const fd = new FormData()
+        fd.append('email', emailSessao.trim().toLowerCase())
+        fd.append('password', senha)
+        fd.append('nomeCompleto', nomeCompleto.trim())
+        fd.append('nomeUsuario', usernameLimpo)
+        fd.append('categoria', categoria)
+        fd.append('pais', pais)
+        fd.append('cidadeAtuacao', cidadeAtuacao)
+        fd.append('aceitePoliticas', String(aceitePoliticas))
+        fd.append('identidadeFrente', identidadeFrenteFile)
+        fd.append('identidadeVerso', identidadeVersoFile)
+        fd.append('comprovanteResidencia', comprovanteResidenciaFile)
+        fd.append('comprovanteProfissao', comprovanteProfissaoFile)
+        if (fotoPerfilFile) fd.append('fotoPerfil', fotoPerfilFile)
+
+        const res = await fetch('/api/cadastro/profissional', { method: 'POST', body: fd })
+        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+        if (!res.ok) {
+          setErroEnvio(mapApiProfissionalError(json.error, t))
+          return
+        }
+        setMagicLinkEnviado(true)
+      } catch (error) {
+        const mensagem = error instanceof Error ? error.message : t('unexpectedError')
+        setErroEnvio(mensagem)
+      } finally {
+        setEnviando(false)
+      }
       return
     }
 
@@ -240,7 +337,8 @@ export default function CadastroProfissionalPage() {
       )
       if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
 
-      const identidadeUrl = await uploadArquivo(identidadeFile as File, 'documentos', userId)
+      const identidadeUrl = await uploadArquivo(identidadeFrenteFile as File, 'documentos', userId)
+      const documentoVersoUrl = await uploadArquivo(identidadeVersoFile as File, 'documentos', userId)
       const comprovanteResidenciaUrl = await uploadArquivo(
         comprovanteResidenciaFile as File,
         'documentos',
@@ -262,8 +360,11 @@ export default function CadastroProfissionalPage() {
         categorias: [categoria],
         placa_vermelha: placaVermelha,
         identidade_url: identidadeUrl,
+        documento_verso_url: documentoVersoUrl,
         comprovante_residencia_url: comprovanteResidenciaUrl,
         comprovante_profissao_url: comprovanteProfissaoUrl,
+        pais,
+        cidade_atuacao: [cidadeAtuacao],
         status: 'pendente',
       }
 
@@ -279,6 +380,20 @@ export default function CadastroProfissionalPage() {
           delete payloadProfissional.foto_perfil_url
           insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
         }
+      }
+
+      if (
+        insertProfissional.error &&
+        insertProfissional.error.message.toLowerCase().includes('documento_verso')
+      ) {
+        delete payloadProfissional.documento_verso_url
+        insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
+      }
+
+      if (insertProfissional.error && insertProfissional.error.message.toLowerCase().includes('pais')) {
+        delete payloadProfissional.pais
+        delete payloadProfissional.cidade_atuacao
+        insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
       }
 
       if (insertProfissional.error && insertProfissional.error.message.toLowerCase().includes('status')) {
@@ -392,13 +507,97 @@ export default function CadastroProfissionalPage() {
           </div>
 
           <div>
-            <span className="mb-1 block text-sm font-medium text-[#001f3f]">
+            <label htmlFor="emailProf" className="mb-1 block text-sm font-medium text-[#001f3f]">
               {t('email')} {t('common.required')}
-            </span>
-            <p className="w-full rounded-lg bg-gray-200 px-4 py-3 text-sm text-[#001f3f]">{emailSessao || '—'}</p>
+            </label>
+            {modoLogado ? (
+              <p className="w-full rounded-lg bg-gray-200 px-4 py-3 text-sm text-[#001f3f]">{emailSessao || '—'}</p>
+            ) : (
+              <input
+                id="emailProf"
+                type="email"
+                autoComplete="email"
+                required
+                value={emailSessao}
+                onChange={(e) => setEmailSessao(e.target.value.trim().toLowerCase())}
+                className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
+                placeholder={t('email')}
+              />
+            )}
             <p className={`mt-1 text-xs ${emailSessao && !emailValido ? 'text-red-600' : 'text-[#001f3f]'}`}>
               {emailSessao && !emailValido ? t('common.emailInvalid') : t('common.emailHint')}
             </p>
+          </div>
+
+          {!modoLogado ? (
+            <>
+              <div>
+                <label htmlFor="senhaProf" className="mb-1 block text-sm font-medium text-[#001f3f]">
+                  {t('password')} {t('common.required')}
+                </label>
+                <input
+                  id="senhaProf"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
+                  placeholder={t('signUpPasswordHint')}
+                />
+              </div>
+              <div>
+                <label htmlFor="senhaConfProf" className="mb-1 block text-sm font-medium text-[#001f3f]">
+                  {t('confirmPassword')} {t('common.required')}
+                </label>
+                <input
+                  id="senhaConfProf"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={senhaConfirma}
+                  onChange={(e) => setSenhaConfirma(e.target.value)}
+                  className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
+                  placeholder={t('signUpPasswordHint')}
+                />
+              </div>
+            </>
+          ) : null}
+
+          <div>
+            <label htmlFor="paisProf" className="mb-1 block text-sm font-medium text-[#001f3f]">
+              {t('profissional.countryWork')} {t('common.required')}
+            </label>
+            <select
+              id="paisProf"
+              value={pais}
+              onChange={(e) => setPais(e.target.value as PaisProfissional)}
+              className="w-full rounded-lg bg-[#0097b2] text-white px-4 py-3 text-sm outline-none"
+            >
+              {paisesProfissional.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="cidadeProf" className="mb-1 block text-sm font-medium text-[#001f3f]">
+              {t('profissional.cityWork')} {t('common.required')}
+            </label>
+            <select
+              id="cidadeProf"
+              value={cidadeAtuacao}
+              onChange={(e) => setCidadeAtuacao(e.target.value as CidadeProfissional)}
+              className="w-full rounded-lg bg-[#0097b2] text-white px-4 py-3 text-sm outline-none"
+            >
+              {cidadesProfissional.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -425,15 +624,29 @@ export default function CadastroProfissionalPage() {
           </div>
 
           <div>
-            <label htmlFor="identidade" className="mb-1 block text-sm font-medium text-[#001f3f]">
+            <label htmlFor="identidadeFrente" className="mb-1 block text-sm font-medium text-[#001f3f]">
               {t('profissional.idDocument')} {t('common.required')}
             </label>
             <input
-              id="identidade"
+              id="identidadeFrente"
               type="file"
               accept="image/*,.pdf"
               required
-              onChange={(e) => onFileChange(e, setIdentidadeFile)}
+              onChange={(e) => onFileChange(e, setIdentidadeFrenteFile)}
+              className="block w-full rounded-lg bg-[#0097b2] text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="identidadeVerso" className="mb-1 block text-sm font-medium text-[#001f3f]">
+              {t('profissional.idDocumentBack')} {t('common.required')}
+            </label>
+            <input
+              id="identidadeVerso"
+              type="file"
+              accept="image/*,.pdf"
+              required
+              onChange={(e) => onFileChange(e, setIdentidadeVersoFile)}
               className="block w-full rounded-lg bg-[#0097b2] text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white px-3 py-2 text-sm"
             />
           </div>

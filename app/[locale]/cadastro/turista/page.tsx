@@ -8,17 +8,13 @@ import { supabase } from '@/lib/supabase'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
 
 const VERDE = '#00D443'
 
 const MAX_USERNAME_LEN = 20
 const MAX_TENTATIVAS_USERNAME = 50
 
-/**
- * Gera um nome_usuario único entre turistas, profissionais e empresas.
- * Em caso de colisão, acrescenta sufixo numérico (encurtando o prefixo para caber em 20 chars).
- * Se as consultas falharem ou esgotar tentativas, usa prefixo derivado do userId.
- */
 async function gerarUsernameUnico(baseEmail: string, userId: string): Promise<string> {
   const raw =
     (baseEmail.split('@')[0] ?? '')
@@ -61,6 +57,29 @@ async function gerarUsernameUnico(baseEmail: string, userId: string): Promise<st
   return tentar(0)
 }
 
+function mapApiTuristaError(
+  code: string | undefined,
+  t: (key: string) => string
+): string {
+  switch (code) {
+    case 'email_exists':
+      return t('apiErrorEmailExists')
+    case 'invalid_password':
+    case 'invalid_password_format':
+      return t('apiErrorInvalidPassword')
+    case 'server_config':
+      return t('apiErrorServerConfig')
+    case 'photo_required':
+      return t('turista.valPhotoRequired')
+    case 'docs_required':
+      return t('turista.valDocs')
+    case 'policies':
+      return t('turista.valPolicies')
+    default:
+      return t('apiErrorDefault')
+  }
+}
+
 export default function CadastroTuristaPage() {
   const router = useRouter()
   const t = useTranslations('Cadastro')
@@ -68,6 +87,9 @@ export default function CadastroTuristaPage() {
 
   const [nomeSocial, setNomeSocial] = useState('')
   const [emailSessao, setEmailSessao] = useState('')
+  const [senha, setSenha] = useState('')
+  const [senhaConfirma, setSenhaConfirma] = useState('')
+  const [modoLogado, setModoLogado] = useState(false)
   const [aceitePolitica, setAceitePolitica] = useState(false)
   const [aceiteTermos, setAceiteTermos] = useState(false)
 
@@ -91,19 +113,20 @@ export default function CadastroTuristaPage() {
         data: { session },
       } = await supabase.auth.getSession()
       if (!ativo) return
-      if (!session?.user?.id) {
-        router.replace('/login')
-        return
-      }
-      const uid = session.user.id
-      const mail = (session.user.email ?? '').trim().toLowerCase()
-      setEmailSessao(mail)
-
-      const { data: existente } = await supabase.from('turistas').select('id').eq('usuario_id', uid).maybeSingle()
-      if (!ativo) return
-      if (existente) {
-        router.replace('/guia')
-        return
+      if (session?.user?.id) {
+        const uid = session.user.id
+        const { data: existente } = await supabase
+          .from('turistas')
+          .select('id')
+          .eq('usuario_id', uid)
+          .maybeSingle()
+        if (!ativo) return
+        if (existente) {
+          router.replace('/guia')
+          return
+        }
+        setEmailSessao((session.user.email ?? '').trim().toLowerCase())
+        setModoLogado(true)
       }
       setBootOk(true)
     }
@@ -152,8 +175,13 @@ export default function CadastroTuristaPage() {
   const validarFormulario = () => {
     if (!nomeSocial.trim()) return t('turista.valSocialName')
     if (!emailValido) return t('turista.valEmail')
+    if (!fotoPerfilFile) return t('turista.valPhotoRequired')
     if (!documentoFrenteFile || !documentoVersoFile) return t('turista.valDocs')
     if (!aceitePolitica || !aceiteTermos) return t('turista.valPolicies')
+    if (!modoLogado) {
+      if (!senhaRegex.test(senha)) return t('apiErrorInvalidPassword')
+      if (senha !== senhaConfirma) return t('signUpPasswordMatch')
+    }
     return ''
   }
 
@@ -165,6 +193,37 @@ export default function CadastroTuristaPage() {
       setErroEnvio(erroValidacao)
       return
     }
+
+    if (!modoLogado) {
+      if (!fotoPerfilFile || !documentoFrenteFile || !documentoVersoFile) return
+      try {
+        setEnviando(true)
+        const fd = new FormData()
+        fd.append('email', emailSessao.trim().toLowerCase())
+        fd.append('password', senha)
+        fd.append('nomeCompleto', nomeSocial.trim())
+        fd.append('aceitePolitica', String(aceitePolitica))
+        fd.append('aceiteTermos', String(aceiteTermos))
+        fd.append('documentoFrente', documentoFrenteFile)
+        fd.append('documentoVerso', documentoVersoFile)
+        fd.append('fotoPerfil', fotoPerfilFile)
+
+        const res = await fetch('/api/cadastro/turista', { method: 'POST', body: fd })
+        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+        if (!res.ok) {
+          setErroEnvio(mapApiTuristaError(json.error, t))
+          return
+        }
+        setMagicLinkEnviado(true)
+      } catch (error) {
+        const mensagem = error instanceof Error ? error.message : t('unexpectedError')
+        setErroEnvio(mensagem)
+      } finally {
+        setEnviando(false)
+      }
+      return
+    }
+
     try {
       setEnviando(true)
       const {
@@ -269,121 +328,172 @@ export default function CadastroTuristaPage() {
       <p className="mb-6 text-center text-sm text-[#001f3f]">{t('subtitleContinue')}</p>
 
       <div className="rounded-xl bg-gray-100 p-5">
-          <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="nomeSocial" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+              {t('turista.socialName')}
+            </label>
+            <input
+              id="nomeSocial"
+              type="text"
+              required
+              value={nomeSocial}
+              onChange={(e) => setNomeSocial(e.target.value)}
+              className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="nomeSocial" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
-                {t('turista.socialName')}
+              <label htmlFor="fotoPerfil" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+                {t('turista.photo')} {t('common.required')}
               </label>
               <input
-                id="nomeSocial"
-                type="text"
+                id="fotoPerfil"
+                type="file"
+                accept="image/*"
                 required
-                value={nomeSocial}
-                onChange={(e) => setNomeSocial(e.target.value)}
-                className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none"
+                onChange={(e) => onFileChange(e, setFotoPerfilFile)}
+                className={inputFileClass}
+                aria-label={t('turista.photoFileAria')}
               />
+              {fotoPerfilPreview && (
+                <img
+                  src={fotoPerfilPreview}
+                  alt=""
+                  className="mt-2 h-16 w-16 rounded-full border border-gray-200 object-cover"
+                />
+              )}
             </div>
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <span className="text-xs font-medium italic text-[#001f3f]">{t('turista.document')}</span>
+                <button
+                  type="button"
+                  aria-label={t('turista.docWhyAria')}
+                  onClick={() => setModalDocumentoAberto(true)}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#001f3f] text-xs font-bold text-[#001f3f] hover:bg-[#001f3f] hover:text-white"
+                >
+                  i
+                </button>
+              </div>
+              <input
+                id="documentoFrente"
+                type="file"
+                accept="image/*,.pdf"
+                required
+                onChange={(e) => onFileChange(e, setDocumentoFrenteFile)}
+                className={`${inputFileClass} mb-2`}
+                aria-label={t('turista.docFrontAria')}
+              />
+              <input
+                id="documentoVerso"
+                type="file"
+                accept="image/*,.pdf"
+                required
+                onChange={(e) => onFileChange(e, setDocumentoVersoFile)}
+                className={inputFileClass}
+                aria-label={t('turista.docBackAria')}
+              />
+              <p className="mt-1 text-[10px] italic text-[#001f3f]/80">{t('turista.docFrontBack')}</p>
+            </div>
+          </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="emailCadastro" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+              {t('email')}
+            </label>
+            {modoLogado ? (
+              <p className="w-full rounded-lg bg-gray-200 px-4 py-3 text-sm text-[#001f3f]">{emailSessao || '—'}</p>
+            ) : (
+              <input
+                id="emailCadastro"
+                type="email"
+                autoComplete="email"
+                required
+                value={emailSessao}
+                onChange={(e) => setEmailSessao(e.target.value.trim().toLowerCase())}
+                className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none"
+                placeholder={t('email')}
+              />
+            )}
+            {!emailValido ? (
+              <p className="mt-1 text-xs text-red-600 not-italic">{t('common.emailInvalid')}</p>
+            ) : null}
+          </div>
+
+          {!modoLogado ? (
+            <>
               <div>
-                <label htmlFor="fotoPerfil" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
-                  {t('turista.photo')}
+                <label htmlFor="senhaCadastro" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+                  {t('password')}
                 </label>
                 <input
-                  id="fotoPerfil"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => onFileChange(e, setFotoPerfilFile)}
-                  className={inputFileClass}
-                  aria-label={t('turista.photoFileAria')}
+                  id="senhaCadastro"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none"
+                  placeholder={t('signUpPasswordHint')}
                 />
-                {fotoPerfilPreview && (
-                  <img
-                    src={fotoPerfilPreview}
-                    alt=""
-                    className="mt-2 h-16 w-16 rounded-full object-cover border border-gray-200"
-                  />
-                )}
               </div>
               <div>
-                <div className="mb-1 flex items-center gap-2">
-                  <span className="text-xs font-medium italic text-[#001f3f]">{t('turista.document')}</span>
-                  <button
-                    type="button"
-                    aria-label={t('turista.docWhyAria')}
-                    onClick={() => setModalDocumentoAberto(true)}
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#001f3f] text-xs font-bold text-[#001f3f] hover:bg-[#001f3f] hover:text-white"
-                  >
-                    i
-                  </button>
-                </div>
+                <label htmlFor="senhaConfirma" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+                  {t('confirmPassword')}
+                </label>
                 <input
-                  id="documentoFrente"
-                  type="file"
-                  accept="image/*,.pdf"
+                  id="senhaConfirma"
+                  type="password"
+                  autoComplete="new-password"
                   required
-                  onChange={(e) => onFileChange(e, setDocumentoFrenteFile)}
-                  className={`${inputFileClass} mb-2`}
-                  aria-label={t('turista.docFrontAria')}
+                  value={senhaConfirma}
+                  onChange={(e) => setSenhaConfirma(e.target.value)}
+                  className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none"
+                  placeholder={t('signUpPasswordHint')}
                 />
-                <input
-                  id="documentoVerso"
-                  type="file"
-                  accept="image/*,.pdf"
-                  required
-                  onChange={(e) => onFileChange(e, setDocumentoVersoFile)}
-                  className={inputFileClass}
-                  aria-label={t('turista.docBackAria')}
-                />
-                <p className="mt-1 text-[10px] italic text-[#001f3f]/80">{t('turista.docFrontBack')}</p>
               </div>
-            </div>
+            </>
+          ) : null}
 
-            <div>
-              <span className="mb-1 block text-xs font-medium italic text-[#001f3f]">{t('email')}</span>
-              <p className="w-full rounded-lg bg-gray-200 px-4 py-3 text-sm text-[#001f3f]">{emailSessao || '—'}</p>
-              {!emailValido ? (
-                <p className="mt-1 text-xs text-red-600 not-italic">{t('common.emailInvalid')}</p>
-              ) : null}
-            </div>
+          <div className="flex flex-wrap items-start gap-4 text-xs italic text-[#001f3f]">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={aceitePolitica}
+                onChange={(e) => setAceitePolitica(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-400"
+              />
+              <Link href="/politicas" className="underline hover:text-[#0097b2]">
+                {t('turista.privacy')}
+              </Link>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={aceiteTermos}
+                onChange={(e) => setAceiteTermos(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-400"
+              />
+              <Link href="/regras" className="underline hover:text-[#0097b2]">
+                {t('turista.terms')}
+              </Link>
+            </label>
+          </div>
 
-            <div className="flex flex-wrap items-start gap-4 text-xs italic text-[#001f3f]">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={aceitePolitica}
-                  onChange={(e) => setAceitePolitica(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-400"
-                />
-                <Link href="/politicas" className="underline hover:text-[#0097b2]">
-                  {t('turista.privacy')}
-                </Link>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={aceiteTermos}
-                  onChange={(e) => setAceiteTermos(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-400"
-                />
-                <Link href="/regras" className="underline hover:text-[#0097b2]">
-                  {t('turista.terms')}
-                </Link>
-              </label>
-            </div>
+          {erroEnvio && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erroEnvio}</p>}
 
-            {erroEnvio && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erroEnvio}</p>}
-
-            <button
-              type="submit"
-              disabled={enviando}
-              className="w-full rounded-full px-4 py-3.5 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-70 hover:bg-[#00b838]"
-              style={{ backgroundColor: VERDE }}
-            >
-              {enviando ? t('sending') : t('submitRegister')}
-            </button>
-          </form>
-        </div>
+          <button
+            type="submit"
+            disabled={enviando}
+            className="w-full rounded-full px-4 py-3.5 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-70 hover:bg-[#00b838]"
+            style={{ backgroundColor: VERDE }}
+          >
+            {enviando ? t('sending') : t('submitRegister')}
+          </button>
+        </form>
+      </div>
 
       {modalDocumentoAberto ? (
         <div

@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
-import { supabase } from '@/lib/supabase'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
 
 type PerfilKey = 'turista' | 'profissional' | 'empresa'
@@ -13,24 +12,12 @@ function PainelCadastro({ perfil }: { perfil: PerfilKey }) {
   const t = useTranslations('EscolhaPerfil')
   const router = useRouter()
 
-  const irParaCadastro = async () => {
-    const path = `/cadastro/${perfil}`
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (session?.user?.id) {
-      router.push(path)
-      return
-    }
-    router.push(`/login?next=${encodeURIComponent(path)}`)
-  }
-
   return (
     <div className="mt-3 rounded-xl bg-[#f5f5f5] p-4 sm:p-5">
       <p className="mb-4 text-sm leading-relaxed text-[#001f3f]">{t(`${perfil}.panelBody`)}</p>
       <button
         type="button"
-        onClick={() => void irParaCadastro()}
+        onClick={() => router.push(`/cadastro/${perfil}`)}
         className="mx-auto block w-full max-w-xs rounded-full bg-[#00D443] py-2 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
       >
         {t('register')}

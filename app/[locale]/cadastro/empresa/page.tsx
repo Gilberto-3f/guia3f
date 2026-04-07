@@ -35,6 +35,32 @@ const categorias: CategoriaEmpresa[] = [
 const cidades: CidadeEmpresa[] = ['Foz do Iguacu', 'Ciudad del Este', 'Puerto Iguazu']
 const diasSemana = ['Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado', 'Domingo']
 
+const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
+
+function mapApiEmpresaError(
+  code: string | undefined,
+  t: (key: string, values?: Record<string, string | number>) => string
+): string {
+  switch (code) {
+    case 'email_exists':
+      return t('apiErrorEmailExists')
+    case 'invalid_password':
+      return t('apiErrorInvalidPassword')
+    case 'server_config':
+      return t('apiErrorServerConfig')
+    case 'username_taken':
+      return t('username.unavailable')
+    case 'photos_min':
+      return t('empresa.valPhotos', { min: minimoFotos })
+    case 'doc_required':
+      return t('empresa.valDoc')
+    case 'policies':
+      return t('empresa.valPolicies')
+    default:
+      return t('apiErrorDefault')
+  }
+}
+
 const catMessageKey: Record<CategoriaEmpresa, string> = {
   Restaurantes: 'empresa.cat.Restaurantes',
   Atrativos: 'empresa.cat.Atrativos',
@@ -67,11 +93,15 @@ export default function CadastroEmpresaPage() {
   const [nomeFantasia, setNomeFantasia] = useState('')
   const [nomeUsuario, setNomeUsuario] = useState('')
   const [emailSessao, setEmailSessao] = useState('')
+  const [senha, setSenha] = useState('')
+  const [senhaConfirma, setSenhaConfirma] = useState('')
+  const [modoLogado, setModoLogado] = useState(false)
   const [categoria, setCategoria] = useState<CategoriaEmpresa>('Restaurantes')
   const [cidade, setCidade] = useState<CidadeEmpresa>('Foz do Iguacu')
   const [enderecoCompleto, setEnderecoCompleto] = useState('')
   const [telefone, setTelefone] = useState('')
   const [whatsApp, setWhatsApp] = useState('')
+  const [website, setWebsite] = useState('')
   const [descricaoCurta, setDescricaoCurta] = useState('')
   const [horariosSelecionados, setHorariosSelecionados] = useState<string[]>([])
   const [aceitePoliticas, setAceitePoliticas] = useState(false)
@@ -107,17 +137,16 @@ export default function CadastroEmpresaPage() {
         data: { session },
       } = await supabase.auth.getSession()
       if (!ativo) return
-      if (!session?.user?.id) {
-        router.replace('/login')
-        return
-      }
-      setEmailSessao((session.user.email ?? '').trim().toLowerCase())
-
-      const { data: existente } = await supabase.from('empresas').select('id').eq('usuario_id', session.user.id).maybeSingle()
-      if (!ativo) return
-      if (existente) {
-        router.replace('/guia')
-        return
+      if (session?.user?.id) {
+        const uid = session.user.id
+        const { data: existente } = await supabase.from('empresas').select('id').eq('usuario_id', uid).maybeSingle()
+        if (!ativo) return
+        if (existente) {
+          router.replace('/guia')
+          return
+        }
+        setEmailSessao((session.user.email ?? '').trim().toLowerCase())
+        setModoLogado(true)
       }
       setBootOk(true)
     }
@@ -165,6 +194,12 @@ export default function CadastroEmpresaPage() {
       return
     }
 
+    if (!modoLogado) {
+      setUsernameStatus('available')
+      setUsernameFeedback(t('username.available'))
+      return
+    }
+
     let ativo = true
     setUsernameStatus('checking')
     setUsernameFeedback(t('username.checking'))
@@ -202,7 +237,7 @@ export default function CadastroEmpresaPage() {
       ativo = false
       clearTimeout(timer)
     }
-  }, [usernameLimpo, locale, t])
+  }, [usernameLimpo, modoLogado, locale, t])
 
   const onSingleFileChange = (
     event: ChangeEvent<HTMLInputElement>,
@@ -256,6 +291,10 @@ export default function CadastroEmpresaPage() {
     if (totalFotos < minimoFotos) return t('empresa.valPhotos', { min: minimoFotos })
     if (!documentoComercialFile) return t('empresa.valDoc')
     if (!aceitePoliticas) return t('empresa.valPolicies')
+    if (!modoLogado) {
+      if (!senhaRegex.test(senha)) return t('apiErrorInvalidPassword')
+      if (senha !== senhaConfirma) return t('signUpPasswordMatch')
+    }
     return ''
   }
 
@@ -266,6 +305,44 @@ export default function CadastroEmpresaPage() {
     const erroValidacao = validarFormulario()
     if (erroValidacao) {
       setErroEnvio(erroValidacao)
+      return
+    }
+
+    if (!modoLogado) {
+      if (!documentoComercialFile) return
+      try {
+        setEnviando(true)
+        const fd = new FormData()
+        fd.append('email', emailSessao.trim().toLowerCase())
+        fd.append('password', senha)
+        fd.append('nomeFantasia', nomeFantasia.trim())
+        fd.append('nomeUsuario', usernameLimpo)
+        fd.append('categoria', categoria)
+        fd.append('cidade', cidade)
+        fd.append('enderecoCompleto', enderecoCompleto.trim())
+        fd.append('telefone', telefone.trim())
+        fd.append('whatsApp', whatsApp.trim())
+        fd.append('descricaoCurta', descricaoCurta.trim())
+        fd.append('horarios', JSON.stringify(horariosSelecionados))
+        fd.append('aceitePoliticas', String(aceitePoliticas))
+        if (website.trim()) fd.append('website', website.trim())
+        if (logoFile) fd.append('logo', logoFile)
+        fotosFiles.forEach((f) => fd.append('fotos', f))
+        fd.append('documentoComercial', documentoComercialFile)
+
+        const res = await fetch('/api/cadastro/empresa', { method: 'POST', body: fd })
+        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+        if (!res.ok) {
+          setErroEnvio(mapApiEmpresaError(json.error, t))
+          return
+        }
+        setMagicLinkEnviado(true)
+      } catch (error) {
+        const mensagem = error instanceof Error ? error.message : t('unexpectedError')
+        setErroEnvio(mensagem)
+      } finally {
+        setEnviando(false)
+      }
       return
     }
 
@@ -321,6 +398,9 @@ export default function CadastroEmpresaPage() {
       if (logoUrl) {
         payloadCompleto.logo_url = logoUrl
       }
+      if (website.trim()) {
+        payloadCompleto.website = website.trim()
+      }
 
       let insertEmpresa = await supabase.from('empresas').insert(payloadCompleto)
 
@@ -347,9 +427,27 @@ export default function CadastroEmpresaPage() {
         insertEmpresa = await supabase.from('empresas').insert(payloadCompleto)
       }
 
+      if (insertEmpresa.error && insertEmpresa.error.message.toLowerCase().includes('website')) {
+        delete payloadCompleto.website
+        insertEmpresa = await supabase.from('empresas').insert(payloadCompleto)
+      }
+
       if (insertEmpresa.error) throw new Error(insertEmpresa.error.message)
 
-      router.push('/guia')
+      const origin = typeof window !== 'undefined' ? window.location.origin : ''
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: emailUser,
+        options: {
+          emailRedirectTo: `${origin}/auth/callback`,
+          shouldCreateUser: false,
+        },
+      })
+      if (otpError) {
+        setErroEnvio(t('magicLinkSendError'))
+        return
+      }
+      await supabase.auth.signOut()
+      setMagicLinkEnviado(true)
     } catch (error) {
       const mensagem = error instanceof Error ? error.message : t('unexpectedError')
       setErroEnvio(mensagem)
@@ -440,14 +538,62 @@ export default function CadastroEmpresaPage() {
           </div>
 
           <div>
-            <span className="mb-1 block text-sm font-medium text-[#001f3f]">
+            <label htmlFor="emailEmpresa" className="mb-1 block text-sm font-medium text-[#001f3f]">
               {t('empresa.managerEmail')} {t('common.required')}
-            </span>
-            <p className="w-full rounded-lg bg-gray-200 px-4 py-3 text-sm text-[#001f3f]">{emailSessao || '—'}</p>
+            </label>
+            {modoLogado ? (
+              <p className="w-full rounded-lg bg-gray-200 px-4 py-3 text-sm text-[#001f3f]">{emailSessao || '—'}</p>
+            ) : (
+              <input
+                id="emailEmpresa"
+                type="email"
+                autoComplete="email"
+                required
+                value={emailSessao}
+                onChange={(e) => setEmailSessao(e.target.value.trim().toLowerCase())}
+                className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
+                placeholder={t('email')}
+              />
+            )}
             <p className={`mt-1 text-xs ${emailSessao && !emailValido ? 'text-red-600' : 'text-[#001f3f]'}`}>
               {emailSessao && !emailValido ? t('common.emailInvalid') : t('common.emailHint')}
             </p>
           </div>
+
+          {!modoLogado ? (
+            <>
+              <div>
+                <label htmlFor="senhaEmpresa" className="mb-1 block text-sm font-medium text-[#001f3f]">
+                  {t('password')} {t('common.required')}
+                </label>
+                <input
+                  id="senhaEmpresa"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
+                  placeholder={t('signUpPasswordHint')}
+                />
+              </div>
+              <div>
+                <label htmlFor="senhaEmpresaConf" className="mb-1 block text-sm font-medium text-[#001f3f]">
+                  {t('confirmPassword')} {t('common.required')}
+                </label>
+                <input
+                  id="senhaEmpresaConf"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={senhaConfirma}
+                  onChange={(e) => setSenhaConfirma(e.target.value)}
+                  className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
+                  placeholder={t('signUpPasswordHint')}
+                />
+              </div>
+            </>
+          ) : null}
 
           <div>
             <label htmlFor="categoria" className="mb-1 block text-sm font-medium text-[#001f3f]">
@@ -524,6 +670,21 @@ export default function CadastroEmpresaPage() {
               value={whatsApp}
               onChange={(e) => setWhatsApp(e.target.value)}
               className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="websiteEmpresa" className="mb-1 block text-sm font-medium text-[#001f3f]">
+              {t('empresa.website')}
+            </label>
+            <input
+              id="websiteEmpresa"
+              type="url"
+              inputMode="url"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
+              placeholder={t('empresa.websitePlaceholder')}
             />
           </div>
 
