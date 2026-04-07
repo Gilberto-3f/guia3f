@@ -196,7 +196,7 @@ export default function LoginPage() {
       <button
         type="button"
         onClick={() => router.push("/escolha-perfil")}
-        className="mx-auto mt-8 block w-full max-w-80 rounded-full bg-[#00D443] py-2.5 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
+        className="mx-auto mt-8 block w-full max-w-[4cm] rounded-full bg-[#00D443] py-2.5 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
       >
         {t("createAccount")}
       </button>

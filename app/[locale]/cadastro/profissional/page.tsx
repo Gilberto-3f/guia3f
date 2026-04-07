@@ -19,7 +19,6 @@ type CategoriaProfissional =
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const usernameRegex = /^[a-z0-9._]{3,20}$/
-const VERDE = '#00D443'
 const categoriasDisponiveis: CategoriaProfissional[] = [
   'Guia',
   'Taxista',
@@ -700,8 +699,13 @@ export default function CadastroProfissionalPage() {
           <button
             type="submit"
             disabled={enviando || !aceitePoliticas}
-            className="w-full rounded-full px-4 py-3.5 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-70 hover:bg-[#00b838]"
-            style={{ backgroundColor: VERDE }}
+            className={`mx-auto block w-full max-w-full rounded-full px-4 py-3.5 text-sm font-bold text-white transition-colors ${
+              !aceitePoliticas
+                ? 'cursor-not-allowed bg-gray-400'
+                : enviando
+                  ? 'cursor-wait bg-[#00D443] opacity-80'
+                  : 'bg-[#00D443] hover:bg-[#00b838]'
+            }`}
           >
             {enviando ? t('sending') : t('submitRegister')}
           </button>

@@ -11,8 +11,6 @@ import GuiaAuthShell from '@/components/GuiaAuthShell'
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
 
-const VERDE = '#00D443'
-
 const MAX_USERNAME_LEN = 20
 const MAX_TENTATIVAS_USERNAME = 50
 
@@ -492,9 +490,14 @@ export default function CadastroTuristaPage() {
 
           <button
             type="submit"
-            disabled={enviando || !aceitePolitica || !aceiteTermos}
-            className="w-full rounded-full px-4 py-3.5 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-70 hover:bg-[#00b838]"
-            style={{ backgroundColor: VERDE }}
+            disabled={enviando || !(aceitePolitica && aceiteTermos)}
+            className={`mx-auto block w-full max-w-full rounded-full px-4 py-3.5 text-sm font-bold text-white transition-colors ${
+              !(aceitePolitica && aceiteTermos)
+                ? 'cursor-not-allowed bg-gray-400'
+                : enviando
+                  ? 'cursor-wait bg-[#00D443] opacity-80'
+                  : 'bg-[#00D443] hover:bg-[#00b838]'
+            }`}
           >
             {enviando ? t('sending') : t('submitRegister')}
           </button>
