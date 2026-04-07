@@ -8,6 +8,7 @@
     "noAccount": "Não tem cadastro?",
     "createAccount": "Criar Conta",
     "invalidEmail": "Informe um e-mail válido para entrar.",
+    "passwordMinLength": "A senha deve ter pelo menos 8 caracteres.",
     "genericError": "Erro ao entrar. Tente novamente.",
     "marketingHeadline": "Não tem cadastro no GUIA 3F?",
     "marketingBody1": "Nosso aplicativo oferece um ecossistema completo de serviços e empresas locais.",

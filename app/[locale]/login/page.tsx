@@ -1,22 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { setCookie } from "cookies-next";
-import { ChevronDown } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
 import { getPostAuthRedirectPath } from "@/lib/postAuthRedirect";
 import GuiaAuthShell from "@/components/GuiaAuthShell";
-
-const VERDE = "#00D443";
+import SeletorIdioma from "@/components/SeletorIdioma";
+import BotaoLogin from "@/components/BotaoLogin";
 
 const emailOuUsuarioRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const senhaMinLen = 8;
 
 export default function LoginPage() {
   const router = useRouter();
-  const locale = useLocale();
   const t = useTranslations("Login");
   const tCommon = useTranslations("Common");
   const [loginId, setLoginId] = useState("");
@@ -24,16 +22,6 @@ export default function LoginPage() {
   const [erroSenha, setErroSenha] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [bootSessao, setBootSessao] = useState(true);
-  const [idiomaAberto, setIdiomaAberto] = useState(false);
-  const idiomaRef = useRef<HTMLDivElement>(null);
-
-  const opcoesIdioma = [
-    { value: "pt" as const, bandeira: "🇧🇷", rotulo: "Português" },
-    { value: "en" as const, bandeira: "🇺🇸", rotulo: "English" },
-    { value: "es" as const, bandeira: "🇪🇸", rotulo: "Español" },
-  ];
-
-  const idiomaAtual = opcoesIdioma.find((o) => o.value === locale) ?? opcoesIdioma[0];
 
   useEffect(() => {
     let ativo = true;
@@ -55,22 +43,16 @@ export default function LoginPage() {
     };
   }, [router]);
 
-  useEffect(() => {
-    const fechar = (e: MouseEvent) => {
-      if (idiomaRef.current && !idiomaRef.current.contains(e.target as Node)) {
-        setIdiomaAberto(false);
-      }
-    };
-    document.addEventListener("mousedown", fechar);
-    return () => document.removeEventListener("mousedown", fechar);
-  }, []);
-
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErroSenha("");
     const id = loginId.trim().toLowerCase();
     if (!emailOuUsuarioRegex.test(id)) {
       setErroSenha(t("invalidEmail"));
+      return;
+    }
+    if (senha.length < senhaMinLen) {
+      setErroSenha(t("passwordMinLength"));
       return;
     }
     setCarregando(true);
@@ -100,15 +82,7 @@ export default function LoginPage() {
 
   const inputClass =
     "w-full max-w-80 rounded-full border border-gray-300 px-4 py-2 text-base text-[#001f3f] placeholder:text-[#001f3f]/60 outline-none focus:ring-2 focus:ring-[#0097b2]";
-
-  const mudarIdioma = (value: string) => {
-    setCookie("NEXT_LOCALE", value, { path: "/" });
-    setIdiomaAberto(false);
-    router.refresh();
-  };
-
-  const labelIdioma =
-    locale === "pt" ? "Idioma" : locale === "es" ? "Idioma" : "Language";
+  const labelClass = "mb-1 block w-full max-w-80 text-left text-sm font-medium text-[#001f3f]";
 
   if (bootSessao) {
     return (
@@ -120,69 +94,49 @@ export default function LoginPage() {
 
   return (
     <GuiaAuthShell largeHeaderLogo>
-      <div ref={idiomaRef} className="relative mb-6 flex justify-center">
-        <button
-          type="button"
-          className="flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-[#001f3f] outline-none"
-          aria-expanded={idiomaAberto}
-          aria-haspopup="listbox"
-          aria-label={labelIdioma}
-          onClick={() => setIdiomaAberto((v) => !v)}
-        >
-          <span className="text-xl" aria-hidden>
-            {idiomaAtual.bandeira}
-          </span>
-          <span className="text-sm">{idiomaAtual.rotulo}</span>
-          <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
-        </button>
-        {idiomaAberto ? (
-          <ul
-            className="absolute left-1/2 top-full z-10 mt-1 min-w-[10rem] -translate-x-1/2 rounded-lg border border-gray-200 bg-white py-1 shadow-md"
-            role="listbox"
-          >
-            {opcoesIdioma.map((op) => (
-              <li key={op.value} role="option" aria-selected={locale === op.value}>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[#001f3f] hover:bg-gray-50"
-                  onClick={() => mudarIdioma(op.value)}
-                >
-                  <span aria-hidden>{op.bandeira}</span>
-                  {op.rotulo}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
+      <SeletorIdioma />
 
-      <form onSubmit={handleSubmit} className="mx-auto flex w-full max-w-80 flex-col items-center gap-2">
-        <input
-          id="loginId"
-          name="loginId"
-          type="email"
-          inputMode="email"
-          autoComplete="username"
-          required
-          value={loginId}
-          onChange={(e) => setLoginId(e.target.value)}
-          placeholder={t("email")}
-          aria-label={t("email")}
-          className={inputClass}
-        />
+      <form
+        onSubmit={handleSubmit}
+        className="mx-auto flex w-full max-w-80 flex-col items-center gap-3"
+      >
+        <div className="w-full">
+          <label htmlFor="loginId" className={labelClass}>
+            {t("email")}
+          </label>
+          <input
+            id="loginId"
+            name="loginId"
+            type="email"
+            inputMode="email"
+            autoComplete="username"
+            required
+            value={loginId}
+            onChange={(e) => setLoginId(e.target.value)}
+            placeholder={t("email")}
+            aria-label={t("email")}
+            className={inputClass}
+          />
+        </div>
 
-        <input
-          id="senha"
-          name="senha"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          placeholder={t("password")}
-          aria-label={t("password")}
-          className={inputClass}
-        />
+        <div className="w-full">
+          <label htmlFor="senha" className={labelClass}>
+            {t("password")}
+          </label>
+          <input
+            id="senha"
+            name="senha"
+            type="password"
+            autoComplete="current-password"
+            required
+            minLength={senhaMinLen}
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            placeholder={t("password")}
+            aria-label={t("password")}
+            className={inputClass}
+          />
+        </div>
 
         <div className="w-full pt-1 text-center">
           <Link href="/recuperar-senha" className="text-sm italic text-[#0097b2] hover:underline">
@@ -192,19 +146,16 @@ export default function LoginPage() {
 
         {erroSenha ? <p className="text-center text-sm text-red-600">{erroSenha}</p> : null}
 
-        <button
-          type="submit"
-          disabled={carregando}
-          className="mt-1 w-32 rounded-full py-2 text-sm font-bold uppercase text-white transition-colors disabled:opacity-60 hover:bg-[#00b838]"
-          style={{ backgroundColor: VERDE }}
-        >
-          {carregando ? tCommon("loading") : t("loginButton")}
-        </button>
+        <div className="flex w-full justify-center pt-1">
+          <BotaoLogin disabled={carregando} loading={carregando} loadingLabel={tCommon("loading")}>
+            {t("loginButton")}
+          </BotaoLogin>
+        </div>
       </form>
 
-      <div className="my-8 h-px w-full bg-gray-300" aria-hidden="true" />
+      <div className="my-8 h-px w-full max-w-80 bg-gray-300" aria-hidden="true" />
 
-      <div className="space-y-4 text-center text-sm leading-relaxed text-[#001f3f]">
+      <div className="mx-auto max-w-80 space-y-4 text-center text-sm leading-relaxed text-[#001f3f]">
         <h2 className="text-lg font-bold text-[#0097b2]">{t("marketingHeadline")}</h2>
         <p>{t("marketingBody1")}</p>
         <p>{t("marketingBody2")}</p>
@@ -239,7 +190,7 @@ export default function LoginPage() {
       <button
         type="button"
         onClick={() => router.push("/escolha-perfil")}
-        className="mx-auto mt-8 block w-36 rounded-full bg-[#00D443] py-2 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
+        className="mx-auto mt-8 block w-full max-w-80 rounded-full bg-[#00D443] py-3 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
       >
         {t("createAccount")}
       </button>
