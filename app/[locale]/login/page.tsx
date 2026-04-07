@@ -94,7 +94,7 @@ export default function LoginPage() {
   };
 
   const inputClass =
-    "w-full max-w-72 rounded-full border border-gray-300 px-4 py-2 text-base text-[#001f3f] placeholder:text-[#001f3f]/60 outline-none focus:ring-2 focus:ring-[#0097b2]";
+    "w-full max-w-80 rounded-full border border-gray-300 px-4 py-2 text-base text-[#001f3f] placeholder:text-[#001f3f]/60 outline-none focus:ring-2 focus:ring-[#0097b2]";
 
   if (bootSessao) {
     return (
@@ -110,7 +110,7 @@ export default function LoginPage() {
 
       <form
         onSubmit={handleSubmit}
-        className="mx-auto flex w-full max-w-72 flex-col items-center gap-1.5"
+        className="mx-auto flex w-full max-w-80 flex-col items-center gap-1.5"
       >
         <div className="w-full">
           <input
@@ -196,7 +196,7 @@ export default function LoginPage() {
       <button
         type="button"
         onClick={() => router.push("/escolha-perfil")}
-        className="mx-auto mt-8 block w-full max-w-72 rounded-full bg-[#00D443] py-2.5 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
+        className="mx-auto mt-8 block w-full max-w-80 rounded-full bg-[#00D443] py-2.5 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
       >
         {t("createAccount")}
       </button>

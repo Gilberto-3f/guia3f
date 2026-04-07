@@ -492,7 +492,7 @@ export default function CadastroTuristaPage() {
 
           <button
             type="submit"
-            disabled={enviando}
+            disabled={enviando || !aceitePolitica || !aceiteTermos}
             className="w-full rounded-full px-4 py-3.5 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-70 hover:bg-[#00b838]"
             style={{ backgroundColor: VERDE }}
           >
