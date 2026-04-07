@@ -94,8 +94,7 @@ export default function LoginPage() {
   };
 
   const inputClass =
-    "w-full max-w-80 rounded-full border border-gray-300 px-4 py-2 text-base text-[#001f3f] placeholder:text-[#001f3f]/60 outline-none focus:ring-2 focus:ring-[#0097b2]";
-  const labelClass = "mb-1 block w-full max-w-80 text-left text-sm font-medium text-[#001f3f]";
+    "w-full max-w-72 rounded-full border border-gray-300 px-4 py-2 text-base text-[#001f3f] placeholder:text-[#001f3f]/60 outline-none focus:ring-2 focus:ring-[#0097b2]";
 
   if (bootSessao) {
     return (
@@ -111,12 +110,9 @@ export default function LoginPage() {
 
       <form
         onSubmit={handleSubmit}
-        className="mx-auto flex w-full max-w-80 flex-col items-center gap-3"
+        className="mx-auto flex w-full max-w-80 flex-col items-center gap-1.5"
       >
         <div className="w-full">
-          <label htmlFor="loginId" className={labelClass}>
-            {t("email")}
-          </label>
           <input
             id="loginId"
             name="loginId"
@@ -133,9 +129,6 @@ export default function LoginPage() {
         </div>
 
         <div className="w-full">
-          <label htmlFor="senha" className={labelClass}>
-            {t("password")}
-          </label>
           <input
             id="senha"
             name="senha"
@@ -151,7 +144,7 @@ export default function LoginPage() {
           />
         </div>
 
-        <div className="w-full pt-1 text-center">
+        <div className="w-full pt-0.5 text-center">
           <Link href="/recuperar-senha" className="text-sm italic text-[#0097b2] hover:underline">
             {t("forgotPassword")}
           </Link>
@@ -159,7 +152,7 @@ export default function LoginPage() {
 
         {erroSenha ? <p className="text-center text-sm text-red-600">{erroSenha}</p> : null}
 
-        <div className="flex w-full justify-center pt-1">
+        <div className="flex w-full justify-center pt-0.5">
           <BotaoLogin disabled={carregando} loading={carregando} loadingLabel={tCommon("loading")}>
             {t("loginButton")}
           </BotaoLogin>
@@ -203,7 +196,7 @@ export default function LoginPage() {
       <button
         type="button"
         onClick={() => router.push("/escolha-perfil")}
-        className="mx-auto mt-8 block w-full max-w-80 rounded-full bg-[#00D443] py-3 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
+        className="mx-auto mt-8 block w-full max-w-72 rounded-full bg-[#00D443] py-2.5 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
       >
         {t("createAccount")}
       </button>

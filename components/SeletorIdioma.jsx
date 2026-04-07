@@ -43,7 +43,7 @@ export default function SeletorIdioma() {
     locale === 'pt' ? 'Idioma' : locale === 'es' ? 'Idioma' : 'Language'
 
   return (
-    <div ref={ref} className="relative mb-6 flex justify-center">
+    <div ref={ref} className="relative mb-2 flex justify-center">
       <button
         type="button"
         className="flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-[#001f3f] outline-none"
