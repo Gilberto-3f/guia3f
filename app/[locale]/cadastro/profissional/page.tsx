@@ -1,8 +1,9 @@
 'use client'
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
 
@@ -64,6 +65,7 @@ export default function CadastroProfissionalPage() {
   const [erroEnvio, setErroEnvio] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [bootOk, setBootOk] = useState(false)
+  const [magicLinkEnviado, setMagicLinkEnviado] = useState(false)
 
   const emailValido = useMemo(() => emailRegex.test(emailSessao), [emailSessao])
   const usernameLimpo = useMemo(
@@ -286,7 +288,20 @@ export default function CadastroProfissionalPage() {
 
       if (insertProfissional.error) throw new Error(insertProfissional.error.message)
 
-      router.push('/guia')
+      const origin = typeof window !== 'undefined' ? window.location.origin : ''
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: emailUser,
+        options: {
+          emailRedirectTo: `${origin}/auth/callback`,
+          shouldCreateUser: false,
+        },
+      })
+      if (otpError) {
+        setErroEnvio(t('magicLinkSendError'))
+        return
+      }
+      await supabase.auth.signOut()
+      setMagicLinkEnviado(true)
     } catch (error) {
       const mensagem = error instanceof Error ? error.message : t('unexpectedError')
       setErroEnvio(mensagem)
@@ -299,6 +314,23 @@ export default function CadastroProfissionalPage() {
     return (
       <GuiaAuthShell>
         <p className="text-center text-[#001f3f]">{tCommon('loading')}</p>
+      </GuiaAuthShell>
+    )
+  }
+
+  if (magicLinkEnviado) {
+    return (
+      <GuiaAuthShell>
+        <h1 className="mb-4 text-center text-xl font-bold text-[#0097b2]">{t('magicLinkSentTitle')}</h1>
+        <p className="mx-auto mb-3 max-w-md text-center text-sm leading-relaxed text-[#001f3f]">
+          {t('magicLinkSentBody')}
+        </p>
+        <p className="mx-auto max-w-md text-center text-xs text-[#001f3f]/80">{t('magicLinkSentHint')}</p>
+        <div className="mt-8 text-center text-sm text-[#001f3f]">
+          <Link href="/login" className="font-medium text-[#0097b2] hover:underline">
+            {t('magicLinkGoToLogin')}
+          </Link>
+        </div>
       </GuiaAuthShell>
     )
   }

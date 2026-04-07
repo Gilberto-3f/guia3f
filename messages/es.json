@@ -36,7 +36,7 @@
   "EscolhaPerfil": {
     "title": "¿Cómo desea registrarse?",
     "loading": "Cargando…",
-    "register": "Registrarse",
+    "register": "Regístrese",
     "footerPrivacy": "Políticas de privacidad",
     "footerRules": "Reglas del ecosistema",
     "turista": {
@@ -45,11 +45,11 @@
     },
     "profissional": {
       "label": "Profesional",
-      "panelBody": "Para trabajar en la plataforma como guía, taxista, van, conductor de app o anfitrión, conectando con turistas y empresas de la Triple Frontera."
+      "panelBody": "Para trabajar en la plataforma como parte de nuestro ecosistema (guía de turismo, taxista, conductor de van, conductor de app o anfitrión), ofreciendo sus servicios a la comunidad."
     },
     "empresa": {
       "label": "Empresa",
-      "panelBody": "Para promocionar su negocio, vender productos, atraer clientes e integrarse al ecosistema turístico y comercial de la región."
+      "panelBody": "Para promocionar su negocio y trabajar con nuestro ecosistema, atraer clientes y utilizar herramientas exclusivas para empresas."
     }
   },
   "Cadastro": {
@@ -64,6 +64,11 @@
     "sending": "Enviando...",
     "authUserError": "No fue posible obtener el usuario autenticado.",
     "unexpectedError": "Error inesperado al completar el registro.",
+    "magicLinkSentTitle": "Confirme el acceso por correo",
+    "magicLinkSentBody": "Enviamos un enlace mágico a su correo. Ábralo para iniciar sesión e ir a Guia 3F.",
+    "magicLinkSentHint": "¿No lo recibió? Revise la carpeta de spam.",
+    "magicLinkSendError": "El registro se guardó, pero no pudimos enviar el enlace. Contacte o intente entrar desde el inicio de sesión.",
+    "magicLinkGoToLogin": "Iniciar sesión",
     "common": {
       "optional": "(opcional)",
       "required": "*",

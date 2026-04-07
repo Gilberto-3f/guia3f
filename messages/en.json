@@ -36,7 +36,7 @@
   "EscolhaPerfil": {
     "title": "How do you want to register?",
     "loading": "Loading…",
-    "register": "Register",
+    "register": "Sign up",
     "footerPrivacy": "Privacy policy",
     "footerRules": "Ecosystem rules",
     "turista": {
@@ -45,11 +45,11 @@
     },
     "profissional": {
       "label": "Professional",
-      "panelBody": "To work on the platform as a guide, taxi, van, rideshare driver, or host—connecting with tourists and businesses across the Triple Frontier."
+      "panelBody": "To work on the platform as part of our ecosystem (tourism guide, taxi driver, van driver, rideshare driver, or host), offering your services to the community."
     },
     "empresa": {
       "label": "Business",
-      "panelBody": "To promote your business, sell products, attract customers, and join the region's tourism and commerce ecosystem."
+      "panelBody": "To promote your business and work with our ecosystem, attract customers, and use tools exclusive to companies."
     }
   },
   "Cadastro": {
@@ -64,6 +64,11 @@
     "sending": "Sending...",
     "authUserError": "Could not get the authenticated user.",
     "unexpectedError": "Unexpected error completing registration.",
+    "magicLinkSentTitle": "Confirm access via email",
+    "magicLinkSentBody": "We sent a magic link to your email. Open it to sign in and go to Guia 3F.",
+    "magicLinkSentHint": "Didn't receive it? Check your spam folder.",
+    "magicLinkSendError": "Your registration was saved, but we couldn't send the link. Contact support or try signing in from the login page.",
+    "magicLinkGoToLogin": "Sign in",
     "common": {
       "optional": "(optional)",
       "required": "*",

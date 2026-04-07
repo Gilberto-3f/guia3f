@@ -1,0 +1,99 @@
+🚨 REGRAS DE OURO (NUNCA QUEBRAR)
+- NUNCA modifique arquivos fora do escopo solicitado
+- NUNCA faça refatoração sem permissão explícita
+- SEMPRE use Plan Mode antes de mudanças em múltiplos arquivos
+- SEMPRE faça commit após cada correção que funcionar
+
+🔄 FLUXO DE AUTENTICAÇÃO (NÃO ALTERAR)
+1- /login → e-mail + senha
+2- Botão "CRIAR CONTA" → /escolha-perfil
+3- /escolha-perfil → 3 botões com painéis
+4- Dentro do painel → botão "CADASTRAR" → /cadastro/[tipo]
+5- Cadastro detalhado → magic link → /guia
+
+🧭 REGRAS DE NAVEGAÇÃO
+- SEMPRE use import { useRouter } from '@/i18n/navigation'
+- NUNCA use useRouter de next/navigation
+
+🎨 REGRAS POR PÁGINA
+• Login (/login)
+Campos: E-mail, Senha
+Botão: LOGIN
+Botão: CRIAR CONTA → /escolha-perfil
+NÃO colocar magic link nesta página
+
+• Escolha-perfil (/escolha-perfil)
+NÃO exige sessão (visitante pode acessar)
+3 botões: Turista, Profissional, Empresa
+Cada botão → abre painel com texto
+Dentro do painel → botão CADASTRAR → /cadastro/[tipo]
+NÃO fazer router.push diretamente nos botões principais
+
+• Cadastro (/cadastro/[tipo])
+Exige sessão (redireciona para /login se não logado)
+E-mail desabilitado (vem da sessão)
+Botão CADASTRAR → insere na tabela + magic link
+
+🗄️ REGRAS DE BANCO DE DADOS
+Políticas RLS necessárias:
+
+-- Turistas
+CREATE POLICY "Usuários podem inserir seu próprio perfil"
+ON public.turistas FOR INSERT TO authenticated
+WITH CHECK (auth.uid() = usuario_id);
+
+-- Profissionais
+CREATE POLICY "Usuários podem inserir seu próprio perfil"
+ON public.profissionais FOR INSERT TO authenticated
+WITH CHECK (auth.uid() = usuario_id);
+
+-- Empresas
+CREATE POLICY "Usuários podem inserir seu próprio perfil"
+ON public.empresas FOR INSERT TO authenticated
+WITH CHECK (auth.uid() = usuario_id);
+
+🎨 CORES OFICIAIS
+Primária (fundo): #0097b2 (azul bebê)
+Botão principal: #00D443 (verde)
+Texto secundário: #666666
+Fundo de painéis: #f5f5f5
+
+📝 FORMATO DE COMMIT
+feat: nova funcionalidade
+fix: correção de bug
+refactor: refatoração
+style: formatação/estilo
+chore: manutenção
+
+📝 FORMATO DE PROMPT
+
+## COMANDO: [Ação específica]
+
+### 🎯 OBJETIVO
+[Uma frase, apenas o que mudar]
+
+### 📁 ARQUIVOS
+- [caminho/do/arquivo.tsx]
+
+### 📋 O QUE FAZER
+1. [Ação específica 1]
+2. [Ação específica 2]
+
+### ❌ O QUE NÃO FAZER
+- [Não modificar X]
+
+### ✅ CRITÉRIOS DE ACEITE
+- [ ] Resultado esperado
+
+⚠️ O QUE EVITAR
+❌ Criar páginas não solicitadas (ex: /registro)
+❌ Fazer router.push direto nos botões da escolha-perfil
+❌ Exigir sessão na escolha-perfil
+❌ Modificar RLS sem necessidade
+❌ Remover magic link do fluxo de cadastro
+
+✅ REGRAS DE DIAGNÓSTICO
+• Problema: Verificar
+1- Botão não aparece: COMPONENTES ou CONTEXTO
+2- Botão aparece mas não faz nada: ESTADO ou REGRAS
+3- Dados não salvam: DADOS (tabelas, RLS, triggers)
