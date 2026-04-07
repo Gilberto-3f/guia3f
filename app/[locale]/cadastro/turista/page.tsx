@@ -5,6 +5,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
+import { sendPostCadastroMagicLink } from '@/lib/sendPostCadastroMagicLink'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -212,6 +213,11 @@ export default function CadastroTuristaPage() {
         const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
         if (!res.ok) {
           setErroEnvio(mapApiTuristaError(json.error, t))
+          return
+        }
+        const { error: otpError } = await sendPostCadastroMagicLink(emailSessao)
+        if (otpError) {
+          setErroEnvio(t('magicLinkSendError'))
           return
         }
         setMagicLinkEnviado(true)
