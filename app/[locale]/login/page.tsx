@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
+import { getSafeCadastroNext } from "@/lib/cadastroNextRedirect";
 import { getPostAuthRedirectPath } from "@/lib/postAuthRedirect";
 import GuiaAuthShell from "@/components/GuiaAuthShell";
 import SeletorIdioma from "@/components/SeletorIdioma";
@@ -15,6 +17,7 @@ const senhaMinLen = 8;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useTranslations("Login");
   const tCommon = useTranslations("Common");
   const [loginId, setLoginId] = useState("");
@@ -31,6 +34,11 @@ export default function LoginPage() {
       } = await supabase.auth.getSession();
       if (!ativo) return;
       if (session?.user?.id) {
+        const nextCadastro = getSafeCadastroNext(searchParams.get("next"));
+        if (nextCadastro) {
+          router.replace(nextCadastro);
+          return;
+        }
         const path = await getPostAuthRedirectPath(supabase, session.user.id);
         router.replace(path);
         return;
@@ -41,7 +49,7 @@ export default function LoginPage() {
     return () => {
       ativo = false;
     };
-  }, [router]);
+  }, [router, searchParams]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -70,6 +78,11 @@ export default function LoginPage() {
       } = await supabase.auth.getSession();
       const uid = session?.user?.id;
       if (uid) {
+        const nextCadastro = getSafeCadastroNext(searchParams.get("next"));
+        if (nextCadastro) {
+          router.replace(nextCadastro);
+          return;
+        }
         const path = await getPostAuthRedirectPath(supabase, uid);
         router.replace(path);
       }
