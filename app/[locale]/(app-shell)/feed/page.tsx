@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
+import { fetchPatrocinioAutorIds, isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import StoriesBar from '@/components/StoriesBar'
 import PostCard from '@/components/PostCard'
 import StoryViewer from '@/components/StoryViewer'
@@ -61,6 +62,25 @@ function FeedPageInner() {
 
   const [meuId, setMeuId] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
+  const [feedRede, setFeedRede] = useState<{
+    seguidos: string[]
+    patrocinioAutores: string[]
+    ready: boolean
+  }>({ seguidos: [], patrocinioAutores: [], ready: false })
+  const feedRedeRef = useRef({
+    seguidos: [] as string[],
+    patrocinioAutores: [] as string[],
+    ready: false,
+    meuId: null as string | null,
+  })
+  useEffect(() => {
+    feedRedeRef.current = {
+      seguidos: feedRede.seguidos,
+      patrocinioAutores: feedRede.patrocinioAutores,
+      ready: feedRede.ready,
+      meuId,
+    }
+  }, [feedRede, meuId])
   const [storyAberto, setStoryAberto] = useState<StoryViewerState | null>(null)
   const [storiesBarReload, setStoriesBarReload] = useState(0)
   const [storiesPorAutor, setStoriesPorAutor] = useState<
@@ -80,7 +100,7 @@ function FeedPageInner() {
       }
       const { data, error } = await supabase
         .from('stories')
-        .select('id, autor_id, visualizado_por, created_at')
+        .select('id, autor_id, visualizado_por, created_at, tipo')
         .in('autor_id', ids)
         .gt('expira_em', new Date().toISOString())
         .order('created_at', { ascending: false })
@@ -90,6 +110,7 @@ function FeedPageInner() {
       }
       const map: Record<string, { id: string; visualizado_por: unknown }> = {}
       for (const row of data ?? []) {
+        if (isTipoVideoPost((row as { tipo?: string }).tipo)) continue
         const aid = String(row.autor_id)
         if (!map[aid]) {
           map[aid] = { id: String(row.id), visualizado_por: row.visualizado_por }
@@ -144,24 +165,38 @@ function FeedPageInner() {
     }
   }, [])
 
-  const fetchPage = useCallback(
-    async (pageIndex: number) => {
-      const from = pageIndex * PAGE_SIZE
-      const to = from + PAGE_SIZE - 1
-      const { data, error } = await supabase
-        .from(POSTS_FEED_VIEW)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range(from, to)
+  const fetchPage = useCallback(async (pageIndex: number) => {
+    const from = pageIndex * PAGE_SIZE
+    const to = from + PAGE_SIZE - 1
+    const { seguidos, patrocinioAutores, ready, meuId: uidFromRef } = feedRedeRef.current as {
+      seguidos: string[]
+      patrocinioAutores: string[]
+      ready: boolean
+      meuId?: string | null
+    }
+    if (!ready) return []
 
-      if (error) throw error
-      const rows = (data ?? []).map(mapRow)
-      return rows
-    },
-    [mapRow]
-  )
+    const meu = uidFromRef ?? meuId
+    const allowed = [...new Set([...seguidos, ...patrocinioAutores])].filter((id) => id && id !== meu)
+    if (allowed.length === 0) return []
+
+    const { data, error } = await supabase
+      .from(POSTS_FEED_VIEW)
+      .select('*')
+      .in('autor_id', allowed)
+      .order('created_at', { ascending: false })
+      .range(from, to)
+
+    if (error) throw error
+    const raw = data ?? []
+    return raw
+      .filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
+      .map(mapRow)
+      .filter((row) => !isTipoVideoPost(row.tipo))
+  }, [mapRow])
 
   useEffect(() => {
+    if (!feedRede.ready) return
     const run = async () => {
       setLoading(true)
       pageRef.current = 0
@@ -179,14 +214,14 @@ function FeedPageInner() {
       }
     }
     void run()
-  }, [fetchPage])
+  }, [fetchPage, feedRede.ready])
 
   useEffect(() => {
     fetchPostAttempted.current = null
   }, [postParam])
 
   useEffect(() => {
-    if (!postParam || loading) return
+    if (!postParam || loading || !feedRede.ready) return
     if (posts.some((p) => p.id === postParam)) return
     if (fetchPostAttempted.current === postParam) return
     fetchPostAttempted.current = postParam
@@ -196,13 +231,28 @@ function FeedPageInner() {
         fetchPostAttempted.current = null
         return
       }
+      if ((data as { deleted_at?: string | null }).deleted_at) {
+        fetchPostAttempted.current = null
+        return
+      }
       const row = mapRow(data)
+      if (isTipoVideoPost(row.tipo)) {
+        fetchPostAttempted.current = null
+        return
+      }
+      const { seguidos, patrocinioAutores, meuId: uidRef } = feedRedeRef.current
+      const allowed = new Set([...seguidos, ...patrocinioAutores])
+      const aid = row.autor?.usuario_id ?? ''
+      if (uidRef && aid && aid !== uidRef && !allowed.has(aid)) {
+        fetchPostAttempted.current = null
+        return
+      }
       setPosts((prev) => {
         if (prev.some((p) => p.id === row.id)) return prev
         return [row, ...prev]
       })
     })()
-  }, [postParam, loading, posts, mapRow])
+  }, [postParam, loading, posts, mapRow, feedRede.ready])
 
   useEffect(() => {
     if (!postParam || posts.length === 0) return
@@ -251,7 +301,7 @@ function FeedPageInner() {
       .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos, autor_id')
       .eq('id', id)
       .maybeSingle()
-    if (!error && data) {
+    if (!error && data && String(data.tipo ?? '').toLowerCase() !== 'video') {
       const ts = data.texto_sobreposto
       const textoParsed =
         ts && typeof ts === 'object' && !Array.isArray(ts)
@@ -291,7 +341,9 @@ function FeedPageInner() {
         {posts.length === 0 ? (
           <div className="py-8 text-center">
             <p className="text-gray-400">Nenhuma publicação ainda</p>
-            <p className="mt-1 text-sm text-gray-400">Crie um post ou aguarde novidades da rede.</p>
+            <p className="mt-1 text-sm text-gray-400">
+              Siga perfis no Guia ou aguarde conteúdo de empresas em campanha para ver o feed aqui.
+            </p>
           </div>
         ) : (
           posts.map((post) => (

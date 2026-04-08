@@ -12,6 +12,7 @@ import {
   STORY_RING_GRADIENT,
   visualizadoPorEmails,
 } from '@/lib/feed-autor'
+import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import StoryCircle from '@/components/StoryCircle'
 
 const MAX_STORY_RINGS = 12
@@ -68,10 +69,9 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     visualizado_por: null,
   })
 
-  /** @type {{ id: string, label: string, avatarUrl: string | null, isVideo: boolean, visualizado_por: unknown }[]} */
+  /** @type {{ id: string, label: string, avatarUrl: string | null, isVideo: boolean, autorUsuarioId: string, visualizado_por: unknown }[]} */
   const [rings, setRings] = useState([])
-
-  const router = useRouter()
+  const [meuUserId, setMeuUserId] = useState(/** @type {string | null} */ (null))
 
   const load = useCallback(async () => {
     const {
@@ -79,11 +79,13 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     } = await supabase.auth.getSession()
     if (!session?.user) {
       setRings([])
+      setMeuUserId(null)
       setMeuSlot({ avatarUrl: null, storyId: null, visualizado_por: null })
       return
     }
 
     const uid = session.user.id
+    setMeuUserId(uid)
 
     let meuAvatarUrl = await fetchFotoPerfilUsuario(supabase, uid)
     if (!meuAvatarUrl) {
@@ -110,27 +112,18 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
 
     const seguidosIds = new Set((seguidosRows ?? []).map((r) => String(r.seguido_id)))
 
-    const { data: favs } = await supabase.from('favoritos').select('empresa_id').eq('usuario_id', uid).not('empresa_id', 'is', null)
-
-    const empresaIds = [...new Set((favs ?? []).map((f) => f.empresa_id).filter(Boolean))]
-
-    let emps = /** @type {{ id: string, usuario_id: string, nome_fantasia: string | null, foto_url: string | null }[]} */ ([])
-    let autorSeguidos = /** @type {string[]} */ ([])
-    if (empresaIds.length) {
-      const { data: empsData } = await supabase
-        .from('empresas')
-        .select('id, usuario_id, nome_fantasia, foto_url')
-        .in('id', empresaIds)
-      emps = /** @type {typeof emps} */ (empsData ?? [])
-      autorSeguidos = emps.map((e) => String(e.usuario_id)).filter(Boolean)
-    }
+    const { data: allEmpresas } = await supabase.from('empresas').select('usuario_id, nome_fantasia, foto_url')
+    const empresaAutorSet = new Set((allEmpresas ?? []).map((e) => String(e.usuario_id)).filter(Boolean))
+    const emps = /** @type {{ id: string, usuario_id: string, nome_fantasia: string | null, foto_url: string | null }[]} */ (
+      allEmpresas ?? []
+    )
 
     const { data: storiesRows, error: storiesErr } = await supabase
       .from('stories')
       .select('id, autor_id, conteudo_url, visualizado_por, created_at, tipo, autor_tipo')
       .gt('expira_em', new Date().toISOString())
       .order('created_at', { ascending: false })
-      .limit(80)
+      .limit(120)
 
     if (storiesErr) {
       console.error(storiesErr)
@@ -139,8 +132,17 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       return
     }
 
-    const byAutor = /** @type {Map<string, NonNullable<typeof storiesRows>[0]>} */ (new Map())
-    for (const s of storiesRows ?? []) {
+    /** Stories permitidos: seguidos (não empresa) ou qualquer empresa; sem vídeo. */
+    const storiesFiltradas = (storiesRows ?? []).filter((s) => {
+      if (isTipoVideoPost(s.tipo)) return false
+      const aid = String(s.autor_id)
+      const isEmp = isAutorEmpresa(s.autor_tipo) || empresaAutorSet.has(aid)
+      if (isEmp) return true
+      return seguidosIds.has(aid)
+    })
+
+    const byAutor = /** @type {Map<string, NonNullable<typeof storiesFiltradas>[0]>} */ (new Map())
+    for (const s of storiesFiltradas) {
       const aid = String(s.autor_id)
       if (!byAutor.has(aid)) byAutor.set(aid, s)
     }
@@ -148,7 +150,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     const meuStoryRow = byAutor.get(uid)
     setMeuSlot({
       avatarUrl: meuAvatarUrl,
-      storyId: meuStoryRow ? String(meuStoryRow.id) : null,
+      storyId: meuStoryRow && !isTipoVideoPost(meuStoryRow.tipo) ? String(meuStoryRow.id) : null,
       visualizado_por: meuStoryRow?.visualizado_por ?? null,
     })
 
@@ -160,9 +162,9 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       .maybeSingle()
 
     let obrAutor = destaque?.usuario_id != null ? String(destaque.usuario_id) : null
-    if (!obrAutor && empresaIds.length) {
-      const { data: uma } = await supabase.from('empresas').select('usuario_id').limit(1).maybeSingle()
-      obrAutor = uma?.usuario_id != null ? String(uma.usuario_id) : null
+    if (!obrAutor) {
+      const firstE = (allEmpresas ?? [])[0]
+      obrAutor = firstE?.usuario_id != null ? String(firstE.usuario_id) : null
     }
 
     /** @type {string[]} */
@@ -177,12 +179,11 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       return true
     }
 
-    // Próprio utilizador: slot fixo à parte — não entra na lista horizontal
     seen.add(uid)
 
-    // 1) Seguidos (não empresa)
+    // 1) Seguidos turista/profissional (não empresa)
     const seguidosNaoEmpresa = [...byAutor.entries()]
-      .filter(([aid, s]) => aid !== uid && seguidosIds.has(aid) && !isAutorEmpresa(s.autor_tipo))
+      .filter(([aid, s]) => aid !== uid && seguidosIds.has(aid) && !isAutorEmpresa(s.autor_tipo) && !empresaAutorSet.has(aid))
       .sort((a, b) => {
         const ta = new Date(/** @type {string} */ (a[1].created_at ?? 0)).getTime()
         const tb = new Date(/** @type {string} */ (b[1].created_at ?? 0)).getTime()
@@ -193,40 +194,13 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       pushAid(aid)
     }
 
-    const empresaSeguidosComStory = autorSeguidos.filter((a) => {
-      const s = byAutor.get(a)
-      return s != null && isAutorEmpresa(s.autor_tipo)
-    })
+    // 2) Stories de empresas (visíveis para todos) — intercala destaque publicitário
+    const empresaComStory = [...byAutor.keys()].filter((aid) => empresaAutorSet.has(aid))
     const sObr = obrAutor ? byAutor.get(obrAutor) : null
-    const obrEmpresa =
-      obrAutor && sObr && isAutorEmpresa(sObr.autor_tipo) ? obrAutor : empresaSeguidosComStory.find((a) => byAutor.has(a)) ?? null
-
-    const ordemEmpresa = intercalar(empresaSeguidosComStory, obrEmpresa, 24)
+    const obrEmpresaValido = obrAutor && sObr && (isAutorEmpresa(sObr.autor_tipo) || empresaAutorSet.has(obrAutor)) ? obrAutor : null
+    const obrFinal = obrEmpresaValido ?? empresaComStory.find((a) => byAutor.has(a)) ?? null
+    const ordemEmpresa = intercalar(empresaComStory, obrFinal, 24)
     for (const aid of ordemEmpresa) {
-      if (ordered.length >= MAX_STORY_RINGS) break
-      pushAid(aid)
-    }
-
-    const outrosNaoSeguidos = [...byAutor.entries()]
-      .filter(([aid, s]) => !seen.has(aid) && !isAutorEmpresa(s.autor_tipo) && aid !== uid && !seguidosIds.has(aid))
-      .sort((a, b) => {
-        const ta = new Date(/** @type {string} */ (a[1].created_at ?? 0)).getTime()
-        const tb = new Date(/** @type {string} */ (b[1].created_at ?? 0)).getTime()
-        return tb - ta
-      })
-    for (const [aid] of outrosNaoSeguidos) {
-      if (ordered.length >= MAX_STORY_RINGS) break
-      pushAid(aid)
-    }
-
-    const restantesEmpresa = [...byAutor.entries()]
-      .filter(([aid, s]) => !seen.has(aid) && isAutorEmpresa(s.autor_tipo))
-      .sort((a, b) => {
-        const ta = new Date(/** @type {string} */ (a[1].created_at ?? 0)).getTime()
-        const tb = new Date(/** @type {string} */ (b[1].created_at ?? 0)).getTime()
-        return tb - ta
-      })
-    for (const [aid] of restantesEmpresa) {
       if (ordered.length >= MAX_STORY_RINGS) break
       pushAid(aid)
     }
@@ -272,13 +246,14 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       .map((aid) => {
         const s = byAutor.get(aid)
         if (!s) return null
-        const isVideo = String(s.tipo ?? '') === 'video'
+        const isVideo = isTipoVideoPost(s.tipo)
         const avatarUrl = previews[aid] ?? null
         return {
           id: String(s.id),
           label: labels[aid] ?? 'Story',
           avatarUrl,
           isVideo,
+          autorUsuarioId: aid,
           visualizado_por: s.visualizado_por,
         }
       })
@@ -326,11 +301,6 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
   const meuVisto = foiVisualizado(meuSlot.visualizado_por, userEmail)
   const meuTemStory = Boolean(meuSlot.storyId)
 
-  const abrirMeuStory = () => {
-    if (meuSlot.storyId) onOpenStory(meuSlot.storyId)
-    else router.push('/feed/story/criar')
-  }
-
   return (
     <div className="border-b border-gray-200 bg-transparent py-1.5">
       <div className="flex items-start gap-2 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -344,23 +314,36 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
               style={meuTemStory && !meuVisto ? { background: STORY_RING_GRADIENT } : undefined}
             >
               <div className="rounded-full bg-white p-[2px]">
-                <button
-                  type="button"
-                  onClick={() => abrirMeuStory()}
-                  className="relative block h-[75px] w-[75px] overflow-hidden rounded-full bg-gray-100"
-                  aria-label={meuTemStory ? 'Ver seu story' : 'Criar story'}
-                >
-                  <AvatarImage
-                    key={meuSlot.avatarUrl || 'def'}
-                    src={meuSlot.avatarUrl}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="75px"
-                  />
-                </button>
+                {meuUserId ? (
+                  <Link
+                    href={`/perfil/${meuUserId}`}
+                    className="relative block h-[75px] w-[75px] overflow-hidden rounded-full bg-gray-100"
+                    aria-label="Ver seu perfil"
+                  >
+                    <AvatarImage
+                      key={meuSlot.avatarUrl || 'def'}
+                      src={meuSlot.avatarUrl}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="75px"
+                    />
+                  </Link>
+                ) : (
+                  <div className="relative block h-[75px] w-[75px] overflow-hidden rounded-full bg-gray-100" />
+                )}
               </div>
             </div>
+            {meuTemStory ? (
+              <button
+                type="button"
+                onClick={() => onOpenStory(meuSlot.storyId)}
+                className="absolute bottom-6 right-0 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-2 ring-white"
+                aria-label="Ver seu story"
+              >
+                <span className="text-[10px] font-bold">▶</span>
+              </button>
+            ) : null}
             <Link
               href="/feed/story/criar"
               onClick={(e) => e.stopPropagation()}
@@ -377,6 +360,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
           <StoryCircle
             key={s.id}
             id={s.id}
+            autorUsuarioId={s.autorUsuarioId}
             label={s.label}
             avatarUrl={s.avatarUrl}
             isVideo={s.isVideo}

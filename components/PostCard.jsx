@@ -533,20 +533,31 @@ export default function PostCard({
               className={`relative shrink-0 rounded-md p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
               style={!storyDoAutorVisto ? { background: STORY_RING_GRADIENT } : undefined}
             >
-              <button
-                type="button"
-                className="relative block h-10 w-10 overflow-hidden rounded-md bg-gray-100 p-0"
-                onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
-                aria-label={`Story de ${post.autor?.nome ?? 'autor'}`}
-              >
-                <AvatarImage
-                  src={post.autor?.foto_perfil_url}
-                  alt=""
-                  width={40}
-                  height={40}
-                  className="h-full w-full object-cover"
-                />
-              </button>
+              <div className="relative">
+                <Link
+                  href={`/perfil/${autorId}`}
+                  className="relative block h-10 w-10 overflow-hidden rounded-md bg-gray-100"
+                  aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
+                >
+                  <AvatarImage
+                    src={post.autor?.foto_perfil_url}
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="h-full w-full object-cover"
+                  />
+                </Link>
+                {storyAtivo?.id ? (
+                  <button
+                    type="button"
+                    className="absolute -bottom-0.5 -right-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-black/55 text-white"
+                    onClick={() => onAbrirStory?.(storyAtivo.id)}
+                    aria-label={`Ver story de ${post.autor?.nome ?? 'autor'}`}
+                  >
+                    <span className="text-[8px]">▶</span>
+                  </button>
+                ) : null}
+              </div>
             </div>
           ) : autorId ? (
             <Link

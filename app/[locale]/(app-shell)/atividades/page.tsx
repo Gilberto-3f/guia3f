@@ -234,6 +234,7 @@ export default function AtividadesPage() {
         ? supabase
             .from('atividades')
             .select('*')
+            .eq('usuario_id', uid)
             .in('autor_id', seguindo)
             .order('created_at', { ascending: false })
             .limit(200)
@@ -374,6 +375,7 @@ export default function AtividadesPage() {
       return (
         <AtividadeCurtiuComentario
           key={r.id}
+          usuarioAtorId={r.autor_id}
           usernameAtor={ator?.username ?? 'usuario'}
           textoComentario={texto}
           postId={postId || r.alvo_id}
@@ -409,6 +411,7 @@ export default function AtividadesPage() {
       return (
         <AtividadeSeguidor
           key={r.id}
+          seguidorUsuarioId={seguidorId}
           usernameSeguidor={uSeg?.username ?? 'usuario'}
           usernameSeguido={uAlvo?.username ?? 'usuario'}
           seguidoUsuarioId={seguidoId}
@@ -427,6 +430,7 @@ export default function AtividadesPage() {
       return (
         <AtividadeAvaliacao
           key={r.id}
+          usuarioAtorId={r.autor_id}
           usernameAtor={ator?.username ?? 'usuario'}
           nomeEmpresa={em?.nome ?? 'Empresa'}
           empresaId={empId}
