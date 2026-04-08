@@ -2,38 +2,36 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { useRouter } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import ModalConteudo from '@/components/atividades/ModalConteudo'
 
 /**
  * @param {{
- *   usernameAtor: string
+ *   interactorUsername: string
  *   interactorFoto: string | null
- *   usernameDono: string
+ *   donorUsername: string
  *   hrefInteractor: string
- *   hrefDono: string
- *   textoComentario: string
+ *   hrefDonor: string
+ *   texto: string
  *   postId: string
- *   comentarioId: string
  * }} props
  */
-export default function AtividadeCurtiuComentario({
-  usernameAtor,
+export default function AtividadeCurtiuPost({
+  interactorUsername,
   interactorFoto,
-  usernameDono,
+  donorUsername,
   hrefInteractor,
-  hrefDono,
-  textoComentario,
+  hrefDonor,
+  texto,
   postId,
-  comentarioId,
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
-  const verHref = `/perfil/atividades/${encodeURIComponent(postId)}?comentario=${encodeURIComponent(comentarioId)}`
+  const verHref = `/perfil/atividades/${encodeURIComponent(postId)}`
 
   return (
     <>
-      <div className="block rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-gray-200">
+      <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
         <div className="flex gap-3">
           <button
             type="button"
@@ -50,23 +48,23 @@ export default function AtividadeCurtiuComentario({
           </button>
           <div className="min-w-0 flex-1">
             <p className="text-sm text-gray-800">
-              <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
-                @{usernameAtor}
-              </button>{' '}
-              curtiu comentário de{' '}
-              <button type="button" onClick={() => router.push(hrefDono)} className="font-medium text-[#0097b2] hover:underline">
-                @{usernameDono}
-              </button>
+              <Link href={hrefInteractor} className="font-medium text-[#0097b2] hover:underline">
+                @{interactorUsername}
+              </Link>{' '}
+              curtiu post de{' '}
+              <Link href={hrefDonor} className="font-medium text-[#0097b2] hover:underline">
+                @{donorUsername}
+              </Link>
               :
             </p>
             <button type="button" onClick={() => setModal(true)} className="mt-2 w-full rounded-lg bg-gray-50 p-3 text-left">
-              <p className="line-clamp-3 text-sm italic text-gray-600">&ldquo;{textoComentario}&rdquo;</p>
+              <p className="line-clamp-3 whitespace-pre-wrap text-sm text-gray-700">{texto || '—'}</p>
             </button>
           </div>
         </div>
       </div>
-      <ModalConteudo aberto={modal} onFechar={() => setModal(false)} titulo="Comentário" verNoFeedHref={verHref}>
-        <p className="whitespace-pre-wrap text-sm text-gray-800">&ldquo;{textoComentario}&rdquo;</p>
+      <ModalConteudo aberto={modal} onFechar={() => setModal(false)} titulo="Post" verNoFeedHref={verHref}>
+        <p className="whitespace-pre-wrap text-sm text-gray-800">{texto || '—'}</p>
       </ModalConteudo>
     </>
   )

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { Heart, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -8,9 +9,13 @@ import { pickAutorDisplay } from '@/lib/feed-autor'
 import AbasAtividades from '@/components/atividades/AbasAtividades'
 import AtividadeCurtidas from '@/components/atividades/AtividadeCurtidas'
 import AtividadeCurtiuComentario from '@/components/atividades/AtividadeCurtiuComentario'
+import AtividadeCurtiuPost from '@/components/atividades/AtividadeCurtiuPost'
+import AtividadeCurtiuRepost from '@/components/atividades/AtividadeCurtiuRepost'
+import AtividadeCurtiuAvaliacao from '@/components/atividades/AtividadeCurtiuAvaliacao'
 import AtividadeComentario from '@/components/atividades/AtividadeComentario'
 import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
 import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
+import { agruparAtividadesCurtidasPost, urlFotoPost } from '@/lib/atividades-feed'
 
 const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
 
@@ -29,12 +34,6 @@ type AtividadeRow = {
 
 type PerfilMap = Record<string, ReturnType<typeof pickAutorDisplay>>
 
-function trunc(s: unknown, n = 100) {
-  if (s == null) return ''
-  const t = String(s).trim()
-  return t.length <= n ? t : `${t.slice(0, n)}…`
-}
-
 function dayKey(iso: string) {
   const d = new Date(iso)
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
@@ -52,34 +51,6 @@ function tituloBlocoData(iso: string) {
   ontem.setDate(ontem.getDate() - 1)
   if (sameDay(d, ontem)) return 'ONTEM'
   return d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
-}
-
-function agruparCurtidasPost(ordenadoDesc: AtividadeRow[]) {
-  const resultado: (
-    | { kind: 'curtiu_post_grupo'; autor_id: string; rows: AtividadeRow[]; created_at: string }
-    | { kind: 'outro'; row: AtividadeRow }
-  )[] = []
-  let i = 0
-  while (i < ordenadoDesc.length) {
-    const r = ordenadoDesc[i]
-    if (r.tipo === 'curtiu_post') {
-      const dk = dayKey(r.created_at)
-      const autor = r.autor_id
-      const grupo: AtividadeRow[] = [r]
-      i++
-      while (i < ordenadoDesc.length) {
-        const x = ordenadoDesc[i]
-        if (x.tipo !== 'curtiu_post' || x.autor_id !== autor || dayKey(x.created_at) !== dk) break
-        grupo.push(x)
-        i++
-      }
-      resultado.push({ kind: 'curtiu_post_grupo', autor_id: autor, rows: grupo, created_at: grupo[0].created_at })
-    } else {
-      resultado.push({ kind: 'outro', row: r })
-      i++
-    }
-  }
-  return resultado
 }
 
 const USUARIOS_SELECT = `
@@ -101,7 +72,21 @@ export default function AtividadesPage() {
   const [listaAmigos, setListaAmigos] = useState<AtividadeRow[]>([])
   const [listaMinha, setListaMinha] = useState<AtividadeRow[]>([])
   const [perfilMap, setPerfilMap] = useState<PerfilMap>({})
-  const [postUrlMap, setPostUrlMap] = useState<Record<string, string>>({})
+  const [postMetaMap, setPostMetaMap] = useState<
+    Record<
+      string,
+      {
+        id: string
+        tipo: string | null
+        texto: string | null
+        conteudo_url: string | null
+        foto_url: string | null
+        post_original_id: string | null
+        avaliacao_meta: unknown
+        autor_id: string
+      }
+    >
+  >({})
   const [empresaMap, setEmpresaMap] = useState<Record<string, { id: string; nome: string }>>({})
   const [seguidoEmpresaMap, setSeguidoEmpresaMap] = useState<Record<string, string>>({})
   const [qtdSeguindo, setQtdSeguindo] = useState(0)
@@ -110,6 +95,7 @@ export default function AtividadesPage() {
     const ids = new Set<string>()
     for (const r of rows) {
       ids.add(r.autor_id)
+      ids.add(r.usuario_id)
       const ex = r.dados_extras
       if (ex && typeof ex === 'object') {
         const seguidor = ex.seguidor_id
@@ -120,6 +106,15 @@ export default function AtividadesPage() {
     }
     return [...ids]
   }, [])
+
+  const hrefUsuario = useCallback(
+    (uid: string) => {
+      const p = perfilMap[uid]
+      if (p?.role === 'empresa' && p.empresa_id) return `/empresa/${p.empresa_id}`
+      return `/perfil/${uid}`
+    },
+    [perfilMap]
+  )
 
   const carregarPerfis = useCallback(
     async (rows: AtividadeRow[]) => {
@@ -157,24 +152,62 @@ export default function AtividadesPage() {
     [coletarIdsPerfis]
   )
 
-  const carregarPostsUrls = useCallback(async (postIds: string[]) => {
+  const carregarPostsMeta = useCallback(async (postIds: string[]) => {
     const uniq = [...new Set(postIds)].filter(Boolean)
     if (uniq.length === 0) {
-      setPostUrlMap({})
+      setPostMetaMap({})
       return
     }
-    const { data, error } = await supabase.from('posts').select('id, conteudo_url, foto_url').in('id', uniq)
+    const sel =
+      'id, tipo, texto, conteudo_url, foto_url, post_original_id, avaliacao_meta, autor_id'
+
+    const mergeRows = (
+      acc: Record<
+        string,
+        {
+          id: string
+          tipo: string | null
+          texto: string | null
+          conteudo_url: string | null
+          foto_url: string | null
+          post_original_id: string | null
+          avaliacao_meta: unknown
+          autor_id: string
+        }
+      >,
+      rows: unknown[]
+    ) => {
+      for (const raw of rows) {
+        const p = raw as {
+          id: string
+          tipo: string | null
+          texto: string | null
+          conteudo_url: string | null
+          foto_url: string | null
+          post_original_id: string | null
+          avaliacao_meta: unknown
+          autor_id: string
+        }
+        acc[String(p.id)] = { ...p }
+      }
+      return acc
+    }
+
+    const { data, error } = await supabase.from('posts').select(sel).in('id', uniq)
     if (error || !data) {
-      setPostUrlMap({})
+      setPostMetaMap({})
       return
     }
-    const m: Record<string, string> = {}
-    for (const p of data) {
-      const row = p as { id: string; conteudo_url: string | null; foto_url: string | null }
-      const url = row.conteudo_url || row.foto_url
-      if (url) m[String(row.id)] = String(url)
+    let m = mergeRows({}, data as unknown[])
+
+    const originais = [...new Set(Object.values(m).map((p) => p.post_original_id).filter((x): x is string => Boolean(x)))].filter((id) => !m[id])
+
+    if (originais.length > 0) {
+      const { data: origData } = await supabase.from('posts').select(sel).in('id', originais)
+      m = mergeRows(m, (origData ?? []) as unknown[])
     }
-    setPostUrlMap(m)
+
+    setPostMetaMap(m)
   }, [])
 
   const carregarEmpresasAvaliacao = useCallback(async (empresaIds: string[]) => {
@@ -231,13 +264,7 @@ export default function AtividadesPage() {
 
     const [amigosRes, minhaRes] = await Promise.all([
       seguindo.length
-        ? supabase
-            .from('atividades')
-            .select('*')
-            .eq('usuario_id', uid)
-            .in('autor_id', seguindo)
-            .order('created_at', { ascending: false })
-            .limit(200)
+        ? supabase.from('atividades').select('*').in('autor_id', seguindo).order('created_at', { ascending: false }).limit(200)
         : Promise.resolve({ data: [] as AtividadeRow[], error: null }),
       supabase.from('atividades').select('*').eq('usuario_id', uid).order('created_at', { ascending: false }).limit(200),
     ])
@@ -260,7 +287,7 @@ export default function AtividadesPage() {
         if (typeof pid === 'string') postIds.push(pid)
       }
     }
-    await carregarPostsUrls(postIds)
+    await carregarPostsMeta(postIds)
 
     const empIds: string[] = []
     for (const r of todos) {
@@ -269,7 +296,7 @@ export default function AtividadesPage() {
     await carregarEmpresasAvaliacao(empIds)
 
     setCarregando(false)
-  }, [carregarPerfis, carregarPostsUrls, carregarEmpresasAvaliacao])
+  }, [carregarPerfis, carregarPostsMeta, carregarEmpresasAvaliacao])
 
   useEffect(() => {
     void recarregar()
@@ -312,6 +339,7 @@ export default function AtividadesPage() {
 
     return fonte.filter((r) => {
       if (perfilCombina(r.autor_id)) return true
+      if (perfilCombina(r.usuario_id)) return true
       if (r.tipo === 'seguiu' && r.dados_extras && typeof r.dados_extras === 'object') {
         const ex = r.dados_extras
         const seguido = typeof ex.seguido_id === 'string' ? ex.seguido_id : null
@@ -325,8 +353,8 @@ export default function AtividadesPage() {
 
   const itensAgrupados = useMemo(() => {
     const ord = [...listaAtividadesFiltrada].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    return agruparCurtidasPost(ord)
-  }, [listaAtividadesFiltrada])
+    return agruparAtividadesCurtidasPost(ord, postMetaMap)
+  }, [listaAtividadesFiltrada, postMetaMap])
 
   const blocosComTitulo = useMemo(() => {
     const blocos: { titulo: string; key: string; itens: typeof itensAgrupados }[] = []
@@ -334,7 +362,8 @@ export default function AtividadesPage() {
     let keyAtual = ''
     let chunk: typeof itensAgrupados = []
     for (const item of itensAgrupados) {
-      const iso = item.kind === 'outro' ? item.row.created_at : item.created_at
+      const iso =
+        item.kind === 'outro' || item.kind === 'curtiu_post_solo' ? item.row.created_at : item.created_at
       const t = tituloBlocoData(iso)
       if (t !== tituloAtual) {
         if (chunk.length) blocos.push({ titulo: tituloAtual, key: keyAtual, itens: chunk })
@@ -349,20 +378,108 @@ export default function AtividadesPage() {
   }, [itensAgrupados])
 
   const renderItem = (item: (typeof itensAgrupados)[number], idx: number) => {
-    if (item.kind === 'curtiu_post_grupo') {
-      const ator = perfilMap[item.autor_id]
-      const urlsBrutas = item.rows.map((r) => postUrlMap[r.alvo_id]).filter((u): u is string => Boolean(u))
+    if (item.kind === 'curtiu_post_fotos') {
+      const inter = perfilMap[item.autor_id]
+      const donor = perfilMap[item.usuario_dono_id]
+      const urlsBrutas = item.rows.map((r) => urlFotoPost(postMetaMap[r.alvo_id])).filter((u): u is string => Boolean(u))
       const urlsGrid = urlsBrutas.length ? urlsBrutas : item.rows.map(() => '/window.svg')
-      const username = ator?.username ?? 'usuario'
       return (
         <AtividadeCurtidas
-          key={`cg-${item.autor_id}-${item.created_at}-${idx}`}
-          usernameAtor={username}
-          usuarioAtorId={item.autor_id}
+          key={`cf-${item.autor_id}-${item.usuario_dono_id}-${item.created_at}-${idx}`}
+          interactorUsername={inter?.username ?? 'usuario'}
+          interactorFoto={inter?.foto_perfil_url ?? null}
+          donorUsername={donor?.username ?? 'usuario'}
+          hrefInteractor={hrefUsuario(item.autor_id)}
+          hrefDonor={hrefUsuario(item.usuario_dono_id)}
           urls={urlsGrid}
           totalCurtidas={item.rows.length}
         />
       )
+    }
+
+    if (item.kind === 'curtiu_post_solo') {
+      const r = item.row
+      const inter = perfilMap[r.autor_id]
+      const donor = perfilMap[r.usuario_id]
+      const post = postMetaMap[r.alvo_id]
+      const textoPost = post?.texto != null ? String(post.texto) : ''
+      const hrefI = hrefUsuario(r.autor_id)
+      const hrefD = hrefUsuario(r.usuario_id)
+
+      if (item.categoria === 'texto') {
+        return (
+          <AtividadeCurtiuPost
+            key={r.id}
+            interactorUsername={inter?.username ?? 'usuario'}
+            interactorFoto={inter?.foto_perfil_url ?? null}
+            donorUsername={donor?.username ?? 'usuario'}
+            hrefInteractor={hrefI}
+            hrefDonor={hrefD}
+            texto={textoPost}
+            postId={r.alvo_id}
+          />
+        )
+      }
+
+      if (item.categoria === 'avaliacao') {
+        const rawMeta = post?.avaliacao_meta
+        const meta =
+          rawMeta && typeof rawMeta === 'object' && !Array.isArray(rawMeta)
+            ? { ...(rawMeta as Record<string, unknown>) }
+            : null
+        if (meta && typeof meta.comentario === 'string' && meta.feedback == null) meta.feedback = meta.comentario
+        return (
+          <AtividadeCurtiuAvaliacao
+            key={r.id}
+            interactorUsername={inter?.username ?? 'usuario'}
+            interactorFoto={inter?.foto_perfil_url ?? null}
+            donorUsername={donor?.username ?? 'usuario'}
+            hrefInteractor={hrefI}
+            hrefDonor={hrefD}
+            postId={r.alvo_id}
+            meta={meta}
+          />
+        )
+      }
+
+      if (item.categoria === 'repost') {
+        const origId = post?.post_original_id
+        const orig = origId ? postMetaMap[String(origId)] : null
+        const prevUrl = urlFotoPost(orig)
+        const prevTexto = orig?.texto != null ? String(orig.texto) : ''
+        const tipoOrig = (orig?.tipo ?? 'texto').toLowerCase()
+        const previewTipo: 'foto' | 'texto' =
+          tipoOrig === 'foto' || tipoOrig === 'misto' || (Boolean(prevUrl) && !prevTexto.trim()) ? 'foto' : 'texto'
+
+        const modalChildren = (
+          <div className="space-y-3">
+            {prevUrl ? (
+              <div className="relative mx-auto h-72 w-full max-w-sm overflow-hidden rounded-lg bg-gray-100">
+                <Image src={prevUrl} alt="" fill className="object-contain" sizes="(max-width: 448px) 100vw, 448px" />
+              </div>
+            ) : null}
+            {prevTexto ? <p className="whitespace-pre-wrap text-sm text-gray-800">{prevTexto}</p> : null}
+          </div>
+        )
+
+        return (
+          <AtividadeCurtiuRepost
+            key={r.id}
+            interactorUsername={inter?.username ?? 'usuario'}
+            interactorFoto={inter?.foto_perfil_url ?? null}
+            donorUsername={donor?.username ?? 'usuario'}
+            hrefInteractor={hrefI}
+            hrefDonor={hrefD}
+            postId={r.alvo_id}
+            previewTipo={previewTipo}
+            previewUrl={prevUrl}
+            previewTexto={prevTexto || textoPost}
+            modalChildren={modalChildren}
+          />
+        )
+      }
+
+      return null
     }
 
     const r = item.row
@@ -371,12 +488,17 @@ export default function AtividadesPage() {
     if (r.tipo === 'curtiu_comentario') {
       const ex = r.dados_extras ?? {}
       const postId = typeof ex.post_id === 'string' ? ex.post_id : ''
-      const texto = trunc(ex.texto ?? '')
+      const texto = String(ex.texto ?? '')
+      const donorId = r.usuario_id
+      const donor = perfilMap[donorId]
       return (
         <AtividadeCurtiuComentario
           key={r.id}
-          usuarioAtorId={r.autor_id}
           usernameAtor={ator?.username ?? 'usuario'}
+          interactorFoto={ator?.foto_perfil_url ?? null}
+          usernameDono={donor?.username ?? 'usuario'}
+          hrefInteractor={hrefUsuario(r.autor_id)}
+          hrefDono={hrefUsuario(donorId)}
           textoComentario={texto}
           postId={postId || r.alvo_id}
           comentarioId={r.alvo_id}
@@ -386,13 +508,26 @@ export default function AtividadesPage() {
 
     if (r.tipo === 'comentou') {
       const ex = r.dados_extras ?? {}
-      const texto = trunc(ex.texto ?? '')
+      const texto = String(ex.texto ?? '')
       const postId = typeof ex.post_id === 'string' ? ex.post_id : r.alvo_id
       const comentarioId = typeof ex.comentario_id === 'string' ? ex.comentario_id : null
+      const pm = postMetaMap[postId]
+      const t = (pm?.tipo ?? 'texto').toLowerCase()
+      const emFoto =
+        t === 'foto' ||
+        t === 'misto' ||
+        (Boolean(urlFotoPost(pm)) && !(pm?.texto != null && String(pm.texto).trim()))
+      const donorId = r.usuario_id
+      const donor = perfilMap[donorId]
       return (
         <AtividadeComentario
           key={r.id}
           usernameAtor={ator?.username ?? 'usuario'}
+          interactorFoto={ator?.foto_perfil_url ?? null}
+          usernameDono={donor?.username ?? 'usuario'}
+          hrefInteractor={hrefUsuario(r.autor_id)}
+          hrefDono={hrefUsuario(donorId)}
+          emFoto={emFoto}
           textoComentario={texto}
           postId={postId}
           comentarioId={comentarioId}
@@ -413,6 +548,7 @@ export default function AtividadesPage() {
           key={r.id}
           seguidorUsuarioId={seguidorId}
           usernameSeguidor={uSeg?.username ?? 'usuario'}
+          seguidorFoto={uSeg?.foto_perfil_url ?? null}
           usernameSeguido={uAlvo?.username ?? 'usuario'}
           seguidoUsuarioId={seguidoId}
           seguidoTipo={seguidoTipo}
@@ -426,12 +562,13 @@ export default function AtividadesPage() {
       const empId = String(r.alvo_id)
       const em = empresaMap[empId]
       const nota = typeof ex.nota === 'number' ? ex.nota : Number(ex.nota) || 5
-      const feedback = trunc(ex.comentario ?? null, 100) || null
+      const feedback = ex.comentario != null ? String(ex.comentario) : null
       return (
         <AtividadeAvaliacao
           key={r.id}
           usuarioAtorId={r.autor_id}
           usernameAtor={ator?.username ?? 'usuario'}
+          interactorFoto={ator?.foto_perfil_url ?? null}
           nomeEmpresa={em?.nome ?? 'Empresa'}
           empresaId={empId}
           nota={nota}
