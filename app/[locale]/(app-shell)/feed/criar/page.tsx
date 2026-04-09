@@ -13,11 +13,17 @@ type FormatoFoto = 'portrait' | 'square' | 'landscape'
 
 const FORMATOS: Record<
   FormatoFoto,
-  { label: string; sub: string; w: number; h: number; aspect: number }
+  { label: string; w: number; h: number; aspect: number; miniAspectClass: string }
 > = {
-  portrait: { label: 'Retrato', sub: '1080×1350 · 4:5', w: 1080, h: 1350, aspect: 4 / 5 },
-  square: { label: 'Quadrada', sub: '1080×1080 · 1:1', w: 1080, h: 1080, aspect: 1 },
-  landscape: { label: 'Paisagem', sub: '1080×566 · 16:9', w: 1080, h: 566, aspect: 1080 / 566 },
+  portrait: { label: 'Retrato', w: 1080, h: 1350, aspect: 4 / 5, miniAspectClass: 'aspect-[4/5] w-6' },
+  square: { label: 'Quadrada', w: 1080, h: 1080, aspect: 1, miniAspectClass: 'aspect-square w-7' },
+  landscape: {
+    label: 'Paisagem',
+    w: 1080,
+    h: 566,
+    aspect: 1080 / 566,
+    miniAspectClass: 'aspect-video w-9 max-w-[2.5rem]',
+  },
 }
 
 function tabCls(ativo: boolean) {
@@ -233,7 +239,7 @@ export default function CriarPublicacaoPage() {
 
       const { error } = await supabase.from('posts').insert({
         autor_id: session.user.id,
-        texto: texto.trim() || null,
+        texto: !texto.trim() ? null : texto,
         foto_url: fotoUrl,
         conteudo_url: fotoUrl,
         tipo,
@@ -252,7 +258,7 @@ export default function CriarPublicacaoPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
+    <div className="flex min-h-screen flex-col bg-gray-50 pb-[calc(3.75rem+env(safe-area-inset-bottom))]">
       <div className="sticky top-0 z-20 border-b border-gray-200 bg-white">
         <div className="flex items-center justify-between px-3 py-1.5">
           <button type="button" onClick={() => router.back()} className="-ml-1 p-1" aria-label="Voltar">
@@ -286,7 +292,7 @@ export default function CriarPublicacaoPage() {
       </div>
 
       {aba === 'foto' ? (
-        <div className="flex flex-1 flex-col p-4">
+        <div className="flex flex-col px-0.5 pb-0 pt-1 sm:px-1">
           <input
             ref={inputGaleriaRef}
             type="file"
@@ -297,8 +303,8 @@ export default function CriarPublicacaoPage() {
           />
 
           {!fotoPreview ? (
-            <div className="flex flex-1 flex-col gap-4">
-              <div className="relative w-full overflow-hidden rounded-xl bg-black">
+            <div className="flex flex-1 flex-col gap-3 px-0.5 pb-1 pt-1">
+              <div className="relative w-full overflow-hidden rounded-xl bg-neutral-800">
                 {cameraErro ? (
                   <div className="flex aspect-[4/5] w-full items-center justify-center bg-neutral-900 p-4 text-center text-sm font-bold text-[#0097b2]">
                     Não foi possível acessar a câmera. Use a galeria abaixo.
@@ -334,7 +340,7 @@ export default function CriarPublicacaoPage() {
             </div>
           ) : (
             <>
-              <div className="mb-3 flex flex-wrap gap-2">
+              <div className="mb-2 flex w-full flex-nowrap gap-1.5 sm:gap-2">
                 {(Object.keys(FORMATOS) as FormatoFoto[]).map((key) => {
                   const f = FORMATOS[key]
                   const ativo = formatoFoto === key
@@ -343,33 +349,36 @@ export default function CriarPublicacaoPage() {
                       key={key}
                       type="button"
                       onClick={() => setFormatoFoto(key)}
-                      className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                      className={`flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-lg border px-1 py-2 text-xs transition sm:px-2 ${
                         ativo
                           ? 'border-[#0097b2] bg-[#0097b2]/10 text-[#0097b2]'
                           : 'border-gray-200 bg-white font-bold text-[#0097b2]/80'
                       }`}
                     >
-                      <span className="block font-bold">{f.label}</span>
-                      <span className="text-[10px] font-semibold text-[#0097b2]/70">{f.sub}</span>
+                      <span className="text-[11px] font-bold leading-tight sm:text-xs">{f.label}</span>
+                      <div
+                        className={`shrink-0 rounded-sm border-2 border-current bg-[#0097b2]/20 ${f.miniAspectClass}`}
+                        aria-hidden
+                      />
                     </button>
                   )
                 })}
               </div>
 
-              <p className="mb-2 text-center text-xs font-bold text-[#0097b2]/80">
+              <p className="mb-1.5 text-center text-[11px] font-bold text-[#0097b2]/80">
                 Pinça para zoom · arraste para posicionar
               </p>
 
-              <div className="relative mx-auto w-full max-w-lg">
+              <div className="relative w-full">
                 <button
                   type="button"
                   onClick={limparFoto}
-                  className="absolute right-2 top-2 z-10 rounded-full bg-black/60 p-1.5 text-white shadow-md"
+                  className="absolute right-1 top-1 z-10 rounded-full bg-black/50 p-1.5 text-white shadow-md"
                   aria-label="Remover foto e escolher outra"
                 >
                   <X size={18} aria-hidden />
                 </button>
-                <div className="relative h-[min(52vh,440px)] w-full overflow-hidden rounded-xl bg-neutral-900">
+                <div className="relative h-[min(54vh,420px)] w-full overflow-hidden rounded-lg bg-white">
                   <Cropper
                     image={fotoPreview}
                     crop={crop}
@@ -379,29 +388,16 @@ export default function CriarPublicacaoPage() {
                     onZoomChange={setZoom}
                     onCropComplete={onCropComplete}
                     showGrid={false}
+                    objectFit="cover"
                   />
                 </div>
-              </div>
-
-              <div className="mx-auto mt-3 flex max-w-lg items-center gap-3 px-1">
-                <span className="text-xs font-bold text-[#0097b2]/80">Zoom</span>
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={0.01}
-                  value={zoom}
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  className="min-w-0 flex-1 accent-[#0097b2]"
-                  aria-label="Zoom da foto"
-                />
               </div>
 
               <textarea
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
                 placeholder="Legenda (opcional)..."
-                className="mt-4 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-base font-bold text-[#0097b2] placeholder:font-bold placeholder:text-[#0097b2]/45 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                className="mt-3 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-base font-bold whitespace-pre-wrap text-[#0097b2] placeholder:font-bold placeholder:text-[#0097b2]/45 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                 rows={4}
               />
 
@@ -409,7 +405,7 @@ export default function CriarPublicacaoPage() {
                 type="button"
                 onClick={() => void handleSubmit('foto')}
                 disabled={!fotoPreview || !croppedAreaPixels || loading}
-                className="mt-4 w-full rounded-xl bg-[#0097b2] py-3.5 text-center text-base font-bold text-white shadow-sm transition disabled:opacity-50"
+                className="mt-3 w-full rounded-xl bg-[#0097b2] py-3.5 text-center text-base font-bold text-white shadow-sm transition disabled:opacity-50"
               >
                 {loading ? 'Publicando...' : 'Publicar'}
               </button>

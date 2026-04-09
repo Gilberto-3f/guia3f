@@ -598,7 +598,9 @@ export default function PostCard({
             <Image src={mediaUrl} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 480px" />
           </div>
           {acoesPost}
-          {post.texto ? <p className="px-4 pb-3 pt-1 text-sm text-gray-800">{post.texto}</p> : null}
+          {post.texto ? (
+            <p className="whitespace-pre-wrap px-4 pb-3 pt-1 text-sm text-gray-800">{post.texto}</p>
+          ) : null}
         </>
       ) : (
         <>
