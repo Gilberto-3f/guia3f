@@ -14,7 +14,7 @@ import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
 import { Image as ImageIcon, Repeat2, X } from 'lucide-react'
-import Cropper, { type Area } from 'react-easy-crop'
+import Cropper, { type Area, type MediaSize, type Size } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
 
@@ -38,6 +38,13 @@ const FORMATOS: Record<
 }
 
 const BOTTOM_BAR_OFFSET = 'calc(5rem + env(safe-area-inset-bottom, 0px))'
+
+/** Cobre o recorte sem vãos: paisagem = preencher altura; retrato = preencher largura; quadrado = auto. */
+function objectFitParaFormato(f: FormatoFoto): 'cover' | 'horizontal-cover' | 'vertical-cover' {
+  const a = FORMATOS[f].aspect
+  if (Math.abs(a - 1) < 0.02) return 'cover'
+  return a > 1 ? 'vertical-cover' : 'horizontal-cover'
+}
 
 function tabCls(ativo: boolean) {
   return `flex-1 py-3 text-center text-sm font-bold tracking-wide transition-colors ${
@@ -103,6 +110,10 @@ function CriarPublicacaoPageInner() {
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
+  const [cropMinZoom, setCropMinZoom] = useState(1)
+  const cropMinZoomRef = useRef(1)
+  const lastMediaForCropRef = useRef<MediaSize | null>(null)
+  const lastCropSizeRef = useRef<Size | null>(null)
   const [cameraErro, setCameraErro] = useState(false)
   const [cameraPermissao, setCameraPermissao] = useState<'verificando' | 'concedida' | 'prompt' | 'negada'>(
     'verificando'
@@ -268,6 +279,57 @@ function CriarPublicacaoPageInner() {
   const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels)
   }, [])
+
+  useEffect(() => {
+    cropMinZoomRef.current = cropMinZoom
+  }, [cropMinZoom])
+
+  const recalcCropMinZoom = useCallback(() => {
+    const ms = lastMediaForCropRef.current
+    const cs = lastCropSizeRef.current
+    if (!ms || !cs || ms.width <= 0 || ms.height <= 0) return
+    const z = Math.max(cs.width / ms.width, cs.height / ms.height, 1)
+    setCropMinZoom((prev) => (Math.abs(prev - z) < 1e-4 ? prev : z))
+    setZoom((prev) => (prev < z ? z : prev))
+  }, [])
+
+  const onCropperMediaLoaded = useCallback(
+    (ms: MediaSize) => {
+      lastMediaForCropRef.current = ms
+      recalcCropMinZoom()
+    },
+    [recalcCropMinZoom]
+  )
+
+  const onCropSizeChange = useCallback(
+    (size: Size) => {
+      lastCropSizeRef.current = size
+      recalcCropMinZoom()
+    },
+    [recalcCropMinZoom]
+  )
+
+  const onZoomChangeCropper = useCallback((z: number) => {
+    const minZ = cropMinZoomRef.current
+    setZoom(Math.max(z, minZ))
+  }, [])
+
+  useEffect(() => {
+    if (!fotoPreview) {
+      lastMediaForCropRef.current = null
+      lastCropSizeRef.current = null
+      setCropMinZoom(1)
+      cropMinZoomRef.current = 1
+      setCrop({ x: 0, y: 0 })
+      setZoom(1)
+      return
+    }
+    setCrop({ x: 0, y: 0 })
+    setZoom(1)
+    setCropMinZoom(1)
+    cropMinZoomRef.current = 1
+    lastCropSizeRef.current = null
+  }, [fotoPreview, formatoFoto])
 
   useEffect(() => {
     abaRef.current = aba
@@ -538,8 +600,6 @@ function CriarPublicacaoPageInner() {
 
           {!fotoPreview ? (
             <div className="flex min-h-0 flex-1 flex-col gap-2 px-0.5 pb-2 pt-0">
-              {formatosRow}
-
               <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl bg-neutral-800">
                 {cameraPermissao === 'negada' ? (
                   <div className="flex min-h-[50vh] w-full flex-col items-center justify-center gap-2 bg-neutral-900 p-4 text-center text-sm font-bold text-[#0097b2]">
@@ -654,17 +714,23 @@ function CriarPublicacaoPageInner() {
                 >
                   <X size={18} aria-hidden />
                 </button>
-                <div className="relative h-[min(54vh,420px)] w-full overflow-hidden rounded-lg bg-white">
+                <div className="relative h-[min(54vh,420px)] w-full overflow-hidden rounded-lg bg-neutral-900">
                   <Cropper
+                    key={`${fotoPreview}-${formatoFoto}`}
                     image={fotoPreview}
                     crop={crop}
                     zoom={zoom}
+                    minZoom={cropMinZoom}
+                    maxZoom={4}
                     aspect={FORMATOS[formatoFoto].aspect}
+                    objectFit={objectFitParaFormato(formatoFoto)}
+                    restrictPosition
                     onCropChange={setCrop}
-                    onZoomChange={setZoom}
+                    onZoomChange={onZoomChangeCropper}
                     onCropComplete={onCropComplete}
+                    onCropSizeChange={onCropSizeChange}
+                    onMediaLoaded={onCropperMediaLoaded}
                     showGrid={false}
-                    objectFit="cover"
                   />
                 </div>
               </div>
