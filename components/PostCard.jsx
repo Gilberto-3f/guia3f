@@ -10,6 +10,7 @@ import ModalCompartilhar from '@/components/ModalCompartilhar'
 import MenuPost from '@/components/MenuPost'
 import AvaliacaoCard from '@/components/AvaliacaoCard'
 import { supabase } from '@/lib/supabase'
+import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/lib/feed-autor'
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
@@ -75,6 +76,8 @@ export default function PostCard({
   const [meuRepostPostId, setMeuRepostPostId] = useState(/** @type {string | null} */ (null))
   const [editando, setEditando] = useState(false)
   const [textoEditado, setTextoEditado] = useState('')
+  /** Proporção largura/altura da mídia ( pixels do ficheiro = recorte exportado em criar ). */
+  const [mediaAspectRatio, setMediaAspectRatio] = useState(/** @type {number | null} */ (null))
 
   const empresaId = post.autor?.empresa_id || ''
   const autorId = post.autor?.usuario_id || ''
@@ -214,6 +217,11 @@ export default function PostCard({
   const mediaUrl = post.conteudo_url || post.foto_url
   const hasMedia = Boolean(mediaUrl)
   const tipoNorm = String(post.tipo || '').toLowerCase()
+  const isVideoPost = isTipoVideoPost(post.tipo)
+
+  useEffect(() => {
+    setMediaAspectRatio(null)
+  }, [mediaUrl])
 
   const temStoryNoAutor = Boolean(storyAtivo?.id)
   const storyDoAutorVisto = temStoryNoAutor ? emailVisualizouStory(storyAtivo?.visualizado_por, userEmail) : true
@@ -594,8 +602,45 @@ export default function PostCard({
 
       {hasMedia ? (
         <>
-          <div className="relative aspect-[4/3] w-full bg-gray-100">
-            <Image src={mediaUrl} alt="" fill className="object-cover" sizes="(max-width: 768px) 100vw, 480px" />
+          <div
+            className="relative w-full overflow-hidden bg-gray-100"
+            style={{
+              aspectRatio:
+                mediaAspectRatio != null && mediaAspectRatio > 0
+                  ? String(mediaAspectRatio)
+                  : isVideoPost
+                    ? '16 / 9'
+                    : '4 / 5',
+            }}
+          >
+            {isVideoPost ? (
+              <video
+                src={mediaUrl}
+                className="absolute inset-0 h-full w-full object-contain"
+                controls
+                playsInline
+                preload="metadata"
+                onLoadedMetadata={(e) => {
+                  const v = e.currentTarget
+                  const w = v.videoWidth
+                  const h = v.videoHeight
+                  if (w > 0 && h > 0) setMediaAspectRatio(w / h)
+                }}
+              />
+            ) : (
+              <Image
+                src={mediaUrl}
+                alt=""
+                fill
+                className="object-contain"
+                sizes="(max-width: 768px) 100vw, 480px"
+                onLoadingComplete={(img) => {
+                  const w = img.naturalWidth
+                  const h = img.naturalHeight
+                  if (w > 0 && h > 0) setMediaAspectRatio(w / h)
+                }}
+              />
+            )}
           </div>
           {acoesPost}
           {post.texto ? (
