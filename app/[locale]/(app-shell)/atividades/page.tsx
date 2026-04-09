@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Heart, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
 import AbasAtividades from '@/components/atividades/AbasAtividades'
@@ -591,12 +591,6 @@ export default function AtividadesPage() {
   if (meuRole === 'empresa') {
     return (
       <div className="min-h-screen bg-gray-50 pb-24">
-        <header className="sticky top-0 z-10 border-b border-white/20 bg-[#0097b2] px-4 py-4">
-          <h1 className="flex items-center justify-center gap-2 text-center text-base font-bold tracking-wide text-white">
-            <Heart className="h-6 w-6 shrink-0 text-white" strokeWidth={2} aria-hidden />
-            <span>ATIVIDADES</span>
-          </h1>
-        </header>
         <p className="p-6 text-gray-600">O feed de atividades está disponível para contas de turista e profissional.</p>
       </div>
     )
@@ -615,36 +609,23 @@ export default function AtividadesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <header className="sticky top-0 z-10 border-b border-white/20 bg-[#0097b2] px-4 py-4">
-        <h1 className="flex items-center justify-center gap-2 text-center text-base font-bold tracking-wide text-white sm:text-lg">
-          <Heart className="h-6 w-6 shrink-0 text-white sm:h-7 sm:w-7" strokeWidth={2} aria-hidden />
-          <span>ATIVIDADES</span>
-        </h1>
+      <header className="sticky top-0 z-10 border-b border-white/20 bg-[#0097b2] px-4 py-3">
+        <label className="flex w-full items-center gap-2 rounded-xl border border-white/60 bg-white px-3 py-2 shadow-sm">
+          <Search className="pointer-events-none h-5 w-5 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
+          <input
+            type="search"
+            placeholder="Pesquisar usuário por @ ou nome..."
+            className="min-w-0 flex-1 border-0 bg-transparent py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
+            enterKeyHint="search"
+            value={buscaEdicao}
+            onChange={(e) => setBuscaEdicao(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') buscarUsuario()
+            }}
+            aria-label="Pesquisar atividades por usuário"
+          />
+        </label>
       </header>
-
-      <div className="flex items-center gap-2 border-b border-gray-100 bg-white p-4">
-        <input
-          type="text"
-          placeholder="Pesquisar usuário por @ ou nome..."
-          className="min-w-0 flex-1 rounded-lg border border-white/30 bg-[#0097b2] p-2 text-sm text-white placeholder:text-white/70"
-          value={buscaEdicao}
-          onChange={(e) => setBuscaEdicao(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') buscarUsuario()
-          }}
-          aria-label="Pesquisar atividades por usuário"
-        />
-        {buscaEdicao.trim() ? (
-          <button
-            type="button"
-            onClick={buscarUsuario}
-            className="shrink-0 rounded-lg p-2 text-[#0097b2] hover:bg-[#0097b2]/10"
-            aria-label="Pesquisar"
-          >
-            <Search className="h-6 w-6" strokeWidth={2.25} aria-hidden />
-          </button>
-        ) : null}
-      </div>
 
       <AbasAtividades aba={aba} onAba={onAba} />
 

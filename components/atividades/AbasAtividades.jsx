@@ -22,19 +22,6 @@ export default function AbasAtividades({ aba, onAba }) {
           MINHA CONTA
         </button>
       </div>
-      <p className="px-4 pb-3 text-xs leading-snug text-gray-500">
-        {aba === 'amigos' ? (
-          <>
-            Atividades de <strong className="font-medium text-gray-600">quem você segue</strong>: curtidas, comentários,
-            novos seguidores e avaliações que eles fizeram.
-          </>
-        ) : (
-          <>
-            <strong className="font-medium text-gray-600">Sua caixa de notificações</strong>: interações com seus posts e
-            perfil (curtidas, comentários, seguidores novos, etc.).
-          </>
-        )}
-      </p>
     </div>
   )
 }
