@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { ArrowLeft, Camera, Images, X } from 'lucide-react'
+import { ArrowLeft, X } from 'lucide-react'
 import Cropper, { type Area } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
@@ -21,8 +21,8 @@ const FORMATOS: Record<
 }
 
 function tabCls(ativo: boolean) {
-  return `flex-1 py-3 text-center text-sm font-semibold tracking-wide transition-colors ${
-    ativo ? 'border-b-[3px] border-[#0097b2] text-[#0097b2]' : 'border-b-[3px] border-transparent text-gray-500'
+  return `flex-1 py-2 text-center text-sm font-bold tracking-wide transition-colors ${
+    ativo ? 'border-b-[3px] border-[#0097b2] text-[#0097b2]' : 'border-b-[3px] border-transparent text-[#0097b2]/55'
   }`
 }
 
@@ -30,20 +30,27 @@ export default function CriarPublicacaoPage() {
   const router = useRouter()
   const [aba, setAba] = useState<Aba>('foto')
   const [texto, setTexto] = useState('')
-  const [foto, setFoto] = useState<File | null>(null)
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [formatoFoto, setFormatoFoto] = useState<FormatoFoto>('portrait')
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
+  const [cameraErro, setCameraErro] = useState(false)
+  const [alturaTextoPx, setAlturaTextoPx] = useState<number | null>(null)
 
-  const inputCameraRef = useRef<HTMLInputElement | null>(null)
   const inputGaleriaRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+
+  const pararCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+    if (videoRef.current) videoRef.current.srcObject = null
+  }, [])
 
   const limparFoto = useCallback(() => {
-    setFoto(null)
     setFotoPreview((prev) => {
       if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
       return null
@@ -53,11 +60,72 @@ export default function CriarPublicacaoPage() {
     setCroppedAreaPixels(null)
   }, [])
 
-  const onFotoEscolhida = (e: ChangeEvent<HTMLInputElement>) => {
+  /** Câmera ao abrir a aba FOTO (sem popup): preview em vídeo + fotografar. */
+  useEffect(() => {
+    if (aba !== 'foto' || fotoPreview) {
+      pararCamera()
+      return
+    }
+
+    setCameraErro(false)
+    let cancel = false
+
+    ;(async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        })
+        if (cancel) {
+          stream.getTracks().forEach((t) => t.stop())
+          return
+        }
+        streamRef.current = stream
+        const v = videoRef.current
+        if (v) {
+          v.srcObject = stream
+          await v.play().catch(() => {})
+        }
+      } catch {
+        if (!cancel) setCameraErro(true)
+      }
+    })()
+
+    return () => {
+      cancel = true
+      pararCamera()
+    }
+  }, [aba, fotoPreview, pararCamera])
+
+  const capturarDaCamera = useCallback(() => {
+    const v = videoRef.current
+    if (!v || !v.videoWidth) return
+    const canvas = document.createElement('canvas')
+    canvas.width = v.videoWidth
+    canvas.height = v.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(v, 0, 0)
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return
+        setFotoPreview((prev) => {
+          if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
+          return URL.createObjectURL(blob)
+        })
+        setCrop({ x: 0, y: 0 })
+        setZoom(1)
+        setCroppedAreaPixels(null)
+      },
+      'image/jpeg',
+      0.92
+    )
+  }, [])
+
+  const onFotoGaleria = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file || !file.type.startsWith('image/')) return
-    setFoto(file)
     setFotoPreview((prev) => {
       if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
       return URL.createObjectURL(file)
@@ -77,6 +145,41 @@ export default function CriarPublicacaoPage() {
       return () => clearTimeout(t)
     }
   }, [aba])
+
+  /** Altura útil acima do teclado (mobile). */
+  useEffect(() => {
+    if (aba !== 'texto') return
+
+    const HEADER_BOTTOM = 104
+    const BOTTOM_BAR = 76
+
+    const atualizar = () => {
+      const vv = window.visualViewport
+      const vh = vv?.height ?? window.innerHeight
+      const h = vh - HEADER_BOTTOM - BOTTOM_BAR
+      setAlturaTextoPx(Math.max(140, Math.floor(h)))
+    }
+
+    atualizar()
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', atualizar)
+    vv?.addEventListener('scroll', atualizar)
+    window.addEventListener('resize', atualizar)
+    return () => {
+      vv?.removeEventListener('resize', atualizar)
+      vv?.removeEventListener('scroll', atualizar)
+      window.removeEventListener('resize', atualizar)
+    }
+  }, [aba])
+
+  /** Mantém o fim do texto visível (comportamento “sobe” sem aumentar o campo). */
+  const onTextoChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    setTexto(e.target.value)
+    const el = e.target
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight
+    })
+  }
 
   const handleSubmit = async (origem: 'foto' | 'texto') => {
     const meta = FORMATOS[formatoFoto]
@@ -112,8 +215,7 @@ export default function CriarPublicacaoPage() {
       }
 
       if (fileToUpload) {
-        const fileExt = 'jpg'
-        const fileName = `${Date.now()}.${fileExt}`
+        const fileName = `${Date.now()}.jpg`
         const filePath = `${session.user.id}/${fileName}`
 
         const { error: uploadError } = await supabase.storage.from('posts').upload(filePath, fileToUpload, {
@@ -150,28 +252,28 @@ export default function CriarPublicacaoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="sticky top-0 z-20 border-b border-gray-100 bg-white">
-        <div className="flex items-center justify-between p-4">
+    <div className="flex min-h-screen flex-col bg-gray-50 pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
+      <div className="sticky top-0 z-20 border-b border-gray-200 bg-white">
+        <div className="flex items-center justify-between px-3 py-1.5">
           <button type="button" onClick={() => router.back()} className="-ml-1 p-1" aria-label="Voltar">
-            <ArrowLeft size={24} className="text-gray-600" />
+            <ArrowLeft size={22} className="text-[#0097b2]" strokeWidth={2.25} />
           </button>
-          <h1 className="text-lg font-semibold">Nova publicação</h1>
+          <h1 className="text-center text-base font-bold text-[#0097b2]">NOVA PUBLICAÇÃO</h1>
           {aba === 'texto' ? (
             <button
               type="button"
               onClick={() => void handleSubmit('texto')}
               disabled={!texto.trim() || loading}
-              className="rounded-lg bg-[#0097b2] px-4 py-1 text-sm font-medium text-white disabled:opacity-50"
+              className="rounded-lg bg-[#0097b2] px-3 py-1 text-sm font-bold text-white disabled:opacity-50"
             >
               {loading ? 'Publicando...' : 'Publicar'}
             </button>
           ) : (
-            <span className="w-[72px]" aria-hidden />
+            <span className="w-[68px]" aria-hidden />
           )}
         </div>
 
-        <div className="border-b border-gray-200 bg-white">
+        <div className="border-t border-gray-100 bg-white">
           <div className="flex">
             <button type="button" className={tabCls(aba === 'foto')} onClick={() => setAba('foto')}>
               FOTO
@@ -184,40 +286,50 @@ export default function CriarPublicacaoPage() {
       </div>
 
       {aba === 'foto' ? (
-        <div className="p-4">
-          <input
-            ref={inputCameraRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={onFotoEscolhida}
-          />
+        <div className="flex flex-1 flex-col p-4">
           <input
             ref={inputGaleriaRef}
             type="file"
             accept="image/*"
-            className="hidden"
-            onChange={onFotoEscolhida}
+            className="sr-only"
+            aria-label="Abrir galeria"
+            onChange={onFotoGaleria}
           />
 
           {!fotoPreview ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-1 flex-col gap-4">
+              <div className="relative w-full overflow-hidden rounded-xl bg-black">
+                {cameraErro ? (
+                  <div className="flex aspect-[4/5] w-full items-center justify-center bg-neutral-900 p-4 text-center text-sm font-bold text-[#0097b2]">
+                    Não foi possível acessar a câmera. Use a galeria abaixo.
+                  </div>
+                ) : (
+                  <video
+                    ref={videoRef}
+                    className="aspect-[4/5] w-full object-cover"
+                    playsInline
+                    muted
+                    autoPlay
+                  />
+                )}
+              </div>
+
               <button
                 type="button"
-                onClick={() => inputCameraRef.current?.click()}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-gray-200 bg-white py-8 text-[#0097b2] shadow-sm transition hover:border-[#0097b2]/40"
+                onClick={capturarDaCamera}
+                disabled={cameraErro}
+                className="mx-auto flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 border-[#0097b2] bg-white shadow-lg disabled:opacity-40"
+                aria-label="Fotografar"
               >
-                <Camera className="h-10 w-10" strokeWidth={1.75} aria-hidden />
-                <span className="text-sm font-semibold">CÂMERA</span>
+                <span className="h-11 w-11 rounded-full bg-[#0097b2]" />
               </button>
+
               <button
                 type="button"
                 onClick={() => inputGaleriaRef.current?.click()}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-gray-200 bg-white py-8 text-[#0097b2] shadow-sm transition hover:border-[#0097b2]/40"
+                className="w-full rounded-xl bg-[#0097b2] py-3.5 text-center text-base font-bold text-white shadow-sm"
               >
-                <Images className="h-10 w-10" strokeWidth={1.75} aria-hidden />
-                <span className="text-sm font-semibold">GALERIA</span>
+                GALERIA
               </button>
             </div>
           ) : (
@@ -234,17 +346,17 @@ export default function CriarPublicacaoPage() {
                       className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
                         ativo
                           ? 'border-[#0097b2] bg-[#0097b2]/10 text-[#0097b2]'
-                          : 'border-gray-200 bg-white text-gray-700'
+                          : 'border-gray-200 bg-white font-bold text-[#0097b2]/80'
                       }`}
                     >
-                      <span className="block font-semibold">{f.label}</span>
-                      <span className="text-[10px] text-gray-500">{f.sub}</span>
+                      <span className="block font-bold">{f.label}</span>
+                      <span className="text-[10px] font-semibold text-[#0097b2]/70">{f.sub}</span>
                     </button>
                   )
                 })}
               </div>
 
-              <p className="mb-2 text-center text-xs text-gray-500">
+              <p className="mb-2 text-center text-xs font-bold text-[#0097b2]/80">
                 Pinça para zoom · arraste para posicionar
               </p>
 
@@ -272,7 +384,7 @@ export default function CriarPublicacaoPage() {
               </div>
 
               <div className="mx-auto mt-3 flex max-w-lg items-center gap-3 px-1">
-                <span className="text-xs text-gray-500">Zoom</span>
+                <span className="text-xs font-bold text-[#0097b2]/80">Zoom</span>
                 <input
                   type="range"
                   min={1}
@@ -289,7 +401,7 @@ export default function CriarPublicacaoPage() {
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
                 placeholder="Legenda (opcional)..."
-                className="mt-4 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                className="mt-4 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-base font-bold text-[#0097b2] placeholder:font-bold placeholder:text-[#0097b2]/45 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                 rows={4}
               />
 
@@ -297,7 +409,7 @@ export default function CriarPublicacaoPage() {
                 type="button"
                 onClick={() => void handleSubmit('foto')}
                 disabled={!fotoPreview || !croppedAreaPixels || loading}
-                className="mt-4 w-full rounded-xl bg-[#0097b2] py-3.5 text-center text-base font-semibold text-white shadow-sm transition disabled:opacity-50"
+                className="mt-4 w-full rounded-xl bg-[#0097b2] py-3.5 text-center text-base font-bold text-white shadow-sm transition disabled:opacity-50"
               >
                 {loading ? 'Publicando...' : 'Publicar'}
               </button>
@@ -305,14 +417,18 @@ export default function CriarPublicacaoPage() {
           )}
         </div>
       ) : (
-        <div className="flex min-h-[50vh] flex-col p-4">
+        <div className="flex flex-1 flex-col px-3 pt-1">
           <textarea
             ref={textareaTextoRef}
             value={texto}
-            onChange={(e) => setTexto(e.target.value)}
+            onChange={onTextoChange}
             placeholder="O que você está pensando?"
-            className="min-h-[40vh] w-full flex-1 resize-none rounded-lg border border-gray-200 bg-white p-4 text-base text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
-            rows={12}
+            className="w-full shrink-0 resize-none rounded-lg border border-gray-200 bg-white p-3 text-base font-bold leading-relaxed text-[#0097b2] placeholder:font-bold placeholder:text-[#0097b2]/45 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+            style={{
+              height: alturaTextoPx ?? 'calc(100dvh - 6.75rem - env(safe-area-inset-bottom))',
+              maxHeight: alturaTextoPx ?? 'calc(100dvh - 6.75rem - env(safe-area-inset-bottom))',
+              overflowY: 'auto',
+            }}
             autoFocus
           />
         </div>
