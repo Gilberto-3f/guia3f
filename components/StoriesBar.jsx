@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import AvatarImage from '@/components/AvatarImage'
 import { Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -87,43 +86,43 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     const uid = session.user.id
     setMeuUserId(uid)
 
-    let meuAvatarUrl = await fetchFotoPerfilUsuario(supabase, uid)
-    if (!meuAvatarUrl) {
-      const { data: meU, error: meErr } = await supabase
-        .from('usuarios')
-        .select(
-          `
-          id,
-          email,
-          role,
-          turistas (nome_completo, nome_usuario, foto_perfil_url),
-          profissionais (nome_completo, nome_usuario, foto_perfil_url),
-          empresas (id, nome_fantasia, nome_usuario, foto_url)
-        `
-        )
-        .eq('id', uid)
-        .maybeSingle()
-      if (!meErr && meU) {
-        meuAvatarUrl = pickAutorDisplay(meU).foto_perfil_url
+    const USUARIOS_MEU_SELECT = `
+      id,
+      email,
+      role,
+      turistas (nome_completo, nome_usuario, foto_perfil_url),
+      profissionais (nome_completo, nome_usuario, foto_perfil_url),
+      empresas (id, nome_fantasia, nome_usuario, foto_url)
+    `
+
+    /** @param {string} userId */
+    const carregarMeuAvatar = async (userId) => {
+      let meuAvatarUrl = await fetchFotoPerfilUsuario(supabase, userId)
+      if (!meuAvatarUrl) {
+        const { data: meU, error: meErr } = await supabase.from('usuarios').select(USUARIOS_MEU_SELECT).eq('id', userId).maybeSingle()
+        if (!meErr && meU) {
+          meuAvatarUrl = pickAutorDisplay(meU).foto_perfil_url
+        }
       }
+      return meuAvatarUrl
     }
 
-    const { data: seguidosRows } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid)
-
-    const seguidosIds = new Set((seguidosRows ?? []).map((r) => String(r.seguido_id)))
-
-    const { data: allEmpresas } = await supabase.from('empresas').select('usuario_id, nome_fantasia, foto_url')
-    const empresaAutorSet = new Set((allEmpresas ?? []).map((e) => String(e.usuario_id)).filter(Boolean))
-    const emps = /** @type {{ id: string, usuario_id: string, nome_fantasia: string | null, foto_url: string | null }[]} */ (
-      allEmpresas ?? []
-    )
-
-    const { data: storiesRows, error: storiesErr } = await supabase
-      .from('stories')
-      .select('id, autor_id, conteudo_url, visualizado_por, created_at, tipo, autor_tipo')
-      .gt('expira_em', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(120)
+    const [
+      { data: seguidosRows },
+      { data: storiesRows, error: storiesErr },
+      { data: destaque },
+      meuAvatarUrl,
+    ] = await Promise.all([
+      supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid),
+      supabase
+        .from('stories')
+        .select('id, autor_id, conteudo_url, visualizado_por, created_at, tipo, autor_tipo')
+        .gt('expira_em', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(120),
+      supabase.from('empresas').select('usuario_id, nome_fantasia, foto_url').eq('is_publicidade', true).limit(1).maybeSingle(),
+      carregarMeuAvatar(uid),
+    ])
 
     if (storiesErr) {
       console.error(storiesErr)
@@ -131,6 +130,21 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       setMeuSlot({ avatarUrl: meuAvatarUrl, storyId: null, visualizado_por: null })
       return
     }
+
+    const seguidosIds = new Set((seguidosRows ?? []).map((r) => String(r.seguido_id)))
+
+    const storyAutorIds = [...new Set((storiesRows ?? []).map((s) => String(s.autor_id)).filter(Boolean))]
+    let empresasRows = /** @type {{ usuario_id: string, nome_fantasia: string | null, foto_url: string | null }[]} */ ([])
+    if (storyAutorIds.length > 0) {
+      const { data: empData } = await supabase
+        .from('empresas')
+        .select('usuario_id, nome_fantasia, foto_url')
+        .in('usuario_id', storyAutorIds)
+      empresasRows = empData ?? []
+    }
+
+    const empresaAutorSet = new Set(empresasRows.map((e) => String(e.usuario_id)).filter(Boolean))
+    const emps = empresasRows
 
     /** Stories permitidos: seguidos (não empresa) ou qualquer empresa; sem vídeo. */
     const storiesFiltradas = (storiesRows ?? []).filter((s) => {
@@ -154,18 +168,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       visualizado_por: meuStoryRow?.visualizado_por ?? null,
     })
 
-    const { data: destaque } = await supabase
-      .from('empresas')
-      .select('usuario_id, nome_fantasia, foto_url')
-      .eq('is_publicidade', true)
-      .limit(1)
-      .maybeSingle()
-
-    let obrAutor = destaque?.usuario_id != null ? String(destaque.usuario_id) : null
-    if (!obrAutor) {
-      const firstE = (allEmpresas ?? [])[0]
-      obrAutor = firstE?.usuario_id != null ? String(firstE.usuario_id) : null
-    }
+    const obrAutor = destaque?.usuario_id != null ? String(destaque.usuario_id) : null
 
     /** @type {string[]} */
     const ordered = []
@@ -217,28 +220,18 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     }
 
     const precisaPerfil = ordered.filter((aid) => labels[aid] == null)
-    if (precisaPerfil.length > 0) {
-      const { data: usuariosRows, error: uErr } = await supabase
-        .from('usuarios')
-        .select(
-          `
-          id,
-          email,
-          role,
-          turistas (nome_completo, nome_usuario, foto_perfil_url),
-          profissionais (nome_completo, nome_usuario, foto_perfil_url),
-          empresas (id, nome_fantasia, nome_usuario, foto_url)
-        `
-        )
-        .in('id', precisaPerfil)
+    const usuariosPromise =
+      precisaPerfil.length > 0
+        ? supabase.from('usuarios').select(USUARIOS_MEU_SELECT).in('id', precisaPerfil)
+        : Promise.resolve({ data: null, error: null })
 
-      if (!uErr && usuariosRows?.length) {
-        for (const u of usuariosRows) {
-          const d = pickAutorDisplay(u)
-          const id = String(u.id)
-          labels[id] = d.nome
-          previews[id] = d.foto_perfil_url
-        }
+    const { data: usuariosRows, error: uErr } = await usuariosPromise
+    if (!uErr && usuariosRows?.length) {
+      for (const u of usuariosRows) {
+        const d = pickAutorDisplay(u)
+        const id = String(u.id)
+        labels[id] = d.nome
+        previews[id] = d.foto_perfil_url
       }
     }
 
@@ -327,6 +320,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
                       fill
                       className="object-cover"
                       sizes="75px"
+                      priority
                     />
                   </Link>
                 ) : (

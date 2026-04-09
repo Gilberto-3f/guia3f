@@ -14,19 +14,36 @@ const DEFAULT = '/avatar-default.png'
  *   className?: string
  *   fill?: boolean
  *   sizes?: string
+ *   priority?: boolean
  * }} props
  */
-export default function AvatarImage({ src, alt = '', width = 40, height = 40, className = '', fill, sizes }) {
+export default function AvatarImage({
+  src,
+  alt = '',
+  width = 40,
+  height = 40,
+  className = '',
+  fill,
+  sizes,
+  priority = false,
+}) {
   const s = src && String(src).trim() ? String(src) : DEFAULT
   const isLocal = s.startsWith('/') || s.startsWith('data:')
 
   if (fill && isLocal) {
-    return <Image src={s} alt={alt} fill className={className} sizes={sizes} />
+    return <Image src={s} alt={alt} fill className={className} sizes={sizes} priority={priority} />
   }
   if (fill && !isLocal) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={s} alt={alt} className={`absolute inset-0 h-full w-full object-cover ${className}`} />
+      <img
+        src={s}
+        alt={alt}
+        className={`absolute inset-0 h-full w-full object-cover ${className}`}
+        loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={priority ? 'high' : 'auto'}
+        decoding="async"
+      />
     )
   }
   if (isLocal) {

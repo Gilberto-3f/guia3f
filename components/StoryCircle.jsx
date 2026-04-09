@@ -49,7 +49,7 @@ export default function StoryCircle({
               className="relative block h-[75px] w-[75px] overflow-hidden rounded-full bg-gray-100"
               aria-label={`Perfil de ${label}`}
             >
-              <AvatarImage src={avatarUrl} alt="" fill className="object-cover" sizes="75px" />
+              <AvatarImage src={avatarUrl} alt="" fill className="object-cover" sizes="75px" priority />
               {isVideo ? (
                 <span
                   className="absolute bottom-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/55"
