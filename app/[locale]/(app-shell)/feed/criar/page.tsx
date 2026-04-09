@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { ArrowLeft, X } from 'lucide-react'
+import { ArrowLeft, Repeat2, X } from 'lucide-react'
 import Cropper, { type Area } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
@@ -43,6 +43,11 @@ export default function CriarPublicacaoPage() {
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [cameraErro, setCameraErro] = useState(false)
+  /** Permissão de câmera (Permissions API); sem API → tratar como prompt (exige toque). */
+  const [cameraPermissao, setCameraPermissao] = useState<'verificando' | 'concedida' | 'prompt' | 'negada'>(
+    'verificando'
+  )
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
   /** Área do editor de texto colada ao teclado (visualViewport). */
   const [textoLayout, setTextoLayout] = useState<{ top: number; height: number } | null>(null)
 
@@ -52,11 +57,18 @@ export default function CriarPublicacaoPage() {
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const cameraGenRef = useRef(0)
+  const facingAoLigarRef = useRef(facingMode)
+  facingAoLigarRef.current = facingMode
+  const facingMountedRef = useRef(facingMode)
+  const [cameraAoVivo, setCameraAoVivo] = useState(false)
 
   const pararCamera = useCallback(() => {
+    cameraGenRef.current += 1
     streamRef.current?.getTracks().forEach((t) => t.stop())
     streamRef.current = null
     if (videoRef.current) videoRef.current.srcObject = null
+    setCameraAoVivo(false)
   }, [])
 
   const limparFoto = useCallback(() => {
@@ -69,42 +81,95 @@ export default function CriarPublicacaoPage() {
     setCroppedAreaPixels(null)
   }, [])
 
-  /** Câmera ao abrir a aba FOTO (sem popup): preview em vídeo + fotografar. */
+  const ligarCamera = useCallback(async () => {
+    if (abaRef.current !== 'foto') return
+    const gen = ++cameraGenRef.current
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+    if (videoRef.current) videoRef.current.srcObject = null
+    setCameraAoVivo(false)
+    setCameraErro(false)
+    const face = facingAoLigarRef.current
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: face } },
+        audio: false,
+      })
+      if (gen !== cameraGenRef.current) {
+        stream.getTracks().forEach((t) => t.stop())
+        return
+      }
+      streamRef.current = stream
+      const v = videoRef.current
+      if (v) {
+        v.srcObject = stream
+        await v.play().catch(() => {})
+      }
+      if (gen === cameraGenRef.current) setCameraAoVivo(true)
+    } catch {
+      if (gen === cameraGenRef.current) setCameraErro(true)
+    }
+  }, [])
+
+  /** Sincroniza estado da permissão (evita pedir câmera só ao entrar na página). */
+  useEffect(() => {
+    if (aba !== 'foto') {
+      setCameraPermissao('verificando')
+      return
+    }
+    let status: PermissionStatus | null = null
+    const sync = () => {
+      if (!status) return
+      const s = status.state
+      setCameraPermissao(s === 'granted' ? 'concedida' : s === 'denied' ? 'negada' : 'prompt')
+    }
+    ;(async () => {
+      try {
+        status = await navigator.permissions.query({ name: 'camera' as const })
+        sync()
+        status.addEventListener('change', sync)
+      } catch {
+        setCameraPermissao('prompt')
+      }
+    })()
+    return () => {
+      status?.removeEventListener('change', sync)
+    }
+  }, [aba])
+
+  /** Com permissão já concedida pelo site, reabre a câmera ao voltar à aba (sem novo diálogo). */
   useEffect(() => {
     if (aba !== 'foto' || fotoPreview) {
       pararCamera()
       return
     }
+    if (cameraPermissao === 'verificando' || cameraPermissao === 'negada') return
+    if (cameraPermissao !== 'concedida') return
+    /* Evita parar e religar quando o utilizador acabou de ativar via botão (prompt → concedida). */
+    if (streamRef.current?.active) return
 
-    setCameraErro(false)
-    let cancel = false
-
-    ;(async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-          audio: false,
-        })
-        if (cancel) {
-          stream.getTracks().forEach((t) => t.stop())
-          return
-        }
-        streamRef.current = stream
-        const v = videoRef.current
-        if (v) {
-          v.srcObject = stream
-          await v.play().catch(() => {})
-        }
-      } catch {
-        if (!cancel) setCameraErro(true)
-      }
-    })()
-
+    void ligarCamera()
     return () => {
-      cancel = true
       pararCamera()
     }
-  }, [aba, fotoPreview, pararCamera])
+  }, [aba, fotoPreview, cameraPermissao, ligarCamera, pararCamera])
+
+  /** Troca frontal/traseira: só após já existir stream (permissão já obtida nesta sessão). */
+  useEffect(() => {
+    if (aba !== 'foto' || fotoPreview || cameraPermissao === 'negada') {
+      facingMountedRef.current = facingMode
+      return
+    }
+    const prev = facingMountedRef.current
+    facingMountedRef.current = facingMode
+    if (prev === facingMode) return
+    if (!streamRef.current?.active) return
+    void ligarCamera()
+  }, [facingMode, aba, fotoPreview, cameraPermissao, ligarCamera])
+
+  const onAtivarCamera = () => {
+    void ligarCamera()
+  }
 
   const capturarDaCamera = useCallback(() => {
     const v = videoRef.current
@@ -353,30 +418,80 @@ export default function CriarPublicacaoPage() {
           {!fotoPreview ? (
             <div className="flex flex-1 flex-col gap-3 px-0.5 pb-1 pt-1">
               <div className="relative w-full overflow-hidden rounded-xl bg-neutral-800">
-                {cameraErro ? (
+                {cameraPermissao === 'negada' ? (
+                  <div className="flex aspect-[4/5] w-full flex-col items-center justify-center gap-2 bg-neutral-900 p-4 text-center text-sm font-bold text-[#0097b2]">
+                    <p>Câmera bloqueada para este site.</p>
+                    <p className="text-xs font-semibold text-white/80">
+                      Permita o acesso à câmera nas configurações do navegador (normalmente fica &quot;Permitir&quot; e memoriza para o domínio).
+                    </p>
+                  </div>
+                ) : cameraErro ? (
                   <div className="flex aspect-[4/5] w-full items-center justify-center bg-neutral-900 p-4 text-center text-sm font-bold text-[#0097b2]">
-                    Não foi possível acessar a câmera. Use a galeria abaixo.
+                    Não foi possível acessar a câmera. Use a galeria abaixo ou toque em tentar novamente.
                   </div>
                 ) : (
-                  <video
-                    ref={videoRef}
-                    className="aspect-[4/5] w-full object-cover"
-                    playsInline
-                    muted
-                    autoPlay
-                  />
+                  <>
+                    <video
+                      ref={videoRef}
+                      className="aspect-[4/5] w-full object-cover"
+                      playsInline
+                      muted
+                      autoPlay
+                    />
+                    {cameraPermissao === 'verificando' ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/55">
+                        <span className="text-xs font-bold text-white/90">Verificando permissão…</span>
+                      </div>
+                    ) : null}
+                    {cameraPermissao === 'prompt' && !cameraAoVivo ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/65 px-6">
+                        <p className="text-center text-xs font-semibold text-white/90">
+                          Toque uma vez para pedir o acesso à câmera. Se já permitiu para este site, o vídeo abre sem novo aviso.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={onAtivarCamera}
+                          className="rounded-xl bg-[#0097b2] px-5 py-2.5 text-sm font-bold text-white shadow-md"
+                        >
+                          Ativar câmera
+                        </button>
+                      </div>
+                    ) : null}
+                  </>
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={capturarDaCamera}
-                disabled={cameraErro}
-                className="mx-auto flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 border-[#0097b2] bg-white shadow-lg disabled:opacity-40"
-                aria-label="Fotografar"
-              >
-                <span className="h-11 w-11 rounded-full bg-[#0097b2]" />
-              </button>
+              <div className="flex items-center justify-center gap-3">
+                {cameraAoVivo && !cameraErro && cameraPermissao !== 'negada' ? (
+                  <button
+                    type="button"
+                    onClick={() => setFacingMode((f) => (f === 'environment' ? 'user' : 'environment'))}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-white bg-black/50 text-white shadow-md backdrop-blur-[2px]"
+                    aria-label={facingMode === 'environment' ? 'Usar câmera frontal' : 'Usar câmera traseira'}
+                  >
+                    <Repeat2 size={20} strokeWidth={2.25} aria-hidden />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={capturarDaCamera}
+                  disabled={cameraErro || !cameraAoVivo || cameraPermissao === 'negada'}
+                  className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 border-[#0097b2] bg-white shadow-lg disabled:opacity-40"
+                  aria-label="Fotografar"
+                >
+                  <span className="h-11 w-11 rounded-full bg-[#0097b2]" />
+                </button>
+              </div>
+
+              {cameraErro ? (
+                <button
+                  type="button"
+                  onClick={onAtivarCamera}
+                  className="w-full rounded-xl border-2 border-[#0097b2] bg-white py-3 text-center text-sm font-bold text-[#0097b2]"
+                >
+                  Tentar câmera novamente
+                </button>
+              ) : null}
 
               <button
                 type="button"
