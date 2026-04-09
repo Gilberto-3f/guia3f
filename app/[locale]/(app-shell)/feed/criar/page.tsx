@@ -1,8 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
-import { ArrowLeft, Repeat2, X } from 'lucide-react'
+import { Image as ImageIcon, Repeat2, X } from 'lucide-react'
 import Cropper, { type Area } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
@@ -26,15 +27,32 @@ const FORMATOS: Record<
   },
 }
 
+const BOTTOM_BAR_OFFSET = 'calc(5rem + env(safe-area-inset-bottom, 0px))'
+
 function tabCls(ativo: boolean) {
-  return `flex-1 py-2 text-center text-sm font-bold tracking-wide transition-colors ${
+  return `flex-1 py-3 text-center text-sm font-bold tracking-wide transition-colors ${
     ativo ? 'border-b-[3px] border-[#0097b2] text-[#0097b2]' : 'border-b-[3px] border-transparent text-[#0097b2]/55'
   }`
 }
 
-export default function CriarPublicacaoPage() {
+function CriarPublicacaoPageInner() {
   const router = useRouter()
-  const [aba, setAba] = useState<Aba>('foto')
+  const nextRouter = useNextRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const aba: Aba = searchParams.get('aba') === 'texto' ? 'texto' : 'foto'
+
+  const setAba = useCallback(
+    (next: Aba) => {
+      const params = new URLSearchParams(searchParams.toString())
+      if (next === 'texto') params.set('aba', 'texto')
+      else params.delete('aba')
+      const qs = params.toString()
+      nextRouter.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+    },
+    [pathname, searchParams, nextRouter]
+  )
+
   const [texto, setTexto] = useState('')
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -43,15 +61,13 @@ export default function CriarPublicacaoPage() {
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [cameraErro, setCameraErro] = useState(false)
-  /** Permissão de câmera (Permissions API); sem API → tratar como prompt (exige toque). */
   const [cameraPermissao, setCameraPermissao] = useState<'verificando' | 'concedida' | 'prompt' | 'negada'>(
     'verificando'
   )
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
-  /** Área do editor de texto colada ao teclado (visualViewport). */
   const [textoLayout, setTextoLayout] = useState<{ top: number; height: number } | null>(null)
 
-  const abaRef = useRef<Aba>('foto')
+  const abaRef = useRef<Aba>(aba)
   const headerRef = useRef<HTMLDivElement | null>(null)
   const inputGaleriaRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
@@ -111,7 +127,6 @@ export default function CriarPublicacaoPage() {
     }
   }, [])
 
-  /** Sincroniza estado da permissão (evita pedir câmera só ao entrar na página). */
   useEffect(() => {
     if (aba !== 'foto') {
       setCameraPermissao('verificando')
@@ -137,7 +152,6 @@ export default function CriarPublicacaoPage() {
     }
   }, [aba])
 
-  /** Com permissão já concedida pelo site, reabre a câmera ao voltar à aba (sem novo diálogo). */
   useEffect(() => {
     if (aba !== 'foto' || fotoPreview) {
       pararCamera()
@@ -145,7 +159,6 @@ export default function CriarPublicacaoPage() {
     }
     if (cameraPermissao === 'verificando' || cameraPermissao === 'negada') return
     if (cameraPermissao !== 'concedida') return
-    /* Evita parar e religar quando o utilizador acabou de ativar via botão (prompt → concedida). */
     if (streamRef.current?.active) return
 
     void ligarCamera()
@@ -154,7 +167,6 @@ export default function CriarPublicacaoPage() {
     }
   }, [aba, fotoPreview, cameraPermissao, ligarCamera, pararCamera])
 
-  /** Troca frontal/traseira: só após já existir stream (permissão já obtida nesta sessão). */
   useEffect(() => {
     if (aba !== 'foto' || fotoPreview || cameraPermissao === 'negada') {
       facingMountedRef.current = facingMode
@@ -217,7 +229,6 @@ export default function CriarPublicacaoPage() {
     abaRef.current = aba
   }, [aba])
 
-  /** Cola o campo de texto ao teclado (sem margem): do fim das abas até o topo do teclado. */
   const atualizarLayoutTexto = useCallback(() => {
     if (abaRef.current !== 'texto') return
     const header = headerRef.current
@@ -264,7 +275,14 @@ export default function CriarPublicacaoPage() {
     requestAnimationFrame(focusTexto)
     const t = window.setTimeout(focusTexto, 120)
 
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return
+      textareaTextoRef.current?.focus({ preventScroll: true })
+    }
+    document.addEventListener('visibilitychange', onVis)
+
     return () => {
+      document.removeEventListener('visibilitychange', onVis)
       cancelAnimationFrame(rafAttach)
       vv?.removeEventListener('resize', run)
       vv?.removeEventListener('scroll', run)
@@ -274,18 +292,16 @@ export default function CriarPublicacaoPage() {
     }
   }, [aba, atualizarLayoutTexto])
 
-  /** Mantém o teclado na aba TEXTO: recoloca foco se não foi para o cabeçalho (Voltar/Publicar/abas). */
   const onTextoBlur = useCallback(() => {
     if (abaRef.current !== 'texto') return
-    window.setTimeout(() => {
+    requestAnimationFrame(() => {
       if (abaRef.current !== 'texto') return
       const active = document.activeElement
       if (active && headerRef.current?.contains(active)) return
       textareaTextoRef.current?.focus({ preventScroll: true })
-    }, 30)
+    })
   }, [])
 
-  /** Mantém o fim do texto visível (comportamento “sobe” sem aumentar o campo). */
   const onTextoChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     setTexto(e.target.value)
     const el = e.target
@@ -364,48 +380,71 @@ export default function CriarPublicacaoPage() {
     }
   }
 
+  const formatosRow = (
+    <div className="mb-1.5 flex w-full flex-nowrap gap-1.5 sm:gap-2">
+      {(Object.keys(FORMATOS) as FormatoFoto[]).map((key) => {
+        const f = FORMATOS[key]
+        const ativo = formatoFoto === key
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setFormatoFoto(key)}
+            className={`flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-lg border px-1 py-2 text-xs transition sm:px-2 ${
+              ativo
+                ? 'border-[#0097b2] bg-[#0097b2]/10 text-[#0097b2]'
+                : 'border-gray-200 bg-white font-bold text-[#0097b2]/80'
+            }`}
+          >
+            <span className="text-[11px] font-bold leading-tight sm:text-xs">{f.label}</span>
+            <div
+              className={`shrink-0 rounded-sm border-2 border-current bg-[#0097b2]/20 ${f.miniAspectClass}`}
+              aria-hidden
+            />
+          </button>
+        )
+      })}
+    </div>
+  )
+
   return (
     <div
-      className={`flex min-h-screen flex-col bg-gray-50 ${aba === 'texto' ? 'pb-0' : 'pb-[calc(3.75rem+env(safe-area-inset-bottom))]'}`}
+      className={`flex min-h-[100dvh] flex-col bg-gray-50 ${aba === 'texto' ? 'pb-0' : ''}`}
+      style={
+        aba === 'foto'
+          ? { paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }
+          : undefined
+      }
     >
       <div
         ref={headerRef}
-        className="sticky top-0 z-30 border-b border-gray-200 bg-white shadow-sm"
+        className="sticky top-0 z-30 flex items-stretch border-b border-gray-200 bg-white shadow-sm"
         data-criar-header
       >
-        <div className="flex items-center justify-between px-3 py-1.5">
-          <button type="button" onClick={() => router.back()} className="-ml-1 p-1" aria-label="Voltar">
-            <ArrowLeft size={22} className="text-[#0097b2]" strokeWidth={2.25} />
+        <div className="flex min-w-0 flex-1">
+          <button type="button" className={tabCls(aba === 'foto')} onClick={() => setAba('foto')}>
+            FOTO
           </button>
-          <h1 className="text-center text-base font-bold text-[#0097b2]">NOVA PUBLICAÇÃO</h1>
-          {aba === 'texto' ? (
+          <button type="button" className={tabCls(aba === 'texto')} onClick={() => setAba('texto')}>
+            TEXTO
+          </button>
+        </div>
+        {aba === 'texto' ? (
+          <div className="flex shrink-0 items-center border-l border-gray-100 pr-2 pl-1">
             <button
               type="button"
               onClick={() => void handleSubmit('texto')}
               disabled={!texto.trim() || loading}
-              className="rounded-lg bg-[#0097b2] px-3 py-1 text-sm font-bold text-white disabled:opacity-50"
+              className="rounded-lg bg-[#0097b2] px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50"
             >
-              {loading ? 'Publicando...' : 'Publicar'}
-            </button>
-          ) : (
-            <span className="w-[68px]" aria-hidden />
-          )}
-        </div>
-
-        <div className="border-t border-gray-100 bg-white">
-          <div className="flex">
-            <button type="button" className={tabCls(aba === 'foto')} onClick={() => setAba('foto')}>
-              FOTO
-            </button>
-            <button type="button" className={tabCls(aba === 'texto')} onClick={() => setAba('texto')}>
-              TEXTO
+              {loading ? '…' : 'Publicar'}
             </button>
           </div>
-        </div>
+        ) : null}
       </div>
 
       {aba === 'foto' ? (
-        <div className="flex flex-col px-0.5 pb-0 pt-1 sm:px-1">
+        <div className="flex flex-1 flex-col px-0.5 pt-1 sm:px-1">
           <input
             ref={inputGaleriaRef}
             type="file"
@@ -416,24 +455,27 @@ export default function CriarPublicacaoPage() {
           />
 
           {!fotoPreview ? (
-            <div className="flex flex-1 flex-col gap-3 px-0.5 pb-1 pt-1">
-              <div className="relative w-full overflow-hidden rounded-xl bg-neutral-800">
+            <div className="flex min-h-0 flex-1 flex-col gap-2 px-0.5 pb-2 pt-0">
+              {formatosRow}
+
+              <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl bg-neutral-800">
                 {cameraPermissao === 'negada' ? (
-                  <div className="flex aspect-[4/5] w-full flex-col items-center justify-center gap-2 bg-neutral-900 p-4 text-center text-sm font-bold text-[#0097b2]">
+                  <div className="flex min-h-[50vh] w-full flex-col items-center justify-center gap-2 bg-neutral-900 p-4 text-center text-sm font-bold text-[#0097b2]">
                     <p>Câmera bloqueada para este site.</p>
                     <p className="text-xs font-semibold text-white/80">
-                      Permita o acesso à câmera nas configurações do navegador (normalmente fica &quot;Permitir&quot; e memoriza para o domínio).
+                      Permita o acesso à câmera nas configurações do navegador (normalmente fica
+                      &quot;Permitir&quot; e memoriza para o domínio).
                     </p>
                   </div>
                 ) : cameraErro ? (
-                  <div className="flex aspect-[4/5] w-full items-center justify-center bg-neutral-900 p-4 text-center text-sm font-bold text-[#0097b2]">
-                    Não foi possível acessar a câmera. Use a galeria abaixo ou toque em tentar novamente.
+                  <div className="flex min-h-[50vh] w-full items-center justify-center bg-neutral-900 p-4 text-center text-sm font-bold text-[#0097b2]">
+                    Não foi possível acessar a câmera. Use o ícone da galeria ou tente novamente.
                   </div>
                 ) : (
                   <>
                     <video
                       ref={videoRef}
-                      className="aspect-[4/5] w-full object-cover"
+                      className="h-full min-h-[44vh] w-full object-cover"
                       playsInline
                       muted
                       autoPlay
@@ -446,7 +488,8 @@ export default function CriarPublicacaoPage() {
                     {cameraPermissao === 'prompt' && !cameraAoVivo ? (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/65 px-6">
                         <p className="text-center text-xs font-semibold text-white/90">
-                          Toque uma vez para pedir o acesso à câmera. Se já permitiu para este site, o vídeo abre sem novo aviso.
+                          Toque uma vez para pedir o acesso à câmera. Se já permitiu para este site, o
+                          vídeo abre sem novo aviso.
                         </p>
                         <button
                           type="button"
@@ -461,74 +504,62 @@ export default function CriarPublicacaoPage() {
                 )}
               </div>
 
-              <div className="flex items-center justify-center gap-3">
-                {cameraAoVivo && !cameraErro && cameraPermissao !== 'negada' ? (
-                  <button
-                    type="button"
-                    onClick={() => setFacingMode((f) => (f === 'environment' ? 'user' : 'environment'))}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-white bg-black/50 text-white shadow-md backdrop-blur-[2px]"
-                    aria-label={facingMode === 'environment' ? 'Usar câmera frontal' : 'Usar câmera traseira'}
-                  >
-                    <Repeat2 size={20} strokeWidth={2.25} aria-hidden />
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={capturarDaCamera}
-                  disabled={cameraErro || !cameraAoVivo || cameraPermissao === 'negada'}
-                  className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 border-[#0097b2] bg-white shadow-lg disabled:opacity-40"
-                  aria-label="Fotografar"
-                >
-                  <span className="h-11 w-11 rounded-full bg-[#0097b2]" />
-                </button>
-              </div>
-
               {cameraErro ? (
                 <button
                   type="button"
                   onClick={onAtivarCamera}
-                  className="w-full rounded-xl border-2 border-[#0097b2] bg-white py-3 text-center text-sm font-bold text-[#0097b2]"
+                  className="w-full rounded-xl border-2 border-[#0097b2] bg-white py-2.5 text-center text-sm font-bold text-[#0097b2]"
                 >
                   Tentar câmera novamente
                 </button>
               ) : null}
 
-              <button
-                type="button"
-                onClick={() => inputGaleriaRef.current?.click()}
-                className="w-full rounded-xl bg-[#0097b2] py-3.5 text-center text-base font-bold text-white shadow-sm"
+              <div
+                className="fixed left-0 right-0 z-40 grid grid-cols-3 items-center gap-2 px-4"
+                style={{ bottom: BOTTOM_BAR_OFFSET }}
               >
-                GALERIA
-              </button>
+                <div className="flex justify-start">
+                  <button
+                    type="button"
+                    onClick={() => inputGaleriaRef.current?.click()}
+                    className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#0097b2] bg-white/95 text-[#0097b2] shadow-md backdrop-blur-sm"
+                    aria-label="Abrir galeria"
+                  >
+                    <ImageIcon size={22} strokeWidth={2.25} aria-hidden />
+                  </button>
+                </div>
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={capturarDaCamera}
+                    disabled={cameraErro || !cameraAoVivo || cameraPermissao === 'negada'}
+                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 border-[#0097b2] bg-white shadow-lg disabled:opacity-40"
+                    aria-label="Fotografar"
+                  >
+                    <span className="h-11 w-11 rounded-full bg-[#0097b2]" />
+                  </button>
+                </div>
+                <div className="flex justify-end">
+                  {cameraAoVivo && !cameraErro && cameraPermissao !== 'negada' ? (
+                    <button
+                      type="button"
+                      onClick={() => setFacingMode((f) => (f === 'environment' ? 'user' : 'environment'))}
+                      className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-black/50 text-white shadow-md backdrop-blur-[2px]"
+                      aria-label={facingMode === 'environment' ? 'Usar câmera frontal' : 'Usar câmera traseira'}
+                    >
+                      <Repeat2 size={20} strokeWidth={2.25} aria-hidden />
+                    </button>
+                  ) : (
+                    <span className="h-11 w-11" aria-hidden />
+                  )}
+                </div>
+              </div>
             </div>
           ) : (
             <>
-              <div className="mb-2 flex w-full flex-nowrap gap-1.5 sm:gap-2">
-                {(Object.keys(FORMATOS) as FormatoFoto[]).map((key) => {
-                  const f = FORMATOS[key]
-                  const ativo = formatoFoto === key
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setFormatoFoto(key)}
-                      className={`flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-lg border px-1 py-2 text-xs transition sm:px-2 ${
-                        ativo
-                          ? 'border-[#0097b2] bg-[#0097b2]/10 text-[#0097b2]'
-                          : 'border-gray-200 bg-white font-bold text-[#0097b2]/80'
-                      }`}
-                    >
-                      <span className="text-[11px] font-bold leading-tight sm:text-xs">{f.label}</span>
-                      <div
-                        className={`shrink-0 rounded-sm border-2 border-current bg-[#0097b2]/20 ${f.miniAspectClass}`}
-                        aria-hidden
-                      />
-                    </button>
-                  )
-                })}
-              </div>
+              {formatosRow}
 
-              <p className="mb-1.5 text-center text-[11px] font-bold text-[#0097b2]/80">
+              <p className="mb-1 text-center text-[11px] font-bold text-[#0097b2]/80">
                 Pinça para zoom · arraste para posicionar
               </p>
 
@@ -560,7 +591,7 @@ export default function CriarPublicacaoPage() {
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
                 placeholder="Legenda (opcional)..."
-                className="mt-3 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-base font-bold whitespace-pre-wrap text-[#0097b2] placeholder:font-bold placeholder:text-[#0097b2]/45 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                className="mt-2 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-base font-bold whitespace-pre-wrap text-[#0097b2] placeholder:font-bold placeholder:text-[#0097b2]/45 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                 rows={4}
               />
 
@@ -568,7 +599,8 @@ export default function CriarPublicacaoPage() {
                 type="button"
                 onClick={() => void handleSubmit('foto')}
                 disabled={!fotoPreview || !croppedAreaPixels || loading}
-                className="mt-3 w-full rounded-xl bg-[#0097b2] py-3.5 text-center text-base font-bold text-white shadow-sm transition disabled:opacity-50"
+                className="mt-2 mb-0 w-full rounded-xl bg-[#0097b2] py-3 text-center text-base font-bold text-white shadow-sm transition disabled:opacity-50"
+                style={{ marginBottom: 'max(0.25rem, env(safe-area-inset-bottom, 4px))' }}
               >
                 {loading ? 'Publicando...' : 'Publicar'}
               </button>
@@ -595,10 +627,19 @@ export default function CriarPublicacaoPage() {
             WebkitOverflowScrolling: 'touch',
           }}
           enterKeyHint="enter"
+          inputMode="text"
         />
       ) : (
         <div className="min-h-[40vh] bg-white" aria-hidden />
       )}
     </div>
+  )
+}
+
+export default function CriarPublicacaoPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[100dvh] bg-gray-50" />}>
+      <CriarPublicacaoPageInner />
+    </Suspense>
   )
 }
