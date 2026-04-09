@@ -39,6 +39,13 @@ const FORMATOS: Record<
 
 const BOTTOM_BAR_OFFSET = 'calc(5rem + env(safe-area-inset-bottom, 0px))'
 
+/**
+ * Lista explícita de imagens (evita `image/*`, que em vários browsers dispara o menu
+ * “Câmera / Fototeca / Ficheiros”). Não incluir `capture` — isso forçaria a câmera.
+ */
+const ACCEPT_GALERIA_IMAGENS =
+  'image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif'
+
 /** Cobre o recorte sem vãos: paisagem = preencher altura; retrato = preencher largura; quadrado = auto. */
 function objectFitParaFormato(f: FormatoFoto): 'cover' | 'horizontal-cover' | 'vertical-cover' {
   const a = FORMATOS[f].aspect
@@ -275,6 +282,24 @@ function CriarPublicacaoPageInner() {
     setZoom(1)
     setCroppedAreaPixels(null)
   }
+
+  const abrirGaleria = useCallback(() => {
+    const input = inputGaleriaRef.current
+    if (!input) return
+    try {
+      const el = input as HTMLInputElement & { showPicker?: () => void | Promise<void> }
+      if (typeof el.showPicker === 'function') {
+        const maybe = el.showPicker()
+        if (maybe != null && typeof (maybe as Promise<void>).then === 'function') {
+          void (maybe as Promise<void>).catch(() => input.click())
+        }
+        return
+      }
+    } catch {
+      /* Transient activation / browser sem suporte */
+    }
+    input.click()
+  }, [])
 
   const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels)
@@ -592,7 +617,7 @@ function CriarPublicacaoPageInner() {
           <input
             ref={inputGaleriaRef}
             type="file"
-            accept="image/*"
+            accept={ACCEPT_GALERIA_IMAGENS}
             className="sr-only"
             aria-label="Abrir galeria"
             onChange={onFotoGaleria}
@@ -663,7 +688,7 @@ function CriarPublicacaoPageInner() {
                 <div className="flex justify-start">
                   <button
                     type="button"
-                    onClick={() => inputGaleriaRef.current?.click()}
+                    onClick={abrirGaleria}
                     className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#0097b2] bg-white/95 text-[#0097b2] shadow-md backdrop-blur-sm"
                     aria-label="Abrir galeria"
                   >
