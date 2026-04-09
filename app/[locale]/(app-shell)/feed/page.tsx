@@ -133,6 +133,32 @@ function FeedPageInner() {
     void boot()
   }, [])
 
+  useEffect(() => {
+    const carregarRede = async () => {
+      // Mesmo sem login, evita travar no "Carregando feed..."
+      if (!meuId) {
+        setFeedRede({ seguidos: [], patrocinioAutores: [], ready: true })
+        return
+      }
+      try {
+        const [{ data: segRows }, patrocinados] = await Promise.all([
+          supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId),
+          fetchPatrocinioAutorIds(supabase),
+        ])
+        const seguidos = (segRows ?? []).map((r) => String((r as { seguido_id: string }).seguido_id)).filter(Boolean)
+        setFeedRede({
+          seguidos,
+          patrocinioAutores: patrocinados ?? [],
+          ready: true,
+        })
+      } catch (e) {
+        console.error(e)
+        setFeedRede({ seguidos: [], patrocinioAutores: [], ready: true })
+      }
+    }
+    void carregarRede()
+  }, [meuId])
+
   const mapRow = useCallback((post: unknown) => {
     const p = post as Record<string, unknown>
     const rawU = p.usuarios
