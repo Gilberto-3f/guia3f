@@ -203,7 +203,8 @@ function FeedPageInner() {
     if (!ready) return []
 
     const meu = uidFromRef ?? meuId
-    const allowed = [...new Set([...seguidos, ...patrocinioAutores])].filter((id) => id && id !== meu)
+    // Inclui o próprio usuário para misturar as publicações dele com seguidos + patrocínio (ordem por data).
+    const allowed = [...new Set([...(meu ? [meu] : []), ...seguidos, ...patrocinioAutores])].filter(Boolean)
     if (allowed.length === 0) return []
 
     const { data, error } = await supabase
