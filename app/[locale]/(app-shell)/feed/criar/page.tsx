@@ -1,6 +1,16 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FocusEvent,
+} from 'react'
+import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
 import { Image as ImageIcon, Repeat2, X } from 'lucide-react'
@@ -35,14 +45,22 @@ function tabCls(ativo: boolean) {
   }`
 }
 
+function daUrlParaAba(sp: ReturnType<typeof useSearchParams>): Aba {
+  return sp.get('aba') === 'texto' ? 'texto' : 'foto'
+}
+
 function CriarPublicacaoPageInner() {
   const router = useRouter()
   const nextRouter = useNextRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const aba: Aba = searchParams.get('aba') === 'texto' ? 'texto' : 'foto'
+  const [aba, setAba] = useState<Aba>(() =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('aba') === 'texto'
+      ? 'texto'
+      : 'foto'
+  )
 
-  const setAba = useCallback(
+  const sincronizarUrlComAba = useCallback(
     (next: Aba) => {
       const params = new URLSearchParams(searchParams.toString())
       if (next === 'texto') params.set('aba', 'texto')
@@ -52,6 +70,31 @@ function CriarPublicacaoPageInner() {
     },
     [pathname, searchParams, nextRouter]
   )
+
+  useEffect(() => {
+    setAba(daUrlParaAba(searchParams))
+  }, [searchParams])
+
+  const irParaFoto = useCallback(() => {
+    flushSync(() => setAba('foto'))
+    sincronizarUrlComAba('foto')
+  }, [sincronizarUrlComAba])
+
+  const irParaTexto = useCallback(() => {
+    flushSync(() => setAba('texto'))
+    sincronizarUrlComAba('texto')
+    const el = textareaTextoRef.current
+    if (el) {
+      el.readOnly = false
+      el.focus({ preventScroll: true })
+      try {
+        const len = el.value.length
+        el.setSelectionRange(len, len)
+      } catch {
+        /* noop */
+      }
+    }
+  }, [sincronizarUrlComAba])
 
   const [texto, setTexto] = useState('')
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
@@ -69,6 +112,7 @@ function CriarPublicacaoPageInner() {
 
   const abaRef = useRef<Aba>(aba)
   const headerRef = useRef<HTMLDivElement | null>(null)
+  const textoToolbarRef = useRef<HTMLDivElement | null>(null)
   const inputGaleriaRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -232,12 +276,11 @@ function CriarPublicacaoPageInner() {
   const atualizarLayoutTexto = useCallback(() => {
     if (abaRef.current !== 'texto') return
     const header = headerRef.current
+    if (!header) return
     const vv = window.visualViewport
-    if (!header || !vv) return
-
     const headerBottom = header.getBoundingClientRect().bottom
-    const areaVisivelInferior = vv.offsetTop + vv.height
-    const height = Math.max(64, Math.floor(areaVisivelInferior - headerBottom))
+    const areaVisivelInferior = vv ? vv.offsetTop + vv.height : window.innerHeight
+    const height = Math.max(96, Math.floor(areaVisivelInferior - headerBottom))
     const top = Math.floor(headerBottom)
 
     setTextoLayout((prev) => {
@@ -246,11 +289,52 @@ function CriarPublicacaoPageInner() {
     })
   }, [])
 
-  useEffect(() => {
+  const focarTextarea = useCallback(() => {
+    const el = textareaTextoRef.current
+    if (!el) return
+    el.focus({ preventScroll: true })
+    try {
+      el.setSelectionRange(el.value.length, el.value.length)
+    } catch {
+      /* noop */
+    }
+  }, [])
+
+  /** Medição + bloqueio de scroll da página (só o textarea rola). */
+  useLayoutEffect(() => {
     if (aba !== 'texto') {
       setTextoLayout(null)
       return
     }
+
+    const prevBody = document.body.style.overflow
+    const prevHtml = document.documentElement.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+
+    const header = headerRef.current
+    if (header) {
+      const vv = window.visualViewport
+      const headerBottom = header.getBoundingClientRect().bottom
+      const areaVisivelInferior = vv ? vv.offsetTop + vv.height : window.innerHeight
+      const height = Math.max(96, Math.floor(areaVisivelInferior - headerBottom))
+      const top = Math.floor(headerBottom)
+      flushSync(() => setTextoLayout({ top, height }))
+    }
+
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => focarTextarea())
+    })
+
+    return () => {
+      cancelAnimationFrame(id)
+      document.body.style.overflow = prevBody
+      document.documentElement.style.overflow = prevHtml
+    }
+  }, [aba, focarTextarea])
+
+  useEffect(() => {
+    if (aba !== 'texto') return
 
     atualizarLayoutTexto()
     const run = () => requestAnimationFrame(atualizarLayoutTexto)
@@ -269,15 +353,13 @@ function CriarPublicacaoPageInner() {
     attachHeaderObserver()
     const rafAttach = requestAnimationFrame(attachHeaderObserver)
 
-    const focusTexto = () => {
-      textareaTextoRef.current?.focus({ preventScroll: true })
-    }
+    const focusTexto = () => focarTextarea()
     requestAnimationFrame(focusTexto)
-    const t = window.setTimeout(focusTexto, 120)
+    const t = window.setTimeout(focusTexto, 50)
 
     const onVis = () => {
       if (document.visibilityState !== 'visible') return
-      textareaTextoRef.current?.focus({ preventScroll: true })
+      focarTextarea()
     }
     document.addEventListener('visibilitychange', onVis)
 
@@ -289,18 +371,30 @@ function CriarPublicacaoPageInner() {
       window.removeEventListener('resize', run)
       ro?.disconnect()
       window.clearTimeout(t)
+      window.clearTimeout(t2)
     }
-  }, [aba, atualizarLayoutTexto])
+  }, [aba, atualizarLayoutTexto, focarTextarea])
 
-  const onTextoBlur = useCallback(() => {
-    if (abaRef.current !== 'texto') return
-    requestAnimationFrame(() => {
+  const onTextoBlur = useCallback(
+    (e: FocusEvent<HTMLTextAreaElement>) => {
       if (abaRef.current !== 'texto') return
-      const active = document.activeElement
-      if (active && headerRef.current?.contains(active)) return
-      textareaTextoRef.current?.focus({ preventScroll: true })
-    })
-  }, [])
+      const alvo = e.relatedTarget
+      if (alvo instanceof Node) {
+        if (headerRef.current?.contains(alvo)) return
+        if (textoToolbarRef.current?.contains(alvo)) return
+      }
+      const refocar = () => {
+        if (abaRef.current !== 'texto') return
+        const active = document.activeElement
+        if (active && headerRef.current?.contains(active)) return
+        if (active && textoToolbarRef.current?.contains(active)) return
+        focarTextarea()
+      }
+      window.setTimeout(refocar, 0)
+      requestAnimationFrame(() => requestAnimationFrame(refocar))
+    },
+    [focarTextarea]
+  )
 
   const onTextoChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     setTexto(e.target.value)
@@ -422,25 +516,13 @@ function CriarPublicacaoPageInner() {
         data-criar-header
       >
         <div className="flex min-w-0 flex-1">
-          <button type="button" className={tabCls(aba === 'foto')} onClick={() => setAba('foto')}>
+          <button type="button" className={tabCls(aba === 'foto')} onClick={irParaFoto}>
             FOTO
           </button>
-          <button type="button" className={tabCls(aba === 'texto')} onClick={() => setAba('texto')}>
+          <button type="button" className={tabCls(aba === 'texto')} onClick={irParaTexto}>
             TEXTO
           </button>
         </div>
-        {aba === 'texto' ? (
-          <div className="flex shrink-0 items-center border-l border-gray-100 pr-2 pl-1">
-            <button
-              type="button"
-              onClick={() => void handleSubmit('texto')}
-              disabled={!texto.trim() || loading}
-              className="rounded-lg bg-[#0097b2] px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50"
-            >
-              {loading ? '…' : 'Publicar'}
-            </button>
-          </div>
-        ) : null}
       </div>
 
       {aba === 'foto' ? (
@@ -602,36 +684,67 @@ function CriarPublicacaoPageInner() {
                 className="mt-2 mb-0 w-full rounded-xl bg-[#0097b2] py-3 text-center text-base font-bold text-white shadow-sm transition disabled:opacity-50"
                 style={{ marginBottom: 'max(0.25rem, env(safe-area-inset-bottom, 4px))' }}
               >
-                {loading ? 'Publicando...' : 'Publicar'}
+                {loading ? 'Postando...' : 'Postar'}
               </button>
             </>
           )}
         </div>
-      ) : textoLayout ? (
+      ) : null}
+
+      {/* Sempre montado: o focus() no toque da aba TEXTO precisa do elemento no DOM (iOS/Android). */}
+      <div
+        className={
+          aba === 'texto' && textoLayout
+            ? 'fixed left-0 right-0 z-20 flex min-h-0 flex-col border-t border-gray-100 bg-white'
+            : 'pointer-events-none fixed left-0 top-0 z-[-1] m-0 h-px max-h-[1px] w-px max-w-[1px] overflow-hidden border-0 p-0 opacity-0'
+        }
+        style={
+          aba === 'texto' && textoLayout
+            ? { top: textoLayout.top, height: textoLayout.height }
+            : undefined
+        }
+        aria-hidden={aba === 'foto'}
+      >
+        {aba === 'texto' && textoLayout ? (
+          <div
+            ref={textoToolbarRef}
+            className="pointer-events-auto flex shrink-0 items-center justify-end border-b border-gray-100 px-2 py-1.5"
+          >
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => void handleSubmit('texto')}
+              disabled={!texto.trim() || loading}
+              className="rounded-lg bg-[#0097b2] px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {loading ? '…' : 'Postar'}
+            </button>
+          </div>
+        ) : null}
         <textarea
           ref={textareaTextoRef}
           value={texto}
           onChange={onTextoChange}
           onBlur={onTextoBlur}
+          readOnly={aba === 'foto'}
+          tabIndex={aba === 'texto' ? 0 : -1}
           placeholder="O que você está pensando?"
-          className="box-border resize-none border-0 border-t border-gray-200 bg-white px-3 py-2 text-base font-bold leading-relaxed text-[#0097b2] placeholder:font-bold placeholder:text-[#0097b2]/45 focus:outline-none focus:ring-0"
+          name="criar-post-texto"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          data-gramm="false"
+          data-gramm_editor="false"
+          data-enable-grammarly="false"
+          className={`pointer-events-auto min-h-0 w-full flex-1 resize-none bg-white px-3 py-2 text-base font-bold leading-relaxed text-[#0097b2] placeholder:font-bold placeholder:text-[#0097b2]/45 focus:outline-none focus:ring-0 ${aba === 'texto' && textoLayout ? '' : 'min-h-0 p-0'}`}
           style={{
-            position: 'fixed',
-            left: 0,
-            right: 0,
-            width: '100%',
-            top: textoLayout.top,
-            height: textoLayout.height,
-            overflowY: 'auto',
-            zIndex: 20,
+            overflowY: aba === 'texto' ? 'auto' : 'hidden',
             WebkitOverflowScrolling: 'touch',
+            touchAction: 'manipulation',
           }}
-          enterKeyHint="enter"
-          inputMode="text"
         />
-      ) : (
-        <div className="min-h-[40vh] bg-white" aria-hidden />
-      )}
+      </div>
     </div>
   )
 }
