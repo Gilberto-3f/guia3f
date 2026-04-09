@@ -62,6 +62,8 @@ function FeedPageInner() {
 
   const [meuId, setMeuId] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
+  /** Evita marcar o feed como “pronto” antes da sessão existir (corrida: ready com listas vazias e sem re-fetch). */
+  const [authReady, setAuthReady] = useState(false)
   const [feedRede, setFeedRede] = useState<{
     seguidos: string[]
     patrocinioAutores: string[]
@@ -129,13 +131,15 @@ function FeedPageInner() {
       } = await supabase.auth.getSession()
       setMeuId(session?.user?.id ?? null)
       setEmail(session?.user?.email ?? null)
+      setAuthReady(true)
     }
     void boot()
   }, [])
 
   useEffect(() => {
+    if (!authReady) return
+
     const carregarRede = async () => {
-      // Mesmo sem login, evita travar no "Carregando feed..."
       if (!meuId) {
         setFeedRede({ seguidos: [], patrocinioAutores: [], ready: true })
         return
@@ -157,7 +161,7 @@ function FeedPageInner() {
       }
     }
     void carregarRede()
-  }, [meuId])
+  }, [authReady, meuId])
 
   const mapRow = useCallback((post: unknown) => {
     const p = post as Record<string, unknown>
@@ -220,7 +224,7 @@ function FeedPageInner() {
       .filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
       .map(mapRow)
       .filter((row) => !isTipoVideoPost(row.tipo))
-  }, [mapRow])
+  }, [mapRow, meuId])
 
   useEffect(() => {
     if (!feedRede.ready) return
@@ -241,7 +245,7 @@ function FeedPageInner() {
       }
     }
     void run()
-  }, [fetchPage, feedRede.ready])
+  }, [fetchPage, feedRede.ready, meuId, feedRede.seguidos, feedRede.patrocinioAutores])
 
   useEffect(() => {
     fetchPostAttempted.current = null
