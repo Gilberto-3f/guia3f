@@ -43,8 +43,11 @@ export default function CriarPublicacaoPage() {
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [cameraErro, setCameraErro] = useState(false)
-  const [alturaTextoPx, setAlturaTextoPx] = useState<number | null>(null)
+  /** Área do editor de texto colada ao teclado (visualViewport). */
+  const [textoLayout, setTextoLayout] = useState<{ top: number; height: number } | null>(null)
 
+  const abaRef = useRef<Aba>('foto')
+  const headerRef = useRef<HTMLDivElement | null>(null)
   const inputGaleriaRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -146,37 +149,76 @@ export default function CriarPublicacaoPage() {
   }, [])
 
   useEffect(() => {
-    if (aba === 'texto') {
-      const t = window.setTimeout(() => textareaTextoRef.current?.focus(), 150)
-      return () => clearTimeout(t)
-    }
+    abaRef.current = aba
   }, [aba])
 
-  /** Altura útil acima do teclado (mobile). */
-  useEffect(() => {
-    if (aba !== 'texto') return
-
-    const HEADER_BOTTOM = 104
-    const BOTTOM_BAR = 76
-
-    const atualizar = () => {
-      const vv = window.visualViewport
-      const vh = vv?.height ?? window.innerHeight
-      const h = vh - HEADER_BOTTOM - BOTTOM_BAR
-      setAlturaTextoPx(Math.max(140, Math.floor(h)))
-    }
-
-    atualizar()
+  /** Cola o campo de texto ao teclado (sem margem): do fim das abas até o topo do teclado. */
+  const atualizarLayoutTexto = useCallback(() => {
+    if (abaRef.current !== 'texto') return
+    const header = headerRef.current
     const vv = window.visualViewport
-    vv?.addEventListener('resize', atualizar)
-    vv?.addEventListener('scroll', atualizar)
-    window.addEventListener('resize', atualizar)
-    return () => {
-      vv?.removeEventListener('resize', atualizar)
-      vv?.removeEventListener('scroll', atualizar)
-      window.removeEventListener('resize', atualizar)
+    if (!header || !vv) return
+
+    const headerBottom = header.getBoundingClientRect().bottom
+    const areaVisivelInferior = vv.offsetTop + vv.height
+    const height = Math.max(64, Math.floor(areaVisivelInferior - headerBottom))
+    const top = Math.floor(headerBottom)
+
+    setTextoLayout((prev) => {
+      if (prev?.top === top && prev?.height === height) return prev
+      return { top, height }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (aba !== 'texto') {
+      setTextoLayout(null)
+      return
     }
-  }, [aba])
+
+    atualizarLayoutTexto()
+    const run = () => requestAnimationFrame(atualizarLayoutTexto)
+
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', run)
+    vv?.addEventListener('scroll', run)
+    window.addEventListener('resize', run)
+    let ro: ResizeObserver | null = null
+    const attachHeaderObserver = () => {
+      const el = headerRef.current
+      if (!el || ro) return
+      ro = new ResizeObserver(run)
+      ro.observe(el)
+    }
+    attachHeaderObserver()
+    const rafAttach = requestAnimationFrame(attachHeaderObserver)
+
+    const focusTexto = () => {
+      textareaTextoRef.current?.focus({ preventScroll: true })
+    }
+    requestAnimationFrame(focusTexto)
+    const t = window.setTimeout(focusTexto, 120)
+
+    return () => {
+      cancelAnimationFrame(rafAttach)
+      vv?.removeEventListener('resize', run)
+      vv?.removeEventListener('scroll', run)
+      window.removeEventListener('resize', run)
+      ro?.disconnect()
+      window.clearTimeout(t)
+    }
+  }, [aba, atualizarLayoutTexto])
+
+  /** Mantém o teclado na aba TEXTO: recoloca foco se não foi para o cabeçalho (Voltar/Publicar/abas). */
+  const onTextoBlur = useCallback(() => {
+    if (abaRef.current !== 'texto') return
+    window.setTimeout(() => {
+      if (abaRef.current !== 'texto') return
+      const active = document.activeElement
+      if (active && headerRef.current?.contains(active)) return
+      textareaTextoRef.current?.focus({ preventScroll: true })
+    }, 30)
+  }, [])
 
   /** Mantém o fim do texto visível (comportamento “sobe” sem aumentar o campo). */
   const onTextoChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
@@ -258,8 +300,14 @@ export default function CriarPublicacaoPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 pb-[calc(3.75rem+env(safe-area-inset-bottom))]">
-      <div className="sticky top-0 z-20 border-b border-gray-200 bg-white">
+    <div
+      className={`flex min-h-screen flex-col bg-gray-50 ${aba === 'texto' ? 'pb-0' : 'pb-[calc(3.75rem+env(safe-area-inset-bottom))]'}`}
+    >
+      <div
+        ref={headerRef}
+        className="sticky top-0 z-30 border-b border-gray-200 bg-white shadow-sm"
+        data-criar-header
+      >
         <div className="flex items-center justify-between px-3 py-1.5">
           <button type="button" onClick={() => router.back()} className="-ml-1 p-1" aria-label="Voltar">
             <ArrowLeft size={22} className="text-[#0097b2]" strokeWidth={2.25} />
@@ -412,22 +460,29 @@ export default function CriarPublicacaoPage() {
             </>
           )}
         </div>
+      ) : textoLayout ? (
+        <textarea
+          ref={textareaTextoRef}
+          value={texto}
+          onChange={onTextoChange}
+          onBlur={onTextoBlur}
+          placeholder="O que você está pensando?"
+          className="box-border resize-none border-0 border-t border-gray-200 bg-white px-3 py-2 text-base font-bold leading-relaxed text-[#0097b2] placeholder:font-bold placeholder:text-[#0097b2]/45 focus:outline-none focus:ring-0"
+          style={{
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            width: '100%',
+            top: textoLayout.top,
+            height: textoLayout.height,
+            overflowY: 'auto',
+            zIndex: 20,
+            WebkitOverflowScrolling: 'touch',
+          }}
+          enterKeyHint="enter"
+        />
       ) : (
-        <div className="flex flex-1 flex-col px-3 pt-1">
-          <textarea
-            ref={textareaTextoRef}
-            value={texto}
-            onChange={onTextoChange}
-            placeholder="O que você está pensando?"
-            className="w-full shrink-0 resize-none rounded-lg border border-gray-200 bg-white p-3 text-base font-bold leading-relaxed text-[#0097b2] placeholder:font-bold placeholder:text-[#0097b2]/45 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
-            style={{
-              height: alturaTextoPx ?? 'calc(100dvh - 6.75rem - env(safe-area-inset-bottom))',
-              maxHeight: alturaTextoPx ?? 'calc(100dvh - 6.75rem - env(safe-area-inset-bottom))',
-              overflowY: 'auto',
-            }}
-            autoFocus
-          />
-        </div>
+        <div className="min-h-[40vh] bg-white" aria-hidden />
       )}
     </div>
   )
