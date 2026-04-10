@@ -1,11 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
-import { garantirMagicLinkEnviado } from '@/lib/magicLinkCadastroCliente'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
 
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'unavailable'
@@ -116,7 +114,6 @@ export default function CadastroEmpresaPage() {
   const [erroEnvio, setErroEnvio] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [bootOk, setBootOk] = useState(false)
-  const [magicLinkEnviado, setMagicLinkEnviado] = useState(false)
 
   const usernameLimpo = useMemo(
     () => nomeUsuario.trim().toLowerCase().replace(/^@+/, ''),
@@ -328,26 +325,27 @@ export default function CadastroEmpresaPage() {
         if (logoFile) fd.append('logo', logoFile)
         fotosFiles.forEach((f) => fd.append('fotos', f))
         fd.append('documentoComercial', documentoComercialFile)
-        fd.append('redirectOrigin', typeof window !== 'undefined' ? window.location.origin : '')
 
         const res = await fetch('/api/cadastro/empresa', { method: 'POST', body: fd })
         const json = (await res.json().catch(() => ({}))) as {
           ok?: boolean
           error?: string
-          magicLinkSent?: boolean
         }
         if (!res.ok) {
           setErroEnvio(mapApiEmpresaError(json.error, t))
           return
         }
-        if (json.magicLinkSent !== true) {
-          const linkOk = await garantirMagicLinkEnviado(emailSessao)
-          if (!linkOk) {
-            setErroEnvio(t('magicLinkSendError'))
-            return
-          }
+        const emailLogin = emailSessao.trim().toLowerCase()
+        const { error: signErr } = await supabase.auth.signInWithPassword({
+          email: emailLogin,
+          password: senha,
+        })
+        if (signErr) {
+          setErroEnvio(signErr.message || t('apiErrorDefault'))
+          return
         }
-        setMagicLinkEnviado(true)
+        await supabase.auth.getSession()
+        router.push('/guia')
       } catch (error) {
         const mensagem = error instanceof Error ? error.message : t('unexpectedError')
         setErroEnvio(mensagem)
@@ -445,13 +443,7 @@ export default function CadastroEmpresaPage() {
 
       if (insertEmpresa.error) throw new Error(insertEmpresa.error.message)
 
-      const linkOk = await garantirMagicLinkEnviado(emailUser)
-      if (!linkOk) {
-        setErroEnvio(t('magicLinkSendError'))
-        return
-      }
-      await supabase.auth.signOut()
-      setMagicLinkEnviado(true)
+      router.push('/guia')
     } catch (error) {
       const mensagem = error instanceof Error ? error.message : t('unexpectedError')
       setErroEnvio(mensagem)
@@ -464,23 +456,6 @@ export default function CadastroEmpresaPage() {
     return (
       <GuiaAuthShell largeHeaderLogo>
         <p className="text-center text-[#001f3f]">{tCommon('loading')}</p>
-      </GuiaAuthShell>
-    )
-  }
-
-  if (magicLinkEnviado) {
-    return (
-      <GuiaAuthShell largeHeaderLogo>
-        <h1 className="mb-4 text-center text-xl font-bold text-[#0097b2]">{t('magicLinkSentTitle')}</h1>
-        <p className="mx-auto mb-3 max-w-md text-center text-sm leading-relaxed text-[#001f3f]">
-          {t('magicLinkSentBody')}
-        </p>
-        <p className="mx-auto max-w-md text-center text-xs text-[#001f3f]/80">{t('magicLinkSentHint')}</p>
-        <div className="mt-8 text-center text-sm text-[#001f3f]">
-          <Link href="/login" className="font-medium text-[#0097b2] hover:underline">
-            {t('magicLinkGoToLogin')}
-          </Link>
-        </div>
       </GuiaAuthShell>
     )
   }

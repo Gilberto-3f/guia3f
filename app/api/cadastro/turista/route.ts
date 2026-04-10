@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { enviarMagicLinkAposCadastro, resolveAuthCallbackUrl } from '@/lib/cadastroMagicLinkServer'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { defaultUsernameForCadastro } from '@/lib/cadastroUsername'
 
@@ -109,15 +108,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: ins.error.message }, { status: 500 })
     }
 
-    const redirectOrigin = String(form.get('redirectOrigin') || '')
-    const callbackUrl = resolveAuthCallbackUrl(req, redirectOrigin)
-    const { error: magicErr } = await enviarMagicLinkAposCadastro(email, callbackUrl)
-
-    return NextResponse.json({
-      ok: true,
-      magicLinkSent: !magicErr,
-      ...(magicErr ? { magicLinkError: magicErr.message } : {}),
-    })
+    return NextResponse.json({ ok: true })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'erro'
     if (msg.includes('SUPABASE_SERVICE_ROLE_KEY') || msg.includes('em falta')) {

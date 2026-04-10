@@ -9,7 +9,7 @@
 2- Botão "CRIAR CONTA" → /escolha-perfil
 3- /escolha-perfil → 3 botões com painéis
 4- Dentro do painel → botão "CADASTRAR" → /cadastro/[tipo]
-5- Cadastro detalhado → magic link → /guia
+5- Cadastro detalhado → API cria conta + login com senha → /guia
 
 🧭 REGRAS DE NAVEGAÇÃO
 - SEMPRE use import { useRouter } from '@/i18n/navigation'
@@ -32,7 +32,7 @@ NÃO fazer router.push diretamente nos botões principais
 • Cadastro (/cadastro/[tipo])
 Exige sessão (redireciona para /login se não logado)
 E-mail desabilitado (vem da sessão)
-Botão CADASTRAR → insere na tabela + magic link
+Botão CADASTRAR → API (visitante) ou insert direto (logado) + login com senha quando aplicável → /guia
 
 🗄️ REGRAS DE BANCO DE DADOS
 Políticas RLS necessárias:
@@ -90,7 +90,7 @@ chore: manutenção
 ❌ Fazer router.push direto nos botões da escolha-perfil
 ❌ Exigir sessão na escolha-perfil
 ❌ Modificar RLS sem necessidade
-❌ Remover magic link do fluxo de cadastro
+❌ Reintroduzir magic link no cadastro (fluxo atual: senha + login automático)
 
 ✅ REGRAS DE DIAGNÓSTICO
 • Problema: Verificar
