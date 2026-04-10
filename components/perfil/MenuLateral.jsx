@@ -224,7 +224,6 @@ export default function MenuLateral({
   const router = useRouter()
   /** @type {[HistoricoEntry[], (h: HistoricoEntry[]) => void]} */
   const [historico, setHistorico] = useState(/** @type {HistoricoEntry[]} */ ([]))
-  const [logoutEtapa, setLogoutEtapa] = useState(0)
   const [modalLogout, setModalLogout] = useState(false)
   const [historicoNaoLido, setHistoricoNaoLido] = useState(0)
   const [drawerEntered, setDrawerEntered] = useState(false)
@@ -234,7 +233,6 @@ export default function MenuLateral({
     if (!aberto) {
       setDrawerEntered(false)
       setHistorico([])
-      setLogoutEtapa(0)
       setModalLogout(false)
       return
     }
@@ -294,7 +292,6 @@ export default function MenuLateral({
   const executarItem = (item) => {
     if (item.acao === 'logout') {
       setModalLogout(true)
-      setLogoutEtapa(0)
       return
     }
     if (item.acao === 'simulacao' && item.simRole) {
@@ -348,11 +345,7 @@ export default function MenuLateral({
     }
   }
 
-  const confirmarLogoutPasso = async () => {
-    if (logoutEtapa === 0) {
-      setLogoutEtapa(1)
-      return
-    }
+  const confirmarLogout = async () => {
     try {
       await supabase.auth.signOut()
       try {
@@ -366,7 +359,6 @@ export default function MenuLateral({
       console.error(e)
     } finally {
       setModalLogout(false)
-      setLogoutEtapa(0)
       onFechar()
     }
   }
@@ -519,29 +511,24 @@ export default function MenuLateral({
         {modalLogout ? (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-              <h3 className="text-lg font-bold text-gray-900">{logoutEtapa === 0 ? 'Sair da conta?' : 'Confirmação final'}</h3>
+              <h3 className="text-lg font-bold text-gray-900">Sair da conta?</h3>
               <p className="mt-2 text-sm text-gray-600">
-                {logoutEtapa === 0
-                  ? 'Você precisará entrar novamente para acessar o Guia 3F.'
-                  : 'Esta ação encerra a sessão neste dispositivo. Deseja continuar?'}
+                Você precisará entrar novamente para acessar o Guia 3F.
               </p>
               <div className="mt-4 flex gap-2">
                 <button
                   type="button"
                   className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium"
-                  onClick={() => {
-                    setModalLogout(false)
-                    setLogoutEtapa(0)
-                  }}
+                  onClick={() => setModalLogout(false)}
                 >
                   Cancelar
                 </button>
                 <button
                   type="button"
                   className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-medium text-white"
-                  onClick={() => void confirmarLogoutPasso()}
+                  onClick={() => void confirmarLogout()}
                 >
-                  {logoutEtapa === 0 ? 'Sim, sair' : 'Confirmar saída'}
+                  Sim, sair
                 </button>
               </div>
             </div>
