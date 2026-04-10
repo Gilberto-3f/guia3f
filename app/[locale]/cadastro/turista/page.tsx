@@ -5,7 +5,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
-import { sendPostCadastroMagicLink } from '@/lib/sendPostCadastroMagicLink'
+import { garantirMagicLinkEnviado } from '@/lib/magicLinkCadastroCliente'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -206,17 +206,24 @@ export default function CadastroTuristaPage() {
         fd.append('documentoFrente', documentoFrenteFile)
         fd.append('documentoVerso', documentoVersoFile)
         fd.append('fotoPerfil', fotoPerfilFile)
+        fd.append('redirectOrigin', typeof window !== 'undefined' ? window.location.origin : '')
 
         const res = await fetch('/api/cadastro/turista', { method: 'POST', body: fd })
-        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean
+          error?: string
+          magicLinkSent?: boolean
+        }
         if (!res.ok) {
           setErroEnvio(mapApiTuristaError(json.error, t))
           return
         }
-        const { error: otpError } = await sendPostCadastroMagicLink(emailSessao)
-        if (otpError) {
-          setErroEnvio(t('magicLinkSendError'))
-          return
+        if (json.magicLinkSent !== true) {
+          const linkOk = await garantirMagicLinkEnviado(emailSessao)
+          if (!linkOk) {
+            setErroEnvio(t('magicLinkSendError'))
+            return
+          }
         }
         setMagicLinkEnviado(true)
       } catch (error) {
@@ -279,15 +286,8 @@ export default function CadastroTuristaPage() {
       }
       if (insertTurista.error) throw new Error(insertTurista.error.message)
 
-      const origin = typeof window !== 'undefined' ? window.location.origin : ''
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email: emailUser,
-        options: {
-          emailRedirectTo: `${origin}/auth/callback`,
-          shouldCreateUser: false,
-        },
-      })
-      if (otpError) {
+      const linkOk = await garantirMagicLinkEnviado(emailUser)
+      if (!linkOk) {
         setErroEnvio(t('magicLinkSendError'))
         return
       }

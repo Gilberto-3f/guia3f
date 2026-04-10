@@ -5,7 +5,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
-import { sendPostCadastroMagicLink } from '@/lib/sendPostCadastroMagicLink'
+import { garantirMagicLinkEnviado } from '@/lib/magicLinkCadastroCliente'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
 
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'unavailable'
@@ -328,17 +328,24 @@ export default function CadastroEmpresaPage() {
         if (logoFile) fd.append('logo', logoFile)
         fotosFiles.forEach((f) => fd.append('fotos', f))
         fd.append('documentoComercial', documentoComercialFile)
+        fd.append('redirectOrigin', typeof window !== 'undefined' ? window.location.origin : '')
 
         const res = await fetch('/api/cadastro/empresa', { method: 'POST', body: fd })
-        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean
+          error?: string
+          magicLinkSent?: boolean
+        }
         if (!res.ok) {
           setErroEnvio(mapApiEmpresaError(json.error, t))
           return
         }
-        const { error: otpError } = await sendPostCadastroMagicLink(emailSessao)
-        if (otpError) {
-          setErroEnvio(t('magicLinkSendError'))
-          return
+        if (json.magicLinkSent !== true) {
+          const linkOk = await garantirMagicLinkEnviado(emailSessao)
+          if (!linkOk) {
+            setErroEnvio(t('magicLinkSendError'))
+            return
+          }
         }
         setMagicLinkEnviado(true)
       } catch (error) {
@@ -438,15 +445,8 @@ export default function CadastroEmpresaPage() {
 
       if (insertEmpresa.error) throw new Error(insertEmpresa.error.message)
 
-      const origin = typeof window !== 'undefined' ? window.location.origin : ''
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email: emailUser,
-        options: {
-          emailRedirectTo: `${origin}/auth/callback`,
-          shouldCreateUser: false,
-        },
-      })
-      if (otpError) {
+      const linkOk = await garantirMagicLinkEnviado(emailUser)
+      if (!linkOk) {
         setErroEnvio(t('magicLinkSendError'))
         return
       }
