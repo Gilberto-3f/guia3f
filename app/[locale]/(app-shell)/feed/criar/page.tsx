@@ -119,6 +119,7 @@ function CriarPublicacaoPageInner() {
 
   const abaRef = useRef<Aba>(aba)
   const headerRef = useRef<HTMLDivElement | null>(null)
+  const publicarTextoBarRef = useRef<HTMLDivElement | null>(null)
   const inputGaleriaRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
   const fotoPreviewRef = useRef<string | null>(null)
@@ -354,11 +355,13 @@ function CriarPublicacaoPageInner() {
       const alvo = e.relatedTarget
       if (alvo instanceof Node) {
         if (headerRef.current?.contains(alvo)) return
+        if (publicarTextoBarRef.current?.contains(alvo)) return
       }
       const refocar = () => {
         if (abaRef.current !== 'texto') return
         const active = document.activeElement
         if (active && headerRef.current?.contains(active)) return
+        if (active && publicarTextoBarRef.current?.contains(active)) return
         focarTextarea()
       }
       window.setTimeout(refocar, 0)
@@ -505,18 +508,6 @@ function CriarPublicacaoPageInner() {
             FOTO
           </button>
         </div>
-        {aba === 'texto' ? (
-          <div className="flex shrink-0 items-center pr-2">
-            <button
-              type="button"
-              onClick={() => void handleSubmit('texto')}
-              disabled={!texto.trim() || loading}
-              className="rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
-            >
-              {loading ? '…' : 'Publicar'}
-            </button>
-          </div>
-        ) : null}
       </div>
 
       {aba === 'foto' ? (
@@ -601,7 +592,7 @@ function CriarPublicacaoPageInner() {
       <div
         className={
           aba === 'texto' && textoLayout
-            ? 'fixed left-0 right-0 z-20 flex min-h-0 flex-col border-t border-gray-100 bg-white'
+            ? 'fixed left-0 right-0 z-20 flex min-h-0 min-w-0 flex-col border-t border-gray-100 bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.06)]'
             : 'pointer-events-none fixed left-0 top-0 z-[-1] m-0 h-px max-h-[1px] w-px max-w-[1px] overflow-hidden border-0 p-0 opacity-0'
         }
         style={
@@ -627,13 +618,32 @@ function CriarPublicacaoPageInner() {
           data-gramm="false"
           data-gramm_editor="false"
           data-enable-grammarly="false"
-          className={`pointer-events-auto min-h-0 w-full flex-1 resize-none bg-white px-3 py-2 text-base font-bold leading-relaxed text-black placeholder:font-bold placeholder:text-gray-400 focus:outline-none focus:ring-0 ${aba === 'texto' && textoLayout ? '' : 'min-h-0 p-0'}`}
+          className={`pointer-events-auto min-h-0 w-full min-w-0 flex-1 resize-none bg-white px-3 py-2 text-base font-bold leading-relaxed text-black placeholder:font-bold placeholder:text-gray-400 focus:outline-none focus:ring-0 ${aba === 'texto' && textoLayout ? '' : 'min-h-0 p-0'}`}
           style={{
             overflowY: aba === 'texto' ? 'auto' : 'hidden',
             WebkitOverflowScrolling: 'touch',
             touchAction: 'manipulation',
           }}
         />
+        {aba === 'texto' && textoLayout ? (
+          <div
+            ref={publicarTextoBarRef}
+            className="pointer-events-auto shrink-0 border-t border-gray-200 bg-white px-3 pt-2"
+            style={{
+              paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 8px))',
+            }}
+          >
+            <button
+              type="button"
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => void handleSubmit('texto')}
+              disabled={!texto.trim() || loading}
+              className="w-full rounded-xl bg-[#0097b2] py-3 text-center text-base font-bold text-white shadow-sm transition disabled:opacity-50"
+            >
+              {loading ? 'Publicando…' : 'Publicar'}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   )
