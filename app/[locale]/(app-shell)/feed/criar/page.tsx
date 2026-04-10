@@ -86,6 +86,9 @@ function CriarPublicacaoPageInner() {
   const irParaFoto = useCallback(() => {
     flushSync(() => setAba('foto'))
     sincronizarUrlComAba('foto')
+    queueMicrotask(() => {
+      navegandoParaFotoRef.current = false
+    })
   }, [sincronizarUrlComAba])
 
   const irParaTexto = useCallback(() => {
@@ -120,6 +123,7 @@ function CriarPublicacaoPageInner() {
   const abaRef = useRef<Aba>(aba)
   const headerRef = useRef<HTMLDivElement | null>(null)
   const publicarTextoBarRef = useRef<HTMLDivElement | null>(null)
+  const navegandoParaFotoRef = useRef(false)
   const inputGaleriaRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
   const fotoPreviewRef = useRef<string | null>(null)
@@ -312,7 +316,13 @@ function CriarPublicacaoPageInner() {
     if (aba !== 'texto') return
 
     atualizarLayoutTexto()
-    const run = () => requestAnimationFrame(atualizarLayoutTexto)
+    const run = () =>
+      requestAnimationFrame(() => {
+        atualizarLayoutTexto()
+        if (abaRef.current !== 'texto') return
+        const ta = textareaTextoRef.current
+        if (ta && document.activeElement !== ta) focarTextarea()
+      })
 
     const vv = window.visualViewport
     vv?.addEventListener('resize', run)
@@ -330,7 +340,8 @@ function CriarPublicacaoPageInner() {
 
     const focusTexto = () => focarTextarea()
     requestAnimationFrame(focusTexto)
-    const t = window.setTimeout(focusTexto, 50)
+    const focusDelaysMs = [0, 50, 120, 250, 450, 700]
+    const timers = focusDelaysMs.map((ms) => window.setTimeout(focusTexto, ms))
 
     const onVis = () => {
       if (document.visibilityState !== 'visible') return
@@ -345,13 +356,35 @@ function CriarPublicacaoPageInner() {
       vv?.removeEventListener('scroll', run)
       window.removeEventListener('resize', run)
       ro?.disconnect()
-      window.clearTimeout(t)
+      timers.forEach((id) => window.clearTimeout(id))
     }
   }, [aba, atualizarLayoutTexto, focarTextarea])
+
+  /** Chrome: redimensionar a viewport com o teclado (melhor alinhamento ao visualViewport). */
+  useEffect(() => {
+    if (aba !== 'texto') return
+    const nav = navigator as Navigator & { virtualKeyboard?: { overlaysContent?: boolean } }
+    const vk = nav.virtualKeyboard
+    if (!vk || typeof vk.overlaysContent !== 'boolean') return
+    try {
+      const prev = vk.overlaysContent
+      vk.overlaysContent = false
+      return () => {
+        try {
+          vk.overlaysContent = prev
+        } catch {
+          /* noop */
+        }
+      }
+    } catch {
+      /* noop */
+    }
+  }, [aba])
 
   const onTextoBlur = useCallback(
     (e: FocusEvent<HTMLTextAreaElement>) => {
       if (abaRef.current !== 'texto') return
+      if (navegandoParaFotoRef.current) return
       const alvo = e.relatedTarget
       if (alvo instanceof Node) {
         if (headerRef.current?.contains(alvo)) return
@@ -359,6 +392,7 @@ function CriarPublicacaoPageInner() {
       }
       const refocar = () => {
         if (abaRef.current !== 'texto') return
+        if (navegandoParaFotoRef.current) return
         const active = document.activeElement
         if (active && headerRef.current?.contains(active)) return
         if (active && publicarTextoBarRef.current?.contains(active)) return
@@ -477,6 +511,14 @@ function CriarPublicacaoPageInner() {
 
   const podeIrParaTexto = aba !== 'foto' || fotoPreview != null
 
+  /** Até medir o header: área visível grande (evita painel 1×1px — iOS não abre teclado). SSR-safe. */
+  const estiloPainelTexto =
+    aba === 'texto'
+      ? textoLayout
+        ? { top: textoLayout.top, height: textoLayout.height }
+        : { top: '3.5rem', height: 'calc(100dvh - 3.5rem)' }
+      : undefined
+
   return (
     <div
       className={`flex min-h-[100dvh] flex-col bg-gray-50 ${aba === 'texto' ? 'pb-0' : ''}`}
@@ -501,10 +543,25 @@ function CriarPublicacaoPageInner() {
         data-criar-header
       >
         <div className="flex min-w-0 flex-1">
-          <button type="button" className={tabCls(aba === 'texto')} onClick={irParaTexto} disabled={!podeIrParaTexto}>
+          <button
+            type="button"
+            className={tabCls(aba === 'texto')}
+            onClick={irParaTexto}
+            disabled={!podeIrParaTexto}
+            onPointerDown={(e) => {
+              if (aba === 'texto') e.preventDefault()
+            }}
+          >
             TEXTO
           </button>
-          <button type="button" className={tabCls(aba === 'foto')} onClick={irParaFoto}>
+          <button
+            type="button"
+            className={tabCls(aba === 'foto')}
+            onPointerDownCapture={() => {
+              navegandoParaFotoRef.current = true
+            }}
+            onClick={() => irParaFoto()}
+          >
             FOTO
           </button>
         </div>
@@ -591,15 +648,11 @@ function CriarPublicacaoPageInner() {
       {/* Sempre montado: o focus() no toque da aba TEXTO precisa do elemento no DOM (iOS/Android). */}
       <div
         className={
-          aba === 'texto' && textoLayout
+          aba === 'texto'
             ? 'fixed left-0 right-0 z-20 flex min-h-0 min-w-0 flex-col border-t border-gray-100 bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.06)]'
             : 'pointer-events-none fixed left-0 top-0 z-[-1] m-0 h-px max-h-[1px] w-px max-w-[1px] overflow-hidden border-0 p-0 opacity-0'
         }
-        style={
-          aba === 'texto' && textoLayout
-            ? { top: textoLayout.top, height: textoLayout.height }
-            : undefined
-        }
+        style={estiloPainelTexto}
         aria-hidden={aba === 'foto'}
       >
         <textarea
@@ -609,23 +662,27 @@ function CriarPublicacaoPageInner() {
           onBlur={onTextoBlur}
           readOnly={aba === 'foto'}
           tabIndex={aba === 'texto' ? 0 : -1}
+          autoFocus={aba === 'texto'}
           placeholder="O que você está pensando?"
           name="criar-post-texto"
           autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
+          autoCorrect="on"
+          autoCapitalize="sentences"
+          spellCheck={true}
+          inputMode="text"
+          enterKeyHint="enter"
           data-gramm="false"
           data-gramm_editor="false"
           data-enable-grammarly="false"
-          className={`pointer-events-auto min-h-0 w-full min-w-0 flex-1 resize-none bg-white px-3 py-2 text-base font-bold leading-relaxed text-black placeholder:font-bold placeholder:text-gray-400 focus:outline-none focus:ring-0 ${aba === 'texto' && textoLayout ? '' : 'min-h-0 p-0'}`}
+          className={`pointer-events-auto min-h-0 w-full min-w-0 flex-1 resize-none bg-white px-3 py-2 text-base font-bold leading-relaxed text-black placeholder:font-bold placeholder:text-gray-400 focus:outline-none focus:ring-0 ${aba === 'texto' ? '' : 'min-h-0 p-0'}`}
           style={{
             overflowY: aba === 'texto' ? 'auto' : 'hidden',
             WebkitOverflowScrolling: 'touch',
             touchAction: 'manipulation',
+            caretColor: '#000',
           }}
         />
-        {aba === 'texto' && textoLayout ? (
+        {aba === 'texto' ? (
           <div
             ref={publicarTextoBarRef}
             className="pointer-events-auto shrink-0 border-t border-gray-200 bg-white px-3 pt-2"
