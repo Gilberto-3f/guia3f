@@ -13,7 +13,7 @@ import {
 import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
-import { X } from 'lucide-react'
+import { Camera, FolderOpen, Images, X } from 'lucide-react'
 import Cropper, { type Area, type MediaSize, type Size } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
@@ -36,9 +36,6 @@ const FORMATOS: Record<
     miniAspectClass: 'aspect-video w-9 max-w-[2.5rem]',
   },
 }
-
-/** `image/*` no mobile costuma abrir o menu nativo: fototeca, câmera, ficheiros. */
-const ACCEPT_IMAGEM_NATIVO = 'image/*'
 
 /** Cobre o recorte sem vãos: paisagem = preencher altura; retrato = preencher largura; quadrado = auto. */
 function objectFitParaFormato(f: FormatoFoto): 'cover' | 'horizontal-cover' | 'vertical-cover' {
@@ -124,7 +121,9 @@ function CriarPublicacaoPageInner() {
   const headerRef = useRef<HTMLDivElement | null>(null)
   const publicarTextoBarRef = useRef<HTMLDivElement | null>(null)
   const navegandoParaFotoRef = useRef(false)
-  const inputGaleriaRef = useRef<HTMLInputElement | null>(null)
+  const inputFototecaRef = useRef<HTMLInputElement | null>(null)
+  const inputCameraRef = useRef<HTMLInputElement | null>(null)
+  const inputArquivoRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
   const fotoPreviewRef = useRef<string | null>(null)
 
@@ -138,10 +137,14 @@ function CriarPublicacaoPageInner() {
     setCroppedAreaPixels(null)
   }, [])
 
-  const onFotoGaleria = (e: ChangeEvent<HTMLInputElement>) => {
+  const onFotoSelecionada = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (!file || !file.type.startsWith('image/')) return
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      alert('Para publicar no feed, escolha um ficheiro de imagem.')
+      return
+    }
     setFotoPreview((prev) => {
       if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
       return URL.createObjectURL(file)
@@ -151,8 +154,7 @@ function CriarPublicacaoPageInner() {
     setCroppedAreaPixels(null)
   }
 
-  const abrirGaleria = useCallback(() => {
-    const input = inputGaleriaRef.current
+  const dispararSeletorFicheiro = useCallback((input: HTMLInputElement | null) => {
     if (!input) return
     try {
       const el = input as HTMLInputElement & { showPicker?: () => void | Promise<void> }
@@ -173,24 +175,20 @@ function CriarPublicacaoPageInner() {
     fotoPreviewRef.current = fotoPreview
   }, [fotoPreview])
 
-  /** Ao entrar na aba FOTO sem imagem, abre o seletor nativo (fototeca / câmera / ficheiros). */
   useEffect(() => {
-    if (aba !== 'foto' || fotoPreview) return
-    const id = window.requestAnimationFrame(() => {
-      abrirGaleria()
-    })
-    return () => window.cancelAnimationFrame(id)
-  }, [aba, fotoPreview, abrirGaleria])
-
-  useEffect(() => {
-    const input = inputGaleriaRef.current
-    if (!input) return
     const onCancel = () => {
       if (abaRef.current !== 'foto' || fotoPreviewRef.current) return
       irParaTexto()
     }
-    input.addEventListener('cancel', onCancel)
-    return () => input.removeEventListener('cancel', onCancel)
+    const attached: HTMLInputElement[] = []
+    for (const r of [inputFototecaRef, inputCameraRef, inputArquivoRef]) {
+      const el = r.current
+      if (el) {
+        el.addEventListener('cancel', onCancel)
+        attached.push(el)
+      }
+    }
+    return () => attached.forEach((el) => el.removeEventListener('cancel', onCancel))
   }, [irParaTexto])
 
   const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
@@ -529,12 +527,29 @@ function CriarPublicacaoPageInner() {
       }
     >
       <input
-        ref={inputGaleriaRef}
+        ref={inputFototecaRef}
         type="file"
-        accept={ACCEPT_IMAGEM_NATIVO}
+        accept="image/*"
         className="sr-only"
-        aria-label="Escolher imagem"
-        onChange={onFotoGaleria}
+        aria-label="Fototeca"
+        onChange={onFotoSelecionada}
+      />
+      <input
+        ref={inputCameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        aria-label="Tirar foto"
+        onChange={onFotoSelecionada}
+      />
+      <input
+        ref={inputArquivoRef}
+        type="file"
+        accept="*/*"
+        className="sr-only"
+        aria-label="Escolher ficheiro"
+        onChange={onFotoSelecionada}
       />
 
       <div
@@ -570,20 +585,40 @@ function CriarPublicacaoPageInner() {
       {aba === 'foto' ? (
         <div className="flex flex-1 flex-col px-0.5 pt-1 sm:px-1">
           {!fotoPreview ? (
-            <div className="flex min-h-[40vh] flex-1 flex-col items-center justify-center gap-4 px-4 py-8 text-center">
-              <p className="text-sm font-bold text-[#0097b2]">
-                Escolha ou tire uma foto no menu do sistema.
-              </p>
-              <p className="text-xs font-semibold text-gray-500">
-                Se o seletor não abriu, cancele e volte ao texto, ou toque para abrir de novo.
-              </p>
-              <button
-                type="button"
-                onClick={abrirGaleria}
-                className="rounded-xl bg-[#0097b2] px-6 py-3 text-sm font-bold text-white shadow-md"
+            <div className="flex min-h-[min(70dvh,520px)] flex-1 items-center justify-center px-5 py-8">
+              <div
+                role="menu"
+                aria-label="Origem da imagem"
+                className="w-full max-w-[300px] overflow-hidden rounded-2xl bg-neutral-800/95 shadow-2xl ring-1 ring-white/15 backdrop-blur-md"
               >
-                Abrir fototeca / câmera / ficheiros
-              </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-3 border-b border-white/12 px-4 py-4 text-left text-[15px] font-semibold text-white active:bg-white/10"
+                  onClick={() => dispararSeletorFicheiro(inputFototecaRef.current)}
+                >
+                  <Images className="h-6 w-6 shrink-0 text-white/95" strokeWidth={1.75} aria-hidden />
+                  Fototeca
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-3 border-b border-white/12 px-4 py-4 text-left text-[15px] font-semibold text-white active:bg-white/10"
+                  onClick={() => dispararSeletorFicheiro(inputCameraRef.current)}
+                >
+                  <Camera className="h-6 w-6 shrink-0 text-white/95" strokeWidth={1.75} aria-hidden />
+                  Tirar foto
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-3 px-4 py-4 text-left text-[15px] font-semibold text-white active:bg-white/10"
+                  onClick={() => dispararSeletorFicheiro(inputArquivoRef.current)}
+                >
+                  <FolderOpen className="h-6 w-6 shrink-0 text-white/95" strokeWidth={1.75} aria-hidden />
+                  Escolher arquivo
+                </button>
+              </div>
             </div>
           ) : (
             <>
