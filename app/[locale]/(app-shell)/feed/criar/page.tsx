@@ -13,7 +13,7 @@ import {
 import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
-import { Image as ImageIcon, Repeat2, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import Cropper, { type Area, type MediaSize, type Size } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
@@ -37,14 +37,8 @@ const FORMATOS: Record<
   },
 }
 
-const BOTTOM_BAR_OFFSET = 'calc(5rem + env(safe-area-inset-bottom, 0px))'
-
-/**
- * Lista explícita de imagens (evita `image/*`, que em vários browsers dispara o menu
- * “Câmera / Fototeca / Ficheiros”). Não incluir `capture` — isso forçaria a câmera.
- */
-const ACCEPT_GALERIA_IMAGENS =
-  'image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif'
+/** `image/*` no mobile costuma abrir o menu nativo: fototeca, câmera, ficheiros. */
+const ACCEPT_IMAGEM_NATIVO = 'image/*'
 
 /** Cobre o recorte sem vãos: paisagem = preencher altura; retrato = preencher largura; quadrado = auto. */
 function objectFitParaFormato(f: FormatoFoto): 'cover' | 'horizontal-cover' | 'vertical-cover' {
@@ -60,7 +54,7 @@ function tabCls(ativo: boolean) {
 }
 
 function daUrlParaAba(sp: ReturnType<typeof useSearchParams>): Aba {
-  return sp.get('aba') === 'texto' ? 'texto' : 'foto'
+  return sp.get('aba') === 'foto' ? 'foto' : 'texto'
 }
 
 function CriarPublicacaoPageInner() {
@@ -69,15 +63,15 @@ function CriarPublicacaoPageInner() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [aba, setAba] = useState<Aba>(() =>
-    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('aba') === 'texto'
-      ? 'texto'
-      : 'foto'
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('aba') === 'foto'
+      ? 'foto'
+      : 'texto'
   )
 
   const sincronizarUrlComAba = useCallback(
     (next: Aba) => {
       const params = new URLSearchParams(searchParams.toString())
-      if (next === 'texto') params.set('aba', 'texto')
+      if (next === 'foto') params.set('aba', 'foto')
       else params.delete('aba')
       const qs = params.toString()
       nextRouter.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
@@ -121,32 +115,13 @@ function CriarPublicacaoPageInner() {
   const cropMinZoomRef = useRef(1)
   const lastMediaForCropRef = useRef<MediaSize | null>(null)
   const lastCropSizeRef = useRef<Size | null>(null)
-  const [cameraErro, setCameraErro] = useState(false)
-  const [cameraPermissao, setCameraPermissao] = useState<'verificando' | 'concedida' | 'prompt' | 'negada'>(
-    'verificando'
-  )
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
   const [textoLayout, setTextoLayout] = useState<{ top: number; height: number } | null>(null)
 
   const abaRef = useRef<Aba>(aba)
   const headerRef = useRef<HTMLDivElement | null>(null)
   const inputGaleriaRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const cameraGenRef = useRef(0)
-  const facingAoLigarRef = useRef(facingMode)
-  facingAoLigarRef.current = facingMode
-  const facingMountedRef = useRef(facingMode)
-  const [cameraAoVivo, setCameraAoVivo] = useState(false)
-
-  const pararCamera = useCallback(() => {
-    cameraGenRef.current += 1
-    streamRef.current?.getTracks().forEach((t) => t.stop())
-    streamRef.current = null
-    if (videoRef.current) videoRef.current.srcObject = null
-    setCameraAoVivo(false)
-  }, [])
+  const fotoPreviewRef = useRef<string | null>(null)
 
   const limparFoto = useCallback(() => {
     setFotoPreview((prev) => {
@@ -156,117 +131,6 @@ function CriarPublicacaoPageInner() {
     setCrop({ x: 0, y: 0 })
     setZoom(1)
     setCroppedAreaPixels(null)
-  }, [])
-
-  const ligarCamera = useCallback(async () => {
-    if (abaRef.current !== 'foto') return
-    const gen = ++cameraGenRef.current
-    streamRef.current?.getTracks().forEach((t) => t.stop())
-    streamRef.current = null
-    if (videoRef.current) videoRef.current.srcObject = null
-    setCameraAoVivo(false)
-    setCameraErro(false)
-    const face = facingAoLigarRef.current
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: face } },
-        audio: false,
-      })
-      if (gen !== cameraGenRef.current) {
-        stream.getTracks().forEach((t) => t.stop())
-        return
-      }
-      streamRef.current = stream
-      const v = videoRef.current
-      if (v) {
-        v.srcObject = stream
-        await v.play().catch(() => {})
-      }
-      if (gen === cameraGenRef.current) setCameraAoVivo(true)
-    } catch {
-      if (gen === cameraGenRef.current) setCameraErro(true)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (aba !== 'foto') {
-      setCameraPermissao('verificando')
-      return
-    }
-    let status: PermissionStatus | null = null
-    const sync = () => {
-      if (!status) return
-      const s = status.state
-      setCameraPermissao(s === 'granted' ? 'concedida' : s === 'denied' ? 'negada' : 'prompt')
-    }
-    ;(async () => {
-      try {
-        status = await navigator.permissions.query({ name: 'camera' as const })
-        sync()
-        status.addEventListener('change', sync)
-      } catch {
-        setCameraPermissao('prompt')
-      }
-    })()
-    return () => {
-      status?.removeEventListener('change', sync)
-    }
-  }, [aba])
-
-  useEffect(() => {
-    if (aba !== 'foto' || fotoPreview) {
-      pararCamera()
-      return
-    }
-    if (cameraPermissao === 'verificando' || cameraPermissao === 'negada') return
-    if (cameraPermissao !== 'concedida') return
-    if (streamRef.current?.active) return
-
-    void ligarCamera()
-    return () => {
-      pararCamera()
-    }
-  }, [aba, fotoPreview, cameraPermissao, ligarCamera, pararCamera])
-
-  useEffect(() => {
-    if (aba !== 'foto' || fotoPreview || cameraPermissao === 'negada') {
-      facingMountedRef.current = facingMode
-      return
-    }
-    const prev = facingMountedRef.current
-    facingMountedRef.current = facingMode
-    if (prev === facingMode) return
-    if (!streamRef.current?.active) return
-    void ligarCamera()
-  }, [facingMode, aba, fotoPreview, cameraPermissao, ligarCamera])
-
-  const onAtivarCamera = () => {
-    void ligarCamera()
-  }
-
-  const capturarDaCamera = useCallback(() => {
-    const v = videoRef.current
-    if (!v || !v.videoWidth) return
-    const canvas = document.createElement('canvas')
-    canvas.width = v.videoWidth
-    canvas.height = v.videoHeight
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.drawImage(v, 0, 0)
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return
-        setFotoPreview((prev) => {
-          if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
-          return URL.createObjectURL(blob)
-        })
-        setCrop({ x: 0, y: 0 })
-        setZoom(1)
-        setCroppedAreaPixels(null)
-      },
-      'image/jpeg',
-      0.92
-    )
   }, [])
 
   const onFotoGaleria = (e: ChangeEvent<HTMLInputElement>) => {
@@ -299,6 +163,30 @@ function CriarPublicacaoPageInner() {
     }
     input.click()
   }, [])
+
+  useEffect(() => {
+    fotoPreviewRef.current = fotoPreview
+  }, [fotoPreview])
+
+  /** Ao entrar na aba FOTO sem imagem, abre o seletor nativo (fototeca / câmera / ficheiros). */
+  useEffect(() => {
+    if (aba !== 'foto' || fotoPreview) return
+    const id = window.requestAnimationFrame(() => {
+      abrirGaleria()
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [aba, fotoPreview, abrirGaleria])
+
+  useEffect(() => {
+    const input = inputGaleriaRef.current
+    if (!input) return
+    const onCancel = () => {
+      if (abaRef.current !== 'foto' || fotoPreviewRef.current) return
+      irParaTexto()
+    }
+    input.addEventListener('cancel', onCancel)
+    return () => input.removeEventListener('cancel', onCancel)
+  }, [irParaTexto])
 
   const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels)
@@ -584,6 +472,8 @@ function CriarPublicacaoPageInner() {
     </div>
   )
 
+  const podeIrParaTexto = aba !== 'foto' || fotoPreview != null
+
   return (
     <div
       className={`flex min-h-[100dvh] flex-col bg-gray-50 ${aba === 'texto' ? 'pb-0' : ''}`}
@@ -593,17 +483,26 @@ function CriarPublicacaoPageInner() {
           : undefined
       }
     >
+      <input
+        ref={inputGaleriaRef}
+        type="file"
+        accept={ACCEPT_IMAGEM_NATIVO}
+        className="sr-only"
+        aria-label="Escolher imagem"
+        onChange={onFotoGaleria}
+      />
+
       <div
         ref={headerRef}
         className="sticky top-0 z-30 flex items-stretch justify-between gap-2 border-b border-gray-200 bg-white shadow-sm"
         data-criar-header
       >
         <div className="flex min-w-0 flex-1">
+          <button type="button" className={tabCls(aba === 'texto')} onClick={irParaTexto} disabled={!podeIrParaTexto}>
+            TEXTO
+          </button>
           <button type="button" className={tabCls(aba === 'foto')} onClick={irParaFoto}>
             FOTO
-          </button>
-          <button type="button" className={tabCls(aba === 'texto')} onClick={irParaTexto}>
-            TEXTO
           </button>
         </div>
         {aba === 'texto' ? (
@@ -622,113 +521,21 @@ function CriarPublicacaoPageInner() {
 
       {aba === 'foto' ? (
         <div className="flex flex-1 flex-col px-0.5 pt-1 sm:px-1">
-          <input
-            ref={inputGaleriaRef}
-            type="file"
-            accept={ACCEPT_GALERIA_IMAGENS}
-            className="sr-only"
-            aria-label="Abrir galeria"
-            onChange={onFotoGaleria}
-          />
-
           {!fotoPreview ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-2 px-0.5 pb-2 pt-0">
-              <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl bg-neutral-800">
-                {cameraPermissao === 'negada' ? (
-                  <div className="flex min-h-[50vh] w-full flex-col items-center justify-center gap-2 bg-neutral-900 p-4 text-center text-sm font-bold text-[#0097b2]">
-                    <p>Câmera bloqueada para este site.</p>
-                    <p className="text-xs font-semibold text-white/80">
-                      Permita o acesso à câmera nas configurações do navegador (normalmente fica
-                      &quot;Permitir&quot; e memoriza para o domínio).
-                    </p>
-                  </div>
-                ) : cameraErro ? (
-                  <div className="flex min-h-[50vh] w-full items-center justify-center bg-neutral-900 p-4 text-center text-sm font-bold text-[#0097b2]">
-                    Não foi possível acessar a câmera. Use o ícone da galeria ou tente novamente.
-                  </div>
-                ) : (
-                  <>
-                    <video
-                      ref={videoRef}
-                      className="h-full min-h-[44vh] w-full object-cover"
-                      playsInline
-                      muted
-                      autoPlay
-                    />
-                    {cameraPermissao === 'verificando' ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/55">
-                        <span className="text-xs font-bold text-white/90">Verificando permissão…</span>
-                      </div>
-                    ) : null}
-                    {cameraPermissao === 'prompt' && !cameraAoVivo ? (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/65 px-6">
-                        <p className="text-center text-xs font-semibold text-white/90">
-                          Toque uma vez para pedir o acesso à câmera. Se já permitiu para este site, o
-                          vídeo abre sem novo aviso.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={onAtivarCamera}
-                          className="rounded-xl bg-[#0097b2] px-5 py-2.5 text-sm font-bold text-white shadow-md"
-                        >
-                          Ativar câmera
-                        </button>
-                      </div>
-                    ) : null}
-                  </>
-                )}
-              </div>
-
-              {cameraErro ? (
-                <button
-                  type="button"
-                  onClick={onAtivarCamera}
-                  className="w-full rounded-xl border-2 border-[#0097b2] bg-white py-2.5 text-center text-sm font-bold text-[#0097b2]"
-                >
-                  Tentar câmera novamente
-                </button>
-              ) : null}
-
-              <div
-                className="fixed left-0 right-0 z-40 grid grid-cols-3 items-center gap-2 px-4"
-                style={{ bottom: BOTTOM_BAR_OFFSET }}
+            <div className="flex min-h-[40vh] flex-1 flex-col items-center justify-center gap-4 px-4 py-8 text-center">
+              <p className="text-sm font-bold text-[#0097b2]">
+                Escolha ou tire uma foto no menu do sistema.
+              </p>
+              <p className="text-xs font-semibold text-gray-500">
+                Se o seletor não abriu, cancele e volte ao texto, ou toque para abrir de novo.
+              </p>
+              <button
+                type="button"
+                onClick={abrirGaleria}
+                className="rounded-xl bg-[#0097b2] px-6 py-3 text-sm font-bold text-white shadow-md"
               >
-                <div className="flex justify-start">
-                  <button
-                    type="button"
-                    onClick={abrirGaleria}
-                    className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#0097b2] bg-white/95 text-[#0097b2] shadow-md backdrop-blur-sm"
-                    aria-label="Abrir galeria"
-                  >
-                    <ImageIcon size={22} strokeWidth={2.25} aria-hidden />
-                  </button>
-                </div>
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={capturarDaCamera}
-                    disabled={cameraErro || !cameraAoVivo || cameraPermissao === 'negada'}
-                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 border-[#0097b2] bg-white shadow-lg disabled:opacity-40"
-                    aria-label="Fotografar"
-                  >
-                    <span className="h-11 w-11 rounded-full bg-[#0097b2]" />
-                  </button>
-                </div>
-                <div className="flex justify-end">
-                  {cameraAoVivo && !cameraErro && cameraPermissao !== 'negada' ? (
-                    <button
-                      type="button"
-                      onClick={() => setFacingMode((f) => (f === 'environment' ? 'user' : 'environment'))}
-                      className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-black/50 text-white shadow-md backdrop-blur-[2px]"
-                      aria-label={facingMode === 'environment' ? 'Usar câmera frontal' : 'Usar câmera traseira'}
-                    >
-                      <Repeat2 size={20} strokeWidth={2.25} aria-hidden />
-                    </button>
-                  ) : (
-                    <span className="h-11 w-11" aria-hidden />
-                  )}
-                </div>
-              </div>
+                Abrir fototeca / câmera / ficheiros
+              </button>
             </div>
           ) : (
             <>
@@ -772,7 +579,7 @@ function CriarPublicacaoPageInner() {
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
                 placeholder="Legenda (opcional)..."
-                className="mt-2 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-base font-bold whitespace-pre-wrap text-[#0097b2] placeholder:font-bold placeholder:text-[#0097b2]/45 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                className="mt-2 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-base font-bold whitespace-pre-wrap text-black placeholder:font-bold placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                 rows={4}
               />
 
@@ -820,7 +627,7 @@ function CriarPublicacaoPageInner() {
           data-gramm="false"
           data-gramm_editor="false"
           data-enable-grammarly="false"
-          className={`pointer-events-auto min-h-0 w-full flex-1 resize-none bg-white px-3 py-2 text-base font-bold leading-relaxed text-[#0097b2] placeholder:font-bold placeholder:text-[#0097b2]/45 focus:outline-none focus:ring-0 ${aba === 'texto' && textoLayout ? '' : 'min-h-0 p-0'}`}
+          className={`pointer-events-auto min-h-0 w-full flex-1 resize-none bg-white px-3 py-2 text-base font-bold leading-relaxed text-black placeholder:font-bold placeholder:text-gray-400 focus:outline-none focus:ring-0 ${aba === 'texto' && textoLayout ? '' : 'min-h-0 p-0'}`}
           style={{
             overflowY: aba === 'texto' ? 'auto' : 'hidden',
             WebkitOverflowScrolling: 'touch',

@@ -8,7 +8,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const hideBottomBar =
-    pathname.includes('/feed/criar') && searchParams.get('aba') === 'texto'
+    pathname.includes('/feed/criar') && searchParams.get('aba') !== 'foto'
 
   return (
     <div className={`min-h-screen bg-gray-50 ${hideBottomBar ? '' : 'pb-20'}`}>
