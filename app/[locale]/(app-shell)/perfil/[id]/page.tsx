@@ -384,9 +384,12 @@ export default function PerfilSocialPage() {
 
   const perfilTipo = perfilRole === 'profissional' ? 'profissional' : 'turista'
 
+  const staffDashboard =
+    meuRole === 'admin' || (typeof adminLevel === 'number' && adminLevel >= 1 && adminLevel <= 4)
+
   const menuVariant =
     meuId && profileId && meuId === profileId && meuRole
-      ? meuRole === 'admin'
+      ? staffDashboard
         ? 'admin'
         : meuRole === 'turista' || meuRole === 'profissional'
           ? meuRole

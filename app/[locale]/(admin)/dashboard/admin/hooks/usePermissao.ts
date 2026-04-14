@@ -10,8 +10,16 @@ type GateState =
   | { status: 'forbidden' }
   | { status: 'ok'; admin: AdminUser }
 
-function coerceNivel(v: unknown): 0 | 1 {
-  return v === 1 ? 1 : 0
+function parseAdminLevel(v: unknown): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+function coerceNivel(v: unknown): AdminUser['admin_level'] {
+  const n = parseAdminLevel(v)
+  if (n === 1 || n === 2 || n === 3 || n === 4) return n
+  return 0
 }
 
 function coercePerms(v: unknown): AdminPermissoes {
@@ -41,7 +49,17 @@ export function useAdminGate(): GateState {
         .eq('id', uid)
         .maybeSingle()
 
-      if (error || !u || u.role !== 'admin') {
+      if (error || !u) {
+        if (alive) setState({ status: 'forbidden' })
+        return
+      }
+
+      const roleStr = String(u.role ?? '')
+      const nivelDb = parseAdminLevel(u.admin_level)
+      /** `role = admin` (seed) OU `admin_level` 1–4 (evita bloqueio se só o nível foi ajustado no Supabase). */
+      const podeAcessarDashboard = roleStr === 'admin' || (nivelDb >= 1 && nivelDb <= 4)
+
+      if (!podeAcessarDashboard) {
         if (alive) setState({ status: 'forbidden' })
         return
       }

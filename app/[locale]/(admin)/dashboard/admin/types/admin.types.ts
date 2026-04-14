@@ -1,6 +1,7 @@
 export type AdminRoleBase = 'admin'
 
-export type AdminNivel = 0 | 1
+/** 0 = sem cargo ADM; 1–4 = níveis em `usuarios.admin_level` (geral, moderador, financeiro, suporte). */
+export type AdminNivel = 0 | 1 | 2 | 3 | 4
 
 export type AdminPermissoes = {
   verificacao?: {
