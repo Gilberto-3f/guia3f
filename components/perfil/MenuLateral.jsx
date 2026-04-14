@@ -248,6 +248,19 @@ export default function MenuLateral({
     void fetchHistoricoUsuario(usuarioId)
   }, [aberto, fetchHistoricoUsuario, usuarioId])
 
+  /** Evita scroll da página por trás e “roubo” do gesto no mobile (scrollbar que volta sozinha). */
+  useEffect(() => {
+    if (!aberto) return
+    const prevBody = document.body.style.overflow
+    const prevHtml = document.documentElement.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prevBody
+      document.documentElement.style.overflow = prevHtml
+    }
+  }, [aberto])
+
   useEffect(() => {
     setHistoricoNaoLido((historicoDecisoes ?? []).filter((h) => !h.visualizado).length)
   }, [historicoDecisoes])
@@ -448,10 +461,10 @@ export default function MenuLateral({
   const mostrarVoltar = historico.length > 0
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-50 max-h-[100dvh]">
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar menu" onClick={onFechar} />
       <aside
-        className={`absolute right-0 top-0 flex h-full w-[75%] min-w-0 flex-col overflow-hidden bg-white shadow-xl transition-transform duration-300 ease-out ${
+        className={`absolute right-0 top-0 flex h-full max-h-[100dvh] w-[75%] min-w-0 flex-col overflow-hidden bg-white shadow-xl transition-transform duration-300 ease-out ${
           drawerEntered ? 'translate-x-0' : 'translate-x-full'
         }`}
         role="dialog"
@@ -500,12 +513,18 @@ export default function MenuLateral({
               ) : null}
             </div>
 
-            <nav className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto px-3 pt-0 pb-3">{renderListaItens(itensRaiz)}</nav>
+            <nav className="scrollbar-perfil min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 pt-0 pb-3">
+              {renderListaItens(itensRaiz)}
+            </nav>
           </>
         ) : topo.tipo === 'menu' ? (
-          <nav className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-3">{renderListaItens(topo.itens)}</nav>
+          <nav className="scrollbar-perfil min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 pt-1 pb-3">
+            {renderListaItens(topo.itens)}
+          </nav>
         ) : (
-          <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto px-3 pt-1 pb-3">{renderPagina()}</div>
+          <div className="scrollbar-perfil min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 pt-1 pb-3">
+            {renderPagina()}
+          </div>
         )}
 
         {modalLogout ? (
