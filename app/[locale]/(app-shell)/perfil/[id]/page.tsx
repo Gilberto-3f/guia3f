@@ -134,10 +134,32 @@ export default function PerfilSocialPage() {
         return
       }
 
-      /** Duas consultas separadas (sem embed em `usuarios`) — profissional/anfitrião antes; turista como fallback p/ admin. */
+      /** Sem embed em `usuarios`. Admin: profissional e turista em paralelo (prioridade profissional). */
       let perfilRow: Record<string, unknown> | null = null
 
-      if (role === 'profissional' || role === 'admin') {
+      if (role === 'admin') {
+        const [profRes, turRes] = await Promise.all([
+          supabase
+            .from('profissionais')
+            .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url')
+            .eq('usuario_id', profileId)
+            .maybeSingle(),
+          supabase
+            .from('turistas')
+            .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url')
+            .eq('usuario_id', profileId)
+            .maybeSingle(),
+        ])
+        if (profRes.error) console.warn('Perfil profissionais:', profRes.error.message)
+        if (turRes.error) console.warn('Perfil turistas:', turRes.error.message)
+        const prof = profRes.data
+        const tur = turRes.data
+        if (!profRes.error && prof && typeof prof === 'object' && !Array.isArray(prof)) {
+          perfilRow = prof as Record<string, unknown>
+        } else if (!turRes.error && tur && typeof tur === 'object' && !Array.isArray(tur)) {
+          perfilRow = tur as Record<string, unknown>
+        }
+      } else if (role === 'profissional') {
         const { data: prof, error: ep } = await supabase
           .from('profissionais')
           .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url')
@@ -147,9 +169,7 @@ export default function PerfilSocialPage() {
         if (!ep && prof && typeof prof === 'object' && !Array.isArray(prof)) {
           perfilRow = prof as Record<string, unknown>
         }
-      }
-
-      if (!perfilRow && (role === 'turista' || role === 'admin')) {
+      } else if (role === 'turista') {
         const { data: tur, error: et } = await supabase
           .from('turistas')
           .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url')

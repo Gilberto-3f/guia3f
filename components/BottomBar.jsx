@@ -121,6 +121,24 @@ export default function BottomBar() {
                   ? String(perfil.foto_url)
                   : null
             )
+        } else if (role === 'admin') {
+          const [profRes, turRes] = await Promise.all([
+            supabase.from('profissionais').select('foto_perfil_url, foto_url').eq('usuario_id', uid).maybeSingle(),
+            supabase.from('turistas').select('foto_perfil_url, foto_url').eq('usuario_id', uid).maybeSingle(),
+          ])
+          const prof = profRes.data
+          const tur = turRes.data
+          const url =
+            prof?.foto_perfil_url != null
+              ? String(prof.foto_perfil_url)
+              : prof?.foto_url != null
+                ? String(prof.foto_url)
+                : tur?.foto_perfil_url != null
+                  ? String(tur.foto_perfil_url)
+                  : tur?.foto_url != null
+                    ? String(tur.foto_url)
+                    : null
+          if (ativo) setFotoPerfil(url)
         } else if (ativo) {
           setFotoPerfil(null)
         }
@@ -174,7 +192,8 @@ export default function BottomBar() {
     if (userRole === 'empresa') {
       return empresaId ? `/empresa/${empresaId}` : '/dashboard/empresa'
     }
-    if (authUserId && (userRole === 'turista' || userRole === 'profissional')) return `/perfil/${authUserId}`
+    if (authUserId && (userRole === 'turista' || userRole === 'profissional' || userRole === 'admin'))
+      return `/perfil/${authUserId}`
     return '/perfil'
   }
 
