@@ -13,6 +13,35 @@ import type {
 import { getPeriodoVerificacaoDate, normalizeBusca } from '../utils/adminHelpers'
 import { usePermissao } from './usePermissao'
 
+/** JSONB ou coluna legada: normaliza para string[]. */
+function parseCategoriasProfissional(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map((v) => String(v))
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw) as unknown
+      return Array.isArray(p) ? p.map((v) => String(v)) : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+/** Migração usa `fotos_url`; API de cadastro pode usar `fotos_urls`. */
+function parseFotosEmpresa(r: Record<string, unknown>): string[] {
+  const raw = r.fotos_urls ?? r.fotos_url
+  if (Array.isArray(raw)) return raw.map((v) => String(v))
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw) as unknown
+      return Array.isArray(p) ? p.map((v) => String(v)) : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 export type FiltrosVerificacao = {
   perfil: PerfilVerificacao
   periodo: PeriodoVerificacao
@@ -56,7 +85,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     const search = normalizeBusca(filtros.busca)
     const query = supabase
       .from('turistas')
-      .select('id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, documento_frente_url, documento_verso_url, docs_verificado, docs_verificado_por, docs_verificado_em, created_at')
+      .select('*')
       .eq('docs_verificado', false)
       .gte('created_at', since)
       .order('created_at', { ascending: true })
@@ -88,7 +117,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     const search = normalizeBusca(filtros.busca)
     const query = supabase
       .from('profissionais')
-      .select('id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, categorias, placa_vermelha, identidade_url, comprovante_residencia_url, comprovante_profissao_url, docs_verificado, docs_verificado_por, docs_verificado_em, created_at')
+      .select('*')
       .eq('docs_verificado', false)
       .gte('created_at', since)
       .order('created_at', { ascending: true })
@@ -97,8 +126,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
 
     const comunidade = getComunidade()
     const mapped: PendenteProfissional[] = (data ?? []).map((r: Record<string, unknown>) => {
-      const catsRaw = r.categorias
-      const categorias = Array.isArray(catsRaw) ? catsRaw.map((v) => String(v)) : []
+      const categorias = parseCategoriasProfissional(r.categorias)
       return {
         id: String(r.id),
         usuario_id: String(r.usuario_id),
@@ -135,25 +163,28 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     const search = normalizeBusca(filtros.busca)
     const { data, error } = await supabase
       .from('empresas')
-      .select('id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, documento_comercial_url, fotos_urls, docs_verificado, docs_verificado_por, docs_verificado_em, created_at')
+      .select('*')
       .eq('docs_verificado', false)
       .gte('created_at', since)
       .order('created_at', { ascending: true })
     if (error) throw error
-    const mapped: PendenteEmpresa[] = (data ?? []).map((r: Record<string, unknown>) => ({
-      id: String(r.id),
-      usuario_id: String(r.usuario_id),
-      nome_fantasia: String(r.nome_fantasia ?? ''),
-      nome_usuario: String(r.nome_usuario ?? ''),
-      categoria: String(r.categoria ?? ''),
-      cidade: String(r.cidade ?? ''),
-      documento_url: r.documento_comercial_url ? String(r.documento_comercial_url) : null,
-      fotos_url: Array.isArray(r.fotos_urls) ? r.fotos_urls.map((v) => String(v)) : [],
-      docs_verificado: Boolean(r.docs_verificado),
-      docs_verificado_por: r.docs_verificado_por ? String(r.docs_verificado_por) : null,
-      docs_verificado_em: r.docs_verificado_em ? String(r.docs_verificado_em) : null,
-      created_at: String(r.created_at ?? new Date().toISOString()),
-    }))
+    const mapped: PendenteEmpresa[] = (data ?? []).map((r: Record<string, unknown>) => {
+      const doc = r.documento_comercial_url ?? r.documento_url ?? r.documento_comercial
+      return {
+        id: String(r.id),
+        usuario_id: String(r.usuario_id),
+        nome_fantasia: String(r.nome_fantasia ?? ''),
+        nome_usuario: String(r.nome_usuario ?? ''),
+        categoria: String(r.categoria ?? ''),
+        cidade: String(r.cidade ?? ''),
+        documento_url: doc ? String(doc) : null,
+        fotos_url: parseFotosEmpresa(r),
+        docs_verificado: Boolean(r.docs_verificado),
+        docs_verificado_por: r.docs_verificado_por ? String(r.docs_verificado_por) : null,
+        docs_verificado_em: r.docs_verificado_em ? String(r.docs_verificado_em) : null,
+        created_at: String(r.created_at ?? new Date().toISOString()),
+      }
+    })
     setPendentes(
       mapped.filter((x) => {
         if (!search) return true
