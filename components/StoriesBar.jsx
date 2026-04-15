@@ -90,8 +90,8 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       id,
       email,
       role,
-      turistas (nome_completo, nome_usuario, foto_perfil_url),
-      profissionais (nome_completo, nome_usuario, foto_perfil_url),
+      turistas (nome_completo, nome_usuario, foto_perfil_url, foto_url),
+      profissionais (nome_completo, nome_usuario, foto_perfil_url, foto_url),
       empresas (id, nome_fantasia, nome_usuario, foto_url)
     `
 
