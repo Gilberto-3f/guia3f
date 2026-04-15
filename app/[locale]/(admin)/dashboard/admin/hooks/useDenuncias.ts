@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePermissao } from './usePermissao'
 import type { AplicarPenalidadeParams, Denuncia, DenunciasFiltros } from '../types/admin.types'
@@ -45,6 +45,10 @@ function addBusinessDays(start: string, days: number): string {
   return d.toISOString()
 }
 
+function filtrosKey(f: DenunciasFiltros) {
+  return `${f.perfil}|${f.periodo}|${f.status}|${f.busca.trim()}`
+}
+
 export function useDenuncias(filtros: DenunciasFiltros) {
   const { admin, nivel, getComunidade } = usePermissao()
   const [denuncias, setDenuncias] = useState<Denuncia[]>([])
@@ -56,6 +60,8 @@ export function useDenuncias(filtros: DenunciasFiltros) {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  /** Evita skeleton a cada refetch quando só mudam nivel/admin (mesmos filtros). */
+  const prevFiltrosKeyRef = useRef<string | null>(null)
 
   const resolveDenunciado = useCallback(async (tipo: 'turista' | 'profissional' | 'empresa', alvoId: string) => {
     if (tipo === 'turista') {
@@ -92,8 +98,13 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     setContadores(base)
   }, [filtros.perfil])
 
-  const fetchDenuncias = useCallback(async () => {
-    setLoading(true)
+  const fetchDenuncias = useCallback(async (opt?: { skeleton?: boolean }) => {
+    const fk = filtrosKey(filtros)
+    const autoSkeleton = prevFiltrosKeyRef.current === null || prevFiltrosKeyRef.current !== fk
+    prevFiltrosKeyRef.current = fk
+    const skeleton = opt?.skeleton === true ? true : opt?.skeleton === false ? false : autoSkeleton
+
+    if (skeleton) setLoading(true)
     setError(null)
     try {
       // 🔧 CONVERSÃO DE nivel PARA NÚMERO
@@ -177,9 +188,9 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Erro ao carregar denúncias'))
     } finally {
-      setLoading(false)
+      if (skeleton) setLoading(false)
     }
-  }, [fetchContadores, filtros.busca, filtros.perfil, filtros.periodo, filtros.status, getComunidade, nivel, resolveDenunciado])
+  }, [fetchContadores, filtros, getComunidade, nivel, resolveDenunciado])
 
   const applyAudit = useCallback(
     async (denunciaId: string, acao: string, detalhes: Record<string, unknown>) => {
@@ -219,7 +230,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
         .eq('id', denuncia_id)
       if (updateErr) throw updateErr
       await applyAudit(denuncia_id, `denuncia_${acao}`, detalhes)
-      await fetchDenuncias()
+      await fetchDenuncias({ skeleton: false })
     },
     [admin, applyAudit, fetchDenuncias]
   )
@@ -230,7 +241,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
       const { error: updateErr } = await supabase.from('denuncias').update({ status: 'em_investigacao', responsavel_id: admin.id }).eq('id', denuncia_id)
       if (updateErr) throw updateErr
       await applyAudit(denuncia_id, 'denuncia_em_investigacao', {})
-      await fetchDenuncias()
+      await fetchDenuncias({ skeleton: false })
     },
     [admin, applyAudit, fetchDenuncias]
   )
@@ -249,7 +260,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
       const { error: updateErr } = await supabase.from('denuncias').update(payload).eq('id', denuncia_id)
       if (updateErr) throw updateErr
       await applyAudit(denuncia_id, 'denuncia_arquivada', { motivo: motivo.trim() })
-      await fetchDenuncias()
+      await fetchDenuncias({ skeleton: false })
     },
     [admin, applyAudit, fetchDenuncias]
   )
@@ -266,7 +277,8 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     aplicarPenalidade,
     marcarEmInvestigacao,
     arquivar,
-    refetch: fetchDenuncias,
+    refetch: () => {
+      void fetchDenuncias({ skeleton: true })
+    },
   }
 }
-    // ... resto do código (igual)
