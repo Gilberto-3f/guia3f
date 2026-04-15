@@ -1,6 +1,10 @@
 'use client'
 
+import type { FiltrosVisaoGeral } from '../../types/admin.types'
 import { useAdminData } from '../../hooks/useAdminData'
+
+/** Referência estável: evita novo objeto a cada render e re-disparos desnecessários no hook. */
+const FILTROS_TOPO_CARDS: FiltrosVisaoGeral = { periodo: '30d' }
 
 function Card({
   titulo,
@@ -30,7 +34,7 @@ function Card({
 }
 
 export function TopoCards() {
-  const { topoCards, loading } = useAdminData('turistas', { periodo: '30d' })
+  const { topoCards, loading } = useAdminData('turistas', FILTROS_TOPO_CARDS)
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

@@ -58,14 +58,14 @@ export function useAdminData(perfil: PerfilVisaoGeral, filtros: FiltrosVisaoGera
   const [data, setData] = useState<DataState>(emptyData)
 
   const filtrosRef = useRef(filtros)
+  filtrosRef.current = filtros
 
-  useEffect(() => {
-    filtrosRef.current = filtros
-  }, [filtros])
+  /** Evita aplicar resultado de fetch antigo se perfil/período mudou (sem polling; só corridas raras). */
+  const fetchGenerationRef = useRef(0)
 
   const fetchData = useCallback(async () => {
     const f = filtrosRef.current
-    setLoading(true)
+    const myGen = ++fetchGenerationRef.current
     setError(null)
     try {
       const [
@@ -92,6 +92,8 @@ export function useAdminData(perfil: PerfilVisaoGeral, filtros: FiltrosVisaoGera
         perfil === 'empresas' ? fetchEmpresasSegmento() : Promise.resolve(null),
       ])
 
+      if (myGen !== fetchGenerationRef.current) return
+
       setData({
         topoCards,
         crescimento,
@@ -105,9 +107,10 @@ export function useAdminData(perfil: PerfilVisaoGeral, filtros: FiltrosVisaoGera
         empresasSegmento,
       })
     } catch (err) {
+      if (myGen !== fetchGenerationRef.current) return
       setError(err instanceof Error ? err : new Error('Erro ao carregar dados da visão geral'))
     } finally {
-      setLoading(false)
+      if (myGen === fetchGenerationRef.current) setLoading(false)
     }
   }, [perfil])
 
