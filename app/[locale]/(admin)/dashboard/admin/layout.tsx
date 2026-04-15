@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
 export default function AdminDashboardLayout({ children }: { children: ReactNode }) {
-  return <div className="min-h-screen bg-gray-50">{children}</div>
+  return <div className="min-h-[100dvh] bg-gray-50">{children}</div>
 }
 
