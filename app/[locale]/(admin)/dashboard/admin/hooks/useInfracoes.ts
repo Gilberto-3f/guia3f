@@ -41,24 +41,50 @@ export function useInfracoes() {
 
   const fetchInfracoes = useCallback(async () => {
     if (!isAdminGeral) return
-    const { data, error: e } = await supabase.from('infracoes').select('*').order('tipo', { ascending: true }).order('categoria', { ascending: true })
-    if (e) throw e
-    setInfracoes((data ?? []) as Infracao[])
+    try {
+      const { data, error: e } = await supabase
+        .from('infracoes')
+        .select('*')
+        .order('tipo', { ascending: true })
+        .order('categoria', { ascending: true })
+      if (e) {
+        console.warn('Infrações não disponíveis:', e.message)
+        setInfracoes([])
+        return
+      }
+      setInfracoes((data ?? []) as Infracao[])
+    } catch (err) {
+      console.warn('Infrações não disponíveis:', err)
+      setInfracoes([])
+    }
   }, [isAdminGeral])
 
   const fetchHistoricoUsuario = useCallback(
     async (usuarioId?: string) => {
-      let targetId = usuarioId || admin?.id || null
-      if (!targetId) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-        targetId = session?.user?.id ?? null
+      try {
+        let targetId = usuarioId || admin?.id || null
+        if (!targetId) {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession()
+          targetId = session?.user?.id ?? null
+        }
+        if (!targetId) return
+        const { data, error: e } = await supabase
+          .from('historico_decisoes')
+          .select('*')
+          .eq('usuario_id', targetId)
+          .order('data_aplicacao', { ascending: false })
+        if (e) {
+          console.warn('Histórico de decisões não disponível:', e.message)
+          setHistorico([])
+          return
+        }
+        setHistorico((data ?? []) as HistoricoDecisao[])
+      } catch (err) {
+        console.warn('Histórico de decisões não disponível:', err)
+        setHistorico([])
       }
-      if (!targetId) return
-      const { data, error: e } = await supabase.from('historico_decisoes').select('*').eq('usuario_id', targetId).order('data_aplicacao', { ascending: false })
-      if (e) throw e
-      setHistorico((data ?? []) as HistoricoDecisao[])
     },
     [admin?.id]
   )
@@ -104,8 +130,14 @@ export function useInfracoes() {
   )
 
   const marcarHistoricoComoVisualizado = useCallback(async (historicoId: string) => {
-    const { error: e } = await supabase.from('historico_decisoes').update({ visualizado: true }).eq('id', historicoId)
-    if (e) throw e
+    try {
+      const { error: e } = await supabase.from('historico_decisoes').update({ visualizado: true }).eq('id', historicoId)
+      if (e) {
+        console.warn('Não foi possível marcar histórico como visualizado:', e.message)
+      }
+    } catch (err) {
+      console.warn('Não foi possível marcar histórico como visualizado:', err)
+    }
   }, [])
 
   const upsertInfracao = useCallback(
@@ -114,14 +146,24 @@ export function useInfracoes() {
       if (!payload.descricao || !payload.tipo || !payload.categoria || !payload.penalidade_padrao) {
         throw new Error('Campos obrigatórios ausentes')
       }
-      if (payload.id) {
-        const { error: e } = await supabase.from('infracoes').update(payload).eq('id', payload.id)
-        if (e) throw e
-      } else {
-        const { error: e } = await supabase.from('infracoes').insert(payload)
-        if (e) throw e
+      try {
+        if (payload.id) {
+          const { error: e } = await supabase.from('infracoes').update(payload).eq('id', payload.id)
+          if (e) {
+            console.warn('Infrações (atualização) não disponível:', e.message)
+            return
+          }
+        } else {
+          const { error: e } = await supabase.from('infracoes').insert(payload)
+          if (e) {
+            console.warn('Infrações (inserção) não disponível:', e.message)
+            return
+          }
+        }
+        await fetchInfracoes()
+      } catch (err) {
+        console.warn('Infrações (upsert) não disponível:', err)
       }
-      await fetchInfracoes()
     },
     [fetchInfracoes, isAdminGeral]
   )
