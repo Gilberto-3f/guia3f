@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type {
   DadoAtivo,
@@ -57,7 +57,14 @@ export function useAdminData(perfil: PerfilVisaoGeral, filtros: FiltrosVisaoGera
   const [error, setError] = useState<Error | null>(null)
   const [data, setData] = useState<DataState>(emptyData)
 
+  const filtrosRef = useRef(filtros)
+
+  useEffect(() => {
+    filtrosRef.current = filtros
+  }, [filtros])
+
   const fetchData = useCallback(async () => {
+    const f = filtrosRef.current
     setLoading(true)
     setError(null)
     try {
@@ -74,11 +81,11 @@ export function useAdminData(perfil: PerfilVisaoGeral, filtros: FiltrosVisaoGera
         empresasSegmento,
       ] = await Promise.all([
         fetchTopoCards(),
-        fetchCrescimento(perfil, filtros),
+        fetchCrescimento(perfil, f),
         fetchAtivos(perfil),
         fetchNovosCadastros(perfil),
-        perfil === 'turistas' ? fetchServicosMaisUsados(filtros) : Promise.resolve(null),
-        perfil === 'turistas' ? fetchMaisUsadosGuia(filtros) : Promise.resolve(null),
+        perfil === 'turistas' ? fetchServicosMaisUsados(f) : Promise.resolve(null),
+        perfil === 'turistas' ? fetchMaisUsadosGuia(f) : Promise.resolve(null),
         perfil === 'profissionais' ? fetchProfissionaisCidade() : Promise.resolve(null),
         perfil === 'profissionais' ? fetchProfissionaisCategoria() : Promise.resolve(null),
         perfil === 'empresas' ? fetchEmpresasCidade() : Promise.resolve(null),
@@ -102,11 +109,11 @@ export function useAdminData(perfil: PerfilVisaoGeral, filtros: FiltrosVisaoGera
     } finally {
       setLoading(false)
     }
-  }, [filtros, perfil])
+  }, [perfil])
 
   useEffect(() => {
     void fetchData()
-  }, [fetchData])
+  }, [perfil, fetchData, filtros.periodo])
 
   return { ...data, loading, error, refetch: fetchData }
 }
