@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { AdminPermissoes, AdminUser } from '../types/admin.types'
-import { withDefaultsAdminPerms } from '../utils/permissoes'
 
 type GateState =
   | { status: 'loading' }
@@ -20,10 +19,6 @@ function coerceNivel(v: unknown): AdminUser['admin_level'] {
   const n = parseAdminLevel(v)
   if (n === 1 || n === 2 || n === 3 || n === 4) return n
   return 0
-}
-
-function coercePerms(v: unknown): AdminPermissoes {
-  return withDefaultsAdminPerms(v)
 }
 
 export function useAdminGate(): GateState {
@@ -45,7 +40,7 @@ export function useAdminGate(): GateState {
 
       const { data: u, error } = await supabase
         .from('usuarios')
-        .select('id, role, admin_level, admin_permissoes, username, email')
+        .select('id, role, admin_level, email, status')
         .eq('id', uid)
         .maybeSingle()
 
@@ -56,21 +51,30 @@ export function useAdminGate(): GateState {
 
       const roleStr = String(u.role ?? '')
       const nivelDb = parseAdminLevel(u.admin_level)
-      /** `role = admin` (seed) OU `admin_level` 1–4 (evita bloqueio se só o nível foi ajustado no Supabase). */
-      const podeAcessarDashboard = roleStr === 'admin' || (nivelDb >= 1 && nivelDb <= 4)
+      /** `role = admin` OU `admin_level` ≥ 1 (compatível com tabela sem colunas legadas). */
+      const podeAcessarDashboard = roleStr === 'admin' || nivelDb >= 1
 
       if (!podeAcessarDashboard) {
         if (alive) setState({ status: 'forbidden' })
         return
       }
 
+      const email = (u as { email?: string | null }).email ?? null
+      const nivel = coerceNivel((u as { admin_level?: unknown }).admin_level)
+
       const admin: AdminUser = {
         id: String(u.id),
         role: 'admin',
-        admin_level: coerceNivel((u as { admin_level?: unknown }).admin_level),
-        admin_permissoes: coercePerms((u as { admin_permissoes?: unknown }).admin_permissoes),
-        username: (u as { username?: string | null }).username ?? null,
-        email: (u as { email?: string | null }).email ?? null,
+        admin_level: nivel,
+        admin_permissoes: {
+          recursos: ['*'],
+          nivel,
+          cargo: 'ADM_GERAL',
+          modulos: ['*'],
+          comunidade: null,
+        } as AdminPermissoes,
+        username: email?.split('@')[0] ?? null,
+        email,
       }
 
       if (alive) setState({ status: 'ok', admin })
