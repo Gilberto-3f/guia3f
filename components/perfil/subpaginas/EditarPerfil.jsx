@@ -290,10 +290,15 @@ export default function EditarPerfil({
     }
   }
 
+  /** Cores explícitas: evita herdar `text-white` (ou tema) e sumir em fundo branco — todos os perfis. */
+  const labelClass = 'text-xs font-medium text-gray-800'
+  const fieldClass =
+    'mt-1 w-full rounded-lg border border-gray-200 bg-white p-2 text-sm text-gray-900 placeholder:text-gray-500 outline-none focus:border-[#0097b2] focus:ring-1 focus:ring-[#0097b2]/35'
+
   return (
-    <div className="scrollbar-perfil max-h-[70vh] space-y-4 overflow-y-auto px-1 pb-4">
+    <div className="scrollbar-perfil max-h-[70vh] space-y-4 overflow-y-auto bg-white px-1 pb-4 text-gray-900">
       <div>
-        <label className="text-xs font-medium text-gray-500">Foto de perfil</label>
+        <label className={labelClass}>Foto de perfil</label>
         <div className="mt-2 flex flex-col items-center gap-3">
           <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-gray-100">
             {fotoExibida ? (
@@ -348,7 +353,7 @@ export default function EditarPerfil({
             <button
               type="button"
               onClick={cancelarNovaFoto}
-              className="text-xs font-medium text-gray-500 underline"
+              className="text-xs font-medium text-gray-700 underline"
             >
               Cancelar nova foto
             </button>
@@ -357,37 +362,37 @@ export default function EditarPerfil({
         {erroFoto ? <p className="mt-2 text-sm text-red-600">{erroFoto}</p> : null}
       </div>
       <div>
-        <label className="text-xs font-medium text-gray-500">Nome</label>
+        <label className={labelClass}>Nome</label>
         <input
           type="text"
           value={nome}
           onChange={(e) => setNome(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm"
+          className={fieldClass}
           maxLength={120}
         />
       </div>
       <div>
-        <label className="text-xs font-medium text-gray-500">@usuário</label>
+        <label className={labelClass}>@usuário</label>
         <input
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value.replace(/^@/, ''))}
-          className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm"
+          className={fieldClass}
           maxLength={60}
         />
       </div>
       <div>
-        <label className="text-xs font-medium text-gray-500">Descrição</label>
+        <label className={labelClass}>Descrição</label>
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value)}
-          className="mt-1 min-h-[100px] w-full rounded-lg border border-gray-200 p-2 text-sm"
+          className={`${fieldClass} min-h-[100px]`}
           maxLength={170}
           placeholder="Conte um pouco sobre você…"
         />
-        <p className="text-right text-xs text-gray-400">{bio.length}/170</p>
+        <p className="text-right text-xs text-gray-600">{bio.length}/170</p>
       </div>
-      {msg ? <p className="text-sm text-[#0097b2]">{msg}</p> : null}
+      {msg ? <p className="text-sm font-medium text-[#0097b2]">{msg}</p> : null}
       <button
         type="button"
         disabled={salvando}
