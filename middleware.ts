@@ -13,13 +13,19 @@ export default async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
+        encode: "tokens-only",
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, responseHeaders) {
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
+          if (responseHeaders) {
+            Object.entries(responseHeaders).forEach(([key, value]) => {
+              response.headers.set(key, value);
+            });
+          }
         },
       },
     }
