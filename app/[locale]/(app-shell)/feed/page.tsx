@@ -309,6 +309,35 @@ function FeedPageInner() {
     }
   }, [fetchPage, hasMore, loadingMore])
 
+  /** Recarrega a primeira página (ex.: após editar perfil — evento `perfil-atualizado`). */
+  const recarregarPrimeiraPagina = useCallback(async () => {
+    if (!feedRede.ready) return
+    setLoading(true)
+    pageRef.current = 0
+    setHasMore(true)
+    fetchPostAttempted.current = null
+    try {
+      const first = await fetchPage(0)
+      setPosts(first)
+      setHasMore(first.length === PAGE_SIZE)
+      pageRef.current = 1
+    } catch (e) {
+      console.error(e)
+      setPosts([])
+    } finally {
+      setLoading(false)
+    }
+    bumpStoriesBar()
+  }, [bumpStoriesBar, feedRede.ready, fetchPage])
+
+  useEffect(() => {
+    const onPerfilAtualizado = () => {
+      void recarregarPrimeiraPagina()
+    }
+    window.addEventListener('perfil-atualizado', onPerfilAtualizado)
+    return () => window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
+  }, [recarregarPrimeiraPagina])
+
   useEffect(() => {
     const el = sentinelRef.current
     if (!el) return
