@@ -17,7 +17,9 @@ export function VisaoGeralContainer({ sub }: { sub: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <SubabasVisao value={activeSub} filtros={filtrosVisao} />
+        <div className="min-w-0 flex-1">
+          <SubabasVisao value={activeSub} filtros={filtrosVisao} />
+        </div>
         <FiltrosPeriodo value={periodo} onChange={setPeriodo} />
       </div>
     </div>

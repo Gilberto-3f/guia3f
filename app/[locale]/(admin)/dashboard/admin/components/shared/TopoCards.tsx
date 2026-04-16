@@ -34,7 +34,7 @@ function Card({
 }
 
 export function TopoCards() {
-  const { topoCards, loading } = useAdminData('turistas', FILTROS_TOPO_CARDS)
+  const { topoCards, loading } = useAdminData('turistas', FILTROS_TOPO_CARDS, { loadTopoCards: true })
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

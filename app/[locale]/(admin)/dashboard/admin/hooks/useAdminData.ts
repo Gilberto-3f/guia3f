@@ -52,7 +52,18 @@ type ProfCidadeAtuacaoRow = { cidade_atuacao: string[] | null }
 type LogServicoRow = { servico: string | null }
 type LogCategoriaRow = { categoria: string | null }
 
-export function useAdminData(perfil: PerfilVisaoGeral, filtros: FiltrosVisaoGeral): UseAdminDataReturn {
+/** Quando `loadTopoCards` é false (padrão), não busca totais — em `TopoCards` passe `{ loadTopoCards: true }` para evitar pedidos duplicados ao trocar subabas na Visão Geral. */
+export type UseAdminDataOptions = {
+  loadTopoCards?: boolean
+}
+
+export function useAdminData(
+  perfil: PerfilVisaoGeral,
+  filtros: FiltrosVisaoGeral,
+  options?: UseAdminDataOptions
+): UseAdminDataReturn {
+  const loadTopoCards = options?.loadTopoCards === true
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [data, setData] = useState<DataState>(emptyData)
@@ -80,7 +91,7 @@ export function useAdminData(perfil: PerfilVisaoGeral, filtros: FiltrosVisaoGera
         empresasCidade,
         empresasSegmento,
       ] = await Promise.all([
-        fetchTopoCards(),
+        loadTopoCards ? fetchTopoCards() : Promise.resolve(null),
         fetchCrescimento(perfil, f),
         fetchAtivos(perfil),
         fetchNovosCadastros(perfil),
@@ -112,7 +123,7 @@ export function useAdminData(perfil: PerfilVisaoGeral, filtros: FiltrosVisaoGera
     } finally {
       if (myGen === fetchGenerationRef.current) setLoading(false)
     }
-  }, [perfil])
+  }, [perfil, loadTopoCards])
 
   useEffect(() => {
     void fetchData()

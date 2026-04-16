@@ -85,7 +85,9 @@ function VerificacaoContainerInner({ sub }: { sub: string }) {
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <SubabasVerificacao value={activeSub} badges={contadores} />
+          <div className="min-w-0 flex-1">
+            <SubabasVerificacao value={activeSub} badges={contadores} />
+          </div>
           <div className="text-xs font-semibold text-gray-500">
             {isAdmGeral(admin) ? 'ADM GERAL' : 'ADMIN'} · permissões aplicadas por subaba
           </div>

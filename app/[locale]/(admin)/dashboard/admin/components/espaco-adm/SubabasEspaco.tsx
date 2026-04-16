@@ -23,7 +23,7 @@ export function SubabasEspaco({ value }: { value: EspacoSubabaId }) {
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="-mx-1 flex min-w-0 max-w-full flex-nowrap gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin] sm:flex-wrap sm:overflow-visible">
       {opts.map((o) => {
         const active = o.id === value
         return (
@@ -32,8 +32,8 @@ export function SubabasEspaco({ value }: { value: EspacoSubabaId }) {
             type="button"
             onClick={() => set(o.id)}
             className={[
-              'rounded-xl px-3 py-2 text-sm font-semibold transition',
-              active ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100',
+              'shrink-0 rounded-xl px-3 py-2 text-sm font-semibold whitespace-nowrap transition',
+              active ? 'bg-emerald-600 text-white shadow-sm' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
             ].join(' ')}
           >
             {o.label}

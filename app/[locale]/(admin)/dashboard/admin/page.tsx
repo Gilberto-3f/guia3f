@@ -79,12 +79,12 @@ function DashboardAdminContent() {
           </Link>
         </div>
 
-        <div className="mt-4">
-          <AbasNavegacao value={tab} onChange={setTab} />
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <TopoCards />
         </div>
 
-        <div className="mt-4">
-          <TopoCards />
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <AbasNavegacao value={tab} onChange={setTab} />
         </div>
       </div>
 

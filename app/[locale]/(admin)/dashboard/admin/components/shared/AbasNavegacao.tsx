@@ -3,13 +3,13 @@
 export const ABAS_PRINCIPAIS = ['visao-geral', 'cadastros', 'denuncias', 'espaco-adm', 'configuracoes'] as const
 export type AbaPrincipalId = (typeof ABAS_PRINCIPAIS)[number]
 
-const labels: Record<AbaPrincipalId, string> = {
-  'visao-geral': '📊 Visão Geral',
-  cadastros: '✅ Cadastros',
-  denuncias: '⚠️ Denúncias',
-  'espaco-adm': '👑 Espaço ADM',
-  configuracoes: '⚙️ Configurações',
-}
+const abas: { id: AbaPrincipalId; icon: string; label: string }[] = [
+  { id: 'visao-geral', icon: '📊', label: 'Visão Geral' },
+  { id: 'cadastros', icon: '✅', label: 'Cadastros' },
+  { id: 'denuncias', icon: '⚠️', label: 'Denúncias' },
+  { id: 'espaco-adm', icon: '👑', label: 'Espaço ADM' },
+  { id: 'configuracoes', icon: '⚙️', label: 'Configurações' },
+]
 
 export function AbasNavegacao({
   value,
@@ -19,24 +19,35 @@ export function AbasNavegacao({
   onChange: (next: AbaPrincipalId) => void
 }) {
   return (
-    <div className="flex w-full flex-wrap gap-2">
-      {ABAS_PRINCIPAIS.map((id) => {
+    <div className="-mx-1 flex w-full flex-nowrap gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
+      {abas.map(({ id, icon, label }) => {
         const active = id === value
         return (
           <button
             key={id}
             type="button"
             onClick={() => onChange(id)}
+            aria-current={active ? 'page' : undefined}
+            aria-label={label}
+            title={label}
             className={[
-              'rounded-xl px-3 py-2 text-sm font-semibold transition',
-              active ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-100',
+              'shrink-0 rounded-xl px-3 py-2 text-sm font-semibold whitespace-nowrap transition',
+              active
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'min-w-[2.5rem] bg-gray-100 text-gray-600 hover:bg-gray-200',
             ].join(' ')}
           >
-            {labels[id]}
+            {active ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span aria-hidden>{icon}</span>
+                <span>{label.toUpperCase()}</span>
+              </span>
+            ) : (
+              <span aria-hidden>{icon}</span>
+            )}
           </button>
         )
       })}
     </div>
   )
 }
-
