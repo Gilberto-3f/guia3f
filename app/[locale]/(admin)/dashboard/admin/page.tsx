@@ -68,10 +68,9 @@ function DashboardAdminContent() {
 
   return (
     <DenunciasToolbarProvider>
-      <div className="mx-auto max-w-6xl px-2 pb-10 pt-1 sm:px-4 sm:pt-2">
+      <div className="mx-0 max-w-full px-0 pb-10 pt-1 sm:mx-auto sm:max-w-6xl sm:px-4 sm:pt-2">
         <div
-          className="sticky top-0 z-20 -mx-4 bg-white px-4 pb-2 pt-1 shadow-sm"
-          style={{ willChange: 'transform' }}
+          className="z-20 -mx-2 bg-white px-2 pb-2 pt-1 shadow-sm sm:-mx-4 sm:px-4"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="w-8 sm:w-10" aria-hidden />
