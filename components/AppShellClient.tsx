@@ -2,6 +2,7 @@
 
 import { Suspense, type ReactNode } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { AdminPermissaoProvider } from '@/app/[locale]/(admin)/dashboard/admin/context/AdminPermissaoContext'
 import BottomBar from '@/components/BottomBar'
 
 function AppShellInner({ children }: { children: ReactNode }) {
@@ -20,15 +21,17 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
 export default function AppShellClient({ children }: { children: ReactNode }) {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gray-50 pb-20">
-          {children}
-          <BottomBar />
-        </div>
-      }
-    >
-      <AppShellInner>{children}</AppShellInner>
-    </Suspense>
+    <AdminPermissaoProvider>
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-gray-50 pb-20">
+            {children}
+            <BottomBar />
+          </div>
+        }
+      >
+        <AppShellInner>{children}</AppShellInner>
+      </Suspense>
+    </AdminPermissaoProvider>
   )
 }
