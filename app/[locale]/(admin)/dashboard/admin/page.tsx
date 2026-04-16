@@ -75,7 +75,7 @@ function DashboardAdminContent() {
         >
           <div className="flex items-center justify-between gap-3">
             <div className="w-8 sm:w-10" aria-hidden />
-            <span className="flex-1 text-center text-sm font-bold uppercase tracking-wide text-[#0097b2] sm:text-base">
+            <span className="flex-1 text-center text-base font-bold uppercase tracking-wide text-[#0097b2] sm:text-lg">
               Painel Dashboard
             </span>
             <Link

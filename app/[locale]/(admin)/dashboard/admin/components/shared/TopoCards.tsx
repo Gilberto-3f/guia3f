@@ -31,7 +31,7 @@ function Card({
     <div className="flex min-h-0 min-w-0 flex-col">
       <div
         className={[
-          'flex aspect-square h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border-2 border-[#0097b2]/35 bg-white p-1.5 text-center shadow-sm sm:gap-1 sm:p-2.5 lg:p-3',
+          'flex aspect-square h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border-[3px] border-[#0097b2] bg-white p-1.5 text-center shadow-sm sm:gap-1 sm:p-2.5 lg:p-3',
         ].join(' ')}
       >
         <div className="flex shrink-0 items-center justify-center" aria-hidden>
