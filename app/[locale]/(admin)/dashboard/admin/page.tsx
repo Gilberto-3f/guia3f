@@ -3,6 +3,7 @@
 import { Suspense, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 
 import { AbasNavegacao, type AbaPrincipalId, ABAS_PRINCIPAIS } from './components/shared/AbasNavegacao'
 import { TopoCards } from './components/shared/TopoCards'
@@ -64,26 +65,27 @@ function DashboardAdminContent() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 pb-10">
+    <div className="mx-auto max-w-6xl px-4 pb-10 pt-1 sm:pt-2">
       <div
-        className="sticky top-0 z-20 -mx-4 bg-white px-4 py-4 shadow-sm"
+        className="sticky top-0 z-20 -mx-4 bg-white px-4 pb-2 pt-1 shadow-sm"
         style={{ willChange: 'transform' }}
       >
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold text-gray-900">Guia 3F</div>
-            <div className="truncate text-xs text-gray-500">@{gate.admin.username ?? 'admin'}</div>
-          </div>
-          <Link href="/guia" className="text-sm font-semibold text-[#0097b2]">
-            Voltar ao app
+        <div className="flex justify-end">
+          <Link
+            href="/guia"
+            aria-label="Voltar ao app"
+            title="Voltar ao app"
+            className="inline-flex rounded-full p-2 text-[#0097b2] transition hover:bg-gray-100 active:bg-gray-200"
+          >
+            <ArrowLeft className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
           </Link>
         </div>
 
-        <div className="mt-4 border-t border-gray-100 pt-4">
+        <div className="mt-1 border-t border-gray-100 pt-2">
           <TopoCards />
         </div>
 
-        <div className="mt-4 border-t border-gray-100 pt-4">
+        <div className="mt-2 border-t border-gray-100 pt-2">
           <AbasNavegacao value={tab} onChange={setTab} />
         </div>
       </div>
