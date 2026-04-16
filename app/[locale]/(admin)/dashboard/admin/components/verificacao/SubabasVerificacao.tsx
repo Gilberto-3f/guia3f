@@ -1,13 +1,15 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
+import type { LucideIcon } from 'lucide-react'
+import { Users, Briefcase, Building2 } from 'lucide-react'
 
 export type VerificacaoSubabaId = 'turistas' | 'profissionais' | 'empresas'
 
-const opts: { id: VerificacaoSubabaId; label: string }[] = [
-  { id: 'turistas', label: '👤 Turistas' },
-  { id: 'profissionais', label: '🚗 Profis.' },
-  { id: 'empresas', label: '🏢 Empresas' },
+const opts: { id: VerificacaoSubabaId; label: string; Icon: LucideIcon }[] = [
+  { id: 'turistas', label: 'Turistas', Icon: Users },
+  { id: 'profissionais', label: 'Profissionais', Icon: Briefcase },
+  { id: 'empresas', label: 'Empresas', Icon: Building2 },
 ]
 
 export function SubabasVerificacao({
@@ -28,24 +30,49 @@ export function SubabasVerificacao({
   }
 
   return (
-    <div className="-mx-1 flex min-w-0 max-w-full flex-nowrap gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin] sm:flex-wrap sm:overflow-visible">
+    <div className="-mx-1 flex min-w-0 max-w-full flex-nowrap justify-start gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
       {opts.map((o) => {
         const active = o.id === value
+        const Icon = o.Icon
+        const count = badges?.[o.id] ?? 0
+        const showBadge = typeof badges !== 'undefined' && count > 0
+
         return (
           <button
             key={o.id}
             type="button"
             onClick={() => set(o.id)}
+            aria-current={active ? 'page' : undefined}
+            aria-label={badges ? `${o.label}, ${count} pendente(s)` : o.label}
+            title={o.label}
             className={[
-              'shrink-0 rounded-xl px-3 py-2 text-sm font-semibold whitespace-nowrap transition',
-              active ? 'bg-emerald-600 text-white shadow-sm' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200',
+              'relative shrink-0 rounded-xl py-2 text-sm font-semibold transition',
+              active
+                ? 'inline-flex items-center gap-1.5 bg-emerald-600 px-3 text-white shadow-sm'
+                : 'inline-flex min-w-[2.5rem] items-center justify-center bg-gray-100 px-2 text-gray-600 hover:bg-gray-200',
             ].join(' ')}
           >
-            {o.label} {badges ? <span className="ml-1 text-xs">({badges[o.id] ?? 0})</span> : null}
+            {active ? (
+              <>
+                <Icon className="h-4 w-4 shrink-0 text-white sm:h-5 sm:w-5" strokeWidth={2.25} aria-hidden />
+                <span className="whitespace-nowrap">
+                  {o.label.toUpperCase()}
+                  {typeof badges !== 'undefined' ? ` (${count})` : ''}
+                </span>
+              </>
+            ) : (
+              <>
+                <Icon className="h-5 w-5 shrink-0 text-gray-400" strokeWidth={2.25} aria-hidden />
+                {showBadge ? (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[9px] font-bold leading-none text-white">
+                    {count > 99 ? '99+' : count}
+                  </span>
+                ) : null}
+              </>
+            )}
           </button>
         )
       })}
     </div>
   )
 }
-
