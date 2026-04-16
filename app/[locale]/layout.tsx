@@ -6,6 +6,7 @@ import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
+import SupabaseCookieSync from "@/components/SupabaseCookieSync";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -57,6 +58,7 @@ export default async function LocaleLayout({
     <html lang={locale} className={`${inter.className} h-full antialiased`}>
       <body className="min-h-full">
         <NextIntlClientProvider messages={messages}>
+          <SupabaseCookieSync />
           {children}
         </NextIntlClientProvider>
       </body>
