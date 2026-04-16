@@ -5,7 +5,42 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { pickAutorDisplay } from '@/lib/feed-autor'
+
+/**
+ * @typedef {{ usuario_id: string; empresa_id: string | null; nome: string; username: string; foto_url: string | null; tipo: string }} PerfilBuscaRow
+ */
+
+/** @param {string | null | undefined} t */
+function tipoRank(t) {
+  const x = String(t ?? '').toLowerCase()
+  if (x === 'empresa') return 3
+  if (x === 'profissional') return 2
+  if (x === 'turista') return 1
+  return 0
+}
+
+/**
+ * Dedupe por `usuario_id` quando a view devolve mais de uma linha por utilizador.
+ * @param {PerfilBuscaRow[]} rows
+ */
+function dedupePerfisPorUsuario(rows) {
+  /** @type {Map<string, PerfilBuscaRow>} */
+  const best = new Map()
+  for (const r of rows) {
+    const uid = String(r.usuario_id ?? '')
+    if (!uid) continue
+    const cur = best.get(uid)
+    if (!cur) {
+      best.set(uid, r)
+      continue
+    }
+    const rScore = tipoRank(r.tipo)
+    const cScore = tipoRank(cur.tipo)
+    if (rScore > cScore) best.set(uid, r)
+    else if (rScore === cScore && String(r.username ?? '') < String(cur.username ?? '')) best.set(uid, r)
+  }
+  return [...best.values()]
+}
 
 /**
  * @param {{
@@ -16,10 +51,15 @@ import { pickAutorDisplay } from '@/lib/feed-autor'
  * }} props
  */
 export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) {
-  const [lista, setLista] = useState(/** @type {{ id: string; nome: string; username: string; foto: string | null; jaSigo: boolean }[]} */ ([]))
+  const [lista, setLista] = useState(
+    /** @type {{ usuario_id: string; empresa_id: string | null; tipo: string; nome: string; username: string; foto_url: string | null; jaSigo: boolean }[]} */ (
+      []
+    )
+  )
 
   const carregar = useCallback(async () => {
-    const { data: rows } = await supabase.from('redecontatos').select('seguidor_id').eq('seguido_id', profileId)
+    const { data: rows, error: errR } = await supabase.from('redecontatos').select('seguidor_id').eq('seguido_id', profileId)
+    if (errR) console.error('redecontatos (seguidores):', errR)
 
     const ids = [...new Set((rows ?? []).map((r) => String(r.seguidor_id)).filter(Boolean))]
     if (ids.length === 0) {
@@ -27,31 +67,34 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
       return
     }
 
-    const { data: usuarios } = await supabase
-      .from('usuarios')
-      .select('id, email, turistas(nome_completo, nome_usuario, foto_perfil_url), profissionais(nome_completo, nome_usuario, foto_perfil_url), empresas(nome_fantasia, nome_usuario, foto_url)')
-      .in('id', ids)
+    const { data: perfis, error: errP } = await supabase
+      .from('perfis_para_busca')
+      .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
+      .in('usuario_id', ids)
 
-    let minhas = /** @type {Set<string>} */ (new Set())
+    if (errP) console.error('perfis_para_busca (seguidores):', errP)
+
+    const deduped = dedupePerfisPorUsuario(/** @type {PerfilBuscaRow[]} */ (perfis ?? []))
+
+    /** @type {Set<string>} */
+    let minhas = new Set()
     if (meuId) {
-      const { data: meus } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId)
+      const { data: meus, error: errM } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId)
+      if (errM) console.error('redecontatos (meu seguindo):', errM)
       minhas = new Set((meus ?? []).map((m) => String(m.seguido_id)))
     }
 
-    const out =
-      usuarios?.map((u) => {
-        const a = pickAutorDisplay(u)
-        const uid = String(u.id)
-        return {
-          id: uid,
-          nome: a.nome,
-          username: a.username,
-          foto: a.foto_perfil_url,
-          jaSigo: minhas.has(uid),
-        }
-      }) ?? []
-
-    setLista(out)
+    setLista(
+      deduped.map((p) => ({
+        usuario_id: String(p.usuario_id ?? ''),
+        empresa_id: p.empresa_id != null ? String(p.empresa_id) : null,
+        tipo: String(p.tipo ?? ''),
+        nome: String(p.nome ?? 'Usuário'),
+        username: String(p.username ?? 'usuario'),
+        foto_url: p.foto_url != null ? String(p.foto_url) : null,
+        jaSigo: minhas.has(String(p.usuario_id ?? '')),
+      }))
+    )
   }, [profileId, meuId])
 
   useEffect(() => {
@@ -60,7 +103,7 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
 
   const toggleSeguir = async (seguidoId) => {
     if (!meuId || seguidoId === meuId) return
-    const row = lista.find((l) => l.id === seguidoId)
+    const row = lista.find((l) => l.usuario_id === seguidoId)
     if (!row) return
     if (row.jaSigo) {
       await supabase.from('redecontatos').delete().eq('seguidor_id', meuId).eq('seguido_id', seguidoId)
@@ -75,15 +118,15 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
   if (!aberto) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50" onClick={onFechar} role="presentation">
+    <div className="fixed inset-0 z-[230] flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onClick={onFechar} role="presentation">
       <div
-        className="animate-perfil-sheet absolute inset-x-0 bottom-0 flex h-full w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl"
-        style={{ height: 'calc(100vh - 9cm)' }}
+        className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
+        style={{ height: 'min(70vh, 85vh)' }}
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative border-b border-gray-100 bg-white pt-4 pb-2">
+        <div className="relative shrink-0 border-b border-gray-100 bg-white pt-4 pb-2">
           <div className="flex items-center justify-center gap-2">
             <Users className="h-5 w-5 text-[#0097b2]" />
             <h2 className="text-xl font-bold text-[#0097b2]">SEGUIDORES</h2>
@@ -92,30 +135,33 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
             <X size={22} />
           </button>
         </div>
-        <div className="scrollbar-perfil overflow-y-auto px-4 py-2" style={{ height: 'calc(100% - 100px)' }}>
+        <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-2">
           {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
-          {lista.map((row) => (
-            <div key={row.id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
-              <Link href={`/perfil/${row.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50">
-                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
-                  {row.foto ? <Image src={row.foto} alt="" fill className="object-cover" sizes="40px" /> : null}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-gray-800">{row.nome}</p>
-                  <p className="truncate text-sm text-gray-500">@{row.username}</p>
-                </div>
-              </Link>
-              {meuId && row.id !== meuId ? (
-                <button
-                  type="button"
-                  onClick={() => void toggleSeguir(row.id)}
-                  className={`ml-auto shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${row.jaSigo ? 'border border-[#0097b2] text-[#0097b2]' : 'bg-[#0097b2] text-white'}`}
-                >
-                  {row.jaSigo ? 'SEGUINDO' : 'SEGUIR'}
-                </button>
-              ) : null}
-            </div>
-          ))}
+          {lista.map((row) => {
+            const href = row.tipo === 'empresa' && row.empresa_id ? `/empresa/${row.empresa_id}` : `/perfil/${row.usuario_id}`
+            return (
+              <div key={row.usuario_id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
+                <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50">
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
+                    {row.foto_url ? <Image src={row.foto_url} alt="" fill className="object-cover" sizes="40px" /> : null}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-gray-800">{row.nome}</p>
+                    <p className="truncate text-sm text-gray-500">@{row.username}</p>
+                  </div>
+                </Link>
+                {meuId && row.usuario_id !== meuId ? (
+                  <button
+                    type="button"
+                    onClick={() => void toggleSeguir(row.usuario_id)}
+                    className={`ml-auto shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${row.jaSigo ? 'border border-[#0097b2] text-[#0097b2]' : 'bg-[#0097b2] text-white'}`}
+                  >
+                    {row.jaSigo ? 'SEGUINDO' : 'SEGUIR'}
+                  </button>
+                ) : null}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>

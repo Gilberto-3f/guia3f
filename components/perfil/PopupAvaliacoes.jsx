@@ -64,15 +64,15 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
   if (!aberto) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50" onClick={onFechar} role="presentation">
+    <div className="fixed inset-0 z-[230] flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onClick={onFechar} role="presentation">
       <div
-        className="animate-perfil-sheet absolute inset-x-0 bottom-0 flex h-full w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl"
-        style={{ height: 'calc(100vh - 9cm)' }}
+        className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
+        style={{ height: 'min(70vh, 85vh)' }}
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative border-b border-gray-100 bg-white pt-4 pb-2">
+        <div className="relative shrink-0 border-b border-gray-100 bg-white pt-4 pb-2">
           <div className="flex items-center justify-center gap-2">
             <Star className="h-5 w-5 text-[#0097b2]" />
             <h2 className="text-xl font-bold text-[#0097b2]">AVALIAÇÕES</h2>
@@ -82,7 +82,7 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
           </button>
         </div>
 
-        <div className="flex justify-center gap-4 border-b px-4 pb-2">
+        <div className="flex shrink-0 justify-center gap-4 border-b px-4 pb-2">
           <button
             type="button"
             onClick={() => setAba('a')}
@@ -99,7 +99,7 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
           </button>
         </div>
 
-        <div className="scrollbar-perfil overflow-y-auto px-4 py-2" style={{ height: 'calc(100% - 100px)' }}>
+        <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-2">
           {filtradas.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
           {filtradas.map((r) => (
             <div key={r.id} className="border-b border-gray-100 py-2 last:border-0">
