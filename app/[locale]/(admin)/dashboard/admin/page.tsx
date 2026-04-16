@@ -65,7 +65,10 @@ function DashboardAdminContent() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 pb-10">
-      <div className="sticky top-0 z-20 -mx-4 bg-gray-50/90 px-4 py-4 backdrop-blur">
+      <div
+        className="sticky top-0 z-20 -mx-4 bg-white px-4 py-4 shadow-sm"
+        style={{ willChange: 'transform' }}
+      >
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-gray-900">Guia 3F</div>
