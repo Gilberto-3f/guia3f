@@ -5,42 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-
-/**
- * @typedef {{ usuario_id: string; empresa_id: string | null; nome: string; username: string; foto_url: string | null; tipo: string }} PerfilBuscaRow
- */
-
-/** @param {string | null | undefined} t */
-function tipoRank(t) {
-  const x = String(t ?? '').toLowerCase()
-  if (x === 'empresa') return 3
-  if (x === 'profissional') return 2
-  if (x === 'turista') return 1
-  return 0
-}
-
-/**
- * Dedupe por `usuario_id` quando a view devolve mais de uma linha por utilizador.
- * @param {PerfilBuscaRow[]} rows
- */
-function dedupePerfisPorUsuario(rows) {
-  /** @type {Map<string, PerfilBuscaRow>} */
-  const best = new Map()
-  for (const r of rows) {
-    const uid = String(r.usuario_id ?? '')
-    if (!uid) continue
-    const cur = best.get(uid)
-    if (!cur) {
-      best.set(uid, r)
-      continue
-    }
-    const rScore = tipoRank(r.tipo)
-    const cScore = tipoRank(cur.tipo)
-    if (rScore > cScore) best.set(uid, r)
-    else if (rScore === cScore && String(r.username ?? '') < String(cur.username ?? '')) best.set(uid, r)
-  }
-  return [...best.values()]
-}
+import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 
 /**
  * @param {{
@@ -67,14 +32,7 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
       return
     }
 
-    const { data: perfis, error: errP } = await supabase
-      .from('perfis_para_busca')
-      .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
-      .in('usuario_id', ids)
-
-    if (errP) console.error('perfis_para_busca (seguidores):', errP)
-
-    const deduped = dedupePerfisPorUsuario(/** @type {PerfilBuscaRow[]} */ (perfis ?? []))
+    const perfis = await buscarPerfisPorIds(supabase, ids)
 
     /** @type {Set<string>} */
     let minhas = new Set()
@@ -85,7 +43,7 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
     }
 
     setLista(
-      deduped.map((p) => ({
+      perfis.map((p) => ({
         usuario_id: String(p.usuario_id ?? ''),
         empresa_id: p.empresa_id != null ? String(p.empresa_id) : null,
         tipo: String(p.tipo ?? ''),
@@ -138,7 +96,7 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
         <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-2">
           {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
           {lista.map((row) => {
-            const href = row.tipo === 'empresa' && row.empresa_id ? `/empresa/${row.empresa_id}` : `/perfil/${row.usuario_id}`
+            const href = getPerfilHref(row)
             return (
               <div key={row.usuario_id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
                 <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50">

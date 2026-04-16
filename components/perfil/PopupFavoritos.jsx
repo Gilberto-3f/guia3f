@@ -5,44 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Heart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-
-/**
- * @typedef {{ usuario_id: string; empresa_id: string | null; nome: string; username: string; foto_url: string | null; tipo: string }} PerfilBuscaRow
- */
-
-/** @param {string | null | undefined} t */
-function tipoRank(t) {
-  const x = String(t ?? '').toLowerCase()
-  if (x === 'empresa') return 3
-  if (x === 'profissional') return 2
-  if (x === 'turista') return 1
-  return 0
-}
-
-/**
- * @param {PerfilBuscaRow[]} rows
- * @param {Map<string, string | null>} preferTipoPorUsuarioId
- */
-function dedupePerfisPorUsuario(rows, preferTipoPorUsuarioId) {
-  /** @type {Map<string, PerfilBuscaRow>} */
-  const best = new Map()
-  for (const r of rows) {
-    const uid = String(r.usuario_id ?? '')
-    if (!uid) continue
-    const pref = preferTipoPorUsuarioId.get(uid)
-    const prefRank = pref != null && pref !== '' ? tipoRank(pref) : -1
-    const cur = best.get(uid)
-    if (!cur) {
-      best.set(uid, r)
-      continue
-    }
-    const rScore = tipoRank(r.tipo) + (prefRank >= 0 && String(r.tipo) === String(pref) ? 100 : 0)
-    const cScore = tipoRank(cur.tipo) + (prefRank >= 0 && String(cur.tipo) === String(pref) ? 100 : 0)
-    if (rScore > cScore) best.set(uid, r)
-    else if (rScore === cScore && String(r.username ?? '') < String(cur.username ?? '')) best.set(uid, r)
-  }
-  return [...best.values()]
-}
+import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 
 /**
  * @param {{
@@ -143,14 +106,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
         prefTipo.set(id, s.seguido_tipo != null ? String(s.seguido_tipo) : null)
       }
 
-      const { data: perfis, error: errP } = await supabase
-        .from('perfis_para_busca')
-        .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
-        .in('usuario_id', ids)
-
-      if (errP) console.error('perfis_para_busca (favoritos usuários):', errP)
-
-      const deduped = dedupePerfisPorUsuario(/** @type {PerfilBuscaRow[]} */ (perfis ?? []), prefTipo)
+      const perfis = await buscarPerfisPorIds(supabase, ids, prefTipo)
 
       /** @type {Set<string>} */
       let minhas = new Set()
@@ -161,7 +117,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
       }
 
       setUsers(
-        deduped.map((p) => ({
+        perfis.map((p) => ({
           usuario_id: String(p.usuario_id ?? ''),
           empresa_id: p.empresa_id != null ? String(p.empresa_id) : null,
           tipo: String(p.tipo ?? ''),
@@ -258,10 +214,10 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
 
         <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-2">
           {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
-          {aba === 'empresas'
-            ? emps.map((row) => {
-                const href = row.empresa_id ? `/empresa/${row.empresa_id}` : `/perfil/${row.usuario_id}`
-                const eid = row.empresa_id ? String(row.empresa_id) : ''
+      {aba === 'empresas'
+        ? emps.map((row) => {
+            const href = getPerfilHref({ ...row, tipo: 'empresa' })
+            const eid = row.empresa_id ? String(row.empresa_id) : ''
                 const jaFavVisitante = eid ? meuFavEmpresaIds.has(eid) : false
                 return (
                   <div key={eid || row.usuario_id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
@@ -295,7 +251,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
                 )
               })
             : users.map((row) => {
-                const href = row.tipo === 'empresa' && row.empresa_id ? `/empresa/${row.empresa_id}` : `/perfil/${row.usuario_id}`
+                const href = getPerfilHref(row)
                 return (
                   <div key={row.usuario_id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
                     <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50">
