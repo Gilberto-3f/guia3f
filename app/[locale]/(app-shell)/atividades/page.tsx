@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Loader2, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
 import AbasAtividades from '@/components/atividades/AbasAtividades'
@@ -64,9 +65,22 @@ const USUARIOS_SELECT = `
 `
 
 export default function AtividadesPage() {
+  const router = useRouter()
   const [aba, setAba] = useState<'amigos' | 'minha'>('amigos')
-  const [buscaEdicao, setBuscaEdicao] = useState('')
-  const [buscaAplicada, setBuscaAplicada] = useState('')
+  const [termoBusca, setTermoBusca] = useState('')
+  const [resultadosBusca, setResultadosBusca] = useState<
+    Array<{
+      usuario_id: string
+      empresa_id: string | null
+      username: string | null
+      nome: string | null
+      foto_url: string | null
+      tipo: 'turista' | 'profissional' | 'empresa'
+    }>
+  >([])
+  const [buscando, setBuscando] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement | null>(null)
+  const latestRequestId = useRef(0)
   const [meuId, setMeuId] = useState<string | null>(null)
   const [meuRole, setMeuRole] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
@@ -91,6 +105,82 @@ export default function AtividadesPage() {
   const [empresaMap, setEmpresaMap] = useState<Record<string, { id: string; nome: string }>>({})
   const [seguidoEmpresaMap, setSeguidoEmpresaMap] = useState<Record<string, string>>({})
   const [qtdSeguindo, setQtdSeguindo] = useState(0)
+
+  const buscarUsuarios = useCallback(async (termo: string) => {
+    const requestId = ++latestRequestId.current
+    const termoLimpo = termo
+      .trim()
+      .replace(/^@+/, '')
+      .replace(/[%_,()]/g, '')
+
+    if (!termoLimpo || termoLimpo.length < 2) {
+      setResultadosBusca([])
+      setBuscando(false)
+      return
+    }
+
+    setBuscando(true)
+    try {
+      const { data, error } = await supabase
+        .from('perfis_para_busca')
+        .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
+        .or(`username.ilike.%${termoLimpo}%,nome.ilike.%${termoLimpo}%`)
+        .limit(15)
+
+      if (requestId !== latestRequestId.current) return
+      if (error) throw error
+      setResultadosBusca((data ?? []) as typeof resultadosBusca)
+    } catch (error) {
+      if (requestId !== latestRequestId.current) return
+      console.error('Erro na busca:', error)
+      setResultadosBusca([])
+    } finally {
+      if (requestId === latestRequestId.current) setBuscando(false)
+    }
+  }, [])
+
+  // Debounce (300ms) + anti-race por requestId.
+  useEffect(() => {
+    const t = termoBusca
+    if (!t.trim() || t.trim().replace(/^@+/, '').length < 2) {
+      latestRequestId.current += 1
+      setBuscando(false)
+      setResultadosBusca([])
+      return
+    }
+    const id = window.setTimeout(() => {
+      void buscarUsuarios(t)
+    }, 300)
+    return () => window.clearTimeout(id)
+  }, [buscarUsuarios, termoBusca])
+
+  // Fechar dropdown ao clicar fora (desktop + mobile).
+  useEffect(() => {
+    const handler = (event: MouseEvent | TouchEvent) => {
+      const node = dropdownRef.current
+      if (!node) return
+      const target = event.target as Node | null
+      if (target && !node.contains(target)) {
+        setResultadosBusca([])
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
+    }
+  }, [])
+
+  const handleSelectUser = useCallback(
+    (user: (typeof resultadosBusca)[number]) => {
+      const destino = user.tipo === 'empresa' && user.empresa_id ? `/empresa/${user.empresa_id}` : `/perfil/${user.usuario_id}`
+      router.push(destino)
+      setTermoBusca('')
+      setResultadosBusca([])
+    },
+    [router]
+  )
 
   const coletarIdsPerfis = useCallback((rows: AtividadeRow[]) => {
     const ids = new Set<string>()
@@ -320,37 +410,9 @@ export default function AtividadesPage() {
     [marcarMinhaLidas]
   )
 
-  const buscarUsuario = useCallback(() => {
-    setBuscaAplicada(buscaEdicao.trim())
-  }, [buscaEdicao])
-
   const listaAtividadesFiltrada = useMemo(() => {
-    const fonte = aba === 'amigos' ? listaAmigos : listaMinha
-    const q = buscaAplicada.trim().toLowerCase()
-    if (!q) return fonte
-
-    const perfilCombina = (uid: string) => {
-      const p = perfilMap[uid]
-      if (!p) return false
-      const un = (p.username ?? '').toLowerCase()
-      const nm = (p.nome ?? '').toLowerCase()
-      const needle = q.replace(/^@/, '')
-      return un.includes(needle) || nm.includes(needle) || un.includes(q) || nm.includes(q)
-    }
-
-    return fonte.filter((r) => {
-      if (perfilCombina(r.autor_id)) return true
-      if (perfilCombina(r.usuario_id)) return true
-      if (r.tipo === 'seguiu' && r.dados_extras && typeof r.dados_extras === 'object') {
-        const ex = r.dados_extras
-        const seguido = typeof ex.seguido_id === 'string' ? ex.seguido_id : null
-        const seguidor = typeof ex.seguidor_id === 'string' ? ex.seguidor_id : null
-        if (seguido && perfilCombina(seguido)) return true
-        if (seguidor && perfilCombina(seguidor)) return true
-      }
-      return false
-    })
-  }, [aba, listaAmigos, listaMinha, buscaAplicada, perfilMap])
+    return aba === 'amigos' ? listaAmigos : listaMinha
+  }, [aba, listaAmigos, listaMinha])
 
   const itensAgrupados = useMemo(() => {
     const ord = [...listaAtividadesFiltrada].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -611,21 +673,57 @@ export default function AtividadesPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <header className="sticky top-0 z-10 border-b border-white/20 bg-[#0097b2] px-4 py-3">
-        <label className="flex w-full items-center gap-2 rounded-xl border border-white/60 bg-white px-3 py-2 shadow-sm">
-          <Search className="pointer-events-none h-5 w-5 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
-          <input
-            type="search"
-            placeholder="Pesquisar usuário por @ ou nome..."
-            className="min-w-0 flex-1 border-0 bg-transparent py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
-            enterKeyHint="search"
-            value={buscaEdicao}
-            onChange={(e) => setBuscaEdicao(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') buscarUsuario()
-            }}
-            aria-label="Pesquisar atividades por usuário"
-          />
-        </label>
+        <div className="relative" ref={dropdownRef}>
+          <div className="flex w-full items-center gap-2 rounded-xl border border-white/60 bg-white px-3 py-2 shadow-sm">
+            <Search className="pointer-events-none h-5 w-5 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
+            <input
+              type="search"
+              placeholder="Pesquisar usuário por @ ou nome..."
+              className="min-w-0 flex-1 border-0 bg-transparent py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
+              enterKeyHint="search"
+              value={termoBusca}
+              onChange={(e) => setTermoBusca(e.target.value)}
+              aria-label="Pesquisar usuários"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            {buscando ? <Loader2 className="h-5 w-5 animate-spin text-[#0097b2]" aria-label="Buscando" /> : null}
+          </div>
+
+          {resultadosBusca.length > 0 ? (
+            <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-80 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+              {resultadosBusca.map((u) => {
+                const nome = u.nome ?? 'Usuário'
+                const username = (u.username ?? '').trim() || 'usuario'
+                return (
+                  <button
+                    key={`${u.tipo}-${u.usuario_id}`}
+                    type="button"
+                    onClick={() => handleSelectUser(u)}
+                    className="flex w-full items-center gap-3 border-b border-gray-100 p-3 text-left hover:bg-gray-50 last:border-0"
+                  >
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-200">
+                      {u.foto_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={u.foto_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-gray-500">
+                          {nome.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-gray-900">{nome}</div>
+                      <div className="truncate text-xs text-gray-500">@{username}</div>
+                    </div>
+                    <span className="text-[11px] font-semibold text-gray-400">{u.tipo}</span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+        </div>
       </header>
 
       <AbasAtividades aba={aba} onAba={onAba} />
