@@ -6,7 +6,7 @@ import Link from 'next/link'
 
 import { AbasNavegacao, type AbaPrincipalId, ABAS_PRINCIPAIS } from './components/shared/AbasNavegacao'
 import { TopoCards } from './components/shared/TopoCards'
-import { useAdminGate } from './hooks/usePermissao'
+import { AdminPermissaoProvider, useSharedAdminGate } from './context/AdminPermissaoContext'
 import { VisaoGeralContainer } from './components/visao-geral/VisaoGeralContainer'
 import { VerificacaoContainer } from './components/verificacao/VerificacaoContainer'
 import { DenunciasContainer } from './components/denuncias/DenunciasContainer'
@@ -27,7 +27,7 @@ function DashboardAdminContent() {
   const tab = useMemo(() => coerceAba(sp.get('tab')), [sp])
   const sub = sp.get('sub') ?? ''
 
-  const gate = useAdminGate()
+  const gate = useSharedAdminGate()
 
   const setTab = (next: AbaPrincipalId) => {
     const params = new URLSearchParams(sp.toString())
@@ -106,7 +106,9 @@ function DashboardAdminContent() {
 export default function DashboardAdminPage() {
   return (
     <Suspense fallback={<div className="p-8 text-center">Carregando...</div>}>
-      <DashboardAdminContent />
+      <AdminPermissaoProvider>
+        <DashboardAdminContent />
+      </AdminPermissaoProvider>
     </Suspense>
   )
 }

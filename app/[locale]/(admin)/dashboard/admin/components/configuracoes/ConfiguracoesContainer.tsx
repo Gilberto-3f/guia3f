@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useAdminGate } from '../../hooks/usePermissao'
+import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { podeAcessar } from '../../utils/permissoes'
 import { SubabasConfig, type ConfigSubabaId } from './SubabasConfig'
 import { GestaoAPIs } from './GestaoAPIs'
@@ -15,7 +15,7 @@ function coerceSub(sub: string): ConfigSubabaId {
 }
 
 export function ConfiguracoesContainer({ sub }: { sub: string }) {
-  const gate = useAdminGate()
+  const gate = useSharedAdminGate()
   const activeSub = useMemo(() => coerceSub(sub), [sub])
 
   if (gate.status !== 'ok') return null

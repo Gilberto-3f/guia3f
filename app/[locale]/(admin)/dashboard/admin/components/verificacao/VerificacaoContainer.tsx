@@ -4,7 +4,7 @@ import { Component, type ReactNode, useMemo } from 'react'
 import { SubabasVerificacao, type VerificacaoSubabaId } from './SubabasVerificacao'
 import { ListaPendentes } from './ListaPendentes'
 import SolicitacoesAcesso from './SolicitacoesAcesso'
-import { useAdminGate } from '../../hooks/usePermissao'
+import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { isAdmGeral } from '../../utils/permissoes'
 import { useVerificacao } from '../../hooks/useVerificacao'
 
@@ -43,7 +43,7 @@ class CadastrosErrorBoundary extends Component<{ children: ReactNode }, Boundary
 }
 
 function VerificacaoContainerInner({ sub }: { sub: string }) {
-  const gate = useAdminGate()
+  const gate = useSharedAdminGate()
   const activeSub = useMemo(() => coerceSub(sub), [sub])
 
   const { contadores, error: erroContadores } = useVerificacao({

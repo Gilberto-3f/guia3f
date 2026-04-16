@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useAdminGate } from '../../hooks/usePermissao'
+import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 
 type Filtros = {
   periodo: '7d' | '30d' | '90d' | 'todos'
@@ -50,7 +50,7 @@ function getAcaoIcon(acao: string) {
 }
 
 export function LogsAuditoria() {
-  const gate = useAdminGate()
+  const gate = useSharedAdminGate()
   const admin = gate.status === 'ok' ? gate.admin : null
   const isAdminGeral = admin?.admin_level === 1
   const rawCargo = (admin?.admin_permissoes as unknown as { cargo?: string })?.cargo

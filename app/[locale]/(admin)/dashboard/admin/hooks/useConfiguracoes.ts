@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { ConfigAPIs, ConfigAmbienteAPI, ConfigGeral } from '../types/admin.types'
-import { useAdminGate } from './usePermissao'
+import { useSharedAdminGate } from '../context/AdminPermissaoContext'
 
 function parseMoedas(v: unknown): string[] {
   if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string')
@@ -71,7 +71,7 @@ const defaultGeral = (): ConfigGeral => ({
 })
 
 export function useConfiguracoes() {
-  const gate = useAdminGate()
+  const gate = useSharedAdminGate()
   const [apis, setApis] = useState<ConfigAPIs | null>(null)
   const [geral, setGeral] = useState<ConfigGeral | null>(null)
   const [loading, setLoading] = useState(true)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePermissao } from './usePermissao'
 import type { AplicarPenalidadeParams, Denuncia, DenunciasFiltros } from '../types/admin.types'
@@ -51,6 +51,12 @@ function filtrosKey(f: DenunciasFiltros) {
 
 export function useDenuncias(filtros: DenunciasFiltros) {
   const { admin, nivel, getComunidade } = usePermissao()
+  const filtrosRef = useRef(filtros)
+  filtrosRef.current = filtros
+  const filtrosStableKey = useMemo(
+    () => filtrosKey(filtros),
+    [filtros.perfil, filtros.periodo, filtros.status, filtros.busca]
+  )
   const [denuncias, setDenuncias] = useState<Denuncia[]>([])
   const [contadores, setContadores] = useState({
     pendente: 0,
@@ -87,7 +93,8 @@ export function useDenuncias(filtros: DenunciasFiltros) {
   }, [])
 
   const fetchContadores = useCallback(async () => {
-    const tipo = filtros.perfil === 'turistas' ? 'turista' : filtros.perfil === 'profissionais' ? 'profissional' : 'empresa'
+    const f = filtrosRef.current
+    const tipo = f.perfil === 'turistas' ? 'turista' : f.perfil === 'profissionais' ? 'profissional' : 'empresa'
     const { data, error: e } = await supabase.from('denuncias').select('status').eq('denunciado_tipo', tipo)
     if (e) throw e
     const base = { pendente: 0, em_investigacao: 0, encerrada: 0, arquivada: 0 }
@@ -99,7 +106,8 @@ export function useDenuncias(filtros: DenunciasFiltros) {
   }, [filtros.perfil])
 
   const fetchDenuncias = useCallback(async (opt?: { skeleton?: boolean }) => {
-    const fk = filtrosKey(filtros)
+    const f = filtrosRef.current
+    const fk = filtrosKey(f)
     const autoSkeleton = prevFiltrosKeyRef.current === null || prevFiltrosKeyRef.current !== fk
     prevFiltrosKeyRef.current = fk
     const skeleton = opt?.skeleton === true ? true : opt?.skeleton === false ? false : autoSkeleton
@@ -107,26 +115,24 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     if (skeleton) setLoading(true)
     setError(null)
     try {
-      // 🔧 CONVERSÃO DE nivel PARA NÚMERO
       const nivelNum = typeof nivel === 'string' ? parseInt(nivel, 10) : nivel
 
-      const tipo = filtros.perfil === 'turistas' ? 'turista' : filtros.perfil === 'profissionais' ? 'profissional' : 'empresa'
+      const tipo = f.perfil === 'turistas' ? 'turista' : f.perfil === 'profissionais' ? 'profissional' : 'empresa'
       let query = supabase
         .from('denuncias')
         .select('id, denunciante_id, denunciado_id, denunciado_tipo, motivo, descricao, evidencias, status, gravidade, responsavel_id, analisado_em, analisado_por, penalidade_aplicada, penalidade_detalhes, created_at, updated_at')
         .eq('denunciado_tipo', tipo)
-        .gte('created_at', getDataLimite(filtros.periodo))
+        .gte('created_at', getDataLimite(f.periodo))
         .order('created_at', { ascending: false })
 
-      if (filtros.status !== 'todas') query = query.eq('status', filtros.status)
-      if (filtros.busca.trim()) query = query.or(`motivo.ilike.%${filtros.busca.trim()}%,descricao.ilike.%${filtros.busca.trim()}%`)
+      if (f.status !== 'todas') query = query.eq('status', f.status)
+      if (f.busca.trim()) query = query.or(`motivo.ilike.%${f.busca.trim()}%,descricao.ilike.%${f.busca.trim()}%`)
 
       const { data, error: fetchError } = await query
       if (fetchError) throw fetchError
 
       let rows = (data ?? []) as DenunciaRow[]
 
-      // 🔧 USAR nivelNum AQUI
       if (tipo === 'profissional' && nivelNum === 2) {
         const comunidade = String(getComunidade() ?? '').toLowerCase()
         if (comunidade) {
@@ -190,7 +196,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     } finally {
       if (skeleton) setLoading(false)
     }
-  }, [fetchContadores, filtros, getComunidade, nivel, resolveDenunciado])
+  }, [fetchContadores, filtrosStableKey, getComunidade, nivel, resolveDenunciado])
 
   const applyAudit = useCallback(
     async (denunciaId: string, acao: string, detalhes: Record<string, unknown>) => {
