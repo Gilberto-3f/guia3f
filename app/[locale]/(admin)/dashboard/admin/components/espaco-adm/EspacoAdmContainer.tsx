@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { isAdmGeral, podeAcessar } from '../../utils/permissoes'
-import { SubabasEspaco, type EspacoSubabaId } from './SubabasEspaco'
+import type { EspacoSubabaId } from './SubabasEspaco'
 import { GraficosAdm } from './graficos-adm/GraficosAdm'
 import { EmpresasAdm } from './empresas/EmpresasAdm'
 import { FinanceiroAdm } from './financeiro/FinanceiroAdm'
@@ -32,15 +32,6 @@ export function EspacoAdmContainer({ sub }: { sub: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <SubabasEspaco value={activeSub} />
-          </div>
-          <div className="shrink-0 text-xs font-semibold text-gray-500">{isAdmGeral(admin) ? 'ADM GERAL' : 'ADMIN'}</div>
-        </div>
-      </div>
-
       {!allowed ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           Você não tem permissão para acessar esta subaba.

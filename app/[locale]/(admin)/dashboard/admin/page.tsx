@@ -6,8 +6,10 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
 import { AbasNavegacao, type AbaPrincipalId, ABAS_PRINCIPAIS } from './components/shared/AbasNavegacao'
+import { AdminSubabasRail } from './components/shared/AdminSubabasRail'
 import { TopoCards } from './components/shared/TopoCards'
 import { AdminPermissaoProvider, useSharedAdminGate } from './context/AdminPermissaoContext'
+import { DenunciasToolbarProvider } from './context/DenunciasToolbarContext'
 import { VisaoGeralContainer } from './components/visao-geral/VisaoGeralContainer'
 import { VerificacaoContainer } from './components/verificacao/VerificacaoContainer'
 import { DenunciasContainer } from './components/denuncias/DenunciasContainer'
@@ -65,45 +67,49 @@ function DashboardAdminContent() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-10 pt-1 sm:pt-2">
-      <div
-        className="sticky top-0 z-20 -mx-4 bg-white px-4 pb-2 pt-1 shadow-sm"
-        style={{ willChange: 'transform' }}
-      >
-        <div className="flex justify-end">
-          <Link
-            href="/guia"
-            aria-label="Voltar ao app"
-            title="Voltar ao app"
-            className="inline-flex rounded-full p-2 text-[#0097b2] transition hover:bg-gray-100 active:bg-gray-200"
-          >
-            <ArrowLeft className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
-          </Link>
+    <DenunciasToolbarProvider>
+      <div className="mx-auto max-w-6xl px-4 pb-10 pt-1 sm:pt-2">
+        <div
+          className="sticky top-0 z-20 -mx-4 bg-white px-4 pb-2 pt-1 shadow-sm"
+          style={{ willChange: 'transform' }}
+        >
+          <div className="flex justify-end">
+            <Link
+              href="/guia"
+              aria-label="Voltar ao app"
+              title="Voltar ao app"
+              className="inline-flex rounded-full p-2 text-[#0097b2] transition hover:bg-gray-100 active:bg-gray-200"
+            >
+              <ArrowLeft className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
+            </Link>
+          </div>
+
+          <div className="mt-1 border-t border-gray-100 pt-2">
+            <TopoCards />
+          </div>
+
+          <div className="mt-2 border-t border-gray-100 pt-2">
+            <AbasNavegacao value={tab} onChange={setTab} />
+          </div>
+
+          <AdminSubabasRail tab={tab} sub={sub} />
         </div>
 
-        <div className="mt-1 border-t border-gray-100 pt-2">
-          <TopoCards />
-        </div>
-
-        <div className="mt-2 border-t border-gray-100 pt-2">
-          <AbasNavegacao value={tab} onChange={setTab} />
+        <div className="mt-6">
+          {tab === 'visao-geral' ? (
+            <VisaoGeralContainer sub={sub} />
+          ) : tab === 'cadastros' ? (
+            <VerificacaoContainer sub={sub} />
+          ) : tab === 'denuncias' ? (
+            <DenunciasContainer sub={sub} />
+          ) : tab === 'espaco-adm' ? (
+            <EspacoAdmContainer sub={sub} />
+          ) : (
+            <ConfiguracoesContainer sub={sub} />
+          )}
         </div>
       </div>
-
-      <div className="mt-6">
-        {tab === 'visao-geral' ? (
-          <VisaoGeralContainer sub={sub} />
-        ) : tab === 'cadastros' ? (
-          <VerificacaoContainer sub={sub} />
-        ) : tab === 'denuncias' ? (
-          <DenunciasContainer sub={sub} />
-        ) : tab === 'espaco-adm' ? (
-          <EspacoAdmContainer sub={sub} />
-        ) : (
-          <ConfiguracoesContainer sub={sub} />
-        )}
-      </div>
-    </div>
+    </DenunciasToolbarProvider>
   )
 }
 

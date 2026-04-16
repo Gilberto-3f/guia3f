@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { podeAcessar } from '../../utils/permissoes'
-import { SubabasConfig, type ConfigSubabaId } from './SubabasConfig'
+import type { ConfigSubabaId } from './SubabasConfig'
 import { GestaoAPIs } from './GestaoAPIs'
 import { LogsAuditoria } from './LogsAuditoria'
 import { PoliticasEditaveis } from './PoliticasEditaveis'
@@ -32,10 +32,6 @@ export function ConfiguracoesContainer({ sub }: { sub: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <SubabasConfig value={activeSub} />
-      </div>
-
       {!allowed ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           Você não tem permissão para acessar esta subaba.

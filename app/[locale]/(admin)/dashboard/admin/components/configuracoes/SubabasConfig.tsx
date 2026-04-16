@@ -41,7 +41,7 @@ export function SubabasConfig({ value }: { value: ConfigSubabaId }) {
               'shrink-0 rounded-xl py-2 text-sm font-semibold transition',
               active
                 ? 'inline-flex max-w-[min(100%,14rem)] items-center gap-1.5 bg-emerald-600 px-3 text-white shadow-sm'
-                : 'inline-flex min-w-[2.5rem] items-center justify-center bg-gray-100 px-2 text-gray-600 hover:bg-gray-200',
+                : 'inline-flex min-w-[2.5rem] items-center justify-center bg-white px-2 text-gray-600 shadow-sm ring-1 ring-gray-200/80 hover:bg-gray-50',
             ].join(' ')}
           >
             {active ? (

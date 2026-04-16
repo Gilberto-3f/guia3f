@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import { FiltrosPeriodo, type PeriodoId } from '../shared/FiltrosPeriodo'
-import { SubabasVisao, type VisaoSubabaId } from './SubabasVisao'
+import type { VisaoSubabaId } from './SubabasVisaoNav'
+import { VisaoGeralGraficos } from './VisaoGeralGraficos'
 
 function coerceSub(sub: string): VisaoSubabaId {
   if (sub === 'profissionais' || sub === 'empresas') return sub
@@ -16,13 +17,12 @@ export function VisaoGeralContainer({ sub }: { sub: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <SubabasVisao value={activeSub} filtros={filtrosVisao} />
-        </div>
+      <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-3 shadow-sm sm:p-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Período dos gráficos</p>
         <FiltrosPeriodo value={periodo} onChange={setPeriodo} />
       </div>
+
+      <VisaoGeralGraficos value={activeSub} filtros={filtrosVisao} />
     </div>
   )
 }
-

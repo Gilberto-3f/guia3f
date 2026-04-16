@@ -1,12 +1,11 @@
 'use client'
 
 import { Component, type ReactNode, useMemo } from 'react'
-import { SubabasVerificacao, type VerificacaoSubabaId } from './SubabasVerificacao'
+import type { VerificacaoSubabaId } from './SubabasVerificacao'
 import { ListaPendentes } from './ListaPendentes'
 import SolicitacoesAcesso from './SolicitacoesAcesso'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { isAdmGeral } from '../../utils/permissoes'
-import { useVerificacao } from '../../hooks/useVerificacao'
 
 function coerceSub(sub: string): VerificacaoSubabaId {
   if (sub === 'profissionais' || sub === 'empresas') return sub
@@ -46,13 +45,6 @@ function VerificacaoContainerInner({ sub }: { sub: string }) {
   const gate = useSharedAdminGate()
   const activeSub = useMemo(() => coerceSub(sub), [sub])
 
-  const { contadores, error: erroContadores } = useVerificacao({
-    perfil: activeSub,
-    periodo: '7d',
-    busca: '',
-    categoria: 'todas',
-  })
-
   if (gate.status === 'loading') {
     return (
       <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">Carregando permissões…</div>
@@ -77,23 +69,6 @@ function VerificacaoContainerInner({ sub }: { sub: string }) {
 
   return (
     <div className="space-y-4">
-      {erroContadores ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-          Não foi possível carregar os contadores de pendentes: {erroContadores.message}
-        </div>
-      ) : null}
-
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <SubabasVerificacao value={activeSub} badges={contadores} />
-          </div>
-          <div className="text-xs font-semibold text-gray-500">
-            {isAdmGeral(admin) ? 'ADM GERAL' : 'ADMIN'} · permissões aplicadas por subaba
-          </div>
-        </div>
-      </div>
-
       {!allowed ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           Você não tem permissão para acessar esta subaba.

@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { usePermissao } from '../../hooks/usePermissao'
-import SubabasDenuncias from './SubabasDenuncias'
+import { useDenunciasToolbar } from '../../context/DenunciasToolbarContext'
 import StatusDenuncia from './StatusDenuncia'
 import ListaDenuncias from './ListaDenuncias'
 
@@ -13,29 +14,37 @@ function coerceSub(sub: string): 'turistas' | 'profissionais' | 'empresas' {
 }
 
 export function DenunciasContainer({ sub }: { sub: string }) {
+  const router = useRouter()
+  const sp = useSearchParams()
   const { nivel, getComunidade } = usePermissao()
-  const [perfilAtivo, setPerfilAtivo] = useState<'turistas' | 'profissionais' | 'empresas'>(coerceSub(sub))
-  const [statusAtivo, setStatusAtivo] = useState<'pendente' | 'em_investigacao' | 'encerrada' | 'arquivada' | 'todas'>('pendente')
-  const [periodo, setPeriodo] = useState<'hoje' | '7d' | '30d'>('7d')
-  const [busca, setBusca] = useState('')
-  const [categoria, setCategoria] = useState('')
-  const [badges, setBadges] = useState<Partial<Record<'turistas' | 'profissionais' | 'empresas', number>>>({})
+  const { setBadges } = useDenunciasToolbar()
 
-  // CORREÇÃO: converte nivel para número
+  const perfilAtivo = coerceSub(sub)
+
   const nivelNum = typeof nivel === 'string' ? parseInt(nivel, 10) : nivel
 
   const podeVerProfissionais = nivelNum === 1 || nivelNum === 2
   const podeVerEmpresas = nivelNum === 1 || nivelNum === 3
 
-  useEffect(() => {
-    const next = coerceSub(sub)
-    setPerfilAtivo(next)
-  }, [sub])
+  const [statusAtivo, setStatusAtivo] = useState<'pendente' | 'em_investigacao' | 'encerrada' | 'arquivada' | 'todas'>('pendente')
+  const [periodo, setPeriodo] = useState<'hoje' | '7d' | '30d'>('7d')
+  const [busca, setBusca] = useState('')
+  const [categoria, setCategoria] = useState('')
 
   useEffect(() => {
-    if (perfilAtivo === 'profissionais' && !podeVerProfissionais) setPerfilAtivo('turistas')
-    if (perfilAtivo === 'empresas' && !podeVerEmpresas) setPerfilAtivo('turistas')
-  }, [perfilAtivo, podeVerEmpresas, podeVerProfissionais])
+    if (perfilAtivo === 'profissionais' && !podeVerProfissionais) {
+      const p = new URLSearchParams(sp.toString())
+      p.set('tab', 'denuncias')
+      p.set('sub', 'turistas')
+      router.replace(`?${p.toString()}`)
+    }
+    if (perfilAtivo === 'empresas' && !podeVerEmpresas) {
+      const p = new URLSearchParams(sp.toString())
+      p.set('tab', 'denuncias')
+      p.set('sub', 'turistas')
+      router.replace(`?${p.toString()}`)
+    }
+  }, [perfilAtivo, podeVerEmpresas, podeVerProfissionais, router, sp])
 
   useEffect(() => {
     const run = async () => {
@@ -75,31 +84,22 @@ export function DenunciasContainer({ sub }: { sub: string }) {
       setBadges(base)
     }
     void run()
-  }, [getComunidade, nivelNum])
+  }, [getComunidade, nivelNum, setBadges])
 
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-3">
-          <SubabasDenuncias
-            perfilAtivo={perfilAtivo}
-            onPerfilChange={setPerfilAtivo}
-            podeVerProfissionais={podeVerProfissionais}
-            podeVerEmpresas={podeVerEmpresas}
-            badges={badges}
-          />
-          <StatusDenuncia
-            statusAtivo={statusAtivo}
-            onStatusChange={setStatusAtivo}
-            periodo={periodo}
-            onPeriodoChange={setPeriodo}
-            busca={busca}
-            onBuscaChange={setBusca}
-            categoria={categoria}
-            onCategoriaChange={setCategoria}
-            perfil={perfilAtivo}
-          />
-        </div>
+        <StatusDenuncia
+          statusAtivo={statusAtivo}
+          onStatusChange={setStatusAtivo}
+          periodo={periodo}
+          onPeriodoChange={setPeriodo}
+          busca={busca}
+          onBuscaChange={setBusca}
+          categoria={categoria}
+          onCategoriaChange={setCategoria}
+          perfil={perfilAtivo}
+        />
       </div>
       <ListaDenuncias perfil={perfilAtivo} status={statusAtivo} periodo={periodo} busca={busca} categoria={categoria} />
     </div>
