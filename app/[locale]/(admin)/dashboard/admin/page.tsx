@@ -74,19 +74,18 @@ function DashboardAdminContent() {
           style={{ willChange: 'transform' }}
         >
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Link
-                href="/guia"
-                aria-label="Voltar ao app"
-                title="Voltar ao app"
-                className="inline-flex rounded-full p-2 text-[#0097b2] transition hover:bg-gray-100 active:bg-gray-200"
-              >
-                <ArrowLeft className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
-              </Link>
-              <span className="text-sm font-bold uppercase tracking-wide text-[#0097b2] sm:text-base">
-                Painel Dashboard
-              </span>
-            </div>
+            <div className="w-8 sm:w-10" aria-hidden />
+            <span className="flex-1 text-center text-sm font-bold uppercase tracking-wide text-[#0097b2] sm:text-base">
+              Painel Dashboard
+            </span>
+            <Link
+              href="/guia"
+              aria-label="Voltar ao app"
+              title="Voltar ao app"
+              className="inline-flex rounded-full p-2 text-[#0097b2] transition hover:bg-gray-100 active:bg-gray-200"
+            >
+              <ArrowLeft className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
+            </Link>
           </div>
 
           <div className="mt-1 border-t border-gray-100 pt-2">
