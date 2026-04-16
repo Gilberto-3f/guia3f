@@ -3,7 +3,7 @@
 import { useMemo, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { AbaPrincipalId } from './AbasNavegacao'
-import { SubabasVisaoNav } from '../visao-geral/SubabasVisaoNav'
+import { SubabasVisaoNav, type VisaoSubabaId } from '../visao-geral/SubabasVisaoNav'
 import { SubabasVerificacao, type VerificacaoSubabaId } from '../verificacao/SubabasVerificacao'
 import SubabasDenuncias from '../denuncias/SubabasDenuncias'
 import { SubabasEspaco, type EspacoSubabaId } from '../espaco-adm/SubabasEspaco'
