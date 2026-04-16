@@ -43,8 +43,8 @@ export function CardPendente({
   return (
     <>
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <label className="flex min-w-0 items-start gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <label className="flex min-w-0 items-start gap-3 sm:flex-[2]">
             <input type="checkbox" className="mt-1 h-4 w-4" checked={checked} onChange={onToggle} disabled={!item.docsVerificado} />
             <div className="min-w-0">
               <div className="truncate text-sm font-bold text-gray-900">
@@ -65,12 +65,20 @@ export function CardPendente({
             </div>
           </label>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <button type="button" onClick={() => setModalAberto(true)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+          <div className="flex flex-wrap items-center gap-2 sm:flex-[1] sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setModalAberto(true)}
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+            >
               Docs
             </button>
             {!item.docsVerificado ? (
-              <button type="button" onClick={onDocsVerificado} className="rounded-xl bg-blue-100 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-200">
+              <button
+                type="button"
+                onClick={onDocsVerificado}
+                className="rounded-xl bg-blue-100 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-200"
+              >
                 Marcar verificado
               </button>
             ) : null}

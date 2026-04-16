@@ -68,7 +68,7 @@ function DashboardAdminContent() {
 
   return (
     <DenunciasToolbarProvider>
-      <div className="mx-auto max-w-6xl px-4 pb-10 pt-1 sm:pt-2">
+      <div className="mx-auto max-w-6xl px-2 pb-10 pt-1 sm:px-4 sm:pt-2">
         <div
           className="sticky top-0 z-20 -mx-4 bg-white px-4 pb-2 pt-1 shadow-sm"
           style={{ willChange: 'transform' }}
