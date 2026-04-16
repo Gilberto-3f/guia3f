@@ -22,7 +22,7 @@ export default function Configuracoes() {
   }
 
   return (
-    <div className="scrollbar-perfil max-h-[70vh] space-y-6 overflow-y-auto px-1 pb-4">
+    <div className="space-y-6 px-1 pb-2">
       <div>
         <label className="font-medium text-gray-800">🌐 Idioma</label>
         <button

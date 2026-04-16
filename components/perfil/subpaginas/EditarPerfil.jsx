@@ -296,7 +296,7 @@ export default function EditarPerfil({
     'mt-1 w-full rounded-lg border border-gray-200 bg-white p-2 text-sm text-gray-900 placeholder:text-gray-500 outline-none focus:border-[#0097b2] focus:ring-1 focus:ring-[#0097b2]/35'
 
   return (
-    <div className="scrollbar-perfil max-h-[70vh] space-y-4 overflow-y-auto bg-white px-1 pb-4 text-gray-900">
+    <div className="space-y-4 bg-white px-1 pb-2 text-gray-900">
       <div>
         <label className={labelClass}>Foto de perfil</label>
         <div className="mt-2 flex flex-col items-center gap-3">

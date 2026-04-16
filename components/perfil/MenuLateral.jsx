@@ -464,7 +464,7 @@ export default function MenuLateral({
     <div className="fixed inset-0 z-[100] max-h-[100dvh]">
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar menu" onClick={onFechar} />
       <aside
-        className={`absolute right-0 top-0 flex h-full max-h-[100dvh] w-[75%] min-w-0 flex-col overflow-hidden bg-white shadow-xl transition-transform duration-300 ease-out ${
+        className={`absolute right-0 top-0 flex h-full max-h-[100dvh] w-[min(92vw,28rem)] min-w-0 flex-col overflow-hidden bg-white shadow-xl transition-transform duration-300 ease-out ${
           drawerEntered ? 'translate-x-0' : 'translate-x-full'
         }`}
         role="dialog"
@@ -513,16 +513,16 @@ export default function MenuLateral({
               ) : null}
             </div>
 
-            <nav className="scrollbar-perfil min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 pt-0 pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom,0px)))]">
+            <nav className="scrollbar-perfil min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 pt-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
               {renderListaItens(itensRaiz)}
             </nav>
           </>
         ) : topo.tipo === 'menu' ? (
-          <nav className="scrollbar-perfil min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 pt-1 pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom,0px)))]">
+          <nav className="scrollbar-perfil min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 pt-1 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
             {renderListaItens(topo.itens)}
           </nav>
         ) : (
-          <div className="scrollbar-perfil min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 pt-1 pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom,0px)))]">
+          <div className="scrollbar-perfil min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-3 pt-1 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
             {renderPagina()}
           </div>
         )}

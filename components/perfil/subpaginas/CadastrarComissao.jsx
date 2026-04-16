@@ -69,7 +69,7 @@ export default function CadastrarComissao({ empresaId }) {
   }
 
   return (
-    <div className="scrollbar-perfil max-h-[70vh] space-y-6 overflow-y-auto px-1 pb-4">
+    <div className="space-y-6 px-1 pb-2">
       <div>
         <label className="font-medium text-gray-800">Selecione a categoria</label>
         <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm">

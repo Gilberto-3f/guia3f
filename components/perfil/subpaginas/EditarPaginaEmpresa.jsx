@@ -142,7 +142,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
   }
 
   return (
-    <div className="scrollbar-perfil max-h-[70vh] space-y-6 overflow-y-auto px-1 pb-6">
+    <div className="space-y-6 px-1 pb-2">
       <section className="space-y-3">
         <h3 className="text-lg font-bold text-gray-900">Informações básicas</h3>
         <input
