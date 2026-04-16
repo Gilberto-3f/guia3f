@@ -225,6 +225,7 @@ export default function PerfilSocialPage() {
         )
         .eq('autor_id', profileId)
         .is('deleted_at', null)
+        .is('post_original_id', null)
         .in('tipo', ['foto', 'misto'])
         .order('created_at', { ascending: false })
 
