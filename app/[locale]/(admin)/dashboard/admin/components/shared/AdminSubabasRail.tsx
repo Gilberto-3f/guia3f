@@ -125,7 +125,7 @@ export function AdminSubabasRail({ tab, sub }: { tab: AbaPrincipalId; sub: strin
   if (!inner) return null
 
   return (
-    <div className="mt-2 -mx-2 border-y border-gray-200 bg-gray-50/95 px-2 py-2.5 sm:-mx-4 sm:px-4">
+    <div className="mt-2 -mx-3 border-y border-gray-200 bg-gray-50/95 px-3 py-2.5 sm:-mx-4 sm:px-4">
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="min-w-0 flex-1">{inner}</div>
         {meta ? <div className="shrink-0">{meta}</div> : null}

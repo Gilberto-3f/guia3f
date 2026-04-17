@@ -68,10 +68,8 @@ function DashboardAdminContent() {
 
   return (
     <DenunciasToolbarProvider>
-      <div className="mx-0 max-w-full px-0 pb-10 pt-1 sm:mx-auto sm:max-w-6xl sm:px-4 sm:pt-2">
-        <div
-          className="z-20 -mx-2 bg-white px-2 pb-2 pt-1 shadow-sm sm:-mx-4 sm:px-4"
-        >
+      <div className="mx-0 max-w-full px-3 pb-10 pt-1 sm:mx-auto sm:max-w-6xl sm:px-4 sm:pt-2">
+        <div className="z-20 -mx-3 bg-white px-3 pb-2 pt-1 shadow-sm sm:-mx-4 sm:px-4">
           <div className="flex items-center justify-between gap-3">
             <div className="w-8 sm:w-10" aria-hidden />
             <span className="flex-1 text-center text-base font-bold uppercase tracking-wide text-[#0097b2] sm:text-lg">
