@@ -39,8 +39,8 @@ export function SubabasVisaoNav({ value }: { value: VisaoSubabaId }) {
             className={[
               'shrink-0 rounded-xl py-2 text-sm font-semibold transition',
               active
-                ? 'inline-flex items-center gap-1.5 bg-emerald-600 px-3 text-white shadow-sm'
-                : 'inline-flex min-w-[2.5rem] items-center justify-center bg-white px-2 text-gray-600 shadow-sm ring-1 ring-gray-200/80 hover:bg-gray-50',
+                ? 'inline-flex items-center gap-1.5 bg-[#0097b2] px-3 text-white shadow-sm'
+                : 'inline-flex min-w-[2.5rem] items-center justify-center bg-[#007d94] px-2 text-white shadow-sm hover:bg-[#0097b2]',
             ].join(' ')}
           >
             {active ? (
@@ -49,7 +49,7 @@ export function SubabasVisaoNav({ value }: { value: VisaoSubabaId }) {
                 <span className="whitespace-nowrap">{o.label.toUpperCase()}</span>
               </>
             ) : (
-              <Icon className="h-5 w-5 shrink-0 text-gray-400" strokeWidth={2.25} aria-hidden />
+              <Icon className="h-5 w-5 shrink-0 text-white" strokeWidth={2.25} aria-hidden />
             )}
           </button>
         )
