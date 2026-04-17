@@ -17,14 +17,14 @@ import AvatarImage from '@/components/AvatarImage'
 
 /**
  * Texto do post com “Ver mais” / “Ver menos” (mede overflow real, estilo Instagram).
- * @param {{ texto: string, postId: string, maxLines: 2 | 7, className?: string }} props
+ * @param {{ texto: string, postId: string, maxLines: 5 | 20, className?: string }} props
  */
 function PostTextoColapsivel({ texto, postId, maxLines, className = '' }) {
   const pRef = useRef(/** @type {HTMLParagraphElement | null} */ (null))
   const [expanded, setExpanded] = useState(false)
   const [truncado, setTruncado] = useState(false)
 
-  const clampClass = maxLines === 2 ? 'line-clamp-2' : 'line-clamp-7'
+  const clampClass = maxLines === 5 ? 'line-clamp-[5]' : 'line-clamp-[20]'
 
   useLayoutEffect(() => {
     setExpanded(false)
@@ -701,13 +701,13 @@ export default function PostCard({
           </div>
           {acoesPost}
           {post.texto ? (
-            <PostTextoColapsivel texto={post.texto} postId={post.id} maxLines={2} className="px-4 pb-3 pt-1" />
+            <PostTextoColapsivel texto={post.texto} postId={post.id} maxLines={5} className="px-4 pb-3 pt-1" />
           ) : null}
         </>
       ) : (
         <>
           {post.texto ? (
-            <PostTextoColapsivel texto={post.texto} postId={post.id} maxLines={7} className="px-4 py-2 pt-0" />
+            <PostTextoColapsivel texto={post.texto} postId={post.id} maxLines={20} className="px-4 py-2 pt-0" />
           ) : null}
           {acoesPost}
         </>
