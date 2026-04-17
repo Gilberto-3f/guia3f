@@ -69,31 +69,35 @@ function DashboardAdminContent() {
   return (
     <DenunciasToolbarProvider>
       <div className="mx-0 max-w-full px-3 pb-10 pt-1 sm:mx-auto sm:max-w-6xl sm:px-4 sm:pt-2">
-        <div className="z-20 -mx-3 bg-white px-3 pb-2 pt-1 shadow-sm sm:-mx-4 sm:px-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="w-8 sm:w-10" aria-hidden />
-            <span className="flex-1 text-center text-base font-bold uppercase tracking-wide text-[#0097b2] sm:text-lg">
-              Painel Dashboard
-            </span>
-            <Link
-              href="/guia"
-              aria-label="Voltar ao app"
-              title="Voltar ao app"
-              className="inline-flex rounded-full p-2 text-[#0097b2] transition hover:bg-gray-100 active:bg-gray-200"
-            >
-              <ArrowLeft className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
-            </Link>
+        <div className="z-20 -mx-3 overflow-hidden shadow-sm sm:-mx-4">
+          <div className="bg-[#0097b2] px-3 pb-3 pt-2 text-white sm:px-4 sm:pb-3 sm:pt-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="w-8 sm:w-10" aria-hidden />
+              <span className="flex-1 text-center text-base font-bold uppercase tracking-wide sm:text-lg">
+                Painel Dashboard
+              </span>
+              <Link
+                href="/guia"
+                aria-label="Voltar ao app"
+                title="Voltar ao app"
+                className="inline-flex rounded-full p-2 text-white transition hover:bg-white/15 active:bg-white/25"
+              >
+                <ArrowLeft className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
+              </Link>
+            </div>
           </div>
 
-          <div className="mt-1 border-t border-gray-100 pt-2">
-            <TopoCards />
-          </div>
+          <div className="bg-white px-3 pb-2 pt-2 sm:px-4">
+            <div className="border-t border-gray-100 pt-2">
+              <TopoCards />
+            </div>
 
-          <div className="mt-2 border-t border-gray-100 pt-2">
-            <AbasNavegacao value={tab} onChange={setTab} />
-          </div>
+            <div className="mt-2 border-t border-gray-100 pt-2">
+              <AbasNavegacao value={tab} onChange={setTab} />
+            </div>
 
-          <AdminSubabasRail tab={tab} sub={sub} />
+            <AdminSubabasRail tab={tab} sub={sub} />
+          </div>
         </div>
 
         <div className="mt-6">
