@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Bookmark, Heart, MessageCircle, Repeat2, Share2 } from 'lucide-react'
@@ -14,6 +14,63 @@ import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/lib/feed-autor'
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
+
+/**
+ * Texto do post com “Ver mais” / “Ver menos” (mede overflow real, estilo Instagram).
+ * @param {{ texto: string, postId: string, maxLines: 2 | 7, className?: string }} props
+ */
+function PostTextoColapsivel({ texto, postId, maxLines, className = '' }) {
+  const pRef = useRef(/** @type {HTMLParagraphElement | null} */ (null))
+  const [expanded, setExpanded] = useState(false)
+  const [truncado, setTruncado] = useState(false)
+
+  const clampClass = maxLines === 2 ? 'line-clamp-2' : 'line-clamp-7'
+
+  useLayoutEffect(() => {
+    setExpanded(false)
+    setTruncado(false)
+  }, [postId, texto])
+
+  useLayoutEffect(() => {
+    if (!texto) return
+    const el = pRef.current
+    if (!el || expanded) return
+
+    const measure = () => {
+      const e = pRef.current
+      if (!e) return
+      setTruncado(e.scrollHeight > e.clientHeight + 2)
+    }
+
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [texto, postId, expanded, clampClass])
+
+  if (!texto) return null
+
+  return (
+    <div className={className}>
+      <p
+        ref={pRef}
+        className={`text-sm text-gray-800 whitespace-pre-wrap ${expanded ? '' : clampClass}`}
+      >
+        {texto}
+      </p>
+      {truncado ? (
+        <button
+          type="button"
+          className="mt-1 text-sm font-medium text-[#0097b2] hover:underline"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+        >
+          {expanded ? 'Ver menos' : 'Ver mais'}
+        </button>
+      ) : null}
+    </div>
+  )
+}
 
 /**
  * @param {{
@@ -644,13 +701,13 @@ export default function PostCard({
           </div>
           {acoesPost}
           {post.texto ? (
-            <p className="whitespace-pre-wrap px-4 pb-3 pt-1 text-sm text-gray-800">{post.texto}</p>
+            <PostTextoColapsivel texto={post.texto} postId={post.id} maxLines={2} className="px-4 pb-3 pt-1" />
           ) : null}
         </>
       ) : (
         <>
           {post.texto ? (
-            <p className="whitespace-pre-wrap px-4 py-2 pt-0 text-sm text-gray-800">{post.texto}</p>
+            <PostTextoColapsivel texto={post.texto} postId={post.id} maxLines={7} className="px-4 py-2 pt-0" />
           ) : null}
           {acoesPost}
         </>
