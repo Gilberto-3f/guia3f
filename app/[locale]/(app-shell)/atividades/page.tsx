@@ -92,7 +92,10 @@ export default function AtividadesPage() {
     }>
   >([])
   const [buscando, setBuscando] = useState(false)
+  const [pesquisaAberta, setPesquisaAberta] = useState(false)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const termoBuscaRef = useRef('')
   const latestRequestId = useRef(0)
   const [meuId, setMeuId] = useState<string | null>(null)
   const [meuRole, setMeuRole] = useState<string | null>(null)
@@ -167,6 +170,19 @@ export default function AtividadesPage() {
     return () => window.clearTimeout(id)
   }, [buscarUsuarios, termoBusca])
 
+  useEffect(() => {
+    termoBuscaRef.current = termoBusca
+  }, [termoBusca])
+
+  const fecharPesquisa = useCallback(() => {
+    setPesquisaAberta(false)
+    setTermoBusca('')
+    setResultadosBusca([])
+    setBuscando(false)
+    latestRequestId.current += 1
+    inputRef.current?.blur()
+  }, [])
+
   // Fechar dropdown ao clicar fora (desktop + mobile).
   useEffect(() => {
     const handler = (event: MouseEvent | TouchEvent) => {
@@ -175,6 +191,9 @@ export default function AtividadesPage() {
       const target = event.target as Node | null
       if (target && !node.contains(target)) {
         setResultadosBusca([])
+        if (!termoBuscaRef.current.trim()) {
+          setPesquisaAberta(false)
+        }
       }
     }
     document.addEventListener('mousedown', handler)
@@ -191,6 +210,7 @@ export default function AtividadesPage() {
       router.push(destino)
       setTermoBusca('')
       setResultadosBusca([])
+      setPesquisaAberta(false)
     },
     [router]
   )
@@ -862,24 +882,65 @@ export default function AtividadesPage() {
     <div className="min-h-screen bg-gray-50 pb-24">
       <header className="border-b border-white/20 bg-[#0097b2] px-3 py-2 shadow-sm sm:px-4 sm:py-3">
         <div className="relative" ref={dropdownRef}>
-          <div className="flex w-full items-center gap-2 rounded-xl border border-white/60 bg-white px-3 py-1.5 shadow-sm sm:py-2">
-            <Search className="pointer-events-none h-5 w-5 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
-            <input
-              type="search"
-              placeholder="Pesquisar usuário por @ ou nome..."
-              className="min-w-0 flex-1 border-0 bg-transparent py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
-              enterKeyHint="search"
-              value={termoBusca}
-              onChange={(e) => setTermoBusca(e.target.value)}
-              aria-label="Pesquisar usuários"
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-            {buscando ? <Loader2 className="h-5 w-5 animate-spin text-[#0097b2]" aria-label="Buscando" /> : null}
+          <div className="flex w-full items-center justify-end gap-2">
+            <div
+              className={`flex min-w-0 justify-end overflow-hidden transition-[max-width,opacity] duration-300 ease-out ${
+                pesquisaAberta ? 'max-w-[calc(100%-2.5rem)] flex-1 opacity-100' : 'max-w-0 flex-none opacity-0'
+              }`}
+            >
+              <div
+                className={`ml-auto flex w-full min-w-0 max-w-full items-center gap-2 rounded-xl border border-white/60 bg-white px-3 py-1.5 shadow-sm sm:py-2 ${
+                  pesquisaAberta ? '' : 'pointer-events-none'
+                }`}
+              >
+                <Search className="pointer-events-none h-5 w-5 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
+                <input
+                  ref={inputRef}
+                  type="search"
+                  placeholder="Pesquisar usuário por @ ou nome..."
+                  className="min-w-0 flex-1 border-0 bg-transparent py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
+                  enterKeyHint="search"
+                  value={termoBusca}
+                  onChange={(e) => setTermoBusca(e.target.value)}
+                  onBlur={(e) => {
+                    const valor = e.currentTarget.value.trim()
+                    window.requestAnimationFrame(() => {
+                      const a = document.activeElement
+                      if (dropdownRef.current?.contains(a)) return
+                      if (!valor) setPesquisaAberta(false)
+                    })
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault()
+                      fecharPesquisa()
+                    }
+                  }}
+                  aria-label="Pesquisar usuários"
+                  aria-expanded={pesquisaAberta}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
+                {buscando ? <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[#0097b2]" aria-label="Buscando" /> : null}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#0097b2] shadow-sm transition hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+              aria-label={pesquisaAberta ? 'Focar pesquisa' : 'Abrir pesquisa de usuários'}
+              onClick={() => {
+                setPesquisaAberta(true)
+                window.requestAnimationFrame(() => {
+                  inputRef.current?.focus()
+                })
+              }}
+            >
+              <Search className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+            </button>
           </div>
 
-          {resultadosBusca.length > 0 ? (
+          {pesquisaAberta && resultadosBusca.length > 0 ? (
             <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-80 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
               {resultadosBusca.map((u) => {
                 const nome = u.nome ?? 'Usuário'
@@ -888,6 +949,7 @@ export default function AtividadesPage() {
                   <button
                     key={`${u.tipo}-${u.usuario_id}`}
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleSelectUser(u)}
                     className="flex w-full items-center gap-3 border-b border-gray-100 p-3 text-left hover:bg-gray-50 last:border-0"
                   >
