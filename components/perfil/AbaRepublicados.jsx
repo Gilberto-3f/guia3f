@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import AvaliacaoCard from '@/components/AvaliacaoCard'
+import AvatarImage from '@/components/AvatarImage'
 
 /**
  * @param {{
@@ -17,10 +18,12 @@ import AvaliacaoCard from '@/components/AvaliacaoCard'
  *     originalId: string | null
  *     autorOriginal: string | null
  *     usernameOriginal: string | null
+ *     autorOriginalUsuarioId: string | null
  *   }[]
+ *   reposter: { id: string; username: string; foto: string | null }
  * }} props
  */
-export default function AbaRepublicados({ itens }) {
+export default function AbaRepublicados({ itens, reposter }) {
   if (itens.length === 0) {
     return <p className="py-12 text-center text-sm text-gray-400">Nenhum republicado</p>
   }
@@ -30,6 +33,7 @@ export default function AbaRepublicados({ itens }) {
       {itens.map((item) => {
         const mediaUrl = item.conteudo_url || item.foto_url
         const tipoNorm = String(item.tipo || '').toLowerCase()
+        const repostEhFoto = tipoNorm === 'foto' || tipoNorm === 'misto'
         const meta =
           item.avaliacao_meta && typeof item.avaliacao_meta === 'object'
             ? /** @type {{ empresa_id?: string, nome_fantasia?: string, foto_url?: string | null, nota?: number, feedback?: string | null }} */ (
@@ -40,17 +44,39 @@ export default function AbaRepublicados({ itens }) {
 
         return (
           <li key={item.id} className="overflow-hidden rounded-lg border border-[#E0E0E0] bg-white text-gray-900 shadow-sm">
-            <p className="border-b border-gray-100 px-3 py-2 text-xs text-gray-600">
-              Republicado ·{' '}
-              {item.autorOriginal ? (
-                <>
-                  <span className="font-medium text-gray-900">{item.autorOriginal}</span>
-                  {item.usernameOriginal ? <span className="text-gray-700"> @{item.usernameOriginal}</span> : null}
-                </>
-              ) : (
-                'Post original'
-              )}
-            </p>
+            <div className="border-b border-gray-100 px-3 py-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <Link
+                  href={`/perfil/${reposter.id}`}
+                  className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                  aria-label={`Perfil de @${reposter.username}`}
+                >
+                  <AvatarImage src={reposter.foto} alt="" width={32} height={32} className="h-full w-full object-cover" />
+                </Link>
+                <p className="min-w-0 text-xs leading-snug text-gray-600">
+                  <Link href={`/perfil/${reposter.id}`} className="font-semibold text-gray-800 hover:text-[#0097b2]">
+                    @{reposter.username}
+                  </Link>
+                  <span>{repostEhFoto ? ' republicou foto de ' : ' republicou post de '}</span>
+                  {item.usernameOriginal ? (
+                    item.autorOriginalUsuarioId ? (
+                      <Link
+                        href={`/perfil/${item.autorOriginalUsuarioId}`}
+                        className="font-semibold text-gray-800 hover:text-[#0097b2]"
+                      >
+                        @{item.usernameOriginal}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold text-gray-800">@{item.usernameOriginal}</span>
+                    )
+                  ) : item.autorOriginal ? (
+                    <span className="font-semibold text-gray-800">{item.autorOriginal}</span>
+                  ) : (
+                    <span className="text-gray-500">autor original</span>
+                  )}
+                </p>
+              </div>
+            </div>
 
             {showAvaliacao ? (
               <div className="p-3 pt-2">

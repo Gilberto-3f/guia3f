@@ -51,6 +51,8 @@ type RepublicadoLinha = {
   originalId: string | null
   autorOriginal: string | null
   usernameOriginal: string | null
+  /** UUID do utilizador autor do post original (para `/perfil/{id}`). */
+  autorOriginalUsuarioId: string | null
 }
 
 export default function PerfilSocialPage() {
@@ -332,6 +334,10 @@ export default function PerfilSocialPage() {
             originalId: oid,
             autorOriginal: o?.autor.nome ?? null,
             usernameOriginal: o?.autor.username ?? null,
+            autorOriginalUsuarioId:
+              o?.autor.usuario_id != null && String(o.autor.usuario_id).trim() !== ''
+                ? String(o.autor.usuario_id)
+                : null,
           }
         })
       )
@@ -484,7 +490,12 @@ export default function PerfilSocialPage() {
         <div className="min-h-[200px] bg-gray-50 py-2">
           {aba === 'fotos' ? <AbaFotos posts={postsFotos} onOpen={(i) => setModalFoto({ aberto: true, i })} /> : null}
           {aba === 'posts' ? <AbaPosts posts={postsTexto} /> : null}
-          {aba === 'republicados' ? <AbaRepublicados itens={republicados} /> : null}
+          {aba === 'republicados' ? (
+            <AbaRepublicados
+              itens={republicados}
+              reposter={{ id: profileId, username, foto: fotoPerfil }}
+            />
+          ) : null}
         </div>
       </div>
 
