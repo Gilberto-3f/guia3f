@@ -29,15 +29,15 @@ export default function AtividadeSeguidor({
     seguidoTipo === 'empresa' && empresaId ? `/empresa/${empresaId}` : `/perfil/${seguidoUsuarioId}`
 
   return (
-    <div className="flex gap-1.5 rounded-lg border border-gray-100 bg-white px-2 py-1.5 text-[11px] text-gray-800 shadow-sm">
+    <div className="flex items-start gap-2 rounded-lg border border-gray-100 bg-white px-2 py-2 text-xs text-gray-800 shadow-sm sm:px-3 sm:text-sm">
       <button
         type="button"
-        className="relative h-6 w-6 shrink-0 overflow-hidden rounded-md bg-gray-100"
+        className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100"
         onClick={() => router.push(`/perfil/${seguidorUsuarioId}`)}
       >
-        <AvatarImage src={seguidorFoto} alt="" fill className="object-cover" sizes="24px" />
+        <AvatarImage src={seguidorFoto} alt="" fill className="object-cover" sizes="32px" />
       </button>
-      <p className="min-w-0 flex-1 leading-snug">
+      <p className="min-w-0 flex-1 pt-0.5 leading-snug">
         <button
           type="button"
           className="font-medium text-[#0097b2] hover:underline"
