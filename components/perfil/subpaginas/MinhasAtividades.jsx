@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
+import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 
 /**
  * @typedef {{
@@ -14,17 +17,45 @@ import { supabase } from '@/lib/supabase'
  *   thumb: string | null
  *   texto: string | null
  *   textoComentario?: string | null
+ *   postAutorUsuarioId?: string | null
+ *   postAutorUsername?: string | null
+ *   postAutorEmpresaId?: string | null
+ *   postAutorTipo?: string | null
+ *   postEhFoto?: boolean
  * }} LinhaInteracao
  */
 
 /**
  * @param {unknown} p
- * @returns {{ deleted_at: unknown, texto: unknown, conteudo_url: unknown, foto_url: unknown } | null}
+ * @returns {{ deleted_at: unknown, texto: unknown, conteudo_url: unknown, foto_url: unknown, tipo?: unknown, autor_id?: unknown } | null}
  */
 function postEmb(p) {
-  if (!p || typeof p !== 'object' || Array.isArray(p)) return null
-  const pr = /** @type {Record<string, unknown>} */ (p)
-  return { deleted_at: pr.deleted_at, texto: pr.texto, conteudo_url: pr.conteudo_url, foto_url: pr.foto_url }
+  if (p == null) return null
+  const raw = Array.isArray(p) ? p[0] : p
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const pr = /** @type {Record<string, unknown>} */ (raw)
+  return {
+    deleted_at: pr.deleted_at,
+    texto: pr.texto,
+    conteudo_url: pr.conteudo_url,
+    foto_url: pr.foto_url,
+    tipo: pr.tipo,
+    autor_id: pr.autor_id,
+  }
+}
+
+/**
+ * Mesma ideia que o feed de atividades: foto / misto, ou mídia sem texto legível.
+ * @param {{ texto?: unknown, conteudo_url?: unknown, foto_url?: unknown, tipo?: unknown } | null} pr
+ */
+function postInteracaoEhFoto(pr) {
+  if (!pr) return false
+  const t = String(pr.tipo ?? 'texto').toLowerCase()
+  if (t === 'foto' || t === 'misto') return true
+  const url = pr.conteudo_url || pr.foto_url
+  const hasUrl = url != null && String(url).trim() !== ''
+  const hasText = pr.texto != null && String(pr.texto).trim() !== ''
+  return hasUrl && !hasText
 }
 
 /**
@@ -53,7 +84,7 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
           .limit(40),
         supabase
           .from('comentarios')
-          .select('id, texto, created_at, post_id, posts(id, texto, conteudo_url, foto_url, deleted_at)')
+          .select('id, texto, created_at, post_id, posts(id, texto, conteudo_url, foto_url, deleted_at, tipo, autor_id)')
           .eq('autor_id', usuarioId)
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
@@ -92,10 +123,32 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
         })
       }
 
-      for (const row of kRes.data ?? []) {
+      const comentarioRows = /** @type {Record<string, unknown>[]} */ (kRes.data ?? [])
+      const autorIdsPost = [
+        ...new Set(
+          comentarioRows
+            .map((row) => {
+              const pr = postEmb(row.posts)
+              return pr?.autor_id != null ? String(pr.autor_id) : ''
+            })
+            .filter(Boolean)
+        ),
+      ]
+      /** @type {Map<string, { usuario_id: string; username: string; empresa_id: string | null; tipo: string }>} */
+      const perfilAutorPost = new Map()
+      if (autorIdsPost.length > 0) {
+        const perfis = await buscarPerfisPorIds(supabase, autorIdsPost)
+        for (const p of perfis) {
+          perfilAutorPost.set(String(p.usuario_id), p)
+        }
+      }
+
+      for (const row of comentarioRows) {
         const pr = postEmb(row.posts)
         if (!pr || pr.deleted_at != null) continue
         const url = pr.conteudo_url || pr.foto_url
+        const autorPostId = pr.autor_id != null ? String(pr.autor_id) : ''
+        const perfilAutor = autorPostId ? perfilAutorPost.get(autorPostId) : undefined
         acc.push({
           id: `k-${row.id}`,
           ts: String(row.created_at ?? ''),
@@ -105,6 +158,11 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
           thumb: url != null ? String(url) : null,
           texto: pr.texto != null ? String(pr.texto) : null,
           textoComentario: row.texto != null ? String(row.texto) : null,
+          postAutorUsuarioId: autorPostId || null,
+          postAutorUsername: perfilAutor?.username != null ? String(perfilAutor.username) : 'usuario',
+          postAutorEmpresaId: perfilAutor?.empresa_id != null ? String(perfilAutor.empresa_id) : null,
+          postAutorTipo: perfilAutor?.tipo != null ? String(perfilAutor.tipo) : null,
+          postEhFoto: postInteracaoEhFoto(pr),
         })
       }
 
@@ -198,53 +256,91 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
       {carregando ? <p className="mt-2 py-6 text-center text-sm text-gray-400">Carregando…</p> : null}
 
       {!carregando ? (
-        <ul className="mt-2 space-y-2">
+        <ul className="mt-2 divide-y divide-gray-100">
           {linhasFiltradas.length === 0 ? (
             <li className="py-6 text-center text-sm text-gray-400">
               {aba === 'comentarios' ? 'Nenhum comentário ainda.' : 'Nenhuma interação nesta aba ainda.'}
             </li>
           ) : (
-            linhasFiltradas.map((L) => (
-              <li key={L.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (L.kind === 'comentario' && L.comentarioId) {
-                      onAbrirPublicacao(L.postId, L.comentarioId)
-                    } else {
-                      onAbrirPublicacao(L.postId, null)
+            linhasFiltradas.map((L) => {
+              const abrir = () => {
+                if (L.kind === 'comentario' && L.comentarioId) {
+                  onAbrirPublicacao(L.postId, L.comentarioId)
+                } else {
+                  onAbrirPublicacao(L.postId, null)
+                }
+              }
+              return (
+                <li key={L.id} className="min-w-0 py-2 first:pt-0">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={abrir}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        abrir()
+                      }
+                    }}
+                    className="flex w-full cursor-pointer items-start gap-3 rounded-lg border border-gray-100 p-2 text-left transition hover:bg-gray-50"
+                    aria-label={
+                      L.kind === 'comentario'
+                        ? `Comentário em publicação, ${L.postEhFoto ? 'foto' : 'post'} de @${L.postAutorUsername ?? 'usuario'}`
+                        : `${rotulo(L.kind)} — abrir publicação`
                     }
-                  }}
-                  className="flex w-full gap-3 rounded-lg border border-gray-100 p-2 text-left transition hover:bg-gray-50"
-                >
-                  {L.thumb ? (
-                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                      <Image src={L.thumb} alt="" fill className="object-cover" sizes="56px" />
+                  >
+                    {L.thumb ? (
+                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                        <Image src={L.thumb} alt="" fill className="object-cover" sizes="56px" />
+                      </div>
+                    ) : L.texto ? (
+                      <div className="flex h-14 w-[5.75rem] shrink-0 flex-col justify-start overflow-hidden rounded-lg border border-gray-100 bg-gray-50 p-1.5">
+                        <p className="line-clamp-3 whitespace-pre-wrap text-[10px] leading-snug text-gray-600">{L.texto}</p>
+                      </div>
+                    ) : (
+                      <div className="h-14 w-14 shrink-0 rounded-lg bg-gray-100" aria-hidden />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      {L.kind === 'comentario' ? (
+                        <p className="text-xs text-gray-400">
+                          {L.postEhFoto ? 'Comentou foto de ' : 'Comentou post de '}
+                          {L.postAutorUsuarioId ? (
+                            <Link
+                              href={getPerfilHref({
+                                usuario_id: L.postAutorUsuarioId,
+                                empresa_id: L.postAutorEmpresaId,
+                                tipo: L.postAutorTipo ?? undefined,
+                              })}
+                              className="font-medium text-[#0097b2] hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              @{L.postAutorUsername ?? 'usuario'}
+                            </Link>
+                          ) : (
+                            <span className="font-medium text-gray-700">@usuario</span>
+                          )}
+                          {' · '}
+                          {L.ts ? formatarDataRelativaPublicacao(L.ts) : ''}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400">
+                          <span className="font-medium text-[#0097b2]">{rotulo(L.kind)}</span>
+                          {' · '}
+                          {L.ts ? formatarDataRelativaPublicacao(L.ts) : ''}
+                        </p>
+                      )}
+                      <p className="line-clamp-2 text-sm text-gray-700">
+                        {L.kind === 'comentario' && L.textoComentario != null && String(L.textoComentario).trim() !== ''
+                          ? String(L.textoComentario).trimEnd()
+                          : L.texto
+                            ? trunc(L.texto)
+                            : 'Post'}
+                      </p>
                     </div>
-                  ) : L.texto ? (
-                    <div className="flex h-14 w-[5.75rem] shrink-0 flex-col justify-start overflow-hidden rounded-lg border border-gray-100 bg-gray-50 p-1.5">
-                      <p className="line-clamp-3 whitespace-pre-wrap text-[10px] leading-snug text-gray-600">{L.texto}</p>
-                    </div>
-                  ) : (
-                    <div className="h-14 w-14 shrink-0 rounded-lg bg-gray-100" aria-hidden />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-gray-400">
-                      <span className="font-medium text-[#0097b2]">{rotulo(L.kind)}</span>
-                      {' · '}
-                      {L.ts ? new Date(L.ts).toLocaleString('pt-BR') : ''}
-                    </p>
-                    <p className="line-clamp-2 text-sm text-gray-700">
-                      {L.kind === 'comentario' && L.textoComentario
-                        ? trunc(L.textoComentario)
-                        : L.texto
-                          ? trunc(L.texto)
-                          : 'Post'}
-                    </p>
                   </div>
-                </button>
-              </li>
-            ))
+                </li>
+              )
+            })
           )}
         </ul>
       ) : null}
