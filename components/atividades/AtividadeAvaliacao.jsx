@@ -29,7 +29,7 @@ export default function AtividadeAvaliacao({
 
   return (
     <div className="block rounded-lg border border-gray-100 bg-white px-2 py-2 shadow-sm sm:px-3">
-      <div className="flex items-start gap-2">
+      <div className="grid min-w-0 grid-cols-[2rem_1fr] items-start gap-x-2">
         <button
           type="button"
           onClick={() => router.push(`/perfil/${usuarioAtorId}`)}
@@ -37,7 +37,7 @@ export default function AtividadeAvaliacao({
         >
           <AvatarImage src={interactorFoto} alt="" fill className="object-cover" sizes="32px" />
         </button>
-        <div className="min-w-0 flex-1 self-start">
+        <div className="min-w-0">
           <p className="text-xs leading-snug text-gray-800 sm:text-sm">
             <button
               type="button"
@@ -52,7 +52,9 @@ export default function AtividadeAvaliacao({
             </Link>{' '}
             com {estrelas}
           </p>
-          {feedback ? <p className="mt-1.5 line-clamp-3 text-xs text-gray-600 sm:text-sm">{feedback}</p> : null}
+          {feedback ? (
+            <p className="mt-1.5 line-clamp-3 text-xs text-gray-600 sm:text-sm">{String(feedback).trimEnd()}</p>
+          ) : null}
         </div>
       </div>
     </div>

@@ -39,7 +39,7 @@ export default function AtividadeCurtiuRepost({
   return (
     <>
       <div className="rounded-lg border border-gray-100 bg-white px-2 py-2 shadow-sm sm:px-3">
-        <div className="flex items-start gap-2">
+        <div className="grid min-w-0 grid-cols-[2rem_1fr] items-start gap-x-2">
           <button
             type="button"
             onClick={() => router.push(hrefInteractor)}
@@ -47,7 +47,7 @@ export default function AtividadeCurtiuRepost({
           >
             <AvatarImage src={interactorFoto} alt="" fill className="object-cover" sizes="32px" />
           </button>
-          <div className="min-w-0 flex-1 self-start">
+          <div className="min-w-0">
             <p className="text-xs leading-snug text-gray-800 sm:text-sm">
               <Link href={hrefInteractor} className="font-medium text-[#0097b2] hover:underline">
                 @{interactorUsername}
@@ -60,14 +60,16 @@ export default function AtividadeCurtiuRepost({
             <button
               type="button"
               onClick={() => setModal(true)}
-              className="mt-1.5 min-h-0 w-full rounded-md bg-gray-50 px-2 py-2 text-left"
+              className="mt-1.5 block min-h-0 w-full rounded-md bg-gray-50 px-2 py-2 text-left"
             >
               {previewTipo === 'foto' && previewUrl ? (
                 <div className="relative mx-auto h-24 w-full max-w-[7rem] overflow-hidden rounded-md bg-gray-100 sm:h-28 sm:max-w-[7.5rem]">
                   <Image src={previewUrl} alt="" fill className="object-cover" sizes="120px" />
                 </div>
               ) : (
-                <p className="line-clamp-3 whitespace-pre-wrap text-xs text-gray-700 sm:text-sm">{previewTexto || '—'}</p>
+                <p className="line-clamp-3 whitespace-pre-wrap text-xs text-gray-700 sm:text-sm">
+                  {String(previewTexto || '').trimEnd() || '—'}
+                </p>
               )}
             </button>
           </div>
