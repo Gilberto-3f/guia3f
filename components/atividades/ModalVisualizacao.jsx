@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
-import { Link } from '@/i18n/navigation'
 import PostCard from '@/components/PostCard'
 import { supabase } from '@/lib/supabase'
 import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
@@ -10,24 +9,26 @@ import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
 const POSTS_FEED_VIEW = 'posts_com_autores'
 
 /**
- * Modal centrado com publicação completa (PostCard + comentários inline), estilo isolado do feed.
+ * Modal centrado com publicação completa (PostCard + comentários inline).
  *
  * @param {{
  *   aberto: boolean
  *   onFechar: () => void
  *   postIds: string[]
+ *   interacaoUsuario: string
+ *   interacaoResumo: string
  *   indiceInicial?: number
  *   comentarioId?: string | null
- *   verNoFeedHref?: string | null
  * }} props
  */
 export default function ModalVisualizacao({
   aberto,
   onFechar,
   postIds,
+  interacaoUsuario,
+  interacaoResumo,
   indiceInicial = 0,
   comentarioId = null,
-  verNoFeedHref = null,
 }) {
   const idsKey = postIds.map((id) => String(id)).filter(Boolean).join('|')
   const ids = useMemo(() => (idsKey === '' ? [] : idsKey.split('|')), [idsKey])
@@ -53,6 +54,15 @@ export default function ModalVisualizacao({
     const i = Math.min(Math.max(0, indiceInicial), ids.length - 1)
     setIndiceAtual(i)
   }, [aberto, indiceInicial, ids.length, idsKey])
+
+  useEffect(() => {
+    if (!aberto) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [aberto])
 
   useEffect(() => {
     if (!aberto) return
@@ -104,47 +114,59 @@ export default function ModalVisualizacao({
   if (!aberto) return null
 
   const destacar = comentarioId != null && comentarioId !== '' ? String(comentarioId) : null
+  const u = String(interacaoUsuario || '').replace(/^@/, '')
 
   return (
-    <div className="fixed inset-0 z-[260] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[260] flex items-center justify-center p-3 sm:p-5">
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={onFechar} />
       <div
-        className="relative z-[1] flex w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-xl"
-        style={{ maxHeight: 'min(70vh, 46rem)' }}
+        className="relative z-[1] grid max-h-[85vh] w-full max-w-2xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-xl bg-white shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-atividade-titulo"
       >
-        <div className="flex shrink-0 justify-end border-b border-gray-100 px-2 py-2">
-          <button type="button" onClick={onFechar} className="rounded-full p-2 text-gray-500 hover:bg-gray-100" aria-label="Fechar">
+        <div className="flex shrink-0 items-start gap-2 border-b border-gray-100 px-3 py-2.5 sm:px-4">
+          <p id="modal-atividade-titulo" className="min-w-0 flex-1 text-sm leading-snug text-gray-600">
+            <span className="font-semibold text-gray-900">@{u}</span>
+            {interacaoResumo ? <span className="text-gray-600"> {interacaoResumo}</span> : null}
+          </p>
+          <button
+            type="button"
+            onClick={onFechar}
+            className="shrink-0 rounded-full p-1.5 text-gray-500 hover:bg-gray-100"
+            aria-label="Fechar"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="relative min-h-0 flex-1">
+        <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
           {isCarrossel ? (
             <>
               {indiceAtual > 0 ? (
                 <button
                   type="button"
                   onClick={handlePrev}
-                  className="absolute left-1 top-1/2 z-[2] -translate-y-1/2 rounded-full bg-white/90 p-1.5 shadow-md hover:bg-white"
+                  className="absolute left-1 top-1/2 z-[2] -translate-y-1/2 rounded-full bg-white/90 p-1 shadow-md hover:bg-white"
                   aria-label="Foto anterior"
                 >
-                  <ChevronLeft className="h-6 w-6 text-gray-800" />
+                  <ChevronLeft className="h-4 w-4 text-gray-800" />
                 </button>
               ) : null}
               {indiceAtual < ids.length - 1 ? (
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="absolute right-1 top-1/2 z-[2] -translate-y-1/2 rounded-full bg-white/90 p-1.5 shadow-md hover:bg-white"
+                  className="absolute right-1 top-1/2 z-[2] -translate-y-1/2 rounded-full bg-white/90 p-1 shadow-md hover:bg-white"
                   aria-label="Foto seguinte"
                 >
-                  <ChevronRight className="h-6 w-6 text-gray-800" />
+                  <ChevronRight className="h-4 w-4 text-gray-800" />
                 </button>
               ) : null}
             </>
           ) : null}
 
-          <div className="max-h-[min(62vh,40rem)] min-h-[12rem] overflow-y-auto px-2 pb-3 pt-1 sm:px-3">
+          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-2 sm:px-4">
             {carregando ? (
               <div className="py-12 text-center text-sm text-gray-400">Carregando publicação…</div>
             ) : !post ? (
@@ -158,7 +180,7 @@ export default function ModalVisualizacao({
                   storyAtivo={null}
                   onRemove={() => setPost(null)}
                   comentariosInline
-                  comentariosSomenteLeitura
+                  comentariosSomenteLeitura={false}
                   abrirComentariosInicial={false}
                   destacarComentarioId={destacar}
                 />
@@ -170,21 +192,6 @@ export default function ModalVisualizacao({
               </>
             )}
           </div>
-        </div>
-
-        <div className="flex shrink-0 flex-wrap gap-2 border-t border-gray-100 px-3 py-2">
-          <button
-            type="button"
-            onClick={onFechar}
-            className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-800"
-          >
-            Fechar
-          </button>
-          {verNoFeedHref ? (
-            <Link href={verNoFeedHref} className="rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-medium text-white" onClick={onFechar}>
-              Ver no feed
-            </Link>
-          ) : null}
         </div>
       </div>
     </div>

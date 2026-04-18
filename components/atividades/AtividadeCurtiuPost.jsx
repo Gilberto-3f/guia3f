@@ -29,7 +29,6 @@ export default function AtividadeCurtiuPost({
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
-  const verHref = `/perfil/atividades/${encodeURIComponent(postId)}`
 
   return (
     <>
@@ -74,7 +73,8 @@ export default function AtividadeCurtiuPost({
         aberto={modal}
         onFechar={() => setModal(false)}
         postIds={[postId]}
-        verNoFeedHref={verHref}
+        interacaoUsuario={interactorUsername}
+        interacaoResumo={`curtiu post de @${donorUsername}`}
       />
     </>
   )

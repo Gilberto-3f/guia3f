@@ -33,10 +33,7 @@ export default function AtividadeComentario({
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
-  const verHref =
-    comentarioId != null && comentarioId !== ''
-      ? `/perfil/atividades/${encodeURIComponent(postId)}?comentario=${encodeURIComponent(comentarioId)}`
-      : `/perfil/atividades/${encodeURIComponent(postId)}`
+  const resumoModal = `comentou ${emFoto ? 'foto' : 'post'} de @${usernameDono}`
 
   return (
     <>
@@ -82,7 +79,8 @@ export default function AtividadeComentario({
         onFechar={() => setModal(false)}
         postIds={[postId]}
         comentarioId={comentarioId}
-        verNoFeedHref={verHref}
+        interacaoUsuario={usernameAtor}
+        interacaoResumo={resumoModal}
       />
     </>
   )

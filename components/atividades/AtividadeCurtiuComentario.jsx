@@ -31,7 +31,6 @@ export default function AtividadeCurtiuComentario({
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
-  const verHref = `/perfil/atividades/${encodeURIComponent(postId)}?comentario=${encodeURIComponent(comentarioId)}`
 
   return (
     <>
@@ -77,7 +76,8 @@ export default function AtividadeCurtiuComentario({
         onFechar={() => setModal(false)}
         postIds={[postId]}
         comentarioId={comentarioId}
-        verNoFeedHref={verHref}
+        interacaoUsuario={usernameAtor}
+        interacaoResumo={`curtiu comentário de @${usernameDono}`}
       />
     </>
   )

@@ -35,6 +35,9 @@ export default function AtividadeCurtidas({
   const n = totalCurtidas ?? urls.length
   if (n === 0) return null
 
+  const resumoModal =
+    n === 1 ? `curtiu foto de @${donorUsername}` : `curtiu ${n} fotos de @${donorUsername}`
+
   return (
     <div className="min-w-0">
       <div className="grid min-w-0 grid-cols-[2.75rem_1fr] items-start gap-x-2">
@@ -77,6 +80,8 @@ export default function AtividadeCurtidas({
         onFechar={() => setModal((m) => ({ ...m, aberto: false }))}
         postIds={postIds}
         indiceInicial={modal.i}
+        interacaoUsuario={interactorUsername}
+        interacaoResumo={resumoModal}
       />
     </div>
   )
