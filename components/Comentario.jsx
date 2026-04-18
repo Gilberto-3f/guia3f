@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Heart } from 'lucide-react'
+import { Heart, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { formatarDataComentarioCurta } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
@@ -24,6 +24,7 @@ import AvatarImage from '@/components/AvatarImage'
  *   usuarioId: string | null
  *   destacarComentarioId?: string | null
  *   onEnviarResposta?: (parentId: string, texto: string) => Promise<void>
+ *   onExcluir?: (commentId: string) => Promise<void>
  *   nivel?: number
  *   enviando?: boolean
  * }} props
@@ -33,6 +34,7 @@ export default function Comentario({
   usuarioId,
   destacarComentarioId = null,
   onEnviarResposta,
+  onExcluir,
   nivel = 0,
   enviando = false,
 }) {
@@ -41,6 +43,7 @@ export default function Comentario({
   const [modoResposta, setModoResposta] = useState(false)
   const [textoResposta, setTextoResposta] = useState('')
   const [mostrarRespostas, setMostrarRespostas] = useState(true)
+  const [removendo, setRemovendo] = useState(false)
 
   const respostas = node.replies ?? []
   const destacado = Boolean(destacarComentarioId && node.id === destacarComentarioId)
@@ -96,6 +99,19 @@ export default function Comentario({
   )
 
   const ehRaiz = nivel === 0
+  const ehMeuComentario =
+    Boolean(usuarioId && node.autor?.usuario_id && String(node.autor.usuario_id) === String(usuarioId))
+
+  const handleExcluir = async () => {
+    if (!onExcluir || !ehMeuComentario) return
+    if (!window.confirm('Excluir este comentário?')) return
+    setRemovendo(true)
+    try {
+      await onExcluir(node.id)
+    } finally {
+      setRemovendo(false)
+    }
+  }
 
   return (
     <div
@@ -131,6 +147,18 @@ export default function Comentario({
                 className="text-xs font-semibold text-gray-500 hover:text-[#0097b2]"
               >
                 Responder
+              </button>
+            ) : null}
+            {ehMeuComentario && onExcluir ? (
+              <button
+                type="button"
+                onClick={() => void handleExcluir()}
+                disabled={removendo || enviando}
+                className="inline-flex items-center gap-0.5 text-xs font-semibold text-rose-600 hover:text-rose-700 disabled:opacity-40"
+                aria-label="Excluir comentário"
+              >
+                <Trash2 size={14} className="shrink-0" aria-hidden />
+                Excluir
               </button>
             ) : null}
             {respostas.length > 0 ? (
@@ -193,6 +221,7 @@ export default function Comentario({
               usuarioId={usuarioId}
               destacarComentarioId={destacarComentarioId}
               onEnviarResposta={onEnviarResposta}
+              onExcluir={onExcluir}
               nivel={nivel + 1}
               enviando={enviando}
             />

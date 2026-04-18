@@ -50,10 +50,21 @@ function buildCommentTree(flat) {
  *   onFechar: () => void
  *   usuarioId: string | null
  *   onComentou?: () => void
+ *   onComentarioExcluido?: () => void
+ *   onTotalComentariosSync?: (total: number) => void
  *   destacarComentarioId?: string | null
  * }} props
  */
-export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, onComentou, destacarComentarioId = null }) {
+export default function ModalComentarios({
+  postId,
+  aberto,
+  onFechar,
+  usuarioId,
+  onComentou,
+  onComentarioExcluido,
+  onTotalComentariosSync,
+  destacarComentarioId = null,
+}) {
   const [arvore, setArvore] = useState([])
   const [novoComentario, setNovoComentario] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -114,6 +125,31 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
       if (el) el.scrollTop = el.scrollHeight
     })
   }, [])
+
+  const handleExcluirComentario = useCallback(
+    async (commentId) => {
+      const { error } = await supabase.from('comentarios').delete().eq('id', commentId)
+      if (error) {
+        console.error('ModalComentarios delete:', error.message)
+        return
+      }
+      await carregar()
+      const { data: postRow } = await supabase.from('posts').select('total_comentarios').eq('id', postId).maybeSingle()
+      const pr = /** @type {Record<string, unknown> | null} */ (postRow)
+      const total =
+        pr && typeof pr.total_comentarios === 'number'
+          ? pr.total_comentarios
+          : typeof pr?.total_comentarios === 'string'
+            ? parseInt(String(pr.total_comentarios), 10)
+            : NaN
+      if (!Number.isNaN(total)) {
+        onTotalComentariosSync?.(total)
+      } else {
+        onComentarioExcluido?.()
+      }
+    },
+    [carregar, onComentarioExcluido, onTotalComentariosSync, postId]
+  )
 
   const handleEnviarResposta = useCallback(
     async (parentId, texto) => {
@@ -262,6 +298,7 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
               usuarioId={usuarioId}
               destacarComentarioId={destacarComentarioId}
               onEnviarResposta={handleEnviarResposta}
+              onExcluir={handleExcluirComentario}
               nivel={0}
               enviando={enviando}
             />

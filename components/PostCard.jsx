@@ -574,6 +574,10 @@ export default function PostCard({
               return v
             })
           }
+          onTotalComentariosSync={(total) => {
+            setNComent(total)
+            onEngagementChange?.(post.id, { total_comentarios: total })
+          }}
           destacarComentarioId={destacarComentarioId}
         />
         <ModalCurtidas
@@ -725,6 +729,10 @@ export default function PostCard({
             return v
           })
         }
+        onTotalComentariosSync={(total) => {
+          setNComent(total)
+          onEngagementChange?.(post.id, { total_comentarios: total })
+        }}
         destacarComentarioId={destacarComentarioId}
       />
       <ModalCurtidas
