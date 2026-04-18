@@ -230,6 +230,8 @@ export default function PostCard({
   }, [mostrarSeguirUsuario, meuUsuarioId, autorId, tickSeguir])
 
   const postOriginalId = post.post_original_id != null && post.post_original_id !== '' ? String(post.post_original_id) : null
+  /** Republicação: UI não depende do fetch do autor original (evita cabeçalho “só @eu” antes de carregar). */
+  const ehRepost = Boolean(postOriginalId)
 
   useEffect(() => {
     if (!postOriginalId) {
@@ -490,17 +492,15 @@ export default function PostCard({
 
   const repostEhFoto = tipoNorm === 'foto' || tipoNorm === 'misto'
 
-  const ehRepublicado = Boolean(postOriginalId && autorOriginalUsername)
-
-  /** Cabeçalho compacto: quem republicou + link para o autor original (sem duplicar avatar grande do republicador). */
-  const cabecalhoRepublicou = ehRepublicado ? (
+  /** Cabeçalho compacto: quem republicou + autor original + data na mesma linha (miolo indentado abaixo). */
+  const cabecalhoRepublicou = ehRepost ? (
     <div className="border-b border-gray-50 px-4 pt-4 pb-3">
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-start gap-2">
           {autorId ? (
             <Link
               href={`/perfil/${autorId}`}
-              className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100"
+              className="relative mt-0.5 h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100"
               aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
             >
               <AvatarImage
@@ -512,7 +512,7 @@ export default function PostCard({
               />
             </Link>
           ) : (
-            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
+            <div className="relative mt-0.5 h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
               <AvatarImage
                 src={post.autor?.foto_perfil_url}
                 alt=""
@@ -522,7 +522,7 @@ export default function PostCard({
               />
             </div>
           )}
-          <p className="min-w-0 text-xs leading-snug text-gray-600">
+          <p className="min-w-0 flex-1 text-xs leading-snug text-gray-600">
             {autorId ? (
               <Link href={`/perfil/${autorId}`} className="font-semibold text-gray-800 hover:text-[#0097b2]">
                 @{post.autor?.username ?? ''}
@@ -531,21 +531,28 @@ export default function PostCard({
               <span className="font-semibold text-gray-800">@{post.autor?.username ?? ''}</span>
             )}
             <span>{repostEhFoto ? ' repostou foto de ' : ' repostou post de '}</span>
-            {autorOriginalUsuarioId ? (
-              <Link
-                href={`/perfil/${autorOriginalUsuarioId}`}
-                className="font-semibold text-gray-800 hover:text-[#0097b2]"
-              >
-                @{autorOriginalUsername}
-              </Link>
+            {autorOriginalUsername ? (
+              autorOriginalUsuarioId ? (
+                <Link
+                  href={`/perfil/${autorOriginalUsuarioId}`}
+                  className="font-semibold text-gray-800 hover:text-[#0097b2]"
+                >
+                  @{autorOriginalUsername}
+                </Link>
+              ) : (
+                <span className="font-semibold text-gray-800">@{autorOriginalUsername}</span>
+              )
             ) : (
-              <span className="font-semibold text-gray-800">@{autorOriginalUsername}</span>
+              <span className="font-medium text-gray-400" aria-hidden>
+                @…
+              </span>
             )}
+            <span className="text-gray-400">{' · '}</span>
+            <span className="text-gray-400">{formatarDataRelativaPublicacao(post.created_at)}</span>
           </p>
         </div>
         <MenuPost {...menuProps} />
       </div>
-      <time className="mt-2 block text-xs text-gray-400">{formatarDataRelativaPublicacao(post.created_at)}</time>
     </div>
   ) : null
 
@@ -608,7 +615,7 @@ export default function PostCard({
     const tempo = formatarDataRelativaPublicacao(post.created_at)
     return (
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
-        {ehRepublicado ? (
+        {ehRepost ? (
           cabecalhoRepublicou
         ) : (
           <div className="flex items-center justify-between border-b border-gray-50 px-4 pt-3">
@@ -625,7 +632,7 @@ export default function PostCard({
             <MenuPost {...menuProps} />
           </div>
         )}
-        <div className="p-4 pt-3">
+        <div className={ehRepost ? 'p-4 pt-3 pl-10' : 'p-4 pt-3'}>
           <AvaliacaoCard meta={meta} />
         </div>
         <div className="border-t border-gray-100">{acoesPost}</div>
@@ -667,7 +674,7 @@ export default function PostCard({
       id={`feed-post-${post.id}`}
       className={comentariosInline ? 'rounded-xl bg-white shadow-sm' : 'overflow-hidden rounded-xl bg-white shadow-sm'}
     >
-      {ehRepublicado ? (
+      {ehRepost ? (
         cabecalhoRepublicou
       ) : (
         <div className="flex items-center justify-between p-4 pb-2">
@@ -739,55 +746,67 @@ export default function PostCard({
 
       {hasMedia ? (
         <>
-          <div
-            className="relative w-full overflow-hidden bg-gray-100"
-            style={{
-              aspectRatio:
-                mediaAspectRatio != null && mediaAspectRatio > 0
-                  ? String(mediaAspectRatio)
-                  : isVideoPost
-                    ? '16 / 9'
-                    : '4 / 5',
-            }}
-          >
-            {isVideoPost ? (
-              <video
-                src={mediaUrl}
-                className="absolute inset-0 h-full w-full object-contain"
-                controls
-                playsInline
-                preload="metadata"
-                onLoadedMetadata={(e) => {
-                  const v = e.currentTarget
-                  const w = v.videoWidth
-                  const h = v.videoHeight
-                  if (w > 0 && h > 0) setMediaAspectRatio(w / h)
-                }}
-              />
-            ) : (
-              <Image
-                src={mediaUrl}
-                alt=""
-                fill
-                className="object-contain"
-                sizes="(max-width: 768px) 100vw, 480px"
-                onLoadingComplete={(img) => {
-                  const w = img.naturalWidth
-                  const h = img.naturalHeight
-                  if (w > 0 && h > 0) setMediaAspectRatio(w / h)
-                }}
-              />
-            )}
+          <div className={ehRepost ? 'pl-10' : undefined}>
+            <div
+              className="relative w-full overflow-hidden bg-gray-100"
+              style={{
+                aspectRatio:
+                  mediaAspectRatio != null && mediaAspectRatio > 0
+                    ? String(mediaAspectRatio)
+                    : isVideoPost
+                      ? '16 / 9'
+                      : '4 / 5',
+              }}
+            >
+              {isVideoPost ? (
+                <video
+                  src={mediaUrl}
+                  className="absolute inset-0 h-full w-full object-contain"
+                  controls
+                  playsInline
+                  preload="metadata"
+                  onLoadedMetadata={(e) => {
+                    const v = e.currentTarget
+                    const w = v.videoWidth
+                    const h = v.videoHeight
+                    if (w > 0 && h > 0) setMediaAspectRatio(w / h)
+                  }}
+                />
+              ) : (
+                <Image
+                  src={mediaUrl}
+                  alt=""
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 768px) 100vw, 480px"
+                  onLoadingComplete={(img) => {
+                    const w = img.naturalWidth
+                    const h = img.naturalHeight
+                    if (w > 0 && h > 0) setMediaAspectRatio(w / h)
+                  }}
+                />
+              )}
+            </div>
           </div>
           {acoesPost}
           {post.texto ? (
-            <PostTextoColapsivel texto={post.texto} postId={post.id} maxLines={5} className="px-4 pb-3 pt-1" />
+            <PostTextoColapsivel
+              texto={post.texto}
+              postId={post.id}
+              maxLines={5}
+              className={ehRepost ? 'pl-10 pr-4 pb-3 pt-1' : 'px-4 pb-3 pt-1'}
+            />
           ) : null}
         </>
       ) : (
         <>
           {post.texto ? (
-            <PostTextoColapsivel texto={post.texto} postId={post.id} maxLines={20} className="px-4 py-2 pt-0" />
+            <PostTextoColapsivel
+              texto={post.texto}
+              postId={post.id}
+              maxLines={20}
+              className={ehRepost ? 'pl-10 pr-4 py-2 pt-0' : 'px-4 py-2 pt-0'}
+            />
           ) : null}
           {acoesPost}
         </>
