@@ -154,7 +154,7 @@ export default function Comentario({
                 type="button"
                 onClick={() => void handleExcluir()}
                 disabled={removendo || enviando}
-                className="inline-flex items-center gap-0.5 text-xs font-semibold text-rose-600 hover:text-rose-700 disabled:opacity-40"
+                className="inline-flex items-center gap-0.5 text-xs font-semibold text-gray-500 hover:text-[#0097b2] disabled:opacity-40"
                 aria-label="Excluir comentário"
               >
                 <Trash2 size={14} className="shrink-0" aria-hidden />
