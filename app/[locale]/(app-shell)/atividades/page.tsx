@@ -696,8 +696,7 @@ export default function AtividadesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="sticky top-0 z-20 bg-[#0097b2] shadow-sm">
-        <header className="border-b border-white/20 px-3 py-2 sm:px-4 sm:py-3">
+      <header className="border-b border-white/20 bg-[#0097b2] px-3 py-2 shadow-sm sm:px-4 sm:py-3">
         <div className="relative" ref={dropdownRef}>
           <div className="flex w-full items-center gap-2 rounded-xl border border-white/60 bg-white px-3 py-1.5 shadow-sm sm:py-2">
             <Search className="pointer-events-none h-5 w-5 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
@@ -749,10 +748,9 @@ export default function AtividadesPage() {
             </div>
           ) : null}
         </div>
-        </header>
+      </header>
 
-        <AbasAtividades aba={aba} onAba={onAba} />
-      </div>
+      <AbasAtividades aba={aba} onAba={onAba} />
 
       <div className="px-2 py-2 sm:px-3">
         {blocosComTitulo.length === 0 ? (
