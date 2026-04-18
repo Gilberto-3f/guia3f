@@ -51,7 +51,7 @@ export default function PerfilSalvosPage() {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-lg font-semibold text-gray-900">Salvos</h1>
+        <h1 className="text-lg font-semibold text-gray-900">Publicações Salvas</h1>
       </header>
       <div className="p-4">
         <SalvosDrawer usuarioId={meuId} />

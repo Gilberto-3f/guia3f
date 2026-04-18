@@ -92,7 +92,7 @@ function itensTurista() {
       ],
     },
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-    { Icon: Bookmark, label: 'Salvos', subpagina: 'salvos' },
+    { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
     { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
     { Icon: Settings, label: 'Configurações', subpagina: 'configuracoes' },
     { Icon: LogOut, label: 'Sair', acao: 'logout' },
@@ -128,7 +128,7 @@ function itensProfissional(ctx) {
       ],
     },
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-    { Icon: Bookmark, label: 'Salvos', subpagina: 'salvos' },
+    { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
     { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
     { Icon: Settings, label: 'Configurações', subpagina: 'configuracoes' },
     { Icon: LogOut, label: 'Sair', acao: 'logout' },
@@ -181,7 +181,7 @@ function itensAdmin(ctx) {
       ],
     },
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-    { Icon: Bookmark, label: 'Salvos', subpagina: 'salvos' },
+    { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
     { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
     { Icon: Settings, label: 'Configurações', subpagina: 'configuracoes' },
     { Icon: LogOut, label: 'Sair', acao: 'logout' },
@@ -338,7 +338,7 @@ export default function MenuLateral({
         parcerias: 'Parcerias',
         recomendacoes: 'Recomendações',
         'historico-decisoes': 'Histórico de Decisões',
-        salvos: 'Salvos',
+        salvos: 'Publicações Salvas',
       }
       const t = titulos[item.subpagina] || item.label
       if (item.subpagina === 'historico-decisoes') {
@@ -414,7 +414,24 @@ export default function MenuLateral({
       )
     if (id === 'post-isolado' && topo && 'postId' in topo && topo.postId)
       return <PostIsoladoDrawer postId={String(topo.postId)} comentarioId={topo.comentarioId ?? null} />
-    if (id === 'salvos') return <SalvosDrawer usuarioId={usuarioId} />
+    if (id === 'salvos')
+      return (
+        <SalvosDrawer
+          usuarioId={usuarioId}
+          onAbrirPublicacao={(postId, comentarioId = null) => {
+            setHistorico((h) => [
+              ...h,
+              {
+                tipo: 'pagina',
+                titulo: 'Publicação',
+                id: 'post-isolado',
+                postId,
+                comentarioId: comentarioId ?? null,
+              },
+            ])
+          }}
+        />
+      )
     if (id === 'configuracoes') return <Configuracoes />
     if (id === 'comissoes') return <Comissoes />
     if (id === 'agendamento') return <AgendamentoAutomatico />

@@ -1,15 +1,21 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
-import PostCard from '@/components/PostCard'
+import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
+import { useRouter } from '@/i18n/navigation'
 
 /**
- * @param {{ usuarioId: string | null }} props
+ * @param {{
+ *   usuarioId: string | null
+ *   onAbrirPublicacao?: (postId: string, comentarioId?: string | null) => void
+ * }} props
  */
-export default function SalvosDrawer({ usuarioId }) {
-  const [posts, setPosts] = useState([])
+export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
+  const router = useRouter()
+  const [linhas, setLinhas] = useState(/** @type {{ post: ReturnType<typeof mapViewRow>, salvoEm: string }[]} */ ([]))
   const [loading, setLoading] = useState(true)
 
   const carregar = useCallback(async (uid) => {
@@ -21,20 +27,31 @@ export default function SalvosDrawer({ usuarioId }) {
 
     if (error) {
       console.error(error)
-      setPosts([])
+      setLinhas([])
       return
     }
 
-    const ids = [...new Set((salvos ?? []).map((r) => String(r.post_id)).filter(Boolean))]
-    if (ids.length === 0) {
-      setPosts([])
+    const idsOrdered = []
+    const seen = new Set()
+    const salvoEmById = new Map()
+    for (const r of salvos ?? []) {
+      const id = String(r.post_id ?? '')
+      if (!id) continue
+      if (!salvoEmById.has(id)) salvoEmById.set(id, String(r.salvo_em ?? ''))
+      if (seen.has(id)) continue
+      seen.add(id)
+      idsOrdered.push(id)
+    }
+
+    if (idsOrdered.length === 0) {
+      setLinhas([])
       return
     }
 
-    const { data: viewRows, error: e2 } = await supabase.from('posts_com_autores').select('*').in('id', ids)
+    const { data: viewRows, error: e2 } = await supabase.from('posts_com_autores').select('*').in('id', idsOrdered)
     if (e2) {
       console.error(e2)
-      setPosts([])
+      setLinhas([])
       return
     }
 
@@ -45,18 +62,21 @@ export default function SalvosDrawer({ usuarioId }) {
     }
 
     const ordenados = []
-    for (const id of ids) {
+    for (const id of idsOrdered) {
       const raw = byId.get(id)
       if (!raw) continue
       if (raw.deleted_at != null && raw.deleted_at !== '') continue
-      ordenados.push(mapViewRow(raw))
+      ordenados.push({
+        post: mapViewRow(raw),
+        salvoEm: salvoEmById.get(id) ?? '',
+      })
     }
-    setPosts(ordenados)
+    setLinhas(ordenados)
   }, [])
 
   useEffect(() => {
     if (!usuarioId) {
-      setPosts([])
+      setLinhas([])
       setLoading(false)
       return
     }
@@ -64,34 +84,77 @@ export default function SalvosDrawer({ usuarioId }) {
     void carregar(usuarioId).finally(() => setLoading(false))
   }, [usuarioId, carregar])
 
-  const removerPost = useCallback((postId) => {
-    setPosts((prev) => prev.filter((p) => p.id !== postId))
-  }, [])
+  const abrirPost = useCallback(
+    (postId) => {
+      if (onAbrirPublicacao) {
+        onAbrirPublicacao(postId, null)
+        return
+      }
+      router.push(`/perfil/atividades/${encodeURIComponent(postId)}`)
+    },
+    [onAbrirPublicacao, router]
+  )
 
   if (!usuarioId) {
-    return <p className="px-1 text-sm text-gray-500">Entre na conta para ver os salvos.</p>
+    return <p className="px-1 text-sm text-gray-500">Entre na conta para ver as publicações salvas.</p>
   }
 
   return (
-    <div className="space-y-4 px-1 pb-4">
+    <div className="px-1 pb-4">
       {loading ? <p className="py-6 text-center text-sm text-gray-400">Carregando…</p> : null}
-      {!loading && posts.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-500">Nenhum post salvo ainda.</p>
+      {!loading ? (
+        <ul className="divide-y divide-gray-100">
+          {linhas.length === 0 ? (
+            <li className="py-8 text-center text-sm text-gray-500">Nenhuma publicação salva ainda.</li>
+          ) : (
+            linhas.map(({ post, salvoEm }) => {
+              const url = post.foto_url || post.conteudo_url
+              const mostrarThumb = url != null && String(url).trim() !== ''
+              const textoPost =
+                post.texto != null && String(post.texto).trim() !== '' ? String(post.texto).trimEnd() : null
+              return (
+                <li key={post.id} className="min-w-0 py-2 first:pt-0">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => abrirPost(post.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        abrirPost(post.id)
+                      }
+                    }}
+                    className={`flex w-full cursor-pointer items-start rounded-lg border border-gray-100 p-2 text-left transition hover:bg-gray-50 ${
+                      mostrarThumb ? 'gap-3' : 'gap-0'
+                    }`}
+                    aria-label="Publicação salva — abrir"
+                  >
+                    {mostrarThumb ? (
+                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                        <Image src={String(url)} alt="" fill className="object-cover" sizes="56px" />
+                      </div>
+                    ) : null}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-gray-400">
+                        <span className="font-medium text-[#0097b2]">Salvou</span>
+                        {' · '}
+                        {salvoEm ? formatarDataRelativaPublicacao(salvoEm) : ''}
+                      </p>
+                      <p
+                        className={`mt-0.5 whitespace-pre-wrap text-sm text-gray-700 ${
+                          mostrarThumb ? 'line-clamp-2' : 'line-clamp-4'
+                        }`}
+                      >
+                        {textoPost != null ? textoPost : 'Publicação'}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              )
+            })
+          )}
+        </ul>
       ) : null}
-      {posts.map((post) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          meuUsuarioId={usuarioId}
-          onRemove={removerPost}
-          onPostLocalPatch={(postId, patch) => {
-            setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, ...patch } : x)))
-          }}
-          onItemSalvoChange={(postId, aindaSalvo) => {
-            if (!aindaSalvo) setPosts((prev) => prev.filter((p) => p.id !== postId))
-          }}
-        />
-      ))}
     </div>
   )
 }
