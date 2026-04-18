@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { Send, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import Comentario from '@/components/Comentario'
 import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
@@ -309,9 +309,9 @@ export default function ModalComentarios({
           style={{ paddingBottom: Math.max(12, tecladoInset) }}
         >
           <div className="flex items-center gap-2">
-            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
+            <div className="relative h-9 w-9 shrink-0 self-center overflow-hidden rounded-md bg-gray-100">
               {minhaFotoUrl ? (
-                <AvatarImage src={minhaFotoUrl} alt="" width={32} height={32} className="h-full w-full object-cover" />
+                <AvatarImage src={minhaFotoUrl} alt="" width={36} height={36} className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">?</div>
               )}
@@ -320,8 +320,8 @@ export default function ModalComentarios({
               ref={textareaRef}
               rows={1}
               enterKeyHint="send"
-              className="max-h-24 min-h-[36px] flex-1 resize-none rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
-              placeholder="Escreva um comentário…"
+              className="max-h-24 min-h-9 flex-1 resize-none rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
+              placeholder="Comentar"
               value={novoComentario}
               disabled={!usuarioId || enviando}
               onChange={(e) => setNovoComentario(e.target.value)}
@@ -336,9 +336,16 @@ export default function ModalComentarios({
               type="button"
               disabled={!novoComentario.trim() || enviando || !usuarioId}
               onClick={() => void handleEnviarComentario()}
-              className="shrink-0 px-3 py-1.5 text-sm font-semibold text-[#0097b2] disabled:text-gray-400 disabled:opacity-40"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-lg bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
+              aria-label="Enviar comentário"
             >
-              {enviando ? '…' : 'Enviar'}
+              {enviando ? (
+                <span className="text-xs font-medium" aria-hidden>
+                  …
+                </span>
+              ) : (
+                <Send className="h-4 w-4" aria-hidden />
+              )}
             </button>
           </div>
           {!usuarioId ? <p className="mt-2 text-center text-xs text-gray-500">Entre na conta para comentar.</p> : null}
