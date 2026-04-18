@@ -130,7 +130,8 @@ export default function PostIsoladoDrawer({ postId, comentarioId = null }) {
         userEmail={email}
         storyAtivo={null}
         onRemove={() => setPost(null)}
-        abrirComentariosInicial={Boolean(destacar)}
+        comentariosInline
+        abrirComentariosInicial={false}
         destacarComentarioId={destacar}
       />
     </div>

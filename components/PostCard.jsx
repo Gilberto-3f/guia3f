@@ -96,6 +96,7 @@ function PostTextoColapsivel({ texto, postId, maxLines, className = '' }) {
  *   onRemove?: (postId: string) => void
  *   abrirComentariosInicial?: boolean
  *   destacarComentarioId?: string | null
+ *   comentariosInline?: boolean
  *   onRepublicouPrepend?: (row: Record<string, unknown>) => void
  *   onPostLocalPatch?: (postId: string, patch: Partial<{ texto: string | null }>) => void
  *   onItemSalvoChange?: (postId: string, salvo: boolean) => void
@@ -112,6 +113,7 @@ export default function PostCard({
   onRemove,
   abrirComentariosInicial = false,
   destacarComentarioId = null,
+  comentariosInline = false,
   onRepublicouPrepend,
   onPostLocalPatch,
   onItemSalvoChange,
@@ -155,10 +157,11 @@ export default function PostCard({
   }, [post.total_comentarios, post.id])
 
   useEffect(() => {
+    if (comentariosInline) return
     if (abrirComentariosInicial) {
       setComentAberto(true)
     }
-  }, [abrirComentariosInicial, destacarComentarioId, post.id])
+  }, [comentariosInline, abrirComentariosInicial, destacarComentarioId, post.id])
 
   useEffect(() => {
     setRepostTotal(post.total_reposts ?? 0)
@@ -384,7 +387,13 @@ export default function PostCard({
     }
   }
 
-  const handleComentar = () => setComentAberto(true)
+  const handleComentar = () => {
+    if (comentariosInline) {
+      document.getElementById(`comentarios-inline-${post.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    setComentAberto(true)
+  }
 
   const abrirModalCompartilhar = () => setShareAberto(true)
 
@@ -620,7 +629,8 @@ export default function PostCard({
         <div className="border-t border-gray-100">{acoesPost}</div>
         <ModalComentarios
           postId={post.id}
-          aberto={comentAberto}
+          variant={comentariosInline ? 'inline' : 'modal'}
+          aberto={comentariosInline ? true : comentAberto}
           onFechar={() => setComentAberto(false)}
           usuarioId={meuUsuarioId}
           onComentou={() =>
@@ -635,6 +645,7 @@ export default function PostCard({
             onEngagementChange?.(post.id, { total_comentarios: total })
           }}
           destacarComentarioId={destacarComentarioId}
+          totalComentariosVisual={nComent}
         />
         <ModalCurtidas
           postId={post.id}
@@ -649,7 +660,10 @@ export default function PostCard({
   }
 
   return (
-    <article id={`feed-post-${post.id}`} className="overflow-hidden rounded-xl bg-white shadow-sm">
+    <article
+      id={`feed-post-${post.id}`}
+      className={comentariosInline ? 'rounded-xl bg-white shadow-sm' : 'overflow-hidden rounded-xl bg-white shadow-sm'}
+    >
       {ehRepublicado ? (
         cabecalhoRepublicou
       ) : (
@@ -778,7 +792,8 @@ export default function PostCard({
 
       <ModalComentarios
         postId={post.id}
-        aberto={comentAberto}
+        variant={comentariosInline ? 'inline' : 'modal'}
+        aberto={comentariosInline ? true : comentAberto}
         onFechar={() => setComentAberto(false)}
         usuarioId={meuUsuarioId}
         onComentou={() =>
@@ -793,6 +808,7 @@ export default function PostCard({
           onEngagementChange?.(post.id, { total_comentarios: total })
         }}
         destacarComentarioId={destacarComentarioId}
+        totalComentariosVisual={nComent}
       />
       <ModalCurtidas
         postId={post.id}

@@ -53,6 +53,8 @@ function buildCommentTree(flat) {
  *   onComentarioExcluido?: () => void
  *   onTotalComentariosSync?: (total: number) => void
  *   destacarComentarioId?: string | null
+ *   variant?: 'modal' | 'inline'
+ *   totalComentariosVisual?: number | null
  * }} props
  */
 export default function ModalComentarios({
@@ -64,7 +66,12 @@ export default function ModalComentarios({
   onComentarioExcluido,
   onTotalComentariosSync,
   destacarComentarioId = null,
+  variant = 'modal',
+  totalComentariosVisual = null,
 }) {
+  const inline = variant === 'inline'
+  /** Em linha: sempre ativo com `postId`; em modal: só quando `aberto`. */
+  const ativo = inline || aberto
   const [arvore, setArvore] = useState([])
   const [novoComentario, setNovoComentario] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -121,10 +128,14 @@ export default function ModalComentarios({
   /** Lista em ordem cronológica crescente: último comentário no fim. */
   const scrollListaAoFim = useCallback(() => {
     requestAnimationFrame(() => {
+      if (inline) {
+        document.getElementById(`comentarios-rodape-${postId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        return
+      }
       const el = listaScrollRef.current
       if (el) el.scrollTop = el.scrollHeight
     })
-  }, [])
+  }, [inline, postId])
 
   const handleExcluirComentario = useCallback(
     async (commentId) => {
@@ -177,7 +188,7 @@ export default function ModalComentarios({
   )
 
   useEffect(() => {
-    if (!aberto || !postId) return
+    if (!ativo || !postId) return
     void carregar()
 
     const ch = supabase
@@ -190,18 +201,18 @@ export default function ModalComentarios({
     return () => {
       void supabase.removeChannel(ch)
     }
-  }, [aberto, postId, carregar])
+  }, [ativo, postId, carregar])
 
   useEffect(() => {
-    if (!aberto || !usuarioId) {
+    if (!ativo || !usuarioId) {
       setMinhaFotoUrl(null)
       return
     }
     void fetchFotoPerfilUsuario(supabase, usuarioId).then(setMinhaFotoUrl)
-  }, [aberto, usuarioId])
+  }, [ativo, usuarioId])
 
   useEffect(() => {
-    if (!aberto) {
+    if (!ativo) {
       setTecladoInset(0)
       return
     }
@@ -218,11 +229,11 @@ export default function ModalComentarios({
       vv.removeEventListener('resize', atualizar)
       vv.removeEventListener('scroll', atualizar)
     }
-  }, [aberto])
+  }, [ativo])
 
-  /** Impede scroll do feed atrás do overlay (mobile e desktop). */
+  /** Impede scroll do feed atrás do overlay (apenas modal). */
   useEffect(() => {
-    if (!aberto || typeof document === 'undefined') return
+    if (inline || !aberto || typeof document === 'undefined') return
     const html = document.documentElement
     const body = document.body
     const prevHtmlOverflow = html.style.overflow
@@ -233,15 +244,15 @@ export default function ModalComentarios({
       html.style.overflow = prevHtmlOverflow
       body.style.overflow = prevBodyOverflow
     }
-  }, [aberto])
+  }, [inline, aberto])
 
   useEffect(() => {
-    if (!aberto || !destacarComentarioId) return
+    if (!ativo || !destacarComentarioId) return
     const t = window.setTimeout(() => {
       document.getElementById(`comentario-${destacarComentarioId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 300)
     return () => clearTimeout(t)
-  }, [aberto, destacarComentarioId, arvore])
+  }, [ativo, destacarComentarioId, arvore])
 
   const handleEnviarComentario = async () => {
     const texto = novoComentario.trim()
@@ -267,7 +278,100 @@ export default function ModalComentarios({
     }
   }
 
-  if (!aberto) return null
+  if (!ativo) return null
+
+  const tituloSecao =
+    totalComentariosVisual != null && !Number.isNaN(Number(totalComentariosVisual))
+      ? `Comentários (${totalComentariosVisual})`
+      : 'Comentários'
+
+  const listaClasses = inline
+    ? 'px-4 pb-2 text-black'
+    : 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black'
+
+  const lista = (
+    <div ref={listaScrollRef} className={listaClasses}>
+      {arvore.length === 0 ? <p className="py-8 text-center text-sm text-gray-900">Nenhum comentário</p> : null}
+      {arvore.map((c) => (
+        <Comentario
+          key={c.id}
+          node={c}
+          usuarioId={usuarioId}
+          destacarComentarioId={destacarComentarioId}
+          onEnviarResposta={handleEnviarResposta}
+          onExcluir={handleExcluirComentario}
+          nivel={0}
+          enviando={enviando}
+        />
+      ))}
+    </div>
+  )
+
+  const rodape = (
+    <div
+      id={`comentarios-rodape-${postId}`}
+      className={`shrink-0 border-t border-gray-200 bg-white p-3 ${inline ? 'sticky bottom-0 z-[2] shadow-[0_-4px_12px_rgba(0,0,0,0.06)]' : ''}`}
+      style={{ paddingBottom: Math.max(12, tecladoInset) }}
+    >
+      <div className="flex items-center gap-2">
+        <div className="relative h-9 w-9 shrink-0 self-center overflow-hidden rounded-md bg-gray-100">
+          {minhaFotoUrl ? (
+            <AvatarImage src={minhaFotoUrl} alt="" width={36} height={36} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">?</div>
+          )}
+        </div>
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          enterKeyHint="send"
+          className="max-h-24 min-h-9 flex-1 resize-none rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
+          placeholder="Comentar"
+          value={novoComentario}
+          disabled={!usuarioId || enviando}
+          onChange={(e) => setNovoComentario(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              void handleEnviarComentario()
+            }
+          }}
+        />
+        <button
+          type="button"
+          disabled={!novoComentario.trim() || enviando || !usuarioId}
+          onClick={() => void handleEnviarComentario()}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-lg bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
+          aria-label="Enviar comentário"
+        >
+          {enviando ? (
+            <span className="text-xs font-medium" aria-hidden>
+              …
+            </span>
+          ) : (
+            <Send className="h-4 w-4" aria-hidden />
+          )}
+        </button>
+      </div>
+      {!usuarioId ? <p className="mt-2 text-center text-xs text-gray-500">Entre na conta para comentar.</p> : null}
+    </div>
+  )
+
+  if (inline) {
+    return (
+      <section
+        id={`comentarios-inline-${postId}`}
+        className="mt-0 border-t border-gray-100 bg-white text-black"
+        aria-label="Comentários na publicação"
+      >
+        <div className="border-b border-gray-100 px-4 py-2.5">
+          <h3 className="text-sm font-semibold text-gray-900">{tituloSecao}</h3>
+        </div>
+        {lista}
+        {rodape}
+      </section>
+    )
+  }
 
   return (
     <div className="fixed inset-0 z-[230] flex items-end justify-center overscroll-none bg-black/50 sm:items-center sm:p-4">
@@ -286,70 +390,8 @@ export default function ModalComentarios({
             <X size={22} />
           </button>
         </div>
-        <div
-          ref={listaScrollRef}
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black"
-        >
-          {arvore.length === 0 ? <p className="py-8 text-center text-sm text-gray-900">Nenhum comentário</p> : null}
-          {arvore.map((c) => (
-            <Comentario
-              key={c.id}
-              node={c}
-              usuarioId={usuarioId}
-              destacarComentarioId={destacarComentarioId}
-              onEnviarResposta={handleEnviarResposta}
-              onExcluir={handleExcluirComentario}
-              nivel={0}
-              enviando={enviando}
-            />
-          ))}
-        </div>
-        <div
-          className="shrink-0 border-t border-gray-200 bg-white p-3"
-          style={{ paddingBottom: Math.max(12, tecladoInset) }}
-        >
-          <div className="flex items-center gap-2">
-            <div className="relative h-9 w-9 shrink-0 self-center overflow-hidden rounded-md bg-gray-100">
-              {minhaFotoUrl ? (
-                <AvatarImage src={minhaFotoUrl} alt="" width={36} height={36} className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">?</div>
-              )}
-            </div>
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              enterKeyHint="send"
-              className="max-h-24 min-h-9 flex-1 resize-none rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
-              placeholder="Comentar"
-              value={novoComentario}
-              disabled={!usuarioId || enviando}
-              onChange={(e) => setNovoComentario(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  void handleEnviarComentario()
-                }
-              }}
-            />
-            <button
-              type="button"
-              disabled={!novoComentario.trim() || enviando || !usuarioId}
-              onClick={() => void handleEnviarComentario()}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-lg bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
-              aria-label="Enviar comentário"
-            >
-              {enviando ? (
-                <span className="text-xs font-medium" aria-hidden>
-                  …
-                </span>
-              ) : (
-                <Send className="h-4 w-4" aria-hidden />
-              )}
-            </button>
-          </div>
-          {!usuarioId ? <p className="mt-2 text-center text-xs text-gray-500">Entre na conta para comentar.</p> : null}
-        </div>
+        {lista}
+        {rodape}
       </div>
     </div>
   )
