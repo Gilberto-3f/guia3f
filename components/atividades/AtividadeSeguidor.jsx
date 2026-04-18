@@ -1,8 +1,8 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from '@/i18n/navigation'
+import AvatarImage from '@/components/AvatarImage'
 
 /**
  * @param {{
@@ -29,21 +29,15 @@ export default function AtividadeSeguidor({
     seguidoTipo === 'empresa' && empresaId ? `/empresa/${empresaId}` : `/perfil/${seguidoUsuarioId}`
 
   return (
-    <div className="flex gap-3 rounded-xl border border-gray-100 bg-white p-4 text-sm text-gray-800 shadow-sm">
+    <div className="flex gap-2 rounded-lg border border-gray-100 bg-white px-2 py-2 text-xs text-gray-800 shadow-sm sm:px-3 sm:text-sm">
       <button
         type="button"
-        className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100"
+        className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100"
         onClick={() => router.push(`/perfil/${seguidorUsuarioId}`)}
       >
-        {seguidorFoto ? (
-          <Image src={seguidorFoto} alt="" fill className="object-cover" sizes="40px" />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center text-lg text-gray-400" aria-hidden>
-            👤
-          </span>
-        )}
+        <AvatarImage src={seguidorFoto} alt="" fill className="object-cover" sizes="32px" />
       </button>
-      <p className="min-w-0 flex-1 pt-1">
+      <p className="min-w-0 flex-1 pt-0.5 leading-snug">
         <button
           type="button"
           className="font-medium text-[#0097b2] hover:underline"

@@ -17,6 +17,7 @@ import AtividadeComentario from '@/components/atividades/AtividadeComentario'
 import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
 import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
 import { agruparAtividadesCurtidasPost, urlFotoPost } from '@/lib/atividades-feed'
+import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 
 const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
 
@@ -225,6 +226,29 @@ export default function AtividadesPage() {
         const id = row.id != null ? String(row.id) : ''
         if (id) m[id] = pickAutorDisplay(u)
       }
+
+      /** Enriquecer com `perfis_para_busca` (@username, nome, foto) — evita fallback “usuario” do embed quando RLS falha. */
+      const preferTipo = new Map<string, string | null>()
+      for (const id of ids) {
+        const role = m[id]?.role
+        preferTipo.set(id, role != null && role !== '' ? String(role) : null)
+      }
+      const perfisBusca = await buscarPerfisPorIds(supabase, ids, preferTipo)
+      for (const pb of perfisBusca) {
+        const uid = String(pb.usuario_id ?? '')
+        if (!uid || !m[uid]) continue
+        const cur = m[uid]
+        const uName = (pb.username ?? '').trim()
+        const nome = (pb.nome ?? '').trim()
+        m[uid] = {
+          ...cur,
+          username: uName || cur.username,
+          nome: nome || cur.nome,
+          foto_perfil_url:
+            pb.foto_url != null && String(pb.foto_url).trim() !== '' ? String(pb.foto_url) : cur.foto_perfil_url,
+        }
+      }
+
       setPerfilMap(m)
 
       const empresaUsuarioIds = ids.filter((id) => m[id]?.role === 'empresa')
@@ -672,9 +696,10 @@ export default function AtividadesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <header className="sticky top-0 z-10 border-b border-white/20 bg-[#0097b2] px-4 py-3">
+      <div className="sticky top-0 z-20 bg-[#0097b2] shadow-sm">
+        <header className="border-b border-white/20 px-3 py-2 sm:px-4 sm:py-3">
         <div className="relative" ref={dropdownRef}>
-          <div className="flex w-full items-center gap-2 rounded-xl border border-white/60 bg-white px-3 py-2 shadow-sm">
+          <div className="flex w-full items-center gap-2 rounded-xl border border-white/60 bg-white px-3 py-1.5 shadow-sm sm:py-2">
             <Search className="pointer-events-none h-5 w-5 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
             <input
               type="search"
@@ -703,7 +728,7 @@ export default function AtividadesPage() {
                     onClick={() => handleSelectUser(u)}
                     className="flex w-full items-center gap-3 border-b border-gray-100 p-3 text-left hover:bg-gray-50 last:border-0"
                   >
-                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-200">
+                    <div className="h-9 w-9 shrink-0 overflow-hidden rounded-md bg-gray-200">
                       {u.foto_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={u.foto_url} alt="" className="h-full w-full object-cover" />
@@ -724,11 +749,12 @@ export default function AtividadesPage() {
             </div>
           ) : null}
         </div>
-      </header>
+        </header>
 
-      <AbasAtividades aba={aba} onAba={onAba} />
+        <AbasAtividades aba={aba} onAba={onAba} />
+      </div>
 
-      <div className="p-4">
+      <div className="px-2 py-2 sm:px-3">
         {blocosComTitulo.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-400">
             {aba === 'amigos' && qtdSeguindo === 0
@@ -737,9 +763,9 @@ export default function AtividadesPage() {
           </p>
         ) : (
           blocosComTitulo.map((bloco) => (
-            <section key={bloco.key} className="mb-6">
-              <h2 className="mb-3 text-xs font-semibold tracking-wider text-gray-400">── {bloco.titulo} ──</h2>
-              <div className="space-y-3">{bloco.itens.map((it, i) => renderItem(it, i))}</div>
+            <section key={bloco.key} className="mb-4">
+              <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">── {bloco.titulo} ──</h2>
+              <div className="space-y-2">{bloco.itens.map((it, i) => renderItem(it, i))}</div>
             </section>
           ))
         )}

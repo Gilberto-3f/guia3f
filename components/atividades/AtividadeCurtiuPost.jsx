@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import { Link, useRouter } from '@/i18n/navigation'
+import AvatarImage from '@/components/AvatarImage'
 import ModalConteudo from '@/components/atividades/ModalConteudo'
 
 /**
@@ -31,23 +31,17 @@ export default function AtividadeCurtiuPost({
 
   return (
     <>
-      <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-        <div className="flex gap-3">
+      <div className="rounded-lg border border-gray-100 bg-white px-2 py-2 shadow-sm sm:px-3">
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => router.push(hrefInteractor)}
-            className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100"
+            className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100"
           >
-            {interactorFoto ? (
-              <Image src={interactorFoto} alt="" fill className="object-cover" sizes="40px" />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-lg text-gray-400" aria-hidden>
-                👤
-              </span>
-            )}
+            <AvatarImage src={interactorFoto} alt="" fill className="object-cover" sizes="32px" />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-gray-800">
+            <p className="text-xs leading-snug text-gray-800 sm:text-sm">
               <Link href={hrefInteractor} className="font-medium text-[#0097b2] hover:underline">
                 @{interactorUsername}
               </Link>{' '}
@@ -57,8 +51,8 @@ export default function AtividadeCurtiuPost({
               </Link>
               :
             </p>
-            <button type="button" onClick={() => setModal(true)} className="mt-2 w-full rounded-lg bg-gray-50 p-3 text-left">
-              <p className="line-clamp-3 whitespace-pre-wrap text-sm text-gray-700">{texto || '—'}</p>
+            <button type="button" onClick={() => setModal(true)} className="mt-1.5 w-full rounded-md bg-gray-50 px-2 py-2 text-left">
+              <p className="line-clamp-3 whitespace-pre-wrap text-xs text-gray-700 sm:text-sm">{texto || '—'}</p>
             </button>
           </div>
         </div>
