@@ -18,8 +18,17 @@ import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
 import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
 import { agruparAtividadesCurtidasPost, urlFotoPost } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
+import { formatarDataComentarioCurta } from '@/lib/formatarDataPublicacao'
 
 const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
+
+/** Interações por pedido; “Mais atividades…” carrega outro bloco. */
+const ATIVIDADES_LIMITE_PAGINA = 50
+const ATIVIDADES_JANELA_MS = 48 * 60 * 60 * 1000
+
+function isoLimiteAtividades48h() {
+  return new Date(Date.now() - ATIVIDADES_JANELA_MS).toISOString()
+}
 
 type AtividadeRow = {
   id: string
@@ -32,6 +41,18 @@ type AtividadeRow = {
   dados_extras: Record<string, unknown> | null
   lida: boolean
   created_at: string
+}
+
+function mergeAtividadesPorId(anteriores: AtividadeRow[], novas: AtividadeRow[]): AtividadeRow[] {
+  const vistos = new Set(anteriores.map((r) => r.id))
+  const out = [...anteriores]
+  for (const r of novas) {
+    if (!vistos.has(r.id)) {
+      vistos.add(r.id)
+      out.push(r)
+    }
+  }
+  return out
 }
 
 type PerfilMap = Record<string, ReturnType<typeof pickAutorDisplay>>
@@ -83,6 +104,12 @@ export default function AtividadesPage() {
   const [carregando, setCarregando] = useState(true)
   const [listaAmigos, setListaAmigos] = useState<AtividadeRow[]>([])
   const [listaMinha, setListaMinha] = useState<AtividadeRow[]>([])
+  const [offsetAmigos, setOffsetAmigos] = useState(0)
+  const [offsetMinha, setOffsetMinha] = useState(0)
+  const [temMaisAmigos, setTemMaisAmigos] = useState(false)
+  const [temMaisMinha, setTemMaisMinha] = useState(false)
+  const [carregandoMais, setCarregandoMais] = useState(false)
+  const seguindoRef = useRef<string[]>([])
   const [perfilMap, setPerfilMap] = useState<PerfilMap>({})
   const [postMetaMap, setPostMetaMap] = useState<
     Record<
@@ -222,10 +249,14 @@ export default function AtividadesPage() {
   )
 
   const carregarPerfis = useCallback(
-    async (rows: AtividadeRow[]) => {
+    async (rows: AtividadeRow[], opcoes?: { merge?: boolean }) => {
+      const merge = Boolean(opcoes?.merge)
       const ids = coletarIdsPerfis(rows)
       if (ids.length === 0) {
-        setPerfilMap({})
+        if (!merge) {
+          setPerfilMap({})
+          setSeguidoEmpresaMap({})
+        }
         return
       }
 
@@ -414,7 +445,11 @@ export default function AtividadesPage() {
         console.log('[Atividades] perfilMap amostra:', amostra)
       }
 
-      setPerfilMap(m)
+      if (merge) {
+        setPerfilMap((prev) => ({ ...prev, ...m }))
+      } else {
+        setPerfilMap(m)
+      }
 
       const empresaUsuarioIds = ids.filter((id) => m[id]?.role === 'empresa')
       if (empresaUsuarioIds.length > 0) {
@@ -424,18 +459,23 @@ export default function AtividadesPage() {
           const rec = e as { id: string; usuario_id: string }
           sm[rec.usuario_id] = String(rec.id)
         }
-        setSeguidoEmpresaMap(sm)
-      } else {
+        if (merge) {
+          setSeguidoEmpresaMap((prev) => ({ ...prev, ...sm }))
+        } else {
+          setSeguidoEmpresaMap(sm)
+        }
+      } else if (!merge) {
         setSeguidoEmpresaMap({})
       }
     },
     [coletarIdsPerfis]
   )
 
-  const carregarPostsMeta = useCallback(async (postIds: string[]) => {
+  const carregarPostsMeta = useCallback(async (postIds: string[], opcoes?: { merge?: boolean }) => {
+    const merge = Boolean(opcoes?.merge)
     const uniq = [...new Set(postIds)].filter(Boolean)
     if (uniq.length === 0) {
-      setPostMetaMap({})
+      if (!merge) setPostMetaMap({})
       return
     }
     const sel =
@@ -475,7 +515,7 @@ export default function AtividadesPage() {
 
     const { data, error } = await supabase.from('posts').select(sel).in('id', uniq)
     if (error || !data) {
-      setPostMetaMap({})
+      if (!merge) setPostMetaMap({})
       return
     }
     let m = mergeRows({}, data as unknown[])
@@ -487,18 +527,23 @@ export default function AtividadesPage() {
       m = mergeRows(m, (origData ?? []) as unknown[])
     }
 
-    setPostMetaMap(m)
+    if (merge) {
+      setPostMetaMap((prev) => ({ ...prev, ...m }))
+    } else {
+      setPostMetaMap(m)
+    }
   }, [])
 
-  const carregarEmpresasAvaliacao = useCallback(async (empresaIds: string[]) => {
+  const carregarEmpresasAvaliacao = useCallback(async (empresaIds: string[], opcoes?: { merge?: boolean }) => {
+    const merge = Boolean(opcoes?.merge)
     const uniq = [...new Set(empresaIds)].filter(Boolean)
     if (uniq.length === 0) {
-      setEmpresaMap({})
+      if (!merge) setEmpresaMap({})
       return
     }
     const { data, error } = await supabase.from('empresas').select('id, nome_fantasia, nome_usuario').in('id', uniq)
     if (error || !data) {
-      setEmpresaMap({})
+      if (!merge) setEmpresaMap({})
       return
     }
     const m: Record<string, { id: string; nome: string }> = {}
@@ -509,7 +554,11 @@ export default function AtividadesPage() {
         nome: String(row.nome_fantasia ?? row.nome_usuario ?? 'Empresa'),
       }
     }
-    setEmpresaMap(m)
+    if (merge) {
+      setEmpresaMap((prev) => ({ ...prev, ...m }))
+    } else {
+      setEmpresaMap(m)
+    }
   }, [])
 
   const recarregar = useCallback(async () => {
@@ -523,6 +572,11 @@ export default function AtividadesPage() {
       setListaAmigos([])
       setListaMinha([])
       setQtdSeguindo(0)
+      seguindoRef.current = []
+      setOffsetAmigos(0)
+      setOffsetMinha(0)
+      setTemMaisAmigos(false)
+      setTemMaisMinha(false)
       return
     }
 
@@ -535,18 +589,39 @@ export default function AtividadesPage() {
       setListaAmigos([])
       setListaMinha([])
       setQtdSeguindo(0)
+      seguindoRef.current = []
+      setOffsetAmigos(0)
+      setOffsetMinha(0)
+      setTemMaisAmigos(false)
+      setTemMaisMinha(false)
       return
     }
 
     const { data: segRows } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid)
     const seguindo = (segRows ?? []).map((r) => String((r as { seguido_id: string }).seguido_id))
+    seguindoRef.current = seguindo
     setQtdSeguindo(seguindo.length)
+
+    const limite48 = isoLimiteAtividades48h()
+    const lim = ATIVIDADES_LIMITE_PAGINA
 
     const [amigosRes, minhaRes] = await Promise.all([
       seguindo.length
-        ? supabase.from('atividades').select('*').in('autor_id', seguindo).order('created_at', { ascending: false }).limit(200)
+        ? supabase
+            .from('atividades')
+            .select('*')
+            .in('autor_id', seguindo)
+            .gte('created_at', limite48)
+            .order('created_at', { ascending: false })
+            .range(0, lim - 1)
         : Promise.resolve({ data: [] as AtividadeRow[], error: null }),
-      supabase.from('atividades').select('*').eq('usuario_id', uid).order('created_at', { ascending: false }).limit(200),
+      supabase
+        .from('atividades')
+        .select('*')
+        .eq('usuario_id', uid)
+        .gte('created_at', limite48)
+        .order('created_at', { ascending: false })
+        .range(0, lim - 1),
     ])
 
     const amigos = (amigosRes.data ?? []) as AtividadeRow[]
@@ -554,9 +629,13 @@ export default function AtividadesPage() {
 
     setListaAmigos(amigos)
     setListaMinha(minha)
+    setOffsetAmigos(amigos.length)
+    setOffsetMinha(minha.length)
+    setTemMaisAmigos(amigos.length === lim)
+    setTemMaisMinha(minha.length === lim)
 
     const todos = [...amigos, ...minha]
-    await carregarPerfis(todos)
+    await carregarPerfis(todos, { merge: false })
 
     const postIds: string[] = []
     for (const r of todos) {
@@ -567,16 +646,101 @@ export default function AtividadesPage() {
         if (typeof pid === 'string') postIds.push(pid)
       }
     }
-    await carregarPostsMeta(postIds)
+    await carregarPostsMeta(postIds, { merge: false })
 
     const empIds: string[] = []
     for (const r of todos) {
       if (r.tipo === 'avaliou') empIds.push(r.alvo_id)
     }
-    await carregarEmpresasAvaliacao(empIds)
+    await carregarEmpresasAvaliacao(empIds, { merge: false })
 
     setCarregando(false)
   }, [carregarPerfis, carregarPostsMeta, carregarEmpresasAvaliacao])
+
+  const carregarMaisAtividades = useCallback(async () => {
+    if (carregandoMais) return
+    const uid = meuId
+    if (!uid) return
+    setCarregandoMais(true)
+    const limite48 = isoLimiteAtividades48h()
+    const lim = ATIVIDADES_LIMITE_PAGINA
+    try {
+      if (aba === 'amigos') {
+        const seg = seguindoRef.current
+        if (seg.length === 0 || !temMaisAmigos) return
+        const start = offsetAmigos
+        const { data, error } = await supabase
+          .from('atividades')
+          .select('*')
+          .in('autor_id', seg)
+          .gte('created_at', limite48)
+          .order('created_at', { ascending: false })
+          .range(start, start + lim - 1)
+        if (error) {
+          console.error(error)
+          return
+        }
+        const novas = (data ?? []) as AtividadeRow[]
+        if (novas.length === 0) {
+          setTemMaisAmigos(false)
+          return
+        }
+        setListaAmigos((prev) => mergeAtividadesPorId(prev, novas))
+        setOffsetAmigos(start + novas.length)
+        setTemMaisAmigos(novas.length === lim)
+        await carregarPerfis(novas, { merge: true })
+        const postIds: string[] = []
+        for (const r of novas) {
+          if (r.tipo === 'curtiu_post') postIds.push(r.alvo_id)
+          const ex = r.dados_extras
+          if (ex && typeof ex === 'object') {
+            const pid = ex.post_id
+            if (typeof pid === 'string') postIds.push(pid)
+          }
+        }
+        await carregarPostsMeta(postIds, { merge: true })
+        const empIds = novas.filter((r) => r.tipo === 'avaliou').map((r) => r.alvo_id)
+        await carregarEmpresasAvaliacao(empIds, { merge: true })
+      } else {
+        if (!temMaisMinha) return
+        const start = offsetMinha
+        const { data, error } = await supabase
+          .from('atividades')
+          .select('*')
+          .eq('usuario_id', uid)
+          .gte('created_at', limite48)
+          .order('created_at', { ascending: false })
+          .range(start, start + lim - 1)
+        if (error) {
+          console.error(error)
+          return
+        }
+        const novas = (data ?? []) as AtividadeRow[]
+        if (novas.length === 0) {
+          setTemMaisMinha(false)
+          return
+        }
+        setListaMinha((prev) => mergeAtividadesPorId(prev, novas))
+        setOffsetMinha(start + novas.length)
+        setTemMaisMinha(novas.length === lim)
+        await carregarPerfis(novas, { merge: true })
+        const postIds: string[] = []
+        for (const r of novas) {
+          if (r.tipo === 'curtiu_post') postIds.push(r.alvo_id)
+          const ex = r.dados_extras
+          if (ex && typeof ex === 'object') {
+            const pid = ex.post_id
+            if (typeof pid === 'string') postIds.push(pid)
+          }
+        }
+        await carregarPostsMeta(postIds, { merge: true })
+        const empIds = novas.filter((r) => r.tipo === 'avaliou').map((r) => r.alvo_id)
+        await carregarEmpresasAvaliacao(empIds, { merge: true })
+      }
+    } finally {
+      setCarregandoMais(false)
+    }
+  }, [aba, meuId, offsetAmigos, offsetMinha, temMaisAmigos, temMaisMinha, carregarPerfis, carregarPostsMeta, carregarEmpresasAvaliacao])
 
   useEffect(() => {
     void recarregar()
@@ -624,6 +788,7 @@ export default function AtividadesPage() {
           hrefDonor={hrefUsuario(item.usuario_dono_id)}
           urls={urlsGrid}
           totalCurtidas={item.rows.length}
+          tempoInteracao={formatarDataComentarioCurta(item.created_at)}
         />
       )
     }
@@ -648,6 +813,7 @@ export default function AtividadesPage() {
             hrefDonor={hrefD}
             texto={textoPost}
             postId={r.alvo_id}
+            tempoInteracao={formatarDataComentarioCurta(r.created_at)}
           />
         )
       }
@@ -669,6 +835,7 @@ export default function AtividadesPage() {
             hrefDonor={hrefD}
             postId={r.alvo_id}
             meta={meta}
+            tempoInteracao={formatarDataComentarioCurta(r.created_at)}
           />
         )
       }
@@ -706,6 +873,7 @@ export default function AtividadesPage() {
             previewUrl={prevUrl}
             previewTexto={prevTexto || textoPost}
             modalChildren={modalChildren}
+            tempoInteracao={formatarDataComentarioCurta(r.created_at)}
           />
         )
       }
@@ -733,6 +901,7 @@ export default function AtividadesPage() {
           textoComentario={texto}
           postId={postId || r.alvo_id}
           comentarioId={r.alvo_id}
+          tempoInteracao={formatarDataComentarioCurta(r.created_at)}
         />
       )
     }
@@ -762,6 +931,7 @@ export default function AtividadesPage() {
           textoComentario={texto}
           postId={postId}
           comentarioId={comentarioId}
+          tempoInteracao={formatarDataComentarioCurta(r.created_at)}
         />
       )
     }
@@ -784,6 +954,7 @@ export default function AtividadesPage() {
           seguidoUsuarioId={seguidoId}
           seguidoTipo={seguidoTipo}
           empresaId={empId}
+          tempoInteracao={formatarDataComentarioCurta(r.created_at)}
         />
       )
     }
@@ -804,6 +975,7 @@ export default function AtividadesPage() {
           empresaId={empId}
           nota={nota}
           feedback={feedback}
+          tempoInteracao={formatarDataComentarioCurta(r.created_at)}
         />
       )
     }
@@ -961,21 +1133,35 @@ export default function AtividadesPage() {
               : 'Nenhuma atividade por aqui ainda.'}
           </p>
         ) : (
-          <div className="space-y-4">
-            {itensAgrupados.map((it, i) => {
-              const rowKey =
-                it.kind === 'curtiu_post_fotos'
-                  ? `cf-${it.autor_id}-${it.usuario_dono_id}-${it.created_at}`
-                  : it.kind === 'curtiu_post_solo'
-                    ? it.row.id
-                    : `row-${it.row.id}`
-              return (
-                <div key={rowKey} className="min-w-0">
-                  {renderItem(it, i)}
-                </div>
-              )
-            })}
-          </div>
+          <>
+            <div className="space-y-4">
+              {itensAgrupados.map((it, i) => {
+                const rowKey =
+                  it.kind === 'curtiu_post_fotos'
+                    ? `cf-${it.autor_id}-${it.usuario_dono_id}-${it.created_at}`
+                    : it.kind === 'curtiu_post_solo'
+                      ? it.row.id
+                      : `row-${it.row.id}`
+                return (
+                  <div key={rowKey} className="min-w-0">
+                    {renderItem(it, i)}
+                  </div>
+                )
+              })}
+            </div>
+            {(aba === 'amigos' ? temMaisAmigos : temMaisMinha) ? (
+              <div className="py-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => void carregarMaisAtividades()}
+                  disabled={carregandoMais}
+                  className="text-sm font-medium text-[#0097b2] hover:underline disabled:opacity-50"
+                >
+                  {carregandoMais ? 'Carregando…' : 'Mais atividades…'}
+                </button>
+              </div>
+            ) : null}
+          </>
         )}
       </div>
     </div>
