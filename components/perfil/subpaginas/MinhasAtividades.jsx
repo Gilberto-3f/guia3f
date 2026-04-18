@@ -186,10 +186,6 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
 
   return (
     <div className="px-1">
-      <p className="mb-3 text-xs text-gray-500">
-        Publicações do feed com as quais você interagiu (curtir, comentar, salvar ou republicar).
-      </p>
-
       <div className="mb-1 flex border-b border-gray-200">
         <button type="button" className={tabCls(aba === 'curtidas')} onClick={() => setAba('curtidas')}>
           CURTIDAS
@@ -198,16 +194,11 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
           COMENTÁRIOS
         </button>
       </div>
-      <p className="mb-3 text-[11px] leading-snug text-gray-400">
-        {aba === 'curtidas'
-          ? 'Inclui curtidas, salvos e republicações (tudo exceto comentários).'
-          : 'Somente publicações nas quais você comentou.'}
-      </p>
 
-      {carregando ? <p className="py-6 text-center text-sm text-gray-400">Carregando…</p> : null}
+      {carregando ? <p className="mt-2 py-6 text-center text-sm text-gray-400">Carregando…</p> : null}
 
       {!carregando ? (
-        <ul className="space-y-2">
+        <ul className="mt-2 space-y-2">
           {linhasFiltradas.length === 0 ? (
             <li className="py-6 text-center text-sm text-gray-400">
               {aba === 'comentarios' ? 'Nenhum comentário ainda.' : 'Nenhuma interação nesta aba ainda.'}
