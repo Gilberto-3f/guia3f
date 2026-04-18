@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { pickAutorDisplay } from '@/lib/feed-autor'
+import { pickAutorDisplay, fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 import AbasAtividades from '@/components/atividades/AbasAtividades'
 import AtividadeCurtidas from '@/components/atividades/AtividadeCurtidas'
 import AtividadeCurtiuComentario from '@/components/atividades/AtividadeCurtiuComentario'
@@ -248,6 +248,137 @@ export default function AtividadesPage() {
             pb.foto_url != null && String(pb.foto_url).trim() !== '' ? String(pb.foto_url) : cur.foto_perfil_url,
         }
       }
+
+      /** Fallback à rede social: `turistas` / `profissionais` / `empresas` (campos públicos) quando embed em `usuarios` ou view falha. */
+      const [
+        { data: rowsTur, error: errTur },
+        { data: rowsProf, error: errProf },
+        { data: rowsEmp, error: errEmp },
+      ] = await Promise.all([
+        supabase.from('turistas').select('usuario_id, nome_usuario, foto_perfil_url, foto_url').in('usuario_id', ids),
+        supabase.from('profissionais').select('usuario_id, nome_usuario, foto_perfil_url, foto_url').in('usuario_id', ids),
+        supabase.from('empresas').select('usuario_id, nome_usuario, foto_url').in('usuario_id', ids),
+      ])
+      if (errTur) console.warn('Atividades turistas:', errTur.message)
+      if (errProf) console.warn('Atividades profissionais:', errProf.message)
+      if (errEmp) console.warn('Atividades empresas:', errEmp.message)
+
+      const turBy = new Map<string, { nome_usuario?: string | null; foto_perfil_url?: string | null; foto_url?: string | null }>()
+      const profBy = new Map<string, { nome_usuario?: string | null; foto_perfil_url?: string | null; foto_url?: string | null }>()
+      for (const t of rowsTur ?? []) {
+        const u = t as { usuario_id: string; nome_usuario?: string | null; foto_perfil_url?: string | null; foto_url?: string | null }
+        if (u.usuario_id) turBy.set(String(u.usuario_id), u)
+      }
+      for (const p of rowsProf ?? []) {
+        const u = p as { usuario_id: string; nome_usuario?: string | null; foto_perfil_url?: string | null; foto_url?: string | null }
+        if (u.usuario_id) profBy.set(String(u.usuario_id), u)
+      }
+      const empBy = new Map<string, { nome_usuario?: string | null; foto_url?: string | null }>()
+      for (const e of rowsEmp ?? []) {
+        const u = e as { usuario_id: string; nome_usuario?: string | null; foto_url?: string | null }
+        if (u.usuario_id) empBy.set(String(u.usuario_id), u)
+      }
+
+      const pickFoto = (row: {
+        foto_perfil_url?: string | null
+        foto_url?: string | null
+      }) => {
+        const a = row.foto_perfil_url != null && String(row.foto_perfil_url).trim() !== '' ? String(row.foto_perfil_url) : null
+        const b = row.foto_url != null && String(row.foto_url).trim() !== '' ? String(row.foto_url) : null
+        return a ?? b
+      }
+
+      for (const uid of ids) {
+        const cur = m[uid]
+        if (!cur) continue
+        const role = String(cur.role ?? '').toLowerCase()
+        const tur = turBy.get(uid)
+        const prof = profBy.get(uid)
+        const emp = empBy.get(uid)
+
+        if (role === 'empresa' && emp) {
+          const nu = emp.nome_usuario != null && String(emp.nome_usuario).trim() !== '' ? String(emp.nome_usuario).trim() : null
+          const fp = emp.foto_url != null && String(emp.foto_url).trim() !== '' ? String(emp.foto_url) : null
+          m[uid] = {
+            ...cur,
+            ...(nu ? { username: nu } : {}),
+            ...(fp ? { foto_perfil_url: fp } : {}),
+          }
+          continue
+        }
+
+        if (role === 'profissional' && prof) {
+          const nu =
+            prof.nome_usuario != null && String(prof.nome_usuario).trim() !== ''
+              ? String(prof.nome_usuario).trim()
+              : null
+          const fp = pickFoto(prof)
+          if (nu || fp) {
+            m[uid] = {
+              ...m[uid],
+              ...(nu ? { username: nu } : {}),
+              ...(fp ? { foto_perfil_url: fp } : {}),
+            }
+          }
+          continue
+        }
+        if (role === 'turista' && tur) {
+          const nu =
+            tur.nome_usuario != null && String(tur.nome_usuario).trim() !== '' ? String(tur.nome_usuario).trim() : null
+          const fp = pickFoto(tur)
+          if (nu || fp) {
+            m[uid] = {
+              ...m[uid],
+              ...(nu ? { username: nu } : {}),
+              ...(fp ? { foto_perfil_url: fp } : {}),
+            }
+          }
+          continue
+        }
+        if (role === 'admin') {
+          const un =
+            (prof?.nome_usuario != null && String(prof.nome_usuario).trim() !== '' ? String(prof.nome_usuario).trim() : null) ??
+            (tur?.nome_usuario != null && String(tur.nome_usuario).trim() !== '' ? String(tur.nome_usuario).trim() : null)
+          const fp = (prof && pickFoto(prof)) || (tur && pickFoto(tur))
+          if (un || fp) {
+            m[uid] = {
+              ...m[uid],
+              ...(un ? { username: un } : {}),
+              ...(fp ? { foto_perfil_url: fp } : {}),
+            }
+          }
+          continue
+        }
+        if (prof?.nome_usuario != null && String(prof.nome_usuario).trim() !== '') {
+          const fp = pickFoto(prof)
+          m[uid] = {
+            ...m[uid],
+            username: String(prof.nome_usuario).trim(),
+            ...(fp ? { foto_perfil_url: fp } : {}),
+          }
+        } else if (tur?.nome_usuario != null && String(tur.nome_usuario).trim() !== '') {
+          const fp = pickFoto(tur)
+          m[uid] = {
+            ...m[uid],
+            username: String(tur.nome_usuario).trim(),
+            ...(fp ? { foto_perfil_url: fp } : {}),
+          }
+        }
+      }
+
+      await Promise.all(
+        ids.map(async (uid) => {
+          const cur = m[uid]
+          if (!cur) return
+          const fp = cur.foto_perfil_url != null ? String(cur.foto_perfil_url).trim() : ''
+          const precisaFoto = fp === '' || fp.includes('avatar-default')
+          if (!precisaFoto) return
+          const foto = await fetchFotoPerfilUsuario(supabase, uid)
+          if (foto != null && foto.trim() !== '') {
+            m[uid] = { ...m[uid], foto_perfil_url: foto }
+          }
+        })
+      )
 
       setPerfilMap(m)
 
