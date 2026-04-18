@@ -302,7 +302,7 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
                 <>
                   {textoPostExibir ? (
                     <p
-                      className={`line-clamp-2 whitespace-pre-wrap text-sm text-gray-600 ${mostrarThumb ? '' : 'mt-1'}`}
+                      className={`line-clamp-3 whitespace-pre-wrap text-sm text-gray-600 ${mostrarThumb ? '' : 'mt-1'}`}
                     >
                       {textoPostExibir}
                     </p>
@@ -317,7 +317,7 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
 
               const corpoCurtidaPost = (
                 <p
-                  className={`whitespace-pre-wrap text-sm text-gray-700 ${mostrarThumb ? 'line-clamp-2' : 'mt-0.5 line-clamp-4'}`}
+                  className={`whitespace-pre-wrap text-sm text-gray-700 ${mostrarThumb ? 'line-clamp-3' : 'mt-0.5 line-clamp-3'}`}
                 >
                   {textoPostExibir != null ? textoPostExibir : 'Post'}
                 </p>

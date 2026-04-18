@@ -126,7 +126,7 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
               const linhaTextoPost = (
                 <p
                   className={`whitespace-pre-wrap text-sm text-gray-700 ${
-                    mostrarThumb ? 'line-clamp-2' : 'mt-0.5 line-clamp-4'
+                    mostrarThumb ? 'line-clamp-3' : 'mt-0.5 line-clamp-3'
                   }`}
                 >
                   {textoPost != null ? textoPost : 'Publicação'}
