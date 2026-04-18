@@ -97,6 +97,7 @@ function PostTextoColapsivel({ texto, postId, maxLines, className = '' }) {
  *   abrirComentariosInicial?: boolean
  *   destacarComentarioId?: string | null
  *   comentariosInline?: boolean
+ *   comentariosSomenteLeitura?: boolean
  *   onRepublicouPrepend?: (row: Record<string, unknown>) => void
  *   onPostLocalPatch?: (postId: string, patch: Partial<{ texto: string | null }>) => void
  *   onItemSalvoChange?: (postId: string, salvo: boolean) => void
@@ -114,6 +115,7 @@ export default function PostCard({
   abrirComentariosInicial = false,
   destacarComentarioId = null,
   comentariosInline = false,
+  comentariosSomenteLeitura = false,
   onRepublicouPrepend,
   onPostLocalPatch,
   onItemSalvoChange,
@@ -646,6 +648,7 @@ export default function PostCard({
           }}
           destacarComentarioId={destacarComentarioId}
           totalComentariosVisual={nComent}
+          somenteLeitura={comentariosSomenteLeitura}
         />
         <ModalCurtidas
           postId={post.id}
@@ -809,6 +812,7 @@ export default function PostCard({
         }}
         destacarComentarioId={destacarComentarioId}
         totalComentariosVisual={nComent}
+        somenteLeitura={comentariosSomenteLeitura}
       />
       <ModalCurtidas
         postId={post.id}

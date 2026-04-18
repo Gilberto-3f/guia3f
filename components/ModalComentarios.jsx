@@ -55,6 +55,7 @@ function buildCommentTree(flat) {
  *   destacarComentarioId?: string | null
  *   variant?: 'modal' | 'inline'
  *   totalComentariosVisual?: number | null
+ *   somenteLeitura?: boolean
  * }} props
  */
 export default function ModalComentarios({
@@ -68,10 +69,14 @@ export default function ModalComentarios({
   destacarComentarioId = null,
   variant = 'modal',
   totalComentariosVisual = null,
+  somenteLeitura = false,
 }) {
   const inline = variant === 'inline'
   /** Em linha: sempre ativo com `postId`; em modal: só quando `aberto`. */
   const ativo = inline || aberto
+  /** Post isolado no drawer: lista sem compositor nem respostas/exclusão. */
+  const leituraComentarios = inline && somenteLeitura
+  const mostrarRodape = !leituraComentarios
   const [arvore, setArvore] = useState([])
   const [novoComentario, setNovoComentario] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -129,13 +134,17 @@ export default function ModalComentarios({
   const scrollListaAoFim = useCallback(() => {
     requestAnimationFrame(() => {
       if (inline) {
-        document.getElementById(`comentarios-rodape-${postId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        if (leituraComentarios) {
+          document.getElementById(`comentarios-inline-${postId}`)?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+        } else {
+          document.getElementById(`comentarios-rodape-${postId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        }
         return
       }
       const el = listaScrollRef.current
       if (el) el.scrollTop = el.scrollHeight
     })
-  }, [inline, postId])
+  }, [inline, leituraComentarios, postId])
 
   const handleExcluirComentario = useCallback(
     async (commentId) => {
@@ -204,15 +213,15 @@ export default function ModalComentarios({
   }, [ativo, postId, carregar])
 
   useEffect(() => {
-    if (!ativo || !usuarioId) {
+    if (!ativo || !usuarioId || leituraComentarios) {
       setMinhaFotoUrl(null)
       return
     }
     void fetchFotoPerfilUsuario(supabase, usuarioId).then(setMinhaFotoUrl)
-  }, [ativo, usuarioId])
+  }, [ativo, usuarioId, leituraComentarios])
 
   useEffect(() => {
-    if (!ativo) {
+    if (!ativo || leituraComentarios) {
       setTecladoInset(0)
       return
     }
@@ -229,7 +238,7 @@ export default function ModalComentarios({
       vv.removeEventListener('resize', atualizar)
       vv.removeEventListener('scroll', atualizar)
     }
-  }, [ativo])
+  }, [ativo, leituraComentarios])
 
   /** Impede scroll do feed atrás do overlay (apenas modal). */
   useEffect(() => {
@@ -298,8 +307,8 @@ export default function ModalComentarios({
           node={c}
           usuarioId={usuarioId}
           destacarComentarioId={destacarComentarioId}
-          onEnviarResposta={handleEnviarResposta}
-          onExcluir={handleExcluirComentario}
+          onEnviarResposta={leituraComentarios ? undefined : handleEnviarResposta}
+          onExcluir={leituraComentarios ? undefined : handleExcluirComentario}
           nivel={0}
           enviando={enviando}
         />
@@ -368,7 +377,7 @@ export default function ModalComentarios({
           <h3 className="text-sm font-semibold text-gray-900">{tituloSecao}</h3>
         </div>
         {lista}
-        {rodape}
+        {mostrarRodape ? rodape : null}
       </section>
     )
   }
@@ -391,7 +400,7 @@ export default function ModalComentarios({
           </button>
         </div>
         {lista}
-        {rodape}
+        {mostrarRodape ? rodape : null}
       </div>
     </div>
   )
