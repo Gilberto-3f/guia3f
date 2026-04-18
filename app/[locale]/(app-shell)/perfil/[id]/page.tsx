@@ -17,7 +17,9 @@ import PopupFavoritos from '@/components/perfil/PopupFavoritos'
 import PopupSeguidores from '@/components/perfil/PopupSeguidores'
 import PopupAvaliacoes from '@/components/perfil/PopupAvaliacoes'
 import ModalFoto from '@/components/perfil/ModalFoto'
-import { pickAutorDisplay } from '@/lib/feed-autor'
+import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
+
+type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
 
 type PostLinha = {
   id: string
@@ -38,21 +40,6 @@ type FotoPostItem = {
   total_compartilhamentos: number
   total_reposts: number
   post_original_id: string | null
-}
-
-type RepublicadoLinha = {
-  id: string
-  created_at: string
-  texto: string | null
-  foto_url: string | null
-  conteudo_url: string | null
-  tipo: string
-  avaliacao_meta: Record<string, unknown> | null
-  originalId: string | null
-  autorOriginal: string | null
-  usernameOriginal: string | null
-  /** UUID do utilizador autor do post original (para `/perfil/{id}`). */
-  autorOriginalUsuarioId: string | null
 }
 
 export default function PerfilSocialPage() {
@@ -84,7 +71,8 @@ export default function PerfilSocialPage() {
   const [aba, setAba] = useState<'fotos' | 'posts' | 'republicados'>('fotos')
   const [postsFotos, setPostsFotos] = useState<FotoPostItem[]>([])
   const [postsTexto, setPostsTexto] = useState<PostLinha[]>([])
-  const [republicados, setRepublicados] = useState<RepublicadoLinha[]>([])
+  const [repostadosPosts, setRepostadosPosts] = useState<PostRepostFeed[]>([])
+  const [meuEmail, setMeuEmail] = useState<string | null>(null)
 
   const [menuAberto, setMenuAberto] = useState(false)
   const [popFav, setPopFav] = useState(false)
@@ -105,6 +93,38 @@ export default function PerfilSocialPage() {
       )
     )
   }, [])
+
+  const patchRepostadoPost = useCallback(
+    (
+      postId: string,
+      patch: Partial<{ texto: string | null; total_curtidas?: number; total_comentarios?: number }>
+    ) => {
+      setRepostadosPosts((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, ...patch } : p))
+      )
+    },
+    []
+  )
+
+  const onEngagementRepostado = useCallback(
+    (
+      postId: string,
+      patch: { total_curtidas?: number; total_comentarios?: number }
+    ) => {
+      setRepostadosPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                ...(patch.total_curtidas != null ? { total_curtidas: patch.total_curtidas } : {}),
+                ...(patch.total_comentarios != null ? { total_comentarios: patch.total_comentarios } : {}),
+              }
+            : p
+        )
+      )
+    },
+    []
+  )
 
   const carregar = useCallback(async () => {
     if (!profileId) return
@@ -284,63 +304,41 @@ export default function PerfilSocialPage() {
 
       const { data: reps } = await supabase
         .from('posts')
-        .select('id, texto, created_at, foto_url, conteudo_url, tipo, post_original_id, avaliacao_meta')
+        .select('id')
         .eq('autor_id', profileId)
         .not('post_original_id', 'is', null)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
       const repRows = reps ?? []
-      const origIds = [...new Set(repRows.map((p) => (p.post_original_id != null ? String(p.post_original_id) : null)).filter((x): x is string => Boolean(x)))]
-      const origMap = /** @type {Map<string, { autor: ReturnType<typeof pickAutorDisplay> }>} */ (new Map())
-      if (origIds.length) {
-        const { data: origPosts, error: origViewErr } = await supabase
+      const repIds = repRows.map((p) => String(p.id)).filter(Boolean)
+
+      if (repIds.length === 0) {
+        setRepostadosPosts([])
+      } else {
+        const { data: viewRows, error: repViewErr } = await supabase
           .from('posts_com_autores')
           .select('*')
-          .in('id', origIds)
+          .in('id', repIds)
           .is('deleted_at', null)
-        if (origViewErr) console.warn('Perfil republicados posts_com_autores:', origViewErr.message)
+        if (repViewErr) console.warn('Perfil repostados posts_com_autores:', repViewErr.message)
 
-        for (const op of origPosts ?? []) {
-          const raw = op as Record<string, unknown>
-          const oid = String(raw.id ?? '')
-          if (!oid) continue
-          let rawU: unknown = raw.usuarios
-          if (typeof raw.usuarios === 'string') {
-            try {
-              rawU = JSON.parse(raw.usuarios)
-            } catch {
-              rawU = null
-            }
-          }
-          const autor = pickAutorDisplay(rawU)
-          origMap.set(oid, { autor })
+        const byId = new Map<string, Record<string, unknown>>()
+        for (const row of viewRows ?? []) {
+          const raw = row as Record<string, unknown>
+          const rid = String(raw.id ?? '')
+          if (rid) byId.set(rid, raw)
         }
-      }
 
-      setRepublicados(
-        repRows.map((p) => {
-          const oid = p.post_original_id != null ? String(p.post_original_id) : null
-          const o = oid ? origMap.get(oid) : undefined
-          const am = p.avaliacao_meta
-          return {
-            id: String(p.id),
-            created_at: String(p.created_at ?? ''),
-            texto: p.texto != null ? String(p.texto) : null,
-            foto_url: p.foto_url != null ? String(p.foto_url) : null,
-            conteudo_url: p.conteudo_url != null ? String(p.conteudo_url) : null,
-            tipo: p.tipo != null ? String(p.tipo) : 'texto',
-            avaliacao_meta: am && typeof am === 'object' && !Array.isArray(am) ? (am as Record<string, unknown>) : null,
-            originalId: oid,
-            autorOriginal: o?.autor.nome ?? null,
-            usernameOriginal: o?.autor.username ?? null,
-            autorOriginalUsuarioId:
-              o?.autor.usuario_id != null && String(o.autor.usuario_id).trim() !== ''
-                ? String(o.autor.usuario_id)
-                : null,
-          }
-        })
-      )
+        const ordenados: PostRepostFeed[] = []
+        for (const row of repRows) {
+          const rid = String(row.id)
+          const raw = byId.get(rid)
+          if (!raw) continue
+          ordenados.push(mapPostComAutoresRow(raw))
+        }
+        setRepostadosPosts(ordenados)
+      }
     } catch {
       setErro('Erro ao carregar perfil')
     } finally {
@@ -359,8 +357,10 @@ export default function PerfilSocialPage() {
       } = await supabase.auth.getSession()
       const id = session?.user?.id ?? null
       setMeuId(id)
+      setMeuEmail(session?.user?.email ?? null)
       if (!id) {
         setMeuRole(null)
+        setMeuEmail(null)
         setPlacaVermelha(false)
         setAdminLevel(0)
         return
@@ -384,9 +384,9 @@ export default function PerfilSocialPage() {
     () => ({
       fotos: postsFotos.length,
       posts: postsTexto.length,
-      republicados: republicados.length,
+      republicados: repostadosPosts.length,
     }),
-    [postsFotos.length, postsTexto.length, republicados.length]
+    [postsFotos.length, postsTexto.length, repostadosPosts.length]
   )
 
   const favoritosTotal = nFavEmp + nFavUsers
@@ -492,8 +492,15 @@ export default function PerfilSocialPage() {
           {aba === 'posts' ? <AbaPosts posts={postsTexto} /> : null}
           {aba === 'republicados' ? (
             <AbaRepublicados
-              itens={republicados}
-              reposter={{ id: profileId, username, foto: fotoPerfil }}
+              posts={repostadosPosts}
+              meuUsuarioId={meuId}
+              userEmail={meuEmail}
+              onPostLocalPatch={patchRepostadoPost}
+              onEngagementChange={onEngagementRepostado}
+              onRemovePost={(postId) => setRepostadosPosts((prev) => prev.filter((p) => p.id !== postId))}
+              onRepostRemovido={(repostPostId) =>
+                setRepostadosPosts((prev) => prev.filter((p) => p.id !== repostPostId))
+              }
             />
           ) : null}
         </div>

@@ -415,7 +415,7 @@ export default function PostCard({
       .maybeSingle()
     if (e1 || !postOriginal) {
       console.error(e1)
-      alert('Não foi possível republicar.')
+      alert('Não foi possível repostar.')
       return
     }
     const o = /** @type {Record<string, unknown>} */ (postOriginal)
@@ -434,7 +434,7 @@ export default function PostCard({
       .maybeSingle()
     if (e2 || !ins?.id) {
       console.error(e2)
-      alert('Não foi possível republicar.')
+      alert('Não foi possível repostar.')
       return
     }
     const novoId = String(ins.id)
@@ -519,7 +519,7 @@ export default function PostCard({
             ) : (
               <span className="font-semibold text-gray-800">@{post.autor?.username ?? ''}</span>
             )}
-            <span>{repostEhFoto ? ' republicou foto de ' : ' republicou post de '}</span>
+            <span>{repostEhFoto ? ' repostou foto de ' : ' repostou post de '}</span>
             {autorOriginalUsuarioId ? (
               <Link
                 href={`/perfil/${autorOriginalUsuarioId}`}

@@ -157,7 +157,7 @@ export default function MenuPost({
                 disabled={!meuUsuarioId}
                 className={`${itemClass} disabled:opacity-50`}
               >
-                ↩️ Republicar
+                ↩️ Repostar
               </button>
               <button type="button" onClick={denunciar} className={itemClass}>
                 ⚠️ Denunciar

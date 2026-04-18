@@ -28,7 +28,7 @@ export default function AbasPerfil({ ativa, onChange, counts }) {
     <div className="flex border-b border-[#E0E0E0] bg-white px-2">
       {tab('fotos', 'FOTOS', <Camera size={18} aria-hidden />, counts.fotos)}
       {tab('posts', 'POSTS', <FileText size={18} aria-hidden />, counts.posts)}
-      {tab('republicados', 'REPUBLICADOS', <Repeat2 size={18} aria-hidden />, counts.republicados)}
+      {tab('republicados', 'REPOSTADOS', <Repeat2 size={18} aria-hidden />, counts.republicados)}
     </div>
   )
 }
