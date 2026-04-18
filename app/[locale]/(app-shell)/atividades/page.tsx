@@ -880,12 +880,14 @@ export default function AtividadesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <header className="border-b border-white/20 bg-[#0097b2] px-3 py-2 shadow-sm sm:px-4 sm:py-3">
+      <header className="sticky top-0 z-30 border-b border-white/20 bg-[#0097b2] px-3 py-2 shadow-sm sm:px-4 sm:py-3">
         <div className="relative" ref={dropdownRef}>
-          <div className="flex w-full items-center justify-end gap-2">
+          <div className="flex w-full items-center gap-2 sm:gap-3">
+            <h1 className="shrink-0 text-lg font-bold tracking-tight text-white sm:text-xl">ATIVIDADES</h1>
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
             <div
               className={`flex min-w-0 justify-end overflow-hidden transition-[max-width,opacity] duration-300 ease-out ${
-                pesquisaAberta ? 'max-w-[calc(100%-2.5rem)] flex-1 opacity-100' : 'max-w-0 flex-none opacity-0'
+                pesquisaAberta ? 'max-w-full flex-1 opacity-100' : 'max-w-0 flex-none opacity-0'
               }`}
             >
               <div className="ml-auto flex w-full min-w-0 max-w-full items-center gap-2 rounded-xl border border-white/60 bg-white px-3 py-1.5 shadow-sm sm:py-2">
@@ -926,7 +928,7 @@ export default function AtividadesPage() {
             </div>
             <button
               type="button"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#0097b2] shadow-sm transition hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+              className="relative z-0 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/95 text-[#0097b2] shadow-sm ring-1 ring-white/40 transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
               aria-label={pesquisaAberta ? 'Focar pesquisa' : 'Abrir pesquisa de usuários'}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
@@ -939,10 +941,11 @@ export default function AtividadesPage() {
             >
               <Search className="h-5 w-5" strokeWidth={2.25} aria-hidden />
             </button>
+            </div>
           </div>
 
           {pesquisaAberta && resultadosBusca.length > 0 ? (
-            <div className="absolute left-0 right-0 top-full z-20 mt-2 max-h-80 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+            <div className="absolute left-0 right-0 top-full z-40 mt-2 max-h-80 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
               {resultadosBusca.map((u) => {
                 const nome = u.nome ?? 'Usuário'
                 const username = (u.username ?? '').trim() || 'usuario'

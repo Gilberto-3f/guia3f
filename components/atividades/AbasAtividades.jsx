@@ -19,7 +19,7 @@ export default function AbasAtividades({ aba, onAba }) {
       <div className="flex">
         <button type="button" className={tabCls(aba === 'amigos')} onClick={() => onAba('amigos')}>
           <Heart className="h-4 w-4 shrink-0 opacity-90 sm:h-[18px] sm:w-[18px]" strokeWidth={2.25} aria-hidden />
-          ATIVIDADES
+          AMIGOS
         </button>
         <button type="button" className={tabCls(aba === 'minha')} onClick={() => onAba('minha')}>
           <User className="h-4 w-4 shrink-0 opacity-90 sm:h-[18px] sm:w-[18px]" aria-hidden />
