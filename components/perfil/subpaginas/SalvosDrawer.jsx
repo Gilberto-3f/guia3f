@@ -112,6 +112,27 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
               const mostrarThumb = url != null && String(url).trim() !== ''
               const textoPost =
                 post.texto != null && String(post.texto).trim() !== '' ? String(post.texto).trimEnd() : null
+              const cardBase =
+                'w-full cursor-pointer rounded-lg border border-gray-100 p-2 text-left transition hover:bg-gray-50'
+
+              const linhaMeta = (
+                <p className="w-full min-w-0 text-xs text-gray-400">
+                  <span className="font-medium text-[#0097b2]">Salvou</span>
+                  {' · '}
+                  {salvoEm ? formatarDataRelativaPublicacao(salvoEm) : ''}
+                </p>
+              )
+
+              const linhaTextoPost = (
+                <p
+                  className={`whitespace-pre-wrap text-sm text-gray-700 ${
+                    mostrarThumb ? 'line-clamp-2' : 'mt-0.5 line-clamp-4'
+                  }`}
+                >
+                  {textoPost != null ? textoPost : 'Publicação'}
+                </p>
+              )
+
               return (
                 <li key={post.id} className="min-w-0 py-2 first:pt-0">
                   <div
@@ -124,30 +145,25 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
                         abrirPost(post.id)
                       }
                     }}
-                    className={`flex w-full cursor-pointer items-start rounded-lg border border-gray-100 p-2 text-left transition hover:bg-gray-50 ${
-                      mostrarThumb ? 'gap-3' : 'gap-0'
-                    }`}
+                    className={mostrarThumb ? `flex flex-col gap-1 ${cardBase}` : `flex ${cardBase}`}
                     aria-label="Publicação salva — abrir"
                   >
                     {mostrarThumb ? (
-                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                        <Image src={String(url)} alt="" fill className="object-cover" sizes="56px" />
+                      <>
+                        {linhaMeta}
+                        <div className="flex min-w-0 gap-3">
+                          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                            <Image src={String(url)} alt="" fill className="object-cover" sizes="56px" />
+                          </div>
+                          <div className="min-w-0 flex-1">{linhaTextoPost}</div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="min-w-0 flex-1">
+                        {linhaMeta}
+                        {linhaTextoPost}
                       </div>
-                    ) : null}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-gray-400">
-                        <span className="font-medium text-[#0097b2]">Salvou</span>
-                        {' · '}
-                        {salvoEm ? formatarDataRelativaPublicacao(salvoEm) : ''}
-                      </p>
-                      <p
-                        className={`mt-0.5 whitespace-pre-wrap text-sm text-gray-700 ${
-                          mostrarThumb ? 'line-clamp-2' : 'line-clamp-4'
-                        }`}
-                      >
-                        {textoPost != null ? textoPost : 'Publicação'}
-                      </p>
-                    </div>
+                    )}
                   </div>
                 </li>
               )

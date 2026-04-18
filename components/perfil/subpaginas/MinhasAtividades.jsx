@@ -248,6 +248,90 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
                 L.textoComentario != null && String(L.textoComentario).trim() !== ''
                   ? String(L.textoComentario).trimEnd()
                   : null
+              const metaComentario = (
+                <p className="w-full min-w-0 text-xs text-gray-400">
+                  {L.postEhFoto ? 'Comentou foto de ' : 'Comentou post de '}
+                  {L.postAutorUsuarioId ? (
+                    <Link
+                      href={getPerfilHref({
+                        usuario_id: L.postAutorUsuarioId,
+                        empresa_id: L.postAutorEmpresaId,
+                        tipo: L.postAutorTipo ?? undefined,
+                      })}
+                      className="font-medium text-[#0097b2] hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      @{L.postAutorUsername ?? 'usuario'}
+                    </Link>
+                  ) : (
+                    <span className="font-medium text-gray-700">@usuario</span>
+                  )}
+                  {' · '}
+                  {L.ts ? formatarDataRelativaPublicacao(L.ts) : ''}
+                </p>
+              )
+
+              const metaCurtida = (
+                <p className="w-full min-w-0 text-xs text-gray-400">
+                  <span className="font-medium text-[#0097b2]">
+                    {L.kind === 'curtida' && L.comentarioId ? 'Curtiu comentário' : rotulo(L.kind)}
+                  </span>
+                  {' · '}
+                  {L.ts ? formatarDataRelativaPublicacao(L.ts) : ''}
+                </p>
+              )
+
+              const corpoComentario = (
+                <>
+                  {textoPostExibir ? (
+                    <p
+                      className={`line-clamp-2 whitespace-pre-wrap text-sm text-gray-600 ${mostrarThumb ? '' : 'mt-1'}`}
+                    >
+                      {textoPostExibir}
+                    </p>
+                  ) : null}
+                  {textoComentExibir ? (
+                    <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs italic text-gray-500">
+                      &ldquo;{textoComentExibir}&rdquo;
+                    </p>
+                  ) : null}
+                </>
+              )
+
+              const corpoCurtidaComComentario = (
+                <>
+                  {textoPostExibir ? (
+                    <p
+                      className={`line-clamp-2 whitespace-pre-wrap text-sm text-gray-600 ${mostrarThumb ? '' : 'mt-1'}`}
+                    >
+                      {textoPostExibir}
+                    </p>
+                  ) : null}
+                  {textoComentExibir ? (
+                    <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs italic text-gray-500">
+                      &ldquo;{textoComentExibir}&rdquo;
+                    </p>
+                  ) : null}
+                </>
+              )
+
+              const corpoCurtidaPost = (
+                <p
+                  className={`whitespace-pre-wrap text-sm text-gray-700 ${mostrarThumb ? 'line-clamp-2' : 'mt-0.5 line-clamp-4'}`}
+                >
+                  {textoPostExibir != null ? textoPostExibir : 'Post'}
+                </p>
+              )
+
+              const thumbBlock = mostrarThumb ? (
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                  <Image src={L.thumb} alt="" fill className="object-cover" sizes="56px" />
+                </div>
+              ) : null
+
+              const cardBase =
+                'w-full cursor-pointer rounded-lg border border-gray-100 p-2 text-left transition hover:bg-gray-50'
+
               return (
                 <li key={L.id} className="min-w-0 py-2 first:pt-0">
                   <div
@@ -260,9 +344,7 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
                         abrir()
                       }
                     }}
-                    className={`flex w-full cursor-pointer items-start rounded-lg border border-gray-100 p-2 text-left transition hover:bg-gray-50 ${
-                      mostrarThumb ? 'gap-3' : 'gap-0'
-                    }`}
+                    className={mostrarThumb ? `flex flex-col gap-1 ${cardBase}` : `flex ${cardBase}`}
                     aria-label={
                       L.kind === 'comentario'
                         ? `Comentário em publicação, ${L.postEhFoto ? 'foto' : 'post'} de @${L.postAutorUsername ?? 'usuario'}`
@@ -272,74 +354,34 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
                     }
                   >
                     {mostrarThumb ? (
-                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                        <Image src={L.thumb} alt="" fill className="object-cover" sizes="56px" />
+                      <>
+                        {L.kind === 'comentario' ? metaComentario : metaCurtida}
+                        <div className="flex min-w-0 gap-3">
+                          {thumbBlock}
+                          <div className="min-w-0 flex-1">
+                            {L.kind === 'comentario'
+                              ? corpoComentario
+                              : L.kind === 'curtida' && L.comentarioId
+                                ? corpoCurtidaComComentario
+                                : corpoCurtidaPost}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="min-w-0 flex-1">
+                        {L.kind === 'comentario' ? (
+                          <>
+                            {metaComentario}
+                            {corpoComentario}
+                          </>
+                        ) : (
+                          <>
+                            {metaCurtida}
+                            {L.kind === 'curtida' && L.comentarioId ? corpoCurtidaComComentario : corpoCurtidaPost}
+                          </>
+                        )}
                       </div>
-                    ) : null}
-                    <div className="min-w-0 flex-1">
-                      {L.kind === 'comentario' ? (
-                        <>
-                          <p className="text-xs text-gray-400">
-                            {L.postEhFoto ? 'Comentou foto de ' : 'Comentou post de '}
-                            {L.postAutorUsuarioId ? (
-                              <Link
-                                href={getPerfilHref({
-                                  usuario_id: L.postAutorUsuarioId,
-                                  empresa_id: L.postAutorEmpresaId,
-                                  tipo: L.postAutorTipo ?? undefined,
-                                })}
-                                className="font-medium text-[#0097b2] hover:underline"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                @{L.postAutorUsername ?? 'usuario'}
-                              </Link>
-                            ) : (
-                              <span className="font-medium text-gray-700">@usuario</span>
-                            )}
-                            {' · '}
-                            {L.ts ? formatarDataRelativaPublicacao(L.ts) : ''}
-                          </p>
-                          {textoPostExibir ? (
-                            <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-sm text-gray-600">{textoPostExibir}</p>
-                          ) : null}
-                          {textoComentExibir ? (
-                            <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs italic text-gray-500">
-                              &ldquo;{textoComentExibir}&rdquo;
-                            </p>
-                          ) : null}
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-xs text-gray-400">
-                            <span className="font-medium text-[#0097b2]">
-                              {L.kind === 'curtida' && L.comentarioId ? 'Curtiu comentário' : rotulo(L.kind)}
-                            </span>
-                            {' · '}
-                            {L.ts ? formatarDataRelativaPublicacao(L.ts) : ''}
-                          </p>
-                          {L.kind === 'curtida' && L.comentarioId ? (
-                            <>
-                              {textoPostExibir ? (
-                                <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-sm text-gray-600">{textoPostExibir}</p>
-                              ) : null}
-                              {textoComentExibir ? (
-                                <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs italic text-gray-500">
-                                  &ldquo;{textoComentExibir}&rdquo;
-                                </p>
-                              ) : null}
-                            </>
-                          ) : (
-                            <p
-                              className={`mt-0.5 whitespace-pre-wrap text-sm text-gray-700 ${
-                                mostrarThumb ? 'line-clamp-2' : 'line-clamp-4'
-                              }`}
-                            >
-                              {textoPostExibir != null ? textoPostExibir : 'Post'}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </li>
               )
