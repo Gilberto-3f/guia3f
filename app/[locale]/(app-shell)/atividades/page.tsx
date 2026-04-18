@@ -36,6 +36,18 @@ type AtividadeRow = {
 
 type PerfilMap = Record<string, ReturnType<typeof pickAutorDisplay>>
 
+/** Uma entrada por UUID em `atividades`, antes de enriquecer — evita merges bloqueados por `!m[uid]`. */
+function placeholderPerfil(uid: string): ReturnType<typeof pickAutorDisplay> {
+  return {
+    nome: 'Usuário',
+    username: 'usuario',
+    foto_perfil_url: null,
+    usuario_id: uid,
+    empresa_id: '',
+    role: 'user',
+  }
+}
+
 function dayKey(iso: string) {
   const d = new Date(iso)
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
@@ -215,16 +227,27 @@ export default function AtividadesPage() {
         setPerfilMap({})
         return
       }
-      const { data, error } = await supabase.from('usuarios').select(USUARIOS_SELECT).in('id', ids)
-      if (error || !data) {
-        setPerfilMap({})
-        return
-      }
+
       const m: PerfilMap = {}
-      for (const u of data) {
-        const row = u as unknown as Record<string, unknown>
-        const id = row.id != null ? String(row.id) : ''
-        if (id) m[id] = pickAutorDisplay(u)
+      for (const id of ids) {
+        m[id] = placeholderPerfil(id)
+      }
+
+      const { data: dataUsuarios, error: errUsuarios } = await supabase.from('usuarios').select(USUARIOS_SELECT).in('id', ids)
+      if (errUsuarios) {
+        console.warn('Atividades usuarios:', errUsuarios.message)
+      }
+      if (dataUsuarios) {
+        for (const u of dataUsuarios) {
+          const row = u as unknown as Record<string, unknown>
+          const id = row.id != null ? String(row.id) : ''
+          if (id) m[id] = pickAutorDisplay(u)
+        }
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.log('[Atividades] perfil ids:', ids.length, ids.slice(0, 8))
       }
 
       /** Enriquecer com `perfis_para_busca` (@username, nome, foto) — evita fallback “usuario” do embed quando RLS falha. */
@@ -236,8 +259,8 @@ export default function AtividadesPage() {
       const perfisBusca = await buscarPerfisPorIds(supabase, ids, preferTipo)
       for (const pb of perfisBusca) {
         const uid = String(pb.usuario_id ?? '')
-        if (!uid || !m[uid]) continue
-        const cur = m[uid]
+        if (!uid) continue
+        const cur = m[uid] ?? placeholderPerfil(uid)
         const uName = (pb.username ?? '').trim()
         const nome = (pb.nome ?? '').trim()
         m[uid] = {
@@ -289,8 +312,8 @@ export default function AtividadesPage() {
       }
 
       for (const uid of ids) {
+        if (!m[uid]) m[uid] = placeholderPerfil(uid)
         const cur = m[uid]
-        if (!cur) continue
         const role = String(cur.role ?? '').toLowerCase()
         const tur = turBy.get(uid)
         const prof = profBy.get(uid)
@@ -379,6 +402,16 @@ export default function AtividadesPage() {
           }
         })
       )
+
+      if (process.env.NODE_ENV === 'development') {
+        const amostra = ids.slice(0, 5).map((id) => ({
+          id: `${id.slice(0, 8)}…`,
+          username: m[id]?.username,
+          temFoto: Boolean(m[id]?.foto_perfil_url),
+        }))
+        // eslint-disable-next-line no-console
+        console.log('[Atividades] perfilMap amostra:', amostra)
+      }
 
       setPerfilMap(m)
 
