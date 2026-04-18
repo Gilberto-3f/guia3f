@@ -925,9 +925,9 @@ export default function AtividadesPage() {
           </p>
         ) : (
           blocosComTitulo.map((bloco) => (
-            <section key={bloco.key} className="mb-4">
-              <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">── {bloco.titulo} ──</h2>
-              <div className="space-y-2">{bloco.itens.map((it, i) => renderItem(it, i))}</div>
+            <section key={bloco.key} className="mb-3">
+              <h2 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">── {bloco.titulo} ──</h2>
+              <div className="space-y-1">{bloco.itens.map((it, i) => renderItem(it, i))}</div>
             </section>
           ))
         )}

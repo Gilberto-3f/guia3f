@@ -32,17 +32,17 @@ export default function AtividadeCurtidas({
   if (n === 0) return null
 
   return (
-    <div className="rounded-lg border border-gray-100 bg-white px-2 py-2 shadow-sm sm:px-3">
-      <div className="flex gap-2">
+    <div className="rounded-lg border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
+      <div className="flex gap-1.5">
         <button
           type="button"
           onClick={() => router.push(hrefInteractor)}
-          className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100"
+          className="relative h-6 w-6 shrink-0 overflow-hidden rounded-md bg-gray-100"
         >
-          <AvatarImage src={interactorFoto} alt="" fill className="object-cover" sizes="32px" />
+          <AvatarImage src={interactorFoto} alt="" fill className="object-cover" sizes="24px" />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-xs leading-snug text-gray-800 sm:text-sm">
+          <p className="text-[11px] leading-snug text-gray-800">
             <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
               @{interactorUsername}
             </button>{' '}
@@ -51,13 +51,13 @@ export default function AtividadeCurtidas({
               @{donorUsername}
             </button>
           </p>
-          <div className="mt-2">
+          <div className="mt-1">
             <GridFotos urls={urls} max={10} onClickFoto={(i) => setModal({ aberto: true, i })} />
           </div>
           <button
             type="button"
             onClick={() => setModal({ aberto: true, i: 0 })}
-            className="mt-2 text-xs font-medium text-[#0097b2] sm:text-sm"
+            className="mt-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-[#0097b2]"
           >
             {n === 1 ? 'VER FOTO' : `VER TODAS AS ${n} FOTOS`}
           </button>
