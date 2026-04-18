@@ -787,6 +787,7 @@ export default function AtividadesPage() {
           hrefInteractor={hrefUsuario(item.autor_id)}
           hrefDonor={hrefUsuario(item.usuario_dono_id)}
           urls={urlsGrid}
+          postIds={item.rows.map((r) => String(r.alvo_id))}
           totalCurtidas={item.rows.length}
           tempoInteracao={formatarDataComentarioCurta(item.created_at)}
         />

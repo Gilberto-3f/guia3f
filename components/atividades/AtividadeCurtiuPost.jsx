@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Link, useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
-import ModalConteudo from '@/components/atividades/ModalConteudo'
+import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
 /**
  * @param {{
@@ -70,9 +70,12 @@ export default function AtividadeCurtiuPost({
           </div>
         </div>
       </div>
-      <ModalConteudo aberto={modal} onFechar={() => setModal(false)} titulo="Post" verNoFeedHref={verHref}>
-        <p className="whitespace-pre-wrap text-base text-gray-800">{texto || '—'}</p>
-      </ModalConteudo>
+      <ModalVisualizacao
+        aberto={modal}
+        onFechar={() => setModal(false)}
+        postIds={[postId]}
+        verNoFeedHref={verHref}
+      />
     </>
   )
 }

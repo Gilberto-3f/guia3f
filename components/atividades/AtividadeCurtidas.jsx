@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
 import GridFotos from '@/components/atividades/GridFotos'
-import ModalFotos from '@/components/atividades/ModalFotos'
+import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
 /**
  * @param {{
@@ -14,6 +14,7 @@ import ModalFotos from '@/components/atividades/ModalFotos'
  *   hrefInteractor: string
  *   hrefDonor: string
  *   urls: string[]
+ *   postIds: string[]
  *   totalCurtidas?: number
  *   tempoInteracao?: string
  * }} props
@@ -25,6 +26,7 @@ export default function AtividadeCurtidas({
   hrefInteractor,
   hrefDonor,
   urls,
+  postIds,
   totalCurtidas,
   tempoInteracao = '',
 }) {
@@ -70,7 +72,12 @@ export default function AtividadeCurtidas({
           </button>
         </div>
       </div>
-      <ModalFotos urls={urls} indiceInicial={modal.i} aberto={modal.aberto} onFechar={() => setModal((m) => ({ ...m, aberto: false }))} />
+      <ModalVisualizacao
+        aberto={modal.aberto}
+        onFechar={() => setModal((m) => ({ ...m, aberto: false }))}
+        postIds={postIds}
+        indiceInicial={modal.i}
+      />
     </div>
   )
 }
