@@ -271,18 +271,19 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
           className="shrink-0 border-t border-gray-200 bg-white p-3"
           style={{ paddingBottom: Math.max(12, tecladoInset) }}
         >
-          <div className="flex items-end gap-2">
-            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+          <div className="flex items-center gap-2">
+            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
               {minhaFotoUrl ? (
-                <AvatarImage src={minhaFotoUrl} alt="" width={40} height={40} className="h-full w-full object-cover" />
+                <AvatarImage src={minhaFotoUrl} alt="" width={32} height={32} className="h-full w-full object-cover" />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">?</div>
+                <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">?</div>
               )}
             </div>
             <textarea
               ref={textareaRef}
-              rows={2}
-              className="max-h-28 min-h-[40px] flex-1 resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm text-black placeholder:text-gray-400"
+              rows={1}
+              enterKeyHint="send"
+              className="max-h-24 min-h-[36px] flex-1 resize-none rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
               placeholder="Escreva um comentário…"
               value={novoComentario}
               disabled={!usuarioId || enviando}
@@ -298,13 +299,12 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
               type="button"
               disabled={!novoComentario.trim() || enviando || !usuarioId}
               onClick={() => void handleEnviarComentario()}
-              className="shrink-0 rounded-xl bg-[#0097b2] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+              className="shrink-0 px-3 py-1.5 text-sm font-semibold text-[#0097b2] disabled:text-gray-400 disabled:opacity-40"
             >
               {enviando ? '…' : 'Enviar'}
             </button>
           </div>
           {!usuarioId ? <p className="mt-2 text-center text-xs text-gray-500">Entre na conta para comentar.</p> : null}
-          <p className="mt-1 text-center text-[11px] text-gray-400">Enter envia · Shift+Enter nova linha</p>
         </div>
       </div>
     </div>
