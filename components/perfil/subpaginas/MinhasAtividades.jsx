@@ -5,7 +5,16 @@ import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 
 /**
- * @typedef {{ id: string, ts: string, postId: string, kind: 'curtida' | 'comentario' | 'salvo' | 'repost', comentarioId?: string | null, thumb: string | null, texto: string | null }} LinhaInteracao
+ * @typedef {{
+ *   id: string
+ *   ts: string
+ *   postId: string
+ *   kind: 'curtida' | 'comentario' | 'salvo' | 'repost'
+ *   comentarioId?: string | null
+ *   thumb: string | null
+ *   texto: string | null
+ *   textoComentario?: string | null
+ * }} LinhaInteracao
  */
 
 /**
@@ -95,6 +104,7 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
           comentarioId: String(row.id),
           thumb: url != null ? String(url) : null,
           texto: pr.texto != null ? String(pr.texto) : null,
+          textoComentario: row.texto != null ? String(row.texto) : null,
         })
       }
 
@@ -216,16 +226,30 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
                   }}
                   className="flex w-full gap-3 rounded-lg border border-gray-100 p-2 text-left transition hover:bg-gray-50"
                 >
-                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                    {L.thumb ? <Image src={L.thumb} alt="" fill className="object-cover" sizes="56px" /> : null}
-                  </div>
+                  {L.thumb ? (
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                      <Image src={L.thumb} alt="" fill className="object-cover" sizes="56px" />
+                    </div>
+                  ) : L.texto ? (
+                    <div className="flex h-14 w-[5.75rem] shrink-0 flex-col justify-start overflow-hidden rounded-lg border border-gray-100 bg-gray-50 p-1.5">
+                      <p className="line-clamp-3 whitespace-pre-wrap text-[10px] leading-snug text-gray-600">{L.texto}</p>
+                    </div>
+                  ) : (
+                    <div className="h-14 w-14 shrink-0 rounded-lg bg-gray-100" aria-hidden />
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-gray-400">
                       <span className="font-medium text-[#0097b2]">{rotulo(L.kind)}</span>
                       {' · '}
                       {L.ts ? new Date(L.ts).toLocaleString('pt-BR') : ''}
                     </p>
-                    <p className="line-clamp-2 text-sm text-gray-700">{L.texto ? trunc(L.texto) : 'Post'}</p>
+                    <p className="line-clamp-2 text-sm text-gray-700">
+                      {L.kind === 'comentario' && L.textoComentario
+                        ? trunc(L.textoComentario)
+                        : L.texto
+                          ? trunc(L.texto)
+                          : 'Post'}
+                    </p>
                   </div>
                 </button>
               </li>
