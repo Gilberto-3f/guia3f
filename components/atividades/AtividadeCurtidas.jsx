@@ -32,7 +32,7 @@ export default function AtividadeCurtidas({
   if (n === 0) return null
 
   return (
-    <div className="rounded-lg border border-gray-100 bg-white px-2 py-2 shadow-sm sm:px-3">
+    <div className="min-w-0">
       <div className="grid min-w-0 grid-cols-[2rem_1fr] items-start gap-x-2">
         <button
           type="button"
@@ -42,7 +42,7 @@ export default function AtividadeCurtidas({
           <AvatarImage src={interactorFoto} alt="" fill className="object-cover" sizes="32px" />
         </button>
         <div className="min-w-0">
-          <p className="text-xs leading-snug text-gray-800 sm:text-sm">
+          <p className="text-sm leading-snug text-gray-800">
             <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
               @{interactorUsername}
             </button>{' '}
@@ -57,7 +57,7 @@ export default function AtividadeCurtidas({
           <button
             type="button"
             onClick={() => setModal({ aberto: true, i: 0 })}
-            className="mt-2 text-xs font-medium text-[#0097b2] sm:text-sm"
+            className="mt-2 text-sm font-medium text-[#0097b2]"
           >
             {n === 1 ? 'VER FOTO' : `VER TODAS AS ${n} FOTOS`}
           </button>

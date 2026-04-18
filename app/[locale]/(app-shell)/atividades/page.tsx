@@ -48,25 +48,6 @@ function placeholderPerfil(uid: string): ReturnType<typeof pickAutorDisplay> {
   }
 }
 
-function dayKey(iso: string) {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
-}
-
-function sameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-}
-
-function tituloBlocoData(iso: string) {
-  const d = new Date(iso)
-  const hoje = new Date()
-  if (sameDay(d, hoje)) return 'HOJE'
-  const ontem = new Date(hoje)
-  ontem.setDate(ontem.getDate() - 1)
-  if (sameDay(d, ontem)) return 'ONTEM'
-  return d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
-}
-
 const USUARIOS_SELECT = `
   id,
   email,
@@ -627,27 +608,6 @@ export default function AtividadesPage() {
     return agruparAtividadesCurtidasPost(ord, postMetaMap)
   }, [listaAtividadesFiltrada, postMetaMap])
 
-  const blocosComTitulo = useMemo(() => {
-    const blocos: { titulo: string; key: string; itens: typeof itensAgrupados }[] = []
-    let tituloAtual = ''
-    let keyAtual = ''
-    let chunk: typeof itensAgrupados = []
-    for (const item of itensAgrupados) {
-      const iso =
-        item.kind === 'outro' || item.kind === 'curtiu_post_solo' ? item.row.created_at : item.created_at
-      const t = tituloBlocoData(iso)
-      if (t !== tituloAtual) {
-        if (chunk.length) blocos.push({ titulo: tituloAtual, key: keyAtual, itens: chunk })
-        tituloAtual = t
-        keyAtual = dayKey(iso)
-        chunk = []
-      }
-      chunk.push(item)
-    }
-    if (chunk.length) blocos.push({ titulo: tituloAtual, key: keyAtual, itens: chunk })
-    return blocos
-  }, [itensAgrupados])
-
   const renderItem = (item: (typeof itensAgrupados)[number], idx: number) => {
     if (item.kind === 'curtiu_post_fotos') {
       const inter = perfilMap[item.autor_id]
@@ -729,7 +689,7 @@ export default function AtividadesPage() {
                 <Image src={prevUrl} alt="" fill className="object-contain" sizes="(max-width: 448px) 100vw, 448px" />
               </div>
             ) : null}
-            {prevTexto ? <p className="whitespace-pre-wrap text-sm text-gray-800">{prevTexto}</p> : null}
+            {prevTexto ? <p className="whitespace-pre-wrap text-base text-gray-800">{prevTexto}</p> : null}
           </div>
         )
 
@@ -994,25 +954,28 @@ export default function AtividadesPage() {
       <AbasAtividades aba={aba} onAba={onAba} />
 
       <div className="px-2 py-2 sm:px-3">
-        {blocosComTitulo.length === 0 ? (
+        {itensAgrupados.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-400">
             {aba === 'amigos' && qtdSeguindo === 0
               ? 'Siga pessoas no perfil delas para ver aqui o que estão curtindo, comentando e fazendo no app.'
               : 'Nenhuma atividade por aqui ainda.'}
           </p>
         ) : (
-          blocosComTitulo.map((bloco) => (
-            <section key={bloco.key} className="mb-4">
-              <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">── {bloco.titulo} ──</h2>
-              <div className="divide-y divide-gray-200">
-                {bloco.itens.map((it, i) => (
-                  <div key={`${bloco.key}-${i}`} className="min-w-0">
-                    {renderItem(it, i)}
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))
+          <div className="space-y-4">
+            {itensAgrupados.map((it, i) => {
+              const rowKey =
+                it.kind === 'curtiu_post_fotos'
+                  ? `cf-${it.autor_id}-${it.usuario_dono_id}-${it.created_at}`
+                  : it.kind === 'curtiu_post_solo'
+                    ? it.row.id
+                    : `row-${it.row.id}`
+              return (
+                <div key={rowKey} className="min-w-0">
+                  {renderItem(it, i)}
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
     </div>

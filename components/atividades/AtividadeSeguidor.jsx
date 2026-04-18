@@ -29,7 +29,7 @@ export default function AtividadeSeguidor({
     seguidoTipo === 'empresa' && empresaId ? `/empresa/${empresaId}` : `/perfil/${seguidoUsuarioId}`
 
   return (
-    <div className="grid min-w-0 grid-cols-[2rem_1fr] items-start gap-x-2 rounded-lg border border-gray-100 bg-white px-2 py-2 text-xs text-gray-800 shadow-sm sm:px-3 sm:text-sm">
+    <div className="grid min-w-0 grid-cols-[2rem_1fr] items-start gap-x-2 text-sm text-gray-800">
       <button
         type="button"
         className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100"

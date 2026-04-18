@@ -40,7 +40,7 @@ export default function AtividadeCurtiuAvaliacao({
 
   return (
     <>
-      <div className="rounded-lg border border-gray-100 bg-white px-2 py-2 shadow-sm sm:px-3">
+      <div className="min-w-0">
         <div className="grid min-w-0 grid-cols-[2rem_1fr] items-start gap-x-2">
           <button
             type="button"
@@ -50,7 +50,7 @@ export default function AtividadeCurtiuAvaliacao({
             <AvatarImage src={interactorFoto} alt="" fill className="object-cover" sizes="32px" />
           </button>
           <div className="min-w-0">
-            <p className="text-xs leading-snug text-gray-800 sm:text-sm">
+            <p className="text-sm leading-snug text-gray-800">
               <Link href={hrefInteractor} className="font-medium text-[#0097b2] hover:underline">
                 @{interactorUsername}
               </Link>{' '}
@@ -62,18 +62,18 @@ export default function AtividadeCurtiuAvaliacao({
             <button
               type="button"
               onClick={() => setModal(true)}
-              className="mt-1.5 block min-h-0 w-full rounded-md bg-gray-50 px-2 py-2 text-left"
+              className="mt-1.5 block min-h-0 w-full text-left"
             >
-              <p className="text-xs text-amber-600 sm:text-sm">{estrelas}</p>
+              <p className="text-sm text-amber-600">{estrelas}</p>
               {feedback ? (
-                <p className="mt-1 line-clamp-3 text-xs text-gray-700 sm:text-sm">{String(feedback).trimEnd()}</p>
+                <p className="mt-1 line-clamp-3 text-base text-gray-800">{String(feedback).trimEnd()}</p>
               ) : null}
             </button>
           </div>
         </div>
       </div>
       <ModalConteudo aberto={modal} onFechar={() => setModal(false)} titulo="Avaliação" verNoFeedHref={verHref}>
-        {meta && typeof meta === 'object' ? <AvaliacaoCard meta={meta} /> : <p className="text-sm text-gray-600">Sem detalhes.</p>}
+        {meta && typeof meta === 'object' ? <AvaliacaoCard meta={meta} /> : <p className="text-base text-gray-600">Sem detalhes.</p>}
       </ModalConteudo>
     </>
   )

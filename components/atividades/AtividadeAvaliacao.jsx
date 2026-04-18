@@ -28,7 +28,7 @@ export default function AtividadeAvaliacao({
   const estrelas = '⭐'.repeat(Math.min(5, Math.max(1, Math.round(Number(nota)) || 1)))
 
   return (
-    <div className="block rounded-lg border border-gray-100 bg-white px-2 py-2 shadow-sm sm:px-3">
+    <div className="block min-w-0">
       <div className="grid min-w-0 grid-cols-[2rem_1fr] items-start gap-x-2">
         <button
           type="button"
@@ -38,7 +38,7 @@ export default function AtividadeAvaliacao({
           <AvatarImage src={interactorFoto} alt="" fill className="object-cover" sizes="32px" />
         </button>
         <div className="min-w-0">
-          <p className="text-xs leading-snug text-gray-800 sm:text-sm">
+          <p className="text-sm leading-snug text-gray-800">
             <button
               type="button"
               className="font-medium text-[#0097b2] hover:underline"
@@ -53,7 +53,7 @@ export default function AtividadeAvaliacao({
             com {estrelas}
           </p>
           {feedback ? (
-            <p className="mt-1.5 line-clamp-3 text-xs text-gray-600 sm:text-sm">{String(feedback).trimEnd()}</p>
+            <p className="mt-1.5 line-clamp-3 text-base text-gray-700">{String(feedback).trimEnd()}</p>
           ) : null}
         </div>
       </div>
