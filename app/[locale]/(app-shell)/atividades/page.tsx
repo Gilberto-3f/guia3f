@@ -880,11 +880,18 @@ export default function AtividadesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <header className="sticky top-0 z-30 border-b border-white/20 bg-[#0097b2] px-3 py-2 shadow-sm sm:px-4 sm:py-3">
+      <header className="sticky top-0 z-30 overflow-x-hidden border-b border-white/20 bg-[#0097b2] px-3 py-2 shadow-sm sm:px-4 sm:py-3">
         <div className="relative" ref={dropdownRef}>
-          <div className="flex w-full items-center gap-2 sm:gap-3">
-            <h1 className="shrink-0 text-lg font-bold tracking-tight text-white sm:text-xl">ATIVIDADES</h1>
-            <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          <div className="relative flex min-h-10 w-full items-center sm:min-h-11">
+            <div
+              className={`pointer-events-none absolute inset-0 flex items-center justify-center transition-[opacity,transform] duration-300 ease-out ${
+                pesquisaAberta ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'
+              }`}
+              aria-hidden={pesquisaAberta}
+            >
+              <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">ATIVIDADES</h1>
+            </div>
+            <div className="relative z-10 flex min-w-0 flex-1 items-center justify-end gap-2">
             <div
               className={`flex min-w-0 justify-end overflow-hidden transition-[max-width,opacity] duration-300 ease-out ${
                 pesquisaAberta ? 'max-w-full flex-1 opacity-100' : 'max-w-0 flex-none opacity-0'
@@ -918,7 +925,6 @@ export default function AtividadesPage() {
                     }
                   }}
                   aria-label="Pesquisar usuários"
-                  aria-expanded={pesquisaAberta}
                   autoComplete="off"
                   autoCorrect="off"
                   spellCheck={false}
@@ -928,10 +934,15 @@ export default function AtividadesPage() {
             </div>
             <button
               type="button"
-              className="relative z-0 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/95 text-[#0097b2] shadow-sm ring-1 ring-white/40 transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-              aria-label={pesquisaAberta ? 'Focar pesquisa' : 'Abrir pesquisa de usuários'}
+              className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/95 text-[#0097b2] shadow-sm ring-1 ring-white/40 transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+              aria-label={pesquisaAberta ? 'Fechar pesquisa' : 'Abrir pesquisa de usuários'}
+              aria-expanded={pesquisaAberta}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
+                if (pesquisaAberta) {
+                  fecharPesquisa()
+                  return
+                }
                 setPesquisaAberta(true)
                 const focar = () => inputRef.current?.focus()
                 window.requestAnimationFrame(() => {
