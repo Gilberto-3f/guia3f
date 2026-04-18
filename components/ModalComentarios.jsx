@@ -9,6 +9,41 @@ import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import AvatarImage from '@/components/AvatarImage'
 
 /**
+ * Monta árvore de comentários (vários níveis: resposta à resposta).
+ * @param {Array<{ id: string, resposta_para_id: string | null, created_at: string, [key: string]: unknown }>} flat
+ */
+function buildCommentTree(flat) {
+  const byId = new Map()
+  for (const row of flat) {
+    byId.set(row.id, { ...row, replies: [] })
+  }
+  const roots = []
+  for (const row of flat) {
+    const node = byId.get(row.id)
+    if (!node) continue
+    const pid = row.resposta_para_id != null && row.resposta_para_id !== '' ? String(row.resposta_para_id) : null
+    if (!pid) {
+      roots.push(node)
+    } else {
+      const parent = byId.get(pid)
+      if (parent) {
+        parent.replies.push(node)
+      } else {
+        roots.push(node)
+      }
+    }
+  }
+  const sortByDate = (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  roots.sort(sortByDate)
+  function sortReplies(n) {
+    n.replies.sort(sortByDate)
+    for (const ch of n.replies) sortReplies(ch)
+  }
+  roots.forEach(sortReplies)
+  return roots
+}
+
+/**
  * @param {{
  *   postId: string
  *   aberto: boolean
@@ -19,7 +54,7 @@ import AvatarImage from '@/components/AvatarImage'
  * }} props
  */
 export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, onComentou, destacarComentarioId = null }) {
-  const [lista, setLista] = useState([])
+  const [arvore, setArvore] = useState([])
   const [novoComentario, setNovoComentario] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [minhaFotoUrl, setMinhaFotoUrl] = useState(/** @type {string | null} */ (null))
@@ -30,14 +65,14 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase
       .from('comentarios')
-      .select('id, texto, created_at, total_curtidas, autor_id')
+      .select('id, texto, created_at, total_curtidas, autor_id, resposta_para_id')
       .eq('post_id', postId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
 
     if (error) {
       console.error('ModalComentarios comentarios:', error.message)
-      setLista([])
+      setArvore([])
       return
     }
 
@@ -46,38 +81,64 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
     const perfis = await buscarPerfisPorIds(supabase, autorIds)
     const perfilPorUsuario = new Map(perfis.map((p) => [String(p.usuario_id), p]))
 
-    setLista(
-      rows.map((r) => {
-        const rr = /** @type {Record<string, unknown>} */ (r)
-        const aid = rr.autor_id != null ? String(rr.autor_id) : ''
-        const p = aid ? perfilPorUsuario.get(aid) : undefined
-        const fallback = { nome: 'Usuário', username: 'usuario', foto_perfil_url: null, usuario_id: aid }
-        const autor = p
-          ? {
-              nome: String(p.nome ?? 'Usuário'),
-              username: String(p.username ?? 'usuario'),
-              foto_perfil_url: p.foto_url != null ? String(p.foto_url) : null,
-              usuario_id: aid,
-            }
-          : fallback
-        return {
-          id: String(rr.id),
-          texto: String(rr.texto ?? ''),
-          created_at: String(rr.created_at ?? ''),
-          total_curtidas: Number(rr.total_curtidas) || 0,
-          autor,
-        }
-      })
-    )
+    const flat = rows.map((r) => {
+      const rr = /** @type {Record<string, unknown>} */ (r)
+      const aid = rr.autor_id != null ? String(rr.autor_id) : ''
+      const p = aid ? perfilPorUsuario.get(aid) : undefined
+      const fallback = { nome: 'Usuário', username: 'usuario', foto_perfil_url: null, usuario_id: aid }
+      const autor = p
+        ? {
+            nome: String(p.nome ?? 'Usuário'),
+            username: String(p.username ?? 'usuario'),
+            foto_perfil_url: p.foto_url != null ? String(p.foto_url) : null,
+            usuario_id: aid,
+          }
+        : fallback
+      return {
+        id: String(rr.id),
+        texto: String(rr.texto ?? ''),
+        created_at: String(rr.created_at ?? ''),
+        total_curtidas: Number(rr.total_curtidas) || 0,
+        resposta_para_id: rr.resposta_para_id != null && rr.resposta_para_id !== '' ? String(rr.resposta_para_id) : null,
+        autor,
+      }
+    })
+
+    setArvore(buildCommentTree(flat))
   }, [postId])
 
-  /** Lista em ordem cronológica crescente: último comentário fica no fim. */
+  /** Lista em ordem cronológica crescente: último comentário no fim. */
   const scrollListaAoFim = useCallback(() => {
     requestAnimationFrame(() => {
       const el = listaScrollRef.current
       if (el) el.scrollTop = el.scrollHeight
     })
   }, [])
+
+  const handleEnviarResposta = useCallback(
+    async (parentId, texto) => {
+      if (!usuarioId || !postId) return
+      setEnviando(true)
+      try {
+        const { error } = await supabase.from('comentarios').insert({
+          post_id: postId,
+          autor_id: usuarioId,
+          texto,
+          resposta_para_id: parentId,
+        })
+        if (error) {
+          console.error('ModalComentarios resposta:', error.message)
+          return
+        }
+        await carregar()
+        scrollListaAoFim()
+        onComentou?.()
+      } finally {
+        setEnviando(false)
+      }
+    },
+    [postId, usuarioId, carregar, scrollListaAoFim, onComentou]
+  )
 
   useEffect(() => {
     if (!aberto || !postId) return
@@ -129,12 +190,7 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
       document.getElementById(`comentario-${destacarComentarioId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 300)
     return () => clearTimeout(t)
-  }, [aberto, destacarComentarioId, lista])
-
-  const handleResponder = useCallback((textoMencao) => {
-    setNovoComentario(textoMencao)
-    requestAnimationFrame(() => textareaRef.current?.focus())
-  }, [])
+  }, [aberto, destacarComentarioId, arvore])
 
   const handleEnviarComentario = async () => {
     const texto = novoComentario.trim()
@@ -146,7 +202,10 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
         autor_id: usuarioId,
         texto,
       })
-      if (error) return
+      if (error) {
+        console.error('ModalComentarios insert:', error.message)
+        return
+      }
       setNovoComentario('')
       await carregar()
       scrollListaAoFim()
@@ -180,14 +239,16 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
           ref={listaScrollRef}
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black"
         >
-          {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-900">Nenhum comentário</p> : null}
-          {lista.map((c) => (
+          {arvore.length === 0 ? <p className="py-8 text-center text-sm text-gray-900">Nenhum comentário</p> : null}
+          {arvore.map((c) => (
             <Comentario
               key={c.id}
-              comentario={c}
+              node={c}
               usuarioId={usuarioId}
-              destacado={Boolean(destacarComentarioId && c.id === destacarComentarioId)}
-              onResponder={handleResponder}
+              destacarComentarioId={destacarComentarioId}
+              onEnviarResposta={handleEnviarResposta}
+              nivel={0}
+              enviando={enviando}
             />
           ))}
         </div>
@@ -209,7 +270,7 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
               className="max-h-28 min-h-[40px] flex-1 resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm text-black placeholder:text-gray-400"
               placeholder="Escreva um comentário…"
               value={novoComentario}
-              disabled={!usuarioId}
+              disabled={!usuarioId || enviando}
               onChange={(e) => setNovoComentario(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
