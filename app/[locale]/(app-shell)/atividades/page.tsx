@@ -888,15 +888,12 @@ export default function AtividadesPage() {
                 pesquisaAberta ? 'max-w-[calc(100%-2.5rem)] flex-1 opacity-100' : 'max-w-0 flex-none opacity-0'
               }`}
             >
-              <div
-                className={`ml-auto flex w-full min-w-0 max-w-full items-center gap-2 rounded-xl border border-white/60 bg-white px-3 py-1.5 shadow-sm sm:py-2 ${
-                  pesquisaAberta ? '' : 'pointer-events-none'
-                }`}
-              >
+              <div className="ml-auto flex w-full min-w-0 max-w-full items-center gap-2 rounded-xl border border-white/60 bg-white px-3 py-1.5 shadow-sm sm:py-2">
                 <Search className="pointer-events-none h-5 w-5 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
                 <input
                   ref={inputRef}
                   type="search"
+                  tabIndex={pesquisaAberta ? 0 : -1}
                   placeholder="Pesquisar usuário por @ ou nome..."
                   className="min-w-0 flex-1 border-0 bg-transparent py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
                   enterKeyHint="search"
@@ -905,9 +902,11 @@ export default function AtividadesPage() {
                   onBlur={(e) => {
                     const valor = e.currentTarget.value.trim()
                     window.requestAnimationFrame(() => {
-                      const a = document.activeElement
-                      if (dropdownRef.current?.contains(a)) return
-                      if (!valor) setPesquisaAberta(false)
+                      window.requestAnimationFrame(() => {
+                        const a = document.activeElement
+                        if (dropdownRef.current?.contains(a)) return
+                        if (!valor) setPesquisaAberta(false)
+                      })
                     })
                   }}
                   onKeyDown={(e) => {
@@ -929,10 +928,12 @@ export default function AtividadesPage() {
               type="button"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#0097b2] shadow-sm transition hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
               aria-label={pesquisaAberta ? 'Focar pesquisa' : 'Abrir pesquisa de usuários'}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setPesquisaAberta(true)
+                const focar = () => inputRef.current?.focus()
                 window.requestAnimationFrame(() => {
-                  inputRef.current?.focus()
+                  window.requestAnimationFrame(focar)
                 })
               }}
             >
