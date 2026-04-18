@@ -184,6 +184,21 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
     }
   }, [aberto])
 
+  /** Impede scroll do feed atrás do overlay (mobile e desktop). */
+  useEffect(() => {
+    if (!aberto || typeof document === 'undefined') return
+    const html = document.documentElement
+    const body = document.body
+    const prevHtmlOverflow = html.style.overflow
+    const prevBodyOverflow = body.style.overflow
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    return () => {
+      html.style.overflow = prevHtmlOverflow
+      body.style.overflow = prevBodyOverflow
+    }
+  }, [aberto])
+
   useEffect(() => {
     if (!aberto || !destacarComentarioId) return
     const t = window.setTimeout(() => {
@@ -219,7 +234,7 @@ export default function ModalComentarios({ postId, aberto, onFechar, usuarioId, 
   if (!aberto) return null
 
   return (
-    <div className="fixed inset-0 z-[230] flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[230] flex items-end justify-center overscroll-none bg-black/50 sm:items-center sm:p-4">
       <div
         className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
         style={{ height: 'min(70vh, 85vh)' }}
