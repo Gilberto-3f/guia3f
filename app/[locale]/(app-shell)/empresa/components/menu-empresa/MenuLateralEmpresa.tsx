@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { clearSessionCookiesOnServer } from '@/lib/authCookieSync'
 import { supabase } from '@/lib/supabase'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 
@@ -26,6 +27,11 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
+    try {
+      await clearSessionCookiesOnServer()
+    } catch {
+      /* ignore */
+    }
     window.location.href = '/'
   }
 

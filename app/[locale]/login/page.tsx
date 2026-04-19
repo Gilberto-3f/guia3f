@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
+import { syncSessionCookiesToServer } from "@/lib/authCookieSync";
 import { supabase } from "@/lib/supabase";
 import { getSafeCadastroNext } from "@/lib/cadastroNextRedirect";
 import { getPostAuthRedirectPath } from "@/lib/postAuthRedirect";
@@ -33,7 +34,8 @@ export default function LoginPage() {
         data: { session },
       } = await supabase.auth.getSession();
       if (!ativo) return;
-      if (session?.user?.id) {
+      if (session?.user?.id && session.access_token && session.refresh_token) {
+        await syncSessionCookiesToServer(session);
         const nextCadastro = getSafeCadastroNext(searchParams.get("next"));
         if (nextCadastro) {
           router.replace(nextCadastro);
@@ -77,7 +79,12 @@ export default function LoginPage() {
         data: { session },
       } = await supabase.auth.getSession();
       const uid = session?.user?.id;
-      if (uid) {
+      if (uid && session?.access_token && session.refresh_token) {
+        const synced = await syncSessionCookiesToServer(session);
+        if (!synced) {
+          setErroSenha(t("genericError"));
+          return;
+        }
         const nextCadastro = getSafeCadastroNext(searchParams.get("next"));
         if (nextCadastro) {
           router.replace(nextCadastro);

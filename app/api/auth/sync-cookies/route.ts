@@ -57,3 +57,32 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true })
 }
+
+/** Limpa cookies de auth no servidor (logout); alinha com signOut no cliente. */
+export async function DELETE() {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        encode: 'tokens-only',
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options)
+            })
+          } catch {
+            /* ignore */
+          }
+        },
+      },
+    }
+  )
+
+  await supabase.auth.signOut()
+  return NextResponse.json({ ok: true })
+}

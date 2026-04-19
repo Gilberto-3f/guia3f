@@ -1,21 +1,13 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { clearSessionCookiesOnServer, syncSessionCookiesToServer } from '@/lib/authCookieSync'
 import { supabase } from '@/lib/supabase'
 
 async function syncCookies(session: { access_token: string; refresh_token: string }) {
-  const res = await fetch('/api/auth/sync-cookies', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token,
-    }),
-  })
-  if (!res.ok) {
-    const j = (await res.json().catch(() => null)) as { error?: string } | null
-    console.warn('[SupabaseCookieSync]', res.status, j?.error ?? res.statusText)
+  const ok = await syncSessionCookiesToServer(session)
+  if (!ok) {
+    console.warn('[SupabaseCookieSync] falha ao sincronizar cookies')
   }
 }
 
@@ -43,7 +35,10 @@ export default function SupabaseCookieSync() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') return
+      if (event === 'SIGNED_OUT') {
+        void clearSessionCookiesOnServer()
+        return
+      }
       if (!session) return
       schedule(session)
     })

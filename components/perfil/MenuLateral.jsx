@@ -32,6 +32,7 @@ import {
   X,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { clearSessionCookiesOnServer } from '@/lib/authCookieSync'
 import { supabase } from '@/lib/supabase'
 import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
 
@@ -361,6 +362,11 @@ export default function MenuLateral({
   const confirmarLogout = async () => {
     try {
       await supabase.auth.signOut()
+      try {
+        await clearSessionCookiesOnServer()
+      } catch {
+        /* ignore */
+      }
       try {
         localStorage.clear()
         sessionStorage.clear()
