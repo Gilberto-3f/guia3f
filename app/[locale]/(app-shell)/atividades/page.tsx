@@ -94,6 +94,7 @@ export default function AtividadesPage() {
     }>
   >([])
   const [buscando, setBuscando] = useState(false)
+  const [erroBusca, setErroBusca] = useState<string | null>(null)
   const [pesquisaAberta, setPesquisaAberta] = useState(false)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -141,24 +142,39 @@ export default function AtividadesPage() {
     if (!termoLimpo || termoLimpo.length < 2) {
       setResultadosBusca([])
       setBuscando(false)
+      setErroBusca(null)
       return
     }
 
     setBuscando(true)
+    setErroBusca(null)
+    const cols = 'usuario_id, empresa_id, username, nome, foto_url, tipo'
+    const pattern = `%${termoLimpo}%`
     try {
-      const { data, error } = await supabase
-        .from('perfis_para_busca')
-        .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
-        .or(`username.ilike.%${termoLimpo}%,nome.ilike.%${termoLimpo}%`)
-        .limit(15)
+      /** Duas queries `.ilike` evitam falhas de parsing/encoding do `.or()` na URL do PostgREST. */
+      const [porUsername, porNome] = await Promise.all([
+        supabase.from('perfis_para_busca').select(cols).ilike('username', pattern).limit(15),
+        supabase.from('perfis_para_busca').select(cols).ilike('nome', pattern).limit(15),
+      ])
 
       if (requestId !== latestRequestId.current) return
-      if (error) throw error
-      setResultadosBusca((data ?? []) as typeof resultadosBusca)
+
+      const err = porUsername.error || porNome.error
+      if (err) throw err
+
+      const map = new Map<string, (typeof resultadosBusca)[number]>()
+      for (const row of [...(porUsername.data ?? []), ...(porNome.data ?? [])]) {
+        const r = row as (typeof resultadosBusca)[number]
+        const id = String(r.usuario_id ?? '')
+        if (id && !map.has(id)) map.set(id, r)
+      }
+      const merged = [...map.values()].slice(0, 15)
+      setResultadosBusca(merged)
     } catch (error) {
       if (requestId !== latestRequestId.current) return
       console.error('Erro na busca:', error)
       setResultadosBusca([])
+      setErroBusca('Não foi possível carregar os resultados. Tente de novo.')
     } finally {
       if (requestId === latestRequestId.current) setBuscando(false)
     }
@@ -171,8 +187,10 @@ export default function AtividadesPage() {
       latestRequestId.current += 1
       setBuscando(false)
       setResultadosBusca([])
+      setErroBusca(null)
       return
     }
+    setBuscando(true)
     const id = window.setTimeout(() => {
       void buscarUsuarios(t)
     }, 300)
@@ -188,6 +206,7 @@ export default function AtividadesPage() {
     setTermoBusca('')
     setResultadosBusca([])
     setBuscando(false)
+    setErroBusca(null)
     latestRequestId.current += 1
     inputRef.current?.blur()
   }, [])
@@ -200,6 +219,7 @@ export default function AtividadesPage() {
       const target = event.target as Node | null
       if (target && !node.contains(target)) {
         setResultadosBusca([])
+        setErroBusca(null)
         if (!termoBuscaRef.current.trim()) {
           setPesquisaAberta(false)
         }
@@ -219,6 +239,7 @@ export default function AtividadesPage() {
       router.push(destino)
       setTermoBusca('')
       setResultadosBusca([])
+      setErroBusca(null)
       setPesquisaAberta(false)
     },
     [router]
@@ -1048,7 +1069,7 @@ export default function AtividadesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <header className="sticky top-0 z-30 overflow-x-hidden border-b border-white/20 bg-[#0097b2] px-3 py-2 shadow-sm sm:px-4 sm:py-3">
+      <header className="sticky top-0 z-30 overflow-visible border-b border-white/20 bg-[#0097b2] px-3 py-2 shadow-sm sm:px-4 sm:py-3">
         <div className="relative" ref={dropdownRef}>
           <div className="relative flex min-h-10 w-full items-center sm:min-h-11">
             <div
@@ -1124,7 +1145,7 @@ export default function AtividadesPage() {
           </div>
 
           {pesquisaAberta && resultadosBusca.length > 0 ? (
-            <div className="absolute left-0 right-0 top-full z-40 mt-2 max-h-80 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+            <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
               {resultadosBusca.map((u) => {
                 const nome = u.nome ?? 'Usuário'
                 const username = (u.username ?? '').trim() || 'usuario'
@@ -1154,6 +1175,27 @@ export default function AtividadesPage() {
                   </button>
                 )
               })}
+            </div>
+          ) : null}
+          {pesquisaAberta &&
+          termoBusca.trim().replace(/^@+/, '').length >= 2 &&
+          !buscando &&
+          resultadosBusca.length === 0 &&
+          erroBusca ? (
+            <div
+              className="absolute left-0 right-0 top-full z-50 mt-2 rounded-lg border border-red-200 bg-white p-4 text-center text-sm text-red-600 shadow-lg"
+              role="alert"
+            >
+              {erroBusca}
+            </div>
+          ) : null}
+          {pesquisaAberta &&
+          termoBusca.trim().replace(/^@+/, '').length >= 2 &&
+          !buscando &&
+          resultadosBusca.length === 0 &&
+          !erroBusca ? (
+            <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-lg border border-gray-200 bg-white p-4 text-center text-sm text-gray-500 shadow-lg">
+              Nenhum usuário encontrado para &ldquo;{termoBusca.trim()}&rdquo;.
             </div>
           ) : null}
         </div>
