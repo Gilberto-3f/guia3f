@@ -265,6 +265,15 @@ export default function ModalComentarios({
     return () => clearTimeout(t)
   }, [ativo, destacarComentarioId, arvore])
 
+  /** Altura do compositor: várias linhas até max-h-24; recalcula ao limpar o texto. */
+  useEffect(() => {
+    if (!ativo) return
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 36), 96)}px`
+  }, [novoComentario, ativo])
+
   const handleEnviarComentario = async () => {
     const texto = novoComentario.trim()
     if (!texto || !usuarioId) return
@@ -324,7 +333,7 @@ export default function ModalComentarios({
       className={`shrink-0 border-t border-gray-200 bg-white p-3 ${inline ? 'sticky bottom-0 z-[2] shadow-[0_-4px_12px_rgba(0,0,0,0.06)]' : ''}`}
       style={{ paddingBottom: Math.max(12, tecladoInset) }}
     >
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-end gap-2">
         <div className="relative h-9 w-9 shrink-0 self-center overflow-hidden rounded-md bg-gray-100">
           {minhaFotoUrl ? (
             <AvatarImage src={minhaFotoUrl} alt="" width={36} height={36} className="h-full w-full object-cover" />
@@ -335,25 +344,17 @@ export default function ModalComentarios({
         <textarea
           ref={textareaRef}
           rows={1}
-          enterKeyHint="send"
-          className="max-h-24 min-h-9 min-w-0 flex-1 resize-none rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
+          className="max-h-24 min-h-9 min-w-0 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
           placeholder="Comentar"
           value={novoComentario}
           disabled={!usuarioId || enviando}
           onChange={(e) => setNovoComentario(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing) return
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              void handleEnviarComentario()
-            }
-          }}
         />
         <button
           type="button"
           disabled={!novoComentario.trim() || enviando || !usuarioId}
           onClick={() => void handleEnviarComentario()}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-lg bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-lg bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
           aria-label="Enviar comentário"
         >
           {enviando ? (

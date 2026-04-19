@@ -182,19 +182,11 @@ export default function Comentario({
             <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
               <textarea
                 rows={2}
-                enterKeyHint="send"
                 className="min-h-[40px] min-w-0 w-full flex-1 resize-y rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-400"
                 placeholder={`Responder para @${uname}…`}
                 value={textoResposta}
                 disabled={enviando}
                 onChange={(e) => setTextoResposta(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.nativeEvent.isComposing) return
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    void enviarRespostaInline()
-                  }
-                }}
               />
               <button
                 type="button"
