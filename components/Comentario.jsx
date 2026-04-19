@@ -118,7 +118,7 @@ export default function Comentario({
       id={`comentario-${node.id}`}
       className={ehRaiz ? 'border-b border-gray-100 py-3 last:border-b-0' : 'mt-2'}
     >
-      <div className={`flex gap-2 ${!ehRaiz ? 'ml-8' : ''}`}>
+      <div className={`flex min-w-0 gap-2 ${!ehRaiz ? 'ml-8' : ''}`}>
         {perfilHref ? (
           <Link href={perfilHref} className="relative block h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
             {avatarInner}
@@ -137,7 +137,11 @@ export default function Comentario({
             )}
             <span className="text-xs text-gray-400">· {tempo}</span>
           </div>
-          <p className={`mt-0.5 whitespace-pre-wrap text-sm text-gray-800 ${destacado ? 'font-bold' : ''}`}>{node.texto}</p>
+          <p
+            className={`mt-0.5 max-w-full whitespace-pre-wrap break-words text-sm text-gray-800 [overflow-wrap:anywhere] ${destacado ? 'font-bold' : ''}`}
+          >
+            {node.texto}
+          </p>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
             {onEnviarResposta && usuarioId ? (
@@ -175,15 +179,17 @@ export default function Comentario({
           </div>
 
           {modoResposta && onEnviarResposta && usuarioId ? (
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
               <textarea
                 rows={2}
-                className="min-h-[40px] w-full flex-1 resize-y rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-400"
+                enterKeyHint="send"
+                className="min-h-[40px] min-w-0 w-full flex-1 resize-y rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-400"
                 placeholder={`Responder para @${uname}…`}
                 value={textoResposta}
                 disabled={enviando}
                 onChange={(e) => setTextoResposta(e.target.value)}
                 onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
                     void enviarRespostaInline()

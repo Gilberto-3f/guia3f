@@ -297,8 +297,8 @@ export default function ModalComentarios({
       : 'Comentários'
 
   const listaClasses = inline
-    ? 'px-4 pb-2 text-black'
-    : 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black'
+    ? 'min-w-0 max-w-full overflow-x-hidden px-4 pb-2 text-black'
+    : 'min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 text-black'
 
   const lista = (
     <div ref={listaScrollRef} className={listaClasses}>
@@ -324,7 +324,7 @@ export default function ModalComentarios({
       className={`shrink-0 border-t border-gray-200 bg-white p-3 ${inline ? 'sticky bottom-0 z-[2] shadow-[0_-4px_12px_rgba(0,0,0,0.06)]' : ''}`}
       style={{ paddingBottom: Math.max(12, tecladoInset) }}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <div className="relative h-9 w-9 shrink-0 self-center overflow-hidden rounded-md bg-gray-100">
           {minhaFotoUrl ? (
             <AvatarImage src={minhaFotoUrl} alt="" width={36} height={36} className="h-full w-full object-cover" />
@@ -336,12 +336,13 @@ export default function ModalComentarios({
           ref={textareaRef}
           rows={1}
           enterKeyHint="send"
-          className="max-h-24 min-h-9 flex-1 resize-none rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
+          className="max-h-24 min-h-9 min-w-0 flex-1 resize-none rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
           placeholder="Comentar"
           value={novoComentario}
           disabled={!usuarioId || enviando}
           onChange={(e) => setNovoComentario(e.target.value)}
           onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
               void handleEnviarComentario()
@@ -372,7 +373,7 @@ export default function ModalComentarios({
     return (
       <section
         id={`comentarios-inline-${postId}`}
-        className="mt-0 border-t border-gray-100 bg-white text-black"
+        className="mt-0 min-w-0 max-w-full overflow-x-hidden border-t border-gray-100 bg-white text-black"
         aria-label="Comentários na publicação"
       >
         <div className="border-b border-gray-100 px-4 py-2.5">
@@ -387,7 +388,7 @@ export default function ModalComentarios({
   return (
     <div className="fixed inset-0 z-[230] flex items-end justify-center overscroll-none bg-black/50 sm:items-center sm:p-4">
       <div
-        className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
+        className="flex w-full min-w-0 max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
         style={{ height: 'min(70vh, 85vh)' }}
         role="dialog"
         aria-modal="true"
