@@ -8,8 +8,6 @@ import { STORY_RING_GRADIENT, visualizadoPorEmails } from '@/lib/feed-autor'
  *   id: string
  *   label: string
  *   avatarUrl: string | null
- *   thumbUrl?: string | null
- *   isVideo?: boolean
  *   visualizado_por: unknown
  *   userEmail: string | null
  *   onOpen: (id: string) => void
@@ -20,8 +18,6 @@ export default function StoryCircle({
   id,
   label,
   avatarUrl,
-  thumbUrl = null,
-  isVideo = false,
   visualizado_por,
   userEmail,
   onOpen,
@@ -33,8 +29,6 @@ export default function StoryCircle({
   const labelClass = labelOnDark
     ? 'max-w-[5rem] truncate text-center text-xs text-white/95'
     : 'max-w-[5rem] truncate text-center text-xs text-gray-600'
-
-  const mostrarNaBolha = thumbUrl && String(thumbUrl).trim() !== '' && !isVideo ? String(thumbUrl) : avatarUrl
 
   return (
     <div className="flex w-[76px] shrink-0 flex-col items-center gap-1">
@@ -51,7 +45,7 @@ export default function StoryCircle({
               aria-label={`Ver story de ${label}`}
             >
               <AvatarImage
-                src={mostrarNaBolha}
+                src={avatarUrl}
                 alt=""
                 fill
                 className="object-cover"

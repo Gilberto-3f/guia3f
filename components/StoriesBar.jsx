@@ -61,15 +61,14 @@ function foiVisualizado(visualizado_por, userEmail) {
  * }} props
  */
 export default function StoriesBar({ hidden = false, userEmail, onOpenStory, reloadSignal = 0 }) {
-  /** @type {{ avatarUrl: string | null, storyId: string | null, storyThumbUrl: string | null, visualizado_por: unknown }} */
+  /** @type {{ avatarUrl: string | null, storyId: string | null, visualizado_por: unknown }} */
   const [meuSlot, setMeuSlot] = useState({
     avatarUrl: null,
     storyId: null,
-    storyThumbUrl: null,
     visualizado_por: null,
   })
 
-  /** @type {{ id: string, label: string, avatarUrl: string | null, thumbUrl: string | null, isVideo: boolean, visualizado_por: unknown }[]} */
+  /** @type {{ id: string, label: string, avatarUrl: string | null, visualizado_por: unknown }[]} */
   const [rings, setRings] = useState([])
   const [meuUserId, setMeuUserId] = useState(/** @type {string | null} */ (null))
 
@@ -80,7 +79,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     if (!session?.user) {
       setRings([])
       setMeuUserId(null)
-      setMeuSlot({ avatarUrl: null, storyId: null, storyThumbUrl: null, visualizado_por: null })
+      setMeuSlot({ avatarUrl: null, storyId: null, visualizado_por: null })
       return
     }
 
@@ -128,7 +127,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     if (storiesErr) {
       console.error(storiesErr)
       setRings([])
-      setMeuSlot({ avatarUrl: meuAvatarUrl, storyId: null, storyThumbUrl: null, visualizado_por: null })
+      setMeuSlot({ avatarUrl: meuAvatarUrl, storyId: null, visualizado_por: null })
       return
     }
 
@@ -167,10 +166,6 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     setMeuSlot({
       avatarUrl: meuAvatarUrl,
       storyId: meuTemStoryRow ? String(meuStoryRow.id) : null,
-      storyThumbUrl:
-        meuTemStoryRow && meuStoryRow.conteudo_url != null && String(meuStoryRow.conteudo_url).trim() !== ''
-          ? String(meuStoryRow.conteudo_url)
-          : null,
       visualizado_por: meuStoryRow?.visualizado_por ?? null,
     })
 
@@ -245,16 +240,11 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       .map((aid) => {
         const s = byAutor.get(aid)
         if (!s) return null
-        const isVideo = isTipoVideoPost(s.tipo)
         const avatarUrl = previews[aid] ?? null
-        const thumbUrl =
-          !isVideo && s.conteudo_url != null && String(s.conteudo_url).trim() !== '' ? String(s.conteudo_url) : null
         return {
           id: String(s.id),
           label: labels[aid] ?? 'Story',
           avatarUrl,
-          thumbUrl,
-          isVideo,
           visualizado_por: s.visualizado_por,
         }
       })
@@ -324,8 +314,8 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
                       aria-label="Ver seu story"
                     >
                       <AvatarImage
-                        key={`${meuSlot.storyThumbUrl || meuSlot.avatarUrl || 'def'}`}
-                        src={meuSlot.storyThumbUrl || meuSlot.avatarUrl}
+                        key={meuSlot.avatarUrl || 'def'}
+                        src={meuSlot.avatarUrl}
                         alt=""
                         fill
                         className="object-cover"
@@ -373,8 +363,6 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
             id={s.id}
             label={s.label}
             avatarUrl={s.avatarUrl}
-            thumbUrl={s.thumbUrl}
-            isVideo={s.isVideo}
             visualizado_por={s.visualizado_por}
             userEmail={userEmail}
             onOpen={onOpenStory}

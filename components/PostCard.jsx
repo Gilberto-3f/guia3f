@@ -300,10 +300,6 @@ export default function PostCard({
 
   const temStoryNoAutor = Boolean(storyAtivo?.id)
   const storyDoAutorVisto = temStoryNoAutor ? emailVisualizouStory(storyAtivo?.visualizado_por, userEmail) : true
-  const storyThumbAvatar =
-    storyAtivo?.conteudo_url != null && String(storyAtivo.conteudo_url).trim() !== ''
-      ? String(storyAtivo.conteudo_url)
-      : null
 
   const resumo = (post.texto || 'Publicação').slice(0, 80)
   const postUrl =
@@ -714,23 +710,25 @@ export default function PostCard({
           <div className="flex items-start gap-3">
             {temStoryNoAutor ? (
               <div
-                className={`relative shrink-0 rounded-full p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
+                className={`relative shrink-0 rounded-md p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
                 style={!storyDoAutorVisto ? { background: STORY_RING_GRADIENT } : undefined}
               >
-                <button
-                  type="button"
-                  onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
-                  className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100"
-                  aria-label={`Ver story de ${post.autor?.nome ?? 'autor'}`}
-                >
-                  <AvatarImage
-                    src={storyThumbAvatar || post.autor?.foto_perfil_url}
-                    alt=""
-                    width={40}
-                    height={40}
-                    className="h-full w-full object-cover"
-                  />
-                </button>
+                <div className="rounded-md bg-white p-[2px]">
+                  <button
+                    type="button"
+                    onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
+                    className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                    aria-label={`Ver story de ${post.autor?.nome ?? 'autor'}`}
+                  >
+                    <AvatarImage
+                      src={post.autor?.foto_perfil_url}
+                      alt=""
+                      width={40}
+                      height={40}
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                </div>
               </div>
             ) : autorId ? (
               <Link
