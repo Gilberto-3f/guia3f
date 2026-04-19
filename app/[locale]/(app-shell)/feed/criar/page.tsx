@@ -13,7 +13,7 @@ import {
 import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
-import { Camera, FolderOpen, Images, X } from 'lucide-react'
+import { Camera, X } from 'lucide-react'
 import Cropper, { type Area, type MediaSize, type Size } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
@@ -126,6 +126,7 @@ function CriarPublicacaoPageInner() {
   const inputArquivoRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
   const fotoPreviewRef = useRef<string | null>(null)
+  const [sheetOrigemFotoAberto, setSheetOrigemFotoAberto] = useState(false)
 
   const limparFoto = useCallback(() => {
     setFotoPreview((prev) => {
@@ -249,6 +250,37 @@ function CriarPublicacaoPageInner() {
   useEffect(() => {
     abaRef.current = aba
   }, [aba])
+
+  /** Action sheet iOS: fechar com Escape e bloquear scroll do body. */
+  useEffect(() => {
+    if (!sheetOrigemFotoAberto) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSheetOrigemFotoAberto(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [sheetOrigemFotoAberto])
+
+  const abrirSheetEscolherOrigem = useCallback(() => {
+    setSheetOrigemFotoAberto(true)
+  }, [])
+
+  const fecharSheetEscolherOrigem = useCallback(() => {
+    setSheetOrigemFotoAberto(false)
+  }, [])
+
+  const escolherOrigemFoto = useCallback(
+    (input: HTMLInputElement | null) => {
+      fecharSheetEscolherOrigem()
+      dispararSeletorFicheiro(input)
+    },
+    [dispararSeletorFicheiro, fecharSheetEscolherOrigem]
+  )
 
   const atualizarLayoutTexto = useCallback(() => {
     if (abaRef.current !== 'texto') return
@@ -517,9 +549,14 @@ function CriarPublicacaoPageInner() {
         : { top: '3.5rem', height: 'calc(100dvh - 3.5rem)' }
       : undefined
 
+  const fundoPagina =
+    aba === 'foto' && !fotoPreview
+      ? 'bg-gradient-to-b from-[#e8f2ff] via-[#fff8ee] to-[#e5f5ed]'
+      : 'bg-gray-50'
+
   return (
     <div
-      className={`flex min-h-[100dvh] flex-col bg-gray-50 ${aba === 'texto' ? 'pb-0' : ''}`}
+      className={`flex min-h-[100dvh] flex-col ${fundoPagina} ${aba === 'texto' ? 'pb-0' : ''}`}
       style={
         aba === 'foto'
           ? { paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }
@@ -583,43 +620,171 @@ function CriarPublicacaoPageInner() {
       </div>
 
       {aba === 'foto' ? (
-        <div className="flex flex-1 flex-col px-0.5 pt-1 sm:px-1">
+        <div className="relative flex flex-1 flex-col px-3 pt-2 pb-2 sm:px-4">
           {!fotoPreview ? (
-            <div className="flex min-h-[min(70dvh,520px)] flex-1 items-center justify-center px-5 py-8">
-              <div
-                role="menu"
-                aria-label="Origem da imagem"
-                className="w-full max-w-[300px] overflow-hidden rounded-2xl bg-neutral-800/95 shadow-2xl ring-1 ring-white/15 backdrop-blur-md"
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full items-center gap-3 border-b border-white/12 px-4 py-4 text-left text-[15px] font-semibold text-white active:bg-white/10"
-                  onClick={() => dispararSeletorFicheiro(inputFototecaRef.current)}
-                >
-                  <Images className="h-6 w-6 shrink-0 text-white/95" strokeWidth={1.75} aria-hidden />
-                  Fototeca
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full items-center gap-3 border-b border-white/12 px-4 py-4 text-left text-[15px] font-semibold text-white active:bg-white/10"
-                  onClick={() => dispararSeletorFicheiro(inputCameraRef.current)}
-                >
-                  <Camera className="h-6 w-6 shrink-0 text-white/95" strokeWidth={1.75} aria-hidden />
-                  Tirar foto
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full items-center gap-3 px-4 py-4 text-left text-[15px] font-semibold text-white active:bg-white/10"
-                  onClick={() => dispararSeletorFicheiro(inputArquivoRef.current)}
-                >
-                  <FolderOpen className="h-6 w-6 shrink-0 text-white/95" strokeWidth={1.75} aria-hidden />
-                  Escolher arquivo
-                </button>
+            <>
+              <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+                <div className="absolute -left-20 top-10 h-56 w-56 rounded-full bg-[#75AADB]/25 blur-3xl" />
+                <div className="absolute -right-16 top-32 h-48 w-48 rounded-full bg-[#FDB913]/30 blur-3xl" />
+                <div className="absolute bottom-24 left-1/3 h-40 w-40 rounded-full bg-[#00875A]/20 blur-3xl" />
               </div>
-            </div>
+
+              <div className="relative z-0 flex flex-1 flex-col">
+                <div className="mb-5 text-center">
+                  <div className="mb-3 flex justify-center">
+                    <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white/90 shadow-lg ring-2 ring-white/80">
+                      <Camera className="h-8 w-8 text-[#2C5F9A]" strokeWidth={1.75} aria-hidden />
+                    </div>
+                  </div>
+                  <h1 className="mx-auto max-w-[20rem] text-balance text-xl font-bold leading-snug tracking-tight sm:text-2xl">
+                    <span className="bg-gradient-to-r from-[#00875A] via-[#C9A008] to-[#2C5F9A] bg-clip-text text-transparent">
+                      Compartilhe seu momento na Tríplice Fronteira
+                    </span>
+                  </h1>
+                  <p className="mt-2 text-sm font-semibold text-[#5e5b60]">
+                    Mostre o que você está vivendo agora <span aria-hidden>✨</span>
+                  </p>
+                  <div
+                    className="mt-3 inline-flex items-center gap-2 rounded-full border border-black/5 bg-white/90 px-3 py-1.5 text-lg shadow-sm"
+                    aria-label="Brasil, Argentina e Paraguai"
+                  >
+                    <span aria-hidden>🇧🇷</span>
+                    <span aria-hidden>🇦🇷</span>
+                    <span aria-hidden>🇵🇾</span>
+                  </div>
+                </div>
+
+                <div className="mb-6 rounded-[1.35rem] border border-[#FDB913]/35 bg-gradient-to-br from-[#fffdf8] to-[#fff3e0] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+                  <div className="mb-3 flex flex-wrap items-center justify-center gap-2 text-left sm:justify-between">
+                    <p className="text-center text-[15px] font-semibold text-[#2b2b2e] sm:text-left">
+                      Fotos, experiências e descobertas em um só lugar
+                    </p>
+                    <span className="rounded-full bg-[#FDB913]/25 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-[#7a5d00]">
+                      inspire-se
+                    </span>
+                  </div>
+                  <div className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {[
+                      {
+                        key: 'br',
+                        label: 'Brasil',
+                        flag: '🇧🇷',
+                        className:
+                          'bg-gradient-to-br from-[#009c3b] via-[#ffdf00] to-[#002776]',
+                      },
+                      {
+                        key: 'ar',
+                        label: 'Argentina',
+                        flag: '🇦🇷',
+                        className: 'bg-gradient-to-br from-[#75AADB] via-white to-[#75AADB]',
+                      },
+                      {
+                        key: 'py',
+                        label: 'Paraguai',
+                        flag: '🇵🇾',
+                        className: 'bg-gradient-to-br from-[#d52b1e] via-white to-[#0038a8]',
+                      },
+                      {
+                        key: 'marco',
+                        label: 'Marco 3 Fronteiras',
+                        flag: '🌉',
+                        className: 'bg-gradient-to-br from-[#00875A] to-[#2C5F9A]',
+                      },
+                    ].map((item) => (
+                      <div
+                        key={item.key}
+                        className={`relative h-[5.5rem] min-w-[6.25rem] shrink-0 overflow-hidden rounded-2xl shadow-md ring-1 ring-black/10 ${item.className}`}
+                      >
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.35),transparent_55%)]" />
+                        <span className="absolute left-2 top-2 text-xl drop-shadow">{item.flag}</span>
+                        <span className="absolute bottom-2 left-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-center text-[10px] font-bold text-white backdrop-blur-sm">
+                          {item.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-center text-xs font-medium text-[#7b6e5a]">
+                    Compartilhe a magia de Foz, Puerto Iguazú e Ciudad del Este
+                  </p>
+                </div>
+
+                <div className="mt-auto space-y-2">
+                  <button
+                    type="button"
+                    onClick={abrirSheetEscolherOrigem}
+                    className="flex w-full items-center justify-center gap-2 rounded-[60px] bg-gradient-to-r from-[#00875A] to-[#2C5F9A] py-4 text-base font-bold text-white shadow-[0_10px_24px_-6px_rgba(0,135,90,0.45)] transition active:scale-[0.98]"
+                  >
+                    <Camera className="h-5 w-5 shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
+                    POSTAR FOTO
+                  </button>
+                  <p className="text-center text-xs text-[#8e8e93]">
+                    Toque para escolher fototeca, câmera ou arquivo
+                  </p>
+                </div>
+              </div>
+
+              <div
+                role="presentation"
+                className={`fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-[6px] transition-opacity duration-200 ${
+                  sheetOrigemFotoAberto ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+                }`}
+                aria-hidden={!sheetOrigemFotoAberto}
+                onClick={fecharSheetEscolherOrigem}
+              >
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="sheet-origem-foto-titulo"
+                  className={`w-full max-w-lg transform rounded-t-[1.25rem] bg-[#f2f2f7] px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_32px_rgba(0,0,0,0.12)] transition-transform duration-200 ease-out ${
+                    sheetOrigemFotoAberto ? 'translate-y-0' : 'translate-y-full'
+                  }`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <p id="sheet-origem-foto-titulo" className="sr-only">
+                    Escolher origem da foto
+                  </p>
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      className="w-full rounded-[14px] bg-white py-3.5 text-[17px] font-medium text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
+                      onClick={() => escolherOrigemFoto(inputFototecaRef.current)}
+                    >
+                      <span className="mr-2 inline" aria-hidden>
+                        📸
+                      </span>
+                      Fototeca
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full rounded-[14px] bg-white py-3.5 text-[17px] font-medium text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
+                      onClick={() => escolherOrigemFoto(inputCameraRef.current)}
+                    >
+                      <span className="mr-2 inline" aria-hidden>
+                        📷
+                      </span>
+                      Tirar foto
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full rounded-[14px] bg-white py-3.5 text-[17px] font-medium text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
+                      onClick={() => escolherOrigemFoto(inputArquivoRef.current)}
+                    >
+                      <span className="mr-2 inline" aria-hidden>
+                        📁
+                      </span>
+                      Escolher arquivo
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="mt-3 w-full rounded-[14px] bg-white py-3.5 text-[17px] font-semibold text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
+                    onClick={fecharSheetEscolherOrigem}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </>
           ) : (
             <>
               {formatosRow}
