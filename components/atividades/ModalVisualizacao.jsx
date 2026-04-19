@@ -7,6 +7,7 @@ import PostCard from '@/components/PostCard'
 import AvatarImage from '@/components/AvatarImage'
 import { supabase } from '@/lib/supabase'
 import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
+import { pickAutorDisplay } from '@/lib/feed-autor'
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 
 const POSTS_FEED_VIEW = 'posts_com_autores'
@@ -45,6 +46,8 @@ export default function ModalVisualizacao({
   const [meuId, setMeuId] = useState(/** @type {string | null} */ (null))
   const [email, setEmail] = useState(/** @type {string | null} */ (null))
   const [thumbs, setThumbs] = useState(/** @type {(string | null)[]} */ ([]))
+  const [autorOriginalUsername, setAutorOriginalUsername] = useState(/** @type {string | null} */ (null))
+  const [autorOriginalUsuarioId, setAutorOriginalUsuarioId] = useState(/** @type {string | null} */ (null))
 
   /** Deslize horizontal no miolo do modal para mudar de foto (carrossel). */
   const swipeRef = useRef({ x: 0, y: 0, active: false })
@@ -160,6 +163,43 @@ export default function ModalVisualizacao({
   }, [aberto, postIdAtivo])
 
   useEffect(() => {
+    const postOriginalId =
+      post?.post_original_id != null && post.post_original_id !== '' ? String(post.post_original_id) : null
+    if (!postOriginalId) {
+      setAutorOriginalUsername(null)
+      setAutorOriginalUsuarioId(null)
+      return
+    }
+    let cancel = false
+    void supabase
+      .from(POSTS_FEED_VIEW)
+      .select('*')
+      .eq('id', postOriginalId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancel || error || !data) {
+          return
+        }
+        const p = /** @type {Record<string, unknown>} */ (data)
+        const rawU = p.usuarios
+        let u = rawU
+        if (typeof rawU === 'string') {
+          try {
+            u = JSON.parse(rawU)
+          } catch {
+            u = null
+          }
+        }
+        const a = pickAutorDisplay(u)
+        setAutorOriginalUsername(a.username || null)
+        setAutorOriginalUsuarioId(a.usuario_id ? String(a.usuario_id) : null)
+      })
+    return () => {
+      cancel = true
+    }
+  }, [post?.id, post?.post_original_id])
+
+  useEffect(() => {
     if (!aberto || !isCarrossel) {
       setThumbs([])
       return
@@ -201,6 +241,15 @@ export default function ModalVisualizacao({
 
   const destacar = comentarioId != null && comentarioId !== '' ? String(comentarioId) : null
 
+  const postOriginalId =
+    post?.post_original_id != null && post.post_original_id !== '' ? String(post.post_original_id) : null
+  const ehRepost = Boolean(postOriginalId)
+  const tipoNorm = String(post?.tipo || '').toLowerCase()
+  const repostEhFoto = tipoNorm === 'foto' || tipoNorm === 'misto'
+  const autorId = post?.autor?.usuario_id || ''
+  const isSelfRepost =
+    ehRepost && Boolean(autorId && autorOriginalUsuarioId && String(autorId) === String(autorOriginalUsuarioId))
+
   return (
     <div className="fixed inset-0 z-[260] flex items-center justify-center px-2 py-4 sm:px-4 sm:py-6 md:px-6">
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={onFechar} />
@@ -214,59 +263,97 @@ export default function ModalVisualizacao({
         <span id="modal-atividade-titulo" className="sr-only">
           Publicação
         </span>
-        <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 bg-white px-3 py-2">
-          {!carregando && post ? (
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              {post.autor?.usuario_id ? (
-                <Link
-                  href={`/perfil/${post.autor.usuario_id}`}
-                  className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100"
-                  aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
-                >
-                  <AvatarImage
-                    src={post.autor?.foto_perfil_url}
-                    alt=""
-                    width={36}
-                    height={36}
-                    className="h-full w-full object-cover"
-                  />
-                </Link>
-              ) : (
-                <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                  <AvatarImage
-                    src={post.autor?.foto_perfil_url}
-                    alt=""
-                    width={36}
-                    height={36}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                {post.autor?.usuario_id ? (
-                  <Link
-                    href={`/perfil/${post.autor.usuario_id}`}
-                    className="block truncate text-sm font-semibold text-gray-900 hover:text-[#0097b2]"
-                  >
+        <div className="sticky top-0 z-10 shrink-0 border-b border-gray-100 bg-white">
+          {!carregando && post && ehRepost ? (
+            <div className="border-b border-gray-50 px-3 pb-1.5 pt-2">
+              <p className="text-xs leading-snug text-gray-600">
+                {autorId ? (
+                  <Link href={`/perfil/${autorId}`} className="font-semibold text-gray-800 hover:text-[#0097b2]">
                     @{post.autor?.username ?? ''}
                   </Link>
                 ) : (
-                  <p className="truncate text-sm font-semibold text-gray-900">@{post.autor?.username ?? ''}</p>
+                  <span className="font-semibold text-gray-800">@{post.autor?.username ?? ''}</span>
                 )}
-                <p className="text-xs text-gray-500">{formatarDataRelativaPublicacao(post.created_at)}</p>
-              </div>
+                {isSelfRepost ? (
+                  <span>{repostEhFoto ? ' repostou uma foto' : ' repostou um post'}</span>
+                ) : (
+                  <>
+                    <span>{repostEhFoto ? ' repostou foto de ' : ' repostou post de '}</span>
+                    {autorOriginalUsername ? (
+                      autorOriginalUsuarioId ? (
+                        <Link
+                          href={`/perfil/${autorOriginalUsuarioId}`}
+                          className="font-semibold text-gray-800 hover:text-[#0097b2]"
+                        >
+                          @{autorOriginalUsername}
+                        </Link>
+                      ) : (
+                        <span className="font-semibold text-gray-800">@{autorOriginalUsername}</span>
+                      )
+                    ) : (
+                      <span className="font-medium text-gray-400" aria-hidden>
+                        @…
+                      </span>
+                    )}
+                  </>
+                )}
+              </p>
             </div>
-          ) : (
-            <div className="min-h-[36px] min-w-0 flex-1" aria-hidden />
-          )}
-          <button
-            type="button"
-            onClick={onFechar}
-            className="shrink-0 rounded-full p-1 text-gray-500 hover:bg-gray-100"
-            aria-label="Fechar"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          ) : null}
+          <div className="flex items-center justify-between gap-2 px-3 py-2">
+            {!carregando && post ? (
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                {post.autor?.usuario_id ? (
+                  <Link
+                    href={`/perfil/${post.autor.usuario_id}`}
+                    className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                    aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
+                  >
+                    <AvatarImage
+                      src={post.autor?.foto_perfil_url}
+                      alt=""
+                      width={36}
+                      height={36}
+                      className="h-full w-full object-cover"
+                    />
+                  </Link>
+                ) : (
+                  <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                    <AvatarImage
+                      src={post.autor?.foto_perfil_url}
+                      alt=""
+                      width={36}
+                      height={36}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  {post.autor?.usuario_id ? (
+                    <Link
+                      href={`/perfil/${post.autor.usuario_id}`}
+                      className="block truncate text-sm font-semibold text-gray-900 hover:text-[#0097b2]"
+                    >
+                      @{post.autor?.username ?? ''}
+                    </Link>
+                  ) : (
+                    <p className="truncate text-sm font-semibold text-gray-900">@{post.autor?.username ?? ''}</p>
+                  )}
+                  <p className="text-xs text-gray-500">{formatarDataRelativaPublicacao(post.created_at)}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="min-h-[36px] min-w-0 flex-1" aria-hidden />
+            )}
+            <button
+              type="button"
+              onClick={onFechar}
+              className="shrink-0 rounded-full p-1 text-gray-500 hover:bg-gray-100"
+              aria-label="Fechar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">
