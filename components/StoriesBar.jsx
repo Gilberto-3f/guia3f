@@ -52,6 +52,23 @@ function foiVisualizado(visualizado_por, userEmail) {
   return visualizadoPorEmails(visualizado_por).includes(userEmail)
 }
 
+/** Rótulo curto para o anel: @handle alinhado ao feed. */
+function labelStoryDeAutor(d) {
+  const u = d.username != null ? String(d.username).trim() : ''
+  if (u) return u.startsWith('@') ? u : `@${u}`
+  const n = d.nome != null ? String(d.nome).trim() : ''
+  if (n) return n.length > 14 ? `${n.slice(0, 12)}…` : n
+  return 'Usuário'
+}
+
+/** Empresa na barra: @nome_usuario ou nome fantasia curto. */
+function labelStoryEmpresa(e) {
+  const nu = e.nome_usuario != null ? String(e.nome_usuario).trim() : ''
+  if (nu) return nu.startsWith('@') ? nu : `@${nu.replace(/^@/, '')}`
+  const nf = e.nome_fantasia != null ? String(e.nome_fantasia).trim() : 'Empresa'
+  return nf.length > 14 ? `${nf.slice(0, 12)}…` : nf
+}
+
 /**
  * @param {{
  *   hidden?: boolean
@@ -120,7 +137,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
         .gt('expira_em', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(120),
-      supabase.from('empresas').select('usuario_id, nome_fantasia, foto_url').eq('is_publicidade', true).limit(1).maybeSingle(),
+      supabase.from('empresas').select('usuario_id, nome_fantasia, nome_usuario, foto_url').eq('is_publicidade', true).limit(1).maybeSingle(),
       carregarMeuAvatar(uid),
     ])
 
@@ -134,11 +151,13 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     const seguidosIds = new Set((seguidosRows ?? []).map((r) => String(r.seguido_id)))
 
     const storyAutorIds = [...new Set((storiesRows ?? []).map((s) => String(s.autor_id)).filter(Boolean))]
-    let empresasRows = /** @type {{ usuario_id: string, nome_fantasia: string | null, foto_url: string | null }[]} */ ([])
+    let empresasRows = /** @type {{ usuario_id: string, nome_fantasia: string | null, nome_usuario: string | null, foto_url: string | null }[]} */ (
+      []
+    )
     if (storyAutorIds.length > 0) {
       const { data: empData } = await supabase
         .from('empresas')
-        .select('usuario_id, nome_fantasia, foto_url')
+        .select('usuario_id, nome_fantasia, nome_usuario, foto_url')
         .in('usuario_id', storyAutorIds)
       empresasRows = empData ?? []
     }
@@ -212,12 +231,14 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     const labels = /** @type {Record<string, string>} */ ({})
     const previews = /** @type {Record<string, string | null>} */ ({})
     for (const e of emps ?? []) {
-      labels[String(e.usuario_id)] = String(e.nome_fantasia ?? 'Empresa')
-      previews[String(e.usuario_id)] = e.foto_url != null ? String(e.foto_url) : null
+      const uid = String(e.usuario_id)
+      labels[uid] = labelStoryEmpresa(e)
+      previews[uid] = e.foto_url != null ? String(e.foto_url) : null
     }
     if (destaque?.usuario_id) {
-      labels[String(destaque.usuario_id)] = String(destaque.nome_fantasia ?? 'Destaque')
-      previews[String(destaque.usuario_id)] = destaque.foto_url != null ? String(destaque.foto_url) : null
+      const uid = String(destaque.usuario_id)
+      labels[uid] = labelStoryEmpresa(destaque)
+      previews[uid] = destaque.foto_url != null ? String(destaque.foto_url) : null
     }
 
     const precisaPerfil = ordered.filter((aid) => labels[aid] == null)
@@ -227,12 +248,41 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
         : Promise.resolve({ data: null, error: null })
 
     const { data: usuariosRows, error: uErr } = await usuariosPromise
+    if (uErr) {
+      console.error('[StoriesBar] usuarios (perfis story):', uErr)
+    }
     if (!uErr && usuariosRows?.length) {
       for (const u of usuariosRows) {
         const d = pickAutorDisplay(u)
         const id = String(u.id)
-        labels[id] = d.nome
+        labels[id] = labelStoryDeAutor(d)
         previews[id] = d.foto_perfil_url
+      }
+    }
+
+    await Promise.all(
+      ordered.map(async (aid) => {
+        if (!previews[aid]) {
+          const url = await fetchFotoPerfilUsuario(supabase, aid)
+          if (url) previews[aid] = url
+        }
+      })
+    )
+
+    for (const aid of ordered) {
+      if (labels[aid] != null) continue
+      const { data: uRow, error: oneErr } = await supabase
+        .from('usuarios')
+        .select(USUARIOS_MEU_SELECT)
+        .eq('id', aid)
+        .maybeSingle()
+      if (oneErr) console.warn('[StoriesBar] usuarios fallback', aid, oneErr)
+      if (uRow) {
+        const d = pickAutorDisplay(uRow)
+        labels[aid] = labelStoryDeAutor(d)
+        if (!previews[aid] && d.foto_perfil_url) previews[aid] = d.foto_perfil_url
+      } else {
+        labels[aid] = 'Usuário'
       }
     }
 
@@ -243,7 +293,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
         const avatarUrl = previews[aid] ?? null
         return {
           id: String(s.id),
-          label: labels[aid] ?? 'Story',
+          label: labels[aid] ?? 'Usuário',
           avatarUrl,
           visualizado_por: s.visualizado_por,
         }
