@@ -91,7 +91,7 @@ function PostTextoColapsivel({ texto, postId, maxLines, className = '' }) {
  *   }
  *   meuUsuarioId: string | null
  *   userEmail?: string | null
- *   storyAtivo?: { id: string, visualizado_por: unknown } | null
+ *   storyAtivo?: { id: string, visualizado_por: unknown, conteudo_url?: string | null } | null
  *   onAbrirStory?: (storyId: string) => void
  *   onRemove?: (postId: string) => void
  *   abrirComentariosInicial?: boolean
@@ -300,6 +300,10 @@ export default function PostCard({
 
   const temStoryNoAutor = Boolean(storyAtivo?.id)
   const storyDoAutorVisto = temStoryNoAutor ? emailVisualizouStory(storyAtivo?.visualizado_por, userEmail) : true
+  const storyThumbAvatar =
+    storyAtivo?.conteudo_url != null && String(storyAtivo.conteudo_url).trim() !== ''
+      ? String(storyAtivo.conteudo_url)
+      : null
 
   const resumo = (post.texto || 'Publicação').slice(0, 80)
   const postUrl =
@@ -701,34 +705,23 @@ export default function PostCard({
           <div className="flex items-start gap-3">
             {temStoryNoAutor ? (
               <div
-                className={`relative shrink-0 rounded-md p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
+                className={`relative shrink-0 rounded-full p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
                 style={!storyDoAutorVisto ? { background: STORY_RING_GRADIENT } : undefined}
               >
-                <div className="relative">
-                  <Link
-                    href={`/perfil/${autorId}`}
-                    className="relative block h-10 w-10 overflow-hidden rounded-md bg-gray-100"
-                    aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
-                  >
-                    <AvatarImage
-                      src={post.autor?.foto_perfil_url}
-                      alt=""
-                      width={40}
-                      height={40}
-                      className="h-full w-full object-cover"
-                    />
-                  </Link>
-                  {storyAtivo?.id ? (
-                    <button
-                      type="button"
-                      className="absolute -bottom-0.5 -right-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-black/55 text-white"
-                      onClick={() => onAbrirStory?.(storyAtivo.id)}
-                      aria-label={`Ver story de ${post.autor?.nome ?? 'autor'}`}
-                    >
-                      <span className="text-[8px]">▶</span>
-                    </button>
-                  ) : null}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
+                  className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100"
+                  aria-label={`Ver story de ${post.autor?.nome ?? 'autor'}`}
+                >
+                  <AvatarImage
+                    src={storyThumbAvatar || post.autor?.foto_perfil_url}
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="h-full w-full object-cover"
+                  />
+                </button>
               </div>
             ) : autorId ? (
               <Link

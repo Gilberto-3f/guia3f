@@ -61,14 +61,15 @@ function foiVisualizado(visualizado_por, userEmail) {
  * }} props
  */
 export default function StoriesBar({ hidden = false, userEmail, onOpenStory, reloadSignal = 0 }) {
-  /** @type {{ avatarUrl: string | null, storyId: string | null, visualizado_por: unknown }} */
+  /** @type {{ avatarUrl: string | null, storyId: string | null, storyThumbUrl: string | null, visualizado_por: unknown }} */
   const [meuSlot, setMeuSlot] = useState({
     avatarUrl: null,
     storyId: null,
+    storyThumbUrl: null,
     visualizado_por: null,
   })
 
-  /** @type {{ id: string, label: string, avatarUrl: string | null, isVideo: boolean, autorUsuarioId: string, visualizado_por: unknown }[]} */
+  /** @type {{ id: string, label: string, avatarUrl: string | null, thumbUrl: string | null, isVideo: boolean, visualizado_por: unknown }[]} */
   const [rings, setRings] = useState([])
   const [meuUserId, setMeuUserId] = useState(/** @type {string | null} */ (null))
 
@@ -79,7 +80,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     if (!session?.user) {
       setRings([])
       setMeuUserId(null)
-      setMeuSlot({ avatarUrl: null, storyId: null, visualizado_por: null })
+      setMeuSlot({ avatarUrl: null, storyId: null, storyThumbUrl: null, visualizado_por: null })
       return
     }
 
@@ -127,7 +128,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     if (storiesErr) {
       console.error(storiesErr)
       setRings([])
-      setMeuSlot({ avatarUrl: meuAvatarUrl, storyId: null, visualizado_por: null })
+      setMeuSlot({ avatarUrl: meuAvatarUrl, storyId: null, storyThumbUrl: null, visualizado_por: null })
       return
     }
 
@@ -162,9 +163,14 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     }
 
     const meuStoryRow = byAutor.get(uid)
+    const meuTemStoryRow = meuStoryRow && !isTipoVideoPost(meuStoryRow.tipo)
     setMeuSlot({
       avatarUrl: meuAvatarUrl,
-      storyId: meuStoryRow && !isTipoVideoPost(meuStoryRow.tipo) ? String(meuStoryRow.id) : null,
+      storyId: meuTemStoryRow ? String(meuStoryRow.id) : null,
+      storyThumbUrl:
+        meuTemStoryRow && meuStoryRow.conteudo_url != null && String(meuStoryRow.conteudo_url).trim() !== ''
+          ? String(meuStoryRow.conteudo_url)
+          : null,
       visualizado_por: meuStoryRow?.visualizado_por ?? null,
     })
 
@@ -241,12 +247,14 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
         if (!s) return null
         const isVideo = isTipoVideoPost(s.tipo)
         const avatarUrl = previews[aid] ?? null
+        const thumbUrl =
+          !isVideo && s.conteudo_url != null && String(s.conteudo_url).trim() !== '' ? String(s.conteudo_url) : null
         return {
           id: String(s.id),
           label: labels[aid] ?? 'Story',
           avatarUrl,
+          thumbUrl,
           isVideo,
-          autorUsuarioId: aid,
           visualizado_por: s.visualizado_por,
         }
       })
@@ -296,48 +304,57 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
 
   return (
     <div className="border-b border-gray-200 bg-transparent py-1.5">
-      <div className="flex items-start gap-2 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex items-start gap-3 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Slot fixo estilo Instagram: foto do utilizador + criar story */}
-        <div className="flex w-[75px] shrink-0 flex-col items-center gap-0.5">
-          <div className="relative">
+        <div className="flex w-[76px] shrink-0 flex-col items-center gap-1">
+          <div className="relative flex aspect-square w-[76px] items-center justify-center">
             <div
-              className={`rounded-full p-[3px] ${
+              className={`box-border w-full max-w-[76px] rounded-full p-[3px] ${
                 meuTemStory && meuVisto ? 'bg-gray-300' : !meuTemStory ? 'border-2 border-gray-300/90 bg-white' : ''
               }`}
               style={meuTemStory && !meuVisto ? { background: STORY_RING_GRADIENT } : undefined}
             >
               <div className="rounded-full bg-white p-[2px]">
                 {meuUserId ? (
-                  <Link
-                    href={`/perfil/${meuUserId}`}
-                    className="relative block h-[75px] w-[75px] overflow-hidden rounded-full bg-gray-100"
-                    aria-label="Ver seu perfil"
-                  >
-                    <AvatarImage
-                      key={meuSlot.avatarUrl || 'def'}
-                      src={meuSlot.avatarUrl}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="75px"
-                      priority
-                    />
-                  </Link>
+                  meuTemStory ? (
+                    <button
+                      type="button"
+                      onClick={() => meuSlot.storyId && onOpenStory(meuSlot.storyId)}
+                      className="relative block aspect-square w-full max-h-[68px] max-w-[68px] overflow-hidden rounded-full bg-gray-100"
+                      aria-label="Ver seu story"
+                    >
+                      <AvatarImage
+                        key={`${meuSlot.storyThumbUrl || meuSlot.avatarUrl || 'def'}`}
+                        src={meuSlot.storyThumbUrl || meuSlot.avatarUrl}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="76px"
+                        priority
+                      />
+                    </button>
+                  ) : (
+                    <Link
+                      href={`/perfil/${meuUserId}`}
+                      className="relative block aspect-square w-full max-h-[68px] max-w-[68px] overflow-hidden rounded-full bg-gray-100"
+                      aria-label="Ver seu perfil"
+                    >
+                      <AvatarImage
+                        key={meuSlot.avatarUrl || 'def'}
+                        src={meuSlot.avatarUrl}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="76px"
+                        priority
+                      />
+                    </Link>
+                  )
                 ) : (
-                  <div className="relative block h-[75px] w-[75px] overflow-hidden rounded-full bg-gray-100" />
+                  <div className="relative block aspect-square max-h-[68px] max-w-[68px] overflow-hidden rounded-full bg-gray-100" />
                 )}
               </div>
             </div>
-            {meuTemStory ? (
-              <button
-                type="button"
-                onClick={() => onOpenStory(meuSlot.storyId)}
-                className="absolute bottom-6 right-0 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-2 ring-white"
-                aria-label="Ver seu story"
-              >
-                <span className="text-[10px] font-bold">▶</span>
-              </button>
-            ) : null}
             <Link
               href="/feed/story/criar"
               onClick={(e) => e.stopPropagation()}
@@ -354,9 +371,9 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
           <StoryCircle
             key={s.id}
             id={s.id}
-            autorUsuarioId={s.autorUsuarioId}
             label={s.label}
             avatarUrl={s.avatarUrl}
+            thumbUrl={s.thumbUrl}
             isVideo={s.isVideo}
             visualizado_por={s.visualizado_por}
             userEmail={userEmail}

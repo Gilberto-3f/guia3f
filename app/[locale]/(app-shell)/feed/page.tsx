@@ -86,7 +86,7 @@ function FeedPageInner() {
   const [storyAberto, setStoryAberto] = useState<StoryViewerState | null>(null)
   const [storiesBarReload, setStoriesBarReload] = useState(0)
   const [storiesPorAutor, setStoriesPorAutor] = useState<
-    Record<string, { id: string; visualizado_por: unknown }>
+    Record<string, { id: string; visualizado_por: unknown; conteudo_url?: string | null }>
   >({})
 
   const bumpStoriesBar = useCallback(() => {
@@ -102,7 +102,7 @@ function FeedPageInner() {
       }
       const { data, error } = await supabase
         .from('stories')
-        .select('id, autor_id, visualizado_por, created_at, tipo')
+        .select('id, autor_id, visualizado_por, created_at, tipo, conteudo_url')
         .in('autor_id', ids)
         .gt('expira_em', new Date().toISOString())
         .order('created_at', { ascending: false })
@@ -110,12 +110,17 @@ function FeedPageInner() {
         console.error(error)
         return
       }
-      const map: Record<string, { id: string; visualizado_por: unknown }> = {}
+      const map: Record<string, { id: string; visualizado_por: unknown; conteudo_url?: string | null }> = {}
       for (const row of data ?? []) {
         if (isTipoVideoPost((row as { tipo?: string }).tipo)) continue
         const aid = String(row.autor_id)
         if (!map[aid]) {
-          map[aid] = { id: String(row.id), visualizado_por: row.visualizado_por }
+          const r = row as { id: unknown; visualizado_por: unknown; conteudo_url?: unknown }
+          map[aid] = {
+            id: String(r.id),
+            visualizado_por: r.visualizado_por,
+            conteudo_url: r.conteudo_url != null ? String(r.conteudo_url) : null,
+          }
         }
       }
       setStoriesPorAutor(map)
@@ -361,22 +366,30 @@ function FeedPageInner() {
       .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos, autor_id')
       .eq('id', id)
       .maybeSingle()
-    if (!error && data && String(data.tipo ?? '').toLowerCase() !== 'video') {
-      const ts = data.texto_sobreposto
-      const textoParsed =
-        ts && typeof ts === 'object' && !Array.isArray(ts)
-          ? (ts as { texto?: string | null; posicao_x?: number; posicao_y?: number })
-          : null
-      setStoryAberto({
-        id: String(data.id),
-        tipo: data.tipo != null ? String(data.tipo) : 'foto',
-        conteudo_url: String(data.conteudo_url ?? ''),
-        texto_sobreposto: textoParsed,
-        link: data.link != null ? String(data.link) : null,
-        duracao_segundos: data.duracao_segundos != null ? Number(data.duracao_segundos) : null,
-        autorUsuarioId: data.autor_id != null ? String(data.autor_id) : null,
-      })
+    if (error) {
+      console.error('abrirStory:', error)
+      return
     }
+    if (!data) return
+    const url = String(data.conteudo_url ?? '').trim()
+    if (!url) {
+      console.warn('abrirStory: story sem conteudo_url', id)
+      return
+    }
+    const ts = data.texto_sobreposto
+    const textoParsed =
+      ts && typeof ts === 'object' && !Array.isArray(ts)
+        ? (ts as { texto?: string | null; posicao_x?: number; posicao_y?: number })
+        : null
+    setStoryAberto({
+      id: String(data.id),
+      tipo: data.tipo != null ? String(data.tipo) : 'foto',
+      conteudo_url: url,
+      texto_sobreposto: textoParsed,
+      link: data.link != null ? String(data.link) : null,
+      duracao_segundos: data.duracao_segundos != null ? Number(data.duracao_segundos) : null,
+      autorUsuarioId: data.autor_id != null ? String(data.autor_id) : null,
+    })
   }
 
   const removerPost = (postId: string) => {
