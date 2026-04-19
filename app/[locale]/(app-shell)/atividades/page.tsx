@@ -97,6 +97,7 @@ export default function AtividadesPage() {
   const [pesquisaAberta, setPesquisaAberta] = useState(false)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
   const termoBuscaRef = useRef('')
   const latestRequestId = useRef(0)
   const [meuId, setMeuId] = useState<string | null>(null)
@@ -772,6 +773,30 @@ export default function AtividadesPage() {
     return agruparAtividadesCurtidasPost(ord, postMetaMap)
   }, [listaAtividadesFiltrada, postMetaMap])
 
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return
+        if (carregandoMais) return
+        const temMais = aba === 'amigos' ? temMaisAmigos : temMaisMinha
+        if (!temMais) return
+        void carregarMaisAtividades()
+      },
+      { rootMargin: '120px' }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [
+    aba,
+    carregarMaisAtividades,
+    carregandoMais,
+    temMaisAmigos,
+    temMaisMinha,
+    itensAgrupados.length,
+  ])
+
   const renderItem = (item: (typeof itensAgrupados)[number], idx: number) => {
     if (item.kind === 'curtiu_post_fotos') {
       const inter = perfilMap[item.autor_id]
@@ -1126,7 +1151,7 @@ export default function AtividadesPage() {
 
       <AbasAtividades aba={aba} onAba={onAba} />
 
-      <div className="px-2 py-2 sm:px-3">
+      <div className="px-4 py-3">
         {itensAgrupados.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-400">
             {aba === 'amigos' && qtdSeguindo === 0
@@ -1135,7 +1160,7 @@ export default function AtividadesPage() {
           </p>
         ) : (
           <>
-            <div className="space-y-4">
+            <div className="space-y-6">
               {itensAgrupados.map((it, i) => {
                 const rowKey =
                   it.kind === 'curtiu_post_fotos'
@@ -1151,15 +1176,11 @@ export default function AtividadesPage() {
               })}
             </div>
             {(aba === 'amigos' ? temMaisAmigos : temMaisMinha) ? (
-              <div className="py-4 text-center">
-                <button
-                  type="button"
-                  onClick={() => void carregarMaisAtividades()}
-                  disabled={carregandoMais}
-                  className="text-sm font-medium text-[#0097b2] hover:underline disabled:opacity-50"
-                >
-                  {carregandoMais ? 'Carregando…' : 'Mais atividades…'}
-                </button>
+              <div ref={sentinelRef} className="h-4 w-full" aria-hidden />
+            ) : null}
+            {carregandoMais ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-[#0097b2]" aria-label="Carregando mais atividades" />
               </div>
             ) : null}
           </>
