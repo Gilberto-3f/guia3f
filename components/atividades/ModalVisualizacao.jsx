@@ -154,10 +154,10 @@ export default function ModalVisualizacao({
   const destacar = comentarioId != null && comentarioId !== '' ? String(comentarioId) : null
 
   return (
-    <div className="fixed inset-0 z-[260] flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-[260] flex items-center justify-center px-2 py-4 sm:px-4 sm:py-6 md:px-6">
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={onFechar} />
       <div
-        className="relative z-[1] flex min-h-0 w-full max-w-[min(96vw,1152px)] flex-col overflow-hidden rounded-xl bg-white shadow-xl"
+        className="relative z-[1] flex min-h-0 w-full max-w-[min(98.5vw,1152px)] flex-col overflow-hidden rounded-xl bg-white shadow-xl"
         style={{ maxHeight: 'min(92vh, calc(100vh - 2rem))' }}
         role="dialog"
         aria-modal="true"
