@@ -16,6 +16,7 @@ import AvaliacaoCard from '@/components/AvaliacaoCard'
  *   postId: string
  *   meta: Record<string, unknown> | null
  *   tempoInteracao?: string
+ *   modoMinhaConta?: boolean
  * }} props
  */
 export default function AtividadeCurtiuAvaliacao({
@@ -27,6 +28,7 @@ export default function AtividadeCurtiuAvaliacao({
   postId,
   meta,
   tempoInteracao = '',
+  modoMinhaConta = false,
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
@@ -61,10 +63,16 @@ export default function AtividadeCurtiuAvaliacao({
               <Link href={hrefInteractor} className="font-medium text-[#0097b2] hover:underline">
                 @{interactorUsername}
               </Link>{' '}
-              curtiu avaliação de{' '}
-              <Link href={hrefDonor} className="font-medium text-[#0097b2] hover:underline">
-                @{donorUsername}
-              </Link>
+              {modoMinhaConta ? (
+                'curtiu sua avaliação'
+              ) : (
+                <>
+                  curtiu avaliação de{' '}
+                  <Link href={hrefDonor} className="font-medium text-[#0097b2] hover:underline">
+                    @{donorUsername}
+                  </Link>
+                </>
+              )}
             </p>
             <button
               type="button"

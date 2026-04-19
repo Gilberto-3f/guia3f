@@ -17,6 +17,7 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  *   postIds: string[]
  *   totalCurtidas?: number
  *   tempoInteracao?: string
+ *   modoMinhaConta?: boolean
  * }} props
  */
 export default function AtividadeCurtidas({
@@ -29,6 +30,7 @@ export default function AtividadeCurtidas({
   postIds,
   totalCurtidas,
   tempoInteracao = '',
+  modoMinhaConta = false,
 }) {
   const router = useRouter()
   const [modal, setModal] = useState({ aberto: false, i: 0 })
@@ -37,6 +39,25 @@ export default function AtividadeCurtidas({
 
   const resumoModal =
     n === 1 ? `curtiu foto de @${donorUsername}` : `curtiu ${n} fotos de @${donorUsername}`
+
+  const textoLinha = modoMinhaConta ? (
+    <>
+      <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
+        @{interactorUsername}
+      </button>{' '}
+      {n === 1 ? 'curtiu sua foto' : 'curtiu suas fotos'}
+    </>
+  ) : (
+    <>
+      <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
+        @{interactorUsername}
+      </button>{' '}
+      curtiu {n === 1 ? 'foto' : `${n} fotos`} de{' '}
+      <button type="button" onClick={() => router.push(hrefDonor)} className="font-medium text-[#0097b2] hover:underline">
+        @{donorUsername}
+      </button>
+    </>
+  )
 
   return (
     <div className="min-w-0">
@@ -54,25 +75,10 @@ export default function AtividadeCurtidas({
           ) : null}
         </div>
         <div className="min-w-0">
-          <p className="text-sm leading-snug text-gray-800">
-            <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
-              @{interactorUsername}
-            </button>{' '}
-            curtiu {n === 1 ? 'foto' : `${n} fotos`} de{' '}
-            <button type="button" onClick={() => router.push(hrefDonor)} className="font-medium text-[#0097b2] hover:underline">
-              @{donorUsername}
-            </button>
-          </p>
+          <p className="text-sm leading-snug text-gray-800">{textoLinha}</p>
           <div className="mt-2">
             <GridFotos urls={urls} max={10} onClickFoto={(i) => setModal({ aberto: true, i })} />
           </div>
-          <button
-            type="button"
-            onClick={() => setModal({ aberto: true, i: 0 })}
-            className="mt-2 text-sm font-medium text-[#0097b2]"
-          >
-            {n === 1 ? 'VER FOTO' : `VER TODAS AS ${n} FOTOS`}
-          </button>
         </div>
       </div>
       <ModalVisualizacao

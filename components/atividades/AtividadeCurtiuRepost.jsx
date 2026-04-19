@@ -19,6 +19,7 @@ import ModalConteudo from '@/components/atividades/ModalConteudo'
  *   previewTexto: string
  *   modalChildren: import('react').ReactNode
  *   tempoInteracao?: string
+ *   modoMinhaConta?: boolean
  * }} props
  */
 export default function AtividadeCurtiuRepost({
@@ -33,6 +34,7 @@ export default function AtividadeCurtiuRepost({
   previewTexto,
   modalChildren,
   tempoInteracao = '',
+  modoMinhaConta = false,
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
@@ -59,10 +61,16 @@ export default function AtividadeCurtiuRepost({
               <Link href={hrefInteractor} className="font-medium text-[#0097b2] hover:underline">
                 @{interactorUsername}
               </Link>{' '}
-              curtiu conteúdo repostado por{' '}
-              <Link href={hrefDonor} className="font-medium text-[#0097b2] hover:underline">
-                @{donorUsername}
-              </Link>
+              {modoMinhaConta ? (
+                'curtiu seu repost'
+              ) : (
+                <>
+                  curtiu conteúdo repostado por{' '}
+                  <Link href={hrefDonor} className="font-medium text-[#0097b2] hover:underline">
+                    @{donorUsername}
+                  </Link>
+                </>
+              )}
             </p>
             <button
               type="button"

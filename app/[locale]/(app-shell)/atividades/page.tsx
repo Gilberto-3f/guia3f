@@ -798,6 +798,8 @@ export default function AtividadesPage() {
   ])
 
   const renderItem = (item: (typeof itensAgrupados)[number], idx: number) => {
+    const modoMinhaConta = aba === 'minha'
+
     if (item.kind === 'curtiu_post_fotos') {
       const inter = perfilMap[item.autor_id]
       const donor = perfilMap[item.usuario_dono_id]
@@ -815,6 +817,7 @@ export default function AtividadesPage() {
           postIds={item.rows.map((r) => String(r.alvo_id))}
           totalCurtidas={item.rows.length}
           tempoInteracao={formatarDataComentarioCurta(item.created_at)}
+          modoMinhaConta={modoMinhaConta}
         />
       )
     }
@@ -840,6 +843,7 @@ export default function AtividadesPage() {
             texto={textoPost}
             postId={r.alvo_id}
             tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+            modoMinhaConta={modoMinhaConta}
           />
         )
       }
@@ -862,6 +866,7 @@ export default function AtividadesPage() {
             postId={r.alvo_id}
             meta={meta}
             tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+            modoMinhaConta={modoMinhaConta}
           />
         )
       }
@@ -900,6 +905,7 @@ export default function AtividadesPage() {
             previewTexto={prevTexto || textoPost}
             modalChildren={modalChildren}
             tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+            modoMinhaConta={modoMinhaConta}
           />
         )
       }
@@ -928,6 +934,7 @@ export default function AtividadesPage() {
           postId={postId || r.alvo_id}
           comentarioId={r.alvo_id}
           tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+          modoMinhaConta={modoMinhaConta}
         />
       )
     }
@@ -958,6 +965,7 @@ export default function AtividadesPage() {
           postId={postId}
           comentarioId={comentarioId}
           tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+          modoMinhaConta={modoMinhaConta}
         />
       )
     }
@@ -981,6 +989,8 @@ export default function AtividadesPage() {
           seguidoTipo={seguidoTipo}
           empresaId={empId}
           tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+          modoMinhaConta={modoMinhaConta}
+          meuUsuarioId={meuId}
         />
       )
     }

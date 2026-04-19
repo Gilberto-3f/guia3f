@@ -17,6 +17,7 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  *   postId: string
  *   comentarioId?: string | null
  *   tempoInteracao?: string
+ *   modoMinhaConta?: boolean
  * }} props
  */
 export default function AtividadeComentario({
@@ -30,10 +31,13 @@ export default function AtividadeComentario({
   postId,
   comentarioId = null,
   tempoInteracao = '',
+  modoMinhaConta = false,
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
-  const resumoModal = `comentou ${emFoto ? 'foto' : 'post'} de @${usernameDono}`
+  const resumoModal = modoMinhaConta
+    ? `comentou ${emFoto ? 'sua foto' : 'seu post'}`
+    : `comentou ${emFoto ? 'foto' : 'post'} de @${usernameDono}`
 
   return (
     <>
@@ -56,10 +60,16 @@ export default function AtividadeComentario({
               <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
                 @{usernameAtor}
               </button>{' '}
-              comentou {emFoto ? 'foto' : 'post'} de{' '}
-              <button type="button" onClick={() => router.push(hrefDono)} className="font-medium text-[#0097b2] hover:underline">
-                @{usernameDono}
-              </button>
+              {modoMinhaConta ? (
+                <>comentou {emFoto ? 'sua foto' : 'seu post'}</>
+              ) : (
+                <>
+                  comentou {emFoto ? 'foto' : 'post'} de{' '}
+                  <button type="button" onClick={() => router.push(hrefDono)} className="font-medium text-[#0097b2] hover:underline">
+                    @{usernameDono}
+                  </button>
+                </>
+              )}
               :
             </p>
             <button

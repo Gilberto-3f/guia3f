@@ -15,6 +15,7 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  *   texto: string
  *   postId: string
  *   tempoInteracao?: string
+ *   modoMinhaConta?: boolean
  * }} props
  */
 export default function AtividadeCurtiuPost({
@@ -26,6 +27,7 @@ export default function AtividadeCurtiuPost({
   texto,
   postId,
   tempoInteracao = '',
+  modoMinhaConta = false,
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
@@ -51,10 +53,16 @@ export default function AtividadeCurtiuPost({
               <Link href={hrefInteractor} className="font-medium text-[#0097b2] hover:underline">
                 @{interactorUsername}
               </Link>{' '}
-              curtiu post de{' '}
-              <Link href={hrefDonor} className="font-medium text-[#0097b2] hover:underline">
-                @{donorUsername}
-              </Link>
+              {modoMinhaConta ? (
+                'curtiu seu post'
+              ) : (
+                <>
+                  curtiu post de{' '}
+                  <Link href={hrefDonor} className="font-medium text-[#0097b2] hover:underline">
+                    @{donorUsername}
+                  </Link>
+                </>
+              )}
               :
             </p>
             <button

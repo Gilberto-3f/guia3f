@@ -157,7 +157,7 @@ export default function ModalVisualizacao({
     <div className="fixed inset-0 z-[260] flex items-center justify-center p-4 sm:p-6">
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={onFechar} />
       <div
-        className="relative z-[1] flex w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-xl"
+        className="relative z-[1] flex min-h-0 w-full max-w-[min(96vw,1152px)] flex-col overflow-hidden rounded-xl bg-white shadow-xl"
         style={{ maxHeight: 'min(92vh, calc(100vh - 2rem))' }}
         role="dialog"
         aria-modal="true"
@@ -177,54 +177,56 @@ export default function ModalVisualizacao({
           </button>
         </div>
 
-        {isCarrossel ? (
-          <div className="shrink-0 overflow-x-auto border-b border-gray-100 py-2">
-            <div className="flex justify-center gap-2 px-4">
-              {ids.map((id, idx) => {
-                const url = thumbs[idx] ?? null
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setIndiceAtual(idx)}
-                    className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-md ${
-                      idx === indiceAtual ? 'ring-2 ring-[#0097b2] ring-offset-1' : 'opacity-70 hover:opacity-100'
-                    }`}
-                    aria-label={`Ver publicação ${idx + 1} de ${ids.length}`}
-                    aria-current={idx === indiceAtual ? 'true' : undefined}
-                  >
-                    {url ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- URLs arbitrários do storage
-                      <img src={url} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="h-full w-full bg-gray-200" />
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-2 sm:px-4">
+            {carregando ? (
+              <div className="py-12 text-center text-sm text-gray-400">Carregando publicação…</div>
+            ) : !post ? (
+              <div className="py-12 text-center text-sm text-gray-500">Esta publicação não está disponível.</div>
+            ) : (
+              <PostCard
+                post={post}
+                meuUsuarioId={meuId}
+                userEmail={email}
+                storyAtivo={null}
+                onRemove={() => setPost(null)}
+                comentariosInline
+                compositorComentarioAteClique
+                comentariosSomenteLeitura={false}
+                abrirComentariosInicial={false}
+                destacarComentarioId={destacar}
+              />
+            )}
           </div>
-        ) : null}
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-2 sm:px-4">
-          {carregando ? (
-            <div className="py-12 text-center text-sm text-gray-400">Carregando publicação…</div>
-          ) : !post ? (
-            <div className="py-12 text-center text-sm text-gray-500">Esta publicação não está disponível.</div>
-          ) : (
-            <PostCard
-              post={post}
-              meuUsuarioId={meuId}
-              userEmail={email}
-              storyAtivo={null}
-              onRemove={() => setPost(null)}
-              comentariosInline
-              compositorComentarioAteClique
-              comentariosSomenteLeitura={false}
-              abrirComentariosInicial={false}
-              destacarComentarioId={destacar}
-            />
-          )}
+          {isCarrossel ? (
+            <div className="shrink-0 overflow-x-auto border-t border-gray-100 bg-white py-2">
+              <div className="flex justify-center gap-2 px-4">
+                {ids.map((id, idx) => {
+                  const url = thumbs[idx] ?? null
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setIndiceAtual(idx)}
+                      className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-md ${
+                        idx === indiceAtual ? 'ring-2 ring-[#0097b2] ring-offset-1' : 'opacity-70 hover:opacity-100'
+                      }`}
+                      aria-label={`Ver publicação ${idx + 1} de ${ids.length}`}
+                      aria-current={idx === indiceAtual ? 'true' : undefined}
+                    >
+                      {url ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- URLs arbitrários do storage
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full bg-gray-200" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

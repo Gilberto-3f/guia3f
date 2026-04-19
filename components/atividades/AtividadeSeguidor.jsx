@@ -14,6 +14,8 @@ import AvatarImage from '@/components/AvatarImage'
  *   seguidoTipo: string
  *   empresaId: string | null
  *   tempoInteracao?: string
+ *   modoMinhaConta?: boolean
+ *   meuUsuarioId?: string | null
  * }} props
  */
 export default function AtividadeSeguidor({
@@ -25,10 +27,15 @@ export default function AtividadeSeguidor({
   seguidoTipo,
   empresaId,
   tempoInteracao = '',
+  modoMinhaConta = false,
+  meuUsuarioId = null,
 }) {
   const router = useRouter()
   const hrefAlvo =
     seguidoTipo === 'empresa' && empresaId ? `/empresa/${empresaId}` : `/perfil/${seguidoUsuarioId}`
+
+  const euSouSeguido = Boolean(meuUsuarioId && String(seguidoUsuarioId) === String(meuUsuarioId))
+  const euSouSeguidor = Boolean(meuUsuarioId && String(seguidorUsuarioId) === String(meuUsuarioId))
 
   return (
     <div className="grid min-w-0 grid-cols-[2.5rem_1fr] items-start gap-x-2 text-sm text-gray-800">
@@ -45,17 +52,39 @@ export default function AtividadeSeguidor({
         ) : null}
       </div>
       <p className="min-w-0 pt-0.5 leading-snug">
-        <button
-          type="button"
-          className="font-medium text-[#0097b2] hover:underline"
-          onClick={() => router.push(`/perfil/${seguidorUsuarioId}`)}
-        >
-          @{usernameSeguidor}
-        </button>{' '}
-        começou a seguir{' '}
-        <Link href={hrefAlvo} className="font-medium text-[#0097b2] hover:underline">
-          @{usernameSeguido}
-        </Link>
+        {modoMinhaConta && euSouSeguido ? (
+          <>
+            <button
+              type="button"
+              className="font-medium text-[#0097b2] hover:underline"
+              onClick={() => router.push(`/perfil/${seguidorUsuarioId}`)}
+            >
+              @{usernameSeguidor}
+            </button>{' '}
+            começou a seguir você
+          </>
+        ) : modoMinhaConta && euSouSeguidor ? (
+          <>
+            Você começou a seguir{' '}
+            <Link href={hrefAlvo} className="font-medium text-[#0097b2] hover:underline">
+              @{usernameSeguido}
+            </Link>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="font-medium text-[#0097b2] hover:underline"
+              onClick={() => router.push(`/perfil/${seguidorUsuarioId}`)}
+            >
+              @{usernameSeguidor}
+            </button>{' '}
+            começou a seguir{' '}
+            <Link href={hrefAlvo} className="font-medium text-[#0097b2] hover:underline">
+              @{usernameSeguido}
+            </Link>
+          </>
+        )}
       </p>
     </div>
   )

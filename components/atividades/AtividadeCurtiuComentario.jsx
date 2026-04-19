@@ -16,6 +16,7 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  *   postId: string
  *   comentarioId: string
  *   tempoInteracao?: string
+ *   modoMinhaConta?: boolean
  * }} props
  */
 export default function AtividadeCurtiuComentario({
@@ -28,6 +29,7 @@ export default function AtividadeCurtiuComentario({
   postId,
   comentarioId,
   tempoInteracao = '',
+  modoMinhaConta = false,
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
@@ -53,10 +55,16 @@ export default function AtividadeCurtiuComentario({
               <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
                 @{usernameAtor}
               </button>{' '}
-              curtiu comentário de{' '}
-              <button type="button" onClick={() => router.push(hrefDono)} className="font-medium text-[#0097b2] hover:underline">
-                @{usernameDono}
-              </button>
+              {modoMinhaConta ? (
+                'curtiu seu comentário'
+              ) : (
+                <>
+                  curtiu comentário de{' '}
+                  <button type="button" onClick={() => router.push(hrefDono)} className="font-medium text-[#0097b2] hover:underline">
+                    @{usernameDono}
+                  </button>
+                </>
+              )}
               :
             </p>
             <button
@@ -77,7 +85,7 @@ export default function AtividadeCurtiuComentario({
         postIds={[postId]}
         comentarioId={comentarioId}
         interacaoUsuario={usernameAtor}
-        interacaoResumo={`curtiu comentário de @${usernameDono}`}
+        interacaoResumo={modoMinhaConta ? 'curtiu seu comentário' : `curtiu comentário de @${usernameDono}`}
       />
     </>
   )
