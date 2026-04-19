@@ -7,6 +7,7 @@ import { Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
   fetchFotoPerfilUsuario,
+  fetchNomeUsuarioParaStory,
   pickAutorDisplay,
   STORY_RING_GRADIENT,
   visualizadoPorEmails,
@@ -79,14 +80,25 @@ function labelFromUsuarioRow(u) {
   const t = firstEmbed(row.turistas)
   const p = firstEmbed(row.profissionais)
   const e = firstEmbed(row.empresas)
+  const colUsername =
+    typeof row.username === 'string' && row.username.trim() !== '' ? row.username.trim() : null
+  const colUsernameOk = colUsername && colUsername.toLowerCase() !== 'usuario' ? colUsername : null
+  /** Embeds primeiro (mesma fonte do @ no feed); `usuarios.username` só como fallback. */
   const raw =
-    (typeof row.username === 'string' && row.username.trim() !== '' ? row.username.trim() : null) ??
     (t?.nome_usuario != null ? String(t.nome_usuario).trim() : null) ??
     (p?.nome_usuario != null ? String(p.nome_usuario).trim() : null) ??
-    (e?.nome_usuario != null ? String(e.nome_usuario).trim() : null)
-  if (raw)
+    (e?.nome_usuario != null ? String(e.nome_usuario).trim() : null) ??
+    colUsernameOk
+  if (raw && raw.toLowerCase() !== 'usuario')
     return raw.startsWith('@') ? raw : `@${raw.replace(/^@/, '')}`
   return labelStoryDeAutor(pickAutorDisplay(u))
+}
+
+/** @param {string | null | undefined} s */
+function formatStoryHandle(s) {
+  const t = String(s ?? '').trim()
+  if (!t || t.toLowerCase() === 'usuario') return null
+  return t.startsWith('@') ? t : `@${t.replace(/^@/, '')}`
 }
 
 /** Empresa na barra: @nome_usuario ou nome fantasia curto. */
@@ -313,6 +325,15 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
         labels[aid] = 'Usuário'
       }
     }
+
+    await Promise.all(
+      ordered.map(async (aid) => {
+        if (empresaAutorSet.has(aid)) return
+        const nu = await fetchNomeUsuarioParaStory(supabase, aid)
+        const h = formatStoryHandle(nu)
+        if (h) labels[aid] = h
+      })
+    )
 
     const built = ordered
       .map((aid) => {
