@@ -515,7 +515,7 @@ export default function PostCard({
     ehRepost &&
     Boolean(autorId && autorOriginalUsuarioId && String(autorId) === String(autorOriginalUsuarioId))
 
-  /** Cabeçalho compacto: quem republicou + autor original + data na mesma linha (miolo indentado abaixo). */
+  /** Cabeçalho compacto: quem republicou + autor original + data na mesma linha. */
   const cabecalhoRepublicou = ehRepost ? (
     <div className="border-b border-gray-50 px-4 pt-4 pb-3">
       <div className="flex items-start justify-between gap-2">
@@ -661,7 +661,7 @@ export default function PostCard({
             <MenuPost {...menuProps} />
           </div>
         )}
-        <div className={ehRepost ? 'p-4 pt-3 pl-10' : 'p-4 pt-3'}>
+        <div className="p-4 pt-3">
           <AvaliacaoCard meta={meta} />
         </div>
         <div className="border-t border-gray-100">{acoesPost}</div>
@@ -767,47 +767,45 @@ export default function PostCard({
 
       {hasMedia ? (
         <>
-          <div className={ehRepost ? 'pl-10' : undefined}>
-            <div
-              className="relative w-full overflow-hidden bg-gray-100"
-              style={{
-                aspectRatio:
-                  mediaAspectRatio != null && mediaAspectRatio > 0
-                    ? String(mediaAspectRatio)
-                    : isVideoPost
-                      ? '16 / 9'
-                      : '4 / 5',
-              }}
-            >
-              {isVideoPost ? (
-                <video
-                  src={mediaUrl}
-                  className="absolute inset-0 h-full w-full object-contain"
-                  controls
-                  playsInline
-                  preload="metadata"
-                  onLoadedMetadata={(e) => {
-                    const v = e.currentTarget
-                    const w = v.videoWidth
-                    const h = v.videoHeight
-                    if (w > 0 && h > 0) setMediaAspectRatio(w / h)
-                  }}
-                />
-              ) : (
-                <Image
-                  src={mediaUrl}
-                  alt=""
-                  fill
-                  className="object-contain"
-                  sizes="(max-width: 768px) 100vw, 480px"
-                  onLoadingComplete={(img) => {
-                    const w = img.naturalWidth
-                    const h = img.naturalHeight
-                    if (w > 0 && h > 0) setMediaAspectRatio(w / h)
-                  }}
-                />
-              )}
-            </div>
+          <div
+            className="relative w-full overflow-hidden bg-gray-100"
+            style={{
+              aspectRatio:
+                mediaAspectRatio != null && mediaAspectRatio > 0
+                  ? String(mediaAspectRatio)
+                  : isVideoPost
+                    ? '16 / 9'
+                    : '4 / 5',
+            }}
+          >
+            {isVideoPost ? (
+              <video
+                src={mediaUrl}
+                className="absolute inset-0 h-full w-full object-contain"
+                controls
+                playsInline
+                preload="metadata"
+                onLoadedMetadata={(e) => {
+                  const v = e.currentTarget
+                  const w = v.videoWidth
+                  const h = v.videoHeight
+                  if (w > 0 && h > 0) setMediaAspectRatio(w / h)
+                }}
+              />
+            ) : (
+              <Image
+                src={mediaUrl}
+                alt=""
+                fill
+                className="object-contain"
+                sizes="(max-width: 768px) 100vw, 480px"
+                onLoadingComplete={(img) => {
+                  const w = img.naturalWidth
+                  const h = img.naturalHeight
+                  if (w > 0 && h > 0) setMediaAspectRatio(w / h)
+                }}
+              />
+            )}
           </div>
           {acoesPost}
           {post.texto ? (
@@ -815,7 +813,7 @@ export default function PostCard({
               texto={post.texto}
               postId={post.id}
               maxLines={5}
-              className={ehRepost ? 'pl-10 pr-4 pb-3 pt-1' : 'px-4 pb-3 pt-1'}
+              className="px-4 pb-3 pt-1"
             />
           ) : null}
         </>
@@ -826,7 +824,7 @@ export default function PostCard({
               texto={post.texto}
               postId={post.id}
               maxLines={20}
-              className={ehRepost ? 'pl-10 pr-4 py-2 pt-0' : 'px-4 py-2 pt-0'}
+              className="px-4 py-2 pt-0"
             />
           ) : null}
           {acoesPost}
