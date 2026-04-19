@@ -82,6 +82,7 @@ export default function AtividadeCurtidas({
         indiceInicial={modal.i}
         interacaoUsuario={interactorUsername}
         interacaoResumo={resumoModal}
+        thumbUrls={urls}
       />
     </div>
   )

@@ -56,6 +56,7 @@ function buildCommentTree(flat) {
  *   variant?: 'modal' | 'inline'
  *   totalComentariosVisual?: number | null
  *   somenteLeitura?: boolean
+ *   mostrarCompositor?: boolean
  * }} props
  */
 export default function ModalComentarios({
@@ -70,13 +71,14 @@ export default function ModalComentarios({
   variant = 'modal',
   totalComentariosVisual = null,
   somenteLeitura = false,
+  mostrarCompositor = true,
 }) {
   const inline = variant === 'inline'
   /** Em linha: sempre ativo com `postId`; em modal: só quando `aberto`. */
   const ativo = inline || aberto
   /** Post isolado no drawer: lista sem compositor nem respostas/exclusão. */
   const leituraComentarios = inline && somenteLeitura
-  const mostrarRodape = !leituraComentarios
+  const mostrarRodape = !leituraComentarios && (!inline || mostrarCompositor)
   const [arvore, setArvore] = useState([])
   const [novoComentario, setNovoComentario] = useState('')
   const [enviando, setEnviando] = useState(false)

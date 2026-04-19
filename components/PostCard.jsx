@@ -97,6 +97,7 @@ function PostTextoColapsivel({ texto, postId, maxLines, className = '' }) {
  *   abrirComentariosInicial?: boolean
  *   destacarComentarioId?: string | null
  *   comentariosInline?: boolean
+ *   compositorComentarioAteClique?: boolean
  *   comentariosSomenteLeitura?: boolean
  *   onRepublicouPrepend?: (row: Record<string, unknown>) => void
  *   onPostLocalPatch?: (postId: string, patch: Partial<{ texto: string | null }>) => void
@@ -115,6 +116,7 @@ export default function PostCard({
   abrirComentariosInicial = false,
   destacarComentarioId = null,
   comentariosInline = false,
+  compositorComentarioAteClique = false,
   comentariosSomenteLeitura = false,
   onRepublicouPrepend,
   onPostLocalPatch,
@@ -140,6 +142,7 @@ export default function PostCard({
   const [textoEditado, setTextoEditado] = useState('')
   /** Proporção largura/altura da mídia ( pixels do ficheiro = recorte exportado em criar ). */
   const [mediaAspectRatio, setMediaAspectRatio] = useState(/** @type {number | null} */ (null))
+  const [compositorAberto, setCompositorAberto] = useState(false)
 
   const empresaId = post.autor?.empresa_id || ''
   const autorId = post.autor?.usuario_id || ''
@@ -157,6 +160,11 @@ export default function PostCard({
   useEffect(() => {
     setNComent(post.total_comentarios ?? 0)
   }, [post.total_comentarios, post.id])
+
+  useEffect(() => {
+    if (!compositorComentarioAteClique || !comentariosInline) return
+    setCompositorAberto(false)
+  }, [post.id, compositorComentarioAteClique, comentariosInline])
 
   useEffect(() => {
     if (comentariosInline) return
@@ -391,8 +399,19 @@ export default function PostCard({
     }
   }
 
+  const mostrarCompositorInline = !compositorComentarioAteClique || compositorAberto
+
   const handleComentar = () => {
     if (comentariosInline) {
+      if (compositorComentarioAteClique) {
+        setCompositorAberto(true)
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            document.getElementById(`comentarios-inline-${post.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          })
+        })
+        return
+      }
       document.getElementById(`comentarios-inline-${post.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }
@@ -656,6 +675,7 @@ export default function PostCard({
           destacarComentarioId={destacarComentarioId}
           totalComentariosVisual={nComent}
           somenteLeitura={comentariosSomenteLeitura}
+          mostrarCompositor={mostrarCompositorInline}
         />
         <ModalCurtidas
           postId={post.id}
@@ -832,6 +852,7 @@ export default function PostCard({
         destacarComentarioId={destacarComentarioId}
         totalComentariosVisual={nComent}
         somenteLeitura={comentariosSomenteLeitura}
+        mostrarCompositor={mostrarCompositorInline}
       />
       <ModalCurtidas
         postId={post.id}
