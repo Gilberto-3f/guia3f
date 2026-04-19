@@ -104,6 +104,7 @@ function PostTextoColapsivel({ texto, postId, maxLines, className = '' }) {
  *   onItemSalvoChange?: (postId: string, salvo: boolean) => void
  *   onRepostRemovido?: (repostPostId: string) => void
  *   onEngagementChange?: (postId: string, patch: { total_curtidas?: number; total_comentarios?: number }) => void
+ *   ocultarCabecalhoCard?: boolean
  * }} props
  */
 export default function PostCard({
@@ -123,6 +124,7 @@ export default function PostCard({
   onItemSalvoChange,
   onRepostRemovido,
   onEngagementChange,
+  ocultarCabecalhoCard = false,
 }) {
   const [comentAberto, setComentAberto] = useState(false)
   const [curtidasAberto, setCurtidasAberto] = useState(false)
@@ -644,23 +646,25 @@ export default function PostCard({
     const tempo = formatarDataRelativaPublicacao(post.created_at)
     return (
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
-        {ehRepost ? (
-          cabecalhoRepublicou
-        ) : (
-          <div className="flex items-center justify-between border-b border-gray-50 px-4 pt-3">
-            <div>
-              {autorId ? (
-                <Link href={`/perfil/${autorId}`} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
-                  @{post.autor?.username ?? ''}
-                </Link>
-              ) : (
-                <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
-              )}
-              <time className="text-xs text-gray-400">{tempo}</time>
+        {!ocultarCabecalhoCard ? (
+          ehRepost ? (
+            cabecalhoRepublicou
+          ) : (
+            <div className="flex items-center justify-between border-b border-gray-50 px-4 pt-3">
+              <div>
+                {autorId ? (
+                  <Link href={`/perfil/${autorId}`} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
+                    @{post.autor?.username ?? ''}
+                  </Link>
+                ) : (
+                  <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+                )}
+                <time className="text-xs text-gray-400">{tempo}</time>
+              </div>
+              <MenuPost {...menuProps} />
             </div>
-            <MenuPost {...menuProps} />
-          </div>
-        )}
+          )
+        ) : null}
         <div className="p-4 pt-3">
           <AvaliacaoCard meta={meta} />
         </div>
@@ -704,66 +708,68 @@ export default function PostCard({
       id={`feed-post-${post.id}`}
       className={comentariosInline ? 'rounded-xl bg-white shadow-sm' : 'overflow-hidden rounded-xl bg-white shadow-sm'}
     >
-      {ehRepost ? (
-        cabecalhoRepublicou
-      ) : (
-        <div className="flex items-center justify-between p-4 pb-2">
-          <div className="flex items-start gap-3">
-            {temStoryNoAutor ? (
-              <div
-                className={`relative shrink-0 rounded-md p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
-                style={!storyDoAutorVisto ? { background: STORY_RING_GRADIENT } : undefined}
-              >
-                <div className="rounded-md bg-white p-[2px]">
-                  <button
-                    type="button"
-                    onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
-                    className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
-                    aria-label={`Ver story de ${post.autor?.nome ?? 'autor'}`}
-                  >
-                    <AvatarImage
-                      src={post.autor?.foto_perfil_url}
-                      alt=""
-                      width={40}
-                      height={40}
-                      className="h-full w-full object-cover"
-                    />
-                  </button>
+      {!ocultarCabecalhoCard ? (
+        ehRepost ? (
+          cabecalhoRepublicou
+        ) : (
+          <div className="flex items-center justify-between p-4 pb-2">
+            <div className="flex items-start gap-3">
+              {temStoryNoAutor ? (
+                <div
+                  className={`relative shrink-0 rounded-md p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
+                  style={!storyDoAutorVisto ? { background: STORY_RING_GRADIENT } : undefined}
+                >
+                  <div className="rounded-md bg-white p-[2px]">
+                    <button
+                      type="button"
+                      onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
+                      className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                      aria-label={`Ver story de ${post.autor?.nome ?? 'autor'}`}
+                    >
+                      <AvatarImage
+                        src={post.autor?.foto_perfil_url}
+                        alt=""
+                        width={40}
+                        height={40}
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ) : autorId ? (
-              <Link
-                href={`/perfil/${autorId}`}
-                className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
-                aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
-              >
-                <AvatarImage src={post.autor?.foto_perfil_url} alt="" width={40} height={40} className="object-cover" />
-              </Link>
-            ) : (
-              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                <AvatarImage
-                  src={post.autor?.foto_perfil_url}
-                  alt=""
-                  width={40}
-                  height={40}
-                  className="object-cover"
-                />
-              </div>
-            )}
-            <div>
-              {autorId ? (
-                <Link href={`/perfil/${autorId}`} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
-                  @{post.autor?.username ?? ''}
+              ) : autorId ? (
+                <Link
+                  href={`/perfil/${autorId}`}
+                  className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                  aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
+                >
+                  <AvatarImage src={post.autor?.foto_perfil_url} alt="" width={40} height={40} className="object-cover" />
                 </Link>
               ) : (
-                <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  <AvatarImage
+                    src={post.autor?.foto_perfil_url}
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="object-cover"
+                  />
+                </div>
               )}
-              <time className="mt-0.5 block text-xs text-gray-400">{formatarDataRelativaPublicacao(post.created_at)}</time>
+              <div>
+                {autorId ? (
+                  <Link href={`/perfil/${autorId}`} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
+                    @{post.autor?.username ?? ''}
+                  </Link>
+                ) : (
+                  <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+                )}
+                <time className="mt-0.5 block text-xs text-gray-400">{formatarDataRelativaPublicacao(post.created_at)}</time>
+              </div>
             </div>
+            <MenuPost {...menuProps} />
           </div>
-          <MenuPost {...menuProps} />
-        </div>
-      )}
+        )
+      ) : null}
 
       {hasMedia ? (
         <>

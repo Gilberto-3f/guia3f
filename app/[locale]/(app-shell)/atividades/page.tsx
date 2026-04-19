@@ -823,8 +823,11 @@ export default function AtividadesPage() {
     if (item.kind === 'curtiu_post_fotos') {
       const inter = perfilMap[item.autor_id]
       const donor = perfilMap[item.usuario_dono_id]
-      const urlsBrutas = item.rows.map((r) => urlFotoPost(postMetaMap[r.alvo_id])).filter((u): u is string => Boolean(u))
-      const urlsGrid = urlsBrutas.length ? urlsBrutas : item.rows.map(() => '/window.svg')
+      /** Uma URL por linha (alinhada a `postIds`); placeholder se a meta ainda não tiver foto. */
+      const urlsGrid = item.rows.map((r) => {
+        const u = urlFotoPost(postMetaMap[r.alvo_id])
+        return u && String(u).trim() !== '' ? String(u) : '/window.svg'
+      })
       return (
         <AtividadeCurtidas
           key={`cf-${item.autor_id}-${item.usuario_dono_id}-${item.created_at}-${idx}`}

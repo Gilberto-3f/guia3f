@@ -1,10 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { X } from 'lucide-react'
 import PostCard from '@/components/PostCard'
+import AvatarImage from '@/components/AvatarImage'
 import { supabase } from '@/lib/supabase'
 import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
+import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 
 const POSTS_FEED_VIEW = 'posts_com_autores'
 
@@ -166,11 +169,55 @@ export default function ModalVisualizacao({
         <span id="modal-atividade-titulo" className="sr-only">
           Publicação
         </span>
-        <div className="sticky top-0 z-10 flex shrink-0 justify-end border-b border-gray-100 bg-white p-3">
+        <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 bg-white px-3 py-2">
+          {!carregando && post ? (
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              {post.autor?.usuario_id ? (
+                <Link
+                  href={`/perfil/${post.autor.usuario_id}`}
+                  className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                  aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
+                >
+                  <AvatarImage
+                    src={post.autor?.foto_perfil_url}
+                    alt=""
+                    width={36}
+                    height={36}
+                    className="h-full w-full object-cover"
+                  />
+                </Link>
+              ) : (
+                <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  <AvatarImage
+                    src={post.autor?.foto_perfil_url}
+                    alt=""
+                    width={36}
+                    height={36}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                {post.autor?.usuario_id ? (
+                  <Link
+                    href={`/perfil/${post.autor.usuario_id}`}
+                    className="block truncate text-sm font-semibold text-gray-900 hover:text-[#0097b2]"
+                  >
+                    @{post.autor?.username ?? ''}
+                  </Link>
+                ) : (
+                  <p className="truncate text-sm font-semibold text-gray-900">@{post.autor?.username ?? ''}</p>
+                )}
+                <p className="text-xs text-gray-500">{formatarDataRelativaPublicacao(post.created_at)}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="min-h-[36px] min-w-0 flex-1" aria-hidden />
+          )}
           <button
             type="button"
             onClick={onFechar}
-            className="rounded-full p-1 text-gray-500 hover:bg-gray-100"
+            className="shrink-0 rounded-full p-1 text-gray-500 hover:bg-gray-100"
             aria-label="Fechar"
           >
             <X className="h-5 w-5" />
@@ -195,6 +242,7 @@ export default function ModalVisualizacao({
                 comentariosSomenteLeitura={false}
                 abrirComentariosInicial={false}
                 destacarComentarioId={destacar}
+                ocultarCabecalhoCard
               />
             )}
           </div>
