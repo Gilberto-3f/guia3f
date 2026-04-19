@@ -76,7 +76,7 @@ export default function ModalFotos({ urls, indiceInicial, aberto, onFechar }) {
       </div>
 
       <div
-        className="relative flex min-h-0 flex-1 items-center justify-center px-2 touch-pan-y"
+        className="relative flex min-h-0 flex-1 touch-pan-x items-center justify-center px-2"
         onTouchStart={(e) => setTouchX(e.touches[0]?.clientX ?? null)}
         onTouchEnd={(e) => {
           if (touchX == null) return

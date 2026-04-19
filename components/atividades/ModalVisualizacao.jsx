@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { X } from 'lucide-react'
 import PostCard from '@/components/PostCard'
@@ -46,7 +46,42 @@ export default function ModalVisualizacao({
   const [email, setEmail] = useState(/** @type {string | null} */ (null))
   const [thumbs, setThumbs] = useState(/** @type {(string | null)[]} */ ([]))
 
+  /** Deslize horizontal no miolo do modal para mudar de foto (carrossel). */
+  const swipeRef = useRef({ x: 0, y: 0, active: false })
+
   const postIdAtivo = ids[indiceAtual] ?? null
+
+  const onTouchStartCarouselNav = useCallback(
+    (e) => {
+      if (!isCarrossel || ids.length < 2) return
+      const t = e.touches[0]
+      if (!t) return
+      swipeRef.current = { x: t.clientX, y: t.clientY, active: true }
+    },
+    [isCarrossel, ids.length]
+  )
+
+  const onTouchEndCarouselNav = useCallback(
+    (e) => {
+      if (!isCarrossel || ids.length < 2 || !swipeRef.current.active) return
+      swipeRef.current.active = false
+      const t = e.changedTouches[0]
+      if (!t) return
+      const dx = t.clientX - swipeRef.current.x
+      const dy = t.clientY - swipeRef.current.y
+      if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return
+      if (dx < 0) {
+        setIndiceAtual((i) => Math.min(ids.length - 1, i + 1))
+      } else {
+        setIndiceAtual((i) => Math.max(0, i - 1))
+      }
+    },
+    [isCarrossel, ids.length]
+  )
+
+  const onTouchCancelCarouselNav = useCallback(() => {
+    swipeRef.current.active = false
+  }, [])
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data: { session } }) => {
@@ -79,10 +114,20 @@ export default function ModalVisualizacao({
     if (!aberto) return
     const onKey = (e) => {
       if (e.key === 'Escape') onFechar()
+      if (isCarrossel && ids.length > 1) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault()
+          setIndiceAtual((i) => Math.max(0, i - 1))
+        }
+        if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          setIndiceAtual((i) => Math.min(ids.length - 1, i + 1))
+        }
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [aberto, onFechar])
+  }, [aberto, onFechar, isCarrossel, ids.length])
 
   useEffect(() => {
     if (!aberto || !postIdAtivo) {
@@ -225,7 +270,12 @@ export default function ModalVisualizacao({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-2 sm:px-4">
+          <div
+            className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-2 sm:px-4"
+            onTouchStart={onTouchStartCarouselNav}
+            onTouchEnd={onTouchEndCarouselNav}
+            onTouchCancel={onTouchCancelCarouselNav}
+          >
             {carregando ? (
               <div className="py-12 text-center text-sm text-gray-400">Carregando publicação…</div>
             ) : !post ? (
