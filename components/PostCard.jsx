@@ -514,6 +514,9 @@ export default function PostCard({
   }
 
   const repostEhFoto = tipoNorm === 'foto' || tipoNorm === 'misto'
+  const isSelfRepost =
+    ehRepost &&
+    Boolean(autorId && autorOriginalUsuarioId && String(autorId) === String(autorOriginalUsuarioId))
 
   /** Cabeçalho compacto: quem republicou + autor original + data na mesma linha (miolo indentado abaixo). */
   const cabecalhoRepublicou = ehRepost ? (
@@ -553,22 +556,28 @@ export default function PostCard({
             ) : (
               <span className="font-semibold text-gray-800">@{post.autor?.username ?? ''}</span>
             )}
-            <span>{repostEhFoto ? ' repostou foto de ' : ' repostou post de '}</span>
-            {autorOriginalUsername ? (
-              autorOriginalUsuarioId ? (
-                <Link
-                  href={`/perfil/${autorOriginalUsuarioId}`}
-                  className="font-semibold text-gray-800 hover:text-[#0097b2]"
-                >
-                  @{autorOriginalUsername}
-                </Link>
-              ) : (
-                <span className="font-semibold text-gray-800">@{autorOriginalUsername}</span>
-              )
+            {isSelfRepost ? (
+              <span>{repostEhFoto ? ' repostou uma foto' : ' repostou um post'}</span>
             ) : (
-              <span className="font-medium text-gray-400" aria-hidden>
-                @…
-              </span>
+              <>
+                <span>{repostEhFoto ? ' repostou foto de ' : ' repostou post de '}</span>
+                {autorOriginalUsername ? (
+                  autorOriginalUsuarioId ? (
+                    <Link
+                      href={`/perfil/${autorOriginalUsuarioId}`}
+                      className="font-semibold text-gray-800 hover:text-[#0097b2]"
+                    >
+                      @{autorOriginalUsername}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold text-gray-800">@{autorOriginalUsername}</span>
+                  )
+                ) : (
+                  <span className="font-medium text-gray-400" aria-hidden>
+                    @…
+                  </span>
+                )}
+              </>
             )}
             <span className="text-gray-400">{' · '}</span>
             <span className="text-gray-400">{formatarDataRelativaPublicacao(post.created_at)}</span>
