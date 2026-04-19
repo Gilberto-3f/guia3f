@@ -27,8 +27,8 @@ export default function StoryCircle({
   const visto = userEmail ? emails.includes(userEmail) : false
 
   const labelClass = labelOnDark
-    ? 'max-w-[5rem] truncate text-center text-xs text-white/95'
-    : 'max-w-[5rem] truncate text-center text-xs text-gray-600'
+    ? 'max-w-[7rem] truncate text-center text-xs text-white/95'
+    : 'max-w-[7rem] truncate text-center text-xs font-medium text-gray-800'
 
   return (
     <div className="flex w-[76px] shrink-0 flex-col items-center gap-1">

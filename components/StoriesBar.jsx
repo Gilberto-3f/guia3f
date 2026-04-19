@@ -52,13 +52,41 @@ function foiVisualizado(visualizado_por, userEmail) {
   return visualizadoPorEmails(visualizado_por).includes(userEmail)
 }
 
-/** Rótulo curto para o anel: @handle alinhado ao feed. */
+/** Rótulo curto a partir do objeto já processado por pickAutorDisplay. */
 function labelStoryDeAutor(d) {
-  const u = d.username != null ? String(d.username).trim() : ''
-  if (u) return u.startsWith('@') ? u : `@${u}`
+  const h = d.username != null ? String(d.username).trim() : ''
+  if (h && h !== 'usuario') return h.startsWith('@') ? h : `@${h.replace(/^@/, '')}`
   const n = d.nome != null ? String(d.nome).trim() : ''
   if (n) return n.length > 14 ? `${n.slice(0, 12)}…` : n
   return 'Usuário'
+}
+
+/**
+ * Username para o texto abaixo do anel: prioriza `nome_usuario` nos embeds (igual ao @ do feed).
+ * @param {unknown} u linha de `usuarios` com turistas/profissionais/empresas
+ */
+function labelFromUsuarioRow(u) {
+  if (!u || typeof u !== 'object') return 'Usuário'
+  const row = /** @type {Record<string, unknown>} */ (u)
+  const firstEmbed = (v) => {
+    if (v == null) return null
+    if (Array.isArray(v)) {
+      const x = v[0]
+      return x != null && typeof x === 'object' ? /** @type {Record<string, unknown>} */ (x) : null
+    }
+    return typeof v === 'object' ? /** @type {Record<string, unknown>} */ (v) : null
+  }
+  const t = firstEmbed(row.turistas)
+  const p = firstEmbed(row.profissionais)
+  const e = firstEmbed(row.empresas)
+  const raw =
+    (typeof row.username === 'string' && row.username.trim() !== '' ? row.username.trim() : null) ??
+    (t?.nome_usuario != null ? String(t.nome_usuario).trim() : null) ??
+    (p?.nome_usuario != null ? String(p.nome_usuario).trim() : null) ??
+    (e?.nome_usuario != null ? String(e.nome_usuario).trim() : null)
+  if (raw)
+    return raw.startsWith('@') ? raw : `@${raw.replace(/^@/, '')}`
+  return labelStoryDeAutor(pickAutorDisplay(u))
 }
 
 /** Empresa na barra: @nome_usuario ou nome fantasia curto. */
@@ -255,7 +283,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       for (const u of usuariosRows) {
         const d = pickAutorDisplay(u)
         const id = String(u.id)
-        labels[id] = labelStoryDeAutor(d)
+        labels[id] = labelFromUsuarioRow(u)
         previews[id] = d.foto_perfil_url
       }
     }
@@ -279,7 +307,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       if (oneErr) console.warn('[StoriesBar] usuarios fallback', aid, oneErr)
       if (uRow) {
         const d = pickAutorDisplay(uRow)
-        labels[aid] = labelStoryDeAutor(d)
+        labels[aid] = labelFromUsuarioRow(uRow)
         if (!previews[aid] && d.foto_perfil_url) previews[aid] = d.foto_perfil_url
       } else {
         labels[aid] = 'Usuário'
