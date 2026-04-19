@@ -4,9 +4,15 @@ import { useEffect, useRef, useState } from 'react'
 import { MoreHorizontal } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
+/** Nome do evento global após soft delete bem-sucedido (cascata no estado do feed/perfil). */
+export const POST_DELETED_EVENT = 'post-deleted'
+
 /**
+ * `postParentId` = coluna `post_original_id` da linha apagada (`null` = post raiz; listeners removem também reposts com `post_original_id === postId`).
+ *
  * @param {{
  *   postId: string
+ *   postParentId?: string | null
  *   autorUsuarioId: string
  *   meuUsuarioId: string | null
  *   empresaAlvo?: { empresaId: string, jaSegue: boolean } | null
@@ -22,6 +28,7 @@ import { supabase } from '@/lib/supabase'
  */
 export default function MenuPost({
   postId,
+  postParentId = null,
   autorUsuarioId,
   meuUsuarioId,
   empresaAlvo,
@@ -68,10 +75,15 @@ export default function MenuPost({
       if (rpcErr && rpcErr.message && !String(rpcErr.message).includes('not_allowed')) {
         console.error('limpar_dados_ao_excluir_post:', rpcErr)
       }
+      window.dispatchEvent(
+        new CustomEvent(POST_DELETED_EVENT, {
+          detail: { postId, postParentId: postParentId ?? null },
+        })
+      )
+      onApagou?.()
     }
     setPassoExcluir(0)
     setAberto(false)
-    onApagou?.()
   }
 
   const toggleSeguirEmpresa = async () => {

@@ -18,6 +18,7 @@ import PopupSeguidores from '@/components/perfil/PopupSeguidores'
 import PopupAvaliacoes from '@/components/perfil/PopupAvaliacoes'
 import ModalFoto from '@/components/perfil/ModalFoto'
 import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
+import { POST_DELETED_EVENT } from '@/components/MenuPost'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
 
@@ -378,6 +379,23 @@ export default function PerfilSocialPage() {
       setPlacaVermelha(Boolean((profRow as { placa_vermelha?: boolean } | null)?.placa_vermelha))
     }
     void boot()
+  }, [])
+
+  useEffect(() => {
+    const onPostDeleted = (e: Event) => {
+      const ce = e as CustomEvent<{ postId: string; postParentId: string | null }>
+      const { postId, postParentId } = ce.detail ?? {}
+      if (!postId) return
+      setRepostadosPosts((prev) =>
+        prev.filter((r) => {
+          if (r.id === postId) return false
+          if (postParentId == null && r.post_original_id === postId) return false
+          return true
+        })
+      )
+    }
+    window.addEventListener(POST_DELETED_EVENT, onPostDeleted)
+    return () => window.removeEventListener(POST_DELETED_EVENT, onPostDeleted)
   }, [])
 
   const counts = useMemo(

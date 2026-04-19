@@ -7,6 +7,7 @@ import { pickAutorDisplay } from '@/lib/feed-autor'
 import { fetchPatrocinioAutorIds, isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import StoriesBar from '@/components/StoriesBar'
 import PostCard from '@/components/PostCard'
+import { POST_DELETED_EVENT } from '@/components/MenuPost'
 import StoryViewer from '@/components/StoryViewer'
 
 const PAGE_SIZE = 12
@@ -342,6 +343,23 @@ function FeedPageInner() {
     window.addEventListener('perfil-atualizado', onPerfilAtualizado)
     return () => window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
   }, [recarregarPrimeiraPagina])
+
+  useEffect(() => {
+    const onPostDeleted = (e: Event) => {
+      const ce = e as CustomEvent<{ postId: string; postParentId: string | null }>
+      const { postId, postParentId } = ce.detail ?? {}
+      if (!postId) return
+      setPosts((prev) =>
+        prev.filter((p) => {
+          if (p.id === postId) return false
+          if (postParentId == null && p.post_original_id === postId) return false
+          return true
+        })
+      )
+    }
+    window.addEventListener(POST_DELETED_EVENT, onPostDeleted)
+    return () => window.removeEventListener(POST_DELETED_EVENT, onPostDeleted)
+  }, [])
 
   useEffect(() => {
     const el = sentinelRef.current

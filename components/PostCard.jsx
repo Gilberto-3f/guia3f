@@ -496,6 +496,7 @@ export default function PostCard({
 
   const menuProps = {
     postId: post.id,
+    postParentId: post.post_original_id ?? null,
     autorUsuarioId: post.autor?.usuario_id,
     meuUsuarioId,
     empresaAlvo: empresaId ? { empresaId, jaSegue: jaSegueEmpresa } : null,
