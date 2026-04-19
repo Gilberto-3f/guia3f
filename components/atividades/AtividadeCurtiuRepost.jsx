@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { Link, useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
-import ModalConteudo from '@/components/atividades/ModalConteudo'
+import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
 /**
  * @param {{
@@ -17,7 +17,6 @@ import ModalConteudo from '@/components/atividades/ModalConteudo'
  *   previewTipo: 'foto' | 'texto'
  *   previewUrl: string | null
  *   previewTexto: string
- *   modalChildren: import('react').ReactNode
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
  * }} props
@@ -32,13 +31,15 @@ export default function AtividadeCurtiuRepost({
   previewTipo,
   previewUrl,
   previewTexto,
-  modalChildren,
   tempoInteracao = '',
   modoMinhaConta = false,
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
-  const verHref = `/perfil/atividades/${encodeURIComponent(postId)}`
+
+  const resumoModal = modoMinhaConta
+    ? 'curtiu seu repost'
+    : `curtiu conteúdo repostado por @${donorUsername}`
 
   return (
     <>
@@ -78,8 +79,8 @@ export default function AtividadeCurtiuRepost({
               className="mt-1.5 block min-h-0 w-full text-left"
             >
               {previewTipo === 'foto' && previewUrl ? (
-                <div className="relative mx-auto h-24 w-full max-w-[7rem] overflow-hidden rounded-md bg-gray-100 sm:h-28 sm:max-w-[7.5rem]">
-                  <Image src={previewUrl} alt="" fill className="object-cover" sizes="120px" />
+                <div className="relative aspect-square w-full max-w-[52px] shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  <Image src={previewUrl} alt="" fill className="object-cover" sizes="52px" />
                 </div>
               ) : (
                 <p className="line-clamp-3 whitespace-pre-wrap text-base text-gray-800">
@@ -90,9 +91,13 @@ export default function AtividadeCurtiuRepost({
           </div>
         </div>
       </div>
-      <ModalConteudo aberto={modal} onFechar={() => setModal(false)} titulo="Repostagem" verNoFeedHref={verHref}>
-        {modalChildren}
-      </ModalConteudo>
+      <ModalVisualizacao
+        aberto={modal}
+        onFechar={() => setModal(false)}
+        postIds={[postId]}
+        interacaoUsuario={interactorUsername}
+        interacaoResumo={resumoModal}
+      />
     </>
   )
 }

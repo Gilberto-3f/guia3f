@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2, Search } from 'lucide-react'
@@ -901,17 +900,6 @@ export default function AtividadesPage() {
         const previewTipo: 'foto' | 'texto' =
           tipoOrig === 'foto' || tipoOrig === 'misto' || (Boolean(prevUrl) && !prevTexto.trim()) ? 'foto' : 'texto'
 
-        const modalChildren = (
-          <div className="space-y-3">
-            {prevUrl ? (
-              <div className="relative mx-auto h-72 w-full max-w-sm overflow-hidden rounded-lg bg-gray-100">
-                <Image src={prevUrl} alt="" fill className="object-contain" sizes="(max-width: 448px) 100vw, 448px" />
-              </div>
-            ) : null}
-            {prevTexto ? <p className="whitespace-pre-wrap text-base text-gray-800">{prevTexto}</p> : null}
-          </div>
-        )
-
         return (
           <AtividadeCurtiuRepost
             key={r.id}
@@ -924,7 +912,6 @@ export default function AtividadesPage() {
             previewTipo={previewTipo}
             previewUrl={prevUrl}
             previewTexto={prevTexto || textoPost}
-            modalChildren={modalChildren}
             tempoInteracao={formatarDataComentarioCurta(r.created_at)}
             modoMinhaConta={modoMinhaConta}
           />
