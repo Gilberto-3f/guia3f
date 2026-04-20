@@ -14,7 +14,7 @@ import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
-import { Camera, X } from 'lucide-react'
+import { Camera, Flag, X } from 'lucide-react'
 import Cropper, { type Area, type MediaSize, type Size } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
@@ -612,10 +612,10 @@ function CriarPublicacaoPageInner() {
       </div>
 
       {aba === 'foto' ? (
-        <div className="relative flex flex-1 flex-col px-2 pb-2 pt-1 sm:px-3">
+        <div className="relative flex min-h-0 flex-1 flex-col px-2 pt-1 sm:px-3">
           {!fotoPreview ? (
             <>
-              <div className="relative flex min-h-[min(76dvh,680px)] flex-1 flex-col overflow-hidden rounded-2xl shadow-md ring-1 ring-black/5 sm:rounded-3xl">
+              <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl shadow-md ring-1 ring-black/5 sm:rounded-3xl">
                 {/* Fundo claro + blobs (aquarela / névoa) */}
                 <div
                   className="absolute inset-0 bg-gradient-to-br from-white via-[#F5FDFF] to-[#FFF8E8]"
@@ -634,7 +634,7 @@ function CriarPublicacaoPageInner() {
                   aria-hidden
                 />
 
-                <div className="relative z-10 flex flex-1 flex-col items-center px-4 pb-8 pt-8 text-center sm:px-6">
+                <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 pb-4 pt-5 text-center sm:px-6">
                   <Camera
                     size={48}
                     strokeWidth={1.75}
@@ -642,10 +642,12 @@ function CriarPublicacaoPageInner() {
                     aria-hidden
                   />
 
-                  <h1 className="mx-auto mb-2 max-w-[20rem] text-balance text-2xl font-bold leading-snug text-[#1F2937]">
-                    Compartilhe seu momento na Tríplice Fronteira
+                  <h1 className="mx-auto mb-2 max-w-[18rem] text-center text-xl font-bold leading-tight text-[#1F2937]">
+                    Compartilhe seu momento
+                    <br />
+                    na Tríplice Fronteira
                   </h1>
-                  <p className="mb-6 max-w-md text-base font-normal text-gray-500">
+                  <p className="mb-5 max-w-md text-base font-normal text-gray-500">
                     Mostre o que você está vivendo agora
                   </p>
 
@@ -658,19 +660,19 @@ function CriarPublicacaoPageInner() {
                     Publicar Foto
                   </button>
 
-                  <div className="mt-6 mb-6 w-full max-w-md">
-                    <div className="flex gap-3 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="mx-auto mt-5 mb-5 w-full max-w-[280px] sm:max-w-xs">
+                    <div className="grid grid-cols-2 gap-3">
                       {INSPIRACAO_TRIPLA.map((item, i) => (
                         <div
                           key={item.src}
-                          className="relative h-[120px] w-[120px] shrink-0 overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5"
+                          className="relative aspect-square w-full overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5"
                         >
                           <Image
                             src={item.src}
                             alt={item.alt}
                             fill
                             className="object-cover"
-                            sizes="120px"
+                            sizes="(max-width: 640px) 45vw, 200px"
                             priority={i === 0}
                           />
                         </div>
@@ -679,18 +681,27 @@ function CriarPublicacaoPageInner() {
                   </div>
 
                   <div
-                    className="mt-4 flex justify-center gap-4"
+                    className="mt-1 flex justify-center gap-3 sm:gap-4"
                     aria-label="Brasil, Paraguai e Argentina"
                   >
-                    <span className="text-3xl leading-none" title="Brasil" aria-hidden>
-                      🇧🇷
-                    </span>
-                    <span className="text-3xl leading-none" title="Paraguai" aria-hidden>
-                      🇵🇾
-                    </span>
-                    <span className="text-3xl leading-none" title="Argentina" aria-hidden>
-                      🇦🇷
-                    </span>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-amber-400 shadow-sm">
+                        <Flag size={16} className="text-white" strokeWidth={2.25} aria-hidden />
+                      </div>
+                      <span className="text-[11px] font-medium text-gray-500">Brasil</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-red-600 to-blue-800 shadow-sm">
+                        <Flag size={16} className="text-white" strokeWidth={2.25} aria-hidden />
+                      </div>
+                      <span className="text-[11px] font-medium text-gray-500">Paraguai</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-white shadow-sm ring-1 ring-sky-200/80">
+                        <Flag size={16} className="text-sky-900" strokeWidth={2.25} aria-hidden />
+                      </div>
+                      <span className="text-[11px] font-medium text-gray-500">Argentina</span>
+                    </div>
                   </div>
                 </div>
               </div>
