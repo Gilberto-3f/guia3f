@@ -589,7 +589,7 @@ function CriarPublicacaoPageInner() {
         >
           {!fotoPreview ? (
             <>
-              <div className="relative flex min-h-0 flex-none flex-col overflow-y-auto px-2 pb-0 pt-1 text-center sm:px-3">
+              <div className="relative flex min-h-0 flex-none flex-col overflow-y-auto px-0.5 pb-0 pt-1 text-center sm:px-1.5">
                 <div className="flex w-full min-w-0 shrink-0 flex-col items-center">
                   <Camera
                     size={48}
@@ -600,14 +600,14 @@ function CriarPublicacaoPageInner() {
                   />
 
                   <h1
-                    className="mx-auto mb-3 flex min-w-0 w-full max-w-full flex-col items-center gap-0.5 px-1 text-center sm:px-2"
+                    className="mx-auto mb-3 flex min-w-0 w-full max-w-full flex-col items-center gap-0.5 px-0 text-center sm:px-0.5"
                     style={{ color: AZUL_MARINHO_HERO }}
                   >
-                    <span className="block w-full whitespace-nowrap text-[clamp(0.92rem,3.1vw+0.52rem,1.22rem)] font-bold leading-snug tracking-tight">
+                    <span className="block w-full whitespace-nowrap text-[clamp(1rem,3.6vw+0.55rem,1.38rem)] font-bold leading-snug tracking-tight">
                       Compartilhe seu momento na
                     </span>
                     <span
-                      className={`${fontTripliceScript.className} block w-full max-w-full whitespace-nowrap text-[clamp(1.85rem,9vw+0.58rem,4.55rem)] leading-[0.92]`}
+                      className={`${fontTripliceScript.className} block w-full max-w-full whitespace-nowrap text-[clamp(2rem,10.5vw+0.62rem,5.1rem)] leading-[0.92]`}
                     >
                       Tríplice Fronteira
                     </span>
