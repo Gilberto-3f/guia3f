@@ -13,7 +13,6 @@ import {
 import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Great_Vibes } from 'next/font/google'
 import { useRouter } from '@/i18n/navigation'
 import { Camera, FileText, Images, Ratio } from 'lucide-react'
 import CriarFotoDreamBackdrop from '@/components/feed/CriarFotoDreamBackdrop'
@@ -138,7 +137,6 @@ function CriarPublicacaoPageInner() {
   /** Fototeca / galeria (sem `capture`); no iOS o seletor nativo reúne outras origens. */
   const inputFototecaRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
-  const fotoPreviewRef = useRef<string | null>(null)
 
   const onFotoSelecionada = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -174,26 +172,6 @@ function CriarPublicacaoPageInner() {
     }
     input.click()
   }, [])
-
-  useEffect(() => {
-    fotoPreviewRef.current = fotoPreview
-  }, [fotoPreview])
-
-  useEffect(() => {
-    const onCancel = () => {
-      if (abaRef.current !== 'foto' || fotoPreviewRef.current) return
-      irParaTexto()
-    }
-    const attached: HTMLInputElement[] = []
-    for (const r of [inputFototecaRef]) {
-      const el = r.current
-      if (el) {
-        el.addEventListener('cancel', onCancel)
-        attached.push(el)
-      }
-    }
-    return () => attached.forEach((el) => el.removeEventListener('cancel', onCancel))
-  }, [irParaTexto])
 
   const onPixelCropChange = useCallback((c: PixelCrop | null) => {
     setPixelCrop(c)
@@ -606,14 +584,12 @@ function CriarPublicacaoPageInner() {
                     aria-hidden
                   />
 
-                  <h1 className="mx-auto mb-3 flex min-w-0 w-full max-w-full flex-col items-center gap-2.5 px-0 text-center text-gray-800 sm:gap-3 sm:px-0.5">
-                    <span className="block w-full whitespace-nowrap text-[clamp(1rem,3.6vw+0.55rem,1.38rem)] font-bold leading-snug tracking-tight">
-                      Compartilhe seu momento na
+                  <h1 className="mx-auto mb-3 flex min-w-0 w-full max-w-full flex-col items-center gap-1.5 px-0 text-center sm:gap-2 sm:px-0.5">
+                    <span className="block w-full max-w-[20rem] font-normal leading-snug tracking-tight text-gray-700 text-[clamp(0.95rem,2.9vw+0.48rem,1.18rem)] sm:max-w-none">
+                      Compartilhe seu momento
                     </span>
-                    <span
-                      className={`${fontTripliceScript.className} block w-full max-w-full whitespace-nowrap text-[clamp(2rem,10.5vw+0.62rem,5.1rem)] leading-[0.92] text-gray-700`}
-                    >
-                      Tríplice Fronteira
+                    <span className="block w-full max-w-[20rem] font-normal leading-snug tracking-tight text-gray-800 text-[clamp(1.2rem,4.8vw+0.55rem,1.72rem)] sm:max-w-none sm:text-[clamp(1.35rem,5.2vw+0.6rem,1.95rem)]">
+                      na Tríplice Fronteira
                     </span>
                   </h1>
 
