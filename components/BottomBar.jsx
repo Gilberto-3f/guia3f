@@ -171,10 +171,11 @@ export default function BottomBar() {
   }, [pathname])
 
   /**
-   * Safari iOS move `position: fixed; bottom: 0` com o teclado; compensamos com o inset entre
-   * `innerHeight` e o `visualViewport` para manter a barra colada ao rodapé físico.
+   * Safari iOS move `position: fixed; bottom: 0` com o teclado; compensamos fora de `/feed/criar`,
+   * onde a barra é ocultada com o teclado (evita conflito com scroll da legenda).
    */
   useLayoutEffect(() => {
+    if (!pathname || pathname.includes('/feed/criar')) return
     const vv = window.visualViewport
     const el = rootRef.current
     if (!vv || !el) return
@@ -194,7 +195,7 @@ export default function BottomBar() {
       window.removeEventListener('resize', sync)
       el.style.transform = ''
     }
-  }, [])
+  }, [pathname])
 
   const isFeedPage = pathname === '/feed'
 

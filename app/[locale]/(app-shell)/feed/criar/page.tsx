@@ -128,6 +128,8 @@ function CriarPublicacaoPageInner() {
   const [pixelCrop, setPixelCrop] = useState<PixelCrop | null>(null)
   const [textoLayout, setTextoLayout] = useState<{ top: number; height: number } | null>(null)
   const [sheetGaleriaAberto, setSheetGaleriaAberto] = useState(false)
+  /** Sincronizado com `guia-criar-keyboard`: quando a barra some, o painel TEXTO pode usar toda a altura útil. */
+  const [barraInferiorOculta, setBarraInferiorOculta] = useState(false)
 
   const abaRef = useRef<Aba>(aba)
   const headerRef = useRef<HTMLDivElement | null>(null)
@@ -205,6 +207,57 @@ function CriarPublicacaoPageInner() {
     abaRef.current = aba
   }, [aba])
 
+  useEffect(() => {
+    if (!pathname.includes('/feed/criar')) setBarraInferiorOculta(false)
+  }, [pathname])
+
+  useEffect(() => {
+    const onKb = (e: Event) => {
+      const d = (e as CustomEvent<{ hide?: boolean }>).detail
+      setBarraInferiorOculta(!!d?.hide)
+    }
+    window.addEventListener('guia-criar-keyboard', onKb as EventListener)
+    return () => window.removeEventListener('guia-criar-keyboard', onKb as EventListener)
+  }, [])
+
+  /** Esconder BottomBar no AppShell quando o teclado está visível (TEXTO ou legenda na FOTO). */
+  useEffect(() => {
+    const emit = (hide: boolean) => {
+      window.dispatchEvent(new CustomEvent('guia-criar-keyboard', { detail: { hide } }))
+    }
+
+    const monitorarTeclado =
+      aba === 'texto' || (aba === 'foto' && painelDescricao && Boolean(fotoPreview))
+
+    if (!monitorarTeclado) {
+      emit(false)
+      return
+    }
+
+    const check = () => {
+      const vv = window.visualViewport
+      if (!vv) {
+        emit(false)
+        return
+      }
+      const delta = window.innerHeight - vv.height
+      emit(delta > 110)
+    }
+
+    check()
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', check)
+    vv?.addEventListener('scroll', check)
+    window.addEventListener('resize', check)
+
+    return () => {
+      vv?.removeEventListener('resize', check)
+      vv?.removeEventListener('scroll', check)
+      window.removeEventListener('resize', check)
+      emit(false)
+    }
+  }, [aba, painelDescricao, fotoPreview])
+
   const abrirSeletorFotoNativo = useCallback(() => {
     dispararSeletorFicheiro(inputFototecaRef.current)
   }, [dispararSeletorFicheiro])
@@ -235,14 +288,15 @@ function CriarPublicacaoPageInner() {
     const vv = window.visualViewport
     const headerBottom = header.getBoundingClientRect().bottom
     const areaVisivelInferior = vv ? vv.offsetTop + vv.height : window.innerHeight
-    const height = Math.max(96, Math.floor(areaVisivelInferior - headerBottom - ALTURA_BARRA_INFERIOR_APP_PX))
+    const reservaBarra = barraInferiorOculta ? 0 : ALTURA_BARRA_INFERIOR_APP_PX
+    const height = Math.max(96, Math.floor(areaVisivelInferior - headerBottom - reservaBarra))
     const top = Math.floor(headerBottom)
 
     setTextoLayout((prev) => {
       if (prev?.top === top && prev?.height === height) return prev
       return { top, height }
     })
-  }, [])
+  }, [barraInferiorOculta])
 
   const focarTextarea = useCallback(() => {
     const el = textareaTextoRef.current
@@ -272,7 +326,8 @@ function CriarPublicacaoPageInner() {
       const vv = window.visualViewport
       const headerBottom = header.getBoundingClientRect().bottom
       const areaVisivelInferior = vv ? vv.offsetTop + vv.height : window.innerHeight
-      const height = Math.max(96, Math.floor(areaVisivelInferior - headerBottom - ALTURA_BARRA_INFERIOR_APP_PX))
+      const reservaBarra = barraInferiorOculta ? 0 : ALTURA_BARRA_INFERIOR_APP_PX
+      const height = Math.max(96, Math.floor(areaVisivelInferior - headerBottom - reservaBarra))
       const top = Math.floor(headerBottom)
       flushSync(() => setTextoLayout({ top, height }))
     }
@@ -286,7 +341,7 @@ function CriarPublicacaoPageInner() {
       document.body.style.overflow = prevBody
       document.documentElement.style.overflow = prevHtml
     }
-  }, [aba, focarTextarea])
+  }, [aba, focarTextarea, barraInferiorOculta])
 
   useEffect(() => {
     if (aba !== 'texto') return
@@ -334,7 +389,7 @@ function CriarPublicacaoPageInner() {
       ro?.disconnect()
       timers.forEach((id) => window.clearTimeout(id))
     }
-  }, [aba, atualizarLayoutTexto, focarTextarea])
+  }, [aba, atualizarLayoutTexto, focarTextarea, barraInferiorOculta])
 
   /** Chrome: teclado sobrepõe o layout em vez de redimensionar a viewport (evita empurrar a barra inferior). */
   useEffect(() => {
