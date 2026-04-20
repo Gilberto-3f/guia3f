@@ -60,6 +60,9 @@ function daUrlParaAba(sp: ReturnType<typeof useSearchParams>): Aba {
 /** Reserva espaço para a `BottomBar` fixa (`pb-14` ≈ 3.5rem) no painel TEXTO. */
 const ALTURA_BARRA_INFERIOR_APP_PX = 56
 
+/** Azul marinho — título e ícone do ecrã inicial “Publicar Foto”. */
+const AZUL_MARINHO_HERO = '#0c2340'
+
 /** Fotos locais em /public/triple-frontier (stock; substituir por fotos próprias se quiser). */
 const INSPIRACAO_TRIPLA = [
   { src: '/triple-frontier/cataratas.jpg', alt: 'Cataratas do Iguaçu' },
@@ -574,21 +577,25 @@ function CriarPublicacaoPageInner() {
         >
           {!fotoPreview ? (
             <>
-              <div className="relative flex min-h-0 flex-none flex-col overflow-y-auto px-4 pb-0 pt-1 text-center sm:px-6">
-                <div className="flex shrink-0 flex-col items-center">
+              <div className="relative flex min-h-0 flex-none flex-col overflow-y-auto px-2 pb-0 pt-1 text-center sm:px-3">
+                <div className="flex w-full min-w-0 shrink-0 flex-col items-center">
                   <Camera
                     size={48}
-                    strokeWidth={1.75}
-                    className="mx-auto mb-2 shrink-0 text-[#0097b2]"
+                    strokeWidth={2}
+                    className="mx-auto mb-2 shrink-0"
+                    style={{ color: AZUL_MARINHO_HERO }}
                     aria-hidden
                   />
 
-                  <h1 className="mx-auto mb-3 flex min-w-0 max-w-full flex-col items-center gap-0.5 px-3 text-center text-[#1F2937] sm:px-5">
-                    <span className="block w-full whitespace-nowrap text-[clamp(0.82rem,2.85vw+0.48rem,1.125rem)] font-bold leading-snug tracking-tight">
+                  <h1
+                    className="mx-auto mb-3 flex min-w-0 w-full max-w-full flex-col items-center gap-0.5 px-1 text-center sm:px-2"
+                    style={{ color: AZUL_MARINHO_HERO }}
+                  >
+                    <span className="block w-full whitespace-nowrap text-[clamp(0.92rem,3.1vw+0.52rem,1.22rem)] font-bold leading-snug tracking-tight">
                       Compartilhe seu momento na
                     </span>
                     <span
-                      className={`${fontTripliceScript.className} block w-full max-w-full whitespace-nowrap text-[clamp(1.7rem,8.2vw+0.55rem,4.35rem)] leading-[0.92] text-black`}
+                      className={`${fontTripliceScript.className} block w-full max-w-full whitespace-nowrap text-[clamp(1.85rem,9vw+0.58rem,4.55rem)] leading-[0.92]`}
                     >
                       Tríplice Fronteira
                     </span>
