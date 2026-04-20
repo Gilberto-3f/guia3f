@@ -616,17 +616,13 @@ function CriarPublicacaoPageInner() {
                   <button
                     type="button"
                     onClick={abrirSeletorFotoNativo}
-                    className="mx-auto flex w-[min(100%,220px)] min-w-[200px] items-center justify-center gap-2 rounded-xl bg-lime-400 px-6 py-3 text-base font-semibold text-stone-900 shadow-md transition hover:bg-lime-500 active:bg-lime-600"
+                    className="mx-auto flex w-[min(100%,220px)] min-w-[200px] items-center justify-center gap-2 rounded-xl bg-[#00cf42] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-[#00b83a] active:bg-[#009e32]"
                   >
                     <Camera size={18} strokeWidth={2.25} className="shrink-0" aria-hidden />
                     Publicar Foto
                   </button>
 
-                  <p className="mx-auto mt-3 max-w-md text-base font-normal text-gray-500">
-                    Mostre o que você está vivendo agora
-                  </p>
-
-                  <div className="mx-auto mt-2 w-full max-w-[280px] shrink-0 pb-0 sm:max-w-xs">
+                  <div className="mx-auto mt-3 w-full max-w-[280px] shrink-0 pb-0 sm:max-w-xs">
                     <div className="grid grid-cols-2 gap-3">
                     {INSPIRACAO_TRIPLA.map((item, i) => (
                       <div
@@ -645,6 +641,10 @@ function CriarPublicacaoPageInner() {
                     ))}
                     </div>
                   </div>
+
+                  <p className="mx-auto mt-7 max-w-md px-1 text-base font-normal text-gray-500 sm:mt-8">
+                    Mostre o que você está vivendo agora
+                  </p>
                 </div>
               </div>
             </>
