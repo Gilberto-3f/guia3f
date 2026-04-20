@@ -16,6 +16,7 @@ import Image from 'next/image'
 import { Great_Vibes } from 'next/font/google'
 import { useRouter } from '@/i18n/navigation'
 import { Camera, FileText, Images, Ratio } from 'lucide-react'
+import CriarFotoDreamBackdrop from '@/components/feed/CriarFotoDreamBackdrop'
 import CriarPostRecorteMovel from '@/components/feed/CriarPostRecorteMovel'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
@@ -531,20 +532,30 @@ function CriarPublicacaoPageInner() {
 
   return (
     <div
-      className={`relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300 ${aba === 'texto' ? 'pb-0' : ''}`}
+      className={`relative isolate flex min-h-[100dvh] flex-col overflow-hidden ${
+        aba === 'foto'
+          ? 'bg-[#eef4fc]'
+          : 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
+      } ${aba === 'texto' ? 'pb-0' : ''}`}
     >
-      <div
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_100%_58%_at_50%_-8%,rgba(255,255,255,0.82),transparent_56%)]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_0%_100%,rgba(214,211,209,0.38),transparent_44%)]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_100%_28%,rgba(245,240,232,0.5),transparent_40%)]"
-        aria-hidden
-      />
+      {aba === 'foto' ? (
+        <CriarFotoDreamBackdrop />
+      ) : (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_100%_58%_at_50%_-8%,rgba(255,255,255,0.82),transparent_56%)]"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_0%_100%,rgba(214,211,209,0.38),transparent_44%)]"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_100%_28%,rgba(245,240,232,0.5),transparent_40%)]"
+            aria-hidden
+          />
+        </>
+      )}
       <input
         ref={inputFototecaRef}
         type="file"
