@@ -565,14 +565,7 @@ function CriarPublicacaoPageInner() {
   const fundoPagina = 'bg-gray-50'
 
   return (
-    <div
-      className={`flex min-h-[100dvh] flex-col ${fundoPagina} ${aba === 'texto' ? 'pb-0' : ''}`}
-      style={
-        aba === 'foto'
-          ? { paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }
-          : undefined
-      }
-    >
+    <div className={`flex min-h-[100dvh] flex-col ${fundoPagina} ${aba === 'texto' ? 'pb-0' : ''}`}>
       <input
         ref={inputFotoRef}
         type="file"
@@ -615,34 +608,36 @@ function CriarPublicacaoPageInner() {
         <div className="relative flex min-h-0 flex-1 flex-col px-2 pt-1 sm:px-3">
           {!fotoPreview ? (
             <>
-              <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 pb-4 pt-5 text-center sm:px-6">
-                <Camera
-                  size={48}
-                  strokeWidth={1.75}
-                  className="mx-auto mb-4 shrink-0 text-[#0097b2]"
-                  aria-hidden
-                />
+              <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-1 pt-5 text-center sm:px-6">
+                <div className="flex shrink-0 flex-col items-center">
+                  <Camera
+                    size={48}
+                    strokeWidth={1.75}
+                    className="mx-auto mb-4 shrink-0 text-[#0097b2]"
+                    aria-hidden
+                  />
 
-                <h1 className="mx-auto mb-5 max-w-[18rem] text-center text-xl font-bold leading-tight text-[#1F2937]">
-                  Compartilhe seu momento
-                  <br />
-                  na Tríplice Fronteira
-                </h1>
+                  <h1 className="mx-auto mb-5 max-w-[18rem] text-center text-xl font-bold leading-tight text-[#1F2937]">
+                    Compartilhe seu momento
+                    <br />
+                    na Tríplice Fronteira
+                  </h1>
 
-                <button
-                  type="button"
-                  onClick={abrirSeletorFotoNativo}
-                  className="mx-auto flex w-[min(100%,220px)] min-w-[200px] items-center justify-center gap-2 rounded-xl bg-[#0097b2] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:opacity-90 active:opacity-95"
-                >
-                  <Camera size={18} strokeWidth={2.25} className="shrink-0" aria-hidden />
-                  Publicar Foto
-                </button>
+                  <button
+                    type="button"
+                    onClick={abrirSeletorFotoNativo}
+                    className="mx-auto flex w-[min(100%,220px)] min-w-[200px] items-center justify-center gap-2 rounded-xl bg-[#0097b2] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:opacity-90 active:opacity-95"
+                  >
+                    <Camera size={18} strokeWidth={2.25} className="shrink-0" aria-hidden />
+                    Publicar Foto
+                  </button>
 
-                <p className="mx-auto mt-4 max-w-md text-base font-normal text-gray-500">
-                  Mostre o que você está vivendo agora
-                </p>
+                  <p className="mx-auto mt-4 max-w-md text-base font-normal text-gray-500">
+                    Mostre o que você está vivendo agora
+                  </p>
+                </div>
 
-                <div className="mx-auto mt-5 w-full max-w-[280px] sm:max-w-xs">
+                <div className="mx-auto mt-auto w-full max-w-[280px] shrink-0 pb-0 pt-4 sm:max-w-xs">
                   <div className="grid grid-cols-2 gap-3">
                     {INSPIRACAO_TRIPLA.map((item, i) => (
                       <div
