@@ -143,6 +143,7 @@ function CriarPublicacaoPageInner() {
   /** Fototeca / galeria (sem `capture`); no iOS o seletor nativo reúne outras origens. */
   const inputFototecaRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
+  const textareaLegendaFotoRef = useRef<HTMLTextAreaElement | null>(null)
 
   const onFotoSelecionada = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -201,28 +202,41 @@ function CriarPublicacaoPageInner() {
     return () => window.removeEventListener('guia-criar-keyboard', onKb as EventListener)
   }, [])
 
-  /** Esconder BottomBar no AppShell quando o teclado está visível (TEXTO ou legenda na FOTO). */
+  /**
+   * Esconder a BottomBar do app: teclado, foco no texto, ou painel de legenda na FOTO.
+   * (Só `delta` no iOS oscila ao rolar o `textarea` e a barra reaparecia; foco + limiar 72px evita isso.)
+   */
   useEffect(() => {
     const emit = (hide: boolean) => {
       window.dispatchEvent(new CustomEvent('guia-criar-keyboard', { detail: { hide } }))
     }
 
-    const monitorarTeclado =
+    const monitorar =
       aba === 'texto' || (aba === 'foto' && painelDescricao && Boolean(fotoPreview))
 
-    if (!monitorarTeclado) {
+    if (!monitorar) {
       emit(false)
       return
     }
 
-    const check = () => {
+    const soLegendaFoto = aba === 'foto' && painelDescricao && Boolean(fotoPreview)
+
+    const tecladoProvavelmenteVisivel = () => {
       const vv = window.visualViewport
-      if (!vv) {
-        emit(false)
-        return
-      }
-      const delta = window.innerHeight - vv.height
-      emit(delta > 110)
+      if (!vv) return false
+      return window.innerHeight - vv.height > 72
+    }
+
+    const focoNesteModulo = () => {
+      const a = document.activeElement
+      return (
+        a === textareaTextoRef.current ||
+        (textareaLegendaFotoRef.current != null && a === textareaLegendaFotoRef.current)
+      )
+    }
+
+    const check = () => {
+      emit(soLegendaFoto || tecladoProvavelmenteVisivel() || focoNesteModulo())
     }
 
     check()
@@ -230,11 +244,15 @@ function CriarPublicacaoPageInner() {
     vv?.addEventListener('resize', check)
     vv?.addEventListener('scroll', check)
     window.addEventListener('resize', check)
+    document.addEventListener('focusin', check)
+    document.addEventListener('focusout', check)
 
     return () => {
       vv?.removeEventListener('resize', check)
       vv?.removeEventListener('scroll', check)
       window.removeEventListener('resize', check)
+      document.removeEventListener('focusin', check)
+      document.removeEventListener('focusout', check)
       emit(false)
     }
   }, [aba, painelDescricao, fotoPreview])
@@ -690,6 +708,7 @@ function CriarPublicacaoPageInner() {
 
               {painelDescricao ? (
                 <textarea
+                  ref={textareaLegendaFotoRef}
                   value={texto}
                   onChange={(e) => setTexto(e.target.value)}
                   placeholder="Legenda (opcional)..."
