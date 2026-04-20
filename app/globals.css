@@ -56,3 +56,29 @@ body {
 .animate-perfil-sheet {
   animation: perfil-sheet-in 220ms ease-out;
 }
+
+/* /feed/criar — botão Formato: tremer uma vez ao escolher foto (respeita redução de movimento) */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes criar-formato-shake-once {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    18% {
+      transform: translateX(-5px);
+    }
+    36% {
+      transform: translateX(5px);
+    }
+    54% {
+      transform: translateX(-3px);
+    }
+    72% {
+      transform: translateX(3px);
+    }
+  }
+
+  .animate-criar-formato-shake-once {
+    animation: criar-formato-shake-once 0.45s ease-in-out 1;
+  }
+}

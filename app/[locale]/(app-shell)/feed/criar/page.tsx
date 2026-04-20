@@ -131,6 +131,8 @@ function CriarPublicacaoPageInner() {
   const [formatoFoto, setFormatoFoto] = useState<FormatoFoto | null>(null)
   const [painelFormato, setPainelFormato] = useState(false)
   const [painelDescricao, setPainelDescricao] = useState(false)
+  /** Tremer uma vez no botão Formato ao carregar nova foto (só com `animate-criar-formato-shake-once` no CSS). */
+  const [tremerBotaoFormato, setTremerBotaoFormato] = useState(false)
   const [pixelCrop, setPixelCrop] = useState<PixelCrop | null>(null)
   const [textoLayout, setTextoLayout] = useState<{ top: number; height: number } | null>(null)
   /** Sincronizado com `guia-criar-keyboard`: quando a barra some, o painel TEXTO pode usar toda a altura útil. */
@@ -158,7 +160,7 @@ function CriarPublicacaoPageInner() {
       return URL.createObjectURL(file)
     })
     setFormatoFoto(null)
-    setPainelFormato(false)
+    setPainelFormato(true)
     setPainelDescricao(false)
     setPixelCrop(null)
   }
@@ -188,6 +190,21 @@ function CriarPublicacaoPageInner() {
   useEffect(() => {
     abaRef.current = aba
   }, [aba])
+
+  /** Tremer o botão Formato uma vez por nova imagem (ignora se o utilizador pediu menos movimento). */
+  useEffect(() => {
+    if (!fotoPreview || typeof window === 'undefined') {
+      setTremerBotaoFormato(false)
+      return
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setTremerBotaoFormato(false)
+      return
+    }
+    setTremerBotaoFormato(true)
+    const t = window.setTimeout(() => setTremerBotaoFormato(false), 480)
+    return () => window.clearTimeout(t)
+  }, [fotoPreview])
 
   useEffect(() => {
     if (!pathname.includes('/feed/criar')) setBarraInferiorOculta(false)
@@ -672,7 +689,7 @@ function CriarPublicacaoPageInner() {
                     setPainelFormato((p) => !p)
                     setPainelDescricao(false)
                   }}
-                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[11px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm"
+                  className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[11px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm ${tremerBotaoFormato ? 'animate-criar-formato-shake-once' : ''}`}
                   aria-expanded={painelFormato}
                 >
                   <Ratio size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
