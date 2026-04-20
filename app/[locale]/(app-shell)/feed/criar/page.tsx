@@ -51,8 +51,9 @@ function tabCls(ativo: boolean) {
   }`
 }
 
+/** Padrão: FOTO. Aba texto só com `?aba=texto`. */
 function daUrlParaAba(sp: ReturnType<typeof useSearchParams>): Aba {
-  return sp.get('aba') === 'foto' ? 'foto' : 'texto'
+  return sp.get('aba') === 'texto' ? 'texto' : 'foto'
 }
 
 /** Fotos locais (origem: Unsplash, cópias em /public/triple-frontier). */
@@ -68,15 +69,15 @@ function CriarPublicacaoPageInner() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [aba, setAba] = useState<Aba>(() =>
-    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('aba') === 'foto'
-      ? 'foto'
-      : 'texto'
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('aba') === 'texto'
+      ? 'texto'
+      : 'foto'
   )
 
   const sincronizarUrlComAba = useCallback(
     (next: Aba) => {
       const params = new URLSearchParams(searchParams.toString())
-      if (next === 'foto') params.set('aba', 'foto')
+      if (next === 'texto') params.set('aba', 'texto')
       else params.delete('aba')
       const qs = params.toString()
       nextRouter.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
@@ -257,6 +258,40 @@ function CriarPublicacaoPageInner() {
 
   useEffect(() => {
     abaRef.current = aba
+  }, [aba])
+
+  /** Informa o AppShell: esconder BottomBar só com teclado aberto na aba TEXTO. */
+  useEffect(() => {
+    const emit = (hide: boolean) => {
+      window.dispatchEvent(new CustomEvent('guia-criar-keyboard', { detail: { hide } }))
+    }
+    if (aba !== 'texto') {
+      emit(false)
+      return
+    }
+
+    const check = () => {
+      const vv = window.visualViewport
+      if (!vv) {
+        emit(false)
+        return
+      }
+      const delta = window.innerHeight - vv.height
+      emit(delta > 110)
+    }
+
+    check()
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', check)
+    vv?.addEventListener('scroll', check)
+    window.addEventListener('resize', check)
+
+    return () => {
+      vv?.removeEventListener('resize', check)
+      vv?.removeEventListener('scroll', check)
+      window.removeEventListener('resize', check)
+      emit(false)
+    }
   }, [aba])
 
   /** Action sheet iOS: fechar com Escape e bloquear scroll do body. */
@@ -547,8 +582,6 @@ function CriarPublicacaoPageInner() {
     </div>
   )
 
-  const podeIrParaTexto = aba !== 'foto' || fotoPreview != null
-
   /** Até medir o header: área visível grande (evita painel 1×1px — iOS não abre teclado). SSR-safe. */
   const estiloPainelTexto =
     aba === 'texto'
@@ -602,17 +635,6 @@ function CriarPublicacaoPageInner() {
         <div className="flex min-w-0 flex-1">
           <button
             type="button"
-            className={tabCls(aba === 'texto')}
-            onClick={irParaTexto}
-            disabled={!podeIrParaTexto}
-            onPointerDown={(e) => {
-              if (aba === 'texto') e.preventDefault()
-            }}
-          >
-            TEXTO
-          </button>
-          <button
-            type="button"
             className={tabCls(aba === 'foto')}
             onPointerDownCapture={() => {
               navegandoParaFotoRef.current = true
@@ -620,6 +642,16 @@ function CriarPublicacaoPageInner() {
             onClick={() => irParaFoto()}
           >
             FOTO
+          </button>
+          <button
+            type="button"
+            className={tabCls(aba === 'texto')}
+            onClick={irParaTexto}
+            onPointerDown={(e) => {
+              if (aba === 'texto') e.preventDefault()
+            }}
+          >
+            TEXTO
           </button>
         </div>
       </div>
