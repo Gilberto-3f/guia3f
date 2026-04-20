@@ -547,9 +547,13 @@ function CriarPublicacaoPageInner() {
         : { top: '3.5rem', height: 'calc(100dvh - 3.5rem)' }
       : undefined
 
+  /** Sem preview na FOTO: altura só pelo conteúdo — evita faixa vazia enorme entre o texto e a BottomBar (`min-h-[100dvh]` + pouco conteúdo). */
+  const alturaMinRaiz =
+    aba === 'foto' && !fotoPreview ? 'min-h-0' : 'min-h-[100dvh]'
+
   return (
     <div
-      className={`relative isolate flex min-h-[100dvh] flex-col overflow-hidden ${
+      className={`relative isolate flex ${alturaMinRaiz} flex-col overflow-hidden ${
         aba === 'foto'
           ? 'bg-[#f0f9ff]'
           : 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
