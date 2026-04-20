@@ -14,7 +14,7 @@ import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
-import { Camera, FolderOpen, Images, X } from 'lucide-react'
+import { Camera, X } from 'lucide-react'
 import Cropper, { type Area, type MediaSize, type Size } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
@@ -131,12 +131,10 @@ function CriarPublicacaoPageInner() {
   const headerRef = useRef<HTMLDivElement | null>(null)
   const publicarTextoBarRef = useRef<HTMLDivElement | null>(null)
   const navegandoParaFotoRef = useRef(false)
-  const inputFototecaRef = useRef<HTMLInputElement | null>(null)
-  const inputCameraRef = useRef<HTMLInputElement | null>(null)
-  const inputArquivoRef = useRef<HTMLInputElement | null>(null)
+  /** Um único input: o SO mostra o seletor nativo (Safari/iOS). */
+  const inputFotoRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
   const fotoPreviewRef = useRef<string | null>(null)
-  const [actionSheetAberto, setActionSheetAberto] = useState(false)
 
   const limparFoto = useCallback(() => {
     setFotoPreview((prev) => {
@@ -192,7 +190,7 @@ function CriarPublicacaoPageInner() {
       irParaTexto()
     }
     const attached: HTMLInputElement[] = []
-    for (const r of [inputFototecaRef, inputCameraRef, inputArquivoRef]) {
+    for (const r of [inputFotoRef]) {
       const el = r.current
       if (el) {
         el.addEventListener('cancel', onCancel)
@@ -295,36 +293,9 @@ function CriarPublicacaoPageInner() {
     }
   }, [aba])
 
-  /** Action sheet iOS: fechar com Escape e bloquear scroll do body. */
-  useEffect(() => {
-    if (!actionSheetAberto) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setActionSheetAberto(false)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = prev
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [actionSheetAberto])
-
-  const abrirActionSheet = useCallback(() => {
-    setActionSheetAberto(true)
-  }, [])
-
-  const fecharActionSheet = useCallback(() => {
-    setActionSheetAberto(false)
-  }, [])
-
-  const escolherOrigemFoto = useCallback(
-    (input: HTMLInputElement | null) => {
-      fecharActionSheet()
-      dispararSeletorFicheiro(input)
-    },
-    [dispararSeletorFicheiro, fecharActionSheet]
-  )
+  const abrirSeletorFotoNativo = useCallback(() => {
+    dispararSeletorFicheiro(inputFotoRef.current)
+  }, [dispararSeletorFicheiro])
 
   const atualizarLayoutTexto = useCallback(() => {
     if (abaRef.current !== 'texto') return
@@ -603,28 +574,11 @@ function CriarPublicacaoPageInner() {
       }
     >
       <input
-        ref={inputFototecaRef}
+        ref={inputFotoRef}
         type="file"
         accept="image/*"
         className="sr-only"
-        aria-label="Fototeca"
-        onChange={onFotoSelecionada}
-      />
-      <input
-        ref={inputCameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="sr-only"
-        aria-label="Tirar foto"
-        onChange={onFotoSelecionada}
-      />
-      <input
-        ref={inputArquivoRef}
-        type="file"
-        accept="*/*"
-        className="sr-only"
-        aria-label="Escolher ficheiro"
+        aria-label="Escolher foto para publicar"
         onChange={onFotoSelecionada}
       />
 
@@ -697,7 +651,7 @@ function CriarPublicacaoPageInner() {
 
                   <button
                     type="button"
-                    onClick={abrirActionSheet}
+                    onClick={abrirSeletorFotoNativo}
                     className="mx-auto flex w-[min(100%,220px)] min-w-[200px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#4CAF50] to-[#0097b2] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:opacity-90 active:opacity-95"
                   >
                     <Camera size={18} strokeWidth={2.25} className="shrink-0" aria-hidden />
@@ -738,62 +692,6 @@ function CriarPublicacaoPageInner() {
                       🇦🇷
                     </span>
                   </div>
-                </div>
-              </div>
-
-              <div
-                role="presentation"
-                className={`fixed inset-0 z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${
-                  actionSheetAberto ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
-                }`}
-                aria-hidden={!actionSheetAberto}
-                onClick={fecharActionSheet}
-              >
-                <div
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby="sheet-origem-foto-titulo"
-                  className={`w-full max-w-lg transform rounded-t-[1.25rem] bg-[#f2f2f7] px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_32px_rgba(0,0,0,0.12)] transition-transform duration-200 ease-out ${
-                    actionSheetAberto ? 'translate-y-0' : 'translate-y-full'
-                  }`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <p id="sheet-origem-foto-titulo" className="sr-only">
-                    Escolher origem da foto
-                  </p>
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-white py-3.5 text-[17px] font-medium text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
-                      onClick={() => escolherOrigemFoto(inputFototecaRef.current)}
-                    >
-                      <Images className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
-                      Fototeca
-                    </button>
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-white py-3.5 text-[17px] font-medium text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
-                      onClick={() => escolherOrigemFoto(inputCameraRef.current)}
-                    >
-                      <Camera className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
-                      Tirar foto
-                    </button>
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-white py-3.5 text-[17px] font-medium text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
-                      onClick={() => escolherOrigemFoto(inputArquivoRef.current)}
-                    >
-                      <FolderOpen className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
-                      Escolher arquivo
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    className="mt-3 w-full rounded-[14px] bg-white py-3.5 text-[17px] font-semibold text-red-500 shadow-sm active:bg-[#e5e5ea]"
-                    onClick={fecharActionSheet}
-                  >
-                    Cancelar
-                  </button>
                 </div>
               </div>
             </>
