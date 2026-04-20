@@ -90,9 +90,21 @@ function CriarPublicacaoPageInner() {
     [pathname, searchParams, nextRouter]
   )
 
+  /** Só aplica `aba` a partir da URL quando `?aba=` muda de facto (evita resets por re-render do `searchParams`). */
+  const ultimoParamAbaRef = useRef<string | undefined>(undefined)
   useEffect(() => {
+    const raw = searchParams.get('aba')
+    const chave = raw ?? ''
+    if (ultimoParamAbaRef.current === chave) return
+    ultimoParamAbaRef.current = chave
     setAba(daUrlParaAba(searchParams))
   }, [searchParams])
+
+  /**
+   * iOS: ao fechar o seletor de fotos, um toque residual pode acionar o botão da aba TEXTO.
+   * Bloqueia `irParaTexto` por um instante após abrir o `<input type="file">`.
+   */
+  const ignorarIrParaTextoAteRef = useRef(0)
 
   const irParaFoto = useCallback(() => {
     flushSync(() => setAba('foto'))
@@ -103,6 +115,7 @@ function CriarPublicacaoPageInner() {
   }, [sincronizarUrlComAba])
 
   const irParaTexto = useCallback(() => {
+    if (performance.now() < ignorarIrParaTextoAteRef.current) return
     flushSync(() => setAba('texto'))
     sincronizarUrlComAba('texto')
     const el = textareaTextoRef.current
@@ -158,6 +171,7 @@ function CriarPublicacaoPageInner() {
 
   const dispararSeletorFicheiro = useCallback((input: HTMLInputElement | null) => {
     if (!input) return
+    ignorarIrParaTextoAteRef.current = performance.now() + 650
     try {
       const el = input as HTMLInputElement & { showPicker?: () => void | Promise<void> }
       if (typeof el.showPicker === 'function') {
