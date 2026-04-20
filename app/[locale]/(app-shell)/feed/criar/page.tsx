@@ -134,7 +134,7 @@ function CriarPublicacaoPageInner() {
   const inputArquivoRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
   const fotoPreviewRef = useRef<string | null>(null)
-  const [sheetOrigemFotoAberto, setSheetOrigemFotoAberto] = useState(false)
+  const [actionSheetAberto, setActionSheetAberto] = useState(false)
 
   const limparFoto = useCallback(() => {
     setFotoPreview((prev) => {
@@ -261,33 +261,33 @@ function CriarPublicacaoPageInner() {
 
   /** Action sheet iOS: fechar com Escape e bloquear scroll do body. */
   useEffect(() => {
-    if (!sheetOrigemFotoAberto) return
+    if (!actionSheetAberto) return
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSheetOrigemFotoAberto(false)
+      if (e.key === 'Escape') setActionSheetAberto(false)
     }
     document.addEventListener('keydown', onKey)
     return () => {
       document.body.style.overflow = prev
       document.removeEventListener('keydown', onKey)
     }
-  }, [sheetOrigemFotoAberto])
+  }, [actionSheetAberto])
 
-  const abrirSheetEscolherOrigem = useCallback(() => {
-    setSheetOrigemFotoAberto(true)
+  const abrirActionSheet = useCallback(() => {
+    setActionSheetAberto(true)
   }, [])
 
-  const fecharSheetEscolherOrigem = useCallback(() => {
-    setSheetOrigemFotoAberto(false)
+  const fecharActionSheet = useCallback(() => {
+    setActionSheetAberto(false)
   }, [])
 
   const escolherOrigemFoto = useCallback(
     (input: HTMLInputElement | null) => {
-      fecharSheetEscolherOrigem()
+      fecharActionSheet()
       dispararSeletorFicheiro(input)
     },
-    [dispararSeletorFicheiro, fecharSheetEscolherOrigem]
+    [dispararSeletorFicheiro, fecharActionSheet]
   )
 
   const atualizarLayoutTexto = useCallback(() => {
@@ -657,7 +657,7 @@ function CriarPublicacaoPageInner() {
 
                   <button
                     type="button"
-                    onClick={abrirSheetEscolherOrigem}
+                    onClick={abrirActionSheet}
                     className="mt-8 flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-white py-4 text-base font-semibold text-zinc-900 shadow-lg transition hover:bg-white/95 active:scale-[0.98]"
                   >
                     <Camera className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
@@ -718,17 +718,17 @@ function CriarPublicacaoPageInner() {
               <div
                 role="presentation"
                 className={`fixed inset-0 z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${
-                  sheetOrigemFotoAberto ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+                  actionSheetAberto ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
                 }`}
-                aria-hidden={!sheetOrigemFotoAberto}
-                onClick={fecharSheetEscolherOrigem}
+                aria-hidden={!actionSheetAberto}
+                onClick={fecharActionSheet}
               >
                 <div
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="sheet-origem-foto-titulo"
                   className={`w-full max-w-lg transform rounded-t-[1.25rem] bg-[#f2f2f7] px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-8px_32px_rgba(0,0,0,0.12)] transition-transform duration-200 ease-out ${
-                    sheetOrigemFotoAberto ? 'translate-y-0' : 'translate-y-full'
+                    actionSheetAberto ? 'translate-y-0' : 'translate-y-full'
                   }`}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -764,7 +764,7 @@ function CriarPublicacaoPageInner() {
                   <button
                     type="button"
                     className="mt-3 w-full rounded-[14px] bg-white py-3.5 text-[17px] font-semibold text-red-500 shadow-sm active:bg-[#e5e5ea]"
-                    onClick={fecharSheetEscolherOrigem}
+                    onClick={fecharActionSheet}
                   >
                     Cancelar
                   </button>
