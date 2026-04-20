@@ -529,10 +529,22 @@ function CriarPublicacaoPageInner() {
         : { top: '3.5rem', height: 'calc(100dvh - 3.5rem)' }
       : undefined
 
-  const fundoPagina = 'bg-gray-50'
-
   return (
-    <div className={`flex min-h-[100dvh] flex-col ${fundoPagina} ${aba === 'texto' ? 'pb-0' : ''}`}>
+    <div
+      className={`relative isolate flex min-h-[100dvh] flex-col overflow-hidden bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300 ${aba === 'texto' ? 'pb-0' : ''}`}
+    >
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_100%_58%_at_50%_-8%,rgba(255,255,255,0.82),transparent_56%)]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_0%_100%,rgba(214,211,209,0.38),transparent_44%)]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_100%_28%,rgba(245,240,232,0.5),transparent_40%)]"
+        aria-hidden
+      />
       <input
         ref={inputFototecaRef}
         type="file"
@@ -776,7 +788,11 @@ function CriarPublicacaoPageInner() {
 
 export default function CriarPublicacaoPage() {
   return (
-    <Suspense fallback={<div className="min-h-[100dvh] bg-gray-50" />}>
+    <Suspense
+      fallback={
+        <div className="min-h-[100dvh] bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300" />
+      }
+    >
       <CriarPublicacaoPageInner />
     </Suspense>
   )

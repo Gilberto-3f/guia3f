@@ -30,8 +30,12 @@ function AppShellInner({ children }: { children: ReactNode }) {
   const paddingInferior =
     hideBottomBar ? '' : pathname.includes('/feed/criar') ? 'pb-14' : 'pb-20'
 
+  const fundoShell = pathname.includes('/feed/criar')
+    ? 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
+    : 'bg-gray-50'
+
   return (
-    <div className={`min-h-screen bg-gray-50 ${paddingInferior}`}>
+    <div className={`min-h-screen ${fundoShell} ${paddingInferior}`}>
       {children}
       {!hideBottomBar ? <BottomBar /> : null}
     </div>
@@ -43,7 +47,7 @@ export default function AppShellClient({ children }: { children: ReactNode }) {
     <AdminPermissaoProvider>
       <Suspense
         fallback={
-          <div className="min-h-screen bg-gray-50 pb-20">
+          <div className="min-h-screen bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300 pb-20">
             {children}
             <BottomBar />
           </div>
