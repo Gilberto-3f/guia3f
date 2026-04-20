@@ -14,7 +14,7 @@ import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
-import { Camera, FolderOpen, Images, MapPin, X } from 'lucide-react'
+import { Camera, FolderOpen, Images, X } from 'lucide-react'
 import Cropper, { type Area, type MediaSize, type Size } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
@@ -56,11 +56,12 @@ function daUrlParaAba(sp: ReturnType<typeof useSearchParams>): Aba {
   return sp.get('aba') === 'texto' ? 'texto' : 'foto'
 }
 
-/** Fotos locais (origem: Unsplash, cópias em /public/triple-frontier). */
+/** Fotos locais em /public/triple-frontier (stock; substituir por fotos próprias se quiser). */
 const INSPIRACAO_TRIPLA = [
   { src: '/triple-frontier/cataratas.jpg', alt: 'Cataratas do Iguaçu' },
-  { src: '/triple-frontier/ponte-amizade.jpg', alt: 'Ponte da Amizade entre Brasil e Paraguai' },
-  { src: '/triple-frontier/marco-3-fronteiras.jpg', alt: 'Paisagem na região da Tríplice Fronteira' },
+  { src: '/triple-frontier/ponte-amizade.jpg', alt: 'Ponte da Amizade - Brasil/Paraguai' },
+  { src: '/triple-frontier/culinaria-brasileira.jpg', alt: 'Culinária brasileira' },
+  { src: '/triple-frontier/arara.jpg', alt: 'Arara - fauna da região' },
 ] as const
 
 function CriarPublicacaoPageInner() {
@@ -590,7 +591,7 @@ function CriarPublicacaoPageInner() {
         : { top: '3.5rem', height: 'calc(100dvh - 3.5rem)' }
       : undefined
 
-  const fundoPagina = aba === 'foto' && !fotoPreview ? 'bg-zinc-950' : 'bg-gray-50'
+  const fundoPagina = 'bg-gray-50'
 
   return (
     <div
@@ -660,58 +661,62 @@ function CriarPublicacaoPageInner() {
         <div className="relative flex flex-1 flex-col px-2 pb-2 pt-1 sm:px-3">
           {!fotoPreview ? (
             <>
-              <div className="relative flex min-h-[min(76dvh,680px)] flex-1 flex-col overflow-hidden rounded-2xl shadow-xl ring-1 ring-white/10 sm:rounded-3xl">
+              <div className="relative flex min-h-[min(76dvh,680px)] flex-1 flex-col overflow-hidden rounded-2xl shadow-md ring-1 ring-black/5 sm:rounded-3xl">
+                {/* Fundo claro + blobs (aquarela / névoa) */}
                 <div
-                  className="absolute inset-0 bg-gradient-to-br from-sky-600 via-indigo-600 to-fuchsia-800"
+                  className="absolute inset-0 bg-gradient-to-br from-white via-[#F5FDFF] to-[#FFF8E8]"
                   aria-hidden
                 />
-                <div className="absolute inset-0 bg-black/45" aria-hidden />
                 <div
-                  className="absolute inset-0 opacity-30 mix-blend-overlay"
-                  style={{
-                    backgroundImage:
-                      'radial-gradient(circle at 20% 30%, rgba(255,255,255,0.35) 0%, transparent 45%), radial-gradient(circle at 80% 20%, rgba(255,200,255,0.2) 0%, transparent 40%), radial-gradient(circle at 50% 100%, rgba(100,200,255,0.15) 0%, transparent 50%)',
-                  }}
+                  className="pointer-events-none absolute -left-[18%] -top-[12%] h-[58%] w-[58%] rounded-full bg-[radial-gradient(circle,rgba(178,235,242,0.55)_0%,transparent_68%)] blur-3xl"
+                  aria-hidden
+                />
+                <div
+                  className="pointer-events-none absolute -bottom-[20%] -right-[12%] h-[52%] w-[52%] rounded-full bg-[radial-gradient(circle,rgba(255,248,225,0.55)_0%,transparent_70%)] blur-3xl"
+                  aria-hidden
+                />
+                <div
+                  className="pointer-events-none absolute left-1/3 top-1/2 h-[40%] w-[45%] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(224,247,250,0.45)_0%,transparent_65%)] blur-3xl"
                   aria-hidden
                 />
 
-                <div className="relative z-10 flex flex-1 flex-col items-center px-4 pb-6 pt-8 text-center sm:px-6">
-                  <div className="mb-6 flex justify-center">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/15 shadow-lg ring-1 ring-white/25 backdrop-blur-md">
-                      <Camera className="h-10 w-10 text-white" strokeWidth={1.5} aria-hidden />
-                    </div>
-                  </div>
+                <div className="relative z-10 flex flex-1 flex-col items-center px-4 pb-8 pt-8 text-center sm:px-6">
+                  <Camera
+                    size={48}
+                    strokeWidth={1.75}
+                    className="mx-auto mb-4 shrink-0 text-[#0097b2]"
+                    aria-hidden
+                  />
 
-                  <h1 className="max-w-sm text-balance text-2xl font-bold leading-tight text-white sm:text-3xl">
-                    Compartilhe seu momento
+                  <h1 className="mx-auto mb-2 max-w-[20rem] text-balance text-2xl font-bold leading-snug text-[#1F2937]">
+                    Compartilhe seu momento na Tríplice Fronteira
                   </h1>
-                  <p className="mt-2 text-lg text-white/85">na Tríplice Fronteira</p>
+                  <p className="mb-6 max-w-md text-base font-normal text-gray-500">
+                    Mostre o que você está vivendo agora
+                  </p>
 
                   <button
                     type="button"
                     onClick={abrirActionSheet}
-                    className="mt-8 flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-white py-4 text-base font-semibold text-zinc-900 shadow-lg transition hover:bg-white/95 active:scale-[0.98]"
+                    className="mx-auto flex w-[min(100%,220px)] min-w-[200px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#4CAF50] to-[#0097b2] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:opacity-90 active:opacity-95"
                   >
-                    <Camera className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
+                    <Camera size={18} strokeWidth={2.25} className="shrink-0" aria-hidden />
                     Publicar Foto
                   </button>
 
-                  <div className="mt-10 w-full max-w-md flex-1">
-                    <p className="mb-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
-                      Inspire-se
-                    </p>
-                    <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="mt-6 mb-6 w-full max-w-md">
+                    <div className="flex gap-3 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {INSPIRACAO_TRIPLA.map((item, i) => (
                         <div
                           key={item.src}
-                          className="relative h-32 w-32 shrink-0 overflow-hidden rounded-xl ring-1 ring-white/20"
+                          className="relative h-[120px] w-[120px] shrink-0 overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5"
                         >
                           <Image
                             src={item.src}
                             alt={item.alt}
                             fill
                             className="object-cover"
-                            sizes="128px"
+                            sizes="120px"
                             priority={i === 0}
                           />
                         </div>
@@ -720,29 +725,18 @@ function CriarPublicacaoPageInner() {
                   </div>
 
                   <div
-                    className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-white/10 pt-5"
-                    aria-label="Países da Tríplice Fronteira"
+                    className="mt-4 flex justify-center gap-4"
+                    aria-label="Brasil, Paraguai e Argentina"
                   >
-                    {(
-                      [
-                        ['Brasil', 'from-emerald-500 to-emerald-600'],
-                        ['Argentina', 'from-sky-400 to-blue-600'],
-                        ['Paraguai', 'from-red-500 to-red-600'],
-                      ] as const
-                    ).map(([nome, grad]) => (
-                      <div
-                        key={nome}
-                        className="flex items-center gap-1.5 text-sm font-medium text-white/75"
-                      >
-                        <span
-                          className={`flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br ${grad} shadow-sm`}
-                          aria-hidden
-                        >
-                          <MapPin className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
-                        </span>
-                        {nome}
-                      </div>
-                    ))}
+                    <span className="text-3xl leading-none" title="Brasil" aria-hidden>
+                      🇧🇷
+                    </span>
+                    <span className="text-3xl leading-none" title="Paraguai" aria-hidden>
+                      🇵🇾
+                    </span>
+                    <span className="text-3xl leading-none" title="Argentina" aria-hidden>
+                      🇦🇷
+                    </span>
                   </div>
                 </div>
               </div>
