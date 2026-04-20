@@ -15,7 +15,7 @@ import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/n
 import Image from 'next/image'
 import { Great_Vibes } from 'next/font/google'
 import { useRouter } from '@/i18n/navigation'
-import { Camera, FileText, FolderOpen, Images, Ratio } from 'lucide-react'
+import { Camera, FileText, Images, Ratio } from 'lucide-react'
 import CriarPostRecorteMovel from '@/components/feed/CriarPostRecorteMovel'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
@@ -134,12 +134,8 @@ function CriarPublicacaoPageInner() {
   const headerRef = useRef<HTMLDivElement | null>(null)
   const publicarTextoBarRef = useRef<HTMLDivElement | null>(null)
   const navegandoParaFotoRef = useRef(false)
-  /** Fototeca / galeria (sem `capture`). */
+  /** Fototeca / galeria (sem `capture`); no iOS o seletor nativo reúne outras origens. */
   const inputFototecaRef = useRef<HTMLInputElement | null>(null)
-  /** Câmara traseira. */
-  const inputCameraRef = useRef<HTMLInputElement | null>(null)
-  /** Ficheiros (iOS “Ficheiros”); só imagens são aceites no feed. */
-  const inputFicheiroRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
   const fotoPreviewRef = useRef<string | null>(null)
 
@@ -188,7 +184,7 @@ function CriarPublicacaoPageInner() {
       irParaTexto()
     }
     const attached: HTMLInputElement[] = []
-    for (const r of [inputFototecaRef, inputCameraRef, inputFicheiroRef]) {
+    for (const r of [inputFototecaRef]) {
       const el = r.current
       if (el) {
         el.addEventListener('cancel', onCancel)
@@ -542,23 +538,6 @@ function CriarPublicacaoPageInner() {
         aria-label="Escolher foto na fototeca"
         onChange={onFotoSelecionada}
       />
-      <input
-        ref={inputCameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="sr-only"
-        aria-label="Tirar foto com a câmara"
-        onChange={onFotoSelecionada}
-      />
-      <input
-        ref={inputFicheiroRef}
-        type="file"
-        accept="*/*"
-        className="sr-only"
-        aria-label="Escolher ficheiro (apenas imagens no feed)"
-        onChange={onFotoSelecionada}
-      />
 
       <div
         ref={headerRef}
@@ -698,33 +677,6 @@ function CriarPublicacaoPageInner() {
                 >
                   <FileText size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
                   Descrição
-                </button>
-              </div>
-
-              <div className="mt-1.5 flex w-full gap-1.5 sm:gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPainelFormato(false)
-                    setPainelDescricao(false)
-                    requestAnimationFrame(() => dispararSeletorFicheiro(inputCameraRef.current))
-                  }}
-                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border border-white/40 bg-[#0097b2]/90 py-1.5 text-center text-[10px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2 sm:text-xs"
-                >
-                  <Camera size={15} className="shrink-0 opacity-95 sm:h-[17px] sm:w-[17px]" aria-hidden />
-                  Tirar foto
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPainelFormato(false)
-                    setPainelDescricao(false)
-                    requestAnimationFrame(() => dispararSeletorFicheiro(inputFicheiroRef.current))
-                  }}
-                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border border-white/40 bg-[#0097b2]/90 py-1.5 text-center text-[10px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2 sm:text-xs"
-                >
-                  <FolderOpen size={15} className="shrink-0 opacity-95 sm:h-[17px] sm:w-[17px]" aria-hidden />
-                  <span className="max-w-full whitespace-normal px-0.5">Escolher arquivo</span>
                 </button>
               </div>
 
