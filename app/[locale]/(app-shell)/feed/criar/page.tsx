@@ -648,9 +648,8 @@ function CriarPublicacaoPageInner() {
                   <p className="mx-auto mt-4 max-w-md text-base font-normal text-gray-500">
                     Mostre o que você está vivendo agora
                   </p>
-                </div>
 
-                <div className="mx-auto mt-auto w-full max-w-[280px] shrink-0 pb-0 pt-4 sm:max-w-xs">
+                  <div className="mx-auto mt-3 w-full max-w-[280px] shrink-0 pb-2 sm:max-w-xs">
                   <div className="grid grid-cols-2 gap-3">
                     {INSPIRACAO_TRIPLA.map((item, i) => (
                       <div
@@ -667,6 +666,7 @@ function CriarPublicacaoPageInner() {
                         />
                       </div>
                     ))}
+                  </div>
                   </div>
                 </div>
               </div>
