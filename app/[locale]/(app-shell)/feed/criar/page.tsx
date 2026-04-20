@@ -15,7 +15,7 @@ import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/n
 import Image from 'next/image'
 import { Great_Vibes } from 'next/font/google'
 import { useRouter } from '@/i18n/navigation'
-import { Camera, X } from 'lucide-react'
+import { Camera, Images } from 'lucide-react'
 import CriarPostRecorteMovel from '@/components/feed/CriarPostRecorteMovel'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
@@ -127,26 +127,20 @@ function CriarPublicacaoPageInner() {
   const [painelDescricao, setPainelDescricao] = useState(false)
   const [pixelCrop, setPixelCrop] = useState<PixelCrop | null>(null)
   const [textoLayout, setTextoLayout] = useState<{ top: number; height: number } | null>(null)
+  const [sheetGaleriaAberto, setSheetGaleriaAberto] = useState(false)
 
   const abaRef = useRef<Aba>(aba)
   const headerRef = useRef<HTMLDivElement | null>(null)
   const publicarTextoBarRef = useRef<HTMLDivElement | null>(null)
   const navegandoParaFotoRef = useRef(false)
-  /** Um único input: o SO mostra o seletor nativo (Safari/iOS). */
-  const inputFotoRef = useRef<HTMLInputElement | null>(null)
+  /** Fototeca / galeria (sem `capture`). */
+  const inputFototecaRef = useRef<HTMLInputElement | null>(null)
+  /** Câmara traseira. */
+  const inputCameraRef = useRef<HTMLInputElement | null>(null)
+  /** Ficheiros (iOS “Ficheiros”); só imagens são aceites no feed. */
+  const inputFicheiroRef = useRef<HTMLInputElement | null>(null)
   const textareaTextoRef = useRef<HTMLTextAreaElement | null>(null)
   const fotoPreviewRef = useRef<string | null>(null)
-
-  const limparFoto = useCallback(() => {
-    setFotoPreview((prev) => {
-      if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
-      return null
-    })
-    setFormatoFoto(null)
-    setPainelFormato(false)
-    setPainelDescricao(false)
-    setPixelCrop(null)
-  }, [])
 
   const onFotoSelecionada = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -193,7 +187,7 @@ function CriarPublicacaoPageInner() {
       irParaTexto()
     }
     const attached: HTMLInputElement[] = []
-    for (const r of [inputFotoRef]) {
+    for (const r of [inputFototecaRef, inputCameraRef, inputFicheiroRef]) {
       const el = r.current
       if (el) {
         el.addEventListener('cancel', onCancel)
@@ -212,8 +206,27 @@ function CriarPublicacaoPageInner() {
   }, [aba])
 
   const abrirSeletorFotoNativo = useCallback(() => {
-    dispararSeletorFicheiro(inputFotoRef.current)
+    dispararSeletorFicheiro(inputFototecaRef.current)
   }, [dispararSeletorFicheiro])
+
+  const abrirOpcaoGaleria = useCallback(
+    (qual: 'fototeca' | 'camera' | 'ficheiro') => {
+      setSheetGaleriaAberto(false)
+      const ref =
+        qual === 'fototeca' ? inputFototecaRef : qual === 'camera' ? inputCameraRef : inputFicheiroRef
+      requestAnimationFrame(() => dispararSeletorFicheiro(ref.current))
+    },
+    [dispararSeletorFicheiro]
+  )
+
+  useEffect(() => {
+    if (!sheetGaleriaAberto) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSheetGaleriaAberto(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [sheetGaleriaAberto])
 
   const atualizarLayoutTexto = useCallback(() => {
     if (abaRef.current !== 'texto') return
@@ -487,11 +500,28 @@ function CriarPublicacaoPageInner() {
   return (
     <div className={`flex min-h-[100dvh] flex-col ${fundoPagina} ${aba === 'texto' ? 'pb-0' : ''}`}>
       <input
-        ref={inputFotoRef}
+        ref={inputFototecaRef}
         type="file"
         accept="image/*"
         className="sr-only"
-        aria-label="Escolher foto para publicar"
+        aria-label="Escolher foto na fototeca"
+        onChange={onFotoSelecionada}
+      />
+      <input
+        ref={inputCameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        aria-label="Tirar foto com a câmara"
+        onChange={onFotoSelecionada}
+      />
+      <input
+        ref={inputFicheiroRef}
+        type="file"
+        accept="*/*"
+        className="sr-only"
+        aria-label="Escolher ficheiro (apenas imagens no feed)"
         onChange={onFotoSelecionada}
       />
 
@@ -588,14 +618,6 @@ function CriarPublicacaoPageInner() {
           ) : (
             <>
               <div className="relative w-full shrink-0">
-                <button
-                  type="button"
-                  onClick={limparFoto}
-                  className="absolute right-1 top-1 z-[2] rounded-full bg-black/50 p-1.5 text-white shadow-md"
-                  aria-label="Remover foto e escolher outra"
-                >
-                  <X size={18} aria-hidden />
-                </button>
                 <CriarPostRecorteMovel
                   key={fotoPreview}
                   imageSrc={fotoPreview}
@@ -605,14 +627,29 @@ function CriarPublicacaoPageInner() {
                 />
               </div>
 
-              <div className="mt-2 flex w-full gap-2">
+              <div className="mt-2 flex w-full gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSheetGaleriaAberto(true)
+                    setPainelFormato(false)
+                    setPainelDescricao(false)
+                  }}
+                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[11px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm"
+                  aria-expanded={sheetGaleriaAberto}
+                  aria-haspopup="dialog"
+                >
+                  <Images size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
+                  Galeria
+                </button>
                 <button
                   type="button"
                   onClick={() => {
                     setPainelFormato((p) => !p)
                     setPainelDescricao(false)
+                    setSheetGaleriaAberto(false)
                   }}
-                  className="flex-1 rounded-xl bg-[#0097b2] py-2.5 text-center text-sm font-bold text-white shadow-sm transition hover:opacity-95 active:opacity-90"
+                  className="flex min-w-0 flex-1 rounded-xl bg-[#0097b2] py-2.5 text-center text-xs font-bold text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:text-sm"
                   aria-expanded={painelFormato}
                 >
                   Formato
@@ -622,13 +659,60 @@ function CriarPublicacaoPageInner() {
                   onClick={() => {
                     setPainelDescricao((p) => !p)
                     setPainelFormato(false)
+                    setSheetGaleriaAberto(false)
                   }}
-                  className="flex-1 rounded-xl bg-[#0097b2] py-2.5 text-center text-sm font-bold text-white shadow-sm transition hover:opacity-95 active:opacity-90"
+                  className="flex min-w-0 flex-1 rounded-xl bg-[#0097b2] py-2.5 text-center text-xs font-bold text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:text-sm"
                   aria-expanded={painelDescricao}
                 >
                   Descrição
                 </button>
               </div>
+
+              {sheetGaleriaAberto ? (
+                <div className="fixed inset-0 z-[60] flex flex-col justify-end" role="dialog" aria-modal="true" aria-label="Origem da imagem">
+                  <button
+                    type="button"
+                    className="absolute inset-0 bg-black/40"
+                    aria-label="Fechar"
+                    onClick={() => setSheetGaleriaAberto(false)}
+                  />
+                  <div
+                    className="relative mx-2 max-w-lg self-stretch rounded-2xl bg-[#f2f2f7] p-2 shadow-2xl sm:mx-auto sm:w-full"
+                    style={{ marginBottom: 'max(0.5rem, env(safe-area-inset-bottom, 8px))' }}
+                  >
+                    <div className="overflow-hidden rounded-xl bg-white">
+                      <button
+                        type="button"
+                        className="block w-full border-b border-gray-100 py-3.5 text-center text-[17px] text-[#007aff] active:bg-gray-50"
+                        onClick={() => abrirOpcaoGaleria('fototeca')}
+                      >
+                        Fototeca
+                      </button>
+                      <button
+                        type="button"
+                        className="block w-full border-b border-gray-100 py-3.5 text-center text-[17px] text-[#007aff] active:bg-gray-50"
+                        onClick={() => abrirOpcaoGaleria('camera')}
+                      >
+                        Tirar foto
+                      </button>
+                      <button
+                        type="button"
+                        className="block w-full py-3.5 text-center text-[17px] text-[#007aff] active:bg-gray-50"
+                        onClick={() => abrirOpcaoGaleria('ficheiro')}
+                      >
+                        Escolher arquivo
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="mt-2 w-full rounded-xl bg-white py-3 text-center text-[17px] font-semibold text-[#007aff] active:bg-gray-50"
+                      onClick={() => setSheetGaleriaAberto(false)}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
               {painelFormato ? formatosRow : null}
 

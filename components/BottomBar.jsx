@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Home,
   MessageCircle,
@@ -48,6 +48,7 @@ function matchPath(path, pathname) {
 export default function BottomBar() {
   const t = useTranslations('BottomBar')
   const pathname = usePathname()
+  const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const [userRole, setUserRole] = useState(/** @type {string | null} */ (null))
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [authUserId, setAuthUserId] = useState(/** @type {string | null} */ (null))
@@ -169,6 +170,32 @@ export default function BottomBar() {
     }
   }, [pathname])
 
+  /**
+   * Safari iOS move `position: fixed; bottom: 0` com o teclado; compensamos com o inset entre
+   * `innerHeight` e o `visualViewport` para manter a barra colada ao rodapé físico.
+   */
+  useLayoutEffect(() => {
+    const vv = window.visualViewport
+    const el = rootRef.current
+    if (!vv || !el) return
+
+    const sync = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      el.style.transform = inset > 0 ? `translate3d(0, ${inset}px, 0)` : ''
+    }
+
+    sync()
+    vv.addEventListener('resize', sync)
+    vv.addEventListener('scroll', sync)
+    window.addEventListener('resize', sync)
+    return () => {
+      vv.removeEventListener('resize', sync)
+      vv.removeEventListener('scroll', sync)
+      window.removeEventListener('resize', sync)
+      el.style.transform = ''
+    }
+  }, [])
+
   const isFeedPage = pathname === '/feed'
 
   const getTerceiroHref = () => {
@@ -224,7 +251,11 @@ export default function BottomBar() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-lg">
+    <div
+      ref={rootRef}
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-lg will-change-transform"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
       <div className="flex items-center justify-around py-2">
         <Link href="/guia" className="flex flex-col items-center p-2" aria-label={t('home')}>
           <Home size={24} className={matchPath('/guia', pathname) ? 'text-[#0097b2]' : 'text-gray-400'} />
