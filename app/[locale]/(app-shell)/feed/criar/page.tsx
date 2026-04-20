@@ -13,11 +13,19 @@ import {
 import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import Image from 'next/image'
+import { Great_Vibes } from 'next/font/google'
 import { useRouter } from '@/i18n/navigation'
 import { Camera, X } from 'lucide-react'
 import Cropper, { type Area, type MediaSize, type Size } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
+
+/** Estilo script próximo de “Benedict”; substituir por `next/font/local` se tiveres a fonte licenciada. */
+const fontTripliceScript = Great_Vibes({
+  weight: '400',
+  subsets: ['latin'],
+  display: 'swap',
+})
 
 type Aba = 'foto' | 'texto'
 
@@ -617,10 +625,15 @@ function CriarPublicacaoPageInner() {
                     aria-hidden
                   />
 
-                  <h1 className="mx-auto mb-5 max-w-[18rem] text-center text-xl font-bold leading-tight text-[#1F2937]">
-                    Compartilhe seu momento
-                    <br />
-                    na Tríplice Fronteira
+                  <h1 className="mx-auto mb-5 max-w-[22rem] text-center text-[#1F2937]">
+                    <span className="block text-xl font-bold leading-tight tracking-tight">
+                      Compartilhe seu momento na
+                    </span>
+                    <span
+                      className={`${fontTripliceScript.className} mt-1.5 block text-[2.35rem] leading-[1.05] text-[#0097b2] sm:text-[2.85rem]`}
+                    >
+                      Tríplice Fronteira
+                    </span>
                   </h1>
 
                   <button
