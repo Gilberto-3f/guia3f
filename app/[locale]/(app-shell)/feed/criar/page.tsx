@@ -531,7 +531,7 @@ function CriarPublicacaoPageInner() {
     <div
       className={`relative isolate flex min-h-[100dvh] flex-col overflow-hidden ${
         aba === 'foto'
-          ? 'bg-[#eef4fc]'
+          ? 'bg-[#f0f9ff]'
           : 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
       } ${aba === 'texto' ? 'pb-0' : ''}`}
     >
