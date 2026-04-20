@@ -571,12 +571,12 @@ function CriarPublicacaoPageInner() {
                     aria-hidden
                   />
 
-                  <h1 className="mx-auto mb-3 flex min-w-0 max-w-full flex-col items-center gap-0.5 px-2 text-center text-[#1F2937] sm:px-3">
-                    <span className="block w-full whitespace-nowrap text-[clamp(0.7rem,2.4vw+0.42rem,0.9375rem)] font-bold leading-snug tracking-tight">
+                  <h1 className="mx-auto mb-3 flex min-w-0 max-w-full flex-col items-center gap-0.5 px-3 text-center text-[#1F2937] sm:px-5">
+                    <span className="block w-full whitespace-nowrap text-[clamp(0.82rem,2.85vw+0.48rem,1.125rem)] font-bold leading-snug tracking-tight">
                       Compartilhe seu momento na
                     </span>
                     <span
-                      className={`${fontTripliceScript.className} block w-full max-w-full whitespace-nowrap text-[clamp(1.5rem,7.2vw+0.45rem,4rem)] leading-[0.92] text-black`}
+                      className={`${fontTripliceScript.className} block w-full max-w-full whitespace-nowrap text-[clamp(1.7rem,8.2vw+0.55rem,4.35rem)] leading-[0.92] text-black`}
                     >
                       Tríplice Fronteira
                     </span>
