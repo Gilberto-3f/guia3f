@@ -600,7 +600,7 @@ function CriarPublicacaoPageInner() {
                   />
 
                   <h1
-                    className="mx-auto mb-3 flex min-w-0 w-full max-w-full flex-col items-center gap-0.5 px-0 text-center sm:px-0.5"
+                    className="mx-auto mb-3 flex min-w-0 w-full max-w-full flex-col items-center gap-2.5 px-0 text-center sm:gap-3 sm:px-0.5"
                     style={{ color: AZUL_MARINHO_HERO }}
                   >
                     <span className="block w-full whitespace-nowrap text-[clamp(1rem,3.6vw+0.55rem,1.38rem)] font-bold leading-snug tracking-tight">
@@ -616,7 +616,7 @@ function CriarPublicacaoPageInner() {
                   <button
                     type="button"
                     onClick={abrirSeletorFotoNativo}
-                    className="mx-auto flex w-[min(100%,220px)] min-w-[200px] items-center justify-center gap-2 rounded-xl bg-[#0097b2] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:opacity-90 active:opacity-95"
+                    className="mx-auto flex w-[min(100%,220px)] min-w-[200px] items-center justify-center gap-2 rounded-xl bg-lime-400 px-6 py-3 text-base font-semibold text-stone-900 shadow-md transition hover:bg-lime-500 active:bg-lime-600"
                   >
                     <Camera size={18} strokeWidth={2.25} className="shrink-0" aria-hidden />
                     Publicar Foto
