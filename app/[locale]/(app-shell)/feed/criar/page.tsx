@@ -613,24 +613,26 @@ function CriarPublicacaoPageInner() {
       </div>
 
       {aba === 'foto' ? (
-        <div className="relative flex min-h-0 flex-1 flex-col px-2 pt-1 sm:px-3">
+        <div
+          className={`relative flex min-h-0 flex-col px-2 pt-0 sm:px-3 ${fotoPreview ? 'min-h-0 flex-1' : ''}`}
+        >
           {!fotoPreview ? (
             <>
-              <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-1 pt-5 text-center sm:px-6">
+              <div className="relative flex min-h-0 flex-none flex-col overflow-y-auto px-4 pb-0 pt-1 text-center sm:px-6">
                 <div className="flex shrink-0 flex-col items-center">
                   <Camera
                     size={48}
                     strokeWidth={1.75}
-                    className="mx-auto mb-4 shrink-0 text-[#0097b2]"
+                    className="mx-auto mb-2 shrink-0 text-[#0097b2]"
                     aria-hidden
                   />
 
-                  <h1 className="mx-auto mb-5 max-w-[22rem] text-center text-[#1F2937]">
+                  <h1 className="mx-auto mb-3 max-w-[22rem] text-center text-[#1F2937]">
                     <span className="block text-xl font-bold leading-tight tracking-tight">
                       Compartilhe seu momento na
                     </span>
                     <span
-                      className={`${fontTripliceScript.className} mt-1.5 block text-[2.35rem] leading-[1.05] text-[#0097b2] sm:text-[2.85rem]`}
+                      className={`${fontTripliceScript.className} mt-1 block text-[2.95rem] leading-[1.05] text-black sm:text-[3.55rem]`}
                     >
                       Tríplice Fronteira
                     </span>
@@ -645,12 +647,12 @@ function CriarPublicacaoPageInner() {
                     Publicar Foto
                   </button>
 
-                  <p className="mx-auto mt-4 max-w-md text-base font-normal text-gray-500">
+                  <p className="mx-auto mt-3 max-w-md text-base font-normal text-gray-500">
                     Mostre o que você está vivendo agora
                   </p>
 
-                  <div className="mx-auto mt-3 w-full max-w-[280px] shrink-0 pb-2 sm:max-w-xs">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="mx-auto mt-2 w-full max-w-[280px] shrink-0 pb-0 sm:max-w-xs">
+                    <div className="grid grid-cols-2 gap-3">
                     {INSPIRACAO_TRIPLA.map((item, i) => (
                       <div
                         key={item.src}
@@ -666,7 +668,7 @@ function CriarPublicacaoPageInner() {
                         />
                       </div>
                     ))}
-                  </div>
+                    </div>
                   </div>
                 </div>
               </div>

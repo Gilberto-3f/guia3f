@@ -26,9 +26,12 @@ function AppShellInner({ children }: { children: ReactNode }) {
   }, [pathname])
 
   const hideBottomBar = pathname.includes('/feed/criar') && criarTecladoOcultaBarra
+  /** Em `/feed/criar` menos respiro acima da barra fixa (~1 cm vs `pb-20`; a barra continua igual). */
+  const paddingInferior =
+    hideBottomBar ? '' : pathname.includes('/feed/criar') ? 'pb-14' : 'pb-20'
 
   return (
-    <div className={`min-h-screen bg-gray-50 ${hideBottomBar ? '' : 'pb-20'}`}>
+    <div className={`min-h-screen bg-gray-50 ${paddingInferior}`}>
       {children}
       {!hideBottomBar ? <BottomBar /> : null}
     </div>
