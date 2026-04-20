@@ -12,8 +12,9 @@ import {
 } from 'react'
 import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
+import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
-import { Camera, X } from 'lucide-react'
+import { Camera, FolderOpen, Images, MapPin, X } from 'lucide-react'
 import Cropper, { type Area, type MediaSize, type Size } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
@@ -53,6 +54,13 @@ function tabCls(ativo: boolean) {
 function daUrlParaAba(sp: ReturnType<typeof useSearchParams>): Aba {
   return sp.get('aba') === 'foto' ? 'foto' : 'texto'
 }
+
+/** Fotos locais (origem: Unsplash, cópias em /public/triple-frontier). */
+const INSPIRACAO_TRIPLA = [
+  { src: '/triple-frontier/cataratas.jpg', alt: 'Cataratas do Iguaçu' },
+  { src: '/triple-frontier/ponte-amizade.jpg', alt: 'Ponte da Amizade entre Brasil e Paraguai' },
+  { src: '/triple-frontier/marco-3-fronteiras.jpg', alt: 'Paisagem na região da Tríplice Fronteira' },
+] as const
 
 function CriarPublicacaoPageInner() {
   const router = useRouter()
@@ -549,10 +557,7 @@ function CriarPublicacaoPageInner() {
         : { top: '3.5rem', height: 'calc(100dvh - 3.5rem)' }
       : undefined
 
-  const fundoPagina =
-    aba === 'foto' && !fotoPreview
-      ? 'bg-gradient-to-b from-[#e8f2ff] via-[#fff8ee] to-[#e5f5ed]'
-      : 'bg-gray-50'
+  const fundoPagina = aba === 'foto' && !fotoPreview ? 'bg-zinc-950' : 'bg-gray-50'
 
   return (
     <div
@@ -620,112 +625,99 @@ function CriarPublicacaoPageInner() {
       </div>
 
       {aba === 'foto' ? (
-        <div className="relative flex flex-1 flex-col px-3 pt-2 pb-2 sm:px-4">
+        <div className="relative flex flex-1 flex-col px-2 pb-2 pt-1 sm:px-3">
           {!fotoPreview ? (
             <>
-              <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-                <div className="absolute -left-20 top-10 h-56 w-56 rounded-full bg-[#75AADB]/25 blur-3xl" />
-                <div className="absolute -right-16 top-32 h-48 w-48 rounded-full bg-[#FDB913]/30 blur-3xl" />
-                <div className="absolute bottom-24 left-1/3 h-40 w-40 rounded-full bg-[#00875A]/20 blur-3xl" />
-              </div>
+              <div className="relative flex min-h-[min(76dvh,680px)] flex-1 flex-col overflow-hidden rounded-2xl shadow-xl ring-1 ring-white/10 sm:rounded-3xl">
+                <div
+                  className="absolute inset-0 bg-gradient-to-br from-sky-600 via-indigo-600 to-fuchsia-800"
+                  aria-hidden
+                />
+                <div className="absolute inset-0 bg-black/45" aria-hidden />
+                <div
+                  className="absolute inset-0 opacity-30 mix-blend-overlay"
+                  style={{
+                    backgroundImage:
+                      'radial-gradient(circle at 20% 30%, rgba(255,255,255,0.35) 0%, transparent 45%), radial-gradient(circle at 80% 20%, rgba(255,200,255,0.2) 0%, transparent 40%), radial-gradient(circle at 50% 100%, rgba(100,200,255,0.15) 0%, transparent 50%)',
+                  }}
+                  aria-hidden
+                />
 
-              <div className="relative z-0 flex flex-1 flex-col">
-                <div className="mb-5 text-center">
-                  <div className="mb-3 flex justify-center">
-                    <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white/90 shadow-lg ring-2 ring-white/80">
-                      <Camera className="h-8 w-8 text-[#2C5F9A]" strokeWidth={1.75} aria-hidden />
+                <div className="relative z-10 flex flex-1 flex-col items-center px-4 pb-6 pt-8 text-center sm:px-6">
+                  <div className="mb-6 flex justify-center">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/15 shadow-lg ring-1 ring-white/25 backdrop-blur-md">
+                      <Camera className="h-10 w-10 text-white" strokeWidth={1.5} aria-hidden />
                     </div>
                   </div>
-                  <h1 className="mx-auto max-w-[20rem] text-balance text-xl font-bold leading-snug tracking-tight sm:text-2xl">
-                    <span className="bg-gradient-to-r from-[#00875A] via-[#C9A008] to-[#2C5F9A] bg-clip-text text-transparent">
-                      Compartilhe seu momento na Tríplice Fronteira
-                    </span>
+
+                  <h1 className="max-w-sm text-balance text-2xl font-bold leading-tight text-white sm:text-3xl">
+                    Compartilhe seu momento
                   </h1>
-                  <p className="mt-2 text-sm font-semibold text-[#5e5b60]">
-                    Mostre o que você está vivendo agora <span aria-hidden>✨</span>
-                  </p>
-                  <div
-                    className="mt-3 inline-flex items-center gap-2 rounded-full border border-black/5 bg-white/90 px-3 py-1.5 text-lg shadow-sm"
-                    aria-label="Brasil, Argentina e Paraguai"
-                  >
-                    <span aria-hidden>🇧🇷</span>
-                    <span aria-hidden>🇦🇷</span>
-                    <span aria-hidden>🇵🇾</span>
-                  </div>
-                </div>
+                  <p className="mt-2 text-lg text-white/85">na Tríplice Fronteira</p>
 
-                <div className="mb-6 rounded-[1.35rem] border border-[#FDB913]/35 bg-gradient-to-br from-[#fffdf8] to-[#fff3e0] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
-                  <div className="mb-3 flex flex-wrap items-center justify-center gap-2 text-left sm:justify-between">
-                    <p className="text-center text-[15px] font-semibold text-[#2b2b2e] sm:text-left">
-                      Fotos, experiências e descobertas em um só lugar
-                    </p>
-                    <span className="rounded-full bg-[#FDB913]/25 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-[#7a5d00]">
-                      inspire-se
-                    </span>
-                  </div>
-                  <div className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {[
-                      {
-                        key: 'br',
-                        label: 'Brasil',
-                        flag: '🇧🇷',
-                        className:
-                          'bg-gradient-to-br from-[#009c3b] via-[#ffdf00] to-[#002776]',
-                      },
-                      {
-                        key: 'ar',
-                        label: 'Argentina',
-                        flag: '🇦🇷',
-                        className: 'bg-gradient-to-br from-[#75AADB] via-white to-[#75AADB]',
-                      },
-                      {
-                        key: 'py',
-                        label: 'Paraguai',
-                        flag: '🇵🇾',
-                        className: 'bg-gradient-to-br from-[#d52b1e] via-white to-[#0038a8]',
-                      },
-                      {
-                        key: 'marco',
-                        label: 'Marco 3 Fronteiras',
-                        flag: '🌉',
-                        className: 'bg-gradient-to-br from-[#00875A] to-[#2C5F9A]',
-                      },
-                    ].map((item) => (
-                      <div
-                        key={item.key}
-                        className={`relative h-[5.5rem] min-w-[6.25rem] shrink-0 overflow-hidden rounded-2xl shadow-md ring-1 ring-black/10 ${item.className}`}
-                      >
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.35),transparent_55%)]" />
-                        <span className="absolute left-2 top-2 text-xl drop-shadow">{item.flag}</span>
-                        <span className="absolute bottom-2 left-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-center text-[10px] font-bold text-white backdrop-blur-sm">
-                          {item.label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-3 text-center text-xs font-medium text-[#7b6e5a]">
-                    Compartilhe a magia de Foz, Puerto Iguazú e Ciudad del Este
-                  </p>
-                </div>
-
-                <div className="mt-auto space-y-2">
                   <button
                     type="button"
                     onClick={abrirSheetEscolherOrigem}
-                    className="flex w-full items-center justify-center gap-2 rounded-[60px] bg-gradient-to-r from-[#00875A] to-[#2C5F9A] py-4 text-base font-bold text-white shadow-[0_10px_24px_-6px_rgba(0,135,90,0.45)] transition active:scale-[0.98]"
+                    className="mt-8 flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-white py-4 text-base font-semibold text-zinc-900 shadow-lg transition hover:bg-white/95 active:scale-[0.98]"
                   >
-                    <Camera className="h-5 w-5 shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
-                    POSTAR FOTO
+                    <Camera className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
+                    Publicar Foto
                   </button>
-                  <p className="text-center text-xs text-[#8e8e93]">
-                    Toque para escolher fototeca, câmera ou arquivo
-                  </p>
+
+                  <div className="mt-10 w-full max-w-md flex-1">
+                    <p className="mb-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
+                      Inspire-se
+                    </p>
+                    <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      {INSPIRACAO_TRIPLA.map((item, i) => (
+                        <div
+                          key={item.src}
+                          className="relative h-32 w-32 shrink-0 overflow-hidden rounded-xl ring-1 ring-white/20"
+                        >
+                          <Image
+                            src={item.src}
+                            alt={item.alt}
+                            fill
+                            className="object-cover"
+                            sizes="128px"
+                            priority={i === 0}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div
+                    className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-white/10 pt-5"
+                    aria-label="Países da Tríplice Fronteira"
+                  >
+                    {(
+                      [
+                        ['Brasil', 'from-emerald-500 to-emerald-600'],
+                        ['Argentina', 'from-sky-400 to-blue-600'],
+                        ['Paraguai', 'from-red-500 to-red-600'],
+                      ] as const
+                    ).map(([nome, grad]) => (
+                      <div
+                        key={nome}
+                        className="flex items-center gap-1.5 text-sm font-medium text-white/75"
+                      >
+                        <span
+                          className={`flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br ${grad} shadow-sm`}
+                          aria-hidden
+                        >
+                          <MapPin className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
+                        </span>
+                        {nome}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               <div
                 role="presentation"
-                className={`fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-[6px] transition-opacity duration-200 ${
+                className={`fixed inset-0 z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${
                   sheetOrigemFotoAberto ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
                 }`}
                 aria-hidden={!sheetOrigemFotoAberto}
@@ -746,38 +738,32 @@ function CriarPublicacaoPageInner() {
                   <div className="space-y-2">
                     <button
                       type="button"
-                      className="w-full rounded-[14px] bg-white py-3.5 text-[17px] font-medium text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
+                      className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-white py-3.5 text-[17px] font-medium text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
                       onClick={() => escolherOrigemFoto(inputFototecaRef.current)}
                     >
-                      <span className="mr-2 inline" aria-hidden>
-                        📸
-                      </span>
+                      <Images className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
                       Fototeca
                     </button>
                     <button
                       type="button"
-                      className="w-full rounded-[14px] bg-white py-3.5 text-[17px] font-medium text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
+                      className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-white py-3.5 text-[17px] font-medium text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
                       onClick={() => escolherOrigemFoto(inputCameraRef.current)}
                     >
-                      <span className="mr-2 inline" aria-hidden>
-                        📷
-                      </span>
+                      <Camera className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
                       Tirar foto
                     </button>
                     <button
                       type="button"
-                      className="w-full rounded-[14px] bg-white py-3.5 text-[17px] font-medium text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
+                      className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-white py-3.5 text-[17px] font-medium text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
                       onClick={() => escolherOrigemFoto(inputArquivoRef.current)}
                     >
-                      <span className="mr-2 inline" aria-hidden>
-                        📁
-                      </span>
+                      <FolderOpen className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
                       Escolher arquivo
                     </button>
                   </div>
                   <button
                     type="button"
-                    className="mt-3 w-full rounded-[14px] bg-white py-3.5 text-[17px] font-semibold text-[#007aff] shadow-sm active:bg-[#e5e5ea]"
+                    className="mt-3 w-full rounded-[14px] bg-white py-3.5 text-[17px] font-semibold text-red-500 shadow-sm active:bg-[#e5e5ea]"
                     onClick={fecharSheetEscolherOrigem}
                   >
                     Cancelar
