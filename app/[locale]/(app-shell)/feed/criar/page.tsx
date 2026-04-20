@@ -700,7 +700,7 @@ function CriarPublicacaoPageInner() {
                   className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[11px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm"
                 >
                   <Images size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
-                  Galeria
+                  Mudar foto
                 </button>
               </div>
 
@@ -721,7 +721,7 @@ function CriarPublicacaoPageInner() {
                 type="button"
                 onClick={() => void handleSubmit('foto')}
                 disabled={!fotoPreview || formatoFoto == null || !pixelCrop || loading}
-                className="mt-2 w-full rounded-xl bg-emerald-600 py-3 text-center text-base font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+                className="mt-2 w-full rounded-xl bg-[#00cf42] py-3 text-center text-base font-bold text-white shadow-md transition hover:bg-[#00b83a] active:bg-[#009e32] disabled:opacity-50"
                 style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
               >
                 {loading ? 'Postando...' : 'Publicar'}
@@ -781,7 +781,7 @@ function CriarPublicacaoPageInner() {
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => void handleSubmit('texto')}
               disabled={!texto.trim() || loading}
-              className="w-full rounded-xl bg-[#0097b2] py-3 text-center text-base font-bold text-white shadow-sm transition disabled:opacity-50"
+              className="w-full rounded-xl bg-[#00cf42] py-3 text-center text-base font-bold text-white shadow-md transition hover:bg-[#00b83a] active:bg-[#009e32] disabled:opacity-50"
             >
               {loading ? 'Publicando…' : 'Publicar'}
             </button>
