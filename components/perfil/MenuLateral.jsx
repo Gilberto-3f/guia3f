@@ -487,7 +487,7 @@ export default function MenuLateral({
     <div className="fixed inset-0 z-[100] max-h-[100dvh]">
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar menu" onClick={onFechar} />
       <aside
-        className={`absolute right-0 top-0 flex h-full max-h-[100dvh] w-[min(92vw,28rem)] min-w-0 flex-col overflow-hidden bg-white shadow-xl transition-transform duration-300 ease-out ${
+        className={`absolute right-0 top-0 flex h-full max-h-[100dvh] w-[min(92vw,28rem)] min-w-0 flex-col overflow-hidden bg-white text-gray-900 shadow-xl transition-transform duration-300 ease-out ${
           drawerEntered ? 'translate-x-0' : 'translate-x-full'
         }`}
         role="dialog"
@@ -551,8 +551,8 @@ export default function MenuLateral({
         )}
 
         {modalLogout ? (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-4 text-gray-900">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-5 text-gray-900 shadow-xl">
               <h3 className="text-lg font-bold text-gray-900">Sair da conta?</h3>
               <p className="mt-2 text-sm text-gray-600">
                 Você precisará entrar novamente para acessar o Guia 3F.
@@ -560,14 +560,14 @@ export default function MenuLateral({
               <div className="mt-4 flex gap-2">
                 <button
                   type="button"
-                  className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium"
+                  className="flex-1 rounded-lg border border-gray-200 bg-white py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
                   onClick={() => setModalLogout(false)}
                 >
                   Cancelar
                 </button>
                 <button
                   type="button"
-                  className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-medium text-white"
+                  className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-medium text-white hover:bg-red-700"
                   onClick={() => void confirmarLogout()}
                 >
                   Sim, sair
