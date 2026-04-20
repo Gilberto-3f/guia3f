@@ -16,9 +16,9 @@ import Image from 'next/image'
 import { Great_Vibes } from 'next/font/google'
 import { useRouter } from '@/i18n/navigation'
 import { Camera, X } from 'lucide-react'
-import Cropper, { type Area, type MediaSize, type Size } from 'react-easy-crop'
+import CriarPostRecorteMovel from '@/components/feed/CriarPostRecorteMovel'
 import { supabase } from '@/lib/supabase'
-import { getCroppedImageBlob } from '@/lib/cropImage'
+import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
 
 /** Estilo script próximo de “Benedict”; substituir por `next/font/local` se tiveres a fonte licenciada. */
 const fontTripliceScript = Great_Vibes({
@@ -44,13 +44,6 @@ const FORMATOS: Record<
     aspect: 1080 / 566,
     miniAspectClass: 'aspect-video w-9 max-w-[2.5rem]',
   },
-}
-
-/** Cobre o recorte sem vãos: paisagem = preencher altura; retrato = preencher largura; quadrado = auto. */
-function objectFitParaFormato(f: FormatoFoto): 'cover' | 'horizontal-cover' | 'vertical-cover' {
-  const a = FORMATOS[f].aspect
-  if (Math.abs(a - 1) < 0.02) return 'cover'
-  return a > 1 ? 'vertical-cover' : 'horizontal-cover'
 }
 
 function tabCls(ativo: boolean) {
@@ -125,14 +118,11 @@ function CriarPublicacaoPageInner() {
   const [texto, setTexto] = useState('')
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [formatoFoto, setFormatoFoto] = useState<FormatoFoto>('portrait')
-  const [crop, setCrop] = useState({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(1)
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
-  const [cropMinZoom, setCropMinZoom] = useState(1)
-  const cropMinZoomRef = useRef(1)
-  const lastMediaForCropRef = useRef<MediaSize | null>(null)
-  const lastCropSizeRef = useRef<Size | null>(null)
+  /** `null` até o utilizador escolher explicitamente (regra do botão Publicar). */
+  const [formatoFoto, setFormatoFoto] = useState<FormatoFoto | null>(null)
+  const [painelFormato, setPainelFormato] = useState(false)
+  const [painelDescricao, setPainelDescricao] = useState(false)
+  const [pixelCrop, setPixelCrop] = useState<PixelCrop | null>(null)
   const [textoLayout, setTextoLayout] = useState<{ top: number; height: number } | null>(null)
 
   const abaRef = useRef<Aba>(aba)
@@ -149,9 +139,10 @@ function CriarPublicacaoPageInner() {
       if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
       return null
     })
-    setCrop({ x: 0, y: 0 })
-    setZoom(1)
-    setCroppedAreaPixels(null)
+    setFormatoFoto(null)
+    setPainelFormato(false)
+    setPainelDescricao(false)
+    setPixelCrop(null)
   }, [])
 
   const onFotoSelecionada = (e: ChangeEvent<HTMLInputElement>) => {
@@ -166,9 +157,10 @@ function CriarPublicacaoPageInner() {
       if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev)
       return URL.createObjectURL(file)
     })
-    setCrop({ x: 0, y: 0 })
-    setZoom(1)
-    setCroppedAreaPixels(null)
+    setFormatoFoto(null)
+    setPainelFormato(false)
+    setPainelDescricao(false)
+    setPixelCrop(null)
   }
 
   const dispararSeletorFicheiro = useCallback((input: HTMLInputElement | null) => {
@@ -208,60 +200,9 @@ function CriarPublicacaoPageInner() {
     return () => attached.forEach((el) => el.removeEventListener('cancel', onCancel))
   }, [irParaTexto])
 
-  const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
-    setCroppedAreaPixels(croppedAreaPixels)
+  const onPixelCropChange = useCallback((c: PixelCrop | null) => {
+    setPixelCrop(c)
   }, [])
-
-  useEffect(() => {
-    cropMinZoomRef.current = cropMinZoom
-  }, [cropMinZoom])
-
-  const recalcCropMinZoom = useCallback(() => {
-    const ms = lastMediaForCropRef.current
-    const cs = lastCropSizeRef.current
-    if (!ms || !cs || ms.width <= 0 || ms.height <= 0) return
-    const z = Math.max(cs.width / ms.width, cs.height / ms.height, 1)
-    setCropMinZoom((prev) => (Math.abs(prev - z) < 1e-4 ? prev : z))
-    setZoom((prev) => (prev < z ? z : prev))
-  }, [])
-
-  const onCropperMediaLoaded = useCallback(
-    (ms: MediaSize) => {
-      lastMediaForCropRef.current = ms
-      recalcCropMinZoom()
-    },
-    [recalcCropMinZoom]
-  )
-
-  const onCropSizeChange = useCallback(
-    (size: Size) => {
-      lastCropSizeRef.current = size
-      recalcCropMinZoom()
-    },
-    [recalcCropMinZoom]
-  )
-
-  const onZoomChangeCropper = useCallback((z: number) => {
-    const minZ = cropMinZoomRef.current
-    setZoom(Math.max(z, minZ))
-  }, [])
-
-  useEffect(() => {
-    if (!fotoPreview) {
-      lastMediaForCropRef.current = null
-      lastCropSizeRef.current = null
-      setCropMinZoom(1)
-      cropMinZoomRef.current = 1
-      setCrop({ x: 0, y: 0 })
-      setZoom(1)
-      return
-    }
-    setCrop({ x: 0, y: 0 })
-    setZoom(1)
-    setCropMinZoom(1)
-    cropMinZoomRef.current = 1
-    lastCropSizeRef.current = null
-  }, [fotoPreview, formatoFoto])
 
   useEffect(() => {
     abaRef.current = aba
@@ -466,9 +407,8 @@ function CriarPublicacaoPageInner() {
   }
 
   const handleSubmit = async (origem: 'foto' | 'texto') => {
-    const meta = FORMATOS[formatoFoto]
     if (origem === 'foto') {
-      if (!fotoPreview || !croppedAreaPixels) return
+      if (!fotoPreview || formatoFoto == null || !pixelCrop) return
     } else {
       if (!texto.trim()) return
     }
@@ -486,10 +426,11 @@ function CriarPublicacaoPageInner() {
       let fotoUrl: string | null = null
       let fileToUpload: File | null = null
 
-      if (origem === 'foto' && fotoPreview && croppedAreaPixels) {
+      if (origem === 'foto' && fotoPreview && formatoFoto != null && pixelCrop) {
+        const meta = FORMATOS[formatoFoto]
         const blob = await getCroppedImageBlob(
           fotoPreview,
-          croppedAreaPixels,
+          pixelCrop,
           meta.w,
           meta.h,
           'image/jpeg',
@@ -544,7 +485,10 @@ function CriarPublicacaoPageInner() {
           <button
             key={key}
             type="button"
-            onClick={() => setFormatoFoto(key)}
+            onClick={() => {
+              setFormatoFoto(key)
+              setPainelFormato(false)
+            }}
             className={`flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-lg border px-1 py-2 text-xs transition sm:px-2 ${
               ativo
                 ? 'border-[#0097b2] bg-[#0097b2]/10 text-[#0097b2]'
@@ -675,58 +619,79 @@ function CriarPublicacaoPageInner() {
             </>
           ) : (
             <>
-              {formatosRow}
-
-              <p className="mb-1 text-center text-[11px] font-bold text-[#0097b2]/80">
-                Pinça para zoom · arraste para posicionar
-              </p>
-
-              <div className="relative w-full">
+              <div className="relative w-full shrink-0">
                 <button
                   type="button"
                   onClick={limparFoto}
-                  className="absolute right-1 top-1 z-10 rounded-full bg-black/50 p-1.5 text-white shadow-md"
+                  className="absolute right-1 top-1 z-[2] rounded-full bg-black/50 p-1.5 text-white shadow-md"
                   aria-label="Remover foto e escolher outra"
                 >
                   <X size={18} aria-hidden />
                 </button>
-                <div className="relative h-[min(54vh,420px)] w-full overflow-hidden rounded-lg bg-neutral-900">
-                  <Cropper
-                    key={`${fotoPreview}-${formatoFoto}`}
-                    image={fotoPreview}
-                    crop={crop}
-                    zoom={zoom}
-                    minZoom={cropMinZoom}
-                    maxZoom={4}
-                    aspect={FORMATOS[formatoFoto].aspect}
-                    objectFit={objectFitParaFormato(formatoFoto)}
-                    restrictPosition
-                    onCropChange={setCrop}
-                    onZoomChange={onZoomChangeCropper}
-                    onCropComplete={onCropComplete}
-                    onCropSizeChange={onCropSizeChange}
-                    onMediaLoaded={onCropperMediaLoaded}
-                    showGrid={false}
-                  />
-                </div>
+                <CriarPostRecorteMovel
+                  key={fotoPreview}
+                  imageSrc={fotoPreview}
+                  aspect={formatoFoto != null ? FORMATOS[formatoFoto].aspect : 1}
+                  ativo={formatoFoto != null}
+                  onPixelCropChange={onPixelCropChange}
+                />
               </div>
 
-              <textarea
-                value={texto}
-                onChange={(e) => setTexto(e.target.value)}
-                placeholder="Legenda (opcional)..."
-                className="mt-2 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-base font-bold whitespace-pre-wrap text-black placeholder:font-bold placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
-                rows={4}
-              />
+              {formatoFoto == null ? (
+                <p className="mt-1.5 text-center text-xs text-gray-500">
+                  Toque em «Formato» para escolher o enquadramento.
+                </p>
+              ) : (
+                <p className="mt-1.5 text-center text-[11px] font-bold text-[#0097b2]/80">
+                  Arraste a moldura branca para posicionar o recorte
+                </p>
+              )}
+
+              <div className="mt-2 flex w-full gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPainelFormato((p) => !p)
+                    setPainelDescricao(false)
+                  }}
+                  className="flex-1 rounded-xl bg-[#0097b2] py-2.5 text-center text-sm font-bold text-white shadow-sm transition hover:opacity-95 active:opacity-90"
+                  aria-expanded={painelFormato}
+                >
+                  Formato
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPainelDescricao((p) => !p)
+                    setPainelFormato(false)
+                  }}
+                  className="flex-1 rounded-xl bg-[#0097b2] py-2.5 text-center text-sm font-bold text-white shadow-sm transition hover:opacity-95 active:opacity-90"
+                  aria-expanded={painelDescricao}
+                >
+                  Descrição
+                </button>
+              </div>
+
+              {painelFormato ? formatosRow : null}
+
+              {painelDescricao ? (
+                <textarea
+                  value={texto}
+                  onChange={(e) => setTexto(e.target.value)}
+                  placeholder="Legenda (opcional)..."
+                  className="mt-2 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-base font-bold whitespace-pre-wrap text-black placeholder:font-bold placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                  rows={4}
+                />
+              ) : null}
 
               <button
                 type="button"
                 onClick={() => void handleSubmit('foto')}
-                disabled={!fotoPreview || !croppedAreaPixels || loading}
-                className="mt-2 mb-0 w-full rounded-xl bg-[#0097b2] py-3 text-center text-base font-bold text-white shadow-sm transition disabled:opacity-50"
+                disabled={!fotoPreview || formatoFoto == null || !pixelCrop || loading}
+                className="mt-2 mb-0 w-full rounded-xl bg-emerald-600 py-3 text-center text-base font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
                 style={{ marginBottom: 'max(0.25rem, env(safe-area-inset-bottom, 4px))' }}
               >
-                {loading ? 'Postando...' : 'Postar'}
+                {loading ? 'Postando...' : 'Publicar'}
               </button>
             </>
           )}

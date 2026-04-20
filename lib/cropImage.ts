@@ -1,4 +1,4 @@
-/** Região em pixels da imagem original (react-easy-crop). */
+/** Região em pixels da imagem original (x, y, largura, altura). */
 export type PixelCrop = { x: number; y: number; width: number; height: number }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
