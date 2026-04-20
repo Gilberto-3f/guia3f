@@ -645,18 +645,6 @@ function CriarPublicacaoPageInner() {
                 <button
                   type="button"
                   onClick={() => {
-                    setPainelFormato(false)
-                    setPainelDescricao(false)
-                    dispararSeletorFicheiro(inputFototecaRef.current)
-                  }}
-                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[11px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm"
-                >
-                  <Images size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
-                  Galeria
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
                     setPainelFormato((p) => !p)
                     setPainelDescricao(false)
                   }}
@@ -677,6 +665,18 @@ function CriarPublicacaoPageInner() {
                 >
                   <FileText size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
                   Descrição
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPainelFormato(false)
+                    setPainelDescricao(false)
+                    dispararSeletorFicheiro(inputFototecaRef.current)
+                  }}
+                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[11px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm"
+                >
+                  <Images size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
+                  Galeria
                 </button>
               </div>
 
