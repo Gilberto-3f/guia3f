@@ -63,12 +63,12 @@ const ALTURA_BARRA_INFERIOR_APP_PX = 56
 /** Azul marinho — título e ícone do ecrã inicial “Publicar Foto”. */
 const AZUL_MARINHO_HERO = '#0c2340'
 
-/** Fotos locais em /public/triple-frontier (stock; substituir por fotos próprias se quiser). */
+/** Galeria 2×2 em `/public/triple-frontier` (ficheiros 1, 2 e 4 substituídos por imagens temáticas; 3 mantém culinária). */
 const INSPIRACAO_TRIPLA = [
   { src: '/triple-frontier/cataratas.jpg', alt: 'Cataratas do Iguaçu' },
-  { src: '/triple-frontier/ponte-amizade.jpg', alt: 'Ponte da Amizade - Brasil/Paraguai' },
+  { src: '/triple-frontier/ponte-amizade.jpg', alt: 'Ponte da Amizade — fronteira entre Brasil e Paraguai' },
   { src: '/triple-frontier/culinaria-brasileira.jpg', alt: 'Culinária brasileira' },
-  { src: '/triple-frontier/arara.jpg', alt: 'Arara - fauna da região' },
+  { src: '/triple-frontier/arara.jpg', alt: 'Arara-vermelha — fauna da região' },
 ] as const
 
 function CriarPublicacaoPageInner() {
