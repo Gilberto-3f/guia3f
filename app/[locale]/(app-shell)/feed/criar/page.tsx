@@ -61,9 +61,6 @@ function daUrlParaAba(sp: ReturnType<typeof useSearchParams>): Aba {
 /** Reserva espaço para a `BottomBar` fixa (`pb-14` ≈ 3.5rem) no painel TEXTO. */
 const ALTURA_BARRA_INFERIOR_APP_PX = 56
 
-/** Azul marinho — título e ícone do ecrã inicial “Publicar Foto”. */
-const AZUL_MARINHO_HERO = '#0c2340'
-
 /** Galeria 2×2 em `/public/triple-frontier` (ficheiros 1, 2 e 4 substituídos por imagens temáticas; 3 mantém culinária). */
 const INSPIRACAO_TRIPLA = [
   { src: '/triple-frontier/cataratas.jpg', alt: 'Cataratas do Iguaçu' },
@@ -605,35 +602,22 @@ function CriarPublicacaoPageInner() {
                   <Camera
                     size={48}
                     strokeWidth={2}
-                    className="mx-auto mb-2 shrink-0"
-                    style={{ color: AZUL_MARINHO_HERO }}
+                    className="mx-auto mb-2 shrink-0 text-gray-700"
                     aria-hidden
                   />
 
-                  <h1
-                    className="mx-auto mb-3 flex min-w-0 w-full max-w-full flex-col items-center gap-2.5 px-0 text-center sm:gap-3 sm:px-0.5"
-                    style={{ color: AZUL_MARINHO_HERO }}
-                  >
+                  <h1 className="mx-auto mb-3 flex min-w-0 w-full max-w-full flex-col items-center gap-2.5 px-0 text-center text-gray-800 sm:gap-3 sm:px-0.5">
                     <span className="block w-full whitespace-nowrap text-[clamp(1rem,3.6vw+0.55rem,1.38rem)] font-bold leading-snug tracking-tight">
                       Compartilhe seu momento na
                     </span>
                     <span
-                      className={`${fontTripliceScript.className} block w-full max-w-full whitespace-nowrap text-[clamp(2rem,10.5vw+0.62rem,5.1rem)] leading-[0.92]`}
+                      className={`${fontTripliceScript.className} block w-full max-w-full whitespace-nowrap text-[clamp(2rem,10.5vw+0.62rem,5.1rem)] leading-[0.92] text-gray-700`}
                     >
                       Tríplice Fronteira
                     </span>
                   </h1>
 
-                  <button
-                    type="button"
-                    onClick={abrirSeletorFotoNativo}
-                    className="mx-auto flex w-[min(100%,220px)] min-w-[200px] items-center justify-center gap-2 rounded-xl bg-[#00cf42] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-[#00b83a] active:bg-[#009e32]"
-                  >
-                    <Camera size={18} strokeWidth={2.25} className="shrink-0" aria-hidden />
-                    Publicar Foto
-                  </button>
-
-                  <div className="mx-auto mt-3 w-full max-w-[280px] shrink-0 pb-0 sm:max-w-xs">
+                  <div className="mx-auto mt-1 w-full max-w-[280px] shrink-0 pb-0 sm:max-w-xs">
                     <div className="grid grid-cols-2 gap-3">
                     {INSPIRACAO_TRIPLA.map((item, i) => (
                       <div
@@ -653,7 +637,16 @@ function CriarPublicacaoPageInner() {
                     </div>
                   </div>
 
-                  <p className="mx-auto mt-7 max-w-md px-1 text-base font-normal text-gray-500 sm:mt-8">
+                  <button
+                    type="button"
+                    onClick={abrirSeletorFotoNativo}
+                    className="mx-auto mt-6 flex w-[min(100%,220px)] min-w-[200px] items-center justify-center gap-2 rounded-xl bg-[#00cf42] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-[#00b83a] active:bg-[#009e32]"
+                  >
+                    <Camera size={18} strokeWidth={2.25} className="shrink-0" aria-hidden />
+                    Publicar Foto
+                  </button>
+
+                  <p className="mx-auto mt-5 max-w-md px-1 text-base font-normal text-gray-600 sm:mt-6">
                     Mostre o que você está vivendo agora
                   </p>
                 </div>
