@@ -477,7 +477,7 @@ function CriarPublicacaoPageInner() {
   }
 
   const formatosRow = (
-    <div className="mb-1.5 flex w-full flex-nowrap gap-1.5 sm:gap-2">
+    <div className="mb-1.5 mt-4 flex w-full flex-nowrap gap-1.5 sm:gap-2">
       {(Object.keys(FORMATOS) as FormatoFoto[]).map((key) => {
         const f = FORMATOS[key]
         const ativo = formatoFoto === key
@@ -637,16 +637,6 @@ function CriarPublicacaoPageInner() {
                 />
               </div>
 
-              {formatoFoto == null ? (
-                <p className="mt-1.5 text-center text-xs text-gray-500">
-                  Toque em «Formato» para escolher o enquadramento.
-                </p>
-              ) : (
-                <p className="mt-1.5 text-center text-[11px] font-bold text-[#0097b2]/80">
-                  Arraste a moldura branca para posicionar o recorte
-                </p>
-              )}
-
               <div className="mt-2 flex w-full gap-2">
                 <button
                   type="button"
@@ -688,8 +678,8 @@ function CriarPublicacaoPageInner() {
                 type="button"
                 onClick={() => void handleSubmit('foto')}
                 disabled={!fotoPreview || formatoFoto == null || !pixelCrop || loading}
-                className="mt-2 mb-0 w-full rounded-xl bg-emerald-600 py-3 text-center text-base font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
-                style={{ marginBottom: 'max(0.25rem, env(safe-area-inset-bottom, 4px))' }}
+                className="mt-2 w-full rounded-xl bg-emerald-600 py-3 text-center text-base font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+                style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
               >
                 {loading ? 'Postando...' : 'Publicar'}
               </button>
