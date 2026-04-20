@@ -14,7 +14,7 @@ import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
-import { Camera, Flag, X } from 'lucide-react'
+import { Camera, X } from 'lucide-react'
 import Cropper, { type Area, type MediaSize, type Size } from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob } from '@/lib/cropImage'
@@ -615,93 +615,50 @@ function CriarPublicacaoPageInner() {
         <div className="relative flex min-h-0 flex-1 flex-col px-2 pt-1 sm:px-3">
           {!fotoPreview ? (
             <>
-              <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl shadow-md ring-1 ring-black/5 sm:rounded-3xl">
-                {/* Fundo claro + blobs (aquarela / névoa) */}
-                <div
-                  className="absolute inset-0 bg-gradient-to-br from-white via-[#F5FDFF] to-[#FFF8E8]"
-                  aria-hidden
-                />
-                <div
-                  className="pointer-events-none absolute -left-[18%] -top-[12%] h-[58%] w-[58%] rounded-full bg-[radial-gradient(circle,rgba(178,235,242,0.55)_0%,transparent_68%)] blur-3xl"
-                  aria-hidden
-                />
-                <div
-                  className="pointer-events-none absolute -bottom-[20%] -right-[12%] h-[52%] w-[52%] rounded-full bg-[radial-gradient(circle,rgba(255,248,225,0.55)_0%,transparent_70%)] blur-3xl"
-                  aria-hidden
-                />
-                <div
-                  className="pointer-events-none absolute left-1/3 top-1/2 h-[40%] w-[45%] -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(224,247,250,0.45)_0%,transparent_65%)] blur-3xl"
+              <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 pb-4 pt-5 text-center sm:px-6">
+                <Camera
+                  size={48}
+                  strokeWidth={1.75}
+                  className="mx-auto mb-4 shrink-0 text-[#0097b2]"
                   aria-hidden
                 />
 
-                <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 pb-4 pt-5 text-center sm:px-6">
-                  <Camera
-                    size={48}
-                    strokeWidth={1.75}
-                    className="mx-auto mb-4 shrink-0 text-[#0097b2]"
-                    aria-hidden
-                  />
+                <h1 className="mx-auto mb-5 max-w-[18rem] text-center text-xl font-bold leading-tight text-[#1F2937]">
+                  Compartilhe seu momento
+                  <br />
+                  na Tríplice Fronteira
+                </h1>
 
-                  <h1 className="mx-auto mb-2 max-w-[18rem] text-center text-xl font-bold leading-tight text-[#1F2937]">
-                    Compartilhe seu momento
-                    <br />
-                    na Tríplice Fronteira
-                  </h1>
-                  <p className="mb-5 max-w-md text-base font-normal text-gray-500">
-                    Mostre o que você está vivendo agora
-                  </p>
+                <button
+                  type="button"
+                  onClick={abrirSeletorFotoNativo}
+                  className="mx-auto flex w-[min(100%,220px)] min-w-[200px] items-center justify-center gap-2 rounded-xl bg-[#0097b2] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:opacity-90 active:opacity-95"
+                >
+                  <Camera size={18} strokeWidth={2.25} className="shrink-0" aria-hidden />
+                  Publicar Foto
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={abrirSeletorFotoNativo}
-                    className="mx-auto flex w-[min(100%,220px)] min-w-[200px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#4CAF50] to-[#0097b2] px-6 py-3 text-base font-semibold text-white shadow-md transition hover:opacity-90 active:opacity-95"
-                  >
-                    <Camera size={18} strokeWidth={2.25} className="shrink-0" aria-hidden />
-                    Publicar Foto
-                  </button>
+                <p className="mx-auto mt-4 max-w-md text-base font-normal text-gray-500">
+                  Mostre o que você está vivendo agora
+                </p>
 
-                  <div className="mx-auto mt-5 mb-5 w-full max-w-[280px] sm:max-w-xs">
-                    <div className="grid grid-cols-2 gap-3">
-                      {INSPIRACAO_TRIPLA.map((item, i) => (
-                        <div
-                          key={item.src}
-                          className="relative aspect-square w-full overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5"
-                        >
-                          <Image
-                            src={item.src}
-                            alt={item.alt}
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 640px) 45vw, 200px"
-                            priority={i === 0}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div
-                    className="mt-1 flex justify-center gap-3 sm:gap-4"
-                    aria-label="Brasil, Paraguai e Argentina"
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-amber-400 shadow-sm">
-                        <Flag size={16} className="text-white" strokeWidth={2.25} aria-hidden />
+                <div className="mx-auto mt-5 w-full max-w-[280px] sm:max-w-xs">
+                  <div className="grid grid-cols-2 gap-3">
+                    {INSPIRACAO_TRIPLA.map((item, i) => (
+                      <div
+                        key={item.src}
+                        className="relative aspect-square w-full overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5"
+                      >
+                        <Image
+                          src={item.src}
+                          alt={item.alt}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 640px) 45vw, 200px"
+                          priority={i === 0}
+                        />
                       </div>
-                      <span className="text-[11px] font-medium text-gray-500">Brasil</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-red-600 to-blue-800 shadow-sm">
-                        <Flag size={16} className="text-white" strokeWidth={2.25} aria-hidden />
-                      </div>
-                      <span className="text-[11px] font-medium text-gray-500">Paraguai</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-white shadow-sm ring-1 ring-sky-200/80">
-                        <Flag size={16} className="text-sky-900" strokeWidth={2.25} aria-hidden />
-                      </div>
-                      <span className="text-[11px] font-medium text-gray-500">Argentina</span>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>
