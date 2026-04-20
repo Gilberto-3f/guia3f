@@ -20,13 +20,6 @@ import CriarPostRecorteMovel from '@/components/feed/CriarPostRecorteMovel'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
 
-/** Estilo script próximo de “Benedict”; substituir por `next/font/local` se tiveres a fonte licenciada. */
-const fontTripliceScript = Great_Vibes({
-  weight: '400',
-  subsets: ['latin'],
-  display: 'swap',
-})
-
 type Aba = 'foto' | 'texto'
 
 type FormatoFoto = 'portrait' | 'square' | 'landscape'
