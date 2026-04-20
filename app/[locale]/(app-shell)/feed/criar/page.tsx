@@ -15,7 +15,7 @@ import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/n
 import Image from 'next/image'
 import { Great_Vibes } from 'next/font/google'
 import { useRouter } from '@/i18n/navigation'
-import { Camera, Images } from 'lucide-react'
+import { Camera, FileText, FolderOpen, Images, Ratio } from 'lucide-react'
 import CriarPostRecorteMovel from '@/components/feed/CriarPostRecorteMovel'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
@@ -127,7 +127,6 @@ function CriarPublicacaoPageInner() {
   const [painelDescricao, setPainelDescricao] = useState(false)
   const [pixelCrop, setPixelCrop] = useState<PixelCrop | null>(null)
   const [textoLayout, setTextoLayout] = useState<{ top: number; height: number } | null>(null)
-  const [sheetGaleriaAberto, setSheetGaleriaAberto] = useState(false)
   /** Sincronizado com `guia-criar-keyboard`: quando a barra some, o painel TEXTO pode usar toda a altura útil. */
   const [barraInferiorOculta, setBarraInferiorOculta] = useState(false)
 
@@ -261,25 +260,6 @@ function CriarPublicacaoPageInner() {
   const abrirSeletorFotoNativo = useCallback(() => {
     dispararSeletorFicheiro(inputFototecaRef.current)
   }, [dispararSeletorFicheiro])
-
-  const abrirOpcaoGaleria = useCallback(
-    (qual: 'fototeca' | 'camera' | 'ficheiro') => {
-      setSheetGaleriaAberto(false)
-      const ref =
-        qual === 'fototeca' ? inputFototecaRef : qual === 'camera' ? inputCameraRef : inputFicheiroRef
-      requestAnimationFrame(() => dispararSeletorFicheiro(ref.current))
-    },
-    [dispararSeletorFicheiro]
-  )
-
-  useEffect(() => {
-    if (!sheetGaleriaAberto) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSheetGaleriaAberto(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [sheetGaleriaAberto])
 
   const atualizarLayoutTexto = useCallback(() => {
     if (abaRef.current !== 'texto') return
@@ -686,13 +666,11 @@ function CriarPublicacaoPageInner() {
                 <button
                   type="button"
                   onClick={() => {
-                    setSheetGaleriaAberto(true)
                     setPainelFormato(false)
                     setPainelDescricao(false)
+                    dispararSeletorFicheiro(inputFototecaRef.current)
                   }}
                   className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[11px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm"
-                  aria-expanded={sheetGaleriaAberto}
-                  aria-haspopup="dialog"
                 >
                   <Images size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
                   Galeria
@@ -702,11 +680,11 @@ function CriarPublicacaoPageInner() {
                   onClick={() => {
                     setPainelFormato((p) => !p)
                     setPainelDescricao(false)
-                    setSheetGaleriaAberto(false)
                   }}
-                  className="flex min-w-0 flex-1 rounded-xl bg-[#0097b2] py-2.5 text-center text-xs font-bold text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:text-sm"
+                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[11px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm"
                   aria-expanded={painelFormato}
                 >
+                  <Ratio size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
                   Formato
                 </button>
                 <button
@@ -714,60 +692,41 @@ function CriarPublicacaoPageInner() {
                   onClick={() => {
                     setPainelDescricao((p) => !p)
                     setPainelFormato(false)
-                    setSheetGaleriaAberto(false)
                   }}
-                  className="flex min-w-0 flex-1 rounded-xl bg-[#0097b2] py-2.5 text-center text-xs font-bold text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:text-sm"
+                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[11px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm"
                   aria-expanded={painelDescricao}
                 >
+                  <FileText size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
                   Descrição
                 </button>
               </div>
 
-              {sheetGaleriaAberto ? (
-                <div className="fixed inset-0 z-[60] flex flex-col justify-end" role="dialog" aria-modal="true" aria-label="Origem da imagem">
-                  <button
-                    type="button"
-                    className="absolute inset-0 bg-black/40"
-                    aria-label="Fechar"
-                    onClick={() => setSheetGaleriaAberto(false)}
-                  />
-                  <div
-                    className="relative mx-2 max-w-lg self-stretch rounded-2xl bg-[#f2f2f7] p-2 shadow-2xl sm:mx-auto sm:w-full"
-                    style={{ marginBottom: 'max(0.5rem, env(safe-area-inset-bottom, 8px))' }}
-                  >
-                    <div className="overflow-hidden rounded-xl bg-white">
-                      <button
-                        type="button"
-                        className="block w-full border-b border-gray-100 py-3.5 text-center text-[17px] text-[#007aff] active:bg-gray-50"
-                        onClick={() => abrirOpcaoGaleria('fototeca')}
-                      >
-                        Fototeca
-                      </button>
-                      <button
-                        type="button"
-                        className="block w-full border-b border-gray-100 py-3.5 text-center text-[17px] text-[#007aff] active:bg-gray-50"
-                        onClick={() => abrirOpcaoGaleria('camera')}
-                      >
-                        Tirar foto
-                      </button>
-                      <button
-                        type="button"
-                        className="block w-full py-3.5 text-center text-[17px] text-[#007aff] active:bg-gray-50"
-                        onClick={() => abrirOpcaoGaleria('ficheiro')}
-                      >
-                        Escolher arquivo
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      className="mt-2 w-full rounded-xl bg-white py-3 text-center text-[17px] font-semibold text-[#007aff] active:bg-gray-50"
-                      onClick={() => setSheetGaleriaAberto(false)}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              ) : null}
+              <div className="mt-1.5 flex w-full gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPainelFormato(false)
+                    setPainelDescricao(false)
+                    requestAnimationFrame(() => dispararSeletorFicheiro(inputCameraRef.current))
+                  }}
+                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border border-white/40 bg-[#0097b2]/90 py-1.5 text-center text-[10px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2 sm:text-xs"
+                >
+                  <Camera size={15} className="shrink-0 opacity-95 sm:h-[17px] sm:w-[17px]" aria-hidden />
+                  Tirar foto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPainelFormato(false)
+                    setPainelDescricao(false)
+                    requestAnimationFrame(() => dispararSeletorFicheiro(inputFicheiroRef.current))
+                  }}
+                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border border-white/40 bg-[#0097b2]/90 py-1.5 text-center text-[10px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2 sm:text-xs"
+                >
+                  <FolderOpen size={15} className="shrink-0 opacity-95 sm:h-[17px] sm:w-[17px]" aria-hidden />
+                  <span className="max-w-full whitespace-normal px-0.5">Escolher arquivo</span>
+                </button>
+              </div>
 
               {painelFormato ? formatosRow : null}
 
