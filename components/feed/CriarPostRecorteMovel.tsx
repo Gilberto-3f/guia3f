@@ -13,38 +13,45 @@ type Props = {
   onPixelCropChange: (crop: PixelCrop | null) => void
 }
 
-function fitContain(nw: number, nh: number, cw: number, ch: number) {
-  if (nw <= 0 || nh <= 0 || cw <= 0 || ch <= 0) {
-    return { dispW: 0, dispH: 0 }
-  }
-  const s = Math.min(cw / nw, ch / nh)
-  return { dispW: nw * s, dispH: nh * s }
-}
-
-function dimensoesMolduraMaxima(aspect: number, dispW: number, dispH: number) {
-  if (dispW <= 0 || dispH <= 0) return { w: 0, h: 0 }
-  if (dispW / dispH > aspect) {
-    const h = dispH
+function dimensoesMolduraMaxima(aspect: number, cw: number, ch: number) {
+  if (cw <= 0 || ch <= 0) return { w: 0, h: 0 }
+  if (cw / ch > aspect) {
+    const h = ch
     return { w: h * aspect, h }
   }
-  const w = dispW
+  const w = cw
   return { w, h: w / aspect }
 }
 
-function paraPixelCrop(
+/** `object-cover`: escala uniforme e centramento no contentor cw×ch. */
+function escalaCoverOffset(natW: number, natH: number, cw: number, ch: number) {
+  if (natW <= 0 || natH <= 0 || cw <= 0 || ch <= 0) {
+    return { s: 0, ox: 0, oy: 0 }
+  }
+  const s = Math.max(cw / natW, ch / natH)
+  const ox = (cw - natW * s) / 2
+  const oy = (ch - natH * s) / 2
+  return { s, ox, oy }
+}
+
+function paraPixelCropCover(
   ux: number,
   uy: number,
   cropW: number,
   cropH: number,
-  dispW: number,
-  dispH: number,
+  cw: number,
+  ch: number,
   natW: number,
   natH: number
 ): PixelCrop {
-  const x = Math.round((ux / dispW) * natW)
-  const y = Math.round((uy / dispH) * natH)
-  const width = Math.round((cropW / dispW) * natW)
-  const height = Math.round((cropH / dispH) * natH)
+  const { s, ox, oy } = escalaCoverOffset(natW, natH, cw, ch)
+  if (s <= 0) {
+    return { x: 0, y: 0, width: 1, height: 1 }
+  }
+  const x = Math.round((ux - ox) / s)
+  const y = Math.round((uy - oy) / s)
+  const width = Math.round(cropW / s)
+  const height = Math.round(cropH / s)
   const w = Math.max(1, Math.min(width, natW - Math.max(0, x)))
   const h = Math.max(1, Math.min(height, natH - Math.max(0, y)))
   return {
@@ -56,7 +63,7 @@ function paraPixelCrop(
 }
 
 /**
- * Imagem em caixa “contain” sobre fundo claro (sem barras pretas) e moldura de recorte arrastável.
+ * Imagem em “cover” (sem faixas laterais) e moldura de recorte arrastável sobre o contentor.
  */
 export default function CriarPostRecorteMovel({
   imageSrc,
@@ -91,23 +98,23 @@ export default function CriarPostRecorteMovel({
     return () => ro.disconnect()
   }, [medir])
 
-  const ready = nat.w > 0 && nat.h > 0 && box.cw > 0 && box.ch > 0
-  const { dispW, dispH } = ready ? fitContain(nat.w, nat.h, box.cw, box.ch) : { dispW: 0, dispH: 0 }
-  const { w: cropW, h: cropH } = dimensoesMolduraMaxima(aspect, dispW, dispH)
+  const { cw, ch } = box
+  const ready = nat.w > 0 && nat.h > 0 && cw > 0 && ch > 0
+  const { w: cropW, h: cropH } = dimensoesMolduraMaxima(aspect, cw, ch)
 
   useLayoutEffect(() => {
     if (!ativo || !ready || !cropW || !cropH) return
-    setUx(Math.max(0, (dispW - cropW) / 2))
-    setUy(Math.max(0, (dispH - cropH) / 2))
-  }, [ativo, aspect, imageSrc, ready, dispW, dispH, cropW, cropH])
+    setUx(Math.max(0, (cw - cropW) / 2))
+    setUy(Math.max(0, (ch - cropH) / 2))
+  }, [ativo, aspect, imageSrc, ready, cw, ch, cropW, cropH])
 
   useEffect(() => {
     if (!ativo || !ready || !cropW || !cropH) {
       onPixelCropChange(null)
       return
     }
-    onPixelCropChange(paraPixelCrop(ux, uy, cropW, cropH, dispW, dispH, nat.w, nat.h))
-  }, [ativo, ux, uy, cropW, cropH, dispW, dispH, nat.w, nat.h, ready, onPixelCropChange])
+    onPixelCropChange(paraPixelCropCover(ux, uy, cropW, cropH, cw, ch, nat.w, nat.h))
+  }, [ativo, ux, uy, cropW, cropH, cw, ch, nat.w, nat.h, ready, onPixelCropChange])
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (!ativo || !cropW) return
@@ -121,8 +128,8 @@ export default function CriarPostRecorteMovel({
     if (!d || !ativo || !cropW || !cropH) return
     const dx = e.clientX - d.px
     const dy = e.clientY - d.py
-    const maxX = Math.max(0, dispW - cropW)
-    const maxY = Math.max(0, dispH - cropH)
+    const maxX = Math.max(0, cw - cropW)
+    const maxY = Math.max(0, ch - cropH)
     setUx(Math.max(0, Math.min(maxX, d.ux0 + dx)))
     setUy(Math.max(0, Math.min(maxY, d.uy0 + dy)))
   }
@@ -146,51 +153,38 @@ export default function CriarPostRecorteMovel({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full overflow-hidden rounded-lg bg-gray-100 ${className}`}
+      className={`relative w-full overflow-hidden rounded-lg bg-black ${className}`}
       style={{ touchAction: showMoldura ? 'none' : 'auto', height: 'min(52vh, 440px)' }}
     >
-      <div className="absolute inset-0 flex items-center justify-center">
-        {ready ? (
-          <div className="relative shrink-0" style={{ width: dispW, height: dispH }}>
-            {/* eslint-disable-next-line @next/next/no-img-element -- URL blob local */}
-            <img
-              src={imageSrc}
-              alt=""
-              draggable={false}
-              onLoad={onImgLoad}
-              className="pointer-events-none block h-full w-full select-none object-contain"
-            />
-            {showMoldura ? (
-              <div
-                className="absolute z-[1] cursor-grab active:cursor-grabbing"
-                style={{
-                  left: ux,
-                  top: uy,
-                  width: cropW,
-                  height: cropH,
-                  boxShadow: '0 0 0 9999px rgba(0,0,0,0.42)',
-                  outline: '2px solid rgba(255,255,255,0.95)',
-                  outlineOffset: '-1px',
-                  borderRadius: '2px',
-                  touchAction: 'none',
-                }}
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={endDrag}
-                onPointerCancel={endDrag}
-              />
-            ) : null}
-          </div>
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageSrc}
-            alt=""
-            draggable={false}
-            onLoad={onImgLoad}
-            className="max-h-full max-w-full select-none object-contain"
+      <div className="absolute inset-0">
+        {/* eslint-disable-next-line @next/next/no-img-element -- URL blob local */}
+        <img
+          src={imageSrc}
+          alt=""
+          draggable={false}
+          onLoad={onImgLoad}
+          className="pointer-events-none block h-full w-full select-none object-cover"
+        />
+        {showMoldura ? (
+          <div
+            className="absolute z-[1] cursor-grab active:cursor-grabbing"
+            style={{
+              left: ux,
+              top: uy,
+              width: cropW,
+              height: cropH,
+              boxShadow: '0 0 0 9999px rgba(0,0,0,0.42)',
+              outline: '2px solid rgba(255,255,255,0.95)',
+              outlineOffset: '-1px',
+              borderRadius: '2px',
+              touchAction: 'none',
+            }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
           />
-        )}
+        ) : null}
       </div>
     </div>
   )

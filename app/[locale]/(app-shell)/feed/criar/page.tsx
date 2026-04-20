@@ -57,6 +57,9 @@ function daUrlParaAba(sp: ReturnType<typeof useSearchParams>): Aba {
   return sp.get('aba') === 'texto' ? 'texto' : 'foto'
 }
 
+/** Reserva espaço para a `BottomBar` fixa (`pb-14` ≈ 3.5rem) no painel TEXTO. */
+const ALTURA_BARRA_INFERIOR_APP_PX = 56
+
 /** Fotos locais em /public/triple-frontier (stock; substituir por fotos próprias se quiser). */
 const INSPIRACAO_TRIPLA = [
   { src: '/triple-frontier/cataratas.jpg', alt: 'Cataratas do Iguaçu' },
@@ -208,40 +211,6 @@ function CriarPublicacaoPageInner() {
     abaRef.current = aba
   }, [aba])
 
-  /** Informa o AppShell: esconder BottomBar só com teclado aberto na aba TEXTO. */
-  useEffect(() => {
-    const emit = (hide: boolean) => {
-      window.dispatchEvent(new CustomEvent('guia-criar-keyboard', { detail: { hide } }))
-    }
-    if (aba !== 'texto') {
-      emit(false)
-      return
-    }
-
-    const check = () => {
-      const vv = window.visualViewport
-      if (!vv) {
-        emit(false)
-        return
-      }
-      const delta = window.innerHeight - vv.height
-      emit(delta > 110)
-    }
-
-    check()
-    const vv = window.visualViewport
-    vv?.addEventListener('resize', check)
-    vv?.addEventListener('scroll', check)
-    window.addEventListener('resize', check)
-
-    return () => {
-      vv?.removeEventListener('resize', check)
-      vv?.removeEventListener('scroll', check)
-      window.removeEventListener('resize', check)
-      emit(false)
-    }
-  }, [aba])
-
   const abrirSeletorFotoNativo = useCallback(() => {
     dispararSeletorFicheiro(inputFotoRef.current)
   }, [dispararSeletorFicheiro])
@@ -253,7 +222,7 @@ function CriarPublicacaoPageInner() {
     const vv = window.visualViewport
     const headerBottom = header.getBoundingClientRect().bottom
     const areaVisivelInferior = vv ? vv.offsetTop + vv.height : window.innerHeight
-    const height = Math.max(96, Math.floor(areaVisivelInferior - headerBottom))
+    const height = Math.max(96, Math.floor(areaVisivelInferior - headerBottom - ALTURA_BARRA_INFERIOR_APP_PX))
     const top = Math.floor(headerBottom)
 
     setTextoLayout((prev) => {
@@ -290,7 +259,7 @@ function CriarPublicacaoPageInner() {
       const vv = window.visualViewport
       const headerBottom = header.getBoundingClientRect().bottom
       const areaVisivelInferior = vv ? vv.offsetTop + vv.height : window.innerHeight
-      const height = Math.max(96, Math.floor(areaVisivelInferior - headerBottom))
+      const height = Math.max(96, Math.floor(areaVisivelInferior - headerBottom - ALTURA_BARRA_INFERIOR_APP_PX))
       const top = Math.floor(headerBottom)
       flushSync(() => setTextoLayout({ top, height }))
     }
@@ -354,7 +323,7 @@ function CriarPublicacaoPageInner() {
     }
   }, [aba, atualizarLayoutTexto, focarTextarea])
 
-  /** Chrome: redimensionar a viewport com o teclado (melhor alinhamento ao visualViewport). */
+  /** Chrome: teclado sobrepõe o layout em vez de redimensionar a viewport (evita empurrar a barra inferior). */
   useEffect(() => {
     if (aba !== 'texto') return
     const nav = navigator as Navigator & { virtualKeyboard?: { overlaysContent?: boolean } }
@@ -362,7 +331,7 @@ function CriarPublicacaoPageInner() {
     if (!vk || typeof vk.overlaysContent !== 'boolean') return
     try {
       const prev = vk.overlaysContent
-      vk.overlaysContent = false
+      vk.overlaysContent = true
       return () => {
         try {
           vk.overlaysContent = prev
@@ -487,7 +456,6 @@ function CriarPublicacaoPageInner() {
             type="button"
             onClick={() => {
               setFormatoFoto(key)
-              setPainelFormato(false)
             }}
             className={`flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-lg border px-1 py-2 text-xs transition sm:px-2 ${
               ativo
