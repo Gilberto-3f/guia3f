@@ -12,12 +12,37 @@ import { Link2 } from 'lucide-react'
  * @param {number} px
  * @param {number} py
  */
-function clampFundoPan(scale, px, py) {
-  // Folga de pan proporcional ao zoom; mais permissivo para “ajustar o enquadramento”.
-  const lim = Math.min(90, Math.max(0, (scale - 1) * 55))
+function clamp(min, v, max) {
+  return Math.max(min, Math.min(max, v))
+}
+
+/**
+ * Calcula os limites de pan em % para manter a imagem cobrindo a área.
+ * @param {{ areaW: number, areaH: number, imgW: number, imgH: number, scale: number }} args
+ */
+function panLimPct({ areaW, areaH, imgW, imgH, scale }) {
+  if (!areaW || !areaH || !imgW || !imgH) return { limX: 0, limY: 0 }
+  const cover = Math.max(areaW / imgW, areaH / imgH)
+  const dispW = imgW * cover * scale
+  const dispH = imgH * cover * scale
+  const overX = Math.max(0, (dispW - areaW) / 2)
+  const overY = Math.max(0, (dispH - areaH) / 2)
+  return { limX: (overX / areaW) * 100, limY: (overY / areaH) * 100 }
+}
+
+/**
+ * Limita pan para reduzir “bordas vazias” com zoom.
+ * (usa a própria borda da foto como limite quando possível)
+ * @param {number} scale
+ * @param {number} px
+ * @param {number} py
+ * @param {{ areaW: number, areaH: number, imgW: number, imgH: number }} geo
+ */
+function clampFundoPan(scale, px, py, geo) {
+  const { limX, limY } = panLimPct({ ...geo, scale })
   return {
-    pan_x_pct: Math.max(-lim, Math.min(lim, px)),
-    pan_y_pct: Math.max(-lim, Math.min(lim, py)),
+    pan_x_pct: clamp(-limX, px, limX),
+    pan_y_pct: clamp(-limY, py, limY),
   }
 }
 
@@ -63,6 +88,9 @@ export default function StoryCanvas({
   const areaRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const fundoRef = useRef(fundo)
   const onFundoChangeRef = useRef(onFundoChange)
+  const geoRef = useRef(/** @type {{ areaW: number, areaH: number, imgW: number, imgH: number }} */ ({ areaW: 0, areaH: 0, imgW: 0, imgH: 0 }))
+  const legendaRef = useRef(/** @type {HTMLDivElement | null} */ (null))
+  const linkRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   /** Baseline do pinch (dois dedos). */
   const pinchRef = useRef(/** @type {{ d0: number, s0: number, px0: number, py0: number } | null} */ (null))
   const dragRef = useRef(
@@ -72,6 +100,13 @@ export default function StoryCanvas({
   )
   const tapRef = useRef(/** @type {null | { kind: 'text' | 'link', x0: number, y0: number, moved: boolean }} */ (null))
 
+  const updateAreaGeo = useCallback(() => {
+    const el = areaRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    geoRef.current = { ...geoRef.current, areaW: rect.width, areaH: rect.height }
+  }, [])
+
   useEffect(() => {
     fundoRef.current = fundo
   }, [fundo])
@@ -79,6 +114,13 @@ export default function StoryCanvas({
   useEffect(() => {
     onFundoChangeRef.current = onFundoChange
   }, [onFundoChange])
+
+  useEffect(() => {
+    updateAreaGeo()
+    const onResize = () => updateAreaGeo()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [updateAreaGeo])
 
   /** Pinch zoom (dois dedos) — `wheel` não existe no telemóvel. */
   useEffect(() => {
@@ -105,7 +147,7 @@ export default function StoryCanvas({
       if (d0 < 8) return
       const ratio = d / d0
       const nextScale = Math.min(3, Math.max(1, s0 * ratio))
-      const c = clampFundoPan(nextScale, px0, py0)
+      const c = clampFundoPan(nextScale, px0, py0, geoRef.current)
       onFundoChangeRef.current?.({ scale: nextScale, ...c })
     }
 
@@ -141,11 +183,30 @@ export default function StoryCanvas({
       e.preventDefault()
       const dir = e.deltaY > 0 ? -1 : 1
       const nextScale = Math.min(3, Math.max(1, fundo.scale + dir * 0.08))
-      const c = clampFundoPan(nextScale, fundo.pan_x_pct, fundo.pan_y_pct)
+      const c = clampFundoPan(nextScale, fundo.pan_x_pct, fundo.pan_y_pct, geoRef.current)
       onFundoChange({ scale: nextScale, ...c })
     },
     [allowEditImage, onFundoChange, fundo.scale, fundo.pan_x_pct, fundo.pan_y_pct]
   )
+
+  const clampOverlayPct = useCallback((kind, xPct, yPct) => {
+    const el = kind === 'text' ? legendaRef.current : linkRef.current
+    const { areaW, areaH } = geoRef.current
+    if (!el || !areaW || !areaH) {
+      return {
+        x: clamp(6, xPct, 94),
+        y: clamp(8, yPct, 92),
+      }
+    }
+    const r = el.getBoundingClientRect()
+    const halfW = (r.width / 2 / areaW) * 100
+    const halfH = (r.height / 2 / areaH) * 100
+    const pad = 1.5
+    return {
+      x: clamp(halfW + pad, xPct, 100 - halfW - pad),
+      y: clamp(halfH + pad, yPct, 100 - halfH - pad),
+    }
+  }, [])
 
   const pointerMove = useCallback(
     /** @param {React.PointerEvent} e */
@@ -160,9 +221,10 @@ export default function StoryCanvas({
           if (Math.hypot(dx, dy) > 6) tapRef.current = { ...t, moved: true }
         }
         const { x, y } = pctFromClient(e.clientX, e.clientY)
-        const nx = Math.max(6, Math.min(94, x - d.ox))
-        const ny = Math.max(8, Math.min(92, y - d.oy))
-        onLegendaPos({ x: nx, y: ny })
+        const rawX = x - d.ox
+        const rawY = y - d.oy
+        const c = clampOverlayPct('text', rawX, rawY)
+        onLegendaPos({ x: c.x, y: c.y })
         return
       }
       if (d.kind === 'link' && onLinkPos) {
@@ -173,20 +235,21 @@ export default function StoryCanvas({
           if (Math.hypot(dx, dy) > 6) tapRef.current = { ...t, moved: true }
         }
         const { x, y } = pctFromClient(e.clientX, e.clientY)
-        const nx = Math.max(10, Math.min(90, x - d.ox))
-        const ny = Math.max(12, Math.min(90, y - d.oy))
-        onLinkPos({ x: nx, y: ny })
+        const rawX = x - d.ox
+        const rawY = y - d.oy
+        const c = clampOverlayPct('link', rawX, rawY)
+        onLinkPos({ x: c.x, y: c.y })
         return
       }
       if (d.kind === 'img' && onFundoChange && areaRef.current) {
         const rect = areaRef.current.getBoundingClientRect()
         const dx = ((e.clientX - d.sx) / rect.width) * 100
         const dy = ((e.clientY - d.sy) / rect.height) * 100
-        const c = clampFundoPan(d.fs, d.fpx + dx, d.fpy + dy)
+        const c = clampFundoPan(d.fs, d.fpx + dx, d.fpy + dy, geoRef.current)
         onFundoChange({ scale: d.fs, ...c })
       }
     },
-    [onLegendaPos, onLinkPos, onFundoChange, pctFromClient]
+    [onLegendaPos, onLinkPos, onFundoChange, pctFromClient, clampOverlayPct]
   )
 
   const pointerUp = useCallback(() => {
@@ -203,11 +266,12 @@ export default function StoryCanvas({
       e.preventDefault()
       e.stopPropagation()
       tapRef.current = { kind: 'text', x0: e.clientX, y0: e.clientY, moved: false }
+      updateAreaGeo()
       const { x, y } = pctFromClient(e.clientX, e.clientY)
       dragRef.current = { kind: 'text', ox: x - posicaoLegenda.x, oy: y - posicaoLegenda.y }
       e.currentTarget.setPointerCapture(e.pointerId)
     },
-    [allowEditText, onLegendaPos, pctFromClient, posicaoLegenda.x, posicaoLegenda.y]
+    [allowEditText, onLegendaPos, pctFromClient, posicaoLegenda.x, posicaoLegenda.y, updateAreaGeo]
   )
 
   const startLink = useCallback(
@@ -217,11 +281,12 @@ export default function StoryCanvas({
       e.preventDefault()
       e.stopPropagation()
       tapRef.current = { kind: 'link', x0: e.clientX, y0: e.clientY, moved: false }
+      updateAreaGeo()
       const { x, y } = pctFromClient(e.clientX, e.clientY)
       dragRef.current = { kind: 'link', ox: x - posicaoLink.x, oy: y - posicaoLink.y }
       e.currentTarget.setPointerCapture(e.pointerId)
     },
-    [allowEditLink, onLinkPos, pctFromClient, posicaoLink.x, posicaoLink.y]
+    [allowEditLink, onLinkPos, pctFromClient, posicaoLink.x, posicaoLink.y, updateAreaGeo]
   )
 
   const startImg = useCallback(
@@ -229,6 +294,7 @@ export default function StoryCanvas({
     (e) => {
       if (!allowEditImage || !onFundoChange) return
       e.preventDefault()
+      updateAreaGeo()
       dragRef.current = {
         kind: 'img',
         sx: e.clientX,
@@ -243,7 +309,7 @@ export default function StoryCanvas({
       }
       e.currentTarget.setPointerCapture(e.pointerId)
     },
-    [allowEditImage, onFundoChange, fundo.scale, fundo.pan_x_pct, fundo.pan_y_pct]
+    [allowEditImage, onFundoChange, fundo.scale, fundo.pan_x_pct, fundo.pan_y_pct, updateAreaGeo]
   )
 
   const textoSombreado = { textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 2px 14px rgba(0,0,0,0.55)' }
@@ -278,12 +344,26 @@ export default function StoryCanvas({
             transformOrigin: 'center center',
           }}
         >
-          <Image src={mediaSrc} alt="" fill sizes="(max-width: 768px) 100vw, 430px" className="object-cover select-none" unoptimized draggable={false} />
+          <Image
+            src={mediaSrc}
+            alt=""
+            fill
+            sizes="(max-width: 768px) 100vw, 430px"
+            className="object-cover select-none"
+            unoptimized
+            draggable={false}
+            onLoadingComplete={(img) => {
+              const w = img?.naturalWidth ?? 0
+              const h = img?.naturalHeight ?? 0
+              if (w > 0 && h > 0) geoRef.current = { ...geoRef.current, imgW: w, imgH: h }
+            }}
+          />
         </div>
       </div>
 
       {legenda ? (
         <div
+          ref={legendaRef}
           role="textbox"
           aria-label="Legenda no story"
           className={`absolute z-10 w-[88%] cursor-default select-none rounded px-2 py-1 text-center text-base font-semibold text-white whitespace-pre-wrap break-words sm:text-lg ${
@@ -292,7 +372,7 @@ export default function StoryCanvas({
           style={{
             left: `${posicaoLegenda.x}%`,
             top: `${posicaoLegenda.y}%`,
-            transform: 'translate(-50%, -50%)',
+            transform: `translate(-50%, -50%) scale(${fundo.scale})`,
             textShadow: textoSombreado.textShadow,
           }}
           onPointerDown={startText}
@@ -301,12 +381,13 @@ export default function StoryCanvas({
         </div>
       ) : allowEditText ? (
         <div
+          ref={legendaRef}
           role="presentation"
           className="absolute z-10 w-[88%] cursor-move touch-none rounded bg-black/35 px-2 py-1 text-center text-sm italic text-white/90"
           style={{
             left: `${posicaoLegenda.x}%`,
             top: `${posicaoLegenda.y}%`,
-            transform: 'translate(-50%, -50%)',
+            transform: `translate(-50%, -50%) scale(${fundo.scale})`,
           }}
           onPointerDown={startText}
         >
@@ -316,11 +397,12 @@ export default function StoryCanvas({
 
       {linkUrl ? (
         <div
+          ref={linkRef}
           className={`absolute z-10 max-w-[90%] ${allowEditLink ? 'cursor-move touch-none' : ''}`}
           style={{
             left: `${posicaoLink.x}%`,
             top: `${posicaoLink.y}%`,
-            transform: 'translate(-50%, -50%)',
+            transform: `translate(-50%, -50%) scale(${fundo.scale})`,
           }}
           onPointerDown={startLink}
         >
@@ -328,10 +410,15 @@ export default function StoryCanvas({
             <a
               href={linkHref}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="external noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-sm"
               onClick={(ev) => {
                 if (allowEditLink) ev.preventDefault()
+                else {
+                  ev.preventDefault()
+                  // Melhor esforço: abrir em contexto externo (no PWA pode variar por SO/navegador).
+                  window.open(linkHref, '_blank', 'noopener,noreferrer')
+                }
               }}
             >
               <Link2 size={18} strokeWidth={2} aria-hidden className="text-gray-700" />
