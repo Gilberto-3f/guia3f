@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Heart, Play, Volume2, VolumeX } from 'lucide-react'
+import { Heart, Link2, Play, Volume2, VolumeX } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { fetchFotoPerfilUsuario, fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
 import AvatarImage from '@/components/AvatarImage'
@@ -389,8 +389,9 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
                 href={story.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="absolute bottom-24 left-1/2 z-10 -translate-x-1/2 rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-[#0097b2]"
+                className="absolute bottom-24 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-sm"
               >
+                <Link2 size={18} strokeWidth={2} aria-hidden className="text-gray-700" />
                 Abrir link
               </a>
             ) : null}

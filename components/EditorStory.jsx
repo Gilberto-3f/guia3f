@@ -63,6 +63,7 @@ export default function EditorStory({
           onLegendaPos={onPosicaoChange}
           onLinkPos={onPosicaoLinkChange}
           onFundoChange={onFundoChange}
+          onEditarLegenda={() => setPainel('legenda')}
         />
       </div>
 

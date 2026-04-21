@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 import Image from 'next/image'
+import { Link2 } from 'lucide-react'
 
 /** @typedef {{ scale: number, pan_x_pct: number, pan_y_pct: number }} StoryFundo */
 
@@ -12,7 +13,8 @@ import Image from 'next/image'
  * @param {number} py
  */
 function clampFundoPan(scale, px, py) {
-  const lim = Math.min(48, Math.max(0, (scale - 1) * 28))
+  // Folga de pan proporcional ao zoom; mais permissivo para “ajustar o enquadramento”.
+  const lim = Math.min(90, Math.max(0, (scale - 1) * 55))
   return {
     pan_x_pct: Math.max(-lim, Math.min(lim, px)),
     pan_y_pct: Math.max(-lim, Math.min(lim, py)),
@@ -34,6 +36,7 @@ function clampFundoPan(scale, px, py) {
  *   onLegendaPos?: (p: { x: number, y: number }) => void
  *   onLinkPos?: (p: { x: number, y: number }) => void
  *   onFundoChange?: (f: StoryFundo) => void
+ *   onEditarLegenda?: () => void
  *   linkHref?: string | null
  *   className?: string
  *   layout?: 'default' | 'editorFill' | 'viewerCover'
@@ -52,6 +55,7 @@ export default function StoryCanvas({
   onLegendaPos,
   onLinkPos,
   onFundoChange,
+  onEditarLegenda,
   linkHref = null,
   className = '',
   layout = 'default',
@@ -66,6 +70,7 @@ export default function StoryCanvas({
       null
     )
   )
+  const tapRef = useRef(/** @type {null | { kind: 'text' | 'link', x0: number, y0: number, moved: boolean }} */ (null))
 
   useEffect(() => {
     fundoRef.current = fundo
@@ -148,6 +153,12 @@ export default function StoryCanvas({
       const d = dragRef.current
       if (!d) return
       if (d.kind === 'text' && onLegendaPos) {
+        const t = tapRef.current
+        if (t?.kind === 'text' && !t.moved) {
+          const dx = e.clientX - t.x0
+          const dy = e.clientY - t.y0
+          if (Math.hypot(dx, dy) > 6) tapRef.current = { ...t, moved: true }
+        }
         const { x, y } = pctFromClient(e.clientX, e.clientY)
         const nx = Math.max(6, Math.min(94, x - d.ox))
         const ny = Math.max(8, Math.min(92, y - d.oy))
@@ -155,6 +166,12 @@ export default function StoryCanvas({
         return
       }
       if (d.kind === 'link' && onLinkPos) {
+        const t = tapRef.current
+        if (t?.kind === 'link' && !t.moved) {
+          const dx = e.clientX - t.x0
+          const dy = e.clientY - t.y0
+          if (Math.hypot(dx, dy) > 6) tapRef.current = { ...t, moved: true }
+        }
         const { x, y } = pctFromClient(e.clientX, e.clientY)
         const nx = Math.max(10, Math.min(90, x - d.ox))
         const ny = Math.max(12, Math.min(90, y - d.oy))
@@ -173,8 +190,11 @@ export default function StoryCanvas({
   )
 
   const pointerUp = useCallback(() => {
+    const t = tapRef.current
+    tapRef.current = null
     dragRef.current = null
-  }, [])
+    if (t?.kind === 'text' && !t.moved && typeof onEditarLegenda === 'function') onEditarLegenda()
+  }, [onEditarLegenda])
 
   const startText = useCallback(
     /** @param {React.PointerEvent} e */
@@ -182,6 +202,7 @@ export default function StoryCanvas({
       if (!allowEditText || !onLegendaPos) return
       e.preventDefault()
       e.stopPropagation()
+      tapRef.current = { kind: 'text', x0: e.clientX, y0: e.clientY, moved: false }
       const { x, y } = pctFromClient(e.clientX, e.clientY)
       dragRef.current = { kind: 'text', ox: x - posicaoLegenda.x, oy: y - posicaoLegenda.y }
       e.currentTarget.setPointerCapture(e.pointerId)
@@ -195,6 +216,7 @@ export default function StoryCanvas({
       if (!allowEditLink || !onLinkPos) return
       e.preventDefault()
       e.stopPropagation()
+      tapRef.current = { kind: 'link', x0: e.clientX, y0: e.clientY, moved: false }
       const { x, y } = pctFromClient(e.clientX, e.clientY)
       dragRef.current = { kind: 'link', ox: x - posicaoLink.x, oy: y - posicaoLink.y }
       e.currentTarget.setPointerCapture(e.pointerId)
@@ -245,6 +267,7 @@ export default function StoryCanvas({
       <div
         className={`absolute inset-0 z-0 ${allowEditImage ? 'cursor-grab active:cursor-grabbing' : ''}`}
         onPointerDown={startImg}
+        style={allowEditImage ? { touchAction: 'none' } : undefined}
         role={allowEditImage ? 'application' : undefined}
         aria-label={allowEditImage ? 'Arraste para mover; rodinha para zoom; dois dedos para ampliar' : undefined}
       >
@@ -263,7 +286,7 @@ export default function StoryCanvas({
         <div
           role="textbox"
           aria-label="Legenda no story"
-          className={`absolute z-10 max-w-[88%] cursor-default select-none rounded px-2 py-1 text-center text-base font-semibold text-white sm:text-lg ${
+          className={`absolute z-10 w-[88%] cursor-default select-none rounded px-2 py-1 text-center text-base font-semibold text-white whitespace-pre-wrap break-words sm:text-lg ${
             allowEditText ? 'cursor-move touch-none' : ''
           }`}
           style={{
@@ -279,7 +302,7 @@ export default function StoryCanvas({
       ) : allowEditText ? (
         <div
           role="presentation"
-          className="absolute z-10 max-w-[88%] cursor-move touch-none rounded bg-black/35 px-2 py-1 text-center text-sm italic text-white/90"
+          className="absolute z-10 w-[88%] cursor-move touch-none rounded bg-black/35 px-2 py-1 text-center text-sm italic text-white/90"
           style={{
             left: `${posicaoLegenda.x}%`,
             top: `${posicaoLegenda.y}%`,
@@ -306,16 +329,18 @@ export default function StoryCanvas({
               href={linkHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full bg-[#0097b2] px-4 py-2 text-sm font-semibold text-white shadow-lg"
+              className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-sm"
               onClick={(ev) => {
                 if (allowEditLink) ev.preventDefault()
               }}
             >
-              🔗 Saiba mais
+              <Link2 size={18} strokeWidth={2} aria-hidden className="text-gray-700" />
+              Saiba mais
             </a>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0097b2] px-4 py-2 text-sm font-semibold text-white shadow-lg">
-              🔗 Saiba mais
+            <span className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-sm">
+              <Link2 size={18} strokeWidth={2} aria-hidden className="text-gray-700" />
+              Saiba mais
             </span>
           )}
         </div>
