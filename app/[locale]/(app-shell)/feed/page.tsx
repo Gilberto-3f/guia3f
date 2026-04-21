@@ -55,6 +55,7 @@ type StoryViewerState = {
   link: string | null
   duracao_segundos: number | null
   autorUsuarioId: string | null
+  curtidas?: unknown
 }
 
 function FeedPageInner() {
@@ -416,6 +417,7 @@ function FeedPageInner() {
       link: data.link != null ? String(data.link) : null,
       duracao_segundos: data.duracao_segundos != null ? Number(data.duracao_segundos) : null,
       autorUsuarioId: data.autor_id != null ? String(data.autor_id) : null,
+      curtidas: (data as { curtidas?: unknown }).curtidas ?? null,
     })
   }
 
@@ -479,6 +481,7 @@ function FeedPageInner() {
         <StoryViewer
           story={storyAberto}
           userEmail={email}
+          meuUsuarioId={meuId}
           onVisualizado={bumpStoriesBar}
           onFechar={() => {
             setStoryAberto(null)

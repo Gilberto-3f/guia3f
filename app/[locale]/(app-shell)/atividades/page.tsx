@@ -12,6 +12,7 @@ import AtividadeCurtiuComentario from '@/components/atividades/AtividadeCurtiuCo
 import AtividadeCurtiuPost from '@/components/atividades/AtividadeCurtiuPost'
 import AtividadeCurtiuRepost from '@/components/atividades/AtividadeCurtiuRepost'
 import AtividadeCurtiuAvaliacao from '@/components/atividades/AtividadeCurtiuAvaliacao'
+import AtividadeCurtiuStory from '@/components/atividades/AtividadeCurtiuStory'
 import AtividadeComentario from '@/components/atividades/AtividadeComentario'
 import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
 import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
@@ -926,6 +927,22 @@ export default function AtividadesPage() {
 
     const r = item.row
     const ator = perfilMap[r.autor_id]
+
+    if (r.tipo === 'curtiu_story') {
+      const donor = perfilMap[r.usuario_id]
+      return (
+        <AtividadeCurtiuStory
+          key={r.id}
+          interactorUsername={ator?.username ?? 'usuario'}
+          interactorFoto={ator?.foto_perfil_url ?? null}
+          donorUsername={donor?.username ?? 'usuario'}
+          hrefInteractor={hrefUsuario(r.autor_id)}
+          hrefDonor={hrefUsuario(r.usuario_id)}
+          tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+          modoMinhaConta={modoMinhaConta}
+        />
+      )
+    }
 
     if (r.tipo === 'curtiu_comentario') {
       const ex = r.dados_extras ?? {}

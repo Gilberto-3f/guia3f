@@ -1,12 +1,44 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Play, Volume2, VolumeX, X } from 'lucide-react'
+import { Heart, Play, Volume2, VolumeX } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { fetchFotoPerfilUsuario, fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
 import AvatarImage from '@/components/AvatarImage'
 import StoryCanvas from '@/components/StoryCanvas'
+
+const STORY_VIEW_MS = 15000
+const SWIPE_DOWN_PX = 96
+
+/**
+ * @param {{ usuario_id?: string } | string | null | undefined} entry
+ */
+function entryUsuarioId(entry) {
+  if (entry == null) return null
+  if (typeof entry === 'string') return entry.trim() || null
+  if (typeof entry === 'object' && 'usuario_id' in entry && entry.usuario_id != null) return String(entry.usuario_id)
+  return null
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {{ usuario_id: string, created_at?: string }[]}
+ */
+function parseCurtidasStory(raw) {
+  if (raw == null) return []
+  if (!Array.isArray(raw)) return []
+  const out = []
+  for (const item of raw) {
+    const uid = entryUsuarioId(item)
+    if (uid) {
+      const created_at =
+        typeof item === 'object' && item && 'created_at' in item && item.created_at != null ? String(item.created_at) : undefined
+      out.push({ usuario_id: uid, created_at })
+    }
+  }
+  return out
+}
 
 /**
  * @param {{
@@ -27,19 +59,32 @@ import StoryCanvas from '@/components/StoryCanvas'
  *     link: string | null
  *     duracao_segundos?: number | null
  *     autorUsuarioId?: string | null
+ *     curtidas?: unknown
  *   } | null
  *   userEmail: string | null
+ *   meuUsuarioId: string | null
  *   onFechar: () => void
  *   onVisualizado?: () => void
  * }} props
  */
-export default function StoryViewer({ story, userEmail, onFechar, onVisualizado }) {
+export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onFechar, onVisualizado }) {
   const videoRef = useRef(/** @type {HTMLVideoElement | null} */ (null))
+  const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
+  const swipeRef = useRef(/** @type {{ y0: number, t0: number } | null} */ (null))
+  const timerStartRef = useRef(/** @type {number | null} */ (null))
+  const rafRef = useRef(/** @type {number | null} */ (null))
+
   const [muted, setMuted] = useState(true)
-  const [progress, setProgress] = useState(0)
+  const [videoProgress, setVideoProgress] = useState(0)
   const [playing, setPlaying] = useState(true)
   const [fotoAutor, setFotoAutor] = useState(/** @type {string | null} */ (null))
   const [rotuloAutor, setRotuloAutor] = useState(/** @type {string | null} */ (null))
+  const [barraProgresso, setBarraProgresso] = useState(0)
+  const [curtidasLista, setCurtidasLista] = useState(/** @type {{ usuario_id: string, created_at?: string }[]} */ ([]))
+  const [curtirBusy, setCurtirBusy] = useState(false)
+
+  const uid = meuUsuarioId != null && meuUsuarioId !== '' ? String(meuUsuarioId) : null
+  const curtiu = uid ? curtidasLista.some((c) => c.usuario_id === uid) : false
 
   useEffect(() => {
     if (!story?.id || !userEmail) return
@@ -48,6 +93,10 @@ export default function StoryViewer({ story, userEmail, onFechar, onVisualizado 
       if (!error) onVisualizado?.()
     })()
   }, [story?.id, userEmail, onVisualizado])
+
+  useEffect(() => {
+    setCurtidasLista(parseCurtidasStory(story?.curtidas))
+  }, [story?.curtidas, story?.id])
 
   useEffect(() => {
     const v = videoRef.current
@@ -100,9 +149,93 @@ export default function StoryViewer({ story, userEmail, onFechar, onVisualizado 
     }
   }, [autorId])
 
+  const isVideo = String(story?.tipo ?? '') === 'video'
+  const duracaoStoryMs =
+    isVideo && story?.duracao_segundos != null && Number(story.duracao_segundos) > 0
+      ? Math.min(STORY_VIEW_MS, Number(story.duracao_segundos) * 1000)
+      : STORY_VIEW_MS
+
+  const fecharTimer = useCallback(() => {
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+    timerStartRef.current = null
+  }, [])
+
+  useEffect(() => {
+    if (!story?.id) return
+    timerStartRef.current = performance.now()
+    const tick = () => {
+      const t0 = timerStartRef.current
+      if (t0 == null) return
+      const elapsed = performance.now() - t0
+      const p = Math.min(100, (elapsed / duracaoStoryMs) * 100)
+      setBarraProgresso(p)
+      if (elapsed >= duracaoStoryMs) {
+        fecharTimer()
+        onFechar()
+        return
+      }
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => {
+      fecharTimer()
+    }
+  }, [story?.id, duracaoStoryMs, onFechar, fecharTimer])
+
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el) return
+
+    const onTouchStart = (e) => {
+      if (e.touches.length !== 1) return
+      const t = e.touches[0]
+      const target = /** @type {HTMLElement | null} */ (e.target)
+      if (target?.closest?.('[data-story-footer]')) return
+      if (target?.closest?.('a[href]')) return
+      swipeRef.current = { y0: t.clientY, t0: performance.now() }
+    }
+
+    const onTouchEnd = (e) => {
+      const s = swipeRef.current
+      swipeRef.current = null
+      if (!s || e.changedTouches.length === 0) return
+      const y = e.changedTouches[0].clientY
+      const dy = y - s.y0
+      if (dy > SWIPE_DOWN_PX) onFechar()
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [onFechar])
+
+  const toggleCurtida = async () => {
+    if (!story?.id || !uid || curtirBusy) return
+    setCurtirBusy(true)
+    try {
+      const { data, error } = await supabase.rpc('toggle_story_curtida', { p_story_id: story.id })
+      if (error) {
+        console.error(error)
+        return
+      }
+      const row = data && typeof data === 'object' && !Array.isArray(data) ? /** @type {Record<string, unknown>} */ (data) : null
+      const rawC = row?.curtidas
+      if (rawC != null) setCurtidasLista(parseCurtidasStory(rawC))
+      else if (row?.liked) setCurtidasLista((prev) => (prev.some((c) => c.usuario_id === uid) ? prev : [...prev, { usuario_id: uid }]))
+      else setCurtidasLista((prev) => prev.filter((c) => c.usuario_id !== uid))
+    } finally {
+      setCurtirBusy(false)
+    }
+  }
+
   if (!story) return null
 
-  const isVideo = String(story.tipo ?? '') === 'video'
   const tx = story.texto_sobreposto && typeof story.texto_sobreposto === 'object' && !Array.isArray(story.texto_sobreposto)
     ? /** @type {{ texto?: string | null, posicao_x?: number, posicao_y?: number, link_posicao_x?: number, link_posicao_y?: number, fundo_scale?: number, fundo_pan_x_pct?: number, fundo_pan_y_pct?: number }} */ (
         story.texto_sobreposto
@@ -135,13 +268,13 @@ export default function StoryViewer({ story, userEmail, onFechar, onVisualizado 
   const onTimeUpdate = () => {
     const v = videoRef.current
     if (!v || !v.duration) return
-    setProgress((v.currentTime / v.duration) * 100)
+    setVideoProgress((v.currentTime / v.duration) * 100)
   }
 
   const headerLeft = autorId ? (
     <Link
       href={`/perfil/${autorId}`}
-      className="flex min-w-0 max-w-[72vw] items-center gap-2 py-1 text-white"
+      className="flex min-w-0 max-w-[78vw] items-center gap-2 py-1 text-white"
     >
       <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-full bg-white/25 ring-2 ring-white/30">
         {fotoAutor ? (
@@ -158,34 +291,35 @@ export default function StoryViewer({ story, userEmail, onFechar, onVisualizado 
     <span />
   )
 
-  const headerRight = (
-    <div className="flex shrink-0 items-start gap-2">
-      {isVideo ? (
-        <button
-          type="button"
-          onClick={() => setMuted((m) => !m)}
-          className="rounded-full bg-white/10 p-2 text-white"
-          aria-label={muted ? 'Ativar som' : 'Silenciar'}
-        >
-          {muted ? <VolumeX size={22} /> : <Volume2 size={22} />}
-        </button>
-      ) : null}
-      <button type="button" onClick={onFechar} className="rounded-full bg-white/10 p-2 text-white" aria-label="Fechar">
-        <X size={24} />
-      </button>
-    </div>
-  )
+  const headerExtras = isVideo ? (
+    <button
+      type="button"
+      onClick={() => setMuted((m) => !m)}
+      className="rounded-full bg-black/35 p-2 text-white backdrop-blur-sm"
+      aria-label={muted ? 'Ativar som' : 'Silenciar'}
+    >
+      {muted ? <VolumeX size={22} /> : <Volume2 size={22} />}
+    </button>
+  ) : null
+
+  const segundosRestantes = Math.max(0, Math.ceil((duracaoStoryMs * (1 - barraProgresso / 100)) / 1000))
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black">
+    <div ref={rootRef} className="fixed inset-0 z-[100] flex flex-col bg-black">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[max(0.35rem,env(safe-area-inset-top))]"
+        aria-hidden
+      >
+        <div className="h-0.5 w-full bg-white/25">
+          <div className="h-full bg-white" style={{ width: `${barraProgresso}%` }} />
+        </div>
+      </div>
+
       {!isVideo ? (
-        <div className="relative flex min-h-0 flex-1 flex-col">
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-            <div className="pointer-events-auto min-w-0">{headerLeft}</div>
-            <div className="pointer-events-auto">{headerRight}</div>
-          </div>
-          <div className="flex min-h-0 flex-1 items-center justify-center px-2 pb-6 pt-14">
+        <div className="relative min-h-0 flex-1">
+          <div className="absolute inset-0">
             <StoryCanvas
+              layout="viewerCover"
               mediaSrc={story.conteudo_url}
               legenda={legendaStr}
               posicaoLegenda={{ x: px, y: py }}
@@ -195,18 +329,36 @@ export default function StoryViewer({ story, userEmail, onFechar, onVisualizado 
               linkHref={linkStr || null}
             />
           </div>
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/55 to-transparent pt-[max(0.75rem,env(safe-area-inset-top))] pb-10">
+            <div className="pointer-events-auto flex items-start justify-between gap-2 px-3">
+              <div className="min-w-0">{headerLeft}</div>
+              <div className="flex shrink-0 items-center gap-2 pr-1">
+                <span className="rounded-md bg-black/35 px-2 py-0.5 text-xs font-medium tabular-nums text-white backdrop-blur-sm">
+                  0:{segundosRestantes.toString().padStart(2, '0')}
+                </span>
+                {headerExtras}
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
-        <>
-          <div className="flex items-start justify-between gap-2 p-3">
-            {headerLeft}
-            {headerRight}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/55 to-transparent pt-[max(0.75rem,env(safe-area-inset-top))] pb-12">
+            <div className="pointer-events-auto flex items-start justify-between gap-2 px-3">
+              <div className="min-w-0">{headerLeft}</div>
+              <div className="flex shrink-0 items-center gap-2 pr-1">
+                <span className="rounded-md bg-black/35 px-2 py-0.5 text-xs font-medium tabular-nums text-white backdrop-blur-sm">
+                  0:{segundosRestantes.toString().padStart(2, '0')}
+                </span>
+                {headerExtras}
+              </div>
+            </div>
           </div>
           <div className="relative min-h-0 flex-1">
             <video
               ref={videoRef}
               src={story.conteudo_url}
-              className="absolute inset-0 h-full w-full object-contain"
+              className="absolute inset-0 h-full w-full object-cover"
               muted={muted}
               playsInline
               loop
@@ -217,7 +369,7 @@ export default function StoryViewer({ story, userEmail, onFechar, onVisualizado 
               <button
                 type="button"
                 onClick={() => togglePlay()}
-                className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white"
+                className="absolute left-1/2 top-1/2 z-10 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white"
                 aria-label="Reproduzir"
               >
                 <Play size={36} fill="currentColor" className="ml-1" />
@@ -226,7 +378,7 @@ export default function StoryViewer({ story, userEmail, onFechar, onVisualizado 
 
             {tx?.texto ? (
               <p
-                className="absolute max-w-[90%] rounded bg-black/50 px-2 py-1 text-sm text-white"
+                className="absolute z-10 max-w-[90%] rounded bg-black/50 px-2 py-1 text-sm text-white"
                 style={{ left: `${px}%`, top: `${py}%`, transform: 'translate(-50%, -50%)' }}
               >
                 {tx.texto}
@@ -237,18 +389,43 @@ export default function StoryViewer({ story, userEmail, onFechar, onVisualizado 
                 href={story.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="absolute bottom-12 left-1/2 z-10 -translate-x-1/2 rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-[#0097b2]"
+                className="absolute bottom-24 left-1/2 z-10 -translate-x-1/2 rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-[#0097b2]"
               >
                 Abrir link
               </a>
             ) : null}
 
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
-              <div className="h-full bg-[#0097b2]" style={{ width: `${progress}%` }} />
+            <div className="absolute bottom-16 left-0 right-0 z-10 h-0.5 bg-white/20 px-3">
+              <div className="h-full bg-[#0097b2]" style={{ width: `${videoProgress}%` }} />
             </div>
           </div>
-        </>
+        </div>
       )}
+
+      <footer
+        data-story-footer
+        className="pointer-events-auto z-40 flex items-center justify-center gap-6 border-t border-white/10 bg-black/75 px-4 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3"
+      >
+        {uid ? (
+          <button
+            type="button"
+            disabled={curtirBusy}
+            onClick={() => void toggleCurtida()}
+            className="flex flex-col items-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10 disabled:opacity-50"
+            aria-label={curtiu ? 'Remover curtida' : 'Curtir story'}
+          >
+            <Heart
+              size={32}
+              strokeWidth={2}
+              className={curtiu ? 'fill-red-500 text-red-500' : ''}
+              fill={curtiu ? 'currentColor' : 'none'}
+            />
+            <span className="text-[11px] font-medium text-white/90">{curtidasLista.length}</span>
+          </button>
+        ) : (
+          <p className="text-center text-xs text-white/70">Inicie sessão para curtir</p>
+        )}
+      </footer>
     </div>
   )
 }

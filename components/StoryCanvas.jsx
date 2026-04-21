@@ -36,7 +36,7 @@ function clampFundoPan(scale, px, py) {
  *   onFundoChange?: (f: StoryFundo) => void
  *   linkHref?: string | null
  *   className?: string
- *   layout?: 'default' | 'editorFill'
+ *   layout?: 'default' | 'editorFill' | 'viewerCover'
  * }} props
  */
 export default function StoryCanvas({
@@ -227,9 +227,11 @@ export default function StoryCanvas({
   const textoSombreado = { textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 2px 14px rgba(0,0,0,0.55)' }
 
   const boxClass =
-    layout === 'editorFill'
-      ? 'relative mx-auto aspect-[9/16] h-[min(calc(100dvh-5.75rem),calc(100vw*16/9))] w-auto max-w-full overflow-hidden bg-black touch-none'
-      : 'relative aspect-[9/16] w-full max-w-[min(100vw-1rem,calc((100dvh-11rem)*9/16))] overflow-hidden bg-black touch-none'
+    layout === 'viewerCover'
+      ? 'relative h-full w-full overflow-hidden bg-black'
+      : layout === 'editorFill'
+        ? 'relative mx-auto aspect-[9/16] h-[min(calc(100dvh-5.75rem),calc(100vw*16/9))] w-auto max-w-full overflow-hidden bg-black touch-none'
+        : 'relative aspect-[9/16] w-full max-w-[min(100vw-1rem,calc((100dvh-11rem)*9/16))] overflow-hidden bg-black touch-none'
 
   return (
     <div
