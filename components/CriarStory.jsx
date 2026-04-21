@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { Camera, Image as ImageIcon, Images } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import EditorStory from '@/components/EditorStory'
-import PreviewStory from '@/components/PreviewStory'
 
 const BG_CATARATAS = '/triple-frontier/cataratas.jpg'
 
@@ -15,7 +14,7 @@ const BG_CATARATAS = '/triple-frontier/cataratas.jpg'
  */
 export default function CriarStory({ autorTipo }) {
   const router = useRouter()
-  const [passo, setPasso] = useState(/** @type {1 | 2 | 3} */ (1))
+  const [passo, setPasso] = useState(/** @type {1 | 2} */ (1))
   const [file, setFile] = useState(/** @type {File | null} */ (null))
   const [previewBlob, setPreviewBlob] = useState(/** @type {string | null} */ (null))
   const [legenda, setLegenda] = useState('')
@@ -29,6 +28,8 @@ export default function CriarStory({ autorTipo }) {
   const inputFotoRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const inputCameraRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const inputGaleriaRef = useRef(/** @type {HTMLInputElement | null} */ (null))
+  /** Galeria nativa (sem `capture`) — mesmo padrão do iOS ao “trocar foto” no editor. */
+  const inputTrocarFotoRef = useRef(/** @type {HTMLInputElement | null} */ (null))
 
   /**
    * Apenas imagens (sem vídeo).
@@ -40,8 +41,12 @@ export default function CriarStory({ autorTipo }) {
       alert('Selecione apenas uma imagem.')
       return
     }
+    if (previewBlob) URL.revokeObjectURL(previewBlob)
     setFile(f)
     setPreviewBlob(URL.createObjectURL(f))
+    setFundo({ scale: 1, pan_x_pct: 0, pan_y_pct: 0 })
+    setPosicao({ x: 50, y: 70 })
+    setPosicaoLink({ x: 50, y: 82 })
     setPasso(2)
   }
 
@@ -49,11 +54,6 @@ export default function CriarStory({ autorTipo }) {
     const f = e.target.files?.[0] ?? null
     e.target.value = ''
     aplicarArquivo(f)
-  }
-
-  const irRevisao = () => {
-    if (!previewBlob) return
-    setPasso(3)
   }
 
   const voltarAoInicio = () => {
@@ -124,9 +124,9 @@ export default function CriarStory({ autorTipo }) {
   const textoSombreado = { textShadow: '0 1px 3px rgba(0,0,0,0.85), 0 2px 12px rgba(0,0,0,0.45)' }
 
   return (
-    <div className={passo === 1 ? 'min-h-[100dvh]' : 'min-h-screen bg-gray-50 pb-24'}>
+    <div className={passo === 1 ? 'min-h-[100dvh]' : 'flex min-h-[100dvh] flex-col bg-black'}>
       {passo === 1 ? (
-        <div className="relative min-h-[100dvh] w-full overflow-hidden pb-24">
+        <div className="relative min-h-[100dvh] w-full overflow-hidden pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="pointer-events-none absolute inset-0 z-0">
             <Image src={BG_CATARATAS} alt="" fill className="object-cover object-center" sizes="100vw" priority />
           </div>
@@ -229,52 +229,31 @@ export default function CriarStory({ autorTipo }) {
         </div>
       ) : null}
 
-      {passo !== 1 ? (
-        <div className="border-b border-gray-100 bg-white px-4 py-3">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => (passo === 2 ? voltarAoInicio() : setPasso(2))}
-              className="text-sm font-medium text-[#0097b2]"
-            >
-              ← Voltar
-            </button>
-            <h1 className="text-lg font-semibold text-gray-800">Editar story</h1>
-          </div>
-        </div>
-      ) : null}
+      <input
+        ref={inputTrocarFotoRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        aria-label="Trocar foto do story"
+        onChange={onFileChange}
+      />
 
-      <div className={passo === 1 ? 'hidden' : passo === 2 ? '' : 'p-4'}>
+      <div className={passo === 1 ? 'hidden' : 'flex min-h-0 flex-1 flex-col'}>
         {passo === 2 && previewBlob ? (
-          <div className="flex h-[calc(100dvh-3.25rem)] min-h-[320px] flex-col sm:h-[calc(100dvh-3.5rem)]">
-            <EditorStory
-              mediaSrc={previewBlob}
-              mediaKind="image"
-              legenda={legenda}
-              onLegendaChange={setLegenda}
-              posicao={posicao}
-              onPosicaoChange={setPosicao}
-              posicaoLink={posicaoLink}
-              onPosicaoLinkChange={setPosicaoLink}
-              fundo={fundo}
-              onFundoChange={setFundo}
-              linkUrl={linkUrl}
-              onLinkChange={setLinkUrl}
-              onRevisar={irRevisao}
-            />
-          </div>
-        ) : null}
-
-        {passo === 3 && previewBlob ? (
-          <PreviewStory
+          <EditorStory
             mediaSrc={previewBlob}
             mediaKind="image"
             legenda={legenda}
+            onLegendaChange={setLegenda}
             posicao={posicao}
+            onPosicaoChange={setPosicao}
             posicaoLink={posicaoLink}
+            onPosicaoLinkChange={setPosicaoLink}
             fundo={fundo}
+            onFundoChange={setFundo}
             linkUrl={linkUrl}
-            onVoltar={() => setPasso(2)}
+            onLinkChange={setLinkUrl}
+            onTrocarFoto={() => inputTrocarFotoRef.current?.click()}
             onPublicar={() => void publicar()}
             publicando={publicando}
           />

@@ -205,10 +205,11 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     const empresaAutorSet = new Set(empresasRows.map((e) => String(e.usuario_id)).filter(Boolean))
     const emps = empresasRows
 
-    /** Stories permitidos: seguidos (não empresa) ou qualquer empresa; sem vídeo. */
+    /** Stories permitidos: o próprio utilizador, seguidos (não empresa) ou qualquer empresa; sem vídeo. */
     const storiesFiltradas = (storiesRows ?? []).filter((s) => {
       if (isTipoVideoPost(s.tipo)) return false
       const aid = String(s.autor_id)
+      if (aid === uid) return true
       const isEmp = isAutorEmpresa(s.autor_tipo) || empresaAutorSet.has(aid)
       if (isEmp) return true
       return seguidosIds.has(aid)

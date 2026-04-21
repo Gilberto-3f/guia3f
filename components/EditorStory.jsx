@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle, Link2, Type } from 'lucide-react'
+import { CheckCircle, Images, Link2, Type } from 'lucide-react'
 import StoryCanvas from '@/components/StoryCanvas'
 
 /**
@@ -18,7 +18,9 @@ import StoryCanvas from '@/components/StoryCanvas'
  *   onFundoChange: (f: { scale: number, pan_x_pct: number, pan_y_pct: number }) => void
  *   linkUrl: string
  *   onLinkChange: (s: string) => void
- *   onRevisar: () => void
+ *   onTrocarFoto: () => void
+ *   onPublicar: () => void
+ *   publicando?: boolean
  * }} props
  */
 export default function EditorStory({
@@ -34,7 +36,9 @@ export default function EditorStory({
   onFundoChange,
   linkUrl,
   onLinkChange,
-  onRevisar,
+  onTrocarFoto,
+  onPublicar,
+  publicando = false,
 }) {
   const [painel, setPainel] = useState(/** @type {null | 'legenda' | 'link'} */ (null))
 
@@ -43,10 +47,10 @@ export default function EditorStory({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-gray-900 sm:bg-gray-100">
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-2 pb-2 pt-1">
-        <p className="mb-1 hidden text-center text-[10px] text-white/60 sm:block">Proporção 9:16 (1080×1920)</p>
+    <div className="flex min-h-0 flex-1 flex-col bg-black">
+      <div className="flex min-h-0 flex-1 flex-col items-stretch justify-center px-0 pb-0 pt-0">
         <StoryCanvas
+          layout="editorFill"
           mediaSrc={mediaSrc}
           legenda={legenda.trim()}
           posicaoLegenda={posicao}
@@ -62,31 +66,45 @@ export default function EditorStory({
         />
       </div>
 
-      <footer className="shrink-0 border-t border-white/10 bg-black/55 px-2 py-3 backdrop-blur-md sm:border-gray-200 sm:bg-white/95">
-        <div className="mx-auto flex max-w-lg items-stretch justify-around gap-2 pb-[max(0.35rem,env(safe-area-inset-bottom))]">
+      <footer className="shrink-0 border-t border-white/10 bg-black/70 px-1 py-2 backdrop-blur-md">
+        <div className="mx-auto flex max-w-lg items-stretch justify-around gap-0.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] sm:gap-1">
           <button
             type="button"
+            disabled={publicando}
             onClick={() => setPainel('legenda')}
-            className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[#0097b2] transition hover:bg-white/10 sm:hover:bg-gray-100"
+            className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[#0097b2] transition hover:bg-white/10 disabled:opacity-45 sm:py-2"
           >
-            <Type size={26} strokeWidth={2} aria-hidden />
-            <span className="text-xs font-semibold">Legenda</span>
+            <Type size={22} strokeWidth={2} aria-hidden className="sm:h-[26px] sm:w-[26px]" />
+            <span className="max-w-full truncate px-0.5 text-[10px] font-semibold sm:text-xs">Legenda</span>
           </button>
           <button
             type="button"
+            disabled={publicando}
             onClick={() => setPainel('link')}
-            className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[#0097b2] transition hover:bg-white/10 sm:hover:bg-gray-100"
+            className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[#0097b2] transition hover:bg-white/10 disabled:opacity-45 sm:py-2"
           >
-            <Link2 size={26} strokeWidth={2} aria-hidden />
-            <span className="text-xs font-semibold">Link</span>
+            <Link2 size={22} strokeWidth={2} aria-hidden className="sm:h-[26px] sm:w-[26px]" />
+            <span className="max-w-full truncate px-0.5 text-[10px] font-semibold sm:text-xs">Link</span>
           </button>
           <button
             type="button"
-            onClick={onRevisar}
-            className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-green-500 transition hover:bg-white/10 sm:hover:bg-gray-100"
+            disabled={publicando}
+            onClick={onTrocarFoto}
+            className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[#0097b2] transition hover:bg-white/10 disabled:opacity-45 sm:py-2"
           >
-            <CheckCircle size={26} strokeWidth={2} aria-hidden />
-            <span className="text-xs font-semibold">Publicar</span>
+            <Images size={22} strokeWidth={2} aria-hidden className="sm:h-[26px] sm:w-[26px]" />
+            <span className="max-w-full truncate px-0.5 text-[10px] font-semibold sm:text-xs">Trocar foto</span>
+          </button>
+          <button
+            type="button"
+            disabled={publicando}
+            onClick={() => void onPublicar()}
+            className="flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-green-500 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45 sm:py-2"
+          >
+            <CheckCircle size={22} strokeWidth={2} aria-hidden className="sm:h-[26px] sm:w-[26px]" />
+            <span className="max-w-full truncate px-0.5 text-[10px] font-semibold sm:text-xs">
+              {publicando ? 'Enviando…' : 'Publicar'}
+            </span>
           </button>
         </div>
       </footer>

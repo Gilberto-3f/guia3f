@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import Image from 'next/image'
 
 /** @typedef {{ scale: number, pan_x_pct: number, pan_y_pct: number }} StoryFundo */
@@ -36,6 +36,7 @@ function clampFundoPan(scale, px, py) {
  *   onFundoChange?: (f: StoryFundo) => void
  *   linkHref?: string | null
  *   className?: string
+ *   layout?: 'default' | 'editorFill'
  * }} props
  */
 export default function StoryCanvas({
@@ -53,13 +54,71 @@ export default function StoryCanvas({
   onFundoChange,
   linkHref = null,
   className = '',
+  layout = 'default',
 }) {
   const areaRef = useRef(/** @type {HTMLDivElement | null} */ (null))
+  const fundoRef = useRef(fundo)
+  const onFundoChangeRef = useRef(onFundoChange)
+  /** Baseline do pinch (dois dedos). */
+  const pinchRef = useRef(/** @type {{ d0: number, s0: number, px0: number, py0: number } | null} */ (null))
   const dragRef = useRef(
     /** @type {null | { kind: 'img', sx: number, sy: number, fs: number, fpx: number, fpy: number } | { kind: 'text' | 'link', ox: number, oy: number }} */ (
       null
     )
   )
+
+  useEffect(() => {
+    fundoRef.current = fundo
+  }, [fundo])
+
+  useEffect(() => {
+    onFundoChangeRef.current = onFundoChange
+  }, [onFundoChange])
+
+  /** Pinch zoom (dois dedos) — `wheel` não existe no telemóvel. */
+  useEffect(() => {
+    const el = areaRef.current
+    if (!el || !allowEditImage || !onFundoChange) return
+
+    const dist = (/** @type {Touch} */ a, /** @type {Touch} */ b) =>
+      Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY)
+
+    const onTouchStart = (/** @type {TouchEvent} */ e) => {
+      if (e.touches.length === 2) {
+        const d0 = dist(e.touches[0], e.touches[1])
+        const f = fundoRef.current
+        pinchRef.current = { d0, s0: f.scale, px0: f.pan_x_pct, py0: f.pan_y_pct }
+        dragRef.current = null
+      }
+    }
+
+    const onTouchMove = (/** @type {TouchEvent} */ e) => {
+      if (e.touches.length !== 2 || !pinchRef.current) return
+      e.preventDefault()
+      const d = dist(e.touches[0], e.touches[1])
+      const { d0, s0, px0, py0 } = pinchRef.current
+      if (d0 < 8) return
+      const ratio = d / d0
+      const nextScale = Math.min(3, Math.max(1, s0 * ratio))
+      const c = clampFundoPan(nextScale, px0, py0)
+      onFundoChangeRef.current?.({ scale: nextScale, ...c })
+    }
+
+    const onTouchEnd = () => {
+      pinchRef.current = null
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd)
+    el.addEventListener('touchcancel', onTouchEnd)
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+      el.removeEventListener('touchcancel', onTouchEnd)
+    }
+  }, [allowEditImage, onFundoChange])
 
   const pctFromClient = useCallback((clientX, clientY) => {
     const el = areaRef.current
@@ -167,10 +226,15 @@ export default function StoryCanvas({
 
   const textoSombreado = { textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 2px 14px rgba(0,0,0,0.55)' }
 
+  const boxClass =
+    layout === 'editorFill'
+      ? 'relative mx-auto aspect-[9/16] h-[min(calc(100dvh-5.75rem),calc(100vw*16/9))] w-auto max-w-full overflow-hidden bg-black touch-none'
+      : 'relative aspect-[9/16] w-full max-w-[min(100vw-1rem,calc((100dvh-11rem)*9/16))] overflow-hidden bg-black touch-none'
+
   return (
     <div
       ref={areaRef}
-      className={`relative aspect-[9/16] w-full max-w-[min(100vw-1rem,calc((100dvh-11rem)*9/16))] overflow-hidden bg-black touch-none ${className}`}
+      className={`${boxClass} ${className}`}
       onWheel={onWheel}
       onPointerMove={pointerMove}
       onPointerUp={pointerUp}
@@ -180,7 +244,7 @@ export default function StoryCanvas({
         className={`absolute inset-0 z-0 ${allowEditImage ? 'cursor-grab active:cursor-grabbing' : ''}`}
         onPointerDown={startImg}
         role={allowEditImage ? 'application' : undefined}
-        aria-label={allowEditImage ? 'Arraste para reposicionar; role para zoom' : undefined}
+        aria-label={allowEditImage ? 'Arraste para mover; rodinha para zoom; dois dedos para ampliar' : undefined}
       >
         <div
           className="absolute inset-0 will-change-transform"

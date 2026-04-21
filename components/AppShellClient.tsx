@@ -25,14 +25,18 @@ function AppShellInner({ children }: { children: ReactNode }) {
     if (!pathname.includes('/feed/criar')) setCriarTecladoOcultaBarra(false)
   }, [pathname])
 
-  const hideBottomBar = pathname.includes('/feed/criar') && criarTecladoOcultaBarra
-  /** Em `/feed/criar` menos respiro acima da barra fixa (~1 cm vs `pb-20`; a barra continua igual). */
+  const isStoryCriar = pathname.includes('/feed/story/criar')
+  const hideBottomBar = isStoryCriar || (pathname.includes('/feed/criar') && criarTecladoOcultaBarra)
+  /** Em `/feed/criar` menos respiro acima da barra fixa; em criar story o editor tem rodapé próprio. */
   const paddingInferior =
     hideBottomBar ? '' : pathname.includes('/feed/criar') ? 'pb-14' : 'pb-20'
 
-  const fundoShell = pathname.includes('/feed/criar')
-    ? 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
-    : 'bg-gray-50'
+  const fundoShell =
+    pathname.includes('/feed/criar') && !isStoryCriar
+      ? 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
+      : isStoryCriar
+        ? 'bg-black'
+        : 'bg-gray-50'
 
   return (
     <div className={`min-h-screen ${fundoShell} ${paddingInferior}`}>
