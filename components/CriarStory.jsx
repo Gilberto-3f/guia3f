@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Camera, Image as ImageIcon, Video } from 'lucide-react'
+import { Camera, Image as ImageIcon, Images } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import EditorStory from '@/components/EditorStory'
 import PreviewStory from '@/components/PreviewStory'
 
-const MAX_VIDEO_SEC = 60
+const BG_CATARATAS = '/triple-frontier/cataratas.jpg'
 
 /**
  * @param {{ autorTipo: 'turista' | 'profissional' | 'empresa' | string }} props
@@ -16,56 +17,51 @@ export default function CriarStory({ autorTipo }) {
   const router = useRouter()
   const [passo, setPasso] = useState(/** @type {1 | 2 | 3} */ (1))
   const [file, setFile] = useState(/** @type {File | null} */ (null))
-  const [mediaKind, setMediaKind] = useState(/** @type {'image' | 'video'} */ ('image'))
   const [previewBlob, setPreviewBlob] = useState(/** @type {string | null} */ (null))
   const [legenda, setLegenda] = useState('')
   const [posicao, setPosicao] = useState({ x: 50, y: 70 })
   const [linkUrl, setLinkUrl] = useState('')
   const [publicando, setPublicando] = useState(false)
-  const [duracaoSeg, setDuracaoSeg] = useState(60)
+
+  const inputPrincipalRef = useRef(/** @type {HTMLInputElement | null} */ (null))
+  const inputFotoRef = useRef(/** @type {HTMLInputElement | null} */ (null))
+  const inputCameraRef = useRef(/** @type {HTMLInputElement | null} */ (null))
+  const inputGaleriaRef = useRef(/** @type {HTMLInputElement | null} */ (null))
 
   /**
+   * Apenas imagens (sem vídeo).
    * @param {File | null} f
    */
   const aplicarArquivo = (f) => {
     if (!f) return
-    if (f.type.startsWith('image/')) {
-      setMediaKind('image')
-      setFile(f)
-      setPreviewBlob(URL.createObjectURL(f))
-      setPasso(2)
+    if (!f.type.startsWith('image/')) {
+      alert('Selecione apenas uma imagem.')
       return
     }
-    if (f.type.startsWith('video/')) {
-      const v = document.createElement('video')
-      v.preload = 'metadata'
-      const obj = URL.createObjectURL(f)
-      v.onloadedmetadata = () => {
-        const d = v.duration
-        if (!Number.isFinite(d) || d > MAX_VIDEO_SEC + 0.5) {
-          URL.revokeObjectURL(obj)
-          alert(`O vídeo deve ter no máximo ${MAX_VIDEO_SEC} segundos.`)
-          return
-        }
-        setDuracaoSeg(Math.min(MAX_VIDEO_SEC, Math.ceil(d)))
-        setMediaKind('video')
-        setFile(f)
-        setPreviewBlob(obj)
-        setPasso(2)
-      }
-      v.onerror = () => {
-        URL.revokeObjectURL(obj)
-        alert('Não foi possível ler o vídeo.')
-      }
-      v.src = obj
-      return
-    }
-    alert('Selecione uma imagem ou vídeo.')
+    setFile(f)
+    setPreviewBlob(URL.createObjectURL(f))
+    setPasso(2)
+  }
+
+  const onFileChange = (e) => {
+    const f = e.target.files?.[0] ?? null
+    e.target.value = ''
+    aplicarArquivo(f)
   }
 
   const irPrevia = () => {
     if (!previewBlob) return
     setPasso(3)
+  }
+
+  const voltarAoInicio = () => {
+    if (previewBlob) URL.revokeObjectURL(previewBlob)
+    setPreviewBlob(null)
+    setFile(null)
+    setLegenda('')
+    setPosicao({ x: 50, y: 70 })
+    setLinkUrl('')
+    setPasso(1)
   }
 
   const publicar = async () => {
@@ -80,7 +76,7 @@ export default function CriarStory({ autorTipo }) {
         return
       }
 
-      const ext = file.name.split('.').pop() || (mediaKind === 'video' ? 'mp4' : 'jpg')
+      const ext = file.name.split('.').pop() || 'jpg'
       const path = `${session.user.id}/${Date.now()}.${ext}`
       const { error: upErr } = await supabase.storage.from('stories').upload(path, file)
       if (upErr) throw upErr
@@ -92,12 +88,12 @@ export default function CriarStory({ autorTipo }) {
       const { error: insErr } = await supabase.from('stories').insert({
         autor_id: session.user.id,
         autor_tipo: autorTipo,
-        tipo: mediaKind === 'video' ? 'video' : 'foto',
+        tipo: 'foto',
         conteudo_url: url,
         texto_sobreposto: { texto: legenda.trim() || null, posicao_x: posicao.x, posicao_y: posicao.y },
         link: linkUrl.trim() || null,
         expira_em: expira,
-        duracao_segundos: mediaKind === 'video' ? duracaoSeg : 60,
+        duracao_segundos: 60,
       })
 
       if (insErr) throw insErr
@@ -112,56 +108,134 @@ export default function CriarStory({ autorTipo }) {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="border-b border-gray-100 bg-white px-4 py-3">
-        <h1 className="text-lg font-semibold text-gray-800">Novo story</h1>
-        <p className="text-xs text-gray-500">Passo {passo} de 3 · expira em 24h</p>
-      </div>
+  const textoSombreado = { textShadow: '0 1px 3px rgba(0,0,0,0.85), 0 2px 12px rgba(0,0,0,0.45)' }
 
-      <div className="p-4">
-        {passo === 1 ? (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">Foto, vídeo da galeria (máx. {MAX_VIDEO_SEC}s) ou câmera/câmera de vídeo no celular.</p>
-            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#0097b2] bg-white py-8">
-              <ImageIcon className="text-[#0097b2]" size={32} aria-hidden />
-              <span className="font-medium text-[#0097b2]">Selecionar arquivo</span>
+  return (
+    <div className={passo === 1 ? 'min-h-[100dvh]' : 'min-h-screen bg-gray-50 pb-24'}>
+      {passo === 1 ? (
+        <div className="relative min-h-[100dvh] w-full overflow-hidden pb-24">
+          <div className="pointer-events-none absolute inset-0 z-0">
+            <Image src={BG_CATARATAS} alt="" fill className="object-cover object-center" sizes="100vw" priority />
+          </div>
+          <div className="pointer-events-none absolute inset-0 z-[1] bg-black/50" aria-hidden />
+
+          <div className="relative z-10 flex min-h-[100dvh] flex-col px-4 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
+            <div className="flex flex-1 flex-col items-center justify-center text-center">
+              <h1 className="text-3xl font-bold leading-tight text-white sm:text-4xl" style={textoSombreado}>
+                Crie um Novo Story
+              </h1>
+              <p className="mt-3 max-w-sm text-base font-medium text-white sm:text-lg" style={textoSombreado}>
+                Compartilhe fotos rapidinho!
+              </p>
+
               <input
+                ref={inputPrincipalRef}
                 type="file"
-                accept="image/*,video/*"
-                className="hidden"
-                onChange={(e) => aplicarArquivo(e.target.files?.[0] ?? null)}
+                accept="image/*"
+                className="sr-only"
+                aria-label="Escolher imagem para criar story"
+                onChange={onFileChange}
               />
-            </label>
-            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#0097b2]/10 py-4">
-              <Camera className="text-[#0097b2]" size={28} aria-hidden />
-              <span className="font-medium text-gray-800">Fotografar</span>
+
+              <button
+                type="button"
+                onClick={() => inputPrincipalRef.current?.click()}
+                className="mt-8 rounded-lg bg-[#0097b2] px-6 py-3 text-base font-semibold text-white shadow-lg transition hover:opacity-95 active:opacity-90"
+              >
+                Criar Story
+              </button>
+            </div>
+
+            <div className="mt-auto flex w-full max-w-md justify-center gap-6 sm:gap-10">
               <input
+                ref={inputFotoRef}
+                type="file"
+                accept="image/*"
+                capture="user"
+                className="sr-only"
+                aria-label="Tirar foto com a câmera frontal"
+                onChange={onFileChange}
+              />
+              <button
+                type="button"
+                className="flex flex-col items-center gap-2 rounded-xl bg-transparent p-2 text-white transition hover:opacity-90"
+                onClick={() => inputFotoRef.current?.click()}
+              >
+                <span className="flex h-12 w-12 items-center justify-center" aria-hidden>
+                  <ImageIcon className="h-12 w-12" strokeWidth={1.5} />
+                </span>
+                <span className="text-xs font-semibold" style={textoSombreado}>
+                  Foto
+                </span>
+              </button>
+
+              <input
+                ref={inputCameraRef}
                 type="file"
                 accept="image/*"
                 capture="environment"
-                className="hidden"
-                onChange={(e) => aplicarArquivo(e.target.files?.[0] ?? null)}
+                className="sr-only"
+                aria-label="Tirar foto com a câmera traseira"
+                onChange={onFileChange}
               />
-            </label>
-            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#0097b2]/10 py-4">
-              <Video className="text-[#0097b2]" size={28} aria-hidden />
-              <span className="font-medium text-gray-800">Gravar vídeo</span>
-              <input
-                type="file"
-                accept="video/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => aplicarArquivo(e.target.files?.[0] ?? null)}
-              />
-            </label>
-          </div>
-        ) : null}
+              <button
+                type="button"
+                className="flex flex-col items-center gap-2 rounded-xl bg-transparent p-2 text-white transition hover:opacity-90"
+                onClick={() => inputCameraRef.current?.click()}
+              >
+                <span className="flex h-12 w-12 items-center justify-center" aria-hidden>
+                  <Camera className="h-12 w-12" strokeWidth={1.5} />
+                </span>
+                <span className="text-xs font-semibold" style={textoSombreado}>
+                  Câmera
+                </span>
+              </button>
 
+              <input
+                ref={inputGaleriaRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                aria-label="Escolher foto da galeria"
+                onChange={onFileChange}
+              />
+              <button
+                type="button"
+                className="flex flex-col items-center gap-2 rounded-xl bg-transparent p-2 text-white transition hover:opacity-90"
+                onClick={() => inputGaleriaRef.current?.click()}
+              >
+                <span className="flex h-12 w-12 items-center justify-center" aria-hidden>
+                  <Images className="h-12 w-12" strokeWidth={1.5} />
+                </span>
+                <span className="text-xs font-semibold" style={textoSombreado}>
+                  Galeria
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {passo !== 1 ? (
+        <div className="border-b border-gray-100 bg-white px-4 py-3">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => (passo === 2 ? voltarAoInicio() : setPasso(2))}
+              className="text-sm font-medium text-[#0097b2]"
+            >
+              ← Voltar
+            </button>
+            <h1 className="text-lg font-semibold text-gray-800">Editar story</h1>
+          </div>
+        </div>
+      ) : null}
+
+      <div className={passo === 1 ? 'hidden' : 'p-4'}>
         {passo === 2 && previewBlob ? (
           <EditorStory
             mediaSrc={previewBlob}
-            mediaKind={mediaKind}
+            mediaKind="image"
             legenda={legenda}
             onLegendaChange={setLegenda}
             posicao={posicao}
@@ -175,7 +249,7 @@ export default function CriarStory({ autorTipo }) {
         {passo === 3 && previewBlob ? (
           <PreviewStory
             mediaSrc={previewBlob}
-            mediaKind={mediaKind}
+            mediaKind="image"
             legenda={legenda}
             posicao={posicao}
             linkUrl={linkUrl}
