@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X, CalendarDays } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { whatsappWaUrl } from '@/lib/whatsapp-empresa'
 
 /**
@@ -23,6 +24,7 @@ export default function PopupReservaHospedagem({
   whatsappDestino,
   precoDiaria,
 }) {
+  const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const [checkin, setCheckin] = useState('')
   const [checkout, setCheckout] = useState('')
   const [loading, setLoading] = useState(false)
@@ -42,6 +44,10 @@ export default function PopupReservaHospedagem({
   const total = diaria * noites
 
   const handleConfirmar = async () => {
+    if (!podeInteragir) {
+      notificarSomenteLeitura()
+      return
+    }
     if (!checkin || !checkout) {
       alert('Selecione as datas de check-in e check-out')
       return

@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import ListaCanais from '@/components/ListaCanais'
 import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
@@ -14,6 +15,7 @@ type CanalSelecionado = { id?: string; nome?: string } | null
 
 export default function CanalPage() {
   const router = useRouter()
+  const { modoAtivo, perfilSimulado, contextoUsuarioId, podeInteragir } = useModoApresentacao()
   const [userTipo, setUserTipo] = useState<TipoUsuario>(null)
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -24,6 +26,26 @@ export default function CanalPage() {
   const [abaPais, setAbaPais] = useState('geral')
 
   const paises = ['BR', 'AR', 'PY', 'geral']
+
+  const userTipoEfetivo = useMemo((): TipoUsuario => {
+    if (modoAtivo && perfilSimulado) {
+      if (perfilSimulado.tipo === 'turista') return 'turista'
+      if (perfilSimulado.tipo === 'profissional') return 'profissional'
+      if (perfilSimulado.tipo === 'empresa') return 'empresa'
+    }
+    return userTipo
+  }, [modoAtivo, perfilSimulado, userTipo])
+
+  const financeUid = useMemo(() => {
+    if (
+      modoAtivo &&
+      contextoUsuarioId &&
+      (perfilSimulado?.tipo === 'profissional' || perfilSimulado?.tipo === 'empresa')
+    ) {
+      return contextoUsuarioId
+    }
+    return usuarioId
+  }, [modoAtivo, contextoUsuarioId, perfilSimulado?.tipo, usuarioId])
 
   useEffect(() => {
     const init = async () => {
@@ -53,7 +75,7 @@ export default function CanalPage() {
   }, [router])
 
   useEffect(() => {
-    if (userTipo !== 'turista') return
+    if (userTipoEfetivo !== 'turista') return
 
     const load = async () => {
       setCarregandoTurismo(true)
@@ -69,7 +91,7 @@ export default function CanalPage() {
     }
 
     void load()
-  }, [userTipo])
+  }, [userTipoEfetivo])
 
   if (loading) {
     return (
@@ -79,7 +101,7 @@ export default function CanalPage() {
     )
   }
 
-  if (userTipo === 'turista') {
+  if (userTipoEfetivo === 'turista') {
     if (carregandoTurismo || !turismoCanalId) {
       return (
         <div className="flex min-h-screen items-center justify-center pb-20">
@@ -97,13 +119,13 @@ export default function CanalPage() {
           </div>
         </div>
         <div className="flex min-h-[calc(100vh-8rem)] flex-1 flex-col">
-          <CanalMensagens canalId={turismoCanalId} paisTab="geral" podePostar={false} podeReagir={true} />
+          <CanalMensagens canalId={turismoCanalId} paisTab="geral" podePostar={false} podeReagir={podeInteragir} />
         </div>
       </div>
     )
   }
 
-  if (userTipo === 'profissional') {
+  if (userTipoEfetivo === 'profissional') {
     const sel = canalSelecionado
     const isFinanceiro = sel?.nome === 'Financeiro'
 
@@ -126,14 +148,14 @@ export default function CanalPage() {
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             {sel?.id ? (
-              isFinanceiro && usuarioId ? (
-                <CanalFinanceiroLista usuarioId={usuarioId} tipo="profissional" />
+              isFinanceiro && financeUid ? (
+                <CanalFinanceiroLista usuarioId={financeUid} tipo="profissional" />
               ) : (
                 <>
                   <div className="border-b border-gray-100 bg-white p-4">
                     <h2 className="font-semibold text-gray-800">{sel.nome}</h2>
                   </div>
-                  <CanalMensagens canalId={String(sel.id)} paisTab="geral" podePostar={false} podeReagir={true} />
+                  <CanalMensagens canalId={String(sel.id)} paisTab="geral" podePostar={false} podeReagir={podeInteragir} />
                 </>
               )
             ) : (
@@ -145,7 +167,7 @@ export default function CanalPage() {
     )
   }
 
-  if (userTipo === 'empresa') {
+  if (userTipoEfetivo === 'empresa') {
     const sel = canalSelecionado
     const isFinanceiro = sel?.nome === 'Financeiro'
     const mostrarAbasPais = sel?.nome != null && sel.nome !== 'ADM' && !isFinanceiro
@@ -169,8 +191,8 @@ export default function CanalPage() {
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             {sel?.id ? (
-              isFinanceiro && usuarioId ? (
-                <CanalFinanceiroLista usuarioId={usuarioId} tipo="empresa" />
+              isFinanceiro && financeUid ? (
+                <CanalFinanceiroLista usuarioId={financeUid} tipo="empresa" />
               ) : (
                 <>
                   <div className="border-b border-gray-100 bg-white">
@@ -184,8 +206,8 @@ export default function CanalPage() {
                   <CanalMensagens
                     canalId={String(sel.id)}
                     paisTab={mostrarAbasPais ? abaPais : 'geral'}
-                    podePostar
-                    podeReagir
+                    podePostar={podeInteragir}
+                    podeReagir={podeInteragir}
                   />
                 </>
               )
@@ -198,7 +220,7 @@ export default function CanalPage() {
     )
   }
 
-  if (userTipo === 'admin') {
+  if (userTipoEfetivo === 'admin') {
     const sel = canalSelecionado
     const mostrarAbasPais = sel?.nome != null && sel.nome !== 'Mensageiro ADM'
 
@@ -234,8 +256,8 @@ export default function CanalPage() {
                 <CanalMensagens
                   canalId={String(sel.id)}
                   paisTab={mostrarAbasPais ? abaPais : 'geral'}
-                  podePostar
-                  podeReagir
+                  podePostar={podeInteragir}
+                  podeReagir={podeInteragir}
                 />
               </>
             ) : (

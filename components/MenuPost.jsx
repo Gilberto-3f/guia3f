@@ -24,6 +24,7 @@ export const POST_DELETED_EVENT = 'post-deleted'
  *   onEditar?: () => void
  *   onSalvar?: () => void
  *   onRepublicar?: () => void
+ *   bloqueado?: boolean
  * }} props
  */
 export default function MenuPost({
@@ -40,6 +41,7 @@ export default function MenuPost({
   onEditar,
   onSalvar,
   onRepublicar,
+  bloqueado = false,
 }) {
   const [aberto, setAberto] = useState(false)
   const [passoExcluir, setPassoExcluir] = useState(0)
@@ -113,6 +115,8 @@ export default function MenuPost({
   }
 
   const itemClass = 'block w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50'
+
+  if (bloqueado) return null
 
   return (
     <div className="relative" ref={ref}>

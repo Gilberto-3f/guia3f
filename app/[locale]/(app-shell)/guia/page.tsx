@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useTranslations } from 'next-intl'
 import { Car, MapPin } from 'lucide-react'
 import PublicidadeHome from '@/components/PublicidadeHome'
@@ -21,10 +22,15 @@ export default function GuiaPage() {
   const tMobilidade = useTranslations('Mobilidade')
   const tGuia = useTranslations('Guia')
   const router = useRouter()
+  const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
   const [popupFavoritosAberto, setPopupFavoritosAberto] = useState(false)
 
   const handleFiltroClick = (filtroId: string) => {
+    if (filtroId === 'favoritos' && !podeInteragir) {
+      notificarSomenteLeitura()
+      return
+    }
     if (filtroId === 'favoritos') {
       setPopupFavoritosAberto(true)
     } else if (filtroId === 'compras') {

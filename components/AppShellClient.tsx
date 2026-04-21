@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import { AdminPermissaoProvider } from '@/app/[locale]/(admin)/dashboard/admin/context/AdminPermissaoContext'
+import { ModoApresentacaoProvider, useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import ModoApresentacaoChrome from '@/components/ModoApresentacaoChrome'
 import BottomBar from '@/components/BottomBar'
 
 /** `feed/criar` emite quando o teclado está visível para esconder a barra (aba TEXTO ou legenda na FOTO). */
@@ -11,6 +13,7 @@ const CRIAR_KEYBOARD_EVENT = 'guia-criar-keyboard'
 function AppShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const [criarTecladoOcultaBarra, setCriarTecladoOcultaBarra] = useState(false)
+  const { modoAtivo } = useModoApresentacao()
 
   useEffect(() => {
     const onKb = (e: Event) => {
@@ -28,6 +31,8 @@ function AppShellInner({ children }: { children: ReactNode }) {
   const isStoryCriar = pathname.includes('/feed/story/criar')
   const hideBottomBar = isStoryCriar || (pathname.includes('/feed/criar') && criarTecladoOcultaBarra)
   /** Em `/feed/criar` menos respiro acima da barra fixa; em criar story o editor tem rodapé próprio. */
+  const paddingTopoModo = modoAtivo ? 'pt-12' : ''
+
   const paddingInferior =
     hideBottomBar ? '' : pathname.includes('/feed/criar') ? 'pb-14' : 'pb-20'
 
@@ -39,7 +44,8 @@ function AppShellInner({ children }: { children: ReactNode }) {
         : 'bg-gray-50'
 
   return (
-    <div className={`min-h-screen ${fundoShell} ${paddingInferior}`}>
+    <div className={`min-h-screen ${fundoShell} ${paddingTopoModo} ${paddingInferior}`}>
+      <ModoApresentacaoChrome />
       {children}
       {!hideBottomBar ? <BottomBar /> : null}
     </div>
@@ -49,16 +55,18 @@ function AppShellInner({ children }: { children: ReactNode }) {
 export default function AppShellClient({ children }: { children: ReactNode }) {
   return (
     <AdminPermissaoProvider>
-      <Suspense
-        fallback={
-          <div className="min-h-screen bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300 pb-20">
-            {children}
-            <BottomBar />
-          </div>
-        }
-      >
-        <AppShellInner>{children}</AppShellInner>
-      </Suspense>
+      <ModoApresentacaoProvider>
+        <Suspense
+          fallback={
+            <div className="min-h-screen bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300 pb-20">
+              {children}
+              <BottomBar />
+            </div>
+          }
+        >
+          <AppShellInner>{children}</AppShellInner>
+        </Suspense>
+      </ModoApresentacaoProvider>
     </AdminPermissaoProvider>
   )
 }

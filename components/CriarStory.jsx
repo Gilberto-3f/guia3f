@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Camera, Image as ImageIcon, Images } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import EditorStory from '@/components/EditorStory'
 
@@ -15,6 +16,7 @@ const BG_CATARATAS = '/triple-frontier/cataratas.jpg'
  */
 export default function CriarStory({ autorTipo }) {
   const router = useRouter()
+  const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const [passo, setPasso] = useState(/** @type {1 | 2} */ (1))
   const [file, setFile] = useState(/** @type {File | null} */ (null))
   const [previewBlob, setPreviewBlob] = useState(/** @type {string | null} */ (null))
@@ -73,6 +75,10 @@ export default function CriarStory({ autorTipo }) {
   }
 
   const publicar = async () => {
+    if (!podeInteragir) {
+      notificarSomenteLeitura()
+      return
+    }
     if (!file || !previewBlob) return
     setPublicando(true)
     try {

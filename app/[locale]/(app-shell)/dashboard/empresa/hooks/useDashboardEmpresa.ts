@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 export interface DadosEmpresa {
   id: string
@@ -28,6 +29,7 @@ export function useDashboardEmpresa() {
   const [dados, setDados] = useState<DadosEmpresa | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
 
   const fetchEmpresa = useCallback(async () => {
     setLoading(true)
@@ -43,7 +45,11 @@ export function useDashboardEmpresa() {
         return
       }
 
-      const { data, error: fetchError } = await supabase.from('empresas').select('*').eq('usuario_id', uid).maybeSingle()
+      const simEmpresa = modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId
+
+      const { data, error: fetchError } = simEmpresa
+        ? await supabase.from('empresas').select('*').eq('id', contextoEmpresaId).maybeSingle()
+        : await supabase.from('empresas').select('*').eq('usuario_id', uid).maybeSingle()
       if (fetchError) throw fetchError
       if (!data) {
         setDados(null)
@@ -70,7 +76,7 @@ export function useDashboardEmpresa() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [contextoEmpresaId, modoAtivo, perfilSimulado?.tipo])
 
   useEffect(() => {
     void fetchEmpresa()

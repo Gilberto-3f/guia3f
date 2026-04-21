@@ -75,9 +75,7 @@ function parseCurtidasStory(raw) {
  *   storyQueueIndex?: number
  *   onIrAnterior?: () => void
  *   onIrProximo?: () => void
- *   /** Se definido, o temporizador chama isto em vez de fechar o modal ao terminar (ex.: próximo story). */
  *   onTimerFim?: () => void
- *   /** Incrementar para reiniciar o temporizador no mesmo `story.id` (ex.: único story em loop). */
  *   timerPlaybackKey?: number
  * }} props
  */

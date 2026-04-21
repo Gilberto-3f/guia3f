@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 /**
  * @param {string} path
@@ -48,6 +49,7 @@ function matchPath(path, pathname) {
 export default function BottomBar() {
   const t = useTranslations('BottomBar')
   const pathname = usePathname()
+  const { modoAtivo, perfilSimulado, contextoEmpresaId, podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const [userRole, setUserRole] = useState(/** @type {string | null} */ (null))
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
@@ -199,6 +201,12 @@ export default function BottomBar() {
 
   const isFeedPage = pathname === '/feed'
 
+  const roleParaBarra =
+    modoAtivo && perfilSimulado ? perfilSimulado.tipo : userRole === 'admin' ? 'admin' : userRole
+  const isEmpresaBar = roleParaBarra === 'empresa'
+  const empresaIdBar =
+    isEmpresaBar && modoAtivo && contextoEmpresaId ? contextoEmpresaId : userRole === 'empresa' ? empresaId : null
+
   const getTerceiroHref = () => {
     if (isFeedPage) return '/feed/criar'
     return '/feed'
@@ -207,18 +215,18 @@ export default function BottomBar() {
   const terceiroActive = isFeedPage || pathname === '/feed/criar'
 
   const getQuartoHref = () => {
-    if (userRole === 'empresa') return '/dashboard/empresa'
+    if (isEmpresaBar) return '/dashboard/empresa'
     return '/atividades'
   }
 
   const isQuartoActive = () => {
-    if (userRole === 'empresa') return pathname != null && pathname.startsWith('/dashboard/empresa')
+    if (isEmpresaBar) return pathname != null && pathname.startsWith('/dashboard/empresa')
     return isBarraAtividades(pathname)
   }
 
   const getQuintoHref = () => {
-    if (userRole === 'empresa') {
-      return empresaId ? `/empresa/${empresaId}` : '/dashboard/empresa'
+    if (isEmpresaBar) {
+      return empresaIdBar ? `/empresa/${empresaIdBar}` : '/dashboard/empresa'
     }
     if (authUserId && (userRole === 'turista' || userRole === 'profissional' || userRole === 'admin'))
       return `/perfil/${authUserId}`
@@ -226,8 +234,8 @@ export default function BottomBar() {
   }
 
   const isQuintoActive = () => {
-    if (userRole === 'empresa') {
-      return Boolean(empresaId && pathname != null && pathname === `/empresa/${empresaId}`)
+    if (isEmpresaBar) {
+      return Boolean(empresaIdBar && pathname != null && pathname === `/empresa/${empresaIdBar}`)
     }
     return pathname === '/perfil' || (pathname != null && pathname.startsWith('/perfil/'))
   }
@@ -245,7 +253,7 @@ export default function BottomBar() {
       )
     }
 
-    if (userRole === 'empresa') {
+    if (isEmpresaBar) {
       return <Building2 size={24} className={active ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
     }
     return <User size={24} className={active ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
@@ -272,6 +280,12 @@ export default function BottomBar() {
 
         <Link
           href={getTerceiroHref()}
+          onClick={(e) => {
+            if (!podeInteragir && isFeedPage) {
+              e.preventDefault()
+              notificarSomenteLeitura()
+            }
+          }}
           className={`flex flex-col items-center ${isFeedPage ? 'p-1' : 'p-2'}`}
           aria-label={isFeedPage ? t('newPost') : t('feed')}
         >
@@ -289,9 +303,9 @@ export default function BottomBar() {
         <Link
           href={getQuartoHref()}
           className="relative flex flex-col items-center p-2"
-          aria-label={userRole === 'empresa' ? t('dashboard') : t('activities')}
+          aria-label={isEmpresaBar ? t('dashboard') : t('activities')}
         >
-          {userRole === 'empresa' ? (
+          {isEmpresaBar ? (
             <LayoutDashboard
               size={24}
               className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'}
@@ -300,7 +314,7 @@ export default function BottomBar() {
           ) : (
             <>
               <Heart size={24} className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
-              {naoLidasAtividades > 0 ? (
+              {!isEmpresaBar && naoLidasAtividades > 0 ? (
                 <span className="absolute -right-0 -top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F44336] px-1 text-[10px] font-bold text-white">
                   {naoLidasAtividades > 99 ? '99+' : naoLidasAtividades}
                 </span>
@@ -312,7 +326,7 @@ export default function BottomBar() {
         <Link
           href={getQuintoHref()}
           className="flex flex-col items-center p-2"
-          aria-label={userRole === 'empresa' ? t('companyGuia') : t('profile')}
+          aria-label={isEmpresaBar ? t('companyGuia') : t('profile')}
         >
           {getQuintoIcone()}
         </Link>

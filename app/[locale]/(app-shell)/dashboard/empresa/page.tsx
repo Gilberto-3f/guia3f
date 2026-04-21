@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 import ResumoEmpresa from './components/shared/ResumoEmpresa'
 import SeletorPeriodo from './components/shared/SeletorPeriodo'
@@ -18,6 +19,7 @@ type GateState =
   | { status: 'loading' }
   | { status: 'forbidden' }
   | { status: 'pending' }
+  | { status: 'sim_sem_empresa' }
   | { status: 'allowed'; userId: string }
 
 export default function DashboardEmpresaPage() {
@@ -25,6 +27,7 @@ export default function DashboardEmpresaPage() {
   const [abaAtiva, setAbaAtiva] = useState<Aba>('funil')
   const [periodo, setPeriodo] = useState<Periodo>('30d')
   const [gate, setGate] = useState<GateState>({ status: 'loading' })
+  const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
 
   useEffect(() => {
     let ativo = true
@@ -47,6 +50,15 @@ export default function DashboardEmpresaPage() {
           ? String(urow.status)
           : 'ativo'
 
+      if (role === 'admin' && modoAtivo && perfilSimulado?.tipo === 'empresa') {
+        if (contextoEmpresaId) {
+          if (ativo) setGate({ status: 'allowed', userId: uid })
+        } else if (ativo) {
+          setGate({ status: 'sim_sem_empresa' })
+        }
+        return
+      }
+
       if (role !== 'empresa') {
         if (ativo) setGate({ status: 'forbidden' })
         return
@@ -64,7 +76,7 @@ export default function DashboardEmpresaPage() {
     return () => {
       ativo = false
     }
-  }, [])
+  }, [modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
 
   useEffect(() => {
     if (gate.status === 'forbidden') router.push('/login')
@@ -82,6 +94,23 @@ export default function DashboardEmpresaPage() {
         <p className="max-w-md text-[#001f3f]">
           O painel da empresa fica disponível após a aprovação do administrador. Enquanto isso, use o app como guia
           turístico.
+        </p>
+        <Link
+          href="/guia"
+          className="rounded-full bg-[#0097b2] px-6 py-3 font-semibold text-white hover:opacity-95"
+        >
+          Ir para o guia
+        </Link>
+      </div>
+    )
+  }
+
+  if (gate.status === 'sim_sem_empresa') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-50 p-6 text-center">
+        <p className="max-w-md text-[#001f3f]">
+          Não foi encontrada uma empresa real neste segmento para pré-visualizar o painel. Experimente outro segmento ou saia
+          do modo apresentação.
         </p>
         <Link
           href="/guia"

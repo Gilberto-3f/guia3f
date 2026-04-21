@@ -14,6 +14,7 @@ import {
 } from '@/lib/feed-autor'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import StoryCircle from '@/components/StoryCircle'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 const MAX_STORY_RINGS = 12
 
@@ -118,6 +119,7 @@ function labelStoryEmpresa(e) {
  * }} props
  */
 export default function StoriesBar({ hidden = false, userEmail, onOpenStory, reloadSignal = 0 }) {
+  const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   /** @type {{ avatarUrl: string | null, storyId: string | null, visualizado_por: unknown }} */
   const [meuSlot, setMeuSlot] = useState({
     avatarUrl: null,
@@ -445,14 +447,28 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
                 )}
               </div>
             </div>
-            <Link
-              href="/feed/story/criar"
-              onClick={(e) => e.stopPropagation()}
-              className="absolute -bottom-0.5 -right-0.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#0097b2] text-white shadow-md ring-2 ring-white"
-              aria-label="Novo story"
-            >
-              <Plus size={16} strokeWidth={2.5} />
-            </Link>
+            {podeInteragir ? (
+              <Link
+                href="/feed/story/criar"
+                onClick={(e) => e.stopPropagation()}
+                className="absolute -bottom-0.5 -right-0.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#0097b2] text-white shadow-md ring-2 ring-white"
+                aria-label="Novo story"
+              >
+                <Plus size={16} strokeWidth={2.5} />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  notificarSomenteLeitura()
+                }}
+                className="absolute -bottom-0.5 -right-0.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-gray-400 text-white shadow-md ring-2 ring-white"
+                aria-label="Novo story (bloqueado no modo apresentação)"
+              >
+                <Plus size={16} strokeWidth={2.5} />
+              </button>
+            )}
           </div>
           <span className="max-w-[5rem] truncate text-center text-xs leading-tight text-gray-700">Seu story</span>
         </div>

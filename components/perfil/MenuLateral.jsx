@@ -31,10 +31,11 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { clearSessionCookiesOnServer } from '@/lib/authCookieSync'
 import { supabase } from '@/lib/supabase'
 import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 import Emergencia from '@/components/perfil/subpaginas/Emergencia'
 import EditarPerfil from '@/components/perfil/subpaginas/EditarPerfil'
@@ -50,6 +51,7 @@ import EditarPaginaEmpresa from '@/components/perfil/subpaginas/EditarPaginaEmpr
 import CadastrarComissao from '@/components/perfil/subpaginas/CadastrarComissao'
 import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
+import ModoApresentacao from '@/components/perfil/subpaginas/ModoApresentacao'
 
 /**
  * @typedef {{ tipo: 'menu', titulo: string, itens: MenuItem[] } | { tipo: 'pagina', titulo: string, id: string, historicoTipo?: string, postId?: string, comentarioId?: string | null }} HistoricoEntry
@@ -62,8 +64,7 @@ import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
  *   subpagina?: string
  *   href?: string
  *   badge?: number
- *   acao?: 'logout' | 'simulacao'
- *   simRole?: 'turista' | 'profissional' | 'empresa'
+ *   acao?: 'logout'
  *   subitens?: MenuItem[]
  *   condicional?: (ctx: MenuContext) => boolean
  * }} MenuItem
@@ -163,11 +164,7 @@ function itensAdmin(ctx) {
     {
       Icon: Users,
       label: 'Modo Apresentação',
-      subitens: [
-        { Icon: User, label: 'Turista', acao: 'simulacao', simRole: 'turista' },
-        { Icon: Car, label: 'Profissional', acao: 'simulacao', simRole: 'profissional' },
-        { Icon: Building2, label: 'Empresa', acao: 'simulacao', simRole: 'empresa' },
-      ],
+      subpagina: 'modo-apresentacao',
       condicional: (c) => c.adminLevel === 1,
     },
     { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
@@ -229,6 +226,7 @@ export default function MenuLateral({
   const [historicoNaoLido, setHistoricoNaoLido] = useState(0)
   const [drawerEntered, setDrawerEntered] = useState(false)
   const { historico: historicoDecisoes, fetchHistoricoUsuario } = useInfracoes()
+  const { modoAtivo: modoApresentacaoAtivo } = useModoApresentacao()
 
   useEffect(() => {
     if (!aberto) {
@@ -292,24 +290,9 @@ export default function MenuLateral({
     setHistorico((h) => [...h, { tipo: 'pagina', titulo, id, historicoTipo }])
   }
 
-  const iniciarSimulacao = (role) => {
-    try {
-      localStorage.setItem('guia3f_modo_apresentacao', role)
-      sessionStorage.setItem('guia3f_modo_apresentacao', role)
-    } catch {
-      /* ignore */
-    }
-    onFechar()
-    window.location.href = '/guia'
-  }
-
   const executarItem = (item) => {
     if (item.acao === 'logout') {
       setModalLogout(true)
-      return
-    }
-    if (item.acao === 'simulacao' && item.simRole) {
-      iniciarSimulacao(item.simRole)
       return
     }
     if (item.href) {
@@ -340,6 +323,7 @@ export default function MenuLateral({
         recomendacoes: 'Recomendações',
         'historico-decisoes': 'Histórico de Decisões',
         salvos: 'Publicações Salvas',
+        'modo-apresentacao': 'Modo Apresentação',
       }
       const t = titulos[item.subpagina] || item.label
       if (item.subpagina === 'historico-decisoes') {
@@ -383,8 +367,9 @@ export default function MenuLateral({
   }
 
   const renderPagina = () => {
-    if (!topo || topo.tipo !== 'pagina' || !usuarioId) return null
+    if (!topo || topo.tipo !== 'pagina') return null
     const id = topo.id
+    if (!usuarioId && id !== 'modo-apresentacao') return null
     const histTipo = topo.historicoTipo || 'contratacoes'
 
     if (id === 'emergencia') return <Emergencia />
@@ -445,6 +430,7 @@ export default function MenuLateral({
     if (id === 'manifestos') return <MeusManifestos />
     if (id === 'meu-historico') return <MeuHistorico tipo={histTipo} />
     if (id === 'historico-decisoes') return <HistoricoDecisoes />
+    if (id === 'modo-apresentacao') return <ModoApresentacao />
     if (id === 'editar-pagina' && empresa && empresaId)
       return <EditarPaginaEmpresa empresa={empresa} empresaId={empresaId} onSalvo={onPerfilAtualizado} />
     if (id === 'cadastrar-comissao' && empresaId) return <CadastrarComissao empresaId={empresaId} />
@@ -467,9 +453,16 @@ export default function MenuLateral({
               <Ico size={20} strokeWidth={1.75} />
             </span>
             <span className="flex-1">{item.label}</span>
-            {(item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)) > 0 ? (
-              <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">
-                {item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)}
+            {(item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)) > 0 ||
+            (item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo) ? (
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-bold text-white ${
+                  item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo ? 'bg-amber-500' : 'bg-red-500'
+                }`}
+              >
+                {item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo
+                  ? 'ON'
+                  : item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)}
               </span>
             ) : null}
           </button>

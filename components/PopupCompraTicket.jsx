@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X, Ticket } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { whatsappWaUrl } from '@/lib/whatsapp-empresa'
 
 /**
@@ -25,6 +26,7 @@ export default function PopupCompraTicket({
   precoInteira,
   precoMeia,
 }) {
+  const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const [quantidade, setQuantidade] = useState(1)
   const [tipoIngresso, setTipoIngresso] = useState(/** @type {'inteira' | 'meia'} */ ('inteira'))
   const [cupom, setCupom] = useState('')
@@ -39,6 +41,10 @@ export default function PopupCompraTicket({
   const total = preco * quantidade
 
   const handleConfirmar = async () => {
+    if (!podeInteragir) {
+      notificarSomenteLeitura()
+      return
+    }
     setLoading(true)
     try {
       const {

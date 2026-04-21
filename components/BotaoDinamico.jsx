@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
 import { whatsappWaUrl } from '@/lib/whatsapp-empresa'
 
@@ -55,6 +56,7 @@ export default function BotaoDinamico({
   onClick,
 }) {
   const router = useRouter()
+  const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const [showTicketPopup, setShowTicketPopup] = useState(false)
   const [showReservaPopup, setShowReservaPopup] = useState(false)
 
@@ -77,6 +79,10 @@ export default function BotaoDinamico({
   }
 
   const executarAcao = () => {
+    if (!podeInteragir) {
+      notificarSomenteLeitura()
+      return
+    }
     if (!empresaId) {
       return
     }

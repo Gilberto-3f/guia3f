@@ -14,6 +14,7 @@ import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/lib/feed-autor'
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 /**
  * Texto do post com “Ver mais” / “Ver menos” (mede overflow real, estilo Instagram).
@@ -126,6 +127,8 @@ export default function PostCard({
   onEngagementChange,
   ocultarCabecalhoCard = false,
 }) {
+  const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
+  const bloqueioApresentacao = !podeInteragir
   const [comentAberto, setComentAberto] = useState(false)
   const [curtidasAberto, setCurtidasAberto] = useState(false)
   const [shareAberto, setShareAberto] = useState(false)
@@ -308,12 +311,20 @@ export default function PostCard({
     typeof window !== 'undefined' ? `${window.location.origin}/feed?post=${encodeURIComponent(post.id)}` : ''
 
   const handleEditarPost = () => {
+    if (bloqueioApresentacao) {
+      notificarSomenteLeitura()
+      return
+    }
     if (!meuUsuarioId) return
     setTextoEditado(post.texto ?? '')
     setEditando(true)
   }
 
   const salvarEdicao = async () => {
+    if (bloqueioApresentacao) {
+      notificarSomenteLeitura()
+      return
+    }
     if (!meuUsuarioId) return
     const texto = textoEditado.trim() ? textoEditado.trim() : null
     const { error } = await supabase.from('posts').update({ texto }).eq('id', post.id).eq('autor_id', meuUsuarioId)
@@ -380,6 +391,10 @@ export default function PostCard({
   )
 
   const handleCurtir = async () => {
+    if (bloqueioApresentacao) {
+      notificarSomenteLeitura()
+      return
+    }
     if (!meuUsuarioId) return
     if (curtiu) {
       await supabase.from('curtidas').delete().eq('post_id', post.id).eq('usuario_id', meuUsuarioId)
@@ -404,6 +419,10 @@ export default function PostCard({
   const mostrarCompositorInline = !compositorComentarioAteClique || compositorAberto
 
   const handleComentar = () => {
+    if (bloqueioApresentacao) {
+      notificarSomenteLeitura()
+      return
+    }
     if (comentariosInline) {
       if (compositorComentarioAteClique) {
         setCompositorAberto(true)
@@ -423,6 +442,10 @@ export default function PostCard({
   const abrirModalCompartilhar = () => setShareAberto(true)
 
   const handleRepostar = async () => {
+    if (bloqueioApresentacao) {
+      notificarSomenteLeitura()
+      return
+    }
     if (!meuUsuarioId) return
 
     if (meuRepostPostId) {
@@ -482,6 +505,10 @@ export default function PostCard({
   }
 
   const handleSalvar = async () => {
+    if (bloqueioApresentacao) {
+      notificarSomenteLeitura()
+      return
+    }
     if (!meuUsuarioId) return
     if (salvo) {
       await supabase.from('item_salvo').delete().eq('post_id', post.id).eq('usuario_id', meuUsuarioId)
@@ -510,6 +537,7 @@ export default function PostCard({
     onEditar: handleEditarPost,
     onSalvar: () => void handleSalvar(),
     onRepublicar: () => void handleRepostar(),
+    bloqueado: bloqueioApresentacao,
   }
 
   const repostEhFoto = tipoNorm === 'foto' || tipoNorm === 'misto'
@@ -593,7 +621,7 @@ export default function PostCard({
         <button
           type="button"
           onClick={() => void handleCurtir()}
-          disabled={!meuUsuarioId}
+          disabled={!meuUsuarioId || bloqueioApresentacao}
           className="flex items-center p-1 disabled:opacity-50"
           aria-label="Curtir"
         >
@@ -603,7 +631,12 @@ export default function PostCard({
           {curtTotal}
         </button>
       </div>
-      <button type="button" onClick={handleComentar} className="flex items-center gap-1 text-sm text-gray-800">
+      <button
+        type="button"
+        onClick={handleComentar}
+        disabled={bloqueioApresentacao}
+        className="flex items-center gap-1 text-sm text-gray-800 disabled:opacity-50"
+      >
         <MessageCircle className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
         <span>{nComent}</span>
       </button>
@@ -618,7 +651,7 @@ export default function PostCard({
       <button
         type="button"
         onClick={() => void handleRepostar()}
-        disabled={!meuUsuarioId}
+        disabled={!meuUsuarioId || bloqueioApresentacao}
         className="flex items-center gap-1 text-sm text-gray-800 disabled:opacity-50"
       >
         <Repeat2
@@ -630,7 +663,7 @@ export default function PostCard({
       <button
         type="button"
         onClick={() => void handleSalvar()}
-        disabled={!meuUsuarioId}
+        disabled={!meuUsuarioId || bloqueioApresentacao}
         className="flex items-center gap-1 text-gray-600 disabled:opacity-50"
         aria-label="Salvar"
       >
@@ -688,7 +721,7 @@ export default function PostCard({
           }}
           destacarComentarioId={destacarComentarioId}
           totalComentariosVisual={nComent}
-          somenteLeitura={comentariosSomenteLeitura}
+          somenteLeitura={comentariosSomenteLeitura || bloqueioApresentacao}
           mostrarCompositor={mostrarCompositorInline}
         />
         <ModalCurtidas
@@ -856,7 +889,7 @@ export default function PostCard({
         }}
         destacarComentarioId={destacarComentarioId}
         totalComentariosVisual={nComent}
-        somenteLeitura={comentariosSomenteLeitura}
+        somenteLeitura={comentariosSomenteLeitura || bloqueioApresentacao}
         mostrarCompositor={mostrarCompositorInline}
       />
       <ModalCurtidas

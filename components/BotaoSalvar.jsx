@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react'
 import { Bookmark } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 /**
  * @param {{ postId: string, usuarioId: string | null }} props
  */
 export default function BotaoSalvar({ postId, usuarioId }) {
+  const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const [salvo, setSalvo] = useState(false)
 
   useEffect(() => {
@@ -20,6 +22,10 @@ export default function BotaoSalvar({ postId, usuarioId }) {
   }, [postId, usuarioId])
 
   const toggle = async () => {
+    if (!podeInteragir) {
+      notificarSomenteLeitura()
+      return
+    }
     if (!usuarioId) return
     if (salvo) {
       await supabase.from('item_salvo').delete().eq('post_id', postId).eq('usuario_id', usuarioId)
@@ -31,7 +37,13 @@ export default function BotaoSalvar({ postId, usuarioId }) {
   }
 
   return (
-    <button type="button" onClick={() => void toggle()} className="p-1 text-gray-600" disabled={!usuarioId} aria-label="Salvar">
+    <button
+      type="button"
+      onClick={() => void toggle()}
+      className="p-1 text-gray-600"
+      disabled={!usuarioId || !podeInteragir}
+      aria-label="Salvar"
+    >
       <Bookmark className={`h-5 w-5 ${salvo ? 'fill-[#0097b2] text-[#0097b2]' : 'text-gray-500'}`} aria-hidden />
     </button>
   )

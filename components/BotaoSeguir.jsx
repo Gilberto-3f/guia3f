@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Heart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 /**
  * @param {{
@@ -12,6 +13,7 @@ import { supabase } from '@/lib/supabase'
  * }} props
  */
 export default function BotaoSeguir({ empresaId, isFollowing: initialFollowing = false, onToggle }) {
+  const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const [seguindo, setSeguindo] = useState(initialFollowing)
 
   useEffect(() => {
@@ -21,6 +23,10 @@ export default function BotaoSeguir({ empresaId, isFollowing: initialFollowing =
 
   const handleToggle = async (e) => {
     e.stopPropagation()
+    if (!podeInteragir) {
+      notificarSomenteLeitura()
+      return
+    }
     setLoading(true)
     try {
       const {
@@ -55,7 +61,7 @@ export default function BotaoSeguir({ empresaId, isFollowing: initialFollowing =
     <button
       type="button"
       onClick={handleToggle}
-      disabled={loading}
+      disabled={loading || !podeInteragir}
       className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
         seguindo
           ? 'border-red-200 bg-red-50 text-red-500'
