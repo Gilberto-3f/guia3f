@@ -1,17 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { Link2 } from 'lucide-react'
 
 /** @typedef {{ scale: number, pan_x_pct: number, pan_y_pct: number }} StoryFundo */
 
-/**
- * Limita pan para reduzir “bordas vazias” com zoom.
- * @param {number} scale
- * @param {number} px
- * @param {number} py
- */
+/** @param {number} min @param {number} v @param {number} max */
 function clamp(min, v, max) {
   return Math.max(min, Math.min(max, v))
 }
@@ -61,6 +56,8 @@ function clampFundoPan(scale, px, py, geo) {
  *   onLegendaPos?: (p: { x: number, y: number }) => void
  *   onLinkPos?: (p: { x: number, y: number }) => void
  *   onFundoChange?: (f: StoryFundo) => void
+ *   textoScale?: number
+ *   onTextoScaleChange?: (s: number) => void
  *   onEditarLegenda?: () => void
  *   onEditarLink?: () => void
  *   linkHref?: string | null
@@ -81,6 +78,8 @@ export default function StoryCanvas({
   onLegendaPos,
   onLinkPos,
   onFundoChange,
+  textoScale = 1,
+  onTextoScaleChange,
   onEditarLegenda,
   onEditarLink,
   linkHref = null,
@@ -90,11 +89,19 @@ export default function StoryCanvas({
   const areaRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const fundoRef = useRef(fundo)
   const onFundoChangeRef = useRef(onFundoChange)
+  const onTextoScaleChangeRef = useRef(onTextoScaleChange)
   const geoRef = useRef(/** @type {{ areaW: number, areaH: number, imgW: number, imgH: number }} */ ({ areaW: 0, areaH: 0, imgW: 0, imgH: 0 }))
   const legendaRef = useRef(/** @type {HTMLDivElement | null} */ (null))
-  const linkRef = useRef(/** @type {HTMLDivElement | null} */ (null))
-  /** Baseline do pinch (dois dedos). */
-  const pinchRef = useRef(/** @type {{ d0: number, s0: number, px0: number, py0: number } | null} */ (null))
+  /** Medição do chip do link (âncora/span), não do wrapper posicionado. */
+  const linkChipRef = useRef(/** @type {HTMLAnchorElement | HTMLSpanElement | null} */ (null))
+  /** Pinch: `mode` decide se altera foto ou overlay. */
+  const pinchRef = useRef(
+    /** @type {{ d0: number, mode: 'fundo' | 'overlay', s0: number, px0: number, py0: number } | null} */ (null)
+  )
+  /** Onde pinch/rodinha aplicam: foto ou texto/link. */
+  const [zoomTarget, setZoomTarget] = useState(/** @type {'fundo' | 'overlay'} */ ('fundo'))
+  const zoomTargetRef = useRef(zoomTarget)
+  const textoScaleRef = useRef(textoScale)
   const dragRef = useRef(
     /** @type {null | { kind: 'img', sx: number, sy: number, fs: number, fpx: number, fpy: number } | { kind: 'text' | 'link', ox: number, oy: number }} */ (
       null
@@ -118,25 +125,44 @@ export default function StoryCanvas({
   }, [onFundoChange])
 
   useEffect(() => {
+    onTextoScaleChangeRef.current = onTextoScaleChange
+  }, [onTextoScaleChange])
+
+  useEffect(() => {
+    zoomTargetRef.current = zoomTarget
+  }, [zoomTarget])
+
+  useEffect(() => {
+    textoScaleRef.current = textoScale
+  }, [textoScale])
+
+  useEffect(() => {
     updateAreaGeo()
     const onResize = () => updateAreaGeo()
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [updateAreaGeo])
 
-  /** Pinch zoom (dois dedos) — `wheel` não existe no telemóvel. */
+  /** Pinch zoom (dois dedos) — aplica em foto ou overlay conforme `zoomTarget`. */
   useEffect(() => {
     const el = areaRef.current
-    if (!el || !allowEditImage || !onFundoChange) return
+    if (!el) return
+    const canFundo = Boolean(allowEditImage && onFundoChange)
+    const canOverlay = Boolean(onTextoScaleChange)
+    if (!canFundo && !canOverlay) return
 
     const dist = (/** @type {Touch} */ a, /** @type {Touch} */ b) =>
       Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY)
 
     const onTouchStart = (/** @type {TouchEvent} */ e) => {
       if (e.touches.length === 2) {
+        const mode = zoomTargetRef.current
+        if (mode === 'fundo' && !canFundo) return
+        if (mode === 'overlay' && !canOverlay) return
         const d0 = dist(e.touches[0], e.touches[1])
         const f = fundoRef.current
-        pinchRef.current = { d0, s0: f.scale, px0: f.pan_x_pct, py0: f.pan_y_pct }
+        const s0 = mode === 'fundo' ? f.scale : textoScaleRef.current
+        pinchRef.current = { d0, mode, s0, px0: f.pan_x_pct, py0: f.pan_y_pct }
         dragRef.current = null
       }
     }
@@ -145,12 +171,17 @@ export default function StoryCanvas({
       if (e.touches.length !== 2 || !pinchRef.current) return
       e.preventDefault()
       const d = dist(e.touches[0], e.touches[1])
-      const { d0, s0, px0, py0 } = pinchRef.current
+      const { d0, s0, px0, py0, mode } = pinchRef.current
       if (d0 < 8) return
       const ratio = d / d0
-      const nextScale = Math.min(3, Math.max(1, s0 * ratio))
-      const c = clampFundoPan(nextScale, px0, py0, geoRef.current)
-      onFundoChangeRef.current?.({ scale: nextScale, ...c })
+      if (mode === 'fundo') {
+        const nextScale = Math.min(3, Math.max(1, s0 * ratio))
+        const c = clampFundoPan(nextScale, px0, py0, geoRef.current)
+        onFundoChangeRef.current?.({ scale: nextScale, ...c })
+      } else {
+        const nextScale = clamp(0.5, s0 * ratio, 3)
+        onTextoScaleChangeRef.current?.(nextScale)
+      }
     }
 
     const onTouchEnd = () => {
@@ -167,7 +198,7 @@ export default function StoryCanvas({
       el.removeEventListener('touchend', onTouchEnd)
       el.removeEventListener('touchcancel', onTouchEnd)
     }
-  }, [allowEditImage, onFundoChange])
+  }, [allowEditImage, onFundoChange, onTextoScaleChange])
 
   const pctFromClient = useCallback((clientX, clientY) => {
     const el = areaRef.current
@@ -181,6 +212,13 @@ export default function StoryCanvas({
   const onWheel = useCallback(
     /** @param {React.WheelEvent} e */
     (e) => {
+      if (zoomTarget === 'overlay' && onTextoScaleChange) {
+        e.preventDefault()
+        const dir = e.deltaY > 0 ? -1 : 1
+        const nextScale = clamp(0.5, textoScale + dir * 0.08, 3)
+        onTextoScaleChange(nextScale)
+        return
+      }
       if (!allowEditImage || !onFundoChange) return
       e.preventDefault()
       const dir = e.deltaY > 0 ? -1 : 1
@@ -188,11 +226,11 @@ export default function StoryCanvas({
       const c = clampFundoPan(nextScale, fundo.pan_x_pct, fundo.pan_y_pct, geoRef.current)
       onFundoChange({ scale: nextScale, ...c })
     },
-    [allowEditImage, onFundoChange, fundo.scale, fundo.pan_x_pct, fundo.pan_y_pct]
+    [zoomTarget, onTextoScaleChange, textoScale, allowEditImage, onFundoChange, fundo.scale, fundo.pan_x_pct, fundo.pan_y_pct]
   )
 
   const clampOverlayPct = useCallback((kind, xPct, yPct) => {
-    const el = kind === 'text' ? legendaRef.current : linkRef.current
+    const el = kind === 'text' ? legendaRef.current : linkChipRef.current
     const { areaW, areaH } = geoRef.current
     if (!el || !areaW || !areaH) {
       return {
@@ -268,6 +306,7 @@ export default function StoryCanvas({
       if (!allowEditText || !onLegendaPos) return
       e.preventDefault()
       e.stopPropagation()
+      setZoomTarget('overlay')
       tapRef.current = { kind: 'text', x0: e.clientX, y0: e.clientY, moved: false }
       updateAreaGeo()
       const { x, y } = pctFromClient(e.clientX, e.clientY)
@@ -283,6 +322,7 @@ export default function StoryCanvas({
       if (!allowEditLink || !onLinkPos) return
       e.preventDefault()
       e.stopPropagation()
+      setZoomTarget('overlay')
       tapRef.current = { kind: 'link', x0: e.clientX, y0: e.clientY, moved: false }
       updateAreaGeo()
       const { x, y } = pctFromClient(e.clientX, e.clientY)
@@ -297,6 +337,7 @@ export default function StoryCanvas({
     (e) => {
       if (!allowEditImage || !onFundoChange) return
       e.preventDefault()
+      setZoomTarget('fundo')
       updateAreaGeo()
       dragRef.current = {
         kind: 'img',
@@ -375,7 +416,7 @@ export default function StoryCanvas({
           style={{
             left: `${posicaoLegenda.x}%`,
             top: `${posicaoLegenda.y}%`,
-            transform: `translate(-50%, -50%) scale(${fundo.scale})`,
+            transform: `translate(-50%, -50%) scale(${textoScale})`,
             textShadow: textoSombreado.textShadow,
           }}
           onPointerDown={startText}
@@ -390,7 +431,7 @@ export default function StoryCanvas({
           style={{
             left: `${posicaoLegenda.x}%`,
             top: `${posicaoLegenda.y}%`,
-            transform: `translate(-50%, -50%) scale(${fundo.scale})`,
+            transform: `translate(-50%, -50%) scale(${textoScale})`,
           }}
           onPointerDown={startText}
         >
@@ -400,21 +441,21 @@ export default function StoryCanvas({
 
       {linkUrl ? (
         <div
-          ref={linkRef}
-          className={`absolute z-10 max-w-[90%] ${allowEditLink ? 'cursor-move touch-none' : ''}`}
+          className={`absolute z-10 max-w-[min(90%,calc(100%-1.5rem))] ${allowEditLink ? 'cursor-move touch-none' : ''}`}
           style={{
             left: `${posicaoLink.x}%`,
             top: `${posicaoLink.y}%`,
-            transform: `translate(-50%, -50%) scale(${fundo.scale})`,
+            transform: `translate(-50%, -50%) scale(${textoScale})`,
           }}
           onPointerDown={startLink}
         >
           {linkHref ? (
             <a
+              ref={linkChipRef}
               href={linkHref}
               target="_blank"
               rel="external noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-sm"
+              className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-sm"
               onClick={(ev) => {
                 if (allowEditLink) ev.preventDefault()
                 else {
@@ -428,7 +469,10 @@ export default function StoryCanvas({
               Saiba mais
             </a>
           ) : (
-            <span className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-sm">
+            <span
+              ref={linkChipRef}
+              className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-sm"
+            >
               <Link2 size={18} strokeWidth={2} aria-hidden className="text-gray-700" />
               Saiba mais
             </span>

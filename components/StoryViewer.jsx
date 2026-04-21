@@ -55,6 +55,7 @@ function parseCurtidasStory(raw) {
  *       fundo_scale?: number
  *       fundo_pan_x_pct?: number
  *       fundo_pan_y_pct?: number
+ *       texto_scale?: number
  *     } | null
  *     link: string | null
  *     duracao_segundos?: number | null
@@ -237,7 +238,7 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
   if (!story) return null
 
   const tx = story.texto_sobreposto && typeof story.texto_sobreposto === 'object' && !Array.isArray(story.texto_sobreposto)
-    ? /** @type {{ texto?: string | null, posicao_x?: number, posicao_y?: number, link_posicao_x?: number, link_posicao_y?: number, fundo_scale?: number, fundo_pan_x_pct?: number, fundo_pan_y_pct?: number }} */ (
+    ? /** @type {{ texto?: string | null, posicao_x?: number, posicao_y?: number, link_posicao_x?: number, link_posicao_y?: number, fundo_scale?: number, fundo_pan_x_pct?: number, fundo_pan_y_pct?: number, texto_scale?: number }} */ (
         story.texto_sobreposto
       )
     : null
@@ -252,6 +253,7 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
   }
   const legendaStr = tx?.texto != null ? String(tx.texto).trim() : ''
   const linkStr = story.link != null ? String(story.link).trim() : ''
+  const textoScale = typeof tx?.texto_scale === 'number' && Number.isFinite(tx.texto_scale) ? tx.texto_scale : 1
 
   const togglePlay = () => {
     const v = videoRef.current
@@ -326,6 +328,7 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
               linkUrl={linkStr}
               posicaoLink={{ x: linkX, y: linkY }}
               fundo={fundo}
+              textoScale={textoScale}
               linkHref={linkStr || null}
             />
           </div>

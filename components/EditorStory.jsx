@@ -16,6 +16,8 @@ import StoryCanvas from '@/components/StoryCanvas'
  *   onPosicaoLinkChange: (p: { x: number, y: number }) => void
  *   fundo: { scale: number, pan_x_pct: number, pan_y_pct: number }
  *   onFundoChange: (f: { scale: number, pan_x_pct: number, pan_y_pct: number }) => void
+ *   textoScale: number
+ *   onTextoScaleChange: (s: number) => void
  *   linkUrl: string
  *   onLinkChange: (s: string) => void
  *   onTrocarFoto: () => void
@@ -34,6 +36,8 @@ export default function EditorStory({
   onPosicaoLinkChange,
   fundo,
   onFundoChange,
+  textoScale,
+  onTextoScaleChange,
   linkUrl,
   onLinkChange,
   onTrocarFoto,
@@ -57,6 +61,8 @@ export default function EditorStory({
           linkUrl={linkUrl.trim()}
           posicaoLink={posicaoLink}
           fundo={fundo}
+          textoScale={textoScale}
+          onTextoScaleChange={onTextoScaleChange}
           allowEditImage
           allowEditText
           allowEditLink={Boolean(linkUrl.trim())}

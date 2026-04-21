@@ -51,6 +51,7 @@ type StoryViewerState = {
     fundo_scale?: number
     fundo_pan_x_pct?: number
     fundo_pan_y_pct?: number
+    texto_scale?: number
   } | null
   link: string | null
   duracao_segundos: number | null

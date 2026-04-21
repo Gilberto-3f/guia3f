@@ -21,6 +21,7 @@ export default function CriarStory({ autorTipo }) {
   const [posicao, setPosicao] = useState({ x: 50, y: 70 })
   const [posicaoLink, setPosicaoLink] = useState({ x: 50, y: 82 })
   const [fundo, setFundo] = useState({ scale: 1, pan_x_pct: 0, pan_y_pct: 0 })
+  const [textoScale, setTextoScale] = useState(1)
   const [linkUrl, setLinkUrl] = useState('')
   const [publicando, setPublicando] = useState(false)
 
@@ -45,6 +46,7 @@ export default function CriarStory({ autorTipo }) {
     setFile(f)
     setPreviewBlob(URL.createObjectURL(f))
     setFundo({ scale: 1, pan_x_pct: 0, pan_y_pct: 0 })
+    setTextoScale(1)
     setPosicao({ x: 50, y: 70 })
     setPosicaoLink({ x: 50, y: 82 })
     setPasso(2)
@@ -64,6 +66,7 @@ export default function CriarStory({ autorTipo }) {
     setPosicao({ x: 50, y: 70 })
     setPosicaoLink({ x: 50, y: 82 })
     setFundo({ scale: 1, pan_x_pct: 0, pan_y_pct: 0 })
+    setTextoScale(1)
     setLinkUrl('')
     setPasso(1)
   }
@@ -103,6 +106,7 @@ export default function CriarStory({ autorTipo }) {
           fundo_scale: fundo.scale,
           fundo_pan_x_pct: fundo.pan_x_pct,
           fundo_pan_y_pct: fundo.pan_y_pct,
+          texto_scale: textoScale,
         },
         link: linkUrl.trim() || null,
         expira_em: expira,
@@ -251,6 +255,8 @@ export default function CriarStory({ autorTipo }) {
             onPosicaoLinkChange={setPosicaoLink}
             fundo={fundo}
             onFundoChange={setFundo}
+            textoScale={textoScale}
+            onTextoScaleChange={setTextoScale}
             linkUrl={linkUrl}
             onLinkChange={setLinkUrl}
             onTrocarFoto={() => inputTrocarFotoRef.current?.click()}
