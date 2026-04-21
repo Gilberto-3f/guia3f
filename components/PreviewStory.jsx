@@ -1,6 +1,6 @@
 'use client'
 
-import Image from 'next/image'
+import StoryCanvas from '@/components/StoryCanvas'
 
 /**
  * @param {{
@@ -8,34 +8,42 @@ import Image from 'next/image'
  *   mediaKind: 'image' | 'video'
  *   legenda: string
  *   posicao: { x: number, y: number }
+ *   posicaoLink: { x: number, y: number }
+ *   fundo: { scale: number, pan_x_pct: number, pan_y_pct: number }
  *   linkUrl: string
  *   onVoltar: () => void
  *   onPublicar: () => void
  *   publicando?: boolean
  * }} props
  */
-export default function PreviewStory({ mediaSrc, mediaKind, legenda, posicao, linkUrl, onVoltar, onPublicar, publicando = false }) {
+export default function PreviewStory({
+  mediaSrc,
+  mediaKind,
+  legenda,
+  posicao,
+  posicaoLink,
+  fundo,
+  linkUrl,
+  onVoltar,
+  onPublicar,
+  publicando = false,
+}) {
+  if (mediaKind !== 'image') {
+    return <p className="text-center text-sm text-gray-500">Apenas imagem neste fluxo.</p>
+  }
+
   return (
     <div className="space-y-4">
-      <div className="relative mx-auto aspect-[9/16] max-h-[70vh] w-full max-w-sm overflow-hidden rounded-xl bg-black">
-        {mediaKind === 'video' ? (
-          <video src={mediaSrc} className="absolute inset-0 h-full w-full object-cover" muted playsInline controls loop preload="auto" />
-        ) : (
-          <Image src={mediaSrc} alt="" fill className="object-cover" unoptimized />
-        )}
-        {legenda ? (
-          <div
-            className="absolute max-w-[90%] rounded bg-black/45 px-2 py-1 text-sm font-medium text-white"
-            style={{ left: `${posicao.x}%`, top: `${posicao.y}%`, transform: 'translate(-50%, -50%)' }}
-          >
-            {legenda}
-          </div>
-        ) : null}
-        {linkUrl ? (
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center">
-            <span className="rounded-full bg-white/90 px-3 py-1 text-xs text-[#0097b2]">🔗 Link anexado</span>
-          </div>
-        ) : null}
+      <div className="flex justify-center">
+        <StoryCanvas
+          mediaSrc={mediaSrc}
+          legenda={legenda.trim()}
+          posicaoLegenda={posicao}
+          linkUrl={linkUrl.trim()}
+          posicaoLink={posicaoLink}
+          fundo={fundo}
+          linkHref={linkUrl.trim() || null}
+        />
       </div>
 
       <div className="flex gap-2">
@@ -48,7 +56,7 @@ export default function PreviewStory({ mediaSrc, mediaKind, legenda, posicao, li
           onClick={onPublicar}
           className="flex-1 rounded-lg bg-[#0097b2] py-2 text-sm font-medium text-white disabled:opacity-50"
         >
-          {publicando ? 'Publicando...' : 'Publicar'}
+          {publicando ? 'Publicando...' : 'Confirmar publicação'}
         </button>
       </div>
     </div>

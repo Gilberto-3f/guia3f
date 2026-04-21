@@ -20,6 +20,8 @@ export default function CriarStory({ autorTipo }) {
   const [previewBlob, setPreviewBlob] = useState(/** @type {string | null} */ (null))
   const [legenda, setLegenda] = useState('')
   const [posicao, setPosicao] = useState({ x: 50, y: 70 })
+  const [posicaoLink, setPosicaoLink] = useState({ x: 50, y: 82 })
+  const [fundo, setFundo] = useState({ scale: 1, pan_x_pct: 0, pan_y_pct: 0 })
   const [linkUrl, setLinkUrl] = useState('')
   const [publicando, setPublicando] = useState(false)
 
@@ -49,7 +51,7 @@ export default function CriarStory({ autorTipo }) {
     aplicarArquivo(f)
   }
 
-  const irPrevia = () => {
+  const irRevisao = () => {
     if (!previewBlob) return
     setPasso(3)
   }
@@ -60,6 +62,8 @@ export default function CriarStory({ autorTipo }) {
     setFile(null)
     setLegenda('')
     setPosicao({ x: 50, y: 70 })
+    setPosicaoLink({ x: 50, y: 82 })
+    setFundo({ scale: 1, pan_x_pct: 0, pan_y_pct: 0 })
     setLinkUrl('')
     setPasso(1)
   }
@@ -90,7 +94,16 @@ export default function CriarStory({ autorTipo }) {
         autor_tipo: autorTipo,
         tipo: 'foto',
         conteudo_url: url,
-        texto_sobreposto: { texto: legenda.trim() || null, posicao_x: posicao.x, posicao_y: posicao.y },
+        texto_sobreposto: {
+          texto: legenda.trim() || null,
+          posicao_x: posicao.x,
+          posicao_y: posicao.y,
+          link_posicao_x: posicaoLink.x,
+          link_posicao_y: posicaoLink.y,
+          fundo_scale: fundo.scale,
+          fundo_pan_x_pct: fundo.pan_x_pct,
+          fundo_pan_y_pct: fundo.pan_y_pct,
+        },
         link: linkUrl.trim() || null,
         expira_em: expira,
         duracao_segundos: 60,
@@ -231,19 +244,25 @@ export default function CriarStory({ autorTipo }) {
         </div>
       ) : null}
 
-      <div className={passo === 1 ? 'hidden' : 'p-4'}>
+      <div className={passo === 1 ? 'hidden' : passo === 2 ? '' : 'p-4'}>
         {passo === 2 && previewBlob ? (
-          <EditorStory
-            mediaSrc={previewBlob}
-            mediaKind="image"
-            legenda={legenda}
-            onLegendaChange={setLegenda}
-            posicao={posicao}
-            onPosicaoChange={setPosicao}
-            linkUrl={linkUrl}
-            onLinkChange={setLinkUrl}
-            onPreview={irPrevia}
-          />
+          <div className="flex h-[calc(100dvh-3.25rem)] min-h-[320px] flex-col sm:h-[calc(100dvh-3.5rem)]">
+            <EditorStory
+              mediaSrc={previewBlob}
+              mediaKind="image"
+              legenda={legenda}
+              onLegendaChange={setLegenda}
+              posicao={posicao}
+              onPosicaoChange={setPosicao}
+              posicaoLink={posicaoLink}
+              onPosicaoLinkChange={setPosicaoLink}
+              fundo={fundo}
+              onFundoChange={setFundo}
+              linkUrl={linkUrl}
+              onLinkChange={setLinkUrl}
+              onRevisar={irRevisao}
+            />
+          </div>
         ) : null}
 
         {passo === 3 && previewBlob ? (
@@ -252,6 +271,8 @@ export default function CriarStory({ autorTipo }) {
             mediaKind="image"
             legenda={legenda}
             posicao={posicao}
+            posicaoLink={posicaoLink}
+            fundo={fundo}
             linkUrl={linkUrl}
             onVoltar={() => setPasso(2)}
             onPublicar={() => void publicar()}

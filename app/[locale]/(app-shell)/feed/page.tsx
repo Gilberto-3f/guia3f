@@ -42,7 +42,16 @@ type StoryViewerState = {
   id: string
   tipo: string
   conteudo_url: string
-  texto_sobreposto: { texto?: string | null; posicao_x?: number; posicao_y?: number } | null
+  texto_sobreposto: {
+    texto?: string | null
+    posicao_x?: number
+    posicao_y?: number
+    link_posicao_x?: number
+    link_posicao_y?: number
+    fundo_scale?: number
+    fundo_pan_x_pct?: number
+    fundo_pan_y_pct?: number
+  } | null
   link: string | null
   duracao_segundos: number | null
   autorUsuarioId: string | null
@@ -397,7 +406,7 @@ function FeedPageInner() {
     const ts = data.texto_sobreposto
     const textoParsed =
       ts && typeof ts === 'object' && !Array.isArray(ts)
-        ? (ts as { texto?: string | null; posicao_x?: number; posicao_y?: number })
+        ? (ts as StoryViewerState['texto_sobreposto'])
         : null
     setStoryAberto({
       id: String(data.id),
