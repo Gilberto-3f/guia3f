@@ -108,6 +108,14 @@ export default function StoryCanvas({
     )
   )
   const tapRef = useRef(/** @type {null | { kind: 'text' | 'link', x0: number, y0: number, moved: boolean }} */ (null))
+  /** Viu ≥2 dedos neste gesto — evita abrir legenda após soltar o pinch. */
+  const sawMultiTouchRef = useRef(false)
+  /** Consome um `pointerUp` no overlay (texto/link) após pinch. */
+  const skipNextOverlayEditRef = useRef(false)
+  const lastTextTapForEditRef = useRef(/** @type {null | { t: number, x: number, y: number }} */ (null))
+  const lastLinkTapForEditRef = useRef(/** @type {null | { t: number, x: number, y: number }} */ (null))
+  const DOUBLE_TAP_MS = 420
+  const DOUBLE_TAP_DIST_PX = 32
 
   const updateAreaGeo = useCallback(() => {
     const el = areaRef.current
@@ -155,6 +163,7 @@ export default function StoryCanvas({
       Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY)
 
     const onTouchStart = (/** @type {TouchEvent} */ e) => {
+      if (e.touches.length >= 2) sawMultiTouchRef.current = true
       if (e.touches.length === 2) {
         const mode = zoomTargetRef.current
         if (mode === 'fundo' && !canFundo) return
@@ -184,8 +193,12 @@ export default function StoryCanvas({
       }
     }
 
-    const onTouchEnd = () => {
+    const onTouchEnd = (/** @type {TouchEvent} */ e) => {
       pinchRef.current = null
+      if (e.touches.length === 0 && sawMultiTouchRef.current) {
+        skipNextOverlayEditRef.current = true
+        sawMultiTouchRef.current = false
+      }
     }
 
     el.addEventListener('touchstart', onTouchStart, { passive: true })
@@ -296,8 +309,52 @@ export default function StoryCanvas({
     const t = tapRef.current
     tapRef.current = null
     dragRef.current = null
-    if (t?.kind === 'text' && !t.moved && typeof onEditarLegenda === 'function') onEditarLegenda()
-    if (t?.kind === 'link' && !t.moved && typeof onEditarLink === 'function') onEditarLink()
+    if (skipNextOverlayEditRef.current) {
+      skipNextOverlayEditRef.current = false
+      lastTextTapForEditRef.current = null
+      lastLinkTapForEditRef.current = null
+      return
+    }
+    const now = performance.now()
+    if (t?.kind === 'text') {
+      if (t.moved) {
+        lastTextTapForEditRef.current = null
+        return
+      }
+      if (typeof onEditarLegenda === 'function') {
+        const prev = lastTextTapForEditRef.current
+        if (
+          prev &&
+          now - prev.t < DOUBLE_TAP_MS &&
+          Math.hypot(t.x0 - prev.x, t.y0 - prev.y) < DOUBLE_TAP_DIST_PX
+        ) {
+          onEditarLegenda()
+          lastTextTapForEditRef.current = null
+        } else {
+          lastTextTapForEditRef.current = { t: now, x: t.x0, y: t.y0 }
+        }
+      }
+      return
+    }
+    if (t?.kind === 'link') {
+      if (t.moved) {
+        lastLinkTapForEditRef.current = null
+        return
+      }
+      if (typeof onEditarLink === 'function') {
+        const prev = lastLinkTapForEditRef.current
+        if (
+          prev &&
+          now - prev.t < DOUBLE_TAP_MS &&
+          Math.hypot(t.x0 - prev.x, t.y0 - prev.y) < DOUBLE_TAP_DIST_PX
+        ) {
+          onEditarLink()
+          lastLinkTapForEditRef.current = null
+        } else {
+          lastLinkTapForEditRef.current = { t: now, x: t.x0, y: t.y0 }
+        }
+      }
+    }
   }, [onEditarLegenda, onEditarLink])
 
   const startText = useCallback(
@@ -420,6 +477,11 @@ export default function StoryCanvas({
             textShadow: textoSombreado.textShadow,
           }}
           onPointerDown={startText}
+          onDoubleClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (allowEditText && onEditarLegenda) onEditarLegenda()
+          }}
         >
           {legenda}
         </div>
@@ -434,6 +496,11 @@ export default function StoryCanvas({
             transform: `translate(-50%, -50%) scale(${textoScale})`,
           }}
           onPointerDown={startText}
+          onDoubleClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (allowEditText && onEditarLegenda) onEditarLegenda()
+          }}
         >
           Adicione uma legenda…
         </div>
@@ -448,6 +515,11 @@ export default function StoryCanvas({
             transform: `translate(-50%, -50%) scale(${textoScale})`,
           }}
           onPointerDown={startLink}
+          onDoubleClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (allowEditLink && onEditarLink) onEditarLink()
+          }}
         >
           {linkHref ? (
             <a

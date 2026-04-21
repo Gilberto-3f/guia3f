@@ -71,14 +71,40 @@ function parseCurtidasStory(raw) {
  *   meuUsuarioId: string | null
  *   onFechar: () => void
  *   onVisualizado?: () => void
+ *   storyQueueLength?: number
+ *   storyQueueIndex?: number
+ *   onIrAnterior?: () => void
+ *   onIrProximo?: () => void
+ *   /** Se definido, o temporizador chama isto em vez de fechar o modal ao terminar (ex.: próximo story). */
+ *   onTimerFim?: () => void
+ *   /** Incrementar para reiniciar o temporizador no mesmo `story.id` (ex.: único story em loop). */
+ *   timerPlaybackKey?: number
  * }} props
  */
-export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onFechar, onVisualizado }) {
+export default function StoryViewer({
+  story,
+  userEmail,
+  meuUsuarioId = null,
+  onFechar,
+  onVisualizado,
+  storyQueueLength = 1,
+  storyQueueIndex = 0,
+  onIrAnterior,
+  onIrProximo,
+  onTimerFim,
+  timerPlaybackKey = 0,
+}) {
   const videoRef = useRef(/** @type {HTMLVideoElement | null} */ (null))
   const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const swipeRef = useRef(/** @type {{ y0: number, t0: number } | null} */ (null))
   const timerStartRef = useRef(/** @type {number | null} */ (null))
   const rafRef = useRef(/** @type {number | null} */ (null))
+  /** Dedo a segurar: temporizador congelado até `pointerup`. */
+  const holdPausedRef = useRef(false)
+  const frozenElapsedRef = useRef(0)
+  const onTimerFimRef = useRef(onTimerFim)
+  const onFecharRef = useRef(onFechar)
+  const playingRef = useRef(true)
 
   const [muted, setMuted] = useState(true)
   const [videoProgress, setVideoProgress] = useState(0)
@@ -96,6 +122,11 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
 
   const uid = meuUsuarioId != null && meuUsuarioId !== '' ? String(meuUsuarioId) : null
   const curtiu = uid ? curtidasLista.some((c) => c.usuario_id === uid) : false
+
+  useEffect(() => {
+    onTimerFimRef.current = onTimerFim
+    onFecharRef.current = onFechar
+  }, [onTimerFim, onFechar])
 
   useEffect(() => {
     if (!story?.id || !userEmail) return
@@ -142,6 +173,10 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
       cancel = true
     }
   }, [modalInsights, story?.id, curtidasLista])
+
+  useEffect(() => {
+    playingRef.current = playing
+  }, [playing])
 
   useEffect(() => {
     const v = videoRef.current
@@ -206,11 +241,10 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
       rafRef.current = null
     }
     timerStartRef.current = null
+    holdPausedRef.current = false
   }, [])
 
-  useEffect(() => {
-    if (!story?.id) return
-    timerStartRef.current = performance.now()
+  const scheduleTimerTick = useCallback(() => {
     const tick = () => {
       const t0 = timerStartRef.current
       if (t0 == null) return
@@ -219,16 +253,53 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
       setBarraProgresso(p)
       if (elapsed >= duracaoStoryMs) {
         fecharTimer()
-        onFechar()
+        const f = onTimerFimRef.current
+        if (typeof f === 'function') f()
+        else onFecharRef.current()
         return
       }
       rafRef.current = requestAnimationFrame(tick)
     }
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
     rafRef.current = requestAnimationFrame(tick)
+  }, [duracaoStoryMs, fecharTimer])
+
+  useEffect(() => {
+    if (!story?.id) return
+    holdPausedRef.current = false
+    timerStartRef.current = performance.now()
+    setBarraProgresso(0)
+    scheduleTimerTick()
     return () => {
       fecharTimer()
     }
-  }, [story?.id, duracaoStoryMs, onFechar, fecharTimer])
+  }, [story?.id, duracaoStoryMs, timerPlaybackKey, scheduleTimerTick, fecharTimer])
+
+  const pausarPorSegurar = useCallback(() => {
+    if (holdPausedRef.current) return
+    const t0 = timerStartRef.current
+    if (t0 == null) return
+    holdPausedRef.current = true
+    frozenElapsedRef.current = performance.now() - t0
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+    const v = videoRef.current
+    if (v && isVideo && !v.paused) v.pause()
+  }, [isVideo])
+
+  const retomarAposSoltar = useCallback(() => {
+    if (!holdPausedRef.current) return
+    holdPausedRef.current = false
+    timerStartRef.current = performance.now() - frozenElapsedRef.current
+    scheduleTimerTick()
+    const v = videoRef.current
+    if (v && isVideo && playingRef.current) void v.play().catch(() => setPlaying(false))
+  }, [isVideo, scheduleTimerTick])
 
   useEffect(() => {
     const el = rootRef.current
@@ -356,9 +427,25 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
         className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[max(0.35rem,env(safe-area-inset-top))]"
         aria-hidden
       >
-        <div className="h-0.5 w-full bg-white/25">
-          <div className="h-full bg-white" style={{ width: `${barraProgresso}%` }} />
-        </div>
+        {storyQueueLength <= 1 ? (
+          <div className="h-0.5 w-full bg-white/25">
+            <div className="h-full bg-white" style={{ width: `${barraProgresso}%` }} />
+          </div>
+        ) : (
+          <div className="flex gap-1 px-1.5">
+            {Array.from({ length: storyQueueLength }).map((_, i) => (
+              <div key={i} className="h-0.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/25">
+                <div
+                  className="h-full rounded-full bg-white transition-[width] duration-100 ease-linear"
+                  style={{
+                    width:
+                      i < storyQueueIndex ? '100%' : i === storyQueueIndex ? `${barraProgresso}%` : '0%',
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {!isVideo ? (
@@ -376,6 +463,47 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
               linkHref={linkStr || null}
             />
           </div>
+          {typeof onIrAnterior === 'function' ? (
+            <button
+              type="button"
+              className="absolute bottom-32 left-0 top-20 z-[14] w-[min(28%,140px)] max-w-[140px] cursor-pointer bg-transparent"
+              aria-label="Story anterior"
+              onClick={() => onIrAnterior()}
+            />
+          ) : null}
+          {typeof onIrProximo === 'function' ? (
+            <button
+              type="button"
+              className="absolute bottom-32 right-0 top-20 z-[14] w-[min(28%,140px)] max-w-[140px] cursor-pointer bg-transparent"
+              aria-label="Story seguinte"
+              onClick={() => onIrProximo()}
+            />
+          ) : null}
+          <div
+            className="absolute inset-x-[min(28%,140px)] top-20 z-[13] touch-none bg-transparent"
+            onPointerDown={(e) => {
+              if (e.pointerType === 'mouse' && e.button !== 0) return
+              e.currentTarget.setPointerCapture(e.pointerId)
+              pausarPorSegurar()
+            }}
+            onPointerUp={(e) => {
+              retomarAposSoltar()
+              try {
+                e.currentTarget.releasePointerCapture(e.pointerId)
+              } catch {
+                /* já libertado */
+              }
+            }}
+            onPointerCancel={(e) => {
+              retomarAposSoltar()
+              try {
+                e.currentTarget.releasePointerCapture(e.pointerId)
+              } catch {
+                /* já libertado */
+              }
+            }}
+            aria-hidden
+          />
           <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/55 to-transparent pt-[max(0.75rem,env(safe-area-inset-top))] pb-10">
             <div className="pointer-events-auto flex items-start justify-between gap-2 px-3">
               <div className="min-w-0">{headerLeft}</div>
@@ -392,6 +520,47 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
             </div>
           </div>
           <div className="relative min-h-0 flex-1">
+            {typeof onIrAnterior === 'function' ? (
+              <button
+                type="button"
+                className="absolute bottom-32 left-0 top-24 z-[14] w-[min(28%,140px)] max-w-[140px] cursor-pointer bg-transparent"
+                aria-label="Story anterior"
+                onClick={() => onIrAnterior()}
+              />
+            ) : null}
+            {typeof onIrProximo === 'function' ? (
+              <button
+                type="button"
+                className="absolute bottom-32 right-0 top-24 z-[14] w-[min(28%,140px)] max-w-[140px] cursor-pointer bg-transparent"
+                aria-label="Story seguinte"
+                onClick={() => onIrProximo()}
+              />
+            ) : null}
+            <div
+              className="absolute inset-x-[min(28%,140px)] top-24 z-[13] touch-none bg-transparent"
+              onPointerDown={(e) => {
+                if (e.pointerType === 'mouse' && e.button !== 0) return
+                e.currentTarget.setPointerCapture(e.pointerId)
+                pausarPorSegurar()
+              }}
+              onPointerUp={(e) => {
+                retomarAposSoltar()
+                try {
+                  e.currentTarget.releasePointerCapture(e.pointerId)
+                } catch {
+                  /* já libertado */
+                }
+              }}
+              onPointerCancel={(e) => {
+                retomarAposSoltar()
+                try {
+                  e.currentTarget.releasePointerCapture(e.pointerId)
+                } catch {
+                  /* já libertado */
+                }
+              }}
+              aria-hidden
+            />
             <video
               ref={videoRef}
               src={story.conteudo_url}

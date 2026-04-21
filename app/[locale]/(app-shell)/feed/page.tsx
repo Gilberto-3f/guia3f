@@ -60,6 +60,45 @@ type StoryViewerState = {
   visualizado_por?: unknown
 }
 
+type StoryModalPack = {
+  ids: string[]
+  index: number
+  data: StoryViewerState
+  playbackKey: number
+}
+
+type StoryRowSelect = {
+  id: unknown
+  conteudo_url?: unknown
+  texto_sobreposto?: unknown
+  link?: unknown
+  tipo?: unknown
+  duracao_segundos?: unknown
+  autor_id?: unknown
+  curtidas?: unknown
+  visualizado_por?: unknown
+}
+
+function mapStoryRowToViewerState(data: StoryRowSelect | null): StoryViewerState | null {
+  if (!data) return null
+  const url = String(data.conteudo_url ?? '').trim()
+  if (!url) return null
+  const ts = data.texto_sobreposto
+  const textoParsed =
+    ts && typeof ts === 'object' && !Array.isArray(ts) ? (ts as StoryViewerState['texto_sobreposto']) : null
+  return {
+    id: String(data.id),
+    tipo: data.tipo != null ? String(data.tipo) : 'foto',
+    conteudo_url: url,
+    texto_sobreposto: textoParsed,
+    link: data.link != null ? String(data.link) : null,
+    duracao_segundos: data.duracao_segundos != null ? Number(data.duracao_segundos) : null,
+    autorUsuarioId: data.autor_id != null ? String(data.autor_id) : null,
+    curtidas: data.curtidas ?? null,
+    visualizado_por: data.visualizado_por ?? null,
+  }
+}
+
 function FeedPageInner() {
   const searchParams = useSearchParams()
   const postParam = searchParams.get('post')
@@ -96,7 +135,8 @@ function FeedPageInner() {
       meuId,
     }
   }, [feedRede, meuId])
-  const [storyAberto, setStoryAberto] = useState<StoryViewerState | null>(null)
+  const [storyModal, setStoryModal] = useState<StoryModalPack | null>(null)
+  const storyModalRef = useRef<StoryModalPack | null>(null)
   const [storiesBarReload, setStoriesBarReload] = useState(0)
   const [storiesPorAutor, setStoriesPorAutor] = useState<
     Record<string, { id: string; visualizado_por: unknown; conteudo_url?: string | null }>
@@ -390,39 +430,82 @@ function FeedPageInner() {
     void carregarStoriesAutores(posts)
   }, [posts, storiesBarReload, carregarStoriesAutores])
 
-  const abrirStory = async (id: string) => {
+  useEffect(() => {
+    storyModalRef.current = storyModal
+  }, [storyModal])
+
+  const carregarStoryPorId = useCallback(async (storyId: string): Promise<StoryViewerState | null> => {
     const { data, error } = await supabase
       .from('stories')
       .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos, autor_id, curtidas, visualizado_por')
-      .eq('id', id)
+      .eq('id', storyId)
       .maybeSingle()
     if (error) {
-      console.error('abrirStory:', error)
-      return
+      console.error('carregarStoryPorId:', error)
+      return null
     }
-    if (!data) return
-    const url = String(data.conteudo_url ?? '').trim()
-    if (!url) {
-      console.warn('abrirStory: story sem conteudo_url', id)
-      return
-    }
-    const ts = data.texto_sobreposto
-    const textoParsed =
-      ts && typeof ts === 'object' && !Array.isArray(ts)
-        ? (ts as StoryViewerState['texto_sobreposto'])
-        : null
-    setStoryAberto({
-      id: String(data.id),
-      tipo: data.tipo != null ? String(data.tipo) : 'foto',
-      conteudo_url: url,
-      texto_sobreposto: textoParsed,
-      link: data.link != null ? String(data.link) : null,
-      duracao_segundos: data.duracao_segundos != null ? Number(data.duracao_segundos) : null,
-      autorUsuarioId: data.autor_id != null ? String(data.autor_id) : null,
-      curtidas: (data as { curtidas?: unknown }).curtidas ?? null,
-      visualizado_por: (data as { visualizado_por?: unknown }).visualizado_por ?? null,
-    })
-  }
+    const mapped = mapStoryRowToViewerState(data as StoryRowSelect)
+    if (!mapped) console.warn('carregarStoryPorId: story inválido', storyId)
+    return mapped
+  }, [])
+
+  const abrirStory = useCallback(
+    async (id: string) => {
+      const first = await carregarStoryPorId(id)
+      if (!first) return
+      const autorId = first.autorUsuarioId
+      let ids = [id]
+      let index = 0
+      if (autorId) {
+        const { data: rows, error } = await supabase
+          .from('stories')
+          .select('id, tipo, created_at')
+          .eq('autor_id', autorId)
+          .gt('expira_em', new Date().toISOString())
+          .order('created_at', { ascending: true })
+        if (!error && rows?.length) {
+          const filtered = rows
+            .filter((r) => !isTipoVideoPost((r as { tipo?: string }).tipo))
+            .map((r) => String((r as { id: unknown }).id))
+          if (filtered.length > 0) {
+            ids = filtered
+            const i = ids.indexOf(id)
+            index = i >= 0 ? i : 0
+          }
+        }
+      }
+      setStoryModal({ ids, index, data: first, playbackKey: 0 })
+    },
+    [carregarStoryPorId]
+  )
+
+  const navegarStory = useCallback(
+    async (delta: number) => {
+      const cur = storyModalRef.current
+      if (!cur) return
+      const n = cur.ids.length
+      const nextIndex = (cur.index + delta + n) % n
+      if (n === 1) {
+        setStoryModal((p) => (p ? { ...p, playbackKey: p.playbackKey + 1 } : null))
+        return
+      }
+      const nextId = cur.ids[nextIndex]
+      if (nextId === cur.data.id) {
+        setStoryModal((p) => (p ? { ...p, index: nextIndex, playbackKey: p.playbackKey + 1 } : null))
+        return
+      }
+      const mapped = await carregarStoryPorId(nextId)
+      if (!mapped) return
+      if (!storyModalRef.current || storyModalRef.current.ids[nextIndex] !== nextId) return
+      setStoryModal({ ids: cur.ids, index: nextIndex, data: mapped, playbackKey: 0 })
+    },
+    [carregarStoryPorId]
+  )
+
+  const fecharStoryModal = useCallback(() => {
+    setStoryModal(null)
+    bumpStoriesBar()
+  }, [bumpStoriesBar])
 
   const removerPost = (postId: string) => {
     setPosts((prev) => prev.filter((p) => p.id !== postId))
@@ -480,16 +563,19 @@ function FeedPageInner() {
         {!hasMore && posts.length > 0 ? <p className="py-2 text-center text-xs text-gray-300">Fim do feed</p> : null}
       </div>
 
-      {storyAberto ? (
+      {storyModal ? (
         <StoryViewer
-          story={storyAberto}
+          story={storyModal.data}
           userEmail={email}
           meuUsuarioId={meuId}
+          storyQueueLength={storyModal.ids.length}
+          storyQueueIndex={storyModal.index}
+          timerPlaybackKey={storyModal.playbackKey}
           onVisualizado={bumpStoriesBar}
-          onFechar={() => {
-            setStoryAberto(null)
-            bumpStoriesBar()
-          }}
+          onFechar={fecharStoryModal}
+          onIrAnterior={() => void navegarStory(-1)}
+          onIrProximo={() => void navegarStory(1)}
+          onTimerFim={() => void navegarStory(1)}
         />
       ) : null}
     </div>

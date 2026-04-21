@@ -22,8 +22,10 @@ import { formatarDataComentarioCurta } from '@/lib/formatarDataPublicacao'
 
 const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
 
-/** Interações por pedido; “Mais atividades…” carrega outro bloco. */
+/** Interações por pedido; “Mais atividades…” carrega outro bloco (aba Amigos). */
 const ATIVIDADES_LIMITE_PAGINA = 50
+/** Minha conta: só as últimas N por tempo; sem janela 48h nem “carregar mais”. */
+const ATIVIDADES_LIMITE_MINHA_CONTA = ATIVIDADES_LIMITE_PAGINA
 const ATIVIDADES_JANELA_MS = 48 * 60 * 60 * 1000
 
 function isoLimiteAtividades48h() {
@@ -641,9 +643,8 @@ export default function AtividadesPage() {
         .from('atividades')
         .select('*')
         .eq('usuario_id', uid)
-        .gte('created_at', limite48)
         .order('created_at', { ascending: false })
-        .range(0, lim - 1),
+        .range(0, ATIVIDADES_LIMITE_MINHA_CONTA - 1),
     ])
 
     const amigos = (amigosRes.data ?? []) as AtividadeRow[]
@@ -654,7 +655,7 @@ export default function AtividadesPage() {
     setOffsetAmigos(amigos.length)
     setOffsetMinha(minha.length)
     setTemMaisAmigos(amigos.length === lim)
-    setTemMaisMinha(minha.length === lim)
+    setTemMaisMinha(false)
 
     const todos = [...amigos, ...minha]
     await carregarPerfis(todos, { merge: false })
@@ -683,86 +684,51 @@ export default function AtividadesPage() {
     if (carregandoMais) return
     const uid = meuId
     if (!uid) return
+    /* Minha conta: só as últimas N em `recarregar`; scroll infinito só na aba Amigos. */
+    if (aba !== 'amigos') return
     setCarregandoMais(true)
     const limite48 = isoLimiteAtividades48h()
     const lim = ATIVIDADES_LIMITE_PAGINA
     try {
-      if (aba === 'amigos') {
-        const seg = seguindoRef.current
-        if (seg.length === 0 || !temMaisAmigos) return
-        const start = offsetAmigos
-        const { data, error } = await supabase
-          .from('atividades')
-          .select('*')
-          .in('autor_id', seg)
-          .gte('created_at', limite48)
-          .order('created_at', { ascending: false })
-          .range(start, start + lim - 1)
-        if (error) {
-          console.error(error)
-          return
-        }
-        const novas = (data ?? []) as AtividadeRow[]
-        if (novas.length === 0) {
-          setTemMaisAmigos(false)
-          return
-        }
-        setListaAmigos((prev) => mergeAtividadesPorId(prev, novas))
-        setOffsetAmigos(start + novas.length)
-        setTemMaisAmigos(novas.length === lim)
-        await carregarPerfis(novas, { merge: true })
-        const postIds: string[] = []
-        for (const r of novas) {
-          if (r.tipo === 'curtiu_post') postIds.push(r.alvo_id)
-          const ex = r.dados_extras
-          if (ex && typeof ex === 'object') {
-            const pid = ex.post_id
-            if (typeof pid === 'string') postIds.push(pid)
-          }
-        }
-        await carregarPostsMeta(postIds, { merge: true })
-        const empIds = novas.filter((r) => r.tipo === 'avaliou').map((r) => r.alvo_id)
-        await carregarEmpresasAvaliacao(empIds, { merge: true })
-      } else {
-        if (!temMaisMinha) return
-        const start = offsetMinha
-        const { data, error } = await supabase
-          .from('atividades')
-          .select('*')
-          .eq('usuario_id', uid)
-          .gte('created_at', limite48)
-          .order('created_at', { ascending: false })
-          .range(start, start + lim - 1)
-        if (error) {
-          console.error(error)
-          return
-        }
-        const novas = (data ?? []) as AtividadeRow[]
-        if (novas.length === 0) {
-          setTemMaisMinha(false)
-          return
-        }
-        setListaMinha((prev) => mergeAtividadesPorId(prev, novas))
-        setOffsetMinha(start + novas.length)
-        setTemMaisMinha(novas.length === lim)
-        await carregarPerfis(novas, { merge: true })
-        const postIds: string[] = []
-        for (const r of novas) {
-          if (r.tipo === 'curtiu_post') postIds.push(r.alvo_id)
-          const ex = r.dados_extras
-          if (ex && typeof ex === 'object') {
-            const pid = ex.post_id
-            if (typeof pid === 'string') postIds.push(pid)
-          }
-        }
-        await carregarPostsMeta(postIds, { merge: true })
-        const empIds = novas.filter((r) => r.tipo === 'avaliou').map((r) => r.alvo_id)
-        await carregarEmpresasAvaliacao(empIds, { merge: true })
+      const seg = seguindoRef.current
+      if (seg.length === 0 || !temMaisAmigos) return
+      const start = offsetAmigos
+      const { data, error } = await supabase
+        .from('atividades')
+        .select('*')
+        .in('autor_id', seg)
+        .gte('created_at', limite48)
+        .order('created_at', { ascending: false })
+        .range(start, start + lim - 1)
+      if (error) {
+        console.error(error)
+        return
       }
+      const novas = (data ?? []) as AtividadeRow[]
+      if (novas.length === 0) {
+        setTemMaisAmigos(false)
+        return
+      }
+      setListaAmigos((prev) => mergeAtividadesPorId(prev, novas))
+      setOffsetAmigos(start + novas.length)
+      setTemMaisAmigos(novas.length === lim)
+      await carregarPerfis(novas, { merge: true })
+      const postIds: string[] = []
+      for (const r of novas) {
+        if (r.tipo === 'curtiu_post') postIds.push(r.alvo_id)
+        const ex = r.dados_extras
+        if (ex && typeof ex === 'object') {
+          const pid = ex.post_id
+          if (typeof pid === 'string') postIds.push(pid)
+        }
+      }
+      await carregarPostsMeta(postIds, { merge: true })
+      const empIds = novas.filter((r) => r.tipo === 'avaliou').map((r) => r.alvo_id)
+      await carregarEmpresasAvaliacao(empIds, { merge: true })
     } finally {
       setCarregandoMais(false)
     }
-  }, [aba, meuId, offsetAmigos, offsetMinha, temMaisAmigos, temMaisMinha, carregarPerfis, carregarPostsMeta, carregarEmpresasAvaliacao])
+  }, [aba, meuId, offsetAmigos, temMaisAmigos, carregarPerfis, carregarPostsMeta, carregarEmpresasAvaliacao])
 
   useEffect(() => {
     void recarregar()
