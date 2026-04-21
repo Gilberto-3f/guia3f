@@ -2,9 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Heart, Link2, Play, Volume2, VolumeX } from 'lucide-react'
+import { ClipboardList, Heart, Link2, Play, Volume2, VolumeX, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { fetchFotoPerfilUsuario, fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
+import {
+  fetchFotoPerfilUsuario,
+  fetchNomeUsuarioParaStory,
+  visualizadoPorEmails,
+} from '@/lib/feed-autor'
 import AvatarImage from '@/components/AvatarImage'
 import StoryCanvas from '@/components/StoryCanvas'
 
@@ -61,6 +65,7 @@ function parseCurtidasStory(raw) {
  *     duracao_segundos?: number | null
  *     autorUsuarioId?: string | null
  *     curtidas?: unknown
+ *     visualizado_por?: unknown
  *   } | null
  *   userEmail: string | null
  *   meuUsuarioId: string | null
@@ -83,6 +88,11 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
   const [barraProgresso, setBarraProgresso] = useState(0)
   const [curtidasLista, setCurtidasLista] = useState(/** @type {{ usuario_id: string, created_at?: string }[]} */ ([]))
   const [curtirBusy, setCurtirBusy] = useState(false)
+  const [modalInsights, setModalInsights] = useState(false)
+  const [curtidasInsights, setCurtidasInsights] = useState(
+    /** @type {{ usuario_id: string, rotulo: string, foto: string | null }[]} */ ([])
+  )
+  const [carregandoInsights, setCarregandoInsights] = useState(false)
 
   const uid = meuUsuarioId != null && meuUsuarioId !== '' ? String(meuUsuarioId) : null
   const curtiu = uid ? curtidasLista.some((c) => c.usuario_id === uid) : false
@@ -98,6 +108,40 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
   useEffect(() => {
     setCurtidasLista(parseCurtidasStory(story?.curtidas))
   }, [story?.curtidas, story?.id])
+
+  useEffect(() => {
+    if (!modalInsights || !story?.id) {
+      if (!modalInsights) setCurtidasInsights([])
+      return
+    }
+    let cancel = false
+    setCarregandoInsights(true)
+    const ids = [...new Set(curtidasLista.map((c) => c.usuario_id).filter(Boolean))]
+    void (async () => {
+      const rows = await Promise.all(
+        ids.map(async (usuario_id) => {
+          let rotulo = await fetchNomeUsuarioParaStory(supabase, usuario_id)
+          if (rotulo) rotulo = rotulo.startsWith('@') ? rotulo : `@${rotulo.replace(/^@/, '')}`
+          else {
+            const { data: emp } = await supabase
+              .from('empresas')
+              .select('nome_fantasia')
+              .eq('usuario_id', usuario_id)
+              .maybeSingle()
+            rotulo = emp?.nome_fantasia != null ? String(emp.nome_fantasia).trim() : 'Usuário'
+          }
+          const foto = await fetchFotoPerfilUsuario(supabase, usuario_id)
+          return { usuario_id, rotulo, foto }
+        })
+      )
+      if (cancel) return
+      setCurtidasInsights(rows)
+      setCarregandoInsights(false)
+    })()
+    return () => {
+      cancel = true
+    }
+  }, [modalInsights, story?.id, curtidasLista])
 
   useEffect(() => {
     const v = videoRef.current
@@ -254,6 +298,8 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
   const legendaStr = tx?.texto != null ? String(tx.texto).trim() : ''
   const linkStr = story.link != null ? String(story.link).trim() : ''
   const textoScale = typeof tx?.texto_scale === 'number' && Number.isFinite(tx.texto_scale) ? tx.texto_scale : 1
+  const souAutor = Boolean(uid && autorId && uid === autorId)
+  const emailsVisualizacao = visualizadoPorEmails(story.visualizado_por)
 
   const togglePlay = () => {
     const v = videoRef.current
@@ -304,8 +350,6 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
     </button>
   ) : null
 
-  const segundosRestantes = Math.max(0, Math.ceil((duracaoStoryMs * (1 - barraProgresso / 100)) / 1000))
-
   return (
     <div ref={rootRef} className="fixed inset-0 z-[100] flex flex-col bg-black">
       <div
@@ -335,12 +379,7 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
           <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/55 to-transparent pt-[max(0.75rem,env(safe-area-inset-top))] pb-10">
             <div className="pointer-events-auto flex items-start justify-between gap-2 px-3">
               <div className="min-w-0">{headerLeft}</div>
-              <div className="flex shrink-0 items-center gap-2 pr-1">
-                <span className="rounded-md bg-black/35 px-2 py-0.5 text-xs font-medium tabular-nums text-white backdrop-blur-sm">
-                  0:{segundosRestantes.toString().padStart(2, '0')}
-                </span>
-                {headerExtras}
-              </div>
+              <div className="flex shrink-0 items-center gap-2 pr-1">{headerExtras}</div>
             </div>
           </div>
         </div>
@@ -349,12 +388,7 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
           <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/55 to-transparent pt-[max(0.75rem,env(safe-area-inset-top))] pb-12">
             <div className="pointer-events-auto flex items-start justify-between gap-2 px-3">
               <div className="min-w-0">{headerLeft}</div>
-              <div className="flex shrink-0 items-center gap-2 pr-1">
-                <span className="rounded-md bg-black/35 px-2 py-0.5 text-xs font-medium tabular-nums text-white backdrop-blur-sm">
-                  0:{segundosRestantes.toString().padStart(2, '0')}
-                </span>
-                {headerExtras}
-              </div>
+              <div className="flex shrink-0 items-center gap-2 pr-1">{headerExtras}</div>
             </div>
           </div>
           <div className="relative min-h-0 flex-1">
@@ -408,9 +442,21 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
 
       <footer
         data-story-footer
-        className="pointer-events-auto z-40 flex items-center justify-center gap-6 border-t border-white/10 bg-black/75 px-4 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3"
+        className={`pointer-events-auto z-40 flex w-full items-center border-t border-white/10 bg-black/75 px-4 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 ${uid ? 'justify-end' : 'justify-center'}`}
       >
-        {uid ? (
+        {souAutor ? (
+          <button
+            type="button"
+            onClick={() => setModalInsights(true)}
+            className="flex flex-col items-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10"
+            aria-label="Ver curtidas e visualizações"
+          >
+            <ClipboardList size={32} strokeWidth={2} />
+            <span className="text-[11px] font-medium text-white/90">
+              {curtidasLista.length} · {emailsVisualizacao.length}
+            </span>
+          </button>
+        ) : uid ? (
           <button
             type="button"
             disabled={curtirBusy}
@@ -430,6 +476,71 @@ export default function StoryViewer({ story, userEmail, meuUsuarioId = null, onF
           <p className="text-center text-xs text-white/70">Inicie sessão para curtir</p>
         )}
       </footer>
+
+      {modalInsights ? (
+        <div className="fixed inset-0 z-[110] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            aria-label="Fechar"
+            onClick={() => setModalInsights(false)}
+          />
+          <div className="relative z-[1] flex max-h-[min(72dvh,560px)] w-full max-w-md flex-col rounded-t-2xl border border-white/10 bg-zinc-900 shadow-2xl sm:rounded-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
+              <h2 className="text-sm font-semibold text-white">Curtidas e visualizações</h2>
+              <button
+                type="button"
+                onClick={() => setModalInsights(false)}
+                className="rounded-full p-2 text-white/80 transition hover:bg-white/10"
+                aria-label="Fechar"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-white/50">Curtiram</p>
+              {carregandoInsights ? (
+                <p className="py-4 text-center text-sm text-white/60">A carregar…</p>
+              ) : curtidasInsights.length === 0 ? (
+                <p className="py-2 text-sm text-white/60">Ainda ninguém curtiu.</p>
+              ) : (
+                <ul className="space-y-2 pb-4">
+                  {curtidasInsights.map((row) => (
+                    <li key={row.usuario_id}>
+                      <Link
+                        href={`/perfil/${row.usuario_id}`}
+                        className="flex items-center gap-3 rounded-lg py-1.5 transition hover:bg-white/5"
+                        onClick={() => setModalInsights(false)}
+                      >
+                        <span className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white/15">
+                          {row.foto ? (
+                            <AvatarImage src={row.foto} alt="" width={40} height={40} className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-xs text-white/60">?</span>
+                          )}
+                        </span>
+                        <span className="min-w-0 truncate text-sm font-medium text-white">{row.rotulo}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mb-2 mt-2 text-xs font-medium uppercase tracking-wide text-white/50">Visualizaram</p>
+              {emailsVisualizacao.length === 0 ? (
+                <p className="py-2 text-sm text-white/60">Ainda sem registos de visualização.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {emailsVisualizacao.map((email) => (
+                    <li key={email} className="truncate text-sm text-white/90">
+                      {email}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

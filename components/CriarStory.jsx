@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Camera, Image as ImageIcon, Images } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import EditorStory from '@/components/EditorStory'
 
 const BG_CATARATAS = '/triple-frontier/cataratas.jpg'
@@ -83,9 +84,13 @@ export default function CriarStory({ autorTipo }) {
         return
       }
 
-      const ext = file.name.split('.').pop() || 'jpg'
+      const fileToUpload = await compressImageFileForStoryUpload(file)
+      const ext = fileToUpload.type === 'image/jpeg' ? 'jpg' : file.name.split('.').pop() || 'jpg'
       const path = `${session.user.id}/${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from('stories').upload(path, file)
+      const { error: upErr } = await supabase.storage.from('stories').upload(path, fileToUpload, {
+        contentType: fileToUpload.type || 'image/jpeg',
+        upsert: false,
+      })
       if (upErr) throw upErr
       const { data: pub } = supabase.storage.from('stories').getPublicUrl(path)
       const url = pub.publicUrl
@@ -116,7 +121,7 @@ export default function CriarStory({ autorTipo }) {
       if (insErr) throw insErr
 
       router.push('/feed')
-      router.refresh()
+      void Promise.resolve().then(() => router.refresh())
     } catch (e) {
       console.error(e)
       alert('Não foi possível publicar o story.')
