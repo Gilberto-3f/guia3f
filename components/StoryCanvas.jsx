@@ -62,6 +62,7 @@ function clampFundoPan(scale, px, py, geo) {
  *   onLinkPos?: (p: { x: number, y: number }) => void
  *   onFundoChange?: (f: StoryFundo) => void
  *   onEditarLegenda?: () => void
+ *   onEditarLink?: () => void
  *   linkHref?: string | null
  *   className?: string
  *   layout?: 'default' | 'editorFill' | 'viewerCover'
@@ -81,6 +82,7 @@ export default function StoryCanvas({
   onLinkPos,
   onFundoChange,
   onEditarLegenda,
+  onEditarLink,
   linkHref = null,
   className = '',
   layout = 'default',
@@ -257,7 +259,8 @@ export default function StoryCanvas({
     tapRef.current = null
     dragRef.current = null
     if (t?.kind === 'text' && !t.moved && typeof onEditarLegenda === 'function') onEditarLegenda()
-  }, [onEditarLegenda])
+    if (t?.kind === 'link' && !t.moved && typeof onEditarLink === 'function') onEditarLink()
+  }, [onEditarLegenda, onEditarLink])
 
   const startText = useCallback(
     /** @param {React.PointerEvent} e */
