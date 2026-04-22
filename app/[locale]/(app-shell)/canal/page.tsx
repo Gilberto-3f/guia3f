@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import ListaCanais from '@/components/ListaCanais'
+import ListaCanaisEmpresa, { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
 import ListaCanaisProfissional from '@/components/ListaCanaisProfissional'
 import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
@@ -12,7 +13,7 @@ import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
 
 type TipoUsuario = 'turista' | 'profissional' | 'empresa' | 'admin' | null
 
-type CanalSelecionado = { id?: string; nome?: string } | null
+type CanalSelecionado = { id?: string; nome?: string; tipo_publico?: string | null } | null
 
 export default function CanalPage() {
   const router = useRouter()
@@ -28,6 +29,7 @@ export default function CanalPage() {
   const [leituraProfTick, setLeituraProfTick] = useState(0)
 
   const paises = ['BR', 'AR', 'PY', 'geral']
+  const paisesEmpresaProfissionais = ['BR', 'PY', 'AR']
 
   const userTipoEfetivo = useMemo((): TipoUsuario => {
     if (modoAtivo && perfilSimulado) {
@@ -110,6 +112,13 @@ export default function CanalPage() {
       setLeituraProfTick((t) => t + 1)
     })()
   }, [userTipoEfetivo, usuarioId, canalSelecionado?.id])
+
+  useEffect(() => {
+    if (userTipoEfetivo !== 'empresa') return
+    if (!canalSelecionado?.id) return
+    if (canalSelecionado.tipo_publico === 'profissional') setAbaPais('BR')
+    else setAbaPais('geral')
+  }, [userTipoEfetivo, canalSelecionado?.id, canalSelecionado?.tipo_publico])
 
   if (loading) {
     return (
@@ -197,7 +206,8 @@ export default function CanalPage() {
   if (userTipoEfetivo === 'empresa') {
     const sel = canalSelecionado
     const isFinanceiro = sel?.nome === 'Financeiro'
-    const mostrarAbasPais = sel?.nome != null && sel.nome !== 'ADM' && !isFinanceiro
+    const mostrarAbasTresPaises = sel?.tipo_publico === 'profissional'
+    const semCanal = !sel?.id
 
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
@@ -208,15 +218,20 @@ export default function CanalPage() {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col-reverse md:min-h-[calc(100vh-7rem)] md:flex-row">
-          <div className="max-h-[40vh] min-h-[7.5rem] w-full shrink-0 overflow-y-auto border-t border-gray-200 bg-white shadow-[0_-4px_14px_rgba(0,0,0,0.06)] md:h-auto md:max-h-none md:min-h-0 md:w-72 md:border-t-0 md:border-r md:border-gray-100 md:shadow-none">
-            <ListaCanais
-              tipoPublico="empresa"
+          <div
+            className={`flex w-full shrink-0 flex-col overflow-hidden border-t border-gray-200 bg-white shadow-[0_-4px_14px_rgba(0,0,0,0.06)] md:w-72 md:border-r md:border-gray-100 md:shadow-none ${
+              semCanal
+                ? 'min-h-0 flex-1 max-md:border-t-0 max-md:shadow-none md:h-auto md:max-h-none md:flex-none'
+                : 'max-h-[40vh] min-h-[7.5rem] max-md:border-t md:h-auto md:max-h-none md:min-h-0 md:border-t-0'
+            }`}
+          >
+            <ListaCanaisEmpresa
               onSelectCanal={setCanalSelecionado}
               canalSelecionadoId={sel?.id != null ? String(sel.id) : undefined}
             />
           </div>
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className={`min-h-0 min-w-0 flex-1 flex-col ${semCanal ? 'hidden md:flex' : 'flex'}`}>
             {sel?.id ? (
               isFinanceiro && financeUid ? (
                 <CanalFinanceiroLista usuarioId={financeUid} tipo="empresa" />
@@ -224,22 +239,24 @@ export default function CanalPage() {
                 <>
                   <div className="border-b border-gray-100 bg-white">
                     <div className="p-4">
-                      <h2 className="font-semibold text-gray-800">{sel.nome}</h2>
+                      <h2 className="font-semibold text-gray-800">
+                        {sel.nome != null ? tituloCanalEmpresaLista(sel.nome) : ''}
+                      </h2>
                     </div>
-                    {mostrarAbasPais ? (
-                      <CanalAbasPais paises={paises} abaAtiva={abaPais} onAbaChange={setAbaPais} />
+                    {mostrarAbasTresPaises ? (
+                      <CanalAbasPais paises={paisesEmpresaProfissionais} abaAtiva={abaPais} onAbaChange={setAbaPais} />
                     ) : null}
                   </div>
                   <CanalMensagens
                     canalId={String(sel.id)}
-                    paisTab={mostrarAbasPais ? abaPais : 'geral'}
+                    paisTab={mostrarAbasTresPaises ? abaPais : 'geral'}
                     podePostar={podeInteragir}
                     podeReagir={podeInteragir}
                   />
                 </>
               )
             ) : (
-              <div className="flex flex-1 min-h-0 flex-col items-center justify-start px-4 pt-8 text-center text-sm text-gray-400 md:justify-center md:pt-0">
+              <div className="flex flex-1 min-h-0 flex-col items-center justify-center px-4 text-center text-sm text-gray-400">
                 Selecione um canal
               </div>
             )}

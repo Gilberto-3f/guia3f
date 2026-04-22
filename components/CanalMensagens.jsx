@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { Send, Paperclip, Image as ImageIcon } from 'lucide-react'
+import AvatarImage from '@/components/AvatarImage'
+import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 
 /**
  * @param {unknown} raw
@@ -86,8 +88,10 @@ export default function CanalMensagens({ canalId, paisTab = 'geral', podePostar,
   const [anexo, setAnexo] = useState(/** @type {File | null} */ (null))
   const [anexoPreview, setAnexoPreview] = useState(/** @type {string | null} */ (null))
   const [uid, setUid] = useState(/** @type {string | null} */ (null))
+  const [minhaFotoUrl, setMinhaFotoUrl] = useState(/** @type {string | null} */ (null))
   const messagesEndRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const fileInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
+  const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -140,6 +144,22 @@ export default function CanalMensagens({ canalId, paisTab = 'geral', podePostar,
   useEffect(() => {
     void carregarMensagens()
   }, [carregarMensagens])
+
+  useEffect(() => {
+    if (!podePostar || !uid) {
+      setMinhaFotoUrl(null)
+      return
+    }
+    void fetchFotoPerfilUsuario(supabase, uid).then(setMinhaFotoUrl)
+  }, [podePostar, uid])
+
+  useEffect(() => {
+    if (!podePostar) return
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 36), 96)}px`
+  }, [novaMensagem, podePostar])
 
   useEffect(() => {
     if (!canalId) return
@@ -362,7 +382,7 @@ export default function CanalMensagens({ canalId, paisTab = 'geral', podePostar,
       </div>
 
       {podePostar ? (
-        <div className="border-t border-gray-100 bg-white p-4">
+        <div className="shrink-0 border-t border-gray-200 bg-white p-3">
           {anexoPreview ? (
             <div className="relative mb-2 inline-block">
               <div className="relative h-20 w-20 overflow-hidden rounded-lg">
@@ -382,31 +402,51 @@ export default function CanalMensagens({ canalId, paisTab = 'geral', podePostar,
             </div>
           ) : null}
 
-          <div className="flex gap-2">
-            <input
-              type="text"
+          <div className="flex min-w-0 items-end gap-2">
+            <div className="relative h-9 w-9 shrink-0 self-center overflow-hidden rounded-md bg-gray-100">
+              {minhaFotoUrl ? (
+                <AvatarImage src={minhaFotoUrl} alt="" width={36} height={36} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">?</div>
+              )}
+            </div>
+            <textarea
+              ref={textareaRef}
+              rows={1}
               value={novaMensagem}
+              disabled={!uid || enviando}
               onChange={(e) => setNovaMensagem(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && void handleEnviar()}
-              placeholder="Digite sua mensagem..."
-              className="flex-1 rounded-lg border border-gray-200 p-2 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  void handleEnviar()
+                }
+              }}
+              placeholder="Mensagem"
+              className="max-h-24 min-h-9 min-w-0 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
             />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="p-2 text-gray-500 hover:text-[#0097b2]"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end text-gray-500 hover:text-[#0097b2]"
               aria-label="Anexo"
             >
-              <ImageIcon size={20} />
+              <ImageIcon className="h-5 w-5" aria-hidden />
             </button>
             <button
               type="button"
               onClick={() => void handleEnviar()}
-              disabled={(!novaMensagem.trim() && !anexo) || enviando}
-              className="rounded-lg bg-[#0097b2] p-2 text-white disabled:opacity-50"
+              disabled={(!novaMensagem.trim() && !anexo) || enviando || !uid}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-lg bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
               aria-label="Enviar"
             >
-              <Send size={20} />
+              {enviando ? (
+                <span className="text-xs font-medium" aria-hidden>
+                  …
+                </span>
+              ) : (
+                <Send className="h-4 w-4" aria-hidden />
+              )}
             </button>
             <input
               ref={fileInputRef}
@@ -430,6 +470,7 @@ export default function CanalMensagens({ canalId, paisTab = 'geral', podePostar,
               className="hidden"
             />
           </div>
+          {!uid ? <p className="mt-2 text-center text-xs text-gray-500">Entre na conta para enviar.</p> : null}
         </div>
       ) : null}
     </div>
