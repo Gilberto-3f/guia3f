@@ -1,8 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { MessageCircle, Building2, Crown } from 'lucide-react'
+import { MessageCircle, Building2, Crown, ChevronUp, ChevronDown } from 'lucide-react'
+
+/** @type {readonly string[]} */
+const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
+
+/** @type {readonly string[]} */
+const CATEGORIAS_EMPRESAS = ['gastronomia', 'lojas', 'passeios', 'hospedagem']
+
+/**
+ * @param {string | null | undefined} nome
+ */
+function nomeNorm(nome) {
+  return (nome ?? '').trim().toUpperCase()
+}
 
 /**
  * @typedef {{
@@ -16,6 +29,99 @@ import { MessageCircle, Building2, Crown } from 'lucide-react'
  *   nao_lidas?: number
  * }} Canal
  */
+
+/**
+ * @param {Canal[]} canaisOrdenados
+ * @param {string | null | undefined} tipoPublico
+ */
+function particionarPorPerfil(canaisOrdenados, tipoPublico) {
+  const tp = tipoPublico ?? ''
+
+  if (tp === 'admin') {
+    return {
+      administrador: canaisOrdenados.filter((c) => c.tipo_publico === 'admin' && c.categoria === 'admin'),
+      administracaoProf: /** @type {Canal[]} */ ([]),
+      profissionais: /** @type {Canal[]} */ ([]),
+      administracaoEmp: /** @type {Canal[]} */ ([]),
+      empresas: /** @type {Canal[]} */ ([]),
+    }
+  }
+
+  if (tp === 'profissional') {
+    return {
+      administrador: /** @type {Canal[]} */ ([]),
+      administracaoProf: canaisOrdenados.filter(
+        (c) => c.tipo_publico === 'profissional' && (c.categoria === 'admin' || nomeNorm(c.nome) === 'FINANCEIRO'),
+      ),
+      profissionais: canaisOrdenados.filter(
+        (c) => c.tipo_publico === 'profissional' && c.categoria != null && CATEGORIAS_PROFISSIONAIS.includes(c.categoria),
+      ),
+      administracaoEmp: /** @type {Canal[]} */ ([]),
+      empresas: /** @type {Canal[]} */ ([]),
+    }
+  }
+
+  if (tp === 'empresa') {
+    const catEmp = (c) => {
+      const cat = (c.categoria ?? '').toLowerCase()
+      if (CATEGORIAS_EMPRESAS.includes(cat)) return true
+      const n = (c.nome ?? '').trim().toLowerCase()
+      return CATEGORIAS_EMPRESAS.includes(n)
+    }
+    return {
+      administrador: /** @type {Canal[]} */ ([]),
+      administracaoProf: /** @type {Canal[]} */ ([]),
+      profissionais: /** @type {Canal[]} */ ([]),
+      administracaoEmp: canaisOrdenados.filter((c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) === 'ADM'),
+      empresas: canaisOrdenados.filter((c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) !== 'ADM' && catEmp(c)),
+    }
+  }
+
+  return {
+    administrador: /** @type {Canal[]} */ ([]),
+    administracaoProf: /** @type {Canal[]} */ ([]),
+    profissionais: /** @type {Canal[]} */ ([]),
+    administracaoEmp: /** @type {Canal[]} */ ([]),
+    empresas: /** @type {Canal[]} */ ([]),
+  }
+}
+
+/**
+ * Visão admin: todos os tipos carregados — mesmas regras do relatório, com rótulos distintos quando há colisão de nome.
+ * @param {Canal[]} canaisOrdenados
+ */
+function particionarVisaoAdminTodos(canaisOrdenados) {
+  const catEmp = (c) => {
+    const cat = (c.categoria ?? '').toLowerCase()
+    if (CATEGORIAS_EMPRESAS.includes(cat)) return true
+    const n = (c.nome ?? '').trim().toLowerCase()
+    return CATEGORIAS_EMPRESAS.includes(n)
+  }
+
+  return {
+    administrador: canaisOrdenados.filter((c) => c.tipo_publico === 'admin' && c.categoria === 'admin'),
+    administracaoProf: canaisOrdenados.filter(
+      (c) => c.tipo_publico === 'profissional' && (c.categoria === 'admin' || nomeNorm(c.nome) === 'FINANCEIRO'),
+    ),
+    profissionais: canaisOrdenados.filter(
+      (c) => c.tipo_publico === 'profissional' && c.categoria != null && CATEGORIAS_PROFISSIONAIS.includes(c.categoria),
+    ),
+    administracaoEmp: canaisOrdenados.filter((c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) === 'ADM'),
+    empresas: canaisOrdenados.filter((c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) !== 'ADM' && catEmp(c)),
+  }
+}
+
+/**
+ * @param {Canal[]} canaisOrdenados
+ * @param {{ administrador: Canal[]; administracaoProf: Canal[]; profissionais: Canal[]; administracaoEmp: Canal[]; empresas: Canal[] }} part
+ */
+function idsEmParticao(part) {
+  const s = new Set()
+  for (const arr of Object.values(part)) {
+    for (const c of arr) s.add(c.id)
+  }
+  return s
+}
 
 /**
  * @param {{
@@ -35,6 +141,40 @@ export default function ListaCanais({
 }) {
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
+
+  const part = useMemo(() => {
+    if (agruparPorTipo) return particionarVisaoAdminTodos(canais)
+    return particionarPorPerfil(canais, tipoPublico)
+  }, [agruparPorTipo, tipoPublico, canais])
+
+  const particionIds = useMemo(() => idsEmParticao(part), [part])
+
+  const gruposIniciais = useMemo(() => {
+    const keys = /** @type {const} */ ([
+      'administrador',
+      'administracaoProf',
+      'profissionais',
+      'administracaoEmp',
+      'empresas',
+    ])
+    const init = /** @type {Record<string, boolean>} */ ({})
+    for (const k of keys) {
+      init[k] = part[k].length > 0
+    }
+    return init
+  }, [part])
+
+  const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({}))
+
+  useEffect(() => {
+    setGruposAbertos((prev) => {
+      const next = { ...gruposIniciais }
+      for (const k of Object.keys(next)) {
+        if (prev[k] != null) next[k] = prev[k]
+      }
+      return next
+    })
+  }, [gruposIniciais])
 
   useEffect(() => {
     const carregarCanais = async () => {
@@ -78,41 +218,21 @@ export default function ListaCanais({
    * @param {Canal} canal
    */
   const getIcon = (canal) => {
-    if (canal.nome === 'ADM' || canal.nome === 'Mensageiro ADM') return Crown
+    const n = nomeNorm(canal.nome)
+    if (n === 'ADM' || n === 'MENSAGEIRO' || canal.nome === 'Mensageiro ADM') return Crown
     if (canal.tipo_publico === 'empresa') return Building2
     return MessageCircle
   }
 
-  if (loading) {
-    return <div className="p-4 text-center text-gray-400">Carregando canais...</div>
+  const toggleGrupo = (grupo) => {
+    setGruposAbertos((prev) => {
+      const aberto = prev[grupo] !== false
+      return { ...prev, [grupo]: !aberto }
+    })
   }
 
-  if (agruparPorTipo) {
-    const porTipo = /** @type {Record<string, Canal[]>} */ ({})
-    for (const c of canais) {
-      const k = c.tipo_publico ?? 'outros'
-      if (!porTipo[k]) porTipo[k] = []
-      porTipo[k].push(c)
-    }
-    const labels = {
-      admin: 'Administrador',
-      turista: 'Turista',
-      profissional: 'Profissionais',
-      empresa: 'Empresas',
-      outros: 'Outros',
-    }
-    return (
-      <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-        {Object.entries(porTipo).map(([tipo, itens]) => (
-          <div key={tipo}>
-            <div className="border-b border-gray-100 bg-gray-50 px-3 py-2">
-              <span className="text-xs font-medium text-gray-500">{labels[tipo] ?? tipo}</span>
-            </div>
-            {itens.map((canal) => renderRow(canal))}
-          </div>
-        ))}
-      </div>
-    )
+  if (loading) {
+    return <div className="p-4 text-center text-gray-400">Carregando canais...</div>
   }
 
   /**
@@ -144,6 +264,63 @@ export default function ListaCanais({
           ) : null}
         </div>
       </button>
+    )
+  }
+
+  /**
+   * @param {{ id: string; titulo: string; itens: Canal[] }} args
+   */
+  function renderGrupoChevron({ id, titulo, itens }) {
+    if (itens.length === 0) return null
+    const aberto = gruposAbertos[id] !== false
+    return (
+      <div className="border-b border-gray-100">
+        <button
+          type="button"
+          onClick={() => toggleGrupo(id)}
+          className="flex w-full items-center justify-between px-4 py-3 text-left"
+        >
+          <span className="font-bold text-[#0097b2]">{titulo}</span>
+          {aberto ? (
+            <ChevronUp size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
+          ) : (
+            <ChevronDown size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
+          )}
+        </button>
+        {aberto ? (
+          <div>
+            {itens.map((canal) => (
+              <div key={canal.id} className="pl-4">
+                {renderRow(canal)}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  const usarLayoutChevron =
+    agruparPorTipo ||
+    tipoPublico === 'admin' ||
+    tipoPublico === 'profissional' ||
+    tipoPublico === 'empresa'
+
+  if (usarLayoutChevron) {
+    const outros = canais.filter((c) => !particionIds.has(c.id))
+
+    const tituloAdmProf = agruparPorTipo ? 'ADMINISTRAÇÃO (profissional)' : 'ADMINISTRAÇÃO'
+    const tituloAdmEmp = agruparPorTipo ? 'ADMINISTRAÇÃO (empresa)' : 'ADMINISTRAÇÃO'
+
+    return (
+      <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+        {renderGrupoChevron({ id: 'administrador', titulo: 'ADMINISTRADOR', itens: part.administrador })}
+        {renderGrupoChevron({ id: 'administracaoProf', titulo: tituloAdmProf, itens: part.administracaoProf })}
+        {renderGrupoChevron({ id: 'profissionais', titulo: 'PROFISSIONAIS', itens: part.profissionais })}
+        {renderGrupoChevron({ id: 'administracaoEmp', titulo: tituloAdmEmp, itens: part.administracaoEmp })}
+        {renderGrupoChevron({ id: 'empresas', titulo: 'EMPRESAS', itens: part.empresas })}
+        {outros.map((canal) => renderRow(canal))}
+      </div>
     )
   }
 
