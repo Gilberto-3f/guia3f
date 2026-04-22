@@ -35,7 +35,7 @@ function isBarraAtividades(pathname) {
 function matchPath(path, pathname) {
   if (!pathname) return false
   if (path === '/guia' && pathname === '/guia') return true
-  if (path === '/canal' && pathname === '/canal') return true
+  if (path === '/canal' && (pathname === '/canal' || pathname.startsWith('/canal/'))) return true
   if (path === '/feed' && (pathname === '/feed' || pathname.startsWith('/feed/'))) return true
   if (path === '/atividades' && isBarraAtividades(pathname)) return true
   if (path === '/perfil' && (pathname === '/perfil' || pathname.startsWith('/perfil/'))) return true
