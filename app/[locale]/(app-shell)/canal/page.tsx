@@ -137,8 +137,8 @@ export default function CanalPage() {
           </div>
         </div>
 
-        <div className="flex min-h-[calc(100vh-7rem)] flex-1 flex-col md:flex-row">
-          <div className="h-48 w-full shrink-0 overflow-y-auto border-b border-gray-100 bg-white md:h-auto md:w-72 md:border-b-0 md:border-r">
+        <div className="flex min-h-0 flex-1 flex-col-reverse md:min-h-[calc(100vh-7rem)] md:flex-row">
+          <div className="max-h-[40vh] min-h-[7.5rem] w-full shrink-0 overflow-y-auto border-t border-gray-200 bg-white shadow-[0_-4px_14px_rgba(0,0,0,0.06)] md:h-auto md:max-h-none md:min-h-0 md:w-72 md:border-t-0 md:border-r md:border-gray-100 md:shadow-none">
             <ListaCanais
               tipoPublico="profissional"
               onSelectCanal={setCanalSelecionado}
@@ -159,7 +159,9 @@ export default function CanalPage() {
                 </>
               )
             ) : (
-              <div className="flex flex-1 items-center justify-center text-gray-400">Selecione um canal</div>
+              <div className="flex flex-1 min-h-0 flex-col items-center justify-start px-4 pt-8 text-center text-sm text-gray-400 md:justify-center md:pt-0">
+                Selecione um canal
+              </div>
             )}
           </div>
         </div>
@@ -180,8 +182,8 @@ export default function CanalPage() {
           </div>
         </div>
 
-        <div className="flex min-h-[calc(100vh-7rem)] flex-1 flex-col md:flex-row">
-          <div className="h-48 w-full shrink-0 overflow-y-auto border-b border-gray-100 bg-white md:h-auto md:w-72 md:border-b-0 md:border-r">
+        <div className="flex min-h-0 flex-1 flex-col-reverse md:min-h-[calc(100vh-7rem)] md:flex-row">
+          <div className="max-h-[40vh] min-h-[7.5rem] w-full shrink-0 overflow-y-auto border-t border-gray-200 bg-white shadow-[0_-4px_14px_rgba(0,0,0,0.06)] md:h-auto md:max-h-none md:min-h-0 md:w-72 md:border-t-0 md:border-r md:border-gray-100 md:shadow-none">
             <ListaCanais
               tipoPublico="empresa"
               onSelectCanal={setCanalSelecionado}
@@ -212,7 +214,9 @@ export default function CanalPage() {
                 </>
               )
             ) : (
-              <div className="flex flex-1 items-center justify-center text-gray-400">Selecione um canal</div>
+              <div className="flex flex-1 min-h-0 flex-col items-center justify-start px-4 pt-8 text-center text-sm text-gray-400 md:justify-center md:pt-0">
+                Selecione um canal
+              </div>
             )}
           </div>
         </div>
@@ -232,8 +236,8 @@ export default function CanalPage() {
           </div>
         </div>
 
-        <div className="flex min-h-[calc(100vh-7rem)] flex-1 flex-col md:flex-row">
-          <div className="max-h-64 w-full shrink-0 overflow-y-auto border-b border-gray-100 bg-white md:max-h-none md:h-auto md:w-80 md:border-b-0 md:border-r">
+        <div className="flex min-h-0 flex-1 flex-col-reverse md:min-h-[calc(100vh-7rem)] md:flex-row">
+          <div className="max-h-[40vh] min-h-[7.5rem] w-full shrink-0 overflow-y-auto border-t border-gray-200 bg-white shadow-[0_-4px_14px_rgba(0,0,0,0.06)] md:max-h-none md:min-h-0 md:w-80 md:border-t-0 md:border-r md:border-gray-100 md:shadow-none">
             <ListaCanais
               tipoPublico={null}
               agruparPorTipo
@@ -261,7 +265,9 @@ export default function CanalPage() {
                 />
               </>
             ) : (
-              <div className="flex flex-1 items-center justify-center text-gray-400">Selecione um canal</div>
+              <div className="flex flex-1 min-h-0 flex-col items-center justify-start px-4 pt-8 text-center text-sm text-gray-400 md:justify-center md:pt-0">
+                Selecione um canal
+              </div>
             )}
           </div>
         </div>
