@@ -71,6 +71,7 @@
     "apiErrorEmailExists": "Este e-mail já está cadastrado. Faça login.",
     "apiErrorServerConfig": "Serviço temporariamente indisponível. Defina SUPABASE_SERVICE_ROLE_KEY no servidor.",
     "apiErrorInvalidPassword": "Senha inválida: mínimo 8 caracteres, com letras e números.",
+    "apiErrorInvalidCategory": "Categoria de empresa inválida.",
     "common": {
       "optional": "(opcional)",
       "required": "*",

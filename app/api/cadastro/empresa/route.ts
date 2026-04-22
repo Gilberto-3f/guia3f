@@ -36,6 +36,10 @@ export async function POST(req: NextRequest) {
     const nomeFantasia = String(form.get('nomeFantasia') || '').trim()
     const nomeUsuario = String(form.get('nomeUsuario') || '').trim().toLowerCase().replace(/^@+/, '')
     const categoria = String(form.get('categoria') || '').trim()
+    const CATEGORIAS_PERMITIDAS = new Set(['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem'])
+    if (!CATEGORIAS_PERMITIDAS.has(categoria)) {
+      return NextResponse.json({ error: 'invalid_category' }, { status: 400 })
+    }
     const cidade = String(form.get('cidade') || '').trim()
     const enderecoCompleto = String(form.get('enderecoCompleto') || '').trim()
     const telefone = String(form.get('telefone') || '').trim()

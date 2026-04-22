@@ -71,6 +71,7 @@
     "apiErrorEmailExists": "This email is already registered. Please sign in.",
     "apiErrorServerConfig": "Service temporarily unavailable (server configuration).",
     "apiErrorInvalidPassword": "Invalid password: at least 8 characters with letters and numbers.",
+    "apiErrorInvalidCategory": "Invalid business category.",
     "common": {
       "optional": "(optional)",
       "required": "*",

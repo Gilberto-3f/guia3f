@@ -71,6 +71,7 @@
     "apiErrorEmailExists": "Este correo ya está registrado. Inicie sesión.",
     "apiErrorServerConfig": "Servicio no disponible temporalmente (configuración del servidor).",
     "apiErrorInvalidPassword": "Contraseña no válida: mínimo 8 caracteres, con letras y números.",
+    "apiErrorInvalidCategory": "Categoría de empresa no válida.",
     "common": {
       "optional": "(opcional)",
       "required": "*",

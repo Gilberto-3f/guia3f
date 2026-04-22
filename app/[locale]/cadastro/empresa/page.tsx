@@ -8,12 +8,7 @@ import GuiaAuthShell from '@/components/GuiaAuthShell'
 
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'unavailable'
 
-type CategoriaEmpresa =
-  | 'Restaurantes'
-  | 'Atrativos'
-  | 'Lojas'
-  | 'Hospedagem'
-  | 'Compras Paraguai'
+type CategoriaEmpresa = 'Restaurantes' | 'Atrativos' | 'Lojas' | 'Hospedagem'
 
 type CidadeEmpresa = 'Foz do Iguacu' | 'Ciudad del Este' | 'Puerto Iguazu'
 
@@ -22,13 +17,7 @@ const usernameRegex = /^[a-z0-9._]{3,20}$/
 const minimoFotos = 3
 const maxDescricao = 170
 
-const categorias: CategoriaEmpresa[] = [
-  'Restaurantes',
-  'Atrativos',
-  'Lojas',
-  'Hospedagem',
-  'Compras Paraguai',
-]
+const categorias: CategoriaEmpresa[] = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
 const cidades: CidadeEmpresa[] = ['Foz do Iguacu', 'Ciudad del Este', 'Puerto Iguazu']
 const diasSemana = ['Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado', 'Domingo']
 
@@ -53,6 +42,8 @@ function mapApiEmpresaError(
       return t('empresa.valDoc')
     case 'policies':
       return t('empresa.valPolicies')
+    case 'invalid_category':
+      return t('apiErrorInvalidCategory')
     default:
       return t('apiErrorDefault')
   }
@@ -63,7 +54,6 @@ const catMessageKey: Record<CategoriaEmpresa, string> = {
   Atrativos: 'empresa.cat.Atrativos',
   Lojas: 'empresa.cat.Lojas',
   Hospedagem: 'empresa.cat.Hospedagem',
-  'Compras Paraguai': 'empresa.cat.comprasParaguai',
 }
 
 function catLabel(cat: CategoriaEmpresa, t: (k: string) => string) {

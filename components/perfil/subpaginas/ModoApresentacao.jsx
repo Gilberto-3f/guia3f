@@ -14,7 +14,7 @@ const profissionais = [
 
 const empresas = [
   { id: 'gastro', nome: 'Gastronomia', segmentoDb: 'Restaurantes', iconeKey: 'gastro' },
-  { id: 'lojas_py', nome: 'Lojas / Compras Paraguai', segmentoDb: 'Compras Paraguai', iconeKey: 'lojas_py' },
+  { id: 'lojas_py', nome: 'Lojas', segmentoDb: 'Lojas', iconeKey: 'lojas_py' },
   { id: 'passeios', nome: 'Passeios', segmentoDb: 'Atrativos', iconeKey: 'passeios' },
   { id: 'hospedagem', nome: 'Hospedagem', segmentoDb: 'Hospedagem', iconeKey: 'hospedagem' },
 ]
