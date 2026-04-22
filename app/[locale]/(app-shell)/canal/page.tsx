@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import ListaCanais from '@/components/ListaCanais'
+import ListaCanaisProfissional from '@/components/ListaCanaisProfissional'
 import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
@@ -24,6 +25,7 @@ export default function CanalPage() {
 
   const [canalSelecionado, setCanalSelecionado] = useState<CanalSelecionado>(null)
   const [abaPais, setAbaPais] = useState('geral')
+  const [leituraProfTick, setLeituraProfTick] = useState(0)
 
   const paises = ['BR', 'AR', 'PY', 'geral']
 
@@ -93,6 +95,22 @@ export default function CanalPage() {
     void load()
   }, [userTipoEfetivo])
 
+  useEffect(() => {
+    if (userTipoEfetivo !== 'profissional' || !usuarioId || !canalSelecionado?.id) return
+
+    void (async () => {
+      await supabase.from('canal_leitura_profissional').upsert(
+        {
+          usuario_id: usuarioId,
+          canal_id: canalSelecionado.id,
+          visto_em: new Date().toISOString(),
+        },
+        { onConflict: 'usuario_id,canal_id' },
+      )
+      setLeituraProfTick((t) => t + 1)
+    })()
+  }, [userTipoEfetivo, usuarioId, canalSelecionado?.id])
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -128,6 +146,7 @@ export default function CanalPage() {
   if (userTipoEfetivo === 'profissional') {
     const sel = canalSelecionado
     const isFinanceiro = sel?.nome === 'Financeiro'
+    const semCanal = !sel?.id
 
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
@@ -138,15 +157,21 @@ export default function CanalPage() {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col-reverse md:min-h-[calc(100vh-7rem)] md:flex-row">
-          <div className="max-h-[40vh] min-h-[7.5rem] w-full shrink-0 overflow-y-auto border-t border-gray-200 bg-white shadow-[0_-4px_14px_rgba(0,0,0,0.06)] md:h-auto md:max-h-none md:min-h-0 md:w-72 md:border-t-0 md:border-r md:border-gray-100 md:shadow-none">
-            <ListaCanais
-              tipoPublico="profissional"
+          <div
+            className={`flex w-full shrink-0 flex-col overflow-hidden border-t border-gray-200 bg-white shadow-[0_-4px_14px_rgba(0,0,0,0.06)] md:w-72 md:border-r md:border-gray-100 md:shadow-none ${
+              semCanal
+                ? 'min-h-0 flex-1 max-md:border-t-0 max-md:shadow-none md:h-auto md:max-h-none md:flex-none'
+                : 'max-h-[40vh] min-h-[7.5rem] max-md:border-t md:h-auto md:max-h-none md:min-h-0 md:border-t-0'
+            }`}
+          >
+            <ListaCanaisProfissional
               onSelectCanal={setCanalSelecionado}
               canalSelecionadoId={sel?.id != null ? String(sel.id) : undefined}
+              leituraTick={leituraProfTick}
             />
           </div>
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className={`min-h-0 min-w-0 flex-1 flex-col ${semCanal ? 'hidden md:flex' : 'flex'}`}>
             {sel?.id ? (
               isFinanceiro && financeUid ? (
                 <CanalFinanceiroLista usuarioId={financeUid} tipo="profissional" />
@@ -159,7 +184,7 @@ export default function CanalPage() {
                 </>
               )
             ) : (
-              <div className="flex flex-1 min-h-0 flex-col items-center justify-start px-4 pt-8 text-center text-sm text-gray-400 md:justify-center md:pt-0">
+              <div className="flex flex-1 min-h-0 flex-col items-center justify-center px-4 text-center text-sm text-gray-400">
                 Selecione um canal
               </div>
             )}
