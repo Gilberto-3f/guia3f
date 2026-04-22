@@ -11,7 +11,7 @@ const STORAGE_KEY = 'guia3f_modo_apresentacao'
  *   categoria: string | null
  *   segmento: string | null
  *   nome: string
- *   icone: string
+ *   iconeKey: string
  * }} PerfilSimulado
  */
 
@@ -21,7 +21,7 @@ const STORAGE_KEY = 'guia3f_modo_apresentacao'
  *   perfilSimulado: PerfilSimulado | null
  *   contextoUsuarioId: string | null
  *   contextoEmpresaId: string | null
- *   ativarModo: (tipo: PerfilSimulado['tipo'], opcoes?: { categoria?: string | null, segmento?: string | null, nome?: string, icone?: string, categoriaDb?: string | null, segmentoDb?: string | null }) => Promise<void>
+ *   ativarModo: (tipo: PerfilSimulado['tipo'], opcoes?: { categoria?: string | null, segmento?: string | null, nome?: string, iconeKey?: string, categoriaDb?: string | null, segmentoDb?: string | null }) => Promise<void>
  *   desativarModo: () => void
  *   isSimulando: () => boolean
  *   podeInteragir: boolean
@@ -44,12 +44,19 @@ function parseStored(raw) {
   const o = /** @type {Record<string, unknown>} */ (raw)
   const tipo = o.tipo
   if (tipo !== 'turista' && tipo !== 'profissional' && tipo !== 'empresa') return null
+  const legacyIcone = o.icone != null ? String(o.icone) : null
+  let iconeKey = o.iconeKey != null ? String(o.iconeKey) : ''
+  if (!iconeKey && legacyIcone) {
+    iconeKey = tipo === 'empresa' ? 'empresa' : tipo === 'profissional' ? 'profissional' : 'turista'
+  }
+  if (!iconeKey) iconeKey = tipo === 'empresa' ? 'empresa' : tipo === 'profissional' ? 'profissional' : 'turista'
+
   return {
     tipo,
     categoria: o.categoria != null ? String(o.categoria) : null,
     segmento: o.segmento != null ? String(o.segmento) : null,
     nome: o.nome != null ? String(o.nome) : 'Perfil',
-    icone: o.icone != null ? String(o.icone) : '👤',
+    iconeKey,
   }
 }
 
@@ -69,7 +76,7 @@ function readPersistedState() {
           categoria: null,
           segmento: null,
           nome: legacy === 'turista' ? 'Turista' : legacy === 'empresa' ? 'Empresa' : 'Profissional',
-          icone: legacy === 'turista' ? '👤' : legacy === 'empresa' ? '🏢' : '🚗',
+          iconeKey: legacy === 'turista' ? 'turista' : legacy === 'empresa' ? 'empresa' : 'profissional',
         },
         contextoUsuarioId: null,
         contextoEmpresaId: null,
@@ -150,11 +157,13 @@ export function ModoApresentacaoProvider({ children }) {
 
   /**
    * @param {import('./ModoApresentacaoContext.jsx').PerfilSimulado['tipo']} tipo
-   * @param {{ categoria?: string | null, segmento?: string | null, nome?: string, icone?: string, categoriaDb?: string | null, segmentoDb?: string | null }} [opcoes]
+   * @param {{ categoria?: string | null, segmento?: string | null, nome?: string, iconeKey?: string, categoriaDb?: string | null, segmentoDb?: string | null }} [opcoes]
    */
   const ativarModo = useCallback(async (tipo, opcoes = {}) => {
     const nome = opcoes.nome ?? 'Perfil'
-    const icone = opcoes.icone ?? '👤'
+    const iconeKey =
+      opcoes.iconeKey ??
+      (tipo === 'empresa' ? 'empresa' : tipo === 'profissional' ? 'profissional' : 'turista')
     const categoria = opcoes.categoria ?? null
     const segmento = opcoes.segmento ?? null
     const categoriaDb = opcoes.categoriaDb ?? null
@@ -191,7 +200,7 @@ export function ModoApresentacaoProvider({ children }) {
         categoria,
         segmento,
         nome,
-        icone,
+        iconeKey,
       })
 
       setPerfilSimulado(perfil)

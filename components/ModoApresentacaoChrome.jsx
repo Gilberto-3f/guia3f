@@ -1,6 +1,7 @@
 'use client'
 
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import ModoApresentacaoIcon from '@/components/ModoApresentacaoIcon'
 
 export default function ModoApresentacaoChrome() {
   const { modoAtivo, perfilSimulado, desativarModo, avisoBloqueio, limparAviso } = useModoApresentacao()
@@ -12,8 +13,10 @@ export default function ModoApresentacaoChrome() {
           className="fixed left-0 right-0 top-0 z-[60] flex items-center justify-between gap-2 border-b border-amber-600 bg-amber-500 px-3 py-2 text-sm text-white shadow-md"
           style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}
         >
-          <span className="min-w-0 flex-1 truncate">
-            🎭 MODO APRESENTAÇÃO — Visualizando como {perfilSimulado.icone} {perfilSimulado.nome}
+          <span className="flex min-w-0 flex-1 items-center gap-2 truncate">
+            <span className="shrink-0 text-xs font-bold uppercase tracking-wide opacity-95">Modo apresentação</span>
+            <ModoApresentacaoIcon iconeKey={perfilSimulado.iconeKey} className="h-4 w-4 shrink-0 text-white" />
+            <span className="min-w-0 truncate font-medium">{perfilSimulado.nome}</span>
           </span>
           <button
             type="button"
