@@ -6,6 +6,27 @@ const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
 const usernameRegex = /^[a-z0-9._]{3,20}$/
 const maxDescricao = 170
 
+function errDetails(err: unknown) {
+  if (err instanceof Error) {
+    return { message: err.message, name: err.name, stack: err.stack?.slice(0, 500) }
+  }
+  try {
+    return { message: JSON.stringify(err)?.slice(0, 1000) }
+  } catch {
+    return { message: String(err) }
+  }
+}
+
+function safeSupabaseError(e: any) {
+  return {
+    message: e?.message,
+    code: e?.code,
+    hint: e?.hint,
+    details: e?.details,
+    status: e?.status,
+  }
+}
+
 async function uploadFile(
   admin: ReturnType<typeof createSupabaseAdmin>,
   bucket: string,
@@ -26,10 +47,15 @@ async function uploadFile(
 }
 
 export async function POST(req: NextRequest) {
+  let step = 'init'
+  let createdUserId: string | null = null
   try {
+    step = 'createSupabaseAdmin'
     const admin = createSupabaseAdmin()
+    step = 'parseFormData'
     const form = await req.formData()
 
+    step = 'validations'
     const email = String(form.get('email') || '').trim().toLowerCase()
     const password = String(form.get('password') || '')
     const nomeFantasia = String(form.get('nomeFantasia') || '').trim()
@@ -82,6 +108,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'doc_required' }, { status: 400 })
     }
 
+    step = 'usernameChecks'
     const { data: uCheck } = await admin.from('turistas').select('id').eq('nome_usuario', nomeUsuario).limit(1)
     const { data: pCheck } = await admin
       .from('profissionais')
@@ -93,6 +120,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'username_taken' }, { status: 409 })
     }
 
+    step = 'createUser'
     const { data: created, error: cuErr } = await admin.auth.admin.createUser({
       email,
       password,
@@ -102,28 +130,36 @@ export async function POST(req: NextRequest) {
     if (cuErr) {
       const msg = (cuErr.message || '').toLowerCase()
       if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
-        return NextResponse.json({ error: 'email_exists' }, { status: 409 })
+        return NextResponse.json({ error: 'email_exists', step, details: safeSupabaseError(cuErr) }, { status: 409 })
       }
-      return NextResponse.json({ error: cuErr.message }, { status: 400 })
+      return NextResponse.json({ error: 'Erro ao criar usuário', step, details: safeSupabaseError(cuErr) }, { status: 500 })
     }
 
-    const userId = created.user?.id
-    if (!userId) {
-      return NextResponse.json({ error: 'no_user' }, { status: 500 })
+    createdUserId = created.user?.id ?? null
+    if (!createdUserId) {
+      return NextResponse.json({ error: 'no_user', step, details: { created } }, { status: 500 })
     }
 
     const logo = form.get('logo')
     let logoUrl: string | null = null
     if (logo instanceof File && logo.size > 0) {
-      logoUrl = await uploadFile(admin, 'empresas', 'logos', userId, logo)
+      step = 'uploadLogo'
+      logoUrl = await uploadFile(admin, 'empresas', 'logos', createdUserId, logo)
     }
 
-    const documentoComercialUrl = await uploadFile(admin, 'documentos', 'empresa-documentos', userId, documentoComercial)
+    step = 'uploadDocumentoComercial'
+    const documentoComercialUrl = await uploadFile(
+      admin,
+      'documentos',
+      'empresa-documentos',
+      createdUserId,
+      documentoComercial
+    )
 
     const geo = { status: 'pendente', latitude: null as number | null, longitude: null as number | null }
 
     const payloadCompleto: Record<string, unknown> = {
-      usuario_id: userId,
+      usuario_id: createdUserId,
       nome_fantasia: nomeFantasia,
       nome_usuario: nomeUsuario,
       categoria,
@@ -142,6 +178,7 @@ export async function POST(req: NextRequest) {
     if (website) payloadCompleto.website = website
     if (logoUrl) payloadCompleto.logo_url = logoUrl
 
+    step = 'insertEmpresa'
     let insertEmpresa = await admin.from('empresas').insert(payloadCompleto)
     if (
       insertEmpresa.error &&
@@ -149,7 +186,7 @@ export async function POST(req: NextRequest) {
       insertEmpresa.error.message.toLowerCase().includes('does not exist')
     ) {
       const payloadMinimo = {
-        usuario_id: userId,
+        usuario_id: createdUserId,
         nome_fantasia: nomeFantasia,
         nome_usuario: nomeUsuario,
         categoria,
@@ -170,20 +207,33 @@ export async function POST(req: NextRequest) {
     }
 
     if (insertEmpresa.error) {
+      const insertErr = insertEmpresa.error
       try {
-        await admin.auth.admin.deleteUser(userId)
-      } catch {
-        /* ignore */
+        step = 'rollbackDeleteUser'
+        await admin.auth.admin.deleteUser(createdUserId)
+      } catch (rbErr) {
+        return NextResponse.json(
+          {
+            error: 'Erro ao inserir empresa + rollback falhou',
+            step,
+            details: { insert: safeSupabaseError(insertErr), rollback: errDetails(rbErr) },
+            createdUserId,
+          },
+          { status: 500 }
+        )
       }
-      return NextResponse.json({ error: insertEmpresa.error.message }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Erro ao inserir empresa', step: 'insertEmpresa', details: safeSupabaseError(insertErr), createdUserId },
+        { status: 500 }
+      )
     }
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, step: 'complete' })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'erro'
     if (msg.includes('SUPABASE_SERVICE_ROLE_KEY') || msg.includes('em falta')) {
-      return NextResponse.json({ error: 'server_config' }, { status: 503 })
+      return NextResponse.json({ error: 'server_config', step, details: errDetails(e), createdUserId }, { status: 503 })
     }
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: 'Erro interno', step, details: errDetails(e), createdUserId }, { status: 500 })
   }
 }
