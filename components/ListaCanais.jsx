@@ -106,8 +106,10 @@ function particionarVisaoAdminTodos(canaisOrdenados) {
     profissionais: canaisOrdenados.filter(
       (c) => c.tipo_publico === 'profissional' && c.categoria != null && CATEGORIAS_PROFISSIONAIS.includes(c.categoria),
     ),
-    administracaoEmp: canaisOrdenados.filter((c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) === 'ADM'),
-    empresas: canaisOrdenados.filter((c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) !== 'ADM' && catEmp(c)),
+    administracaoEmp: /** @type {Canal[]} */ ([]),
+    empresas: canaisOrdenados.filter(
+      (c) => c.tipo_publico === 'empresa' && (nomeNorm(c.nome) === 'ADM' || (nomeNorm(c.nome) !== 'ADM' && catEmp(c))),
+    ),
   }
 }
 
@@ -150,17 +152,12 @@ export default function ListaCanais({
   const particionIds = useMemo(() => idsEmParticao(part), [part])
 
   const gruposIniciais = useMemo(() => {
-    const keys = /** @type {const} */ ([
-      'administrador',
-      'administracaoProf',
-      'profissionais',
-      'administracaoEmp',
-      'empresas',
-    ])
+    const keys = /** @type {const} */ (['administracaoUnificada', 'profissionais', 'empresas'])
     const init = /** @type {Record<string, boolean>} */ ({})
-    for (const k of keys) {
-      init[k] = part[k].length > 0
-    }
+    const adminUnificadoLen = (part.administrador?.length ?? 0) + (part.administracaoProf?.length ?? 0)
+    init.administracaoUnificada = adminUnificadoLen > 0
+    init.profissionais = (part.profissionais?.length ?? 0) > 0
+    init.empresas = (part.empresas?.length ?? 0) > 0
     return init
   }, [part])
 
@@ -309,15 +306,12 @@ export default function ListaCanais({
   if (usarLayoutChevron) {
     const outros = canais.filter((c) => !particionIds.has(c.id))
 
-    const tituloAdmProf = agruparPorTipo ? 'ADMINISTRAÇÃO (profissional)' : 'ADMINISTRAÇÃO'
-    const tituloAdmEmp = agruparPorTipo ? 'ADMINISTRAÇÃO (empresa)' : 'ADMINISTRAÇÃO'
+    const adminUnificado = [...(part.administrador ?? []), ...(part.administracaoProf ?? [])]
 
     return (
       <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-        {renderGrupoChevron({ id: 'administrador', titulo: 'ADMINISTRADOR', itens: part.administrador })}
-        {renderGrupoChevron({ id: 'administracaoProf', titulo: tituloAdmProf, itens: part.administracaoProf })}
+        {renderGrupoChevron({ id: 'administracaoUnificada', titulo: 'ADMINISTRAÇÃO', itens: adminUnificado })}
         {renderGrupoChevron({ id: 'profissionais', titulo: 'PROFISSIONAIS', itens: part.profissionais })}
-        {renderGrupoChevron({ id: 'administracaoEmp', titulo: tituloAdmEmp, itens: part.administracaoEmp })}
         {renderGrupoChevron({ id: 'empresas', titulo: 'EMPRESAS', itens: part.empresas })}
         {outros.map((canal) => renderRow(canal))}
       </div>
