@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Building2, ChevronDown, ChevronUp, Crown, Landmark, MessageCircle } from 'lucide-react'
+import { Building2, Crown, Hotel, Landmark, MessageCircle, Mountain, Store, Utensils } from 'lucide-react'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -12,6 +12,25 @@ const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App',
 
 /** Ordem amigável das categorias de empresa. */
 const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
+
+const ROTULO_CATEGORIA = /** @type {const} */ ({
+  Restaurantes: { Icon: Utensils, rótulo: 'Restaurantes' },
+  Atrativos: { Icon: Mountain, rótulo: 'Atrativos' },
+  Lojas: { Icon: Store, rótulo: 'Lojas' },
+  Hospedagem: { Icon: Hotel, rótulo: 'Hospedagem' },
+  Outros: { Icon: Building2, rótulo: 'Outros' },
+})
+
+/**
+ * @param {string} cat
+ * @returns {{ Icon: import('lucide-react').LucideIcon, rótulo: string }}
+ */
+function metaCategoriaEmpresa(cat) {
+  if (Object.prototype.hasOwnProperty.call(ROTULO_CATEGORIA, cat)) {
+    return /** @type {{ Icon: import('lucide-react').LucideIcon, rótulo: string }} */ (ROTULO_CATEGORIA[/** @type {keyof typeof ROTULO_CATEGORIA} */ (cat)])
+  }
+  return { Icon: Building2, rótulo: cat }
+}
 
 /**
  * @param {string | null | undefined} nome
@@ -26,6 +45,9 @@ function nomeNorm(nome) {
  *   nome: string
  *   tipo_publico: string | null
  *   categoria: string | null
+ *   comunidade_prof?: string | null
+ *   empresa_id?: string | null
+ *   empresa_categoria?: string | null
  *   ordem_tipo: string | null
  *   ordem_posicao?: number | null
  *   ultima_mensagem_em: string | null
@@ -56,7 +78,7 @@ function ordenarCanais(lista) {
 export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionadoId, leituraTick = 0 }) {
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
-  const [categoriasProf, setCategoriasProf] = useState(/** @type {string[]} */ ([]))
+  const [categoriaAba, setCategoriaAba] = useState(/** @type {string | null} */ (null))
 
   const part = useMemo(() => {
     const administracao = canais.filter(
@@ -87,31 +109,20 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     return entries
   }, [part.empresas])
 
-  const gruposIniciais = useMemo(
-    () => {
-      /** @type {Record<string, boolean>} */
-      const init = {
-        administracao: part.administracao.length > 0,
-      }
-      for (const [cat, lista] of empresasPorCategoria) {
-        init[`empresas:${cat}`] = lista.length > 0
-      }
-      return init
-    },
-    [part.administracao.length, empresasPorCategoria],
-  )
-
-  const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({}))
-
   useEffect(() => {
-    setGruposAbertos((prev) => {
-      const next = { ...gruposIniciais }
-      for (const k of Object.keys(next)) {
-        if (prev[k] != null) next[k] = prev[k]
-      }
-      return next
-    })
-  }, [gruposIniciais])
+    if (empresasPorCategoria.length === 0) {
+      setCategoriaAba(null)
+      return
+    }
+    const chaves = empresasPorCategoria.map(([k]) => k)
+    setCategoriaAba((prev) => (prev && chaves.includes(prev) ? prev : chaves[0]))
+  }, [empresasPorCategoria])
+
+  const itensAbaAtiva = useMemo(() => {
+    if (categoriaAba == null) return /** @type {Canal[]} */ ([])
+    const f = empresasPorCategoria.find(([k]) => k === categoriaAba)
+    return f ? f[1] : []
+  }, [empresasPorCategoria, categoriaAba])
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -127,7 +138,6 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
       const { data: prof } = await supabase.from('profissionais').select('categorias').eq('usuario_id', uid).maybeSingle()
       const cats = Array.isArray(prof?.categorias) ? prof.categorias.map(String) : []
-      setCategoriasProf(cats)
 
       const { data, error } = await supabase
         .from('canais')
@@ -225,56 +235,70 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     )
   }
 
-  const toggleGrupo = (id) => {
-    setGruposAbertos((prev) => {
-      const aberto = prev[id] !== false
-      return { ...prev, [id]: !aberto }
-    })
-  }
-
-  /**
-   * @param {{ id: string; titulo: string; itens: Canal[] }} args
-   */
-  function renderGrupo({ id, titulo, itens }) {
-    if (itens.length === 0) return null
-    const aberto = gruposAbertos[id] !== false
-    return (
-      <div className="border-b border-gray-100">
-        <button
-          type="button"
-          onClick={() => toggleGrupo(id)}
-          className="flex w-full items-center justify-between px-4 py-3 text-left"
-        >
-          <span className="font-bold text-[#0097b2]">{titulo}</span>
-          {aberto ? (
-            <ChevronUp size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
-          ) : (
-            <ChevronDown size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
-          )}
-        </button>
-        {aberto ? (
-          <div>
-            {itens.map((canal) => (
-              <div key={canal.id} className="pl-4">
-                {renderRow(canal)}
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    )
-  }
-
   if (loading) {
     return <div className="p-4 text-center text-gray-400">Carregando canais...</div>
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl shadow-sm">
-        {renderGrupo({ id: 'administracao', titulo: 'ADMINISTRAÇÃO', itens: part.administracao })}
-        {empresasPorCategoria.map(([cat, lista]) =>
-          renderGrupo({ id: `empresas:${cat}`, titulo: cat.toUpperCase(), itens: lista })
+      <div className="min-h-0 flex min-h-0 flex-1 flex-col overflow-y-auto md:min-h-0">
+        {part.administracao.length > 0 ? (
+          <div className="shrink-0 border-b border-gray-100">
+            <p className="px-4 pb-1 pt-3 text-xs font-bold tracking-wide text-[#0097b2]">ADMINISTRAÇÃO</p>
+            {part.administracao.map((canal) => (
+              <div key={canal.id} className="pl-0">
+                {renderRow(canal)}
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {empresasPorCategoria.length > 0 && categoriaAba ? (
+          <>
+            <p className="shrink-0 bg-white px-4 pb-1 pt-2 text-xs font-bold tracking-wide text-gray-500">Segmentos (empresas)</p>
+            <div
+              className="sticky top-0 z-10 flex shrink-0 items-end gap-1 border-b border-gray-100 bg-white px-2 pb-0"
+              role="tablist"
+              aria-label="Categorias de empresas"
+            >
+              {empresasPorCategoria.map(([cat]) => {
+                const ativo = categoriaAba === cat
+                const { Icon, rótulo } = metaCategoriaEmpresa(cat)
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    role="tab"
+                    aria-selected={ativo}
+                    onClick={() => setCategoriaAba(cat)}
+                    className={
+                      ativo
+                        ? 'mb-0 flex min-w-0 items-center gap-1.5 border-b-2 border-[#0097b2] px-2 py-2.5 text-sm font-medium text-[#0097b2]'
+                        : 'mb-0.5 p-2 text-gray-400 opacity-80 hover:opacity-100'
+                    }
+                  >
+                    {ativo ? <Icon className="h-5 w-5 shrink-0" aria-hidden /> : <Icon className="h-6 w-6 shrink-0" aria-hidden />}
+                    {ativo ? <span className="truncate">{rótulo}</span> : null}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="min-h-0 flex-1" role="tabpanel">
+              {itensAbaAtiva.length === 0 ? (
+                <p className="p-4 text-sm text-gray-500">Nenhum canal neste segmento.</p>
+              ) : (
+                itensAbaAtiva.map((canal) => (
+                  <div key={canal.id} className="pl-0">
+                    {renderRow(canal)}
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        ) : part.administracao.length > 0 ? (
+          <p className="p-4 text-sm text-gray-500">Não há canais de empresas do seu segmento. Quando houver, aparecem abaixo.</p>
+        ) : (
+          <p className="p-4 text-sm text-gray-500">Nenhum canal disponível.</p>
         )}
       </div>
     </div>

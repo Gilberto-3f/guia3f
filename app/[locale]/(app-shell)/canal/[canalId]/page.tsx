@@ -12,7 +12,11 @@ import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
 
 type TipoUsuario = 'turista' | 'profissional' | 'empresa' | 'admin' | null
 
-type CanalRow = { id: string; nome: string; tipo_publico: string | null }
+type CanalRow = { id: string; nome: string; tipo_publico: string | null; comunidade_prof: string | null }
+
+function isCanalNomeFinanceiro(nome: string) {
+  return nome.trim().toUpperCase() === 'FINANCEIRO'
+}
 
 export default function CanalDetalhePage() {
   const params = useParams()
@@ -97,7 +101,7 @@ export default function CanalDetalhePage() {
       setCanalMissing(false)
       const { data, error } = await supabase
         .from('canais')
-        .select('id, nome, tipo_publico')
+        .select('id, nome, tipo_publico, comunidade_prof')
         .eq('id', canalId)
         .maybeSingle()
 
@@ -109,6 +113,7 @@ export default function CanalDetalhePage() {
           id: String(data.id),
           nome: String(data.nome ?? ''),
           tipo_publico: data.tipo_publico != null ? String(data.tipo_publico) : null,
+          comunidade_prof: data.comunidade_prof != null ? String(data.comunidade_prof) : null,
         })
         setCanalMissing(false)
       }
@@ -173,7 +178,7 @@ export default function CanalDetalhePage() {
   }
 
   if (userTipoEfetivo === 'profissional') {
-    const isFinanceiro = canal.nome === 'Financeiro'
+    const isFinanceiro = isCanalNomeFinanceiro(canal.nome)
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
         <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-100 bg-white px-2 py-3">
@@ -199,7 +204,7 @@ export default function CanalDetalhePage() {
   }
 
   if (userTipoEfetivo === 'empresa') {
-    const isFinanceiro = canal.nome === 'Financeiro'
+    const isFinanceiro = isCanalNomeFinanceiro(canal.nome)
     const mostrarAbasTresPaises = canal.tipo_publico === 'profissional'
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
@@ -213,7 +218,9 @@ export default function CanalDetalhePage() {
             <ChevronLeft className="h-6 w-6" />
           </button>
           <h1 className="min-w-0 flex-1 text-lg font-bold text-gray-800">
-            {tituloCanalEmpresaLista(canal.nome)}
+            {canal.comunidade_prof
+              ? tituloCanalEmpresaLista(canal.comunidade_prof)
+              : canal.nome}
           </h1>
         </header>
         <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">

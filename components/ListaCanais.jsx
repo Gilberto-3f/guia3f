@@ -2,13 +2,29 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { MessageCircle, Building2, Crown, ChevronUp, ChevronDown } from 'lucide-react'
+import { MessageCircle, Building2, Crown, ChevronUp, ChevronDown, Landmark } from 'lucide-react'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
 
-/** @type {readonly string[]} */
+/** Valores legados (categoria) e rótulos atuais (cadastro / `empresa_categoria`). */
 const CATEGORIAS_EMPRESAS = ['gastronomia', 'lojas', 'passeios', 'hospedagem']
+const CATEGORIAS_EMPRESAS_ROTULO = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
+
+/**
+ * @param {Canal} c
+ */
+function canalEMSegmentoNegocio(c) {
+  const c1 = (c.categoria ?? '').trim()
+  const c2 = (c.empresa_categoria ?? '').trim()
+  const n = (c.nome ?? '').trim()
+  for (const x of [c1, c2, n]) {
+    const t = x.toLowerCase()
+    if (CATEGORIAS_EMPRESAS.includes(t)) return true
+    if (CATEGORIAS_EMPRESAS_ROTULO.includes(x)) return true
+  }
+  return false
+}
 
 /**
  * @param {string | null | undefined} nome
@@ -23,12 +39,48 @@ function nomeNorm(nome) {
  *   nome: string
  *   tipo_publico: string | null
  *   categoria: string | null
+ *   empresa_categoria?: string | null
+ *   empresa_id?: string | null
  *   pais: string | null
  *   ordem_tipo: string | null
+ *   ordem_posicao?: number | null
  *   ultima_mensagem_em: string | null
  *   nao_lidas?: number
  * }} Canal
  */
+
+/**
+ * @param {Canal} c
+ * @returns {number}
+ */
+function prioridadeAdmFin(c) {
+  const n = nomeNorm(c.nome)
+  if (n === 'ADM') return 0
+  if (n === 'FINANCEIRO') return 1
+  return 2
+}
+
+/**
+ * Junta e ordena a pasta ADMINISTRAÇÃO (múltiplas origens): fixos, depois desempate ADM antes de Financeiro.
+ * @param {Canal[]} lista
+ */
+function ordenarBlocoAdministracaoUnificada(lista) {
+  const fixos = lista.filter((c) => c.ordem_tipo === 'fixo')
+  const rot = lista.filter((c) => c.ordem_tipo !== 'fixo')
+  fixos.sort((a, b) => {
+    const pa = a.ordem_posicao ?? 0
+    const pb = b.ordem_posicao ?? 0
+    if (pa !== pb) return pa - pb
+    return prioridadeAdmFin(a) - prioridadeAdmFin(b)
+  })
+  rot.sort((a, b) => {
+    const ta = a.ultima_mensagem_em ? new Date(a.ultima_mensagem_em).getTime() : 0
+    const tb = b.ultima_mensagem_em ? new Date(b.ultima_mensagem_em).getTime() : 0
+    if (tb !== ta) return tb - ta
+    return prioridadeAdmFin(a) - prioridadeAdmFin(b)
+  })
+  return [...fixos, ...rot]
+}
 
 /**
  * @param {Canal[]} canaisOrdenados
@@ -62,18 +114,14 @@ function particionarPorPerfil(canaisOrdenados, tipoPublico) {
   }
 
   if (tp === 'empresa') {
-    const catEmp = (c) => {
-      const cat = (c.categoria ?? '').toLowerCase()
-      if (CATEGORIAS_EMPRESAS.includes(cat)) return true
-      const n = (c.nome ?? '').trim().toLowerCase()
-      return CATEGORIAS_EMPRESAS.includes(n)
-    }
     return {
       administrador: /** @type {Canal[]} */ ([]),
       administracaoProf: /** @type {Canal[]} */ ([]),
       profissionais: /** @type {Canal[]} */ ([]),
       administracaoEmp: canaisOrdenados.filter((c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) === 'ADM'),
-      empresas: canaisOrdenados.filter((c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) !== 'ADM' && catEmp(c)),
+      empresas: canaisOrdenados.filter(
+        (c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) !== 'ADM' && canalEMSegmentoNegocio(c),
+      ),
     }
   }
 
@@ -91,13 +139,10 @@ function particionarPorPerfil(canaisOrdenados, tipoPublico) {
  * @param {Canal[]} canaisOrdenados
  */
 function particionarVisaoAdminTodos(canaisOrdenados) {
-  const catEmp = (c) => {
-    const cat = (c.categoria ?? '').toLowerCase()
-    if (CATEGORIAS_EMPRESAS.includes(cat)) return true
-    const n = (c.nome ?? '').trim().toLowerCase()
-    return CATEGORIAS_EMPRESAS.includes(n)
-  }
-
+  /** Canais de admins globais (empresa) — ADM/Financeiro sem `empresa_id` ficam com administração, não em "Empresas". */
+  const administracaoEmp = canaisOrdenados.filter(
+    (c) => c.tipo_publico === 'empresa' && c.empresa_id == null && (nomeNorm(c.nome) === 'ADM' || nomeNorm(c.nome) === 'FINANCEIRO'),
+  )
   return {
     administrador: canaisOrdenados.filter((c) => c.tipo_publico === 'admin' && c.categoria === 'admin'),
     administracaoProf: canaisOrdenados.filter(
@@ -106,9 +151,10 @@ function particionarVisaoAdminTodos(canaisOrdenados) {
     profissionais: canaisOrdenados.filter(
       (c) => c.tipo_publico === 'profissional' && c.categoria != null && CATEGORIAS_PROFISSIONAIS.includes(c.categoria),
     ),
-    administracaoEmp: /** @type {Canal[]} */ ([]),
+    administracaoEmp: /** @type {Canal[]} */ (administracaoEmp),
+    /** Somente canais vinculados a segmento de negócios (categoria) — evita duplicar ADM. */
     empresas: canaisOrdenados.filter(
-      (c) => c.tipo_publico === 'empresa' && (nomeNorm(c.nome) === 'ADM' || (nomeNorm(c.nome) !== 'ADM' && catEmp(c))),
+      (c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) !== 'ADM' && nomeNorm(c.nome) !== 'FINANCEIRO' && canalEMSegmentoNegocio(c),
     ),
   }
 }
@@ -151,10 +197,20 @@ export default function ListaCanais({
 
   const particionIds = useMemo(() => idsEmParticao(part), [part])
 
+  const adminUnificado = useMemo(() => {
+    const all = [
+      ...(part.administrador ?? []),
+      ...(part.administracaoProf ?? []),
+      ...(part.administracaoEmp ?? []),
+    ]
+    if (all.length === 0) return /** @type {Canal[]} */ ([])
+    return ordenarBlocoAdministracaoUnificada(all)
+  }, [part])
+
   const gruposIniciais = useMemo(() => {
     const keys = /** @type {const} */ (['administracaoUnificada', 'profissionais', 'empresas'])
     const init = /** @type {Record<string, boolean>} */ ({})
-    const adminUnificadoLen = (part.administrador?.length ?? 0) + (part.administracaoProf?.length ?? 0)
+    const adminUnificadoLen = (part.administrador?.length ?? 0) + (part.administracaoProf?.length ?? 0) + (part.administracaoEmp?.length ?? 0)
     init.administracaoUnificada = adminUnificadoLen > 0
     init.profissionais = (part.profissionais?.length ?? 0) > 0
     init.empresas = (part.empresas?.length ?? 0) > 0
@@ -217,6 +273,7 @@ export default function ListaCanais({
   const getIcon = (canal) => {
     const n = nomeNorm(canal.nome)
     if (n === 'ADM' || n === 'MENSAGEIRO' || canal.nome === 'Mensageiro ADM') return Crown
+    if (n === 'FINANCEIRO') return Landmark
     if (canal.tipo_publico === 'empresa') return Building2
     return MessageCircle
   }
@@ -305,8 +362,6 @@ export default function ListaCanais({
 
   if (usarLayoutChevron) {
     const outros = canais.filter((c) => !particionIds.has(c.id))
-
-    const adminUnificado = [...(part.administrador ?? []), ...(part.administracaoProf ?? [])]
 
     return (
       <div className="overflow-hidden rounded-xl bg-white shadow-sm">

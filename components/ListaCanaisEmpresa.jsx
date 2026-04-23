@@ -47,6 +47,17 @@ export function tituloCanalEmpresaLista(comunidade) {
 /**
  * @param {Canal[]} lista
  */
+/**
+ * @param {string | null | undefined} n
+ * @returns {number}
+ */
+function prioridadeAdmFinNome(n) {
+  const u = (n ?? '').trim().toUpperCase()
+  if (u === 'ADM') return 0
+  if (u === 'FINANCEIRO') return 1
+  return 2
+}
+
 function ordenarCanais(lista) {
   const fixos = lista.filter((c) => c.ordem_tipo === 'fixo').sort((a, b) => (a.ordem_posicao ?? 0) - (b.ordem_posicao ?? 0))
   const rotativos = lista.filter((c) => c.ordem_tipo !== 'fixo')
@@ -56,6 +67,26 @@ function ordenarCanais(lista) {
     return tb - ta
   })
   return [...fixos, ...rotativos]
+}
+
+/**
+ * Garante ADM antes de Financeiro na pasta administração.
+ * @param {Array<{ nome?: string | null, ordem_tipo?: string | null, ordem_posicao?: number | null, ultima_mensagem_em?: string | null }>} lista
+ */
+function ordenarCanaisAdministracaoEmpresa(lista) {
+  if (lista.length === 0) return /** @type {typeof lista} */ ([])
+  const base = ordenarCanais([...lista])
+  return base.sort((a, b) => {
+    const pa = prioridadeAdmFinNome(a.nome)
+    const pb = prioridadeAdmFinNome(b.nome)
+    if (pa !== pb) return pa - pb
+    if (a.ordem_tipo === 'fixo' && b.ordem_tipo === 'fixo') {
+      return (a.ordem_posicao ?? 0) - (b.ordem_posicao ?? 0)
+    }
+    const ta = a.ultima_mensagem_em ? new Date(a.ultima_mensagem_em).getTime() : 0
+    const tb = b.ultima_mensagem_em ? new Date(b.ultima_mensagem_em).getTime() : 0
+    return tb - ta
+  })
 }
 
 /**
@@ -70,11 +101,13 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
 
   const part = useMemo(() => {
-    const administracao = canais.filter(
-      (c) =>
-        c.tipo_publico === 'empresa' &&
-        c.empresa_id == null &&
-        (nomeNorm(c.nome) === 'ADM' || nomeNorm(c.nome) === 'FINANCEIRO'),
+    const administracao = ordenarCanaisAdministracaoEmpresa(
+      canais.filter(
+        (c) =>
+          c.tipo_publico === 'empresa' &&
+          c.empresa_id == null &&
+          (nomeNorm(c.nome) === 'ADM' || nomeNorm(c.nome) === 'FINANCEIRO'),
+      ),
     )
     const profissionais = canais
       .filter((c) => c.tipo_publico === 'empresa' && empresaId && String(c.empresa_id ?? '') === String(empresaId))
@@ -85,7 +118,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const gruposIniciais = useMemo(
     () => ({
       administracao: part.administracao.length > 0,
-      profissionais: part.profissionais.length > 0,
+      profissionais: true,
     }),
     [part],
   )
@@ -212,10 +245,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   }
 
   /**
-   * @param {{ id: string; titulo: string; itens: Canal[] }} args
+   * @param {{ id: string; titulo: string; itens: Canal[]; forcarVazio?: boolean; mensagemVazio?: string }} args
    */
-  function renderGrupo({ id, titulo, itens }) {
-    if (itens.length === 0) return null
+  function renderGrupo({ id, titulo, itens, forcarVazio, mensagemVazio }) {
+    if (itens.length === 0 && !forcarVazio) return null
     const aberto = gruposAbertos[id] !== false
     return (
       <div className="border-b border-gray-100">
@@ -232,13 +265,17 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
           )}
         </button>
         {aberto ? (
-          <div>
-            {itens.map((canal) => (
-              <div key={canal.id} className="pl-4">
-                {renderRow(canal)}
-              </div>
-            ))}
-          </div>
+          itens.length === 0 && mensagemVazio ? (
+            <p className="px-4 pb-4 pl-8 text-sm text-gray-500">{mensagemVazio}</p>
+          ) : (
+            <div>
+              {itens.map((canal) => (
+                <div key={canal.id} className="pl-4">
+                  {renderRow(canal)}
+                </div>
+              ))}
+            </div>
+          )
         ) : null}
       </div>
     )
@@ -252,7 +289,13 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <div className="min-h-0 flex-1 overflow-y-auto rounded-xl shadow-sm">
         {renderGrupo({ id: 'administracao', titulo: 'ADMINISTRAÇÃO', itens: part.administracao })}
-        {renderGrupo({ id: 'profissionais', titulo: 'PROFISSIONAIS', itens: part.profissionais })}
+        {renderGrupo({
+          id: 'profissionais',
+          titulo: 'PROFISSIONAIS',
+          itens: part.profissionais,
+          forcarVazio: true,
+          mensagemVazio: 'Ainda não há canais de profissionais (por categoria) nesta pasta.',
+        })}
       </div>
     </div>
   )
