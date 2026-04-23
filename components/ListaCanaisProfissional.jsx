@@ -8,7 +8,10 @@ import { Building2, ChevronDown, ChevronUp, Crown, Landmark, MessageCircle } fro
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
 
 /** @type {readonly string[]} */
-const CATEGORIAS_EMPRESAS = ['gastronomia', 'lojas', 'passeios', 'hospedagem']
+const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App', 'Anfitriao']
+
+/** Ordem amigável das categorias de empresa. */
+const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
 
 /**
  * @param {string | null | undefined} nome
@@ -53,27 +56,49 @@ function ordenarCanais(lista) {
 export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionadoId, leituraTick = 0 }) {
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
+  const [categoriasProf, setCategoriasProf] = useState(/** @type {string[]} */ ([]))
 
   const part = useMemo(() => {
     const administracao = canais.filter(
       (c) => c.tipo_publico === 'profissional' && (c.categoria === 'admin' || nomeNorm(c.nome) === 'FINANCEIRO'),
     )
-    const empresas = canais.filter((c) => {
-      if (c.tipo_publico !== 'empresa') return false
-      const cat = (c.categoria ?? '').toLowerCase()
-      if (CATEGORIAS_EMPRESAS.includes(cat)) return true
-      const n = (c.nome ?? '').trim().toLowerCase()
-      return CATEGORIAS_EMPRESAS.includes(n)
-    })
+    const empresas = canais.filter((c) => c.tipo_publico === 'empresa' && c.empresa_id != null && c.comunidade_prof != null)
     return { administracao, empresas }
   }, [canais])
 
+  const empresasPorCategoria = useMemo(() => {
+    /** @type {Record<string, Canal[]>} */
+    const map = {}
+    for (const c of part.empresas) {
+      const cat = String(c.empresa_categoria ?? '').trim() || 'Outros'
+      if (!map[cat]) map[cat] = []
+      map[cat].push(c)
+    }
+    for (const k of Object.keys(map)) {
+      map[k] = ordenarCanais(map[k])
+    }
+    const entries = Object.entries(map)
+    entries.sort((a, b) => {
+      const ia = ORDEM_CATEGORIA_EMPRESA.indexOf(a[0])
+      const ib = ORDEM_CATEGORIA_EMPRESA.indexOf(b[0])
+      if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+      return a[0].localeCompare(b[0])
+    })
+    return entries
+  }, [part.empresas])
+
   const gruposIniciais = useMemo(
-    () => ({
-      administracao: part.administracao.length > 0,
-      empresas: part.empresas.length > 0,
-    }),
-    [part],
+    () => {
+      /** @type {Record<string, boolean>} */
+      const init = {
+        administracao: part.administracao.length > 0,
+      }
+      for (const [cat, lista] of empresasPorCategoria) {
+        init[`empresas:${cat}`] = lista.length > 0
+      }
+      return init
+    },
+    [part.administracao.length, empresasPorCategoria],
   )
 
   const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({}))
@@ -91,9 +116,24 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id
+      if (!uid) {
+        setCanais([])
+        return
+      }
+
+      const { data: prof } = await supabase.from('profissionais').select('categorias').eq('usuario_id', uid).maybeSingle()
+      const cats = Array.isArray(prof?.categorias) ? prof.categorias.map(String) : []
+      setCategoriasProf(cats)
+
       const { data, error } = await supabase
         .from('canais')
-        .select('id, nome, tipo_publico, categoria, ultima_mensagem_em, ordem_tipo, ordem_posicao')
+        .select(
+          'id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, empresa_categoria, ultima_mensagem_em, ordem_tipo, ordem_posicao',
+        )
         .eq('ativo', true)
         .in('tipo_publico', ['profissional', 'empresa'])
 
@@ -105,10 +145,10 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
           return c.categoria != null && CATEGORIAS_PROFISSIONAIS.includes(c.categoria)
         }
         if (c.tipo_publico === 'empresa') {
-          const cat = (c.categoria ?? '').toLowerCase()
-          if (CATEGORIAS_EMPRESAS.includes(cat)) return true
-          const n = (c.nome ?? '').trim().toLowerCase()
-          return CATEGORIAS_EMPRESAS.includes(n)
+          if (c.empresa_id == null) return false
+          const comu = c.comunidade_prof != null ? String(c.comunidade_prof) : ''
+          if (!comu || !COMUNIDADES_PROFISSIONAIS.includes(comu)) return false
+          return cats.includes(comu)
         }
         return false
       })
@@ -233,7 +273,9 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <div className="min-h-0 flex-1 overflow-y-auto rounded-xl shadow-sm">
         {renderGrupo({ id: 'administracao', titulo: 'ADMINISTRAÇÃO', itens: part.administracao })}
-        {renderGrupo({ id: 'empresas', titulo: 'EMPRESAS', itens: part.empresas })}
+        {empresasPorCategoria.map(([cat, lista]) =>
+          renderGrupo({ id: `empresas:${cat}`, titulo: cat.toUpperCase(), itens: lista })
+        )}
       </div>
     </div>
   )
