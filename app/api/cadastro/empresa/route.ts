@@ -4,7 +4,6 @@ import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
 const usernameRegex = /^[a-z0-9._]{3,20}$/
-const minimoFotos = 3
 const maxDescricao = 170
 
 async function uploadFile(
@@ -83,11 +82,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'doc_required' }, { status: 400 })
     }
 
-    const fotos = form.getAll('fotos').filter((f): f is File => f instanceof File && f.size > 0)
-    if (fotos.length < minimoFotos) {
-      return NextResponse.json({ error: 'photos_min' }, { status: 400 })
-    }
-
     const { data: uCheck } = await admin.from('turistas').select('id').eq('nome_usuario', nomeUsuario).limit(1)
     const { data: pCheck } = await admin
       .from('profissionais')
@@ -124,11 +118,6 @@ export async function POST(req: NextRequest) {
       logoUrl = await uploadFile(admin, 'empresas', 'logos', userId, logo)
     }
 
-    const fotosUrls: string[] = []
-    for (const f of fotos) {
-      fotosUrls.push(await uploadFile(admin, 'empresas', 'fotos', userId, f))
-    }
-
     const documentoComercialUrl = await uploadFile(admin, 'documentos', 'empresa-documentos', userId, documentoComercial)
 
     const geo = { status: 'pendente', latitude: null as number | null, longitude: null as number | null }
@@ -144,7 +133,6 @@ export async function POST(req: NextRequest) {
       whatsapp: whatsApp,
       descricao_curta: descricaoCurta,
       horarios_funcionamento: horariosSelecionados,
-      fotos_urls: fotosUrls,
       documento_comercial_url: documentoComercialUrl,
       geocoding_status: geo.status,
       latitude: geo.latitude,

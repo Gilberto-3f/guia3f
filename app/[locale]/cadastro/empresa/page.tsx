@@ -14,7 +14,6 @@ type CidadeEmpresa = 'Foz do Iguacu' | 'Ciudad del Este' | 'Puerto Iguazu'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const usernameRegex = /^[a-z0-9._]{3,20}$/
-const minimoFotos = 3
 const maxDescricao = 170
 
 const categorias: CategoriaEmpresa[] = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
@@ -36,8 +35,6 @@ function mapApiEmpresaError(
       return t('apiErrorServerConfig')
     case 'username_taken':
       return t('username.unavailable')
-    case 'photos_min':
-      return t('empresa.valPhotos', { min: minimoFotos })
     case 'doc_required':
       return t('empresa.valDoc')
     case 'policies':
@@ -95,8 +92,6 @@ export default function CadastroEmpresaPage() {
 
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState('')
-  const [fotosFiles, setFotosFiles] = useState<File[]>([])
-  const [fotosPreview, setFotosPreview] = useState<string[]>([])
   const [documentoComercialFile, setDocumentoComercialFile] = useState<File | null>(null)
 
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle')
@@ -114,7 +109,6 @@ export default function CadastroEmpresaPage() {
     () => descricaoCurta.trim().length > 0 && descricaoCurta.length <= maxDescricao,
     [descricaoCurta]
   )
-  const totalFotos = fotosFiles.length
 
   useEffect(() => {
     let ativo = true
@@ -153,19 +147,6 @@ export default function CadastroEmpresaPage() {
     return () => URL.revokeObjectURL(objectUrl)
   }, [logoFile])
 
-  useEffect(() => {
-    if (fotosFiles.length === 0) {
-      setFotosPreview([])
-      return
-    }
-
-    const urls = fotosFiles.map((file) => URL.createObjectURL(file))
-    setFotosPreview(urls)
-
-    return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url))
-    }
-  }, [fotosFiles])
 
   useEffect(() => {
     if (!usernameLimpo) {
@@ -232,11 +213,6 @@ export default function CadastroEmpresaPage() {
     setter(event.target.files?.[0] ?? null)
   }
 
-  const onFotosChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const arquivos = event.target.files ? Array.from(event.target.files) : []
-    setFotosFiles(arquivos)
-  }
-
   const toggleDia = (dia: string) => {
     setHorariosSelecionados((prev) =>
       prev.includes(dia) ? prev.filter((item) => item !== dia) : [...prev, dia]
@@ -274,7 +250,6 @@ export default function CadastroEmpresaPage() {
     if (!telefone.trim()) return t('empresa.valPhone')
     if (!whatsApp.trim()) return t('empresa.valWhatsapp')
     if (!descricaoValida) return t('empresa.valDescription', { max: maxDescricao })
-    if (totalFotos < minimoFotos) return t('empresa.valPhotos', { min: minimoFotos })
     if (!documentoComercialFile) return t('empresa.valDoc')
     if (!aceitePoliticas) return t('empresa.valPolicies')
     if (!modoLogado) {
@@ -313,7 +288,6 @@ export default function CadastroEmpresaPage() {
         fd.append('aceitePoliticas', String(aceitePoliticas))
         if (website.trim()) fd.append('website', website.trim())
         if (logoFile) fd.append('logo', logoFile)
-        fotosFiles.forEach((f) => fd.append('fotos', f))
         fd.append('documentoComercial', documentoComercialFile)
 
         const res = await fetch('/api/cadastro/empresa', { method: 'POST', body: fd })
@@ -366,11 +340,8 @@ export default function CadastroEmpresaPage() {
       )
       if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
 
-      const [logoUrl, fotosUrls, documentoComercialUrl, geo] = await Promise.all([
+      const [logoUrl, documentoComercialUrl, geo] = await Promise.all([
         logoFile ? uploadArquivo('empresas', 'logos', userId, logoFile) : Promise.resolve(null),
-        Promise.all(
-          fotosFiles.map((file) => uploadArquivo('empresas', 'fotos', userId, file))
-        ),
         uploadArquivo('documentos', 'empresa-documentos', userId, documentoComercialFile as File),
         geocodificarEndereco(enderecoCompleto),
       ])
@@ -386,7 +357,6 @@ export default function CadastroEmpresaPage() {
         whatsapp: whatsApp.trim(),
         descricao_curta: descricaoCurta.trim(),
         horarios_funcionamento: horariosSelecionados,
-        fotos_urls: fotosUrls,
         documento_comercial_url: documentoComercialUrl,
         geocoding_status: geo.status,
         latitude: geo.latitude,
@@ -694,38 +664,6 @@ export default function CadastroEmpresaPage() {
               ))}
             </div>
           </fieldset>
-
-          <div>
-            <label htmlFor="fotosEmpresa" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('empresa.companyPhotos')} {t('common.required')}
-            </label>
-            <input
-              id="fotosEmpresa"
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={onFotosChange}
-              className="block w-full rounded-lg bg-[#0097b2] text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white px-3 py-2 text-sm"
-            />
-            <p className={`mt-1 text-xs ${totalFotos < minimoFotos ? 'text-red-600' : 'text-green-600'}`}>
-              {t('empresa.photosCount', { count: totalFotos, min: minimoFotos })}
-            </p>
-            {totalFotos < minimoFotos && (
-              <p className="mt-1 text-xs text-red-600">{t('empresa.photosNeedMore')}</p>
-            )}
-            {fotosPreview.length > 0 && (
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {fotosPreview.map((url, index) => (
-                  <img
-                    key={`${url}-${index}`}
-                    src={url}
-                    alt={t('empresa.previewPhoto', { n: index + 1 })}
-                    className="h-20 w-full rounded-lg border border-gray-200 object-cover"
-                  />
-                ))}
-              </div>
-            )}
-          </div>
 
           <div>
             <label htmlFor="documentoComercial" className="mb-1 block text-sm font-medium text-[#001f3f]">
