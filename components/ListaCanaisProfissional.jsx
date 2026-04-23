@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ChevronDown, ChevronUp, Crown, Landmark, MessageCircle } from 'lucide-react'
+import { Building2, ChevronDown, ChevronUp, Crown, Landmark, MessageCircle } from 'lucide-react'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
+
+/** @type {readonly string[]} */
+const CATEGORIAS_EMPRESAS = ['gastronomia', 'lojas', 'passeios', 'hospedagem']
 
 /**
  * @param {string | null | undefined} nome
@@ -55,19 +58,20 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     const administracao = canais.filter(
       (c) => c.tipo_publico === 'profissional' && (c.categoria === 'admin' || nomeNorm(c.nome) === 'FINANCEIRO'),
     )
-    const profissionais = canais.filter(
-      (c) =>
-        c.tipo_publico === 'profissional' &&
-        c.categoria != null &&
-        CATEGORIAS_PROFISSIONAIS.includes(c.categoria),
-    )
-    return { administracao, profissionais }
+    const empresas = canais.filter((c) => {
+      if (c.tipo_publico !== 'empresa') return false
+      const cat = (c.categoria ?? '').toLowerCase()
+      if (CATEGORIAS_EMPRESAS.includes(cat)) return true
+      const n = (c.nome ?? '').trim().toLowerCase()
+      return CATEGORIAS_EMPRESAS.includes(n)
+    })
+    return { administracao, empresas }
   }, [canais])
 
   const gruposIniciais = useMemo(
     () => ({
       administracao: part.administracao.length > 0,
-      profissionais: part.profissionais.length > 0,
+      empresas: part.empresas.length > 0,
     }),
     [part],
   )
@@ -90,14 +94,23 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       const { data, error } = await supabase
         .from('canais')
         .select('id, nome, tipo_publico, categoria, ultima_mensagem_em, ordem_tipo, ordem_posicao')
-        .eq('tipo_publico', 'profissional')
         .eq('ativo', true)
+        .in('tipo_publico', ['profissional', 'empresa'])
 
       if (error) throw error
       const lista = /** @type {Canal[]} */ (data ?? [])
       const filtrada = lista.filter((c) => {
-        if (c.categoria === 'admin' || nomeNorm(c.nome) === 'FINANCEIRO') return true
-        return c.categoria != null && CATEGORIAS_PROFISSIONAIS.includes(c.categoria)
+        if (c.tipo_publico === 'profissional') {
+          if (c.categoria === 'admin' || nomeNorm(c.nome) === 'FINANCEIRO') return true
+          return c.categoria != null && CATEGORIAS_PROFISSIONAIS.includes(c.categoria)
+        }
+        if (c.tipo_publico === 'empresa') {
+          const cat = (c.categoria ?? '').toLowerCase()
+          if (CATEGORIAS_EMPRESAS.includes(cat)) return true
+          const n = (c.nome ?? '').trim().toLowerCase()
+          return CATEGORIAS_EMPRESAS.includes(n)
+        }
+        return false
       })
       setCanais(ordenarCanais(filtrada))
     } catch (e) {
@@ -137,6 +150,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
    * @param {Canal} canal
    */
   const getIcon = (canal) => {
+    if (canal.tipo_publico === 'empresa') return Building2
     if (nomeNorm(canal.nome) === 'ADM') return Crown
     if (nomeNorm(canal.nome) === 'FINANCEIRO') return Landmark
     return MessageCircle
@@ -219,7 +233,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <div className="min-h-0 flex-1 overflow-y-auto rounded-xl shadow-sm">
         {renderGrupo({ id: 'administracao', titulo: 'ADMINISTRAÇÃO', itens: part.administracao })}
-        {renderGrupo({ id: 'profissionais', titulo: 'PROFISSIONAIS', itens: part.profissionais })}
+        {renderGrupo({ id: 'empresas', titulo: 'EMPRESAS', itens: part.empresas })}
       </div>
     </div>
   )
