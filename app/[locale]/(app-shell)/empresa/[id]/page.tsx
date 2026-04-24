@@ -165,6 +165,7 @@ export default function EmpresaPage() {
   const donoEmpresa = usuarioId != null && String(empresa.usuario_id ?? '') === usuarioId && meuRole === 'empresa'
   const podeAbrirMenu =
     donoEmpresa || (meuRole === 'admin' && typeof adminLevel === 'number' && adminLevel === 1 && modoAtivo)
+  const modoEmpresaLayout = podeAbrirMenu
 
   const empresaEndereco = {
     endereco: String(empresa.endereco ?? ''),
@@ -181,14 +182,26 @@ export default function EmpresaPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
-        <div className="flex items-center justify-between px-4 py-3">
-          <BotaoVoltar />
-          <Username username={nomeUsuario} />
-          <div className="w-10" aria-hidden />
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            {!modoEmpresaLayout ? <BotaoVoltar /> : null}
+            <Username username={nomeUsuario} />
+          </div>
+
+          {podeAbrirMenu ? (
+            <button
+              type="button"
+              onClick={() => setMenuAberto(true)}
+              className="shrink-0 rounded-full bg-black/5 px-3 py-2 text-lg font-bold leading-none text-gray-900 hover:bg-black/10"
+              aria-label="Menu"
+            >
+              ☰⋮
+            </button>
+          ) : null}
         </div>
       </div>
 
-      <FotoHero fotoUrl={fotoUrl} nome={nomeFantasia} onOpenMenu={() => setMenuAberto(true)} mostrarMenu={podeAbrirMenu} />
+      <FotoHero fotoUrl={fotoUrl} nome={nomeFantasia} />
 
       <div className="border-b border-gray-100 bg-white p-4">
         <div className="mb-2 flex items-start justify-between gap-2">
