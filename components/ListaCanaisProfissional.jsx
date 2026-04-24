@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Building2, ChevronDown, ChevronUp, Crown, Hotel, Landmark, MessageCircle, Mountain, Store, Utensils } from 'lucide-react'
+import { Building2, ChevronDown, ChevronUp, Crown, Landmark, MessageCircle, ShoppingBag, Ticket, Utensils } from 'lucide-react'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -13,21 +13,38 @@ const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App',
 /** Ordem amigável das categorias de empresa. */
 const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
 
+/**
+ * Símbolo “sono” (Zzz) para hospedagem — fora de Lucide.
+ * @param {{ className?: string, 'aria-hidden'?: boolean }} p
+ */
+function IconSonoZz({ className, ...rest }) {
+  return (
+    <span
+      className={`inline-flex select-none items-center justify-center text-current ${className ?? 'h-6 w-6'}`}
+      aria-hidden={rest['aria-hidden'] ?? true}
+    >
+      <span className="pr-px text-[0.7rem] font-extrabold italic leading-none tracking-[-0.2em] sm:text-[0.8rem]">Zzz</span>
+    </span>
+  )
+}
+IconSonoZz.displayName = 'IconSonoZz'
+
 const ROTULO_CATEGORIA = /** @type {const} */ ({
   Restaurantes: { Icon: Utensils, rótulo: 'Restaurantes' },
-  Atrativos: { Icon: Mountain, rótulo: 'Atrativos' },
-  Lojas: { Icon: Store, rótulo: 'Lojas' },
-  Hospedagem: { Icon: Hotel, rótulo: 'Hospedagem' },
+  Atrativos: { Icon: Ticket, rótulo: 'Atrativos' },
+  Lojas: { Icon: ShoppingBag, rótulo: 'Lojas' },
+  Hospedagem: { Icon: IconSonoZz, rótulo: 'Hospedagem' },
   Outros: { Icon: Building2, rótulo: 'Outros' },
 })
 
 /**
  * @param {string} cat
- * @returns {{ Icon: import('lucide-react').LucideIcon, rótulo: string }}
  */
 function metaCategoriaEmpresa(cat) {
   if (Object.prototype.hasOwnProperty.call(ROTULO_CATEGORIA, cat)) {
-    return /** @type {{ Icon: import('lucide-react').LucideIcon, rótulo: string }} */ (ROTULO_CATEGORIA[/** @type {keyof typeof ROTULO_CATEGORIA} */ (cat)])
+    return /** @type {{ Icon: import('lucide-react').LucideIcon, rótulo: string } | { Icon: typeof IconSonoZz, rótulo: string }} */ (
+      ROTULO_CATEGORIA[/** @type {keyof typeof ROTULO_CATEGORIA} */ (cat)]
+    )
   }
   return { Icon: Building2, rótulo: cat }
 }
@@ -279,7 +296,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
           <>
             <p className="shrink-0 bg-white px-4 pb-1 pt-2 text-xs font-bold tracking-wide text-gray-500">Segmentos (empresas)</p>
             <div
-              className="sticky top-0 z-10 flex shrink-0 items-end gap-1 border-b border-gray-100 bg-white px-2 pb-0"
+              className="sticky top-0 z-10 flex w-full min-w-0 shrink-0 items-stretch border-b border-gray-100 bg-white pl-0 pr-0"
               role="tablist"
               aria-label="Categorias de empresas"
             >
@@ -295,12 +312,22 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
                     onClick={() => setCategoriaAba(cat)}
                     className={
                       ativo
-                        ? 'mb-0 flex min-w-0 items-center gap-1.5 border-b-2 border-[#0097b2] px-2 py-2.5 text-sm font-medium text-[#0097b2]'
-                        : 'mb-0.5 p-2 text-gray-400 opacity-80 hover:opacity-100'
+                        ? 'min-w-0 flex-1 border-b-2 border-b-[#0097b2] text-[#0097b2]'
+                        : 'min-w-0 flex-1 border-b-2 border-b-transparent text-gray-400 opacity-80 hover:opacity-100'
                     }
                   >
-                    {ativo ? <Icon className="h-5 w-5 shrink-0" aria-hidden /> : <Icon className="h-6 w-6 shrink-0" aria-hidden />}
-                    {ativo ? <span className="truncate">{rótulo}</span> : null}
+                    {ativo ? (
+                      <div className="mx-auto flex min-h-[2.65rem] w-full max-w-[5.5rem] flex-col items-center justify-center gap-0.5 py-1.5 sm:max-w-[5.8rem] sm:min-w-[5.2rem] sm:flex-row sm:items-center sm:gap-1 sm:py-2.5 sm:pl-0 sm:pr-0">
+                        <Icon className="h-5 w-5 shrink-0" aria-hidden />
+                        <span className="text-center text-[0.7rem] font-medium leading-tight [word-break:keep-all] [overflow-wrap:balance] min-[400px]:text-xs">
+                          {rótulo}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex min-h-[2.75rem] items-center justify-center py-1.5">
+                        <Icon className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" aria-hidden />
+                      </div>
+                    )}
                   </button>
                 )
               })}
