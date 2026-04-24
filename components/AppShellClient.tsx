@@ -30,8 +30,8 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
   const isStoryCriar = pathname.includes('/feed/story/criar')
   const hideBottomBar = isStoryCriar || (pathname.includes('/feed/criar') && criarTecladoOcultaBarra)
-  /** Em `/feed/criar` menos respiro acima da barra fixa; em criar story o editor tem rodapé próprio. */
-  const paddingTopoModo = modoAtivo ? 'pt-12' : ''
+  /** `pt-12` era para compensar o `ModoApresentacaoChrome`; sem ele não deve haver espaço extra. */
+  const paddingTopoModo = ''
 
   const paddingInferior =
     hideBottomBar ? '' : pathname.includes('/feed/criar') ? 'pb-14' : 'pb-20'
