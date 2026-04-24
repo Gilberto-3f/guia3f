@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
@@ -60,7 +61,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
   const [gate, setGate] = useState<GateState>({ status: 'loading' })
   const [empresaBase, setEmpresaBase] = useState<Record<string, unknown> | null>(null)
   const [loadingEmpresa, setLoadingEmpresa] = useState(true)
-  const [abaAtiva, setAbaAtiva] = useState<'avaliacoes' | 'endereco' | 'dinamico'>('avaliacoes')
+  const [abaExpandida, setAbaExpandida] = useState<null | 'avaliacoes' | 'endereco' | 'dinamico'>(null)
   const [menuAberto, setMenuAberto] = useState(false)
 
   const { draft, salvar, limpar } = useEmpresaPreviewDraft({
@@ -212,6 +213,10 @@ export default function EmpresaPreviewModoApresentacaoPage() {
   const longitude =
     lngRaw == null || typeof lngRaw === 'object' ? null : typeof lngRaw === 'number' ? lngRaw : Number(lngRaw)
 
+  const toggleAba = (aba: 'avaliacoes' | 'endereco' | 'dinamico') => {
+    setAbaExpandida((atual) => (atual === aba ? null : aba))
+  }
+
   const empresaEndereco = {
     endereco: String(empresaMerged.endereco ?? ''),
     cidade: String(empresaMerged.cidade ?? ''),
@@ -244,68 +249,95 @@ export default function EmpresaPreviewModoApresentacaoPage() {
 
       <FotoHero fotoUrl={fotoUrl} nome={nomeFantasia} />
 
-      <div className="border-b border-gray-100 bg-white p-4">
-        <div className="mb-2 flex items-start justify-between gap-2">
-          <NomeEmpresa nome={nomeFantasia} />
-          <BotaoSeguir empresaId={empresaId} isFollowing={false} onToggle={() => {}} />
-        </div>
+      {abaExpandida == null ? (
+        <div className="border-b border-gray-100 bg-white p-4">
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <NomeEmpresa nome={nomeFantasia} />
+            <BotaoSeguir empresaId={empresaId} isFollowing={false} onToggle={() => {}} />
+          </div>
 
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-          <ContadorSeguidores empresaId={empresaId} total={totalSeg} />
-          <NotaMedia nota={notaMedia} total={totalAval} />
-          <StatusAtendimento horarios={empresaEndereco.horarios} />
-        </div>
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+            <ContadorSeguidores empresaId={empresaId} total={totalSeg} />
+            <NotaMedia nota={notaMedia} total={totalAval} />
+            <StatusAtendimento horarios={empresaEndereco.horarios} />
+          </div>
 
-        <DescricaoLonga descricao={descLonga} />
-      </div>
+          <DescricaoLonga descricao={descLonga} />
+
+          <div className="mt-4 hidden rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 text-center text-xs text-gray-400">
+            Conteúdo adicional (fotos/posts/tour 360) entra aqui.
+          </div>
+        </div>
+      ) : null}
 
       <div className="border-b border-gray-100 bg-white">
         <div className="flex">
           <button
             type="button"
-            onClick={() => setAbaAtiva('avaliacoes')}
-            className={`flex-1 py-3 text-center text-sm font-medium transition-colors ${
-              abaAtiva === 'avaliacoes' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
+            onClick={() => toggleAba('avaliacoes')}
+            aria-expanded={abaExpandida === 'avaliacoes'}
+            className={`flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-3 text-left text-sm font-medium transition-colors ${
+              abaExpandida === 'avaliacoes' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
             }`}
           >
-            Avaliações
+            <span className="min-w-0 truncate">Avaliações</span>
+            {abaExpandida === 'avaliacoes' ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
           </button>
           <button
             type="button"
-            onClick={() => setAbaAtiva('endereco')}
-            className={`flex-1 py-3 text-center text-sm font-medium transition-colors ${
-              abaAtiva === 'endereco' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
+            onClick={() => toggleAba('endereco')}
+            aria-expanded={abaExpandida === 'endereco'}
+            className={`flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-3 text-left text-sm font-medium transition-colors ${
+              abaExpandida === 'endereco' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
             }`}
           >
-            Endereço
+            <span className="min-w-0 truncate">Endereço</span>
+            {abaExpandida === 'endereco' ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
           </button>
           <button
             type="button"
-            onClick={() => setAbaAtiva('dinamico')}
-            className={`flex-1 py-3 text-center text-sm font-medium transition-colors ${
-              abaAtiva === 'dinamico' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
+            onClick={() => toggleAba('dinamico')}
+            aria-expanded={abaExpandida === 'dinamico'}
+            className={`flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-3 text-left text-sm font-medium transition-colors ${
+              abaExpandida === 'dinamico' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
             }`}
           >
-            {rotuloServico}
+            <span className="min-w-0 truncate">{rotuloServico}</span>
+            {abaExpandida === 'dinamico' ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
           </button>
         </div>
       </div>
 
-      <div className="p-4">
-        {abaAtiva === 'avaliacoes' ? <AbaAvaliacoes empresaId={empresaId} /> : null}
-        {abaAtiva === 'endereco' ? <AbaEndereco empresa={empresaEndereco} /> : null}
-        {abaAtiva === 'dinamico' ? (
-          <AbaBotaoDinamico
-            categoria={categoria}
-            empresaId={empresaId}
-            empresaNome={nomeFantasia}
-            whatsapp={empresaMerged.whatsapp != null ? String(empresaMerged.whatsapp) : null}
-            precoTicketInteira={precoTicketInteira}
-            precoTicketMeia={precoTicketMeia}
-            precoDiaria={precoDiaria}
-          />
-        ) : null}
-      </div>
+      {abaExpandida ? (
+        <div className="p-4">
+          {abaExpandida === 'avaliacoes' ? (
+            <AbaAvaliacoes
+              empresaId={empresaId}
+              podeResponder={false}
+              empresaUsuarioId={empresaMerged.usuario_id != null ? String(empresaMerged.usuario_id) : null}
+              empresaVerificada={
+                Boolean(empresaMerged.docs_verificado) || String(empresaMerged.status ?? '') === 'ativo'
+              }
+              verificadoEm={
+                (empresaMerged.docs_verificado_em != null ? String(empresaMerged.docs_verificado_em) : null) ??
+                (empresaMerged.verificado_em != null ? String(empresaMerged.verificado_em) : null)
+              }
+            />
+          ) : null}
+          {abaExpandida === 'endereco' ? <AbaEndereco empresa={empresaEndereco} /> : null}
+          {abaExpandida === 'dinamico' ? (
+            <AbaBotaoDinamico
+              categoria={categoria}
+              empresaId={empresaId}
+              empresaNome={nomeFantasia}
+              whatsapp={empresaMerged.whatsapp != null ? String(empresaMerged.whatsapp) : null}
+              precoTicketInteira={precoTicketInteira}
+              precoTicketMeia={precoTicketMeia}
+              precoDiaria={precoDiaria}
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       <EmpresaPreviewEditorDrawer
         aberto={menuAberto}
