@@ -139,9 +139,12 @@ function particionarPorPerfil(canaisOrdenados, tipoPublico) {
  * @param {Canal[]} canaisOrdenados
  */
 function particionarVisaoAdminTodos(canaisOrdenados) {
-  /** Canais de admins globais (empresa) — ADM/Financeiro sem `empresa_id` ficam com administração, não em "Empresas". */
+  /**
+   * Só `FINANCEIRO` global (empresa, sem `empresa_id`). O ADM de `tipo_publico` empresa
+   * não entra na lista: já existe o canal `admin` com ADM — evita duas linhas "ADM".
+   */
   const administracaoEmp = canaisOrdenados.filter(
-    (c) => c.tipo_publico === 'empresa' && c.empresa_id == null && (nomeNorm(c.nome) === 'ADM' || nomeNorm(c.nome) === 'FINANCEIRO'),
+    (c) => c.tipo_publico === 'empresa' && c.empresa_id == null && nomeNorm(c.nome) === 'FINANCEIRO',
   )
   return {
     administrador: canaisOrdenados.filter((c) => c.tipo_publico === 'admin' && c.categoria === 'admin'),
@@ -361,7 +364,11 @@ export default function ListaCanais({
     tipoPublico === 'empresa'
 
   if (usarLayoutChevron) {
-    const outros = canais.filter((c) => !particionIds.has(c.id))
+    const outros = canais.filter(
+      (c) =>
+        !particionIds.has(c.id) &&
+        !(c.tipo_publico === 'empresa' && c.empresa_id == null && nomeNorm(c.nome) === 'ADM'),
+    )
 
     return (
       <div className="overflow-hidden rounded-xl bg-white shadow-sm">
