@@ -16,16 +16,7 @@ import DescricaoLonga from '@/components/DescricaoLonga'
 import AbaAvaliacoes from '@/components/AbaAvaliacoes'
 import AbaEndereco from '@/components/AbaEndereco'
 import AbaBotaoDinamico from '@/components/AbaBotaoDinamico'
-
-const ROTULO_ABA_SERVICO: Record<string, string> = {
-  Restaurantes: 'Reservar',
-  Atrativos: 'Tickets',
-  Lojas: 'Produtos',
-  Hospedagem: 'Reservar',
-  'Compras Paraguai': 'Ofertas',
-  Eventos: 'Ingressos',
-  Mobilidade: 'Serviços',
-}
+import { getRotuloAbaServico } from '@/lib/empresaCategoria'
 
 function asHorarios(value: unknown) {
   if (value && typeof value === 'object' && !Array.isArray(value)) return value
@@ -148,7 +139,7 @@ export default function EmpresaPage() {
   const totalAval = Number(empresa.total_avaliacoes) || 0
   const totalSeg = Number(empresa.total_seguidores) || 0
   const categoria = String(empresa.categoria ?? '')
-  const rotuloServico = ROTULO_ABA_SERVICO[categoria] || 'Serviços'
+  const rotuloServico = getRotuloAbaServico(categoria)
 
   const precoTicketInteira = Number(empresa.preco_ticket_inteira) || 0
   const precoTicketMeia = Number(empresa.preco_ticket_meia) || 0
