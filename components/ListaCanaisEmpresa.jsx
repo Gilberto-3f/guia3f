@@ -2,10 +2,28 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ChevronDown, ChevronUp, Crown, Landmark, Users } from 'lucide-react'
+import { Bus, Car, ChevronDown, ChevronUp, Crown, Home, Landmark, MapPinned, Smartphone, Users } from 'lucide-react'
 
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App', 'Anfitriao']
+
+const META_COMUNIDADE = /** @type {const} */ ({
+  Guia: { Icon: MapPinned, rótulo: 'Guia' },
+  Taxista: { Icon: Car, rótulo: 'Taxista' },
+  Van: { Icon: Bus, rótulo: 'Van' },
+  'Motorista de App': { Icon: Smartphone, rótulo: 'App' },
+  Anfitriao: { Icon: Home, rótulo: 'Anfitrião' },
+})
+
+/**
+ * @param {string} comu
+ */
+function metaAbaComunidade(comu) {
+  if (Object.prototype.hasOwnProperty.call(META_COMUNIDADE, comu)) {
+    return /** @type {{ Icon: import('lucide-react').LucideIcon, rótulo: string }} */ (META_COMUNIDADE[/** @type {keyof typeof META_COMUNIDADE} */ (comu)])
+  }
+  return { Icon: Users, rótulo: comu }
+}
 
 /**
  * @param {string | null | undefined} nome
@@ -44,9 +62,6 @@ export function tituloCanalEmpresaLista(comunidade) {
  * }} Canal
  */
 
-/**
- * @param {Canal[]} lista
- */
 /**
  * @param {string | null | undefined} n
  * @returns {number}
@@ -99,6 +114,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
+  const [comunidadeAba, setComunidadeAba] = useState(/** @type {string} */ (COMUNIDADES_PROFISSIONAIS[0] ?? 'Guia'))
 
   const part = useMemo(() => {
     const administracao = ordenarCanaisAdministracaoEmpresa(
@@ -114,6 +130,27 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       .filter((c) => c.comunidade_prof != null && COMUNIDADES_PROFISSIONAIS.includes(String(c.comunidade_prof)))
     return { administracao, profissionais }
   }, [canais, empresaId])
+
+  /** Sempre 5 abas (uma por comunidade), vazias se ainda não houver canal. */
+  const abasComunidadesProf = useMemo(() => {
+    /** @type {Record<string, Canal[]>} */
+    const map = {}
+    for (const c of part.profissionais) {
+      const comu = String(c.comunidade_prof ?? '').trim()
+      if (!comu) continue
+      if (!map[comu]) map[comu] = []
+      map[comu].push(c)
+    }
+    for (const k of Object.keys(map)) {
+      map[k] = ordenarCanais(map[k])
+    }
+    return COMUNIDADES_PROFISSIONAIS.map((comu) => /** @type {[string, Canal[]]} */ ([comu, map[comu] ? [...map[comu]] : []]))
+  }, [part.profissionais])
+
+  const itensAbaProf = useMemo(() => {
+    const f = abasComunidadesProf.find(([k]) => k === comunidadeAba)
+    return f ? f[1] : /** @type {Canal[]} */ ([])
+  }, [abasComunidadesProf, comunidadeAba])
 
   const gruposIniciais = useMemo(
     () => ({
@@ -285,17 +322,70 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     return <div className="p-4 text-center text-gray-400">Carregando canais...</div>
   }
 
+  const abertoProf = gruposAbertos['profissionais'] !== false
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <div className="min-h-0 flex-1 overflow-y-auto rounded-xl shadow-sm">
         {renderGrupo({ id: 'administracao', titulo: 'ADMINISTRAÇÃO', itens: part.administracao })}
-        {renderGrupo({
-          id: 'profissionais',
-          titulo: 'PROFISSIONAIS',
-          itens: part.profissionais,
-          forcarVazio: true,
-          mensagemVazio: 'Ainda não há canais de profissionais (por categoria) nesta pasta.',
-        })}
+
+        <div className="border-b border-gray-100">
+          <button
+            type="button"
+            onClick={() => toggleGrupo('profissionais')}
+            className="flex w-full items-center justify-between px-4 py-3 text-left"
+          >
+            <span className="font-bold text-[#0097b2]">PROFISSIONAIS</span>
+            {abertoProf ? (
+              <ChevronUp size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
+            ) : (
+              <ChevronDown size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
+            )}
+          </button>
+          {abertoProf ? (
+            <div>
+              <p className="bg-white px-4 pb-1 pt-0 text-xs font-bold tracking-wide text-gray-500">Comunidades</p>
+              <div
+                className="flex shrink-0 items-end gap-1 border-b border-gray-100 bg-white px-2 pb-0"
+                role="tablist"
+                aria-label="Comunidades de profissionais"
+              >
+                {abasComunidadesProf.map(([comu]) => {
+                  const ativo = comunidadeAba === comu
+                  const { Icon } = metaAbaComunidade(comu)
+                  return (
+                    <button
+                      key={comu}
+                      type="button"
+                      role="tab"
+                      aria-selected={ativo}
+                      onClick={() => setComunidadeAba(comu)}
+                      className={
+                        ativo
+                          ? 'mb-0 flex min-w-0 max-w-[45%] items-center gap-1.5 border-b-2 border-[#0097b2] px-2 py-2.5 text-sm font-medium text-[#0097b2] sm:max-w-none'
+                          : 'mb-0.5 p-2 text-gray-400 opacity-80 hover:opacity-100'
+                      }
+                    >
+                      {ativo ? <Icon className="h-5 w-5 shrink-0" aria-hidden /> : <Icon className="h-6 w-6 shrink-0" aria-hidden />}
+                      {ativo ? <span className="truncate leading-tight">{tituloCanalEmpresaLista(comu)}</span> : null}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="min-h-0 flex-1" role="tabpanel">
+                {itensAbaProf.length === 0 ? (
+                  <p className="p-4 text-sm text-gray-500">Nenhum canal nesta comunidade.</p>
+                ) : (
+                  itensAbaProf.map((canal) => (
+                    <div key={canal.id} className="pl-4">
+                      {renderRow(canal)}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   )
