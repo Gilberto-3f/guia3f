@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import Image from 'next/image'
 import { X } from 'lucide-react'
 
@@ -54,7 +54,8 @@ function loadPannellumAssets() {
  */
 export default function AbaTour360Empresa({ fotos360Url }) {
   const urls = Array.isArray(fotos360Url) ? fotos360Url.filter((u) => typeof u === 'string' && u.trim()) : []
-  const containerIdRef = useRef(`pannellum-empresa-${Math.random().toString(36).slice(2, 12)}`)
+  const reactDomId = useId().replace(/:/g, '')
+  const containerElId = `pannellum-empresa-${reactDomId}`
   const viewerRef = useRef(/** @type {{ destroy?: () => void } | null} */ (null))
   const [modalAberto, setModalAberto] = useState(false)
   const [urlAtiva, setUrlAtiva] = useState('')
@@ -63,7 +64,7 @@ export default function AbaTour360Empresa({ fotos360Url }) {
   useEffect(() => {
     if (!modalAberto || !urlAtiva) return
     let cancelado = false
-    const id = containerIdRef.current
+    const id = containerElId
 
     const run = async () => {
       setErroCarregamento('')
@@ -110,10 +111,10 @@ export default function AbaTour360Empresa({ fotos360Url }) {
         }
       }
       viewerRef.current = null
-      const el = document.getElementById(id)
+      const el = document.getElementById(containerElId)
       if (el) el.innerHTML = ''
     }
-  }, [modalAberto, urlAtiva])
+  }, [modalAberto, urlAtiva, containerElId])
 
   if (urls.length === 0) {
     return <p className="py-10 text-center text-sm text-gray-500">Nenhuma imagem 360° cadastrada</p>
@@ -162,7 +163,7 @@ export default function AbaTour360Empresa({ fotos360Url }) {
             {erroCarregamento ? (
               <div className="flex h-[50vh] items-center justify-center px-4 text-center text-sm text-white">{erroCarregamento}</div>
             ) : (
-              <div id={containerIdRef.current} className="h-[min(70vh,560px)] w-full" />
+              <div id={containerElId} className="h-[min(70vh,560px)] w-full" />
             )}
           </div>
         </div>
