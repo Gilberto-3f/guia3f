@@ -17,6 +17,7 @@ import AbaAvaliacoes from '@/components/AbaAvaliacoes'
 import AbaEndereco from '@/components/AbaEndereco'
 import AbaBotaoDinamico from '@/components/AbaBotaoDinamico'
 import { getRotuloAbaServico } from '@/lib/empresaCategoria'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 function asHorarios(value: unknown) {
   if (value && typeof value === 'object' && !Array.isArray(value)) return value
@@ -54,7 +55,10 @@ export default function EmpresaPage() {
   const [abaAtiva, setAbaAtiva] = useState<'avaliacoes' | 'endereco' | 'dinamico'>('avaliacoes')
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [meuRole, setMeuRole] = useState<string | null>(null)
+  const [adminLevel, setAdminLevel] = useState(0)
+  const [meuEmail, setMeuEmail] = useState<string | null>(null)
   const [menuAberto, setMenuAberto] = useState(false)
+  const { modoAtivo } = useModoApresentacao()
 
   useEffect(() => {
     const getUsuario = async () => {
@@ -62,13 +66,16 @@ export default function EmpresaPage() {
         data: { session },
       } = await supabase.auth.getSession()
       const uid = session?.user?.id ?? null
+      setMeuEmail(session?.user?.email ?? null)
       setUsuarioId(uid)
       if (!uid) {
         setMeuRole(null)
+        setAdminLevel(0)
         return
       }
-      const { data } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
+      const { data } = await supabase.from('usuarios').select('role, admin_level').eq('id', uid).maybeSingle()
       setMeuRole(data?.role != null ? String(data.role) : null)
+      setAdminLevel(typeof data?.admin_level === 'number' ? data.admin_level : 0)
     }
     getUsuario()
   }, [])
@@ -156,6 +163,8 @@ export default function EmpresaPage() {
     lngRaw == null || typeof lngRaw === 'object' ? null : typeof lngRaw === 'number' ? lngRaw : Number(lngRaw)
 
   const donoEmpresa = usuarioId != null && String(empresa.usuario_id ?? '') === usuarioId && meuRole === 'empresa'
+  const podeAbrirMenu =
+    donoEmpresa || (meuRole === 'admin' && typeof adminLevel === 'number' && adminLevel === 1 && modoAtivo)
 
   const empresaEndereco = {
     endereco: String(empresa.endereco ?? ''),
@@ -179,7 +188,7 @@ export default function EmpresaPage() {
         </div>
       </div>
 
-      <FotoHero fotoUrl={fotoUrl} nome={nomeFantasia} onOpenMenu={() => setMenuAberto(true)} mostrarMenu={donoEmpresa} />
+      <FotoHero fotoUrl={fotoUrl} nome={nomeFantasia} onOpenMenu={() => setMenuAberto(true)} mostrarMenu={podeAbrirMenu} />
 
       <div className="border-b border-gray-100 bg-white p-4">
         <div className="mb-2 flex items-start justify-between gap-2">
@@ -248,19 +257,32 @@ export default function EmpresaPage() {
         ) : null}
       </div>
 
-      {donoEmpresa ? (
-        <MenuLateral
-          aberto={menuAberto}
-          onFechar={() => setMenuAberto(false)}
-          variant="empresa"
-          nome={nomeFantasia}
-          username={nomeUsuario}
-          fotoUrl={fotoUrl}
-          usuarioId={usuarioId}
-          empresa={empresa}
-          empresaId={empresaId}
-          onPerfilAtualizado={() => void carregarEmpresa()}
-        />
+      {podeAbrirMenu && usuarioId ? (
+        meuRole === 'admin' && typeof adminLevel === 'number' && adminLevel === 1 && modoAtivo ? (
+          <MenuLateral
+            aberto={menuAberto}
+            onFechar={() => setMenuAberto(false)}
+            variant="admin"
+            adminLevel={adminLevel}
+            nome="Admin"
+            username={meuEmail ? meuEmail.split('@')[0] : 'admin'}
+            fotoUrl={null}
+            usuarioId={usuarioId}
+          />
+        ) : (
+          <MenuLateral
+            aberto={menuAberto}
+            onFechar={() => setMenuAberto(false)}
+            variant="empresa"
+            nome={nomeFantasia}
+            username={nomeUsuario}
+            fotoUrl={fotoUrl}
+            usuarioId={usuarioId}
+            empresa={empresa}
+            empresaId={empresaId}
+            onPerfilAtualizado={() => void carregarEmpresa()}
+          />
+        )
       ) : null}
     </div>
   )

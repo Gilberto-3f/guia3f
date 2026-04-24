@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
@@ -9,7 +9,6 @@ import { Car, MapPin } from 'lucide-react'
 import PublicidadeHome from '@/components/PublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
 import PopupFavoritos from '@/components/PopupFavoritos'
-import { supabase } from '@/lib/supabase'
 
 function abaGuiaCls(ativo: boolean) {
   return `flex min-w-0 flex-1 items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
@@ -23,36 +22,9 @@ export default function GuiaPage() {
   const tMobilidade = useTranslations('Mobilidade')
   const tGuia = useTranslations('Guia')
   const router = useRouter()
-  const { podeInteragir, notificarSomenteLeitura, modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
+  const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
   const [popupFavoritosAberto, setPopupFavoritosAberto] = useState(false)
-  const [podeVerPreviewEmpresa, setPodeVerPreviewEmpresa] = useState(false)
-
-  useEffect(() => {
-    let ativo = true
-
-    const boot = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      const uid = session?.user?.id ?? null
-      if (!uid) {
-        if (ativo) setPodeVerPreviewEmpresa(false)
-        return
-      }
-      const { data } = await supabase.from('usuarios').select('role, admin_level').eq('id', uid).maybeSingle()
-      const role = data?.role != null ? String(data.role) : null
-      const adminLevel = typeof data?.admin_level === 'number' ? data.admin_level : 0
-      const adminGeral = role === 'admin' && adminLevel === 1
-      const simEmpresa = modoAtivo && perfilSimulado?.tipo === 'empresa' && Boolean(contextoEmpresaId)
-      if (ativo) setPodeVerPreviewEmpresa(adminGeral && simEmpresa)
-    }
-
-    void boot()
-    return () => {
-      ativo = false
-    }
-  }, [contextoEmpresaId, modoAtivo, perfilSimulado?.tipo])
 
   const handleFiltroClick = (filtroId: string) => {
     if (filtroId === 'favoritos' && !podeInteragir) {
@@ -94,20 +66,6 @@ export default function GuiaPage() {
       {abaAtiva === 'guia' ? (
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            {podeVerPreviewEmpresa ? (
-              <div className="px-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => router.push('/modo-apresentacao/empresa')}
-                  className="w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm font-semibold text-amber-900 hover:bg-amber-100"
-                >
-                  Preview da página da empresa (Modo Apresentação)
-                  <span className="mt-1 block text-xs font-medium text-amber-800/80">
-                    Somente ADM • edições salvas apenas para você
-                  </span>
-                </button>
-              </div>
-            ) : null}
             <GradeFiltros onFiltroClick={handleFiltroClick} />
             <PublicidadeHome />
           </div>

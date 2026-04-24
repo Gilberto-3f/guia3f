@@ -285,10 +285,6 @@ export default function EmpresaPreviewModoApresentacaoPage() {
       </div>
 
       <div className="p-4">
-        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-          <b>Preview ADM:</b> edições salvas só para você (local). Nada é publicado para outros usuários.
-        </div>
-
         {abaAtiva === 'avaliacoes' ? <AbaAvaliacoes empresaId={empresaId} /> : null}
         {abaAtiva === 'endereco' ? <AbaEndereco empresa={empresaEndereco} /> : null}
         {abaAtiva === 'dinamico' ? (

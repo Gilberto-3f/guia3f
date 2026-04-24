@@ -45,7 +45,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
   return (
     <div className={`min-h-screen ${fundoShell} ${paddingTopoModo} ${paddingInferior}`}>
-      <ModoApresentacaoChrome />
+      {modoAtivo ? null : <ModoApresentacaoChrome />}
       {children}
       {!hideBottomBar ? <BottomBar /> : null}
     </div>

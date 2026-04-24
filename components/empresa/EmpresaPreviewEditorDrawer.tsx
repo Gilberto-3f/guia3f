@@ -97,13 +97,12 @@ export default function EmpresaPreviewEditorDrawer(props: {
         className="absolute right-0 top-0 flex h-full w-[min(94vw,28rem)] flex-col overflow-hidden bg-white shadow-2xl"
         role="dialog"
         aria-modal="true"
-        aria-label="Editor de preview da empresa"
+        aria-label="Editor da empresa"
       >
         <div className="border-b border-gray-100 px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-gray-900">Preview empresa (somente você)</p>
-              <p className="truncate text-xs text-gray-500">Alterações salvas localmente neste dispositivo.</p>
+              <p className="truncate text-sm font-bold text-gray-900">Editar empresa</p>
             </div>
             <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
               Fechar
@@ -198,9 +197,6 @@ export default function EmpresaPreviewEditorDrawer(props: {
               </label>
             </div>
 
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-              Dica: ajuste a <b>categoria</b> para validar as mesmas condicionais que as empresas reais verão (rótulo da aba e comportamento do botão dinâmico).
-            </div>
           </div>
         </div>
 
