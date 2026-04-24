@@ -7,11 +7,17 @@ import Image from 'next/image'
  */
 export default function FotoHero({ fotoUrl, nome, onOpenMenu, mostrarMenu = false }) {
   return (
-    <div className="relative aspect-square w-full overflow-hidden bg-gray-100">
+    <div
+      className={`relative aspect-square w-full overflow-hidden ${
+        fotoUrl ? 'bg-gray-100' : 'bg-gradient-to-br from-[#0097b2]/40 to-[#001f3f]/60'
+      }`}
+    >
       {fotoUrl ? (
         <Image src={fotoUrl} alt={nome} fill className="object-cover" priority sizes="100vw" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-gray-400">Sem foto</div>
+        <div className="flex h-full w-full items-center justify-center text-4xl font-bold text-white/40">
+          {nome.trim().charAt(0) || '?'}
+        </div>
       )}
       {mostrarMenu && onOpenMenu ? (
         <button
