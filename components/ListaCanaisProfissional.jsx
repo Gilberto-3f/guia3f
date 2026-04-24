@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Building2, ChevronDown, ChevronUp, Crown, Landmark, MessageCircle, ShoppingBag, Ticket, Utensils } from 'lucide-react'
+import { Building2, ChevronDown, ChevronUp, Crown, Landmark, MessageCircle, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
+import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -14,44 +15,26 @@ const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App',
 const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
 
 /**
- * Chuveiro (não disponível no Lucide nesta versão) — traço alinhado ao estilo dos ícones 24px.
+ * Três estrelas (aba Hospedagem).
  * @param {{ className?: string, 'aria-hidden'?: boolean }} p
  */
-function IconChuveiro({ className, ...rest }) {
+function IconTresEstrelas({ className, ...rest }) {
+  const cn = className ?? 'h-6 w-6'
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className ?? 'h-6 w-6'}
-      aria-hidden={rest['aria-hidden'] ?? true}
-    >
-      <path
-        d="M9 4v2.5a3 3 0 003 3 3 3 0 003-3V4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M12 9.5V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M7.5 14h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path
-        d="M8.5 17v3M12 17.5v4M15.5 17v3"
-        stroke="currentColor"
-        strokeWidth="1.25"
-        strokeLinecap="round"
-        strokeOpacity="0.85"
-      />
-    </svg>
+    <span className={`inline-flex shrink-0 items-center justify-center gap-0.5 ${cn}`} aria-hidden={rest['aria-hidden'] ?? true}>
+      <Star className="h-3.5 w-3.5" strokeWidth={2} />
+      <Star className="h-4 w-4" strokeWidth={2} />
+      <Star className="h-3.5 w-3.5" strokeWidth={2} />
+    </span>
   )
 }
-IconChuveiro.displayName = 'IconChuveiro'
+IconTresEstrelas.displayName = 'IconTresEstrelas'
 
 const ROTULO_CATEGORIA = /** @type {const} */ ({
   Restaurantes: { Icon: Utensils, rótulo: 'Restaurantes' },
   Atrativos: { Icon: Ticket, rótulo: 'Atrativos' },
   Lojas: { Icon: ShoppingBag, rótulo: 'Lojas' },
-  Hospedagem: { Icon: IconChuveiro, rótulo: 'Hospedagem' },
+  Hospedagem: { Icon: IconTresEstrelas, rótulo: 'Hospedagem' },
   Outros: { Icon: Building2, rótulo: 'Outros' },
 })
 
@@ -60,7 +43,7 @@ const ROTULO_CATEGORIA = /** @type {const} */ ({
  */
 function metaCategoriaEmpresa(cat) {
   if (Object.prototype.hasOwnProperty.call(ROTULO_CATEGORIA, cat)) {
-    return /** @type {{ Icon: import('lucide-react').LucideIcon, rótulo: string } | { Icon: typeof IconChuveiro, rótulo: string }} */ (
+    return /** @type {{ Icon: import('lucide-react').LucideIcon, rótulo: string } | { Icon: typeof IconTresEstrelas, rótulo: string }} */ (
       ROTULO_CATEGORIA[/** @type {keyof typeof ROTULO_CATEGORIA} */ (cat)]
     )
   }
@@ -250,10 +233,12 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
   /**
    * @param {Canal} canal
+   * @param {{ blocoAdministracao?: boolean }} [opts]
    */
-  function renderRow(canal) {
+  function renderRow(canal, opts = {}) {
     const Icon = getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
+    const label = opts.blocoAdministracao ? rotuloNomeCanalAdministracao(canal.nome) : canal.nome
     return (
       <button
         key={canal.id}
@@ -271,7 +256,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
           <Icon size={20} aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-medium text-gray-800">{canal.nome}</h3>
+          <h3 className="font-medium text-gray-800">{label}</h3>
         </div>
       </button>
     )
@@ -302,7 +287,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
               <div>
                 {part.administracao.map((canal) => (
                   <div key={canal.id} className="pl-0">
-                    {renderRow(canal)}
+                    {renderRow(canal, { blocoAdministracao: true })}
                   </div>
                 ))}
               </div>

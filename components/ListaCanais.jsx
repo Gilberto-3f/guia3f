@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { MessageCircle, Building2, Crown, ChevronUp, ChevronDown, Landmark } from 'lucide-react'
+import { excluirCanalMensageiroVisaoAdm, rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -91,7 +92,9 @@ function particionarPorPerfil(canaisOrdenados, tipoPublico) {
 
   if (tp === 'admin') {
     return {
-      administrador: canaisOrdenados.filter((c) => c.tipo_publico === 'admin' && c.categoria === 'admin'),
+      administrador: canaisOrdenados.filter(
+        (c) => c.tipo_publico === 'admin' && c.categoria === 'admin' && !excluirCanalMensageiroVisaoAdm(c),
+      ),
       administracaoProf: /** @type {Canal[]} */ ([]),
       profissionais: /** @type {Canal[]} */ ([]),
       administracaoEmp: /** @type {Canal[]} */ ([]),
@@ -147,7 +150,9 @@ function particionarVisaoAdminTodos(canaisOrdenados) {
     (c) => c.tipo_publico === 'empresa' && c.empresa_id == null && nomeNorm(c.nome) === 'FINANCEIRO',
   )
   return {
-    administrador: canaisOrdenados.filter((c) => c.tipo_publico === 'admin' && c.categoria === 'admin'),
+    administrador: canaisOrdenados.filter(
+      (c) => c.tipo_publico === 'admin' && c.categoria === 'admin' && !excluirCanalMensageiroVisaoAdm(c),
+    ),
     administracaoProf: canaisOrdenados.filter(
       (c) => c.tipo_publico === 'profissional' && (c.categoria === 'admin' || nomeNorm(c.nome) === 'FINANCEIRO'),
     ),
@@ -275,7 +280,7 @@ export default function ListaCanais({
    */
   const getIcon = (canal) => {
     const n = nomeNorm(canal.nome)
-    if (n === 'ADM' || n === 'MENSAGEIRO' || canal.nome === 'Mensageiro ADM') return Crown
+    if (n === 'ADM') return Crown
     if (n === 'FINANCEIRO') return Landmark
     if (canal.tipo_publico === 'empresa') return Building2
     return MessageCircle
@@ -294,10 +299,12 @@ export default function ListaCanais({
 
   /**
    * @param {Canal} canal
+   * @param {{ blocoAdministracao?: boolean }} [opts]
    */
-  function renderRow(canal) {
+  function renderRow(canal, opts = {}) {
     const Icon = getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
+    const label = opts.blocoAdministracao ? rotuloNomeCanalAdministracao(canal.nome) : canal.nome
     return (
       <button
         key={canal.id}
@@ -315,7 +322,7 @@ export default function ListaCanais({
           <Icon size={20} aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-medium text-gray-800">{canal.nome}</h3>
+          <h3 className="font-medium text-gray-800">{label}</h3>
           {canal.nao_lidas != null && canal.nao_lidas > 0 ? (
             <span className="mt-1 inline-block rounded-full bg-red-500 px-2 py-0.5 text-xs text-white">{canal.nao_lidas}</span>
           ) : null}
@@ -325,11 +332,12 @@ export default function ListaCanais({
   }
 
   /**
-   * @param {{ id: string; titulo: string; itens: Canal[] }} args
+   * @param {{ id: string; titulo: string; itens: Canal[]; administracao?: boolean }} args
    */
-  function renderGrupoChevron({ id, titulo, itens }) {
+  function renderGrupoChevron({ id, titulo, itens, administracao }) {
     if (itens.length === 0) return null
     const aberto = gruposAbertos[id] !== false
+    const adm = administracao === true
     return (
       <div className="border-b border-gray-100">
         <button
@@ -348,7 +356,7 @@ export default function ListaCanais({
           <div>
             {itens.map((canal) => (
               <div key={canal.id} className="pl-4">
-                {renderRow(canal)}
+                {renderRow(canal, { blocoAdministracao: adm })}
               </div>
             ))}
           </div>
@@ -364,15 +372,21 @@ export default function ListaCanais({
     tipoPublico === 'empresa'
 
   if (usarLayoutChevron) {
-    const outros = canais.filter(
-      (c) =>
-        !particionIds.has(c.id) &&
-        !(c.tipo_publico === 'empresa' && c.empresa_id == null && nomeNorm(c.nome) === 'ADM'),
-    )
+    const outros = canais.filter((c) => {
+      if (particionIds.has(c.id)) return false
+      if (c.tipo_publico === 'empresa' && c.empresa_id == null && nomeNorm(c.nome) === 'ADM') return false
+      if (agruparPorTipo && excluirCanalMensageiroVisaoAdm(c)) return false
+      return true
+    })
 
     return (
       <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-        {renderGrupoChevron({ id: 'administracaoUnificada', titulo: 'ADMINISTRAÇÃO', itens: adminUnificado })}
+        {renderGrupoChevron({
+          id: 'administracaoUnificada',
+          titulo: agruparPorTipo ? 'MENSAGEIRO ADM' : 'ADMINISTRAÇÃO',
+          itens: adminUnificado,
+          administracao: true,
+        })}
         {renderGrupoChevron({ id: 'profissionais', titulo: 'PROFISSIONAIS', itens: part.profissionais })}
         {renderGrupoChevron({ id: 'empresas', titulo: 'EMPRESAS', itens: part.empresas })}
         {outros.map((canal) => renderRow(canal))}

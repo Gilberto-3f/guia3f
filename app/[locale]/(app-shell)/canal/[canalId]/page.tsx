@@ -9,6 +9,7 @@ import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
+import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 
 type TipoUsuario = 'turista' | 'profissional' | 'empresa' | 'admin' | null
 
@@ -190,7 +191,7 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="min-w-0 flex-1 text-lg font-bold text-gray-800">{canal.nome}</h1>
+          <h1 className="min-w-0 flex-1 text-lg font-bold text-gray-800">{rotuloNomeCanalAdministracao(canal.nome)}</h1>
         </header>
         <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">
           {isFinanceiro && financeUid ? (
@@ -220,7 +221,7 @@ export default function CanalDetalhePage() {
           <h1 className="min-w-0 flex-1 text-lg font-bold text-gray-800">
             {canal.comunidade_prof
               ? tituloCanalEmpresaLista(canal.comunidade_prof)
-              : canal.nome}
+              : rotuloNomeCanalAdministracao(canal.nome)}
           </h1>
         </header>
         <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">
@@ -259,7 +260,7 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="min-w-0 flex-1 text-lg font-bold text-gray-800">{canal.nome}</h1>
+          <h1 className="min-w-0 flex-1 text-lg font-bold text-gray-800">{rotuloNomeCanalAdministracao(canal.nome)}</h1>
         </header>
         <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">
           {mostrarAbasPais ? (

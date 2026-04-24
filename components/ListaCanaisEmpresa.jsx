@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ChevronDown, ChevronUp, Crown, Landmark, Users } from 'lucide-react'
+import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App', 'Anfitriao']
@@ -112,26 +113,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     return { administracao, profissionais }
   }, [canais, empresaId])
 
-  const profissionaisPorComunidade = useMemo(() => {
-    /** @type {Record<string, Canal[]>} */
-    const map = {}
-    for (const comu of COMUNIDADES_PROFISSIONAIS) {
-      map[comu] = []
-    }
-    for (const c of part.profissionais) {
-      const key = String(c.comunidade_prof ?? '')
-      if (map[key]) map[key].push(c)
-    }
-    for (const comu of COMUNIDADES_PROFISSIONAIS) {
-      map[comu] = ordenarCanais(map[comu])
-    }
-    return map
-  }, [part.profissionais])
-
   const gruposIniciais = useMemo(
     () => ({
       administracao: part.administracao.length > 0,
-      profissionais: true,
+      profissionais: part.profissionais.length > 0,
     }),
     [part],
   )
@@ -222,17 +207,14 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
 
   /**
    * @param {Canal} canal
-   * @param {{ sublistaProfissionais?: boolean }} [opts]
    */
-  function renderRow(canal, opts = {}) {
+  function renderRow(canal) {
     const Icon = getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
     const label =
-      opts.sublistaProfissionais && canal.empresa_id != null
-        ? canal.nome
-        : canal.empresa_id != null
-          ? tituloCanalEmpresaLista(canal.comunidade_prof)
-          : canal.nome
+      canal.empresa_id == null && (nomeNorm(canal.nome) === 'ADM' || nomeNorm(canal.nome) === 'FINANCEIRO')
+        ? rotuloNomeCanalAdministracao(canal.nome)
+        : canal.nome
     return (
       <button
         key={canal.id}
@@ -308,49 +290,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <div className="min-h-0 flex-1 overflow-y-auto rounded-xl shadow-sm">
         {renderGrupo({ id: 'administracao', titulo: 'ADMINISTRAÇÃO', itens: part.administracao })}
-        {(() => {
-          const id = 'profissionais'
-          const aberto = gruposAbertos[id] !== false
-          return (
-            <div className="border-b border-gray-100">
-              <button
-                type="button"
-                onClick={() => toggleGrupo(id)}
-                className="flex w-full items-center justify-between px-4 py-3 text-left text-base"
-              >
-                <span className="font-bold leading-snug text-[#0097b2]">PROFISSIONAIS</span>
-                {aberto ? (
-                  <ChevronUp size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
-                ) : (
-                  <ChevronDown size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
-                )}
-              </button>
-              {aberto ? (
-                <div className="pb-1">
-                  {COMUNIDADES_PROFISSIONAIS.map((comu) => {
-                    const itens = profissionaisPorComunidade[comu] ?? []
-                    return (
-                      <div key={comu} className="border-t border-gray-50 first:border-t-0">
-                        <p className="px-4 pb-1 pl-6 pt-3 text-sm font-semibold text-gray-700">{tituloCanalEmpresaLista(comu)}</p>
-                        {itens.length === 0 ? (
-                          <p className="px-4 pb-3 pl-8 text-sm text-gray-500">Nenhum canal nesta categoria.</p>
-                        ) : (
-                          <div>
-                            {itens.map((canal) => (
-                              <div key={canal.id} className="pl-4">
-                                {renderRow(canal, { sublistaProfissionais: true })}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : null}
-            </div>
-          )
-        })()}
+        {renderGrupo({ id: 'profissionais', titulo: 'PROFISSIONAIS', itens: ordenarCanais(part.profissionais) })}
       </div>
     </div>
   )
