@@ -27,9 +27,15 @@ export default function StatusAtendimento({ horarios }) {
   }, [horarios])
 
   return (
-    <div className="flex items-center gap-1">
-      <span className={`h-2 w-2 rounded-full ${status === 'aberto' ? 'bg-green-500' : 'bg-red-500'}`} />
-      <span className="text-sm font-medium">{status === 'aberto' ? 'Aberto' : 'Fechado'}</span>
+    <div className="flex items-center gap-2">
+      <span className={`h-2 w-2 rounded-full ${status === 'aberto' ? 'bg-green-500' : 'bg-red-500'}`} aria-hidden />
+      <span
+        className={`text-sm font-semibold ${
+          status === 'aberto' ? 'text-green-800' : 'text-red-800'
+        }`}
+      >
+        {status === 'aberto' ? 'Aberto' : 'Fechado'}
+      </span>
     </div>
   )
 }

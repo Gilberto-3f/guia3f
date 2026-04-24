@@ -92,24 +92,46 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50">
-      <div className="max-h-[80vh] w-full overflow-hidden rounded-t-2xl bg-white">
-        <div className="sticky top-0 flex items-center justify-between border-b border-gray-100 bg-white p-4">
-          <h2 className="text-lg font-semibold">Seguidores</h2>
-          <button type="button" onClick={onClose} className="p-1" aria-label="Fechar">
-            <X size={20} />
+    <div
+      className="fixed inset-0 z-[230] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-gray-900 shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
+        style={{ height: 'min(70vh, 85vh)' }}
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative shrink-0 border-b border-gray-100 bg-white pt-4 pb-2">
+          <div className="flex items-center justify-center gap-2">
+            <User className="h-5 w-5 text-[#0097b2]" aria-hidden />
+            <h2 className="text-xl font-bold text-[#0097b2]">SEGUIDORES</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3 top-3 rounded-full p-1 text-gray-700 hover:bg-gray-100"
+            aria-label="Fechar"
+          >
+            <X size={22} />
           </button>
         </div>
 
-        <div className="overflow-y-auto p-4" style={{ maxHeight: 'calc(80vh - 70px)' }}>
+        <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-2">
           {loading ? (
-            <div className="py-8 text-center text-gray-400">Carregando...</div>
+            <div className="py-8 text-center text-sm text-gray-500">Carregando...</div>
           ) : seguidores.length === 0 ? (
-            <div className="py-8 text-center text-gray-400">Nenhum seguidor ainda</div>
+            <div className="py-8 text-center text-sm text-gray-500">Nenhum seguidor ainda</div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-1">
               {seguidores.map((seguidor) => (
-                <Link key={seguidor.id} href={`/perfil/${seguidor.id}`} className="flex items-center gap-3 rounded-lg py-1 hover:bg-gray-50">
+                <Link
+                  key={seguidor.id}
+                  href={`/perfil/${seguidor.id}`}
+                  className="flex items-center gap-3 rounded-lg border-b border-gray-100 py-2 last:border-0 hover:bg-gray-50"
+                >
                   {seguidor.foto_url ? (
                     <Image
                       src={seguidor.foto_url}
@@ -120,12 +142,12 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
                     />
                   ) : (
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200">
-                      <User size={20} className="text-gray-400" aria-hidden />
+                      <User size={20} className="text-gray-500" aria-hidden />
                     </div>
                   )}
-                  <div>
-                    <p className="font-medium text-gray-800">{seguidor.nome}</p>
-                    <p className="text-sm text-gray-500">@{seguidor.username}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-gray-800">{seguidor.nome}</p>
+                    <p className="truncate text-sm text-gray-500">@{seguidor.username}</p>
                   </div>
                 </Link>
               ))}

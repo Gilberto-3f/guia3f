@@ -7,7 +7,7 @@ import Image from 'next/image'
  */
 export default function FotoHero({ fotoUrl, nome, onOpenMenu, mostrarMenu = false }) {
   return (
-    <div className="relative aspect-[2/3] w-full bg-gray-100">
+    <div className="relative aspect-square w-full overflow-hidden bg-gray-100">
       {fotoUrl ? (
         <Image src={fotoUrl} alt={nome} fill className="object-cover" priority sizes="100vw" />
       ) : (
