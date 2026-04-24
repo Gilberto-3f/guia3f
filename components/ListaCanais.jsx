@@ -335,9 +335,9 @@ export default function ListaCanais({
         <button
           type="button"
           onClick={() => toggleGrupo(id)}
-          className="flex w-full items-center justify-between px-4 py-3 text-left"
+          className="flex w-full items-center justify-between px-4 py-3 text-left text-base"
         >
-          <span className="font-bold text-[#0097b2]">{titulo}</span>
+          <span className="font-bold leading-snug text-[#0097b2]">{titulo}</span>
           {aberto ? (
             <ChevronUp size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
           ) : (

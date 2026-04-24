@@ -14,26 +14,36 @@ const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App',
 const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
 
 /**
- * Símbolo “sono” (Zzz) para hospedagem — fora de Lucide.
+ * Travesseiro (não disponível no Lucide) — traço alinhado ao estilo dos ícones 24px.
  * @param {{ className?: string, 'aria-hidden'?: boolean }} p
  */
-function IconSonoZz({ className, ...rest }) {
+function IconTravesseiro({ className, ...rest }) {
   return (
-    <span
-      className={`inline-flex select-none items-center justify-center text-current ${className ?? 'h-6 w-6'}`}
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className ?? 'h-6 w-6'}
       aria-hidden={rest['aria-hidden'] ?? true}
     >
-      <span className="pr-px text-[0.7rem] font-extrabold italic leading-none tracking-[-0.2em] sm:text-[0.8rem]">Zzz</span>
-    </span>
+      <rect x="2.5" y="7.5" width="19" height="9" rx="2.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      <path
+        d="M4.5 12.5c2.2-1.2 4.6-1.2 6.8 0m3.2 0c2.2-1.2 4.6-1.2 6.8 0"
+        stroke="currentColor"
+        strokeWidth="0.7"
+        strokeLinecap="round"
+        strokeOpacity="0.35"
+      />
+    </svg>
   )
 }
-IconSonoZz.displayName = 'IconSonoZz'
+IconTravesseiro.displayName = 'IconTravesseiro'
 
 const ROTULO_CATEGORIA = /** @type {const} */ ({
   Restaurantes: { Icon: Utensils, rótulo: 'Restaurantes' },
   Atrativos: { Icon: Ticket, rótulo: 'Atrativos' },
   Lojas: { Icon: ShoppingBag, rótulo: 'Lojas' },
-  Hospedagem: { Icon: IconSonoZz, rótulo: 'Hospedagem' },
+  Hospedagem: { Icon: IconTravesseiro, rótulo: 'Hospedagem' },
   Outros: { Icon: Building2, rótulo: 'Outros' },
 })
 
@@ -42,7 +52,7 @@ const ROTULO_CATEGORIA = /** @type {const} */ ({
  */
 function metaCategoriaEmpresa(cat) {
   if (Object.prototype.hasOwnProperty.call(ROTULO_CATEGORIA, cat)) {
-    return /** @type {{ Icon: import('lucide-react').LucideIcon, rótulo: string } | { Icon: typeof IconSonoZz, rótulo: string }} */ (
+    return /** @type {{ Icon: import('lucide-react').LucideIcon, rótulo: string } | { Icon: typeof IconTravesseiro, rótulo: string }} */ (
       ROTULO_CATEGORIA[/** @type {keyof typeof ROTULO_CATEGORIA} */ (cat)]
     )
   }
@@ -271,9 +281,9 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
             <button
               type="button"
               onClick={() => toggleGrupo('administracao')}
-              className="flex w-full items-center justify-between px-4 py-3 text-left"
+              className="flex w-full items-center justify-between px-4 py-3 text-left text-base"
             >
-              <span className="text-xs font-bold tracking-wide text-[#0097b2]">ADMINISTRAÇÃO</span>
+              <span className="font-bold leading-snug text-[#0097b2]">ADMINISTRAÇÃO</span>
               {gruposAbertos['administracao'] !== false ? (
                 <ChevronUp size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
               ) : (
@@ -294,11 +304,10 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
         {categoriaAba && abasCategoriasEmpresas.length > 0 ? (
           <>
-            <p className="shrink-0 bg-white px-4 pb-1 pt-2 text-xs font-bold tracking-wide text-gray-500">Segmentos (empresas)</p>
             <div
-              className="sticky top-0 z-10 flex w-full min-w-0 shrink-0 items-stretch border-b border-gray-100 bg-white pl-0 pr-0"
+              className="sticky top-0 z-10 flex w-full min-w-0 shrink-0 items-stretch border-b border-gray-100 bg-white pl-0 pr-0 pt-1"
               role="tablist"
-              aria-label="Categorias de empresas"
+              aria-label="Categorias"
             >
               {abasCategoriasEmpresas.map(([cat]) => {
                 const ativo = categoriaAba === cat
@@ -334,7 +343,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
             </div>
             <div className="min-h-0 flex-1" role="tabpanel">
               {itensAbaAtiva.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500">Nenhum canal neste segmento.</p>
+                <p className="p-4 text-sm text-gray-500">Nenhum canal nesta categoria.</p>
               ) : (
                 itensAbaAtiva.map((canal) => (
                   <div key={canal.id} className="pl-0">
