@@ -17,6 +17,9 @@ import DescricaoLonga from '@/components/DescricaoLonga'
 import AbaAvaliacoes from '@/components/AbaAvaliacoes'
 import AbaEndereco from '@/components/AbaEndereco'
 import AbaBotaoDinamico from '@/components/AbaBotaoDinamico'
+import AbaFotosEmpresa from '@/components/empresa/AbaFotosEmpresa'
+import AbaPostsEmpresa from '@/components/empresa/AbaPostsEmpresa'
+import AbaTour360Empresa from '@/components/empresa/AbaTour360Empresa'
 import { getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
@@ -54,6 +57,7 @@ export default function EmpresaPage() {
   const [empresa, setEmpresa] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
   const [abaExpandida, setAbaExpandida] = useState<null | 'avaliacoes' | 'endereco' | 'dinamico'>(null)
+  const [subAbaAtiva, setSubAbaAtiva] = useState<'fotos' | 'posts' | 'tour360'>('fotos')
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [meuRole, setMeuRole] = useState<string | null>(null)
   const [adminLevel, setAdminLevel] = useState(0)
@@ -172,6 +176,10 @@ export default function EmpresaPage() {
     setAbaExpandida((atual) => (atual === aba ? null : aba))
   }
 
+  const fotosLista = Array.isArray(empresa.fotos_url) ? /** @type {string[]} */ (empresa.fotos_url) : []
+  const fotos360Lista = Array.isArray(empresa.fotos_360_url) ? /** @type {string[]} */ (empresa.fotos_360_url) : []
+  const empresaUsuarioIdPosts = empresa.usuario_id != null ? String(empresa.usuario_id) : null
+
   const empresaEndereco = {
     endereco: String(empresa.endereco ?? ''),
     cidade: String(empresa.cidade ?? ''),
@@ -228,9 +236,42 @@ export default function EmpresaPage() {
 
           <DescricaoLonga descricao={descLonga} />
 
-          {/* Slot reservado para seções futuras (Fotos / Posts / Tour 360) */}
-          <div className="mt-4 hidden rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 text-center text-xs text-gray-400">
-            Conteúdo adicional (fotos/posts/tour 360) entra aqui.
+          <div className="mt-6">
+            <div className="flex gap-4 border-b border-gray-200">
+              <button
+                type="button"
+                onClick={() => setSubAbaAtiva('fotos')}
+                className={`pb-2 text-sm font-medium transition-colors ${
+                  subAbaAtiva === 'fotos' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Fotos
+              </button>
+              <button
+                type="button"
+                onClick={() => setSubAbaAtiva('posts')}
+                className={`pb-2 text-sm font-medium transition-colors ${
+                  subAbaAtiva === 'posts' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Posts
+              </button>
+              <button
+                type="button"
+                onClick={() => setSubAbaAtiva('tour360')}
+                className={`pb-2 text-sm font-medium transition-colors ${
+                  subAbaAtiva === 'tour360' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Tour 360°
+              </button>
+            </div>
+
+            <div className="mt-4">
+              {subAbaAtiva === 'fotos' ? <AbaFotosEmpresa fotosUrl={fotosLista} /> : null}
+              {subAbaAtiva === 'posts' ? <AbaPostsEmpresa empresaUsuarioId={empresaUsuarioIdPosts} /> : null}
+              {subAbaAtiva === 'tour360' ? <AbaTour360Empresa fotos360Url={fotos360Lista} /> : null}
+            </div>
           </div>
         </div>
       ) : null}
