@@ -13,10 +13,10 @@ const profissionais = [
 ]
 
 const empresas = [
-  { id: 'gastro', nome: 'Gastronomia', segmentoDb: 'Restaurantes', iconeKey: 'gastro' },
-  { id: 'lojas_py', nome: 'Lojas', segmentoDb: 'Lojas', iconeKey: 'lojas_py' },
-  { id: 'passeios', nome: 'Passeios', segmentoDb: 'Atrativos', iconeKey: 'passeios' },
-  { id: 'hospedagem', nome: 'Hospedagem', segmentoDb: 'Hospedagem', iconeKey: 'hospedagem' },
+  { id: 'gastro', nome: 'Gastronomia', segmentoDb: 'gastronomia', iconeKey: 'gastro' },
+  { id: 'lojas_py', nome: 'Lojas', segmentoDb: 'lojas', iconeKey: 'lojas_py' },
+  { id: 'passeios', nome: 'Passeios', segmentoDb: 'passeios', iconeKey: 'passeios' },
+  { id: 'hospedagem', nome: 'Hospedagem', segmentoDb: 'hospedagem', iconeKey: 'hospedagem' },
 ]
 
 /**
