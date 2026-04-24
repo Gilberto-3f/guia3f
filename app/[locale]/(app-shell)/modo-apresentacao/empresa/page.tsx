@@ -225,6 +225,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
     telefone: empresaMerged.telefone != null ? String(empresaMerged.telefone) : null,
     whatsapp: empresaMerged.whatsapp != null ? String(empresaMerged.whatsapp) : null,
     website: empresaMerged.website != null ? String(empresaMerged.website) : null,
+    redes_sociais: empresaMerged.redes_sociais,
     horarios: horariosParsed,
     nome_fantasia: nomeFantasia,
   }

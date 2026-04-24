@@ -15,19 +15,19 @@ const dias = [
  */
 export default function HorariosFuncionamento({ horarios }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-2 text-gray-900">
       {dias.map((dia) => {
         const horario = horarios?.[dia.key]
         if (!horario) return null
 
         return (
-          <div key={dia.key} className="flex justify-between text-sm">
-            <span className="text-gray-600">{dia.nome}</span>
+          <div key={dia.key} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-base sm:text-lg">
+            <span className="font-semibold text-gray-800">{dia.nome}</span>
             {horario.fechado ? (
-              <span className="text-red-500">Fechado</span>
+              <span className="font-semibold text-red-600">Fechado</span>
             ) : (
-              <span className="text-gray-700">
-                {horario.abre} - {horario.fecha}
+              <span className="font-semibold tabular-nums text-gray-900">
+                {horario.abre} – {horario.fecha}
               </span>
             )}
           </div>

@@ -30,10 +30,10 @@ export default function BotaoChamarCorrida({ latitude, longitude, nomeDestino })
     <button
       type="button"
       onClick={handleClick}
-      className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#FFEAA7] py-2 font-medium text-gray-800 transition-colors hover:bg-[#FFEAA7]/80"
+      className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#00D443] py-3 text-base font-bold text-white shadow-sm transition-opacity hover:opacity-95"
     >
-      <Car size={18} aria-hidden />
-      Chamar Corrida
+      <Car size={20} className="text-white" aria-hidden />
+      Chamar corrida
     </button>
   )
 }

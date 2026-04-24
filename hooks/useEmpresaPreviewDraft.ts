@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+export type EmpresaRedesSociaisDraft = {
+  instagram?: string
+  facebook?: string
+  tiktok?: string
+}
+
 export type EmpresaPreviewDraft = Partial<{
   nome_fantasia: string
   nome_usuario: string
@@ -11,6 +17,7 @@ export type EmpresaPreviewDraft = Partial<{
   telefone: string | null
   whatsapp: string | null
   website: string | null
+  redes_sociais: EmpresaRedesSociaisDraft | Record<string, string> | null
   latitude: number | null
   longitude: number | null
   preco_ticket_inteira: number | null

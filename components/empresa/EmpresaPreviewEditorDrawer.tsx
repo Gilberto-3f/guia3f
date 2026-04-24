@@ -41,6 +41,9 @@ export default function EmpresaPreviewEditorDrawer(props: {
   const [telefone, setTelefone] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [website, setWebsite] = useState('')
+  const [instagramRede, setInstagramRede] = useState('')
+  const [facebookRede, setFacebookRede] = useState('')
+  const [tiktokRede, setTiktokRede] = useState('')
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [ticketInteira, setTicketInteira] = useState('')
@@ -59,6 +62,14 @@ export default function EmpresaPreviewEditorDrawer(props: {
     setTelefone(String(merged.telefone ?? ''))
     setWhatsapp(String(merged.whatsapp ?? ''))
     setWebsite(String(merged.website ?? ''))
+    const rsRaw = merged.redes_sociais
+    const rs =
+      rsRaw && typeof rsRaw === 'object' && !Array.isArray(rsRaw)
+        ? (rsRaw as Record<string, unknown>)
+        : null
+    setInstagramRede(rs && rs.instagram != null ? String(rs.instagram) : '')
+    setFacebookRede(rs && rs.facebook != null ? String(rs.facebook) : '')
+    setTiktokRede(rs && rs.tiktok != null ? String(rs.tiktok) : '')
     setLatitude(merged.latitude == null ? '' : String(merged.latitude))
     setLongitude(merged.longitude == null ? '' : String(merged.longitude))
     setTicketInteira(merged.preco_ticket_inteira == null ? '' : String(merged.preco_ticket_inteira))
@@ -81,6 +92,11 @@ export default function EmpresaPreviewEditorDrawer(props: {
       telefone: asStringOrNull(telefone),
       whatsapp: asStringOrNull(whatsapp),
       website: asStringOrNull(website),
+      redes_sociais: {
+        instagram: instagramRede.trim(),
+        facebook: facebookRede.trim(),
+        tiktok: tiktokRede.trim(),
+      },
       latitude: asNumberOrNull(latitude),
       longitude: asNumberOrNull(longitude),
       preco_ticket_inteira: asNumberOrNull(ticketInteira),
@@ -170,6 +186,37 @@ export default function EmpresaPreviewEditorDrawer(props: {
               <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Website</span>
               <input className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://..." />
             </label>
+
+            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Redes sociais (opcional)</p>
+              <label className="mt-2 block">
+                <span className="text-xs text-gray-600">Instagram (usuário ou URL)</span>
+                <input
+                  className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                  value={instagramRede}
+                  onChange={(e) => setInstagramRede(e.target.value)}
+                  placeholder="@empresa ou https://..."
+                />
+              </label>
+              <label className="mt-2 block">
+                <span className="text-xs text-gray-600">Facebook (página ou URL)</span>
+                <input
+                  className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                  value={facebookRede}
+                  onChange={(e) => setFacebookRede(e.target.value)}
+                  placeholder="nome-da-pagina ou https://..."
+                />
+              </label>
+              <label className="mt-2 block">
+                <span className="text-xs text-gray-600">TikTok (usuário ou URL)</span>
+                <input
+                  className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                  value={tiktokRede}
+                  onChange={(e) => setTiktokRede(e.target.value)}
+                  placeholder="@empresa ou https://..."
+                />
+              </label>
+            </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block">

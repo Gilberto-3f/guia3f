@@ -180,6 +180,7 @@ export default function EmpresaPage() {
     telefone: empresa.telefone != null ? String(empresa.telefone) : null,
     whatsapp: empresa.whatsapp != null ? String(empresa.whatsapp) : null,
     website: empresa.website != null ? String(empresa.website) : null,
+    redes_sociais: empresa.redes_sociais,
     horarios: horariosParsed,
     nome_fantasia: nomeFantasia,
   }
