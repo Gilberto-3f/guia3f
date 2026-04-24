@@ -14,10 +14,10 @@ const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App',
 const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
 
 /**
- * Travesseiro (não disponível no Lucide) — traço alinhado ao estilo dos ícones 24px.
+ * Chuveiro (não disponível no Lucide nesta versão) — traço alinhado ao estilo dos ícones 24px.
  * @param {{ className?: string, 'aria-hidden'?: boolean }} p
  */
-function IconTravesseiro({ className, ...rest }) {
+function IconChuveiro({ className, ...rest }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -26,24 +26,32 @@ function IconTravesseiro({ className, ...rest }) {
       className={className ?? 'h-6 w-6'}
       aria-hidden={rest['aria-hidden'] ?? true}
     >
-      <rect x="2.5" y="7.5" width="19" height="9" rx="2.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
       <path
-        d="M4.5 12.5c2.2-1.2 4.6-1.2 6.8 0m3.2 0c2.2-1.2 4.6-1.2 6.8 0"
+        d="M9 4v2.5a3 3 0 003 3 3 3 0 003-3V4"
         stroke="currentColor"
-        strokeWidth="0.7"
+        strokeWidth="1.5"
         strokeLinecap="round"
-        strokeOpacity="0.35"
+        strokeLinejoin="round"
+      />
+      <path d="M12 9.5V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M7.5 14h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path
+        d="M8.5 17v3M12 17.5v4M15.5 17v3"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+        strokeOpacity="0.85"
       />
     </svg>
   )
 }
-IconTravesseiro.displayName = 'IconTravesseiro'
+IconChuveiro.displayName = 'IconChuveiro'
 
 const ROTULO_CATEGORIA = /** @type {const} */ ({
   Restaurantes: { Icon: Utensils, rótulo: 'Restaurantes' },
   Atrativos: { Icon: Ticket, rótulo: 'Atrativos' },
   Lojas: { Icon: ShoppingBag, rótulo: 'Lojas' },
-  Hospedagem: { Icon: IconTravesseiro, rótulo: 'Hospedagem' },
+  Hospedagem: { Icon: IconChuveiro, rótulo: 'Hospedagem' },
   Outros: { Icon: Building2, rótulo: 'Outros' },
 })
 
@@ -52,7 +60,7 @@ const ROTULO_CATEGORIA = /** @type {const} */ ({
  */
 function metaCategoriaEmpresa(cat) {
   if (Object.prototype.hasOwnProperty.call(ROTULO_CATEGORIA, cat)) {
-    return /** @type {{ Icon: import('lucide-react').LucideIcon, rótulo: string } | { Icon: typeof IconTravesseiro, rótulo: string }} */ (
+    return /** @type {{ Icon: import('lucide-react').LucideIcon, rótulo: string } | { Icon: typeof IconChuveiro, rótulo: string }} */ (
       ROTULO_CATEGORIA[/** @type {keyof typeof ROTULO_CATEGORIA} */ (cat)]
     )
   }
