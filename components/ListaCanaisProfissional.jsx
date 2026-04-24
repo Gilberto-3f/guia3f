@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Building2, Crown, Hotel, Landmark, MessageCircle, Mountain, Store, Utensils } from 'lucide-react'
+import { Building2, ChevronDown, ChevronUp, Crown, Hotel, Landmark, MessageCircle, Mountain, Store, Utensils } from 'lucide-react'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -78,7 +78,8 @@ function ordenarCanais(lista) {
 export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionadoId, leituraTick = 0 }) {
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
-  const [categoriaAba, setCategoriaAba] = useState(/** @type {string | null} */ (null))
+  const [categoriaAba, setCategoriaAba] = useState(ORDEM_CATEGORIA_EMPRESA[0] ?? 'Restaurantes')
+  const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({ administracao: true }))
 
   const part = useMemo(() => {
     const administracao = canais.filter(
@@ -88,7 +89,8 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     return { administracao, empresas }
   }, [canais])
 
-  const empresasPorCategoria = useMemo(() => {
+  /** Sempre expõe as 4 segmentações de empresas (vazias se necessário) + outras chaves com canais. */
+  const abasCategoriasEmpresas = useMemo(() => {
     /** @type {Record<string, Canal[]>} */
     const map = {}
     for (const c of part.empresas) {
@@ -99,30 +101,35 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     for (const k of Object.keys(map)) {
       map[k] = ordenarCanais(map[k])
     }
-    const entries = Object.entries(map)
-    entries.sort((a, b) => {
-      const ia = ORDEM_CATEGORIA_EMPRESA.indexOf(a[0])
-      const ib = ORDEM_CATEGORIA_EMPRESA.indexOf(b[0])
-      if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
-      return a[0].localeCompare(b[0])
-    })
-    return entries
+    const fixas = ORDEM_CATEGORIA_EMPRESA.map((cat) => /** @type {[string, Canal[]]} */ ([cat, map[cat] ? [...map[cat]] : []]))
+    const visto = new Set(ORDEM_CATEGORIA_EMPRESA)
+    const extras = Object.keys(map)
+      .filter((k) => !visto.has(k))
+      .sort((a, b) => a.localeCompare(b))
+    const extraPairs = extras.map((k) => /** @type {[string, Canal[]]} */ ([k, map[k] ?? []]))
+    return [...fixas, ...extraPairs]
   }, [part.empresas])
 
   useEffect(() => {
-    if (empresasPorCategoria.length === 0) {
-      setCategoriaAba(null)
+    const chaves = abasCategoriasEmpresas.map(([k]) => k)
+    if (chaves.length === 0) {
       return
     }
-    const chaves = empresasPorCategoria.map(([k]) => k)
     setCategoriaAba((prev) => (prev && chaves.includes(prev) ? prev : chaves[0]))
-  }, [empresasPorCategoria])
+  }, [abasCategoriasEmpresas])
 
   const itensAbaAtiva = useMemo(() => {
     if (categoriaAba == null) return /** @type {Canal[]} */ ([])
-    const f = empresasPorCategoria.find(([k]) => k === categoriaAba)
+    const f = abasCategoriasEmpresas.find(([k]) => k === categoriaAba)
     return f ? f[1] : []
-  }, [empresasPorCategoria, categoriaAba])
+  }, [abasCategoriasEmpresas, categoriaAba])
+
+  const toggleGrupo = (id) => {
+    setGruposAbertos((prev) => {
+      const aberto = prev[id] !== false
+      return { ...prev, [id]: !aberto }
+    })
+  }
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -244,16 +251,31 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       <div className="min-h-0 flex min-h-0 flex-1 flex-col overflow-y-auto md:min-h-0">
         {part.administracao.length > 0 ? (
           <div className="shrink-0 border-b border-gray-100">
-            <p className="px-4 pb-1 pt-3 text-xs font-bold tracking-wide text-[#0097b2]">ADMINISTRAÇÃO</p>
-            {part.administracao.map((canal) => (
-              <div key={canal.id} className="pl-0">
-                {renderRow(canal)}
+            <button
+              type="button"
+              onClick={() => toggleGrupo('administracao')}
+              className="flex w-full items-center justify-between px-4 py-3 text-left"
+            >
+              <span className="text-xs font-bold tracking-wide text-[#0097b2]">ADMINISTRAÇÃO</span>
+              {gruposAbertos['administracao'] !== false ? (
+                <ChevronUp size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
+              ) : (
+                <ChevronDown size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
+              )}
+            </button>
+            {gruposAbertos['administracao'] !== false ? (
+              <div>
+                {part.administracao.map((canal) => (
+                  <div key={canal.id} className="pl-0">
+                    {renderRow(canal)}
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : null}
           </div>
         ) : null}
 
-        {empresasPorCategoria.length > 0 && categoriaAba ? (
+        {categoriaAba && abasCategoriasEmpresas.length > 0 ? (
           <>
             <p className="shrink-0 bg-white px-4 pb-1 pt-2 text-xs font-bold tracking-wide text-gray-500">Segmentos (empresas)</p>
             <div
@@ -261,7 +283,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
               role="tablist"
               aria-label="Categorias de empresas"
             >
-              {empresasPorCategoria.map(([cat]) => {
+              {abasCategoriasEmpresas.map(([cat]) => {
                 const ativo = categoriaAba === cat
                 const { Icon, rótulo } = metaCategoriaEmpresa(cat)
                 return (
@@ -295,11 +317,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
               )}
             </div>
           </>
-        ) : part.administracao.length > 0 ? (
-          <p className="p-4 text-sm text-gray-500">Não há canais de empresas do seu segmento. Quando houver, aparecem abaixo.</p>
-        ) : (
-          <p className="p-4 text-sm text-gray-500">Nenhum canal disponível.</p>
-        )}
+        ) : null}
       </div>
     </div>
   )
