@@ -66,8 +66,13 @@ function prioridadeAdmFin(c) {
  * @param {Canal[]} lista
  */
 function ordenarBlocoAdministracaoUnificada(lista) {
-  const fixos = lista.filter((c) => c.ordem_tipo === 'fixo')
-  const rot = lista.filter((c) => c.ordem_tipo !== 'fixo')
+  // Evita duplicar "Canal ADM" quando há canais equivalentes (ex.: ADM e MENSAGEIRO).
+  // Mantém o canal ADM quando existir e oculta o "MENSAGEIRO" (mesma função na UI).
+  const temAdm = lista.some((c) => nomeNorm(c.nome) === 'ADM')
+  const filtrada = temAdm ? lista.filter((c) => nomeNorm(c.nome) !== 'MENSAGEIRO') : lista
+
+  const fixos = filtrada.filter((c) => c.ordem_tipo === 'fixo')
+  const rot = filtrada.filter((c) => c.ordem_tipo !== 'fixo')
   fixos.sort((a, b) => {
     const pa = a.ordem_posicao ?? 0
     const pb = b.ordem_posicao ?? 0
