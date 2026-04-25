@@ -28,6 +28,18 @@ function canalEMSegmentoNegocio(c) {
 }
 
 /**
+ * Alguns canais “legados” usam `tipo_publico='empresa'`, mas na prática são categorias de PROFISSIONAIS
+ * (ex.: guia, taxista, van). Eles não devem aparecer na pasta EMPRESAS.
+ * @param {Canal} c
+ */
+function canalEhProfissional(c) {
+  const cat = (c.categoria ?? '').trim().toLowerCase()
+  if (cat && CATEGORIAS_PROFISSIONAIS.includes(cat)) return true
+  const nome = (c.nome ?? '').trim().toLowerCase()
+  return CATEGORIAS_PROFISSIONAIS.includes(nome)
+}
+
+/**
  * @param {string | null | undefined} nome
  */
 function nomeNorm(nome) {
@@ -128,7 +140,7 @@ function particionarPorPerfil(canaisOrdenados, tipoPublico) {
       profissionais: /** @type {Canal[]} */ ([]),
       administracaoEmp: canaisOrdenados.filter((c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) === 'ADM'),
       empresas: canaisOrdenados.filter(
-        (c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) !== 'ADM' && canalEMSegmentoNegocio(c),
+        (c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) !== 'ADM' && canalEMSegmentoNegocio(c) && !canalEhProfissional(c),
       ),
     }
   }
@@ -167,7 +179,12 @@ function particionarVisaoAdminTodos(canaisOrdenados) {
     administracaoEmp: /** @type {Canal[]} */ (administracaoEmp),
     /** Somente canais vinculados a segmento de negócios (categoria) — evita duplicar ADM. */
     empresas: canaisOrdenados.filter(
-      (c) => c.tipo_publico === 'empresa' && nomeNorm(c.nome) !== 'ADM' && nomeNorm(c.nome) !== 'FINANCEIRO' && canalEMSegmentoNegocio(c),
+      (c) =>
+        c.tipo_publico === 'empresa' &&
+        nomeNorm(c.nome) !== 'ADM' &&
+        nomeNorm(c.nome) !== 'FINANCEIRO' &&
+        canalEMSegmentoNegocio(c) &&
+        !canalEhProfissional(c),
     ),
   }
 }
