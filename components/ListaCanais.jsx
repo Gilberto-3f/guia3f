@@ -40,6 +40,31 @@ function canalEhProfissional(c) {
 }
 
 /**
+ * Normaliza categoria profissional para deduplicar (ex.: "Taxistas" e "taxista").
+ * @param {Canal} c
+ * @returns {string | null}
+ */
+function chaveProfissional(c) {
+  const cat = (c.categoria ?? '').trim().toLowerCase()
+  if (cat && CATEGORIAS_PROFISSIONAIS.includes(cat)) return cat
+
+  const rawNome = (c.nome ?? '').trim().toLowerCase()
+  if (!rawNome) return null
+
+  // Remover acentos para comparar "anfitriões" vs "anfitrioes".
+  const nome = rawNome.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+  if (nome === 'taxistas') return 'taxista'
+  if (nome === 'guias') return 'guia'
+  if (nome === 'vans') return 'van'
+  if (nome === 'anfitrioes') return 'anfitriao'
+  if (nome === 'motoristas_app' || nome === 'motoristas app') return 'motorista_app'
+
+  if (CATEGORIAS_PROFISSIONAIS.includes(nome)) return nome
+  return null
+}
+
+/**
  * @param {string | null | undefined} nome
  */
 function nomeNorm(nome) {
@@ -174,12 +199,37 @@ function particionarVisaoAdminTodos(canaisOrdenados) {
       (c) => c.tipo_publico === 'profissional' && (c.categoria === 'admin' || nomeNorm(c.nome) === 'FINANCEIRO'),
     ),
     // Alguns canais legados vêm como `tipo_publico='empresa'`, mas são categorias de PROFISSIONAIS.
-    // Eles entram aqui para não aparecerem duplicados "fora" da pasta PROFISSIONAIS.
-    profissionais: canaisOrdenados.filter((c) => {
-      const cat = (c.categoria ?? '').trim().toLowerCase()
-      const isProf = c.tipo_publico === 'profissional' && cat && CATEGORIAS_PROFISSIONAIS.includes(cat)
-      return isProf || canalEhProfissional(c)
-    }),
+    // Deduplica para manter apenas 1 canal por categoria (5 ao todo).
+    profissionais: (() => {
+      const candidatos = canaisOrdenados.filter((c) => {
+        const cat = (c.categoria ?? '').trim().toLowerCase()
+        const isProf = c.tipo_publico === 'profissional' && cat && CATEGORIAS_PROFISSIONAIS.includes(cat)
+        return isProf || canalEhProfissional(c) || chaveProfissional(c) != null
+      })
+
+      /** @type {Map<string, Canal>} */
+      const best = new Map()
+      for (const c of candidatos) {
+        const k = chaveProfissional(c)
+        if (!k) continue
+        const cur = best.get(k)
+        if (!cur) {
+          best.set(k, c)
+          continue
+        }
+        // Preferir o canal "oficial": tipo_publico profissional + categoria válida.
+        const catC = (c.categoria ?? '').trim().toLowerCase()
+        const catCur = (cur.categoria ?? '').trim().toLowerCase()
+        const scoreC =
+          (c.tipo_publico === 'profissional' ? 10 : 0) + (catC && CATEGORIAS_PROFISSIONAIS.includes(catC) ? 5 : 0)
+        const scoreCur =
+          (cur.tipo_publico === 'profissional' ? 10 : 0) +
+          (catCur && CATEGORIAS_PROFISSIONAIS.includes(catCur) ? 5 : 0)
+        if (scoreC > scoreCur) best.set(k, c)
+      }
+
+      return [...best.values()]
+    })(),
     administracaoEmp: /** @type {Canal[]} */ (administracaoEmp),
     /** Somente canais vinculados a segmento de negócios (categoria) — evita duplicar ADM. */
     empresas: canaisOrdenados.filter(
