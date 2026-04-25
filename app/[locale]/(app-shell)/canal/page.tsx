@@ -147,7 +147,7 @@ export default function CanalPage() {
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
         <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
           <div className="p-4">
-            <h1 className="text-xl font-bold text-gray-800">Mensageiro ADM</h1>
+            <h1 className="text-xl font-bold text-gray-800">Canais ADM</h1>
           </div>
         </div>
         <div className="flex min-h-0 min-h-[calc(100dvh-7rem)] flex-1 flex-col overflow-hidden">
