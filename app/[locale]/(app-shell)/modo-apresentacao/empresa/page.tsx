@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { Camera, ChevronDown, ChevronUp, FileText, Globe2, MapPin, Star } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
-import { getRotuloAbaServico } from '@/lib/empresaCategoria'
+import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useEmpresaPreviewDraft } from '@/hooks/useEmpresaPreviewDraft'
 import EmpresaPreviewEditorDrawer from '@/components/empresa/EmpresaPreviewEditorDrawer'
 
@@ -149,7 +149,6 @@ export default function EmpresaPreviewModoApresentacaoPage() {
     return merged
   }, [draft, empresaBase])
 
-  const fotosListaPreview = empresaMerged ? asJsonArray(empresaMerged.fotos_url) : []
   const fotos360ListaPreview = empresaMerged ? asJsonArray(empresaMerged.fotos_360_url) : []
   const empresaUsuarioIdPostsPreview =
     empresaMerged?.usuario_id != null ? String(empresaMerged.usuario_id) : null
@@ -207,6 +206,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
   const totalSeg = Number(empresaMerged.total_seguidores) || 0
   const categoria = String(empresaMerged.categoria ?? '')
   const rotuloServico = getRotuloAbaServico(categoria)
+  const IconeAbaServico = getIconeAbaServico(categoria)
 
   const precoTicketInteira = Number(empresaMerged.preco_ticket_inteira) || 0
   const precoTicketMeia = Number(empresaMerged.preco_ticket_meia) || 0
@@ -259,94 +259,57 @@ export default function EmpresaPreviewModoApresentacaoPage() {
 
       <FotoHero fotoUrl={fotoUrl} nome={nomeFantasia} />
 
-      {abaExpandida == null ? (
-        <div className="border-b border-gray-100 bg-white p-4">
-          <div className="mb-2 flex items-start justify-between gap-2">
-            <NomeEmpresa nome={nomeFantasia} />
-            <BotaoSeguir empresaId={empresaId} isFollowing={false} onToggle={() => {}} />
-          </div>
-
-          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-            <ContadorSeguidores empresaId={empresaId} total={totalSeg} />
-            <NotaMedia nota={notaMedia} total={totalAval} />
-            <StatusAtendimento horarios={empresaEndereco.horarios} />
-          </div>
-
-          <DescricaoLonga descricao={descLonga} />
-
-          <div className="mt-6">
-            <div className="flex gap-4 border-b border-gray-200">
-              <button
-                type="button"
-                onClick={() => setSubAbaAtiva('fotos')}
-                className={`pb-2 text-sm font-medium transition-colors ${
-                  subAbaAtiva === 'fotos' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Fotos
-              </button>
-              <button
-                type="button"
-                onClick={() => setSubAbaAtiva('posts')}
-                className={`pb-2 text-sm font-medium transition-colors ${
-                  subAbaAtiva === 'posts' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Posts
-              </button>
-              <button
-                type="button"
-                onClick={() => setSubAbaAtiva('tour360')}
-                className={`pb-2 text-sm font-medium transition-colors ${
-                  subAbaAtiva === 'tour360' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Tour 360°
-              </button>
-            </div>
-
-            <div className="mt-4">
-              {subAbaAtiva === 'fotos' ? <AbaFotosEmpresa fotosUrl={fotosListaPreview} /> : null}
-              {subAbaAtiva === 'posts' ? <AbaPostsEmpresa empresaUsuarioId={empresaUsuarioIdPostsPreview} /> : null}
-              {subAbaAtiva === 'tour360' ? <AbaTour360Empresa fotos360Url={fotos360ListaPreview} /> : null}
-            </div>
-          </div>
+      <div className="border-b border-gray-100 bg-white p-4">
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <NomeEmpresa nome={nomeFantasia} />
+          <BotaoSeguir empresaId={empresaId} isFollowing={false} onToggle={() => {}} />
         </div>
-      ) : null}
+
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+          <ContadorSeguidores empresaId={empresaId} total={totalSeg} />
+          <NotaMedia nota={notaMedia} total={totalAval} />
+          <StatusAtendimento horarios={empresaEndereco.horarios} />
+        </div>
+
+        <DescricaoLonga descricao={descLonga} />
+      </div>
 
       <div className="border-b border-gray-100 bg-white">
         <div className="flex">
           <button
             type="button"
             onClick={() => toggleAba('avaliacoes')}
+            aria-label="Avaliações"
             aria-expanded={abaExpandida === 'avaliacoes'}
-            className={`flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-3 text-left text-sm font-medium transition-colors ${
+            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-3 text-sm font-medium transition-colors ${
               abaExpandida === 'avaliacoes' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
             }`}
           >
-            <span className="min-w-0 truncate">Avaliações</span>
+            <Star className="h-4 w-4 shrink-0" aria-hidden />
             {abaExpandida === 'avaliacoes' ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
           </button>
           <button
             type="button"
             onClick={() => toggleAba('endereco')}
+            aria-label="Endereço"
             aria-expanded={abaExpandida === 'endereco'}
-            className={`flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-3 text-left text-sm font-medium transition-colors ${
+            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-3 text-sm font-medium transition-colors ${
               abaExpandida === 'endereco' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
             }`}
           >
-            <span className="min-w-0 truncate">Endereço</span>
+            <MapPin className="h-4 w-4 shrink-0" aria-hidden />
             {abaExpandida === 'endereco' ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
           </button>
           <button
             type="button"
             onClick={() => toggleAba('dinamico')}
+            aria-label={rotuloServico}
             aria-expanded={abaExpandida === 'dinamico'}
-            className={`flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-3 text-left text-sm font-medium transition-colors ${
+            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-3 text-sm font-medium transition-colors ${
               abaExpandida === 'dinamico' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
             }`}
           >
-            <span className="min-w-0 truncate">{rotuloServico}</span>
+            <IconeAbaServico className="h-4 w-4 shrink-0" aria-hidden />
             {abaExpandida === 'dinamico' ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
           </button>
         </div>
@@ -380,6 +343,56 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               precoDiaria={precoDiaria}
             />
           ) : null}
+        </div>
+      ) : null}
+
+      {abaExpandida == null ? (
+        <div className="border-b border-gray-100 bg-white p-4">
+          <div className="flex border-b border-[#E0E0E0] bg-white px-2">
+            <button
+              type="button"
+              onClick={() => setSubAbaAtiva('fotos')}
+              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
+                subAbaAtiva === 'fotos' ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
+              }`}
+            >
+              <Camera size={18} aria-hidden />
+              <span>FOTOS</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSubAbaAtiva('posts')}
+              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
+                subAbaAtiva === 'posts' ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
+              }`}
+            >
+              <FileText size={18} aria-hidden />
+              <span>POSTS</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSubAbaAtiva('tour360')}
+              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
+                subAbaAtiva === 'tour360' ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
+              }`}
+            >
+              <Globe2 size={18} aria-hidden />
+              <span>TOUR 360°</span>
+            </button>
+          </div>
+
+          <div className="min-h-0">
+            {subAbaAtiva === 'fotos' ? (
+              <AbaFotosEmpresa
+                empresaUsuarioId={empresaUsuarioIdPostsPreview}
+                nomeFantasia={nomeFantasia}
+                nomeUsuario={nomeUsuario}
+                fotoPerfilUrl={fotoUrl}
+              />
+            ) : null}
+            {subAbaAtiva === 'posts' ? <AbaPostsEmpresa empresaUsuarioId={empresaUsuarioIdPostsPreview} /> : null}
+            {subAbaAtiva === 'tour360' ? <AbaTour360Empresa fotos360Url={fotos360ListaPreview} /> : null}
+          </div>
         </div>
       ) : null}
 
