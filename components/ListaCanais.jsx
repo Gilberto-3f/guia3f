@@ -452,6 +452,9 @@ export default function ListaCanais({
       if (particionIds.has(c.id)) return false
       if (c.tipo_publico === 'empresa' && c.empresa_id == null && nomeNorm(c.nome) === 'ADM') return false
       if (agruparPorTipo && excluirCanalMensageiroVisaoAdm(c)) return false
+      // Visão "Mensageiro ADM": canais legados de PROFISSIONAIS não devem aparecer como linhas soltas
+      // (eles já existem na pasta PROFISSIONAIS).
+      if (agruparPorTipo && (canalEhProfissional(c) || chaveProfissional(c) != null)) return false
       return true
     })
 
