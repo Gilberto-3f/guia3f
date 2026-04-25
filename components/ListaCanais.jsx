@@ -173,9 +173,13 @@ function particionarVisaoAdminTodos(canaisOrdenados) {
     administracaoProf: canaisOrdenados.filter(
       (c) => c.tipo_publico === 'profissional' && (c.categoria === 'admin' || nomeNorm(c.nome) === 'FINANCEIRO'),
     ),
-    profissionais: canaisOrdenados.filter(
-      (c) => c.tipo_publico === 'profissional' && c.categoria != null && CATEGORIAS_PROFISSIONAIS.includes(c.categoria),
-    ),
+    // Alguns canais legados vêm como `tipo_publico='empresa'`, mas são categorias de PROFISSIONAIS.
+    // Eles entram aqui para não aparecerem duplicados "fora" da pasta PROFISSIONAIS.
+    profissionais: canaisOrdenados.filter((c) => {
+      const cat = (c.categoria ?? '').trim().toLowerCase()
+      const isProf = c.tipo_publico === 'profissional' && cat && CATEGORIAS_PROFISSIONAIS.includes(cat)
+      return isProf || canalEhProfissional(c)
+    }),
     administracaoEmp: /** @type {Canal[]} */ (administracaoEmp),
     /** Somente canais vinculados a segmento de negócios (categoria) — evita duplicar ADM. */
     empresas: canaisOrdenados.filter(
