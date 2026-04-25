@@ -20,6 +20,7 @@ import AbaBotaoDinamico from '@/components/AbaBotaoDinamico'
 import AbaFotosEmpresa from '@/components/empresa/AbaFotosEmpresa'
 import AbaPostsEmpresa from '@/components/empresa/AbaPostsEmpresa'
 import AbaTour360Empresa from '@/components/empresa/AbaTour360Empresa'
+import UploadFotos360Adm from '@/components/empresa/UploadFotos360Adm'
 import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
@@ -171,6 +172,8 @@ export default function EmpresaPage() {
   const donoEmpresa = usuarioId != null && String(empresa.usuario_id ?? '') === usuarioId && meuRole === 'empresa'
   const podeAbrirMenu =
     donoEmpresa || (meuRole === 'admin' && typeof adminLevel === 'number' && adminLevel === 1 && modoAtivo)
+  /** Apenas admin altera fotos 360° na página pública da empresa. */
+  const podeEditarFotos360 = meuRole === 'admin'
   const modoEmpresaLayout = podeAbrirMenu
 
   const toggleAba = (aba: 'avaliacoes' | 'endereco' | 'dinamico') => {
@@ -345,6 +348,14 @@ export default function EmpresaPage() {
               <span>TOUR 360°</span>
             </button>
           </div>
+
+          {subAbaAtiva === 'tour360' && podeEditarFotos360 ? (
+            <UploadFotos360Adm
+              empresaId={empresaId}
+              fotos360Atuais={fotos360Lista}
+              onAtualizado={() => void carregarEmpresa()}
+            />
+          ) : null}
 
           <div className="min-h-0">
             {subAbaAtiva === 'fotos' ? (
