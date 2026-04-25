@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Send, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import Comentario from '@/components/Comentario'
-import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
+import { fetchFotoPerfilUsuario, fetchFotosPerfilPorUsuarioIds } from '@/lib/feed-autor'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import AvatarImage from '@/components/AvatarImage'
 
@@ -105,20 +105,29 @@ export default function ModalComentarios({
     const autorIds = [...new Set(rows.map((r) => (r.autor_id != null ? String(r.autor_id) : '')).filter(Boolean))]
     const perfis = await buscarPerfisPorIds(supabase, autorIds)
     const perfilPorUsuario = new Map(perfis.map((p) => [String(p.usuario_id), p]))
+    const fotosPorUsuario = await fetchFotosPerfilPorUsuarioIds(supabase, autorIds)
 
     const flat = rows.map((r) => {
       const rr = /** @type {Record<string, unknown>} */ (r)
       const aid = rr.autor_id != null ? String(rr.autor_id) : ''
       const p = aid ? perfilPorUsuario.get(aid) : undefined
       const fallback = { nome: 'Usuário', username: 'usuario', foto_perfil_url: null, usuario_id: aid }
+      const fotoAtual =
+        aid && fotosPorUsuario.has(aid)
+          ? fotosPorUsuario.get(aid) ?? null
+          : p && p.foto_url != null
+            ? String(p.foto_url)
+            : null
       const autor = p
         ? {
             nome: String(p.nome ?? 'Usuário'),
             username: String(p.username ?? 'usuario'),
-            foto_perfil_url: p.foto_url != null ? String(p.foto_url) : null,
+            foto_perfil_url: fotoAtual,
             usuario_id: aid,
           }
-        : fallback
+        : aid && fotosPorUsuario.has(aid)
+          ? { nome: 'Usuário', username: 'usuario', foto_perfil_url: fotoAtual, usuario_id: aid }
+          : fallback
       return {
         id: String(rr.id),
         texto: String(rr.texto ?? ''),
@@ -221,6 +230,18 @@ export default function ModalComentarios({
     }
     void fetchFotoPerfilUsuario(supabase, usuarioId).then(setMinhaFotoUrl)
   }, [ativo, usuarioId, leituraComentarios])
+
+  useEffect(() => {
+    if (!ativo || !postId) return
+    const onPerfilAtualizado = () => {
+      void carregar()
+      if (usuarioId && !leituraComentarios) {
+        void fetchFotoPerfilUsuario(supabase, usuarioId).then(setMinhaFotoUrl)
+      }
+    }
+    window.addEventListener('perfil-atualizado', onPerfilAtualizado)
+    return () => window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
+  }, [ativo, postId, carregar, usuarioId, leituraComentarios])
 
   useEffect(() => {
     if (!ativo || leituraComentarios) {

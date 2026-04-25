@@ -678,7 +678,7 @@ function CriarPublicacaoPageInner() {
             <>
               <div className="relative w-full shrink-0">
                 <CriarPostRecorteMovel
-                  key={fotoPreview}
+                  key={`${fotoPreview}-${String(formatoFoto ?? '')}`}
                   imageSrc={fotoPreview}
                   aspect={formatoFoto != null ? FORMATOS[formatoFoto].aspect : 1}
                   ativo={formatoFoto != null}
