@@ -19,6 +19,8 @@ export default function UploadFotos360Adm({ empresaId, fotos360Atuais, onAtualiz
   const [enviando, setEnviando] = useState(false)
   const [msg, setMsg] = useState(/** @type {string | null} */ (null))
 
+  const atuais = Array.isArray(fotos360Atuais) ? fotos360Atuais.filter((u) => typeof u === 'string' && u.trim()) : []
+
   const handleChange = async (e) => {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -40,8 +42,18 @@ export default function UploadFotos360Adm({ empresaId, fotos360Atuais, onAtualiz
       const { data: pub } = supabase.storage.from('empresas').getPublicUrl(path)
       const url = pub?.publicUrl
       if (!url) throw new Error('URL pública indisponível.')
-      const base = Array.isArray(fotos360Atuais) ? fotos360Atuais.filter((u) => typeof u === 'string' && u.trim()) : []
-      const proximas = [...base, url]
+
+      // Evita sobrescrever a lista quando o utilizador envia múltiplas fotos rapidamente.
+      const { data: row, error: selErr } = await supabase
+        .from('empresas')
+        .select('fotos_360_url')
+        .eq('id', empresaId)
+        .maybeSingle()
+      if (selErr) throw new Error(selErr.message)
+      const raw = row?.fotos_360_url
+      const base = Array.isArray(raw) ? raw.filter((x) => typeof x === 'string' && x.trim()) : atuais
+      const proximas = [...new Set([...base, url])]
+
       const { error: dbErr } = await supabase.from('empresas').update({ fotos_360_url: proximas }).eq('id', empresaId)
       if (dbErr) throw new Error(dbErr.message)
       setMsg('Imagem 360° adicionada.')
@@ -75,6 +87,25 @@ export default function UploadFotos360Adm({ empresaId, fotos360Atuais, onAtualiz
         <Upload size={18} className="shrink-0" aria-hidden />
         {enviando ? 'A enviar…' : 'Carregar foto 360°'}
       </button>
+      <div className="mt-2">
+        <p className="text-[11px] text-gray-600">Atuais no banco: {atuais.length}</p>
+        {atuais.length ? (
+          <div className="mt-2 grid grid-cols-4 gap-2">
+            {atuais.slice(0, 8).map((u) => (
+              <div key={u} className="relative aspect-square overflow-hidden rounded-lg bg-white ring-1 ring-black/5">
+                {/* eslint-disable-next-line @next/next/no-img-element -- host remoto pode não estar em remotePatterns */}
+                <img
+                  src={u}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
       {msg ? <p className="mt-2 text-xs text-gray-700">{msg}</p> : null}
     </div>
   )

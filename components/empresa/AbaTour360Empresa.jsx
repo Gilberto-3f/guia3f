@@ -120,6 +120,18 @@ export default function AbaTour360Empresa({ fotos360Url }) {
     return <p className="py-10 text-center text-sm text-gray-500">Nenhuma imagem 360° cadastrada</p>
   }
 
+  const thumb = (src) => {
+    const s = typeof src === 'string' ? src : ''
+    const isLocal = s.startsWith('/') || s.startsWith('data:')
+    if (isLocal) {
+      return <Image src={s} alt="" fill className="object-cover" sizes="(max-width: 768px) 33vw, 25vw" />
+    }
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- host remoto pode não estar em remotePatterns
+      <img src={s} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" decoding="async" />
+    )
+  }
+
   return (
     <div>
       <p className="mb-3 text-xs text-gray-500">Toque em uma miniatura para abrir a vista 360° (arraste para girar, use o scroll para zoom).</p>
@@ -134,7 +146,7 @@ export default function AbaTour360Empresa({ fotos360Url }) {
             }}
             className="relative aspect-square overflow-hidden rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#0097b2] focus:ring-offset-2"
           >
-            <Image src={src} alt="" fill className="object-cover" sizes="(max-width: 768px) 33vw, 25vw" />
+            {thumb(src)}
           </button>
         ))}
       </div>
