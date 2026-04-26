@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Camera, Image } from 'lucide-react'
+import { Camera } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 
@@ -57,7 +57,7 @@ async function getCroppedImg(imageSrc, pixelCrop) {
 /**
  * @param {{
  *   usuarioId: string
- *   role: 'turista' | 'profissional' | 'admin'
+ *   role: 'turista' | 'profissional' | 'empresa' | 'admin'
  *   nomeInicial: string
  *   usernameInicial: string
  *   bioInicial: string
@@ -92,7 +92,6 @@ export default function EditarPerfil({
   )
   const [aplicandoCrop, setAplicandoCrop] = useState(false)
   const galeriaInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
-  const cameraInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
 
   useEffect(() => {
     setNome(nomeInicial)
@@ -114,7 +113,7 @@ export default function EditarPerfil({
     return () => URL.revokeObjectURL(objectUrl)
   }, [novaFotoArquivo])
 
-  const tabela = role === 'profissional' ? 'profissionais' : 'turistas'
+  const tabela = role === 'profissional' ? 'profissionais' : role === 'empresa' ? 'empresas' : 'turistas'
   const fotoExibida = previewFoto || fotoAtual
   const inicialNome = useMemo(() => {
     const base = (nome || nomeInicial || '').trim()
@@ -129,7 +128,6 @@ export default function EditarPerfil({
     setZoom(1)
     setCroppedAreaPixels(null)
     if (galeriaInputRef.current) galeriaInputRef.current.value = ''
-    if (cameraInputRef.current) cameraInputRef.current.value = ''
   }, [cropSrc])
 
   const onSelecionarFoto = (/** @type {React.ChangeEvent<HTMLInputElement>} */ e) => {
@@ -206,7 +204,6 @@ export default function EditarPerfil({
     setPreviewFoto(null)
     setErroFoto(null)
     if (galeriaInputRef.current) galeriaInputRef.current.value = ''
-    if (cameraInputRef.current) cameraInputRef.current.value = ''
   }
 
   const uploadFotoPerfil = async (file, userId) => {
@@ -279,7 +276,6 @@ export default function EditarPerfil({
       setMsg('Perfil atualizado.')
       setNovaFotoArquivo(null)
       if (galeriaInputRef.current) galeriaInputRef.current.value = ''
-      if (cameraInputRef.current) cameraInputRef.current.value = ''
       onSalvo?.()
       window.dispatchEvent(new Event('perfil-atualizado'))
     } catch (e) {
@@ -321,33 +317,15 @@ export default function EditarPerfil({
             className="hidden"
             onChange={onSelecionarFoto}
           />
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={onSelecionarFoto}
-          />
 
-          <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row sm:justify-center">
-            <button
-              type="button"
-              onClick={() => galeriaInputRef.current?.click()}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#0097b2] px-3 py-2 text-sm font-medium text-[#0097b2]"
-            >
-              <Image className="h-4 w-4 shrink-0" aria-hidden />
-              Galeria
-            </button>
-            <button
-              type="button"
-              onClick={() => cameraInputRef.current?.click()}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-medium text-white"
-            >
-              <Camera className="h-4 w-4 shrink-0" aria-hidden />
-              Tirar foto
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => galeriaInputRef.current?.click()}
+            className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white"
+          >
+            <Camera className="h-4 w-4 shrink-0" aria-hidden />
+            Foto de Perfil
+          </button>
 
           {novaFotoArquivo ? (
             <button

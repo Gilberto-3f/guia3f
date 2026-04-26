@@ -179,6 +179,7 @@ function secoesProfissional(ctx) {
  */
 function secoesEmpresa() {
   const gUsuario = [
+    { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
     { Icon: Building2, label: 'Editar Página', subpagina: 'editar-pagina' },
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
     { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
@@ -463,10 +464,12 @@ export default function MenuLateral({
   const roleEditarPerfil = (() => {
     if (simulandoComoPerfil && perfilSimulado) {
       if (perfilSimulado.tipo === 'profissional') return 'profissional'
+      if (perfilSimulado.tipo === 'empresa') return 'empresa'
       return 'turista'
     }
     if (variant === 'admin' && !simulandoComoPerfil) return 'admin'
     if (menuVariantEfetivo === 'profissional') return 'profissional'
+    if (menuVariantEfetivo === 'empresa') return 'empresa'
     return 'turista'
   })()
 
