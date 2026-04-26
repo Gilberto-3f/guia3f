@@ -98,6 +98,76 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const [loading, setLoading] = useState(true)
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
 
+  /**
+   * Garante que a pasta ADMINISTRAÇÃO sempre exiba ADM e Financeiro (nessa ordem).
+   * Se o canal não existir no banco ainda, exibe um item desativado.
+   * @param {Canal[]} lista
+   */
+  function garantirAdministracao(lista) {
+    /** @type {Canal[]} */
+    const out = []
+    const adm = lista.find((c) => nomeNorm(c.nome) === 'ADM')
+    const fin = lista.find((c) => nomeNorm(c.nome) === 'FINANCEIRO')
+    out.push(
+      adm ?? {
+        id: '__placeholder_adm__',
+        nome: 'ADM',
+        tipo_publico: 'empresa',
+        categoria: null,
+        comunidade_prof: null,
+        empresa_id: null,
+        ordem_tipo: 'fixo',
+        ordem_posicao: 1,
+        ultima_mensagem_em: null,
+      },
+    )
+    out.push(
+      fin ?? {
+        id: '__placeholder_financeiro__',
+        nome: 'Financeiro',
+        tipo_publico: 'empresa',
+        categoria: null,
+        comunidade_prof: null,
+        empresa_id: null,
+        ordem_tipo: 'fixo',
+        ordem_posicao: 2,
+        ultima_mensagem_em: null,
+      },
+    )
+    return out
+  }
+
+  /**
+   * Garante as 5 comunidades em PROFISSIONAIS (Empresa).
+   * @param {Canal[]} lista
+   */
+  function garantirComunidadesProfissionais(lista) {
+    /** @type {Map<string, Canal>} */
+    const porComunidade = new Map()
+    for (const c of lista) {
+      const k = c.comunidade_prof != null ? String(c.comunidade_prof).trim() : ''
+      if (!k) continue
+      if (!porComunidade.has(k)) porComunidade.set(k, c)
+    }
+
+    return COMUNIDADES_PROFISSIONAIS.map((comu) => {
+      const real = porComunidade.get(comu)
+      return (
+        real ?? {
+          id: `__placeholder_prof_${comu}__`,
+          nome: comu,
+          tipo_publico: 'empresa',
+          categoria: null,
+          comunidade_prof: comu,
+          empresa_id: empresaId,
+          ordem_tipo: 'rotativo',
+          ordem_posicao: null,
+          ultima_mensagem_em: null,
+        }
+      )
+    })
+  }
+
   const part = useMemo(() => {
     const administracao = ordenarCanaisAdministracaoEmpresa(
       canais.filter(
@@ -110,7 +180,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     const profissionais = canais
       .filter((c) => c.tipo_publico === 'empresa' && empresaId && String(c.empresa_id ?? '') === String(empresaId))
       .filter((c) => c.comunidade_prof != null && COMUNIDADES_PROFISSIONAIS.includes(String(c.comunidade_prof)))
-    return { administracao, profissionais }
+    return {
+      administracao: garantirAdministracao(administracao),
+      profissionais: garantirComunidadesProfissionais(profissionais),
+    }
   }, [canais, empresaId])
 
   const gruposIniciais = useMemo(
@@ -211,17 +284,24 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   function renderRow(canal) {
     const Icon = getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
+    const isPlaceholder = String(canal.id ?? '').startsWith('__placeholder_')
     const label =
       canal.empresa_id == null && (nomeNorm(canal.nome) === 'ADM' || nomeNorm(canal.nome) === 'FINANCEIRO')
         ? rotuloNomeCanalAdministracao(canal.nome)
-        : canal.nome
+        : canal.comunidade_prof != null
+          ? tituloCanalEmpresaLista(canal.comunidade_prof)
+          : canal.nome
     return (
       <button
         key={canal.id}
         type="button"
-        onClick={() => onSelectCanal(canal)}
+        onClick={() => {
+          if (isPlaceholder) return
+          onSelectCanal(canal)
+        }}
+        disabled={isPlaceholder}
         className={`flex w-full items-center gap-3 border-b border-gray-100 p-4 text-left transition-colors ${
-          isActive ? 'bg-[#0097b2]/5' : 'hover:bg-gray-50'
+          isPlaceholder ? 'cursor-not-allowed opacity-60' : isActive ? 'bg-[#0097b2]/5' : 'hover:bg-gray-50'
         }`}
       >
         <div
