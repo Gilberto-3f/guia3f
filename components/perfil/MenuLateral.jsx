@@ -179,7 +179,6 @@ function secoesProfissional(ctx) {
  */
 function secoesEmpresa() {
   const gUsuario = [
-    { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
     { Icon: Building2, label: 'Editar Página', subpagina: 'editar-pagina' },
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
     { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
