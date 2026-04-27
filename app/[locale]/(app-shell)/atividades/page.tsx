@@ -26,11 +26,8 @@ const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
 const ATIVIDADES_LIMITE_PAGINA = 50
 /** Minha conta: só as últimas N por tempo; sem janela 48h nem “carregar mais”. */
 const ATIVIDADES_LIMITE_MINHA_CONTA = ATIVIDADES_LIMITE_PAGINA
-const ATIVIDADES_JANELA_MS = 48 * 60 * 60 * 1000
 
-function isoLimiteAtividades48h() {
-  return new Date(Date.now() - ATIVIDADES_JANELA_MS).toISOString()
-}
+/** TESTE: janela 48h na aba Amigos desligada. Reativar: `const lim = new Date(Date.now() - 48*60*60*1000).toISOString()` + `.gte('created_at', lim)` nas duas queries Amigos. */
 
 type AtividadeRow = {
   id: string
@@ -626,7 +623,6 @@ export default function AtividadesPage() {
     seguindoRef.current = seguindo
     setQtdSeguindo(seguindo.length)
 
-    const limite48 = isoLimiteAtividades48h()
     const lim = ATIVIDADES_LIMITE_PAGINA
 
     const [amigosRes, minhaRes] = await Promise.all([
@@ -637,7 +633,6 @@ export default function AtividadesPage() {
             .in('autor_id', seguindo)
             /* Destinatário = eu → fica só na aba "Minha conta"; aqui só o que seguidos fazem no conteúdo de terceiros. */
             .neq('usuario_id', uid)
-            .gte('created_at', limite48)
             .order('created_at', { ascending: false })
             .range(0, lim - 1)
         : Promise.resolve({ data: [] as AtividadeRow[], error: null }),
@@ -689,7 +684,6 @@ export default function AtividadesPage() {
     /* Minha conta: só as últimas N em `recarregar`; scroll infinito só na aba Amigos. */
     if (aba !== 'amigos') return
     setCarregandoMais(true)
-    const limite48 = isoLimiteAtividades48h()
     const lim = ATIVIDADES_LIMITE_PAGINA
     try {
       const seg = seguindoRef.current
@@ -700,7 +694,6 @@ export default function AtividadesPage() {
         .select('*')
         .in('autor_id', seg)
         .neq('usuario_id', uid)
-        .gte('created_at', limite48)
         .order('created_at', { ascending: false })
         .range(start, start + lim - 1)
       if (error) {
