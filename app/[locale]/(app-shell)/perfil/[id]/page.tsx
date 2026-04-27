@@ -359,7 +359,7 @@ export default function PerfilSocialPage() {
     } finally {
       setLoading(false)
     }
-  }, [profileId])
+  }, [profileId, meuId])
 
   useEffect(() => {
     void carregar()
@@ -500,23 +500,25 @@ export default function PerfilSocialPage() {
 
       <div className="mt-3 px-4 text-left">
         <NomeSocial nome={nome} />
-        <Username username={username} />
+        <div className="mt-0.5 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <Username username={username} />
+          </div>
+          {meuId && meuId !== profileId ? (
+            <BotaoSeguir
+              alvoId={profileId}
+              alvoTipo="usuario"
+              seguidoTipo={perfilRole}
+              isFollowing={seguindoPerfil}
+              onToggle={(novo) => setSeguindoPerfil(novo)}
+              layout="inline"
+            />
+          ) : null}
+        </div>
         <div className="mt-1">
           <DescricaoCurta texto={bio} />
         </div>
       </div>
-
-      {meuId && meuId !== profileId ? (
-        <div className="mt-4 px-4">
-          <BotaoSeguir
-            alvoId={profileId}
-            alvoTipo="usuario"
-            seguidoTipo={perfilRole}
-            isFollowing={seguindoPerfil}
-            onToggle={(novo) => setSeguindoPerfil(novo)}
-          />
-        </div>
-      ) : null}
 
       <div className="mt-6">
         <MetricasPerfil
