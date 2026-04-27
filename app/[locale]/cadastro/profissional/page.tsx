@@ -1,6 +1,6 @@
 'use client'
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
@@ -47,10 +47,6 @@ function mapApiProfissionalError(code: string | undefined, t: (key: string) => s
       return t('apiErrorServerConfig')
     case 'username_taken':
       return t('username.unavailable')
-    case 'id_docs_required':
-    case 'address_proof_required':
-    case 'profession_proof_required':
-      return t('profissional.valDocs')
     case 'policies':
       return t('profissional.valPolicies')
     case 'invalid_username':
@@ -75,6 +71,17 @@ function labelCategoria(c: CategoriaProfissional, tc: (key: string) => string) {
   }
 }
 
+type CadastroProfissionalPayload = {
+  email: string
+  password?: string
+  nomeCompleto: string
+  nomeUsuario: string
+  categoria: string
+  pais: string
+  cidadeAtuacao: string
+  aceitePoliticas: boolean
+}
+
 export default function CadastroProfissionalPage() {
   const router = useRouter()
   const locale = useLocale()
@@ -91,13 +98,6 @@ export default function CadastroProfissionalPage() {
   const [cidadeAtuacao, setCidadeAtuacao] = useState<CidadeProfissional>('Foz do Iguacu')
   const [categoria, setCategoria] = useState<CategoriaProfissional>('Guia')
   const [aceitePoliticas, setAceitePoliticas] = useState(false)
-
-  const [fotoPerfilFile, setFotoPerfilFile] = useState<File | null>(null)
-  const [fotoPerfilPreview, setFotoPerfilPreview] = useState('')
-  const [identidadeFrenteFile, setIdentidadeFrenteFile] = useState<File | null>(null)
-  const [identidadeVersoFile, setIdentidadeVersoFile] = useState<File | null>(null)
-  const [comprovanteResidenciaFile, setComprovanteResidenciaFile] = useState<File | null>(null)
-  const [comprovanteProfissaoFile, setComprovanteProfissaoFile] = useState<File | null>(null)
 
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle')
   const [usernameFeedback, setUsernameFeedback] = useState('')
@@ -144,18 +144,6 @@ export default function CadastroProfissionalPage() {
       ativo = false
     }
   }, [router])
-
-  useEffect(() => {
-    if (!fotoPerfilFile) {
-      setFotoPerfilPreview('')
-      return
-    }
-
-    const objectUrl = URL.createObjectURL(fotoPerfilFile)
-    setFotoPerfilPreview(objectUrl)
-
-    return () => URL.revokeObjectURL(objectUrl)
-  }, [fotoPerfilFile])
 
   useEffect(() => {
     if (!usernameLimpo) {
@@ -215,44 +203,10 @@ export default function CadastroProfissionalPage() {
     }
   }, [usernameLimpo, modoLogado, locale, t])
 
-  const onFileChange = (
-    event: ChangeEvent<HTMLInputElement>,
-    setter: (file: File | null) => void
-  ) => {
-    const file = event.target.files?.[0] ?? null
-    setter(file)
-  }
-
-  const uploadArquivo = async (
-    file: File,
-    folder: 'foto-perfil' | 'documentos',
-    userId: string
-  ) => {
-    const ext = file.name.split('.').pop() || 'bin'
-    const path = `${folder}/${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    const { error } = await supabase.storage.from('documentos').upload(path, file, {
-      cacheControl: '3600',
-      upsert: false,
-    })
-
-    if (error) throw new Error(error.message)
-
-    const { data } = supabase.storage.from('documentos').getPublicUrl(path)
-    return data.publicUrl
-  }
-
   const validarFormulario = () => {
     if (!nomeCompleto.trim()) return t('profissional.valFullName')
     if (!usernameLimpo || usernameStatus !== 'available') return t('profissional.valUsername')
     if (!emailValido) return t('profissional.valEmail')
-    if (
-      !identidadeFrenteFile ||
-      !identidadeVersoFile ||
-      !comprovanteResidenciaFile ||
-      !comprovanteProfissaoFile
-    ) {
-      return t('profissional.valDocs')
-    }
     if (!aceitePoliticas) return t('profissional.valPolicies')
     if (!modoLogado) {
       if (!senhaRegex.test(senha)) return t('apiErrorInvalidPassword')
@@ -272,32 +226,24 @@ export default function CadastroProfissionalPage() {
     }
 
     if (!modoLogado) {
-      if (
-        !identidadeFrenteFile ||
-        !identidadeVersoFile ||
-        !comprovanteResidenciaFile ||
-        !comprovanteProfissaoFile
-      ) {
-        return
-      }
       try {
         setEnviando(true)
-        const fd = new FormData()
-        fd.append('email', emailSessao.trim().toLowerCase())
-        fd.append('password', senha)
-        fd.append('nomeCompleto', nomeCompleto.trim())
-        fd.append('nomeUsuario', usernameLimpo)
-        fd.append('categoria', categoria)
-        fd.append('pais', pais)
-        fd.append('cidadeAtuacao', cidadeAtuacao)
-        fd.append('aceitePoliticas', String(aceitePoliticas))
-        fd.append('identidadeFrente', identidadeFrenteFile)
-        fd.append('identidadeVerso', identidadeVersoFile)
-        fd.append('comprovanteResidencia', comprovanteResidenciaFile)
-        fd.append('comprovanteProfissao', comprovanteProfissaoFile)
-        if (fotoPerfilFile) fd.append('fotoPerfil', fotoPerfilFile)
+        const payload: CadastroProfissionalPayload = {
+          email: emailSessao.trim().toLowerCase(),
+          password: senha,
+          nomeCompleto: nomeCompleto.trim(),
+          nomeUsuario: usernameLimpo,
+          categoria,
+          pais,
+          cidadeAtuacao,
+          aceitePoliticas,
+        }
 
-        const res = await fetch('/api/cadastro/profissional', { method: 'POST', body: fd })
+        const res = await fetch('/api/cadastro/profissional', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
         const json = (await res.json().catch(() => ({}))) as {
           ok?: boolean
           error?: string
@@ -347,58 +293,18 @@ export default function CadastroProfissionalPage() {
       )
       if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
 
-      const identidadeUrl = await uploadArquivo(identidadeFrenteFile as File, 'documentos', userId)
-      const documentoVersoUrl = await uploadArquivo(identidadeVersoFile as File, 'documentos', userId)
-      const comprovanteResidenciaUrl = await uploadArquivo(
-        comprovanteResidenciaFile as File,
-        'documentos',
-        userId
-      )
-      const comprovanteProfissaoUrl = await uploadArquivo(
-        comprovanteProfissaoFile as File,
-        'documentos',
-        userId
-      )
-      const fotoPerfilUrl = fotoPerfilFile
-        ? await uploadArquivo(fotoPerfilFile, 'foto-perfil', userId)
-        : null
-
       const payloadProfissional: Record<string, unknown> = {
         usuario_id: userId,
         nome_completo: nomeCompleto.trim(),
         nome_usuario: usernameLimpo,
         categorias: [categoria],
         placa_vermelha: placaVermelha,
-        identidade_url: identidadeUrl,
-        documento_verso_url: documentoVersoUrl,
-        comprovante_residencia_url: comprovanteResidenciaUrl,
-        comprovante_profissao_url: comprovanteProfissaoUrl,
         pais,
         cidade_atuacao: [cidadeAtuacao],
         status: 'pendente',
       }
 
-      if (fotoPerfilUrl) {
-        payloadProfissional.foto_perfil_url = fotoPerfilUrl
-      }
-
       let insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
-
-      if (insertProfissional.error && payloadProfissional.foto_perfil_url) {
-        const mensagemErro = insertProfissional.error.message.toLowerCase()
-        if (mensagemErro.includes('foto_perfil_url')) {
-          delete payloadProfissional.foto_perfil_url
-          insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
-        }
-      }
-
-      if (
-        insertProfissional.error &&
-        insertProfissional.error.message.toLowerCase().includes('documento_verso')
-      ) {
-        delete payloadProfissional.documento_verso_url
-        insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
-      }
 
       if (insertProfissional.error && insertProfissional.error.message.toLowerCase().includes('pais')) {
         delete payloadProfissional.pais
@@ -433,29 +339,12 @@ export default function CadastroProfissionalPage() {
   return (
     <GuiaAuthShell largeHeaderLogo>
       <h1 className="mb-2 text-center text-xl font-bold text-[#0097b2] sm:text-2xl">{t('profissional.pageTitle')}</h1>
-      <p className="mb-6 text-center text-sm text-[#001f3f]">{t('subtitleContinue')}</p>
+      <p className="mb-2 text-center text-sm text-[#001f3f]">{t('subtitleContinue')}</p>
+      <p className="mb-6 text-center text-sm text-[#001f3f]">
+        Após o cadastro, envie seus documentos na área logada para verificação. Seu perfil ficará pendente até aprovação do administrador.
+      </p>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="fotoPerfil" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('profissional.profilePhoto')} {t('common.optional')}
-            </label>
-            <input
-              id="fotoPerfil"
-              type="file"
-              accept="image/*"
-              onChange={(e) => onFileChange(e, setFotoPerfilFile)}
-              className="block w-full rounded-lg bg-[#0097b2] text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white px-3 py-2 text-sm"
-            />
-            {fotoPerfilPreview && (
-              <img
-                src={fotoPerfilPreview}
-                alt={t('profissional.previewProfilePhoto')}
-                className="mt-3 h-24 w-24 rounded-full border border-gray-200 object-cover"
-              />
-            )}
-          </div>
-
           <div>
             <label htmlFor="nomeCompleto" className="mb-1 block text-sm font-medium text-[#001f3f]">
               {t('profissional.fullName')} {t('common.required')}
@@ -601,62 +490,6 @@ export default function CadastroProfissionalPage() {
           <div className="rounded-lg bg-white border border-[#0097b2] px-3 py-2 text-sm text-[#001f3f]">
             <span className="font-medium">{t('profissional.redPlate')}</span>{' '}
             {placaVermelha ? t('profissional.redPlateYes') : t('profissional.redPlateNo')}
-          </div>
-
-          <div>
-            <label htmlFor="identidadeFrente" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('profissional.idDocument')} {t('common.required')}
-            </label>
-            <input
-              id="identidadeFrente"
-              type="file"
-              accept="image/*,.pdf"
-              required
-              onChange={(e) => onFileChange(e, setIdentidadeFrenteFile)}
-              className="block w-full rounded-lg bg-[#0097b2] text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="identidadeVerso" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('profissional.idDocumentBack')} {t('common.required')}
-            </label>
-            <input
-              id="identidadeVerso"
-              type="file"
-              accept="image/*,.pdf"
-              required
-              onChange={(e) => onFileChange(e, setIdentidadeVersoFile)}
-              className="block w-full rounded-lg bg-[#0097b2] text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="comprovanteResidencia" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('profissional.addressProof')} {t('common.required')}
-            </label>
-            <input
-              id="comprovanteResidencia"
-              type="file"
-              accept="image/*,.pdf"
-              required
-              onChange={(e) => onFileChange(e, setComprovanteResidenciaFile)}
-              className="block w-full rounded-lg bg-[#0097b2] text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="comprovanteProfissao" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('profissional.professionProof')} {t('common.required')}
-            </label>
-            <input
-              id="comprovanteProfissao"
-              type="file"
-              accept="image/*,.pdf"
-              required
-              onChange={(e) => onFileChange(e, setComprovanteProfissaoFile)}
-              className="block w-full rounded-lg bg-[#0097b2] text-white file:mr-3 file:rounded-md file:border-0 file:bg-white/20 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white px-3 py-2 text-sm"
-            />
           </div>
 
           <label className="flex items-start gap-2 text-sm text-[#001f3f]">
