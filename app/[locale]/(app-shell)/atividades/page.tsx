@@ -29,6 +29,30 @@ const ATIVIDADES_LIMITE_MINHA_CONTA = ATIVIDADES_LIMITE_PAGINA
 
 /** TESTE: janela 48h na aba Amigos desligada. Reativar: `const lim = new Date(Date.now() - 48*60*60*1000).toISOString()` + `.gte('created_at', lim)` nas duas queries Amigos. */
 
+function logDiagAmigos(
+  etapa: string,
+  payload: {
+    uid?: string
+    seguindo?: string[]
+    res?: unknown
+    amigosLen?: number
+  }
+) {
+  if (process.env.NODE_ENV !== 'development') return
+  const res = payload.res as { data?: unknown; error?: { message?: string } | null; status?: number } | undefined
+  // eslint-disable-next-line no-console
+  console.log(`[Atividades][Amigos][diag] ${etapa}`, {
+    uid: payload.uid,
+    seguindo: payload.seguindo,
+    seguindoLen: payload.seguindo?.length,
+    amigosLen: payload.amigosLen,
+    dataIsArray: Array.isArray(res?.data),
+    dataLen: Array.isArray(res?.data) ? res.data.length : undefined,
+    error: res?.error ?? null,
+    status: res?.status,
+  })
+}
+
 type AtividadeRow = {
   id: string
   usuario_id: string
@@ -110,6 +134,8 @@ export default function AtividadesPage() {
   const [temMaisAmigos, setTemMaisAmigos] = useState(false)
   const [temMaisMinha, setTemMaisMinha] = useState(false)
   const [carregandoMais, setCarregandoMais] = useState(false)
+  /** Erro na query da aba Amigos (RLS, rede, etc.); só diagnóstico/UX mínima. */
+  const [erroAmigos, setErroAmigos] = useState<string | null>(null)
   const seguindoRef = useRef<string[]>([])
   const [perfilMap, setPerfilMap] = useState<PerfilMap>({})
   const [postMetaMap, setPostMetaMap] = useState<
@@ -598,6 +624,7 @@ export default function AtividadesPage() {
       setOffsetMinha(0)
       setTemMaisAmigos(false)
       setTemMaisMinha(false)
+      setErroAmigos(null)
       return
     }
 
@@ -615,15 +642,21 @@ export default function AtividadesPage() {
       setOffsetMinha(0)
       setTemMaisAmigos(false)
       setTemMaisMinha(false)
+      setErroAmigos(null)
       return
     }
 
-    const { data: segRows } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid)
+    const { data: segRows, error: erroRede } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid)
+    if (erroRede && process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.error('[Atividades][Amigos][diag] erro redecontatos (quem sigo):', erroRede)
+    }
     const seguindo = (segRows ?? []).map((r) => String((r as { seguido_id: string }).seguido_id))
     seguindoRef.current = seguindo
     setQtdSeguindo(seguindo.length)
 
     const lim = ATIVIDADES_LIMITE_PAGINA
+    setErroAmigos(null)
 
     const [amigosRes, minhaRes] = await Promise.all([
       seguindo.length
@@ -644,8 +677,23 @@ export default function AtividadesPage() {
         .range(0, ATIVIDADES_LIMITE_MINHA_CONTA - 1),
     ])
 
+    logDiagAmigos('resposta atividades (amigos)', { uid, seguindo, res: amigosRes })
+    if (minhaRes.error && process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.error('[Atividades][diag] erro query Minha conta:', minhaRes.error)
+    }
+
+    if (amigosRes.error) {
+      const msg = amigosRes.error.message ?? String(amigosRes.error)
+      setErroAmigos(msg)
+      // eslint-disable-next-line no-console
+      console.error('[Atividades][Amigos] erro ao carregar atividades de amigos:', amigosRes.error)
+    }
+
     const amigos = (amigosRes.data ?? []) as AtividadeRow[]
     const minha = (minhaRes.data ?? []) as AtividadeRow[]
+
+    logDiagAmigos('após parse', { uid, seguindo, amigosLen: amigos.length, res: amigosRes })
 
     setListaAmigos(amigos)
     setListaMinha(minha)
@@ -697,9 +745,12 @@ export default function AtividadesPage() {
         .order('created_at', { ascending: false })
         .range(start, start + lim - 1)
       if (error) {
-        console.error(error)
+        // eslint-disable-next-line no-console
+        console.error('[Atividades][Amigos] carregarMaisAtividades:', error)
+        setErroAmigos(error.message ?? String(error))
         return
       }
+      setErroAmigos(null)
       const novas = (data ?? []) as AtividadeRow[]
       if (novas.length === 0) {
         setTemMaisAmigos(false)
@@ -730,6 +781,21 @@ export default function AtividadesPage() {
     void recarregar()
   }, [recarregar])
 
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return
+    // eslint-disable-next-line no-console
+    console.log('[Atividades][diag] listaAmigos atualizada, length:', listaAmigos.length)
+  }, [listaAmigos])
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return
+    // eslint-disable-next-line no-console
+    console.log('[Atividades][diag] meuRole / meuId:', {
+      meuRole,
+      meuId: meuId ? `${meuId.slice(0, 8)}…` : null,
+    })
+  }, [meuRole, meuId])
+
   const marcarMinhaLidas = useCallback(async () => {
     if (!meuId) return
     await supabase.from('atividades').update({ lida: true }).eq('usuario_id', meuId).eq('lida', false)
@@ -753,8 +819,17 @@ export default function AtividadesPage() {
 
   const itensAgrupados = useMemo(() => {
     const ord = [...listaAtividadesFiltrada].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    return agruparAtividadesCurtidasPost(ord, postMetaMap)
-  }, [listaAtividadesFiltrada, postMetaMap])
+    const out = agruparAtividadesCurtidasPost(ord, postMetaMap)
+    if (process.env.NODE_ENV === 'development' && aba === 'amigos') {
+      // eslint-disable-next-line no-console
+      console.log('[Atividades][Amigos][diag] itensAgrupados', {
+        len: out.length,
+        listaFiltradaLen: listaAtividadesFiltrada.length,
+        primeiro: out[0] ?? null,
+      })
+    }
+    return out
+  }, [listaAtividadesFiltrada, postMetaMap, aba])
 
   useEffect(() => {
     const el = sentinelRef.current
@@ -884,6 +959,10 @@ export default function AtividadesPage() {
         )
       }
 
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.warn('[Atividades][renderItem] curtiu_post_solo sem UI para categoria:', item.categoria, 'row id:', item.row?.id)
+      }
       return null
     }
 
@@ -1006,6 +1085,10 @@ export default function AtividadesPage() {
       )
     }
 
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.warn('[Atividades][renderItem] tipo sem UI:', r.tipo, 'id:', r.id)
+    }
     return null
   }
 
@@ -1018,6 +1101,10 @@ export default function AtividadesPage() {
   }
 
   if (meuRole === 'empresa') {
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.log('[Atividades][diag] meuRole=empresa — feed não disponível para este papel.')
+    }
     return (
       <div className="min-h-screen bg-gray-50 pb-24">
         <p className="p-6 text-gray-600">O feed de atividades está disponível para contas de turista e profissional.</p>
@@ -1171,6 +1258,12 @@ export default function AtividadesPage() {
       </header>
 
       <AbasAtividades aba={aba} onAba={onAba} />
+
+      {erroAmigos ? (
+        <div className="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+          Não foi possível carregar a aba Amigos: {erroAmigos}
+        </div>
+      ) : null}
 
       <div className="px-4 py-3">
         {itensAgrupados.length === 0 ? (
