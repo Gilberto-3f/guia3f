@@ -64,6 +64,7 @@ export default function EmpresaPage() {
   const [adminLevel, setAdminLevel] = useState(0)
   const [meuEmail, setMeuEmail] = useState<string | null>(null)
   const [menuAberto, setMenuAberto] = useState(false)
+  const [totalSeguidores, setTotalSeguidores] = useState<number | null>(null)
   const { modoAtivo } = useModoApresentacao()
 
   useEffect(() => {
@@ -116,6 +117,7 @@ export default function EmpresaPage() {
         fotos_url: asJsonArray(empresaData.fotos_url),
         fotos_360_url: asJsonArray(empresaData.fotos_360_url),
       })
+      setTotalSeguidores(Number(empresaData.total_seguidores) || 0)
     } finally {
       setLoading(false)
     }
@@ -150,7 +152,7 @@ export default function EmpresaPage() {
   const descLonga = empresa.descricao_longa != null ? String(empresa.descricao_longa) : null
   const notaMedia = Number(empresa.nota_media) || 0
   const totalAval = Number(empresa.total_avaliacoes) || 0
-  const totalSeg = Number(empresa.total_seguidores) || 0
+  const totalSeg = totalSeguidores != null ? totalSeguidores : Number(empresa.total_seguidores) || 0
   const categoria = String(empresa.categoria ?? '')
   const rotuloServico = getRotuloAbaServico(categoria)
   const IconeAbaServico = getIconeAbaServico(categoria)
@@ -223,11 +225,20 @@ export default function EmpresaPage() {
       <div className="border-b border-gray-100 bg-white p-4">
         <div className="mb-2 flex items-start justify-between gap-2">
           <NomeEmpresa nome={nomeFantasia} />
-          <BotaoSeguir
-            empresaId={empresaId}
-            isFollowing={Boolean(empresa.is_seguindo)}
-            onToggle={() => carregarEmpresa()}
-          />
+          {!donoEmpresa && usuarioId ? (
+            <BotaoSeguir
+              empresaId={empresaId}
+              isFollowing={Boolean(empresa.is_seguindo)}
+              onToggle={(seguindo) => {
+                setTotalSeguidores((prev) => {
+                  const base = typeof prev === 'number' ? prev : totalSeg
+                  const next = seguindo ? base + 1 : Math.max(0, base - 1)
+                  return next
+                })
+                void carregarEmpresa()
+              }}
+            />
+          ) : null}
         </div>
 
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">

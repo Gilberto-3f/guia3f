@@ -17,6 +17,7 @@ import PopupFavoritos from '@/components/perfil/PopupFavoritos'
 import PopupSeguidores from '@/components/perfil/PopupSeguidores'
 import PopupAvaliacoes from '@/components/perfil/PopupAvaliacoes'
 import ModalFoto from '@/components/perfil/ModalFoto'
+import BotaoSeguir from '@/components/BotaoSeguir'
 import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
 import { POST_DELETED_EVENT } from '@/components/MenuPost'
 
@@ -63,6 +64,7 @@ export default function PerfilSocialPage() {
   const [perfilRole, setPerfilRole] = useState<string | null>(null)
   /** status em `usuarios` (pre_aprovado, ativo, …) */
   const [perfilContaStatus, setPerfilContaStatus] = useState<string | null>(null)
+  const [seguindoPerfil, setSeguindoPerfil] = useState(false)
 
   const [nFavEmp, setNFavEmp] = useState(0)
   const [nFavUsers, setNFavUsers] = useState(0)
@@ -155,6 +157,18 @@ export default function PerfilSocialPage() {
       if (role !== 'turista' && role !== 'profissional' && role !== 'admin') {
         setErro('Perfil social disponível apenas para turistas, profissionais e administradores.')
         return
+      }
+
+      if (meuId && profileId && meuId !== profileId) {
+        const { data: seg } = await supabase
+          .from('redecontatos')
+          .select('id')
+          .eq('seguidor_id', meuId)
+          .eq('seguido_id', profileId)
+          .maybeSingle()
+        setSeguindoPerfil(Boolean(seg))
+      } else {
+        setSeguindoPerfil(false)
       }
 
       /** Sem embed em `usuarios`. Admin: profissional e turista em paralelo (prioridade profissional). */
@@ -491,6 +505,18 @@ export default function PerfilSocialPage() {
           <DescricaoCurta texto={bio} />
         </div>
       </div>
+
+      {meuId && meuId !== profileId ? (
+        <div className="mt-4 px-4">
+          <BotaoSeguir
+            alvoId={profileId}
+            alvoTipo="usuario"
+            seguidoTipo={perfilRole}
+            isFollowing={seguindoPerfil}
+            onToggle={(novo) => setSeguindoPerfil(novo)}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-6">
         <MetricasPerfil
