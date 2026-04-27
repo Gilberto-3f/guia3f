@@ -635,6 +635,8 @@ export default function AtividadesPage() {
             .from('atividades')
             .select('*')
             .in('autor_id', seguindo)
+            /* Destinatário = eu → fica só na aba "Minha conta"; aqui só o que seguidos fazem no conteúdo de terceiros. */
+            .neq('usuario_id', uid)
             .gte('created_at', limite48)
             .order('created_at', { ascending: false })
             .range(0, lim - 1)
@@ -697,6 +699,7 @@ export default function AtividadesPage() {
         .from('atividades')
         .select('*')
         .in('autor_id', seg)
+        .neq('usuario_id', uid)
         .gte('created_at', limite48)
         .order('created_at', { ascending: false })
         .range(start, start + lim - 1)
