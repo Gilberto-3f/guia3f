@@ -969,6 +969,29 @@ export default function AtividadesPage() {
       )
     }
 
+    if (item.kind === 'curtiu_post_fotos_multi') {
+      const inter = perfilMap[item.autor_id]
+      /** Uma URL por linha (alinhada a `postIds`); placeholder se a meta ainda não tiver foto. */
+      const urlsGrid = item.rows.map((r) => {
+        const u = urlFotoPost(postMetaMap[r.alvo_id])
+        return u && String(u).trim() !== '' ? String(u) : '/window.svg'
+      })
+      return (
+        <AtividadeCurtidas
+          key={`cfm-${item.autor_id}-${item.created_at}-${idx}`}
+          interactorUsername={inter?.username ?? 'usuario'}
+          interactorFoto={inter?.foto_perfil_url ?? null}
+          hrefInteractor={hrefUsuario(item.autor_id)}
+          urls={urlsGrid}
+          postIds={item.rows.map((r) => String(r.alvo_id))}
+          totalCurtidas={item.rows.length}
+          tempoInteracao={formatarDataComentarioCurta(item.created_at)}
+          modoMinhaConta={modoMinhaConta}
+          modoColetivo
+        />
+      )
+    }
+
     if (item.kind === 'curtiu_post_solo') {
       const r = item.row
       const inter = perfilMap[r.autor_id]
@@ -1373,6 +1396,8 @@ export default function AtividadesPage() {
                 const rowKey =
                   it.kind === 'curtiu_post_fotos'
                     ? `cf-${it.autor_id}-${it.usuario_dono_id}-${it.created_at}`
+                    : it.kind === 'curtiu_post_fotos_multi'
+                      ? `cfm-${it.autor_id}-${it.created_at}`
                     : it.kind === 'curtiu_post_solo'
                       ? it.row.id
                       : `row-${it.row.id}`

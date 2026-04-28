@@ -10,14 +10,15 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  * @param {{
  *   interactorUsername: string
  *   interactorFoto: string | null
- *   donorUsername: string
+ *   donorUsername?: string
  *   hrefInteractor: string
- *   hrefDonor: string
+ *   hrefDonor?: string
  *   urls: string[]
  *   postIds: string[]
  *   totalCurtidas?: number
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
+ *   modoColetivo?: boolean
  * }} props
  */
 export default function AtividadeCurtidas({
@@ -31,14 +32,24 @@ export default function AtividadeCurtidas({
   totalCurtidas,
   tempoInteracao = '',
   modoMinhaConta = false,
+  modoColetivo = false,
 }) {
   const router = useRouter()
   const [modal, setModal] = useState({ aberto: false, i: 0 })
   const n = totalCurtidas ?? urls.length
   if (n === 0) return null
 
-  const resumoModal =
-    n === 1 ? `curtiu foto de @${donorUsername}` : `curtiu ${n} fotos de @${donorUsername}`
+  const resumoModal = modoMinhaConta
+    ? n === 1
+      ? 'curtiu sua foto'
+      : 'curtiu suas fotos'
+    : modoColetivo
+      ? n === 1
+        ? 'curtiu foto'
+        : `curtiu ${n} fotos`
+      : n === 1
+        ? `curtiu foto de @${donorUsername}`
+        : `curtiu ${n} fotos de @${donorUsername}`
 
   const textoLinha = modoMinhaConta ? (
     <>
@@ -47,15 +58,26 @@ export default function AtividadeCurtidas({
       </button>{' '}
       {n === 1 ? 'curtiu sua foto' : 'curtiu suas fotos'}
     </>
+  ) : modoColetivo ? (
+    <>
+      <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
+        @{interactorUsername}
+      </button>{' '}
+      curtiu {n === 1 ? 'foto' : `${n} fotos`}
+    </>
   ) : (
     <>
       <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
         @{interactorUsername}
       </button>{' '}
       curtiu {n === 1 ? 'foto' : `${n} fotos`} de{' '}
-      <button type="button" onClick={() => router.push(hrefDonor)} className="font-medium text-[#0097b2] hover:underline">
-        @{donorUsername}
-      </button>
+      {hrefDonor ? (
+        <button type="button" onClick={() => router.push(hrefDonor)} className="font-medium text-[#0097b2] hover:underline">
+          @{donorUsername ?? 'usuario'}
+        </button>
+      ) : (
+        <span className="font-medium text-gray-700">@{donorUsername ?? 'usuario'}</span>
+      )}
     </>
   )
 
