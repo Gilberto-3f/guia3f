@@ -302,7 +302,7 @@ export default function StoryViewer({
     return () => {
       fecharTimer()
     }
-  }, [story?.id, duracaoStoryMs, timerPlaybackKey, scheduleTimerTick, fecharTimer])
+  }, [story?.id, storyQueueIndex, duracaoStoryMs, timerPlaybackKey, scheduleTimerTick, fecharTimer])
 
   const pausarPorSegurar = useCallback(() => {
     if (holdPausedRef.current) return
@@ -371,13 +371,31 @@ export default function StoryViewer({
   const toggleCurtida = async () => {
     if (!story?.id || !uid || curtirBusy) return
     setCurtirBusy(true)
+    const prevCurtidas = curtidasLista
+    const jaCurtiu = prevCurtidas.some((c) => c.usuario_id === uid)
+    // Optimistic UI: pinta/despinta imediatamente.
+    if (jaCurtiu) {
+      setCurtidasLista((prev) => prev.filter((c) => c.usuario_id !== uid))
+    } else {
+      setCurtidasLista((prev) => (prev.some((c) => c.usuario_id === uid) ? prev : [...prev, { usuario_id: uid }]))
+    }
     try {
       const { data, error } = await supabase.rpc('toggle_story_curtida', { p_story_id: story.id })
       if (error) {
         console.error(error)
+        setCurtidasLista(prevCurtidas)
         return
       }
-      const row = data && typeof data === 'object' && !Array.isArray(data) ? /** @type {Record<string, unknown>} */ (data) : null
+      let payload = data
+      if (typeof payload === 'string') {
+        try {
+          payload = JSON.parse(payload)
+        } catch {
+          payload = null
+        }
+      }
+      const row =
+        payload && typeof payload === 'object' && !Array.isArray(payload) ? /** @type {Record<string, unknown>} */ (payload) : null
       const rawC = row?.curtidas
       if (rawC != null) setCurtidasLista(parseCurtidasStory(rawC))
       else if (row?.liked) setCurtidasLista((prev) => (prev.some((c) => c.usuario_id === uid) ? prev : [...prev, { usuario_id: uid }]))
@@ -676,7 +694,6 @@ export default function StoryViewer({
               className={curtiu ? 'fill-red-500 text-red-500' : ''}
               fill={curtiu ? 'currentColor' : 'none'}
             />
-            <span className="text-[11px] font-medium text-white/90">{curtidasLista.length}</span>
           </button>
         ) : (
           <p className="text-center text-xs text-white/70">Inicie sessão para curtir</p>
