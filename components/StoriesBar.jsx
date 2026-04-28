@@ -55,12 +55,19 @@ function foiVisualizado(visualizado_por, userEmail) {
 }
 
 /** Rótulo curto a partir do objeto já processado por pickAutorDisplay. */
+function abreviarLabelStory(s, max = 11) {
+  const t = String(s ?? '').trim()
+  if (!t) return t
+  if (t.length <= max) return t
+  return `${t.slice(0, max)}…`
+}
+
 function labelStoryDeAutor(d) {
   const h = d.username != null ? String(d.username).trim() : ''
-  if (h && h !== 'usuario') return h.startsWith('@') ? h : `@${h.replace(/^@/, '')}`
+  if (h && h !== 'usuario') return abreviarLabelStory(h.startsWith('@') ? h : `@${h.replace(/^@/, '')}`)
   const n = d.nome != null ? String(d.nome).trim() : ''
-  if (n) return n.length > 14 ? `${n.slice(0, 12)}…` : n
-  return 'Usuário'
+  if (n) return abreviarLabelStory(n)
+  return abreviarLabelStory('Usuário')
 }
 
 /**
@@ -68,7 +75,7 @@ function labelStoryDeAutor(d) {
  * @param {unknown} u linha de `usuarios` com turistas/profissionais/empresas
  */
 function labelFromUsuarioRow(u) {
-  if (!u || typeof u !== 'object') return 'Usuário'
+  if (!u || typeof u !== 'object') return abreviarLabelStory('Usuário')
   const row = /** @type {Record<string, unknown>} */ (u)
   const firstEmbed = (v) => {
     if (v == null) return null
@@ -90,9 +97,11 @@ function labelFromUsuarioRow(u) {
     (p?.nome_usuario != null ? String(p.nome_usuario).trim() : null) ??
     (e?.nome_usuario != null ? String(e.nome_usuario).trim() : null) ??
     colUsernameOk
-  if (raw && raw.toLowerCase() !== 'usuario')
-    return raw.startsWith('@') ? raw : `@${raw.replace(/^@/, '')}`
-  return labelStoryDeAutor(pickAutorDisplay(u))
+  if (raw && raw.toLowerCase() !== 'usuario') {
+    const out = raw.startsWith('@') ? raw : `@${raw.replace(/^@/, '')}`
+    return abreviarLabelStory(out)
+  }
+  return abreviarLabelStory(labelStoryDeAutor(pickAutorDisplay(u)))
 }
 
 /** @param {string | null | undefined} s */
@@ -105,9 +114,9 @@ function formatStoryHandle(s) {
 /** Empresa na barra: @nome_usuario ou nome fantasia curto. */
 function labelStoryEmpresa(e) {
   const nu = e.nome_usuario != null ? String(e.nome_usuario).trim() : ''
-  if (nu) return nu.startsWith('@') ? nu : `@${nu.replace(/^@/, '')}`
+  if (nu) return abreviarLabelStory(nu.startsWith('@') ? nu : `@${nu.replace(/^@/, '')}`)
   const nf = e.nome_fantasia != null ? String(e.nome_fantasia).trim() : 'Empresa'
-  return nf.length > 14 ? `${nf.slice(0, 12)}…` : nf
+  return abreviarLabelStory(nf)
 }
 
 /**
