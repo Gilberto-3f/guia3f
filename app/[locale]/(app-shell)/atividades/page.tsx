@@ -122,6 +122,13 @@ export default function AtividadesPage() {
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const swipeRef = useRef<{
+    startX: number
+    startY: number
+    lastX: number
+    lastY: number
+    pointerDown: boolean
+  }>({ startX: 0, startY: 0, lastX: 0, lastY: 0, pointerDown: false })
   const termoBuscaRef = useRef('')
   const latestRequestId = useRef(0)
   const [meuId, setMeuId] = useState<string | null>(null)
@@ -813,6 +820,85 @@ export default function AtividadesPage() {
     [marcarMinhaLidas]
   )
 
+  const SWIPE_MIN_PX = 60
+  const SWIPE_DOMINANCIA = 1.5
+
+  const tentarTrocarAbaPorSwipe = useCallback(
+    (dx: number, dy: number) => {
+      if (Math.abs(dx) < SWIPE_MIN_PX) return
+      if (Math.abs(dx) <= Math.abs(dy) * SWIPE_DOMINANCIA) return
+      if (dx < 0) {
+        // esquerda → Minha conta
+        if (aba !== 'minha') onAba('minha')
+      } else {
+        // direita → Amigos
+        if (aba !== 'amigos') onAba('amigos')
+      }
+    },
+    [aba, onAba]
+  )
+
+  const onTouchStartAtividades = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0]
+    if (!t) return
+    swipeRef.current.pointerDown = true
+    swipeRef.current.startX = t.clientX
+    swipeRef.current.startY = t.clientY
+    swipeRef.current.lastX = t.clientX
+    swipeRef.current.lastY = t.clientY
+  }, [])
+
+  const onTouchMoveAtividades = useCallback((e: React.TouchEvent) => {
+    if (!swipeRef.current.pointerDown) return
+    const t = e.touches[0]
+    if (!t) return
+    swipeRef.current.lastX = t.clientX
+    swipeRef.current.lastY = t.clientY
+  }, [])
+
+  const onTouchEndAtividades = useCallback(
+    (e: React.TouchEvent) => {
+      if (!swipeRef.current.pointerDown) return
+      swipeRef.current.pointerDown = false
+      const t = e.changedTouches[0]
+      const endX = t?.clientX ?? swipeRef.current.lastX
+      const endY = t?.clientY ?? swipeRef.current.lastY
+      const dx = endX - swipeRef.current.startX
+      const dy = endY - swipeRef.current.startY
+      tentarTrocarAbaPorSwipe(dx, dy)
+    },
+    [tentarTrocarAbaPorSwipe]
+  )
+
+  const onPointerDownAtividades = useCallback((e: React.PointerEvent) => {
+    // Desktop (mouse) para testes; touch usa onTouch* (evita duplicar).
+    if (e.pointerType !== 'mouse') return
+    swipeRef.current.pointerDown = true
+    swipeRef.current.startX = e.clientX
+    swipeRef.current.startY = e.clientY
+    swipeRef.current.lastX = e.clientX
+    swipeRef.current.lastY = e.clientY
+  }, [])
+
+  const onPointerMoveAtividades = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return
+    if (!swipeRef.current.pointerDown) return
+    swipeRef.current.lastX = e.clientX
+    swipeRef.current.lastY = e.clientY
+  }, [])
+
+  const onPointerUpAtividades = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.pointerType !== 'mouse') return
+      if (!swipeRef.current.pointerDown) return
+      swipeRef.current.pointerDown = false
+      const dx = e.clientX - swipeRef.current.startX
+      const dy = e.clientY - swipeRef.current.startY
+      tentarTrocarAbaPorSwipe(dx, dy)
+    },
+    [tentarTrocarAbaPorSwipe]
+  )
+
   const listaAtividadesFiltrada = useMemo(() => {
     return aba === 'amigos' ? listaAmigos : listaMinha
   }, [aba, listaAmigos, listaMinha])
@@ -1265,7 +1351,15 @@ export default function AtividadesPage() {
         </div>
       ) : null}
 
-      <div className="px-4 py-3">
+      <div
+        className="px-4 py-3"
+        onTouchStart={onTouchStartAtividades}
+        onTouchMove={onTouchMoveAtividades}
+        onTouchEnd={onTouchEndAtividades}
+        onPointerDown={onPointerDownAtividades}
+        onPointerMove={onPointerMoveAtividades}
+        onPointerUp={onPointerUpAtividades}
+      >
         {itensAgrupados.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-400">
             {aba === 'amigos' && qtdSeguindo === 0
