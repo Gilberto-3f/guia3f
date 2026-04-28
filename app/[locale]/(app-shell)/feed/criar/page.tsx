@@ -504,7 +504,6 @@ function CriarPublicacaoPageInner() {
       router.refresh()
     } catch (err) {
       console.error('Erro ao criar publicação:', err)
-      alert('Não foi possível publicar. Verifique o bucket posts e as políticas no Supabase.')
     } finally {
       setLoading(false)
     }
