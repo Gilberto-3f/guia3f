@@ -17,6 +17,7 @@ import { useRouter } from '@/i18n/navigation'
 import { Camera, FileText, Images, Ratio } from 'lucide-react'
 import CriarFotoDreamBackdrop from '@/components/feed/CriarFotoDreamBackdrop'
 import CriarPostRecorteMovel from '@/components/feed/CriarPostRecorteMovel'
+import LoadingOverlay from '@/components/LoadingOverlay'
 import { supabase } from '@/lib/supabase'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
 
@@ -127,6 +128,8 @@ function CriarPublicacaoPageInner() {
   const [texto, setTexto] = useState('')
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadingMsg, setLoadingMsg] = useState('Publicando…')
+  const [loadingInicioMs, setLoadingInicioMs] = useState<number | null>(null)
   /** `null` até o utilizador escolher explicitamente (regra do botão Publicar). */
   const [formatoFoto, setFormatoFoto] = useState<FormatoFoto | null>(null)
   const [painelFormato, setPainelFormato] = useState(false)
@@ -441,14 +444,18 @@ function CriarPublicacaoPageInner() {
   }
 
   const handleSubmit = async (origem: 'foto' | 'texto') => {
+    if (loading) return
     if (origem === 'foto') {
       if (!fotoPreview || formatoFoto == null || !pixelCrop) return
     } else {
       if (!texto.trim()) return
     }
 
+    setLoadingMsg('Preparando sua publicação…')
+    setLoadingInicioMs(Date.now())
     setLoading(true)
     try {
+      setLoadingMsg('Verificando login…')
       const {
         data: { session },
       } = await supabase.auth.getSession()
@@ -461,6 +468,7 @@ function CriarPublicacaoPageInner() {
       let fileToUpload: File | null = null
 
       if (origem === 'foto' && fotoPreview && formatoFoto != null && pixelCrop) {
+        setLoadingMsg('Preparando imagem…')
         const meta = FORMATOS[formatoFoto]
         const blob = await getCroppedImageBlob(
           fotoPreview,
@@ -474,6 +482,7 @@ function CriarPublicacaoPageInner() {
       }
 
       if (fileToUpload) {
+        setLoadingMsg('Enviando imagem…')
         const fileName = `${Date.now()}.jpg`
         const filePath = `${session.user.id}/${fileName}`
 
@@ -490,6 +499,7 @@ function CriarPublicacaoPageInner() {
       const tipo =
         origem === 'texto' ? 'texto' : fotoUrl && texto.trim() ? 'misto' : fotoUrl ? 'foto' : 'texto'
 
+      setLoadingMsg('Criando publicação…')
       const { error } = await supabase.from('posts').insert({
         autor_id: session.user.id,
         texto: !texto.trim() ? null : texto,
@@ -500,12 +510,15 @@ function CriarPublicacaoPageInner() {
 
       if (error) throw error
 
+      setLoadingMsg('Publicado! Redirecionando…')
       router.push('/feed')
       router.refresh()
     } catch (err) {
       console.error('Erro ao criar publicação:', err)
+      alert('Não foi possível publicar. Tente novamente.')
     } finally {
       setLoading(false)
+      setLoadingInicioMs(null)
     }
   }
 
@@ -557,7 +570,11 @@ function CriarPublicacaoPageInner() {
           ? 'bg-[#f0f9ff]'
           : 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
       } ${aba === 'texto' ? 'pb-0' : ''}`}
+      aria-busy={loading}
     >
+      {loading ? (
+        <LoadingOverlay mensagem={loadingMsg} iniciadoEm={loadingInicioMs} detalhe="Aguarde, não feche esta tela." />
+      ) : null}
       {aba === 'foto' ? (
         <CriarFotoDreamBackdrop />
       ) : (
