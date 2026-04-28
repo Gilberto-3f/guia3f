@@ -467,7 +467,7 @@ export default function StoryCanvas({
           ref={legendaRef}
           role="textbox"
           aria-label="Legenda no story"
-          className={`absolute z-10 w-[88%] cursor-default select-none rounded px-2 py-1 text-center text-base font-semibold text-white whitespace-pre-wrap break-words sm:text-lg ${
+          className={`absolute z-10 w-fit max-w-[88%] cursor-default select-none rounded px-2 py-1 text-center text-base font-semibold text-white whitespace-pre-wrap break-words sm:text-lg ${
             allowEditText ? 'cursor-move touch-none' : ''
           }`}
           style={{
@@ -489,7 +489,7 @@ export default function StoryCanvas({
         <div
           ref={legendaRef}
           role="presentation"
-          className="absolute z-10 w-[88%] cursor-move touch-none rounded bg-black/35 px-2 py-1 text-center text-sm italic text-white/90"
+          className="absolute z-10 w-fit max-w-[88%] cursor-move touch-none rounded bg-black/35 px-2 py-1 text-center text-sm italic text-white/90"
           style={{
             left: `${posicaoLegenda.x}%`,
             top: `${posicaoLegenda.y}%`,
