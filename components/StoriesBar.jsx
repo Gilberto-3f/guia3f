@@ -427,9 +427,9 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
                     </button>
                   ) : (
                     <Link
-                      href={`/perfil/${meuUserId}`}
+                      href="/feed/story/criar"
                       className="relative block aspect-square w-full max-h-[68px] max-w-[68px] overflow-hidden rounded-full bg-gray-100"
-                      aria-label="Ver seu perfil"
+                      aria-label="Criar seu story"
                     >
                       <AvatarImage
                         key={meuSlot.avatarUrl || 'def'}
