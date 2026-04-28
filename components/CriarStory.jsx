@@ -1,15 +1,11 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import Image from 'next/image'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Camera, Image as ImageIcon, Images } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import EditorStory from '@/components/EditorStory'
-
-const BG_CATARATAS = '/triple-frontier/cataratas.jpg'
 
 /**
  * @param {{ autorTipo: 'turista' | 'profissional' | 'empresa' | string }} props
@@ -29,11 +25,9 @@ export default function CriarStory({ autorTipo }) {
   const [publicando, setPublicando] = useState(false)
 
   const inputPrincipalRef = useRef(/** @type {HTMLInputElement | null} */ (null))
-  const inputFotoRef = useRef(/** @type {HTMLInputElement | null} */ (null))
-  const inputCameraRef = useRef(/** @type {HTMLInputElement | null} */ (null))
-  const inputGaleriaRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   /** Galeria nativa (sem `capture`) — mesmo padrão do iOS ao “trocar foto” no editor. */
   const inputTrocarFotoRef = useRef(/** @type {HTMLInputElement | null} */ (null))
+  const autoPickerRef = useRef({ startedAt: 0, opened: false })
 
   /**
    * Apenas imagens (sem vídeo).
@@ -60,6 +54,48 @@ export default function CriarStory({ autorTipo }) {
     e.target.value = ''
     aplicarArquivo(f)
   }
+
+  const abrirSeletorNativo = () => {
+    if (!podeInteragir) {
+      notificarSomenteLeitura()
+      return
+    }
+    const input = inputPrincipalRef.current
+    if (!input) return
+    autoPickerRef.current.startedAt = Date.now()
+    autoPickerRef.current.opened = true
+    try {
+      const el = /** @type {HTMLInputElement & { showPicker?: () => void }} */ (input)
+      if (typeof el.showPicker === 'function') {
+        el.showPicker()
+        return
+      }
+    } catch {
+      /* noop */
+    }
+    input.click()
+  }
+
+  // Elimina o passo 1: ao entrar, abre o seletor nativo (iOS/Android/desktop).
+  useEffect(() => {
+    if (passo !== 1) return
+    if (autoPickerRef.current.opened) return
+    const t = window.setTimeout(() => abrirSeletorNativo(), 0)
+
+    const onFocus = () => {
+      if (passo !== 1) return
+      if (file) return
+      const dt = Date.now() - autoPickerRef.current.startedAt
+      if (dt < 350) return
+      router.push('/feed')
+    }
+    window.addEventListener('focus', onFocus)
+    return () => {
+      window.clearTimeout(t)
+      window.removeEventListener('focus', onFocus)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [passo])
 
   const voltarAoInicio = () => {
     if (previewBlob) URL.revokeObjectURL(previewBlob)
@@ -136,111 +172,26 @@ export default function CriarStory({ autorTipo }) {
     }
   }
 
-  const textoSombreado = { textShadow: '0 1px 3px rgba(0,0,0,0.85), 0 2px 12px rgba(0,0,0,0.45)' }
-
   return (
-    <div className={passo === 1 ? 'min-h-[100dvh]' : 'flex min-h-[100dvh] flex-col bg-black'}>
+    <div className={passo === 1 ? 'min-h-[100dvh] bg-black' : 'flex min-h-[100dvh] flex-col bg-black'}>
+      {/* Passo 1 eliminado: abrimos o seletor nativo ao montar. Mantemos só um fallback discreto. */}
       {passo === 1 ? (
-        <div className="relative min-h-[100dvh] w-full overflow-hidden pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div className="pointer-events-none absolute inset-0 z-0">
-            <Image src={BG_CATARATAS} alt="" fill className="object-cover object-center" sizes="100vw" priority />
-          </div>
-          <div className="pointer-events-none absolute inset-0 z-[1] bg-black/50" aria-hidden />
-
-          <div className="relative z-10 flex min-h-[100dvh] flex-col px-4 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))]">
-            <div className="flex flex-1 flex-col items-center justify-center text-center">
-              <h1 className="text-3xl font-bold leading-tight text-white sm:text-4xl" style={textoSombreado}>
-                Crie um Novo Story
-              </h1>
-              <p className="mt-3 max-w-sm text-base font-medium text-white sm:text-lg" style={textoSombreado}>
-                Compartilhe fotos rapidinho!
-              </p>
-
-              <input
-                ref={inputPrincipalRef}
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                aria-label="Escolher imagem para criar story"
-                onChange={onFileChange}
-              />
-
-              <button
-                type="button"
-                onClick={() => inputPrincipalRef.current?.click()}
-                className="mt-8 rounded-lg bg-[#0097b2] px-6 py-3 text-base font-semibold text-white shadow-lg transition hover:opacity-95 active:opacity-90"
-              >
-                Criar Story
-              </button>
-            </div>
-
-            <div className="mt-auto flex w-full max-w-md justify-center gap-6 sm:gap-10">
-              <input
-                ref={inputFotoRef}
-                type="file"
-                accept="image/*"
-                capture="user"
-                className="sr-only"
-                aria-label="Tirar foto com a câmera frontal"
-                onChange={onFileChange}
-              />
-              <button
-                type="button"
-                className="flex flex-col items-center gap-2 rounded-xl bg-transparent p-2 text-white transition hover:opacity-90"
-                onClick={() => inputFotoRef.current?.click()}
-              >
-                <span className="flex h-12 w-12 items-center justify-center" aria-hidden>
-                  <ImageIcon className="h-12 w-12" strokeWidth={1.5} />
-                </span>
-                <span className="text-xs font-semibold" style={textoSombreado}>
-                  Foto
-                </span>
-              </button>
-
-              <input
-                ref={inputCameraRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="sr-only"
-                aria-label="Tirar foto com a câmera traseira"
-                onChange={onFileChange}
-              />
-              <button
-                type="button"
-                className="flex flex-col items-center gap-2 rounded-xl bg-transparent p-2 text-white transition hover:opacity-90"
-                onClick={() => inputCameraRef.current?.click()}
-              >
-                <span className="flex h-12 w-12 items-center justify-center" aria-hidden>
-                  <Camera className="h-12 w-12" strokeWidth={1.5} />
-                </span>
-                <span className="text-xs font-semibold" style={textoSombreado}>
-                  Câmera
-                </span>
-              </button>
-
-              <input
-                ref={inputGaleriaRef}
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                aria-label="Escolher foto da galeria"
-                onChange={onFileChange}
-              />
-              <button
-                type="button"
-                className="flex flex-col items-center gap-2 rounded-xl bg-transparent p-2 text-white transition hover:opacity-90"
-                onClick={() => inputGaleriaRef.current?.click()}
-              >
-                <span className="flex h-12 w-12 items-center justify-center" aria-hidden>
-                  <Images className="h-12 w-12" strokeWidth={1.5} />
-                </span>
-                <span className="text-xs font-semibold" style={textoSombreado}>
-                  Galeria
-                </span>
-              </button>
-            </div>
-          </div>
+        <div className="flex min-h-[100dvh] items-center justify-center bg-black px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
+          <input
+            ref={inputPrincipalRef}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            aria-label="Escolher imagem para criar story"
+            onChange={onFileChange}
+          />
+          <button
+            type="button"
+            onClick={() => abrirSeletorNativo()}
+            className="rounded-lg bg-white/10 px-5 py-3 text-sm font-semibold text-white ring-1 ring-white/20 hover:bg-white/15"
+          >
+            Abrindo galeria/câmera…
+          </button>
         </div>
       ) : null}
 
