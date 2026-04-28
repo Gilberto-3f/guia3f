@@ -479,12 +479,28 @@ function FeedPageInner() {
     [carregarStoryPorId]
   )
 
+  const fecharStoryModal = useCallback(() => {
+    setStoryModal(null)
+    bumpStoriesBar()
+  }, [bumpStoriesBar])
+
   const navegarStory = useCallback(
     async (delta: number) => {
       const cur = storyModalRef.current
       if (!cur) return
       const n = cur.ids.length
-      const nextIndex = (cur.index + delta + n) % n
+      const rawNext = cur.index + delta
+      if (rawNext < 0) {
+        // Primeiro story: não faz wrap (mantém no início)
+        setStoryModal((p) => (p ? { ...p, index: 0, playbackKey: p.playbackKey + 1 } : null))
+        return
+      }
+      if (rawNext >= n) {
+        // Último story: não faz wrap — fecha viewer
+        fecharStoryModal()
+        return
+      }
+      const nextIndex = rawNext
       if (n === 1) {
         setStoryModal((p) => (p ? { ...p, playbackKey: p.playbackKey + 1 } : null))
         return
@@ -499,13 +515,8 @@ function FeedPageInner() {
       if (!storyModalRef.current || storyModalRef.current.ids[nextIndex] !== nextId) return
       setStoryModal({ ids: cur.ids, index: nextIndex, data: mapped, playbackKey: 0 })
     },
-    [carregarStoryPorId]
+    [carregarStoryPorId, fecharStoryModal]
   )
-
-  const fecharStoryModal = useCallback(() => {
-    setStoryModal(null)
-    bumpStoriesBar()
-  }, [bumpStoriesBar])
 
   const removerPost = (postId: string) => {
     setPosts((prev) => prev.filter((p) => p.id !== postId))

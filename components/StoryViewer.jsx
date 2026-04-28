@@ -15,6 +15,7 @@ import StoryCanvas from '@/components/StoryCanvas'
 
 const STORY_VIEW_MS = 15000
 const SWIPE_DOWN_PX = 96
+const SWIPE_SIDE_PX = 56
 
 /**
  * @param {{ usuario_id?: string } | string | null | undefined} entry
@@ -95,7 +96,7 @@ export default function StoryViewer({
 }) {
   const videoRef = useRef(/** @type {HTMLVideoElement | null} */ (null))
   const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
-  const swipeRef = useRef(/** @type {{ y0: number, t0: number } | null} */ (null))
+  const swipeRef = useRef(/** @type {{ x0: number, y0: number, t0: number } | null} */ (null))
   const timerStartRef = useRef(/** @type {number | null} */ (null))
   const rafRef = useRef(/** @type {number | null} */ (null))
   /** Dedo a segurar: temporizador congelado até `pointerup`. */
@@ -336,16 +337,27 @@ export default function StoryViewer({
       const target = /** @type {HTMLElement | null} */ (e.target)
       if (target?.closest?.('[data-story-footer]')) return
       if (target?.closest?.('a[href]')) return
-      swipeRef.current = { y0: t.clientY, t0: performance.now() }
+      swipeRef.current = { x0: t.clientX, y0: t.clientY, t0: performance.now() }
     }
 
     const onTouchEnd = (e) => {
       const s = swipeRef.current
       swipeRef.current = null
       if (!s || e.changedTouches.length === 0) return
+      const x = e.changedTouches[0].clientX
       const y = e.changedTouches[0].clientY
+      const dx = x - s.x0
       const dy = y - s.y0
-      if (dy > SWIPE_DOWN_PX) onFechar()
+      // Swipe down: fechar
+      if (dy > SWIPE_DOWN_PX) {
+        onFechar()
+        return
+      }
+      // Swipe lateral: navegar (dominância horizontal)
+      if (Math.abs(dx) >= SWIPE_SIDE_PX && Math.abs(dx) > Math.abs(dy) * 1.2) {
+        if (dx < 0) onIrProximo?.()
+        else onIrAnterior?.()
+      }
     }
 
     el.addEventListener('touchstart', onTouchStart, { passive: true })
@@ -354,7 +366,7 @@ export default function StoryViewer({
       el.removeEventListener('touchstart', onTouchStart)
       el.removeEventListener('touchend', onTouchEnd)
     }
-  }, [onFechar])
+  }, [onFechar, onIrAnterior, onIrProximo])
 
   const toggleCurtida = async () => {
     if (!story?.id || !uid || curtirBusy) return
