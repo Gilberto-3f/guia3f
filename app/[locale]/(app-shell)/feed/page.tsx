@@ -511,7 +511,15 @@ function FeedPageInner() {
         return
       }
       const mapped = await carregarStoryPorId(nextId)
-      if (!mapped) return
+      if (!mapped) {
+        /* Sem dados: o timer do story anterior já parou — reinicia o mesmo slide para não ficar barra em 100% presa. */
+        if (process.env.NODE_ENV === 'development') {
+          // eslint-disable-next-line no-console
+          console.warn('[feed] navegarStory: falha ao carregar story', nextId)
+        }
+        setStoryModal((p) => (p ? { ...p, playbackKey: p.playbackKey + 1 } : null))
+        return
+      }
       if (!storyModalRef.current || storyModalRef.current.ids[nextIndex] !== nextId) return
       setStoryModal({ ids: cur.ids, index: nextIndex, data: mapped, playbackKey: 0 })
     },

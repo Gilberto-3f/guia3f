@@ -47,6 +47,40 @@ function parseCurtidasStory(raw) {
 }
 
 /**
+ * @param {unknown} row
+ * @returns {boolean | null} null se a RPC não trouxe flag interpretável
+ */
+function readLikedFlagFromRpc(row) {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return null
+  if (!('liked' in row)) return null
+  const v = /** @type {Record<string, unknown>} */ (row).liked
+  if (v === true) return true
+  if (v === false) return false
+  if (v === 'true' || v === 1) return true
+  if (v === 'false' || v === 0) return false
+  return null
+}
+
+/**
+ * Normaliza `curtidas` vindas da RPC/PostgREST (array, string JSON, etc.).
+ * @param {unknown} raw
+ * @returns {unknown[] | null} null se não for possível obter array
+ */
+function normalizarCurtidasRawParaArray(raw) {
+  if (raw == null) return null
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw)
+      return Array.isArray(p) ? p : null
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+/**
  * @param {{
  *   story: {
  *     id: string
@@ -136,9 +170,13 @@ export default function StoryViewer({
     })()
   }, [story?.id, userEmail, onVisualizado])
 
+  /* Só ressincroniza com o servidor quando muda o story (id). Evita o pai re-renderizar
+   * com o mesmo `story.curtidas` desatualizado e apagar o update otimista da curtida. */
   useEffect(() => {
+    if (!story?.id) return
     setCurtidasLista(parseCurtidasStory(story?.curtidas))
-  }, [story?.curtidas, story?.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- curtidas só ao trocar de story
+  }, [story?.id])
 
   useEffect(() => {
     if (!modalInsights || !story?.id) {
@@ -271,13 +309,14 @@ export default function StoryViewer({
   }, [])
 
   const scheduleTimerTick = useCallback(() => {
+    const duracaoMs = Math.max(1, duracaoStoryMs)
     const tick = () => {
       const t0 = timerStartRef.current
       if (t0 == null) return
       const elapsed = performance.now() - t0
-      const p = Math.min(100, (elapsed / duracaoStoryMs) * 100)
+      const p = Math.min(100, (elapsed / duracaoMs) * 100)
       setBarraProgresso(p)
-      if (elapsed >= duracaoStoryMs) {
+      if (elapsed >= duracaoMs) {
         fecharTimer()
         const f = onTimerFimRef.current
         if (typeof f === 'function') f()
@@ -394,12 +433,42 @@ export default function StoryViewer({
           payload = null
         }
       }
+      if (Array.isArray(payload)) {
+        setCurtidasLista(parseCurtidasStory(payload))
+        return
+      }
       const row =
         payload && typeof payload === 'object' && !Array.isArray(payload) ? /** @type {Record<string, unknown>} */ (payload) : null
-      const rawC = row?.curtidas
-      if (rawC != null) setCurtidasLista(parseCurtidasStory(rawC))
-      else if (row?.liked) setCurtidasLista((prev) => (prev.some((c) => c.usuario_id === uid) ? prev : [...prev, { usuario_id: uid }]))
-      else setCurtidasLista((prev) => prev.filter((c) => c.usuario_id !== uid))
+      if (!row) {
+        /* RPC sem corpo interpretável: mantém estado otimista (não cair no “remove curtida”). */
+        return
+      }
+
+      const liked = readLikedFlagFromRpc(row)
+      const arrRaw = normalizarCurtidasRawParaArray(row.curtidas)
+
+      if (arrRaw != null) {
+        const parsed = parseCurtidasStory(arrRaw)
+        if (parsed.length > 0) {
+          setCurtidasLista(parsed)
+          return
+        }
+        if (liked === true) {
+          setCurtidasLista((prev) => (prev.some((c) => c.usuario_id === uid) ? prev : [...prev, { usuario_id: uid }]))
+          return
+        }
+        if (liked === false) {
+          setCurtidasLista((prev) => prev.filter((c) => c.usuario_id !== uid))
+          return
+        }
+        return
+      }
+
+      if (liked === true) {
+        setCurtidasLista((prev) => (prev.some((c) => c.usuario_id === uid) ? prev : [...prev, { usuario_id: uid }]))
+      } else if (liked === false) {
+        setCurtidasLista((prev) => prev.filter((c) => c.usuario_id !== uid))
+      }
     } finally {
       setCurtirBusy(false)
     }
@@ -491,7 +560,7 @@ export default function StoryViewer({
             {Array.from({ length: storyQueueLength }).map((_, i) => (
               <div key={i} className="h-0.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/25">
                 <div
-                  className="h-full rounded-full bg-white transition-[width] duration-100 ease-linear"
+                  className="h-full rounded-full bg-white"
                   style={{
                     width:
                       i < storyQueueIndex ? '100%' : i === storyQueueIndex ? `${barraProgresso}%` : '0%',
