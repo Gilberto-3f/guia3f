@@ -6,6 +6,7 @@ import { Heart, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { formatarDataComentarioCurta } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
+import { getPerfilHref } from '@/lib/perfil-utils'
 
 /**
  * @typedef {{
@@ -91,7 +92,7 @@ export default function Comentario({
   const tempo = formatarDataComentarioCurta(node.created_at)
   const uname = node.autor?.username ?? 'usuario'
   const avatar = node.autor?.foto_perfil_url
-  const perfilHref = node.autor?.usuario_id ? `/perfil/${node.autor.usuario_id}` : null
+  const perfilHref = node.autor?.usuario_id ? getPerfilHref(node.autor) : null
   const avatarInner = avatar ? (
     <AvatarImage src={avatar} alt="" width={32} height={32} className="h-full w-full object-cover" />
   ) : (

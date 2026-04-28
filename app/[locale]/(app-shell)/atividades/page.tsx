@@ -1185,6 +1185,7 @@ export default function AtividadesPage() {
           usuarioAtorId={r.autor_id}
           usernameAtor={ator?.username ?? 'usuario'}
           interactorFoto={ator?.foto_perfil_url ?? null}
+          hrefAtor={hrefUsuario(r.autor_id)}
           nomeEmpresa={em?.nome ?? 'Empresa'}
           empresaId={empId}
           nota={nota}

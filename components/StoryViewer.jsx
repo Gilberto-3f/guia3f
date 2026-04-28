@@ -9,6 +9,7 @@ import {
   fetchNomeUsuarioParaStory,
   visualizadoPorEmails,
 } from '@/lib/feed-autor'
+import { getPerfilHref } from '@/lib/perfil-utils'
 import AvatarImage from '@/components/AvatarImage'
 import StoryCanvas from '@/components/StoryCanvas'
 
@@ -188,6 +189,32 @@ export default function StoryViewer({
   }, [muted])
 
   const autorId = story?.autorUsuarioId != null && story.autorUsuarioId !== '' ? String(story.autorUsuarioId) : null
+  const [autorEmpresaId, setAutorEmpresaId] = useState(/** @type {string | null} */ (null))
+  const hrefAutor = autorId
+    ? getPerfilHref({ usuario_id: autorId, role: autorEmpresaId ? 'empresa' : undefined, empresa_id: autorEmpresaId })
+    : ''
+
+  useEffect(() => {
+    if (!autorId) {
+      setAutorEmpresaId(null)
+      return
+    }
+    let ativo = true
+    void supabase
+      .from('perfis_para_busca')
+      .select('empresa_id, tipo')
+      .eq('usuario_id', autorId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!ativo) return
+        const tipo = String(data?.tipo ?? '').toLowerCase()
+        const eid = data?.empresa_id != null ? String(data.empresa_id) : null
+        setAutorEmpresaId(tipo === 'empresa' && eid ? eid : null)
+      })
+    return () => {
+      ativo = false
+    }
+  }, [autorId])
 
   useEffect(() => {
     if (!autorId) {
@@ -390,7 +417,7 @@ export default function StoryViewer({
 
   const headerLeft = autorId ? (
     <Link
-      href={`/perfil/${autorId}`}
+      href={hrefAutor}
       className="flex min-w-0 max-w-[78vw] items-center gap-2 py-1 text-white"
     >
       <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-full bg-white/25 ring-2 ring-white/30">
@@ -675,7 +702,11 @@ export default function StoryViewer({
                   {curtidasInsights.map((row) => (
                     <li key={row.usuario_id}>
                       <Link
-                        href={`/perfil/${row.usuario_id}`}
+                        href={getPerfilHref({
+                          usuario_id: String(row.usuario_id),
+                          tipo: String(row.tipo ?? ''),
+                          empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
+                        })}
                         className="flex items-center gap-3 rounded-lg py-1.5 transition hover:bg-white/5"
                         onClick={() => setModalInsights(false)}
                       >

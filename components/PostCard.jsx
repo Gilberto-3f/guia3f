@@ -15,6 +15,7 @@ import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/l
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { getPerfilHref } from '@/lib/perfil-utils'
 
 /**
  * Texto do post com “Ver mais” / “Ver menos” (mede overflow real, estilo Instagram).
@@ -142,6 +143,8 @@ export default function PostCard({
   const [tickSeguir, setTickSeguir] = useState(0)
   const [autorOriginalUsername, setAutorOriginalUsername] = useState(/** @type {string | null} */ (null))
   const [autorOriginalUsuarioId, setAutorOriginalUsuarioId] = useState(/** @type {string | null} */ (null))
+  const [autorOriginalEmpresaId, setAutorOriginalEmpresaId] = useState(/** @type {string | null} */ (null))
+  const [autorOriginalRole, setAutorOriginalRole] = useState(/** @type {string | null} */ (null))
   const [meuRepostPostId, setMeuRepostPostId] = useState(/** @type {string | null} */ (null))
   const [editando, setEditando] = useState(false)
   const [textoEditado, setTextoEditado] = useState('')
@@ -151,6 +154,16 @@ export default function PostCard({
 
   const empresaId = post.autor?.empresa_id || ''
   const autorId = post.autor?.usuario_id || ''
+  const hrefAutor = autorId
+    ? getPerfilHref({ usuario_id: autorId, role: post.autor?.role, empresa_id: post.autor?.empresa_id || null })
+    : ''
+  const hrefAutorOriginal = autorOriginalUsuarioId
+    ? getPerfilHref({
+        usuario_id: autorOriginalUsuarioId,
+        role: autorOriginalRole ?? undefined,
+        empresa_id: autorOriginalEmpresaId,
+      })
+    : ''
 
   const mostrarSeguirUsuario =
     Boolean(!empresaId && meuUsuarioId && autorId && autorId !== meuUsuarioId)
@@ -250,6 +263,8 @@ export default function PostCard({
     if (!postOriginalId) {
       setAutorOriginalUsername(null)
       setAutorOriginalUsuarioId(null)
+      setAutorOriginalEmpresaId(null)
+      setAutorOriginalRole(null)
       return
     }
     let cancel = false
@@ -273,6 +288,8 @@ export default function PostCard({
         const a = pickAutorDisplay(u)
         setAutorOriginalUsername(a.username || null)
         setAutorOriginalUsuarioId(a.usuario_id ? String(a.usuario_id) : null)
+        setAutorOriginalEmpresaId(a.empresa_id ? String(a.empresa_id) : null)
+        setAutorOriginalRole(a.role ? String(a.role) : null)
       })
     return () => {
       cancel = true
@@ -552,7 +569,7 @@ export default function PostCard({
         <div className="flex min-w-0 flex-1 items-start gap-2">
           {autorId ? (
             <Link
-              href={`/perfil/${autorId}`}
+              href={hrefAutor}
               className="relative mt-0.5 h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100"
               aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
             >
@@ -577,7 +594,7 @@ export default function PostCard({
           )}
           <p className="min-w-0 flex-1 text-xs leading-snug text-gray-600">
             {autorId ? (
-              <Link href={`/perfil/${autorId}`} className="font-semibold text-gray-800 hover:text-[#0097b2]">
+              <Link href={hrefAutor} className="font-semibold text-gray-800 hover:text-[#0097b2]">
                 @{post.autor?.username ?? ''}
               </Link>
             ) : (
@@ -591,7 +608,7 @@ export default function PostCard({
                 {autorOriginalUsername ? (
                   autorOriginalUsuarioId ? (
                     <Link
-                      href={`/perfil/${autorOriginalUsuarioId}`}
+                      href={hrefAutorOriginal}
                       className="font-semibold text-gray-800 hover:text-[#0097b2]"
                     >
                       @{autorOriginalUsername}
@@ -686,7 +703,7 @@ export default function PostCard({
             <div className="flex items-center justify-between border-b border-gray-50 px-4 pt-3">
               <div>
                 {autorId ? (
-                  <Link href={`/perfil/${autorId}`} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
+                  <Link href={hrefAutor} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
                     @{post.autor?.username ?? ''}
                   </Link>
                 ) : (
@@ -771,7 +788,7 @@ export default function PostCard({
                 </div>
               ) : autorId ? (
                 <Link
-                  href={`/perfil/${autorId}`}
+                  href={hrefAutor}
                   className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
                   aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
                 >
@@ -790,7 +807,7 @@ export default function PostCard({
               )}
               <div>
                 {autorId ? (
-                  <Link href={`/perfil/${autorId}`} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
+                  <Link href={hrefAutor} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
                     @{post.autor?.username ?? ''}
                   </Link>
                 ) : (

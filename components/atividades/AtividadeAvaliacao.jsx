@@ -9,6 +9,7 @@ import AvatarImage from '@/components/AvatarImage'
  *   usuarioAtorId: string
  *   usernameAtor: string
  *   interactorFoto: string | null
+ *   hrefAtor: string
  *   nomeEmpresa: string
  *   empresaId: string
  *   nota: number
@@ -20,6 +21,7 @@ export default function AtividadeAvaliacao({
   usuarioAtorId,
   usernameAtor,
   interactorFoto,
+  hrefAtor,
   nomeEmpresa,
   empresaId,
   nota,
@@ -35,7 +37,7 @@ export default function AtividadeAvaliacao({
         <div className="flex flex-col items-center gap-0.5">
           <button
             type="button"
-            onClick={() => router.push(`/perfil/${usuarioAtorId}`)}
+            onClick={() => router.push(hrefAtor)}
             className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
           >
             <AvatarImage src={interactorFoto} alt="" fill className="object-cover" sizes="40px" />
@@ -49,7 +51,7 @@ export default function AtividadeAvaliacao({
             <button
               type="button"
               className="font-medium text-[#0097b2] hover:underline"
-              onClick={() => router.push(`/perfil/${usuarioAtorId}`)}
+              onClick={() => router.push(hrefAtor)}
             >
               @{usernameAtor}
             </button>{' '}

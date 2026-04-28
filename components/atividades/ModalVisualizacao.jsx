@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
 import { pickAutorDisplay } from '@/lib/feed-autor'
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
+import { getPerfilHref } from '@/lib/perfil-utils'
 
 const POSTS_FEED_VIEW = 'posts_com_autores'
 
@@ -48,6 +49,8 @@ export default function ModalVisualizacao({
   const [thumbs, setThumbs] = useState(/** @type {(string | null)[]} */ ([]))
   const [autorOriginalUsername, setAutorOriginalUsername] = useState(/** @type {string | null} */ (null))
   const [autorOriginalUsuarioId, setAutorOriginalUsuarioId] = useState(/** @type {string | null} */ (null))
+  const [autorOriginalEmpresaId, setAutorOriginalEmpresaId] = useState(/** @type {string | null} */ (null))
+  const [autorOriginalRole, setAutorOriginalRole] = useState(/** @type {string | null} */ (null))
 
   /** Deslize horizontal no miolo do modal para mudar de foto (carrossel). */
   const swipeRef = useRef({ x: 0, y: 0, active: false })
@@ -168,6 +171,8 @@ export default function ModalVisualizacao({
     if (!postOriginalId) {
       setAutorOriginalUsername(null)
       setAutorOriginalUsuarioId(null)
+      setAutorOriginalEmpresaId(null)
+      setAutorOriginalRole(null)
       return
     }
     let cancel = false
@@ -193,6 +198,8 @@ export default function ModalVisualizacao({
         const a = pickAutorDisplay(u)
         setAutorOriginalUsername(a.username || null)
         setAutorOriginalUsuarioId(a.usuario_id ? String(a.usuario_id) : null)
+        setAutorOriginalEmpresaId(a.empresa_id ? String(a.empresa_id) : null)
+        setAutorOriginalRole(a.role ? String(a.role) : null)
       })
     return () => {
       cancel = true
@@ -247,8 +254,18 @@ export default function ModalVisualizacao({
   const tipoNorm = String(post?.tipo || '').toLowerCase()
   const repostEhFoto = tipoNorm === 'foto' || tipoNorm === 'misto'
   const autorId = post?.autor?.usuario_id || ''
+  const hrefAutor = autorId
+    ? getPerfilHref({ usuario_id: autorId, role: post?.autor?.role, empresa_id: post?.autor?.empresa_id || null })
+    : ''
   const isSelfRepost =
     ehRepost && Boolean(autorId && autorOriginalUsuarioId && String(autorId) === String(autorOriginalUsuarioId))
+  const hrefAutorOriginal = autorOriginalUsuarioId
+    ? getPerfilHref({
+        usuario_id: autorOriginalUsuarioId,
+        role: autorOriginalRole ?? undefined,
+        empresa_id: autorOriginalEmpresaId,
+      })
+    : ''
 
   return (
     <div className="fixed inset-0 z-[260] flex items-center justify-center px-2 py-4 sm:px-4 sm:py-6 md:px-6">
@@ -268,7 +285,7 @@ export default function ModalVisualizacao({
             <div className="border-b border-gray-50 px-3 pb-1.5 pt-2">
               <p className="text-xs leading-snug text-gray-600">
                 {autorId ? (
-                  <Link href={`/perfil/${autorId}`} className="font-semibold text-gray-800 hover:text-[#0097b2]">
+                  <Link href={hrefAutor} className="font-semibold text-gray-800 hover:text-[#0097b2]">
                     @{post.autor?.username ?? ''}
                   </Link>
                 ) : (
@@ -282,7 +299,7 @@ export default function ModalVisualizacao({
                     {autorOriginalUsername ? (
                       autorOriginalUsuarioId ? (
                         <Link
-                          href={`/perfil/${autorOriginalUsuarioId}`}
+                          href={hrefAutorOriginal}
                           className="font-semibold text-gray-800 hover:text-[#0097b2]"
                         >
                           @{autorOriginalUsername}
@@ -305,7 +322,7 @@ export default function ModalVisualizacao({
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 {post.autor?.usuario_id ? (
                   <Link
-                    href={`/perfil/${post.autor.usuario_id}`}
+                    href={hrefAutor}
                     className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100"
                     aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
                   >
@@ -331,7 +348,7 @@ export default function ModalVisualizacao({
                 <div className="min-w-0 flex-1">
                   {post.autor?.usuario_id ? (
                     <Link
-                      href={`/perfil/${post.autor.usuario_id}`}
+                      href={hrefAutor}
                       className="block truncate text-sm font-semibold text-gray-900 hover:text-[#0097b2]"
                     >
                       @{post.autor?.username ?? ''}

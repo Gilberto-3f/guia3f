@@ -111,7 +111,7 @@ export default function ModalComentarios({
       const rr = /** @type {Record<string, unknown>} */ (r)
       const aid = rr.autor_id != null ? String(rr.autor_id) : ''
       const p = aid ? perfilPorUsuario.get(aid) : undefined
-      const fallback = { nome: 'Usuário', username: 'usuario', foto_perfil_url: null, usuario_id: aid }
+      const fallback = { nome: 'Usuário', username: 'usuario', foto_perfil_url: null, usuario_id: aid, tipo: null, empresa_id: null }
       const fotoAtual =
         aid && fotosPorUsuario.has(aid)
           ? fotosPorUsuario.get(aid) ?? null
@@ -124,9 +124,11 @@ export default function ModalComentarios({
             username: String(p.username ?? 'usuario'),
             foto_perfil_url: fotoAtual,
             usuario_id: aid,
+            tipo: p.tipo ?? null,
+            empresa_id: p.empresa_id ?? null,
           }
         : aid && fotosPorUsuario.has(aid)
-          ? { nome: 'Usuário', username: 'usuario', foto_perfil_url: fotoAtual, usuario_id: aid }
+          ? { nome: 'Usuário', username: 'usuario', foto_perfil_url: fotoAtual, usuario_id: aid, tipo: null, empresa_id: null }
           : fallback
       return {
         id: String(rr.id),

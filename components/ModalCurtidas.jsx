@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
+import { getPerfilHref } from '@/lib/perfil-utils'
 import AvatarImage from '@/components/AvatarImage'
 
 /** Ordem: tenta relação padrão; se o PostgREST falhar, use variante com FK explícita. */
@@ -239,10 +240,15 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
             lista.map((u) => {
               const ehEu = meuUsuarioId && u.id === meuUsuarioId
               const seguindo = Boolean(seguindoMap[u.id])
+              const hrefPerfil = getPerfilHref({
+                usuario_id: u.id,
+                role: u.role,
+                empresa_id: u.empresaId || null,
+              })
               return (
                 <div key={u.id} className="flex items-center justify-between gap-2 border-b border-gray-100 py-3 last:border-0">
                   <Link
-                    href={`/perfil/${u.id}`}
+                    href={hrefPerfil}
                     className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50"
                   >
                     <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
