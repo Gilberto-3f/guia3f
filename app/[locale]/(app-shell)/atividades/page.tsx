@@ -823,6 +823,14 @@ export default function AtividadesPage() {
   const SWIPE_MIN_PX = 60
   const SWIPE_DOMINANCIA = 1.5
 
+  const gestoComecouDentroDeModal = useCallback((target: EventTarget | null) => {
+    if (!target) return false
+    const el = target as Element
+    if (!el || typeof (el as Element).closest !== 'function') return false
+    /** Qualquer modal (incl. ModalVisualizacao) deve capturar swipe localmente. */
+    return Boolean(el.closest('[role="dialog"]'))
+  }, [])
+
   const tentarTrocarAbaPorSwipe = useCallback(
     (dx: number, dy: number) => {
       if (Math.abs(dx) < SWIPE_MIN_PX) return
@@ -839,6 +847,7 @@ export default function AtividadesPage() {
   )
 
   const onTouchStartAtividades = useCallback((e: React.TouchEvent) => {
+    if (gestoComecouDentroDeModal(e.target)) return
     const t = e.touches[0]
     if (!t) return
     swipeRef.current.pointerDown = true
@@ -846,18 +855,20 @@ export default function AtividadesPage() {
     swipeRef.current.startY = t.clientY
     swipeRef.current.lastX = t.clientX
     swipeRef.current.lastY = t.clientY
-  }, [])
+  }, [gestoComecouDentroDeModal])
 
   const onTouchMoveAtividades = useCallback((e: React.TouchEvent) => {
+    if (gestoComecouDentroDeModal(e.target)) return
     if (!swipeRef.current.pointerDown) return
     const t = e.touches[0]
     if (!t) return
     swipeRef.current.lastX = t.clientX
     swipeRef.current.lastY = t.clientY
-  }, [])
+  }, [gestoComecouDentroDeModal])
 
   const onTouchEndAtividades = useCallback(
     (e: React.TouchEvent) => {
+      if (gestoComecouDentroDeModal(e.target)) return
       if (!swipeRef.current.pointerDown) return
       swipeRef.current.pointerDown = false
       const t = e.changedTouches[0]
@@ -867,28 +878,31 @@ export default function AtividadesPage() {
       const dy = endY - swipeRef.current.startY
       tentarTrocarAbaPorSwipe(dx, dy)
     },
-    [tentarTrocarAbaPorSwipe]
+    [tentarTrocarAbaPorSwipe, gestoComecouDentroDeModal]
   )
 
   const onPointerDownAtividades = useCallback((e: React.PointerEvent) => {
     // Desktop (mouse) para testes; touch usa onTouch* (evita duplicar).
+    if (gestoComecouDentroDeModal(e.target)) return
     if (e.pointerType !== 'mouse') return
     swipeRef.current.pointerDown = true
     swipeRef.current.startX = e.clientX
     swipeRef.current.startY = e.clientY
     swipeRef.current.lastX = e.clientX
     swipeRef.current.lastY = e.clientY
-  }, [])
+  }, [gestoComecouDentroDeModal])
 
   const onPointerMoveAtividades = useCallback((e: React.PointerEvent) => {
+    if (gestoComecouDentroDeModal(e.target)) return
     if (e.pointerType !== 'mouse') return
     if (!swipeRef.current.pointerDown) return
     swipeRef.current.lastX = e.clientX
     swipeRef.current.lastY = e.clientY
-  }, [])
+  }, [gestoComecouDentroDeModal])
 
   const onPointerUpAtividades = useCallback(
     (e: React.PointerEvent) => {
+      if (gestoComecouDentroDeModal(e.target)) return
       if (e.pointerType !== 'mouse') return
       if (!swipeRef.current.pointerDown) return
       swipeRef.current.pointerDown = false
@@ -896,7 +910,7 @@ export default function AtividadesPage() {
       const dy = e.clientY - swipeRef.current.startY
       tentarTrocarAbaPorSwipe(dx, dy)
     },
-    [tentarTrocarAbaPorSwipe]
+    [tentarTrocarAbaPorSwipe, gestoComecouDentroDeModal]
   )
 
   const listaAtividadesFiltrada = useMemo(() => {

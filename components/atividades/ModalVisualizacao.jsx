@@ -276,6 +276,12 @@ export default function ModalVisualizacao({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-atividade-titulo"
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onPointerMove={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
       >
         <span id="modal-atividade-titulo" className="sr-only">
           Publicação
