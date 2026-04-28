@@ -349,12 +349,16 @@ export default function AtividadesPage() {
         const cur = m[uid] ?? placeholderPerfil(uid)
         const uName = (pb.username ?? '').trim()
         const nome = (pb.nome ?? '').trim()
+        const tipo = String(pb.tipo ?? '').toLowerCase()
+        const empId = pb.empresa_id != null && String(pb.empresa_id).trim() !== '' ? String(pb.empresa_id) : null
         m[uid] = {
           ...cur,
           username: uName || cur.username,
           nome: nome || cur.nome,
           foto_perfil_url:
             pb.foto_url != null && String(pb.foto_url).trim() !== '' ? String(pb.foto_url) : cur.foto_perfil_url,
+          ...(tipo ? { role: tipo } : {}),
+          ...(tipo === 'empresa' && empId ? { empresa_id: empId } : {}),
         }
       }
 
