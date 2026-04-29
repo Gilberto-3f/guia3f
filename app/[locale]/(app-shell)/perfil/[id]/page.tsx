@@ -90,7 +90,9 @@ export default function PerfilSocialPage() {
     categorias: string[] | null
     placaVermelha: boolean
     verificadoEm: string | null
-  }>({ categorias: null, placaVermelha: false, verificadoEm: null })
+    /** `profissionais.created_at` — texto “cadastrado desde …” no cartão. */
+    cadastradoEm: string | null
+  }>({ categorias: null, placaVermelha: false, verificadoEm: null, cadastradoEm: null })
 
   const patchFotoPost = useCallback((postId: string, updates: { total_curtidas?: number; total_comentarios?: number }) => {
     setPostsFotos((prev) =>
@@ -224,6 +226,7 @@ export default function PerfilSocialPage() {
             categorias: Array.isArray(rr.categorias) ? rr.categorias.map((x) => String(x)) : null,
             placaVermelha: Boolean(rr.placa_vermelha),
             verificadoEm: rr.docs_verificado_em ?? rr.created_at ?? null,
+            cadastradoEm: rr.created_at ?? null,
           })
         }
       } else if (role === 'turista') {
@@ -236,7 +239,7 @@ export default function PerfilSocialPage() {
         if (!et && tur && typeof tur === 'object' && !Array.isArray(tur)) {
           perfilRow = tur as Record<string, unknown>
         }
-        setProfMeta({ categorias: null, placaVermelha: false, verificadoEm: null })
+        setProfMeta({ categorias: null, placaVermelha: false, verificadoEm: null, cadastradoEm: null })
       }
 
       const nomePerfil =
@@ -656,6 +659,7 @@ export default function PerfilSocialPage() {
         username={username}
         avatarUrl={fotoPerfil}
         verificadoEm={profMeta.verificadoEm}
+        cadastradoEm={profMeta.cadastradoEm}
         categorias={profMeta.categorias}
         placaVermelha={profMeta.placaVermelha}
         onContratar={() => router.push('/canal')}

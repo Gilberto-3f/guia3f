@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { ShieldCheck, Star, X } from 'lucide-react'
+import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
 
 function formatMesAno(iso) {
   if (!iso) return null
@@ -44,6 +45,7 @@ function deveMostrarContratar({ placaVermelha, categorias }) {
  *  username: string
  *  avatarUrl: string | null
  *  verificadoEm: string | null
+ *  cadastradoEm?: string | null
  *  categorias?: string[] | null
  *  placaVermelha?: boolean
  *  onContratar?: () => void
@@ -56,16 +58,18 @@ export default function PopupCartaoVisitaProfissional({
   username,
   avatarUrl,
   verificadoEm,
+  cadastradoEm = null,
   categorias = null,
   placaVermelha = false,
   onContratar,
 }) {
   if (!aberto) return null
 
-  const mesAno = formatMesAno(verificadoEm)
+  const mesAnoCadastro = formatMesAno(cadastradoEm ?? verificadoEm)
   const u = String(username ?? '').trim().replace(/^@+/, '')
   const uShown = u.length > 15 ? `${u.slice(0, 15)}…` : u
   const podeContratar = deveMostrarContratar({ placaVermelha, categorias })
+  const rotuloCategoria = formatProfissionalCategorias(categorias)
 
   // Placeholder até existir mobilidade/avaliações profissionais
   const media = 0
@@ -87,15 +91,15 @@ export default function PopupCartaoVisitaProfissional({
         <div className="relative shrink-0 border-b border-gray-100 bg-white pt-4 pb-3">
           <div className="flex items-center justify-center gap-2">
             <ShieldCheck className="h-5 w-5 text-[#0097b2]" aria-hidden />
-            <h2 className="text-xl font-bold text-[#0097b2]">Profissional de Confiança</h2>
+            <h2 className="text-xl font-bold tracking-wide text-[#0097b2]">VERIFICADO</h2>
           </div>
-          <p className="mt-1 text-center text-sm text-gray-600">
-            {mesAno ? (
+          <p className="mt-1 px-4 text-center text-sm text-gray-600">
+            {mesAnoCadastro ? (
               <>
-                Verificado desde <span className="font-semibold text-gray-800">{mesAno}</span>
+                cadastrado desde <span className="font-semibold text-gray-800">{mesAnoCadastro}</span>
               </>
             ) : (
-              'Verificado'
+              'Profissional verificado'
             )}
           </p>
           <button
@@ -108,23 +112,28 @@ export default function PopupCartaoVisitaProfissional({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-          <div className="flex flex-col items-center text-center">
-            <div className="relative h-24 w-24 overflow-hidden rounded-full bg-gray-100 ring-2 ring-[#0097b2]/15">
-              {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="96px" /> : null}
-            </div>
-            <p className="mt-4 max-w-full truncate text-lg font-bold text-gray-900">{nome || 'Profissional'}</p>
-            <p className="mt-0.5 max-w-full truncate text-sm font-normal text-gray-600">@{uShown || 'usuario'}</p>
-
-            <div className="mt-6 w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-4">
-              <p className="text-sm font-semibold text-gray-800">Nota de avaliação</p>
-              <div className="mt-2 flex items-center justify-center gap-2">
-                <Star className="h-5 w-5 text-amber-400 fill-amber-400" aria-hidden />
-                <span className="text-xl font-bold text-gray-900">{total ? media.toFixed(1).replace('.', ',') : '—'}</span>
-                <span className="text-sm text-gray-500">({total} avaliações)</span>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+          <div className="flex gap-4 sm:gap-5">
+            <div className="flex w-[7.5rem] shrink-0 flex-col items-stretch sm:w-[8.5rem]">
+              <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gray-100 ring-2 ring-[#0097b2]/15">
+                {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="(max-width:640px) 120px, 136px" /> : null}
               </div>
-              <p className="mt-2 text-xs text-gray-500">Avaliações serão habilitadas após a implementação da Mobilidade.</p>
+              <p className="mt-3 line-clamp-4 text-center text-base font-bold leading-snug text-[#0097b2] sm:text-lg">{rotuloCategoria}</p>
             </div>
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 text-left">
+              <p className="line-clamp-2 text-lg font-bold text-gray-900 sm:text-xl">{nome || 'Profissional'}</p>
+              <p className="truncate text-sm font-normal text-gray-600 sm:text-base">@{uShown || 'usuario'}</p>
+            </div>
+          </div>
+
+          <div className="mt-6 w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-4">
+            <p className="text-sm font-semibold text-gray-800">Nota de avaliação</p>
+            <div className="mt-2 flex items-center justify-center gap-2">
+              <Star className="h-5 w-5 text-amber-400 fill-amber-400" aria-hidden />
+              <span className="text-xl font-bold text-gray-900">{total ? media.toFixed(1).replace('.', ',') : '—'}</span>
+              <span className="text-sm text-gray-500">({total} avaliações)</span>
+            </div>
+            <p className="mt-2 text-center text-xs text-gray-500">Avaliações serão habilitadas após a implementação da Mobilidade.</p>
           </div>
         </div>
 
@@ -154,4 +163,3 @@ export default function PopupCartaoVisitaProfissional({
     </div>
   )
 }
-
