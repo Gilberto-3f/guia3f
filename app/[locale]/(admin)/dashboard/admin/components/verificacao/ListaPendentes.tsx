@@ -34,6 +34,7 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
     if (tipo === 'profissionais') {
       return (pendentes as PendenteProfissional[]).map((p) => {
         const contato = p.whatsapp || p.telefone
+        const categorias = Array.isArray(p.categorias) ? p.categorias : []
         return {
           id: p.id,
           nome: p.nome_completo,
@@ -42,7 +43,7 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
           dataCadastro: new Date(p.created_at).toLocaleDateString('pt-BR'),
           email: p.email?.trim() || '—',
           whatsappLine: formatContatoExibicao(contato),
-          categoriaDisplay: formatProfissionalCategorias(p.categorias),
+          categoriaDisplay: formatProfissionalCategorias(categorias),
           empresaFiscal: undefined,
           alerta: p.placa_vermelha ? 'Placa vermelha' : null,
           docsVerificado: p.docs_verificado,

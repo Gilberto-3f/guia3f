@@ -13,10 +13,11 @@ const CATEGORIA_LABEL: Record<string, string> = {
   anfitrioes: 'Anfitrião',
 }
 
-/** Exibe categorias do profissional com rótulos amigáveis. */
-export function formatProfissionalCategorias(cats: string[]): string {
-  if (!cats.length) return '—'
-  return cats
+/** Exibe categorias do profissional com rótulos amigáveis. Aceita ausência / formato inesperado (ex.: estado antigo na UI). */
+export function formatProfissionalCategorias(cats: unknown): string {
+  const list: string[] = Array.isArray(cats) ? cats.map((v) => String(v)) : []
+  if (!list.length) return '—'
+  return list
     .map((c) => {
       const k = c.trim().toLowerCase()
       return CATEGORIA_LABEL[k] ?? c.trim()

@@ -153,7 +153,8 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     })
 
     const filtered = mapped.filter((x) => {
-      if (comunidade && !x.categorias.map((c) => c.toLowerCase()).includes(comunidade.toLowerCase())) return false
+      const cats = x.categorias ?? []
+      if (comunidade && !cats.map((c) => c.toLowerCase()).includes(comunidade.toLowerCase())) return false
       return true
     })
     setPendentes(filtered)
@@ -196,6 +197,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setPendentes([])
     try {
       await fetchContadores()
       if (filtros.perfil === 'turistas') await fetchTuristasPendentes()
