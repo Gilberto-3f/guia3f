@@ -133,7 +133,8 @@ function labelStoryEmpresa(e) {
  * }} props
  */
 export default function StoriesBar({ hidden = false, userEmail, onOpenStory, reloadSignal = 0 }) {
-  const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
+  const { podeInteragir, notificarSomenteLeitura, modoAtivo, perfilSimulado } = useModoApresentacao()
+  const simulandoEmpresa = Boolean(modoAtivo && perfilSimulado?.tipo === 'empresa')
   /** @type {{ avatarUrl: string | null, storyId: string | null, visualizado_por: unknown }} */
   const [meuSlot, setMeuSlot] = useState({
     avatarUrl: null,
@@ -211,14 +212,17 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       []
     )
     if (storyAutorIds.length > 0) {
-      const { data: empData } = await supabase
+      let q = supabase
         .from('empresas')
-        .select('usuario_id, nome_fantasia, nome_usuario, foto_url')
+        .select('usuario_id, nome_fantasia, nome_usuario, foto_url, somente_modo_apresentacao')
         .in('usuario_id', storyAutorIds)
+      if (!simulandoEmpresa) {
+        q = q.eq('somente_modo_apresentacao', false)
+      }
+      const { data: empData } = await q
       empresasRows = empData ?? []
     }
 
-    const empresaAutorSet = new Set(empresasRows.map((e) => String(e.usuario_id)).filter(Boolean))
     const emps = empresasRows
 
     /** Stories permitidos: o próprio utilizador, seguidos (não empresa) ou qualquer empresa; sem vídeo. */
@@ -226,7 +230,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       if (isTipoVideoPost(s.tipo)) return false
       const aid = String(s.autor_id)
       if (aid === uid) return true
-      const isEmp = isAutorEmpresa(s.autor_tipo) || empresaAutorSet.has(aid)
+      const isEmp = isAutorEmpresa(s.autor_tipo)
       if (isEmp) return true
       return seguidosIds.has(aid)
     })
@@ -240,6 +244,13 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     }
     for (const arr of storiesPorAutorArr.values()) {
       ordenarStoriesPorCreatedAsc(arr)
+    }
+
+    const autorTemStoryEmpresa = (aid) => {
+      const arr = storiesPorAutorArr.get(aid)
+      if (!arr?.length) return false
+      const s0 = arr[0]
+      return Boolean(s0 && isAutorEmpresa(s0.autor_tipo))
     }
 
     const meuArr = storiesPorAutorArr.get(uid) ?? []
@@ -269,7 +280,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     // 1) Seguidos turista/profissional (não empresa)
     const seguidosNaoEmpresa = [...storiesPorAutorArr.entries()]
       .filter(([aid, arr]) => {
-        if (aid === uid || !seguidosIds.has(aid) || empresaAutorSet.has(aid)) return false
+        if (aid === uid || !seguidosIds.has(aid) || autorTemStoryEmpresa(aid)) return false
         const s0 = arr[0]
         return s0 && !isAutorEmpresa(s0.autor_tipo)
       })
@@ -358,7 +369,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
 
     await Promise.all(
       ordered.map(async (aid) => {
-        if (empresaAutorSet.has(aid)) return
+        if (autorTemStoryEmpresa(aid)) return
         const nu = await fetchNomeUsuarioParaStory(supabase, aid)
         const h = formatStoryHandle(nu)
         if (h) labels[aid] = h
