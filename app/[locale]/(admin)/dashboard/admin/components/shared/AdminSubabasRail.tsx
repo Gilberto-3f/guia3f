@@ -43,9 +43,6 @@ function CadastrosSubNav({ sub }: { sub: string }) {
   const activeSub = useMemo(() => coerceVerificacaoSub(sub), [sub])
   const { contadores } = useVerificacao({
     perfil: activeSub,
-    periodo: '7d',
-    busca: '',
-    categoria: 'todas',
   })
   return <SubabasVerificacao value={activeSub} badges={contadores} />
 }

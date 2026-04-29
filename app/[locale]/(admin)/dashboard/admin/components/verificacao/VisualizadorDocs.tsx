@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePermissao } from '../../hooks/usePermissao'
+import { pickDocumentoEmpresaUrl } from './verificacaoFormatters'
 
 export function VisualizadorDocs({
   aberto,
@@ -31,13 +32,19 @@ export function VisualizadorDocs({
     }
     if (tipo === 'profissionais') {
       const d = (pendente.documentos ?? {}) as Record<string, string>
+      const idF = String(d.identidade_url ?? pendente.identidade_url ?? '')
+      const idV = String(d.documento_verso_url ?? pendente.documento_verso_url ?? '')
+      const res = String(d.comprovante_residencia_url ?? pendente.comprovante_residencia_url ?? '')
+      const prof = String(d.comprovante_profissao_url ?? pendente.comprovante_profissao_url ?? '')
       return [
-        { label: 'Identidade', url: String(d.identidade_url ?? '') },
-        { label: 'Comprovante residência', url: String(d.comprovante_residencia_url ?? '') },
-        { label: 'Comprovante profissão', url: String(d.comprovante_profissao_url ?? '') },
+        { label: 'Identidade (frente)', url: idF },
+        { label: 'Identidade (verso)', url: idV },
+        { label: 'Comprovante residência', url: res },
+        { label: 'Comprovante profissão', url: prof },
       ].filter((x) => x.url)
     }
-    return [{ label: 'Documento comercial', url: String(pendente.documento_url ?? '') }].filter((x) => x.url)
+    const comercial = pickDocumentoEmpresaUrl(pendente)
+    return [{ label: 'Documento comercial', url: comercial }].filter((x) => x.url)
   }, [pendente, tipo])
 
   const isAdminGeral = nivel === 1

@@ -8,9 +8,7 @@ import type {
   PendenteProfissional,
   PendenteTurista,
   PerfilVerificacao,
-  PeriodoVerificacao,
 } from '../types/admin.types'
-import { getPeriodoVerificacaoDate, normalizeBusca } from '../utils/adminHelpers'
 import { usePermissao } from './usePermissao'
 
 /** JSONB ou coluna legada: normaliza para string[]. */
@@ -42,11 +40,21 @@ function parseFotosEmpresa(r: Record<string, unknown>): string[] {
   return []
 }
 
+async function fetchEmailPorUsuarioIds(ids: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(ids.map((id) => String(id)).filter(Boolean))]
+  const map = new Map<string, string>()
+  if (!unique.length) return map
+  const { data, error } = await supabase.from('usuarios').select('id,email').in('id', unique)
+  if (error) throw error
+  for (const row of data ?? []) {
+    const rec = row as { id?: string; email?: string | null }
+    if (rec.id) map.set(String(rec.id), String(rec.email ?? '').trim())
+  }
+  return map
+}
+
 export type FiltrosVerificacao = {
   perfil: PerfilVerificacao
-  periodo: PeriodoVerificacao
-  busca: string
-  categoria?: string
 }
 
 type PendenteUnion = PendenteTurista | PendenteProfissional | PendenteEmpresa
@@ -63,12 +71,10 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
   })
 
   const fetchContadores = useCallback(async () => {
-    const since = getPeriodoVerificacaoDate(filtros.periodo).toISOString()
-
     const [t, p, e] = await Promise.all([
-      supabase.from('turistas').select('*', { count: 'exact', head: true }).eq('docs_verificado', false).gte('created_at', since),
-      supabase.from('profissionais').select('*', { count: 'exact', head: true }).eq('docs_verificado', false).gte('created_at', since),
-      supabase.from('empresas').select('*', { count: 'exact', head: true }).eq('docs_verificado', false).gte('created_at', since),
+      supabase.from('turistas').select('*', { count: 'exact', head: true }).eq('docs_verificado', false),
+      supabase.from('profissionais').select('*', { count: 'exact', head: true }).eq('docs_verificado', false),
+      supabase.from('empresas').select('*', { count: 'exact', head: true }).eq('docs_verificado', false),
     ])
     if (t.error) throw t.error
     if (p.error) throw p.error
@@ -78,20 +84,18 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       profissionais: p.count ?? 0,
       empresas: e.count ?? 0,
     })
-  }, [filtros.periodo])
+  }, [])
 
   const fetchTuristasPendentes = useCallback(async () => {
-    const since = getPeriodoVerificacaoDate(filtros.periodo).toISOString()
-    const search = normalizeBusca(filtros.busca)
-    const query = supabase
+    const { data, error } = await supabase
       .from('turistas')
       .select('*')
       .eq('docs_verificado', false)
-      .gte('created_at', since)
       .order('created_at', { ascending: true })
-    const { data, error } = await query
     if (error) throw error
-    const mapped: PendenteTurista[] = (data ?? []).map((r: Record<string, unknown>) => ({
+    const rows = (data ?? []) as Record<string, unknown>[]
+    const emailMap = await fetchEmailPorUsuarioIds(rows.map((r) => String(r.usuario_id ?? '')))
+    const mapped: PendenteTurista[] = rows.map((r) => ({
       id: String(r.id),
       usuario_id: String(r.usuario_id),
       nome_completo: String(r.nome_completo ?? ''),
@@ -103,33 +107,30 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       docs_verificado_por: r.docs_verificado_por ? String(r.docs_verificado_por) : null,
       docs_verificado_em: r.docs_verificado_em ? String(r.docs_verificado_em) : null,
       created_at: String(r.created_at ?? new Date().toISOString()),
+      email: emailMap.get(String(r.usuario_id)) || null,
     }))
-    setPendentes(
-      mapped.filter((x) => {
-        if (!search) return true
-        return x.nome_completo.toLowerCase().includes(search) || x.nome_usuario.toLowerCase().includes(search)
-      })
-    )
-  }, [filtros.busca, filtros.periodo])
+    setPendentes(mapped)
+  }, [])
 
   const fetchProfissionaisPendentes = useCallback(async () => {
-    const since = getPeriodoVerificacaoDate(filtros.periodo).toISOString()
-    const search = normalizeBusca(filtros.busca)
-    const query = supabase
+    const { data, error } = await supabase
       .from('profissionais')
       .select('*')
       .eq('docs_verificado', false)
-      .gte('created_at', since)
       .order('created_at', { ascending: true })
-    const { data, error } = await query
     if (error) throw error
-
+    const rows = (data ?? []) as Record<string, unknown>[]
+    const emailMap = await fetchEmailPorUsuarioIds(rows.map((r) => String(r.usuario_id ?? '')))
     const comunidade = getComunidade()
-    const mapped: PendenteProfissional[] = (data ?? []).map((r: Record<string, unknown>) => {
+
+    const mapped: PendenteProfissional[] = rows.map((r) => {
       const categorias = parseCategoriasProfissional(r.categorias)
+      const uid = String(r.usuario_id ?? '')
+      const w = r.whatsapp != null && String(r.whatsapp).trim() ? String(r.whatsapp).trim() : null
+      const tel = r.telefone != null && String(r.telefone).trim() ? String(r.telefone).trim() : null
       return {
         id: String(r.id),
-        usuario_id: String(r.usuario_id),
+        usuario_id: uid,
         nome_completo: String(r.nome_completo ?? ''),
         nome_usuario: String(r.nome_usuario ?? ''),
         foto_url: r.foto_perfil_url ? String(r.foto_perfil_url) : null,
@@ -137,6 +138,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
         placa_vermelha: Boolean(r.placa_vermelha),
         documentos: {
           identidade_url: String(r.identidade_url ?? ''),
+          documento_verso_url: String(r.documento_verso_url ?? ''),
           comprovante_residencia_url: String(r.comprovante_residencia_url ?? ''),
           comprovante_profissao_url: String(r.comprovante_profissao_url ?? ''),
         },
@@ -144,54 +146,52 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
         docs_verificado_por: r.docs_verificado_por ? String(r.docs_verificado_por) : null,
         docs_verificado_em: r.docs_verificado_em ? String(r.docs_verificado_em) : null,
         created_at: String(r.created_at ?? new Date().toISOString()),
+        email: emailMap.get(uid) || null,
+        whatsapp: w,
+        telefone: tel,
       }
     })
 
     const filtered = mapped.filter((x) => {
       if (comunidade && !x.categorias.map((c) => c.toLowerCase()).includes(comunidade.toLowerCase())) return false
-      if (filtros.categoria && filtros.categoria !== 'todas') {
-        if (!x.categorias.map((c) => c.toLowerCase()).includes(filtros.categoria.toLowerCase())) return false
-      }
-      if (!search) return true
-      return x.nome_completo.toLowerCase().includes(search) || x.nome_usuario.toLowerCase().includes(search)
+      return true
     })
     setPendentes(filtered)
-  }, [filtros.busca, filtros.categoria, filtros.periodo, getComunidade])
+  }, [getComunidade])
 
   const fetchEmpresasPendentes = useCallback(async () => {
-    const since = getPeriodoVerificacaoDate(filtros.periodo).toISOString()
-    const search = normalizeBusca(filtros.busca)
     const { data, error } = await supabase
       .from('empresas')
       .select('*')
       .eq('docs_verificado', false)
-      .gte('created_at', since)
       .order('created_at', { ascending: true })
     if (error) throw error
-    const mapped: PendenteEmpresa[] = (data ?? []).map((r: Record<string, unknown>) => {
-      const doc = r.documento_comercial_url ?? r.documento_url ?? r.documento_comercial
+    const rows = (data ?? []) as Record<string, unknown>[]
+    const emailMap = await fetchEmailPorUsuarioIds(rows.map((r) => String(r.usuario_id ?? '')))
+    const mapped: PendenteEmpresa[] = rows.map((r) => {
+      const docRaw = r.documento_comercial_url ?? r.documento_url ?? r.documento_comercial
+      const doc = docRaw ? String(docRaw) : ''
+      const uid = String(r.usuario_id ?? '')
       return {
         id: String(r.id),
-        usuario_id: String(r.usuario_id),
+        usuario_id: uid,
         nome_fantasia: String(r.nome_fantasia ?? ''),
         nome_usuario: String(r.nome_usuario ?? ''),
         categoria: String(r.categoria ?? ''),
         cidade: String(r.cidade ?? ''),
-        documento_url: doc ? String(doc) : null,
+        documento_url: doc || null,
         fotos_url: parseFotosEmpresa(r),
         docs_verificado: Boolean(r.docs_verificado),
         docs_verificado_por: r.docs_verificado_por ? String(r.docs_verificado_por) : null,
         docs_verificado_em: r.docs_verificado_em ? String(r.docs_verificado_em) : null,
         created_at: String(r.created_at ?? new Date().toISOString()),
+        email: emailMap.get(uid) || null,
+        telefone: r.telefone != null && String(r.telefone).trim() ? String(r.telefone).trim() : null,
+        whatsapp: r.whatsapp != null && String(r.whatsapp).trim() ? String(r.whatsapp).trim() : null,
       }
     })
-    setPendentes(
-      mapped.filter((x) => {
-        if (!search) return true
-        return x.nome_fantasia.toLowerCase().includes(search) || x.nome_usuario.toLowerCase().includes(search)
-      })
-    )
-  }, [filtros.busca, filtros.periodo])
+    setPendentes(mapped)
+  }, [])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -332,4 +332,3 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
 
   return { pendentes, contadores, loading, error, marcarDocsVerificado, aprovar, reprovar, aprovarLote, solicitarAcessoDocumentos, refetch: fetchData }
 }
-

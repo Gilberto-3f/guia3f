@@ -92,6 +92,8 @@ export type PendenteTurista = {
   docs_verificado_por: string | null
   docs_verificado_em: string | null
   created_at: string
+  /** E-mail do `usuarios` (enriquecido na listagem admin). */
+  email?: string | null
 }
 
 export type PendenteProfissional = {
@@ -102,11 +104,19 @@ export type PendenteProfissional = {
   foto_url: string | null
   categorias: string[]
   placa_vermelha: boolean
-  documentos: Record<string, string>
+  documentos: {
+    identidade_url: string
+    documento_verso_url: string
+    comprovante_residencia_url: string
+    comprovante_profissao_url: string
+  }
   docs_verificado: boolean
   docs_verificado_por: string | null
   docs_verificado_em: string | null
   created_at: string
+  email?: string | null
+  whatsapp?: string | null
+  telefone?: string | null
 }
 
 export type PendenteEmpresa = {
@@ -122,6 +132,9 @@ export type PendenteEmpresa = {
   docs_verificado_por: string | null
   docs_verificado_em: string | null
   created_at: string
+  email?: string | null
+  telefone?: string | null
+  whatsapp?: string | null
 }
 
 export type PendenteVerificacao = PendenteTurista | PendenteProfissional | PendenteEmpresa
