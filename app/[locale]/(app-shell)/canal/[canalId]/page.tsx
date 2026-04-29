@@ -24,7 +24,7 @@ export default function CanalDetalhePage() {
   const router = useRouter()
   const canalId = params?.canalId != null ? String(params.canalId) : ''
 
-  const { modoAtivo, perfilSimulado, contextoUsuarioId, podeInteragir } = useModoApresentacao()
+  const { modoAtivo, perfilSimulado, podeInteragir } = useModoApresentacao()
   const [userTipo, setUserTipo] = useState<TipoUsuario>(null)
   const [authPronto, setAuthPronto] = useState(false)
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
@@ -45,16 +45,7 @@ export default function CanalDetalhePage() {
     return userTipo
   }, [modoAtivo, perfilSimulado, userTipo])
 
-  const financeUid = useMemo(() => {
-    if (
-      modoAtivo &&
-      contextoUsuarioId &&
-      (perfilSimulado?.tipo === 'profissional' || perfilSimulado?.tipo === 'empresa')
-    ) {
-      return contextoUsuarioId
-    }
-    return usuarioId
-  }, [modoAtivo, contextoUsuarioId, perfilSimulado?.tipo, usuarioId])
+  const financeUid = useMemo(() => usuarioId, [usuarioId])
 
   useEffect(() => {
     const init = async () => {

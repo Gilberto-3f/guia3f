@@ -109,8 +109,8 @@ export default function DashboardEmpresaPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-50 p-6 text-center">
         <p className="max-w-md text-[#001f3f]">
-          Não foi encontrada uma empresa real neste segmento para pré-visualizar o painel. Experimente outro segmento ou saia
-          do modo apresentação.
+          Não foi possível carregar a empresa de demonstração do modo apresentação. Confirme que a migração da base de dados
+          está aplicada, volte ao perfil para escolher o segmento outra vez ou saia do modo apresentação.
         </p>
         <Link
           href="/guia"

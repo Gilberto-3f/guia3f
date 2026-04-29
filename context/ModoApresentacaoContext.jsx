@@ -3,7 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-const STORAGE_KEY = 'guia3f_modo_apresentacao'
+const STORAGE_KEY = 'guia3f_modo_apresentacao_v2'
+const LEGACY_STORAGE_KEY = 'guia3f_modo_apresentacao'
 
 /**
  * @typedef {{
@@ -39,7 +40,7 @@ const ModoApresentacaoContext = createContext(null)
  * @param {unknown} raw
  * @returns {import('./ModoApresentacaoContext.jsx').PerfilSimulado | null}
  */
-function parseStored(raw) {
+function parseStoredPerfil(raw) {
   if (raw == null || typeof raw !== 'object') return null
   const o = /** @type {Record<string, unknown>} */ (raw)
   const tipo = o.tipo
@@ -61,33 +62,127 @@ function parseStored(raw) {
 }
 
 /**
+ * Garante uma linha `empresas` de preview (somente_modo_apresentacao) do próprio ADM, por categoria/segmento.
+ * Nunca reutiliza empresa ou usuario_id de terceiros.
+ * @param {string} adminUserId
+ * @param {string} segmentoDb ex.: gastronomia
+ * @param {string} nomeExibicao
+ * @returns {Promise<string | null>} id da empresa preview ou null
+ */
+async function ensureEmpresaPreviewAdm(adminUserId, segmentoDb, nomeExibicao) {
+  const cat = String(segmentoDb || 'gastronomia').trim() || 'gastronomia'
+  const nomeFantasia = `Preview · ${String(nomeExibicao || 'Empresa').trim()}`
+  const nomeUsuarioBase = `pv_${adminUserId.replace(/-/g, '').slice(0, 12)}`
+
+  const { data: existente, error: selErr } = await supabase
+    .from('empresas')
+    .select('id, nome_usuario')
+    .eq('usuario_id', adminUserId)
+    .eq('somente_modo_apresentacao', true)
+    .maybeSingle()
+
+  if (selErr) {
+    console.error('[modo apresentação] ensureEmpresaPreviewAdm select:', selErr)
+    return null
+  }
+
+  if (existente?.id) {
+    const { error: upErr } = await supabase
+      .from('empresas')
+      .update({
+        categoria: cat,
+        nome_fantasia: nomeFantasia,
+        somente_modo_apresentacao: true,
+      })
+      .eq('id', String(existente.id))
+    if (upErr) {
+      console.error('[modo apresentação] ensureEmpresaPreviewAdm update:', upErr)
+      return null
+    }
+    return String(existente.id)
+  }
+
+  let nomeUsuario = nomeUsuarioBase.slice(0, 20)
+  const payload = {
+    usuario_id: adminUserId,
+    nome_fantasia: nomeFantasia,
+    nome_usuario: nomeUsuario,
+    categoria: cat,
+    cidade: '—',
+    endereco: '—',
+    descricao_curta: 'Demonstração (modo apresentação). Visível só para si.',
+    somente_modo_apresentacao: true,
+  }
+
+  let ins = await supabase.from('empresas').insert(payload)
+  if (ins.error?.message?.includes('nome_usuario') || ins.error?.code === '23505') {
+    const suf = `${Date.now().toString(36).slice(-5)}`
+    nomeUsuario = `pv${adminUserId.replace(/-/g, '').slice(0, 8)}${suf}`.slice(0, 20)
+    ins = await supabase.from('empresas').insert({ ...payload, nome_usuario: nomeUsuario })
+  }
+  if (ins.error) {
+    console.error('[modo apresentação] ensureEmpresaPreviewAdm insert:', ins.error)
+    return null
+  }
+  const row = ins.data
+  const id = row && typeof row === 'object' && 'id' in row ? String(/** @type {{ id: unknown }} */ (row).id) : null
+  return id
+}
+
+/**
  * @returns {{ perfil: import('./ModoApresentacaoContext.jsx').PerfilSimulado | null, contextoUsuarioId: string | null, contextoEmpresaId: string | null } | null}
  */
 function readPersistedState() {
   if (typeof window === 'undefined') return null
   try {
-    const s = sessionStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(STORAGE_KEY)
-    if (!s) return null
-    const legacy = /** @type {string} */ (s)
-    if (legacy === 'turista' || legacy === 'profissional' || legacy === 'empresa') {
+    let s = sessionStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(STORAGE_KEY)
+    if (!s) {
+      const legacy = sessionStorage.getItem(LEGACY_STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY)
+      if (!legacy) return null
+      if (legacy === 'turista' || legacy === 'profissional' || legacy === 'empresa') {
+        return {
+          perfil: {
+            tipo: legacy,
+            categoria: null,
+            segmento: null,
+            nome: legacy === 'turista' ? 'Turista' : legacy === 'empresa' ? 'Empresa' : 'Profissional',
+            iconeKey: legacy === 'turista' ? 'turista' : legacy === 'empresa' ? 'empresa' : 'profissional',
+          },
+          contextoUsuarioId: null,
+          contextoEmpresaId: null,
+        }
+      }
+      try {
+        const j = JSON.parse(legacy)
+        const perfil = parseStoredPerfil(j.perfil)
+        if (!perfil) return null
+        return {
+          perfil,
+          contextoUsuarioId: null,
+          contextoEmpresaId: null,
+        }
+      } catch {
+        return null
+      }
+    }
+    if (s === 'turista' || s === 'profissional' || s === 'empresa') {
       return {
         perfil: {
-          tipo: legacy,
+          tipo: s,
           categoria: null,
           segmento: null,
-          nome: legacy === 'turista' ? 'Turista' : legacy === 'empresa' ? 'Empresa' : 'Profissional',
-          iconeKey: legacy === 'turista' ? 'turista' : legacy === 'empresa' ? 'empresa' : 'profissional',
+          nome: s === 'turista' ? 'Turista' : s === 'empresa' ? 'Empresa' : 'Profissional',
+          iconeKey: s === 'turista' ? 'turista' : s === 'empresa' ? 'empresa' : 'profissional',
         },
         contextoUsuarioId: null,
         contextoEmpresaId: null,
       }
     }
     const j = JSON.parse(s)
-    const perfil = parseStored(j.perfil)
+    const perfil = parseStoredPerfil(j.perfil)
     if (!perfil) return null
-    const contextoUsuarioId = j.contextoUsuarioId != null ? String(j.contextoUsuarioId) : null
     const contextoEmpresaId = j.contextoEmpresaId != null ? String(j.contextoEmpresaId) : null
-    return { perfil, contextoUsuarioId, contextoEmpresaId }
+    return { perfil, contextoUsuarioId: null, contextoEmpresaId }
   } catch {
     return null
   }
@@ -102,6 +197,12 @@ function persistState(perfil, contextoUsuarioId, contextoEmpresaId) {
     })
     sessionStorage.setItem(STORAGE_KEY, payload)
     localStorage.setItem(STORAGE_KEY, payload)
+    try {
+      sessionStorage.removeItem(LEGACY_STORAGE_KEY)
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
+    } catch {
+      /* ignore */
+    }
   } catch {
     /* ignore */
   }
@@ -111,6 +212,8 @@ function clearPersisted() {
   try {
     sessionStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(STORAGE_KEY)
+    sessionStorage.removeItem(LEGACY_STORAGE_KEY)
+    localStorage.removeItem(LEGACY_STORAGE_KEY)
   } catch {
     /* ignore */
   }
@@ -134,7 +237,7 @@ export function ModoApresentacaoProvider({ children }) {
     if (p?.perfil) {
       setModoAtivo(true)
       setPerfilSimulado(p.perfil)
-      setContextoUsuarioId(p.contextoUsuarioId)
+      setContextoUsuarioId(null)
       setContextoEmpresaId(p.contextoEmpresaId)
     }
     setHydrated(true)
@@ -162,11 +265,9 @@ export function ModoApresentacaoProvider({ children }) {
   const ativarModo = useCallback(async (tipo, opcoes = {}) => {
     const nome = opcoes.nome ?? 'Perfil'
     const iconeKey =
-      opcoes.iconeKey ??
-      (tipo === 'empresa' ? 'empresa' : tipo === 'profissional' ? 'profissional' : 'turista')
+      opcoes.iconeKey ?? (tipo === 'empresa' ? 'empresa' : tipo === 'profissional' ? 'profissional' : 'turista')
     const categoria = opcoes.categoria ?? null
     const segmento = opcoes.segmento ?? null
-    const categoriaDb = opcoes.categoriaDb ?? null
     const segmentoDb = opcoes.segmentoDb ?? null
 
     setLoadingAtivacao(true)
@@ -174,25 +275,14 @@ export function ModoApresentacaoProvider({ children }) {
     let ctxEmp = /** @type {string | null} */ (null)
 
     try {
-      if (tipo === 'profissional' && categoriaDb) {
-        const { data, error } = await supabase
-          .from('profissionais')
-          .select('usuario_id')
-          .contains('categorias', [categoriaDb])
-          .limit(1)
-          .maybeSingle()
-        if (!error && data?.usuario_id != null) ctxUid = String(data.usuario_id)
-      } else if (tipo === 'empresa' && segmentoDb) {
-        const { data, error } = await supabase
-          .from('empresas')
-          .select('id, usuario_id')
-          .eq('categoria', segmentoDb)
-          .limit(1)
-          .maybeSingle()
-        if (!error && data) {
-          if (data.id != null) ctxEmp = String(data.id)
-          if (data.usuario_id != null) ctxUid = String(data.usuario_id)
-        }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const myUid = session?.user?.id != null ? String(session.user.id) : null
+
+      if (tipo === 'empresa' && segmentoDb && myUid) {
+        const empId = await ensureEmpresaPreviewAdm(myUid, segmentoDb, nome)
+        ctxEmp = empId
       }
 
       const perfil = /** @type {import('./ModoApresentacaoContext.jsx').PerfilSimulado} */ ({

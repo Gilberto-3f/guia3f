@@ -270,7 +270,7 @@ export default function MenuLateral({
   const [historicoNaoLido, setHistoricoNaoLido] = useState(0)
   const [drawerEntered, setDrawerEntered] = useState(false)
   const { historico: historicoDecisoes, fetchHistoricoUsuario } = useInfracoes()
-  const { modoAtivo, perfilSimulado, contextoUsuarioId, contextoEmpresaId } = useModoApresentacao()
+  const { modoAtivo, perfilSimulado } = useModoApresentacao()
   const modoApresentacaoAtivo = modoAtivo
 
   const [gruposAbertos, setGruposAbertos] = useState(() => ({
@@ -297,8 +297,9 @@ export default function MenuLateral({
     return variant || 'turista'
   })()
 
-  const usuarioIdEfetivo = simulandoComoPerfil && contextoUsuarioId ? contextoUsuarioId : usuarioId
-  const empresaIdEfetivo = simulandoComoPerfil && contextoEmpresaId ? contextoEmpresaId : empresaId
+  /** Identidade social sempre a do utilizador logado (ADM); preview empresa é só noutras rotas. */
+  const usuarioIdEfetivo = usuarioId
+  const empresaIdEfetivo = empresaId
 
   const ctx = { variant: menuVariantEfetivo, placaVermelha, adminLevel }
 

@@ -157,7 +157,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-50 p-6 text-center">
         <p className="max-w-md text-[#001f3f]">
-          Para pré-visualizar a página da empresa, ative o modo apresentação como <b>Empresa</b> e selecione um segmento com empresa real.
+          Para pré-visualizar a página da empresa, ative o modo apresentação como <b>Empresa</b> e escolha um segmento (é criada uma empresa de demonstração só sua, invisível para outros utilizadores).
         </p>
         <Link href="/perfil" className="rounded-full bg-[#0097b2] px-6 py-3 font-semibold text-white hover:opacity-95">
           Ir para o perfil (Modo Apresentação)
