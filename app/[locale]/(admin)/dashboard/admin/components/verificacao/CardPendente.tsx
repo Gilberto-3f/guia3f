@@ -57,16 +57,12 @@ function collectDocThumbs(tipo: 'turistas' | 'profissionais' | 'empresas', raw: 
 export function CardPendente({
   item,
   tipo,
-  checked,
-  onToggle,
   onAprovar,
   onReprovar,
   onDocsVerificado,
 }: {
   item: CadastroPendente
   tipo: 'turistas' | 'profissionais' | 'empresas'
-  checked: boolean
-  onToggle: () => void
   onAprovar: () => void
   onReprovar: (motivo: string) => void
   onDocsVerificado: () => void
@@ -97,14 +93,7 @@ export function CardPendente({
     <>
       <div className="max-h-[85vh] overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="p-4">
-          <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-3">
-            <div className="min-w-0 text-xs text-gray-500">Incluir na aprovação em lote</div>
-            <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs text-gray-600">
-              <input type="checkbox" className="h-4 w-4 rounded border-gray-300" checked={checked} onChange={onToggle} disabled={!item.docsVerificado} />
-            </label>
-          </div>
-
-          <div className="mt-3 break-words text-sm font-semibold text-gray-900">{item.email}</div>
+          <div className="break-words text-sm font-semibold text-gray-900">{item.email}</div>
           <div className="mt-0.5 text-xs text-gray-500">{item.username}</div>
 
           <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-gray-800">
@@ -217,7 +206,7 @@ export function CardPendente({
                 <button
                   type="button"
                   onClick={() => setReprovarAberto((v) => !v)}
-                  className="min-h-[44px] min-w-[120px] rounded-xl border border-rose-200 bg-rose-50 px-5 text-sm font-bold text-rose-800 shadow-sm transition hover:bg-rose-100"
+                  className="min-h-[44px] min-w-[120px] rounded-xl bg-red-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 active:bg-red-800"
                 >
                   REPROVAR
                 </button>

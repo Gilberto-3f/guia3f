@@ -212,24 +212,6 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     void fetchData()
   }, [fetchData])
 
-  const registrarLog = useCallback(
-    async (tipo: PerfilVerificacao, perfilId: string, acao: string, detalhes?: Record<string, unknown>) => {
-      if (!admin) return
-      const raw = admin.admin_permissoes as unknown as { nivel?: number }
-      const adminNivel = typeof raw?.nivel === 'number' ? raw.nivel : admin.admin_level
-      await supabase.from('logs_verificacao').insert({
-        tipo: tipo === 'turistas' ? 'turista' : tipo === 'profissionais' ? 'profissional' : 'empresa',
-        perfil_id: perfilId,
-        acao,
-        admin_id: admin.id,
-        admin_email: admin.email ?? admin.username ?? 'admin',
-        admin_nivel: adminNivel,
-        detalhes: detalhes ?? {},
-      })
-    },
-    [admin]
-  )
-
   const getTableByTipo = (tipo: PerfilVerificacao) =>
     tipo === 'turistas' ? 'turistas' : tipo === 'profissionais' ? 'profissionais' : 'empresas'
 
@@ -302,33 +284,5 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     [admin, fetchData]
   )
 
-  const aprovarLote = useCallback(
-    async (ids: string[], tipo: PerfilVerificacao) => {
-      const table = getTableByTipo(tipo)
-      const { error } = await supabase
-        .from(table)
-        .update({ status: 'aprovado', aprovado_por: admin?.id ?? null, aprovado_em: new Date().toISOString() })
-        .in('id', ids)
-      if (error) throw error
-      await registrarLog(tipo, ids[0] ?? 'lote', 'aprovado_lote', { ids })
-      await fetchData()
-    },
-    [admin?.id, fetchData, registrarLog]
-  )
-
-  const solicitarAcessoDocumentos = useCallback(
-    async (perfilTipo: PerfilVerificacao, perfilId: string, motivo: string) => {
-      if (!admin) throw new Error('Admin não autenticado')
-      const { error } = await supabase.rpc('solicitar_acesso_documentos', {
-        p_solicitante_id: admin.id,
-        p_perfil_tipo: perfilTipo === 'turistas' ? 'turista' : perfilTipo === 'profissionais' ? 'profissional' : 'empresa',
-        p_perfil_id: perfilId,
-        p_motivo: motivo,
-      })
-      if (error) throw error
-    },
-    [admin]
-  )
-
-  return { pendentes, contadores, loading, error, marcarDocsVerificado, aprovar, reprovar, aprovarLote, solicitarAcessoDocumentos, refetch: fetchData }
+  return { pendentes, contadores, loading, error, marcarDocsVerificado, aprovar, reprovar, refetch: fetchData }
 }

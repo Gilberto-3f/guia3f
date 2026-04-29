@@ -3,7 +3,6 @@
 import { Component, type ReactNode, useMemo } from 'react'
 import type { VerificacaoSubabaId } from './SubabasVerificacao'
 import { ListaPendentes } from './ListaPendentes'
-import SolicitacoesAcesso from './SolicitacoesAcesso'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { isAdmGeral } from '../../utils/permissoes'
 
@@ -76,13 +75,6 @@ function VerificacaoContainerInner({ sub }: { sub: string }) {
       ) : (
         <ListaPendentes tipo={activeSub} />
       )}
-
-      {isAdmGeral(admin) ? (
-        <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-sm font-bold text-gray-900">Solicitações de acesso a documentos</div>
-          <SolicitacoesAcesso />
-        </div>
-      ) : null}
     </div>
   )
 }
