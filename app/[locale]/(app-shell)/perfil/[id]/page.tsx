@@ -498,23 +498,26 @@ export default function PerfilSocialPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <header className="sticky top-0 z-30 border-b border-gray-100 bg-white">
-        <div className="relative flex items-center justify-between gap-3 px-4 py-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="-ml-2 rounded-full p-2 transition-colors hover:bg-gray-100"
-            aria-label="Voltar"
-          >
-            <ArrowLeft size={24} className="text-gray-600" />
-          </button>
-
-          <div className="pointer-events-none absolute left-1/2 top-1/2 w-[min(60vw,320px)] -translate-x-1/2 -translate-y-1/2 text-center">
-            <span className={`block truncate font-medium text-gray-600 ${usernameTextClass}`}>
+        <div className="flex items-center justify-between gap-2 px-4 py-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="-ml-2 rounded-full p-2 transition-colors hover:bg-gray-100"
+              aria-label="Voltar"
+            >
+              <ArrowLeft size={22} className="text-gray-600" />
+            </button>
+            <span
+              className={`block min-w-0 max-w-[min(55vw,360px)] truncate font-normal text-gray-600 ${
+                displayUsernameRaw.length > 10 ? 'text-[15px]' : 'text-[16px]'
+              }`}
+            >
               @{displayUsername || 'usuario'}
             </span>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
             {mostrarBotaoSeguir ? (
               <BotaoSeguir
                 alvoId={profileId}
@@ -529,7 +532,7 @@ export default function PerfilSocialPage() {
               <button
                 type="button"
                 onClick={() => setMenuAberto(true)}
-                className="shrink-0 rounded-full bg-black/5 px-3 py-2 text-lg font-bold leading-none text-gray-900 hover:bg-black/10"
+                className="shrink-0 rounded-full px-2 py-1 text-[26px] font-bold leading-none text-[#0097b2] transition-colors hover:bg-[#0097b2]/10"
                 aria-label="Menu"
               >
                 ☰⋮

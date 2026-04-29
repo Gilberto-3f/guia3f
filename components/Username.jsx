@@ -4,5 +4,12 @@
  * @param {{ username: string }} props
  */
 export default function Username({ username }) {
-  return <span className="font-medium text-gray-600">@{username}</span>
+  const raw = String(username ?? '').trim().replace(/^@+/, '')
+  const shown = raw.length > 15 ? `${raw.slice(0, 15)}…` : raw
+  const size = raw.length > 10 ? 'text-[15px]' : 'text-[16px]'
+  return (
+    <span className={`block max-w-[min(55vw,360px)] truncate font-normal text-gray-600 ${size}`}>
+      @{shown || 'usuario'}
+    </span>
+  )
 }
