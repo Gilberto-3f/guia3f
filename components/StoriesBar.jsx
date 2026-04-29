@@ -13,6 +13,11 @@ import {
   visualizadoPorEmails,
 } from '@/lib/feed-autor'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
+import {
+  escolherIdStoryInicialPorEmail,
+  ordenarStoriesPorCreatedAsc,
+  visualizadoPorConsolidadoParaAnel,
+} from '@/lib/story-open-order'
 import StoryCircle from '@/components/StoryCircle'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
@@ -226,18 +231,23 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       return seguidosIds.has(aid)
     })
 
-    const byAutor = /** @type {Map<string, NonNullable<typeof storiesFiltradas>[0]>} */ (new Map())
+    /** Todos os stories por autor (foto), ordenados do mais antigo ao mais novo. */
+    const storiesPorAutorArr = /** @type {Map<string, NonNullable<typeof storiesFiltradas>>} */ (new Map())
     for (const s of storiesFiltradas) {
       const aid = String(s.autor_id)
-      if (!byAutor.has(aid)) byAutor.set(aid, s)
+      if (!storiesPorAutorArr.has(aid)) storiesPorAutorArr.set(aid, [])
+      storiesPorAutorArr.get(aid).push(s)
+    }
+    for (const arr of storiesPorAutorArr.values()) {
+      ordenarStoriesPorCreatedAsc(arr)
     }
 
-    const meuStoryRow = byAutor.get(uid)
-    const meuTemStoryRow = meuStoryRow && !isTipoVideoPost(meuStoryRow.tipo)
+    const meuArr = storiesPorAutorArr.get(uid) ?? []
+    const meuAbrirId = escolherIdStoryInicialPorEmail(meuArr, userEmail)
     setMeuSlot({
       avatarUrl: meuAvatarUrl,
-      storyId: meuTemStoryRow ? String(meuStoryRow.id) : null,
-      visualizado_por: meuStoryRow?.visualizado_por ?? null,
+      storyId: meuAbrirId,
+      visualizado_por: visualizadoPorConsolidadoParaAnel(meuArr, userEmail),
     })
 
     const obrAutor = destaque?.usuario_id != null ? String(destaque.usuario_id) : null
@@ -248,7 +258,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
 
     const pushAid = (aid) => {
       if (ordered.length >= MAX_STORY_RINGS) return false
-      if (seen.has(aid) || !byAutor.has(aid)) return false
+      if (seen.has(aid) || !storiesPorAutorArr.has(aid)) return false
       ordered.push(aid)
       seen.add(aid)
       return true
@@ -257,11 +267,17 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     seen.add(uid)
 
     // 1) Seguidos turista/profissional (não empresa)
-    const seguidosNaoEmpresa = [...byAutor.entries()]
-      .filter(([aid, s]) => aid !== uid && seguidosIds.has(aid) && !isAutorEmpresa(s.autor_tipo) && !empresaAutorSet.has(aid))
+    const seguidosNaoEmpresa = [...storiesPorAutorArr.entries()]
+      .filter(([aid, arr]) => {
+        if (aid === uid || !seguidosIds.has(aid) || empresaAutorSet.has(aid)) return false
+        const s0 = arr[0]
+        return s0 && !isAutorEmpresa(s0.autor_tipo)
+      })
       .sort((a, b) => {
-        const ta = new Date(/** @type {string} */ (a[1].created_at ?? 0)).getTime()
-        const tb = new Date(/** @type {string} */ (b[1].created_at ?? 0)).getTime()
+        const aa = a[1]
+        const bb = b[1]
+        const ta = aa.length ? new Date(String(aa[aa.length - 1].created_at ?? 0)).getTime() : 0
+        const tb = bb.length ? new Date(String(bb[bb.length - 1].created_at ?? 0)).getTime() : 0
         return tb - ta
       })
     for (const [aid] of seguidosNaoEmpresa) {
@@ -270,10 +286,12 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     }
 
     // 2) Stories de empresas (visíveis para todos) — intercala destaque publicitário
-    const empresaComStory = [...byAutor.keys()].filter((aid) => empresaAutorSet.has(aid))
-    const sObr = obrAutor ? byAutor.get(obrAutor) : null
-    const obrEmpresaValido = obrAutor && sObr && (isAutorEmpresa(sObr.autor_tipo) || empresaAutorSet.has(obrAutor)) ? obrAutor : null
-    const obrFinal = obrEmpresaValido ?? empresaComStory.find((a) => byAutor.has(a)) ?? null
+    const empresaComStory = [...storiesPorAutorArr.keys()].filter((aid) => empresaAutorSet.has(aid))
+    const arrObr = obrAutor ? storiesPorAutorArr.get(obrAutor) : null
+    const sObr = arrObr?.length ? arrObr[arrObr.length - 1] : null
+    const obrEmpresaValido =
+      obrAutor && sObr && (isAutorEmpresa(sObr.autor_tipo) || empresaAutorSet.has(obrAutor)) ? obrAutor : null
+    const obrFinal = obrEmpresaValido ?? empresaComStory.find((a) => storiesPorAutorArr.has(a)) ?? null
     const ordemEmpresa = intercalar(empresaComStory, obrFinal, 24)
     for (const aid of ordemEmpresa) {
       if (ordered.length >= MAX_STORY_RINGS) break
@@ -349,14 +367,16 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
 
     const built = ordered
       .map((aid) => {
-        const s = byAutor.get(aid)
-        if (!s) return null
+        const arr = storiesPorAutorArr.get(aid)
+        if (!arr?.length) return null
+        const abrirId = escolherIdStoryInicialPorEmail(arr, userEmail)
+        if (!abrirId) return null
         const avatarUrl = previews[aid] ?? null
         return {
-          id: String(s.id),
+          id: abrirId,
           label: labels[aid] ?? 'Usuário',
           avatarUrl,
-          visualizado_por: s.visualizado_por,
+          visualizado_por: visualizadoPorConsolidadoParaAnel(arr, userEmail),
         }
       })
       .filter(Boolean)

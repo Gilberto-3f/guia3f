@@ -5,6 +5,11 @@ import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
 import { fetchPatrocinioAutorIds, isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
+import {
+  escolherIdStoryInicialPorEmail,
+  ordenarStoriesPorCreatedAsc,
+  visualizadoPorConsolidadoParaAnel,
+} from '@/lib/story-open-order'
 import StoriesBar from '@/components/StoriesBar'
 import PostCard from '@/components/PostCard'
 import { POST_DELETED_EVENT } from '@/components/MenuPost'
@@ -146,7 +151,7 @@ function FeedPageInner() {
     setStoriesBarReload((n) => n + 1)
   }, [])
 
-  const carregarStoriesAutores = useCallback(async (lista: PostFeedRow[]) => {
+  const carregarStoriesAutores = useCallback(async (lista: PostFeedRow[], viewerEmail: string | null) => {
     try {
       const ids = [...new Set(lista.map((p) => p.autor?.usuario_id).filter(Boolean))]
       if (ids.length === 0) {
@@ -158,22 +163,37 @@ function FeedPageInner() {
         .select('id, autor_id, visualizado_por, created_at, tipo, conteudo_url')
         .in('autor_id', ids)
         .gt('expira_em', new Date().toISOString())
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: true })
       if (error) {
         console.error(error)
         return
       }
-      const map: Record<string, { id: string; visualizado_por: unknown; conteudo_url?: string | null }> = {}
+      type StoryAggRow = {
+        id: unknown
+        autor_id?: unknown
+        visualizado_por?: unknown
+        created_at?: unknown
+        tipo?: unknown
+        conteudo_url?: unknown
+      }
+      const porAutor = new Map<string, StoryAggRow[]>()
       for (const row of data ?? []) {
         if (isTipoVideoPost((row as { tipo?: string }).tipo)) continue
-        const aid = String(row.autor_id)
-        if (!map[aid]) {
-          const r = row as { id: unknown; visualizado_por: unknown; conteudo_url?: unknown }
-          map[aid] = {
-            id: String(r.id),
-            visualizado_por: r.visualizado_por,
-            conteudo_url: r.conteudo_url != null ? String(r.conteudo_url) : null,
-          }
+        const aid = String((row as { autor_id: unknown }).autor_id)
+        if (!porAutor.has(aid)) porAutor.set(aid, [])
+        porAutor.get(aid)!.push(row as StoryAggRow)
+      }
+      const map: Record<string, { id: string; visualizado_por: unknown; conteudo_url?: string | null }> = {}
+      for (const [aid, arrRaw] of porAutor) {
+        const asc = ordenarStoriesPorCreatedAsc(arrRaw)
+        const abrirId = escolherIdStoryInicialPorEmail(asc, viewerEmail)
+        if (!abrirId) continue
+        const latest = asc[asc.length - 1]
+        const r = latest as { conteudo_url?: unknown }
+        map[aid] = {
+          id: abrirId,
+          visualizado_por: visualizadoPorConsolidadoParaAnel(asc, viewerEmail),
+          conteudo_url: r.conteudo_url != null ? String(r.conteudo_url) : null,
         }
       }
       setStoriesPorAutor(map)
@@ -427,8 +447,8 @@ function FeedPageInner() {
   }, [loadMore, posts.length])
 
   useEffect(() => {
-    void carregarStoriesAutores(posts)
-  }, [posts, storiesBarReload, carregarStoriesAutores])
+    void carregarStoriesAutores(posts, email)
+  }, [posts, storiesBarReload, carregarStoriesAutores, email])
 
   useEffect(() => {
     storyModalRef.current = storyModal
@@ -451,32 +471,37 @@ function FeedPageInner() {
 
   const abrirStory = useCallback(
     async (id: string) => {
-      const first = await carregarStoryPorId(id)
-      if (!first) return
-      const autorId = first.autorUsuarioId
+      const firstClick = await carregarStoryPorId(id)
+      if (!firstClick) return
+      const autorId = firstClick.autorUsuarioId
       let ids = [id]
       let index = 0
+      let dataToShow = firstClick
       if (autorId) {
         const { data: rows, error } = await supabase
           .from('stories')
-          .select('id, tipo, created_at')
+          .select('id, tipo, created_at, visualizado_por')
           .eq('autor_id', autorId)
           .gt('expira_em', new Date().toISOString())
           .order('created_at', { ascending: true })
         if (!error && rows?.length) {
-          const filtered = rows
-            .filter((r) => !isTipoVideoPost((r as { tipo?: string }).tipo))
-            .map((r) => String((r as { id: unknown }).id))
-          if (filtered.length > 0) {
-            ids = filtered
-            const i = ids.indexOf(id)
-            index = i >= 0 ? i : 0
+          const asc = rows.filter((r) => !isTipoVideoPost((r as { tipo?: string }).tipo))
+          if (asc.length > 0) {
+            const startId = escolherIdStoryInicialPorEmail(asc, email) ?? String((asc[0] as { id: unknown }).id)
+            ids = asc.map((r) => String((r as { id: unknown }).id))
+            index = ids.indexOf(startId)
+            if (index < 0) index = 0
+            if (startId !== firstClick.id) {
+              const mapped = await carregarStoryPorId(startId)
+              if (!mapped) return
+              dataToShow = mapped
+            }
           }
         }
       }
-      setStoryModal({ ids, index, data: first, playbackKey: 0 })
+      setStoryModal({ ids, index, data: dataToShow, playbackKey: 0 })
     },
-    [carregarStoryPorId]
+    [carregarStoryPorId, email]
   )
 
   const fecharStoryModal = useCallback(() => {
