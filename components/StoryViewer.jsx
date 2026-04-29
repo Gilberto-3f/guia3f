@@ -81,6 +81,50 @@ function normalizarCurtidasRawParaArray(raw) {
 }
 
 /**
+ * Última curtida mais recente por utilizador → ordena ids do mais recente ao mais antigo.
+ * @param {{ usuario_id: string, created_at?: string }[]} curtidasLista
+ * @returns {string[]}
+ */
+function ordenarUsuarioIdsPorCurtidaRecente(curtidasLista) {
+  /** @type {Map<string, number>} */
+  const lastTs = new Map()
+  for (const c of curtidasLista) {
+    const uid = c.usuario_id
+    if (!uid) continue
+    const t = c.created_at ? Date.parse(c.created_at) : NaN
+    const ts = Number.isFinite(t) ? t : 0
+    const prev = lastTs.get(uid)
+    if (prev == null || ts >= prev) lastTs.set(uid, ts)
+  }
+  const ids = [...new Set(curtidasLista.map((c) => c.usuario_id).filter(Boolean))]
+  return ids.sort((a, b) => (lastTs.get(b) ?? 0) - (lastTs.get(a) ?? 0))
+}
+
+/**
+ * @param {Record<string, unknown> | null | undefined} p linha `perfis_para_busca`
+ */
+function rotuloDePerfilStory(p) {
+  if (!p || typeof p !== 'object') return 'Usuário'
+  const username = p.username != null ? String(p.username).trim() : ''
+  if (username && username.toLowerCase() !== 'usuario') {
+    return username.startsWith('@') ? username : `@${username.replace(/^@/, '')}`
+  }
+  const nome = p.nome != null ? String(p.nome).trim() : ''
+  return nome || 'Usuário'
+}
+
+/** @param {string} rotulo */
+function iniciaisRotulo(rotulo) {
+  const s = String(rotulo ?? '')
+    .replace(/^@/, '')
+    .trim()
+  if (!s) return '?'
+  const parts = s.split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase().slice(0, 2)
+  return s.slice(0, 2).toUpperCase()
+}
+
+/**
  * @param {{
  *   story: {
  *     id: string
@@ -150,7 +194,10 @@ export default function StoryViewer({
   const [curtirBusy, setCurtirBusy] = useState(false)
   const [modalInsights, setModalInsights] = useState(false)
   const [curtidasInsights, setCurtidasInsights] = useState(
-    /** @type {{ usuario_id: string, rotulo: string, foto: string | null }[]} */ ([])
+    /** @type {{ usuario_id: string, rotulo: string, foto: string | null, tipo?: string | null, empresa_id?: string | null }[]} */ ([])
+  )
+  const [visualizacoesInsights, setVisualizacoesInsights] = useState(
+    /** @type {{ usuario_id: string | null, email: string | null, rotulo: string, foto: string | null, tipo?: string | null, empresa_id?: string | null }[]} */ ([])
   )
   const [carregandoInsights, setCarregandoInsights] = useState(false)
 
@@ -180,17 +227,96 @@ export default function StoryViewer({
 
   useEffect(() => {
     if (!modalInsights || !story?.id) {
-      if (!modalInsights) setCurtidasInsights([])
+      if (!modalInsights) {
+        setCurtidasInsights([])
+        setVisualizacoesInsights([])
+      }
       return
     }
     let cancel = false
     setCarregandoInsights(true)
-    const ids = [...new Set(curtidasLista.map((c) => c.usuario_id).filter(Boolean))]
+
     void (async () => {
-      const rows = await Promise.all(
-        ids.map(async (usuario_id) => {
-          let rotulo = await fetchNomeUsuarioParaStory(supabase, usuario_id)
-          if (rotulo) rotulo = rotulo.startsWith('@') ? rotulo : `@${rotulo.replace(/^@/, '')}`
+      const emailsVis = visualizadoPorEmails(story.visualizado_por)
+      /** Visualizações mais recentes primeiro (último append no JSON = mais recente). */
+      const visRecentFirst = /** @type {string[]} */ ([])
+      const seenEm = new Set()
+      for (let i = emailsVis.length - 1; i >= 0; i -= 1) {
+        const raw = String(emailsVis[i] ?? '').trim()
+        if (!raw) continue
+        const k = raw.toLowerCase()
+        if (seenEm.has(k)) continue
+        seenEm.add(k)
+        visRecentFirst.push(raw)
+      }
+
+      const likeOrderRecent = ordenarUsuarioIdsPorCurtidaRecente(curtidasLista)
+      /** @type {Map<string, number>} */
+      const lastLikeTs = new Map()
+      for (const c of curtidasLista) {
+        const uid = c.usuario_id
+        if (!uid) continue
+        const t = c.created_at ? Date.parse(c.created_at) : NaN
+        const ts = Number.isFinite(t) ? t : 0
+        const prev = lastLikeTs.get(uid)
+        if (prev == null || ts >= prev) lastLikeTs.set(uid, ts)
+      }
+
+      const visSet = new Set(emailsVis.map((e) => String(e).trim().toLowerCase()).filter(Boolean))
+
+      /** @type {Map<string, string>} */
+      const emailByUserId = new Map()
+      if (likeOrderRecent.length > 0) {
+        const { data: likerRows, error: le } = await supabase.from('usuarios').select('id, email').in('id', likeOrderRecent)
+        if (le) console.error('[StoryViewer] insights likers:', le)
+        for (const r of likerRows ?? []) {
+          const id = r?.id != null ? String(r.id) : ''
+          const em = r?.email != null ? String(r.email).trim() : ''
+          if (id && em) emailByUserId.set(id, em)
+        }
+      }
+
+      /** @type {Map<string, { id: string, email: string }>} */
+      const userByEmailLower = new Map()
+      if (visRecentFirst.length > 0) {
+        const { data: viewerRows, error: ve } = await supabase
+          .from('usuarios')
+          .select('id, email')
+          .in('email', visRecentFirst)
+        if (ve) console.error('[StoryViewer] insights viewers:', ve)
+        for (const r of viewerRows ?? []) {
+          const id = r?.id != null ? String(r.id) : ''
+          const em = r?.email != null ? String(r.email).trim() : ''
+          if (id && em) userByEmailLower.set(em.toLowerCase(), { id, email: em })
+        }
+      }
+
+      const allIds = /** @type {string[]} */ ([
+        ...likeOrderRecent,
+        ...[...userByEmailLower.values()].map((u) => u.id).filter((id) => !likeOrderRecent.includes(id)),
+      ])
+      const uniqIds = [...new Set(allIds.filter(Boolean))]
+
+      /** @type {Map<string, Record<string, unknown>>} */
+      const perfilPorId = new Map()
+      if (uniqIds.length > 0) {
+        const { data: perfis, error: pe } = await supabase
+          .from('perfis_para_busca')
+          .select('usuario_id, empresa_id, tipo, foto_url, nome, username')
+          .in('usuario_id', uniqIds)
+        if (pe) console.error('[StoryViewer] insights perfis:', pe)
+        for (const p of perfis ?? []) {
+          const uid = p?.usuario_id != null ? String(p.usuario_id) : ''
+          if (uid) perfilPorId.set(uid, /** @type {Record<string, unknown>} */ (p))
+        }
+      }
+
+      const montarLinha = async (usuario_id) => {
+        const p = perfilPorId.get(usuario_id)
+        let rotulo = rotuloDePerfilStory(p ?? null)
+        if (rotulo === 'Usuário') {
+          const nu = await fetchNomeUsuarioParaStory(supabase, usuario_id)
+          if (nu) rotulo = nu.startsWith('@') ? nu : `@${nu.replace(/^@/, '')}`
           else {
             const { data: emp } = await supabase
               .from('empresas')
@@ -199,18 +325,62 @@ export default function StoryViewer({
               .maybeSingle()
             rotulo = emp?.nome_fantasia != null ? String(emp.nome_fantasia).trim() : 'Usuário'
           }
-          const foto = await fetchFotoPerfilUsuario(supabase, usuario_id)
-          return { usuario_id, rotulo, foto }
+        }
+        let foto = p?.foto_url != null ? String(p.foto_url).trim() : null
+        if (!foto) foto = await fetchFotoPerfilUsuario(supabase, usuario_id)
+        const tipo = p?.tipo != null ? String(p.tipo) : null
+        const empresa_id = p?.empresa_id != null ? String(p.empresa_id) : null
+        return { usuario_id, rotulo, foto, tipo, empresa_id }
+      }
+
+      const sortedLikeIds = [...likeOrderRecent].sort((a, b) => {
+        const emA = (emailByUserId.get(a) ?? '').toLowerCase()
+        const emB = (emailByUserId.get(b) ?? '').toLowerCase()
+        const aViu = emA && visSet.has(emA)
+        const bViu = emB && visSet.has(emB)
+        if (aViu !== bViu) return aViu ? -1 : 1
+        return (lastLikeTs.get(b) ?? 0) - (lastLikeTs.get(a) ?? 0)
+      })
+
+      const curtRows = await Promise.all(sortedLikeIds.map((id) => montarLinha(id)))
+
+      const visRows = await Promise.all(
+        visRecentFirst.map(async (emRaw) => {
+          const em = String(emRaw).trim()
+          const u = userByEmailLower.get(em.toLowerCase())
+          if (u) {
+            const line = await montarLinha(u.id)
+            return { usuario_id: line.usuario_id, email: em, rotulo: line.rotulo, foto: line.foto, tipo: line.tipo, empresa_id: line.empresa_id }
+          }
+          return {
+            usuario_id: null,
+            email: em,
+            rotulo: em,
+            foto: null,
+            tipo: null,
+            empresa_id: null,
+          }
         })
       )
+
+      const visSorted = [...visRows].sort((a, b) => {
+        const aCurtiu = a.usuario_id && likeOrderRecent.includes(a.usuario_id)
+        const bCurtiu = b.usuario_id && likeOrderRecent.includes(b.usuario_id)
+        if (aCurtiu !== bCurtiu) return aCurtiu ? -1 : 1
+        const ia = visRecentFirst.findIndex((e) => e.toLowerCase() === (a.email ?? '').toLowerCase())
+        const ib = visRecentFirst.findIndex((e) => e.toLowerCase() === (b.email ?? '').toLowerCase())
+        return ia - ib
+      })
+
       if (cancel) return
-      setCurtidasInsights(rows)
+      setCurtidasInsights(curtRows)
+      setVisualizacoesInsights(visSorted)
       setCarregandoInsights(false)
     })()
     return () => {
       cancel = true
     }
-  }, [modalInsights, story?.id, curtidasLista])
+  }, [modalInsights, story?.id, story?.visualizado_por, curtidasLista])
 
   useEffect(() => {
     playingRef.current = playing
@@ -496,6 +666,46 @@ export default function StoryViewer({
   const souAutor = Boolean(uid && autorId && uid === autorId)
   const emailsVisualizacao = visualizadoPorEmails(story.visualizado_por)
 
+  /**
+   * @param {{ usuario_id: string | null, rotulo: string, foto: string | null, tipo?: string | null, empresa_id?: string | null }} row
+   * @param {string} key
+   */
+  const linhaInsight = (row, key) => {
+    const href = row.usuario_id
+      ? getPerfilHref({
+          usuario_id: String(row.usuario_id),
+          tipo: String(row.tipo ?? ''),
+          empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
+          role: row.empresa_id ? 'empresa' : undefined,
+        })
+      : null
+    const avatarInner = row.foto ? (
+      <AvatarImage src={row.foto} alt="" width={44} height={44} className="h-full w-full object-cover" />
+    ) : (
+      <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0097b2]/80 to-[#006b7d] text-[11px] font-bold uppercase tracking-wide text-white">
+        {iniciaisRotulo(row.rotulo)}
+      </span>
+    )
+    const corpo = (
+      <div className="flex items-center gap-3 rounded-xl px-1 py-2 transition hover:bg-white/5">
+        <span className="relative block h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white/15 ring-1 ring-white/10">
+          {avatarInner}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">{row.rotulo}</span>
+      </div>
+    )
+    if (href) {
+      return (
+        <li key={key}>
+          <Link href={href} className="block" onClick={() => setModalInsights(false)}>
+            {corpo}
+          </Link>
+        </li>
+      )
+    }
+    return <li key={key}>{corpo}</li>
+  }
+
   const togglePlay = () => {
     const v = videoRef.current
     if (!v) return
@@ -777,9 +987,9 @@ export default function StoryViewer({
             aria-label="Fechar"
             onClick={() => setModalInsights(false)}
           />
-          <div className="relative z-[1] flex max-h-[min(72dvh,560px)] w-full max-w-md flex-col rounded-t-2xl border border-white/10 bg-zinc-900 shadow-2xl sm:rounded-2xl">
-            <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
-              <h2 className="text-sm font-semibold text-white">Curtidas e visualizações</h2>
+          <div className="relative z-[1] flex h-[min(66dvh,88vh)] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-zinc-900 shadow-2xl sm:h-[min(68vh,90vh)] sm:max-h-[min(90vh,900px)] sm:max-w-xl sm:rounded-3xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-4">
+              <h2 className="text-base font-semibold text-white">Curtidas e visualizações</h2>
               <button
                 type="button"
                 onClick={() => setModalInsights(false)}
@@ -789,49 +999,32 @@ export default function StoryViewer({
                 <X size={22} />
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-white/50">Curtiram</p>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
               {carregandoInsights ? (
-                <p className="py-4 text-center text-sm text-white/60">A carregar…</p>
-              ) : curtidasInsights.length === 0 ? (
-                <p className="py-2 text-sm text-white/60">Ainda ninguém curtiu.</p>
+                <p className="py-12 text-center text-sm text-white/60">A carregar…</p>
               ) : (
-                <ul className="space-y-2 pb-4">
-                  {curtidasInsights.map((row) => (
-                    <li key={row.usuario_id}>
-                      <Link
-                        href={getPerfilHref({
-                          usuario_id: String(row.usuario_id),
-                          tipo: String(row.tipo ?? ''),
-                          empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
-                        })}
-                        className="flex items-center gap-3 rounded-lg py-1.5 transition hover:bg-white/5"
-                        onClick={() => setModalInsights(false)}
-                      >
-                        <span className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white/15">
-                          {row.foto ? (
-                            <AvatarImage src={row.foto} alt="" width={40} height={40} className="h-full w-full object-cover" />
-                          ) : (
-                            <span className="flex h-full w-full items-center justify-center text-xs text-white/60">?</span>
-                          )}
-                        </span>
-                        <span className="min-w-0 truncate text-sm font-medium text-white">{row.rotulo}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="mb-2 mt-2 text-xs font-medium uppercase tracking-wide text-white/50">Visualizaram</p>
-              {emailsVisualizacao.length === 0 ? (
-                <p className="py-2 text-sm text-white/60">Ainda sem registos de visualização.</p>
-              ) : (
-                <ul className="space-y-1.5">
-                  {emailsVisualizacao.map((email) => (
-                    <li key={email} className="truncate text-sm text-white/90">
-                      {email}
-                    </li>
-                  ))}
-                </ul>
+                <div className="space-y-8">
+                  <section>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/45">Curtiram</p>
+                    {curtidasInsights.length === 0 ? (
+                      <p className="py-2 text-sm text-white/60">Ainda ninguém curtiu.</p>
+                    ) : (
+                      <ul className="space-y-1">{curtidasInsights.map((row) => linhaInsight(row, `c-${row.usuario_id}`))}</ul>
+                    )}
+                  </section>
+                  <section>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/45">Visualizaram</p>
+                    {visualizacoesInsights.length === 0 ? (
+                      <p className="py-2 text-sm text-white/60">Ainda ninguém visualizou.</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {visualizacoesInsights.map((row, i) =>
+                          linhaInsight(row, row.usuario_id ? `v-${row.usuario_id}` : `v-e-${row.email ?? i}`)
+                        )}
+                      </ul>
+                    )}
+                  </section>
+                </div>
               )}
             </div>
           </div>
