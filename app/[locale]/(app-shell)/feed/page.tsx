@@ -53,6 +53,7 @@ type StoryViewerState = {
     posicao_y?: number
     link_posicao_x?: number
     link_posicao_y?: number
+    fundo_fit?: 'contain' | 'cover'
     fundo_scale?: number
     fundo_pan_x_pct?: number
     fundo_pan_y_pct?: number

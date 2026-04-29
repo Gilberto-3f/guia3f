@@ -55,6 +55,7 @@ export default function EditorStory({
       <div className="flex min-h-0 flex-1 flex-col items-stretch justify-center px-0 pb-0 pt-0">
         <StoryCanvas
           layout="editorFill"
+          imageObjectFit="contain"
           mediaSrc={mediaSrc}
           legenda={legenda.trim()}
           posicaoLegenda={posicao}

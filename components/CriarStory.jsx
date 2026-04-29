@@ -150,6 +150,7 @@ export default function CriarStory({ autorTipo }) {
           posicao_y: posicao.y,
           link_posicao_x: posicaoLink.x,
           link_posicao_y: posicaoLink.y,
+          fundo_fit: 'contain',
           fundo_scale: fundo.scale,
           fundo_pan_x_pct: fundo.pan_x_pct,
           fundo_pan_y_pct: fundo.pan_y_pct,

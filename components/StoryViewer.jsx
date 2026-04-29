@@ -136,6 +136,7 @@ function iniciaisRotulo(rotulo) {
  *       posicao_y?: number
  *       link_posicao_x?: number
  *       link_posicao_y?: number
+ *       fundo_fit?: 'contain' | 'cover'
  *       fundo_scale?: number
  *       fundo_pan_x_pct?: number
  *       fundo_pan_y_pct?: number
@@ -647,7 +648,7 @@ export default function StoryViewer({
   if (!story) return null
 
   const tx = story.texto_sobreposto && typeof story.texto_sobreposto === 'object' && !Array.isArray(story.texto_sobreposto)
-    ? /** @type {{ texto?: string | null, posicao_x?: number, posicao_y?: number, link_posicao_x?: number, link_posicao_y?: number, fundo_scale?: number, fundo_pan_x_pct?: number, fundo_pan_y_pct?: number, texto_scale?: number }} */ (
+    ? /** @type {{ texto?: string | null, posicao_x?: number, posicao_y?: number, link_posicao_x?: number, link_posicao_y?: number, fundo_fit?: string, fundo_scale?: number, fundo_pan_x_pct?: number, fundo_pan_y_pct?: number, texto_scale?: number }} */ (
         story.texto_sobreposto
       )
     : null
@@ -660,6 +661,7 @@ export default function StoryViewer({
     pan_x_pct: typeof tx?.fundo_pan_x_pct === 'number' ? tx.fundo_pan_x_pct : 0,
     pan_y_pct: typeof tx?.fundo_pan_y_pct === 'number' ? tx.fundo_pan_y_pct : 0,
   }
+  const imageObjectFit = tx?.fundo_fit === 'contain' ? 'contain' : 'cover'
   const legendaStr = tx?.texto != null ? String(tx.texto).trim() : ''
   const linkStr = story.link != null ? String(story.link).trim() : ''
   const textoScale = typeof tx?.texto_scale === 'number' && Number.isFinite(tx.texto_scale) ? tx.texto_scale : 1
@@ -787,6 +789,7 @@ export default function StoryViewer({
           <div className="absolute inset-0">
             <StoryCanvas
               layout="viewerCover"
+              imageObjectFit={imageObjectFit}
               mediaSrc={story.conteudo_url}
               legenda={legendaStr}
               posicaoLegenda={{ x: px, y: py }}

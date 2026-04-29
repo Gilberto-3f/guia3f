@@ -12,16 +12,31 @@ function clamp(min, v, max) {
 }
 
 /**
- * Calcula os limites de pan em % para manter a imagem cobrindo a área.
+ * Limites de pan (%) com imagem em “cover” (preenche o quadro; recorte central).
  * @param {{ areaW: number, areaH: number, imgW: number, imgH: number, scale: number }} args
  */
-function panLimPct({ areaW, areaH, imgW, imgH, scale }) {
+function panLimPctCover({ areaW, areaH, imgW, imgH, scale }) {
   if (!areaW || !areaH || !imgW || !imgH) return { limX: 0, limY: 0 }
   const cover = Math.max(areaW / imgW, areaH / imgH)
   const dispW = imgW * cover * scale
   const dispH = imgH * cover * scale
   const overX = Math.max(0, (dispW - areaW) / 2)
   const overY = Math.max(0, (dispH - areaH) / 2)
+  return { limX: (overX / areaW) * 100, limY: (overY / areaH) * 100 }
+}
+
+/**
+ * Limites de pan (%) com imagem em “contain” (foto inteira visível; zoom ≥1).
+ * Permite deslocar quando há letterbox ou quando o zoom ultrapassa o quadro.
+ * @param {{ areaW: number, areaH: number, imgW: number, imgH: number, scale: number }} args
+ */
+function panLimPctContain({ areaW, areaH, imgW, imgH, scale }) {
+  if (!areaW || !areaH || !imgW || !imgH) return { limX: 0, limY: 0 }
+  const fit = Math.min(areaW / imgW, areaH / imgH)
+  const dispW = imgW * fit * scale
+  const dispH = imgH * fit * scale
+  const overX = Math.abs(dispW - areaW) / 2
+  const overY = Math.abs(dispH - areaH) / 2
   return { limX: (overX / areaW) * 100, limY: (overY / areaH) * 100 }
 }
 
@@ -33,8 +48,12 @@ function panLimPct({ areaW, areaH, imgW, imgH, scale }) {
  * @param {number} py
  * @param {{ areaW: number, areaH: number, imgW: number, imgH: number }} geo
  */
-function clampFundoPan(scale, px, py, geo) {
-  const { limX, limY } = panLimPct({ ...geo, scale })
+/**
+ * @param {'cover' | 'contain'} imageObjectFit
+ */
+function clampFundoPan(scale, px, py, geo, imageObjectFit) {
+  const limFn = imageObjectFit === 'contain' ? panLimPctContain : panLimPctCover
+  const { limX, limY } = limFn({ ...geo, scale })
   return {
     pan_x_pct: clamp(-limX, px, limX),
     pan_y_pct: clamp(-limY, py, limY),
@@ -63,6 +82,7 @@ function clampFundoPan(scale, px, py, geo) {
  *   linkHref?: string | null
  *   className?: string
  *   layout?: 'default' | 'editorFill' | 'viewerCover'
+ *   imageObjectFit?: 'cover' | 'contain'
  * }} props
  */
 export default function StoryCanvas({
@@ -72,6 +92,8 @@ export default function StoryCanvas({
   linkUrl,
   posicaoLink,
   fundo,
+  /** `contain` no editor = foto inteira + pan/zoom; `cover` = legado / viewer sem fundo_fit. */
+  imageObjectFit = 'cover',
   allowEditImage = false,
   allowEditText = false,
   allowEditLink = false,
@@ -102,6 +124,7 @@ export default function StoryCanvas({
   const [zoomTarget, setZoomTarget] = useState(/** @type {'fundo' | 'overlay'} */ ('fundo'))
   const zoomTargetRef = useRef(zoomTarget)
   const textoScaleRef = useRef(textoScale)
+  const imageObjectFitRef = useRef(imageObjectFit)
   const dragRef = useRef(
     /** @type {null | { kind: 'img', sx: number, sy: number, fs: number, fpx: number, fpy: number } | { kind: 'text' | 'link', ox: number, oy: number }} */ (
       null
@@ -145,6 +168,10 @@ export default function StoryCanvas({
   }, [textoScale])
 
   useEffect(() => {
+    imageObjectFitRef.current = imageObjectFit
+  }, [imageObjectFit])
+
+  useEffect(() => {
     updateAreaGeo()
     const onResize = () => updateAreaGeo()
     window.addEventListener('resize', onResize)
@@ -185,7 +212,7 @@ export default function StoryCanvas({
       const ratio = d / d0
       if (mode === 'fundo') {
         const nextScale = Math.min(3, Math.max(1, s0 * ratio))
-        const c = clampFundoPan(nextScale, px0, py0, geoRef.current)
+        const c = clampFundoPan(nextScale, px0, py0, geoRef.current, imageObjectFitRef.current)
         onFundoChangeRef.current?.({ scale: nextScale, ...c })
       } else {
         const nextScale = clamp(0.5, s0 * ratio, 3)
@@ -236,10 +263,20 @@ export default function StoryCanvas({
       e.preventDefault()
       const dir = e.deltaY > 0 ? -1 : 1
       const nextScale = Math.min(3, Math.max(1, fundo.scale + dir * 0.08))
-      const c = clampFundoPan(nextScale, fundo.pan_x_pct, fundo.pan_y_pct, geoRef.current)
+      const c = clampFundoPan(nextScale, fundo.pan_x_pct, fundo.pan_y_pct, geoRef.current, imageObjectFit)
       onFundoChange({ scale: nextScale, ...c })
     },
-    [zoomTarget, onTextoScaleChange, textoScale, allowEditImage, onFundoChange, fundo.scale, fundo.pan_x_pct, fundo.pan_y_pct]
+    [
+      zoomTarget,
+      onTextoScaleChange,
+      textoScale,
+      allowEditImage,
+      onFundoChange,
+      fundo.scale,
+      fundo.pan_x_pct,
+      fundo.pan_y_pct,
+      imageObjectFit,
+    ]
   )
 
   const clampOverlayPct = useCallback((kind, xPct, yPct) => {
@@ -298,11 +335,11 @@ export default function StoryCanvas({
         const rect = areaRef.current.getBoundingClientRect()
         const dx = ((e.clientX - d.sx) / rect.width) * 100
         const dy = ((e.clientY - d.sy) / rect.height) * 100
-        const c = clampFundoPan(d.fs, d.fpx + dx, d.fpy + dy, geoRef.current)
+        const c = clampFundoPan(d.fs, d.fpx + dx, d.fpy + dy, geoRef.current, imageObjectFit)
         onFundoChange({ scale: d.fs, ...c })
       }
     },
-    [onLegendaPos, onLinkPos, onFundoChange, pctFromClient, clampOverlayPct]
+    [onLegendaPos, onLinkPos, onFundoChange, pctFromClient, clampOverlayPct, imageObjectFit]
   )
 
   const pointerUp = useCallback(() => {
@@ -436,7 +473,11 @@ export default function StoryCanvas({
         onPointerDown={startImg}
         style={allowEditImage ? { touchAction: 'none' } : undefined}
         role={allowEditImage ? 'application' : undefined}
-        aria-label={allowEditImage ? 'Arraste para mover; rodinha para zoom; dois dedos para ampliar' : undefined}
+        aria-label={
+          allowEditImage
+            ? 'Arraste para mover em qualquer direção; rodinha para zoom; dois dedos para ampliar'
+            : undefined
+        }
       >
         <div
           className="absolute inset-0 will-change-transform"
@@ -450,7 +491,7 @@ export default function StoryCanvas({
             alt=""
             fill
             sizes="(max-width: 768px) 100vw, 430px"
-            className="object-cover select-none"
+            className={`select-none ${imageObjectFit === 'contain' ? 'object-contain' : 'object-cover'}`}
             unoptimized
             draggable={false}
             onLoadingComplete={(img) => {
