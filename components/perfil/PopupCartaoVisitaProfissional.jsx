@@ -105,25 +105,25 @@ export default function PopupCartaoVisitaProfissional({
           <button
             type="button"
             onClick={onFechar}
-            className="absolute right-3 top-3 rounded-full p-1 hover:bg-gray-100"
+            className="absolute right-3 top-3 rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-500"
             aria-label="Fechar"
           >
-            <X size={22} />
+            <X size={22} strokeWidth={2} aria-hidden />
           </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 sm:gap-4">
+          <div className="space-y-4">
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-5">
               <div className="relative h-[3.75rem] w-[3.75rem] shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-[#0097b2]/15 sm:h-[4.25rem] sm:w-[4.25rem]">
                 {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="68px" /> : null}
               </div>
-              <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 text-left">
-                <p className="line-clamp-2 text-lg font-bold text-gray-900 sm:text-xl">{nome || 'Profissional'}</p>
+              <div className="flex min-w-0 max-w-full flex-col items-center justify-center gap-1 text-center">
+                <p className="line-clamp-2 max-w-md text-lg font-bold text-gray-900 sm:text-xl">{nome || 'Profissional'}</p>
                 <p className="truncate text-sm font-normal text-gray-600 sm:text-base">@{uShown || 'usuario'}</p>
               </div>
             </div>
-            <p className="w-full whitespace-normal text-center text-xl font-bold leading-snug tracking-wide text-[#0097b2]">
+            <p className="w-full whitespace-normal px-1 text-center text-2xl font-bold leading-snug tracking-wide text-[#0097b2] sm:text-3xl">
               {rotuloCategoria}
             </p>
           </div>

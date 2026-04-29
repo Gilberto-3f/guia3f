@@ -16,7 +16,8 @@ export default function NomeSocial({ nome, mostrarCartao = false, onAbrirCartao 
         <button
           type="button"
           onClick={() => onAbrirCartao?.()}
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0097b2] text-white"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white"
+          style={{ backgroundColor: '#00D443' }}
           aria-label="Abrir cartão de visita"
           title="Cartão de visita"
         >
