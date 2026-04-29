@@ -92,7 +92,15 @@ export default function PerfilSocialPage() {
     verificadoEm: string | null
     /** `profissionais.created_at` — texto “cadastrado desde …” no cartão. */
     cadastradoEm: string | null
-  }>({ categorias: null, placaVermelha: false, verificadoEm: null, cadastradoEm: null })
+    /** `profissionais.status` — `aprovado` = cartão “VERIFICADO”; caso contrário “EM ANÁLISE”. */
+    statusProfissional: string | null
+  }>({
+    categorias: null,
+    placaVermelha: false,
+    verificadoEm: null,
+    cadastradoEm: null,
+    statusProfissional: null,
+  })
 
   const patchFotoPost = useCallback((postId: string, updates: { total_curtidas?: number; total_comentarios?: number }) => {
     setPostsFotos((prev) =>
@@ -189,7 +197,9 @@ export default function PerfilSocialPage() {
         const [profRes, turRes] = await Promise.all([
           supabase
             .from('profissionais')
-            .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url')
+            .select(
+              'nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado_em, created_at, status'
+            )
             .eq('usuario_id', profileId)
             .maybeSingle(),
           supabase
@@ -204,13 +214,36 @@ export default function PerfilSocialPage() {
         const tur = turRes.data
         if (!profRes.error && prof && typeof prof === 'object' && !Array.isArray(prof)) {
           perfilRow = prof as Record<string, unknown>
+          const rr = prof as unknown as {
+            categorias?: string[] | null
+            placa_vermelha?: boolean | null
+            docs_verificado_em?: string | null
+            created_at?: string | null
+            status?: string | null
+          }
+          setProfMeta({
+            categorias: Array.isArray(rr.categorias) ? rr.categorias.map((x) => String(x)) : null,
+            placaVermelha: Boolean(rr.placa_vermelha),
+            verificadoEm: rr.docs_verificado_em ?? rr.created_at ?? null,
+            cadastradoEm: rr.created_at ?? null,
+            statusProfissional: rr.status != null ? String(rr.status) : null,
+          })
         } else if (!turRes.error && tur && typeof tur === 'object' && !Array.isArray(tur)) {
           perfilRow = tur as Record<string, unknown>
+          setProfMeta({
+            categorias: null,
+            placaVermelha: false,
+            verificadoEm: null,
+            cadastradoEm: null,
+            statusProfissional: null,
+          })
         }
       } else if (role === 'profissional') {
         const { data: prof, error: ep } = await supabase
           .from('profissionais')
-          .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado_em, created_at')
+          .select(
+            'nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado_em, created_at, status'
+          )
           .eq('usuario_id', profileId)
           .maybeSingle()
         if (ep) console.warn('Perfil profissionais:', ep.message)
@@ -221,12 +254,14 @@ export default function PerfilSocialPage() {
             placa_vermelha?: boolean | null
             docs_verificado_em?: string | null
             created_at?: string | null
+            status?: string | null
           }
           setProfMeta({
             categorias: Array.isArray(rr.categorias) ? rr.categorias.map((x) => String(x)) : null,
             placaVermelha: Boolean(rr.placa_vermelha),
             verificadoEm: rr.docs_verificado_em ?? rr.created_at ?? null,
             cadastradoEm: rr.created_at ?? null,
+            statusProfissional: rr.status != null ? String(rr.status) : null,
           })
         }
       } else if (role === 'turista') {
@@ -239,7 +274,13 @@ export default function PerfilSocialPage() {
         if (!et && tur && typeof tur === 'object' && !Array.isArray(tur)) {
           perfilRow = tur as Record<string, unknown>
         }
-        setProfMeta({ categorias: null, placaVermelha: false, verificadoEm: null, cadastradoEm: null })
+        setProfMeta({
+          categorias: null,
+          placaVermelha: false,
+          verificadoEm: null,
+          cadastradoEm: null,
+          statusProfissional: null,
+        })
       }
 
       const nomePerfil =
@@ -511,10 +552,11 @@ export default function PerfilSocialPage() {
     )
   }
 
+  /** Faixa amarela só para turistas; profissionais em análise usam escudo + cartão de visita. */
   const mostrarFaixaAnalise =
     perfilContaStatus != null &&
     perfilContaStatus !== 'ativo' &&
-    (perfilRole === 'profissional' || perfilRole === 'turista')
+    perfilRole === 'turista'
 
   const displayUsernameRaw = String(username ?? '')
     .trim()
@@ -591,6 +633,7 @@ export default function PerfilSocialPage() {
         <NomeSocial
           nome={nome}
           mostrarCartao={perfilRole === 'profissional'}
+          profissionalVerificado={profMeta.statusProfissional === 'aprovado'}
           onAbrirCartao={() => setPopCartao(true)}
         />
         <div className="mt-1">
@@ -662,6 +705,7 @@ export default function PerfilSocialPage() {
         cadastradoEm={profMeta.cadastradoEm}
         categorias={profMeta.categorias}
         placaVermelha={profMeta.placaVermelha}
+        profissionalVerificado={profMeta.statusProfissional === 'aprovado'}
         onContratar={() => router.push('/canal')}
       />
 
