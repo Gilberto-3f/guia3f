@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import { usePermissao } from '../../hooks/usePermissao'
 
 export default function AcoesDenuncia({
@@ -27,9 +28,11 @@ export default function AcoesDenuncia({
 
   if (!aberto) return null
 
-  const podeAdvertir = podeExecutarRecurso('advertir')
-  const podeSuspender = podeExecutarRecurso('suspender')
-  const podeBanir = podeExecutarRecurso('banir')
+  const isStory = denuncia?.denunciado_tipo === 'story'
+
+  const podeAdvertir = !isStory && podeExecutarRecurso('advertir')
+  const podeSuspender = !isStory && podeExecutarRecurso('suspender')
+  const podeBanir = !isStory && podeExecutarRecurso('banir')
   const podeArquivar = podeExecutarRecurso('arquivar')
 
   const resetAndClose = () => {
@@ -65,6 +68,15 @@ export default function AcoesDenuncia({
             {denuncia?.status === 'pendente' ? (
               <button type="button" onClick={() => void run(onMarcarInvestigacao)} className="w-full rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-left text-sm font-semibold text-yellow-900">
                 Marcar em investigação
+              </button>
+            ) : null}
+            {isStory && denuncia?.denunciado_id ? (
+              <button
+                type="button"
+                onClick={() => setAcaoSelecionada('remover_story')}
+                className="w-full rounded-lg border border-rose-300 bg-rose-50 p-3 text-left text-sm font-semibold text-rose-900"
+              >
+                Remover story (apaga a publicação)
               </button>
             ) : null}
             {podeAdvertir ? (
@@ -107,6 +119,9 @@ export default function AcoesDenuncia({
                 className="w-full rounded-lg border border-red-200 p-2 text-sm"
               />
             ) : null}
+            {acaoSelecionada === 'remover_story' ? (
+              <p className="text-sm text-gray-600">O story será apagado e a denúncia arquivada. Descreva o motivo abaixo.</p>
+            ) : null}
             <textarea
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
@@ -138,6 +153,14 @@ export default function AcoesDenuncia({
                   }
                   if (acaoSelecionada === 'arquivar') {
                     void run(() => onArquivar(motivo))
+                    return
+                  }
+                  if (acaoSelecionada === 'remover_story' && denuncia?.denunciado_id) {
+                    void run(async () => {
+                      const { error: delErr } = await supabase.from('stories').delete().eq('id', denuncia.denunciado_id)
+                      if (delErr) throw delErr
+                      await onArquivar(motivo.trim() || 'Story removido na moderação.')
+                    })
                   }
                 }}
                 className="flex-1 rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"

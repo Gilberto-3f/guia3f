@@ -1,14 +1,15 @@
 'use client'
 
 import type { LucideIcon } from 'lucide-react'
-import { Users, Briefcase, Building2 } from 'lucide-react'
+import { Users, Briefcase, Building2, Clapperboard } from 'lucide-react'
 
-export type DenunciaSubabaId = 'turistas' | 'profissionais' | 'empresas'
+export type DenunciaSubabaId = 'turistas' | 'profissionais' | 'empresas' | 'stories'
 
 const base: { id: DenunciaSubabaId; label: string; Icon: LucideIcon }[] = [
   { id: 'turistas', label: 'Turistas', Icon: Users },
   { id: 'profissionais', label: 'Profissionais', Icon: Briefcase },
   { id: 'empresas', label: 'Empresas', Icon: Building2 },
+  { id: 'stories', label: 'Stories', Icon: Clapperboard },
 ]
 
 export default function SubabasDenuncias({
@@ -16,17 +17,20 @@ export default function SubabasDenuncias({
   onPerfilChange,
   podeVerProfissionais,
   podeVerEmpresas,
+  podeVerStories,
   badges,
 }: {
   perfilAtivo: DenunciaSubabaId
   onPerfilChange: (p: DenunciaSubabaId) => void
   podeVerProfissionais: boolean
   podeVerEmpresas: boolean
+  podeVerStories: boolean
   badges?: Partial<Record<DenunciaSubabaId, number>>
 }) {
   const visible = base.filter((o) => {
     if (o.id === 'profissionais' && !podeVerProfissionais) return false
     if (o.id === 'empresas' && !podeVerEmpresas) return false
+    if (o.id === 'stories' && !podeVerStories) return false
     return true
   })
 

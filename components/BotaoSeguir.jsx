@@ -14,6 +14,8 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
  *   isFollowing?: boolean,
  *   onToggle?: (seguindo: boolean) => void
  *   layout?: 'default' | 'inline'
+ *   buttonClassName?: string
+ *   leadingIcon?: 'heart' | 'none'
  * }} props
  */
 export default function BotaoSeguir({
@@ -24,6 +26,8 @@ export default function BotaoSeguir({
   isFollowing: initialFollowing = false,
   onToggle,
   layout = 'default',
+  buttonClassName = '',
+  leadingIcon = 'heart',
 }) {
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const [seguindo, setSeguindo] = useState(initialFollowing)
@@ -110,14 +114,21 @@ export default function BotaoSeguir({
         type="button"
         onClick={handleToggle}
         disabled={loading || !podeInteragir}
-        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-          seguindo
-            ? 'border-red-200 bg-red-50 text-red-500'
-            : 'border-transparent bg-gray-100 text-gray-700 hover:bg-gray-200'
-        }`}
+        className={
+          buttonClassName.trim()
+            ? buttonClassName
+            : [
+                'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
+                seguindo
+                  ? 'border-red-200 bg-red-50 text-red-500'
+                  : 'border-transparent bg-gray-100 text-gray-700 hover:bg-gray-200',
+              ].join(' ')
+        }
       >
-        <Heart size={16} className={seguindo ? 'fill-red-500' : ''} aria-hidden />
-        <span>{seguindo ? 'seguindo' : 'Seguir'}</span>
+        {leadingIcon === 'heart' ? (
+          <Heart size={16} className={seguindo ? 'fill-red-500' : ''} aria-hidden />
+        ) : null}
+        <span>{seguindo ? 'Deixar de seguir' : 'Seguir'}</span>
       </button>
       {erro ? <span className="max-w-[240px] text-right text-xs text-red-600">{erro}</span> : null}
     </div>

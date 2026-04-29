@@ -179,7 +179,7 @@ export type RevogarAcessoParams = {
 export type DenunciaStatus = 'pendente' | 'em_investigacao' | 'encerrada' | 'arquivada'
 export type DenunciaGravidade = 'leve' | 'media' | 'grave'
 export type DenunciaPenalidade = 'advertencia' | 'suspensao' | 'banimento'
-export type DenunciaPerfil = 'turistas' | 'profissionais' | 'empresas'
+export type DenunciaPerfil = 'turistas' | 'profissionais' | 'empresas' | 'stories'
 
 export type Denuncia = {
   id: string
@@ -187,10 +187,13 @@ export type Denuncia = {
   denunciante_email: string
   denunciante_nome: string
   denunciado_id: string
-  denunciado_tipo: 'turista' | 'profissional' | 'empresa'
+  denunciado_tipo: 'turista' | 'profissional' | 'empresa' | 'story'
   denunciado_email: string
   denunciado_nome: string
   denunciado_username: string
+  /** Mídia do story (quando `denunciado_tipo === 'story'`). */
+  story_conteudo_url?: string | null
+  story_autor_usuario_id?: string | null
   motivo: string
   descricao: string | null
   evidencias: string[]

@@ -9,7 +9,7 @@ type DenunciaRow = {
   id: string
   denunciante_id: string
   denunciado_id: string
-  denunciado_tipo: 'turista' | 'profissional' | 'empresa'
+  denunciado_tipo: 'turista' | 'profissional' | 'empresa' | 'story'
   motivo: string
   descricao: string | null
   evidencias: unknown
@@ -69,7 +69,21 @@ export function useDenuncias(filtros: DenunciasFiltros) {
   /** Evita skeleton a cada refetch quando só mudam nivel/admin (mesmos filtros). */
   const prevFiltrosKeyRef = useRef<string | null>(null)
 
-  const resolveDenunciado = useCallback(async (tipo: 'turista' | 'profissional' | 'empresa', alvoId: string) => {
+  const resolveDenunciado = useCallback(async (tipo: 'turista' | 'profissional' | 'empresa' | 'story', alvoId: string) => {
+    if (tipo === 'story') {
+      const { data: sRow } = await supabase.from('stories').select('id, conteudo_url, autor_id').eq('id', alvoId).maybeSingle()
+      const autorUid = sRow?.autor_id != null ? String(sRow.autor_id) : ''
+      const { data: uRow } = autorUid
+        ? await supabase.from('usuarios').select('email, username').eq('id', autorUid).maybeSingle()
+        : { data: null }
+      return {
+        nome: 'Story',
+        username: String(uRow?.username ?? uRow?.email ?? 'autor'),
+        email: String(uRow?.email ?? ''),
+        story_conteudo_url: sRow?.conteudo_url != null ? String(sRow.conteudo_url) : null,
+        story_autor_usuario_id: autorUid || null,
+      }
+    }
     if (tipo === 'turista') {
       const { data: row } = await supabase.from('turistas').select('nome_completo, nome_usuario, usuario_id').eq('id', alvoId).maybeSingle()
       const { data: user } = row?.usuario_id ? await supabase.from('usuarios').select('email').eq('id', row.usuario_id).maybeSingle() : { data: null }
@@ -94,7 +108,8 @@ export function useDenuncias(filtros: DenunciasFiltros) {
 
   const fetchContadores = useCallback(async () => {
     const f = filtrosRef.current
-    const tipo = f.perfil === 'turistas' ? 'turista' : f.perfil === 'profissionais' ? 'profissional' : 'empresa'
+    const tipo =
+      f.perfil === 'turistas' ? 'turista' : f.perfil === 'profissionais' ? 'profissional' : f.perfil === 'stories' ? 'story' : 'empresa'
     const { data, error: e } = await supabase.from('denuncias').select('status').eq('denunciado_tipo', tipo)
     if (e) throw e
     const base = { pendente: 0, em_investigacao: 0, encerrada: 0, arquivada: 0 }
@@ -117,7 +132,8 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     try {
       const nivelNum = typeof nivel === 'string' ? parseInt(nivel, 10) : nivel
 
-      const tipo = f.perfil === 'turistas' ? 'turista' : f.perfil === 'profissionais' ? 'profissional' : 'empresa'
+      const tipo =
+        f.perfil === 'turistas' ? 'turista' : f.perfil === 'profissionais' ? 'profissional' : f.perfil === 'stories' ? 'story' : 'empresa'
       let query = supabase
         .from('denuncias')
         .select('id, denunciante_id, denunciado_id, denunciado_tipo, motivo, descricao, evidencias, status, gravidade, responsavel_id, analisado_em, analisado_por, penalidade_aplicada, penalidade_detalhes, created_at, updated_at')
@@ -158,6 +174,14 @@ export function useDenuncias(filtros: DenunciasFiltros) {
           const prazo = r.status === 'em_investigacao' ? addBusinessDays(r.created_at, 3) : null
           const prazoEstourado = Boolean(prazo && new Date(prazo) < new Date())
 
+          const alvoStory = alvo as {
+            nome: string
+            username: string
+            email: string
+            story_conteudo_url?: string | null
+            story_autor_usuario_id?: string | null
+          }
+
           return {
             id: r.id,
             denunciante_id: r.denunciante_id,
@@ -165,9 +189,11 @@ export function useDenuncias(filtros: DenunciasFiltros) {
             denunciante_nome: String(denuncianteRes.data?.username ?? ''),
             denunciado_id: r.denunciado_id,
             denunciado_tipo: r.denunciado_tipo,
-            denunciado_email: alvo.email,
-            denunciado_nome: alvo.nome,
-            denunciado_username: alvo.username,
+            denunciado_email: alvoStory.email,
+            denunciado_nome: alvoStory.nome,
+            denunciado_username: alvoStory.username,
+            story_conteudo_url: alvoStory.story_conteudo_url ?? null,
+            story_autor_usuario_id: alvoStory.story_autor_usuario_id ?? null,
             motivo: r.motivo,
             descricao: r.descricao,
             evidencias,

@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import type { Denuncia } from '../../types/admin.types'
 
 export default function ModalVerDenuncia({
@@ -27,7 +28,17 @@ export default function ModalVerDenuncia({
           <div><strong>Motivo:</strong> {denuncia.motivo}</div>
           <div><strong>Descrição:</strong> {denuncia.descricao || '-'}</div>
           <div><strong>Denunciante:</strong> {denuncia.denunciante_nome || denuncia.denunciante_email}</div>
-          <div><strong>Denunciado:</strong> {denuncia.denunciado_nome} (@{denuncia.denunciado_username})</div>
+          <div>
+            <strong>Denunciado:</strong>{' '}
+            {denuncia.denunciado_tipo === 'story'
+              ? `Story (id) · autor @${denuncia.denunciado_username}`
+              : `${denuncia.denunciado_nome} (@${denuncia.denunciado_username})`}
+          </div>
+          {denuncia.denunciado_tipo === 'story' && denuncia.story_conteudo_url ? (
+            <div className="relative mx-auto mt-3 aspect-[9/16] w-40 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+              <Image src={denuncia.story_conteudo_url} alt="Story denunciado" fill className="object-cover" sizes="160px" unoptimized />
+            </div>
+          ) : null}
           <div><strong>Status:</strong> {denuncia.status}</div>
           <div><strong>Gravidade:</strong> {denuncia.gravidade || 'não definida'}</div>
         </div>

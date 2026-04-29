@@ -30,7 +30,7 @@ export default function StatusDenuncia({
   onBuscaChange: (v: string) => void
   categoria: string
   onCategoriaChange: (v: string) => void
-  perfil: 'turistas' | 'profissionais' | 'empresas'
+  perfil: 'turistas' | 'profissionais' | 'empresas' | 'stories'
   badges?: Partial<Record<DenunciaStatus, number>>
 }) {
   return (
@@ -74,6 +74,8 @@ export default function StatusDenuncia({
             className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
             placeholder="Categoria (opcional)"
           />
+        ) : perfil === 'stories' ? (
+          <div className="hidden md:block" aria-hidden />
         ) : (
           <div />
         )}

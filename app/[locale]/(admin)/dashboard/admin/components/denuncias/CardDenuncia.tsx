@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import type { Denuncia } from '../../types/admin.types'
 import AcoesDenuncia from './AcoesDenuncia'
 import HistoricoUsuario from './HistoricoUsuario'
@@ -42,8 +43,20 @@ export default function CardDenuncia({
               {new Date(denuncia.created_at).toLocaleString('pt-BR')}
             </div>
             <div className="mt-1 text-sm font-bold text-gray-900">
-              👤 {denuncia.denunciante_nome || denuncia.denunciante_email} → 🎯 {denuncia.denunciado_nome} (@{denuncia.denunciado_username})
+              👤 {denuncia.denunciante_nome || denuncia.denunciante_email} →{' '}
+              {denuncia.denunciado_tipo === 'story' ? (
+                <>🎯 Story · autor @{denuncia.denunciado_username}</>
+              ) : (
+                <>
+                  🎯 {denuncia.denunciado_nome} (@{denuncia.denunciado_username})
+                </>
+              )}
             </div>
+            {denuncia.denunciado_tipo === 'story' && denuncia.story_conteudo_url ? (
+              <div className="relative mt-3 aspect-[9/16] w-24 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+                <Image src={denuncia.story_conteudo_url} alt="Pré-visualização do story" fill className="object-cover" sizes="96px" unoptimized />
+              </div>
+            ) : null}
             <div className="mt-2 text-sm text-gray-700">{denuncia.motivo}</div>
             {denuncia.descricao ? <div className="mt-1 line-clamp-2 text-sm text-gray-600">{denuncia.descricao}</div> : null}
             <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">

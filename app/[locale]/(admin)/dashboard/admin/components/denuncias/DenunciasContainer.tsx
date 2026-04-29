@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { usePermissao } from '../../hooks/usePermissao'
 import { useDenunciasToolbar } from '../../context/DenunciasToolbarContext'
+import type { DenunciaPerfil } from '../../types/admin.types'
 import StatusDenuncia from './StatusDenuncia'
 import ListaDenuncias from './ListaDenuncias'
 
-function coerceSub(sub: string): 'turistas' | 'profissionais' | 'empresas' {
-  if (sub === 'profissionais' || sub === 'empresas') return sub
+function coerceSub(sub: string): DenunciaPerfil {
+  if (sub === 'profissionais' || sub === 'empresas' || sub === 'stories') return sub
   return 'turistas'
 }
 
@@ -25,6 +26,7 @@ export function DenunciasContainer({ sub }: { sub: string }) {
 
   const podeVerProfissionais = nivelNum === 1 || nivelNum === 2
   const podeVerEmpresas = nivelNum === 1 || nivelNum === 3
+  const podeVerStories = nivelNum === 1 || nivelNum === 2
 
   const [statusAtivo, setStatusAtivo] = useState<'pendente' | 'em_investigacao' | 'encerrada' | 'arquivada' | 'todas'>('pendente')
   const [periodo, setPeriodo] = useState<'hoje' | '7d' | '30d'>('7d')
@@ -44,19 +46,27 @@ export function DenunciasContainer({ sub }: { sub: string }) {
       p.set('sub', 'turistas')
       router.replace(`?${p.toString()}`)
     }
-  }, [perfilAtivo, podeVerEmpresas, podeVerProfissionais, router, sp])
+    if (perfilAtivo === 'stories' && !podeVerStories) {
+      const p = new URLSearchParams(sp.toString())
+      p.set('tab', 'denuncias')
+      p.set('sub', 'turistas')
+      router.replace(`?${p.toString()}`)
+    }
+  }, [perfilAtivo, podeVerEmpresas, podeVerProfissionais, podeVerStories, router, sp])
 
   useEffect(() => {
     const run = async () => {
-      const base: Partial<Record<'turistas' | 'profissionais' | 'empresas', number>> = {}
-      const [{ count: t }, { count: p }, { count: e }] = await Promise.all([
+      const base: Partial<Record<'turistas' | 'profissionais' | 'empresas' | 'stories', number>> = {}
+      const [{ count: t }, { count: p }, { count: e }, { count: st }] = await Promise.all([
         supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'turista'),
         supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'profissional'),
         supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'empresa'),
+        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'story'),
       ])
       base.turistas = t ?? 0
       base.profissionais = p ?? 0
       base.empresas = e ?? 0
+      base.stories = nivelNum === 1 || nivelNum === 2 ? st ?? 0 : 0
 
       if (nivelNum === 2) {
         base.empresas = 0
@@ -64,10 +74,12 @@ export function DenunciasContainer({ sub }: { sub: string }) {
       if (nivelNum === 3) {
         base.turistas = 0
         base.profissionais = 0
+        base.stories = 0
       }
       if (nivelNum === 4) {
         base.profissionais = 0
         base.empresas = 0
+        base.stories = 0
       }
 
       const comunidade = String(getComunidade() ?? '').toLowerCase()

@@ -24,8 +24,8 @@ function coerceVerificacaoSub(sub: string): VerificacaoSubabaId {
   return 'turistas'
 }
 
-function coerceDenunciasSub(sub: string): 'turistas' | 'profissionais' | 'empresas' {
-  if (sub === 'profissionais' || sub === 'empresas') return sub
+function coerceDenunciasSub(sub: string): 'turistas' | 'profissionais' | 'empresas' | 'stories' {
+  if (sub === 'profissionais' || sub === 'empresas' || sub === 'stories') return sub
   return 'turistas'
 }
 
@@ -59,10 +59,11 @@ function DenunciasSubNav({ sub }: { sub: string }) {
   const nivelNum = typeof nivel === 'string' ? parseInt(nivel, 10) : nivel
   const podeVerProfissionais = nivelNum === 1 || nivelNum === 2
   const podeVerEmpresas = nivelNum === 1 || nivelNum === 3
+  const podeVerStories = nivelNum === 1 || nivelNum === 2
 
   const perfilAtivo = useMemo(() => coerceDenunciasSub(sub), [sub])
 
-  const onPerfilChange = (p: 'turistas' | 'profissionais' | 'empresas') => {
+  const onPerfilChange = (p: 'turistas' | 'profissionais' | 'empresas' | 'stories') => {
     const params = new URLSearchParams(sp.toString())
     params.set('tab', 'denuncias')
     params.set('sub', p)
@@ -75,6 +76,7 @@ function DenunciasSubNav({ sub }: { sub: string }) {
       onPerfilChange={onPerfilChange}
       podeVerProfissionais={podeVerProfissionais}
       podeVerEmpresas={podeVerEmpresas}
+      podeVerStories={podeVerStories}
       badges={badges}
     />
   )

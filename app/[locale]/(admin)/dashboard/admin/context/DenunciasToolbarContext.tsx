@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 
-export type DenunciasBadgeMap = Partial<Record<'turistas' | 'profissionais' | 'empresas', number>>
+export type DenunciasBadgeMap = Partial<Record<'turistas' | 'profissionais' | 'empresas' | 'stories', number>>
 
 type Ctx = {
   badges: DenunciasBadgeMap

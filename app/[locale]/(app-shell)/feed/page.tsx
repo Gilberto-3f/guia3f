@@ -222,32 +222,38 @@ function FeedPageInner() {
     void boot()
   }, [])
 
+  const recarregarFeedRede = useCallback(async () => {
+    if (!meuId) {
+      setFeedRede({ seguidos: [], patrocinioAutores: [], ready: true })
+      return
+    }
+    try {
+      const [{ data: segRows }, patrocinados] = await Promise.all([
+        supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId),
+        fetchPatrocinioAutorIds(supabase),
+      ])
+      const seguidos = (segRows ?? []).map((r) => String((r as { seguido_id: string }).seguido_id)).filter(Boolean)
+      setFeedRede({
+        seguidos,
+        patrocinioAutores: patrocinados ?? [],
+        ready: true,
+      })
+    } catch (e) {
+      console.error(e)
+      setFeedRede({ seguidos: [], patrocinioAutores: [], ready: true })
+    }
+  }, [meuId])
+
   useEffect(() => {
     if (!authReady) return
+    void recarregarFeedRede()
+  }, [authReady, meuId, recarregarFeedRede])
 
-    const carregarRede = async () => {
-      if (!meuId) {
-        setFeedRede({ seguidos: [], patrocinioAutores: [], ready: true })
-        return
-      }
-      try {
-        const [{ data: segRows }, patrocinados] = await Promise.all([
-          supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId),
-          fetchPatrocinioAutorIds(supabase),
-        ])
-        const seguidos = (segRows ?? []).map((r) => String((r as { seguido_id: string }).seguido_id)).filter(Boolean)
-        setFeedRede({
-          seguidos,
-          patrocinioAutores: patrocinados ?? [],
-          ready: true,
-        })
-      } catch (e) {
-        console.error(e)
-        setFeedRede({ seguidos: [], patrocinioAutores: [], ready: true })
-      }
-    }
-    void carregarRede()
-  }, [authReady, meuId])
+  useEffect(() => {
+    const onReload = () => void recarregarFeedRede()
+    window.addEventListener('guia-feed-rede-reload', onReload)
+    return () => window.removeEventListener('guia-feed-rede-reload', onReload)
+  }, [recarregarFeedRede])
 
   const mapRow = useCallback((post: unknown) => {
     const p = post as Record<string, unknown>

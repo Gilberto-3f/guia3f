@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ClipboardList, Heart, Link2, Play, Volume2, VolumeX, X } from 'lucide-react'
+import { ClipboardList, Flag, Heart, Link2, MoreHorizontal, Play, Volume2, VolumeX, X } from 'lucide-react'
+import BotaoSeguir from '@/components/BotaoSeguir'
 import { supabase } from '@/lib/supabase'
 import {
   fetchFotoPerfilUsuario,
@@ -16,6 +17,13 @@ import StoryCanvas from '@/components/StoryCanvas'
 const STORY_VIEW_MS = 15000
 const SWIPE_DOWN_PX = 96
 const SWIPE_SIDE_PX = 56
+
+const CATEGORIAS_DENUNCIA_STORY = [
+  { id: 'Conteúdo impróprio', label: 'Conteúdo impróprio' },
+  { id: 'Spam', label: 'Spam' },
+  { id: 'Discurso de ódio', label: 'Discurso de ódio' },
+  { id: 'Outro', label: 'Outro' },
+]
 
 /**
  * @param {{ usuario_id?: string } | string | null | undefined} entry
@@ -201,6 +209,13 @@ export default function StoryViewer({
     /** @type {{ usuario_id: string | null, email: string | null, rotulo: string, foto: string | null, tipo?: string | null, empresa_id?: string | null }[]} */ ([])
   )
   const [carregandoInsights, setCarregandoInsights] = useState(false)
+  const [menuMaisOpcoes, setMenuMaisOpcoes] = useState(false)
+  const [modalDenunciar, setModalDenunciar] = useState(false)
+  const [denCategoria, setDenCategoria] = useState('Conteúdo impróprio')
+  const [denTexto, setDenTexto] = useState('')
+  const [denBusy, setDenBusy] = useState(false)
+  const [toastMsg, setToastMsg] = useState(/** @type {string | null} */ (null))
+  const [seguindoAutor, setSeguindoAutor] = useState(/** @type {boolean | null} */ (null))
 
   const uid = meuUsuarioId != null && meuUsuarioId !== '' ? String(meuUsuarioId) : null
   const curtiu = uid ? curtidasLista.some((c) => c.usuario_id === uid) : false
@@ -645,6 +660,55 @@ export default function StoryViewer({
     }
   }
 
+  const souAutor = Boolean(uid && autorId && uid === autorId)
+
+  useEffect(() => {
+    setMenuMaisOpcoes(false)
+    setModalDenunciar(false)
+    setDenTexto('')
+    setDenCategoria('Conteúdo impróprio')
+  }, [story?.id])
+
+  useEffect(() => {
+    if (!toastMsg) return undefined
+    const t = window.setTimeout(() => setToastMsg(null), 4500)
+    return () => window.clearTimeout(t)
+  }, [toastMsg])
+
+  useEffect(() => {
+    if (!uid || !autorId || souAutor) {
+      setSeguindoAutor(null)
+      return undefined
+    }
+    let cancel = false
+    void (async () => {
+      try {
+        if (autorEmpresaId) {
+          const { data } = await supabase
+            .from('favoritos')
+            .select('empresa_id')
+            .eq('usuario_id', uid)
+            .eq('empresa_id', autorEmpresaId)
+            .maybeSingle()
+          if (!cancel) setSeguindoAutor(Boolean(data))
+        } else {
+          const { data } = await supabase
+            .from('redecontatos')
+            .select('seguido_id')
+            .eq('seguidor_id', uid)
+            .eq('seguido_id', autorId)
+            .maybeSingle()
+          if (!cancel) setSeguindoAutor(Boolean(data))
+        }
+      } catch {
+        if (!cancel) setSeguindoAutor(false)
+      }
+    })()
+    return () => {
+      cancel = true
+    }
+  }, [uid, autorId, autorEmpresaId, souAutor, story?.id])
+
   if (!story) return null
 
   const tx = story.texto_sobreposto && typeof story.texto_sobreposto === 'object' && !Array.isArray(story.texto_sobreposto)
@@ -665,8 +729,44 @@ export default function StoryViewer({
   const legendaStr = tx?.texto != null ? String(tx.texto).trim() : ''
   const linkStr = story.link != null ? String(story.link).trim() : ''
   const textoScale = typeof tx?.texto_scale === 'number' && Number.isFinite(tx.texto_scale) ? tx.texto_scale : 1
-  const souAutor = Boolean(uid && autorId && uid === autorId)
   const emailsVisualizacao = visualizadoPorEmails(story.visualizado_por)
+
+  const enviarDenunciaStory = async () => {
+    const motivoTrim = denCategoria.trim().slice(0, 100)
+    const descTrim = denTexto.trim().slice(0, 300)
+    if (!motivoTrim || !descTrim) {
+      setToastMsg('Preencha o motivo e a descrição.')
+      return
+    }
+    setDenBusy(true)
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session?.user?.id) {
+        setToastMsg('Inicie sessão para denunciar.')
+        return
+      }
+      const { error } = await supabase.from('denuncias').insert({
+        denunciante_id: session.user.id,
+        denunciado_id: story.id,
+        denunciado_tipo: 'story',
+        motivo: motivoTrim,
+        descricao: descTrim,
+        status: 'pendente',
+      })
+      if (error) throw error
+      setModalDenunciar(false)
+      setMenuMaisOpcoes(false)
+      setDenTexto('')
+      setToastMsg('Denúncia enviada. Nossa equipe irá analisar.')
+    } catch (e) {
+      console.error(e)
+      setToastMsg('Não foi possível enviar a denúncia. Tente novamente.')
+    } finally {
+      setDenBusy(false)
+    }
+  }
 
   /**
    * @param {{ usuario_id: string | null, rotulo: string, foto: string | null, tipo?: string | null, empresa_id?: string | null }} row
@@ -948,13 +1048,75 @@ export default function StoryViewer({
 
       <footer
         data-story-footer
-        className={`pointer-events-auto z-40 flex w-full items-center border-t border-white/10 bg-black/75 px-4 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 ${uid ? 'justify-end' : 'justify-center'}`}
+        className={`pointer-events-auto z-40 flex w-full items-center gap-3 border-t border-white/10 bg-black/75 px-4 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 ${
+          uid && !souAutor ? 'justify-between' : 'justify-center'
+        }`}
       >
+        {uid && !souAutor ? (
+          <div className="relative flex shrink-0 items-center">
+            <button
+              type="button"
+              onClick={() => setMenuMaisOpcoes((v) => !v)}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10"
+              aria-label="Mais opções"
+              aria-expanded={menuMaisOpcoes}
+            >
+              <MoreHorizontal size={28} strokeWidth={2} aria-hidden />
+            </button>
+            {menuMaisOpcoes ? (
+              <>
+                <button
+                  type="button"
+                  className="fixed inset-0 z-[45] bg-black/40"
+                  aria-label="Fechar menu"
+                  onClick={() => setMenuMaisOpcoes(false)}
+                />
+                <div
+                  className="absolute bottom-full left-0 z-[46] mb-2 w-[min(calc(100vw-2rem),280px)] overflow-hidden rounded-2xl border border-white/15 bg-zinc-900 py-2 shadow-xl"
+                  role="menu"
+                >
+                  <div className="border-b border-white/10 px-2 py-2">
+                    {seguindoAutor === null ? (
+                      <p className="px-2 py-2 text-center text-xs text-white/60">A carregar…</p>
+                    ) : (
+                      <BotaoSeguir
+                        empresaId={autorEmpresaId ?? undefined}
+                        alvoId={autorEmpresaId ? autorEmpresaId : autorId ?? undefined}
+                        alvoTipo={autorEmpresaId ? 'empresa' : 'usuario'}
+                        seguidoTipo="user"
+                        isFollowing={seguindoAutor}
+                        leadingIcon="none"
+                        onToggle={(novo) => {
+                          setSeguindoAutor(novo)
+                          window.dispatchEvent(new Event('guia-feed-rede-reload'))
+                        }}
+                        buttonClassName="flex w-full min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/15"
+                      />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full min-h-11 items-center gap-2 px-4 py-3 text-left text-sm font-medium text-white hover:bg-white/10"
+                    onClick={() => {
+                      setMenuMaisOpcoes(false)
+                      setModalDenunciar(true)
+                    }}
+                  >
+                    <Flag size={18} className="shrink-0 text-amber-400" aria-hidden />
+                    Denunciar publicação
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+
         {souAutor ? (
           <button
             type="button"
             onClick={() => setModalInsights(true)}
-            className="flex flex-col items-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10"
+            className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-full px-2 py-1 text-white transition hover:bg-white/10"
             aria-label="Ver curtidas e visualizações"
           >
             <ClipboardList size={32} strokeWidth={2} />
@@ -967,7 +1129,7 @@ export default function StoryViewer({
             type="button"
             disabled={curtirBusy}
             onClick={() => void toggleCurtida()}
-            className="flex flex-col items-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10 disabled:opacity-50"
+            className="flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10 disabled:opacity-50"
             aria-label={curtiu ? 'Remover curtida' : 'Curtir story'}
           >
             <Heart
@@ -981,6 +1143,62 @@ export default function StoryViewer({
           <p className="text-center text-xs text-white/70">Inicie sessão para curtir</p>
         )}
       </footer>
+
+      {modalDenunciar ? (
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" role="dialog" aria-modal="true">
+          <button type="button" className="absolute inset-0" aria-label="Fechar" onClick={() => !denBusy && setModalDenunciar(false)} />
+          <div className="relative z-[1] w-full max-w-md rounded-t-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl sm:rounded-2xl">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-white">Denunciar story</h2>
+              <button
+                type="button"
+                disabled={denBusy}
+                onClick={() => setModalDenunciar(false)}
+                className="rounded-full p-2 text-white/80 hover:bg-white/10 disabled:opacity-50"
+                aria-label="Fechar"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <label className="mb-1 block text-xs font-medium text-white/70">Categoria</label>
+            <select
+              value={denCategoria}
+              onChange={(e) => setDenCategoria(e.target.value)}
+              className="mb-4 w-full rounded-xl border border-white/20 bg-black/30 px-3 py-2.5 text-sm text-white"
+            >
+              {CATEGORIAS_DENUNCIA_STORY.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <label className="mb-1 block text-xs font-medium text-white/70">Descreva o problema (obrigatório, máx. 300 caracteres)</label>
+            <textarea
+              value={denTexto}
+              maxLength={300}
+              rows={4}
+              onChange={(e) => setDenTexto(e.target.value)}
+              className="mb-2 w-full resize-none rounded-xl border border-white/20 bg-black/30 p-3 text-sm text-white placeholder:text-white/40"
+              placeholder="Explique o que está incorreto nesta publicação…"
+            />
+            <p className="mb-4 text-right text-[11px] text-white/50">{denTexto.length}/300</p>
+            <button
+              type="button"
+              disabled={denBusy || !denTexto.trim()}
+              onClick={() => void enviarDenunciaStory()}
+              className="w-full rounded-xl bg-amber-600 py-3 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {denBusy ? 'A enviar…' : 'Enviar denúncia'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {toastMsg ? (
+        <div className="pointer-events-none fixed bottom-24 left-1/2 z-[130] max-w-[min(calc(100vw-2rem),360px)] -translate-x-1/2 rounded-xl border border-white/20 bg-zinc-900/95 px-4 py-3 text-center text-sm text-white shadow-lg">
+          {toastMsg}
+        </div>
+      ) : null}
 
       {modalInsights ? (
         <div className="fixed inset-0 z-[110] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true">
