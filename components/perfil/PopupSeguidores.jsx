@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
+import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 
 /**
  * @param {{
@@ -32,7 +32,7 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
       return
     }
 
-    const perfis = await buscarPerfisPorIds(supabase, ids)
+    const perfis = await buscarPerfisSociaisPorIds(supabase, ids)
 
     /** @type {Set<string>} */
     let minhas = new Set()
@@ -45,8 +45,8 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
     setLista(
       perfis.map((p) => ({
         usuario_id: String(p.usuario_id ?? ''),
-        empresa_id: p.empresa_id != null ? String(p.empresa_id) : null,
-        tipo: String(p.tipo ?? ''),
+        empresa_id: null,
+        tipo: 'usuario',
         nome: String(p.nome ?? 'Usuário'),
         username: String(p.username ?? 'usuario'),
         foto_url: p.foto_url != null ? String(p.foto_url) : null,

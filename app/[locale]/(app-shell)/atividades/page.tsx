@@ -19,6 +19,7 @@ import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
 import { agruparAtividadesCurtidasPost, urlFotoPost } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { formatarDataComentarioCurta } from '@/lib/formatarDataPublicacao'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
 
@@ -104,6 +105,7 @@ const USUARIOS_SELECT = `
 
 export default function AtividadesPage() {
   const router = useRouter()
+  const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
   const [aba, setAba] = useState<'amigos' | 'minha'>('amigos')
   const [termoBusca, setTermoBusca] = useState('')
   const [resultadosBusca, setResultadosBusca] = useState<
@@ -351,14 +353,26 @@ export default function AtividadesPage() {
         const nome = (pb.nome ?? '').trim()
         const tipo = String(pb.tipo ?? '').toLowerCase()
         const empId = pb.empresa_id != null && String(pb.empresa_id).trim() !== '' ? String(pb.empresa_id) : null
+        const permitirEmpresaPreview =
+          Boolean(
+            meuId &&
+              uid === meuId &&
+              meuRole === 'admin' &&
+              modoAtivo &&
+              perfilSimulado?.tipo === 'empresa' &&
+              contextoEmpresaId
+          ) && tipo === 'empresa'
+
+        const podeAplicarEmpresa = tipo === 'empresa' ? permitirEmpresaPreview : true
+
         m[uid] = {
           ...cur,
           username: uName || cur.username,
           nome: nome || cur.nome,
           foto_perfil_url:
             pb.foto_url != null && String(pb.foto_url).trim() !== '' ? String(pb.foto_url) : cur.foto_perfil_url,
-          ...(tipo ? { role: tipo } : {}),
-          ...(tipo === 'empresa' && empId ? { empresa_id: empId } : {}),
+          ...(tipo && podeAplicarEmpresa ? { role: tipo } : {}),
+          ...(tipo === 'empresa' && empId && podeAplicarEmpresa ? { empresa_id: empId } : {}),
         }
       }
 
@@ -526,7 +540,7 @@ export default function AtividadesPage() {
         setSeguidoEmpresaMap({})
       }
     },
-    [coletarIdsPerfis]
+    [coletarIdsPerfis, meuId, meuRole, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId]
   )
 
   const carregarPostsMeta = useCallback(async (postIds: string[], opcoes?: { merge?: boolean }) => {

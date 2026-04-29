@@ -13,6 +13,7 @@ import {
 import { getPerfilHref } from '@/lib/perfil-utils'
 import AvatarImage from '@/components/AvatarImage'
 import StoryCanvas from '@/components/StoryCanvas'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 const STORY_VIEW_MS = 15000
 const SWIPE_DOWN_PX = 96
@@ -181,6 +182,7 @@ export default function StoryViewer({
   onTimerFim,
   timerPlaybackKey = 0,
 }) {
+  const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
   const videoRef = useRef(/** @type {HTMLVideoElement | null} */ (null))
   const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const swipeRef = useRef(/** @type {{ x0: number, y0: number, t0: number } | null} */ (null))
@@ -414,32 +416,13 @@ export default function StoryViewer({
   }, [muted])
 
   const autorId = story?.autorUsuarioId != null && story.autorUsuarioId !== '' ? String(story.autorUsuarioId) : null
-  const [autorEmpresaId, setAutorEmpresaId] = useState(/** @type {string | null} */ (null))
+  const autorEhEu = Boolean(uid && autorId && uid === autorId)
+  const podeVerEmpresaPreviewDoAutor = Boolean(autorEhEu && modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId)
   const hrefAutor = autorId
-    ? getPerfilHref({ usuario_id: autorId, role: autorEmpresaId ? 'empresa' : undefined, empresa_id: autorEmpresaId })
+    ? podeVerEmpresaPreviewDoAutor
+      ? `/empresa/${String(contextoEmpresaId)}`
+      : `/perfil/${autorId}`
     : ''
-
-  useEffect(() => {
-    if (!autorId) {
-      setAutorEmpresaId(null)
-      return
-    }
-    let ativo = true
-    void supabase
-      .from('perfis_para_busca')
-      .select('empresa_id, tipo')
-      .eq('usuario_id', autorId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!ativo) return
-        const tipo = String(data?.tipo ?? '').toLowerCase()
-        const eid = data?.empresa_id != null ? String(data.empresa_id) : null
-        setAutorEmpresaId(tipo === 'empresa' && eid ? eid : null)
-      })
-    return () => {
-      ativo = false
-    }
-  }, [autorId])
 
   useEffect(() => {
     if (!autorId) {
@@ -469,10 +452,7 @@ export default function StoryViewer({
         setRotuloAutor(h.startsWith('@') ? h : `@${h.replace(/^@/, '')}`)
         return
       }
-      const { data: emp } = await supabase.from('empresas').select('nome_fantasia').eq('usuario_id', autorId).maybeSingle()
-      if (!ativo) return
-      const nf = emp?.nome_fantasia != null ? String(emp.nome_fantasia).trim() : ''
-      setRotuloAutor(nf || 'Empresa')
+      setRotuloAutor('Usuário')
     })()
     return () => {
       ativo = false
@@ -683,23 +663,13 @@ export default function StoryViewer({
     let cancel = false
     void (async () => {
       try {
-        if (autorEmpresaId) {
-          const { data } = await supabase
-            .from('favoritos')
-            .select('empresa_id')
-            .eq('usuario_id', uid)
-            .eq('empresa_id', autorEmpresaId)
-            .maybeSingle()
-          if (!cancel) setSeguindoAutor(Boolean(data))
-        } else {
-          const { data } = await supabase
-            .from('redecontatos')
-            .select('seguido_id')
-            .eq('seguidor_id', uid)
-            .eq('seguido_id', autorId)
-            .maybeSingle()
-          if (!cancel) setSeguindoAutor(Boolean(data))
-        }
+        const { data } = await supabase
+          .from('redecontatos')
+          .select('seguido_id')
+          .eq('seguidor_id', uid)
+          .eq('seguido_id', autorId)
+          .maybeSingle()
+        if (!cancel) setSeguindoAutor(Boolean(data))
       } catch {
         if (!cancel) setSeguindoAutor(false)
       }
@@ -707,7 +677,7 @@ export default function StoryViewer({
     return () => {
       cancel = true
     }
-  }, [uid, autorId, autorEmpresaId, souAutor, story?.id])
+  }, [uid, autorId, souAutor, story?.id])
 
   if (!story) return null
 
@@ -1080,9 +1050,8 @@ export default function StoryViewer({
                       <p className="px-2 py-2 text-center text-xs text-white/60">A carregar…</p>
                     ) : (
                       <BotaoSeguir
-                        empresaId={autorEmpresaId ?? undefined}
-                        alvoId={autorEmpresaId ? autorEmpresaId : autorId ?? undefined}
-                        alvoTipo={autorEmpresaId ? 'empresa' : 'usuario'}
+                        alvoId={autorId ?? undefined}
+                        alvoTipo="usuario"
                         seguidoTipo="user"
                         isFollowing={seguindoAutor}
                         leadingIcon="none"

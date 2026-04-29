@@ -91,10 +91,24 @@ export default function EmpresaPage() {
     if (!empresaId) return
     setLoading(true)
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const viewerUid = session?.user?.id ?? null
+
       const { data: empresaData, error } = await supabase.from('empresas').select('*').eq('id', empresaId).single()
 
       if (error || !empresaData) {
         setEmpresa(null)
+        router.replace('/guia')
+        return
+      }
+
+      const isPreview = Boolean((empresaData as { somente_modo_apresentacao?: boolean } | null)?.somente_modo_apresentacao)
+      const donoId = (empresaData as { usuario_id?: string } | null)?.usuario_id ?? null
+      if (isPreview && (!viewerUid || String(donoId ?? '') !== String(viewerUid))) {
+        setEmpresa(null)
+        router.replace('/guia')
         return
       }
 

@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Heart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
+import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 
 /**
  * @param {{
@@ -98,15 +98,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
     if (ids.length === 0) {
       setUsers([])
     } else {
-      /** @type {Map<string, string | null>} */
-      const prefTipo = new Map()
-      for (const s of seg ?? []) {
-        const id = String(s.seguido_id ?? '')
-        if (!id) continue
-        prefTipo.set(id, s.seguido_tipo != null ? String(s.seguido_tipo) : null)
-      }
-
-      const perfis = await buscarPerfisPorIds(supabase, ids, prefTipo)
+      const perfis = await buscarPerfisSociaisPorIds(supabase, ids)
 
       /** @type {Set<string>} */
       let minhas = new Set()
@@ -119,8 +111,8 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
       setUsers(
         perfis.map((p) => ({
           usuario_id: String(p.usuario_id ?? ''),
-          empresa_id: p.empresa_id != null ? String(p.empresa_id) : null,
-          tipo: String(p.tipo ?? ''),
+          empresa_id: null,
+          tipo: 'usuario',
           nome: String(p.nome ?? 'Usuário'),
           username: String(p.username ?? 'usuario'),
           foto_url: p.foto_url != null ? String(p.foto_url) : null,
