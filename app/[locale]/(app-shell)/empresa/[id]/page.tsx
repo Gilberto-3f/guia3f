@@ -215,7 +215,7 @@ export default function EmpresaPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
-        <div className="flex items-center justify-between gap-2 px-4 py-2">
+        <div className="flex items-center justify-between gap-2 px-4 py-1.5">
           <div className="flex min-w-0 items-center gap-2">
             {!modoEmpresaLayout ? <BotaoVoltar /> : null}
             <Username username={nomeUsuario} />
@@ -225,7 +225,7 @@ export default function EmpresaPage() {
             <button
               type="button"
               onClick={() => setMenuAberto(true)}
-              className="shrink-0 rounded-full px-2 py-1 text-[26px] font-bold leading-none text-[#0097b2] transition-colors hover:bg-[#0097b2]/10"
+              className="shrink-0 px-1 text-[30px] font-bold leading-none text-[#0097b2]"
               aria-label="Menu"
             >
               ☰⋮

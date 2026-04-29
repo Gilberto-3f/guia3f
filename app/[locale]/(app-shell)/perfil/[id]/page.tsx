@@ -18,6 +18,7 @@ import PopupSeguidores from '@/components/perfil/PopupSeguidores'
 import PopupAvaliacoes from '@/components/perfil/PopupAvaliacoes'
 import ModalFoto from '@/components/perfil/ModalFoto'
 import BotaoSeguir from '@/components/BotaoSeguir'
+import PopupCartaoVisitaProfissional from '@/components/perfil/PopupCartaoVisitaProfissional'
 import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
 import { POST_DELETED_EVENT } from '@/components/MenuPost'
 
@@ -81,7 +82,14 @@ export default function PerfilSocialPage() {
   const [popFav, setPopFav] = useState(false)
   const [popSeg, setPopSeg] = useState(false)
   const [popAval, setPopAval] = useState(false)
+  const [popCartao, setPopCartao] = useState(false)
   const [modalFoto, setModalFoto] = useState({ aberto: false, i: 0 })
+
+  const [profMeta, setProfMeta] = useState<{
+    categorias: string[] | null
+    placaVermelha: boolean
+    verificadoEm: string | null
+  }>({ categorias: null, placaVermelha: false, verificadoEm: null })
 
   const patchFotoPost = useCallback((postId: string, updates: { total_curtidas?: number; total_comentarios?: number }) => {
     setPostsFotos((prev) =>
@@ -199,12 +207,23 @@ export default function PerfilSocialPage() {
       } else if (role === 'profissional') {
         const { data: prof, error: ep } = await supabase
           .from('profissionais')
-          .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url')
+          .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado_em, created_at')
           .eq('usuario_id', profileId)
           .maybeSingle()
         if (ep) console.warn('Perfil profissionais:', ep.message)
         if (!ep && prof && typeof prof === 'object' && !Array.isArray(prof)) {
           perfilRow = prof as Record<string, unknown>
+          const rr = prof as unknown as {
+            categorias?: string[] | null
+            placa_vermelha?: boolean | null
+            docs_verificado_em?: string | null
+            created_at?: string | null
+          }
+          setProfMeta({
+            categorias: Array.isArray(rr.categorias) ? rr.categorias.map((x) => String(x)) : null,
+            placaVermelha: Boolean(rr.placa_vermelha),
+            verificadoEm: rr.docs_verificado_em ?? rr.created_at ?? null,
+          })
         }
       } else if (role === 'turista') {
         const { data: tur, error: et } = await supabase
@@ -216,6 +235,7 @@ export default function PerfilSocialPage() {
         if (!et && tur && typeof tur === 'object' && !Array.isArray(tur)) {
           perfilRow = tur as Record<string, unknown>
         }
+        setProfMeta({ categorias: null, placaVermelha: false, verificadoEm: null })
       }
 
       const nomePerfil =
@@ -498,26 +518,26 @@ export default function PerfilSocialPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <header className="sticky top-0 z-30 border-b border-gray-100 bg-white">
-        <div className="flex items-center justify-between gap-2 px-4 py-2">
-          <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex items-center justify-between gap-2 px-4 py-1.5">
+          <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
               onClick={() => router.back()}
               className="-ml-2 rounded-full p-2 transition-colors hover:bg-gray-100"
               aria-label="Voltar"
             >
-              <ArrowLeft size={22} className="text-gray-600" />
+              <ArrowLeft size={20} className="text-gray-600" />
             </button>
             <span
-              className={`block min-w-0 max-w-[min(55vw,360px)] truncate font-normal text-gray-600 ${
-                displayUsernameRaw.length > 10 ? 'text-[15px]' : 'text-[16px]'
+              className={`block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-gray-600 ${
+                displayUsernameRaw.length > 10 ? 'text-[16px]' : 'text-[17px]'
               }`}
             >
               @{displayUsername || 'usuario'}
             </span>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1">
             {mostrarBotaoSeguir ? (
               <BotaoSeguir
                 alvoId={profileId}
@@ -532,7 +552,7 @@ export default function PerfilSocialPage() {
               <button
                 type="button"
                 onClick={() => setMenuAberto(true)}
-                className="shrink-0 rounded-full px-2 py-1 text-[26px] font-bold leading-none text-[#0097b2] transition-colors hover:bg-[#0097b2]/10"
+                className="shrink-0 px-1 text-[30px] font-bold leading-none text-[#0097b2]"
                 aria-label="Menu"
               >
                 ☰⋮
@@ -555,7 +575,11 @@ export default function PerfilSocialPage() {
       ) : null}
 
       <div className="mt-3 px-4 text-left">
-        <NomeSocial nome={nome} />
+        <NomeSocial
+          nome={nome}
+          mostrarCartao={perfilRole === 'profissional'}
+          onAbrirCartao={() => setPopCartao(true)}
+        />
         <div className="mt-1">
           <DescricaoCurta texto={bio} />
         </div>
@@ -614,6 +638,17 @@ export default function PerfilSocialPage() {
         onFechar={() => setPopAval(false)}
         profileId={profileId}
         perfilTipo={perfilTipo}
+      />
+      <PopupCartaoVisitaProfissional
+        aberto={popCartao}
+        onFechar={() => setPopCartao(false)}
+        nome={nome}
+        username={username}
+        avatarUrl={fotoPerfil}
+        verificadoEm={profMeta.verificadoEm}
+        categorias={profMeta.categorias}
+        placaVermelha={profMeta.placaVermelha}
+        onContratar={() => router.push('/canal')}
       />
 
       <ModalFoto
