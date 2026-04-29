@@ -128,7 +128,7 @@ function labelStoryEmpresa(e) {
  * @param {{
  *   hidden?: boolean
  *   userEmail: string | null
- *   onOpenStory: (id: string) => void
+ *   onOpenStory: (id: string, meta?: { filaAutores: string[]; filaAutorIndex: number }) => void
  *   reloadSignal?: number
  * }} props
  */
@@ -141,7 +141,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     visualizado_por: null,
   })
 
-  /** @type {{ id: string, label: string, avatarUrl: string | null, visualizado_por: unknown }[]} */
+  /** @type {{ id: string, autorId: string, label: string, avatarUrl: string | null, visualizado_por: unknown }[]} */
   const [rings, setRings] = useState([])
   const [meuUserId, setMeuUserId] = useState(/** @type {string | null} */ (null))
 
@@ -374,6 +374,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
         const avatarUrl = previews[aid] ?? null
         return {
           id: abrirId,
+          autorId: aid,
           label: labels[aid] ?? 'Usuário',
           avatarUrl,
           visualizado_por: visualizadoPorConsolidadoParaAnel(arr, userEmail),
@@ -423,6 +424,12 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
   const meuVisto = foiVisualizado(meuSlot.visualizado_por, userEmail)
   const meuTemStory = Boolean(meuSlot.storyId)
 
+  const filaAutoresParaNavegacao = () => {
+    const outros = rings.map((r) => r.autorId).filter(Boolean)
+    if (meuTemStory && meuUserId) return [meuUserId, ...outros]
+    return outros
+  }
+
   return (
     <div className="border-b border-gray-200 bg-transparent py-1.5">
       <div className="flex items-start gap-3 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -440,7 +447,11 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
                   meuTemStory ? (
                     <button
                       type="button"
-                      onClick={() => meuSlot.storyId && onOpenStory(meuSlot.storyId)}
+                      onClick={() => {
+                        if (!meuSlot.storyId || !meuUserId) return
+                        const filaAutores = filaAutoresParaNavegacao()
+                        onOpenStory(meuSlot.storyId, { filaAutores, filaAutorIndex: 0 })
+                      }}
                       className="relative block aspect-square w-full max-h-[68px] max-w-[68px] overflow-hidden rounded-full bg-gray-100"
                       aria-label="Ver seu story"
                     >
@@ -510,7 +521,14 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
             avatarUrl={s.avatarUrl}
             visualizado_por={s.visualizado_por}
             userEmail={userEmail}
-            onOpen={onOpenStory}
+            onPress={() => {
+              const filaAutores = filaAutoresParaNavegacao()
+              const filaAutorIndex = filaAutores.indexOf(s.autorId)
+              onOpenStory(s.id, {
+                filaAutores,
+                filaAutorIndex: filaAutorIndex >= 0 ? filaAutorIndex : 0,
+              })
+            }}
           />
         ))}
       </div>

@@ -10,7 +10,7 @@ import { STORY_RING_GRADIENT, visualizadoPorEmails } from '@/lib/feed-autor'
  *   avatarUrl: string | null
  *   visualizado_por: unknown
  *   userEmail: string | null
- *   onOpen: (id: string) => void
+ *   onPress: () => void
  *   labelOnDark?: boolean
  * }} props
  */
@@ -20,7 +20,7 @@ export default function StoryCircle({
   avatarUrl,
   visualizado_por,
   userEmail,
-  onOpen,
+  onPress,
   labelOnDark = false,
 }) {
   const emails = visualizadoPorEmails(visualizado_por)
@@ -40,7 +40,7 @@ export default function StoryCircle({
           <div className="rounded-full bg-white p-[2px]">
             <button
               type="button"
-              onClick={() => onOpen(id)}
+              onClick={() => onPress()}
               className="relative block aspect-square w-full max-h-[68px] max-w-[68px] overflow-hidden rounded-full bg-gray-100"
               aria-label={`Ver story de ${label}`}
             >

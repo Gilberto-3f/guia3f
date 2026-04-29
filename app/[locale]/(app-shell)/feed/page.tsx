@@ -65,11 +65,18 @@ type StoryViewerState = {
   visualizado_por?: unknown
 }
 
+type StoryOpenMeta = {
+  filaAutores: string[]
+  filaAutorIndex: number
+}
+
 type StoryModalPack = {
   ids: string[]
   index: number
   data: StoryViewerState
   playbackKey: number
+  filaAutores: string[]
+  filaAutorIndex: number
 }
 
 type StoryRowSelect = {
@@ -469,39 +476,71 @@ function FeedPageInner() {
     return mapped
   }, [])
 
+  /** Fila de stories de um autor (antigo → novo), começando no primeiro não visto. */
+  const montarPackStoryAutor = useCallback(
+    async (autorUsuarioId: string): Promise<{ ids: string[]; index: number; data: StoryViewerState } | null> => {
+      const { data: rows, error } = await supabase
+        .from('stories')
+        .select('id, tipo, created_at, visualizado_por')
+        .eq('autor_id', autorUsuarioId)
+        .gt('expira_em', new Date().toISOString())
+        .order('created_at', { ascending: true })
+      if (error || !rows?.length) return null
+      const asc = rows.filter((r) => !isTipoVideoPost((r as { tipo?: string }).tipo))
+      if (asc.length === 0) return null
+      const startId = escolherIdStoryInicialPorEmail(asc, email) ?? String((asc[0] as { id: unknown }).id)
+      const ids = asc.map((r) => String((r as { id: unknown }).id))
+      let index = ids.indexOf(startId)
+      if (index < 0) index = 0
+      const data = await carregarStoryPorId(ids[index])
+      if (!data) return null
+      return { ids, index, data }
+    },
+    [email, carregarStoryPorId]
+  )
+
   const abrirStory = useCallback(
-    async (id: string) => {
-      const firstClick = await carregarStoryPorId(id)
-      if (!firstClick) return
-      const autorId = firstClick.autorUsuarioId
-      let ids = [id]
-      let index = 0
-      let dataToShow = firstClick
-      if (autorId) {
-        const { data: rows, error } = await supabase
-          .from('stories')
-          .select('id, tipo, created_at, visualizado_por')
-          .eq('autor_id', autorId)
-          .gt('expira_em', new Date().toISOString())
-          .order('created_at', { ascending: true })
-        if (!error && rows?.length) {
-          const asc = rows.filter((r) => !isTipoVideoPost((r as { tipo?: string }).tipo))
-          if (asc.length > 0) {
-            const startId = escolherIdStoryInicialPorEmail(asc, email) ?? String((asc[0] as { id: unknown }).id)
-            ids = asc.map((r) => String((r as { id: unknown }).id))
-            index = ids.indexOf(startId)
-            if (index < 0) index = 0
-            if (startId !== firstClick.id) {
-              const mapped = await carregarStoryPorId(startId)
-              if (!mapped) return
-              dataToShow = mapped
-            }
-          }
+    async (id: string, meta?: StoryOpenMeta) => {
+      const probe = await carregarStoryPorId(id)
+      if (!probe) return
+      const autorId = probe.autorUsuarioId
+      if (!autorId) {
+        setStoryModal({
+          ids: [probe.id],
+          index: 0,
+          data: probe,
+          playbackKey: 0,
+          filaAutores: [],
+          filaAutorIndex: 0,
+        })
+        return
+      }
+      const pack = await montarPackStoryAutor(autorId)
+      if (!pack) return
+      let { ids, index, data } = pack
+      if (ids.includes(id)) {
+        const idx = ids.indexOf(id)
+        const mapped = await carregarStoryPorId(id)
+        if (mapped) {
+          index = idx
+          data = mapped
         }
       }
-      setStoryModal({ ids, index, data: dataToShow, playbackKey: 0 })
+      const filaAutores = meta?.filaAutores?.length ? meta.filaAutores : [autorId]
+      const filaAutorIndex =
+        meta?.filaAutores?.length && typeof meta.filaAutorIndex === 'number' && meta.filaAutorIndex >= 0
+          ? meta.filaAutorIndex
+          : Math.max(0, filaAutores.indexOf(autorId))
+      setStoryModal({
+        ids,
+        index,
+        data,
+        playbackKey: 0,
+        filaAutores,
+        filaAutorIndex,
+      })
     },
-    [carregarStoryPorId, email]
+    [carregarStoryPorId, montarPackStoryAutor]
   )
 
   const fecharStoryModal = useCallback(() => {
@@ -513,15 +552,63 @@ function FeedPageInner() {
     async (delta: number) => {
       const cur = storyModalRef.current
       if (!cur) return
+      const fila =
+        cur.filaAutores?.length > 0
+          ? cur.filaAutores
+          : cur.data.autorUsuarioId
+            ? [cur.data.autorUsuarioId]
+            : []
+      const fIdx = typeof cur.filaAutorIndex === 'number' && cur.filaAutorIndex >= 0 ? cur.filaAutorIndex : 0
+
       const n = cur.ids.length
       const rawNext = cur.index + delta
       if (rawNext < 0) {
-        // Primeiro story: não faz wrap (mantém no início)
+        if (fIdx > 0 && cur.index === 0) {
+          const prevAid = fila[fIdx - 1]
+          const pack = await montarPackStoryAutor(prevAid)
+          if (!pack?.ids.length) {
+            setStoryModal((p) => (p ? { ...p, index: 0, playbackKey: p.playbackKey + 1 } : null))
+            return
+          }
+          const li = pack.ids.length - 1
+          const mapped = await carregarStoryPorId(pack.ids[li])
+          if (!mapped) {
+            setStoryModal((p) => (p ? { ...p, index: 0, playbackKey: p.playbackKey + 1 } : null))
+            return
+          }
+          if (!storyModalRef.current) return
+          setStoryModal({
+            ids: pack.ids,
+            index: li,
+            data: mapped,
+            playbackKey: 0,
+            filaAutores: fila,
+            filaAutorIndex: fIdx - 1,
+          })
+          return
+        }
         setStoryModal((p) => (p ? { ...p, index: 0, playbackKey: p.playbackKey + 1 } : null))
         return
       }
       if (rawNext >= n) {
-        // Último story: não faz wrap — fecha viewer
+        if (fila.length > 0 && fIdx < fila.length - 1) {
+          const nextAid = fila[fIdx + 1]
+          const pack = await montarPackStoryAutor(nextAid)
+          if (!pack) {
+            fecharStoryModal()
+            return
+          }
+          if (!storyModalRef.current) return
+          setStoryModal({
+            ids: pack.ids,
+            index: pack.index,
+            data: pack.data,
+            playbackKey: 0,
+            filaAutores: fila,
+            filaAutorIndex: fIdx + 1,
+          })
+          return
+        }
         fecharStoryModal()
         return
       }
@@ -537,7 +624,6 @@ function FeedPageInner() {
       }
       const mapped = await carregarStoryPorId(nextId)
       if (!mapped) {
-        /* Sem dados: o timer do story anterior já parou — reinicia o mesmo slide para não ficar barra em 100% presa. */
         if (process.env.NODE_ENV === 'development') {
           // eslint-disable-next-line no-console
           console.warn('[feed] navegarStory: falha ao carregar story', nextId)
@@ -546,9 +632,16 @@ function FeedPageInner() {
         return
       }
       if (!storyModalRef.current || storyModalRef.current.ids[nextIndex] !== nextId) return
-      setStoryModal({ ids: cur.ids, index: nextIndex, data: mapped, playbackKey: 0 })
+      setStoryModal({
+        ids: cur.ids,
+        index: nextIndex,
+        data: mapped,
+        playbackKey: 0,
+        filaAutores: fila,
+        filaAutorIndex: fIdx,
+      })
     },
-    [carregarStoryPorId, fecharStoryModal]
+    [carregarStoryPorId, fecharStoryModal, montarPackStoryAutor]
   )
 
   const removerPost = (postId: string) => {
@@ -566,7 +659,11 @@ function FeedPageInner() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="bg-gray-100">
-        <StoriesBar userEmail={email} reloadSignal={storiesBarReload} onOpenStory={(id) => void abrirStory(id)} />
+        <StoriesBar
+          userEmail={email}
+          reloadSignal={storiesBarReload}
+          onOpenStory={(id, meta) => void abrirStory(id, meta)}
+        />
       </div>
 
       <div className="space-y-4 p-4">
