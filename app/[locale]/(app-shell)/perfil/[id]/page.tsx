@@ -21,6 +21,7 @@ import BotaoSeguir from '@/components/BotaoSeguir'
 import PopupCartaoVisitaProfissional from '@/components/perfil/PopupCartaoVisitaProfissional'
 import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
 import { POST_DELETED_EVENT } from '@/components/MenuPost'
+import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
 
@@ -250,18 +251,27 @@ export default function PerfilSocialPage() {
           : u.email
             ? String(u.email).split('@')[0]
             : 'usuario'
-      const fotoPerfilRow =
-        perfilRow?.foto_url != null
-          ? String(perfilRow.foto_url)
-          : perfilRow?.foto_perfil_url != null
-            ? String(perfilRow.foto_perfil_url)
-            : null
+      const pickFoto = (v: unknown) => {
+        if (v == null) return ''
+        const s = String(v).trim()
+        if (!s) return ''
+        if (s.includes('avatar-default')) return ''
+        return s
+      }
+      const fotoPerfilRow = pickFoto(perfilRow?.foto_perfil_url) || pickFoto(perfilRow?.foto_url) || null
 
       setNome(nomePerfil)
       setUsername(usernamePerfil)
       setFotoPerfil(fotoPerfilRow)
       setBio(perfilRow?.bio != null ? String(perfilRow.bio) : null)
       setCapaUrl(perfilRow?.foto_capa_url != null ? String(perfilRow.foto_capa_url) : null)
+
+      if (!fotoPerfilRow) {
+        const url = await fetchFotoPerfilUsuario(supabase, profileId)
+        if (url && url.trim() !== '') {
+          setFotoPerfil(url)
+        }
+      }
 
       const [{ count: cFav }, { count: cSegU }, { count: cSegMe }, { count: cAval }] = await Promise.all([
         supabase.from('favoritos').select('id', { count: 'exact', head: true }).eq('usuario_id', profileId),
