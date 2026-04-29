@@ -113,17 +113,19 @@ export default function PopupCartaoVisitaProfissional({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-          <div className="flex gap-4 sm:gap-5">
-            <div className="flex w-[7.5rem] shrink-0 flex-col items-stretch sm:w-[8.5rem]">
-              <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gray-100 ring-2 ring-[#0097b2]/15">
-                {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="(max-width:640px) 120px, 136px" /> : null}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="relative h-[3.75rem] w-[3.75rem] shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-[#0097b2]/15 sm:h-[4.25rem] sm:w-[4.25rem]">
+                {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="68px" /> : null}
               </div>
-              <p className="mt-3 line-clamp-4 text-center text-base font-bold leading-snug text-[#0097b2] sm:text-lg">{rotuloCategoria}</p>
+              <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 text-left">
+                <p className="line-clamp-2 text-lg font-bold text-gray-900 sm:text-xl">{nome || 'Profissional'}</p>
+                <p className="truncate text-sm font-normal text-gray-600 sm:text-base">@{uShown || 'usuario'}</p>
+              </div>
             </div>
-            <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 text-left">
-              <p className="line-clamp-2 text-lg font-bold text-gray-900 sm:text-xl">{nome || 'Profissional'}</p>
-              <p className="truncate text-sm font-normal text-gray-600 sm:text-base">@{uShown || 'usuario'}</p>
-            </div>
+            <p className="w-full whitespace-normal text-center text-xl font-bold leading-snug tracking-wide text-[#0097b2]">
+              {rotuloCategoria}
+            </p>
           </div>
 
           <div className="mt-6 w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-4">
