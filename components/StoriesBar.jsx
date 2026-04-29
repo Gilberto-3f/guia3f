@@ -224,13 +224,14 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     }
 
     const emps = empresasRows
+    const empresaAutorSet = new Set((emps ?? []).map((e) => String(e.usuario_id)).filter(Boolean))
 
     /** Stories permitidos: o próprio utilizador, seguidos (não empresa) ou qualquer empresa; sem vídeo. */
     const storiesFiltradas = (storiesRows ?? []).filter((s) => {
       if (isTipoVideoPost(s.tipo)) return false
       const aid = String(s.autor_id)
       if (aid === uid) return true
-      const isEmp = isAutorEmpresa(s.autor_tipo)
+      const isEmp = isAutorEmpresa(s.autor_tipo) || empresaAutorSet.has(aid)
       if (isEmp) return true
       return seguidosIds.has(aid)
     })
@@ -244,13 +245,6 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     }
     for (const arr of storiesPorAutorArr.values()) {
       ordenarStoriesPorCreatedAsc(arr)
-    }
-
-    const autorTemStoryEmpresa = (aid) => {
-      const arr = storiesPorAutorArr.get(aid)
-      if (!arr?.length) return false
-      const s0 = arr[0]
-      return Boolean(s0 && isAutorEmpresa(s0.autor_tipo))
     }
 
     const meuArr = storiesPorAutorArr.get(uid) ?? []
@@ -280,7 +274,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     // 1) Seguidos turista/profissional (não empresa)
     const seguidosNaoEmpresa = [...storiesPorAutorArr.entries()]
       .filter(([aid, arr]) => {
-        if (aid === uid || !seguidosIds.has(aid) || autorTemStoryEmpresa(aid)) return false
+        if (aid === uid || !seguidosIds.has(aid) || empresaAutorSet.has(aid)) return false
         const s0 = arr[0]
         return s0 && !isAutorEmpresa(s0.autor_tipo)
       })
@@ -369,7 +363,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
 
     await Promise.all(
       ordered.map(async (aid) => {
-        if (autorTemStoryEmpresa(aid)) return
+        if (empresaAutorSet.has(aid)) return
         const nu = await fetchNomeUsuarioParaStory(supabase, aid)
         const h = formatStoryHandle(nu)
         if (h) labels[aid] = h
