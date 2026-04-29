@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import FotoCapa from '@/components/perfil/FotoCapa'
 import MenuLateral from '@/components/perfil/MenuLateral'
 import NomeSocial from '@/components/perfil/NomeSocial'
-import Username from '@/components/perfil/Username'
 import DescricaoCurta from '@/components/perfil/DescricaoCurta'
 import MetricasPerfil from '@/components/perfil/MetricasPerfil'
 import AbasPerfil from '@/components/perfil/AbasPerfil'
@@ -483,13 +483,66 @@ export default function PerfilSocialPage() {
     perfilContaStatus !== 'ativo' &&
     (perfilRole === 'profissional' || perfilRole === 'turista')
 
+  const displayUsernameRaw = String(username ?? '')
+    .trim()
+    .replace(/^@+/, '')
+  const displayUsername =
+    displayUsernameRaw.length > 15 ? `${displayUsernameRaw.slice(0, 15)}…` : displayUsernameRaw
+  const usernameTextClass =
+    displayUsernameRaw.length > 10 ? 'text-[13px]' : 'text-[15px]'
+
+  const souDono = Boolean(meuId && profileId && meuId === profileId)
+  const mostrarBotaoSeguir = Boolean(meuId && !souDono)
+  const mostrarMenu = Boolean(souDono && menuVariant)
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
+      <header className="sticky top-0 z-30 border-b border-gray-100 bg-white">
+        <div className="relative flex items-center justify-between gap-3 px-4 py-3">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="-ml-2 rounded-full p-2 transition-colors hover:bg-gray-100"
+            aria-label="Voltar"
+          >
+            <ArrowLeft size={24} className="text-gray-600" />
+          </button>
+
+          <div className="pointer-events-none absolute left-1/2 top-1/2 w-[min(60vw,320px)] -translate-x-1/2 -translate-y-1/2 text-center">
+            <span className={`block truncate font-medium text-gray-600 ${usernameTextClass}`}>
+              @{displayUsername || 'usuario'}
+            </span>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            {mostrarBotaoSeguir ? (
+              <BotaoSeguir
+                alvoId={profileId}
+                alvoTipo="usuario"
+                seguidoTipo={perfilRole}
+                isFollowing={seguindoPerfil}
+                onToggle={(novo) => setSeguindoPerfil(novo)}
+                layout="inline"
+              />
+            ) : null}
+            {mostrarMenu ? (
+              <button
+                type="button"
+                onClick={() => setMenuAberto(true)}
+                className="shrink-0 rounded-full bg-black/5 px-3 py-2 text-lg font-bold leading-none text-gray-900 hover:bg-black/10"
+                aria-label="Menu"
+              >
+                ☰⋮
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </header>
+
       <FotoCapa
         src={fotoPerfil}
         nomeFallback={nome}
-        onOpenMenu={() => setMenuAberto(true)}
-        mostrarMenu={Boolean(menuVariant)}
+        mostrarMenu={false}
       />
 
       {mostrarFaixaAnalise ? (
@@ -500,21 +553,6 @@ export default function PerfilSocialPage() {
 
       <div className="mt-3 px-4 text-left">
         <NomeSocial nome={nome} />
-        <div className="mt-0.5 flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <Username username={username} />
-          </div>
-          {meuId && meuId !== profileId ? (
-            <BotaoSeguir
-              alvoId={profileId}
-              alvoTipo="usuario"
-              seguidoTipo={perfilRole}
-              isFollowing={seguindoPerfil}
-              onToggle={(novo) => setSeguindoPerfil(novo)}
-              layout="inline"
-            />
-          ) : null}
-        </div>
         <div className="mt-1">
           <DescricaoCurta texto={bio} />
         </div>
