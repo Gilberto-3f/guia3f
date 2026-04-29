@@ -22,6 +22,7 @@ import PopupCartaoVisitaProfissional from '@/components/perfil/PopupCartaoVisita
 import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
 import { POST_DELETED_EVENT } from '@/components/MenuPost'
 import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
 
@@ -47,6 +48,7 @@ type FotoPostItem = {
 }
 
 export default function PerfilSocialPage() {
+  const { recursosProfissionaisLiberados } = useProfissionalGate()
   const params = useParams()
   const router = useRouter()
   const profileId = typeof params.id === 'string' ? params.id : params.id?.[0] ?? ''
@@ -684,6 +686,7 @@ export default function PerfilSocialPage() {
         placaVermelha={placaVermelha}
         adminLevel={adminLevel}
         bioText={bio ?? ''}
+        recursosProfissionaisLiberados={recursosProfissionaisLiberados}
         onPerfilAtualizado={() => void carregar()}
       />
 

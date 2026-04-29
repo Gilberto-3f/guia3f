@@ -38,7 +38,9 @@ function collectDocThumbs(tipo: 'turistas' | 'profissionais' | 'empresas', raw: 
   }
   if (tipo === 'profissionais') {
     const d = (raw.documentos ?? {}) as Record<string, string>
-    const idF = String(d.identidade_url ?? raw.identidade_url ?? '').trim()
+    const idF = String(
+      raw.documento_frente_url ?? d.identidade_url ?? raw.identidade_url ?? ''
+    ).trim()
     const idV = String(d.documento_verso_url ?? raw.documento_verso_url ?? '').trim()
     const res = String(d.comprovante_residencia_url ?? raw.comprovante_residencia_url ?? '').trim()
     const prof = String(d.comprovante_profissao_url ?? raw.comprovante_profissao_url ?? '').trim()

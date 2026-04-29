@@ -10,6 +10,7 @@ import type {
   PerfilVerificacao,
 } from '../types/admin.types'
 import { usePermissao } from './usePermissao'
+import { proximaRevisaoDepoisDeAprovacao } from '@/lib/verificacao-documentos'
 
 /** JSONB ou coluna legada: normaliza para string[]. */
 function parseCategoriasProfissional(raw: unknown): string[] {
@@ -73,7 +74,11 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
   const fetchContadores = useCallback(async () => {
     const [t, p, e] = await Promise.all([
       supabase.from('turistas').select('*', { count: 'exact', head: true }).eq('docs_verificado', false),
-      supabase.from('profissionais').select('*', { count: 'exact', head: true }).eq('docs_verificado', false),
+      supabase
+        .from('profissionais')
+        .select('*', { count: 'exact', head: true })
+        .eq('docs_verificado', false)
+        .not('documentos_enviados_em', 'is', null),
       supabase.from('empresas').select('*', { count: 'exact', head: true }).eq('docs_verificado', false),
     ])
     if (t.error) throw t.error
@@ -117,7 +122,8 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       .from('profissionais')
       .select('*')
       .eq('docs_verificado', false)
-      .order('created_at', { ascending: true })
+      .not('documentos_enviados_em', 'is', null)
+      .order('documentos_enviados_em', { ascending: true })
     if (error) throw error
     const rows = (data ?? []) as Record<string, unknown>[]
     const emailMap = await fetchEmailPorUsuarioIds(rows.map((r) => String(r.usuario_id ?? '')))
@@ -136,8 +142,9 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
         foto_url: r.foto_perfil_url ? String(r.foto_perfil_url) : null,
         categorias,
         placa_vermelha: Boolean(r.placa_vermelha),
+        documento_frente_url: r.documento_frente_url != null ? String(r.documento_frente_url) : null,
         documentos: {
-          identidade_url: String(r.identidade_url ?? ''),
+          identidade_url: String(r.documento_frente_url ?? r.identidade_url ?? ''),
           documento_verso_url: String(r.documento_verso_url ?? ''),
           comprovante_residencia_url: String(r.comprovante_residencia_url ?? ''),
           comprovante_profissao_url: String(r.comprovante_profissao_url ?? ''),
@@ -221,14 +228,23 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     async (id: string, tipo: PerfilVerificacao) => {
       if (!admin) throw new Error('Admin não autenticado')
       const table = getTableByTipo(tipo)
+      const nowIso = new Date().toISOString()
+      const extraProf =
+        tipo === 'profissionais'
+          ? {
+              ultima_revisao_docs_em: nowIso,
+              proxima_revisao_docs_em: proximaRevisaoDepoisDeAprovacao(),
+            }
+          : {}
       const { error } = await supabase
         .from(table)
         .update({
           docs_verificado: true,
           docs_verificado_por: admin.id,
-          docs_verificado_em: new Date().toISOString(),
+          docs_verificado_em: nowIso,
           verificado_por: admin.id,
-          verificado_em: new Date().toISOString(),
+          verificado_em: nowIso,
+          ...extraProf,
         })
         .eq('id', id)
       if (error) throw error
@@ -242,16 +258,28 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       const table = getTableByTipo(tipo)
       const { data: perfil, error: perfilErr } = await supabase.from(table).select('usuario_id').eq('id', id).single()
       if (perfilErr) throw perfilErr
+      const nowIso = new Date().toISOString()
+      const extraProf =
+        tipo === 'profissionais'
+          ? {
+              docs_verificado: true,
+              docs_verificado_por: admin?.id ?? null,
+              docs_verificado_em: nowIso,
+              ultima_revisao_docs_em: nowIso,
+              proxima_revisao_docs_em: proximaRevisaoDepoisDeAprovacao(),
+            }
+          : {}
       const { error } = await supabase
         .from(table)
         .update({
           status: 'aprovado',
           aprovado_por: admin?.id ?? null,
-          aprovado_em: new Date().toISOString(),
+          aprovado_em: nowIso,
           motivo_reprovacao: null,
           prazo_reenvio_dias: null,
           reprovado_em: null,
           reprovado_por: null,
+          ...extraProf,
         })
         .eq('id', id)
       if (error) throw error

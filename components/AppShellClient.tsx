@@ -4,7 +4,9 @@ import { Suspense, useEffect, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import { AdminPermissaoProvider } from '@/app/[locale]/(admin)/dashboard/admin/context/AdminPermissaoContext'
 import { ModoApresentacaoProvider, useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { ProfissionalGateProvider } from '@/context/ProfissionalGateContext'
 import ModoApresentacaoChrome from '@/components/ModoApresentacaoChrome'
+import ProfissionalGateBanner from '@/components/ProfissionalGateBanner'
 import BottomBar from '@/components/BottomBar'
 
 /** `feed/criar` emite quando o teclado está visível para esconder a barra (aba TEXTO ou legenda na FOTO). */
@@ -56,16 +58,18 @@ export default function AppShellClient({ children }: { children: ReactNode }) {
   return (
     <AdminPermissaoProvider>
       <ModoApresentacaoProvider>
-        <Suspense
-          fallback={
-            <div className="min-h-screen bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300 pb-20">
-              {children}
-              <BottomBar />
-            </div>
-          }
-        >
-          <AppShellInner>{children}</AppShellInner>
-        </Suspense>
+        <ProfissionalGateProvider>
+          <Suspense
+            fallback={
+              <div className="min-h-screen bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300 pb-20">
+                {children}
+                <BottomBar />
+              </div>
+            }
+          >
+            <AppShellInner>{children}</AppShellInner>
+          </Suspense>
+        </ProfissionalGateProvider>
       </ModoApresentacaoProvider>
     </AdminPermissaoProvider>
   )

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
 import { whatsappWaUrl } from '@/lib/whatsapp-empresa'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 
 const botoesPorCategoria = {
   gastronomia: { texto: 'RESERVAR MESA', icon: Utensils, cor: '#FF6B6B', acao: 'reserva' },
@@ -74,6 +75,12 @@ export default function AbaBotaoDinamico({
   }
 
   const handleClick = () => {
+    if (config.acao === 'corrida' && perfilEhProfissional && !recursosProfissionaisLiberados) {
+      window.alert(
+        'Mobilidade disponível após verificação dos documentos. Use Menu → USUÁRIO → Anexar Documentos.'
+      )
+      return
+    }
     switch (config.acao) {
       case 'reserva':
         if (isHospedagem(categoria)) {

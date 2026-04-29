@@ -5,6 +5,7 @@ import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag } from 'lu
 import { useRouter } from '@/i18n/navigation'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
 import { whatsappWaUrl } from '@/lib/whatsapp-empresa'
 
@@ -81,6 +82,12 @@ export default function BotaoDinamico({
   const executarAcao = () => {
     if (!podeInteragir) {
       notificarSomenteLeitura()
+      return
+    }
+    if (config.acao === 'corrida' && perfilEhProfissional && !recursosProfissionaisLiberados) {
+      window.alert(
+        'Mobilidade disponível após verificação dos documentos. Use Menu → USUÁRIO → Anexar Documentos.'
+      )
       return
     }
     if (!empresaId) {

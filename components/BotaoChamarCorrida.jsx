@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { Car } from 'lucide-react'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 
 /**
  * @param {{
@@ -12,12 +13,19 @@ import { Car } from 'lucide-react'
  */
 export default function BotaoChamarCorrida({ latitude, longitude, nomeDestino }) {
   const router = useRouter()
+  const { perfilEhProfissional, recursosProfissionaisLiberados } = useProfissionalGate()
 
   const lat = latitude != null && latitude !== '' ? Number(latitude) : NaN
   const lng = longitude != null && longitude !== '' ? Number(longitude) : NaN
 
   const handleClick = () => {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+    if (perfilEhProfissional && !recursosProfissionaisLiberados) {
+      window.alert(
+        'Mobilidade disponível após verificação dos documentos. Menu → USUÁRIO → Anexar Documentos.'
+      )
+      return
+    }
 
     router.push(
       `/mobilidade?destino_lat=${lat}&destino_lng=${lng}&destino_nome=${encodeURIComponent(nomeDestino || '')}`

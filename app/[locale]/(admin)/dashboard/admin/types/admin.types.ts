@@ -104,6 +104,8 @@ export type PendenteProfissional = {
   foto_url: string | null
   categorias: string[]
   placa_vermelha: boolean
+  /** Coluna direta (novo fluxo); compatível com `documentos.identidade_url`. */
+  documento_frente_url?: string | null
   documentos: {
     identidade_url: string
     documento_verso_url: string

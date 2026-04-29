@@ -21,6 +21,7 @@ import {
   LogOut,
   Megaphone,
   MessageSquare,
+  Paperclip,
   Scale,
   Settings,
   ShieldAlert,
@@ -54,6 +55,7 @@ import CadastrarComissao from '@/components/perfil/subpaginas/CadastrarComissao'
 import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
 import ModoApresentacao from '@/components/perfil/subpaginas/ModoApresentacao'
+import AnexarDocumentos from '@/components/perfil/subpaginas/AnexarDocumentos'
 
 /**
  * @typedef {{ tipo: 'menu', titulo: string, itens: MenuItem[] } | { tipo: 'pagina', titulo: string, id: string, historicoTipo?: string, postId?: string, comentarioId?: string | null }} HistoricoEntry
@@ -77,6 +79,7 @@ import ModoApresentacao from '@/components/perfil/subpaginas/ModoApresentacao'
  *   variant: 'turista' | 'profissional' | 'empresa' | 'admin'
  *   placaVermelha: boolean
  *   adminLevel: number
+ *   recursosProfissionaisLiberados: boolean
  * }} MenuContext
  */
 
@@ -130,36 +133,39 @@ function secoesProfissional(ctx) {
   const gUsuario = filtrarMenu(
     [
       { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
+      { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos' },
       { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
       { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
     ],
     ctx
   )
-  const gPro = filtrarMenu(
-    [
-      { Icon: DollarSign, label: 'Comissões', subpagina: 'comissoes' },
-      {
-        Icon: Calendar,
-        label: 'Agendamento Automático',
-        subpagina: 'agendamento',
-        condicional: (c) => c.placaVermelha === true,
-      },
-      {
-        Icon: Table,
-        label: 'Tabela de Valores',
-        subpagina: 'tabela',
-        condicional: (c) => c.placaVermelha === true,
-      },
-      {
-        Icon: ClipboardList,
-        label: 'Meus Manifestos',
-        subpagina: 'manifestos',
-        condicional: (c) => c.placaVermelha === true,
-      },
-      { Icon: Handshake, label: 'Histórico de Parcerias', subpagina: 'parcerias' },
-    ],
-    ctx
-  )
+  const gPro = ctx.recursosProfissionaisLiberados
+    ? filtrarMenu(
+        [
+          { Icon: DollarSign, label: 'Comissões', subpagina: 'comissoes' },
+          {
+            Icon: Calendar,
+            label: 'Agendamento Automático',
+            subpagina: 'agendamento',
+            condicional: (c) => c.placaVermelha === true,
+          },
+          {
+            Icon: Table,
+            label: 'Tabela de Valores',
+            subpagina: 'tabela',
+            condicional: (c) => c.placaVermelha === true,
+          },
+          {
+            Icon: ClipboardList,
+            label: 'Meus Manifestos',
+            subpagina: 'manifestos',
+            condicional: (c) => c.placaVermelha === true,
+          },
+          { Icon: Handshake, label: 'Histórico de Parcerias', subpagina: 'parcerias' },
+        ],
+        ctx
+      )
+    : []
   const gAplic = filtrarMenu(
     [
       {
@@ -171,7 +177,15 @@ function secoesProfissional(ctx) {
     ],
     ctx
   )
-  return [/** @type {const} */ { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario }, { tipo: 'grupo', key: 'profissional', label: 'PROFISSIONAL', items: gPro }, { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic }, { tipo: 'config' }, { tipo: 'sair' }]
+  const secProf =
+    gPro.length > 0 ? [/** @type {const} */ { tipo: 'grupo', key: 'profissional', label: 'PROFISSIONAL', items: gPro }] : []
+  return [
+    /** @type {const} */ { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario },
+    ...secProf,
+    { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic },
+    { tipo: 'config' },
+    { tipo: 'sair' },
+  ]
 }
 
 /**
@@ -246,6 +260,7 @@ function secoesAdmin(ctx, { omitirModoNaLista }) {
  *   empresaId?: string | null
  *   onPerfilAtualizado?: () => void
  *   bioText?: string
+ *   recursosProfissionaisLiberados?: boolean
  * }} props
  */
 export default function MenuLateral({
@@ -262,6 +277,7 @@ export default function MenuLateral({
   empresaId = null,
   onPerfilAtualizado,
   bioText = '',
+  recursosProfissionaisLiberados = true,
 }) {
   const router = useRouter()
   /** @type {[HistoricoEntry[], (h: HistoricoEntry[]) => void]} */
@@ -301,11 +317,11 @@ export default function MenuLateral({
   const usuarioIdEfetivo = usuarioId
   const empresaIdEfetivo = empresaId
 
-  const ctx = { variant: menuVariantEfetivo, placaVermelha, adminLevel }
+  const ctx = { variant: menuVariantEfetivo, placaVermelha, adminLevel, recursosProfissionaisLiberados }
 
   const secoes = useMemo(() => {
     if (!variant) return []
-    const c = { variant: menuVariantEfetivo, placaVermelha, adminLevel }
+    const c = { variant: menuVariantEfetivo, placaVermelha, adminLevel, recursosProfissionaisLiberados }
     const t = secoesTurista()
     const p = secoesProfissional(c)
     const e = secoesEmpresa()
@@ -320,7 +336,16 @@ export default function MenuLateral({
     if (variant === 'empresa') return e
     if (variant === 'admin') return a
     return []
-  }, [variant, menuVariantEfetivo, placaVermelha, adminLevel, simulandoComoPerfil, perfilSimulado, omitirModoNaListaAdmin])
+  }, [
+    variant,
+    menuVariantEfetivo,
+    placaVermelha,
+    adminLevel,
+    recursosProfissionaisLiberados,
+    simulandoComoPerfil,
+    perfilSimulado,
+    omitirModoNaListaAdmin,
+  ])
 
   useEffect(() => {
     if (!aberto) {
@@ -417,6 +442,7 @@ export default function MenuLateral({
         'historico-decisoes': 'Histórico de Decisões',
         salvos: 'Publicações Salvas',
         'modo-apresentacao': 'Modo Apresentação',
+        'anexar-documentos': 'Anexar Documentos',
       }
       const t = titulos[item.subpagina] || item.label
       if (item.subpagina === 'historico-decisoes') {
@@ -530,6 +556,8 @@ export default function MenuLateral({
       return <EditarPaginaEmpresa empresa={empresa} empresaId={String(empresaIdEfetivo)} onSalvo={onPerfilAtualizado} />
     }
     if (id === 'cadastrar-comissao' && empresaIdEfetivo) return <CadastrarComissao empresaId={empresaIdEfetivo} />
+    if (id === 'anexar-documentos')
+      return <AnexarDocumentos usuarioId={usuarioIdEfetivo} onConcluido={onPerfilAtualizado} />
     return <p className="text-sm text-gray-500">Página indisponível.</p>
   }
 

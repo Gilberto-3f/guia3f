@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
@@ -25,6 +26,7 @@ export default function CanalDetalhePage() {
   const canalId = params?.canalId != null ? String(params.canalId) : ''
 
   const { modoAtivo, perfilSimulado, podeInteragir } = useModoApresentacao()
+  const { recursosProfissionaisLiberados } = useProfissionalGate()
   const [userTipo, setUserTipo] = useState<TipoUsuario>(null)
   const [authPronto, setAuthPronto] = useState(false)
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
@@ -186,7 +188,14 @@ export default function CanalDetalhePage() {
         </header>
         <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">
           {isFinanceiro && financeUid ? (
-            <CanalFinanceiroLista usuarioId={financeUid} tipo="profissional" />
+            recursosProfissionaisLiberados ? (
+              <CanalFinanceiroLista usuarioId={financeUid} tipo="profissional" />
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-start px-4 py-10 text-center text-sm text-gray-600">
+                <p>O canal financeiro é liberado após a verificação dos seus documentos.</p>
+                <p className="mt-2 text-xs text-gray-500">Menu → USUÁRIO → Anexar Documentos.</p>
+              </div>
+            )
           ) : (
             <CanalMensagens canalId={canalId} paisTab="geral" podePostar={false} podeReagir={podeInteragir} />
           )}

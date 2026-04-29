@@ -32,7 +32,9 @@ export function VisualizadorDocs({
     }
     if (tipo === 'profissionais') {
       const d = (pendente.documentos ?? {}) as Record<string, string>
-      const idF = String(d.identidade_url ?? pendente.identidade_url ?? '')
+      const idF = String(
+        d.identidade_url ?? pendente.documento_frente_url ?? pendente.identidade_url ?? ''
+      )
       const idV = String(d.documento_verso_url ?? pendente.documento_verso_url ?? '')
       const res = String(d.comprovante_residencia_url ?? pendente.comprovante_residencia_url ?? '')
       const prof = String(d.comprovante_profissao_url ?? pendente.comprovante_profissao_url ?? '')
