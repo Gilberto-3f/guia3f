@@ -236,6 +236,14 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       return seguidosIds.has(aid)
     })
 
+    /** Autores cujo story foi publicado como "empresa" (autor_tipo). */
+    const autorStoryEmpresaSet = new Set(
+      (storiesFiltradas ?? [])
+        .filter((s) => isAutorEmpresa(s.autor_tipo))
+        .map((s) => String(s.autor_id))
+        .filter(Boolean)
+    )
+
     /** Todos os stories por autor (foto), ordenados do mais antigo ao mais novo. */
     const storiesPorAutorArr = /** @type {Map<string, NonNullable<typeof storiesFiltradas>>} */ (new Map())
     for (const s of storiesFiltradas) {
@@ -307,8 +315,11 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     const previews = /** @type {Record<string, string | null>} */ ({})
     for (const e of emps ?? []) {
       const uid = String(e.usuario_id)
-      labels[uid] = labelStoryEmpresa(e)
-      previews[uid] = e.foto_url != null ? String(e.foto_url) : null
+      const podeRotularComoEmpresa = autorStoryEmpresaSet.has(uid) || (simulandoEmpresa && uid === String(session.user.id))
+      if (podeRotularComoEmpresa) {
+        labels[uid] = labelStoryEmpresa(e)
+        previews[uid] = e.foto_url != null ? String(e.foto_url) : null
+      }
     }
     if (destaque?.usuario_id) {
       const uid = String(destaque.usuario_id)
