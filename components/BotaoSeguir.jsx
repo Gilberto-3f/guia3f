@@ -118,17 +118,15 @@ export default function BotaoSeguir({
           buttonClassName.trim()
             ? buttonClassName
             : [
-                'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
+                'flex min-w-[124px] items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors',
                 seguindo
-                  ? 'border-red-200 bg-red-50 text-red-500'
-                  : 'border-transparent bg-gray-100 text-gray-700 hover:bg-gray-200',
+                  ? 'border-[#0097b2] bg-white text-[#0097b2] hover:bg-[#0097b2]/5'
+                  : 'border-transparent bg-[#0097b2] text-white hover:bg-[#0088a1]',
               ].join(' ')
         }
       >
-        {leadingIcon === 'heart' ? (
-          <Heart size={16} className={seguindo ? 'fill-red-500' : ''} aria-hidden />
-        ) : null}
-        <span>{seguindo ? 'Deixar de seguir' : 'Seguir'}</span>
+        {leadingIcon === 'heart' && !seguindo ? <Heart size={16} className="text-white" aria-hidden /> : null}
+        <span>{seguindo ? 'Seguindo' : 'Seguir'}</span>
       </button>
       {erro ? <span className="max-w-[240px] text-right text-xs text-red-600">{erro}</span> : null}
     </div>
