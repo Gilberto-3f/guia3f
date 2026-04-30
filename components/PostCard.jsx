@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Bookmark, Heart, MessageCircle, Repeat2, Share2 } from 'lucide-react'
+import { Bookmark, Heart, MessageCircle, Repeat2, Share2, ShieldCheck } from 'lucide-react'
 import ModalComentarios from '@/components/ModalComentarios'
 import ModalCurtidas from '@/components/ModalCurtidas'
 import ModalCompartilhar from '@/components/ModalCompartilhar'
@@ -688,6 +688,79 @@ export default function PostCard({
       </button>
     </div>
   )
+
+  if (tipoNorm === 'verificacao_profissional') {
+    const meta =
+      post.avaliacao_meta && typeof post.avaliacao_meta === 'object' && !Array.isArray(post.avaliacao_meta)
+        ? /** @type {Record<string, unknown>} */ (post.avaliacao_meta)
+        : {}
+    const catRotulo = typeof meta.categoria_rotulo === 'string' ? meta.categoria_rotulo : '—'
+    const tempo = formatarDataRelativaPublicacao(post.created_at)
+    return (
+      <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
+        {!ocultarCabecalhoCard ? (
+          ehRepost ? (
+            cabecalhoRepublicou
+          ) : (
+            <div className="flex items-center justify-between border-b border-gray-50 px-4 pt-3">
+              <div>
+                {autorId ? (
+                  <Link href={hrefAutor} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
+                    @{post.autor?.username ?? ''}
+                  </Link>
+                ) : (
+                  <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+                )}
+                <time className="text-xs text-gray-400">{tempo}</time>
+              </div>
+              <MenuPost {...menuProps} />
+            </div>
+          )
+        ) : null}
+        <div className="px-4 pb-3 pt-3">
+          <p className="mb-2 inline-block rounded-full bg-[#0097b2]/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#0097b2]">
+            Novo profissional
+          </p>
+          <p className="text-[15px] leading-snug text-gray-900">{post.texto}</p>
+          <div className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50/80 px-3 py-2.5">
+            <ShieldCheck className="h-6 w-6 shrink-0 text-[#00D443]" aria-hidden />
+            <span className="text-base font-bold text-[#0097b2]">{catRotulo}</span>
+          </div>
+        </div>
+        <div className="border-t border-gray-100">{acoesPost}</div>
+        <ModalComentarios
+          postId={post.id}
+          variant={comentariosInline ? 'inline' : 'modal'}
+          aberto={comentariosInline ? true : comentAberto}
+          onFechar={() => setComentAberto(false)}
+          usuarioId={meuUsuarioId}
+          onComentou={() =>
+            setNComent((n) => {
+              const v = n + 1
+              onEngagementChange?.(post.id, { total_comentarios: v })
+              return v
+            })
+          }
+          onTotalComentariosSync={(total) => {
+            setNComent(total)
+            onEngagementChange?.(post.id, { total_comentarios: total })
+          }}
+          destacarComentarioId={destacarComentarioId}
+          totalComentariosVisual={nComent}
+          somenteLeitura={comentariosSomenteLeitura || bloqueioApresentacao}
+          mostrarCompositor={mostrarCompositorInline}
+        />
+        <ModalCurtidas
+          postId={post.id}
+          aberto={curtidasAberto}
+          onFechar={() => setCurtidasAberto(false)}
+          meuUsuarioId={meuUsuarioId}
+        />
+        {shareModal}
+        {modalEditar}
+      </article>
+    )
+  }
 
   if (tipoNorm === 'avaliacao' && post.avaliacao_meta && typeof post.avaliacao_meta === 'object') {
     const meta = /** @type {{ empresa_id?: string, nome_fantasia?: string, foto_url?: string | null, nota?: number, feedback?: string | null }} */ (

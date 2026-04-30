@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Star, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 const CAT_EMPRESAS = new Set(['Restaurantes', 'Hospedagem', 'Lojas', 'Compras Paraguai'])
 
@@ -15,6 +16,7 @@ const CAT_EMPRESAS = new Set(['Restaurantes', 'Hospedagem', 'Lojas', 'Compras Pa
  * }} props
  */
 export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTipo }) {
+  useModalScrollLock(aberto)
   const [aba, setAba] = useState(/** @type {'a' | 'b'} */ ('a'))
   const [lista, setLista] = useState(
     /** @type {{ id: string; nota: number; comentario: string | null; created_at: string; nome: string; username: string; categoria: string | null }[]} */ (

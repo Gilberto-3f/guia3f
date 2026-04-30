@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Users, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
+import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 /**
  * @param {{
@@ -16,6 +17,7 @@ import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
  * }} props
  */
 export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) {
+  useModalScrollLock(aberto)
   const [lista, setLista] = useState(
     /** @type {{ usuario_id: string; empresa_id: string | null; tipo: string; nome: string; username: string; foto_url: string | null; jaSigo: boolean }[]} */ (
       []

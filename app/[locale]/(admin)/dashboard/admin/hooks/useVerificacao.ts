@@ -286,6 +286,22 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       if (perfil?.usuario_id) {
         await supabase.from('usuarios').update({ status: 'ativo' }).eq('id', perfil.usuario_id)
       }
+      if (tipo === 'profissionais') {
+        try {
+          const res = await fetch('/api/posts/profissional-verificado', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ profissionalId: id }),
+          })
+          if (!res.ok) {
+            const j = (await res.json().catch(() => ({}))) as { error?: string }
+            console.warn('[aprovar profissional] post feed:', j?.error ?? res.status)
+          }
+        } catch (e) {
+          console.warn('[aprovar profissional] post feed:', e)
+        }
+      }
       await fetchData()
     },
     [admin?.id, fetchData]

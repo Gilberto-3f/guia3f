@@ -10,6 +10,7 @@ import AbasAtividades from '@/components/atividades/AbasAtividades'
 import AtividadeCurtidas from '@/components/atividades/AtividadeCurtidas'
 import AtividadeCurtiuComentario from '@/components/atividades/AtividadeCurtiuComentario'
 import AtividadeCurtiuPost from '@/components/atividades/AtividadeCurtiuPost'
+import AtividadeCurtiuVerificacaoProfissional from '@/components/atividades/AtividadeCurtiuVerificacaoProfissional'
 import AtividadeCurtiuRepost from '@/components/atividades/AtividadeCurtiuRepost'
 import AtividadeCurtiuAvaliacao from '@/components/atividades/AtividadeCurtiuAvaliacao'
 import AtividadeCurtiuStory from '@/components/atividades/AtividadeCurtiuStory'
@@ -1032,6 +1033,30 @@ export default function AtividadesPage() {
       const textoPost = post?.texto != null ? String(post.texto) : ''
       const hrefI = hrefUsuario(r.autor_id)
       const hrefD = hrefUsuario(r.usuario_id)
+
+      if (item.categoria === 'verificacao_profissional') {
+        const rawMeta = post?.avaliacao_meta
+        const meta =
+          rawMeta && typeof rawMeta === 'object' && !Array.isArray(rawMeta)
+            ? { ...(rawMeta as Record<string, unknown>) }
+            : {}
+        const cat = typeof meta.categoria_rotulo === 'string' ? meta.categoria_rotulo : '—'
+        return (
+          <AtividadeCurtiuVerificacaoProfissional
+            key={r.id}
+            interactorUsername={inter?.username ?? 'usuario'}
+            interactorFoto={inter?.foto_perfil_url ?? null}
+            donorUsername={donor?.username ?? 'usuario'}
+            hrefInteractor={hrefI}
+            hrefDonor={hrefD}
+            texto={textoPost}
+            postId={r.alvo_id}
+            categoriaRotulo={cat}
+            tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+            modoMinhaConta={modoMinhaConta}
+          />
+        )
+      }
 
       if (item.categoria === 'texto') {
         return (
