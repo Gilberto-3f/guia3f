@@ -11,6 +11,15 @@ function normTxt(v) {
 }
 
 /**
+ * @param {string | null | undefined} handle
+ */
+function formatHandle(handle) {
+  const h = normTxt(handle)
+  if (!h) return ''
+  return h.startsWith('@') ? h : `@${h}`
+}
+
+/**
  * @param {string | null | undefined} cidade
  * @returns {'BR' | 'PY' | 'AR' | null}
  */
@@ -47,7 +56,12 @@ function FlagBadge({ codigo }) {
  *   canal: {
  *     id: string
  *     comunidade_prof?: string | null
- *     empresas?: { nome_fantasia?: string | null; foto_url?: string | null; cidade?: string | null } | null
+ *     empresas?: {
+ *       nome_fantasia?: string | null
+ *       nome_usuario?: string | null
+ *       foto_url?: string | null
+ *       cidade?: string | null
+ *     } | null
  *     nome?: string | null
  *   }
  *   comunidadeLabel?: string
@@ -59,6 +73,7 @@ export default function CanalEmpresaRow({ canal, comunidadeLabel, onClick, activ
   const nomeEmpresa = normTxt(canal?.empresas?.nome_fantasia) || normTxt(canal?.nome) || 'Empresa'
   const fotoUrl = canal?.empresas?.foto_url ?? null
   const pais = inferPaisPorCidade(canal?.empresas?.cidade)
+  const handle = formatHandle(canal?.empresas?.nome_usuario)
   const subtitulo = normTxt(comunidadeLabel) || normTxt(canal?.comunidade_prof) || 'Comunidade'
 
   return (
@@ -77,6 +92,7 @@ export default function CanalEmpresaRow({ canal, comunidadeLabel, onClick, activ
           <span className="truncate font-medium text-gray-800">{nomeEmpresa}</span>
           {pais ? <FlagBadge codigo={pais} /> : null}
         </div>
+        {handle ? <div className="truncate text-xs text-gray-500">{handle}</div> : null}
         <div className="text-xs text-gray-500">{subtitulo}</div>
       </div>
       <ChevronRight className="h-5 w-5 shrink-0 text-gray-300" aria-hidden />

@@ -1,0 +1,65 @@
+COMANDO: Corrigir e habilitar canais de comunicação (Profissional + Empresa)
+
+OBJETIVO
+- Profissional vê lista de empresas por segmento (avatar + nome + @username + bandeira)
+- Profissional abre mensageiro com mensagens da empresa (canal.id)
+- Empresa envia mensagens no canal da comunidade (canais particulares por empresa + comunidade)
+
+ARQUIVOS
+- components/ListaCanaisProfissional.jsx
+- components/CanalEmpresaRow.jsx
+- components/ListaCanaisEmpresa.jsx
+
+PARTE 1 — PROFISSIONAL
+1) Buscar canais de empresa (tipo_publico = 'empresa') com join empresas aprovada:
+   - empresas!inner(...)
+   - .eq('empresas.status', 'aprovado')
+   - .eq('ativo', true)
+
+2) Agrupar por empresa_categoria (fonte de verdade do segmento na UI).
+
+3) Renderizar com CanalEmpresaRow (avatar, nome_fantasia, @username, bandeira).
+
+4) Clique abre /canal/[canal.id]
+
+PARTE 2 — EMPRESA
+1) Buscar canais reais:
+   - empresa_id = minha empresa
+   - tipo_publico = 'empresa'
+   - ativo = true
+
+2) Mapear por slug de comunidade:
+   guia, taxista, van, motorista_app, anfitriao
+
+3) Se existir canal real: clicável. Senão: placeholder desabilitado.
+
+PARTE 3 — BANCO (idempotente)
+3.1 Garantir os 5 canais por empresa aprovada (INSERT ... WHERE NOT EXISTS ...).
+
+3.2 Ajustar a policy existente "canais select por papel" para incluir:
+   - empresas.status = 'aprovado' (ou o status canônico do projeto)
+   - match de comunidade no formato canônico (ver SALVAGUARDA A abaixo)
+
+3.3 Validar policy existente "mensagens insert empresa em empresa" antes de criar policy nova.
+
+SALVAGUARDA A — comunidade_prof: slug vs rótulo (OBRIGATÓRIO DECIDIR)
+- O banco pode ter legado em rótulo (ex.: "Motorista de App", "Guia") OU slug (ex.: motorista_app, guia).
+- ANTES de rodar INSERT em massa com slugs, confirmar no banco:
+  SELECT DISTINCT comunidade_prof FROM public.canais WHERE empresa_id IS NOT NULL;
+- Estratégias válidas (escolher UMA):
+  (1) Padronizar TUDO para slug (canais + profissionais.categorias + RLS) — recomendado a médio prazo.
+  (2) Manter rótulo no banco e normalizar só no frontend — ok, mas RLS precisa comparar no mesmo formato.
+- Nunca misturar os dois formatos sem migração, senão aparecem canais duplicados por comunidade e placeholders “fantasmas”.
+
+SALVAGUARDA B — @username da empresa (fallback)
+- O layout pede empresas.nome_usuario, mas a coluna pode não existir em todos os ambientes.
+- Antes de assumir no select, validar:
+  SELECT column_name FROM information_schema.columns
+  WHERE table_schema='public' AND table_name='empresas' AND column_name='nome_usuario';
+- Se não existir, fallback sugerido:
+  - omitir @username na UI, OU
+  - buscar de outra fonte canônica (ex.: usuarios.email prefix) sem inventar coluna.
+
+NOTA (fora deste prompt)
+- “ADM envia para comunidade e aparece no Canal ADM do profissional” exige fan-out/inbox (1 mensagem → N destinos).
+  Não é coberto pelo modelo atual mensagens_canal (1 mensagem → 1 canal_id).

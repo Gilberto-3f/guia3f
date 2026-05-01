@@ -15,6 +15,12 @@ const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App',
 /** Ordem amigável das categorias de empresa. */
 const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
 
+/**
+ * Normalização de comunidade/categoria para slug.
+ * Salvaguarda: o banco pode ter `canais.comunidade_prof` e `profissionais.categorias` em rótulo OU slug.
+ * Antes de “fixar” tudo em slug via SQL, rode `SELECT DISTINCT comunidade_prof ...` e alinhe RLS + dados.
+ * Ver também: docs/PROMPT-canais-habilitar-salvaguardas.txt
+ */
 /** @type {Record<string, string>} */
 const CATEGORIA_TO_SLUG = {
   'Motorista de App': 'motorista_app',

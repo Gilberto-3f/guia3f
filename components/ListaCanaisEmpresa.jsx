@@ -8,6 +8,11 @@ import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App', 'Anfitriao']
 
+/**
+ * Normalização de `comunidade_prof` para slug (aceita rótulo legado ou slug).
+ * Salvaguarda: não inserir slugs no banco enquanto existir legado em rótulo sem migração — pode duplicar comunidades.
+ * Ver: docs/PROMPT-canais-habilitar-salvaguardas.txt
+ */
 /** @type {Record<string, string>} */
 const COMUNIDADE_TO_SLUG = {
   'Motorista de App': 'motorista_app',
