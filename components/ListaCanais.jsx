@@ -448,15 +448,19 @@ export default function ListaCanais({
     tipoPublico === 'empresa'
 
   if (usarLayoutChevron) {
-    const outros = canais.filter((c) => {
-      if (particionIds.has(c.id)) return false
-      if (c.tipo_publico === 'empresa' && c.empresa_id == null && nomeNorm(c.nome) === 'ADM') return false
-      if (agruparPorTipo && excluirCanalMensageiroVisaoAdm(c)) return false
-      // Visão "Mensageiro ADM": canais legados de PROFISSIONAIS não devem aparecer como linhas soltas
-      // (eles já existem na pasta PROFISSIONAIS).
-      if (agruparPorTipo && (canalEhProfissional(c) || chaveProfissional(c) != null)) return false
-      return true
-    })
+    // No "Mensageiro ADM" (agruparPorTipo) e no perfil admin, nada deve aparecer fora das pastas.
+    const mostrarOutros = !(agruparPorTipo || tipoPublico === 'admin')
+    const outros = mostrarOutros
+      ? canais.filter((c) => {
+          if (particionIds.has(c.id)) return false
+          if (c.tipo_publico === 'empresa' && c.empresa_id == null && nomeNorm(c.nome) === 'ADM') return false
+          if (agruparPorTipo && excluirCanalMensageiroVisaoAdm(c)) return false
+          // Visão "Mensageiro ADM": canais legados de PROFISSIONAIS não devem aparecer como linhas soltas
+          // (eles já existem na pasta PROFISSIONAIS).
+          if (agruparPorTipo && (canalEhProfissional(c) || chaveProfissional(c) != null)) return false
+          return true
+        })
+      : []
 
     return (
       <div className="overflow-hidden rounded-xl bg-white shadow-sm">
@@ -468,7 +472,7 @@ export default function ListaCanais({
         })}
         {renderGrupoChevron({ id: 'profissionais', titulo: 'PROFISSIONAIS', itens: part.profissionais })}
         {renderGrupoChevron({ id: 'empresas', titulo: 'EMPRESAS', itens: part.empresas })}
-        {outros.map((canal) => renderRow(canal))}
+        {mostrarOutros ? outros.map((canal) => renderRow(canal)) : null}
       </div>
     )
   }
