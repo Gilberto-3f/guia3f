@@ -23,6 +23,18 @@ export type CadastroPendente = {
 
 type DocThumb = { key: string; label: string; url: string }
 
+const BADGE_EMPRESA_CATEGORIA: Record<string, string> = {
+  Restaurantes: 'border-orange-200 bg-orange-50 text-orange-900',
+  Atrativos: 'border-amber-200 bg-amber-50 text-amber-900',
+  Lojas: 'border-violet-200 bg-violet-50 text-violet-900',
+  Hospedagem: 'border-sky-200 bg-sky-50 text-sky-900',
+}
+
+function badgeEmpresaCategoriaClass(cat: string): string {
+  const k = cat.trim()
+  return BADGE_EMPRESA_CATEGORIA[k] ?? 'border-gray-200 bg-gray-100 text-gray-800'
+}
+
 function isPdfUrl(url: string): boolean {
   return url.toLowerCase().includes('.pdf')
 }
@@ -122,9 +134,14 @@ export function CardPendente({
 
           {tipo === 'empresas' ? (
             <>
-              {item.categoriaDisplay ? (
-                <div className="mt-1 text-sm text-gray-800">
-                  <span className="font-medium text-gray-600">Categoria:</span> {item.categoriaDisplay}
+              {item.categoriaDisplay && item.categoriaDisplay !== '—' ? (
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-medium text-gray-600">Categoria:</span>
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badgeEmpresaCategoriaClass(item.categoriaDisplay)}`}
+                  >
+                    {item.categoriaDisplay}
+                  </span>
                 </div>
               ) : null}
               {item.empresaFiscal ? (
@@ -150,6 +167,19 @@ export function CardPendente({
             <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Documentos</div>
             {thumbs.length === 0 ? (
               <div className="mt-2 rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 text-center text-xs text-gray-500">Nenhum anexo</div>
+            ) : tipo === 'empresas' ? (
+              <div className="mt-2 flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs leading-relaxed text-gray-600">
+                  Documento comercial (CNPJ / RUC / CUIT). Abra para conferir antes de liberar o cadastro.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setModalAberto(true)}
+                  className="min-h-[44px] shrink-0 rounded-lg bg-[#0097b2] px-4 text-xs font-bold uppercase tracking-wide text-white shadow-sm transition hover:brightness-95 active:brightness-90"
+                >
+                  Ver documento
+                </button>
+              </div>
             ) : (
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {thumbs.map((t) => (
@@ -175,13 +205,15 @@ export function CardPendente({
               </div>
             )}
             <div className="mt-2 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setModalAberto(true)}
-                className="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-              >
-                Ver todos / ampliar
-              </button>
+              {tipo !== 'empresas' && thumbs.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setModalAberto(true)}
+                  className="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Ver todos / ampliar
+                </button>
+              ) : null}
               {!item.docsVerificado ? (
                 <button type="button" onClick={onDocsVerificado} className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100">
                   Marcar documentos verificados

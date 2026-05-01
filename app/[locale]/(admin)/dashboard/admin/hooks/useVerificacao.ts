@@ -79,7 +79,10 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
         .select('*', { count: 'exact', head: true })
         .eq('docs_verificado', false)
         .not('documentos_enviados_em', 'is', null),
-      supabase.from('empresas').select('*', { count: 'exact', head: true }).eq('docs_verificado', false),
+      supabase
+        .from('empresas')
+        .select('*', { count: 'exact', head: true })
+        .or('docs_verificado.eq.false,status.eq.aguardando_aprovacao'),
     ])
     if (t.error) throw t.error
     if (p.error) throw p.error
@@ -171,7 +174,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     const { data, error } = await supabase
       .from('empresas')
       .select('*')
-      .eq('docs_verificado', false)
+      .or('docs_verificado.eq.false,status.eq.aguardando_aprovacao')
       .order('created_at', { ascending: true })
     if (error) throw error
     const rows = (data ?? []) as Record<string, unknown>[]
@@ -179,6 +182,10 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     const mapped: PendenteEmpresa[] = rows.map((r) => {
       const docRaw = r.documento_comercial_url ?? r.documento_url ?? r.documento_comercial
       const doc = docRaw ? String(docRaw) : ''
+      const docComercial =
+        r.documento_comercial_url != null && String(r.documento_comercial_url).trim()
+          ? String(r.documento_comercial_url).trim()
+          : null
       const uid = String(r.usuario_id ?? '')
       return {
         id: String(r.id),
@@ -188,6 +195,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
         categoria: String(r.categoria ?? ''),
         cidade: String(r.cidade ?? ''),
         documento_url: doc || null,
+        documento_comercial_url: docComercial,
         fotos_url: parseFotosEmpresa(r),
         docs_verificado: Boolean(r.docs_verificado),
         docs_verificado_por: r.docs_verificado_por ? String(r.docs_verificado_por) : null,
@@ -196,6 +204,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
         email: emailMap.get(uid) || null,
         telefone: r.telefone != null && String(r.telefone).trim() ? String(r.telefone).trim() : null,
         whatsapp: r.whatsapp != null && String(r.whatsapp).trim() ? String(r.whatsapp).trim() : null,
+        status: r.status != null ? String(r.status) : null,
       }
     })
     setPendentes(mapped)
@@ -269,6 +278,16 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
               proxima_revisao_docs_em: proximaRevisaoDepoisDeAprovacao(),
             }
           : {}
+      const extraEmpresa =
+        tipo === 'empresas'
+          ? {
+              docs_verificado: true,
+              docs_verificado_por: admin?.id ?? null,
+              docs_verificado_em: nowIso,
+              verificado_por: admin?.id ?? null,
+              verificado_em: nowIso,
+            }
+          : {}
       const { error } = await supabase
         .from(table)
         .update({
@@ -280,6 +299,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
           reprovado_em: null,
           reprovado_por: null,
           ...extraProf,
+          ...extraEmpresa,
         })
         .eq('id', id)
       if (error) throw error

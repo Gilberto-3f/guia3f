@@ -129,6 +129,8 @@ export type PendenteEmpresa = {
   categoria: string
   cidade: string
   documento_url: string | null
+  /** URL bruta do comercial (quando distinta de `documento_url`). */
+  documento_comercial_url?: string | null
   fotos_url: string[]
   docs_verificado: boolean
   docs_verificado_por: string | null
@@ -137,6 +139,8 @@ export type PendenteEmpresa = {
   email?: string | null
   telefone?: string | null
   whatsapp?: string | null
+  /** `empresas.status` (ex.: aguardando_aprovacao, aprovado). */
+  status?: string | null
 }
 
 export type PendenteVerificacao = PendenteTurista | PendenteProfissional | PendenteEmpresa
