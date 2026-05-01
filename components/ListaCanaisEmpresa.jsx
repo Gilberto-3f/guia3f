@@ -8,6 +8,54 @@ import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App', 'Anfitriao']
 
+/** @type {Record<string, string>} */
+const COMUNIDADE_TO_SLUG = {
+  'Motorista de App': 'motorista_app',
+  'Motorista de Aplicativo': 'motorista_app',
+  'Guia de Turismo': 'guia',
+  Guia: 'guia',
+  Taxista: 'taxista',
+  Van: 'van',
+  Anfitrião: 'anfitriao',
+  Anfitriao: 'anfitriao',
+  motorista_app: 'motorista_app',
+  guia: 'guia',
+  taxista: 'taxista',
+  van: 'van',
+  anfitriao: 'anfitriao',
+}
+
+/**
+ * @param {string | null | undefined} valor
+ */
+function toSlug(valor) {
+  const raw = String(valor ?? '').trim()
+  if (!raw) return ''
+  const mapped = COMUNIDADE_TO_SLUG[raw]
+  const base = mapped ?? raw.toLowerCase()
+  return base
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '_')
+    .trim()
+}
+
+/** @type {readonly string[]} */
+const COMUNIDADES_PROFISSIONAIS_SLUG = ['guia', 'taxista', 'van', 'motorista_app', 'anfitriao']
+
+/**
+ * @param {string} slug
+ */
+function slugToLabel(slug) {
+  const s = String(slug ?? '').trim()
+  if (s === 'motorista_app') return 'Motorista de App'
+  if (s === 'guia') return 'Guia'
+  if (s === 'taxista') return 'Taxista'
+  if (s === 'van') return 'Van'
+  if (s === 'anfitriao') return 'Anfitrião'
+  return s
+}
+
 /**
  * @param {string | null | undefined} nome
  */
@@ -145,20 +193,20 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     /** @type {Map<string, Canal>} */
     const porComunidade = new Map()
     for (const c of lista) {
-      const k = c.comunidade_prof != null ? String(c.comunidade_prof).trim() : ''
+      const k = toSlug(c.comunidade_prof != null ? String(c.comunidade_prof) : '')
       if (!k) continue
       if (!porComunidade.has(k)) porComunidade.set(k, c)
     }
 
-    return COMUNIDADES_PROFISSIONAIS.map((comu) => {
-      const real = porComunidade.get(comu)
+    return COMUNIDADES_PROFISSIONAIS_SLUG.map((slug) => {
+      const real = porComunidade.get(slug)
       return (
         real ?? {
-          id: `__placeholder_prof_${comu}__`,
-          nome: comu,
+          id: `__placeholder_prof_${slug}__`,
+          nome: slugToLabel(slug),
           tipo_publico: 'empresa',
           categoria: null,
-          comunidade_prof: comu,
+          comunidade_prof: slugToLabel(slug),
           empresa_id: empresaId,
           ordem_tipo: 'rotativo',
           ordem_posicao: null,
@@ -179,7 +227,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     )
     const profissionais = canais
       .filter((c) => c.tipo_publico === 'empresa' && empresaId && String(c.empresa_id ?? '') === String(empresaId))
-      .filter((c) => c.comunidade_prof != null && COMUNIDADES_PROFISSIONAIS.includes(String(c.comunidade_prof)))
+      .filter((c) => {
+        const slug = toSlug(c.comunidade_prof != null ? String(c.comunidade_prof) : '')
+        return Boolean(slug) && COMUNIDADES_PROFISSIONAIS_SLUG.includes(slug)
+      })
     return {
       administracao: garantirAdministracao(administracao),
       profissionais: garantirComunidadesProfissionais(profissionais),

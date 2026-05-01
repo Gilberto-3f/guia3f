@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Building2, ChevronDown, ChevronUp, Crown, Landmark, MessageCircle, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
 import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
+import CanalEmpresaRow from '@/components/CanalEmpresaRow'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -205,7 +206,10 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       const { data, error } = await supabase
         .from('canais')
         .select(
-          'id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, empresa_categoria, ultima_mensagem_em, ordem_tipo, ordem_posicao',
+          `
+          id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, empresa_categoria, ultima_mensagem_em, ordem_tipo, ordem_posicao,
+          empresas:empresa_id ( id, nome_fantasia, foto_url, cidade, status )
+          `,
         )
         .eq('ativo', true)
         .in('tipo_publico', ['profissional', 'empresa'])
@@ -278,6 +282,30 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     const Icon = getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
     const label = opts.blocoAdministracao ? rotuloNomeCanalAdministracao(canal.nome) : canal.nome
+    if (!opts.blocoAdministracao && canal.tipo_publico === 'empresa') {
+      const comuSlug = toSlug(canal.comunidade_prof != null ? String(canal.comunidade_prof) : '')
+      const comunidadeLabel =
+        comuSlug === 'motorista_app'
+          ? 'Motorista de App'
+          : comuSlug === 'guia'
+            ? 'Guia'
+            : comuSlug === 'taxista'
+              ? 'Taxista'
+              : comuSlug === 'van'
+                ? 'Van'
+                : comuSlug === 'anfitriao'
+                  ? 'Anfitrião'
+                  : canal.comunidade_prof
+
+      return (
+        <CanalEmpresaRow
+          canal={canal}
+          comunidadeLabel={comunidadeLabel}
+          onClick={() => onSelectCanal(canal)}
+          active={isActive}
+        />
+      )
+    }
     return (
       <button
         key={canal.id}
