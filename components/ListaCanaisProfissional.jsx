@@ -14,27 +14,25 @@ const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App',
 /** Ordem amigável das categorias de empresa. */
 const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
 
-/**
- * Três estrelas (aba Hospedagem).
- * @param {{ className?: string, 'aria-hidden'?: boolean }} p
- */
-function IconTresEstrelas({ className, ...rest }) {
-  const cn = className ?? 'h-6 w-6'
+/** Estrela preenchida (aba Hospedagem). */
+function IconHospedagemEstrela({ className, 'aria-hidden': ariaHidden = true }) {
   return (
-    <span className={`inline-flex shrink-0 items-center justify-center gap-0.5 ${cn}`} aria-hidden={rest['aria-hidden'] ?? true}>
-      <Star className="h-3.5 w-3.5" strokeWidth={2} />
-      <Star className="h-4 w-4" strokeWidth={2} />
-      <Star className="h-3.5 w-3.5" strokeWidth={2} />
-    </span>
+    <Star
+      className={className}
+      fill="currentColor"
+      stroke="currentColor"
+      strokeWidth={1}
+      aria-hidden={ariaHidden}
+    />
   )
 }
-IconTresEstrelas.displayName = 'IconTresEstrelas'
+IconHospedagemEstrela.displayName = 'IconHospedagemEstrela'
 
 const ROTULO_CATEGORIA = /** @type {const} */ ({
   Restaurantes: { Icon: Utensils, rótulo: 'Restaurantes' },
   Atrativos: { Icon: Ticket, rótulo: 'Atrativos' },
   Lojas: { Icon: ShoppingBag, rótulo: 'Lojas' },
-  Hospedagem: { Icon: IconTresEstrelas, rótulo: 'Hospedagem' },
+  Hospedagem: { Icon: IconHospedagemEstrela, rótulo: 'Hospedagem' },
   Outros: { Icon: Building2, rótulo: 'Outros' },
 })
 
@@ -43,7 +41,7 @@ const ROTULO_CATEGORIA = /** @type {const} */ ({
  */
 function metaCategoriaEmpresa(cat) {
   if (Object.prototype.hasOwnProperty.call(ROTULO_CATEGORIA, cat)) {
-    return /** @type {{ Icon: import('lucide-react').LucideIcon, rótulo: string } | { Icon: typeof IconTresEstrelas, rótulo: string }} */ (
+    return /** @type {{ Icon: import('lucide-react').LucideIcon | typeof IconHospedagemEstrela, rótulo: string }} */ (
       ROTULO_CATEGORIA[/** @type {keyof typeof ROTULO_CATEGORIA} */ (cat)]
     )
   }
@@ -97,7 +95,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
   const [categoriaAba, setCategoriaAba] = useState(ORDEM_CATEGORIA_EMPRESA[0] ?? 'Restaurantes')
-  const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({ administracao: true }))
+  const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({ administracao: false }))
 
   const part = useMemo(() => {
     const administracao = canais.filter(
@@ -298,41 +296,46 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         {categoriaAba && abasCategoriasEmpresas.length > 0 ? (
           <>
             <div
-              className="sticky top-0 z-10 flex w-full min-w-0 shrink-0 items-stretch border-b border-gray-100 bg-white pl-0 pr-0 pt-1"
+              className="sticky top-0 z-10 w-full min-w-0 shrink-0 bg-[#0097b2]"
               role="tablist"
               aria-label="Categorias"
             >
-              {abasCategoriasEmpresas.map(([cat]) => {
-                const ativo = categoriaAba === cat
-                const { Icon, rótulo } = metaCategoriaEmpresa(cat)
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    role="tab"
-                    aria-selected={ativo}
-                    onClick={() => setCategoriaAba(cat)}
-                    className={
-                      ativo
-                        ? 'min-w-0 flex-1 border-b-2 border-b-[#0097b2] text-[#0097b2]'
-                        : 'min-w-0 flex-1 border-b-2 border-b-transparent text-gray-400 opacity-80 hover:opacity-100'
-                    }
-                  >
-                    {ativo ? (
-                      <div className="mx-auto flex min-h-[2.65rem] w-full max-w-[5.5rem] flex-col items-center justify-center gap-0.5 py-1.5 sm:max-w-[5.8rem] sm:min-w-[5.2rem] sm:flex-row sm:items-center sm:gap-1 sm:py-2.5 sm:pl-0 sm:pr-0">
-                        <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                        <span className="text-center text-[0.7rem] font-medium leading-tight [word-break:keep-all] [overflow-wrap:balance] min-[400px]:text-xs">
-                          {rótulo}
-                        </span>
-                      </div>
+              <div className="flex gap-1 p-1">
+                {abasCategoriasEmpresas.map(([cat]) => {
+                  const ativo = categoriaAba === cat
+                  const { Icon, rótulo } = metaCategoriaEmpresa(cat)
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      role="tab"
+                      aria-selected={ativo}
+                      onClick={() => setCategoriaAba(cat)}
+                      className={`flex min-h-[3rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-center transition-all min-[400px]:min-h-[3.25rem] sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2.5 ${
+                        ativo
+                          ? 'bg-white font-semibold text-[#0097b2] shadow-sm'
+                          : 'text-white hover:bg-white/15'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5 shrink-0" aria-hidden />
+                      <span className="max-w-full text-[0.65rem] font-medium leading-tight [overflow-wrap:balance] min-[400px]:text-xs">
+                        {rótulo}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="flex px-1 pb-1.5 pt-0">
+                {abasCategoriasEmpresas.map(([cat]) => (
+                  <div key={`ind-${cat}`} className="flex min-w-0 flex-1 justify-center">
+                    {categoriaAba === cat ? (
+                      <span className="h-0.5 w-10 rounded-full bg-white sm:w-12" aria-hidden />
                     ) : (
-                      <div className="flex min-h-[2.75rem] items-center justify-center py-1.5">
-                        <Icon className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" aria-hidden />
-                      </div>
+                      <span className="h-0.5 w-10 sm:w-12" aria-hidden />
                     )}
-                  </button>
-                )
-              })}
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="min-h-0 flex-1" role="tabpanel">
               {itensAbaAtiva.length === 0 ? (
