@@ -14,6 +14,34 @@ const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App',
 /** Ordem amigável das categorias de empresa. */
 const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
 
+/** @type {Record<string, string>} */
+const CATEGORIA_TO_SLUG = {
+  'Motorista de App': 'motorista_app',
+  'Motorista de Aplicativo': 'motorista_app',
+  'Guia de Turismo': 'guia',
+  Guia: 'guia',
+  Taxista: 'taxista',
+  Van: 'van',
+  Anfitrião: 'anfitriao',
+  Anfitriao: 'anfitriao',
+}
+
+/**
+ * Normaliza rótulos/categorias para slug do banco (sem acento, minúsculo, com "_").
+ * @param {string} valor
+ */
+function toSlug(valor) {
+  const raw = String(valor ?? '').trim()
+  if (!raw) return ''
+  const mapped = CATEGORIA_TO_SLUG[raw]
+  const base = mapped ?? raw.toLowerCase()
+  return base
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '_')
+    .trim()
+}
+
 /** Estrela preenchida (aba Hospedagem). */
 function IconHospedagemEstrela({ className, 'aria-hidden': ariaHidden = true }) {
   return (
@@ -161,6 +189,18 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
       const { data: prof } = await supabase.from('profissionais').select('categorias').eq('usuario_id', uid).maybeSingle()
       const cats = Array.isArray(prof?.categorias) ? prof.categorias.map(String) : []
+      const slugsProfissional = cats.map((c) => toSlug(c)).filter(Boolean)
+
+      /** @type {Set<string> | null} */
+      let empresasAprovadas = null
+      try {
+        const { data: emps, error: empErr } = await supabase.from('empresas').select('id').eq('status', 'aprovado')
+        if (empErr) throw empErr
+        empresasAprovadas = new Set((emps ?? []).map((e) => String(e.id)))
+      } catch {
+        // Se falhar (colunas/RLS), não bloqueia exibição: ainda filtramos por comunidade_prof.
+        empresasAprovadas = null
+      }
 
       const { data, error } = await supabase
         .from('canais')
@@ -179,9 +219,10 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         }
         if (c.tipo_publico === 'empresa') {
           if (c.empresa_id == null) return false
-          const comu = c.comunidade_prof != null ? String(c.comunidade_prof) : ''
-          if (!comu || !COMUNIDADES_PROFISSIONAIS.includes(comu)) return false
-          return cats.includes(comu)
+          if (empresasAprovadas && !empresasAprovadas.has(String(c.empresa_id))) return false
+          const comuSlug = toSlug(c.comunidade_prof != null ? String(c.comunidade_prof) : '')
+          if (!comuSlug || !CATEGORIAS_PROFISSIONAIS.includes(comuSlug)) return false
+          return slugsProfissional.includes(comuSlug)
         }
         return false
       })
