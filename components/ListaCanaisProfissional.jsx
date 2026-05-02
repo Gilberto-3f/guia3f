@@ -49,6 +49,43 @@ function toSlug(valor) {
     .trim()
 }
 
+/**
+ * Slugs legados em `empresa_categoria` → chave da aba (rótulo fixo das 4 principais).
+ * @type {Record<string, string>}
+ */
+const EMPRESA_CATEGORIA_SLUG_PARA_ABA = {
+  gastronomia: 'Restaurantes',
+  passeios: 'Atrativos',
+  atrativos: 'Atrativos',
+  lojas: 'Lojas',
+  hospedagem: 'Hospedagem',
+}
+
+/**
+ * Rótulos já “humanos” (se vierem assim no banco) → mesma chave de aba.
+ * @type {Record<string, string>}
+ */
+const EMPRESA_CATEGORIA_ROTULO_PARA_ABA = {
+  Restaurantes: 'Restaurantes',
+  Atrativos: 'Atrativos',
+  Lojas: 'Lojas',
+  Hospedagem: 'Hospedagem',
+}
+
+/**
+ * @param {string | null | undefined} empresaCategoria
+ */
+function chaveAbaEmpresaCategoria(empresaCategoria) {
+  const raw = String(empresaCategoria ?? '').trim()
+  if (!raw) return 'Outros'
+  const slug = toSlug(raw)
+  if (slug && EMPRESA_CATEGORIA_SLUG_PARA_ABA[slug]) return EMPRESA_CATEGORIA_SLUG_PARA_ABA[slug]
+  if (EMPRESA_CATEGORIA_ROTULO_PARA_ABA[raw]) return EMPRESA_CATEGORIA_ROTULO_PARA_ABA[raw]
+  const rawLower = raw.toLowerCase()
+  if (EMPRESA_CATEGORIA_ROTULO_PARA_ABA[rawLower]) return EMPRESA_CATEGORIA_ROTULO_PARA_ABA[rawLower]
+  return raw
+}
+
 /** Estrela preenchida (aba Hospedagem). */
 function IconHospedagemEstrela({ className, 'aria-hidden': ariaHidden = true }) {
   return (
@@ -145,7 +182,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     /** @type {Record<string, Canal[]>} */
     const map = {}
     for (const c of part.empresas) {
-      const cat = String(c.empresa_categoria ?? '').trim() || 'Outros'
+      const cat = chaveAbaEmpresaCategoria(c.empresa_categoria)
       if (!map[cat]) map[cat] = []
       map[cat].push(c)
     }
