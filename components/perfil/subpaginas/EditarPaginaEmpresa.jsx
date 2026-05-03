@@ -139,7 +139,9 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
 
   const [formData, setFormData] = useState({
     nome: String(empresa.nome_fantasia ?? ''),
-    username: String(empresa.nome_usuario ?? ''),
+    username: String(empresa.nome_usuario ?? '')
+      .replace(/^@+/, '')
+      .replace(/\s/g, ''),
     cidade: String(empresa.cidade ?? CIDADES[0]),
     endereco: String(empresa.endereco ?? ''),
     bairro: String(empresa.bairro ?? ''),
@@ -429,46 +431,6 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
       <section className="space-y-3">
         <h3 className="text-lg font-bold text-gray-900">Informações básicas</h3>
 
-        <input
-          type="text"
-          placeholder="Nome social"
-          value={formData.nome}
-          onChange={(e) => setFormData((p) => ({ ...p, nome: e.target.value }))}
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-        />
-        <input
-          type="text"
-          placeholder="@username"
-          value={formData.username}
-          onChange={(e) => setFormData((p) => ({ ...p, username: e.target.value }))}
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-        />
-        <input
-          type="text"
-          placeholder="Endereço (rua e número)"
-          value={formData.endereco}
-          onChange={(e) => setFormData((p) => ({ ...p, endereco: e.target.value }))}
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-        />
-        <input
-          type="text"
-          placeholder="Bairro"
-          value={formData.bairro}
-          onChange={(e) => setFormData((p) => ({ ...p, bairro: e.target.value }))}
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-        />
-        <select
-          value={formData.cidade}
-          onChange={(e) => setFormData((p) => ({ ...p, cidade: e.target.value }))}
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-        >
-          {CIDADES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-
         <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-100 bg-white p-3">
           <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-gray-100">
             {fotoExibida ? (
@@ -500,13 +462,60 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
 
           {erroFoto ? <p className="text-sm text-red-600">{erroFoto}</p> : null}
         </div>
+
+        <input
+          type="text"
+          placeholder="Nome social"
+          value={formData.nome}
+          onChange={(e) => setFormData((p) => ({ ...p, nome: e.target.value }))}
+          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
+        />
+        <div className="flex items-stretch overflow-hidden rounded-lg border border-gray-200 bg-white">
+          <span className="flex shrink-0 items-center border-r border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-600">
+            @
+          </span>
+          <input
+            type="text"
+            placeholder="username"
+            autoComplete="username"
+            value={formData.username}
+            onChange={(e) => {
+              const v = e.target.value.replace(/^@+/, '').replace(/\s/g, '')
+              setFormData((p) => ({ ...p, username: v }))
+            }}
+            className="min-w-0 flex-1 border-0 bg-transparent p-2 text-sm outline-none"
+            aria-label="Nome de utilizador"
+          />
+        </div>
+        <input
+          type="text"
+          placeholder="Endereço (rua e número)"
+          value={formData.endereco}
+          onChange={(e) => setFormData((p) => ({ ...p, endereco: e.target.value }))}
+          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
+        />
+        <input
+          type="text"
+          placeholder="Bairro"
+          value={formData.bairro}
+          onChange={(e) => setFormData((p) => ({ ...p, bairro: e.target.value }))}
+          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
+        />
+        <select
+          value={formData.cidade}
+          onChange={(e) => setFormData((p) => ({ ...p, cidade: e.target.value }))}
+          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
+        >
+          {CIDADES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
       </section>
 
       <section className="space-y-3">
-        <h3 className="text-lg font-bold text-gray-900">Horário de funcionamento</h3>
-        <p className="text-xs text-gray-500">
-          Defina abertura e fechamento por dia. Marque a pausa ao almoço e os horários do intervalo, se existir.
-        </p>
+        <h3 className="text-lg font-bold text-gray-900">Horário de Funcionamento</h3>
         <div className="space-y-3">
           {DIAS_SEMANA_EDIT.map(({ key, label }) => {
             const h = horariosEdit[key]
@@ -531,8 +540,8 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                 </div>
                 {!h.fechado ? (
                   <>
-                    <div className="flex flex-wrap items-end gap-2">
-                      <div className="min-w-[7rem] flex-1">
+                    <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+                      <div className="w-[8.25rem] shrink-0">
                         <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Abre</label>
                         <input
                           type="time"
@@ -543,10 +552,10 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                               [key]: { ...prev[key], abre: e.target.value },
                             }))
                           }
-                          className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                          className="mt-0.5 w-full max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
                         />
                       </div>
-                      <div className="min-w-[7rem] flex-1">
+                      <div className="w-[8.25rem] shrink-0">
                         <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Fecha</label>
                         <input
                           type="time"
@@ -557,7 +566,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                               [key]: { ...prev[key], fecha: e.target.value },
                             }))
                           }
-                          className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                          className="mt-0.5 w-full max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
                         />
                       </div>
                     </div>
@@ -572,11 +581,11 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                           }))
                         }
                       />
-                      Pausa ao almoço (fecha nesse intervalo)
+                      Pausa para o almoço?
                     </label>
                     {h.pausa_almoco ? (
-                      <div className="flex flex-wrap items-end gap-2 pl-1">
-                        <div className="min-w-[7rem] flex-1">
+                      <div className="flex flex-wrap items-end gap-x-4 gap-y-2 pl-0.5">
+                        <div className="w-[8.25rem] shrink-0">
                           <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
                             Início almoço
                           </label>
@@ -589,10 +598,10 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                                 [key]: { ...prev[key], almoco_inicio: e.target.value },
                               }))
                             }
-                            className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                            className="mt-0.5 w-full max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
                           />
                         </div>
-                        <div className="min-w-[7rem] flex-1">
+                        <div className="w-[8.25rem] shrink-0">
                           <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
                             Fim almoço
                           </label>
@@ -605,7 +614,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                                 [key]: { ...prev[key], almoco_fim: e.target.value },
                               }))
                             }
-                            className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                            className="mt-0.5 w-full max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
                           />
                         </div>
                       </div>
