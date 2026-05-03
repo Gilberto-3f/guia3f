@@ -214,58 +214,58 @@ export default function AbaBotaoDinamico({
           role="presentation"
         >
           <div
-            className="w-full max-w-sm rounded-xl bg-white p-4 shadow-xl"
+            className="w-full max-w-sm min-w-0 overflow-hidden rounded-xl bg-white p-4 text-gray-900 shadow-xl [color-scheme:light]"
             onClick={(ev) => ev.stopPropagation()}
             role="dialog"
             aria-labelledby="reserva-mesa-titulo"
           >
-            <h3 id="reserva-mesa-titulo" className="text-base font-bold text-gray-900">
+            <h3 id="reserva-mesa-titulo" className="text-lg font-bold text-gray-900">
               Dados da reserva
             </h3>
-            <p className="mt-1 text-xs text-gray-500">Serão enviados no WhatsApp para a empresa.</p>
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="text-xs font-medium text-gray-600">Data</label>
+            <p className="mt-1 text-sm text-gray-700">Serão enviados no WhatsApp para a empresa.</p>
+            <div className="mt-4 flex max-w-full flex-col space-y-3">
+              <div className="min-w-0 max-w-full">
+                <label className="text-sm font-medium text-gray-700">Data</label>
                 <input
                   type="date"
                   value={dataMesa}
                   onChange={(e) => setDataMesa(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-2 text-sm"
+                  className="mt-1 box-border w-full max-w-[200px] rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900"
                 />
               </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600">Hora</label>
+              <div className="min-w-0 max-w-full">
+                <label className="text-sm font-medium text-gray-700">Hora</label>
                 <input
                   type="time"
                   value={horaMesa}
                   onChange={(e) => setHoraMesa(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-2 text-sm"
+                  className="mt-1 box-border w-full max-w-[140px] rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900"
                 />
               </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600">Nº de pessoas</label>
+              <div className="min-w-0 max-w-full">
+                <label className="text-sm font-medium text-gray-700">Nº de pessoas</label>
                 <input
                   type="number"
                   min={1}
                   max={99}
                   value={nPessoasMesa}
                   onChange={(e) => setNPessoasMesa(Number(e.target.value))}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-2 text-sm"
+                  className="mt-1 box-border w-full max-w-[120px] rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900"
                 />
               </div>
             </div>
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setShowReservaMesaModal(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+                className="rounded-lg bg-gray-200 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-300"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={confirmarReservaMesaWhatsapp}
-                className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:opacity-95"
+                className="rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:opacity-95"
               >
                 Abrir WhatsApp
               </button>

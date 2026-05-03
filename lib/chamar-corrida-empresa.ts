@@ -1,13 +1,14 @@
 const DIAS_SEM = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'] as const
 
-const LABEL_DIA: Record<string, string> = {
-  domingo: 'Dom',
-  segunda: 'Seg',
-  terca: 'Ter',
-  quarta: 'Qua',
-  quinta: 'Qui',
-  sexta: 'Sex',
-  sabado: 'Sáb',
+/** Nome do dia para textos ao utilizador (ex.: aviso de corrida). */
+const NOME_DIA_LONGO: Record<(typeof DIAS_SEM)[number], string> = {
+  domingo: 'Domingo',
+  segunda: 'Segunda-feira',
+  terca: 'Terça-feira',
+  quarta: 'Quarta-feira',
+  quinta: 'Quinta-feira',
+  sexta: 'Sexta-feira',
+  sabado: 'Sábado',
 }
 
 type Slot = {
@@ -46,19 +47,33 @@ function minutosAte(a: string, b: string): number {
 }
 
 /**
- * Texto compacto dos horários para avisos (ex.: "Seg: 09:00–18:00; Ter: …").
+ * Descreve apenas o horário do dia atual (para avisos curtos).
  */
-export function formatarResumoHorarios(horarios: Record<string, unknown> | null | undefined): string {
-  if (!horarios || typeof horarios !== 'object') return 'sem horários registados'
-  const partes: string[] = []
-  for (const k of DIAS_SEM) {
-    const s = parseSlot(horarios[k])
-    if (!s) continue
-    const lb = LABEL_DIA[k] ?? k
-    if (s.fechado) partes.push(`${lb}: fechado`)
-    else if (s.abre && s.fecha) partes.push(`${lb}: ${s.abre}–${s.fecha}`)
+export function formatarHorarioSomenteHoje(
+  horarios: Record<string, unknown> | null | undefined,
+  ref: Date = new Date()
+): string {
+  const dia = DIAS_SEM[ref.getDay()]
+  const nome = NOME_DIA_LONGO[dia]
+  if (!horarios || typeof horarios !== 'object') {
+    return `Horário de funcionamento HOJE (${nome}): sem registo.`
   }
-  return partes.length ? partes.join('; ') : 'sem horários registados'
+  const slot = parseSlot(horarios[dia])
+  if (!slot) {
+    return `Horário de funcionamento HOJE (${nome}): sem configuração.`
+  }
+  if (slot.fechado) {
+    return `Horário de funcionamento HOJE (${nome}): Fechado.`
+  }
+  if (!slot.abre || !slot.fecha) {
+    return `Horário de funcionamento HOJE (${nome}): incompleto.`
+  }
+  return `Horário de funcionamento HOJE (${nome}): ${slot.abre} – ${slot.fecha}.`
+}
+
+/** @deprecated Preferir formatarHorarioSomenteHoje — mantido por compatibilidade. */
+export function formatarResumoHorarios(horarios: Record<string, unknown> | null | undefined): string {
+  return formatarHorarioSomenteHoje(horarios)
 }
 
 export type AvisoCorrida =
@@ -69,8 +84,9 @@ export type AvisoCorrida =
  * Decide se deve mostrar confirmação antes de /mobilidade?destino_empresa=…
  */
 export function avaliarAvisoChamarCorrida(horarios: Record<string, unknown> | null | undefined): AvisoCorrida {
-  const resumo = formatarResumoHorarios(horarios)
-  const dia = DIAS_SEM[new Date().getDay()]
+  const hoje = new Date()
+  const linhaHoje = formatarHorarioSomenteHoje(horarios, hoje)
+  const dia = DIAS_SEM[hoje.getDay()]
   const agora = horaAgoraHHMM()
   const slot = horarios && typeof horarios === 'object' ? parseSlot(horarios[dia]) : null
 
@@ -78,7 +94,7 @@ export function avaliarAvisoChamarCorrida(horarios: Record<string, unknown> | nu
     return {
       irDireto: false,
       titulo: 'Horário',
-      mensagem: `Empresa está fechada agora (sem horário configurado para hoje). O horário de funcionamento é ${resumo}. Deseja mesmo assim chamar a corrida?`,
+      mensagem: `Empresa está fechada hoje.\n${linhaHoje}\nDeseja mesmo assim chamar a corrida?`,
     }
   }
 
@@ -86,7 +102,7 @@ export function avaliarAvisoChamarCorrida(horarios: Record<string, unknown> | nu
     return {
       irDireto: false,
       titulo: 'Fechado',
-      mensagem: `Empresa está fechada agora. O horário de funcionamento é ${resumo}. Deseja mesmo assim chamar a corrida?`,
+      mensagem: `Empresa está fechada hoje.\n${linhaHoje}\nDeseja mesmo assim chamar a corrida?`,
     }
   }
 
@@ -94,7 +110,7 @@ export function avaliarAvisoChamarCorrida(horarios: Record<string, unknown> | nu
     return {
       irDireto: false,
       titulo: 'Horário',
-      mensagem: `Horário incompleto para hoje. O horário de funcionamento é ${resumo}. Deseja mesmo assim chamar a corrida?`,
+      mensagem: `Empresa está fechada hoje.\n${linhaHoje}\nDeseja mesmo assim chamar a corrida?`,
     }
   }
 
@@ -104,7 +120,7 @@ export function avaliarAvisoChamarCorrida(horarios: Record<string, unknown> | nu
       return {
         irDireto: false,
         titulo: 'Abre em breve',
-        mensagem: `Empresa abre em ${min} minuto(s). O horário de funcionamento é ${resumo}. Deseja chamar corrida agora?`,
+        mensagem: `Empresa abre hoje às ${slot.abre}.\nDeseja chamar a corrida agora?`,
       }
     }
     return { irDireto: true }
@@ -114,7 +130,7 @@ export function avaliarAvisoChamarCorrida(horarios: Record<string, unknown> | nu
     return {
       irDireto: false,
       titulo: 'Fechado',
-      mensagem: `Empresa está fechada agora (já passou do horário de encerramento). O horário de funcionamento é ${resumo}. Deseja mesmo assim chamar a corrida?`,
+      mensagem: `Empresa está fechada agora (o expediente de hoje já terminou).\n${linhaHoje}\nDeseja mesmo assim chamar a corrida?`,
     }
   }
 
@@ -122,7 +138,7 @@ export function avaliarAvisoChamarCorrida(horarios: Record<string, unknown> | nu
     return {
       irDireto: false,
       titulo: 'Pausa ao almoço',
-      mensagem: `Empresa está em pausa para almoço (${slot.almoco_inicio}–${slot.almoco_fim}). O horário de funcionamento é ${resumo}. Deseja mesmo assim chamar a corrida?`,
+      mensagem: `Empresa está em pausa para o almoço (hoje das ${slot.almoco_inicio} às ${slot.almoco_fim}).\n${linhaHoje}\nDeseja mesmo assim chamar a corrida?`,
     }
   }
 

@@ -453,7 +453,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
             const h = horariosEdit[key]
             if (!h) return null
             return (
-              <div key={key} className="rounded-xl border border-gray-100 bg-white p-3 space-y-2">
+              <div key={key} className="min-w-0 space-y-2 overflow-hidden rounded-xl border border-gray-100 bg-white p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-semibold text-gray-800">{label}</span>
                   <label className="flex items-center gap-2 text-xs text-gray-600">
@@ -472,8 +472,8 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                 </div>
                 {!h.fechado ? (
                   <>
-                    <div className="flex flex-row flex-nowrap items-end gap-4">
-                      <div className="w-32 shrink-0">
+                    <div className="flex min-w-0 flex-row flex-nowrap items-end gap-2">
+                      <div className="min-w-0 w-24 shrink-0">
                         <label className="block text-[10px] font-medium uppercase tracking-wide text-gray-500">Abre</label>
                         <input
                           type="time"
@@ -484,10 +484,10 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                               [key]: { ...prev[key], abre: e.target.value },
                             }))
                           }
-                          className="mt-0.5 w-32 max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                          className="mt-0.5 w-24 max-w-full rounded-lg border border-gray-200 bg-white px-1 py-1.5 text-sm text-gray-900 [color-scheme:light]"
                         />
                       </div>
-                      <div className="w-32 shrink-0">
+                      <div className="min-w-0 w-24 shrink-0">
                         <label className="block text-[10px] font-medium uppercase tracking-wide text-gray-500">Fecha</label>
                         <input
                           type="time"
@@ -498,7 +498,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                               [key]: { ...prev[key], fecha: e.target.value },
                             }))
                           }
-                          className="mt-0.5 w-32 max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                          className="mt-0.5 w-24 max-w-full rounded-lg border border-gray-200 bg-white px-1 py-1.5 text-sm text-gray-900 [color-scheme:light]"
                         />
                       </div>
                     </div>
@@ -516,8 +516,8 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                       Pausa para o almoço?
                     </label>
                     {h.pausa_almoco ? (
-                      <div className="flex flex-row flex-nowrap items-end gap-4 pl-0.5">
-                        <div className="w-32 shrink-0">
+                      <div className="flex min-w-0 flex-row flex-nowrap items-end gap-2 pl-0.5">
+                        <div className="min-w-0 w-24 shrink-0">
                           <label className="block text-[10px] font-medium uppercase tracking-wide text-gray-500">
                             Início almoço
                           </label>
@@ -530,10 +530,10 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                                 [key]: { ...prev[key], almoco_inicio: e.target.value },
                               }))
                             }
-                            className="mt-0.5 w-32 max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                            className="mt-0.5 w-24 max-w-full rounded-lg border border-gray-200 bg-white px-1 py-1.5 text-sm text-gray-900 [color-scheme:light]"
                           />
                         </div>
-                        <div className="w-32 shrink-0">
+                        <div className="min-w-0 w-24 shrink-0">
                           <label className="block text-[10px] font-medium uppercase tracking-wide text-gray-500">
                             Fim almoço
                           </label>
@@ -546,7 +546,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                                 [key]: { ...prev[key], almoco_fim: e.target.value },
                               }))
                             }
-                            className="mt-0.5 w-32 max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                            className="mt-0.5 w-24 max-w-full rounded-lg border border-gray-200 bg-white px-1 py-1.5 text-sm text-gray-900 [color-scheme:light]"
                           />
                         </div>
                       </div>
