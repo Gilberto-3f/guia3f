@@ -6,30 +6,7 @@ import { supabase } from '@/lib/supabase'
 import Estrelas from '@/components/Estrelas'
 import EstrelasAvaliacao from '@/components/EstrelasAvaliacao'
 import GraficoAvaliacoes from '@/components/GraficoAvaliacoes'
-import { CheckCircle2, Star, User } from 'lucide-react'
-
-/** Média exibida nas estrelas grandes: arredondamento clássico (0,5 → inteiro mais próximo). */
-function notaParaEstrelasGrandes(media, total) {
-  if (!total || !Number.isFinite(media)) return 0
-  return Math.min(5, Math.max(0, Math.round(media)))
-}
-
-/**
- * @param {{ notaExibicao: number, tamanho?: number }} props
- */
-function EstrelasGrandesLeitura({ notaExibicao, tamanho = 44 }) {
-  return (
-    <div className="flex justify-center gap-1" aria-hidden>
-      {[1, 2, 3, 4, 5].map((v) => (
-        <Star
-          key={v}
-          size={tamanho}
-          className={v <= notaExibicao ? 'fill-[#0097b2] text-[#0097b2]' : 'text-gray-200'}
-        />
-      ))}
-    </div>
-  )
-}
+import { CheckCircle2, User } from 'lucide-react'
 
 /**
  * @param {{
@@ -59,7 +36,6 @@ export default function AbaAvaliacoes({
   const [notaUsuario, setNotaUsuario] = useState(0)
   const [feedbackUsuario, setFeedbackUsuario] = useState('')
   const [jaAvaliou, setJaAvaliou] = useState(false)
-  const [avaliacaoId, setAvaliacaoId] = useState(/** @type {string | null} */ (null))
   const [loading, setLoading] = useState(true)
   const [enviando, setEnviando] = useState(false)
   const [usuarioId, setUsuarioId] = useState(/** @type {string | null} */ (null))
@@ -105,7 +81,6 @@ export default function AbaAvaliacoes({
         setDistribuicao({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 })
         if (usuarioId) {
           setJaAvaliou(false)
-          setAvaliacaoId(null)
           setNotaUsuario(0)
           setFeedbackUsuario('')
         }
@@ -205,12 +180,10 @@ export default function AbaAvaliacoes({
         const existente = rows.find((a) => a.usuario_id === usuarioId)
         if (existente) {
           setJaAvaliou(true)
-          setAvaliacaoId(existente.id)
-          setNotaUsuario(existente.nota)
-          setFeedbackUsuario(existente.feedback || '')
+          setNotaUsuario(0)
+          setFeedbackUsuario('')
         } else {
           setJaAvaliou(false)
-          setAvaliacaoId(null)
           setNotaUsuario(0)
           setFeedbackUsuario('')
         }
@@ -225,38 +198,25 @@ export default function AbaAvaliacoes({
   }, [carregarAvaliacoes])
 
   const executarSalvarAvaliacao = async () => {
-    if (!usuarioId || notaUsuario === 0) return
+    if (!usuarioId || notaUsuario === 0 || jaAvaliou) return
     setEnviando(true)
     setErroSalvarAvaliacao('')
     try {
-      if (jaAvaliou && avaliacaoId) {
-        const { error } = await supabase
-          .from('avaliacoes')
-          .update({
-            nota: notaUsuario,
-            feedback: feedbackUsuario,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', avaliacaoId)
-        if (error) {
-          setErroSalvarAvaliacao(error.message)
-          return
-        }
-      } else {
-        const avaliadorTipo = usuarioTipo === 'profissional' ? 'profissional' : 'turista'
-        const { error } = await supabase.from('avaliacoes').insert({
-          empresa_id: empresaId,
-          usuario_id: usuarioId,
-          nota: notaUsuario,
-          feedback: feedbackUsuario.trim() !== '' ? feedbackUsuario : null,
-          avaliador_tipo: avaliadorTipo,
-        })
-        if (error) {
-          setErroSalvarAvaliacao(error.message)
-          return
-        }
+      const avaliadorTipo = usuarioTipo === 'profissional' ? 'profissional' : 'turista'
+      const { error } = await supabase.from('avaliacoes').insert({
+        empresa_id: empresaId,
+        usuario_id: usuarioId,
+        nota: notaUsuario,
+        feedback: feedbackUsuario.trim() !== '' ? feedbackUsuario : null,
+        avaliador_tipo: avaliadorTipo,
+      })
+      if (error) {
+        setErroSalvarAvaliacao(error.message)
+        return
       }
       setJaAvaliou(true)
+      setNotaUsuario(0)
+      setFeedbackUsuario('')
       setModalConfirmar(false)
       await carregarAvaliacoes()
     } finally {
@@ -265,7 +225,7 @@ export default function AbaAvaliacoes({
   }
 
   const abrirConfirmacaoEnvio = () => {
-    if (!usuarioId || notaUsuario === 0 || enviando) return
+    if (!usuarioId || notaUsuario === 0 || enviando || jaAvaliou) return
     setModalConfirmar(true)
   }
 
@@ -304,8 +264,6 @@ export default function AbaAvaliacoes({
   }
 
   const avaliacoesFiltradas = avaliacoes.filter((av) => av.avaliador_tipo === tipoFiltro)
-
-  const estrelasMediaGrande = notaParaEstrelasGrandes(media, total)
 
   if (loading) {
     return (
@@ -362,38 +320,39 @@ export default function AbaAvaliacoes({
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:items-center">
-          <div>
-            <p className="text-center text-5xl font-extrabold text-[#0097b2] sm:text-left sm:text-6xl">
-              {total > 0 ? media.toFixed(1).replace('.', ',') : '—'}
-            </p>
-            <div className="mt-2 flex justify-center sm:justify-start">
-              <EstrelasGrandesLeitura notaExibicao={estrelasMediaGrande} />
-            </div>
-            <p className="mt-2 text-center text-sm text-gray-500 sm:text-left">
+        <div className="grid grid-cols-2 items-center gap-3 sm:gap-4">
+          <div className="min-w-0 text-center sm:text-left">
+            <p className="text-4xl font-bold text-[#0097b2]">{total > 0 ? media.toFixed(1).replace('.', ',') : '—'}</p>
+            <p className="mt-1 text-sm text-gray-500">
               ({total} {total === 1 ? 'avaliação' : 'avaliações'})
             </p>
           </div>
-          <div className="w-full min-w-0">
-            <GraficoAvaliacoes distribuicao={distribuicao} total={total} />
+          <div className="min-w-0">
+            <GraficoAvaliacoes distribuicao={distribuicao} total={total} compact />
           </div>
         </div>
       </div>
 
       {usuarioId && usuarioTipo !== 'empresa' && usuarioTipo !== 'admin' ? (
         <div className="rounded-xl bg-white p-4 shadow-sm">
-          <h3 className="mb-4 text-center text-lg font-semibold text-gray-900">Faça sua avaliação</h3>
+          <h3 className="mb-4 text-center text-lg font-semibold text-gray-900">
+            {jaAvaliou ? 'Sua avaliação' : 'Faça sua avaliação'}
+          </h3>
+          {jaAvaliou ? (
+            <p className="mb-4 text-center text-sm text-gray-700">Você já avaliou esta empresa.</p>
+          ) : null}
           <div className="flex justify-center">
             <EstrelasAvaliacao
-              nota={notaUsuario}
+              nota={jaAvaliou ? 0 : notaUsuario}
               onChange={(n) => {
                 setNotaUsuario(n)
                 setErroSalvarAvaliacao('')
               }}
               tamanho={40}
+              disabled={jaAvaliou}
             />
           </div>
-          {notaUsuario > 0 ? (
+          {!jaAvaliou && notaUsuario > 0 ? (
             <div className="mt-4">
               <textarea
                 value={feedbackUsuario}
@@ -401,8 +360,8 @@ export default function AbaAvaliacoes({
                   setFeedbackUsuario(e.target.value)
                   setErroSalvarAvaliacao('')
                 }}
-                placeholder="Deixe seu feedback (opcional)"
-                className="w-full resize-none rounded-lg border border-gray-200 p-3 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                placeholder="Compartilhe sua experiência (opcional)"
+                className="w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                 rows={3}
               />
               {erroSalvarAvaliacao ? <p className="mt-2 text-center text-sm text-red-600">{erroSalvarAvaliacao}</p> : null}

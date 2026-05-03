@@ -1,26 +1,28 @@
 'use client'
 
 /**
- * @param {{ distribuicao: Record<number, number>, total: number }} props
+ * @param {{ distribuicao: Record<number, number>, total: number, compact?: boolean }} props
  */
-export default function GraficoAvaliacoes({ distribuicao, total }) {
+export default function GraficoAvaliacoes({ distribuicao, total, compact = false }) {
   const notas = [5, 4, 3, 2, 1]
 
   return (
-    <div className="space-y-2">
+    <div className={compact ? 'space-y-1' : 'space-y-2'}>
       {notas.map((nota) => {
         const quantidade = distribuicao[nota] ?? 0
         const porcentagem = total > 0 ? (quantidade / total) * 100 : 0
 
         return (
-          <div key={nota} className="flex items-center gap-2">
-            <span className="w-8 text-sm">
+          <div key={nota} className={`flex items-center ${compact ? 'gap-1' : 'gap-2'}`}>
+            <span className={`shrink-0 text-gray-600 ${compact ? 'w-5 text-xs' : 'w-8 text-sm'}`}>
               {nota} ★
             </span>
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
+            <div className={`flex-1 overflow-hidden rounded-full bg-gray-200 ${compact ? 'h-1.5' : 'h-2'}`}>
               <div className="h-full rounded-full bg-[#0097b2]" style={{ width: `${porcentagem}%` }} />
             </div>
-            <span className="w-10 text-xs text-gray-500">{quantidade}</span>
+            <span className={`shrink-0 text-right text-gray-500 ${compact ? 'w-6 text-xs' : 'w-10 text-xs'}`}>
+              {quantidade}
+            </span>
           </div>
         )
       })}
