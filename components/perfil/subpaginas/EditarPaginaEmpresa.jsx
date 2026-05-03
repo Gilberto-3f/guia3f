@@ -135,8 +135,6 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
     ? /** @type {Record<string, string>} */ (empresa.redes_sociais)
     : {}) || {}
 
-  const categoriaFixa = useMemo(() => String(empresa.categoria ?? 'Restaurantes'), [empresa.categoria])
-
   const [formData, setFormData] = useState({
     nome: String(empresa.nome_fantasia ?? ''),
     username: String(empresa.nome_usuario ?? '')
@@ -150,18 +148,11 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
     website: String(empresa.website ?? ''),
     descricaoCurta: String(empresa.descricao_curta ?? empresa.descricao ?? '').slice(0, 170),
     descricaoLonga: String(empresa.descricao_longa ?? '').slice(0, 350),
-    precoTicketInteira: Number(empresa.preco_ticket_inteira) || 0,
-    precoTicketMeia: Number(empresa.preco_ticket_meia) || 0,
-    precoDiaria: Number(empresa.preco_diaria) || 0,
     redes: {
       facebook: redesIn.facebook ?? '',
       instagram: redesIn.instagram ?? '',
       tiktok: redesIn.tiktok ?? '',
     },
-    cozinha: 'Brasileira',
-    faixaPreco: '$$',
-    modeloReserva: 'Pré-reserva',
-    nQuartos: 0,
   })
 
   const [salvando, setSalvando] = useState(false)
@@ -310,62 +301,6 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
     return data.publicUrl
   }
 
-  const configEspecifica =
-    categoriaFixa === 'Restaurantes' ? (
-      <div className="space-y-3 rounded-xl border border-gray-100 p-3">
-        <h4 className="font-semibold text-gray-800">Restaurante</h4>
-        <div>
-          <label className="text-xs text-gray-500">Tipo de cozinha</label>
-          <select
-            className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm"
-            value={formData.cozinha}
-            onChange={(e) => setFormData((p) => ({ ...p, cozinha: e.target.value }))}
-          >
-            <option>Italiana</option>
-            <option>Japonesa</option>
-            <option>Brasileira</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-gray-500">Faixa de preço</label>
-          <select
-            className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm"
-            value={formData.faixaPreco}
-            onChange={(e) => setFormData((p) => ({ ...p, faixaPreco: e.target.value }))}
-          >
-            <option>$</option>
-            <option>$$</option>
-            <option>$$$</option>
-          </select>
-        </div>
-      </div>
-    ) : categoriaFixa === 'Hospedagem' ? (
-      <div className="space-y-3 rounded-xl border border-gray-100 p-3">
-        <h4 className="font-semibold text-gray-800">Hospedagem</h4>
-        <div>
-          <label className="text-xs text-gray-500">Modelo de reserva</label>
-          <select
-            className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm"
-            value={formData.modeloReserva}
-            onChange={(e) => setFormData((p) => ({ ...p, modeloReserva: e.target.value }))}
-          >
-            <option>Pré-reserva</option>
-            <option>Pagamento antecipado</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs text-gray-500">Número de quartos</label>
-          <input
-            type="number"
-            min={0}
-            className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm"
-            value={formData.nQuartos}
-            onChange={(e) => setFormData((p) => ({ ...p, nQuartos: Number(e.target.value) }))}
-          />
-        </div>
-      </div>
-    ) : null
-
   const salvar = async () => {
     setSalvando(true)
     setMsg(null)
@@ -394,9 +329,6 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
         website: formData.website.trim() || null,
         descricao_curta: formData.descricaoCurta.trim() || null,
         descricao_longa: formData.descricaoLonga.trim() || null,
-        preco_ticket_inteira: formData.precoTicketInteira || null,
-        preco_ticket_meia: formData.precoTicketMeia || null,
-        preco_diaria: formData.precoDiaria || null,
         redes_sociais: formData.redes,
       }
 
@@ -540,9 +472,9 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                 </div>
                 {!h.fechado ? (
                   <>
-                    <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-                      <div className="w-[8.25rem] shrink-0">
-                        <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Abre</label>
+                    <div className="flex flex-row flex-nowrap items-end gap-4">
+                      <div className="w-32 shrink-0">
+                        <label className="block text-[10px] font-medium uppercase tracking-wide text-gray-500">Abre</label>
                         <input
                           type="time"
                           value={h.abre}
@@ -552,11 +484,11 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                               [key]: { ...prev[key], abre: e.target.value },
                             }))
                           }
-                          className="mt-0.5 w-full max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                          className="mt-0.5 w-32 max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
                         />
                       </div>
-                      <div className="w-[8.25rem] shrink-0">
-                        <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Fecha</label>
+                      <div className="w-32 shrink-0">
+                        <label className="block text-[10px] font-medium uppercase tracking-wide text-gray-500">Fecha</label>
                         <input
                           type="time"
                           value={h.fecha}
@@ -566,7 +498,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                               [key]: { ...prev[key], fecha: e.target.value },
                             }))
                           }
-                          className="mt-0.5 w-full max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                          className="mt-0.5 w-32 max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
                         />
                       </div>
                     </div>
@@ -584,9 +516,9 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                       Pausa para o almoço?
                     </label>
                     {h.pausa_almoco ? (
-                      <div className="flex flex-wrap items-end gap-x-4 gap-y-2 pl-0.5">
-                        <div className="w-[8.25rem] shrink-0">
-                          <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                      <div className="flex flex-row flex-nowrap items-end gap-4 pl-0.5">
+                        <div className="w-32 shrink-0">
+                          <label className="block text-[10px] font-medium uppercase tracking-wide text-gray-500">
                             Início almoço
                           </label>
                           <input
@@ -598,11 +530,11 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                                 [key]: { ...prev[key], almoco_inicio: e.target.value },
                               }))
                             }
-                            className="mt-0.5 w-full max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                            className="mt-0.5 w-32 max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
                           />
                         </div>
-                        <div className="w-[8.25rem] shrink-0">
-                          <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                        <div className="w-32 shrink-0">
+                          <label className="block text-[10px] font-medium uppercase tracking-wide text-gray-500">
                             Fim almoço
                           </label>
                           <input
@@ -614,7 +546,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
                                 [key]: { ...prev[key], almoco_fim: e.target.value },
                               }))
                             }
-                            className="mt-0.5 w-full max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                            className="mt-0.5 w-32 max-w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
                           />
                         </div>
                       </div>
@@ -706,33 +638,6 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
           className="w-full rounded-lg border border-gray-200 p-2 text-sm"
         />
       </section>
-
-      <section className="space-y-3">
-        <h3 className="text-lg font-bold text-gray-900">Preços (botões dinâmicos)</h3>
-        <input
-          type="number"
-          placeholder="Ticket inteira (R$)"
-          value={formData.precoTicketInteira || ''}
-          onChange={(e) => setFormData((p) => ({ ...p, precoTicketInteira: Number(e.target.value) }))}
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-        />
-        <input
-          type="number"
-          placeholder="Ticket meia (R$)"
-          value={formData.precoTicketMeia || ''}
-          onChange={(e) => setFormData((p) => ({ ...p, precoTicketMeia: Number(e.target.value) }))}
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-        />
-        <input
-          type="number"
-          placeholder="Diária (R$)"
-          value={formData.precoDiaria || ''}
-          onChange={(e) => setFormData((p) => ({ ...p, precoDiaria: Number(e.target.value) }))}
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-        />
-      </section>
-
-      {configEspecifica}
 
       {msg ? <p className="text-sm text-[#0097b2]">{msg}</p> : null}
 

@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
 import { whatsappWaUrl } from '@/lib/whatsapp-empresa'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-empresa'
+import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
 
 const botoesPorCategoria = {
   gastronomia: { texto: 'RESERVAR MESA', icon: Utensils, cor: '#FF6B6B', acao: 'reserva' },
@@ -37,6 +39,8 @@ function isGastronomia(cat) {
  *   categoria: string
  *   empresaId: string
  *   empresaNome: string
+ *   cidade?: string
+ *   horarios?: Record<string, unknown>
  *   whatsapp?: string | null
  *   precoTicketInteira?: number
  *   precoTicketMeia?: number
@@ -47,24 +51,73 @@ export default function AbaBotaoDinamico({
   categoria,
   empresaId,
   empresaNome,
+  cidade = '',
+  horarios = {},
   whatsapp = null,
   precoTicketInteira = 0,
   precoTicketMeia,
   precoDiaria = 0,
 }) {
   const router = useRouter()
+  const { perfilEhProfissional, recursosProfissionaisLiberados } = useProfissionalGate()
   const [showTicketPopup, setShowTicketPopup] = useState(false)
   const [showReservaPopup, setShowReservaPopup] = useState(false)
+  const [showReservaMesaModal, setShowReservaMesaModal] = useState(false)
+  const [dataMesa, setDataMesa] = useState('')
+  const [horaMesa, setHoraMesa] = useState('')
+  const [nPessoasMesa, setNPessoasMesa] = useState(2)
 
-  const config = botoesPorCategoria[categoria] || {
-    texto: 'VER MAIS',
-    icon: Package,
-    cor: '#0097b2',
-    acao: 'detalhes',
-  }
+  useEffect(() => {
+    if (!showReservaMesaModal) return
+    const hoje = new Date().toISOString().slice(0, 10)
+    setDataMesa((d) => (d ? d : hoje))
+    setHoraMesa((t) => (t ? t : '12:00'))
+  }, [showReservaMesaModal])
+
+  const config = useMemo(() => {
+    const base =
+      botoesPorCategoria[categoria] || {
+        texto: 'VER MAIS',
+        icon: Package,
+        cor: '#0097b2',
+        acao: 'detalhes',
+      }
+    const cat = String(categoria || '')
+    const loja = cat === 'Lojas' || cat === 'lojas'
+    if (loja) {
+      if (cidadeEhCiudadDelEste(cidade)) {
+        return { ...base, texto: 'VER PRODUTOS', icon: ShoppingBag, cor: '#96CEB4', acao: 'produtos' }
+      }
+      if (cidadeEhFozOuPuertoIguazu(cidade)) {
+        return { ...base, texto: 'CHAMAR CORRIDA', icon: Car, cor: '#FFEAA7', acao: 'corrida' }
+      }
+      return { texto: 'VER MAIS', icon: Package, cor: '#0097b2', acao: 'detalhes' }
+    }
+    return base
+  }, [categoria, cidade])
+
   const Icon = config.icon
 
-  const abrirWhatsappGastronomia = () => {
+  const bloquearCorridaProfissional = () => {
+    if (perfilEhProfissional && !recursosProfissionaisLiberados) {
+      window.alert(
+        'Mobilidade disponível após verificação dos documentos. Use Menu → USUÁRIO → Anexar Documentos.'
+      )
+      return true
+    }
+    return false
+  }
+
+  const irMobilidadeEmpresa = () => {
+    if (bloquearCorridaProfissional()) return
+    const aviso = avaliarAvisoChamarCorrida(horarios)
+    if (!aviso.irDireto) {
+      if (!window.confirm(aviso.mensagem)) return
+    }
+    router.push(`/mobilidade?destino_empresa=${encodeURIComponent(empresaId)}`)
+  }
+
+  const abrirWhatsappGastronomiaSimples = () => {
     const wa = whatsappWaUrl(whatsapp)
     if (!wa) {
       alert('WhatsApp da empresa não configurado.')
@@ -74,21 +127,29 @@ export default function AbaBotaoDinamico({
     window.open(`https://wa.me/${wa}?text=${encodeURIComponent(texto)}`, '_blank')
   }
 
-  const handleClick = () => {
-    if (config.acao === 'corrida' && perfilEhProfissional && !recursosProfissionaisLiberados) {
-      window.alert(
-        'Mobilidade disponível após verificação dos documentos. Use Menu → USUÁRIO → Anexar Documentos.'
-      )
+  const confirmarReservaMesaWhatsapp = () => {
+    const wa = whatsappWaUrl(whatsapp)
+    if (!wa) {
+      alert('WhatsApp da empresa não configurado.')
       return
     }
+    const n = Math.max(1, Number(nPessoasMesa) || 1)
+    const dataFmt = dataMesa?.trim() ? dataMesa.trim() : '(a combinar)'
+    const horaFmt = horaMesa?.trim() ? horaMesa.trim() : '(a combinar)'
+    const texto = `Olá! Gostaria de reservar uma mesa em ${empresaNome} para o dia ${dataFmt} às ${horaFmt} para ${n} pessoa(s).`
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(texto)}`, '_blank')
+    setShowReservaMesaModal(false)
+  }
+
+  const handleClick = () => {
     switch (config.acao) {
       case 'reserva':
         if (isHospedagem(categoria)) {
           setShowReservaPopup(true)
         } else if (isGastronomia(categoria)) {
-          abrirWhatsappGastronomia()
+          setShowReservaMesaModal(true)
         } else {
-          abrirWhatsappGastronomia()
+          abrirWhatsappGastronomiaSimples()
         }
         break
       case 'ticket':
@@ -98,7 +159,7 @@ export default function AbaBotaoDinamico({
         router.push(`/compras-paraguai/${empresaId}`)
         break
       case 'corrida':
-        router.push(`/mobilidade?destino_empresa=${empresaId}`)
+        irMobilidadeEmpresa()
         break
       default:
         router.push(`/empresa/${empresaId}`)
@@ -143,6 +204,75 @@ export default function AbaBotaoDinamico({
         whatsappDestino={whatsapp}
         precoDiaria={precoDiaria}
       />
+
+      {showReservaMesaModal ? (
+        <div
+          className="fixed inset-0 z-[250] flex items-center justify-center bg-black/50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowReservaMesaModal(false)
+          }}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-sm rounded-xl bg-white p-4 shadow-xl"
+            onClick={(ev) => ev.stopPropagation()}
+            role="dialog"
+            aria-labelledby="reserva-mesa-titulo"
+          >
+            <h3 id="reserva-mesa-titulo" className="text-base font-bold text-gray-900">
+              Dados da reserva
+            </h3>
+            <p className="mt-1 text-xs text-gray-500">Serão enviados no WhatsApp para a empresa.</p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="text-xs font-medium text-gray-600">Data</label>
+                <input
+                  type="date"
+                  value={dataMesa}
+                  onChange={(e) => setDataMesa(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Hora</label>
+                <input
+                  type="time"
+                  value={horaMesa}
+                  onChange={(e) => setHoraMesa(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600">Nº de pessoas</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={nPessoasMesa}
+                  onChange={(e) => setNPessoasMesa(Number(e.target.value))}
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-2 text-sm"
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowReservaMesaModal(false)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarReservaMesaWhatsapp}
+                className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:opacity-95"
+              >
+                Abrir WhatsApp
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   )
 }

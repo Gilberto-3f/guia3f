@@ -200,6 +200,7 @@ export default function EmpresaPage() {
   const empresaUsuarioIdPosts = empresa.usuario_id != null ? String(empresa.usuario_id) : null
 
   const empresaEndereco = {
+    id: empresaId,
     endereco: String(empresa.endereco ?? ''),
     bairro: empresa.bairro != null ? String(empresa.bairro) : null,
     cidade: String(empresa.cidade ?? ''),
@@ -331,6 +332,8 @@ export default function EmpresaPage() {
               categoria={categoria}
               empresaId={empresaId}
               empresaNome={nomeFantasia}
+              cidade={String(empresa.cidade ?? '')}
+              horarios={horariosParsed}
               whatsapp={empresa.whatsapp != null ? String(empresa.whatsapp) : null}
               precoTicketInteira={precoTicketInteira}
               precoTicketMeia={precoTicketMeia}

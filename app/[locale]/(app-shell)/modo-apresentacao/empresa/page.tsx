@@ -227,6 +227,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
   }
 
   const empresaEndereco = {
+    id: empresaId,
     endereco: String(empresaMerged.endereco ?? ''),
     bairro: empresaMerged.bairro != null ? String(empresaMerged.bairro) : null,
     cidade: String(empresaMerged.cidade ?? ''),
@@ -338,6 +339,8 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               categoria={categoria}
               empresaId={empresaId}
               empresaNome={nomeFantasia}
+              cidade={String(empresaMerged.cidade ?? '')}
+              horarios={horariosParsed}
               whatsapp={empresaMerged.whatsapp != null ? String(empresaMerged.whatsapp) : null}
               precoTicketInteira={precoTicketInteira}
               precoTicketMeia={precoTicketMeia}

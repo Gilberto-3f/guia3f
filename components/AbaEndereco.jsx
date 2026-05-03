@@ -83,6 +83,7 @@ function labelWebsite(href) {
 
 /**
  * @param {{ empresa: {
+ *   id?: string
  *   endereco: string
  *   bairro?: string | null
  *   cidade: string
@@ -124,7 +125,14 @@ export default function AbaEndereco({ empresa }) {
           </div>
         </div>
 
-        <BotaoChamarCorrida latitude={empresa.latitude} longitude={empresa.longitude} nomeDestino={nomeDestino} />
+        <BotaoChamarCorrida
+          variant="empresa"
+          empresaId={empresa.id != null ? String(empresa.id) : ''}
+          horarios={empresa.horarios}
+          latitude={empresa.latitude}
+          longitude={empresa.longitude}
+          nomeDestino={nomeDestino}
+        />
       </section>
 
       <section className="border-t border-gray-100 pt-5">
