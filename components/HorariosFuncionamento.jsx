@@ -25,13 +25,13 @@ export default function HorariosFuncionamento({ horarios }) {
         const af = horario.almoco_fim != null ? String(horario.almoco_fim).trim() : ''
 
         return (
-          <div key={dia.key} className="flex flex-col gap-0.5 py-1">
-            <div className="flex items-center justify-between gap-3">
+          <div key={dia.key} className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2 py-1">
               <span className="shrink-0 text-sm font-normal text-gray-700">{dia.nome}</span>
               {horario.fechado ? (
-                <span className="text-right text-sm font-normal text-gray-500">Fechado</span>
+                <span className="text-sm font-normal text-gray-500">Fechado</span>
               ) : (
-                <span className="text-right text-sm font-normal tabular-nums text-gray-700">
+                <span className="text-sm font-normal tabular-nums text-gray-700">
                   {horario.abre} – {horario.fecha}
                 </span>
               )}

@@ -1,6 +1,6 @@
 'use client'
 
-import { MapPin, Phone, MessageCircle, Globe, Clock, Facebook, Instagram, Music2 } from 'lucide-react'
+import { MapPin, Phone, User, Globe, Clock, Facebook, Instagram, Music2 } from 'lucide-react'
 import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
 import HorariosFuncionamento from '@/components/HorariosFuncionamento'
 
@@ -92,6 +92,19 @@ function labelWebsite(href) {
 }
 
 /**
+ * Monta texto de morada para pesquisa no mapa (fallback sem lat/lng).
+ * @param {{ endereco: string, bairro?: string | null, cidade?: string | null }} e
+ */
+function montarQueryMapaEndereco(e) {
+  const partes = [
+    String(e.endereco ?? '').trim(),
+    e.bairro != null && String(e.bairro).trim() !== '' ? String(e.bairro).trim() : '',
+    e.cidade != null && String(e.cidade).trim() !== '' ? String(e.cidade).trim() : '',
+  ].filter(Boolean)
+  return partes.length ? partes.join(', ') : ''
+}
+
+/**
  * @param {{ empresa: {
  *   id?: string
  *   endereco: string
@@ -113,10 +126,17 @@ export default function AbaEndereco({ empresa }) {
 
   const lat = empresa.latitude != null && empresa.latitude !== '' ? Number(empresa.latitude) : NaN
   const lng = empresa.longitude != null && empresa.longitude !== '' ? Number(empresa.longitude) : NaN
-  const mapaOk = Number.isFinite(lat) && Number.isFinite(lng)
-  const mapSrc = mapaOk
+  const mapaCoordOk = Number.isFinite(lat) && Number.isFinite(lng)
+  const queryEndereco = montarQueryMapaEndereco({
+    endereco: empresa.endereco,
+    bairro: empresa.bairro,
+    cidade: empresa.cidade,
+  })
+  const mapSrc = mapaCoordOk
     ? `https://maps.google.com/maps?q=${lat},${lng}&hl=pt&z=16&output=embed`
-    : null
+    : queryEndereco !== ''
+      ? `https://maps.google.com/maps?q=${encodeURIComponent(queryEndereco)}&hl=pt&z=16&output=embed`
+      : null
 
   const siteHref = hrefWebsite(empresa.website)
 
@@ -159,19 +179,17 @@ export default function AbaEndereco({ empresa }) {
                 href={`https://wa.me/${String(empresa.whatsapp).replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 text-lg font-semibold text-gray-900 hover:text-[#0097b2]"
+                className="block text-sm font-normal text-gray-900 hover:text-[#0097b2]"
               >
-                <MessageCircle size={28} className="shrink-0 text-[#0097b2]" aria-hidden />
-                <span>{empresa.whatsapp}</span>
+                {empresa.whatsapp}
               </a>
             </div>
           ) : null}
           {empresa.telefone ? (
             <div>
               <p className="mb-1.5 text-sm font-medium text-gray-600">Telefone</p>
-              <a href={`tel:${empresa.telefone}`} className="inline-flex items-center gap-3 text-lg font-semibold text-gray-900 hover:text-[#0097b2]">
-                <Phone size={28} className="shrink-0 text-[#0097b2]" aria-hidden />
-                <span>{empresa.telefone}</span>
+              <a href={`tel:${empresa.telefone}`} className="block text-sm font-normal text-gray-900 hover:text-[#0097b2]">
+                {empresa.telefone}
               </a>
             </div>
           ) : null}
@@ -180,7 +198,7 @@ export default function AbaEndereco({ empresa }) {
 
       {(redes.instagram || redes.facebook || redes.tiktok) && (
         <section className="border-t border-gray-100 pt-5">
-          <TituloSecao Icon={Instagram} titulo="Redes sociais" />
+          <TituloSecao Icon={User} titulo="Redes sociais" />
           <div className="flex flex-wrap gap-3">
             {redes.instagram && hrefInstagram(redes.instagram) ? (
               <a
