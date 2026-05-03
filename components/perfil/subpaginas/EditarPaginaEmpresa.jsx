@@ -101,7 +101,14 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
   const [salvando, setSalvando] = useState(false)
   const [msg, setMsg] = useState(/** @type {string | null} */ (null))
 
-  const fotoInicial = fotos[0] || null
+  const fotoInicial = useMemo(() => {
+    const u = empresa.foto_url != null && String(empresa.foto_url).trim() !== '' ? String(empresa.foto_url).trim() : null
+    const p =
+      empresa.foto_perfil_url != null && String(empresa.foto_perfil_url).trim() !== ''
+        ? String(empresa.foto_perfil_url).trim()
+        : null
+    return u || p || fotos[0] || null
+  }, [empresa.foto_url, empresa.foto_perfil_url, fotos])
   const [fotoAtual, setFotoAtual] = useState(/** @type {string | null} */ (fotoInicial))
   const [novaFotoArquivo, setNovaFotoArquivo] = useState(/** @type {File | null} */ (null))
   const [previewFoto, setPreviewFoto] = useState(/** @type {string | null} */ (null))
@@ -213,13 +220,6 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
     }
   }
 
-  const cancelarNovaFoto = () => {
-    setNovaFotoArquivo(null)
-    setPreviewFoto(null)
-    setErroFoto(null)
-    if (galeriaInputRef.current) galeriaInputRef.current.value = ''
-  }
-
   const uploadFotoPerfilEmpresa = async (file) => {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
     const nomeSeguro = file.name
@@ -235,42 +235,6 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
     if (uploadError) throw uploadError
     const { data } = supabase.storage.from('empresas').getPublicUrl(path)
     return data.publicUrl
-  }
-
-  const salvarFotoPerfilEmpresa = async () => {
-    if (!novaFotoArquivo) return
-    setSalvando(true)
-    setMsg(null)
-    setErroFoto(null)
-    try {
-      const publicUrl = await uploadFotoPerfilEmpresa(novaFotoArquivo)
-      const fotosAtualizadas = [publicUrl, ...fotos]
-
-      const { error } = await supabase
-        .from('empresas')
-        .update({
-          fotos_url: fotosAtualizadas,
-          foto_perfil_url: publicUrl,
-        })
-        .eq('id', empresaId)
-
-      if (error) {
-        setMsg(error.message)
-        return
-      }
-
-      setFotoAtual(publicUrl)
-      setNovaFotoArquivo(null)
-      if (galeriaInputRef.current) galeriaInputRef.current.value = ''
-      setMsg('Foto de perfil atualizada.')
-      onSalvo?.()
-      window.dispatchEvent(new Event('perfil-atualizado'))
-    } catch (e) {
-      const erroMsg = e instanceof Error ? e.message : 'Erro ao salvar foto.'
-      setMsg(erroMsg)
-    } finally {
-      setSalvando(false)
-    }
   }
 
   const configEspecifica =
@@ -332,33 +296,57 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
   const salvar = async () => {
     setSalvando(true)
     setMsg(null)
+    setErroFoto(null)
     try {
-      const { error } = await supabase
-        .from('empresas')
-        .update({
-          nome_fantasia: formData.nome.trim(),
-          nome_usuario: formData.username.trim().replace(/^@/, ''),
-          categoria: formData.categoria,
-          cidade: formData.cidade,
-          endereco: formData.endereco.trim() || null,
-          telefone: formData.telefone.trim() || null,
-          whatsapp: formData.whatsapp.trim() || null,
-          website: formData.website.trim() || null,
-          descricao_curta: formData.descricaoCurta.trim() || null,
-          descricao_longa: formData.descricaoLonga.trim() || null,
-          preco_ticket_inteira: formData.precoTicketInteira || null,
-          preco_ticket_meia: formData.precoTicketMeia || null,
-          preco_diaria: formData.precoDiaria || null,
-          redes_sociais: formData.redes,
-        })
-        .eq('id', empresaId)
+      let publicUrlPerfil = /** @type {string | null} */ (null)
+      if (novaFotoArquivo) {
+        try {
+          publicUrlPerfil = await uploadFotoPerfilEmpresa(novaFotoArquivo)
+        } catch (e) {
+          const erroMsg = e instanceof Error ? e.message : 'Erro ao enviar foto.'
+          setMsg(erroMsg)
+          return
+        }
+      }
+
+      const payload = {
+        nome_fantasia: formData.nome.trim(),
+        nome_usuario: formData.username.trim().replace(/^@/, ''),
+        categoria: formData.categoria,
+        cidade: formData.cidade,
+        endereco: formData.endereco.trim() || null,
+        telefone: formData.telefone.trim() || null,
+        whatsapp: formData.whatsapp.trim() || null,
+        website: formData.website.trim() || null,
+        descricao_curta: formData.descricaoCurta.trim() || null,
+        descricao_longa: formData.descricaoLonga.trim() || null,
+        preco_ticket_inteira: formData.precoTicketInteira || null,
+        preco_ticket_meia: formData.precoTicketMeia || null,
+        preco_diaria: formData.precoDiaria || null,
+        redes_sociais: formData.redes,
+      }
+
+      if (publicUrlPerfil) {
+        payload.foto_url = publicUrlPerfil
+        payload.fotos_url = [publicUrlPerfil, ...fotos.filter((u) => u !== publicUrlPerfil)]
+      }
+
+      const { error } = await supabase.from('empresas').update(payload).eq('id', empresaId)
 
       if (error) {
         setMsg(error.message)
         return
       }
+
+      if (publicUrlPerfil) {
+        setFotoAtual(publicUrlPerfil)
+        setNovaFotoArquivo(null)
+        if (galeriaInputRef.current) galeriaInputRef.current.value = ''
+      }
+
       setMsg('Alterações salvas.')
       onSalvo?.()
+      window.dispatchEvent(new Event('perfil-atualizado'))
     } finally {
       setSalvando(false)
     }
@@ -368,6 +356,49 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
     <div className="space-y-6 px-1 pb-2">
       <section className="space-y-3">
         <h3 className="text-lg font-bold text-gray-900">Informações básicas</h3>
+
+        <div>
+          <h4 className="mb-2 text-sm font-semibold text-gray-800">Foto de perfil</h4>
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-100 bg-white p-3">
+            <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-gray-100">
+              {fotoExibida ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={fotoExibida} alt="Foto de perfil" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-4xl text-gray-400">
+                  {inicialNome || '?'}
+                </div>
+              )}
+            </div>
+
+            <input
+              ref={galeriaInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onSelecionarFoto}
+            />
+
+            <button
+              type="button"
+              onClick={() => galeriaInputRef.current?.click()}
+              className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white"
+            >
+              <Camera className="h-4 w-4 shrink-0" aria-hidden />
+              Foto de Perfil
+            </button>
+
+            {novaFotoArquivo ? (
+              <p className="max-w-sm text-center text-xs text-gray-500">
+                Nova foto selecionada. Use <span className="font-semibold text-gray-700">Salvar alterações</span> no fim
+                do formulário para aplicar.
+              </p>
+            ) : null}
+
+            {erroFoto ? <p className="text-sm text-red-600">{erroFoto}</p> : null}
+          </div>
+        </div>
+
         <input
           type="text"
           placeholder="Nome da empresa"
@@ -411,61 +442,6 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
           onChange={(e) => setFormData((p) => ({ ...p, endereco: e.target.value }))}
           className="w-full rounded-lg border border-gray-200 p-2 text-sm"
         />
-      </section>
-
-      <section className="space-y-3">
-        <h3 className="text-lg font-bold text-gray-900">Foto de perfil</h3>
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-100 bg-white p-3">
-          <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-gray-100">
-            {fotoExibida ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={fotoExibida} alt="Foto de perfil" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-4xl text-gray-400">
-                {inicialNome || '?'}
-              </div>
-            )}
-          </div>
-
-          <input
-            ref={galeriaInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={onSelecionarFoto}
-          />
-
-          <button
-            type="button"
-            onClick={() => galeriaInputRef.current?.click()}
-            className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white"
-          >
-            <Camera className="h-4 w-4 shrink-0" aria-hidden />
-            Foto de Perfil
-          </button>
-
-          {novaFotoArquivo ? (
-            <div className="flex w-full max-w-sm flex-col gap-2">
-              <button
-                type="button"
-                disabled={salvando}
-                onClick={() => void salvarFotoPerfilEmpresa()}
-                className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {salvando ? 'Salvando…' : 'Salvar nova foto'}
-              </button>
-              <button
-                type="button"
-                onClick={cancelarNovaFoto}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700"
-              >
-                Cancelar
-              </button>
-            </div>
-          ) : null}
-
-          {erroFoto ? <p className="text-sm text-red-600">{erroFoto}</p> : null}
-        </div>
       </section>
 
       <section className="space-y-3">
