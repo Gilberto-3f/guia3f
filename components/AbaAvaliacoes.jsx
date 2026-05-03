@@ -243,11 +243,13 @@ export default function AbaAvaliacoes({
           return
         }
       } else {
+        const avaliadorTipo = usuarioTipo === 'profissional' ? 'profissional' : 'turista'
         const { error } = await supabase.from('avaliacoes').insert({
           empresa_id: empresaId,
           usuario_id: usuarioId,
           nota: notaUsuario,
-          feedback: feedbackUsuario,
+          feedback: feedbackUsuario.trim() !== '' ? feedbackUsuario : null,
+          avaliador_tipo: avaliadorTipo,
         })
         if (error) {
           setErroSalvarAvaliacao(error.message)
