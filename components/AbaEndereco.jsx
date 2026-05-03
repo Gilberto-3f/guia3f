@@ -6,6 +6,16 @@ import HorariosFuncionamento from '@/components/HorariosFuncionamento'
 
 const ICON_CLASS = 'shrink-0 text-[#0097b2]'
 
+/** Título de secção (Endereço, Horário, Contato, …): ícone + texto alinhados. */
+function TituloSecao({ Icon, titulo }) {
+  return (
+    <div className="mb-2 flex items-center gap-2">
+      <Icon className={`h-6 w-6 ${ICON_CLASS}`} strokeWidth={2} aria-hidden />
+      <h3 className="text-lg font-bold text-gray-900">{titulo}</h3>
+    </div>
+  )
+}
+
 /**
  * @param {unknown} raw
  * @returns {{ instagram: string, facebook: string, tiktok: string }}
@@ -113,18 +123,6 @@ export default function AbaEndereco({ empresa }) {
   return (
     <div className="space-y-6 text-gray-900">
       <section className="space-y-3">
-        <div className="flex items-start gap-3">
-          <MapPin size={22} className={`${ICON_CLASS} mt-0.5`} aria-hidden />
-          <div className="min-w-0">
-            <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500">Endereço</h3>
-            <p className="mt-1 text-base font-medium text-gray-900">{empresa.endereco}</p>
-            {empresa.bairro != null && String(empresa.bairro).trim() !== '' ? (
-              <p className="mt-0.5 text-base text-gray-600">{String(empresa.bairro).trim()}</p>
-            ) : null}
-            {empresa.cidade ? <p className="mt-0.5 text-base text-gray-600">{empresa.cidade}</p> : null}
-          </div>
-        </div>
-
         <BotaoChamarCorrida
           variant="empresa"
           empresaId={empresa.id != null ? String(empresa.id) : ''}
@@ -135,19 +133,28 @@ export default function AbaEndereco({ empresa }) {
         />
       </section>
 
-      <section className="border-t border-gray-100 pt-5">
-        <div className="mb-3 flex items-center gap-2">
-          <Clock size={22} className={ICON_CLASS} aria-hidden />
-          <h3 className="text-base font-bold text-gray-900">Horário de Funcionamento</h3>
+      <section className="space-y-2 border-t border-gray-100 pt-5">
+        <TituloSecao Icon={MapPin} titulo="Endereço" />
+        <div className="min-w-0">
+          <p className="text-base font-medium text-gray-900">{empresa.endereco}</p>
+          {empresa.bairro != null && String(empresa.bairro).trim() !== '' ? (
+            <p className="mt-0.5 text-base text-gray-600">{String(empresa.bairro).trim()}</p>
+          ) : null}
+          {empresa.cidade ? <p className="mt-0.5 text-base text-gray-600">{empresa.cidade}</p> : null}
         </div>
+      </section>
+
+      <section className="border-t border-gray-100 pt-5">
+        <TituloSecao Icon={Clock} titulo="Horário de Funcionamento" />
         <HorariosFuncionamento horarios={empresa.horarios || {}} />
       </section>
 
       {(empresa.whatsapp || empresa.telefone) && (
         <section className="space-y-4 border-t border-gray-100 pt-5">
+          <TituloSecao Icon={Phone} titulo="Contato" />
           {empresa.whatsapp ? (
             <div>
-              <h3 className="mb-2 text-base font-bold text-gray-900">WhatsApp</h3>
+              <p className="mb-1.5 text-sm font-medium text-gray-600">WhatsApp</p>
               <a
                 href={`https://wa.me/${String(empresa.whatsapp).replace(/\D/g, '')}`}
                 target="_blank"
@@ -161,7 +168,7 @@ export default function AbaEndereco({ empresa }) {
           ) : null}
           {empresa.telefone ? (
             <div>
-              <h3 className="mb-2 text-base font-bold text-gray-900">Telefone</h3>
+              <p className="mb-1.5 text-sm font-medium text-gray-600">Telefone</p>
               <a href={`tel:${empresa.telefone}`} className="inline-flex items-center gap-3 text-lg font-semibold text-gray-900 hover:text-[#0097b2]">
                 <Phone size={28} className="shrink-0 text-[#0097b2]" aria-hidden />
                 <span>{empresa.telefone}</span>
@@ -173,7 +180,7 @@ export default function AbaEndereco({ empresa }) {
 
       {(redes.instagram || redes.facebook || redes.tiktok) && (
         <section className="border-t border-gray-100 pt-5">
-          <h3 className="mb-3 text-base font-bold text-gray-900">Redes sociais</h3>
+          <TituloSecao Icon={Instagram} titulo="Redes sociais" />
           <div className="flex flex-wrap gap-3">
             {redes.instagram && hrefInstagram(redes.instagram) ? (
               <a
@@ -214,7 +221,7 @@ export default function AbaEndereco({ empresa }) {
 
       {siteHref ? (
         <section className="border-t border-gray-100 pt-5">
-          <h3 className="mb-2 text-base font-bold text-gray-900">Website</h3>
+          <TituloSecao Icon={Globe} titulo="Website" />
           <a
             href={siteHref}
             target="_blank"
@@ -229,7 +236,7 @@ export default function AbaEndereco({ empresa }) {
 
       {mapSrc ? (
         <section className="border-t border-gray-100 pt-5">
-          <h3 className="mb-3 text-base font-bold text-gray-900">Mapa</h3>
+          <TituloSecao Icon={MapPin} titulo="Mapa" />
           <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm">
             <iframe
               title="Localização no mapa"
