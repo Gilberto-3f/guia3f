@@ -141,7 +141,7 @@ export default function AbaEndereco({ empresa }) {
   const siteHref = hrefWebsite(empresa.website)
 
   return (
-    <div className="space-y-6 text-gray-900">
+    <div className="space-y-6 pb-0 text-gray-900 [&>section:last-child]:mb-0">
       <section className="space-y-3">
         <BotaoChamarCorrida
           variant="empresa"
@@ -179,7 +179,7 @@ export default function AbaEndereco({ empresa }) {
                 href={`https://wa.me/${String(empresa.whatsapp).replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-sm font-normal text-gray-900 hover:text-[#0097b2]"
+                className="block text-base font-normal text-gray-900 hover:text-[#0097b2]"
               >
                 {empresa.whatsapp}
               </a>
@@ -188,7 +188,7 @@ export default function AbaEndereco({ empresa }) {
           {empresa.telefone ? (
             <div>
               <p className="mb-1.5 text-sm font-medium text-gray-600">Telefone</p>
-              <a href={`tel:${empresa.telefone}`} className="block text-sm font-normal text-gray-900 hover:text-[#0097b2]">
+              <a href={`tel:${empresa.telefone}`} className="block text-base font-normal text-gray-900 hover:text-[#0097b2]">
                 {empresa.telefone}
               </a>
             </div>
@@ -253,13 +253,13 @@ export default function AbaEndereco({ empresa }) {
       ) : null}
 
       {mapSrc ? (
-        <section className="border-t border-gray-100 pt-5">
+        <section className="mb-0 border-t border-gray-100 pt-5 pb-0">
           <TituloSecao Icon={MapPin} titulo="Mapa" />
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm">
+          <div className="mb-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-100 leading-none shadow-sm">
             <iframe
               title="Localização no mapa"
               src={mapSrc}
-              className="h-[min(280px,50vh)] w-full"
+              className="block h-[min(280px,50vh)] w-full border-0 align-top"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
               allowFullScreen

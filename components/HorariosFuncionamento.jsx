@@ -37,9 +37,11 @@ export default function HorariosFuncionamento({ horarios }) {
               )}
             </div>
             {!horario.fechado && pausa && (ai && af) ? (
-              <div className="pr-0.5 text-right text-xs text-gray-500">Almoço: {ai} – {af}</div>
+              <div className="mt-1 text-left text-sm text-gray-500">
+                Horário de almoço: {ai} – {af}
+              </div>
             ) : !horario.fechado && pausa ? (
-              <div className="pr-0.5 text-right text-xs text-amber-700">Pausa para almoço</div>
+              <div className="mt-1 text-left text-sm text-amber-700">Horário de almoço: a combinar</div>
             ) : null}
           </div>
         )

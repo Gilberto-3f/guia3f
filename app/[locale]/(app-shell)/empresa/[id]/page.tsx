@@ -308,7 +308,7 @@ export default function EmpresaPage() {
       </div>
 
       {abaExpandida ? (
-        <div className="p-4">
+        <div className="px-4 pt-4 pb-0">
           {abaExpandida === 'avaliacoes' ? (
             <AbaAvaliacoes
               empresaId={empresaId}
