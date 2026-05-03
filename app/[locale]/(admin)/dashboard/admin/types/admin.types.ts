@@ -128,6 +128,9 @@ export type PendenteEmpresa = {
   nome_usuario: string
   categoria: string
   cidade: string
+  documento_frente_url?: string | null
+  documento_verso_url?: string | null
+  comprovante_residencia_url?: string | null
   documento_url: string | null
   /** URL bruta do comercial (quando distinta de `documento_url`). */
   documento_comercial_url?: string | null

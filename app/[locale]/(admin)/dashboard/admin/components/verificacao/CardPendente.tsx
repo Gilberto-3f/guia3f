@@ -63,6 +63,16 @@ function collectDocThumbs(tipo: 'turistas' | 'profissionais' | 'empresas', raw: 
     if (prof) out.push({ key: 'prof', label: 'Profissão', url: prof })
     return out
   }
+  const outEmp: DocThumb[] = []
+  const ef = String(raw.documento_frente_url ?? '').trim()
+  const ev = String(raw.documento_verso_url ?? '').trim()
+  const er = String(raw.comprovante_residencia_url ?? '').trim()
+  const ec = String(raw.documento_comercial_url ?? raw.documento_url ?? '').trim()
+  if (ef) outEmp.push({ key: 'ef', label: 'Rep. ID frente', url: ef })
+  if (ev) outEmp.push({ key: 'ev', label: 'Rep. ID verso', url: ev })
+  if (er) outEmp.push({ key: 'er', label: 'Residência', url: er })
+  if (ec) outEmp.push({ key: 'ec', label: 'Comercial / categoria', url: ec })
+  if (outEmp.length > 0) return outEmp
   const u = String(raw.documento_url ?? raw.documento_comercial_url ?? '').trim()
   if (u) return [{ key: 'com', label: 'Comercial', url: u }]
   return []

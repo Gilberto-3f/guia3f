@@ -56,6 +56,7 @@ import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
 import ModoApresentacao from '@/components/perfil/subpaginas/ModoApresentacao'
 import AnexarDocumentos from '@/components/perfil/subpaginas/AnexarDocumentos'
+import AnexarDocumentosEmpresa from '@/components/perfil/subpaginas/AnexarDocumentosEmpresa'
 
 /**
  * @typedef {{ tipo: 'menu', titulo: string, itens: MenuItem[] } | { tipo: 'pagina', titulo: string, id: string, historicoTipo?: string, postId?: string, comentarioId?: string | null }} HistoricoEntry
@@ -194,6 +195,7 @@ function secoesProfissional(ctx) {
 function secoesEmpresa() {
   const gUsuario = [
     { Icon: Building2, label: 'Editar Página', subpagina: 'editar-pagina' },
+    { Icon: Paperclip, label: 'Anexar documentos', subpagina: 'anexar-documentos-empresa' },
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
     { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
   ]
@@ -443,6 +445,7 @@ export default function MenuLateral({
         salvos: 'Publicações Salvas',
         'modo-apresentacao': 'Modo Apresentação',
         'anexar-documentos': 'Anexar Documentos',
+        'anexar-documentos-empresa': 'Anexar documentos',
       }
       const t = titulos[item.subpagina] || item.label
       if (item.subpagina === 'historico-decisoes') {
@@ -558,6 +561,15 @@ export default function MenuLateral({
     if (id === 'cadastrar-comissao' && empresaIdEfetivo) return <CadastrarComissao empresaId={empresaIdEfetivo} />
     if (id === 'anexar-documentos')
       return <AnexarDocumentos usuarioId={usuarioIdEfetivo} onConcluido={onPerfilAtualizado} />
+    if (id === 'anexar-documentos-empresa' && empresaIdEfetivo && usuarioIdEfetivo)
+      return (
+        <AnexarDocumentosEmpresa
+          empresaId={String(empresaIdEfetivo)}
+          usuarioId={usuarioIdEfetivo}
+          categoria={empresa?.categoria != null ? String(empresa.categoria) : null}
+          onConcluido={onPerfilAtualizado}
+        />
+      )
     return <p className="text-sm text-gray-500">Página indisponível.</p>
   }
 

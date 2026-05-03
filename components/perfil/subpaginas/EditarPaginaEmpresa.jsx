@@ -1,12 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Camera } from 'lucide-react'
+import { Camera, MessageCircle, Phone } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 
 const CIDADES = ['Foz do Iguaçu', 'Ciudad del Este', 'Puerto Iguazú']
-const CATEGORIAS = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem', 'Compras Paraguai', 'Eventos', 'Mobilidade']
 
 /**
  * @param {string} url
@@ -65,18 +64,15 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
     const f = empresa.fotos_url
     return Array.isArray(f) ? f.filter((x) => typeof x === 'string') : []
   }, [empresa.fotos_url])
-  const fotos360 = useMemo(() => {
-    const f = empresa.fotos_360_url
-    return Array.isArray(f) ? f.filter((x) => typeof x === 'string') : []
-  }, [empresa.fotos_360_url])
   const redesIn = (empresa.redes_sociais && typeof empresa.redes_sociais === 'object' && !Array.isArray(empresa.redes_sociais)
     ? /** @type {Record<string, string>} */ (empresa.redes_sociais)
     : {}) || {}
 
+  const categoriaFixa = useMemo(() => String(empresa.categoria ?? 'Restaurantes'), [empresa.categoria])
+
   const [formData, setFormData] = useState({
     nome: String(empresa.nome_fantasia ?? ''),
     username: String(empresa.nome_usuario ?? ''),
-    categoria: String(empresa.categoria ?? 'Restaurantes'),
     cidade: String(empresa.cidade ?? CIDADES[0]),
     endereco: String(empresa.endereco ?? ''),
     telefone: String(empresa.telefone ?? ''),
@@ -238,7 +234,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
   }
 
   const configEspecifica =
-    formData.categoria === 'Restaurantes' ? (
+    categoriaFixa === 'Restaurantes' ? (
       <div className="space-y-3 rounded-xl border border-gray-100 p-3">
         <h4 className="font-semibold text-gray-800">Restaurante</h4>
         <div>
@@ -266,7 +262,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
           </select>
         </div>
       </div>
-    ) : formData.categoria === 'Hospedagem' ? (
+    ) : categoriaFixa === 'Hospedagem' ? (
       <div className="space-y-3 rounded-xl border border-gray-100 p-3">
         <h4 className="font-semibold text-gray-800">Hospedagem</h4>
         <div>
@@ -312,7 +308,6 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
       const payload = {
         nome_fantasia: formData.nome.trim(),
         nome_usuario: formData.username.trim().replace(/^@/, ''),
-        categoria: formData.categoria,
         cidade: formData.cidade,
         endereco: formData.endereco.trim() || null,
         telefone: formData.telefone.trim() || null,
@@ -388,13 +383,6 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
               Foto de Perfil
             </button>
 
-            {novaFotoArquivo ? (
-              <p className="max-w-sm text-center text-xs text-gray-500">
-                Nova foto selecionada. Use <span className="font-semibold text-gray-700">Salvar alterações</span> no fim
-                do formulário para aplicar.
-              </p>
-            ) : null}
-
             {erroFoto ? <p className="text-sm text-red-600">{erroFoto}</p> : null}
           </div>
         </div>
@@ -413,17 +401,6 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
           onChange={(e) => setFormData((p) => ({ ...p, username: e.target.value }))}
           className="w-full rounded-lg border border-gray-200 p-2 text-sm"
         />
-        <select
-          value={formData.categoria}
-          onChange={(e) => setFormData((p) => ({ ...p, categoria: e.target.value }))}
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-        >
-          {CATEGORIAS.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
         <select
           value={formData.cidade}
           onChange={(e) => setFormData((p) => ({ ...p, cidade: e.target.value }))}
@@ -446,20 +423,32 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
 
       <section className="space-y-3">
         <h3 className="text-lg font-bold text-gray-900">Contato</h3>
-        <input
-          type="tel"
-          placeholder="Telefone"
-          value={formData.telefone}
-          onChange={(e) => setFormData((p) => ({ ...p, telefone: e.target.value }))}
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-        />
-        <input
-          type="tel"
-          placeholder="WhatsApp"
-          value={formData.whatsapp}
-          onChange={(e) => setFormData((p) => ({ ...p, whatsapp: e.target.value }))}
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-        />
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 focus-within:ring-2 focus-within:ring-[#0097b2]/30">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center text-[#0097b2]" title="Telefone" aria-hidden>
+            <Phone className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <input
+            type="tel"
+            placeholder="Telefone"
+            value={formData.telefone}
+            onChange={(e) => setFormData((p) => ({ ...p, telefone: e.target.value }))}
+            className="min-w-0 flex-1 border-0 bg-transparent py-2 pr-2 text-sm outline-none"
+            aria-label="Telefone"
+          />
+        </div>
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 focus-within:ring-2 focus-within:ring-[#0097b2]/30">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center text-emerald-600" title="WhatsApp" aria-hidden>
+            <MessageCircle className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <input
+            type="tel"
+            placeholder="WhatsApp"
+            value={formData.whatsapp}
+            onChange={(e) => setFormData((p) => ({ ...p, whatsapp: e.target.value }))}
+            className="min-w-0 flex-1 border-0 bg-transparent py-2 pr-2 text-sm outline-none"
+            aria-label="WhatsApp"
+          />
+        </div>
         <input
           type="url"
           placeholder="Website"
@@ -485,27 +474,6 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
           onChange={(e) => setFormData((p) => ({ ...p, descricaoLonga: e.target.value }))}
           className="h-32 w-full rounded-lg border border-gray-200 p-2 text-sm"
         />
-      </section>
-
-      <section className="space-y-3">
-        <h3 className="text-lg font-bold text-gray-900">Mídia</h3>
-        <p className="text-xs text-gray-500">Fotos atuais ({fotos.length}). Upload em fluxo dedicado em breve.</p>
-        <div className="grid grid-cols-3 gap-2">
-          {fotos.slice(0, 6).map((u, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={i} src={u} alt="" className="aspect-square rounded-lg object-cover" />
-          ))}
-          <div className="flex aspect-square items-center justify-center rounded-lg border-2 border-dashed border-gray-200 text-gray-400">
-            +
-          </div>
-        </div>
-        <p className="text-xs text-gray-500">Tour 360° ({fotos360.length} fotos)</p>
-        <div className="grid grid-cols-3 gap-2">
-          {fotos360.slice(0, 3).map((u, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={i} src={u} alt="" className="aspect-square rounded-lg object-cover" />
-          ))}
-        </div>
       </section>
 
       <section className="space-y-3">
