@@ -18,7 +18,7 @@ export default function GraficoAvaliacoes({ distribuicao, total }) {
               {nota} ★
             </span>
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-200">
-              <div className="h-full rounded-full bg-[#FFD700]" style={{ width: `${porcentagem}%` }} />
+              <div className="h-full rounded-full bg-[#0097b2]" style={{ width: `${porcentagem}%` }} />
             </div>
             <span className="w-10 text-xs text-gray-500">{quantidade}</span>
           </div>

@@ -12,11 +12,18 @@ import { Star } from 'lucide-react'
  *     foto_url?: string | null
  *     nota?: number
  *     feedback?: string | null
+ *     comentario?: string | null
  *   }
  * }} props
  */
 export default function AvaliacaoCard({ meta }) {
   const nota = Number(meta.nota) || 0
+  const textoAvaliacao =
+    meta.feedback != null && String(meta.feedback).trim() !== ''
+      ? String(meta.feedback)
+      : meta.comentario != null && String(meta.comentario).trim() !== ''
+        ? String(meta.comentario)
+        : ''
   const nome = meta.nome_fantasia ?? 'Estabelecimento'
   const empresaId = meta.empresa_id != null && String(meta.empresa_id) !== '' ? String(meta.empresa_id) : null
 
@@ -47,7 +54,7 @@ export default function AvaliacaoCard({ meta }) {
             </div>
           )
         ) : null}
-        {meta.feedback ? <p className="text-sm text-gray-600">{meta.feedback}</p> : null}
+        {textoAvaliacao ? <p className="text-sm text-gray-600">{textoAvaliacao}</p> : null}
       </div>
     </div>
   )

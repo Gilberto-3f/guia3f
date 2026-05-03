@@ -317,13 +317,6 @@ export default function EmpresaPage() {
               empresaVerificada={
                 Boolean(empresa.docs_verificado) || String(empresa.status ?? '') === 'ativo'
               }
-              verificadoEm={
-                empresa.docs_verificado_em != null
-                  ? String(empresa.docs_verificado_em)
-                  : empresa.verificado_em != null
-                    ? String(empresa.verificado_em)
-                    : null
-              }
             />
           ) : null}
           {abaExpandida === 'endereco' ? <AbaEndereco empresa={empresaEndereco} /> : null}

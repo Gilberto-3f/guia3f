@@ -1235,7 +1235,12 @@ export default function AtividadesPage() {
       const empId = String(r.alvo_id)
       const em = empresaMap[empId]
       const nota = typeof ex.nota === 'number' ? ex.nota : Number(ex.nota) || 5
-      const feedback = ex.comentario != null ? String(ex.comentario) : null
+      const feedback =
+        ex.feedback != null
+          ? String(ex.feedback)
+          : ex.comentario != null
+            ? String(ex.comentario)
+            : null
       return (
         <AtividadeAvaliacao
           key={r.id}

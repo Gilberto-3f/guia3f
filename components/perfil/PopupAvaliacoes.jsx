@@ -19,7 +19,7 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
   useModalScrollLock(aberto)
   const [aba, setAba] = useState(/** @type {'a' | 'b'} */ ('a'))
   const [lista, setLista] = useState(
-    /** @type {{ id: string; nota: number; comentario: string | null; created_at: string; nome: string; username: string; categoria: string | null }[]} */ (
+    /** @type {{ id: string; nota: number; feedback: string | null; created_at: string; nome: string; username: string; categoria: string | null }[]} */ (
       []
     )
   )
@@ -27,7 +27,7 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
   const carregar = useCallback(async () => {
     const { data } = await supabase
       .from('avaliacoes')
-      .select('id, nota, comentario, created_at, empresas(nome_fantasia, nome_usuario, categoria)')
+      .select('id, nota, feedback, created_at, empresas(nome_fantasia, nome_usuario, categoria)')
       .eq('usuario_id', profileId)
       .order('created_at', { ascending: false })
 
@@ -38,7 +38,7 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
         return {
           id: String(r.id),
           nota: Number(r.nota) || 0,
-          comentario: r.comentario != null ? String(r.comentario) : null,
+          feedback: r.feedback != null ? String(r.feedback) : null,
           created_at: String(r.created_at ?? ''),
           nome: er ? String(er.nome_fantasia ?? 'Empresa') : '—',
           username: er ? String(er.nome_usuario ?? '') : '',
@@ -116,7 +116,7 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
                   ))}
                 </div>
               </div>
-              {r.comentario ? <p className="mt-2 text-sm text-[#666666]">{r.comentario}</p> : null}
+              {r.feedback ? <p className="mt-2 text-sm text-[#666666]">{r.feedback}</p> : null}
               <time className="mt-1 block text-xs text-gray-400">
                 {new Date(r.created_at).toLocaleString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </time>

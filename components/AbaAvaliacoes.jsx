@@ -8,14 +8,6 @@ import EstrelasAvaliacao from '@/components/EstrelasAvaliacao'
 import GraficoAvaliacoes from '@/components/GraficoAvaliacoes'
 import { CheckCircle2, Star, User } from 'lucide-react'
 
-function formatMesAno(iso) {
-  if (!iso) return null
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return null
-  const s = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-  return s.charAt(0).toUpperCase() + s.slice(1)
-}
-
 /** Média exibida nas estrelas grandes: arredondamento clássico (0,5 → inteiro mais próximo). */
 function notaParaEstrelasGrandes(media, total) {
   if (!total || !Number.isFinite(media)) return 0
@@ -32,7 +24,7 @@ function EstrelasGrandesLeitura({ notaExibicao, tamanho = 44 }) {
         <Star
           key={v}
           size={tamanho}
-          className={v <= notaExibicao ? 'fill-[#FFD700] text-[#FFD700]' : 'text-gray-200'}
+          className={v <= notaExibicao ? 'fill-[#0097b2] text-[#0097b2]' : 'text-gray-200'}
         />
       ))}
     </div>
@@ -43,7 +35,6 @@ function EstrelasGrandesLeitura({ notaExibicao, tamanho = 44 }) {
  * @param {{
  *   empresaId: string
  *   empresaVerificada?: boolean
- *   verificadoEm?: string | null
  *   podeResponder?: boolean
  *   empresaUsuarioId?: string | null
  * }} props
@@ -51,12 +42,11 @@ function EstrelasGrandesLeitura({ notaExibicao, tamanho = 44 }) {
 export default function AbaAvaliacoes({
   empresaId,
   empresaVerificada = false,
-  verificadoEm = null,
   podeResponder = false,
   empresaUsuarioId = null,
 }) {
   const [avaliacoes, setAvaliacoes] = useState(
-    /** @type {{ id: string, nota: number, comentario: string | null, created_at: string, avaliador_tipo: string, usuario_id: string, avaliador: { nome: string, username: string, foto_url: string | null }, resposta: { id: string, texto: string } | null }[]} */ (
+    /** @type {{ id: string, nota: number, feedback: string | null, created_at: string, avaliador_tipo: string, usuario_id: string, avaliador: { nome: string, username: string, foto_url: string | null }, resposta: { id: string, texto: string } | null }[]} */ (
       []
     )
   )
@@ -67,14 +57,15 @@ export default function AbaAvaliacoes({
   const [media, setMedia] = useState(0)
   const [tipoFiltro, setTipoFiltro] = useState(/** @type {'turista' | 'profissional'} */ ('profissional'))
   const [notaUsuario, setNotaUsuario] = useState(0)
-  const [comentarioUsuario, setComentarioUsuario] = useState('')
+  const [feedbackUsuario, setFeedbackUsuario] = useState('')
   const [jaAvaliou, setJaAvaliou] = useState(false)
   const [avaliacaoId, setAvaliacaoId] = useState(/** @type {string | null} */ (null))
   const [loading, setLoading] = useState(true)
   const [enviando, setEnviando] = useState(false)
   const [usuarioId, setUsuarioId] = useState(/** @type {string | null} */ (null))
   const [usuarioTipo, setUsuarioTipo] = useState(/** @type {string | null} */ (null))
-  const [erro, setErro] = useState('')
+  const [erroSalvarAvaliacao, setErroSalvarAvaliacao] = useState('')
+  const [erroRespostaEmpresa, setErroRespostaEmpresa] = useState('')
   const [modalConfirmar, setModalConfirmar] = useState(false)
   const [editingReplyAvaliacaoId, setEditingReplyAvaliacaoId] = useState(/** @type {string | null} */ (null))
   const [replyDraft, setReplyDraft] = useState('')
@@ -97,17 +88,27 @@ export default function AbaAvaliacoes({
   const carregarAvaliacoes = useCallback(async () => {
     if (!empresaId) return
     setLoading(true)
-    setErro('')
+    setErroSalvarAvaliacao('')
+    setErroRespostaEmpresa('')
     try {
       const { data: avaliacoesData, error: qErr } = await supabase
         .from('avaliacoes')
-        .select('id, nota, comentario, created_at, avaliador_tipo, usuario_id')
+        .select('id, nota, feedback, created_at, avaliador_tipo, usuario_id')
         .eq('empresa_id', empresaId)
         .order('created_at', { ascending: false })
 
       if (qErr) {
-        setErro(qErr.message)
+        console.error('[AbaAvaliacoes] carregar avaliacoes:', qErr.message)
         setAvaliacoes([])
+        setTotal(0)
+        setMedia(0)
+        setDistribuicao({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 })
+        if (usuarioId) {
+          setJaAvaliou(false)
+          setAvaliacaoId(null)
+          setNotaUsuario(0)
+          setFeedbackUsuario('')
+        }
         return
       }
 
@@ -185,7 +186,7 @@ export default function AbaAvaliacoes({
         return {
           id: av.id,
           nota: av.nota,
-          comentario: av.comentario,
+          feedback: av.feedback,
           created_at: av.created_at,
           avaliador_tipo: av.avaliador_tipo,
           usuario_id: av.usuario_id,
@@ -206,12 +207,12 @@ export default function AbaAvaliacoes({
           setJaAvaliou(true)
           setAvaliacaoId(existente.id)
           setNotaUsuario(existente.nota)
-          setComentarioUsuario(existente.comentario || '')
+          setFeedbackUsuario(existente.feedback || '')
         } else {
           setJaAvaliou(false)
           setAvaliacaoId(null)
           setNotaUsuario(0)
-          setComentarioUsuario('')
+          setFeedbackUsuario('')
         }
       }
     } finally {
@@ -226,19 +227,19 @@ export default function AbaAvaliacoes({
   const executarSalvarAvaliacao = async () => {
     if (!usuarioId || notaUsuario === 0) return
     setEnviando(true)
-    setErro('')
+    setErroSalvarAvaliacao('')
     try {
       if (jaAvaliou && avaliacaoId) {
         const { error } = await supabase
           .from('avaliacoes')
           .update({
             nota: notaUsuario,
-            comentario: comentarioUsuario,
+            feedback: feedbackUsuario,
             updated_at: new Date().toISOString(),
           })
           .eq('id', avaliacaoId)
         if (error) {
-          setErro(error.message)
+          setErroSalvarAvaliacao(error.message)
           return
         }
       } else {
@@ -246,10 +247,10 @@ export default function AbaAvaliacoes({
           empresa_id: empresaId,
           usuario_id: usuarioId,
           nota: notaUsuario,
-          comentario: comentarioUsuario,
+          feedback: feedbackUsuario,
         })
         if (error) {
-          setErro(error.message)
+          setErroSalvarAvaliacao(error.message)
           return
         }
       }
@@ -268,16 +269,16 @@ export default function AbaAvaliacoes({
 
   const publicarResposta = async (avaliacaoIdParam) => {
     if (!podeResponder || !usuarioId || !empresaUsuarioId || usuarioId !== empresaUsuarioId) {
-      setErro('Apenas o dono da empresa pode publicar uma resposta.')
+      setErroRespostaEmpresa('Apenas o dono da empresa pode publicar uma resposta.')
       return
     }
     const texto = replyDraft.trim()
     if (!texto) {
-      setErro('Escreva uma resposta antes de publicar.')
+      setErroRespostaEmpresa('Escreva uma resposta antes de publicar.')
       return
     }
     setSavingReply(true)
-    setErro('')
+    setErroRespostaEmpresa('')
     try {
       const { error } = await supabase.from('avaliacao_respostas').upsert(
         {
@@ -289,7 +290,7 @@ export default function AbaAvaliacoes({
         { onConflict: 'avaliacao_id' }
       )
       if (error) {
-        setErro(error.message)
+        setErroRespostaEmpresa(error.message)
         return
       }
       setEditingReplyAvaliacaoId(null)
@@ -302,7 +303,6 @@ export default function AbaAvaliacoes({
 
   const avaliacoesFiltradas = avaliacoes.filter((av) => av.avaliador_tipo === tipoFiltro)
 
-  const mesAnoVerificacao = formatMesAno(verificadoEm)
   const estrelasMediaGrande = notaParaEstrelasGrandes(media, total)
 
   if (loading) {
@@ -315,8 +315,6 @@ export default function AbaAvaliacoes({
 
   return (
     <div className="space-y-6">
-      {erro ? <p className="rounded-lg bg-red-50 p-3 text-center text-sm text-red-700">{erro}</p> : null}
-
       {modalConfirmar ? (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
@@ -356,34 +354,25 @@ export default function AbaAvaliacoes({
 
       <div className="rounded-xl bg-white p-4 shadow-sm">
         {empresaVerificada ? (
-          <div className="mb-6 flex flex-col items-center gap-2 text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800">
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
-              Empresa de Confiança
-            </div>
-            {mesAnoVerificacao ? (
-              <p className="text-xs text-gray-600">
-                Verificação confirmada desde <span className="font-semibold text-gray-800">{mesAnoVerificacao}</span>
-              </p>
-            ) : (
-              <p className="text-xs text-gray-600">Verificação confirmada</p>
-            )}
+          <div className="mb-6 flex items-center justify-center gap-3 sm:justify-start">
+            <CheckCircle2 className="h-9 w-9 shrink-0 text-emerald-600" aria-hidden />
+            <h3 className="text-xl font-bold text-gray-900">Empresa de Confiança</h3>
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <div className="flex-1">
-            <p className="text-center text-5xl font-extrabold text-[#0097b2] lg:text-6xl">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:items-center">
+          <div>
+            <p className="text-center text-5xl font-extrabold text-[#0097b2] sm:text-left sm:text-6xl">
               {total > 0 ? media.toFixed(1).replace('.', ',') : '—'}
             </p>
-            <div className="mt-2 flex justify-center">
+            <div className="mt-2 flex justify-center sm:justify-start">
               <EstrelasGrandesLeitura notaExibicao={estrelasMediaGrande} />
             </div>
-            <p className="mt-2 text-center text-sm text-gray-500">
+            <p className="mt-2 text-center text-sm text-gray-500 sm:text-left">
               ({total} {total === 1 ? 'avaliação' : 'avaliações'})
             </p>
           </div>
-          <div className="w-full flex-1 lg:max-w-md lg:self-center">
+          <div className="w-full min-w-0">
             <GraficoAvaliacoes distribuicao={distribuicao} total={total} />
           </div>
         </div>
@@ -393,17 +382,28 @@ export default function AbaAvaliacoes({
         <div className="rounded-xl bg-white p-4 shadow-sm">
           <h3 className="mb-4 text-center text-lg font-semibold text-gray-900">Faça sua avaliação</h3>
           <div className="flex justify-center">
-            <EstrelasAvaliacao nota={notaUsuario} onChange={setNotaUsuario} tamanho={40} />
+            <EstrelasAvaliacao
+              nota={notaUsuario}
+              onChange={(n) => {
+                setNotaUsuario(n)
+                setErroSalvarAvaliacao('')
+              }}
+              tamanho={40}
+            />
           </div>
           {notaUsuario > 0 ? (
             <div className="mt-4">
               <textarea
-                value={comentarioUsuario}
-                onChange={(e) => setComentarioUsuario(e.target.value)}
-                placeholder="Deixe seu comentário (opcional)"
+                value={feedbackUsuario}
+                onChange={(e) => {
+                  setFeedbackUsuario(e.target.value)
+                  setErroSalvarAvaliacao('')
+                }}
+                placeholder="Deixe seu feedback (opcional)"
                 className="w-full resize-none rounded-lg border border-gray-200 p-3 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                 rows={3}
               />
+              {erroSalvarAvaliacao ? <p className="mt-2 text-center text-sm text-red-600">{erroSalvarAvaliacao}</p> : null}
               <button
                 type="button"
                 onClick={abrirConfirmacaoEnvio}
@@ -472,9 +472,9 @@ export default function AbaAvaliacoes({
                 </div>
               </div>
 
-              {av.comentario ? (
+              {av.feedback ? (
                 <blockquote className="border-l-4 border-[#0097b2]/40 py-1 pl-3 text-sm leading-relaxed text-gray-700">
-                  {av.comentario}
+                  {av.feedback}
                 </blockquote>
               ) : null}
 
@@ -491,11 +491,15 @@ export default function AbaAvaliacoes({
                     <div className="space-y-2">
                       <textarea
                         value={replyDraft}
-                        onChange={(e) => setReplyDraft(e.target.value)}
+                        onChange={(e) => {
+                          setReplyDraft(e.target.value)
+                          setErroRespostaEmpresa('')
+                        }}
                         placeholder="Resposta visível para usuários autenticados"
                         className="w-full resize-none rounded-lg border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                         rows={3}
                       />
+                      {erroRespostaEmpresa ? <p className="text-sm text-red-600">{erroRespostaEmpresa}</p> : null}
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -503,6 +507,7 @@ export default function AbaAvaliacoes({
                           onClick={() => {
                             setEditingReplyAvaliacaoId(null)
                             setReplyDraft('')
+                            setErroRespostaEmpresa('')
                           }}
                           disabled={savingReply}
                         >
@@ -525,6 +530,7 @@ export default function AbaAvaliacoes({
                       onClick={() => {
                         setEditingReplyAvaliacaoId(av.id)
                         setReplyDraft(av.resposta?.texto ?? '')
+                        setErroRespostaEmpresa('')
                       }}
                     >
                       {av.resposta ? 'Editar resposta' : 'Responder'}
