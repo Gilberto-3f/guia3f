@@ -11,7 +11,7 @@ const dias = [
 ]
 
 /**
- * @param {{ horarios: Record<string, { abre: string, fecha: string, fechado: boolean }> }} props
+ * @param {{ horarios: Record<string, { abre: string, fecha: string, fechado: boolean, pausa_almoco?: boolean, almoco_inicio?: string, almoco_fim?: string }> }} props
  */
 export default function HorariosFuncionamento({ horarios }) {
   return (
@@ -20,15 +20,26 @@ export default function HorariosFuncionamento({ horarios }) {
         const horario = horarios?.[dia.key]
         if (!horario) return null
 
+        const pausa = Boolean(horario.pausa_almoco)
+        const ai = horario.almoco_inicio != null ? String(horario.almoco_inicio).trim() : ''
+        const af = horario.almoco_fim != null ? String(horario.almoco_fim).trim() : ''
+
         return (
-          <div key={dia.key} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-base sm:text-lg">
+          <div key={dia.key} className="flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-4">
             <span className="font-semibold text-gray-800">{dia.nome}</span>
             {horario.fechado ? (
               <span className="font-semibold text-red-600">Fechado</span>
             ) : (
-              <span className="font-semibold tabular-nums text-gray-900">
-                {horario.abre} – {horario.fecha}
-              </span>
+              <div className="flex flex-col items-end gap-0.5 text-right sm:items-end">
+                <span className="font-semibold tabular-nums text-gray-900">
+                  {horario.abre} – {horario.fecha}
+                </span>
+                {pausa && ai && af ? (
+                  <span className="text-sm font-medium text-gray-600">Almoço: {ai} – {af}</span>
+                ) : pausa ? (
+                  <span className="text-sm font-medium text-amber-700">Pausa para almoço</span>
+                ) : null}
+              </div>
             )}
           </div>
         )

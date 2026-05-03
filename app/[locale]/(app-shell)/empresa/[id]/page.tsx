@@ -201,6 +201,7 @@ export default function EmpresaPage() {
 
   const empresaEndereco = {
     endereco: String(empresa.endereco ?? ''),
+    bairro: empresa.bairro != null ? String(empresa.bairro) : null,
     cidade: String(empresa.cidade ?? ''),
     latitude: Number.isFinite(latitude) ? latitude : null,
     longitude: Number.isFinite(longitude) ? longitude : null,

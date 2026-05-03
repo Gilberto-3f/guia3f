@@ -7,6 +7,73 @@ import { supabase } from '@/lib/supabase'
 
 const CIDADES = ['Foz do Iguaçu', 'Ciudad del Este', 'Puerto Iguazú']
 
+const DIAS_SEMANA_EDIT = [
+  { key: 'segunda', label: 'Segunda-feira' },
+  { key: 'terca', label: 'Terça-feira' },
+  { key: 'quarta', label: 'Quarta-feira' },
+  { key: 'quinta', label: 'Quinta-feira' },
+  { key: 'sexta', label: 'Sexta-feira' },
+  { key: 'sabado', label: 'Sábado' },
+  { key: 'domingo', label: 'Domingo' },
+]
+
+/** @type {{ abre: string, fecha: string, fechado: boolean, pausa_almoco: boolean, almoco_inicio: string, almoco_fim: string }} */
+const DEFAULT_DIA_HORARIO = {
+  abre: '09:00',
+  fecha: '18:00',
+  fechado: false,
+  pausa_almoco: false,
+  almoco_inicio: '12:00',
+  almoco_fim: '13:00',
+}
+
+/**
+ * @param {string} t
+ */
+function padHhMm(t) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || '').trim())
+  if (!m) return '09:00'
+  return `${m[1].padStart(2, '0')}:${m[2]}`
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {Record<string, { abre: string, fecha: string, fechado: boolean, pausa_almoco: boolean, almoco_inicio: string, almoco_fim: string }>}
+ */
+function parseHorariosFromEmpresa(raw) {
+  /** @type {Record<string, unknown>} */
+  let obj = {}
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    obj = /** @type {Record<string, unknown>} */ (raw)
+  } else if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw)
+      if (p && typeof p === 'object' && !Array.isArray(p)) obj = /** @type {Record<string, unknown>} */ (p)
+    } catch {
+      obj = {}
+    }
+  }
+  /** @type {Record<string, { abre: string, fecha: string, fechado: boolean, pausa_almoco: boolean, almoco_inicio: string, almoco_fim: string }>} */
+  const out = {}
+  for (const { key } of DIAS_SEMANA_EDIT) {
+    const src = obj[key]
+    if (src && typeof src === 'object' && !Array.isArray(src)) {
+      const s = /** @type {Record<string, unknown>} */ (src)
+      out[key] = {
+        abre: padHhMm(String(s.abre ?? DEFAULT_DIA_HORARIO.abre)),
+        fecha: padHhMm(String(s.fecha ?? DEFAULT_DIA_HORARIO.fecha)),
+        fechado: Boolean(s.fechado),
+        pausa_almoco: Boolean(s.pausa_almoco),
+        almoco_inicio: padHhMm(String(s.almoco_inicio ?? DEFAULT_DIA_HORARIO.almoco_inicio)),
+        almoco_fim: padHhMm(String(s.almoco_fim ?? DEFAULT_DIA_HORARIO.almoco_fim)),
+      }
+    } else {
+      out[key] = { ...DEFAULT_DIA_HORARIO, fechado: key === 'domingo' }
+    }
+  }
+  return out
+}
+
 /**
  * @param {string} url
  * @returns {Promise<HTMLImageElement>}
@@ -75,6 +142,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
     username: String(empresa.nome_usuario ?? ''),
     cidade: String(empresa.cidade ?? CIDADES[0]),
     endereco: String(empresa.endereco ?? ''),
+    bairro: String(empresa.bairro ?? ''),
     telefone: String(empresa.telefone ?? ''),
     whatsapp: String(empresa.whatsapp ?? ''),
     website: String(empresa.website ?? ''),
@@ -96,6 +164,13 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
 
   const [salvando, setSalvando] = useState(false)
   const [msg, setMsg] = useState(/** @type {string | null} */ (null))
+
+  const horariosInicial = useMemo(() => parseHorariosFromEmpresa(empresa.horarios), [empresa.horarios])
+  const [horariosEdit, setHorariosEdit] = useState(horariosInicial)
+
+  useEffect(() => {
+    setHorariosEdit(horariosInicial)
+  }, [horariosInicial])
 
   const fotoInicial = useMemo(() => {
     const u = empresa.foto_url != null && String(empresa.foto_url).trim() !== '' ? String(empresa.foto_url).trim() : null
@@ -310,6 +385,8 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
         nome_usuario: formData.username.trim().replace(/^@/, ''),
         cidade: formData.cidade,
         endereco: formData.endereco.trim() || null,
+        bairro: formData.bairro.trim() || null,
+        horarios: horariosEdit,
         telefone: formData.telefone.trim() || null,
         whatsapp: formData.whatsapp.trim() || null,
         website: formData.website.trim() || null,
@@ -352,44 +429,9 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
       <section className="space-y-3">
         <h3 className="text-lg font-bold text-gray-900">Informações básicas</h3>
 
-        <div>
-          <h4 className="mb-2 text-sm font-semibold text-gray-800">Foto de perfil</h4>
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-100 bg-white p-3">
-            <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-gray-100">
-              {fotoExibida ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={fotoExibida} alt="Foto de perfil" className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-4xl text-gray-400">
-                  {inicialNome || '?'}
-                </div>
-              )}
-            </div>
-
-            <input
-              ref={galeriaInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={onSelecionarFoto}
-            />
-
-            <button
-              type="button"
-              onClick={() => galeriaInputRef.current?.click()}
-              className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white"
-            >
-              <Camera className="h-4 w-4 shrink-0" aria-hidden />
-              Foto de Perfil
-            </button>
-
-            {erroFoto ? <p className="text-sm text-red-600">{erroFoto}</p> : null}
-          </div>
-        </div>
-
         <input
           type="text"
-          placeholder="Nome da empresa"
+          placeholder="Nome social"
           value={formData.nome}
           onChange={(e) => setFormData((p) => ({ ...p, nome: e.target.value }))}
           className="w-full rounded-lg border border-gray-200 p-2 text-sm"
@@ -399,6 +441,20 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
           placeholder="@username"
           value={formData.username}
           onChange={(e) => setFormData((p) => ({ ...p, username: e.target.value }))}
+          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
+        />
+        <input
+          type="text"
+          placeholder="Endereço (rua e número)"
+          value={formData.endereco}
+          onChange={(e) => setFormData((p) => ({ ...p, endereco: e.target.value }))}
+          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
+        />
+        <input
+          type="text"
+          placeholder="Bairro"
+          value={formData.bairro}
+          onChange={(e) => setFormData((p) => ({ ...p, bairro: e.target.value }))}
           className="w-full rounded-lg border border-gray-200 p-2 text-sm"
         />
         <select
@@ -412,13 +468,154 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
             </option>
           ))}
         </select>
-        <input
-          type="text"
-          placeholder="Endereço completo"
-          value={formData.endereco}
-          onChange={(e) => setFormData((p) => ({ ...p, endereco: e.target.value }))}
-          className="w-full rounded-lg border border-gray-200 p-2 text-sm"
-        />
+
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-100 bg-white p-3">
+          <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-gray-100">
+            {fotoExibida ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={fotoExibida} alt="Foto de perfil" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-4xl text-gray-400">
+                {inicialNome || '?'}
+              </div>
+            )}
+          </div>
+
+          <input
+            ref={galeriaInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onSelecionarFoto}
+          />
+
+          <button
+            type="button"
+            onClick={() => galeriaInputRef.current?.click()}
+            className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white"
+          >
+            <Camera className="h-4 w-4 shrink-0" aria-hidden />
+            Foto de Perfil
+          </button>
+
+          {erroFoto ? <p className="text-sm text-red-600">{erroFoto}</p> : null}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-lg font-bold text-gray-900">Horário de funcionamento</h3>
+        <p className="text-xs text-gray-500">
+          Defina abertura e fechamento por dia. Marque a pausa ao almoço e os horários do intervalo, se existir.
+        </p>
+        <div className="space-y-3">
+          {DIAS_SEMANA_EDIT.map(({ key, label }) => {
+            const h = horariosEdit[key]
+            if (!h) return null
+            return (
+              <div key={key} className="rounded-xl border border-gray-100 bg-white p-3 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-gray-800">{label}</span>
+                  <label className="flex items-center gap-2 text-xs text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={h.fechado}
+                      onChange={(e) =>
+                        setHorariosEdit((prev) => ({
+                          ...prev,
+                          [key]: { ...prev[key], fechado: e.target.checked },
+                        }))
+                      }
+                    />
+                    Fechado
+                  </label>
+                </div>
+                {!h.fechado ? (
+                  <>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <div className="min-w-[7rem] flex-1">
+                        <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Abre</label>
+                        <input
+                          type="time"
+                          value={h.abre}
+                          onChange={(e) =>
+                            setHorariosEdit((prev) => ({
+                              ...prev,
+                              [key]: { ...prev[key], abre: e.target.value },
+                            }))
+                          }
+                          className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                        />
+                      </div>
+                      <div className="min-w-[7rem] flex-1">
+                        <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Fecha</label>
+                        <input
+                          type="time"
+                          value={h.fecha}
+                          onChange={(e) =>
+                            setHorariosEdit((prev) => ({
+                              ...prev,
+                              [key]: { ...prev[key], fecha: e.target.value },
+                            }))
+                          }
+                          className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={h.pausa_almoco}
+                        onChange={(e) =>
+                          setHorariosEdit((prev) => ({
+                            ...prev,
+                            [key]: { ...prev[key], pausa_almoco: e.target.checked },
+                          }))
+                        }
+                      />
+                      Pausa ao almoço (fecha nesse intervalo)
+                    </label>
+                    {h.pausa_almoco ? (
+                      <div className="flex flex-wrap items-end gap-2 pl-1">
+                        <div className="min-w-[7rem] flex-1">
+                          <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                            Início almoço
+                          </label>
+                          <input
+                            type="time"
+                            value={h.almoco_inicio}
+                            onChange={(e) =>
+                              setHorariosEdit((prev) => ({
+                                ...prev,
+                                [key]: { ...prev[key], almoco_inicio: e.target.value },
+                              }))
+                            }
+                            className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                          />
+                        </div>
+                        <div className="min-w-[7rem] flex-1">
+                          <label className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                            Fim almoço
+                          </label>
+                          <input
+                            type="time"
+                            value={h.almoco_fim}
+                            onChange={(e) =>
+                              setHorariosEdit((prev) => ({
+                                ...prev,
+                                [key]: { ...prev[key], almoco_fim: e.target.value },
+                              }))
+                            }
+                            className="mt-0.5 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
       </section>
 
       <section className="space-y-3">

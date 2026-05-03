@@ -228,6 +228,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
 
   const empresaEndereco = {
     endereco: String(empresaMerged.endereco ?? ''),
+    bairro: empresaMerged.bairro != null ? String(empresaMerged.bairro) : null,
     cidade: String(empresaMerged.cidade ?? ''),
     latitude: Number.isFinite(latitude ?? NaN) ? (latitude as number) : null,
     longitude: Number.isFinite(longitude ?? NaN) ? (longitude as number) : null,

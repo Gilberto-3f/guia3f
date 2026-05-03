@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 
 /**
- * @param {{ horarios: Record<string, { abre: string, fecha: string, fechado: boolean }> }} props
+ * @param {{ horarios: Record<string, { abre: string, fecha: string, fechado: boolean, pausa_almoco?: boolean, almoco_inicio?: string, almoco_fim?: string }> }} props
  */
 export default function StatusAtendimento({ horarios }) {
   const [status, setStatus] = useState(/** @type {'aberto' | 'fechado'} */ ('fechado'))
@@ -22,8 +22,22 @@ export default function StatusAtendimento({ horarios }) {
       return
     }
 
-    const aberto = horaAtual >= horarioHoje.abre && horaAtual <= horarioHoje.fecha
-    setStatus(aberto ? 'aberto' : 'fechado')
+    const abre = String(horarioHoje.abre ?? '')
+    const fecha = String(horarioHoje.fecha ?? '')
+    if (!abre || !fecha || horaAtual < abre || horaAtual > fecha) {
+      setStatus('fechado')
+      return
+    }
+
+    const pausa = Boolean(horarioHoje.pausa_almoco)
+    const ai = horarioHoje.almoco_inicio != null ? String(horarioHoje.almoco_inicio).trim() : ''
+    const af = horarioHoje.almoco_fim != null ? String(horarioHoje.almoco_fim).trim() : ''
+    if (pausa && ai && af && horaAtual >= ai && horaAtual < af) {
+      setStatus('fechado')
+      return
+    }
+
+    setStatus('aberto')
   }, [horarios])
 
   return (

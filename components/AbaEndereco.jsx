@@ -84,6 +84,7 @@ function labelWebsite(href) {
 /**
  * @param {{ empresa: {
  *   endereco: string
+ *   bairro?: string | null
  *   cidade: string
  *   latitude: number | string | null
  *   longitude: number | string | null
@@ -116,6 +117,9 @@ export default function AbaEndereco({ empresa }) {
           <div className="min-w-0">
             <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500">Endereço</h3>
             <p className="mt-1 text-base font-medium text-gray-900">{empresa.endereco}</p>
+            {empresa.bairro != null && String(empresa.bairro).trim() !== '' ? (
+              <p className="mt-0.5 text-base text-gray-600">{String(empresa.bairro).trim()}</p>
+            ) : null}
             {empresa.cidade ? <p className="mt-0.5 text-base text-gray-600">{empresa.cidade}</p> : null}
           </div>
         </div>
