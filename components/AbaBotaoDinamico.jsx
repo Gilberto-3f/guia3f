@@ -223,34 +223,43 @@ export default function AbaBotaoDinamico({
               Dados da reserva
             </h3>
             <p className="mt-1 text-sm text-gray-700">Serão enviados no WhatsApp para a empresa.</p>
-            <div className="mt-4 flex max-w-full flex-col space-y-3">
+            <div className="mt-4 min-w-0 max-w-full space-y-4">
               <div className="min-w-0 max-w-full">
-                <label className="text-sm font-medium text-gray-700">Data</label>
+                <label htmlFor="reserva-mesa-data" className="mb-1 block text-sm font-medium text-gray-700">
+                  Data
+                </label>
                 <input
+                  id="reserva-mesa-data"
                   type="date"
                   value={dataMesa}
                   onChange={(e) => setDataMesa(e.target.value)}
-                  className="mt-1 box-border w-full max-w-[200px] rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900"
+                  className="box-border w-44 max-w-full rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900"
                 />
               </div>
               <div className="min-w-0 max-w-full">
-                <label className="text-sm font-medium text-gray-700">Hora</label>
+                <label htmlFor="reserva-mesa-hora" className="mb-1 block text-sm font-medium text-gray-700">
+                  Hora
+                </label>
                 <input
+                  id="reserva-mesa-hora"
                   type="time"
                   value={horaMesa}
                   onChange={(e) => setHoraMesa(e.target.value)}
-                  className="mt-1 box-border w-full max-w-[140px] rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900"
+                  className="box-border w-44 max-w-full rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900"
                 />
               </div>
               <div className="min-w-0 max-w-full">
-                <label className="text-sm font-medium text-gray-700">Nº de pessoas</label>
+                <label htmlFor="reserva-mesa-pessoas" className="mb-1 block text-sm font-medium text-gray-700">
+                  Nº de pessoas
+                </label>
                 <input
+                  id="reserva-mesa-pessoas"
                   type="number"
                   min={1}
                   max={99}
                   value={nPessoasMesa}
                   onChange={(e) => setNPessoasMesa(Number(e.target.value))}
-                  className="mt-1 box-border w-full max-w-[120px] rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900"
+                  className="box-border w-44 max-w-full rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900"
                 />
               </div>
             </div>

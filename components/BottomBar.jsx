@@ -56,108 +56,117 @@ export default function BottomBar() {
   const [authUserId, setAuthUserId] = useState(/** @type {string | null} */ (null))
   const [fotoPerfil, setFotoPerfil] = useState(/** @type {string | null} */ (null))
   const [naoLidasAtividades, setNaoLidasAtividades] = useState(0)
+  /** Primeira carga da sessão/role na barra; até lá o 5.º ícone não navega (evita `/perfil` → empresa). */
+  const [barSessaoPronta, setBarSessaoPronta] = useState(false)
 
   useEffect(() => {
     let ativo = true
 
     const getUserData = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session?.user?.id) {
-        if (ativo) {
-          setUserRole(null)
-          setEmpresaId(null)
-          setAuthUserId(null)
-          setFotoPerfil(null)
-          setNaoLidasAtividades(0)
-        }
-        return
-      }
-
-      const uid = session.user.id
-      if (ativo) setAuthUserId(uid)
-
-      const { data: userData } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
-      const role = userData?.role ?? null
-      if (ativo) setUserRole(role)
-
-      if (role === 'empresa') {
-        const { data: empresa } = await supabase
-          .from('empresas')
-          .select('id, foto_url')
-          .eq('usuario_id', uid)
-          .maybeSingle()
-
-        if (ativo) {
-          setEmpresaId(empresa?.id ?? null)
-          setFotoPerfil(empresa?.foto_url != null ? String(empresa.foto_url) : null)
-          setNaoLidasAtividades(0)
-        }
-      } else {
-        if (ativo) setEmpresaId(null)
-        if (role === 'turista') {
-          const { data: perfil } = await supabase
-            .from('turistas')
-            .select('foto_perfil_url, foto_url')
-            .eq('usuario_id', uid)
-            .maybeSingle()
-          if (ativo)
-            setFotoPerfil(
-              perfil?.foto_perfil_url != null
-                ? String(perfil.foto_perfil_url)
-                : perfil?.foto_url != null
-                  ? String(perfil.foto_url)
-                  : null
-            )
-        } else if (role === 'profissional') {
-          const { data: perfil } = await supabase
-            .from('profissionais')
-            .select('foto_perfil_url, foto_url')
-            .eq('usuario_id', uid)
-            .maybeSingle()
-          if (ativo)
-            setFotoPerfil(
-              perfil?.foto_perfil_url != null
-                ? String(perfil.foto_perfil_url)
-                : perfil?.foto_url != null
-                  ? String(perfil.foto_url)
-                  : null
-            )
-        } else if (role === 'admin') {
-          const [profRes, turRes] = await Promise.all([
-            supabase.from('profissionais').select('foto_perfil_url, foto_url').eq('usuario_id', uid).maybeSingle(),
-            supabase.from('turistas').select('foto_perfil_url, foto_url').eq('usuario_id', uid).maybeSingle(),
-          ])
-          const prof = profRes.data
-          const tur = turRes.data
-          const url =
-            prof?.foto_perfil_url != null
-              ? String(prof.foto_perfil_url)
-              : prof?.foto_url != null
-                ? String(prof.foto_url)
-                : tur?.foto_perfil_url != null
-                  ? String(tur.foto_perfil_url)
-                  : tur?.foto_url != null
-                    ? String(tur.foto_url)
-                    : null
-          if (ativo) setFotoPerfil(url)
-        } else if (ativo) {
-          setFotoPerfil(null)
-        }
-
-        if (ativo && role !== 'empresa') {
-          const { count, error: cErr } = await supabase
-            .from('atividades')
-            .select('*', { count: 'exact', head: true })
-            .eq('usuario_id', uid)
-            .eq('lida', false)
-          if (!cErr && typeof count === 'number') {
-            setNaoLidasAtividades(count)
-          } else if (ativo) {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (!session?.user?.id) {
+          if (ativo) {
+            setUserRole(null)
+            setEmpresaId(null)
+            setAuthUserId(null)
+            setFotoPerfil(null)
             setNaoLidasAtividades(0)
           }
+          return
         }
+
+        const uid = session.user.id
+
+        const { data: userData } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
+        const role = userData?.role ?? null
+        /** `authUserId` só depois do `role` — evita um frame em que o 5.º ícone aponta para `/perfil` e redireciona empresa para mensagem errada. */
+        if (ativo) {
+          setUserRole(role)
+          setAuthUserId(uid)
+        }
+
+        if (role === 'empresa') {
+          const { data: empresa } = await supabase
+            .from('empresas')
+            .select('id, foto_url')
+            .eq('usuario_id', uid)
+            .maybeSingle()
+
+          if (ativo) {
+            setEmpresaId(empresa?.id ?? null)
+            setFotoPerfil(empresa?.foto_url != null ? String(empresa.foto_url) : null)
+            setNaoLidasAtividades(0)
+          }
+        } else {
+          if (ativo) setEmpresaId(null)
+          if (role === 'turista') {
+            const { data: perfil } = await supabase
+              .from('turistas')
+              .select('foto_perfil_url, foto_url')
+              .eq('usuario_id', uid)
+              .maybeSingle()
+            if (ativo)
+              setFotoPerfil(
+                perfil?.foto_perfil_url != null
+                  ? String(perfil.foto_perfil_url)
+                  : perfil?.foto_url != null
+                    ? String(perfil.foto_url)
+                    : null
+              )
+          } else if (role === 'profissional') {
+            const { data: perfil } = await supabase
+              .from('profissionais')
+              .select('foto_perfil_url, foto_url')
+              .eq('usuario_id', uid)
+              .maybeSingle()
+            if (ativo)
+              setFotoPerfil(
+                perfil?.foto_perfil_url != null
+                  ? String(perfil.foto_perfil_url)
+                  : perfil?.foto_url != null
+                    ? String(perfil.foto_url)
+                    : null
+              )
+          } else if (role === 'admin') {
+            const [profRes, turRes] = await Promise.all([
+              supabase.from('profissionais').select('foto_perfil_url, foto_url').eq('usuario_id', uid).maybeSingle(),
+              supabase.from('turistas').select('foto_perfil_url, foto_url').eq('usuario_id', uid).maybeSingle(),
+            ])
+            const prof = profRes.data
+            const tur = turRes.data
+            const url =
+              prof?.foto_perfil_url != null
+                ? String(prof.foto_perfil_url)
+                : prof?.foto_url != null
+                  ? String(prof.foto_url)
+                  : tur?.foto_perfil_url != null
+                    ? String(tur.foto_perfil_url)
+                    : tur?.foto_url != null
+                      ? String(tur.foto_url)
+                      : null
+            if (ativo) setFotoPerfil(url)
+          } else if (ativo) {
+            setFotoPerfil(null)
+          }
+
+          if (ativo && role !== 'empresa') {
+            const { count, error: cErr } = await supabase
+              .from('atividades')
+              .select('*', { count: 'exact', head: true })
+              .eq('usuario_id', uid)
+              .eq('lida', false)
+            if (!cErr && typeof count === 'number') {
+              setNaoLidasAtividades(count)
+            } else if (ativo) {
+              setNaoLidasAtividades(0)
+            }
+          }
+        }
+      } finally {
+        if (ativo) setBarSessaoPronta(true)
       }
     }
 
@@ -325,7 +334,12 @@ export default function BottomBar() {
 
         <Link
           href={getQuintoHref()}
-          className="flex flex-col items-center p-2"
+          prefetch={false}
+          onClick={(e) => {
+            if (!barSessaoPronta) e.preventDefault()
+          }}
+          className={`flex flex-col items-center p-2 ${!barSessaoPronta ? 'cursor-wait opacity-60' : ''}`}
+          aria-busy={!barSessaoPronta}
           aria-label={isEmpresaBar ? t('companyGuia') : t('profile')}
         >
           {getQuintoIcone()}
