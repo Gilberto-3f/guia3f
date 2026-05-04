@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Heart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import BotaoSeguir from '@/components/BotaoSeguir'
 import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
@@ -27,7 +28,6 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
       []
     )
   )
-  const [confirmEmp, setConfirmEmp] = useState(/** @type {string | null} */ (null))
   const [confirmUser, setConfirmUser] = useState(/** @type {string | null} */ (null))
   const [meuFavEmpresaIds, setMeuFavEmpresaIds] = useState(/** @type {Set<string>} */ (new Set()))
 
@@ -133,13 +133,6 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
     if (aberto) void carregar()
   }, [aberto, carregar])
 
-  const deixarEmpresa = async (empresaId) => {
-    if (!souEu || !meuId) return
-    await supabase.from('favoritos').delete().eq('usuario_id', meuId).eq('alvo_id', empresaId).eq('alvo_tipo', 'empresa')
-    setConfirmEmp(null)
-    void carregar()
-  }
-
   const deixarUsuario = async (seguidoId) => {
     if (!souEu || !meuId) return
     await supabase.from('redecontatos').delete().eq('seguidor_id', meuId).eq('seguido_id', seguidoId)
@@ -157,16 +150,6 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
       const { data: roleRow } = await supabase.from('usuarios').select('role').eq('id', seguidoId).maybeSingle()
       const tipo = roleRow?.role != null ? String(roleRow.role) : 'user'
       await supabase.from('redecontatos').insert({ seguidor_id: meuId, seguido_id: seguidoId, seguido_tipo: tipo })
-    }
-    void carregar()
-  }
-
-  const toggleFavoritoEmpresa = async (empresaId, jaFav) => {
-    if (!meuId || !empresaId) return
-    if (jaFav) {
-      await supabase.from('favoritos').delete().eq('usuario_id', meuId).eq('alvo_id', empresaId).eq('alvo_tipo', 'empresa')
-    } else {
-      await supabase.from('favoritos').insert({ usuario_id: meuId, alvo_id: empresaId, alvo_tipo: 'empresa' })
     }
     void carregar()
   }
@@ -229,22 +212,16 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
                         <p className="truncate text-xs text-gray-500">@{row.username}</p>
                       </div>
                     </Link>
-                    {souEu ? (
-                      <button
-                        type="button"
-                        onClick={() => eid && setConfirmEmp(eid)}
-                        className="ml-auto shrink-0 rounded-full border border-[#0097b2] px-3 py-1 text-sm font-semibold text-[#0097b2]"
-                      >
-                        NOS FAVORITOS
-                      </button>
-                    ) : meuId && eid ? (
-                      <button
-                        type="button"
-                        onClick={() => void toggleFavoritoEmpresa(eid, jaFavVisitante)}
-                        className={`ml-auto shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${jaFavVisitante ? 'border border-[#0097b2] text-[#0097b2]' : 'bg-[#0097b2] text-white'}`}
-                      >
-                        {jaFavVisitante ? 'NOS FAVORITOS' : 'FAVORITAR'}
-                      </button>
+                    {meuId && eid ? (
+                      <BotaoSeguir
+                        empresaId={eid}
+                        isFollowing={souEu ? true : jaFavVisitante}
+                        layout="inline"
+                        size="compact"
+                        leadingIcon="none"
+                        showInlineError={false}
+                        onToggle={() => void carregar()}
+                      />
                     ) : null}
                   </div>
                 )
@@ -284,25 +261,6 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
               })}
         </div>
       </div>
-
-      {confirmEmp ? (
-        <div
-          className="fixed inset-0 z-[240] flex items-center justify-center bg-black/40 p-4"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="max-w-sm rounded-lg bg-white p-4 shadow-xl">
-            <p className="text-sm text-gray-700">Remover esta empresa dos favoritos?</p>
-            <div className="mt-3 flex justify-end gap-2">
-              <button type="button" className="text-sm text-gray-600" onClick={() => setConfirmEmp(null)}>
-                Cancelar
-              </button>
-              <button type="button" className="text-sm font-medium text-red-600" onClick={() => void deixarEmpresa(confirmEmp)}>
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {confirmUser ? (
         <div
