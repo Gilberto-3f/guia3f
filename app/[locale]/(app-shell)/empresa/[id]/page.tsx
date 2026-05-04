@@ -228,7 +228,7 @@ export default function EmpresaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="bg-gray-50 pb-20">
       <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5 sm:px-4">
           <div className="flex min-w-0 items-center gap-1.5">

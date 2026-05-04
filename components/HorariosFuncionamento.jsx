@@ -15,7 +15,7 @@ const dias = [
  */
 export default function HorariosFuncionamento({ horarios }) {
   return (
-    <div className="space-y-0.5 text-gray-900">
+    <div className="text-gray-900">
       {dias.map((dia) => {
         const horario = horarios?.[dia.key]
         if (!horario) return null
@@ -25,7 +25,7 @@ export default function HorariosFuncionamento({ horarios }) {
         const af = horario.almoco_fim != null ? String(horario.almoco_fim).trim() : ''
 
         return (
-          <div key={dia.key} className="flex flex-col gap-0.5">
+          <div key={dia.key} className="mb-3 flex flex-col gap-0 last:mb-0">
             <div className="flex items-center gap-2 py-1">
               <span className="shrink-0 text-sm font-normal text-gray-700">{dia.nome}</span>
               {horario.fechado ? (
@@ -37,11 +37,11 @@ export default function HorariosFuncionamento({ horarios }) {
               )}
             </div>
             {!horario.fechado && pausa && (ai && af) ? (
-              <div className="mt-1 text-left text-sm text-gray-500">
+              <div className="text-left text-sm text-gray-500">
                 Horário de almoço: {ai} – {af}
               </div>
             ) : !horario.fechado && pausa ? (
-              <div className="mt-1 text-left text-sm text-amber-700">Horário de almoço: a combinar</div>
+              <div className="text-left text-sm text-amber-700">Horário de almoço: a combinar</div>
             ) : null}
           </div>
         )

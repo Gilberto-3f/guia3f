@@ -675,7 +675,7 @@ export default function AbaAvaliacoes({
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
             <h3 className="text-center text-lg font-bold text-gray-900">Editar avaliação</h3>
             <div className="mt-4 flex justify-center">
-              <EstrelasAvaliacao nota={editNota} setNota={setEditNota} />
+              <EstrelasAvaliacao nota={editNota} onChange={(n) => setEditNota(n)} />
             </div>
             <textarea
               className="mt-4 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"

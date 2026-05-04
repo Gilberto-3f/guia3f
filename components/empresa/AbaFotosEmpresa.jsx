@@ -123,7 +123,7 @@ export default function AbaFotosEmpresa({ empresaUsuarioId, nomeFantasia, nomeUs
 
   return (
     <>
-      <div className="min-h-[200px] bg-gray-50 py-2">
+      <div className="bg-gray-50 py-2">
         <AbaFotos posts={items} onOpen={(i) => setModal({ aberto: true, i })} />
       </div>
       <ModalFoto
