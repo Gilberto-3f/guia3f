@@ -140,20 +140,6 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
     void carregar()
   }
 
-  const toggleSeguirUsuario = async (seguidoId) => {
-    if (!meuId || seguidoId === meuId) return
-    const row = users.find((u) => u.usuario_id === seguidoId)
-    if (!row) return
-    if (row.jaSigo) {
-      await supabase.from('redecontatos').delete().eq('seguidor_id', meuId).eq('seguido_id', seguidoId)
-    } else {
-      const { data: roleRow } = await supabase.from('usuarios').select('role').eq('id', seguidoId).maybeSingle()
-      const tipo = roleRow?.role != null ? String(roleRow.role) : 'user'
-      await supabase.from('redecontatos').insert({ seguidor_id: meuId, seguido_id: seguidoId, seguido_tipo: tipo })
-    }
-    void carregar()
-  }
-
   if (!aberto) return null
 
   const lista = aba === 'empresas' ? emps : users
@@ -248,13 +234,17 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
                         SEGUINDO
                       </button>
                     ) : meuId && row.usuario_id !== meuId ? (
-                      <button
-                        type="button"
-                        onClick={() => void toggleSeguirUsuario(row.usuario_id)}
-                        className={`ml-auto shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${row.jaSigo ? 'border border-[#0097b2] text-[#0097b2]' : 'bg-[#0097b2] text-white'}`}
-                      >
-                        {row.jaSigo ? 'SEGUINDO' : 'SEGUIR'}
-                      </button>
+                      <BotaoSeguir
+                        alvoId={row.usuario_id}
+                        alvoTipo="usuario"
+                        seguidoTipo={row.tipo}
+                        isFollowing={Boolean(row.jaSigo)}
+                        layout="inline"
+                        size="compact"
+                        leadingIcon="none"
+                        showInlineError={false}
+                        onToggle={() => void carregar()}
+                      />
                     ) : null}
                   </div>
                 )

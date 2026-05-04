@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { X, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import BotaoSeguir from '@/components/BotaoSeguir'
 
 /**
  * @param {{ isOpen: boolean, onClose: () => void, empresaId: string }} props
@@ -12,6 +13,14 @@ import { supabase } from '@/lib/supabase'
 export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
   const [seguidores, setSeguidores] = useState(/** @type {{ id: string, nome: string, username: string, foto_url: string | null }[]} */ ([]))
   const [loading, setLoading] = useState(true)
+  const [meuId, setMeuId] = useState(/** @type {string | null} */ (null))
+  const [seguindoMap, setSeguindoMap] = useState(/** @type {Record<string, boolean>} */ ({}))
+
+  const seguindoSet = useMemo(() => {
+    const s = new Set()
+    for (const [k, v] of Object.entries(seguindoMap)) if (v) s.add(k)
+    return s
+  }, [seguindoMap])
 
   useEffect(() => {
     if (!isOpen || !empresaId) return
@@ -21,12 +30,18 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
     const carregar = async () => {
       setLoading(true)
       try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        const uid = session?.user?.id ?? null
+        if (ativo) setMeuId(uid)
+
         const { data: favs, error } = await supabase
           .from('favoritos')
           .select('usuario_id')
           .eq('alvo_id', empresaId)
           .eq('alvo_tipo', 'empresa')
-          .order('salvo_em', { ascending: true })
+        // Não depende de coluna de ordenação específica (pode variar por schema).
 
         if (error || !favs?.length) {
           if (ativo) setSeguidores([])
@@ -34,6 +49,15 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
         }
 
         const ids = [...new Set(favs.map((f) => f.usuario_id).filter(Boolean))]
+
+        if (uid) {
+          const { data: meusSeg } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid).in('seguido_id', ids)
+          const m = /** @type {Record<string, boolean>} */ ({})
+          for (const r of meusSeg ?? []) m[String(r.seguido_id)] = true
+          if (ativo) setSeguindoMap(m)
+        } else if (ativo) {
+          setSeguindoMap({})
+        }
 
         const { data: turistas } = await supabase
           .from('turistas')
@@ -149,6 +173,22 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
                     <p className="truncate text-sm font-semibold text-gray-800">{seguidor.nome}</p>
                     <p className="truncate text-sm text-gray-500">@{seguidor.username}</p>
                   </div>
+                  {meuId && seguidor.id !== meuId ? (
+                    <div className="shrink-0" onClick={(e) => e.preventDefault()}>
+                      <BotaoSeguir
+                        alvoId={seguidor.id}
+                        alvoTipo="usuario"
+                        isFollowing={seguindoSet.has(String(seguidor.id))}
+                        layout="inline"
+                        size="compact"
+                        leadingIcon="none"
+                        showInlineError={false}
+                        onToggle={(novo) => {
+                          setSeguindoMap((prev) => ({ ...prev, [String(seguidor.id)]: Boolean(novo) }))
+                        }}
+                      />
+                    </div>
+                  ) : null}
                 </Link>
               ))}
             </div>
