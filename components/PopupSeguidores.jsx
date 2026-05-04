@@ -24,8 +24,8 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
         const { data: favs, error } = await supabase
           .from('favoritos')
           .select('usuario_id')
-          .eq('empresa_id', empresaId)
-          .not('empresa_id', 'is', null)
+          .eq('alvo_id', empresaId)
+          .eq('alvo_tipo', 'empresa')
           .order('salvo_em', { ascending: true })
 
         if (error || !favs?.length) {

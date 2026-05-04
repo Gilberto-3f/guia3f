@@ -119,7 +119,8 @@ export default function EmpresaPage() {
           .from('favoritos')
           .select('id')
           .eq('usuario_id', usuarioId)
-          .eq('empresa_id', empresaId)
+          .eq('alvo_id', empresaId)
+          .eq('alvo_tipo', 'empresa')
           .maybeSingle()
 
         isSeguindo = Boolean(favorito)

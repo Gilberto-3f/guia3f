@@ -73,13 +73,14 @@ export default function BotaoSeguir({
             .from('favoritos')
             .delete()
             .eq('usuario_id', session.user.id)
-            .eq('empresa_id', id)
+            .eq('alvo_id', id)
+            .eq('alvo_tipo', 'empresa')
           if (error) throw error
         } else {
           const { error } = await supabase.from('favoritos').insert({
             usuario_id: session.user.id,
-            empresa_id: id,
-            produto_id: null,
+            alvo_id: id,
+            alvo_tipo: 'empresa',
           })
           if (error) throw error
         }

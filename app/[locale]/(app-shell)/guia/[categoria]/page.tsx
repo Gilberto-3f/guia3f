@@ -101,10 +101,11 @@ export default function ListagemCategoriaPage() {
       if (usuarioId && empresasData?.length) {
         const { data: favoritos } = await supabase
           .from('favoritos')
-          .select('empresa_id')
+          .select('alvo_id')
           .eq('usuario_id', usuarioId)
+          .eq('alvo_tipo', 'empresa')
 
-        seguindoIds = favoritos?.map((f) => f.empresa_id).filter((id) => id !== null && id !== undefined && id !== '') ?? []
+        seguindoIds = favoritos?.map((f) => f.alvo_id).filter((id) => id !== null && id !== undefined && id !== '') ?? []
       }
 
       const empresasComStatus =

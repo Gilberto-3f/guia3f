@@ -174,11 +174,15 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
         for (const r of rede ?? []) {
           m[String(r.seguido_id)] = true
         }
-        const { data: favs } = await supabase.from('favoritos').select('empresa_id').eq('usuario_id', meuUsuarioId)
+        const { data: favs } = await supabase
+          .from('favoritos')
+          .select('alvo_id')
+          .eq('usuario_id', meuUsuarioId)
+          .eq('alvo_tipo', 'empresa')
         const empUserIds = linhas.filter((l) => l.role === 'empresa' && l.id).map((l) => l.id)
         if (empUserIds.length && favs?.length) {
           const { data: emps } = await supabase.from('empresas').select('id, usuario_id').in('usuario_id', empUserIds)
-          const favSet = new Set((favs ?? []).map((f) => String(f.empresa_id)))
+          const favSet = new Set((favs ?? []).map((f) => String(f.alvo_id)))
           for (const e of emps ?? []) {
             if (favSet.has(String(e.id))) m[String(e.usuario_id)] = true
           }
@@ -202,9 +206,18 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
     const ja = Boolean(seguindoMap[alvo.id])
     if (alvo.role === 'empresa' && alvo.empresaId) {
       if (ja) {
-        await supabase.from('favoritos').delete().eq('usuario_id', meuUsuarioId).eq('empresa_id', alvo.empresaId)
+        await supabase
+          .from('favoritos')
+          .delete()
+          .eq('usuario_id', meuUsuarioId)
+          .eq('alvo_id', alvo.empresaId)
+          .eq('alvo_tipo', 'empresa')
       } else {
-        await supabase.from('favoritos').insert({ usuario_id: meuUsuarioId, empresa_id: alvo.empresaId })
+        await supabase.from('favoritos').insert({
+          usuario_id: meuUsuarioId,
+          alvo_id: alvo.empresaId,
+          alvo_tipo: 'empresa',
+        })
       }
     } else {
       if (ja) {

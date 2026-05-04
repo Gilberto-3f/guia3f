@@ -34,10 +34,14 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
   const souEu = meuId != null && meuId === profileId
 
   const carregar = useCallback(async () => {
-    const { data: fav, error: errFav } = await supabase.from('favoritos').select('empresa_id').eq('usuario_id', profileId)
+    const { data: fav, error: errFav } = await supabase
+      .from('favoritos')
+      .select('alvo_id')
+      .eq('usuario_id', profileId)
+      .eq('alvo_tipo', 'empresa')
     if (errFav) console.error('Favoritos (empresas):', errFav)
 
-    const empresaIds = [...new Set((fav ?? []).map((r) => String(r.empresa_id)).filter(Boolean))]
+    const empresaIds = [...new Set((fav ?? []).map((r) => String(r.alvo_id)).filter(Boolean))]
     if (empresaIds.length === 0) {
       setEmps([])
       setMeuFavEmpresaIds(new Set())
@@ -79,11 +83,12 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
       if (meuId && empresaIds.length > 0) {
         const { data: meusFav, error: errMF } = await supabase
           .from('favoritos')
-          .select('empresa_id')
+          .select('alvo_id')
           .eq('usuario_id', meuId)
-          .in('empresa_id', empresaIds)
+          .eq('alvo_tipo', 'empresa')
+          .in('alvo_id', empresaIds)
         if (errMF) console.error('favoritos (visitante):', errMF)
-        setMeuFavEmpresaIds(new Set((meusFav ?? []).map((r) => String(r.empresa_id)).filter(Boolean)))
+        setMeuFavEmpresaIds(new Set((meusFav ?? []).map((r) => String(r.alvo_id)).filter(Boolean)))
       } else {
         setMeuFavEmpresaIds(new Set())
       }
@@ -130,7 +135,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
 
   const deixarEmpresa = async (empresaId) => {
     if (!souEu || !meuId) return
-    await supabase.from('favoritos').delete().eq('usuario_id', meuId).eq('empresa_id', empresaId)
+    await supabase.from('favoritos').delete().eq('usuario_id', meuId).eq('alvo_id', empresaId).eq('alvo_tipo', 'empresa')
     setConfirmEmp(null)
     void carregar()
   }
@@ -159,9 +164,9 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
   const toggleFavoritoEmpresa = async (empresaId, jaFav) => {
     if (!meuId || !empresaId) return
     if (jaFav) {
-      await supabase.from('favoritos').delete().eq('usuario_id', meuId).eq('empresa_id', empresaId)
+      await supabase.from('favoritos').delete().eq('usuario_id', meuId).eq('alvo_id', empresaId).eq('alvo_tipo', 'empresa')
     } else {
-      await supabase.from('favoritos').insert({ usuario_id: meuId, empresa_id: empresaId })
+      await supabase.from('favoritos').insert({ usuario_id: meuId, alvo_id: empresaId, alvo_tipo: 'empresa' })
     }
     void carregar()
   }

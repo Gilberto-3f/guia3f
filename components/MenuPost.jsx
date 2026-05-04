@@ -91,9 +91,18 @@ export default function MenuPost({
   const toggleSeguirEmpresa = async () => {
     if (!empresaAlvo || !meuUsuarioId) return
     if (empresaAlvo.jaSegue) {
-      await supabase.from('favoritos').delete().eq('usuario_id', meuUsuarioId).eq('empresa_id', empresaAlvo.empresaId)
+      await supabase
+        .from('favoritos')
+        .delete()
+        .eq('usuario_id', meuUsuarioId)
+        .eq('alvo_id', empresaAlvo.empresaId)
+        .eq('alvo_tipo', 'empresa')
     } else {
-      await supabase.from('favoritos').insert({ usuario_id: meuUsuarioId, empresa_id: empresaAlvo.empresaId })
+      await supabase.from('favoritos').insert({
+        usuario_id: meuUsuarioId,
+        alvo_id: empresaAlvo.empresaId,
+        alvo_tipo: 'empresa',
+      })
     }
     setAberto(false)
     onSeguiuEmpresa?.()
