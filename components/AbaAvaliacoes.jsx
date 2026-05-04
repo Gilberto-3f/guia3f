@@ -244,6 +244,7 @@ export default function AbaAvaliacoes({
 
   const abrirEdicao = (av) => {
     setMenuAbertoId(null)
+    setErroSalvarAvaliacao('')
     setModalEditarId(av.id)
     setEditNota(Number(av.nota) || 0)
     setEditFeedback(av.feedback != null ? String(av.feedback) : '')
@@ -253,21 +254,16 @@ export default function AbaAvaliacoes({
     if (!usuarioId || !modalEditarId) return
     if (!editNota || editNota < 1 || editNota > 5) return
     setSalvandoEdicao(true)
+    setErroSalvarAvaliacao('')
     try {
       const feedbackSalvar = editFeedback.trim() !== '' ? editFeedback.trim() : null
-      const { data: atualizada, error } = await supabase
+      const { error } = await supabase
         .from('avaliacoes')
         .update({ nota: editNota, feedback: feedbackSalvar })
-        .eq('id', modalEditarId)
+        .eq('id', String(modalEditarId))
         .eq('usuario_id', usuarioId)
-        .select('id')
-        .maybeSingle()
       if (error) {
         setErroSalvarAvaliacao(error.message)
-        return
-      }
-      if (!atualizada) {
-        setErroSalvarAvaliacao('Não foi possível salvar a edição. Verifique se a avaliação ainda existe.')
         return
       }
       setModalEditarId(null)
@@ -675,20 +671,33 @@ export default function AbaAvaliacoes({
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
             <h3 className="text-center text-lg font-bold text-gray-900">Editar avaliação</h3>
             <div className="mt-4 flex justify-center">
-              <EstrelasAvaliacao nota={editNota} onChange={(n) => setEditNota(n)} />
+              <EstrelasAvaliacao
+                nota={editNota}
+                onChange={(n) => {
+                  setEditNota(n)
+                  setErroSalvarAvaliacao('')
+                }}
+              />
             </div>
             <textarea
               className="mt-4 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
               rows={4}
               value={editFeedback}
-              onChange={(e) => setEditFeedback(e.target.value)}
+              onChange={(e) => {
+                setEditFeedback(e.target.value)
+                setErroSalvarAvaliacao('')
+              }}
               placeholder="Atualize seu feedback (opcional)"
             />
+            {erroSalvarAvaliacao ? <p className="mt-2 text-center text-sm text-red-600">{erroSalvarAvaliacao}</p> : null}
             <div className="mt-4 flex gap-2">
               <button
                 type="button"
                 className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                onClick={() => setModalEditarId(null)}
+                onClick={() => {
+                  setModalEditarId(null)
+                  setErroSalvarAvaliacao('')
+                }}
                 disabled={salvandoEdicao}
               >
                 Cancelar
