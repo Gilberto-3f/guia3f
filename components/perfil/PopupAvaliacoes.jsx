@@ -5,8 +5,6 @@ import { Star, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
-const CAT_EMPRESAS = new Set(['Restaurantes', 'Hospedagem', 'Lojas', 'Compras Paraguai'])
-
 /**
  * @param {{
  *   aberto: boolean
@@ -54,10 +52,10 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
   }, [aberto, carregar])
 
   const filtradas = lista.filter((r) => {
-    const cat = r.categoria || ''
-    const emp = CAT_EMPRESAS.has(cat)
-    if (aba === 'a') return emp
-    return !emp
+    // Avaliações nesta tabela são associadas à empresa (join `empresas(...)`).
+    // Evita depender de uma lista hardcoded de categorias; toda avaliação com empresa cai em "EMPRESAS".
+    if (aba === 'a') return true
+    return false
   })
 
   const labelA = 'EMPRESAS'
@@ -90,14 +88,14 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
             onClick={() => setAba('a')}
             className={`flex-1 py-2 text-center text-sm ${aba === 'a' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'}`}
           >
-            {labelA} ({lista.filter((r) => CAT_EMPRESAS.has(r.categoria || '')).length})
+            {labelA} ({lista.length})
           </button>
           <button
             type="button"
             onClick={() => setAba('b')}
             className={`flex-1 py-2 text-center text-sm ${aba === 'b' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'}`}
           >
-            {labelB} ({lista.filter((r) => !CAT_EMPRESAS.has(r.categoria || '')).length})
+            {labelB} (0)
           </button>
         </div>
 

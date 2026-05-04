@@ -1,12 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import Estrelas from '@/components/Estrelas'
 import EstrelasAvaliacao from '@/components/EstrelasAvaliacao'
 import GraficoAvaliacoes from '@/components/GraficoAvaliacoes'
-import { CheckCircle2, User } from 'lucide-react'
+import { CheckCircle2, MoreVertical, Share2, Trash2, Pencil, User } from 'lucide-react'
 
 /**
  * @param {{
@@ -43,9 +43,21 @@ export default function AbaAvaliacoes({
   const [erroSalvarAvaliacao, setErroSalvarAvaliacao] = useState('')
   const [erroRespostaEmpresa, setErroRespostaEmpresa] = useState('')
   const [modalConfirmar, setModalConfirmar] = useState(false)
+  const [menuAbertoId, setMenuAbertoId] = useState(/** @type {string | null} */ (null))
+  const [modalEditarId, setModalEditarId] = useState(/** @type {string | null} */ (null))
+  const [editNota, setEditNota] = useState(0)
+  const [editFeedback, setEditFeedback] = useState('')
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false)
+  const [confirmExcluirId, setConfirmExcluirId] = useState(/** @type {string | null} */ (null))
+  const [excluindo, setExcluindo] = useState(false)
+  const [compartilhandoId, setCompartilhandoId] = useState(/** @type {string | null} */ (null))
   const [editingReplyAvaliacaoId, setEditingReplyAvaliacaoId] = useState(/** @type {string | null} */ (null))
   const [replyDraft, setReplyDraft] = useState('')
   const [savingReply, setSavingReply] = useState(false)
+
+  const empresaMetaParaFeed = useMemo(() => {
+    return { empresaId }
+  }, [empresaId])
 
   useEffect(() => {
     const getUsuario = async () => {
@@ -229,6 +241,96 @@ export default function AbaAvaliacoes({
   const abrirConfirmacaoEnvio = () => {
     if (!usuarioId || notaUsuario === 0 || enviando || jaAvaliou) return
     setModalConfirmar(true)
+  }
+
+  const abrirEdicao = (av) => {
+    setMenuAbertoId(null)
+    setModalEditarId(av.id)
+    setEditNota(Number(av.nota) || 0)
+    setEditFeedback(av.feedback != null ? String(av.feedback) : '')
+  }
+
+  const salvarEdicao = async () => {
+    if (!usuarioId || !modalEditarId) return
+    if (!editNota || editNota < 1 || editNota > 5) return
+    setSalvandoEdicao(true)
+    try {
+      const { error } = await supabase
+        .from('avaliacoes')
+        .update({ nota: editNota, feedback: editFeedback.trim() !== '' ? editFeedback : null })
+        .eq('id', modalEditarId)
+        .eq('usuario_id', usuarioId)
+        .eq('empresa_id', empresaId)
+      if (error) {
+        setErroSalvarAvaliacao(error.message)
+        return
+      }
+      setModalEditarId(null)
+      window.dispatchEvent(new CustomEvent('avaliacao-enviada', { detail: { empresaId } }))
+      window.dispatchEvent(new Event('perfil-atualizado'))
+      await carregarAvaliacoes()
+    } finally {
+      setSalvandoEdicao(false)
+    }
+  }
+
+  const excluirAvaliacao = async () => {
+    if (!usuarioId || !confirmExcluirId) return
+    setExcluindo(true)
+    try {
+      const { error } = await supabase
+        .from('avaliacoes')
+        .delete()
+        .eq('id', confirmExcluirId)
+        .eq('usuario_id', usuarioId)
+        .eq('empresa_id', empresaId)
+      if (error) {
+        setErroSalvarAvaliacao(error.message)
+        return
+      }
+      setConfirmExcluirId(null)
+      setJaAvaliou(false)
+      window.dispatchEvent(new CustomEvent('avaliacao-enviada', { detail: { empresaId } }))
+      window.dispatchEvent(new Event('perfil-atualizado'))
+      await carregarAvaliacoes()
+    } finally {
+      setExcluindo(false)
+    }
+  }
+
+  const compartilharNoFeed = async (av) => {
+    if (!usuarioId) return
+    setMenuAbertoId(null)
+    setCompartilhandoId(av.id)
+    try {
+      const { data: emp } = await supabase
+        .from('empresas')
+        .select('id, nome_fantasia, foto_url')
+        .eq('id', empresaId)
+        .maybeSingle()
+      const meta = {
+        empresa_id: String(emp?.id ?? empresaId),
+        nome_fantasia: emp?.nome_fantasia != null ? String(emp.nome_fantasia) : 'Empresa',
+        foto_url: emp?.foto_url != null ? String(emp.foto_url) : null,
+        nota: Number(av.nota) || 0,
+        feedback: av.feedback != null ? String(av.feedback) : null,
+      }
+      const { error } = await supabase.from('posts').insert({
+        autor_id: usuarioId,
+        tipo: 'avaliacao',
+        texto: null,
+        foto_url: null,
+        conteudo_url: null,
+        avaliacao_meta: meta,
+      })
+      if (error) {
+        setErroSalvarAvaliacao(error.message)
+        return
+      }
+      window.dispatchEvent(new Event('guia-feed-rede-reload'))
+    } finally {
+      setCompartilhandoId(null)
+    }
   }
 
   const publicarResposta = async (avaliacaoIdParam) => {
@@ -433,6 +535,50 @@ export default function AbaAvaliacoes({
                 <div className="shrink-0">
                   <Estrelas nota={av.nota} tamanho={14} />
                 </div>
+                {usuarioId && av.usuario_id === usuarioId ? (
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      className="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                      aria-label="Ações da avaliação"
+                      onClick={() => setMenuAbertoId((cur) => (cur === av.id ? null : av.id))}
+                    >
+                      <MoreVertical size={18} aria-hidden />
+                    </button>
+                    {menuAbertoId === av.id ? (
+                      <div className="absolute right-0 top-9 z-[120] w-56 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg">
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
+                          onClick={() => abrirEdicao(av)}
+                        >
+                          <Pencil size={16} aria-hidden />
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
+                          onClick={() => {
+                            setMenuAbertoId(null)
+                            setConfirmExcluirId(av.id)
+                          }}
+                        >
+                          <Trash2 size={16} aria-hidden />
+                          Excluir
+                        </button>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
+                          onClick={() => void compartilharNoFeed(av)}
+                          disabled={compartilhandoId === av.id}
+                        >
+                          <Share2 size={16} aria-hidden />
+                          {compartilhandoId === av.id ? 'Compartilhando…' : 'Compartilhar no feed'}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               {av.feedback ? (
@@ -515,6 +661,69 @@ export default function AbaAvaliacoes({
           ))}
         </div>
       )}
+
+      {modalEditarId ? (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            <h3 className="text-center text-lg font-bold text-gray-900">Editar avaliação</h3>
+            <div className="mt-4 flex justify-center">
+              <EstrelasAvaliacao nota={editNota} setNota={setEditNota} />
+            </div>
+            <textarea
+              className="mt-4 w-full resize-none rounded-lg border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+              rows={4}
+              value={editFeedback}
+              onChange={(e) => setEditFeedback(e.target.value)}
+              placeholder="Atualize seu feedback (opcional)"
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                onClick={() => setModalEditarId(null)}
+                disabled={salvandoEdicao}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-lg bg-[#0097b2] py-2 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
+                onClick={() => void salvarEdicao()}
+                disabled={salvandoEdicao || !editNota}
+              >
+                {salvandoEdicao ? 'Salvando…' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmExcluirId ? (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            <h3 className="text-center text-lg font-bold text-gray-900">Excluir avaliação</h3>
+            <p className="mt-2 text-center text-sm text-gray-600">Tem certeza que deseja excluir sua avaliação?</p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                onClick={() => setConfirmExcluirId(null)}
+                disabled={excluindo}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                onClick={() => void excluirAvaliacao()}
+                disabled={excluindo}
+              >
+                {excluindo ? 'Excluindo…' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -225,7 +225,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
                         <p className="truncate text-xs text-gray-500">@{row.username}</p>
                       </div>
                     </Link>
-                    {souEu ? null : meuId && row.usuario_id !== meuId ? (
+                    {meuId && row.usuario_id !== meuId ? (
                       <BotaoSeguir
                         alvoId={row.usuario_id}
                         alvoTipo="usuario"
