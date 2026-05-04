@@ -218,6 +218,8 @@ export default function AbaAvaliacoes({
       setNotaUsuario(0)
       setFeedbackUsuario('')
       setModalConfirmar(false)
+      window.dispatchEvent(new CustomEvent('avaliacao-enviada', { detail: { empresaId } }))
+      window.dispatchEvent(new Event('perfil-atualizado'))
       await carregarAvaliacoes()
     } finally {
       setEnviando(false)

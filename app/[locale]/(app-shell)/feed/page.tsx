@@ -527,7 +527,9 @@ function FeedPageInner() {
       }
       const pack = await montarPackStoryAutor(autorId)
       if (!pack) return
-      let { ids, index, data } = pack
+      const { ids } = pack
+      let index = pack.index
+      let data = pack.data
       if (ids.includes(id)) {
         const idx = ids.indexOf(id)
         const mapped = await carregarStoryPorId(id)
@@ -635,7 +637,6 @@ function FeedPageInner() {
       const mapped = await carregarStoryPorId(nextId)
       if (!mapped) {
         if (process.env.NODE_ENV === 'development') {
-          // eslint-disable-next-line no-console
           console.warn('[feed] navegarStory: falha ao carregar story', nextId)
         }
         setStoryModal((p) => (p ? { ...p, playbackKey: p.playbackKey + 1 } : null))

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { startTransition, useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import AvatarImage from '@/components/AvatarImage'
 import { Plus } from 'lucide-react'
@@ -412,14 +412,20 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     )
 
     setRings([...naoVistos, ...vistos])
-  }, [userEmail])
+  }, [userEmail, simulandoEmpresa])
 
   useEffect(() => {
-    void load()
+    startTransition(() => {
+      void load()
+    })
   }, [load, reloadSignal])
 
   useEffect(() => {
-    const onReload = () => void load()
+    const onReload = () => {
+      startTransition(() => {
+        void load()
+      })
+    }
     window.addEventListener('guia-feed-rede-reload', onReload)
     return () => window.removeEventListener('guia-feed-rede-reload', onReload)
   }, [load])

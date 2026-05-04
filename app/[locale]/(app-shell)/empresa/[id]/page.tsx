@@ -87,9 +87,10 @@ export default function EmpresaPage() {
     getUsuario()
   }, [])
 
-  const carregarEmpresa = useCallback(async () => {
+  const carregarEmpresa = useCallback(async (opts?: { silent?: boolean }) => {
     if (!empresaId) return
-    setLoading(true)
+    const silent = Boolean(opts?.silent)
+    if (!silent) setLoading(true)
     try {
       const {
         data: { session },
@@ -133,13 +134,24 @@ export default function EmpresaPage() {
       })
       setTotalSeguidores(Number(empresaData.total_seguidores) || 0)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
-  }, [empresaId, usuarioId])
+  }, [empresaId, usuarioId, router])
 
   useEffect(() => {
-    carregarEmpresa()
+    void carregarEmpresa()
   }, [carregarEmpresa])
+
+  useEffect(() => {
+    const onAvaliacaoEnviada = (ev: Event) => {
+      const ce = ev as CustomEvent<{ empresaId?: string }>
+      const alvo = ce.detail?.empresaId != null ? String(ce.detail.empresaId) : ''
+      if (alvo && alvo !== empresaId) return
+      void carregarEmpresa({ silent: true })
+    }
+    window.addEventListener('avaliacao-enviada', onAvaliacaoEnviada as EventListener)
+    return () => window.removeEventListener('avaliacao-enviada', onAvaliacaoEnviada as EventListener)
+  }, [empresaId, carregarEmpresa])
 
   if (loading) {
     return (
@@ -217,12 +229,12 @@ export default function EmpresaPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
-        <div className="grid grid-cols-[minmax(0,auto)_1fr_minmax(0,auto)] items-center gap-2 px-3 py-1.5 sm:px-4">
-          <div className="flex min-w-0 shrink-0 items-center justify-start">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5 sm:px-4">
+          <div className="flex min-w-0 items-center gap-1.5">
             {!modoEmpresaLayout ? <BotaoVoltar /> : <span className="inline-block w-9 shrink-0" aria-hidden />}
-          </div>
-          <div className="flex min-w-0 justify-center overflow-hidden px-1">
-            <Username username={nomeUsuario} />
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <Username username={nomeUsuario} />
+            </div>
           </div>
           <div className="flex shrink-0 justify-end">
             {podeAbrirMenu ? (
@@ -241,13 +253,8 @@ export default function EmpresaPage() {
                 layout="inline"
                 size="compact"
                 showInlineError={false}
-                onToggle={(seguindo) => {
-                  setTotalSeguidores((prev) => {
-                    const base = typeof prev === 'number' ? prev : totalSeg
-                    const next = seguindo ? base + 1 : Math.max(0, base - 1)
-                    return next
-                  })
-                  void carregarEmpresa()
+                onToggle={() => {
+                  void carregarEmpresa({ silent: true })
                 }}
               />
             ) : null}
@@ -380,7 +387,7 @@ export default function EmpresaPage() {
             <UploadFotos360Adm
               empresaId={empresaId}
               fotos360Atuais={fotos360Lista}
-              onAtualizado={() => void carregarEmpresa()}
+              onAtualizado={() => void carregarEmpresa({ silent: true })}
             />
           ) : null}
 
@@ -422,7 +429,7 @@ export default function EmpresaPage() {
             usuarioId={usuarioId}
             empresa={empresa}
             empresaId={empresaId}
-            onPerfilAtualizado={() => void carregarEmpresa()}
+            onPerfilAtualizado={() => void carregarEmpresa({ silent: true })}
           />
         )
       ) : null}

@@ -79,6 +79,7 @@ export default function BotaoSeguir({
           const { error } = await supabase.from('favoritos').insert({
             usuario_id: session.user.id,
             empresa_id: id,
+            produto_id: null,
           })
           if (error) throw error
         }
