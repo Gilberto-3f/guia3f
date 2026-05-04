@@ -225,15 +225,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
                         <p className="truncate text-xs text-gray-500">@{row.username}</p>
                       </div>
                     </Link>
-                    {souEu ? (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmUser(row.usuario_id)}
-                        className="ml-auto shrink-0 rounded-full border border-[#0097b2] px-3 py-1 text-sm font-semibold text-[#0097b2]"
-                      >
-                        SEGUINDO
-                      </button>
-                    ) : meuId && row.usuario_id !== meuId ? (
+                    {souEu ? null : meuId && row.usuario_id !== meuId ? (
                       <BotaoSeguir
                         alvoId={row.usuario_id}
                         alvoTipo="usuario"
