@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import Estrelas from '@/components/Estrelas'
@@ -55,10 +55,6 @@ export default function AbaAvaliacoes({
   const [replyDraft, setReplyDraft] = useState('')
   const [savingReply, setSavingReply] = useState(false)
 
-  const empresaMetaParaFeed = useMemo(() => {
-    return { empresaId }
-  }, [empresaId])
-
   useEffect(() => {
     const getUsuario = async () => {
       const {
@@ -81,8 +77,9 @@ export default function AbaAvaliacoes({
     try {
       const { data: avaliacoesData, error: qErr } = await supabase
         .from('avaliacoes')
-        .select('id, nota, feedback, created_at, avaliador_tipo, usuario_id')
-        .eq('empresa_id', empresaId)
+        .select('id, nota, feedback, created_at, avaliador_tipo, usuario_id, alvo_id, alvo_tipo')
+        .eq('alvo_id', empresaId)
+        .eq('alvo_tipo', 'empresa')
         .order('created_at', { ascending: false })
 
       if (qErr) {
@@ -216,8 +213,10 @@ export default function AbaAvaliacoes({
     try {
       const avaliadorTipo = usuarioTipo === 'profissional' ? 'profissional' : 'turista'
       const { error } = await supabase.from('avaliacoes').insert({
-        empresa_id: empresaId,
         usuario_id: usuarioId,
+        empresa_id: empresaId,
+        alvo_id: empresaId,
+        alvo_tipo: 'empresa',
         nota: notaUsuario,
         feedback: feedbackUsuario.trim() !== '' ? feedbackUsuario : null,
         avaliador_tipo: avaliadorTipo,
@@ -260,7 +259,8 @@ export default function AbaAvaliacoes({
         .update({ nota: editNota, feedback: editFeedback.trim() !== '' ? editFeedback : null })
         .eq('id', modalEditarId)
         .eq('usuario_id', usuarioId)
-        .eq('empresa_id', empresaId)
+        .eq('alvo_id', empresaId)
+        .eq('alvo_tipo', 'empresa')
       if (error) {
         setErroSalvarAvaliacao(error.message)
         return
@@ -283,7 +283,8 @@ export default function AbaAvaliacoes({
         .delete()
         .eq('id', confirmExcluirId)
         .eq('usuario_id', usuarioId)
-        .eq('empresa_id', empresaId)
+        .eq('alvo_id', empresaId)
+        .eq('alvo_tipo', 'empresa')
       if (error) {
         setErroSalvarAvaliacao(error.message)
         return

@@ -6,6 +6,10 @@ import { supabase } from '@/lib/supabase'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 /**
+ * @typedef {{ id: string; nota: number; feedback: string | null; created_at: string; nome: string; username: string; categoria: string | null }} LinhaAvaliacao
+ */
+
+/**
  * @param {{
  *   aberto: boolean
  *   onFechar: () => void
@@ -13,53 +17,133 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
  *   perfilTipo: 'turista' | 'profissional'
  * }} props
  */
-export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTipo }) {
+export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTipo: _perfilTipo }) {
   useModalScrollLock(aberto)
-  const [aba, setAba] = useState(/** @type {'a' | 'b'} */ ('a'))
-  const [lista, setLista] = useState(
-    /** @type {{ id: string; nota: number; feedback: string | null; created_at: string; nome: string; username: string; categoria: string | null }[]} */ (
-      []
-    )
-  )
+  const [aba, setAba] = useState(/** @type {'empresa' | 'profissional'} */ ('empresa'))
+  const [listaEmpresas, setListaEmpresas] = useState(/** @type {LinhaAvaliacao[]} */ ([]))
+  const [listaProfissionais, setListaProfissionais] = useState(/** @type {LinhaAvaliacao[]} */ ([]))
 
   const carregar = useCallback(async () => {
-    const { data } = await supabase
+    const { data: avEmp, error: errEmp } = await supabase
       .from('avaliacoes')
-      .select('id, nota, feedback, created_at, empresas(nome_fantasia, nome_usuario, categoria)')
+      .select('id, nota, feedback, created_at, alvo_id, alvo_tipo')
       .eq('usuario_id', profileId)
+      .eq('alvo_tipo', 'empresa')
       .order('created_at', { ascending: false })
 
-    const rows =
-      data?.map((r) => {
-        const e = r.empresas
-        const er = e && typeof e === 'object' && !Array.isArray(e) ? /** @type {Record<string, unknown>} */ (e) : null
+    if (errEmp) console.error('[PopupAvaliacoes] avaliacoes empresa:', errEmp.message)
+
+    const rowsEmp = avEmp ?? []
+    const empresaIds = [...new Set(rowsEmp.map((r) => String(r.alvo_id)).filter(Boolean))]
+    /** @type {Map<string, { nome_fantasia: string; nome_usuario: string; categoria: string | null }>} */
+    const porEmpresaId = new Map()
+    if (empresaIds.length) {
+      const { data: emps, error: eErr } = await supabase
+        .from('empresas')
+        .select('id, nome_fantasia, nome_usuario, categoria')
+        .in('id', empresaIds)
+      if (eErr) console.error('[PopupAvaliacoes] empresas:', eErr.message)
+      for (const e of emps ?? []) {
+        porEmpresaId.set(String(e.id), {
+          nome_fantasia: String(e.nome_fantasia ?? 'Empresa'),
+          nome_usuario: String(e.nome_usuario ?? ''),
+          categoria: e.categoria != null ? String(e.categoria) : null,
+        })
+      }
+    }
+
+    setListaEmpresas(
+      rowsEmp.map((r) => {
+        const emp = porEmpresaId.get(String(r.alvo_id))
         return {
           id: String(r.id),
           nota: Number(r.nota) || 0,
           feedback: r.feedback != null ? String(r.feedback) : null,
           created_at: String(r.created_at ?? ''),
-          nome: er ? String(er.nome_fantasia ?? 'Empresa') : '—',
-          username: er ? String(er.nome_usuario ?? '') : '',
-          categoria: er && er.categoria != null ? String(er.categoria) : null,
+          nome: emp?.nome_fantasia ?? '—',
+          username: emp?.nome_usuario ?? '',
+          categoria: emp?.categoria ?? null,
         }
-      }) ?? []
+      })
+    )
 
-    setLista(rows)
+    const { data: avProf, error: errProf } = await supabase
+      .from('avaliacoes')
+      .select('id, nota, feedback, created_at, alvo_id, alvo_tipo')
+      .eq('usuario_id', profileId)
+      .eq('alvo_tipo', 'profissional')
+      .order('created_at', { ascending: false })
+
+    if (errProf) console.error('[PopupAvaliacoes] avaliacoes profissional:', errProf.message)
+
+    const rowsProf = avProf ?? []
+    const profIds = [...new Set(rowsProf.map((r) => String(r.alvo_id)).filter(Boolean))]
+    /** @type {Map<string, { nome_completo: string; nome_usuario: string }>} */
+    const porProfId = new Map()
+    if (profIds.length) {
+      const { data: profs, error: pErr } = await supabase
+        .from('profissionais')
+        .select('id, usuario_id, nome_completo, nome_usuario')
+        .in('id', profIds)
+      if (pErr) console.error('[PopupAvaliacoes] profissionais by id:', pErr.message)
+
+      const encontrados = new Set((profs ?? []).map((p) => String(p.id)))
+      const faltam = profIds.filter((id) => !encontrados.has(id))
+
+      for (const p of profs ?? []) {
+        porProfId.set(String(p.id), {
+          nome_completo: String(p.nome_completo ?? 'Profissional'),
+          nome_usuario: String(p.nome_usuario ?? ''),
+        })
+      }
+
+      if (faltam.length) {
+        const { data: profsU, error: pUErr } = await supabase
+          .from('profissionais')
+          .select('id, usuario_id, nome_completo, nome_usuario')
+          .in('usuario_id', faltam)
+        if (pUErr) console.error('[PopupAvaliacoes] profissionais by usuario_id:', pUErr.message)
+        for (const p of profsU ?? []) {
+          const uid = String(p.usuario_id ?? '')
+          if (uid) {
+            porProfId.set(uid, {
+              nome_completo: String(p.nome_completo ?? 'Profissional'),
+              nome_usuario: String(p.nome_usuario ?? ''),
+            })
+          }
+        }
+      }
+    }
+
+    setListaProfissionais(
+      rowsProf.map((r) => {
+        const alvo = String(r.alvo_id)
+        const prof = porProfId.get(alvo)
+        return {
+          id: String(r.id),
+          nota: Number(r.nota) || 0,
+          feedback: r.feedback != null ? String(r.feedback) : null,
+          created_at: String(r.created_at ?? ''),
+          nome: prof?.nome_completo ?? '—',
+          username: prof?.nome_usuario ?? '',
+          categoria: null,
+        }
+      })
+    )
   }, [profileId])
 
   useEffect(() => {
     if (aberto) void carregar()
   }, [aberto, carregar])
 
-  const filtradas = lista.filter((r) => {
-    // Avaliações nesta tabela são associadas à empresa (join `empresas(...)`).
-    // Evita depender de uma lista hardcoded de categorias; toda avaliação com empresa cai em "EMPRESAS".
-    if (aba === 'a') return true
-    return false
-  })
+  useEffect(() => {
+    if (listaProfissionais.length === 0 && aba === 'profissional') setAba('empresa')
+  }, [listaProfissionais.length, aba])
 
+  const filtradas = aba === 'empresa' ? listaEmpresas : listaProfissionais
   const labelA = 'EMPRESAS'
-  const labelB = perfilTipo === 'turista' ? 'PROFISSIONAIS' : 'TURISTAS'
+  const labelB = 'PROFISSIONAIS'
+  const mostrarAbaProfissionais = listaProfissionais.length > 0
 
   if (!aberto) return null
 
@@ -82,21 +166,27 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
           </button>
         </div>
 
-        <div className="flex shrink-0 justify-center gap-4 border-b px-4 pb-2">
+        <div className={`flex shrink-0 justify-center gap-4 border-b px-4 pb-2 ${mostrarAbaProfissionais ? '' : 'justify-center'}`}>
           <button
             type="button"
-            onClick={() => setAba('a')}
-            className={`flex-1 py-2 text-center text-sm ${aba === 'a' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'}`}
+            onClick={() => setAba('empresa')}
+            className={`${mostrarAbaProfissionais ? 'flex-1' : 'w-full'} py-2 text-center text-sm ${
+              aba === 'empresa' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'
+            }`}
           >
-            {labelA} ({lista.length})
+            {labelA} ({listaEmpresas.length})
           </button>
-          <button
-            type="button"
-            onClick={() => setAba('b')}
-            className={`flex-1 py-2 text-center text-sm ${aba === 'b' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'}`}
-          >
-            {labelB} (0)
-          </button>
+          {mostrarAbaProfissionais ? (
+            <button
+              type="button"
+              onClick={() => setAba('profissional')}
+              className={`flex-1 py-2 text-center text-sm ${
+                aba === 'profissional' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'
+              }`}
+            >
+              {labelB} ({listaProfissionais.length})
+            </button>
+          ) : null}
         </div>
 
         <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-2">
