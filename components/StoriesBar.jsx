@@ -13,6 +13,7 @@ import {
   visualizadoPorEmails,
 } from '@/lib/feed-autor'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
+import { fetchUsuarioIdsEmpresasFavoritas } from '@/lib/feedSeguidosEmpresasFavoritas'
 import {
   escolherIdStoryInicialPorEmail,
   ordenarStoriesPorCreatedAsc,
@@ -183,11 +184,13 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
 
     const [
       { data: seguidosRows },
+      autoresEmpresasFavoritas,
       { data: storiesRows, error: storiesErr },
       { data: destaque },
       meuAvatarUrl,
     ] = await Promise.all([
       supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid),
+      fetchUsuarioIdsEmpresasFavoritas(supabase, uid),
       supabase
         .from('stories')
         .select('id, autor_id, conteudo_url, visualizado_por, created_at, tipo, autor_tipo')
@@ -205,7 +208,10 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       return
     }
 
-    const seguidosIds = new Set((seguidosRows ?? []).map((r) => String(r.seguido_id)))
+    const seguidosIds = new Set([
+      ...(seguidosRows ?? []).map((r) => String(r.seguido_id)),
+      ...autoresEmpresasFavoritas,
+    ].filter(Boolean))
 
     const storyAutorIds = [...new Set((storiesRows ?? []).map((s) => String(s.autor_id)).filter(Boolean))]
     let empresasRows = /** @type {{ usuario_id: string, nome_fantasia: string | null, nome_usuario: string | null, foto_url: string | null }[]} */ (
@@ -411,6 +417,12 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
   useEffect(() => {
     void load()
   }, [load, reloadSignal])
+
+  useEffect(() => {
+    const onReload = () => void load()
+    window.addEventListener('guia-feed-rede-reload', onReload)
+    return () => window.removeEventListener('guia-feed-rede-reload', onReload)
+  }, [load])
 
   useEffect(() => {
     const onVisible = () => {

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
 import { fetchPatrocinioAutorIds, isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
+import { fetchUsuarioIdsEmpresasFavoritas } from '@/lib/feedSeguidosEmpresasFavoritas'
 import {
   escolherIdStoryInicialPorEmail,
   ordenarStoriesPorCreatedAsc,
@@ -228,11 +229,13 @@ function FeedPageInner() {
       return
     }
     try {
-      const [{ data: segRows }, patrocinados] = await Promise.all([
+      const [{ data: segRows }, autoresEmpresasFavoritas, patrocinados] = await Promise.all([
         supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId),
+        fetchUsuarioIdsEmpresasFavoritas(supabase, meuId),
         fetchPatrocinioAutorIds(supabase),
       ])
-      const seguidos = (segRows ?? []).map((r) => String((r as { seguido_id: string }).seguido_id)).filter(Boolean)
+      const seguidosRede = (segRows ?? []).map((r) => String((r as { seguido_id: string }).seguido_id)).filter(Boolean)
+      const seguidos = [...new Set([...seguidosRede, ...autoresEmpresasFavoritas])].filter(Boolean)
       setFeedRede({
         seguidos,
         patrocinioAutores: patrocinados ?? [],

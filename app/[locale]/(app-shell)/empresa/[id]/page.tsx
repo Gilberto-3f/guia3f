@@ -217,44 +217,49 @@ export default function EmpresaPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
-        <div className="flex items-center justify-between gap-2 px-4 py-1.5">
-          <div className="flex min-w-0 items-center gap-2">
-            {!modoEmpresaLayout ? <BotaoVoltar /> : null}
+        <div className="grid grid-cols-[minmax(0,auto)_1fr_minmax(0,auto)] items-center gap-2 px-3 py-1.5 sm:px-4">
+          <div className="flex min-w-0 shrink-0 items-center justify-start">
+            {!modoEmpresaLayout ? <BotaoVoltar /> : <span className="inline-block w-9 shrink-0" aria-hidden />}
+          </div>
+          <div className="flex min-w-0 justify-center overflow-hidden px-1">
             <Username username={nomeUsuario} />
           </div>
-
-          {podeAbrirMenu ? (
-            <button
-              type="button"
-              onClick={() => setMenuAberto(true)}
-              className="shrink-0 px-1 text-[30px] font-bold leading-none text-[#0097b2]"
-              aria-label="Menu"
-            >
-              ☰⋮
-            </button>
-          ) : null}
+          <div className="flex shrink-0 justify-end">
+            {podeAbrirMenu ? (
+              <button
+                type="button"
+                onClick={() => setMenuAberto(true)}
+                className="shrink-0 px-1 text-[30px] font-bold leading-none text-[#0097b2]"
+                aria-label="Menu"
+              >
+                ☰⋮
+              </button>
+            ) : !donoEmpresa ? (
+              <BotaoSeguir
+                empresaId={empresaId}
+                isFollowing={Boolean(empresa.is_seguindo)}
+                layout="inline"
+                size="compact"
+                showInlineError={false}
+                onToggle={(seguindo) => {
+                  setTotalSeguidores((prev) => {
+                    const base = typeof prev === 'number' ? prev : totalSeg
+                    const next = seguindo ? base + 1 : Math.max(0, base - 1)
+                    return next
+                  })
+                  void carregarEmpresa()
+                }}
+              />
+            ) : null}
+          </div>
         </div>
       </div>
 
       <FotoHero fotoUrl={fotoUrl} nome={nomeFantasia} />
 
       <div className="border-b border-gray-100 bg-white p-4">
-        <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="mb-2">
           <NomeEmpresa nome={nomeFantasia} />
-          {!donoEmpresa && usuarioId ? (
-            <BotaoSeguir
-              empresaId={empresaId}
-              isFollowing={Boolean(empresa.is_seguindo)}
-              onToggle={(seguindo) => {
-                setTotalSeguidores((prev) => {
-                  const base = typeof prev === 'number' ? prev : totalSeg
-                  const next = seguindo ? base + 1 : Math.max(0, base - 1)
-                  return next
-                })
-                void carregarEmpresa()
-              }}
-            />
-          ) : null}
         </div>
 
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
