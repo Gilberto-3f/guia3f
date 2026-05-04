@@ -280,42 +280,48 @@ export default function EmpresaPage() {
       </div>
 
       <div className="border-b border-gray-100 bg-white">
-        <div className="flex">
+        <div className="flex gap-1 p-1.5">
           <button
             type="button"
             onClick={() => toggleAba('avaliacoes')}
             aria-label="Avaliações"
             aria-expanded={abaExpandida === 'avaliacoes'}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-3 text-sm font-medium transition-colors ${
-              abaExpandida === 'avaliacoes' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
+            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors ${
+              abaExpandida === 'avaliacoes'
+                ? 'bg-[#0097b2] text-white shadow-sm'
+                : 'bg-transparent text-[#0097b2] hover:bg-[#0097b2]/10'
             }`}
           >
-            <Star className="h-4 w-4 shrink-0" aria-hidden />
-            {abaExpandida === 'avaliacoes' ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
+            <Star className="h-4 w-4 shrink-0 text-current" aria-hidden />
+            {abaExpandida === 'avaliacoes' ? <ChevronUp className="h-4 w-4 shrink-0 text-current" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-current" aria-hidden />}
           </button>
           <button
             type="button"
             onClick={() => toggleAba('endereco')}
             aria-label="Endereço"
             aria-expanded={abaExpandida === 'endereco'}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-3 text-sm font-medium transition-colors ${
-              abaExpandida === 'endereco' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
+            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors ${
+              abaExpandida === 'endereco'
+                ? 'bg-[#0097b2] text-white shadow-sm'
+                : 'bg-transparent text-[#0097b2] hover:bg-[#0097b2]/10'
             }`}
           >
-            <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-            {abaExpandida === 'endereco' ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
+            <MapPin className="h-4 w-4 shrink-0 text-current" aria-hidden />
+            {abaExpandida === 'endereco' ? <ChevronUp className="h-4 w-4 shrink-0 text-current" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-current" aria-hidden />}
           </button>
           <button
             type="button"
             onClick={() => toggleAba('dinamico')}
             aria-label={rotuloServico}
             aria-expanded={abaExpandida === 'dinamico'}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-3 text-sm font-medium transition-colors ${
-              abaExpandida === 'dinamico' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
+            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors ${
+              abaExpandida === 'dinamico'
+                ? 'bg-[#0097b2] text-white shadow-sm'
+                : 'bg-transparent text-[#0097b2] hover:bg-[#0097b2]/10'
             }`}
           >
-            <IconeAbaServico className="h-4 w-4 shrink-0" aria-hidden />
-            {abaExpandida === 'dinamico' ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
+            <IconeAbaServico className="h-4 w-4 shrink-0 text-current" aria-hidden />
+            {abaExpandida === 'dinamico' ? <ChevronUp className="h-4 w-4 shrink-0 text-current" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-current" aria-hidden />}
           </button>
         </div>
       </div>
@@ -351,35 +357,41 @@ export default function EmpresaPage() {
 
       {abaExpandida == null ? (
         <div className="border-b border-gray-100 bg-white p-4">
-          <div className="flex border-b border-[#E0E0E0] bg-white px-2">
+          <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
             <button
               type="button"
               onClick={() => setSubAbaAtiva('fotos')}
-              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
-                subAbaAtiva === 'fotos' ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
+              className={`flex flex-1 flex-col items-center gap-0.5 rounded-md py-2 text-xs font-medium transition-colors ${
+                subAbaAtiva === 'fotos'
+                  ? 'bg-[#0097b2] text-white shadow-sm'
+                  : 'text-[#0097b2] hover:bg-white/60'
               }`}
             >
-              <Camera size={18} aria-hidden />
+              <Camera size={18} aria-hidden className="text-current" />
               <span>FOTOS</span>
             </button>
             <button
               type="button"
               onClick={() => setSubAbaAtiva('posts')}
-              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
-                subAbaAtiva === 'posts' ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
+              className={`flex flex-1 flex-col items-center gap-0.5 rounded-md py-2 text-xs font-medium transition-colors ${
+                subAbaAtiva === 'posts'
+                  ? 'bg-[#0097b2] text-white shadow-sm'
+                  : 'text-[#0097b2] hover:bg-white/60'
               }`}
             >
-              <FileText size={18} aria-hidden />
+              <FileText size={18} aria-hidden className="text-current" />
               <span>POSTS</span>
             </button>
             <button
               type="button"
               onClick={() => setSubAbaAtiva('tour360')}
-              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
-                subAbaAtiva === 'tour360' ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
+              className={`flex flex-1 flex-col items-center gap-0.5 rounded-md py-2 text-xs font-medium transition-colors ${
+                subAbaAtiva === 'tour360'
+                  ? 'bg-[#0097b2] text-white shadow-sm'
+                  : 'text-[#0097b2] hover:bg-white/60'
               }`}
             >
-              <Globe2 size={18} aria-hidden />
+              <Globe2 size={18} aria-hidden className="text-current" />
               <span>TOUR 360°</span>
             </button>
           </div>

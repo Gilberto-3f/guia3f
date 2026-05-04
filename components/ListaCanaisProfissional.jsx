@@ -437,17 +437,6 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
                   )
                 })}
               </div>
-              <div className="flex px-1 pb-1.5 pt-0">
-                {abasCategoriasEmpresas.map(([cat]) => (
-                  <div key={`ind-${cat}`} className="flex min-w-0 flex-1 justify-center">
-                    {categoriaAba === cat ? (
-                      <span className="h-0.5 w-10 rounded-full bg-white sm:w-12" aria-hidden />
-                    ) : (
-                      <span className="h-0.5 w-10 sm:w-12" aria-hidden />
-                    )}
-                  </div>
-                ))}
-              </div>
             </div>
             <div className="min-h-0 flex-1" role="tabpanel">
               {itensAbaAtiva.length === 0 ? (

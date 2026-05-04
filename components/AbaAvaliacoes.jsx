@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import Estrelas from '@/components/Estrelas'
 import EstrelasAvaliacao from '@/components/EstrelasAvaliacao'
 import GraficoAvaliacoes from '@/components/GraficoAvaliacoes'
-import { CheckCircle2, MoreVertical, Share2, Trash2, Pencil, User } from 'lucide-react'
+import { MoreVertical, Share2, Trash2, Pencil, ShieldCheck, User } from 'lucide-react'
 
 /**
  * @param {{
@@ -254,15 +254,20 @@ export default function AbaAvaliacoes({
     if (!editNota || editNota < 1 || editNota > 5) return
     setSalvandoEdicao(true)
     try {
-      const { error } = await supabase
+      const feedbackSalvar = editFeedback.trim() !== '' ? editFeedback.trim() : null
+      const { data: atualizada, error } = await supabase
         .from('avaliacoes')
-        .update({ nota: editNota, feedback: editFeedback.trim() !== '' ? editFeedback : null })
+        .update({ nota: editNota, feedback: feedbackSalvar })
         .eq('id', modalEditarId)
         .eq('usuario_id', usuarioId)
-        .eq('alvo_id', empresaId)
-        .eq('alvo_tipo', 'empresa')
+        .select('id')
+        .maybeSingle()
       if (error) {
         setErroSalvarAvaliacao(error.message)
+        return
+      }
+      if (!atualizada) {
+        setErroSalvarAvaliacao('Não foi possível salvar a edição. Verifique se a avaliação ainda existe.')
         return
       }
       setModalEditarId(null)
@@ -419,9 +424,9 @@ export default function AbaAvaliacoes({
 
       <div className="rounded-xl bg-white p-4 shadow-sm">
         {empresaVerificada ? (
-          <div className="mb-6 flex items-center justify-center gap-3 sm:justify-start">
-            <CheckCircle2 className="h-9 w-9 shrink-0 text-emerald-600" aria-hidden />
-            <h3 className="text-xl font-bold text-gray-900">Empresa de Confiança</h3>
+          <div className="mb-6 flex items-center justify-center gap-2 sm:justify-start">
+            <ShieldCheck className="h-8 w-8 shrink-0 text-[#00D443] sm:h-9 sm:w-9" aria-hidden />
+            <h3 className="text-base font-bold leading-tight text-gray-900 sm:text-lg">Empresa de Confiança</h3>
           </div>
         ) : null}
 
@@ -484,12 +489,14 @@ export default function AbaAvaliacoes({
         </div>
       ) : null}
 
-      <div className="flex border-b border-gray-200">
+      <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
         <button
           type="button"
           onClick={() => setTipoFiltro('profissional')}
-          className={`flex-1 pb-3 text-center text-sm font-semibold transition-colors ${
-            tipoFiltro === 'profissional' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500 hover:text-gray-700'
+          className={`flex-1 rounded-md py-2 text-center text-sm font-semibold transition-colors ${
+            tipoFiltro === 'profissional'
+              ? 'bg-[#0097b2] text-white shadow-sm'
+              : 'text-[#0097b2] hover:bg-white/60'
           }`}
         >
           Profissionais ({avaliacoes.filter((a) => a.avaliador_tipo === 'profissional').length})
@@ -497,8 +504,8 @@ export default function AbaAvaliacoes({
         <button
           type="button"
           onClick={() => setTipoFiltro('turista')}
-          className={`flex-1 pb-3 text-center text-sm font-semibold transition-colors ${
-            tipoFiltro === 'turista' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500 hover:text-gray-700'
+          className={`flex-1 rounded-md py-2 text-center text-sm font-semibold transition-colors ${
+            tipoFiltro === 'turista' ? 'bg-[#0097b2] text-white shadow-sm' : 'text-[#0097b2] hover:bg-white/60'
           }`}
         >
           Turistas ({avaliacoes.filter((a) => a.avaliador_tipo === 'turista').length})
@@ -671,7 +678,7 @@ export default function AbaAvaliacoes({
               <EstrelasAvaliacao nota={editNota} setNota={setEditNota} />
             </div>
             <textarea
-              className="mt-4 w-full resize-none rounded-lg border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+              className="mt-4 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
               rows={4}
               value={editFeedback}
               onChange={(e) => setEditFeedback(e.target.value)}
