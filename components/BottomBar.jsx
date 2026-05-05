@@ -32,6 +32,42 @@ function isBarraAtividades(pathname) {
   return pathname === '/atividades' || pathname.endsWith('/atividades') || pathname.includes('/atividades/')
 }
 
+/**
+ * `lida_por`: JSONB [{ usuario_id, lida_em }, …]
+ * @param {unknown} lidaPorRaw
+ * @param {string} userId
+ */
+function usuarioMarcouLeituraNaMensagem(lidaPorRaw, userId) {
+  if (!userId) return false
+  const arr = Array.isArray(lidaPorRaw) ? lidaPorRaw : []
+  return arr.some((entry) => {
+    if (!entry || typeof entry !== 'object') return false
+    const id = /** @type {{ usuario_id?: string }} */ (entry).usuario_id
+    return id != null && String(id) === String(userId)
+  })
+}
+
+/**
+ * Mensagens de outros utilizadores em canais acessíveis (RLS), ainda não lidas pelo utilizador.
+ * @param {string} userId
+ */
+async function contarMensagensNaoLidasCanais(userId) {
+  if (!userId) return 0
+  const desde = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString()
+  const { data, error } = await supabase
+    .from('mensagens_canal')
+    .select('lida_por')
+    .neq('remetente_id', userId)
+    .gte('created_at', desde)
+    .limit(2500)
+  if (error || !data) return 0
+  let n = 0
+  for (const row of data) {
+    if (!usuarioMarcouLeituraNaMensagem(row.lida_por, userId)) n += 1
+  }
+  return n
+}
+
 function matchPath(path, pathname) {
   if (!pathname) return false
   if (path === '/guia' && pathname === '/guia') return true
@@ -56,6 +92,7 @@ export default function BottomBar() {
   const [authUserId, setAuthUserId] = useState(/** @type {string | null} */ (null))
   const [fotoPerfil, setFotoPerfil] = useState(/** @type {string | null} */ (null))
   const [naoLidasAtividades, setNaoLidasAtividades] = useState(0)
+  const [naoLidasCanais, setNaoLidasCanais] = useState(0)
   /** Primeira carga da sessão/role na barra; até lá o 5.º ícone não navega (evita `/perfil` → empresa). */
   const [barSessaoPronta, setBarSessaoPronta] = useState(false)
 
@@ -74,6 +111,7 @@ export default function BottomBar() {
             setAuthUserId(null)
             setFotoPerfil(null)
             setNaoLidasAtividades(0)
+            setNaoLidasCanais(0)
           }
           return
         }
@@ -181,6 +219,29 @@ export default function BottomBar() {
     }
   }, [pathname])
 
+  useEffect(() => {
+    if (!authUserId) {
+      setNaoLidasCanais(0)
+      return
+    }
+    let cancelled = false
+    const refresh = async () => {
+      const n = await contarMensagensNaoLidasCanais(authUserId)
+      if (!cancelled) setNaoLidasCanais(n)
+    }
+    void refresh()
+    const channel = supabase
+      .channel(`bottom-bar-mensagens-canal-${authUserId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagens_canal' }, () => {
+        void refresh()
+      })
+      .subscribe()
+    return () => {
+      cancelled = true
+      void supabase.removeChannel(channel)
+    }
+  }, [authUserId, pathname])
+
   /**
    * Safari iOS move `position: fixed; bottom: 0` com o teclado; compensamos fora de `/feed/criar`,
    * onde a barra é ocultada com o teclado (evita conflito com scroll da legenda).
@@ -279,12 +340,17 @@ export default function BottomBar() {
           <Home size={24} className={matchPath('/guia', pathname) ? 'text-[#0097b2]' : 'text-gray-400'} />
         </Link>
 
-        <Link href="/canal" className="flex flex-col items-center p-2" aria-label={t('channel')}>
+        <Link href="/canal" className="relative flex flex-col items-center p-2" aria-label={t('channel')}>
           <MessageCircle
             size={24}
             className={matchPath('/canal', pathname) ? 'text-[#0097b2]' : 'text-gray-400'}
             aria-hidden
           />
+          {authUserId && naoLidasCanais > 0 ? (
+            <span className="absolute right-0 top-0 flex min-h-[14px] min-w-[14px] max-w-[2rem] translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
+              {naoLidasCanais > 99 ? '99+' : naoLidasCanais}
+            </span>
+          ) : null}
         </Link>
 
         <Link
@@ -324,7 +390,7 @@ export default function BottomBar() {
             <>
               <Heart size={24} className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
               {!isEmpresaBar && naoLidasAtividades > 0 ? (
-                <span className="absolute -right-0 -top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F44336] px-1 text-[10px] font-bold text-white">
+                <span className="absolute right-0 top-0 flex min-h-[14px] min-w-[14px] max-w-[2rem] translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
                   {naoLidasAtividades > 99 ? '99+' : naoLidasAtividades}
                 </span>
               ) : null}
