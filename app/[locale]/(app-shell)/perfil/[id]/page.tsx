@@ -564,7 +564,7 @@ export default function PerfilSocialPage() {
   const mostrarMenu = Boolean(souDono && menuVariant)
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="bg-gray-50">
       <header className="sticky top-0 z-30 border-b border-gray-100 bg-white">
         <div className="flex items-center justify-between gap-2 px-4 py-1.5">
           <div className="flex min-w-0 items-center gap-2">
@@ -641,7 +641,7 @@ export default function PerfilSocialPage() {
 
       <div className="mt-4">
         <AbasPerfil ativa={aba} onChange={setAba} counts={counts} />
-        <div className="min-h-[200px] bg-gray-50 py-2">
+        <div className="bg-gray-50 pt-2 pb-0">
           {aba === 'fotos' ? <AbaFotos posts={postsFotos} onOpen={(i) => setModalFoto({ aberto: true, i })} /> : null}
           {aba === 'posts' ? <AbaPosts posts={postsTexto} /> : null}
           {aba === 'republicados' ? (

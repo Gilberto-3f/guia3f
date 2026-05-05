@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import Estrelas from '@/components/Estrelas'
@@ -69,9 +69,11 @@ export default function AbaAvaliacoes({
     getUsuario()
   }, [])
 
-  const carregarAvaliacoes = useCallback(async () => {
+  const carregarAvaliacoes = useCallback(async (opts) => {
     if (!empresaId) return
-    setLoading(true)
+    const silent = Boolean(opts && opts.silent)
+    const seq = ++carregarSeqRef.current
+    if (!silent) setLoading(true)
     setErroSalvarAvaliacao('')
     setErroRespostaEmpresa('')
     try {
@@ -84,6 +86,7 @@ export default function AbaAvaliacoes({
 
       if (qErr) {
         console.error('[AbaAvaliacoes] carregar avaliacoes:', qErr.message)
+        if (seq !== carregarSeqRef.current) return
         setAvaliacoes([])
         setTotal(0)
         setMedia(0)
@@ -179,6 +182,8 @@ export default function AbaAvaliacoes({
         }
       })
 
+      if (seq !== carregarSeqRef.current) return
+
       const totalCount = rows.length
       setTotal(totalCount)
       setMedia(totalCount > 0 ? soma / totalCount : 0)
@@ -198,7 +203,7 @@ export default function AbaAvaliacoes({
         }
       }
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [empresaId, usuarioId])
 
@@ -229,9 +234,9 @@ export default function AbaAvaliacoes({
       setNotaUsuario(0)
       setFeedbackUsuario('')
       setModalConfirmar(false)
+      await carregarAvaliacoes({ silent: true })
       window.dispatchEvent(new CustomEvent('avaliacao-enviada', { detail: { empresaId } }))
       window.dispatchEvent(new Event('perfil-atualizado'))
-      await carregarAvaliacoes()
     } finally {
       setEnviando(false)
     }
@@ -266,10 +271,30 @@ export default function AbaAvaliacoes({
         setErroSalvarAvaliacao(error.message)
         return
       }
+
+      const idStr = String(modalEditarId)
+      setAvaliacoes((prev) => {
+        const next = prev.map((a) =>
+          String(a.id) === idStr ? { ...a, nota: editNota, feedback: feedbackSalvar } : a
+        )
+        const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        let soma = 0
+        for (const a of next) {
+          soma += Number(a.nota) || 0
+          const k = /** @type {1 | 2 | 3 | 4 | 5} */ (Number(a.nota))
+          if (k >= 1 && k <= 5) dist[k] = (dist[k] || 0) + 1
+        }
+        const totalCount = next.length
+        setDistribuicao(dist)
+        setTotal(totalCount)
+        setMedia(totalCount > 0 ? soma / totalCount : 0)
+        return next
+      })
+
       setModalEditarId(null)
+      await carregarAvaliacoes({ silent: true })
       window.dispatchEvent(new CustomEvent('avaliacao-enviada', { detail: { empresaId } }))
       window.dispatchEvent(new Event('perfil-atualizado'))
-      await carregarAvaliacoes()
     } finally {
       setSalvandoEdicao(false)
     }
@@ -292,9 +317,9 @@ export default function AbaAvaliacoes({
       }
       setConfirmExcluirId(null)
       setJaAvaliou(false)
+      await carregarAvaliacoes({ silent: true })
       window.dispatchEvent(new CustomEvent('avaliacao-enviada', { detail: { empresaId } }))
       window.dispatchEvent(new Event('perfil-atualizado'))
-      await carregarAvaliacoes()
     } finally {
       setExcluindo(false)
     }
@@ -363,7 +388,7 @@ export default function AbaAvaliacoes({
       }
       setEditingReplyAvaliacaoId(null)
       setReplyDraft('')
-      await carregarAvaliacoes()
+      await carregarAvaliacoes({ silent: true })
     } finally {
       setSavingReply(false)
     }

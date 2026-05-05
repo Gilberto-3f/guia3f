@@ -15,9 +15,9 @@ export default function GraficoAvaliacoes({ distribuicao, total, compact = false
         const porcentagem = total > 0 ? (quantidade / total) * 100 : 0
 
         return (
-          <div key={nota} className={`flex items-center ${compact ? 'gap-1' : 'gap-2'}`}>
+          <div key={nota} className={`flex items-center ${compact ? 'gap-0.5' : 'gap-2'}`}>
             <span
-              className={`inline-flex shrink-0 items-center gap-1 text-gray-600 ${compact ? 'w-12 text-xs' : 'w-14 text-sm'}`}
+              className={`inline-flex shrink-0 items-center gap-0.5 text-gray-600 ${compact ? 'w-9 text-xs' : 'w-14 text-sm'}`}
             >
               <span>{nota}</span>
               <Star className={`shrink-0 fill-amber-400 text-amber-400 ${compact ? 'h-3 w-3' : 'h-3.5 w-3.5'}`} aria-hidden />
