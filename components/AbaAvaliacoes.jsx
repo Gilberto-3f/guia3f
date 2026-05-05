@@ -334,12 +334,17 @@ export default function AbaAvaliacoes({
     try {
       const { data: emp } = await supabase
         .from('empresas')
-        .select('id, nome_fantasia, foto_url')
+        .select('id, nome_fantasia, nome_usuario, foto_url')
         .eq('id', empresaId)
         .maybeSingle()
+      const handleEmp =
+        emp?.nome_usuario != null && String(emp.nome_usuario).trim() !== ''
+          ? String(emp.nome_usuario).trim().replace(/^@+/, '')
+          : null
       const meta = {
         empresa_id: String(emp?.id ?? empresaId),
         nome_fantasia: emp?.nome_fantasia != null ? String(emp.nome_fantasia) : 'Empresa',
+        nome_usuario: handleEmp,
         foto_url: emp?.foto_url != null ? String(emp.foto_url) : null,
         nota: Number(av.nota) || 0,
         feedback: av.feedback != null ? String(av.feedback) : null,

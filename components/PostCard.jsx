@@ -3,12 +3,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Bookmark, Heart, MessageCircle, Repeat2, Share2, ShieldCheck } from 'lucide-react'
+import { Bookmark, Heart, MessageCircle, Repeat2, Share2, ShieldCheck, Star } from 'lucide-react'
 import ModalComentarios from '@/components/ModalComentarios'
 import ModalCurtidas from '@/components/ModalCurtidas'
 import ModalCompartilhar from '@/components/ModalCompartilhar'
 import MenuPost from '@/components/MenuPost'
-import AvaliacaoCard from '@/components/AvaliacaoCard'
 import { supabase } from '@/lib/supabase'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/lib/feed-autor'
@@ -690,6 +689,69 @@ export default function PostCard({
     </div>
   )
 
+  const cabecalhoAutorFeed = !ocultarCabecalhoCard ? (
+    ehRepost ? (
+      cabecalhoRepublicou
+    ) : (
+      <div className="flex items-center justify-between p-4 pb-2">
+        <div className="flex items-start gap-3">
+          {temStoryNoAutor ? (
+            <div
+              className={`relative shrink-0 rounded-md p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
+              style={!storyDoAutorVisto ? { background: STORY_RING_GRADIENT } : undefined}
+            >
+              <div className="rounded-md bg-white p-[2px]">
+                <button
+                  type="button"
+                  onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
+                  className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                  aria-label={`Ver story de ${post.autor?.nome ?? 'autor'}`}
+                >
+                  <AvatarImage
+                    src={post.autor?.foto_perfil_url}
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+              </div>
+            </div>
+          ) : autorId ? (
+            <Link
+              href={hrefAutor}
+              className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+              aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
+            >
+              <AvatarImage src={post.autor?.foto_perfil_url} alt="" width={40} height={40} className="object-cover" />
+            </Link>
+          ) : (
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+              <AvatarImage
+                src={post.autor?.foto_perfil_url}
+                alt=""
+                width={40}
+                height={40}
+                className="object-cover"
+              />
+            </div>
+          )}
+          <div>
+            {autorId ? (
+              <Link href={hrefAutor} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
+                @{post.autor?.username ?? ''}
+              </Link>
+            ) : (
+              <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+            )}
+            <time className="mt-0.5 block text-xs text-gray-400">{formatarDataRelativaPublicacao(post.created_at)}</time>
+          </div>
+        </div>
+        <MenuPost {...menuProps} />
+      </div>
+    )
+  ) : null
+
   if (tipoNorm === 'verificacao_profissional') {
     const meta =
       post.avaliacao_meta && typeof post.avaliacao_meta === 'object' && !Array.isArray(post.avaliacao_meta)
@@ -764,33 +826,78 @@ export default function PostCard({
   }
 
   if (tipoNorm === 'avaliacao' && post.avaliacao_meta && typeof post.avaliacao_meta === 'object') {
-    const meta = /** @type {{ empresa_id?: string, nome_fantasia?: string, foto_url?: string | null, nota?: number, feedback?: string | null }} */ (
+    const meta = /** @type {{ empresa_id?: string, nome_fantasia?: string, nome_usuario?: string | null, foto_url?: string | null, nota?: number, feedback?: string | null, comentario?: string | null }} */ (
       post.avaliacao_meta
     )
-    const tempo = formatarDataRelativaPublicacao(post.created_at)
+    const notaVal = Math.min(5, Math.max(0, Math.round(Number(meta.nota) || 0)))
+    const feedbackText =
+      meta.feedback != null && String(meta.feedback).trim() !== ''
+        ? String(meta.feedback)
+        : meta.comentario != null && String(meta.comentario).trim() !== ''
+          ? String(meta.comentario)
+          : ''
+    const empresaAlvoId = meta.empresa_id != null && String(meta.empresa_id) !== '' ? String(meta.empresa_id) : null
+    const nomeFantasiaAlvo =
+      meta.nome_fantasia != null && String(meta.nome_fantasia).trim() !== '' ? String(meta.nome_fantasia).trim() : 'Estabelecimento'
+    const nomeUsuarioAlvo =
+      meta.nome_usuario != null && String(meta.nome_usuario).trim() !== ''
+        ? String(meta.nome_usuario).trim().replace(/^@+/, '')
+        : ''
+    const fotoAlvo = meta.foto_url != null && String(meta.foto_url).trim() !== '' ? String(meta.foto_url) : null
+
     return (
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
-        {!ocultarCabecalhoCard ? (
-          ehRepost ? (
-            cabecalhoRepublicou
-          ) : (
-            <div className="flex items-center justify-between border-b border-gray-50 px-4 pt-3">
-              <div>
-                {autorId ? (
-                  <Link href={hrefAutor} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
-                    @{post.autor?.username ?? ''}
+        {cabecalhoAutorFeed}
+        <div className="px-4 pb-3 pt-0">
+          <div className="mb-3 flex flex-wrap items-center gap-0.5" aria-label={`Nota ${notaVal} de 5`}>
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Star
+                key={s}
+                className={`h-6 w-6 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                aria-hidden
+              />
+            ))}
+          </div>
+          <div className="mb-3 flex items-center gap-3 rounded-lg bg-gray-50 p-3">
+            {fotoAlvo ? (
+              empresaAlvoId ? (
+                <Link
+                  href={`/empresa/${empresaAlvoId}`}
+                  className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                  aria-label={`Ver empresa ${nomeFantasiaAlvo}`}
+                >
+                  <Image src={fotoAlvo} alt="" width={40} height={40} className="h-full w-full object-cover" />
+                </Link>
+              ) : (
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  <Image src={fotoAlvo} alt="" width={40} height={40} className="h-full w-full object-cover" />
+                </div>
+              )
+            ) : (
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gray-200 text-xs font-medium text-gray-500"
+                aria-hidden
+              >
+                …
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-semibold text-gray-900">{nomeFantasiaAlvo}</div>
+              {nomeUsuarioAlvo ? (
+                empresaAlvoId ? (
+                  <Link
+                    href={`/empresa/${empresaAlvoId}`}
+                    className="mt-0.5 block truncate text-sm text-gray-500 hover:text-[#0097b2]"
+                  >
+                    @{nomeUsuarioAlvo}
                   </Link>
                 ) : (
-                  <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
-                )}
-                <time className="text-xs text-gray-400">{tempo}</time>
-              </div>
-              <MenuPost {...menuProps} />
+                  <span className="mt-0.5 block truncate text-sm text-gray-500">@{nomeUsuarioAlvo}</span>
+                )
+              ) : null}
             </div>
-          )
-        ) : null}
-        <div className="p-4 pt-3">
-          <AvaliacaoCard meta={meta} />
+          </div>
+          {feedbackText ? <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{feedbackText}</p> : null}
         </div>
         <div className="border-t border-gray-100">{acoesPost}</div>
         <ModalComentarios
@@ -832,68 +939,7 @@ export default function PostCard({
       id={`feed-post-${post.id}`}
       className={comentariosInline ? 'rounded-xl bg-white shadow-sm' : 'overflow-hidden rounded-xl bg-white shadow-sm'}
     >
-      {!ocultarCabecalhoCard ? (
-        ehRepost ? (
-          cabecalhoRepublicou
-        ) : (
-          <div className="flex items-center justify-between p-4 pb-2">
-            <div className="flex items-start gap-3">
-              {temStoryNoAutor ? (
-                <div
-                  className={`relative shrink-0 rounded-md p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
-                  style={!storyDoAutorVisto ? { background: STORY_RING_GRADIENT } : undefined}
-                >
-                  <div className="rounded-md bg-white p-[2px]">
-                    <button
-                      type="button"
-                      onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
-                      className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
-                      aria-label={`Ver story de ${post.autor?.nome ?? 'autor'}`}
-                    >
-                      <AvatarImage
-                        src={post.autor?.foto_perfil_url}
-                        alt=""
-                        width={40}
-                        height={40}
-                        className="h-full w-full object-cover"
-                      />
-                    </button>
-                  </div>
-                </div>
-              ) : autorId ? (
-                <Link
-                  href={hrefAutor}
-                  className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
-                  aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
-                >
-                  <AvatarImage src={post.autor?.foto_perfil_url} alt="" width={40} height={40} className="object-cover" />
-                </Link>
-              ) : (
-                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                  <AvatarImage
-                    src={post.autor?.foto_perfil_url}
-                    alt=""
-                    width={40}
-                    height={40}
-                    className="object-cover"
-                  />
-                </div>
-              )}
-              <div>
-                {autorId ? (
-                  <Link href={hrefAutor} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
-                    @{post.autor?.username ?? ''}
-                  </Link>
-                ) : (
-                  <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
-                )}
-                <time className="mt-0.5 block text-xs text-gray-400">{formatarDataRelativaPublicacao(post.created_at)}</time>
-              </div>
-            </div>
-            <MenuPost {...menuProps} />
-          </div>
-        )
-      ) : null}
+      {cabecalhoAutorFeed}
 
       {hasMedia ? (
         <>
