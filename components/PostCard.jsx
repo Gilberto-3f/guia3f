@@ -849,16 +849,19 @@ export default function PostCard({
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
         {cabecalhoAutorFeed}
         <div className="px-4 pb-3 pt-0">
-          <div className="mb-3 flex flex-wrap items-center gap-0.5" aria-label={`Nota ${notaVal} de 5`}>
-            {[1, 2, 3, 4, 5].map((s) => (
-              <Star
-                key={s}
-                className={`h-6 w-6 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
-                aria-hidden
-              />
-            ))}
+          <div className="mb-3 flex justify-center" aria-label={`Nota ${notaVal} de 5`}>
+            <div className="flex flex-wrap items-center justify-center gap-0.5">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star
+                  key={s}
+                  className={`h-6 w-6 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                  aria-hidden
+                />
+              ))}
+            </div>
           </div>
-          <div className="mb-3 flex items-center gap-3 rounded-lg bg-gray-50 p-3">
+          <div className="mb-3 flex justify-center">
+            <div className="flex w-full max-w-sm items-center gap-3 rounded-lg bg-gray-50 p-3">
             {fotoAlvo ? (
               empresaAlvoId ? (
                 <Link
@@ -896,8 +899,11 @@ export default function PostCard({
                 )
               ) : null}
             </div>
+            </div>
           </div>
-          {feedbackText ? <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{feedbackText}</p> : null}
+          {feedbackText ? (
+            <p className="whitespace-pre-wrap text-left text-sm leading-relaxed text-gray-800">{feedbackText}</p>
+          ) : null}
         </div>
         <div className="border-t border-gray-100">{acoesPost}</div>
         <ModalComentarios

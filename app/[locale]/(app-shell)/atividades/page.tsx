@@ -16,10 +16,9 @@ import AtividadeCurtiuAvaliacao from '@/components/atividades/AtividadeCurtiuAva
 import AtividadeCurtiuStory from '@/components/atividades/AtividadeCurtiuStory'
 import AtividadeComentario from '@/components/atividades/AtividadeComentario'
 import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
-import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
 import { agruparAtividadesCurtidasPost, urlFotoPost } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
-import { formatarDataComentarioCurta } from '@/lib/formatarDataPublicacao'
+import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
@@ -163,7 +162,6 @@ export default function AtividadesPage() {
       }
     >
   >({})
-  const [empresaMap, setEmpresaMap] = useState<Record<string, { id: string; nome: string }>>({})
   const [seguidoEmpresaMap, setSeguidoEmpresaMap] = useState<Record<string, string>>({})
   const [qtdSeguindo, setQtdSeguindo] = useState(0)
 
@@ -607,33 +605,6 @@ export default function AtividadesPage() {
     }
   }, [])
 
-  const carregarEmpresasAvaliacao = useCallback(async (empresaIds: string[], opcoes?: { merge?: boolean }) => {
-    const merge = Boolean(opcoes?.merge)
-    const uniq = [...new Set(empresaIds)].filter(Boolean)
-    if (uniq.length === 0) {
-      if (!merge) setEmpresaMap({})
-      return
-    }
-    const { data, error } = await supabase.from('empresas').select('id, nome_fantasia, nome_usuario').in('id', uniq)
-    if (error || !data) {
-      if (!merge) setEmpresaMap({})
-      return
-    }
-    const m: Record<string, { id: string; nome: string }> = {}
-    for (const e of data) {
-      const row = e as { id: string; nome_fantasia: string | null; nome_usuario: string | null }
-      m[String(row.id)] = {
-        id: String(row.id),
-        nome: String(row.nome_fantasia ?? row.nome_usuario ?? 'Empresa'),
-      }
-    }
-    if (merge) {
-      setEmpresaMap((prev) => ({ ...prev, ...m }))
-    } else {
-      setEmpresaMap(m)
-    }
-  }, [])
-
   const recarregar = useCallback(async () => {
     const {
       data: { session },
@@ -692,6 +663,7 @@ export default function AtividadesPage() {
             .in('autor_id', seguindo)
             /* Destinatário = eu → fica só na aba "Minha conta"; aqui só o que seguidos fazem no conteúdo de terceiros. */
             .neq('usuario_id', uid)
+            .neq('tipo', 'avaliou')
             .order('created_at', { ascending: false })
             .range(0, lim - 1)
         : Promise.resolve({ data: [] as AtividadeRow[], error: null }),
@@ -699,6 +671,7 @@ export default function AtividadesPage() {
         .from('atividades')
         .select('*')
         .eq('usuario_id', uid)
+        .neq('tipo', 'avaliou')
         .order('created_at', { ascending: false })
         .range(0, ATIVIDADES_LIMITE_MINHA_CONTA - 1),
     ])
@@ -742,14 +715,8 @@ export default function AtividadesPage() {
     }
     await carregarPostsMeta(postIds, { merge: false })
 
-    const empIds: string[] = []
-    for (const r of todos) {
-      if (r.tipo === 'avaliou') empIds.push(r.alvo_id)
-    }
-    await carregarEmpresasAvaliacao(empIds, { merge: false })
-
     setCarregando(false)
-  }, [carregarPerfis, carregarPostsMeta, carregarEmpresasAvaliacao])
+  }, [carregarPerfis, carregarPostsMeta])
 
   const carregarMaisAtividades = useCallback(async () => {
     if (carregandoMais) return
@@ -768,6 +735,7 @@ export default function AtividadesPage() {
         .select('*')
         .in('autor_id', seg)
         .neq('usuario_id', uid)
+        .neq('tipo', 'avaliou')
         .order('created_at', { ascending: false })
         .range(start, start + lim - 1)
       if (error) {
@@ -796,12 +764,10 @@ export default function AtividadesPage() {
         }
       }
       await carregarPostsMeta(postIds, { merge: true })
-      const empIds = novas.filter((r) => r.tipo === 'avaliou').map((r) => r.alvo_id)
-      await carregarEmpresasAvaliacao(empIds, { merge: true })
     } finally {
       setCarregandoMais(false)
     }
-  }, [aba, meuId, offsetAmigos, temMaisAmigos, carregarPerfis, carregarPostsMeta, carregarEmpresasAvaliacao])
+  }, [aba, meuId, offsetAmigos, temMaisAmigos, carregarPerfis, carregarPostsMeta])
 
   useEffect(() => {
     void recarregar()
@@ -933,7 +899,8 @@ export default function AtividadesPage() {
   )
 
   const listaAtividadesFiltrada = useMemo(() => {
-    return aba === 'amigos' ? listaAmigos : listaMinha
+    const raw = aba === 'amigos' ? listaAmigos : listaMinha
+    return raw.filter((r) => r.tipo !== 'avaliou')
   }, [aba, listaAmigos, listaMinha])
 
   const itensAgrupados = useMemo(() => {
@@ -996,7 +963,7 @@ export default function AtividadesPage() {
           urls={urlsGrid}
           postIds={item.rows.map((r) => String(r.alvo_id))}
           totalCurtidas={item.rows.length}
-          tempoInteracao={formatarDataComentarioCurta(item.created_at)}
+          tempoInteracao={formatarDataAtividades(item.created_at)}
           modoMinhaConta={modoMinhaConta}
         />
       )
@@ -1018,7 +985,7 @@ export default function AtividadesPage() {
           urls={urlsGrid}
           postIds={item.rows.map((r) => String(r.alvo_id))}
           totalCurtidas={item.rows.length}
-          tempoInteracao={formatarDataComentarioCurta(item.created_at)}
+          tempoInteracao={formatarDataAtividades(item.created_at)}
           modoMinhaConta={modoMinhaConta}
           modoColetivo
         />
@@ -1052,7 +1019,7 @@ export default function AtividadesPage() {
             texto={textoPost}
             postId={r.alvo_id}
             categoriaRotulo={cat}
-            tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+            tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
           />
         )
@@ -1069,7 +1036,7 @@ export default function AtividadesPage() {
             hrefDonor={hrefD}
             texto={textoPost}
             postId={r.alvo_id}
-            tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+            tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
           />
         )
@@ -1092,7 +1059,7 @@ export default function AtividadesPage() {
             hrefDonor={hrefD}
             postId={r.alvo_id}
             meta={meta}
-            tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+            tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
           />
         )
@@ -1119,7 +1086,7 @@ export default function AtividadesPage() {
             previewTipo={previewTipo}
             previewUrl={prevUrl}
             previewTexto={prevTexto || textoPost}
-            tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+            tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
           />
         )
@@ -1145,7 +1112,7 @@ export default function AtividadesPage() {
           donorUsername={donor?.username ?? 'usuario'}
           hrefInteractor={hrefUsuario(r.autor_id)}
           hrefDonor={hrefUsuario(r.usuario_id)}
-          tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+          tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
         />
       )
@@ -1168,7 +1135,7 @@ export default function AtividadesPage() {
           textoComentario={texto}
           postId={postId || r.alvo_id}
           comentarioId={r.alvo_id}
-          tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+          tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
         />
       )
@@ -1199,7 +1166,7 @@ export default function AtividadesPage() {
           textoComentario={texto}
           postId={postId}
           comentarioId={comentarioId}
-          tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+          tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
         />
       )
@@ -1223,36 +1190,9 @@ export default function AtividadesPage() {
           seguidoUsuarioId={seguidoId}
           seguidoTipo={seguidoTipo}
           empresaId={empId}
-          tempoInteracao={formatarDataComentarioCurta(r.created_at)}
+          tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
           meuUsuarioId={meuId}
-        />
-      )
-    }
-
-    if (r.tipo === 'avaliou') {
-      const ex = r.dados_extras ?? {}
-      const empId = String(r.alvo_id)
-      const em = empresaMap[empId]
-      const nota = typeof ex.nota === 'number' ? ex.nota : Number(ex.nota) || 5
-      const feedback =
-        ex.feedback != null
-          ? String(ex.feedback)
-          : ex.comentario != null
-            ? String(ex.comentario)
-            : null
-      return (
-        <AtividadeAvaliacao
-          key={r.id}
-          usuarioAtorId={r.autor_id}
-          usernameAtor={ator?.username ?? 'usuario'}
-          interactorFoto={ator?.foto_perfil_url ?? null}
-          hrefAtor={hrefUsuario(r.autor_id)}
-          nomeEmpresa={em?.nome ?? 'Empresa'}
-          empresaId={empId}
-          nota={nota}
-          feedback={feedback}
-          tempoInteracao={formatarDataComentarioCurta(r.created_at)}
         />
       )
     }
