@@ -168,6 +168,8 @@ function iniciaisRotulo(rotulo) {
  *   onTimerFim?: () => void
  *   timerPlaybackKey?: number
  * }} props
+ * @remarks A ordem da fila (mais antigo → mais recente) e o índice inicial vêm do autor do feed
+ *   (`montarPackStoryAutor` em `feed/page.tsx`), não deste componente.
  */
 export default function StoryViewer({
   story,

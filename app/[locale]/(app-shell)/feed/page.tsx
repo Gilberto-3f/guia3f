@@ -486,7 +486,7 @@ function FeedPageInner() {
     return mapped
   }, [])
 
-  /** Fila de stories de um autor (antigo → novo), começando no primeiro não visto. */
+  /** Fila de stories de um autor (antigo → novo); sempre abre no mais antigo (índice 0). */
   const montarPackStoryAutor = useCallback(
     async (autorUsuarioId: string): Promise<{ ids: string[]; index: number; data: StoryViewerState } | null> => {
       const { data: rows, error } = await supabase
@@ -498,15 +498,13 @@ function FeedPageInner() {
       if (error || !rows?.length) return null
       const asc = rows.filter((r) => !isTipoVideoPost((r as { tipo?: string }).tipo))
       if (asc.length === 0) return null
-      const startId = escolherIdStoryInicialPorEmail(asc, email) ?? String((asc[0] as { id: unknown }).id)
       const ids = asc.map((r) => String((r as { id: unknown }).id))
-      let index = ids.indexOf(startId)
-      if (index < 0) index = 0
+      const index = 0
       const data = await carregarStoryPorId(ids[index])
       if (!data) return null
       return { ids, index, data }
     },
-    [email, carregarStoryPorId]
+    [carregarStoryPorId]
   )
 
   const abrirStory = useCallback(
@@ -527,17 +525,7 @@ function FeedPageInner() {
       }
       const pack = await montarPackStoryAutor(autorId)
       if (!pack) return
-      const { ids } = pack
-      let index = pack.index
-      let data = pack.data
-      if (ids.includes(id)) {
-        const idx = ids.indexOf(id)
-        const mapped = await carregarStoryPorId(id)
-        if (mapped) {
-          index = idx
-          data = mapped
-        }
-      }
+      const { ids, index, data } = pack
       const filaAutores = meta?.filaAutores?.length ? meta.filaAutores : [autorId]
       const filaAutorIndex =
         meta?.filaAutores?.length && typeof meta.filaAutorIndex === 'number' && meta.filaAutorIndex >= 0
