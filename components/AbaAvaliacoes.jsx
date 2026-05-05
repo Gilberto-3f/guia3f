@@ -69,6 +69,8 @@ export default function AbaAvaliacoes({
     getUsuario()
   }, [])
 
+  const carregarSeqRef = useRef(0)
+
   const carregarAvaliacoes = useCallback(async (opts) => {
     if (!empresaId) return
     const silent = Boolean(opts && opts.silent)
