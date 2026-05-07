@@ -158,13 +158,13 @@ export default function AbaAvaliacoes({
         const aids = rows.map((r) => r.id)
         const { data: respRows, error: respErr } = await supabase
           .from('avaliacao_respostas')
-          .select('id, avaliacao_id, texto')
+          .select('id, avaliacao_id, resposta_text')
           .in('avaliacao_id', aids)
           .eq('empresa_id', empresaId)
 
         if (!respErr && respRows) {
           for (const r of respRows) {
-            respostaPorAvaliacao.set(String(r.avaliacao_id), { id: String(r.id), texto: String(r.texto ?? '') })
+            respostaPorAvaliacao.set(String(r.avaliacao_id), { id: String(r.id), texto: String(r.resposta_text ?? '') })
           }
         }
       }
@@ -389,7 +389,7 @@ export default function AbaAvaliacoes({
           avaliacao_id: avaliacaoIdParam,
           empresa_id: empresaId,
           autor_usuario_id: usuarioId,
-          texto,
+          resposta_text: texto,
         },
         { onConflict: 'avaliacao_id' }
       )
