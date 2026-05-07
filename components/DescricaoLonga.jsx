@@ -9,5 +9,5 @@ export default function DescricaoLonga({ descricao }) {
   const textoExibido =
     descricao.length > 350 ? `${descricao.substring(0, 350)}...` : descricao
 
-  return <p className="text-sm leading-relaxed text-gray-600">{textoExibido}</p>
+  return <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-600">{textoExibido}</p>
 }
