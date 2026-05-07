@@ -672,6 +672,7 @@ export default function AtividadesPage() {
         .select('*')
         .eq('usuario_id', uid)
         .neq('tipo', 'avaliou')
+        .neq('tipo', 'seguiu_empresa')
         .order('created_at', { ascending: false })
         .range(0, ATIVIDADES_LIMITE_MINHA_CONTA - 1),
     ])
@@ -1168,6 +1169,37 @@ export default function AtividadesPage() {
           comentarioId={comentarioId}
           tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
+        />
+      )
+    }
+
+    if (r.tipo === 'seguiu_empresa') {
+      const ex = r.dados_extras ?? {}
+      const seguidorId = typeof ex.seguidor_id === 'string' ? ex.seguidor_id : r.autor_id
+      const empresaIdStr =
+        typeof ex.empresa_id === 'string' ? ex.empresa_id : typeof r.alvo_id === 'string' ? r.alvo_id : ''
+      const usernameSeg =
+        typeof ex.seguidor_username === 'string' && ex.seguidor_username.trim() !== ''
+          ? ex.seguidor_username.trim()
+          : (perfilMap[seguidorId]?.username ?? 'usuario')
+      const usernameEmp =
+        typeof ex.empresa_username === 'string' && ex.empresa_username.trim() !== ''
+          ? ex.empresa_username.trim()
+          : 'empresa'
+      const uSeg = perfilMap[seguidorId]
+      return (
+        <AtividadeSeguidor
+          key={r.id}
+          seguidorUsuarioId={seguidorId}
+          usernameSeguidor={usernameSeg}
+          seguidorFoto={uSeg?.foto_perfil_url ?? null}
+          usernameSeguido={usernameEmp}
+          seguidoUsuarioId={empresaIdStr || seguidorId}
+          seguidoTipo="empresa"
+          empresaId={empresaIdStr || null}
+          tempoInteracao={formatarDataAtividades(r.created_at)}
+          modoMinhaConta={modoMinhaConta}
+          meuUsuarioId={meuId}
         />
       )
     }

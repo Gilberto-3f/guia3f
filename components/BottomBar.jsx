@@ -197,6 +197,7 @@ export default function BottomBar() {
               .eq('usuario_id', uid)
               .eq('lida', false)
               .neq('tipo', 'avaliou')
+              .neq('tipo', 'seguiu_empresa')
             if (!cErr && typeof count === 'number') {
               setNaoLidasAtividades(count)
             } else if (ativo) {
