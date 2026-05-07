@@ -3,8 +3,7 @@
 import { useState } from 'react'
 import { Link, useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
-import ModalConteudo from '@/components/atividades/ModalConteudo'
-import AvaliacaoCard from '@/components/AvaliacaoCard'
+import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
 /**
  * @param {{
@@ -32,7 +31,6 @@ export default function AtividadeCurtiuAvaliacao({
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
-  const verHref = `/perfil/atividades/${encodeURIComponent(postId)}`
   const nota = meta && typeof meta.nota === 'number' ? meta.nota : Number(meta?.nota) || 0
   const feedback =
     meta && typeof meta.feedback === 'string'
@@ -41,6 +39,7 @@ export default function AtividadeCurtiuAvaliacao({
         ? meta.comentario
         : ''
   const estrelas = '⭐'.repeat(Math.min(5, Math.max(1, Math.round(Number(nota)) || 1)))
+  const resumoModal = modoMinhaConta ? 'curtiu sua avaliação' : `curtiu avaliação de @${donorUsername}`
 
   return (
     <>
@@ -87,9 +86,13 @@ export default function AtividadeCurtiuAvaliacao({
           </div>
         </div>
       </div>
-      <ModalConteudo aberto={modal} onFechar={() => setModal(false)} titulo="Avaliação" verNoFeedHref={verHref}>
-        {meta && typeof meta === 'object' ? <AvaliacaoCard meta={meta} /> : <p className="text-base text-gray-600">Sem detalhes.</p>}
-      </ModalConteudo>
+      <ModalVisualizacao
+        aberto={modal}
+        onFechar={() => setModal(false)}
+        postIds={[postId]}
+        interacaoUsuario={interactorUsername}
+        interacaoResumo={resumoModal}
+      />
     </>
   )
 }
