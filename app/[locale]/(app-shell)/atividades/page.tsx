@@ -671,8 +671,8 @@ export default function AtividadesPage() {
         .from('atividades')
         .select('*')
         .eq('usuario_id', uid)
-        .neq('tipo', 'avaliou')
-        .neq('tipo', 'seguiu_empresa')
+        /* Um único `not…in`: dois `.neq('tipo', …)` no mesmo campo podem colidir no PostgREST. */
+        .not('tipo', 'in', '(avaliou,seguiu_empresa)')
         .order('created_at', { ascending: false })
         .range(0, ATIVIDADES_LIMITE_MINHA_CONTA - 1),
     ])
@@ -691,7 +691,21 @@ export default function AtividadesPage() {
     }
 
     const amigos = (amigosRes.data ?? []) as AtividadeRow[]
-    const minha = (minhaRes.data ?? []) as AtividadeRow[]
+    const minha = (minhaRes.data ?? []).filter((r) => {
+      if (r.tipo === 'avaliou' || r.tipo === 'seguiu_empresa') return false
+      const ex = r.dados_extras
+      if (
+        r.tipo === 'seguiu' &&
+        ex &&
+        typeof ex === 'object' &&
+        String((ex as Record<string, unknown>).seguido_tipo) === 'empresa' &&
+        r.usuario_id === uid &&
+        r.autor_id === uid
+      ) {
+        return false
+      }
+      return true
+    }) as AtividadeRow[]
 
     logDiagAmigos('após parse', { uid, seguindo, amigosLen: amigos.length, res: amigosRes })
 
