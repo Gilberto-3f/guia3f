@@ -112,14 +112,45 @@ export default function AbaAvaliacoes({
       }
 
       const uids = [...new Set(rows.map((r) => r.usuario_id).filter(Boolean))]
-      /** @type {Map<string, { nome: string, username: string, foto: string | null }>} */
-      const perfilPorUsuario = new Map()
+      // FIX: Renderiza rápido com dados mínimos e enriquece perfis/respostas em background (reduz "tempo até primeira UI").
+      const completasMinimas = rows.map((av) => ({
+        id: av.id,
+        nota: av.nota,
+        feedback: av.feedback,
+        created_at: av.created_at,
+        avaliador_tipo: av.avaliador_tipo,
+        usuario_id: av.usuario_id,
+        avaliador: { nome: 'Usuário', username: 'usuario', foto_url: null },
+        resposta: null,
+      }))
 
-      if (uids.length) {
-        const [turRes, profRes, usrRes] = await Promise.all([
+      if (seq !== carregarSeqRef.current) return
+
+      const totalCount = rows.length
+      setTotal(totalCount)
+      setMedia(totalCount > 0 ? soma / totalCount : 0)
+      setDistribuicao(dist)
+      setAvaliacoes(completasMinimas)
+
+      // FIX: Enriquecimento paralelo (perfis + respostas) após a UI já ter sido renderizada.
+      void (async () => {
+        if (uids.length === 0 || rows.length === 0) return
+
+        /** @type {Map<string, { nome: string, username: string, foto: string | null }>} */
+        const perfilPorUsuario = new Map()
+
+        const [turRes, profRes, usrRes, respRes] = await Promise.all([
           supabase.from('turistas').select('usuario_id, nome_completo, nome_usuario, foto_perfil_url').in('usuario_id', uids),
           supabase.from('profissionais').select('usuario_id, nome_completo, nome_usuario, foto_perfil_url').in('usuario_id', uids),
           supabase.from('usuarios').select('id, email').in('id', uids),
+          supabase
+            .from('avaliacao_respostas')
+            .select('id, avaliacao_id, resposta_text')
+            .in(
+              'avaliacao_id',
+              rows.map((r) => r.id)
+            )
+            .eq('empresa_id', empresaId),
         ])
 
         for (const t of turRes.data || []) {
@@ -150,47 +181,30 @@ export default function AbaAvaliacoes({
           const stub = email ? email.split('@')[0] : 'Usuário'
           perfilPorUsuario.set(uid, { nome: stub, username: stub, foto: null })
         }
-      }
 
-      /** @type {Map<string, { id: string, texto: string }>} */
-      const respostaPorAvaliacao = new Map()
-      if (rows.length) {
-        const aids = rows.map((r) => r.id)
-        const { data: respRows, error: respErr } = await supabase
-          .from('avaliacao_respostas')
-          .select('id, avaliacao_id, resposta_text')
-          .in('avaliacao_id', aids)
-          .eq('empresa_id', empresaId)
-
-        if (!respErr && respRows) {
-          for (const r of respRows) {
+        /** @type {Map<string, { id: string, texto: string }>} */
+        const respostaPorAvaliacao = new Map()
+        if (!respRes.error && respRes.data) {
+          for (const r of respRes.data) {
             respostaPorAvaliacao.set(String(r.avaliacao_id), { id: String(r.id), texto: String(r.resposta_text ?? '') })
           }
         }
-      }
 
-      const completas = rows.map((av) => {
-        const uid = String(av.usuario_id)
-        const perf = perfilPorUsuario.get(uid) || { nome: 'Usuário', username: 'usuario', foto: null }
-        return {
-          id: av.id,
-          nota: av.nota,
-          feedback: av.feedback,
-          created_at: av.created_at,
-          avaliador_tipo: av.avaliador_tipo,
-          usuario_id: av.usuario_id,
-          avaliador: { nome: perf.nome, username: perf.username, foto_url: perf.foto },
-          resposta: respostaPorAvaliacao.get(String(av.id)) ?? null,
-        }
-      })
+        if (seq !== carregarSeqRef.current) return
 
-      if (seq !== carregarSeqRef.current) return
-
-      const totalCount = rows.length
-      setTotal(totalCount)
-      setMedia(totalCount > 0 ? soma / totalCount : 0)
-      setDistribuicao(dist)
-      setAvaliacoes(completas)
+        setAvaliacoes((prev) =>
+          prev.map((a) => {
+            const uid = String(a.usuario_id)
+            const perf = perfilPorUsuario.get(uid)
+            const resp = respostaPorAvaliacao.get(String(a.id)) ?? null
+            return {
+              ...a,
+              avaliador: perf ? { nome: perf.nome, username: perf.username, foto_url: perf.foto } : a.avaliador,
+              resposta: resp,
+            }
+          })
+        )
+      })()
 
       if (usuarioId) {
         const existente = rows.find((a) => a.usuario_id === usuarioId)
@@ -310,22 +324,58 @@ export default function AbaAvaliacoes({
     if (!usuarioId || !confirmExcluirId) return
     setExcluindo(true)
     try {
+      // FIX: Exclusão otimista (remove imediatamente da UI).
+      const idExcluir = String(confirmExcluirId)
+      const snapshot = avaliacoes
+      setConfirmExcluirId(null)
+      setMenuAbertoId(null)
+      setAvaliacoes((prev) => {
+        const next = prev.filter((a) => String(a.id) !== idExcluir)
+        const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        let soma = 0
+        for (const a of next) {
+          soma += Number(a.nota) || 0
+          const k = /** @type {1 | 2 | 3 | 4 | 5} */ (Number(a.nota))
+          if (k >= 1 && k <= 5) dist[k] = (dist[k] || 0) + 1
+        }
+        const totalCount = next.length
+        setDistribuicao(dist)
+        setTotal(totalCount)
+        setMedia(totalCount > 0 ? soma / totalCount : 0)
+        return next
+      })
+      setJaAvaliou(false)
+
       const { error } = await supabase
         .from('avaliacoes')
         .delete()
-        .eq('id', confirmExcluirId)
+        .eq('id', idExcluir)
         .eq('usuario_id', usuarioId)
         .eq('alvo_id', empresaId)
         .eq('alvo_tipo', 'empresa')
       if (error) {
+        // FIX: Rollback caso falhe.
+        setAvaliacoes(snapshot)
         setErroSalvarAvaliacao(error.message)
         return
       }
-      setConfirmExcluirId(null)
-      setJaAvaliou(false)
-      await carregarAvaliacoes({ silent: true })
+
+      // FIX: Se a avaliação foi compartilhada no feed, tenta remover post(s) relacionados do autor (soft delete).
+      // (Best-effort: depende do schema/índice JSONB no PostgREST.)
+      try {
+        await supabase
+          .from('posts')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('autor_id', usuarioId)
+          .eq('tipo', 'avaliacao')
+          .contains('avaliacao_meta', { avaliacao_id: idExcluir })
+      } catch {
+        // silêncio: o feed também pode ser corrigido por trigger no banco
+      }
+
       window.dispatchEvent(new CustomEvent('avaliacao-enviada', { detail: { empresaId } }))
       window.dispatchEvent(new Event('perfil-atualizado'))
+      window.dispatchEvent(new Event('guia-feed-rede-reload'))
     } finally {
       setExcluindo(false)
     }

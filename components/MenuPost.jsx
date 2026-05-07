@@ -21,6 +21,7 @@ export const POST_DELETED_EVENT = 'post-deleted'
  *   onApagou?: () => void
  *   onSeguiuEmpresa?: () => void
  *   onSeguiuUsuario?: () => void
+ *   postTipo?: string | null
  *   onEditar?: () => void
  *   onSalvar?: () => void
  *   onRepublicar?: () => void
@@ -35,6 +36,7 @@ export default function MenuPost({
   empresaAlvo,
   usuarioAlvo,
   salvo = false,
+  postTipo = null,
   onApagou,
   onSeguiuEmpresa,
   onSeguiuUsuario,
@@ -128,6 +130,9 @@ export default function MenuPost({
 
   if (bloqueado) return null
 
+  // FIX: Avaliações compartilhadas no feed não devem ter "Editar" (edição é na página da empresa/perfil alvo).
+  const podeEditar = meuPost && String(postTipo ?? '').toLowerCase() !== 'avaliacao'
+
   return (
     <div className="relative" ref={ref}>
       <button
@@ -142,17 +147,19 @@ export default function MenuPost({
         <div className="absolute right-0 top-full z-50 mt-2 w-56 min-w-[200px] overflow-hidden rounded-lg bg-[#0097b2] py-1 text-white shadow-lg">
           {meuPost ? (
             <>
-              <button
-                type="button"
-                onClick={() => {
-                  setAberto(false)
-                  onEditar?.()
-                }}
-                className={itemClass}
-              >
-                <Pencil size={16} className="text-white" aria-hidden />
-                <span>Editar</span>
-              </button>
+              {podeEditar ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAberto(false)
+                    onEditar?.()
+                  }}
+                  className={itemClass}
+                >
+                  <Pencil size={16} className="text-white" aria-hidden />
+                  <span>Editar</span>
+                </button>
+              ) : null}
               <button type="button" onClick={() => void excluir()} className={itemClass}>
                 <Trash2 size={16} className="text-white" aria-hidden />
                 <span>{passoExcluir === 0 ? 'Excluir…' : 'Confirmar exclusão'}</span>

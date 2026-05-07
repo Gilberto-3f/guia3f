@@ -663,6 +663,8 @@ export default function PostCard({
     empresaAlvo: empresaId ? { empresaId, jaSegue: jaSegueEmpresa } : null,
     usuarioAlvo,
     salvo,
+    // FIX: Menu precisa saber o tipo para esconder "Editar" em avaliações.
+    postTipo: post?.tipo ?? null,
     onApagou: () => onRemove?.(post.id),
     onSeguiuEmpresa: () => setTickSeguir((t) => t + 1),
     onSeguiuUsuario: () => setTickSeguir((t) => t + 1),
