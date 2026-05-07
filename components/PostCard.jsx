@@ -16,6 +16,16 @@ import AvatarImage from '@/components/AvatarImage'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { getPerfilHref } from '@/lib/perfil-utils'
 
+/** UUID da empresa avaliada no `avaliacao_meta`, ou `null`. */
+function postAvaliacaoEmpresaAlvoId(p) {
+  const t = String(p?.tipo ?? '').toLowerCase()
+  const meta = p?.avaliacao_meta
+  if (t !== 'avaliacao' || !meta || typeof meta !== 'object' || Array.isArray(meta)) return null
+  const eid = /** @type {Record<string, unknown>} */ (meta).empresa_id
+  const s = eid != null ? String(eid).trim() : ''
+  return s !== '' ? s : null
+}
+
 /**
  * Texto do post com “Ver mais” / “Ver menos” (mede overflow real, estilo Instagram).
  * @param {{ texto: string, postId: string, maxLines: 5 | 20, className?: string }} props
@@ -175,24 +185,32 @@ export default function PostCard({
   }, [mostrarSeguirUsuario, autorId, seguidoTipo, jaSegueUsuario])
 
   /** `empresa_id` do alvo quando o post é avaliação compartilhada (para foto/nome atualizados). */
-  const avaliacaoAlvoEmpresaId = useMemo(() => {
-    const t = String(post?.tipo ?? '').toLowerCase()
-    const meta = post?.avaliacao_meta
-    if (t !== 'avaliacao' || !meta || typeof meta !== 'object' || Array.isArray(meta)) return null
-    const eid = /** @type {Record<string, unknown>} */ (meta).empresa_id
-    const s = eid != null ? String(eid).trim() : ''
-    return s !== '' ? s : null
-  }, [post?.tipo, post?.id, post?.avaliacao_meta])
+  const avaliacaoAlvoEmpresaId = useMemo(
+    () => postAvaliacaoEmpresaAlvoId(post),
+    [post?.tipo, post?.id, post?.avaliacao_meta]
+  )
 
   const [avaliacaoAlvoEmpresaLive, setAvaliacaoAlvoEmpresaLive] = useState(
     /** @type {{ foto_url?: string | null, nome_fantasia?: string | null, nome_usuario?: string | null } | null} */ (null)
   )
 
-  useEffect(() => {
+  /** Com `empresa_id`, só mostramos o bloco da empresa depois do fetch — evita flash do `avaliacao_meta` antigo. */
+  const [avaliacaoEmpresaDadosProntos, setAvaliacaoEmpresaDadosProntos] = useState(
+    () => !postAvaliacaoEmpresaAlvoId(post)
+  )
+
+  useLayoutEffect(() => {
     if (!avaliacaoAlvoEmpresaId) {
+      setAvaliacaoEmpresaDadosProntos(true)
       setAvaliacaoAlvoEmpresaLive(null)
       return
     }
+    setAvaliacaoEmpresaDadosProntos(false)
+    setAvaliacaoAlvoEmpresaLive(null)
+  }, [avaliacaoAlvoEmpresaId, post.id])
+
+  useEffect(() => {
+    if (!avaliacaoAlvoEmpresaId) return
     let cancelled = false
     void supabase
       .from('empresas')
@@ -201,13 +219,13 @@ export default function PostCard({
       .maybeSingle()
       .then(({ data, error }) => {
         if (cancelled) return
-        if (error || !data) setAvaliacaoAlvoEmpresaLive(null)
-        else setAvaliacaoAlvoEmpresaLive(data)
+        setAvaliacaoAlvoEmpresaLive(error || !data ? null : data)
+        setAvaliacaoEmpresaDadosProntos(true)
       })
     return () => {
       cancelled = true
     }
-  }, [avaliacaoAlvoEmpresaId])
+  }, [avaliacaoAlvoEmpresaId, post.id])
 
   useEffect(() => {
     setNComent(post.total_comentarios ?? 0)
@@ -881,8 +899,12 @@ export default function PostCard({
         : ''
     const fotoAlvoMeta = meta.foto_url != null && String(meta.foto_url).trim() !== '' ? String(meta.foto_url) : null
 
+    const aguardandoEmpresaAoVivo = Boolean(empresaAlvoId) && !avaliacaoEmpresaDadosProntos
+
     const nomeFantasiaAlvo =
-      live?.nome_fantasia != null && String(live.nome_fantasia).trim() !== ''
+      !aguardandoEmpresaAoVivo &&
+      live?.nome_fantasia != null &&
+      String(live.nome_fantasia).trim() !== ''
         ? String(live.nome_fantasia).trim()
         : nomeFantasiaAlvoMeta
     const nomeUsuarioAlvoLive =
@@ -910,53 +932,71 @@ export default function PostCard({
             </div>
           </div>
           <div className="mb-3 flex justify-center">
-            <div className="flex w-full max-w-sm items-center gap-3 rounded-lg bg-gray-50 p-3">
-            {fotoAlvo ? (
-              empresaAlvoId ? (
-                <Link
-                  href={`/empresa/${empresaAlvoId}`}
-                  className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
-                  aria-label={`Ver empresa ${nomeFantasiaAlvo}`}
-                >
-                  <Image src={fotoAlvo} alt="" width={40} height={40} className="h-full w-full object-cover" />
-                </Link>
+            <div
+              className="flex w-full max-w-sm items-center gap-3 rounded-lg bg-gray-50 p-3"
+              aria-busy={aguardandoEmpresaAoVivo}
+            >
+              {aguardandoEmpresaAoVivo ? (
+                <>
+                  <div
+                    className="h-10 w-10 shrink-0 animate-pulse rounded-md bg-gray-200"
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1 space-y-2 py-0.5">
+                    <div className="h-4 max-w-[12rem] animate-pulse rounded bg-gray-200" aria-hidden />
+                    <div className="h-3 max-w-[8rem] animate-pulse rounded bg-gray-200" aria-hidden />
+                  </div>
+                </>
               ) : (
-                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                  <Image src={fotoAlvo} alt="" width={40} height={40} className="h-full w-full object-cover" />
-                </div>
-              )
-            ) : (
-              <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gray-200 text-xs font-medium text-gray-500"
-                aria-hidden
-              >
-                …
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              {empresaAlvoId ? (
-                <Link
-                  href={`/empresa/${empresaAlvoId}`}
-                  className="block truncate font-semibold text-gray-900 hover:underline"
-                >
-                  {nomeFantasiaAlvo}
-                </Link>
-              ) : (
-                <div className="truncate font-semibold text-gray-900">{nomeFantasiaAlvo}</div>
+                <>
+                  {fotoAlvo ? (
+                    empresaAlvoId ? (
+                      <Link
+                        href={`/empresa/${empresaAlvoId}`}
+                        className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                        aria-label={`Ver empresa ${nomeFantasiaAlvo}`}
+                      >
+                        <Image src={fotoAlvo} alt="" width={40} height={40} className="h-full w-full object-cover" />
+                      </Link>
+                    ) : (
+                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                        <Image src={fotoAlvo} alt="" width={40} height={40} className="h-full w-full object-cover" />
+                      </div>
+                    )
+                  ) : (
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gray-200 text-xs font-medium text-gray-500"
+                      aria-hidden
+                    >
+                      …
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    {empresaAlvoId ? (
+                      <Link
+                        href={`/empresa/${empresaAlvoId}`}
+                        className="block truncate font-semibold text-gray-900 hover:underline"
+                      >
+                        {nomeFantasiaAlvo}
+                      </Link>
+                    ) : (
+                      <div className="truncate font-semibold text-gray-900">{nomeFantasiaAlvo}</div>
+                    )}
+                    {nomeUsuarioAlvo ? (
+                      empresaAlvoId ? (
+                        <Link
+                          href={`/empresa/${empresaAlvoId}`}
+                          className="mt-0.5 block truncate text-sm text-gray-500 hover:text-[#0097b2] hover:underline"
+                        >
+                          @{nomeUsuarioAlvo}
+                        </Link>
+                      ) : (
+                        <span className="mt-0.5 block truncate text-sm text-gray-500">@{nomeUsuarioAlvo}</span>
+                      )
+                    ) : null}
+                  </div>
+                </>
               )}
-              {nomeUsuarioAlvo ? (
-                empresaAlvoId ? (
-                  <Link
-                    href={`/empresa/${empresaAlvoId}`}
-                    className="mt-0.5 block truncate text-sm text-gray-500 hover:text-[#0097b2] hover:underline"
-                  >
-                    @{nomeUsuarioAlvo}
-                  </Link>
-                ) : (
-                  <span className="mt-0.5 block truncate text-sm text-gray-500">@{nomeUsuarioAlvo}</span>
-                )
-              ) : null}
-            </div>
             </div>
           </div>
           {feedbackText ? (
