@@ -174,6 +174,41 @@ export default function PostCard({
     return { seguidoId: autorId, seguidoTipo, jaSegue: jaSegueUsuario }
   }, [mostrarSeguirUsuario, autorId, seguidoTipo, jaSegueUsuario])
 
+  /** `empresa_id` do alvo quando o post é avaliação compartilhada (para foto/nome atualizados). */
+  const avaliacaoAlvoEmpresaId = useMemo(() => {
+    const t = String(post?.tipo ?? '').toLowerCase()
+    const meta = post?.avaliacao_meta
+    if (t !== 'avaliacao' || !meta || typeof meta !== 'object' || Array.isArray(meta)) return null
+    const eid = /** @type {Record<string, unknown>} */ (meta).empresa_id
+    const s = eid != null ? String(eid).trim() : ''
+    return s !== '' ? s : null
+  }, [post?.tipo, post?.id, post?.avaliacao_meta])
+
+  const [avaliacaoAlvoEmpresaLive, setAvaliacaoAlvoEmpresaLive] = useState(
+    /** @type {{ foto_url?: string | null, nome_fantasia?: string | null, nome_usuario?: string | null } | null} */ (null)
+  )
+
+  useEffect(() => {
+    if (!avaliacaoAlvoEmpresaId) {
+      setAvaliacaoAlvoEmpresaLive(null)
+      return
+    }
+    let cancelled = false
+    void supabase
+      .from('empresas')
+      .select('foto_url, nome_fantasia, nome_usuario')
+      .eq('id', avaliacaoAlvoEmpresaId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error || !data) setAvaliacaoAlvoEmpresaLive(null)
+        else setAvaliacaoAlvoEmpresaLive(data)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [avaliacaoAlvoEmpresaId])
+
   useEffect(() => {
     setNComent(post.total_comentarios ?? 0)
   }, [post.total_comentarios, post.id])
@@ -837,13 +872,27 @@ export default function PostCard({
           ? String(meta.comentario)
           : ''
     const empresaAlvoId = meta.empresa_id != null && String(meta.empresa_id) !== '' ? String(meta.empresa_id) : null
-    const nomeFantasiaAlvo =
+    const live = avaliacaoAlvoEmpresaLive
+    const nomeFantasiaAlvoMeta =
       meta.nome_fantasia != null && String(meta.nome_fantasia).trim() !== '' ? String(meta.nome_fantasia).trim() : 'Estabelecimento'
-    const nomeUsuarioAlvo =
+    const nomeUsuarioAlvoMeta =
       meta.nome_usuario != null && String(meta.nome_usuario).trim() !== ''
         ? String(meta.nome_usuario).trim().replace(/^@+/, '')
         : ''
-    const fotoAlvo = meta.foto_url != null && String(meta.foto_url).trim() !== '' ? String(meta.foto_url) : null
+    const fotoAlvoMeta = meta.foto_url != null && String(meta.foto_url).trim() !== '' ? String(meta.foto_url) : null
+
+    const nomeFantasiaAlvo =
+      live?.nome_fantasia != null && String(live.nome_fantasia).trim() !== ''
+        ? String(live.nome_fantasia).trim()
+        : nomeFantasiaAlvoMeta
+    const nomeUsuarioAlvoLive =
+      live?.nome_usuario != null && String(live.nome_usuario).trim() !== ''
+        ? String(live.nome_usuario).trim().replace(/^@+/, '')
+        : ''
+    const nomeUsuarioAlvo = nomeUsuarioAlvoLive !== '' ? nomeUsuarioAlvoLive : nomeUsuarioAlvoMeta
+
+    const fotoAlvoLive = live?.foto_url != null && String(live.foto_url).trim() !== '' ? String(live.foto_url) : null
+    const fotoAlvo = fotoAlvoLive ?? fotoAlvoMeta
 
     return (
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
@@ -885,12 +934,21 @@ export default function PostCard({
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <div className="truncate font-semibold text-gray-900">{nomeFantasiaAlvo}</div>
+              {empresaAlvoId ? (
+                <Link
+                  href={`/empresa/${empresaAlvoId}`}
+                  className="block truncate font-semibold text-gray-900 hover:underline"
+                >
+                  {nomeFantasiaAlvo}
+                </Link>
+              ) : (
+                <div className="truncate font-semibold text-gray-900">{nomeFantasiaAlvo}</div>
+              )}
               {nomeUsuarioAlvo ? (
                 empresaAlvoId ? (
                   <Link
                     href={`/empresa/${empresaAlvoId}`}
-                    className="mt-0.5 block truncate text-sm text-gray-500 hover:text-[#0097b2]"
+                    className="mt-0.5 block truncate text-sm text-gray-500 hover:text-[#0097b2] hover:underline"
                   >
                     @{nomeUsuarioAlvo}
                   </Link>
