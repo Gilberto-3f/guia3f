@@ -176,7 +176,8 @@ export default function EmpresaPage() {
   const nomeFantasia = String(empresa.nome_fantasia ?? '')
   const nomeUsuario = String(empresa.nome_usuario ?? '')
   const fotoUrl = empresa.foto_url ? String(empresa.foto_url) : null
-  const descLonga = empresa.descricao_longa != null ? String(empresa.descricao_longa) : null
+  const descLongaRaw = empresa.descricao_longa != null ? String(empresa.descricao_longa) : ''
+  const descLonga = descLongaRaw.trim() !== '' ? descLongaRaw : null
   const notaMedia = Number(empresa.nota_media) || 0
   const totalAval = Number(empresa.total_avaliacoes) || 0
   const totalSeg = totalSeguidores != null ? totalSeguidores : Number(empresa.total_seguidores) || 0
