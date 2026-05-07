@@ -264,13 +264,18 @@ export default function AbaAvaliacoes({
     setErroSalvarAvaliacao('')
     try {
       const feedbackSalvar = editFeedback.trim() !== '' ? editFeedback.trim() : null
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('avaliacoes')
         .update({ nota: editNota, feedback: feedbackSalvar })
         .eq('id', String(modalEditarId))
         .eq('usuario_id', usuarioId)
+        .select('id')
       if (error) {
         setErroSalvarAvaliacao(error.message)
+        return
+      }
+      if (!data || data.length === 0) {
+        setErroSalvarAvaliacao('Não foi possível salvar a edição. Tente novamente.')
         return
       }
 
