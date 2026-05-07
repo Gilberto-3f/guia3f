@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { MoreHorizontal } from 'lucide-react'
+import { Ban, Flag, MoreHorizontal, Pencil, Repeat2, Trash2, UserMinus, UserPlus, Bookmark } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 /** Nome do evento global após soft delete bem-sucedido (cascata no estado do feed/perfil). */
@@ -123,17 +123,23 @@ export default function MenuPost({
     onSeguiuUsuario?.()
   }
 
-  const itemClass = 'block w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50'
+  const itemClass =
+    'flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-white transition-colors hover:bg-[#007a8f]'
 
   if (bloqueado) return null
 
   return (
     <div className="relative" ref={ref}>
-      <button type="button" onClick={() => setAberto((v) => !v)} className="rounded p-1 text-gray-500 hover:bg-gray-100" aria-label="Menu">
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        className="rounded p-1 text-gray-500 hover:bg-gray-100"
+        aria-label="Menu"
+      >
         <MoreHorizontal size={22} />
       </button>
       {aberto ? (
-        <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-lg border border-gray-100 bg-white py-1 text-black shadow-lg">
+        <div className="absolute right-0 top-full z-50 mt-2 w-56 min-w-[200px] overflow-hidden rounded-lg bg-[#0097b2] py-1 text-white shadow-lg">
           {meuPost ? (
             <>
               <button
@@ -144,22 +150,34 @@ export default function MenuPost({
                 }}
                 className={itemClass}
               >
-                ✏️ Editar
+                <Pencil size={16} className="text-white" aria-hidden />
+                <span>Editar</span>
               </button>
-              <button type="button" onClick={() => void excluir()} className={`${itemClass} text-red-600`}>
-                {passoExcluir === 0 ? '🗑️ Excluir…' : '🗑️ Confirmar exclusão'}
+              <button type="button" onClick={() => void excluir()} className={itemClass}>
+                <Trash2 size={16} className="text-white" aria-hidden />
+                <span>{passoExcluir === 0 ? 'Excluir…' : 'Confirmar exclusão'}</span>
               </button>
             </>
           ) : (
             <>
               {empresaAlvo ? (
                 <button type="button" onClick={() => void toggleSeguirEmpresa()} className={itemClass}>
-                  {empresaAlvo.jaSegue ? '🔴 Deixar de seguir' : '➕ Seguir'}
+                  {empresaAlvo.jaSegue ? (
+                    <UserMinus size={16} className="text-white" aria-hidden />
+                  ) : (
+                    <UserPlus size={16} className="text-white" aria-hidden />
+                  )}
+                  <span>{empresaAlvo.jaSegue ? 'Deixar de seguir' : 'Seguir'}</span>
                 </button>
               ) : null}
               {usuarioAlvo ? (
                 <button type="button" onClick={() => void toggleSeguirUsuario()} className={itemClass}>
-                  {usuarioAlvo.jaSegue ? '🔴 Deixar de seguir' : '➕ Seguir'}
+                  {usuarioAlvo.jaSegue ? (
+                    <UserMinus size={16} className="text-white" aria-hidden />
+                  ) : (
+                    <UserPlus size={16} className="text-white" aria-hidden />
+                  )}
+                  <span>{usuarioAlvo.jaSegue ? 'Deixar de seguir' : 'Seguir'}</span>
                 </button>
               ) : null}
               <button
@@ -171,7 +189,8 @@ export default function MenuPost({
                 disabled={!meuUsuarioId}
                 className={`${itemClass} disabled:opacity-50`}
               >
-                {salvo ? '🔖 Remover dos salvos' : '🔖 Salvar'}
+                <Bookmark size={16} className="text-white" aria-hidden />
+                <span>{salvo ? 'Remover dos salvos' : 'Salvar'}</span>
               </button>
               <button
                 type="button"
@@ -182,10 +201,12 @@ export default function MenuPost({
                 disabled={!meuUsuarioId}
                 className={`${itemClass} disabled:opacity-50`}
               >
-                ↩️ Repostar
+                <Repeat2 size={16} className="text-white" aria-hidden />
+                <span>Repostar</span>
               </button>
               <button type="button" onClick={denunciar} className={itemClass}>
-                ⚠️ Denunciar
+                <Flag size={16} className="text-white" aria-hidden />
+                <span>Denunciar</span>
               </button>
             </>
           )}

@@ -1113,7 +1113,7 @@ export default function PostCard({
   return (
     <article
       id={`feed-post-${post.id}`}
-      className={comentariosInline ? 'rounded-xl bg-white shadow-sm' : 'overflow-hidden rounded-xl bg-white shadow-sm'}
+      className={comentariosInline ? 'rounded-xl bg-white shadow-sm' : 'rounded-xl bg-white shadow-sm'}
     >
       {cabecalhoAutorFeed}
 
