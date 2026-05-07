@@ -199,14 +199,26 @@ export default function PostCard({
     () => !postAvaliacaoEmpresaAlvoId(post)
   )
 
+  /** Nota/feedback ao vivo (evita divergência do post compartilhado após editar avaliação). */
+  const [avaliacaoAlvoLive, setAvaliacaoAlvoLive] = useState(
+    /** @type {{ nota?: number | null, feedback?: string | null } | null} */ (null)
+  )
+  const [avaliacaoConteudoDadosProntos, setAvaliacaoConteudoDadosProntos] = useState(
+    () => !postAvaliacaoEmpresaAlvoId(post)
+  )
+
   useLayoutEffect(() => {
     if (!avaliacaoAlvoEmpresaId) {
       setAvaliacaoEmpresaDadosProntos(true)
       setAvaliacaoAlvoEmpresaLive(null)
+      setAvaliacaoConteudoDadosProntos(true)
+      setAvaliacaoAlvoLive(null)
       return
     }
     setAvaliacaoEmpresaDadosProntos(false)
     setAvaliacaoAlvoEmpresaLive(null)
+    setAvaliacaoConteudoDadosProntos(false)
+    setAvaliacaoAlvoLive(null)
   }, [avaliacaoAlvoEmpresaId, post.id])
 
   useEffect(() => {
@@ -226,6 +238,32 @@ export default function PostCard({
       cancelled = true
     }
   }, [avaliacaoAlvoEmpresaId, post.id])
+
+  useEffect(() => {
+    if (!avaliacaoAlvoEmpresaId) return
+    const autorUsuarioId = post?.autor?.usuario_id
+    if (!autorUsuarioId) {
+      setAvaliacaoAlvoLive(null)
+      setAvaliacaoConteudoDadosProntos(true)
+      return
+    }
+    let cancelled = false
+    void supabase
+      .from('avaliacoes')
+      .select('nota, feedback')
+      .eq('usuario_id', String(autorUsuarioId))
+      .eq('empresa_id', String(avaliacaoAlvoEmpresaId))
+      .eq('alvo_tipo', 'empresa')
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return
+        setAvaliacaoAlvoLive(error || !data ? null : data)
+        setAvaliacaoConteudoDadosProntos(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [avaliacaoAlvoEmpresaId, post.id, post?.autor?.usuario_id])
 
   useEffect(() => {
     setNComent(post.total_comentarios ?? 0)
@@ -882,13 +920,6 @@ export default function PostCard({
     const meta = /** @type {{ empresa_id?: string, nome_fantasia?: string, nome_usuario?: string | null, foto_url?: string | null, nota?: number, feedback?: string | null, comentario?: string | null }} */ (
       post.avaliacao_meta
     )
-    const notaVal = Math.min(5, Math.max(0, Math.round(Number(meta.nota) || 0)))
-    const feedbackText =
-      meta.feedback != null && String(meta.feedback).trim() !== ''
-        ? String(meta.feedback)
-        : meta.comentario != null && String(meta.comentario).trim() !== ''
-          ? String(meta.comentario)
-          : ''
     const empresaAlvoId = meta.empresa_id != null && String(meta.empresa_id) !== '' ? String(meta.empresa_id) : null
     const live = avaliacaoAlvoEmpresaLive
     const nomeFantasiaAlvoMeta =
@@ -899,7 +930,24 @@ export default function PostCard({
         : ''
     const fotoAlvoMeta = meta.foto_url != null && String(meta.foto_url).trim() !== '' ? String(meta.foto_url) : null
 
-    const aguardandoEmpresaAoVivo = Boolean(empresaAlvoId) && !avaliacaoEmpresaDadosProntos
+    const aguardandoEmpresaAoVivo =
+      Boolean(empresaAlvoId) && (!avaliacaoEmpresaDadosProntos || !avaliacaoConteudoDadosProntos)
+
+    const notaValMeta = Math.min(5, Math.max(0, Math.round(Number(meta.nota) || 0)))
+    const notaValLive = avaliacaoAlvoLive?.nota != null ? Math.min(5, Math.max(0, Math.round(Number(avaliacaoAlvoLive.nota) || 0))) : null
+    const notaVal = notaValLive != null ? notaValLive : notaValMeta
+
+    const feedbackTextMeta =
+      meta.feedback != null && String(meta.feedback).trim() !== ''
+        ? String(meta.feedback)
+        : meta.comentario != null && String(meta.comentario).trim() !== ''
+          ? String(meta.comentario)
+          : ''
+    const feedbackTextLive =
+      avaliacaoAlvoLive?.feedback != null && String(avaliacaoAlvoLive.feedback).trim() !== ''
+        ? String(avaliacaoAlvoLive.feedback)
+        : ''
+    const feedbackText = feedbackTextLive !== '' ? feedbackTextLive : feedbackTextMeta
 
     const nomeFantasiaAlvo =
       !aguardandoEmpresaAoVivo &&

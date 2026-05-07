@@ -294,7 +294,6 @@ export default function AbaAvaliacoes({
       })
 
       setModalEditarId(null)
-      await carregarAvaliacoes({ silent: true })
       window.dispatchEvent(new CustomEvent('avaliacao-enviada', { detail: { empresaId } }))
       window.dispatchEvent(new Event('perfil-atualizado'))
     } finally {
