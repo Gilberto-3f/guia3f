@@ -248,13 +248,37 @@ export default function PostCard({
       return
     }
     let cancelled = false
-    void supabase
-      .from('avaliacoes')
-      .select('nota, feedback')
-      .eq('usuario_id', String(autorUsuarioId))
-      .eq('empresa_id', String(avaliacaoAlvoEmpresaId))
-      .eq('alvo_tipo', 'empresa')
-      .maybeSingle()
+    const uid = String(autorUsuarioId)
+    const alvoId = String(avaliacaoAlvoEmpresaId)
+
+    const fetchPorAlvo = () =>
+      supabase
+        .from('avaliacoes')
+        .select('nota, feedback')
+        .eq('usuario_id', uid)
+        .eq('alvo_id', alvoId)
+        .eq('alvo_tipo', 'empresa')
+        .maybeSingle()
+
+    const fetchPorEmpresaId = () =>
+      supabase
+        .from('avaliacoes')
+        .select('nota, feedback')
+        .eq('usuario_id', uid)
+        .eq('empresa_id', alvoId)
+        .eq('alvo_tipo', 'empresa')
+        .maybeSingle()
+
+    void fetchPorAlvo()
+      .then(({ data, error }) => {
+        if (cancelled) return { data: null, error: error ?? null }
+        if (!error && data) {
+          setAvaliacaoAlvoLive(data)
+          setAvaliacaoConteudoDadosProntos(true)
+          return { data, error: null }
+        }
+        return fetchPorEmpresaId()
+      })
       .then(({ data, error }) => {
         if (cancelled) return
         setAvaliacaoAlvoLive(error || !data ? null : data)
