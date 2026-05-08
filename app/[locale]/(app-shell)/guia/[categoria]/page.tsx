@@ -259,12 +259,13 @@ export default function ListagemCategoriaPage() {
                 ordenacao === 'localizacao' ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
               }`}
             >
-              <MapPin
-                className={`h-6 w-6 text-[#0097b2] ${geoCarregando ? 'animate-pulse' : ''}`}
-                fill="currentColor"
-                stroke="currentColor"
-                aria-hidden
-              />
+              <span className={`relative inline-flex h-6 w-6 items-center justify-center text-[#0097b2] ${geoCarregando ? 'animate-pulse' : ''}`}>
+                <MapPin className="h-6 w-6" fill="currentColor" stroke="currentColor" aria-hidden />
+                <span
+                  className="pointer-events-none absolute left-1/2 top-[44%] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
+                  aria-hidden
+                />
+              </span>
             </button>
           </div>
         </div>

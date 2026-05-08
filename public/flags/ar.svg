@@ -1,23 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Argentina">
-  <defs>
-    <clipPath id="c">
-      <circle cx="32" cy="32" r="32"/>
-    </clipPath>
-  </defs>
-  <g clip-path="url(#c)">
-    <rect width="64" height="64" fill="#ffffff"/>
-    <rect width="64" height="21.33" y="0" fill="#74ACDF"/>
-    <rect width="64" height="21.33" y="42.67" fill="#74ACDF"/>
-    <circle cx="32" cy="32" r="5.5" fill="#F6B40E"/>
-    <g stroke="#C98A00" stroke-width="1.2" stroke-linecap="round">
-      <path d="M32 20v4"/>
-      <path d="M32 40v4"/>
-      <path d="M20 32h4"/>
-      <path d="M40 32h4"/>
-      <path d="M23.5 23.5l2.8 2.8"/>
-      <path d="M37.7 37.7l2.8 2.8"/>
-      <path d="M40.5 23.5l-2.8 2.8"/>
-      <path d="M26.3 37.7l-2.8 2.8"/>
-    </g>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 56" role="img" aria-label="Argentina">
+  <!-- FIX: bandeira retangular (sem clip circular) -->
+  <rect width="96" height="56" fill="#ffffff"/>
+  <rect width="96" height="18.67" y="0" fill="#74ACDF"/>
+  <rect width="96" height="18.67" y="37.33" fill="#74ACDF"/>
+  <circle cx="48" cy="28" r="6" fill="#F6B40E" stroke="#C98A00" stroke-width="1"/>
 </svg>
