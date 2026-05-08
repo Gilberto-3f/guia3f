@@ -131,6 +131,7 @@ export default function ListagemCategoriaPage() {
 
   useEffect(() => {
     // FIX: cache rápido para volta instantânea
+    let cacheFound = false
     try {
       const raw = sessionStorage.getItem(cacheKey)
       if (raw) {
@@ -139,12 +140,14 @@ export default function ListagemCategoriaPage() {
         if (lista) {
           setEmpresas(lista)
           setLoading(false)
+          cacheFound = true
         }
       }
     } catch {
       // ignore
     }
-    void carregarEmpresas({ silent: true })
+    // FIX: no primeiro acesso (sem cache), não usar silent — evita render “vazio” até trocar filtro.
+    void (cacheFound ? carregarEmpresas({ silent: true }) : carregarEmpresas())
   }, [carregarEmpresas, cacheKey])
 
   const empresasOrdenadas = useMemo(() => {
@@ -203,16 +206,16 @@ export default function ListagemCategoriaPage() {
                   type="button"
                   onClick={() => setPais(f.id)}
                   aria-label={f.alt}
-                  className={`relative rounded-md border px-2 py-1 transition ${
-                    ativo ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
+                  className={`relative overflow-hidden transition ${
+                    ativo ? 'ring-2 ring-[#0097b2]' : 'opacity-80 hover:opacity-100'
                   }`}
                 >
                   <Image
                     src={f.src}
                     alt={f.alt}
-                    width={44}
-                    height={44}
-                    className={`h-8 w-11 rounded-sm object-cover ${ativo ? 'brightness-110' : ''}`}
+                    width={72}
+                    height={48}
+                    className={`h-10 w-auto rounded-none object-cover ${ativo ? 'brightness-110' : ''}`}
                   />
                 </button>
               )
@@ -226,7 +229,7 @@ export default function ListagemCategoriaPage() {
                 ordenacao === 'avaliacao' ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
               }`}
             >
-              <Star className="h-6 w-6 text-[#0097b2]" aria-hidden />
+              <Star className="h-6 w-6 text-[#0097b2]" fill="currentColor" stroke="currentColor" aria-hidden />
             </button>
 
             <button
@@ -256,7 +259,12 @@ export default function ListagemCategoriaPage() {
                 ordenacao === 'localizacao' ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
               }`}
             >
-              <MapPin className={`h-6 w-6 text-[#0097b2] ${geoCarregando ? 'animate-pulse' : ''}`} aria-hidden />
+              <MapPin
+                className={`h-6 w-6 text-[#0097b2] ${geoCarregando ? 'animate-pulse' : ''}`}
+                fill="currentColor"
+                stroke="currentColor"
+                aria-hidden
+              />
             </button>
           </div>
         </div>

@@ -156,7 +156,7 @@ export default function BotaoDinamico({
       <button
         type="button"
         onClick={handleClick}
-        className="flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-95"
+        className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold leading-none whitespace-nowrap text-white transition-opacity hover:opacity-95"
         style={{ backgroundColor: COR_PADRAO }}
       >
         <Icon size={20} aria-hidden />

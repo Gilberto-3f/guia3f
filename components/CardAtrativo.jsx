@@ -72,7 +72,7 @@ export default function CardAtrativo({ empresa }) {
           <button
             type="button"
             onClick={() => router.push(`/empresa/${empresa.id}`)}
-            className="flex flex-1 items-center justify-center rounded-lg bg-[#0097b2] px-4 py-2 text-sm font-extrabold text-white hover:opacity-95"
+            className="flex h-10 flex-1 items-center justify-center rounded-lg bg-[#0097b2] px-4 py-2 text-sm font-extrabold leading-none whitespace-nowrap text-white hover:opacity-95"
           >
             VISITAR PÁGINA
           </button>
