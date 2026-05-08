@@ -1,11 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import FiltroPais from '@/components/FiltroPais'
-import Ordenacao from '@/components/Ordenacao'
 import CardAtrativo from '@/components/CardAtrativo'
 
 /** Slug da URL (GradeFiltros) → valor de empresas.categoria no cadastro */
@@ -19,11 +18,15 @@ const SLUG_PARA_CATEGORIA_DB: Record<string, string> = {
   mobilidade: 'Mobilidade',
 }
 
-/** Filtro país → empresas.cidade no cadastro */
-const CIDADE_POR_FILTRO: Record<string, string> = {
-  foz: 'Foz do Iguacu',
-  cde: 'Ciudad del Este',
-  puerto: 'Puerto Iguazu',
+// FIX: apenas 3 filtros fixos (bandeiras)
+type PaisFiltro = 'br' | 'py' | 'ar'
+
+// FIX: bandeira → empresas.cidade no cadastro
+// Observação: mantemos os nomes já usados no projeto para compatibilidade.
+const CIDADE_POR_PAIS: Record<PaisFiltro, string> = {
+  br: 'Foz do Iguacu',
+  py: 'Ciudad del Este',
+  ar: 'Puerto Iguazu',
 }
 
 const TITULO_CATEGORIA: Record<string, string> = {
@@ -39,16 +42,17 @@ const TITULO_CATEGORIA: Record<string, string> = {
 type Empresa = {
   id: string
   nome_fantasia: string
+  nome_usuario: string | null
   foto_url: string | null
-  descricao_curta: string
-  nota_media: number
+  descricao_curta: string | null
+  nota_media: number | null
   categoria: string
   cidade: string
+  status?: string | null
   whatsapp?: string | null
   preco_ticket_inteira?: number | null
   preco_ticket_meia?: number | null
   preco_diaria?: number | null
-  is_seguindo?: boolean
 }
 
 export default function ListagemCategoriaPage() {
@@ -58,81 +62,41 @@ export default function ListagemCategoriaPage() {
 
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [loading, setLoading] = useState(true)
-  const [paisSelecionado, setPaisSelecionado] = useState('foz')
-  const [ordenacao, setOrdenacao] = useState<'avaliacoes' | 'proximidade'>('avaliacoes')
-  const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [erroLista, setErroLista] = useState('')
+  const [pais, setPais] = useState<PaisFiltro>('br')
 
   const categoriaDb = SLUG_PARA_CATEGORIA_DB[slug] ?? slug
-  const cidadeDb = CIDADE_POR_FILTRO[paisSelecionado]
+  const cidadeDb = useMemo(() => CIDADE_POR_PAIS[pais], [pais])
 
   const carregarEmpresas = useCallback(async () => {
     setLoading(true)
     setErroLista('')
     try {
-      if (!cidadeDb) {
-        setEmpresas([])
-        setLoading(false)
-        return
-      }
-
-      let query = supabase
+      const { data: empresasData, error } = await supabase
         .from('empresas')
-        .select('*')
+        // FIX: seleciona só o necessário (melhor para tsc/typing e rede)
+        .select(
+          'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, status, nota_media, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
+        )
         .eq('categoria', categoriaDb)
         .eq('cidade', cidadeDb)
-
-      if (ordenacao === 'avaliacoes') {
-        query = query.order('nota_media', { ascending: false })
-      } else {
-        // Proximidade real exige coordenadas nas empresas; fallback até o backend geo existir
-        query = query.order('nome_fantasia', { ascending: true })
-      }
-
-      const { data: empresasData, error } = await query
+        // FIX: apenas aprovadas
+        .eq('status', 'aprovado')
+        // FIX: exibir apenas com foto
+        .not('foto_url', 'is', null)
+        // FIX: melhores avaliados primeiro
+        .order('nota_media', { ascending: false })
 
       if (error) {
         setErroLista(error.message)
         setEmpresas([])
         return
       }
-
-      let seguindoIds = /** @type {string[]} */ ([])
-      if (usuarioId && empresasData?.length) {
-        const { data: favoritos } = await supabase
-          .from('favoritos')
-          .select('alvo_id')
-          .eq('usuario_id', usuarioId)
-          .eq('alvo_tipo', 'empresa')
-
-        seguindoIds = favoritos?.map((f) => f.alvo_id).filter((id) => id !== null && id !== undefined && id !== '') ?? []
-      }
-
-      const empresasComStatus =
-        empresasData?.map((emp) => ({
-          ...emp,
-          nota_media: emp.nota_media != null ? Number(emp.nota_media) : 0,
-          is_seguindo: seguindoIds.includes(emp.id),
-          preco_ticket_inteira: emp.preco_ticket_inteira != null ? Number(emp.preco_ticket_inteira) : null,
-          preco_ticket_meia: emp.preco_ticket_meia != null ? Number(emp.preco_ticket_meia) : null,
-          preco_diaria: emp.preco_diaria != null ? Number(emp.preco_diaria) : null,
-        })) ?? []
-
-      setEmpresas(empresasComStatus as Empresa[])
+      setEmpresas((empresasData ?? []) as Empresa[])
     } finally {
       setLoading(false)
     }
-  }, [categoriaDb, cidadeDb, ordenacao, usuarioId])
-
-  useEffect(() => {
-    const getUsuario = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      setUsuarioId(session?.user?.id ?? null)
-    }
-    getUsuario()
-  }, [])
+  }, [categoriaDb, cidadeDb])
 
   useEffect(() => {
     carregarEmpresas()
@@ -142,17 +106,48 @@ export default function ListagemCategoriaPage() {
 
   return (
     <>
-      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
+      <div className="sticky top-0 z-20 border-b border-gray-100 bg-white">
         <div className="flex items-center gap-3 p-4">
           <button type="button" onClick={() => router.back()} className="-ml-1 p-1" aria-label="Voltar">
             <ArrowLeft size={24} className="text-gray-600" />
           </button>
           <h1 className="text-xl font-bold text-gray-800">{titulo}</h1>
         </div>
-      </div>
 
-      <FiltroPais paisSelecionado={paisSelecionado} onPaisChange={setPaisSelecionado} />
-      <Ordenacao ordenacao={ordenacao} onOrdenacaoChange={setOrdenacao} />
+        {/* FIX: cabeçalho de filtros com 3 bandeiras reais */}
+        <div className="px-4 pb-3">
+          <div className="flex items-center justify-center gap-3">
+            {(
+              [
+                { id: 'br', src: '/flags/br.svg', alt: 'Brasil' },
+                { id: 'py', src: '/flags/py.svg', alt: 'Paraguai' },
+                { id: 'ar', src: '/flags/ar.svg', alt: 'Argentina' },
+              ] as const
+            ).map((f) => {
+              const ativo = pais === f.id
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setPais(f.id)}
+                  aria-label={f.alt}
+                  className={`relative rounded-full p-1 transition ${
+                    ativo ? 'ring-2 ring-[#0097b2]' : 'opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <Image
+                    src={f.src}
+                    alt={f.alt}
+                    width={44}
+                    height={44}
+                    className={`h-11 w-11 rounded-full object-cover ${ativo ? 'brightness-110' : ''}`}
+                  />
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
 
       <div className="p-4">
         {erroLista ? <p className="mb-4 text-center text-sm text-red-600">{erroLista}</p> : null}
@@ -165,13 +160,9 @@ export default function ListagemCategoriaPage() {
             <p className="text-gray-400">Nenhuma empresa encontrada nesta região</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {empresas.map((empresa) => (
-              <CardAtrativo
-                key={empresa.id}
-                empresa={empresa}
-                onSeguirToggle={carregarEmpresas}
-              />
+              <CardAtrativo key={empresa.id} empresa={empresa} />
             ))}
           </div>
         )}

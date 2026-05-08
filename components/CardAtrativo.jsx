@@ -2,8 +2,6 @@
 
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import Estrelas from '@/components/Estrelas'
-import BotaoSeguir from '@/components/BotaoSeguir'
 import BotaoDinamico from '@/components/BotaoDinamico'
 
 /**
@@ -12,8 +10,9 @@ import BotaoDinamico from '@/components/BotaoDinamico'
  *     id: string
  *     nome_fantasia: string
  *     foto_url: string | null
- *     descricao_curta: string
- *     nota_media: number
+ *     nome_usuario?: string | null
+ *     descricao_curta: string | null
+ *     nota_media: number | null
  *     categoria: string
  *     cidade: string
  *     whatsapp?: string | null
@@ -28,58 +27,58 @@ import BotaoDinamico from '@/components/BotaoDinamico'
 export default function CardAtrativo({ empresa, onSeguirToggle }) {
   const router = useRouter()
 
-  const handleClick = () => {
-    router.push(`/empresa/${empresa.id}`)
-  }
-
   const desc =
     empresa.descricao_curta && empresa.descricao_curta.length > 170
       ? `${empresa.descricao_curta.substring(0, 170)}...`
       : empresa.descricao_curta || ''
 
+  const username = (empresa?.nome_usuario ?? '').toString().replace(/^@+/, '').trim()
+
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={handleClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          handleClick()
-        }
-      }}
-      className="cursor-pointer overflow-hidden rounded-xl bg-white shadow-sm transition-shadow hover:shadow-md"
-    >
-      <div className="relative aspect-[2/3] bg-gray-100">
+    <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+      {/* FIX: @username no topo do card */}
+      <div className="px-4 pt-4">
+        {username ? (
+          <div className="text-xs font-bold tracking-wide text-[#0097b2]">@{username}</div>
+        ) : (
+          <div className="h-[1rem]" aria-hidden />
+        )}
+      </div>
+
+      {/* FIX: foto 4:3 ocupando 2/3 visual do card */}
+      <div className="relative mt-2 aspect-[4/3] w-full bg-gray-100">
         {empresa.foto_url ? (
           <Image
             src={empresa.foto_url}
             alt={empresa.nome_fantasia}
             fill
             className="object-cover"
-            sizes="(max-width: 768px) 50vw, 280px"
+            sizes="(max-width: 768px) 100vw, 520px"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">Sem foto</div>
         )}
       </div>
 
-      <div className="p-3">
-        <div className="mb-1 flex items-start justify-between gap-2">
-          <h3 className="line-clamp-1 text-base font-bold text-gray-800">{empresa.nome_fantasia}</h3>
-          <Estrelas nota={Number(empresa.nota_media) || 0} tamanho={14} />
-        </div>
+      <div className="px-4 pb-4 pt-3">
+        {/* FIX: nome cor #001f3f */}
+        <h3 className="line-clamp-1 text-base font-extrabold text-[#001f3f]">{empresa.nome_fantasia}</h3>
 
-        <p className="mb-3 line-clamp-2 text-sm text-gray-500">{desc}</p>
+        {/* FIX: descrição até 170 chars */}
+        {desc ? <p className="mt-1 text-sm text-gray-600">{desc}</p> : null}
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <BotaoSeguir
-            empresaId={empresa.id}
-            isFollowing={empresa.is_seguindo}
-            onToggle={onSeguirToggle}
-          />
+        {/* FIX: botões lado a lado, mesma largura */}
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => router.push(`/empresa/${empresa.id}`)}
+            className="flex flex-1 items-center justify-center rounded-lg border-2 border-[#0097b2] bg-white px-4 py-2 text-sm font-extrabold text-[#0097b2] hover:bg-[#0097b2]/5"
+          >
+            VISITAR PERFIL
+          </button>
           <BotaoDinamico
             categoria={empresa.categoria}
+            cidade={empresa.cidade}
             empresaId={empresa.id}
             empresaNome={empresa.nome_fantasia}
             whatsapp={empresa.whatsapp ?? null}
