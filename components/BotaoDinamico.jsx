@@ -159,7 +159,7 @@ export default function BotaoDinamico({
         className="flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-95"
         style={{ backgroundColor: COR_PADRAO }}
       >
-        <Icon size={16} aria-hidden />
+        <Icon size={20} aria-hidden />
         {config.texto}
       </button>
 
@@ -198,7 +198,7 @@ export default function BotaoDinamico({
                       value={reservaData}
                       onChange={(e) => setReservaData(e.target.value)}
                       placeholder="Ex: 10/05"
-                      className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                       inputMode="text"
                     />
                   </div>
@@ -208,7 +208,7 @@ export default function BotaoDinamico({
                       value={reservaHora}
                       onChange={(e) => setReservaHora(e.target.value)}
                       placeholder="Ex: 19:30"
-                      className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                       inputMode="text"
                     />
                   </div>
@@ -218,7 +218,7 @@ export default function BotaoDinamico({
                       value={reservaPessoas}
                       onChange={(e) => setReservaPessoas(e.target.value)}
                       placeholder="Ex: 2"
-                      className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                       inputMode="numeric"
                     />
                   </div>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import CardAtrativo from '@/components/CardAtrativo'
 
@@ -46,13 +46,28 @@ type Empresa = {
   foto_url: string | null
   descricao_curta: string | null
   nota_media: number | null
+  total_avaliacoes?: number | null
   categoria: string
   cidade: string
+  latitude?: number | null
+  longitude?: number | null
   status?: string | null
   whatsapp?: string | null
   preco_ticket_inteira?: number | null
   preco_ticket_meia?: number | null
   preco_diaria?: number | null
+}
+
+type OrdenacaoModo = 'avaliacao' | 'localizacao'
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
 }
 
 export default function ListagemCategoriaPage() {
@@ -64,19 +79,28 @@ export default function ListagemCategoriaPage() {
   const [loading, setLoading] = useState(true)
   const [erroLista, setErroLista] = useState('')
   const [pais, setPais] = useState<PaisFiltro>('br')
+  const [ordenacao, setOrdenacao] = useState<OrdenacaoModo>('avaliacao')
+  const [geoCarregando, setGeoCarregando] = useState(false)
+  const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null)
 
   const categoriaDb = SLUG_PARA_CATEGORIA_DB[slug] ?? slug
   const cidadeDb = useMemo(() => CIDADE_POR_PAIS[pais], [pais])
 
-  const carregarEmpresas = useCallback(async () => {
-    setLoading(true)
-    setErroLista('')
+  const cacheKey = useMemo(
+    () => `guia:listagem:v2:${String(slug)}:${String(categoriaDb)}:${String(cidadeDb)}`,
+    [slug, categoriaDb, cidadeDb]
+  )
+
+  const carregarEmpresas = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = Boolean(opts?.silent)
+    if (!silent) setLoading(true)
+    if (!silent) setErroLista('')
     try {
       const { data: empresasData, error } = await supabase
         .from('empresas')
         // FIX: seleciona só o necessário (melhor para tsc/typing e rede)
         .select(
-          'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, status, nota_media, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
+          'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, status, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
         )
         .eq('categoria', categoriaDb)
         .eq('cidade', cidadeDb)
@@ -84,23 +108,71 @@ export default function ListagemCategoriaPage() {
         .eq('status', 'aprovado')
         // FIX: exibir apenas com foto
         .not('foto_url', 'is', null)
-        // FIX: melhores avaliados primeiro
+        // FIX: melhores avaliados primeiro + desempate por total de avaliações (quando disponível)
         .order('nota_media', { ascending: false })
+        .order('total_avaliacoes', { ascending: false })
 
       if (error) {
         setErroLista(error.message)
         setEmpresas([])
         return
       }
-      setEmpresas((empresasData ?? []) as Empresa[])
+      const lista = (empresasData ?? []) as Empresa[]
+      setEmpresas(lista)
+      try {
+        sessionStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), lista }))
+      } catch {
+        // ignore
+      }
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [categoriaDb, cidadeDb])
 
   useEffect(() => {
-    carregarEmpresas()
-  }, [carregarEmpresas])
+    // FIX: cache rápido para volta instantânea
+    try {
+      const raw = sessionStorage.getItem(cacheKey)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        const lista = Array.isArray(parsed?.lista) ? parsed.lista : null
+        if (lista) {
+          setEmpresas(lista)
+          setLoading(false)
+        }
+      }
+    } catch {
+      // ignore
+    }
+    void carregarEmpresas({ silent: true })
+  }, [carregarEmpresas, cacheKey])
+
+  const empresasOrdenadas = useMemo(() => {
+    const base = [...empresas]
+    if (ordenacao === 'avaliacao') {
+      base.sort((a, b) => {
+        const na = Number(a.nota_media) || 0
+        const nb = Number(b.nota_media) || 0
+        if (nb !== na) return nb - na
+        const ta = Number(a.total_avaliacoes) || 0
+        const tb = Number(b.total_avaliacoes) || 0
+        return tb - ta
+      })
+      return base
+    }
+
+    if (!userPos) return base
+    base.sort((a, b) => {
+      const alat = typeof a.latitude === 'number' ? a.latitude : a.latitude != null ? Number(a.latitude) : NaN
+      const alng = typeof a.longitude === 'number' ? a.longitude : a.longitude != null ? Number(a.longitude) : NaN
+      const blat = typeof b.latitude === 'number' ? b.latitude : b.latitude != null ? Number(b.latitude) : NaN
+      const blng = typeof b.longitude === 'number' ? b.longitude : b.longitude != null ? Number(b.longitude) : NaN
+      const ad = Number.isFinite(alat) && Number.isFinite(alng) ? haversineKm(userPos.lat, userPos.lng, alat, alng) : Infinity
+      const bd = Number.isFinite(blat) && Number.isFinite(blng) ? haversineKm(userPos.lat, userPos.lng, blat, blng) : Infinity
+      return ad - bd
+    })
+    return base
+  }, [empresas, ordenacao, userPos])
 
   const titulo = TITULO_CATEGORIA[slug] ?? slug
 
@@ -114,9 +186,9 @@ export default function ListagemCategoriaPage() {
           <h1 className="text-xl font-bold text-gray-800">{titulo}</h1>
         </div>
 
-        {/* FIX: cabeçalho de filtros com 3 bandeiras reais */}
+        {/* FIX: cabeçalho de filtros com 3 bandeiras reais + ordenação */}
         <div className="px-4 pb-3">
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center justify-center gap-2">
             {(
               [
                 { id: 'br', src: '/flags/br.svg', alt: 'Brasil' },
@@ -131,8 +203,8 @@ export default function ListagemCategoriaPage() {
                   type="button"
                   onClick={() => setPais(f.id)}
                   aria-label={f.alt}
-                  className={`relative rounded-full p-1 transition ${
-                    ativo ? 'ring-2 ring-[#0097b2]' : 'opacity-70 hover:opacity-100'
+                  className={`relative rounded-md border px-2 py-1 transition ${
+                    ativo ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
                   }`}
                 >
                   <Image
@@ -140,11 +212,52 @@ export default function ListagemCategoriaPage() {
                     alt={f.alt}
                     width={44}
                     height={44}
-                    className={`h-11 w-11 rounded-full object-cover ${ativo ? 'brightness-110' : ''}`}
+                    className={`h-8 w-11 rounded-sm object-cover ${ativo ? 'brightness-110' : ''}`}
                   />
                 </button>
               )
             })}
+
+            <button
+              type="button"
+              aria-label="Ordenar por melhores avaliados"
+              onClick={() => setOrdenacao('avaliacao')}
+              className={`ml-1 flex items-center justify-center rounded-md border px-2 py-1 transition ${
+                ordenacao === 'avaliacao' ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
+              }`}
+            >
+              <Star className="h-6 w-6 text-[#0097b2]" aria-hidden />
+            </button>
+
+            <button
+              type="button"
+              aria-label="Ordenar por mais próximos"
+              onClick={() => {
+                setOrdenacao('localizacao')
+                if (userPos || geoCarregando) return
+                if (typeof navigator === 'undefined' || !navigator.geolocation) {
+                  window.alert('Geolocalização não disponível neste dispositivo.')
+                  return
+                }
+                setGeoCarregando(true)
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => {
+                    setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+                    setGeoCarregando(false)
+                  },
+                  () => {
+                    window.alert('Não foi possível obter sua localização.')
+                    setGeoCarregando(false)
+                  },
+                  { enableHighAccuracy: true, timeout: 8000 }
+                )
+              }}
+              className={`flex items-center justify-center rounded-md border px-2 py-1 transition ${
+                ordenacao === 'localizacao' ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
+              }`}
+            >
+              <MapPin className={`h-6 w-6 text-[#0097b2] ${geoCarregando ? 'animate-pulse' : ''}`} aria-hidden />
+            </button>
           </div>
         </div>
       </div>
@@ -161,7 +274,7 @@ export default function ListagemCategoriaPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {empresas.map((empresa) => (
+            {empresasOrdenadas.map((empresa) => (
               <CardAtrativo key={empresa.id} empresa={empresa} />
             ))}
           </div>

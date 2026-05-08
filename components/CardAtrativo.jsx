@@ -24,7 +24,7 @@ import BotaoDinamico from '@/components/BotaoDinamico'
  *   onSeguirToggle?: () => void
  * }} props
  */
-export default function CardAtrativo({ empresa, onSeguirToggle }) {
+export default function CardAtrativo({ empresa }) {
   const router = useRouter()
 
   const desc =
@@ -37,16 +37,16 @@ export default function CardAtrativo({ empresa, onSeguirToggle }) {
   return (
     <div className="overflow-hidden rounded-xl bg-white shadow-sm">
       {/* FIX: @username no topo do card */}
-      <div className="px-4 pt-4">
+      <div className="px-4 pt-4 text-center">
         {username ? (
-          <div className="text-xs font-bold tracking-wide text-[#0097b2]">@{username}</div>
+          <div className="text-base font-extrabold text-[#0097b2]">@{username}</div>
         ) : (
           <div className="h-[1rem]" aria-hidden />
         )}
       </div>
 
-      {/* FIX: foto 4:3 ocupando 2/3 visual do card */}
-      <div className="relative mt-2 aspect-[4/3] w-full bg-gray-100">
+      {/* FIX: foto quadrada (mesma linguagem visual da página da empresa) */}
+      <div className="relative mt-2 aspect-square w-full bg-gray-100">
         {empresa.foto_url ? (
           <Image
             src={empresa.foto_url}
@@ -72,9 +72,9 @@ export default function CardAtrativo({ empresa, onSeguirToggle }) {
           <button
             type="button"
             onClick={() => router.push(`/empresa/${empresa.id}`)}
-            className="flex flex-1 items-center justify-center rounded-lg border-2 border-[#0097b2] bg-white px-4 py-2 text-sm font-extrabold text-[#0097b2] hover:bg-[#0097b2]/5"
+            className="flex flex-1 items-center justify-center rounded-lg bg-[#0097b2] px-4 py-2 text-sm font-extrabold text-white hover:opacity-95"
           >
-            VISITAR PERFIL
+            VISITAR PÁGINA
           </button>
           <BotaoDinamico
             categoria={empresa.categoria}
