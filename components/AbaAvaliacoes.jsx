@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import Estrelas from '@/components/Estrelas'
 import EstrelasAvaliacao from '@/components/EstrelasAvaliacao'
 import GraficoAvaliacoes from '@/components/GraficoAvaliacoes'
-import { MoreVertical, Share2, Trash2, Pencil, ShieldCheck, User } from 'lucide-react'
+import { MoreVertical, Trash2, Pencil, ShieldCheck, User } from 'lucide-react'
 
 /**
  * @param {{
@@ -50,7 +50,6 @@ export default function AbaAvaliacoes({
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
   const [confirmExcluirId, setConfirmExcluirId] = useState(/** @type {string | null} */ (null))
   const [excluindo, setExcluindo] = useState(false)
-  const [compartilhandoId, setCompartilhandoId] = useState(/** @type {string | null} */ (null))
   const [editingReplyAvaliacaoId, setEditingReplyAvaliacaoId] = useState(/** @type {string | null} */ (null))
   const [replyDraft, setReplyDraft] = useState('')
   const [savingReply, setSavingReply] = useState(false)
@@ -381,46 +380,6 @@ export default function AbaAvaliacoes({
     }
   }
 
-  const compartilharNoFeed = async (av) => {
-    if (!usuarioId) return
-    setMenuAbertoId(null)
-    setCompartilhandoId(av.id)
-    try {
-      const { data: emp } = await supabase
-        .from('empresas')
-        .select('id, nome_fantasia, nome_usuario, foto_url')
-        .eq('id', empresaId)
-        .maybeSingle()
-      const handleEmp =
-        emp?.nome_usuario != null && String(emp.nome_usuario).trim() !== ''
-          ? String(emp.nome_usuario).trim().replace(/^@+/, '')
-          : null
-      /** Foto e nomes atualizados no feed via `PostCard` (consulta `empresas` por `empresa_id`). */
-      const meta = {
-        empresa_id: String(emp?.id ?? empresaId),
-        nome_fantasia: emp?.nome_fantasia != null ? String(emp.nome_fantasia) : 'Empresa',
-        nome_usuario: handleEmp,
-        nota: Number(av.nota) || 0,
-        feedback: av.feedback != null ? String(av.feedback) : null,
-      }
-      const { error } = await supabase.from('posts').insert({
-        autor_id: usuarioId,
-        tipo: 'avaliacao',
-        texto: null,
-        foto_url: null,
-        conteudo_url: null,
-        avaliacao_meta: meta,
-      })
-      if (error) {
-        setErroSalvarAvaliacao(error.message)
-        return
-      }
-      window.dispatchEvent(new Event('guia-feed-rede-reload'))
-    } finally {
-      setCompartilhandoId(null)
-    }
-  }
-
   const publicarResposta = async (avaliacaoIdParam) => {
     if (!podeResponder || !usuarioId || !empresaUsuarioId || usuarioId !== empresaUsuarioId) {
       setErroRespostaEmpresa('Apenas o dono da empresa pode publicar uma resposta.')
@@ -655,15 +614,6 @@ export default function AbaAvaliacoes({
                         >
                           <Trash2 size={16} aria-hidden />
                           Excluir
-                        </button>
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
-                          onClick={() => void compartilharNoFeed(av)}
-                          disabled={compartilhandoId === av.id}
-                        >
-                          <Share2 size={16} aria-hidden />
-                          {compartilhandoId === av.id ? 'Compartilhando…' : 'Compartilhar no feed'}
                         </button>
                       </div>
                     ) : null}
