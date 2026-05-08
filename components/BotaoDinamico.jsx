@@ -156,11 +156,11 @@ export default function BotaoDinamico({
       <button
         type="button"
         onClick={handleClick}
-        className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold leading-tight text-white transition-opacity hover:opacity-95 sm:whitespace-nowrap"
+        className="flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center text-xs font-bold leading-tight text-white whitespace-normal transition-opacity hover:opacity-95 sm:text-sm"
         style={{ backgroundColor: COR_PADRAO }}
       >
         <Icon size={20} className="shrink-0 text-white" aria-hidden />
-        <span className="text-left leading-tight">{config.texto}</span>
+        <span className="max-w-full leading-tight">{config.texto}</span>
       </button>
 
       {empresaId ? (

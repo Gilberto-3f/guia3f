@@ -191,7 +191,7 @@ export default function ListagemCategoriaPage() {
 
         {/* FIX: cabeçalho de filtros com 3 bandeiras reais + ordenação */}
         <div className="px-4 pb-3">
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex h-6 items-center justify-center gap-2">
             {(
               [
                 { id: 'br', src: '/flags/br.svg', alt: 'Brasil' },
@@ -206,16 +206,16 @@ export default function ListagemCategoriaPage() {
                   type="button"
                   onClick={() => setPais(f.id)}
                   aria-label={f.alt}
-                  className={`relative overflow-hidden transition ${
-                    ativo ? 'ring-2 ring-[#0097b2]' : 'opacity-80 hover:opacity-100'
+                  className={`relative flex h-6 shrink-0 items-center overflow-hidden rounded-none transition ${
+                    ativo ? 'ring-2 ring-[#0097b2] ring-offset-1' : 'opacity-85 hover:opacity-100'
                   }`}
                 >
                   <Image
                     src={f.src}
                     alt={f.alt}
-                    width={72}
-                    height={48}
-                    className={`h-10 w-auto rounded-none object-cover ${ativo ? 'brightness-110' : ''}`}
+                    width={36}
+                    height={24}
+                    className={`h-6 w-auto max-h-6 rounded-none object-contain ${ativo ? 'brightness-110' : ''}`}
                   />
                 </button>
               )
@@ -225,11 +225,11 @@ export default function ListagemCategoriaPage() {
               type="button"
               aria-label="Ordenar por melhores avaliados"
               onClick={() => setOrdenacao('avaliacao')}
-              className={`ml-1 flex items-center justify-center rounded-md border px-2 py-1 transition ${
+              className={`ml-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
                 ordenacao === 'avaliacao' ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
               }`}
             >
-              <Star className="h-6 w-6 text-[#0097b2]" fill="currentColor" stroke="currentColor" aria-hidden />
+              <Star className="h-5 w-5" fill="#0097b2" stroke="#0097b2" aria-hidden />
             </button>
 
             <button
@@ -255,14 +255,14 @@ export default function ListagemCategoriaPage() {
                   { enableHighAccuracy: true, timeout: 8000 }
                 )
               }}
-              className={`flex items-center justify-center rounded-md border px-2 py-1 transition ${
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
                 ordenacao === 'localizacao' ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
               }`}
             >
-              <span className={`relative inline-flex h-6 w-6 items-center justify-center text-[#0097b2] ${geoCarregando ? 'animate-pulse' : ''}`}>
-                <MapPin className="h-6 w-6" fill="currentColor" stroke="currentColor" aria-hidden />
+              <span className={`relative inline-flex h-5 w-5 items-center justify-center ${geoCarregando ? 'animate-pulse' : ''}`}>
+                <MapPin className="h-5 w-5" fill="#0097b2" stroke="#0097b2" aria-hidden />
                 <span
-                  className="pointer-events-none absolute left-1/2 top-[44%] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
+                  className="pointer-events-none absolute left-1/2 top-[44%] h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
                   aria-hidden
                 />
               </span>
