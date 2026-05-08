@@ -24,7 +24,7 @@ type PaisFiltro = 'br' | 'py' | 'ar'
 // FIX: bandeira → empresas.cidade no cadastro
 // Observação: mantemos os nomes já usados no projeto para compatibilidade.
 const CIDADE_POR_PAIS: Record<PaisFiltro, string> = {
-  br: 'Foz do Iguacu',
+  br: 'Foz do Iguaçu',
   py: 'Ciudad del Este',
   ar: 'Puerto Iguazu',
 }
