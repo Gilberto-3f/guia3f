@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import { usePublicidade } from '../../hooks/usePublicidade'
 import ModalConfirmacao from '../shared/ModalConfirmacao'
@@ -15,7 +16,8 @@ function formatDate(value: string) {
 
 export default function Publicidade() {
   const { dados: empresa } = useDashboardEmpresa()
-  const { anuncios, reservas, vagasDisponiveis, loading, error, reservarVaga, cancelarReserva } = usePublicidade(empresa?.id ?? null)
+  const { anuncios, reservas, vagasDisponiveis, loading, error, publicarAnuncioHome, cancelarReserva } =
+    usePublicidade(empresa?.id ?? null)
 
   const [periodo, setPeriodo] = useState<PeriodoReserva>('30d')
   const [reservando, setReservando] = useState<string | null>(null)
@@ -27,21 +29,58 @@ export default function Publicidade() {
   })
   const [cancelando, setCancelando] = useState(false)
 
-  const podeContratar = empresa?.plano === 'Premium' || empresa?.plano === 'Enterprise'
+  const [arteFile, setArteFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const previewRevokeRef = useRef<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
   const vagasHomeDisponiveis = useMemo(() => vagasDisponiveis.filter((v) => v.disponivel), [vagasDisponiveis])
 
+  useEffect(() => {
+    return () => {
+      if (previewRevokeRef.current) {
+        URL.revokeObjectURL(previewRevokeRef.current)
+        previewRevokeRef.current = null
+      }
+    }
+  }, [])
+
+  const onArteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null
+    if (previewRevokeRef.current) {
+      URL.revokeObjectURL(previewRevokeRef.current)
+      previewRevokeRef.current = null
+    }
+    setArteFile(f)
+    if (f) {
+      const url = URL.createObjectURL(f)
+      previewRevokeRef.current = url
+      setPreviewUrl(url)
+    } else {
+      setPreviewUrl(null)
+    }
+  }
+
+  /** TMP: exigência de plano Premium/Enterprise desativada para testes (repor na dashboard ADM). */
   const handleReservar = async (vaga: string) => {
-    if (!podeContratar) {
-      setFeedback('⚠️ Faça upgrade para Premium ou Enterprise para contratar anúncios.')
+    if (!arteFile) {
+      setFeedback('⚠️ Selecione a imagem do anúncio (JPG, PNG ou WEBP) antes de reservar.')
       return
     }
     setFeedback(null)
     setReservando(vaga)
     try {
-      await reservarVaga(vaga, periodo)
-      setFeedback(`✅ Reserva da ${vaga === 'vaga_1' ? 'VAGA 1' : 'VAGA 2'} enviada para confirmação.`)
+      await publicarAnuncioHome(vaga, periodo, arteFile)
+      setFeedback(`✅ Anúncio publicado na ${vaga === 'vaga_1' ? 'VAGA 1' : 'VAGA 2'}.`)
+      if (previewRevokeRef.current) {
+        URL.revokeObjectURL(previewRevokeRef.current)
+        previewRevokeRef.current = null
+      }
+      setArteFile(null)
+      setPreviewUrl(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     } catch {
-      setFeedback('❌ Não foi possível realizar a reserva no momento.')
+      setFeedback('❌ Não foi possível enviar o anúncio. Verifique o formato da imagem e tente de novo.')
     } finally {
       setReservando(null)
     }
@@ -105,6 +144,23 @@ export default function Publicidade() {
         <h3 className="mb-2 font-bold text-[#001f3f]">🏠 Espaços Disponíveis na Home</h3>
         <p className="mb-4 text-sm text-gray-500">Máximo 2 anúncios simultâneos</p>
 
+        <div className="mb-6 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4">
+          <p className="mb-2 text-sm font-medium text-[#001f3f]">Arte do anúncio</p>
+          <p className="mb-3 text-xs text-gray-500">Formatos: JPG, PNG ou WEBP. Dimensão sugerida: 1200×600 px.</p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            onChange={onArteChange}
+            className="block w-full max-w-md text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#0097b2] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
+          />
+          {previewUrl ? (
+            <div className="relative mt-4 aspect-[2/1] w-full max-w-md overflow-hidden rounded-lg border bg-white">
+              <Image src={previewUrl} alt="Pré-visualização do anúncio" fill className="object-contain" unoptimized />
+            </div>
+          ) : null}
+        </div>
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {(['vaga_1', 'vaga_2'] as const).map((vaga) => {
             const disponivel = vagasHomeDisponiveis.some((v) => v.vaga === vaga)
@@ -135,7 +191,7 @@ export default function Publicidade() {
                         disabled={reservando === vaga}
                         className="block w-full rounded-lg bg-[#0097b2] px-3 py-1 text-sm text-white disabled:opacity-50"
                       >
-                        {reservando === vaga ? 'Reservando...' : 'RESERVAR'}
+                        {reservando === vaga ? 'Enviando...' : 'RESERVAR'}
                       </button>
                     </div>
                   ) : null}
@@ -144,12 +200,6 @@ export default function Publicidade() {
             )
           })}
         </div>
-
-        {!podeContratar ? (
-          <p className="mt-4 text-center text-sm text-yellow-700">
-            ⚠️ Faça upgrade para Premium ou Enterprise para contratar anúncios
-          </p>
-        ) : null}
       </div>
 
       {reservas.length > 0 ? (
@@ -208,4 +258,3 @@ export default function Publicidade() {
     </div>
   )
 }
-

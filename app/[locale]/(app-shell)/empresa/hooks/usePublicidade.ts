@@ -7,6 +7,21 @@ import type { Anuncio, ReservaAnuncio } from '../types/empresa.types'
 type VagaDisponivel = { vaga: string; disponivel: boolean }
 type PeriodoReserva = '7d' | '15d' | '30d'
 
+const MIME_ANUNCIO_HOME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])
+
+function extensaoArquivoImagem(file: File): string {
+  const t = (file.type || '').toLowerCase()
+  if (t === 'image/jpeg' || t === 'image/jpg') return 'jpg'
+  if (t === 'image/png') return 'png'
+  if (t === 'image/webp') return 'webp'
+  const part = file.name.split('.').pop()
+  const e = part ? part.toLowerCase() : ''
+  if (e === 'jpeg' || e === 'jpg') return 'jpg'
+  if (e === 'png') return 'png'
+  if (e === 'webp') return 'webp'
+  return 'jpg'
+}
+
 function asRecord(v: unknown) {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null
 }
@@ -120,6 +135,51 @@ export function usePublicidade(empresaId: string | null) {
     [empresaId, fetchDados]
   )
 
+  /** Upload + insert em `anuncios` (home ativo) — criativo visível no Guia após migração RLS/storage. */
+  const publicarAnuncioHome = useCallback(
+    async (vaga: string, periodo: PeriodoReserva, file: File) => {
+      if (!empresaId) throw new Error('Empresa não identificada')
+      const mime = (file.type || '').toLowerCase()
+      if (!MIME_ANUNCIO_HOME.has(mime)) {
+        throw new Error('Use imagem JPG, PNG ou WEBP.')
+      }
+
+      const ext = extensaoArquivoImagem(file)
+      const objectPath = `${empresaId}/${crypto.randomUUID()}.${ext}`
+
+      const { error: upErr } = await supabase.storage.from('anuncios').upload(objectPath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: mime || undefined,
+      })
+      if (upErr) throw upErr
+
+      const { data: pub } = supabase.storage.from('anuncios').getPublicUrl(objectPath)
+      const imagemUrl = pub?.publicUrl ?? ''
+      if (!imagemUrl) throw new Error('URL da imagem indisponível.')
+
+      const duracaoDias = periodo === '7d' ? 7 : periodo === '15d' ? 15 : 30
+      const inicio = new Date()
+      const fim = new Date()
+      fim.setDate(fim.getDate() + duracaoDias)
+
+      const { error: insErr } = await supabase.from('anuncios').insert({
+        empresa_id: empresaId,
+        tipo: 'home',
+        localizacao: vaga,
+        imagem_url: imagemUrl,
+        link_url: null,
+        periodo_inicio: isoDate(inicio),
+        periodo_fim: isoDate(fim),
+        status: 'ativo',
+      })
+      if (insErr) throw insErr
+
+      await fetchDados()
+    },
+    [empresaId, fetchDados]
+  )
+
   const cancelarReserva = useCallback(
     async (reservaId: string) => {
       const { error: upErr } = await supabase
@@ -137,8 +197,18 @@ export function usePublicidade(empresaId: string | null) {
   }, [fetchDados])
 
   return useMemo(
-    () => ({ anuncios, reservas, vagasDisponiveis, loading, error, reservarVaga, cancelarReserva, refetch: fetchDados }),
-    [anuncios, reservas, vagasDisponiveis, loading, error, reservarVaga, cancelarReserva, fetchDados]
+    () => ({
+      anuncios,
+      reservas,
+      vagasDisponiveis,
+      loading,
+      error,
+      reservarVaga,
+      publicarAnuncioHome,
+      cancelarReserva,
+      refetch: fetchDados,
+    }),
+    [anuncios, reservas, vagasDisponiveis, loading, error, reservarVaga, publicarAnuncioHome, cancelarReserva, fetchDados]
   )
 }
 

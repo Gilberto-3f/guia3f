@@ -84,6 +84,7 @@ export default function GuiaPage() {
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             <GradeFiltros onFiltroClick={handleFiltroClick} />
+            <p className="mb-1 mt-2 text-center text-xs text-[#0097b2]">Espaço Publicitário</p>
             <PublicidadeHome />
           </div>
         </main>
