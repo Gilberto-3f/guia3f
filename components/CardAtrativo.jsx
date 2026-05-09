@@ -5,6 +5,17 @@ import { useRouter } from 'next/navigation'
 import { Heart } from 'lucide-react'
 import BotaoDinamico from '@/components/BotaoDinamico'
 
+const BANDEIRA_POR_CIDADE = {
+  'Foz do Iguaçu': '🇧🇷',
+  'Ciudad del Este': '🇵🇾',
+  'Puerto Iguazu': '🇦🇷',
+}
+
+function bandeiraPorCidade(cidade) {
+  if (!cidade) return ''
+  return BANDEIRA_POR_CIDADE[cidade] ?? ''
+}
+
 /**
  * @param {{
  *   empresa: {
@@ -34,13 +45,21 @@ export default function CardAtrativo({ empresa }) {
       : empresa.descricao_curta || ''
 
   const username = (empresa?.nome_usuario ?? '').toString().replace(/^@+/, '').trim()
+  const bandeira = bandeiraPorCidade(empresa?.cidade)
 
   return (
     <div className="overflow-hidden rounded-xl bg-white shadow-sm">
       {/* RODADA 2: username maior e centralizado */}
       <div className="px-4 pt-4 text-center">
         {username ? (
-          <div className="text-lg font-extrabold text-[#0097b2]">@{username}</div>
+          <div className="flex items-center justify-center gap-1.5 text-lg font-extrabold text-[#0097b2]">
+            {bandeira ? (
+              <span className="text-lg leading-none" aria-hidden>
+                {bandeira}
+              </span>
+            ) : null}
+            <span>@{username}</span>
+          </div>
         ) : (
           <div className="h-5" aria-hidden />
         )}
