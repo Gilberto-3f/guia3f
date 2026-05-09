@@ -81,7 +81,6 @@ export function usePublicidade(empresaId: string | null) {
   /** Upload + insert em `anuncios` (home, ativo, 30 dias). */
   const salvarAnuncioHomeArte = useCallback(
     async (file: File) => {
-      console.log('1. Função chamada com arquivo:', file?.name)
       if (!empresaId) throw new Error('Empresa não identificada')
       const mime = (file.type || '').toLowerCase()
       if (!MIME_ANUNCIO_HOME.has(mime)) {
@@ -91,13 +90,11 @@ export function usePublicidade(empresaId: string | null) {
       const ext = extensaoArquivoImagem(file)
       const objectPath = `${empresaId}/${crypto.randomUUID()}.${ext}`
 
-      console.log('2. Antes do upload')
-      const { data: uploadData, error: uploadError } = await supabase.storage.from('anuncios').upload(objectPath, file, {
+      const { error: uploadError } = await supabase.storage.from('anuncios').upload(objectPath, file, {
         cacheControl: '3600',
         upsert: false,
         contentType: mime || undefined,
       })
-      console.log('3. Upload resposta:', uploadData, uploadError)
       if (uploadError) throw uploadError
 
       const { data: pub } = supabase.storage.from('anuncios').getPublicUrl(objectPath)
@@ -108,23 +105,25 @@ export function usePublicidade(empresaId: string | null) {
       const fim = new Date()
       fim.setDate(fim.getDate() + DURACAO_ANUNCIO_HOME_DIAS)
 
-      console.log('4. Inserindo anúncio...')
-      const { data: insertData, error: insertError } = await supabase.from('anuncios').insert({
-        empresa_id: empresaId,
-        tipo: 'home',
-        localizacao: null,
-        imagem_url: imagemUrl,
-        link_url: null,
-        periodo_inicio: isoDate(inicio),
-        periodo_fim: isoDate(fim),
-        status: 'ativo',
-      })
-      console.log('5. Insert resposta:', insertData, insertError)
-      if (insertError) throw insertError
+      const { data: insertRow, error: insertError } = await supabase
+        .from('anuncios')
+        .insert({
+          empresa_id: empresaId,
+          tipo: 'home',
+          localizacao: null,
+          imagem_url: imagemUrl,
+          link_url: null,
+          periodo_inicio: isoDate(inicio),
+          periodo_fim: isoDate(fim),
+          status: 'ativo',
+        })
+        .select('id')
+        .single()
 
-      console.log('6. Antes de fetchDados')
+      if (insertError) throw insertError
+      if (!insertRow?.id) throw new Error('Anúncio criado mas ID não retornado.')
+
       await fetchDados()
-      console.log('7. Depois de fetchDados')
     },
     [empresaId, fetchDados]
   )
