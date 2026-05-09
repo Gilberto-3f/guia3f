@@ -18,6 +18,9 @@ type AnuncioSlide = {
 
 const SWIPE_MIN_PX = 48
 
+/** Último anúncio home exibido nesta sessão (rotação na próxima entrada na Guia). */
+const SESSION_LAST_HOME_AD_ID = 'guia_home_ultimo_anuncio_id'
+
 function isSupabasePublicStorageUrl(url: string): boolean {
   try {
     const u = new URL(url)
@@ -72,15 +75,19 @@ function linkEhRotaInterna(url: string): boolean {
   return url.startsWith('/') && !url.startsWith('//')
 }
 
-function envolveLink(anuncio: AnuncioSlide, children: ReactNode): ReactNode {
+function SlideEnvoltorio({ anuncio, children }: { anuncio: AnuncioSlide; children: ReactNode }) {
   const raw = anuncio.link_url
+  const registrarClique = useCallback(() => {
+    void supabase.rpc('registrar_clique_anuncio_home', { p_anuncio_id: anuncio.id })
+  }, [anuncio.id])
+
   if (!raw) {
     return <div className="block h-full w-full overflow-hidden rounded-lg">{children}</div>
   }
   const url = raw.trim()
   if (linkEhRotaInterna(url)) {
     return (
-      <Link href={url} className="block h-full w-full overflow-hidden rounded-lg">
+      <Link href={url} className="block h-full w-full overflow-hidden rounded-lg" onClick={registrarClique}>
         {children}
       </Link>
     )
@@ -91,10 +98,24 @@ function envolveLink(anuncio: AnuncioSlide, children: ReactNode): ReactNode {
       target="_blank"
       rel="noopener noreferrer"
       className="block h-full w-full overflow-hidden rounded-lg"
+      onClick={registrarClique}
     >
       {children}
     </a>
   )
+}
+
+function indiceInicialRotacao(slides: AnuncioSlide[]): number {
+  if (slides.length === 0) return 0
+  try {
+    const lastId = sessionStorage.getItem(SESSION_LAST_HOME_AD_ID)
+    if (!lastId) return 0
+    const i = slides.findIndex((s) => s.id === lastId)
+    if (i < 0) return 0
+    return (i + 1) % slides.length
+  } catch {
+    return 0
+  }
 }
 
 export default function PublicidadeHome() {
@@ -121,14 +142,16 @@ export default function PublicidadeHome() {
       if (error) {
         console.error(error)
         setAnuncios([])
+        setIndice(0)
       } else {
-        setAnuncios(
-          (data ?? []).map((row) => ({
-            id: String(row.id),
-            imagem_url: String(row.imagem_url ?? ''),
-            link_url: row.link_url != null ? String(row.link_url) : null,
-          }))
-        )
+        const slides: AnuncioSlide[] = (data ?? []).map((row) => ({
+          id: String(row.id),
+          imagem_url: String(row.imagem_url ?? ''),
+          link_url: row.link_url != null ? String(row.link_url) : null,
+        }))
+        const idx = indiceInicialRotacao(slides)
+        setAnuncios(slides)
+        setIndice(slides.length ? idx : 0)
       }
       setCarregando(false)
     }
@@ -147,6 +170,24 @@ export default function PublicidadeHome() {
     }
     setIndice((prev) => (prev >= n ? n - 1 : prev))
   }, [n])
+
+  useEffect(() => {
+    if (!n) return
+    const id = anuncios[indice]?.id
+    if (!id) return
+    try {
+      sessionStorage.setItem(SESSION_LAST_HOME_AD_ID, id)
+    } catch {
+      /* ignore */
+    }
+  }, [anuncios, indice, n])
+
+  useEffect(() => {
+    if (!n) return
+    const id = anuncios[indice]?.id
+    if (!id) return
+    void supabase.rpc('registrar_impressao_anuncio_home', { p_anuncio_id: id })
+  }, [anuncios, indice, n])
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0]?.clientX ?? null
@@ -178,7 +219,7 @@ export default function PublicidadeHome() {
   const blocoH = 'min-h-[176px] h-44 sm:h-52'
 
   return (
-    <div className="shrink-0 px-4 pb-3">
+    <div className="shrink-0 px-4 pb-2">
       <div className="w-full">
         {n > 0 ? (
           <div className="w-full">
@@ -193,10 +234,9 @@ export default function PublicidadeHome() {
               >
                 {anuncios.map((anuncio) => (
                   <div key={anuncio.id} className="w-full shrink-0">
-                    {envolveLink(
-                      anuncio,
+                    <SlideEnvoltorio anuncio={anuncio}>
                       <BlocoImagemBanner anuncio={anuncio} alt={alt} classNameHeight={blocoH} />
-                    )}
+                    </SlideEnvoltorio>
                   </div>
                 ))}
               </div>

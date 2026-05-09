@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import { ChevronDown } from 'lucide-react'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import { usePublicidade } from '../../hooks/usePublicidade'
 
@@ -9,6 +10,11 @@ function formatDate(value: string) {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
   return d.toLocaleDateString('pt-BR')
+}
+
+function formatCtr(impressoes: number, cliques: number): string {
+  if (!impressoes || impressoes <= 0) return '—'
+  return `${((cliques / impressoes) * 100).toFixed(1)}%`
 }
 
 export default function Publicidade() {
@@ -20,6 +26,7 @@ export default function Publicidade() {
 
   const [arteFile, setArteFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [resultadosAbertoId, setResultadosAbertoId] = useState<string | null>(null)
   const previewRevokeRef = useRef<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -92,25 +99,59 @@ export default function Publicidade() {
           <p className="py-4 text-center text-gray-900">Nenhum anúncio cadastrado</p>
         ) : (
           <div className="space-y-3">
-            {anuncios.map((anuncio) => (
-              <div key={anuncio.id} className="rounded-lg border border-gray-200 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900">{anuncio.tipo === 'home' ? 'Home (Guia)' : 'Feed'}</p>
-                    <p className="text-sm text-gray-900">
-                      {formatDate(anuncio.periodo_inicio)} — {formatDate(anuncio.periodo_fim)}
-                    </p>
-                    {anuncio.link_url ? (
-                      <p className="mt-1 truncate text-xs text-gray-900">{anuncio.link_url}</p>
+            {anuncios.map((anuncio) => {
+              const resultadosAbertos = resultadosAbertoId === anuncio.id
+              const ctr = formatCtr(anuncio.impressoes_exibidas, anuncio.cliques)
+              return (
+                <div key={anuncio.id} className="rounded-lg border border-gray-200 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900">{anuncio.tipo === 'home' ? 'Home (Guia)' : 'Feed'}</p>
+                      <p className="text-sm text-gray-900">
+                        {formatDate(anuncio.periodo_inicio)} — {formatDate(anuncio.periodo_fim)}
+                      </p>
+                      {anuncio.link_url ? (
+                        <p className="mt-1 truncate text-xs text-gray-900">{anuncio.link_url}</p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 border-t border-gray-100 pt-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setResultadosAbertoId((id) => (id === anuncio.id ? null : anuncio.id))
+                      }
+                      className="flex w-full items-center justify-between gap-2 rounded-md py-2 text-left text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                      aria-expanded={resultadosAbertos}
+                    >
+                      <span>Resultados do anúncio</span>
+                      <ChevronDown
+                        className={`h-5 w-5 shrink-0 text-gray-600 transition-transform ${
+                          resultadosAbertos ? 'rotate-180' : ''
+                        }`}
+                        aria-hidden
+                      />
+                    </button>
+                    {resultadosAbertos ? (
+                      <div className="space-y-2 pb-1 pl-0.5 pt-1 text-sm text-gray-900">
+                        <p>
+                          <span className="font-medium text-gray-700">Visualizações:</span>{' '}
+                          {anuncio.impressoes_exibidas.toLocaleString('pt-BR')}
+                        </p>
+                        <p>
+                          <span className="font-medium text-gray-700">Cliques no link:</span>{' '}
+                          {anuncio.cliques.toLocaleString('pt-BR')}
+                        </p>
+                        <p>
+                          <span className="font-medium text-gray-700">CTR:</span> {ctr}
+                        </p>
+                      </div>
                     ) : null}
                   </div>
-                  <div className="shrink-0 text-right text-sm text-gray-900">
-                    <p>👁️ {anuncio.impressoes_exibidas.toLocaleString()} impressões</p>
-                    <p>🖱️ {anuncio.cliques} cliques</p>
-                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

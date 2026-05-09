@@ -45,7 +45,7 @@ export default function GuiaPage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-5rem)] flex-col overflow-hidden bg-gray-50">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
       <header className="shrink-0">
         <div className="flex justify-center bg-[#0097b2] py-4">
           <Image

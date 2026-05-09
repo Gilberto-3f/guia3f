@@ -46,9 +46,11 @@ function AppShellInner({ children }: { children: ReactNode }) {
         : 'bg-gray-50'
 
   return (
-    <div className={`min-h-screen ${fundoShell} ${paddingTopoModo} ${paddingInferior}`}>
+    <div
+      className={`flex min-h-screen min-h-dvh flex-col ${fundoShell} ${paddingTopoModo} ${paddingInferior}`}
+    >
       {modoAtivo ? null : <ModoApresentacaoChrome />}
-      {children}
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       {!hideBottomBar ? <BottomBar /> : null}
     </div>
   )
@@ -61,8 +63,8 @@ export default function AppShellClient({ children }: { children: ReactNode }) {
         <ProfissionalGateProvider>
           <Suspense
             fallback={
-              <div className="min-h-screen bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300 pb-20">
-                {children}
+              <div className="flex min-h-screen min-h-dvh flex-col bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300 pb-20">
+                <div className="flex min-h-0 flex-1 flex-col">{children}</div>
                 <BottomBar />
               </div>
             }
