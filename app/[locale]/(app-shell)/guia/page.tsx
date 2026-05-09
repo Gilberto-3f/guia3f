@@ -3,13 +3,11 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
-import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useTranslations } from 'next-intl'
 import { Car, MapPin } from 'lucide-react'
 import PublicidadeHome from '@/components/PublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
-import PopupFavoritos from '@/components/PopupFavoritos'
 
 function abaGuiaCls(ativo: boolean, unica: boolean) {
   return `flex min-w-0 ${unica ? 'w-full flex-none' : 'flex-1'} items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
@@ -23,27 +21,23 @@ export default function GuiaPage() {
   const tMobilidade = useTranslations('Mobilidade')
   const tGuia = useTranslations('Guia')
   const router = useRouter()
-  const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
-  const { perfilEhProfissional, recursosProfissionaisLiberados } = useProfissionalGate()
-  const ocultarMobilidadeProfissional = perfilEhProfissional && !recursosProfissionaisLiberados
+  const { roleEfetivo } = useProfissionalGate()
+
+  /** Solo turista o usuario no autenticado ven la pestaña Mobilidad en la Home del guía. */
+  const mostrarAbaMobilidade = roleEfetivo == null || roleEfetivo === 'turista'
   const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
-  const [popupFavoritosAberto, setPopupFavoritosAberto] = useState(false)
 
   useEffect(() => {
-    if (ocultarMobilidadeProfissional && abaAtiva === 'mobilidade') {
+    if (!mostrarAbaMobilidade && abaAtiva === 'mobilidade') {
       setAbaAtiva('guia')
     }
-  }, [ocultarMobilidadeProfissional, abaAtiva])
+  }, [mostrarAbaMobilidade, abaAtiva])
 
   const handleFiltroClick = (filtroId: string) => {
-    if (filtroId === 'favoritos' && !podeInteragir) {
-      notificarSomenteLeitura()
-      return
-    }
-    if (filtroId === 'favoritos') {
-      setPopupFavoritosAberto(true)
-    } else if (filtroId === 'compras') {
+    if (filtroId === 'compras') {
       router.push('/guia/compras')
+    } else if (filtroId === 'servicos') {
+      router.push('/servicos')
     } else {
       router.push(`/guia/${filtroId}`)
     }
@@ -53,19 +47,26 @@ export default function GuiaPage() {
     <div className="flex h-[calc(100dvh-5rem)] flex-col overflow-hidden bg-gray-50">
       <header className="shrink-0">
         <div className="flex justify-center bg-[#0097b2] py-2">
-          <Image src="/logo.png" alt="Guia 3F" width={120} height={40} priority className="h-auto w-auto object-contain" />
+          <Image
+            src="/logo.png"
+            alt="Guia 3F"
+            width={188}
+            height={63}
+            priority
+            className="h-auto max-h-[56px] w-auto object-contain sm:max-h-[64px]"
+          />
         </div>
 
         <div className="flex w-full border-b border-gray-200 bg-white">
           <button
             type="button"
             onClick={() => setAbaAtiva('guia')}
-            className={abaGuiaCls(abaAtiva === 'guia', ocultarMobilidadeProfissional)}
+            className={abaGuiaCls(abaAtiva === 'guia', !mostrarAbaMobilidade)}
           >
             <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
             <span>{tGuia('tabGuia')}</span>
           </button>
-          {!ocultarMobilidadeProfissional ? (
+          {mostrarAbaMobilidade ? (
             <button
               type="button"
               onClick={() => setAbaAtiva('mobilidade')}
@@ -91,8 +92,6 @@ export default function GuiaPage() {
           <p className="mt-2 max-w-md text-sm text-gray-500">{tMobilidade('description')}</p>
         </main>
       )}
-
-      <PopupFavoritos isOpen={popupFavoritosAberto} onClose={() => setPopupFavoritosAberto(false)} />
     </div>
   )
 }

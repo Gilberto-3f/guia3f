@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 function isoDate(d: Date) {
@@ -15,8 +15,6 @@ type AnuncioSlide = {
   imagem_url: string
   link_url: string | null
 }
-
-const AUTO_INTERVAL_MS = 15000
 
 function isSupabasePublicStorageUrl(url: string): boolean {
   try {
@@ -70,28 +68,39 @@ function BlocoImagemBanner({
   )
 }
 
+function linkEhRotaInterna(url: string): boolean {
+  return url.startsWith('/') && !url.startsWith('//')
+}
+
 function envolveLink(anuncio: AnuncioSlide, children: ReactNode): ReactNode {
-  if (anuncio.link_url) {
+  const raw = anuncio.link_url
+  if (!raw) {
+    return <div className="block overflow-hidden rounded-lg">{children}</div>
+  }
+  const url = raw.trim()
+  if (linkEhRotaInterna(url)) {
     return (
-      <a
-        href={anuncio.link_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block overflow-hidden rounded-lg"
-      >
+      <Link href={url} className="block overflow-hidden rounded-lg">
         {children}
-      </a>
+      </Link>
     )
   }
-  return <div className="block overflow-hidden rounded-lg">{children}</div>
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block overflow-hidden rounded-lg"
+    >
+      {children}
+    </a>
+  )
 }
 
 export default function PublicidadeHome() {
   const t = useTranslations('Home')
   const [anuncios, setAnuncios] = useState<AnuncioSlide[]>([])
-  const [indiceCarrossel, setIndiceCarrossel] = useState(0)
   const [carregando, setCarregando] = useState(true)
-  const [pausadoCarrossel, setPausadoCarrossel] = useState(false)
 
   useEffect(() => {
     let ativo = true
@@ -127,36 +136,6 @@ export default function PublicidadeHome() {
     }
   }, [])
 
-  const primeiro = anuncios[0]
-  /** Demais criativos após o primeiro (campo fixo reservado ao 1.º anunciante). */
-  const anunciosCarrossel = anuncios.slice(1)
-  const nCarrossel = anunciosCarrossel.length
-
-  useEffect(() => {
-    if (nCarrossel <= 1 || pausadoCarrossel) return
-    const id = window.setInterval(() => {
-      setIndiceCarrossel((prev) => (prev + 1) % nCarrossel)
-    }, AUTO_INTERVAL_MS)
-    return () => window.clearInterval(id)
-  }, [nCarrossel, pausadoCarrossel])
-
-  useEffect(() => {
-    if (nCarrossel > 0 && indiceCarrossel >= nCarrossel)
-      setIndiceCarrossel(0)
-  }, [indiceCarrossel, nCarrossel])
-
-  const anterior = useCallback(() => {
-    setIndiceCarrossel((prev) => (prev === 0 ? nCarrossel - 1 : prev - 1))
-  }, [nCarrossel])
-
-  const proximo = useCallback(() => {
-    setIndiceCarrossel((prev) =>
-      prev === nCarrossel - 1 ? 0 : prev + 1
-    )
-  }, [nCarrossel])
-
-  const atualCarrossel = anunciosCarrossel[indiceCarrossel]
-
   if (carregando) {
     return (
       <div className="shrink-0 px-4 py-2 text-center text-sm text-gray-400">
@@ -165,25 +144,21 @@ export default function PublicidadeHome() {
     )
   }
 
+  const primeiro = anuncios[0]
   const alt = t('adImageAlt')
-  const fixoH = 'h-[120px]'
-  const carrosselH = 'h-36 sm:h-40'
+  const blocoH = 'min-h-[176px] h-44 sm:h-52'
 
   return (
-    <div className="shrink-0 space-y-3 px-4 pb-3">
+    <div className="shrink-0 px-4 pb-3">
       <div className="w-full">
         {primeiro ? (
           envolveLink(
             primeiro,
-            <BlocoImagemBanner
-              anuncio={primeiro}
-              alt={alt}
-              classNameHeight={fixoH}
-            />
+            <BlocoImagemBanner anuncio={primeiro} alt={alt} classNameHeight={blocoH} />
           )
         ) : (
           <div
-            className={`flex ${fixoH} w-full flex-col items-center justify-center rounded-lg bg-gray-100 px-4 text-center`}
+            className={`flex ${blocoH} w-full flex-col items-center justify-center rounded-lg bg-gray-100 px-4 text-center`}
           >
             <p className="font-medium text-gray-400">{t('adSpace')}</p>
             <p className="mt-0.5 text-xs text-gray-400 sm:text-sm">
@@ -192,110 +167,6 @@ export default function PublicidadeHome() {
           </div>
         )}
       </div>
-
-      <section className="relative pb-1">
-        {nCarrossel === 0 ? (
-          <div
-            className={`relative flex ${carrosselH} w-full flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 px-10 text-center sm:px-12`}
-          >
-            <button
-              type="button"
-              disabled
-              className="pointer-events-none absolute left-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-gray-400 shadow-md sm:left-2"
-              aria-hidden
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </button>
-            <button
-              type="button"
-              disabled
-              className="pointer-events-none absolute right-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-gray-400 shadow-md sm:right-2"
-              aria-hidden
-            >
-              <ChevronRight className="h-6 w-6" />
-            </button>
-            <p className="relative z-0 max-w-[min(100%,16rem)] text-xs font-medium text-gray-400 sm:text-sm">
-              {t('adCarouselEmpty')}
-            </p>
-          </div>
-        ) : (
-          <div
-            className="relative"
-            onMouseEnter={() => setPausadoCarrossel(true)}
-            onMouseLeave={() => setPausadoCarrossel(false)}
-          >
-            <div className="relative px-1 sm:px-0">
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={anterior}
-                  disabled={nCarrossel <= 1}
-                  className={`absolute left-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white shadow-md sm:left-1 ${
-                    nCarrossel <= 1
-                      ? 'cursor-not-allowed opacity-45'
-                      : 'hover:bg-gray-50 active:bg-gray-100'
-                  }`}
-                  aria-label={t('carouselPrev')}
-                  aria-disabled={nCarrossel <= 1}
-                >
-                  <ChevronLeft className="h-6 w-6 text-gray-800" aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={proximo}
-                  disabled={nCarrossel <= 1}
-                  className={`absolute right-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white shadow-md sm:right-1 ${
-                    nCarrossel <= 1
-                      ? 'cursor-not-allowed opacity-45'
-                      : 'hover:bg-gray-50 active:bg-gray-100'
-                  }`}
-                  aria-label={t('carouselNext')}
-                  aria-disabled={nCarrossel <= 1}
-                >
-                  <ChevronRight className="h-6 w-6 text-gray-800" aria-hidden />
-                </button>
-
-                <div className="mx-11 sm:mx-12">
-                  {atualCarrossel
-                    ? envolveLink(
-                        atualCarrossel,
-                        <BlocoImagemBanner
-                          anuncio={atualCarrossel}
-                          alt={alt}
-                          classNameHeight={carrosselH}
-                        />
-                      )
-                    : null}
-                </div>
-              </div>
-
-              {nCarrossel > 1 ? (
-                <div
-                  className="mt-2 flex justify-center gap-1.5"
-                  role="tablist"
-                  aria-label={t('carouselDotsLabel')}
-                >
-                  {anunciosCarrossel.map((a, idx) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      role="tab"
-                      onClick={() => setIndiceCarrossel(idx)}
-                      aria-selected={idx === indiceCarrossel}
-                      aria-label={t('carouselDot', { n: idx + 1 })}
-                      className={`h-1.5 rounded-full transition-all ${
-                        idx === indiceCarrossel
-                          ? 'w-3 bg-[#0097b2]'
-                          : 'w-1.5 bg-gray-300'
-                      }`}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        )}
-      </section>
     </div>
   )
 }

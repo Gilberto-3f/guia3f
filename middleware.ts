@@ -36,19 +36,23 @@ export default async function middleware(request: NextRequest) {
   } = await supabase.auth.getSession();
 
   const pathname = request.nextUrl.pathname;
-  const protectedRoutes = [
-    "/guia",
+
+  /** Guia público (home e categorias); subrotas específicas podem exigir login. */
+  const protectedPrefixes = [
     "/feed",
     "/perfil",
     "/atividades",
     "/canal",
     "/dashboard",
+    "/favoritos",
+    "/servicos",
+    "/mobilidade",
   ];
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
+  const needsAuth =
+    protectedPrefixes.some((route) => pathname.startsWith(route)) ||
+    pathname.startsWith("/guia/compras");
 
-  if (isProtectedRoute && !session) {
+  if (needsAuth && !session) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

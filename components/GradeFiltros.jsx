@@ -1,6 +1,6 @@
 'use client'
 
-import { Utensils, Ticket, ShoppingBag, Hotel, ShoppingCart, Heart } from 'lucide-react'
+import { Utensils, Ticket, ShoppingBag, Hotel, ShoppingCart, Settings } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 /**
@@ -14,7 +14,7 @@ export default function GradeFiltros({ onFiltroClick }) {
     { id: 'lojas', nome: t('lojas'), icon: ShoppingBag },
     { id: 'hospedagem', nome: t('hospedagem'), icon: Hotel },
     { id: 'compras', nome: t('compras'), icon: ShoppingCart },
-    { id: 'favoritos', nome: t('favoritos'), icon: Heart },
+    { id: 'servicos', nome: t('servicos'), icon: Settings },
   ]
 
   return (

@@ -241,7 +241,8 @@
     "activities": "Activities",
     "profile": "Profile",
     "dashboard": "Dashboard",
-    "companyGuia": "Company page on the guide"
+    "companyGuia": "Company page on the guide",
+    "mobility": "Mobility"
   },
   "Guia": {
     "title": "Tourist Guide",
@@ -252,6 +253,7 @@
     "hospedagem": "Accommodation",
     "compras": "Paraguay Shopping",
     "favoritos": "My Favorites",
+    "servicos": "Services",
     "tabGuia": "GUIDE",
     "tabMobilidade": "MOBILITY"
   }
