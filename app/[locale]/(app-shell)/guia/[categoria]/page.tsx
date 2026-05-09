@@ -181,16 +181,16 @@ export default function ListagemCategoriaPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-20 border-b border-gray-100 bg-white shadow-sm">
+      <header className="sticky top-0 z-20 border-b border-white/20 bg-[#0097b2] shadow-sm">
         <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" onClick={() => router.back()} className="-ml-1 shrink-0 p-1" aria-label="Voltar">
-              <ArrowLeft size={24} className="text-gray-600" />
+              <ArrowLeft size={24} className="text-white" />
             </button>
-            <h1 className="truncate text-xl font-bold text-gray-900">{titulo}</h1>
+            <h1 className="truncate text-xl font-bold text-white">{titulo}</h1>
           </div>
 
-          <div className="flex flex-wrap items-center justify-start gap-4 sm:justify-end sm:gap-6">
+          <div className="flex flex-wrap items-center justify-start gap-8 sm:justify-end sm:gap-10">
             <div className="flex items-center gap-4">
               {(
                 [
@@ -206,8 +206,8 @@ export default function ListagemCategoriaPage() {
                     type="button"
                     onClick={() => setPais(f.id)}
                     aria-label={f.alt}
-                    className={`overflow-hidden rounded-sm transition ${
-                      ativo ? 'ring-2 ring-[#0097b2] ring-offset-1' : 'opacity-90 hover:opacity-100'
+                    className={`overflow-hidden rounded-sm ring-offset-0 transition ${
+                      ativo ? 'ring-2 ring-white' : 'ring-1 ring-white opacity-80 hover:opacity-100'
                     }`}
                   >
                     <Image
@@ -228,15 +228,11 @@ export default function ListagemCategoriaPage() {
                 title="Ordenar por avaliação"
                 aria-label="Ordenar por avaliação"
                 onClick={() => setOrdenacao('avaliacao')}
-                className={`inline-flex items-center justify-center rounded-full border p-2 transition ${
-                  ordenacao === 'avaliacao'
-                    ? 'border-[#0097b2] bg-blue-50 text-[#0097b2]'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                }`}
+                className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-2 transition hover:bg-gray-50"
               >
                 <Star
-                  className="h-6 w-6 shrink-0"
-                  fill={ordenacao === 'avaliacao' ? '#0097b2' : 'none'}
+                  className="h-6 w-6 shrink-0 text-[#0097b2]"
+                  fill={ordenacao === 'avaliacao' ? 'currentColor' : 'none'}
                   stroke="currentColor"
                   aria-hidden
                 />
@@ -266,18 +262,14 @@ export default function ListagemCategoriaPage() {
                     { enableHighAccuracy: true, timeout: 8000 }
                   )
                 }}
-                className={`inline-flex items-center justify-center rounded-full border p-2 transition ${
-                  ordenacao === 'localizacao'
-                    ? 'border-[#0097b2] bg-blue-50 text-[#0097b2]'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                }`}
+                className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-2 transition hover:bg-gray-50"
               >
                 <span
                   className={`relative inline-flex h-6 w-6 shrink-0 items-center justify-center ${geoCarregando ? 'animate-pulse' : ''}`}
                 >
                   <MapPin
-                    className="h-6 w-6"
-                    fill={ordenacao === 'localizacao' ? '#0097b2' : 'none'}
+                    className="h-6 w-6 text-[#0097b2]"
+                    fill={ordenacao === 'localizacao' ? 'currentColor' : 'none'}
                     stroke="currentColor"
                     aria-hidden
                   />
