@@ -180,7 +180,7 @@ export default function ListagemCategoriaPage() {
   const titulo = TITULO_CATEGORIA[slug] ?? slug
 
   return (
-    <>
+    <div className="min-h-screen bg-[#0097b2]">
       <div className="sticky top-0 z-20 border-b border-gray-100 bg-white">
         <div className="flex items-center gap-3 p-4">
           <button type="button" onClick={() => router.back()} className="-ml-1 p-1" aria-label="Voltar">
@@ -191,95 +191,99 @@ export default function ListagemCategoriaPage() {
 
         {/* FIX: cabeçalho de filtros com 3 bandeiras reais + ordenação */}
         <div className="px-4 pb-3">
-          <div className="flex h-6 items-center justify-center gap-2">
-            {(
-              [
-                { id: 'br', src: '/flags/br.svg', alt: 'Brasil' },
-                { id: 'py', src: '/flags/py.svg', alt: 'Paraguai' },
-                { id: 'ar', src: '/flags/ar.svg', alt: 'Argentina' },
-              ] as const
-            ).map((f) => {
-              const ativo = pais === f.id
-              return (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setPais(f.id)}
-                  aria-label={f.alt}
-                  className={`relative flex h-6 shrink-0 items-center overflow-hidden rounded-none transition ${
-                    ativo ? 'ring-2 ring-[#0097b2] ring-offset-1' : 'opacity-85 hover:opacity-100'
-                  }`}
-                >
-                  <Image
-                    src={f.src}
-                    alt={f.alt}
-                    width={36}
-                    height={24}
-                    className={`h-6 w-auto max-h-6 rounded-none object-contain ${ativo ? 'brightness-110' : ''}`}
-                  />
-                </button>
-              )
-            })}
-
-            <button
-              type="button"
-              aria-label="Ordenar por melhores avaliados"
-              onClick={() => setOrdenacao('avaliacao')}
-              className={`ml-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
-                ordenacao === 'avaliacao' ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
-              }`}
-            >
-              <Star className="h-5 w-5" fill="#0097b2" stroke="#0097b2" aria-hidden />
-            </button>
-
-            <button
-              type="button"
-              aria-label="Ordenar por mais próximos"
-              onClick={() => {
-                setOrdenacao('localizacao')
-                if (userPos || geoCarregando) return
-                if (typeof navigator === 'undefined' || !navigator.geolocation) {
-                  window.alert('Geolocalização não disponível neste dispositivo.')
-                  return
-                }
-                setGeoCarregando(true)
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => {
-                    setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-                    setGeoCarregando(false)
-                  },
-                  () => {
-                    window.alert('Não foi possível obter sua localização.')
-                    setGeoCarregando(false)
-                  },
-                  { enableHighAccuracy: true, timeout: 8000 }
+          <div className="flex h-6 items-center justify-center gap-6">
+            <div className="flex items-center gap-2">
+              {(
+                [
+                  { id: 'br', src: '/flags/br.svg', alt: 'Brasil' },
+                  { id: 'py', src: '/flags/py.svg', alt: 'Paraguai' },
+                  { id: 'ar', src: '/flags/ar.svg', alt: 'Argentina' },
+                ] as const
+              ).map((f) => {
+                const ativo = pais === f.id
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setPais(f.id)}
+                    aria-label={f.alt}
+                    className={`relative flex h-6 shrink-0 items-center overflow-hidden rounded-none transition ${
+                      ativo ? 'ring-2 ring-[#0097b2] ring-offset-1' : 'opacity-85 hover:opacity-100'
+                    }`}
+                  >
+                    <Image
+                      src={f.src}
+                      alt={f.alt}
+                      width={36}
+                      height={24}
+                      className={`h-6 w-auto max-h-6 rounded-none object-contain ${ativo ? 'brightness-110' : ''}`}
+                    />
+                  </button>
                 )
-              }}
-              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
-                ordenacao === 'localizacao' ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
-              }`}
-            >
-              <span className={`relative inline-flex h-5 w-5 items-center justify-center ${geoCarregando ? 'animate-pulse' : ''}`}>
-                <MapPin className="h-5 w-5" fill="#0097b2" stroke="#0097b2" aria-hidden />
-                <span
-                  className="pointer-events-none absolute left-1/2 top-[44%] h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
-                  aria-hidden
-                />
-              </span>
-            </button>
+              })}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label="Ordenar por melhores avaliados"
+                onClick={() => setOrdenacao('avaliacao')}
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
+                  ordenacao === 'avaliacao' ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
+                }`}
+              >
+                <Star className="h-5 w-5" fill="#0097b2" stroke="#0097b2" aria-hidden />
+              </button>
+
+              <button
+                type="button"
+                aria-label="Ordenar por mais próximos"
+                onClick={() => {
+                  setOrdenacao('localizacao')
+                  if (userPos || geoCarregando) return
+                  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+                    window.alert('Geolocalização não disponível neste dispositivo.')
+                    return
+                  }
+                  setGeoCarregando(true)
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+                      setGeoCarregando(false)
+                    },
+                    () => {
+                      window.alert('Não foi possível obter sua localização.')
+                      setGeoCarregando(false)
+                    },
+                    { enableHighAccuracy: true, timeout: 8000 }
+                  )
+                }}
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
+                  ordenacao === 'localizacao' ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white hover:bg-gray-50'
+                }`}
+              >
+                <span className={`relative inline-flex h-5 w-5 items-center justify-center ${geoCarregando ? 'animate-pulse' : ''}`}>
+                  <MapPin className="h-5 w-5" fill="#0097b2" stroke="#0097b2" aria-hidden />
+                  <span
+                    className="pointer-events-none absolute left-1/2 top-[44%] h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
+                    aria-hidden
+                  />
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="p-4">
-        {erroLista ? <p className="mb-4 text-center text-sm text-red-600">{erroLista}</p> : null}
+        {erroLista ? <p className="mb-4 text-center text-sm font-medium text-red-100">{erroLista}</p> : null}
         {loading ? (
           <div className="flex justify-center py-8">
-            <div className="animate-pulse text-gray-400">Carregando...</div>
+            <div className="animate-pulse text-white/90">Carregando...</div>
           </div>
         ) : empresas.length === 0 ? (
           <div className="py-8 text-center">
-            <p className="text-gray-400">Nenhuma empresa encontrada nesta região</p>
+            <p className="text-white/85">Nenhuma empresa encontrada nesta região</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -289,6 +293,6 @@ export default function ListagemCategoriaPage() {
           </div>
         )}
       </div>
-    </>
+    </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { Heart } from 'lucide-react'
 import BotaoDinamico from '@/components/BotaoDinamico'
 
 /**
@@ -39,7 +40,7 @@ export default function CardAtrativo({ empresa }) {
       {/* RODADA 2: username maior e centralizado */}
       <div className="px-4 pt-4 text-center">
         {username ? (
-          <div className="text-base font-extrabold text-[#0097b2]">@{username}</div>
+          <div className="text-lg font-extrabold text-[#0097b2]">@{username}</div>
         ) : (
           <div className="h-5" aria-hidden />
         )}
@@ -74,7 +75,8 @@ export default function CardAtrativo({ empresa }) {
             onClick={() => router.push(`/empresa/${empresa.id}`)}
             className="flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-1 rounded-lg bg-[#0097b2] px-2 py-2 text-center text-xs font-extrabold leading-tight text-white whitespace-normal hover:opacity-95 sm:text-sm"
           >
-            VISITAR PÁGINA
+            <Heart size={20} className="shrink-0 text-white" aria-hidden />
+            <span>VISITAR PÁGINA</span>
           </button>
           <BotaoDinamico
             categoria={empresa.categoria}
