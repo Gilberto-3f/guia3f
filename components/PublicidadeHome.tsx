@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -15,6 +15,8 @@ type AnuncioSlide = {
   imagem_url: string
   link_url: string | null
 }
+
+const SWIPE_MIN_PX = 48
 
 function isSupabasePublicStorageUrl(url: string): boolean {
   try {
@@ -41,9 +43,7 @@ function BlocoImagemBanner({
   const usarNextImage = imagem && isSupabasePublicStorageUrl(imagem)
 
   return (
-    <div
-      className={`relative w-full overflow-hidden rounded-lg bg-gray-200 ${classNameHeight}`}
-    >
+    <div className={`relative h-full w-full overflow-hidden rounded-lg bg-gray-200 ${classNameHeight}`}>
       {imagem ? (
         usarNextImage ? (
           <Image
@@ -75,12 +75,12 @@ function linkEhRotaInterna(url: string): boolean {
 function envolveLink(anuncio: AnuncioSlide, children: ReactNode): ReactNode {
   const raw = anuncio.link_url
   if (!raw) {
-    return <div className="block overflow-hidden rounded-lg">{children}</div>
+    return <div className="block h-full w-full overflow-hidden rounded-lg">{children}</div>
   }
   const url = raw.trim()
   if (linkEhRotaInterna(url)) {
     return (
-      <Link href={url} className="block overflow-hidden rounded-lg">
+      <Link href={url} className="block h-full w-full overflow-hidden rounded-lg">
         {children}
       </Link>
     )
@@ -90,7 +90,7 @@ function envolveLink(anuncio: AnuncioSlide, children: ReactNode): ReactNode {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block overflow-hidden rounded-lg"
+      className="block h-full w-full overflow-hidden rounded-lg"
     >
       {children}
     </a>
@@ -101,6 +101,8 @@ export default function PublicidadeHome() {
   const t = useTranslations('Home')
   const [anuncios, setAnuncios] = useState<AnuncioSlide[]>([])
   const [carregando, setCarregando] = useState(true)
+  const [indice, setIndice] = useState(0)
+  const touchStartX = useRef<number | null>(null)
 
   useEffect(() => {
     let ativo = true
@@ -136,6 +138,34 @@ export default function PublicidadeHome() {
     }
   }, [])
 
+  const n = anuncios.length
+
+  useEffect(() => {
+    if (n === 0) {
+      setIndice(0)
+      return
+    }
+    setIndice((prev) => (prev >= n ? n - 1 : prev))
+  }, [n])
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0]?.clientX ?? null
+  }, [])
+
+  const onTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      const start = touchStartX.current
+      touchStartX.current = null
+      if (start == null || n <= 1) return
+      const end = e.changedTouches[0]?.clientX
+      if (end == null) return
+      const dx = end - start
+      if (dx < -SWIPE_MIN_PX) setIndice((i) => Math.min(n - 1, i + 1))
+      else if (dx > SWIPE_MIN_PX) setIndice((i) => Math.max(0, i - 1))
+    },
+    [n]
+  )
+
   if (carregando) {
     return (
       <div className="shrink-0 px-4 py-2 text-center text-sm text-gray-400">
@@ -144,18 +174,51 @@ export default function PublicidadeHome() {
     )
   }
 
-  const primeiro = anuncios[0]
   const alt = t('adImageAlt')
   const blocoH = 'min-h-[176px] h-44 sm:h-52'
 
   return (
     <div className="shrink-0 px-4 pb-3">
       <div className="w-full">
-        {primeiro ? (
-          envolveLink(
-            primeiro,
-            <BlocoImagemBanner anuncio={primeiro} alt={alt} classNameHeight={blocoH} />
-          )
+        {n > 0 ? (
+          <div className="w-full">
+            <div
+              className="relative w-full overflow-hidden rounded-lg"
+              onTouchStart={onTouchStart}
+              onTouchEnd={onTouchEnd}
+            >
+              <div
+                className="flex transition-transform duration-300 ease-out"
+                style={{ transform: `translateX(-${indice * 100}%)` }}
+              >
+                {anuncios.map((anuncio) => (
+                  <div key={anuncio.id} className="w-full shrink-0">
+                    {envolveLink(
+                      anuncio,
+                      <BlocoImagemBanner anuncio={anuncio} alt={alt} classNameHeight={blocoH} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {n > 1 ? (
+              <div className="mt-2 flex justify-center gap-1.5" role="tablist" aria-label={t('carouselDotsLabel')}>
+                {anuncios.map((a, idx) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={idx === indice}
+                    aria-label={t('carouselDot', { n: idx + 1 })}
+                    onClick={() => setIndice(idx)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      idx === indice ? 'w-3 bg-[#0097b2]' : 'w-1.5 bg-gray-300'
+                    }`}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
         ) : (
           <div
             className={`flex ${blocoH} w-full flex-col items-center justify-center rounded-lg bg-gray-100 px-4 text-center`}
