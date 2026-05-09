@@ -39,7 +39,10 @@ export default function Publicidade() {
   const [aba, setAba] = useState<'propagandas' | 'historico'>('propagandas')
   const [salvando, setSalvando] = useState(false)
   const [removendoId, setRemovendoId] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState<string | null>(null)
+  /** Mensagens do formulário novo anúncio (abaixo do botão Salvar). */
+  const [msgFormulario, setMsgFormulario] = useState<string | null>(null)
+  /** Feedback do botão Remover, ligado ao anúncio que disparou a ação. */
+  const [msgRemover, setMsgRemover] = useState<{ anuncioId: string; texto: string } | null>(null)
 
   const [arteFile, setArteFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -83,14 +86,14 @@ export default function Publicidade() {
 
   const handleSalvarAnuncio = async () => {
     if (!arteFile) {
-      setFeedback('⚠️ Selecione a imagem do anúncio (JPG, PNG ou WEBP).')
+      setMsgFormulario('⚠️ Selecione a imagem do anúncio (JPG, PNG ou WEBP).')
       return
     }
-    setFeedback(null)
+    setMsgFormulario(null)
     setSalvando(true)
     try {
       await salvarAnuncioHomeArte(arteFile)
-      setFeedback('✅ Anúncio salvo e publicado na Home do Guia.')
+      setMsgFormulario('✅ Anúncio salvo e publicado na Home do Guia.')
       if (previewRevokeRef.current) {
         URL.revokeObjectURL(previewRevokeRef.current)
         previewRevokeRef.current = null
@@ -99,7 +102,7 @@ export default function Publicidade() {
       setPreviewUrl(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
     } catch (e) {
-      setFeedback(
+      setMsgFormulario(
         e instanceof Error
           ? `❌ ${e.message}`
           : '❌ Não foi possível salvar. Verifique a imagem e tente de novo.'
@@ -111,13 +114,19 @@ export default function Publicidade() {
 
   const handleRemover = async (anuncioId: string) => {
     if (!window.confirm('Remover este anúncio da Home? Ele deixa de ser exibido imediatamente.')) return
-    setFeedback(null)
+    setMsgRemover(null)
     setRemovendoId(anuncioId)
     try {
       await desativarAnuncio(anuncioId)
-      setFeedback('✅ Anúncio removido. Você pode criar um novo quando quiser.')
+      setMsgRemover({
+        anuncioId,
+        texto: '✅ Anúncio removido. Você pode criar um novo quando quiser.',
+      })
     } catch {
-      setFeedback('❌ Não foi possível remover o anúncio. Tente de novo.')
+      setMsgRemover({
+        anuncioId,
+        texto: '❌ Não foi possível remover o anúncio. Tente de novo.',
+      })
     } finally {
       setRemovendoId(null)
     }
@@ -134,10 +143,8 @@ export default function Publicidade() {
   }
 
   return (
-    <div className="space-y-4">
-      {feedback ? <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-900">{feedback}</div> : null}
-
-      <div className="flex border-b border-gray-200 bg-white">
+    <div>
+      <div className="-mx-4 flex border-b border-gray-200 bg-white px-0 sm:mx-0">
         <button type="button" className={abaCls(aba === 'propagandas')} onClick={() => setAba('propagandas')}>
           Propagandas
         </button>
@@ -147,7 +154,7 @@ export default function Publicidade() {
       </div>
 
       {aba === 'propagandas' ? (
-        <div className="space-y-6">
+        <div className="mt-4 space-y-6">
           {emVeiculacao.length > 0 ? (
             <div className="space-y-4">
               <div className="rounded-lg border bg-white p-4">
@@ -188,6 +195,20 @@ export default function Publicidade() {
                     >
                       {removendoId === anuncio.id ? 'Removendo...' : 'Remover anúncio'}
                     </button>
+                    {msgRemover && msgRemover.anuncioId === anuncio.id ? (
+                      <p
+                        className={`mt-3 text-sm ${
+                          msgRemover.texto.startsWith('✅')
+                            ? 'text-green-800'
+                            : msgRemover.texto.startsWith('❌')
+                              ? 'text-red-700'
+                              : 'text-gray-900'
+                        }`}
+                        role="status"
+                      >
+                        {msgRemover.texto}
+                      </p>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -224,11 +245,25 @@ export default function Publicidade() {
               >
                 {salvando ? 'Salvando...' : 'Salvar anúncio'}
               </button>
+              {msgFormulario ? (
+                <p
+                  className={`mt-3 text-sm ${
+                    msgFormulario.startsWith('✅')
+                      ? 'text-green-800'
+                      : msgFormulario.startsWith('❌') || msgFormulario.startsWith('⚠️')
+                        ? 'text-red-700'
+                        : 'text-gray-900'
+                  }`}
+                  role="status"
+                >
+                  {msgFormulario}
+                </p>
+              ) : null}
             </div>
           )}
         </div>
       ) : (
-        <div className="rounded-lg border bg-white p-4">
+        <div className="mt-4 rounded-lg border bg-white p-4">
           <h3 className="mb-2 font-bold text-gray-900">Histórico de campanhas</h3>
           <p className="mb-4 text-xs text-gray-600">
             Anúncios desativados ou fora do período de veiculação (mais recentes primeiro).
