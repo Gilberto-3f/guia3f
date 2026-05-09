@@ -189,8 +189,8 @@ export default function ListagemCategoriaPage() {
             <h1 className="truncate text-lg font-bold text-white">{titulo}</h1>
           </div>
 
-          <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-x-12 gap-y-2 sm:flex-1">
-            <div className="flex items-center gap-3">
+          <div className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-2 sm:flex-1">
+            <div className="flex items-center gap-4">
               {(
                 [
                   { id: 'br' as const, emoji: '🇧🇷', alt: 'Brasil' },
