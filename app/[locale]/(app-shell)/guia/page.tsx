@@ -47,14 +47,14 @@ export default function GuiaPage() {
   return (
     <div className="flex h-[calc(100dvh-5rem)] flex-col overflow-hidden bg-gray-50">
       <header className="shrink-0">
-        <div className="flex justify-center bg-[#0097b2] py-2">
+        <div className="flex justify-center bg-[#0097b2] py-4">
           <Image
             src="/logo.png"
             alt="Guia 3F"
             width={228}
             height={76}
             priority
-            className="h-auto max-h-[64px] w-auto object-contain sm:max-h-[72px]"
+            className="h-auto w-auto max-h-[76px] max-w-[228px] object-contain"
           />
         </div>
 
