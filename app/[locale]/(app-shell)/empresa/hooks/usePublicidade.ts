@@ -81,6 +81,7 @@ export function usePublicidade(empresaId: string | null) {
   /** Upload + insert em `anuncios` (home, ativo, 30 dias). */
   const salvarAnuncioHomeArte = useCallback(
     async (file: File) => {
+      console.log('1. Função chamada com arquivo:', file?.name)
       if (!empresaId) throw new Error('Empresa não identificada')
       const mime = (file.type || '').toLowerCase()
       if (!MIME_ANUNCIO_HOME.has(mime)) {
@@ -90,12 +91,14 @@ export function usePublicidade(empresaId: string | null) {
       const ext = extensaoArquivoImagem(file)
       const objectPath = `${empresaId}/${crypto.randomUUID()}.${ext}`
 
-      const { error: upErr } = await supabase.storage.from('anuncios').upload(objectPath, file, {
+      console.log('2. Antes do upload')
+      const { data: uploadData, error: uploadError } = await supabase.storage.from('anuncios').upload(objectPath, file, {
         cacheControl: '3600',
         upsert: false,
         contentType: mime || undefined,
       })
-      if (upErr) throw upErr
+      console.log('3. Upload resposta:', uploadData, uploadError)
+      if (uploadError) throw uploadError
 
       const { data: pub } = supabase.storage.from('anuncios').getPublicUrl(objectPath)
       const imagemUrl = pub?.publicUrl ?? ''
@@ -105,7 +108,8 @@ export function usePublicidade(empresaId: string | null) {
       const fim = new Date()
       fim.setDate(fim.getDate() + DURACAO_ANUNCIO_HOME_DIAS)
 
-      const { error: insErr } = await supabase.from('anuncios').insert({
+      console.log('4. Inserindo anúncio...')
+      const { data: insertData, error: insertError } = await supabase.from('anuncios').insert({
         empresa_id: empresaId,
         tipo: 'home',
         localizacao: null,
@@ -115,9 +119,12 @@ export function usePublicidade(empresaId: string | null) {
         periodo_fim: isoDate(fim),
         status: 'ativo',
       })
-      if (insErr) throw insErr
+      console.log('5. Insert resposta:', insertData, insertError)
+      if (insertError) throw insertError
 
+      console.log('6. Antes de fetchDados')
       await fetchDados()
+      console.log('7. Depois de fetchDados')
     },
     [empresaId, fetchDados]
   )
