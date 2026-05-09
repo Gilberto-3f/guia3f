@@ -1,10 +1,11 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
-import { fetchPatrocinioAutorIds, isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
+import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
+import { fetchEmpresaFeedPromoAutorIds, intercalarPostsEmpresa } from '@/lib/intercalarFeedEmpresa'
 import { fetchUsuarioIdsEmpresasFavoritas } from '@/lib/feedSeguidosEmpresasFavoritas'
 import {
   escolherIdStoryInicialPorEmail,
@@ -114,6 +115,7 @@ function mapStoryRowToViewerState(data: StoryRowSelect | null): StoryViewerState
 }
 
 function FeedPageInner() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const postParam = searchParams.get('post')
   const comentarioParam = searchParams.get('comentario')
@@ -123,8 +125,10 @@ function FeedPageInner() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const pageRef = useRef(0)
+  const mergeGenRef = useRef(0)
   const sentinelRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const fetchPostAttempted = useRef<string | null>(null)
+  const [bloqueioEmpresaFeed, setBloqueioEmpresaFeed] = useState(false)
 
   const [meuId, setMeuId] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
@@ -223,22 +227,41 @@ function FeedPageInner() {
     void boot()
   }, [])
 
+  useEffect(() => {
+    let ativo = true
+    const verificar = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session?.user?.id || !ativo) return
+      const { data: u } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
+      if (!ativo) return
+      if (String(u?.role ?? '') === 'empresa') {
+        setBloqueioEmpresaFeed(true)
+        router.replace('/dashboard/empresa')
+      }
+    }
+    void verificar()
+    return () => {
+      ativo = false
+    }
+  }, [router])
+
   const recarregarFeedRede = useCallback(async () => {
     if (!meuId) {
       setFeedRede({ seguidos: [], patrocinioAutores: [], ready: true })
       return
     }
     try {
-      const [{ data: segRows }, autoresEmpresasFavoritas, patrocinados] = await Promise.all([
+      const [{ data: segRows }, autoresEmpresasFavoritas] = await Promise.all([
         supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId),
         fetchUsuarioIdsEmpresasFavoritas(supabase, meuId),
-        fetchPatrocinioAutorIds(supabase),
       ])
       const seguidosRede = (segRows ?? []).map((r) => String((r as { seguido_id: string }).seguido_id)).filter(Boolean)
       const seguidos = [...new Set([...seguidosRede, ...autoresEmpresasFavoritas])].filter(Boolean)
       setFeedRede({
         seguidos,
-        patrocinioAutores: patrocinados ?? [],
+        patrocinioAutores: [],
         ready: true,
       })
     } catch (e) {
@@ -290,47 +313,67 @@ function FeedPageInner() {
     }
   }, [])
 
-  const fetchPage = useCallback(async (pageIndex: number) => {
-    const from = pageIndex * PAGE_SIZE
-    const to = from + PAGE_SIZE - 1
-    const { seguidos, patrocinioAutores, ready, meuId: uidFromRef } = feedRedeRef.current as {
-      seguidos: string[]
-      patrocinioAutores: string[]
-      ready: boolean
-      meuId?: string | null
-    }
-    if (!ready) return []
+  const rebuildMergedPosts = useCallback(
+    async (generation: number): Promise<PostFeedRow[]> => {
+      const { seguidos, ready, meuId: uidRef } = feedRedeRef.current as {
+        seguidos: string[]
+        ready: boolean
+        meuId?: string | null
+      }
+      if (!ready) return []
 
-    const meu = uidFromRef ?? meuId
-    // Inclui o próprio usuário para misturar as publicações dele com seguidos + patrocínio (ordem por data).
-    const allowed = [...new Set([...(meu ? [meu] : []), ...seguidos, ...patrocinioAutores])].filter(Boolean)
-    if (allowed.length === 0) return []
+      const meu = uidRef ?? meuId
+      const organicAllowed = [...new Set([...(meu ? [meu] : []), ...seguidos])].filter(Boolean)
 
-    const { data, error } = await supabase
-      .from(POSTS_FEED_VIEW)
-      .select('*')
-      .in('autor_id', allowed)
-      .order('created_at', { ascending: false })
-      .range(from, to)
+      const promoIds = await fetchEmpresaFeedPromoAutorIds(supabase, {
+        seguidosSet: new Set(seguidos),
+        meuId: meu ?? undefined,
+      })
 
-    if (error) throw error
-    const raw = data ?? []
-    return raw
-      .filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
-      .map(mapRow)
-      .filter((row) => !isTipoVideoPost(row.tipo))
-  }, [mapRow, meuId])
+      const organicLimit = 40 + generation * 45
+      const promoLimit = 60
+
+      const [{ data: dOrg }, { data: dPromo }] = await Promise.all([
+        organicAllowed.length > 0
+          ? supabase
+              .from(POSTS_FEED_VIEW)
+              .select('*')
+              .in('autor_id', organicAllowed)
+              .order('created_at', { ascending: false })
+              .limit(organicLimit)
+          : Promise.resolve({ data: [] as unknown[] }),
+        promoIds.length > 0
+          ? supabase
+              .from(POSTS_FEED_VIEW)
+              .select('*')
+              .in('autor_id', promoIds)
+              .order('created_at', { ascending: false })
+              .limit(promoLimit)
+          : Promise.resolve({ data: [] as unknown[] }),
+      ])
+
+      const orgRows = (dOrg ?? []).filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
+      const proRows = (dPromo ?? []).filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
+
+      const orgMapped = orgRows.map(mapRow).filter((row) => !isTipoVideoPost(row.tipo))
+      const proMapped = proRows.map(mapRow).filter((row) => !isTipoVideoPost(row.tipo))
+
+      return intercalarPostsEmpresa(orgMapped, proMapped, (r) => r.autor?.usuario_id ?? '', 20)
+    },
+    [mapRow, meuId]
+  )
 
   useEffect(() => {
-    if (!feedRede.ready) return
+    if (!feedRede.ready || bloqueioEmpresaFeed) return
     const run = async () => {
       setLoading(true)
+      mergeGenRef.current = 0
       pageRef.current = 0
       setHasMore(true)
       try {
-        const first = await fetchPage(0)
-        setPosts(first)
-        setHasMore(first.length === PAGE_SIZE)
+        const merged = await rebuildMergedPosts(0)
+        setPosts(merged.slice(0, PAGE_SIZE))
+        setHasMore(merged.length > PAGE_SIZE)
         pageRef.current = 1
       } catch (e) {
         console.error(e)
@@ -340,7 +383,7 @@ function FeedPageInner() {
       }
     }
     void run()
-  }, [fetchPage, feedRede.ready, meuId, feedRede.seguidos, feedRede.patrocinioAutores])
+  }, [rebuildMergedPosts, feedRede.ready, meuId, feedRede.seguidos, bloqueioEmpresaFeed])
 
   useEffect(() => {
     fetchPostAttempted.current = null
@@ -366,8 +409,12 @@ function FeedPageInner() {
         fetchPostAttempted.current = null
         return
       }
-      const { seguidos, patrocinioAutores, meuId: uidRef } = feedRedeRef.current
-      const allowed = new Set([...seguidos, ...patrocinioAutores])
+      const { seguidos, meuId: uidRef } = feedRedeRef.current
+      const promoIds = await fetchEmpresaFeedPromoAutorIds(supabase, {
+        seguidosSet: new Set(seguidos),
+        meuId: uidRef ?? undefined,
+      })
+      const allowed = new Set([...seguidos, ...promoIds, ...(uidRef ? [uidRef] : [])])
       const aid = row.autor?.usuario_id ?? ''
       if (uidRef && aid && aid !== uidRef && !allowed.has(aid)) {
         fetchPostAttempted.current = null
@@ -378,7 +425,7 @@ function FeedPageInner() {
         return [row, ...prev]
       })
     })()
-  }, [postParam, loading, posts, mapRow, feedRede.ready])
+  }, [postParam, loading, posts, mapRow, feedRede.ready, meuId])
 
   useEffect(() => {
     if (!postParam || posts.length === 0) return
@@ -389,32 +436,34 @@ function FeedPageInner() {
   }, [postParam, posts])
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return
+    if (loadingMore || !hasMore || bloqueioEmpresaFeed) return
     setLoadingMore(true)
     try {
-      const next = pageRef.current
-      const chunk = await fetchPage(next)
-      setPosts((prev) => [...prev, ...chunk])
-      setHasMore(chunk.length === PAGE_SIZE)
-      pageRef.current = next + 1
+      mergeGenRef.current += 1
+      const merged = await rebuildMergedPosts(mergeGenRef.current)
+      const nextTotal = posts.length + PAGE_SIZE
+      setPosts(merged.slice(0, nextTotal))
+      setHasMore(merged.length > nextTotal)
+      pageRef.current += 1
     } catch (e) {
       console.error(e)
     } finally {
       setLoadingMore(false)
     }
-  }, [fetchPage, hasMore, loadingMore])
+  }, [rebuildMergedPosts, hasMore, loadingMore, posts.length, bloqueioEmpresaFeed])
 
   /** Recarrega a primeira página (ex.: após editar perfil — evento `perfil-atualizado`). */
   const recarregarPrimeiraPagina = useCallback(async () => {
-    if (!feedRede.ready) return
+    if (!feedRede.ready || bloqueioEmpresaFeed) return
     setLoading(true)
+    mergeGenRef.current = 0
     pageRef.current = 0
     setHasMore(true)
     fetchPostAttempted.current = null
     try {
-      const first = await fetchPage(0)
-      setPosts(first)
-      setHasMore(first.length === PAGE_SIZE)
+      const merged = await rebuildMergedPosts(0)
+      setPosts(merged.slice(0, PAGE_SIZE))
+      setHasMore(merged.length > PAGE_SIZE)
       pageRef.current = 1
     } catch (e) {
       console.error(e)
@@ -423,7 +472,7 @@ function FeedPageInner() {
       setLoading(false)
     }
     bumpStoriesBar()
-  }, [bumpStoriesBar, feedRede.ready, fetchPage])
+  }, [bumpStoriesBar, feedRede.ready, rebuildMergedPosts, bloqueioEmpresaFeed])
 
   useEffect(() => {
     const onPerfilAtualizado = () => {
@@ -645,6 +694,14 @@ function FeedPageInner() {
 
   const removerPost = (postId: string) => {
     setPosts((prev) => prev.filter((p) => p.id !== postId))
+  }
+
+  if (bloqueioEmpresaFeed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <p className="text-gray-400">Redirecionando…</p>
+      </div>
+    )
   }
 
   if (loading) {

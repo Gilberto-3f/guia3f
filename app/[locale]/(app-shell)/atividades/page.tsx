@@ -630,16 +630,45 @@ export default function AtividadesPage() {
     setMeuRole(role)
 
     if (role === 'empresa') {
-      setCarregando(false)
+      setErroAmigos(null)
       setListaAmigos([])
-      setListaMinha([])
       setQtdSeguindo(0)
       seguindoRef.current = []
       setOffsetAmigos(0)
-      setOffsetMinha(0)
       setTemMaisAmigos(false)
       setTemMaisMinha(false)
-      setErroAmigos(null)
+
+      const limEmp = ATIVIDADES_LIMITE_MINHA_CONTA
+      const minhaEmpresaRes = await supabase
+        .from('atividades')
+        .select('*')
+        .eq('usuario_id', uid)
+        .order('created_at', { ascending: false })
+        .range(0, limEmp - 1)
+
+      if (minhaEmpresaRes.error && process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.error('[Atividades][empresa] erro ao carregar Minha conta:', minhaEmpresaRes.error)
+      }
+
+      const minhaEmpresa = (minhaEmpresaRes.data ?? []) as AtividadeRow[]
+      setListaMinha(minhaEmpresa)
+      setOffsetMinha(minhaEmpresa.length)
+
+      await carregarPerfis(minhaEmpresa, { merge: false })
+
+      const postIdsEmp: string[] = []
+      for (const r of minhaEmpresa) {
+        if (r.tipo === 'curtiu_post') postIdsEmp.push(r.alvo_id)
+        const ex = r.dados_extras
+        if (ex && typeof ex === 'object') {
+          const pid = ex.post_id
+          if (typeof pid === 'string') postIdsEmp.push(pid)
+        }
+      }
+      await carregarPostsMeta(postIdsEmp, { merge: false })
+
+      setCarregando(false)
       return
     }
 
@@ -833,6 +862,7 @@ export default function AtividadesPage() {
 
   const tentarTrocarAbaPorSwipe = useCallback(
     (dx: number, dy: number) => {
+      if (meuRole === 'empresa') return
       if (Math.abs(dx) < SWIPE_MIN_PX) return
       if (Math.abs(dx) <= Math.abs(dy) * SWIPE_DOMINANCIA) return
       if (dx < 0) {
@@ -843,7 +873,7 @@ export default function AtividadesPage() {
         if (aba !== 'amigos') onAba('amigos')
       }
     },
-    [aba, onAba]
+    [aba, meuRole, onAba]
   )
 
   const onTouchStartAtividades = useCallback((e: React.TouchEvent) => {
@@ -1258,18 +1288,6 @@ export default function AtividadesPage() {
     )
   }
 
-  if (meuRole === 'empresa') {
-    if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
-      console.log('[Atividades][diag] meuRole=empresa — feed não disponível para este papel.')
-    }
-    return (
-      <div className="min-h-screen bg-gray-50 pb-24">
-        <p className="p-6 text-gray-600">O feed de atividades está disponível para contas de turista e profissional.</p>
-      </div>
-    )
-  }
-
   if (!meuId) {
     return (
       <div className="p-6 pb-24">
@@ -1415,7 +1433,7 @@ export default function AtividadesPage() {
         </div>
       </header>
 
-      <AbasAtividades aba={aba} onAba={onAba} />
+      <AbasAtividades aba={aba} onAba={onAba} somenteMinhaConta={meuRole === 'empresa'} />
 
       {erroAmigos ? (
         <div className="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">

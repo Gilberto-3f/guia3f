@@ -13,6 +13,7 @@ import {
   visualizadoPorEmails,
 } from '@/lib/feed-autor'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
+import { intercalarStoryAutores } from '@/lib/intercalarFeedEmpresa'
 import { fetchUsuarioIdsEmpresasFavoritas } from '@/lib/feedSeguidosEmpresasFavoritas'
 import {
   escolherIdStoryInicialPorEmail,
@@ -27,28 +28,6 @@ const MAX_STORY_RINGS = 12
 /** @param {unknown} tipo */
 function isAutorEmpresa(tipo) {
   return String(tipo ?? '').toLowerCase() === 'empresa'
-}
-
-/**
- * Intercala até `len` itens: a,a,a,b,a,a,a,b,...
- * @param {string[]} seguidos
- * @param {string | null} obrigatorio
- * @param {number} len
- */
-function intercalar(seguidos, obrigatorio, len) {
-  const out = /** @type {string[]} */ ([])
-  if (!obrigatorio && seguidos.length === 0) return out
-  let i = 0
-  while (out.length < len) {
-    for (let k = 0; k < 3 && out.length < len; k++) {
-      if (seguidos.length === 0) break
-      out.push(seguidos[i % seguidos.length])
-      i++
-    }
-    if (obrigatorio && out.length < len) out.push(obrigatorio)
-    if (seguidos.length === 0 && !obrigatorio) break
-  }
-  return out
 }
 
 /**
@@ -299,20 +278,46 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
         const tb = bb.length ? new Date(String(bb[bb.length - 1].created_at ?? 0)).getTime() : 0
         return tb - ta
       })
-    for (const [aid] of seguidosNaoEmpresa) {
-      if (ordered.length >= MAX_STORY_RINGS) break
-      pushAid(aid)
-    }
-
-    // 2) Stories de empresas (visíveis para todos) — intercala destaque publicitário
     const empresaComStory = [...storiesPorAutorArr.keys()].filter((aid) => empresaAutorSet.has(aid))
     const arrObr = obrAutor ? storiesPorAutorArr.get(obrAutor) : null
     const sObr = arrObr?.length ? arrObr[arrObr.length - 1] : null
     const obrEmpresaValido =
       obrAutor && sObr && (isAutorEmpresa(sObr.autor_tipo) || empresaAutorSet.has(obrAutor)) ? obrAutor : null
     const obrFinal = obrEmpresaValido ?? empresaComStory.find((a) => storiesPorAutorArr.has(a)) ?? null
-    const ordemEmpresa = intercalar(empresaComStory, obrFinal, 24)
-    for (const aid of ordemEmpresa) {
+
+    /** Seguidos que são empresa (story): entram no lado “orgânico”. */
+    const seguidosEmpresaStory = [...storiesPorAutorArr.entries()]
+      .filter(([aid, arr]) => {
+        if (aid === uid || !seguidosIds.has(aid) || !empresaAutorSet.has(aid)) return false
+        const s0 = arr[0]
+        return Boolean(s0)
+      })
+      .sort((a, b) => {
+        const aa = a[1]
+        const bb = b[1]
+        const ta = aa.length ? new Date(String(aa[aa.length - 1].created_at ?? 0)).getTime() : 0
+        const tb = bb.length ? new Date(String(bb[bb.length - 1].created_at ?? 0)).getTime() : 0
+        return tb - ta
+      })
+
+    const organicAuthorIds = [
+      ...seguidosNaoEmpresa.map(([aid]) => aid),
+      ...seguidosEmpresaStory.map(([aid]) => aid),
+    ]
+
+    /** Empresas com story que o utilizador não segue — slots promocionais a cada 20 orgânicos. */
+    let promoEmpresaIds = empresaComStory.filter((aid) => aid !== uid && !seguidosIds.has(aid))
+    if (obrFinal && !seguidosIds.has(obrFinal) && !promoEmpresaIds.includes(obrFinal)) {
+      promoEmpresaIds = [obrFinal, ...promoEmpresaIds.filter((x) => x !== obrFinal)]
+    }
+
+    const mergedStoryAuthors = intercalarStoryAutores(
+      organicAuthorIds,
+      promoEmpresaIds,
+      20,
+      MAX_STORY_RINGS
+    )
+    for (const aid of mergedStoryAuthors) {
       if (ordered.length >= MAX_STORY_RINGS) break
       pushAid(aid)
     }

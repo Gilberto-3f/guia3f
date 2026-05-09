@@ -139,7 +139,18 @@ export default function BottomBar() {
           if (ativo) {
             setEmpresaId(empresa?.id ?? null)
             setFotoPerfil(empresa?.foto_url != null ? String(empresa.foto_url) : null)
-            setNaoLidasAtividades(0)
+          }
+          const { count, error: cEmp } = await supabase
+            .from('atividades')
+            .select('*', { count: 'exact', head: true })
+            .eq('usuario_id', uid)
+            .eq('lida', false)
+          if (ativo) {
+            if (!cEmp && typeof count === 'number') {
+              setNaoLidasAtividades(count)
+            } else {
+              setNaoLidasAtividades(0)
+            }
           }
         } else {
           if (ativo) setEmpresaId(null)
@@ -292,15 +303,7 @@ export default function BottomBar() {
 
   const terceiroActive = isFeedPage || pathname === '/feed/criar'
 
-  const getQuartoHref = () => {
-    if (isEmpresaBar) return '/dashboard/empresa'
-    return '/atividades'
-  }
-
-  const isQuartoActive = () => {
-    if (isEmpresaBar) return pathname != null && pathname.startsWith('/dashboard/empresa')
-    return isBarraAtividades(pathname)
-  }
+  const isQuartoActive = () => isBarraAtividades(pathname)
 
   const getQuintoHref = () => {
     if (isEmpresaBar) {
@@ -367,49 +370,53 @@ export default function BottomBar() {
           </Link>
         )}
 
-        <Link
-          href={getTerceiroHref()}
-          onClick={(e) => {
-            if (!podeInteragir && isFeedPage) {
-              e.preventDefault()
-              notificarSomenteLeitura()
-            }
-          }}
-          className={`flex flex-col items-center ${isFeedPage ? 'p-1' : 'p-2'}`}
-          aria-label={isFeedPage ? t('newPost') : t('feed')}
-        >
-          {isFeedPage ? (
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0097b2] shadow-lg">
-              <Plus className="h-6 w-6 text-white" strokeWidth={2.5} aria-hidden />
-            </span>
-          ) : (
-            <span className={terceiroActive ? 'text-[#0097b2]' : 'text-gray-400'}>
-              <Menu size={24} aria-hidden />
-            </span>
-          )}
-        </Link>
-
-        <Link
-          href={getQuartoHref()}
-          className="relative flex flex-col items-center p-2"
-          aria-label={isEmpresaBar ? t('dashboard') : t('activities')}
-        >
-          {isEmpresaBar ? (
+        {isEmpresaBar ? (
+          <Link
+            href="/dashboard/empresa"
+            className="flex flex-col items-center p-2"
+            aria-label={t('dashboard')}
+          >
             <LayoutDashboard
               size={24}
-              className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'}
+              className={
+                pathname != null && pathname.startsWith('/dashboard/empresa')
+                  ? 'text-[#0097b2]'
+                  : 'text-gray-400'
+              }
               aria-hidden
             />
-          ) : (
-            <>
-              <Heart size={24} className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
-              {naoLidasAtividades > 0 ? (
-                <span className="absolute right-0 top-0 flex min-h-[14px] min-w-[14px] max-w-[2rem] translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
-                  {naoLidasAtividades > 99 ? '99+' : naoLidasAtividades}
-                </span>
-              ) : null}
-            </>
-          )}
+          </Link>
+        ) : (
+          <Link
+            href={getTerceiroHref()}
+            onClick={(e) => {
+              if (!podeInteragir && isFeedPage) {
+                e.preventDefault()
+                notificarSomenteLeitura()
+              }
+            }}
+            className={`flex flex-col items-center ${isFeedPage ? 'p-1' : 'p-2'}`}
+            aria-label={isFeedPage ? t('newPost') : t('feed')}
+          >
+            {isFeedPage ? (
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0097b2] shadow-lg">
+                <Plus className="h-6 w-6 text-white" strokeWidth={2.5} aria-hidden />
+              </span>
+            ) : (
+              <span className={terceiroActive ? 'text-[#0097b2]' : 'text-gray-400'}>
+                <Menu size={24} aria-hidden />
+              </span>
+            )}
+          </Link>
+        )}
+
+        <Link href="/atividades" className="relative flex flex-col items-center p-2" aria-label={t('activities')}>
+          <Heart size={24} className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
+          {naoLidasAtividades > 0 ? (
+            <span className="absolute right-0 top-0 flex min-h-[14px] min-w-[14px] max-w-[2rem] translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
+              {naoLidasAtividades > 99 ? '99+' : naoLidasAtividades}
+            </span>
+          ) : null}
         </Link>
 
         <Link

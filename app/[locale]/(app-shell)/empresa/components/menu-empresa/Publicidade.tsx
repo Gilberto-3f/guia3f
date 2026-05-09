@@ -1,13 +1,45 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
+import { ChevronDown } from 'lucide-react'
+import { Link } from '@/i18n/navigation'
 import {
   anuncioHomeEmVeiculacao,
   anuncioHomeNoHistorico,
   usePublicidade,
 } from '../../hooks/usePublicidade'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
+
+function SecaoChevron({
+  titulo,
+  aberta,
+  onToggle,
+  children,
+}: {
+  titulo: string
+  aberta: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm font-bold text-gray-900 hover:bg-gray-50"
+        aria-expanded={aberta}
+      >
+        <span>{titulo}</span>
+        <ChevronDown
+          className={`h-5 w-5 shrink-0 text-gray-600 transition-transform ${aberta ? 'rotate-180' : ''}`}
+          aria-hidden
+        />
+      </button>
+      {aberta ? <div className="border-t border-gray-100 px-4 py-3">{children}</div> : null}
+    </div>
+  )
+}
 
 function formatDate(value: string) {
   const d = new Date(value)
@@ -46,6 +78,9 @@ export default function Publicidade() {
 
   const [arteFile, setArteFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [secFeed, setSecFeed] = useState(false)
+  const [secStory, setSecStory] = useState(false)
+  const [secHome, setSecHome] = useState(true)
   const previewRevokeRef = useRef<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -154,10 +189,41 @@ export default function Publicidade() {
       </div>
 
       {aba === 'propagandas' ? (
-        <div className="mt-4 space-y-6">
+        <div className="mt-4 space-y-4">
+          <SecaoChevron
+            titulo="Feed"
+            aberta={secFeed}
+            onToggle={() => setSecFeed((v) => !v)}
+          >
+            <p className="mb-3 text-xs text-gray-600">
+              Publique foto com texto ou apenas texto. As publicações aparecem no perfil da empresa, no feed dos
+              seguidores e são intercaladas para novos utilizadores conforme as regras do feed.
+            </p>
+            <Link
+              href="/feed/criar"
+              className="inline-flex w-full items-center justify-center rounded-lg bg-[#0097b2] px-4 py-3 text-sm font-bold text-white hover:opacity-95 sm:w-auto"
+            >
+              Criar publicação no feed
+            </Link>
+          </SecaoChevron>
+
+          <SecaoChevron titulo="Story" aberta={secStory} onToggle={() => setSecStory((v) => !v)}>
+            <p className="mb-3 text-xs text-gray-600">
+              Story em formato vertical (9:16). Visível no perfil da empresa e na barra de stories; distribuição para
+              não seguidores segue as mesmas regras de intercalação do app.
+            </p>
+            <Link
+              href="/feed/story/criar"
+              className="inline-flex w-full items-center justify-center rounded-lg bg-[#0097b2] px-4 py-3 text-sm font-bold text-white hover:opacity-95 sm:w-auto"
+            >
+              Criar story
+            </Link>
+          </SecaoChevron>
+
+          <SecaoChevron titulo="Propaganda na Home" aberta={secHome} onToggle={() => setSecHome((v) => !v)}>
           {emVeiculacao.length > 0 ? (
             <div className="space-y-4">
-              <div className="rounded-lg border bg-white p-4">
+              <div className="rounded-lg border bg-gray-50 p-4">
                 <h3 className="mb-3 font-bold text-gray-900">Anúncio ativo na Home</h3>
                 <p className="mb-4 text-xs text-gray-600">
                   Só é permitido um anúncio em veiculação por vez. Remova o atual para publicar outro.
@@ -261,6 +327,7 @@ export default function Publicidade() {
               ) : null}
             </div>
           )}
+          </SecaoChevron>
         </div>
       ) : (
         <div className="mt-4 rounded-lg border bg-white p-4">
