@@ -187,11 +187,11 @@ export default function ListagemCategoriaPage() {
             <button type="button" onClick={() => router.back()} className="-ml-1 shrink-0 p-1" aria-label="Voltar">
               <ArrowLeft size={24} className="text-gray-600" />
             </button>
-            <h1 className="truncate text-xl font-bold text-[#0097b2]">{titulo}</h1>
+            <h1 className="truncate text-xl font-bold text-gray-900">{titulo}</h1>
           </div>
 
-          <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end sm:gap-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-start gap-4 sm:justify-end sm:gap-6">
+            <div className="flex items-center gap-4">
               {(
                 [
                   { id: 'br', src: '/flags/br.svg', alt: 'Brasil' },
@@ -222,72 +222,74 @@ export default function ListagemCategoriaPage() {
               })}
             </div>
 
-            <button
-              type="button"
-              title="Ordenar por avaliação"
-              aria-label="Ordenar por avaliação"
-              onClick={() => setOrdenacao('avaliacao')}
-              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
-                ordenacao === 'avaliacao'
-                  ? 'border-[#0097b2] bg-blue-50 text-[#0097b2]'
-                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Star
-                className="h-4 w-4 shrink-0"
-                fill={ordenacao === 'avaliacao' ? '#0097b2' : 'none'}
-                stroke="currentColor"
-                aria-hidden
-              />
-              Avaliação
-            </button>
-
-            <button
-              type="button"
-              title="Ordenar por proximidade"
-              aria-label="Ordenar por proximidade"
-              onClick={() => {
-                setOrdenacao('localizacao')
-                if (userPos || geoCarregando) return
-                if (typeof navigator === 'undefined' || !navigator.geolocation) {
-                  window.alert('Geolocalização não disponível neste dispositivo.')
-                  return
-                }
-                setGeoCarregando(true)
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => {
-                    setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-                    setGeoCarregando(false)
-                  },
-                  () => {
-                    window.alert('Não foi possível obter sua localização.')
-                    setGeoCarregando(false)
-                  },
-                  { enableHighAccuracy: true, timeout: 8000 }
-                )
-              }}
-              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
-                ordenacao === 'localizacao'
-                  ? 'border-[#0097b2] bg-blue-50 text-[#0097b2]'
-                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <span className={`relative inline-flex h-4 w-4 shrink-0 items-center justify-center ${geoCarregando ? 'animate-pulse' : ''}`}>
-                <MapPin
-                  className="h-4 w-4"
-                  fill={ordenacao === 'localizacao' ? '#0097b2' : 'none'}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                title="Ordenar por avaliação"
+                aria-label="Ordenar por avaliação"
+                onClick={() => setOrdenacao('avaliacao')}
+                className={`inline-flex items-center justify-center rounded-full border p-2 transition ${
+                  ordenacao === 'avaliacao'
+                    ? 'border-[#0097b2] bg-blue-50 text-[#0097b2]'
+                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <Star
+                  className="h-6 w-6 shrink-0"
+                  fill={ordenacao === 'avaliacao' ? '#0097b2' : 'none'}
                   stroke="currentColor"
                   aria-hidden
                 />
-                {ordenacao === 'localizacao' ? (
-                  <span
-                    className="pointer-events-none absolute left-1/2 top-[42%] h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
+              </button>
+
+              <button
+                type="button"
+                title="Ordenar por proximidade"
+                aria-label="Ordenar por proximidade"
+                onClick={() => {
+                  setOrdenacao('localizacao')
+                  if (userPos || geoCarregando) return
+                  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+                    window.alert('Geolocalização não disponível neste dispositivo.')
+                    return
+                  }
+                  setGeoCarregando(true)
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+                      setGeoCarregando(false)
+                    },
+                    () => {
+                      window.alert('Não foi possível obter sua localização.')
+                      setGeoCarregando(false)
+                    },
+                    { enableHighAccuracy: true, timeout: 8000 }
+                  )
+                }}
+                className={`inline-flex items-center justify-center rounded-full border p-2 transition ${
+                  ordenacao === 'localizacao'
+                    ? 'border-[#0097b2] bg-blue-50 text-[#0097b2]'
+                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <span
+                  className={`relative inline-flex h-6 w-6 shrink-0 items-center justify-center ${geoCarregando ? 'animate-pulse' : ''}`}
+                >
+                  <MapPin
+                    className="h-6 w-6"
+                    fill={ordenacao === 'localizacao' ? '#0097b2' : 'none'}
+                    stroke="currentColor"
                     aria-hidden
                   />
-                ) : null}
-              </span>
-              Proximidade
-            </button>
+                  {ordenacao === 'localizacao' ? (
+                    <span
+                      className="pointer-events-none absolute left-1/2 top-[44%] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
+                      aria-hidden
+                    />
+                  ) : null}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
