@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import type { Anuncio, ReservaAnuncio } from '../types/empresa.types'
 
 type VagaDisponivel = { vaga: string; disponivel: boolean }
-type PeriodoReserva = '7d' | '15d' | '30d'
+export type PeriodoReserva = '7d' | '15d' | '30d'
 
 const MIME_ANUNCIO_HOME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])
 
@@ -28,6 +28,15 @@ function asRecord(v: unknown) {
 
 function isoDate(d: Date) {
   return d.toISOString().slice(0, 10)
+}
+
+/** URL absoluta ou caminho interno; vazio → null. */
+export function normalizeAnuncioLinkUrl(raw: string): string | null {
+  const t = raw.trim()
+  if (!t) return null
+  if (t.startsWith('/')) return t
+  if (/^https?:\/\//i.test(t)) return t
+  return `https://${t}`
 }
 
 export function usePublicidade(empresaId: string | null) {
@@ -54,9 +63,11 @@ export function usePublicidade(empresaId: string | null) {
         supabase.from('reservas_anuncios').select('*').eq('empresa_id', empresaId).order('reservado_em', { ascending: false }),
         supabase
           .from('anuncios')
-          .select('localizacao, periodo_fim, status')
+          .select('id')
+          .eq('empresa_id', empresaId)
           .eq('tipo', 'home')
           .eq('status', 'ativo')
+          .lte('periodo_inicio', isoDate(new Date()))
           .gte('periodo_fim', isoDate(new Date())),
       ])
 
@@ -92,14 +103,12 @@ export function usePublicidade(empresaId: string | null) {
         }
       })
 
-      const vagasOcupadas = new Set((homeRes.data ?? []).map((x) => {
-        const r = asRecord(x) ?? {}
-        return r.localizacao != null ? String(r.localizacao) : ''
-      }))
+      const anunciosHomeAtivos = (homeRes.data ?? []).length
 
       setAnuncios(anunciosFmt)
       setReservas(reservasFmt)
-      setVagasDisponiveis(['vaga_1', 'vaga_2'].map((vaga) => ({ vaga, disponivel: !vagasOcupadas.has(vaga) })))
+      /** Uma única vaga na Home por empresa. */
+      setVagasDisponiveis([{ vaga: 'vaga_1', disponivel: anunciosHomeAtivos === 0 }])
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Erro ao carregar publicidade'))
     } finally {
@@ -137,7 +146,7 @@ export function usePublicidade(empresaId: string | null) {
 
   /** Upload + insert em `anuncios` (home ativo) — criativo visível no Guia após migração RLS/storage. */
   const publicarAnuncioHome = useCallback(
-    async (vaga: string, periodo: PeriodoReserva, file: File) => {
+    async (vaga: string, periodo: PeriodoReserva, file: File, linkDestino: string) => {
       if (!empresaId) throw new Error('Empresa não identificada')
       const mime = (file.type || '').toLowerCase()
       if (!MIME_ANUNCIO_HOME.has(mime)) {
@@ -163,12 +172,14 @@ export function usePublicidade(empresaId: string | null) {
       const fim = new Date()
       fim.setDate(fim.getDate() + duracaoDias)
 
+      const linkNorm = normalizeAnuncioLinkUrl(linkDestino)
+
       const { error: insErr } = await supabase.from('anuncios').insert({
         empresa_id: empresaId,
         tipo: 'home',
         localizacao: vaga,
         imagem_url: imagemUrl,
-        link_url: null,
+        link_url: linkNorm,
         periodo_inicio: isoDate(inicio),
         periodo_fim: isoDate(fim),
         status: 'ativo',

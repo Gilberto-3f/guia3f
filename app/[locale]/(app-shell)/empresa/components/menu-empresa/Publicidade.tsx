@@ -2,16 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
-import { usePublicidade } from '../../hooks/usePublicidade'
+import { usePublicidade, type PeriodoReserva } from '../../hooks/usePublicidade'
 import ModalConfirmacao from '../shared/ModalConfirmacao'
-
-type PeriodoReserva = '7d' | '15d' | '30d'
 
 function formatDate(value: string) {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
   return d.toLocaleDateString('pt-BR')
+}
+
+function diasDoPeriodo(p: PeriodoReserva): number {
+  return p === '7d' ? 7 : p === '15d' ? 15 : 30
 }
 
 export default function Publicidade() {
@@ -20,8 +23,10 @@ export default function Publicidade() {
     usePublicidade(empresa?.id ?? null)
 
   const [periodo, setPeriodo] = useState<PeriodoReserva>('30d')
-  const [reservando, setReservando] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [formAberto, setFormAberto] = useState(false)
+  const [linkDestino, setLinkDestino] = useState('')
 
   const [modalCancelar, setModalCancelar] = useState<{ aberto: boolean; reservaId: string | null }>({
     aberto: false,
@@ -34,7 +39,15 @@ export default function Publicidade() {
   const previewRevokeRef = useRef<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const vagasHomeDisponiveis = useMemo(() => vagasDisponiveis.filter((v) => v.disponivel), [vagasDisponiveis])
+  const vagaHome = useMemo(() => vagasDisponiveis.find((v) => v.vaga === 'vaga_1'), [vagasDisponiveis])
+  const disponivel = Boolean(vagaHome?.disponivel)
+
+  const periodoResumo = useMemo(() => {
+    const hoje = new Date()
+    const fim = new Date(hoje)
+    fim.setDate(fim.getDate() + diasDoPeriodo(periodo))
+    return `${formatDate(hoje.toISOString().slice(0, 10))} → ${formatDate(fim.toISOString().slice(0, 10))}`
+  }, [periodo])
 
   useEffect(() => {
     return () => {
@@ -62,27 +75,33 @@ export default function Publicidade() {
   }
 
   /** TMP: exigência de plano Premium/Enterprise desativada para testes (repor na dashboard ADM). */
-  const handleReservar = async (vaga: string) => {
+  const handleSalvarAnuncio = async () => {
+    if (!disponivel) {
+      setFeedback('⚠️ Já existe um anúncio ativo na Home para o período atual.')
+      return
+    }
     if (!arteFile) {
-      setFeedback('⚠️ Selecione a imagem do anúncio (JPG, PNG ou WEBP) antes de reservar.')
+      setFeedback('⚠️ Selecione a imagem do anúncio (JPG, PNG ou WEBP).')
       return
     }
     setFeedback(null)
-    setReservando(vaga)
+    setSalvando(true)
     try {
-      await publicarAnuncioHome(vaga, periodo, arteFile)
-      setFeedback(`✅ Anúncio publicado na ${vaga === 'vaga_1' ? 'VAGA 1' : 'VAGA 2'}.`)
+      await publicarAnuncioHome('vaga_1', periodo, arteFile, linkDestino)
+      setFeedback('✅ Anúncio salvo e publicado na Home do Guia.')
       if (previewRevokeRef.current) {
         URL.revokeObjectURL(previewRevokeRef.current)
         previewRevokeRef.current = null
       }
       setArteFile(null)
       setPreviewUrl(null)
+      setLinkDestino('')
       if (fileInputRef.current) fileInputRef.current.value = ''
+      setFormAberto(false)
     } catch {
-      setFeedback('❌ Não foi possível enviar o anúncio. Verifique o formato da imagem e tente de novo.')
+      setFeedback('❌ Não foi possível salvar. Verifique a imagem, o link e tente de novo.')
     } finally {
-      setReservando(null)
+      setSalvando(false)
     }
   }
 
@@ -128,6 +147,9 @@ export default function Publicidade() {
                     <p className="text-sm text-gray-500">
                       {formatDate(anuncio.periodo_inicio)} - {formatDate(anuncio.periodo_fim)}
                     </p>
+                    {anuncio.link_url ? (
+                      <p className="mt-1 truncate text-xs text-[#0097b2]">{anuncio.link_url}</p>
+                    ) : null}
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-sm">👁️ {anuncio.impressoes_exibidas.toLocaleString()} impressões</p>
@@ -141,70 +163,101 @@ export default function Publicidade() {
       </div>
 
       <div className="rounded-lg border bg-white p-4">
-        <h3 className="mb-2 font-bold text-[#001f3f]">🏠 Espaços Disponíveis na Home</h3>
-        <p className="mb-4 text-sm text-gray-500">Máximo 2 anúncios simultâneos</p>
+        <h3 className="mb-2 font-bold text-[#001f3f]">🏠 Espaço na Home do Guia</h3>
+        <p className="mb-3 text-sm text-gray-500">Um anúncio ativo por vez neste espaço.</p>
 
-        <div className="mb-6 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4">
-          <p className="mb-2 text-sm font-medium text-[#001f3f]">Arte do anúncio</p>
-          <p className="mb-3 text-xs text-gray-500">Formatos: JPG, PNG ou WEBP. Dimensão sugerida: 1200×600 px.</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-            onChange={onArteChange}
-            className="block w-full max-w-md text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#0097b2] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
-          />
-          {previewUrl ? (
-            <div className="relative mt-4 aspect-[2/1] w-full max-w-md overflow-hidden rounded-lg border bg-white">
-              <Image src={previewUrl} alt="Pré-visualização do anúncio" fill className="object-contain" unoptimized />
-            </div>
-          ) : null}
+        <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+          <span className={`text-sm font-medium ${disponivel ? 'text-green-700' : 'text-red-700'}`}>
+            {disponivel ? '✅ Vaga disponível' : '🔴 Vaga ocupada'}
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {(['vaga_1', 'vaga_2'] as const).map((vaga) => {
-            const disponivel = vagasHomeDisponiveis.some((v) => v.vaga === vaga)
-            return (
-              <div key={vaga} className={`rounded-lg border p-4 ${disponivel ? 'bg-green-50' : 'bg-gray-50'}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-bold">📺 {vaga === 'vaga_1' ? 'VAGA 1' : 'VAGA 2'}</p>
-                    <p className={`mt-1 text-sm ${disponivel ? 'text-green-700' : 'text-red-700'}`}>
-                      {disponivel ? '✅ Disponível' : '🔴 Ocupada'}
-                    </p>
-                  </div>
+        <button
+          type="button"
+          onClick={() => setFormAberto((a) => !a)}
+          className="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-left text-sm font-semibold text-[#001f3f] hover:bg-gray-50"
+          aria-expanded={formAberto}
+        >
+          <span>Reservar espaço na Home</span>
+          {formAberto ? (
+            <ChevronDown className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+          ) : (
+            <ChevronRight className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+          )}
+        </button>
 
-                  {disponivel ? (
-                    <div className="text-right">
-                      <select
-                        value={periodo}
-                        onChange={(e) => setPeriodo(e.target.value as PeriodoReserva)}
-                        className="mb-2 rounded border p-1 text-sm"
-                      >
-                        <option value="7d">7 dias</option>
-                        <option value="15d">15 dias</option>
-                        <option value="30d">30 dias</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => void handleReservar(vaga)}
-                        disabled={reservando === vaga}
-                        className="block w-full rounded-lg bg-[#0097b2] px-3 py-1 text-sm text-white disabled:opacity-50"
-                      >
-                        {reservando === vaga ? 'Enviando...' : 'RESERVAR'}
-                      </button>
-                    </div>
-                  ) : null}
+        {formAberto ? (
+          <div className="mt-4 space-y-4 border-t border-gray-100 pt-4">
+            <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4">
+              <p className="mb-2 text-sm font-medium text-[#001f3f]">Arte do anúncio</p>
+              <p className="mb-3 text-xs text-gray-500">JPG, PNG ou WEBP. Sugestão: 1200×600 px.</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                onChange={onArteChange}
+                disabled={!disponivel}
+                className="block w-full max-w-md text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#0097b2] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white disabled:opacity-50"
+              />
+              {previewUrl ? (
+                <div className="relative mt-4 aspect-[2/1] w-full max-w-md overflow-hidden rounded-lg border bg-white">
+                  <Image src={previewUrl} alt="Pré-visualização" fill className="object-contain" unoptimized />
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              ) : null}
+            </div>
+
+            <div>
+              <label htmlFor="link-anuncio-home" className="mb-1 block text-sm font-medium text-[#001f3f]">
+                Link do anúncio (opcional)
+              </label>
+              <input
+                id="link-anuncio-home"
+                type="text"
+                inputMode="url"
+                value={linkDestino}
+                onChange={(e) => setLinkDestino(e.target.value)}
+                disabled={!disponivel}
+                placeholder="https://… ou /empresa/…"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none ring-[#0097b2] focus:ring-2 disabled:bg-gray-100"
+              />
+              <p className="mt-1 text-xs text-gray-500">URL externa ou caminho interno (ex.: página da empresa).</p>
+            </div>
+
+            <div>
+              <label htmlFor="periodo-anuncio" className="mb-1 block text-sm font-medium text-[#001f3f]">
+                Período (duração)
+              </label>
+              <select
+                id="periodo-anuncio"
+                value={periodo}
+                onChange={(e) => setPeriodo(e.target.value as PeriodoReserva)}
+                disabled={!disponivel}
+                className="w-full max-w-xs rounded-lg border border-gray-200 px-3 py-2 text-sm disabled:bg-gray-100"
+              >
+                <option value="7d">7 dias (a partir de hoje)</option>
+                <option value="15d">15 dias</option>
+                <option value="30d">30 dias</option>
+              </select>
+              <p className="mt-2 text-xs text-gray-600">
+                Vigência: <span className="font-medium text-[#001f3f]">{periodoResumo}</span>
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void handleSalvarAnuncio()}
+              disabled={salvando || !disponivel}
+              className="w-full rounded-lg bg-[#0097b2] px-4 py-3 text-sm font-extrabold text-white shadow-sm hover:opacity-95 disabled:opacity-50"
+            >
+              {salvando ? 'Salvando...' : 'Salvar anúncio'}
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {reservas.length > 0 ? (
         <div className="rounded-lg border bg-white p-4">
-          <h3 className="mb-4 font-bold text-[#001f3f]">⏳ Reservas Antecipadas</h3>
+          <h3 className="mb-4 font-bold text-[#001f3f]">⏳ Reservas antecipadas</h3>
           <div className="space-y-2">
             {reservas.map((reserva) => (
               <div key={reserva.id} className="flex items-center justify-between gap-3 border-b pb-2">
