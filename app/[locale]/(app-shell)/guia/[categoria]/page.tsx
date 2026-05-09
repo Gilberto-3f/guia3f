@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -182,21 +181,21 @@ export default function ListagemCategoriaPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 z-20 border-b border-white/20 bg-[#0097b2] shadow-sm">
-        <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="flex flex-col gap-2 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2">
             <button type="button" onClick={() => router.back()} className="-ml-1 shrink-0 p-1" aria-label="Voltar">
-              <ArrowLeft size={24} className="text-white" />
+              <ArrowLeft size={22} className="text-white" />
             </button>
-            <h1 className="truncate text-xl font-bold text-white">{titulo}</h1>
+            <h1 className="truncate text-lg font-bold text-white">{titulo}</h1>
           </div>
 
-          <div className="flex flex-wrap items-center justify-start gap-8 sm:justify-end sm:gap-10">
-            <div className="flex items-center gap-4">
+          <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-x-12 gap-y-2 sm:flex-1">
+            <div className="flex items-center gap-3">
               {(
                 [
-                  { id: 'br', src: '/flags/br.svg', alt: 'Brasil' },
-                  { id: 'py', src: '/flags/py.svg', alt: 'Paraguai' },
-                  { id: 'ar', src: '/flags/ar.svg', alt: 'Argentina' },
+                  { id: 'br' as const, emoji: '🇧🇷', alt: 'Brasil' },
+                  { id: 'py' as const, emoji: '🇵🇾', alt: 'Paraguai' },
+                  { id: 'ar' as const, emoji: '🇦🇷', alt: 'Argentina' },
                 ] as const
               ).map((f) => {
                 const ativo = pais === f.id
@@ -206,23 +205,17 @@ export default function ListagemCategoriaPage() {
                     type="button"
                     onClick={() => setPais(f.id)}
                     aria-label={f.alt}
-                    className={`overflow-hidden rounded-sm ring-offset-0 transition ${
-                      ativo ? 'ring-2 ring-white' : 'ring-1 ring-white opacity-80 hover:opacity-100'
+                    className={`p-0.5 text-4xl leading-none transition ${
+                      ativo ? 'scale-110 opacity-100' : 'scale-100 opacity-60 hover:opacity-80'
                     }`}
                   >
-                    <Image
-                      src={f.src}
-                      alt={f.alt}
-                      width={48}
-                      height={32}
-                      className={`h-auto w-8 object-cover drop-shadow-sm ${ativo ? 'brightness-105' : ''}`}
-                    />
+                    <span aria-hidden>{f.emoji}</span>
                   </button>
                 )
               })}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 title="Ordenar por avaliação"
