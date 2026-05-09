@@ -282,9 +282,8 @@ export default function BottomBar() {
   const empresaIdBar =
     isEmpresaBar && modoAtivo && contextoEmpresaId ? contextoEmpresaId : userRole === 'empresa' ? empresaId : null
 
-  /** Mobilidade na barra: profissionais e admins (empresa tem atalho separado). */
-  const quartoEhMobilidade =
-    !isEmpresaBar && (roleParaBarra === 'profissional' || roleParaBarra === 'admin')
+  /** Turistas: Mobilidade no 2.º slot; demais perfis logados ou simulados: Canal. */
+  const segundoEhMobilidadeNaBarra = roleParaBarra === 'turista'
 
   const getTerceiroHref = () => {
     if (isFeedPage) return '/feed/criar'
@@ -294,14 +293,11 @@ export default function BottomBar() {
   const terceiroActive = isFeedPage || pathname === '/feed/criar'
 
   const getQuartoHref = () => {
-    if (quartoEhMobilidade) return '/mobilidade'
     if (isEmpresaBar) return '/dashboard/empresa'
     return '/atividades'
   }
 
   const isQuartoActive = () => {
-    if (quartoEhMobilidade)
-      return pathname != null && (pathname === '/mobilidade' || pathname.startsWith('/mobilidade/'))
     if (isEmpresaBar) return pathname != null && pathname.startsWith('/dashboard/empresa')
     return isBarraAtividades(pathname)
   }
@@ -352,18 +348,24 @@ export default function BottomBar() {
           <Home size={24} className={matchPath('/guia', pathname) ? 'text-[#0097b2]' : 'text-gray-400'} />
         </Link>
 
-        <Link href="/canal" className="relative flex flex-col items-center p-2" aria-label={t('channel')}>
-          <MessageCircle
-            size={24}
-            className={matchPath('/canal', pathname) ? 'text-[#0097b2]' : 'text-gray-400'}
-            aria-hidden
-          />
-          {authUserId && naoLidasCanais > 0 ? (
-            <span className="absolute right-0 top-0 flex min-h-[14px] min-w-[14px] max-w-[2rem] translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
-              {naoLidasCanais > 99 ? '99+' : naoLidasCanais}
-            </span>
-          ) : null}
-        </Link>
+        {segundoEhMobilidadeNaBarra ? (
+          <Link href="/mobilidade" className="flex flex-col items-center p-2" aria-label={t('mobility')}>
+            <Car size={24} className={matchPath('/mobilidade', pathname) ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
+          </Link>
+        ) : (
+          <Link href="/canal" className="relative flex flex-col items-center p-2" aria-label={t('channel')}>
+            <MessageCircle
+              size={24}
+              className={matchPath('/canal', pathname) ? 'text-[#0097b2]' : 'text-gray-400'}
+              aria-hidden
+            />
+            {authUserId && naoLidasCanais > 0 ? (
+              <span className="absolute right-0 top-0 flex min-h-[14px] min-w-[14px] max-w-[2rem] translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
+                {naoLidasCanais > 99 ? '99+' : naoLidasCanais}
+              </span>
+            ) : null}
+          </Link>
+        )}
 
         <Link
           href={getTerceiroHref()}
@@ -387,22 +389,10 @@ export default function BottomBar() {
           )}
         </Link>
 
-        {isEmpresaBar ? (
-          <Link href="/mobilidade" className="flex flex-col items-center p-1.5 sm:p-2" aria-label={t('mobility')}>
-            <Car
-              size={24}
-              className={matchPath('/mobilidade', pathname) ? 'text-[#0097b2]' : 'text-gray-400'}
-              aria-hidden
-            />
-          </Link>
-        ) : null}
-
         <Link
           href={getQuartoHref()}
           className="relative flex flex-col items-center p-2"
-          aria-label={
-            isEmpresaBar ? t('dashboard') : quartoEhMobilidade ? t('mobility') : t('activities')
-          }
+          aria-label={isEmpresaBar ? t('dashboard') : t('activities')}
         >
           {isEmpresaBar ? (
             <LayoutDashboard
@@ -410,8 +400,6 @@ export default function BottomBar() {
               className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'}
               aria-hidden
             />
-          ) : quartoEhMobilidade ? (
-            <Car size={24} className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
           ) : (
             <>
               <Heart size={24} className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />

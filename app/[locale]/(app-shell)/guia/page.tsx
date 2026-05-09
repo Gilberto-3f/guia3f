@@ -23,8 +23,9 @@ export default function GuiaPage() {
   const router = useRouter()
   const { roleEfetivo } = useProfissionalGate()
 
-  /** Solo turista o usuario no autenticado ven la pestaña Mobilidad en la Home del guía. */
-  const mostrarAbaMobilidade = roleEfetivo == null || roleEfetivo === 'turista'
+  /** Aba MOBILIDADE no topo apenas para perfis que não usam Mobilidade como 2.º ícone da BottomBar (turistas). */
+  const mostrarAbaMobilidade =
+    roleEfetivo === 'profissional' || roleEfetivo === 'empresa' || roleEfetivo === 'admin'
   const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
 
   useEffect(() => {
@@ -50,10 +51,10 @@ export default function GuiaPage() {
           <Image
             src="/logo.png"
             alt="Guia 3F"
-            width={188}
-            height={63}
+            width={228}
+            height={76}
             priority
-            className="h-auto max-h-[56px] w-auto object-contain sm:max-h-[64px]"
+            className="h-auto max-h-[64px] w-auto object-contain sm:max-h-[72px]"
           />
         </div>
 
