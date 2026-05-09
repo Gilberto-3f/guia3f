@@ -30,6 +30,25 @@ function isoDate(d: Date) {
   return d.toISOString().slice(0, 10)
 }
 
+/** Mensagem ao tentar criar segundo anúncio home em veiculação. */
+export const MSG_ANUNCIO_HOME_LIMITE_ATIVO =
+  'Você já possui um anúncio ativo. Para criar um novo, remova ou aguarde o término do atual.'
+
+/** Home no ar na Guia (mesmas regras do carrossel público). */
+export function anuncioHomeEmVeiculacao(a: Anuncio, hojeIso: string): boolean {
+  return (
+    a.tipo === 'home' &&
+    a.status === 'ativo' &&
+    a.periodo_inicio <= hojeIso &&
+    a.periodo_fim >= hojeIso
+  )
+}
+
+/** Campanhas home encerradas ou desativadas (aba Histórico). */
+export function anuncioHomeNoHistorico(a: Anuncio, hojeIso: string): boolean {
+  return a.tipo === 'home' && (a.status === 'inativo' || a.periodo_fim < hojeIso)
+}
+
 export function usePublicidade(empresaId: string | null) {
   const [anuncios, setAnuncios] = useState<Anuncio[]>([])
   const [loading, setLoading] = useState(true)
@@ -78,13 +97,42 @@ export function usePublicidade(empresaId: string | null) {
     }
   }, [empresaId])
 
-  /** Upload + insert em `anuncios` (home, ativo, 30 dias). */
+  const desativarAnuncio = useCallback(
+    async (anuncioId: string) => {
+      if (!empresaId) throw new Error('Empresa não identificada')
+      const { error: upErr } = await supabase
+        .from('anuncios')
+        .update({ status: 'inativo' })
+        .eq('id', anuncioId)
+        .eq('empresa_id', empresaId)
+      if (upErr) throw upErr
+      await fetchDados()
+    },
+    [empresaId, fetchDados]
+  )
+
+  /** Upload + insert em `anuncios` (home, ativo, 30 dias). Máx. 1 home em veiculação por empresa. */
   const salvarAnuncioHomeArte = useCallback(
     async (file: File) => {
       if (!empresaId) throw new Error('Empresa não identificada')
       const mime = (file.type || '').toLowerCase()
       if (!MIME_ANUNCIO_HOME.has(mime)) {
         throw new Error('Use imagem JPG, PNG ou WEBP.')
+      }
+
+      const hoje = isoDate(new Date())
+      const { data: jaAtivos, error: qErr } = await supabase
+        .from('anuncios')
+        .select('id')
+        .eq('empresa_id', empresaId)
+        .eq('tipo', 'home')
+        .eq('status', 'ativo')
+        .lte('periodo_inicio', hoje)
+        .gte('periodo_fim', hoje)
+        .limit(1)
+      if (qErr) throw qErr
+      if ((jaAtivos?.length ?? 0) > 0) {
+        throw new Error(MSG_ANUNCIO_HOME_LIMITE_ATIVO)
       }
 
       const ext = extensaoArquivoImagem(file)
@@ -138,8 +186,9 @@ export function usePublicidade(empresaId: string | null) {
       loading,
       error,
       salvarAnuncioHomeArte,
+      desativarAnuncio,
       refetch: fetchDados,
     }),
-    [anuncios, loading, error, salvarAnuncioHomeArte, fetchDados]
+    [anuncios, loading, error, salvarAnuncioHomeArte, desativarAnuncio, fetchDados]
   )
 }

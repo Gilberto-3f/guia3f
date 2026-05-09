@@ -1,10 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import { ChevronDown } from 'lucide-react'
+import {
+  anuncioHomeEmVeiculacao,
+  anuncioHomeNoHistorico,
+  usePublicidade,
+} from '../../hooks/usePublicidade'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
-import { usePublicidade } from '../../hooks/usePublicidade'
 
 function formatDate(value: string) {
   const d = new Date(value)
@@ -17,18 +20,41 @@ function formatCtr(impressoes: number, cliques: number): string {
   return `${((cliques / impressoes) * 100).toFixed(1)}%`
 }
 
+function hojeIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function abaCls(ativa: boolean) {
+  return `flex-1 border-b-[3px] py-3 text-center text-sm font-semibold transition-colors sm:text-base ${
+    ativa ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
+  }`
+}
+
 export default function Publicidade() {
   const { dados: empresa } = useDashboardEmpresa()
-  const { anuncios, loading, error, salvarAnuncioHomeArte } = usePublicidade(empresa?.id ?? null)
+  const { anuncios, loading, error, salvarAnuncioHomeArte, desativarAnuncio } = usePublicidade(
+    empresa?.id ?? null
+  )
 
+  const [aba, setAba] = useState<'propagandas' | 'historico'>('propagandas')
   const [salvando, setSalvando] = useState(false)
+  const [removendoId, setRemovendoId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
 
   const [arteFile, setArteFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [resultadosAbertoId, setResultadosAbertoId] = useState<string | null>(null)
   const previewRevokeRef = useRef<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const emVeiculacao = useMemo(() => {
+    const hoje = hojeIso()
+    return anuncios.filter((a) => anuncioHomeEmVeiculacao(a, hoje))
+  }, [anuncios])
+
+  const historicoHome = useMemo(() => {
+    const hoje = hojeIso()
+    return anuncios.filter((a) => anuncioHomeNoHistorico(a, hoje))
+  }, [anuncios])
 
   useEffect(() => {
     return () => {
@@ -72,10 +98,28 @@ export default function Publicidade() {
       setArteFile(null)
       setPreviewUrl(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
-    } catch {
-      setFeedback('❌ Não foi possível salvar. Verifique a imagem e tente de novo.')
+    } catch (e) {
+      setFeedback(
+        e instanceof Error
+          ? `❌ ${e.message}`
+          : '❌ Não foi possível salvar. Verifique a imagem e tente de novo.'
+      )
     } finally {
       setSalvando(false)
+    }
+  }
+
+  const handleRemover = async (anuncioId: string) => {
+    if (!window.confirm('Remover este anúncio da Home? Ele deixa de ser exibido imediatamente.')) return
+    setFeedback(null)
+    setRemovendoId(anuncioId)
+    try {
+      await desativarAnuncio(anuncioId)
+      setFeedback('✅ Anúncio removido. Você pode criar um novo quando quiser.')
+    } catch {
+      setFeedback('❌ Não foi possível remover o anúncio. Tente de novo.')
+    } finally {
+      setRemovendoId(null)
     }
   }
 
@@ -90,104 +134,155 @@ export default function Publicidade() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {feedback ? <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-900">{feedback}</div> : null}
 
-      <div className="rounded-lg border bg-white p-4">
-        <h3 className="mb-4 font-bold text-gray-900">📢 Seus anúncios</h3>
-        {anuncios.length === 0 ? (
-          <p className="py-4 text-center text-gray-900">Nenhum anúncio cadastrado</p>
-        ) : (
-          <div className="space-y-3">
-            {anuncios.map((anuncio) => {
-              const resultadosAbertos = resultadosAbertoId === anuncio.id
-              const ctr = formatCtr(anuncio.impressoes_exibidas, anuncio.cliques)
-              return (
-                <div key={anuncio.id} className="rounded-lg border border-gray-200 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-900">{anuncio.tipo === 'home' ? 'Home (Guia)' : 'Feed'}</p>
-                      <p className="text-sm text-gray-900">
-                        {formatDate(anuncio.periodo_inicio)} — {formatDate(anuncio.periodo_fim)}
-                      </p>
-                      {anuncio.link_url ? (
-                        <p className="mt-1 truncate text-xs text-gray-900">{anuncio.link_url}</p>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="mt-3 border-t border-gray-100 pt-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setResultadosAbertoId((id) => (id === anuncio.id ? null : anuncio.id))
-                      }
-                      className="flex w-full items-center justify-between gap-2 rounded-md py-2 text-left text-sm font-semibold text-gray-900 hover:bg-gray-50"
-                      aria-expanded={resultadosAbertos}
-                    >
-                      <span>Resultados do anúncio</span>
-                      <ChevronDown
-                        className={`h-5 w-5 shrink-0 text-gray-600 transition-transform ${
-                          resultadosAbertos ? 'rotate-180' : ''
-                        }`}
-                        aria-hidden
-                      />
-                    </button>
-                    {resultadosAbertos ? (
-                      <div className="space-y-2 pb-1 pl-0.5 pt-1 text-sm text-gray-900">
-                        <p>
-                          <span className="font-medium text-gray-700">Visualizações:</span>{' '}
-                          {anuncio.impressoes_exibidas.toLocaleString('pt-BR')}
-                        </p>
-                        <p>
-                          <span className="font-medium text-gray-700">Cliques no link:</span>{' '}
-                          {anuncio.cliques.toLocaleString('pt-BR')}
-                        </p>
-                        <p>
-                          <span className="font-medium text-gray-700">CTR:</span> {ctr}
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-lg border bg-white p-4">
-        <h3 className="mb-4 font-bold text-gray-900">🏠 Anúncio na Home do Guia</h3>
-
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <label htmlFor="arte-home-guia" className="mb-2 block text-sm font-medium text-gray-900">
-            Arte do anúncio
-          </label>
-          <p className="mb-3 text-xs text-gray-900">JPG, PNG ou WEBP. Sugestão: 1200×600 px.</p>
-          <input
-            id="arte-home-guia"
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-            onChange={onArteChange}
-            className="block w-full max-w-md rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900 file:mr-3 file:rounded-md file:border-0 file:bg-[#0097b2] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
-          />
-          {previewUrl ? (
-            <div className="relative mt-4 aspect-[2/1] w-full max-w-md overflow-hidden rounded-lg border border-gray-300 bg-white">
-              <Image src={previewUrl} alt="Pré-visualização" fill className="object-contain" unoptimized />
-            </div>
-          ) : null}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => void handleSalvarAnuncio()}
-          disabled={salvando}
-          className="mt-4 w-full rounded-lg bg-[#0097b2] px-4 py-3 text-sm font-extrabold text-white shadow-sm hover:opacity-95 disabled:opacity-50"
-        >
-          {salvando ? 'Salvando...' : 'Salvar anúncio'}
+      <div className="flex border-b border-gray-200 bg-white">
+        <button type="button" className={abaCls(aba === 'propagandas')} onClick={() => setAba('propagandas')}>
+          Propagandas
+        </button>
+        <button type="button" className={abaCls(aba === 'historico')} onClick={() => setAba('historico')}>
+          Histórico
         </button>
       </div>
+
+      {aba === 'propagandas' ? (
+        <div className="space-y-6">
+          {emVeiculacao.length > 0 ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border bg-white p-4">
+                <h3 className="mb-3 font-bold text-gray-900">Anúncio ativo na Home</h3>
+                <p className="mb-4 text-xs text-gray-600">
+                  Só é permitido um anúncio em veiculação por vez. Remova o atual para publicar outro.
+                </p>
+                {emVeiculacao.map((anuncio) => (
+                  <div key={anuncio.id} className="rounded-lg border border-gray-200 p-4">
+                    {anuncio.imagem_url ? (
+                      <div className="relative mx-auto mb-4 aspect-[2/1] w-full max-w-md overflow-hidden rounded-lg bg-gray-100">
+                        <Image
+                          src={anuncio.imagem_url}
+                          alt="Anúncio na Home"
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, 448px"
+                        />
+                      </div>
+                    ) : null}
+                    <p className="text-sm text-gray-900">
+                      <span className="font-medium text-gray-700">Período:</span>{' '}
+                      {formatDate(anuncio.periodo_inicio)} — {formatDate(anuncio.periodo_fim)}
+                    </p>
+                    <p className="mt-2 text-sm text-gray-900">
+                      <span className="font-medium text-gray-700">Visualizações:</span>{' '}
+                      {anuncio.impressoes_exibidas.toLocaleString('pt-BR')} ·{' '}
+                      <span className="font-medium text-gray-700">Cliques:</span>{' '}
+                      {anuncio.cliques.toLocaleString('pt-BR')} ·{' '}
+                      <span className="font-medium text-gray-700">CTR:</span>{' '}
+                      {formatCtr(anuncio.impressoes_exibidas, anuncio.cliques)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void handleRemover(anuncio.id)}
+                      disabled={removendoId === anuncio.id}
+                      className="mt-4 w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      {removendoId === anuncio.id ? 'Removendo...' : 'Remover anúncio'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border bg-white p-4">
+              <h3 className="mb-4 font-bold text-gray-900">🏠 Novo anúncio na Home do Guia</h3>
+
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <label htmlFor="arte-home-guia" className="mb-2 block text-sm font-medium text-gray-900">
+                  Arte do anúncio
+                </label>
+                <p className="mb-3 text-xs text-gray-900">JPG, PNG ou WEBP. Sugestão: 1200×600 px.</p>
+                <input
+                  id="arte-home-guia"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  onChange={onArteChange}
+                  className="block w-full max-w-md rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900 file:mr-3 file:rounded-md file:border-0 file:bg-[#0097b2] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
+                />
+                {previewUrl ? (
+                  <div className="relative mt-4 aspect-[2/1] w-full max-w-md overflow-hidden rounded-lg border border-gray-300 bg-white">
+                    <Image src={previewUrl} alt="Pré-visualização" fill className="object-contain" unoptimized />
+                  </div>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void handleSalvarAnuncio()}
+                disabled={salvando}
+                className="mt-4 w-full rounded-lg bg-[#0097b2] px-4 py-3 text-sm font-extrabold text-white shadow-sm hover:opacity-95 disabled:opacity-50"
+              >
+                {salvando ? 'Salvando...' : 'Salvar anúncio'}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-lg border bg-white p-4">
+          <h3 className="mb-2 font-bold text-gray-900">Histórico de campanhas</h3>
+          <p className="mb-4 text-xs text-gray-600">
+            Anúncios desativados ou fora do período de veiculação (mais recentes primeiro).
+          </p>
+          {historicoHome.length === 0 ? (
+            <p className="py-8 text-center text-gray-900">Nenhuma campanha encerrada ainda.</p>
+          ) : (
+            <ul className="space-y-4">
+              {historicoHome.map((anuncio) => (
+                <li
+                  key={anuncio.id}
+                  className="flex flex-col gap-3 rounded-lg border border-gray-200 p-3 sm:flex-row sm:items-start"
+                >
+                  {anuncio.imagem_url ? (
+                    <div className="relative aspect-[2/1] w-full shrink-0 overflow-hidden rounded-lg bg-gray-100 sm:w-40">
+                      <Image
+                        src={anuncio.imagem_url}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="160px"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex aspect-[2/1] w-full shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-400 sm:w-40">
+                      Sem imagem
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1 text-sm text-gray-900">
+                    <p className="font-medium text-gray-900">
+                      {formatDate(anuncio.periodo_inicio)} — {formatDate(anuncio.periodo_fim)}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-600">
+                      {anuncio.status === 'inativo' ? 'Desativado manualmente' : 'Período encerrado'}
+                    </p>
+                    <p className="mt-2">
+                      <span className="font-medium text-gray-700">Visualizações:</span>{' '}
+                      {anuncio.impressoes_exibidas.toLocaleString('pt-BR')}
+                    </p>
+                    <p className="mt-1">
+                      <span className="font-medium text-gray-700">Cliques:</span>{' '}
+                      {anuncio.cliques.toLocaleString('pt-BR')}
+                    </p>
+                    <p className="mt-1">
+                      <span className="font-medium text-gray-700">CTR:</span>{' '}
+                      {formatCtr(anuncio.impressoes_exibidas, anuncio.cliques)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
