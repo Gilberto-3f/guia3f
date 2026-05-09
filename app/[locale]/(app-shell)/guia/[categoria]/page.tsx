@@ -205,8 +205,8 @@ export default function ListagemCategoriaPage() {
                     type="button"
                     onClick={() => setPais(f.id)}
                     aria-label={f.alt}
-                    className={`p-0.5 text-4xl leading-none drop-shadow-[0_0_2px_white] transition ${
-                      ativo ? 'scale-110 opacity-100' : 'scale-100 opacity-60 hover:opacity-80'
+                    className={`p-0.5 leading-none drop-shadow-[0_0_2px_white] transition ${
+                      ativo ? 'scale-110 text-5xl' : 'scale-100 text-4xl'
                     }`}
                   >
                     <span aria-hidden>{f.emoji}</span>
