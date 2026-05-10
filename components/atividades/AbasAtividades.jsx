@@ -16,19 +16,7 @@ export default function AbasAtividades({ aba, onAba, somenteMinhaConta = false }
     }`
 
   if (somenteMinhaConta) {
-    return (
-      <div className="border-b border-gray-200 bg-white">
-        <div className="flex flex-col items-center justify-center gap-0.5 px-3 py-3 text-center sm:py-3.5">
-          <div className="flex items-center gap-2 text-[#0097b2]">
-            <User className="h-4 w-4 shrink-0 opacity-90 sm:h-[18px] sm:w-[18px]" strokeWidth={2.25} aria-hidden />
-            <span className="text-sm font-semibold text-[#0097b2] sm:text-base">Minha Conta</span>
-          </div>
-          <p className="max-w-md text-[11px] leading-snug text-gray-500 sm:text-xs">
-            Curtidas, comentários, republicações, avaliações e interações na página da sua empresa.
-          </p>
-        </div>
-      </div>
-    )
+    return null
   }
 
   return (

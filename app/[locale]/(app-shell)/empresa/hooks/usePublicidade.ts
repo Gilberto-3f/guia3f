@@ -56,8 +56,10 @@ export function usePublicidade(empresaId: string | null) {
 
   const fetchDados = useCallback(async () => {
     if (!empresaId) {
-      setLoading(false)
+      /* Evita flash: sem empresa ainda não mostramos o formulário completo. */
       setAnuncios([])
+      setError(null)
+      setLoading(true)
       return
     }
 

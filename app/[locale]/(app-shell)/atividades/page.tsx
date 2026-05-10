@@ -1348,14 +1348,17 @@ export default function AtividadesPage() {
     <div className="min-h-screen bg-gray-50 pb-24">
       <header className="sticky top-0 z-30 overflow-visible border-b border-white/20 bg-[#0097b2] px-3 py-2 shadow-sm sm:px-4 sm:py-3">
         <div className="relative" ref={dropdownRef}>
-          <div className="relative flex min-h-10 w-full items-center sm:min-h-11">
+          <div className="relative flex min-h-[3rem] w-full items-center sm:min-h-[3.35rem]">
             <div
-              className={`pointer-events-none absolute inset-0 flex items-center justify-center transition-[opacity,transform] duration-300 ease-out ${
+              className={`pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-0.5 px-10 transition-[opacity,transform] duration-300 ease-out ${
                 pesquisaAberta ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'
               }`}
               aria-hidden={pesquisaAberta}
             >
               <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">ATIVIDADES</h1>
+              <p className="text-center text-xs font-medium leading-tight text-white/90 sm:text-sm">
+                {meuRole === 'empresa' ? 'Minha Conta' : 'Atividades recentes'}
+              </p>
             </div>
             <div className="relative z-10 flex min-w-0 flex-1 items-center justify-end gap-2">
             <div

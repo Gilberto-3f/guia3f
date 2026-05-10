@@ -50,13 +50,18 @@ export default function PublicidadePage() {
     router.push('/login')
   }, [gate, router])
 
-  if (gate !== 'ok') {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0097b2]">
-        <div className="text-white">{gate === 'loading' ? 'Carregando...' : 'Redirecionando...'}</div>
+  const corpo =
+    gate === 'ok' ? (
+      <Publicidade />
+    ) : gate === 'forbidden' ? (
+      <div className="py-10 text-center text-sm text-gray-500">A redirecionar…</div>
+    ) : (
+      <div className="space-y-4 pt-4" aria-busy="true" aria-label="A carregar">
+        <div className="h-11 animate-pulse rounded-lg bg-gray-200" />
+        <div className="h-44 animate-pulse rounded-lg bg-gray-200 sm:h-52" />
+        <div className="h-32 animate-pulse rounded-lg bg-gray-200" />
       </div>
     )
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -77,9 +82,7 @@ export default function PublicidadePage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-4xl px-4 pb-6 pt-0">
-        <Publicidade />
-      </div>
+      <div className="mx-auto max-w-4xl px-4 pb-6 pt-0">{corpo}</div>
     </div>
   )
 }

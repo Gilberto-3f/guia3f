@@ -167,7 +167,19 @@ export default function Publicidade() {
     }
   }
 
-  if (loading) return <div className="py-8 text-center text-gray-900">Carregando...</div>
+  if (loading) {
+    return (
+      <div className="space-y-4 pt-2" aria-busy="true" aria-label="A carregar publicidade">
+        <div className="flex gap-0 border-b border-gray-200 bg-white">
+          <div className="h-12 flex-1 animate-pulse bg-gray-100" />
+          <div className="h-12 flex-1 animate-pulse bg-gray-50" />
+        </div>
+        <div className="h-11 animate-pulse rounded-lg bg-gray-200" />
+        <div className="h-36 animate-pulse rounded-lg bg-gray-200" />
+        <div className="h-28 animate-pulse rounded-lg bg-gray-200" />
+      </div>
+    )
+  }
 
   if (error) {
     return (

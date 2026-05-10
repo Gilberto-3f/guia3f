@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -21,6 +21,41 @@ const SWIPE_MIN_PX = 48
 /** Último anúncio home exibido nesta sessão (rotação na próxima entrada na Guia). */
 const SESSION_LAST_HOME_AD_ID = 'guia_home_ultimo_anuncio_id'
 
+/** Lista em cache (sessionStorage) para evitar espera ao voltar à Home. */
+const SESSION_ANUNCIOS_HOME_JSON = 'guia_home_anuncios_cache_v1'
+
+function slidesDesdeCache(raw: string | null): AnuncioSlide[] | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return null
+    const out: AnuncioSlide[] = []
+    for (const row of parsed) {
+      if (!row || typeof row !== 'object') continue
+      const o = row as Record<string, unknown>
+      const id = o.id != null ? String(o.id) : ''
+      if (!id) continue
+      out.push({
+        id,
+        imagem_url: String(o.imagem_url ?? ''),
+        link_url: o.link_url != null ? String(o.link_url) : null,
+      })
+    }
+    return out.length > 0 ? out : null
+  } catch {
+    return null
+  }
+}
+
+function gravarCacheHome(slides: AnuncioSlide[]) {
+  try {
+    if (slides.length > 0) sessionStorage.setItem(SESSION_ANUNCIOS_HOME_JSON, JSON.stringify(slides))
+    else sessionStorage.removeItem(SESSION_ANUNCIOS_HOME_JSON)
+  } catch {
+    /* ignore */
+  }
+}
+
 function isSupabasePublicStorageUrl(url: string): boolean {
   try {
     const u = new URL(url)
@@ -37,10 +72,12 @@ function BlocoImagemBanner({
   anuncio,
   alt,
   classNameHeight,
+  priorizarCarregamento,
 }: {
   anuncio: AnuncioSlide
   alt: string
   classNameHeight: string
+  priorizarCarregamento?: boolean
 }) {
   const imagem = anuncio.imagem_url ?? ''
   const usarNextImage = imagem && isSupabasePublicStorageUrl(imagem)
@@ -56,6 +93,8 @@ function BlocoImagemBanner({
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 896px"
+            priority={Boolean(priorizarCarregamento)}
+            fetchPriority={priorizarCarregamento ? 'high' : 'auto'}
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element -- URLs arbitrárias fora do remotePatterns
@@ -64,6 +103,7 @@ function BlocoImagemBanner({
             src={imagem}
             alt={alt}
             className="h-full w-full object-cover"
+            fetchPriority={priorizarCarregamento ? 'high' : 'auto'}
           />
         )
       ) : null}
@@ -125,6 +165,20 @@ export default function PublicidadeHome() {
   const [indice, setIndice] = useState(0)
   const touchStartX = useRef<number | null>(null)
 
+  useLayoutEffect(() => {
+    try {
+      const cached = slidesDesdeCache(sessionStorage.getItem(SESSION_ANUNCIOS_HOME_JSON))
+      if (cached && cached.length > 0) {
+        const idx = indiceInicialRotacao(cached)
+        setAnuncios(cached)
+        setIndice(idx)
+        setCarregando(false)
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   useEffect(() => {
     let ativo = true
     const carregar = async () => {
@@ -141,14 +195,14 @@ export default function PublicidadeHome() {
       if (!ativo) return
       if (error) {
         console.error(error)
-        setAnuncios([])
-        setIndice(0)
+        setAnuncios((prev) => (prev.length > 0 ? prev : []))
       } else {
         const slides: AnuncioSlide[] = (data ?? []).map((row) => ({
           id: String(row.id),
           imagem_url: String(row.imagem_url ?? ''),
           link_url: row.link_url != null ? String(row.link_url) : null,
         }))
+        gravarCacheHome(slides)
         const idx = indiceInicialRotacao(slides)
         setAnuncios(slides)
         setIndice(slides.length ? idx : 0)
@@ -232,10 +286,15 @@ export default function PublicidadeHome() {
                 className="flex transition-transform duration-300 ease-out"
                 style={{ transform: `translateX(-${indice * 100}%)` }}
               >
-                {anuncios.map((anuncio) => (
+                {anuncios.map((anuncio, slideIdx) => (
                   <div key={anuncio.id} className="w-full shrink-0">
                     <SlideEnvoltorio anuncio={anuncio}>
-                      <BlocoImagemBanner anuncio={anuncio} alt={alt} classNameHeight={blocoH} />
+                      <BlocoImagemBanner
+                        anuncio={anuncio}
+                        alt={alt}
+                        classNameHeight={blocoH}
+                        priorizarCarregamento={slideIdx === indice}
+                      />
                     </SlideEnvoltorio>
                   </div>
                 ))}
