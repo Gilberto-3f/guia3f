@@ -255,7 +255,8 @@ export default function EmpresaPage() {
                 layout="inline"
                 size="compact"
                 showInlineError={false}
-                onToggle={() => {
+                onToggle={(seguindoNovo) => {
+                  setEmpresa((prev) => (prev ? { ...prev, is_seguindo: seguindoNovo } : prev))
                   void carregarEmpresa({ silent: true })
                 }}
               />

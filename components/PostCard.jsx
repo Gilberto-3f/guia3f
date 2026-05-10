@@ -163,6 +163,7 @@ export default function PostCard({
 
   const empresaId = post.autor?.empresa_id || ''
   const autorId = post.autor?.usuario_id || ''
+  const autorRoleNorm = String(post.autor?.role ?? '').toLowerCase()
   const hrefAutor = autorId
     ? getPerfilHref({ usuario_id: autorId, role: post.autor?.role, empresa_id: post.autor?.empresa_id || null })
     : ''
@@ -174,8 +175,9 @@ export default function PostCard({
       })
     : ''
 
-  const mostrarSeguirUsuario =
-    Boolean(!empresaId && meuUsuarioId && autorId && autorId !== meuUsuarioId)
+  const mostrarSeguirUsuario = Boolean(
+    !empresaId && autorRoleNorm !== 'empresa' && meuUsuarioId && autorId && autorId !== meuUsuarioId
+  )
 
   const seguidoTipo = post.autor?.role || 'turista'
 
@@ -603,7 +605,14 @@ export default function PostCard({
       .is('deleted_at', null)
       .maybeSingle()
     if (e1 || !postOriginal) {
-      console.error(e1)
+      console.error('[repost] leitura do post original falhou', {
+        postId: post.id,
+        message: e1?.message,
+        code: e1?.code,
+        details: e1?.details,
+        hint: e1?.hint,
+        e1,
+      })
       alert('Não foi possível repostar.')
       return
     }
@@ -622,7 +631,15 @@ export default function PostCard({
       .select('id')
       .maybeSingle()
     if (e2 || !ins?.id) {
-      console.error(e2)
+      console.error('[repost] insert do republicação falhou', {
+        postId: post.id,
+        post_original_id: post.id,
+        message: e2?.message,
+        code: e2?.code,
+        details: e2?.details,
+        hint: e2?.hint,
+        e2,
+      })
       alert('Não foi possível repostar.')
       return
     }

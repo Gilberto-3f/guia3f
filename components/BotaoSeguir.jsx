@@ -36,11 +36,13 @@ export default function BotaoSeguir({
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const [seguindo, setSeguindo] = useState(initialFollowing)
   const [erro, setErro] = useState(/** @type {string | null} */ (null))
-
-  useEffect(() => {
-    setSeguindo(initialFollowing)
-  }, [initialFollowing])
   const [loading, setLoading] = useState(false)
+
+  /** Evita que `isFollowing` desatualizado do pai sobrescreva o estado durante o request. */
+  useEffect(() => {
+    if (loading) return
+    setSeguindo(initialFollowing)
+  }, [initialFollowing, loading])
 
   const handleToggle = async (e) => {
     e.stopPropagation()
@@ -49,14 +51,16 @@ export default function BotaoSeguir({
       notificarSomenteLeitura()
       return
     }
+    const estadoAntes = seguindo
     setLoading(true)
+    setSeguindo(!estadoAntes)
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession()
       if (!session) {
         setErro('Entre na sua conta para seguir.')
-        setLoading(false)
+        setSeguindo(estadoAntes)
         return
       }
 
@@ -64,11 +68,12 @@ export default function BotaoSeguir({
       const id = tipo === 'empresa' ? String(empresaId || alvoId || '') : String(alvoId || '')
       if (!id) {
         setErro('Ação indisponível.')
+        setSeguindo(estadoAntes)
         return
       }
 
       if (tipo === 'empresa') {
-        if (seguindo) {
+        if (estadoAntes) {
           const { error } = await supabase
             .from('favoritos')
             .delete()
@@ -85,8 +90,11 @@ export default function BotaoSeguir({
           if (error) throw error
         }
       } else {
-        if (id === session.user.id) return
-        if (seguindo) {
+        if (id === session.user.id) {
+          setSeguindo(estadoAntes)
+          return
+        }
+        if (estadoAntes) {
           const { error } = await supabase.from('redecontatos').delete().eq('seguidor_id', session.user.id).eq('seguido_id', id)
           if (error) throw error
         } else {
@@ -97,17 +105,22 @@ export default function BotaoSeguir({
         }
       }
 
-      const novo = !seguindo
-      setSeguindo(novo)
+      const novo = !estadoAntes
       onToggle?.(novo)
       window.dispatchEvent(new Event('perfil-atualizado'))
       if (tipo === 'empresa') {
         window.dispatchEvent(new Event('guia-feed-rede-reload'))
       }
     } catch (err) {
+      setSeguindo(estadoAntes)
       let msg = 'Não foi possível concluir a ação. Tente de novo.'
-      if (err instanceof Error) {
-        const raw = err.message
+      const raw =
+        err && typeof err === 'object' && 'message' in err && typeof /** @type {{ message?: unknown }} */ (err).message === 'string'
+          ? String(/** @type {{ message: string }} */ (err).message)
+          : err instanceof Error
+            ? err.message
+            : ''
+      if (raw) {
         const lower = raw.toLowerCase()
         if (lower.includes('duplicate') || lower.includes('unique')) {
           msg = 'Você já segue este perfil.'
