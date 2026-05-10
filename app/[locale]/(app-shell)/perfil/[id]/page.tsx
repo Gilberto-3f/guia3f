@@ -317,7 +317,11 @@ export default function PerfilSocialPage() {
       }
 
       const [{ count: cFav }, { count: cSegU }, { count: cSegMe }, { count: cAval }] = await Promise.all([
-        supabase.from('favoritos').select('id', { count: 'exact', head: true }).eq('usuario_id', profileId),
+        supabase
+          .from('favoritos')
+          .select('id', { count: 'exact', head: true })
+          .eq('usuario_id', profileId)
+          .eq('alvo_tipo', 'empresa'),
         supabase.from('redecontatos').select('id', { count: 'exact', head: true }).eq('seguidor_id', profileId),
         supabase.from('redecontatos').select('id', { count: 'exact', head: true }).eq('seguido_id', profileId),
         supabase.from('avaliacoes').select('id', { count: 'exact', head: true }).eq('usuario_id', profileId),

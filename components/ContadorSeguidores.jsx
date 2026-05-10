@@ -18,9 +18,13 @@ export default function ContadorSeguidores({ empresaId, total }) {
 
   const atualizarTotalDoServidor = useCallback(async () => {
     if (!empresaId) return
-    const { data, error } = await supabase.from('empresas').select('total_seguidores').eq('id', empresaId).maybeSingle()
-    if (error || data == null) return
-    setTotalExibido(Number(data.total_seguidores) || 0)
+    const { count, error } = await supabase
+      .from('favoritos')
+      .select('id', { count: 'exact', head: true })
+      .eq('alvo_id', empresaId)
+      .eq('alvo_tipo', 'empresa')
+    if (error) return
+    setTotalExibido(typeof count === 'number' && !Number.isNaN(count) ? count : 0)
   }, [empresaId])
 
   useEffect(() => {

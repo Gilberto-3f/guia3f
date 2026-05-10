@@ -121,16 +121,17 @@ export default function EmpresaPage() {
         return
       }
 
+      /** Usar sempre o utilizador da sessão aqui evita flash "Seguir" antes de `usuarioId` no estado hidratar. */
       let isSeguindo = false
-      if (usuarioId) {
+      if (viewerUid) {
         debugEmpresa('[Empresa] carregarEmpresa — buscando favorito', {
           empresaId,
-          usuarioIdConsulta: usuarioId,
+          viewerUid,
         })
         const { data: favorito, error: errFavorito } = await supabase
           .from('favoritos')
           .select('id')
-          .eq('usuario_id', usuarioId)
+          .eq('usuario_id', viewerUid)
           .eq('alvo_id', empresaId)
           .eq('alvo_tipo', 'empresa')
           .maybeSingle()
@@ -142,10 +143,23 @@ export default function EmpresaPage() {
           errFavorito,
         })
       } else {
-        debugEmpresa('[Empresa] carregarEmpresa — sem usuarioId, is_seguindo permanece false', {
-          empresaId,
-        })
+        debugEmpresa('[Empresa] carregarEmpresa — visitante anónimo, is_seguindo false', { empresaId })
       }
+
+      const { count: cntSeguidoresFav, error: errCntSeg } = await supabase
+        .from('favoritos')
+        .select('id', { count: 'exact', head: true })
+        .eq('alvo_id', empresaId)
+        .eq('alvo_tipo', 'empresa')
+
+      if (errCntSeg) {
+        debugEmpresa('[Empresa] contagem seguidores (favoritos) falhou', errCntSeg)
+      }
+
+      const totalSeg =
+        typeof cntSeguidoresFav === 'number' && !Number.isNaN(cntSeguidoresFav)
+          ? cntSeguidoresFav
+          : Number(empresaData.total_seguidores) || 0
 
       setEmpresa({
         ...empresaData,
@@ -154,15 +168,21 @@ export default function EmpresaPage() {
         fotos_url: asJsonArray(empresaData.fotos_url),
         fotos_360_url: asJsonArray(empresaData.fotos_360_url),
       })
-      setTotalSeguidores(Number(empresaData.total_seguidores) || 0)
+      setTotalSeguidores(totalSeg)
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [empresaId, usuarioId, router])
+  }, [empresaId, router])
 
   useEffect(() => {
     void carregarEmpresa()
   }, [carregarEmpresa])
+
+  /** Após login na mesma aba, `usuarioId` hidrata — refrescar follow/contadores sem depender só do primeiro load. */
+  useEffect(() => {
+    if (!empresaId || !usuarioId) return
+    void carregarEmpresa({ silent: true })
+  }, [usuarioId, empresaId, carregarEmpresa])
 
   useEffect(() => {
     const onAvaliacaoEnviada = (ev: Event) => {
@@ -279,7 +299,9 @@ export default function EmpresaPage() {
                 onToggle={(seguindoNovo) => {
                   debugEmpresa('[Empresa] onToggle BotaoSeguir', { seguindoNovo, empresaId })
                   setEmpresa((prev) => (prev ? { ...prev, is_seguindo: seguindoNovo } : prev))
-                  void carregarEmpresa({ silent: true })
+                  queueMicrotask(() => {
+                    void carregarEmpresa({ silent: true })
+                  })
                 }}
               />
             ) : null}

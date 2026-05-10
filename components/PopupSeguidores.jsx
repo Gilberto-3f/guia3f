@@ -6,12 +6,15 @@ import Link from 'next/link'
 import { X, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import BotaoSeguir from '@/components/BotaoSeguir'
+import { dedupePerfisPorUsuario, getPerfilHref } from '@/lib/perfil-utils'
 
 /**
  * @param {{ isOpen: boolean, onClose: () => void, empresaId: string }} props
  */
 export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
-  const [seguidores, setSeguidores] = useState(/** @type {{ id: string, nome: string, username: string, foto_url: string | null }[]} */ ([]))
+  const [seguidores, setSeguidores] = useState(
+    /** @type {{ id: string, nome: string, username: string, foto_url: string | null, tipo?: string, empresa_id?: string | null }[]} */ ([])
+  )
   const [loading, setLoading] = useState(true)
   const [meuId, setMeuId] = useState(/** @type {string | null} */ (null))
   const [seguindoMap, setSeguindoMap] = useState(/** @type {Record<string, boolean>} */ ({}))
@@ -41,14 +44,17 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
           .select('usuario_id')
           .eq('alvo_id', empresaId)
           .eq('alvo_tipo', 'empresa')
-        // Não depende de coluna de ordenação específica (pode variar por schema).
 
-        if (error || !favs?.length) {
+        if (error) {
           if (ativo) setSeguidores([])
           return
         }
 
-        const ids = [...new Set(favs.map((f) => f.usuario_id).filter(Boolean))]
+        const ids = [...new Set((favs ?? []).map((f) => String(f.usuario_id)).filter(Boolean))]
+        if (ids.length === 0) {
+          if (ativo) setSeguidores([])
+          return
+        }
 
         if (uid) {
           const { data: meusSeg } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid).in('seguido_id', ids)
@@ -59,45 +65,39 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
           setSeguindoMap({})
         }
 
-        const { data: turistas } = await supabase
-          .from('turistas')
-          .select('usuario_id, nome_completo, nome_usuario, foto_perfil_url')
+        const { data: rawPerfis, error: errPerf } = await supabase
+          .from('perfis_para_busca')
+          .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
           .in('usuario_id', ids)
 
-        const { data: profissionais } = await supabase
-          .from('profissionais')
-          .select('usuario_id, nome_completo, nome_usuario, foto_perfil_url')
-          .in('usuario_id', ids)
+        if (errPerf) console.error('perfis_para_busca (seguidores empresa):', errPerf)
+
+        const perfisDedup = dedupePerfisPorUsuario(rawPerfis ?? [])
+        const porUsuario = new Map(perfisDedup.map((p) => [String(p.usuario_id), p]))
 
         const { data: usuarios } = await supabase.from('usuarios').select('id, email').in('id', ids)
 
-        const porUsuario = new Map()
-        for (const t of turistas || []) {
-          porUsuario.set(t.usuario_id, {
-            nome: t.nome_completo,
-            username: t.nome_usuario,
-            foto_url: t.foto_perfil_url ?? null,
-          })
-        }
-        for (const p of profissionais || []) {
-          if (!porUsuario.has(p.usuario_id)) {
-            porUsuario.set(p.usuario_id, {
-              nome: p.nome_completo,
-              username: p.nome_usuario,
-              foto_url: p.foto_perfil_url ?? null,
-            })
-          }
-        }
-
         const lista = ids.map((id) => {
-          const perfil = porUsuario.get(id)
+          const p = porUsuario.get(id)
+          if (p) {
+            return {
+              id,
+              nome: String(p.nome ?? 'Usuário'),
+              username: String(p.username ?? 'usuario'),
+              foto_url: p.foto_url != null ? String(p.foto_url) : null,
+              tipo: p.tipo != null ? String(p.tipo) : undefined,
+              empresa_id: p.empresa_id != null ? String(p.empresa_id) : null,
+            }
+          }
           const u = usuarios?.find((x) => x.id === id)
           const email = u?.email ?? ''
           return {
             id,
-            nome: perfil?.nome || email || 'Usuário',
-            username: perfil?.username || (email ? email.split('@')[0] : 'usuario'),
-            foto_url: perfil?.foto_url ?? null,
+            nome: email ? email.split('@')[0] : 'Usuário',
+            username: email ? email.split('@')[0] : 'usuario',
+            foto_url: null,
+            tipo: undefined,
+            empresa_id: null,
           }
         })
 
@@ -153,7 +153,12 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
               {seguidores.map((seguidor) => (
                 <Link
                   key={seguidor.id}
-                  href={`/perfil/${seguidor.id}`}
+                  href={getPerfilHref({
+                    usuario_id: seguidor.id,
+                    tipo: seguidor.tipo,
+                    role: seguidor.tipo,
+                    empresa_id: seguidor.empresa_id,
+                  })}
                   className="flex items-center gap-3 rounded-lg border-b border-gray-100 py-2 last:border-0 hover:bg-gray-50"
                 >
                   {seguidor.foto_url ? (

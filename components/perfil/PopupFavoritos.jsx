@@ -30,6 +30,8 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
   )
   const [confirmUser, setConfirmUser] = useState(/** @type {string | null} */ (null))
   const [meuFavEmpresaIds, setMeuFavEmpresaIds] = useState(/** @type {Set<string>} */ (new Set()))
+  /** Contagem alinhada à query `favoritos` (linhas com `alvo_tipo = empresa`), não só linhas com perfil em `perfis_para_busca`. */
+  const [countEmpresasFavoritas, setCountEmpresasFavoritas] = useState(0)
 
   const souEu = meuId != null && meuId === profileId
 
@@ -42,6 +44,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
     if (errFav) console.error('Favoritos (empresas):', errFav)
 
     const empresaIds = [...new Set((fav ?? []).map((r) => String(r.alvo_id)).filter(Boolean))]
+    setCountEmpresasFavoritas(empresaIds.length)
     if (empresaIds.length === 0) {
       setEmps([])
       setMeuFavEmpresaIds(new Set())
@@ -64,11 +67,11 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
         else if (String(r.username ?? '') < String(cur.username ?? '')) porEmpresa.set(eid, r)
       }
 
+      /** Uma linha por `alvo_id` em favoritos; fallback se `perfis_para_busca` não devolver linha (RLS, atraso). */
       setEmps(
-        empresaIds
-          .map((eid) => {
-            const p = porEmpresa.get(eid)
-            if (!p) return null
+        empresaIds.map((eid) => {
+          const p = porEmpresa.get(eid)
+          if (p) {
             return {
               usuario_id: String(p.usuario_id ?? ''),
               empresa_id: p.empresa_id != null ? String(p.empresa_id) : null,
@@ -76,8 +79,15 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
               username: String(p.username ?? 'empresa'),
               foto_url: p.foto_url != null ? String(p.foto_url) : null,
             }
-          })
-          .filter(Boolean)
+          }
+          return {
+            usuario_id: '',
+            empresa_id: eid,
+            nome: 'Empresa',
+            username: 'empresa',
+            foto_url: null,
+          }
+        })
       )
 
       if (meuId && empresaIds.length > 0) {
@@ -169,7 +179,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
             onClick={() => setAba('empresas')}
             className={`flex-1 py-2 text-center text-sm ${aba === 'empresas' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'}`}
           >
-            EMPRESAS ({emps.length})
+            EMPRESAS ({countEmpresasFavoritas})
           </button>
           <button
             type="button"
