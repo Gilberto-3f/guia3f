@@ -16,6 +16,7 @@ import AtividadeCurtiuAvaliacao from '@/components/atividades/AtividadeCurtiuAva
 import AtividadeCurtiuStory from '@/components/atividades/AtividadeCurtiuStory'
 import AtividadeComentario from '@/components/atividades/AtividadeComentario'
 import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
+import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
 import { agruparAtividadesCurtidasPost, urlFotoPost } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
@@ -135,6 +136,8 @@ export default function AtividadesPage() {
   const latestRequestId = useRef(0)
   const [meuId, setMeuId] = useState<string | null>(null)
   const [meuRole, setMeuRole] = useState<string | null>(null)
+  /** Nome da empresa logada (aba Atividades — linhas `avaliou` e texto da página). */
+  const [minhaEmpresaAtividades, setMinhaEmpresaAtividades] = useState<{ id: string; nome: string } | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [listaAmigos, setListaAmigos] = useState<AtividadeRow[]>([])
   const [listaMinha, setListaMinha] = useState<AtividadeRow[]>([])
@@ -613,6 +616,7 @@ export default function AtividadesPage() {
     setMeuId(uid)
     if (!uid) {
       setCarregando(false)
+      setMinhaEmpresaAtividades(null)
       setListaAmigos([])
       setListaMinha([])
       setQtdSeguindo(0)
@@ -671,6 +675,8 @@ export default function AtividadesPage() {
       setCarregando(false)
       return
     }
+
+    setMinhaEmpresaAtividades(null)
 
     const { data: segRows, error: erroRede } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid)
     if (erroRede && process.env.NODE_ENV === 'development') {
@@ -831,6 +837,10 @@ export default function AtividadesPage() {
       meuId: meuId ? `${meuId.slice(0, 8)}…` : null,
     })
   }, [meuRole, meuId])
+
+  useEffect(() => {
+    if (meuRole === 'empresa') setAba('minha')
+  }, [meuRole])
 
   const marcarMinhaLidas = useCallback(async () => {
     if (!meuId) return
@@ -1146,6 +1156,41 @@ export default function AtividadesPage() {
 
     const r = item.row
     const ator = perfilMap[r.autor_id]
+
+    if (r.tipo === 'avaliou') {
+      const ex = r.dados_extras ?? {}
+      const empresaIdRaw =
+        typeof ex.empresa_id === 'string' && ex.empresa_id.trim() !== ''
+          ? ex.empresa_id.trim()
+          : String(r.alvo_id ?? '').trim()
+      const notaRaw = ex.nota
+      const nota =
+        typeof notaRaw === 'number'
+          ? notaRaw
+          : typeof notaRaw === 'string'
+            ? Number(notaRaw)
+            : 0
+      const feedback =
+        typeof ex.feedback === 'string' && ex.feedback.trim() !== '' ? String(ex.feedback).trimEnd() : null
+      const nomeEmpresa =
+        minhaEmpresaAtividades && minhaEmpresaAtividades.id === empresaIdRaw
+          ? minhaEmpresaAtividades.nome
+          : minhaEmpresaAtividades?.nome ?? 'sua empresa'
+      return (
+        <AtividadeAvaliacao
+          key={r.id}
+          usuarioAtorId={r.autor_id}
+          usernameAtor={ator?.username ?? 'usuario'}
+          interactorFoto={ator?.foto_perfil_url ?? null}
+          hrefAtor={hrefUsuario(r.autor_id)}
+          nomeEmpresa={nomeEmpresa}
+          empresaId={empresaIdRaw || (minhaEmpresaAtividades?.id ?? '')}
+          nota={Number.isFinite(nota) ? nota : 0}
+          feedback={feedback}
+          tempoInteracao={formatarDataAtividades(r.created_at)}
+        />
+      )
+    }
 
     if (r.tipo === 'curtiu_story') {
       const donor = perfilMap[r.usuario_id]
