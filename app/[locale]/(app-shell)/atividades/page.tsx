@@ -838,14 +838,18 @@ export default function AtividadesPage() {
     })
   }, [meuRole, meuId])
 
-  useEffect(() => {
-    if (meuRole === 'empresa') setAba('minha')
-  }, [meuRole])
-
   const marcarMinhaLidas = useCallback(async () => {
     if (!meuId) return
-    await supabase.from('atividades').update({ lida: true }).eq('usuario_id', meuId).eq('lida', false)
+    const { error } = await supabase
+      .from('atividades')
+      .update({ lida: true })
+      .eq('usuario_id', meuId)
+      .eq('lida', false)
+    if (error) return
     setListaMinha((prev) => prev.map((r) => ({ ...r, lida: true })))
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('perfil-atualizado'))
+    }
   }, [meuId])
 
   const onAba = useCallback(
@@ -858,6 +862,12 @@ export default function AtividadesPage() {
     },
     [marcarMinhaLidas]
   )
+
+  /** Empresa só tem “Minha conta”: força aba e marca lidas (antes era só `setAba`, sem `marcarMinhaLidas`). */
+  useEffect(() => {
+    if (meuRole !== 'empresa' || !meuId) return
+    onAba('minha')
+  }, [meuRole, meuId, onAba])
 
   const SWIPE_MIN_PX = 60
   const SWIPE_DOMINANCIA = 1.5
