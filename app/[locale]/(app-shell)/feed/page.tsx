@@ -3,7 +3,8 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { pickAutorDisplay } from '@/lib/feed-autor'
+import { pickAutorDisplay, sanearAutoresPostsEmpresaPreview } from '@/lib/feed-autor'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { fetchEmpresaFeedPromoAutorIds, intercalarPostsEmpresa } from '@/lib/intercalarFeedEmpresa'
 import { fetchUsuarioIdsEmpresasFavoritas } from '@/lib/feedSeguidosEmpresasFavoritas'
@@ -132,6 +133,7 @@ function FeedPageInner() {
 
   const [meuId, setMeuId] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
+  const { modoAtivo } = useModoApresentacao()
   /** Evita marcar o feed como “pronto” antes da sessão existir (corrida: ready com listas vazias e sem re-fetch). */
   const [authReady, setAuthReady] = useState(false)
   const [feedRede, setFeedRede] = useState<{
@@ -358,9 +360,16 @@ function FeedPageInner() {
       const orgMapped = orgRows.map(mapRow).filter((row) => !isTipoVideoPost(row.tipo))
       const proMapped = proRows.map(mapRow).filter((row) => !isTipoVideoPost(row.tipo))
 
-      return intercalarPostsEmpresa(orgMapped, proMapped, (r) => r.autor?.usuario_id ?? '', 20)
+      const merged = intercalarPostsEmpresa(orgMapped, proMapped, (r) => r.autor?.usuario_id ?? '', 20)
+      const saneados = await sanearAutoresPostsEmpresaPreview(
+        supabase,
+        merged,
+        email,
+        modoAtivo
+      )
+      return saneados as PostFeedRow[]
     },
-    [mapRow, meuId]
+    [mapRow, meuId, email, modoAtivo]
   )
 
   useEffect(() => {
@@ -404,7 +413,8 @@ function FeedPageInner() {
         fetchPostAttempted.current = null
         return
       }
-      const row = mapRow(data)
+      const mapped = mapRow(data)
+      const [row] = (await sanearAutoresPostsEmpresaPreview(supabase, [mapped], email, modoAtivo)) as PostFeedRow[]
       if (isTipoVideoPost(row.tipo)) {
         fetchPostAttempted.current = null
         return
@@ -425,7 +435,7 @@ function FeedPageInner() {
         return [row, ...prev]
       })
     })()
-  }, [postParam, loading, posts, mapRow, feedRede.ready, meuId])
+  }, [postParam, loading, posts, mapRow, feedRede.ready, meuId, email, modoAtivo])
 
   useEffect(() => {
     if (!postParam || posts.length === 0) return
@@ -743,8 +753,11 @@ function FeedPageInner() {
               abrirComentariosInicial={postParam === post.id && Boolean(comentarioParam)}
               destacarComentarioId={postParam === post.id ? comentarioParam : null}
               onRepublicouPrepend={(raw) => {
-                const row = mapRow(raw)
-                setPosts((prev) => (prev.some((x) => x.id === row.id) ? prev : [row, ...prev]))
+                void (async () => {
+                  const mapped = mapRow(raw)
+                  const [row] = (await sanearAutoresPostsEmpresaPreview(supabase, [mapped], email, modoAtivo)) as PostFeedRow[]
+                  setPosts((prev) => (prev.some((x) => x.id === row.id) ? prev : [row, ...prev]))
+                })()
               }}
               onPostLocalPatch={(postId, patch) => {
                 setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, ...patch } : x)))

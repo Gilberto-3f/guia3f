@@ -23,6 +23,7 @@ import AbaTour360Empresa from '@/components/empresa/AbaTour360Empresa'
 import UploadFotos360Adm from '@/components/empresa/UploadFotos360Adm'
 import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 
 function debugEmpresa(...args: unknown[]) {
   if (process.env.NODE_ENV === 'development') {
@@ -115,7 +116,13 @@ export default function EmpresaPage() {
 
       const isPreview = Boolean((empresaData as { somente_modo_apresentacao?: boolean } | null)?.somente_modo_apresentacao)
       const donoId = (empresaData as { usuario_id?: string } | null)?.usuario_id ?? null
-      if (isPreview && (!viewerUid || String(donoId ?? '') !== String(viewerUid))) {
+      const viewerEmail = session?.user?.email ?? meuEmail ?? null
+      if (
+        isPreview &&
+        (!viewerUid ||
+          String(donoId ?? '') !== String(viewerUid) ||
+          !podeVerConteudoEmpresaPreviewApp(viewerEmail, modoAtivo))
+      ) {
         setEmpresa(null)
         router.replace('/guia')
         return
@@ -172,7 +179,7 @@ export default function EmpresaPage() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [empresaId, router])
+  }, [empresaId, router, modoAtivo, meuEmail])
 
   useEffect(() => {
     void carregarEmpresa()

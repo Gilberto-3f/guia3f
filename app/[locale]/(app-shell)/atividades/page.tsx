@@ -21,6 +21,7 @@ import { agruparAtividadesCurtidasPost, urlFotoPost } from '@/lib/atividades-fee
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 
 const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
 
@@ -135,6 +136,7 @@ export default function AtividadesPage() {
   const termoBuscaRef = useRef('')
   const latestRequestId = useRef(0)
   const [meuId, setMeuId] = useState<string | null>(null)
+  const [meuEmail, setMeuEmail] = useState<string | null>(null)
   const [meuRole, setMeuRole] = useState<string | null>(null)
   /** Nome da empresa logada (aba Atividades — linhas `avaliou` e texto da página). */
   const [minhaEmpresaAtividades, setMinhaEmpresaAtividades] = useState<{ id: string; nome: string } | null>(null)
@@ -365,19 +367,20 @@ export default function AtividadesPage() {
         const tipo = String(pb.tipo ?? '').toLowerCase()
         const empId = pb.empresa_id != null && String(pb.empresa_id).trim() !== '' ? String(pb.empresa_id) : null
         const permitirEmpresaPreview =
+          podeVerConteudoEmpresaPreviewApp(meuEmail, modoAtivo) &&
           Boolean(
             meuId &&
               uid === meuId &&
               meuRole === 'admin' &&
-              modoAtivo &&
               perfilSimulado?.tipo === 'empresa' &&
               contextoEmpresaId
-          ) && tipo === 'empresa'
+          ) &&
+          tipo === 'empresa'
 
         const podeAplicarEmpresa = tipo === 'empresa' ? permitirEmpresaPreview : true
 
-        /** Fora do modo apresentação: nunca misturar nome/foto/username da empresa demo (`perfis_para_busca`). */
-        if (tipo === 'empresa' && empId && previewEmpresaIdSet.has(empId) && !modoAtivo) {
+        /** Sem permissão de preview: nunca misturar nome/foto/username da empresa demo (`perfis_para_busca`). */
+        if (tipo === 'empresa' && empId && previewEmpresaIdSet.has(empId) && !podeVerConteudoEmpresaPreviewApp(meuEmail, modoAtivo)) {
           continue
         }
 
@@ -400,7 +403,7 @@ export default function AtividadesPage() {
       ] = await Promise.all([
         supabase.from('turistas').select('usuario_id, nome_usuario, foto_perfil_url, foto_url').in('usuario_id', ids),
         supabase.from('profissionais').select('usuario_id, nome_usuario, foto_perfil_url, foto_url').in('usuario_id', ids),
-        supabase.from('empresas').select('usuario_id, nome_usuario, foto_url').in('usuario_id', ids),
+        supabase.from('empresas').select('usuario_id, nome_usuario, foto_url, somente_modo_apresentacao').in('usuario_id', ids),
       ])
       if (errTur) console.warn('Atividades turistas:', errTur.message)
       if (errProf) console.warn('Atividades profissionais:', errProf.message)
@@ -425,7 +428,7 @@ export default function AtividadesPage() {
           somente_modo_apresentacao?: boolean | null
         }
         if (!u.usuario_id) continue
-        if (!modoAtivo && u.somente_modo_apresentacao === true) continue
+        if (!podeVerConteudoEmpresaPreviewApp(meuEmail, modoAtivo) && u.somente_modo_apresentacao === true) continue
         empBy.set(String(u.usuario_id), u)
       }
 
@@ -549,12 +552,15 @@ export default function AtividadesPage() {
 
       const empresaUsuarioIds = ids.filter((id) => m[id]?.role === 'empresa')
       if (empresaUsuarioIds.length > 0) {
-        /** Ignorar empresas só modo apresentação para o mapa gestor → empresa (evita link errado / preview). */
-        const { data: emps } = await supabase
+        /** Ignorar empresas só modo apresentação para o mapa gestor → empresa, exceto ADM demo com modo ativo. */
+        let qEmpSeguido = supabase
           .from('empresas')
           .select('id, usuario_id, somente_modo_apresentacao')
           .in('usuario_id', empresaUsuarioIds)
-          .not('somente_modo_apresentacao', 'eq', true)
+        if (!podeVerConteudoEmpresaPreviewApp(meuEmail, modoAtivo)) {
+          qEmpSeguido = qEmpSeguido.not('somente_modo_apresentacao', 'eq', true)
+        }
+        const { data: emps } = await qEmpSeguido
         const sm: Record<string, string> = {}
         for (const e of emps ?? []) {
           const rec = e as { id: string; usuario_id: string }
@@ -570,7 +576,7 @@ export default function AtividadesPage() {
         setSeguidoEmpresaMap({})
       }
     },
-    [coletarIdsPerfis, meuId, meuRole, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId]
+    [coletarIdsPerfis, meuId, meuEmail, meuRole, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId]
   )
 
   const carregarPostsMeta = useCallback(async (postIds: string[], opcoes?: { merge?: boolean }) => {
@@ -642,6 +648,7 @@ export default function AtividadesPage() {
     } = await supabase.auth.getSession()
     const uid = session?.user?.id ?? null
     setMeuId(uid)
+    setMeuEmail(session?.user?.email ?? null)
     if (!uid) {
       setCarregando(false)
       setMinhaEmpresaAtividades(null)

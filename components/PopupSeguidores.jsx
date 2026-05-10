@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import BotaoSeguir from '@/components/BotaoSeguir'
 import { dedupePerfisPorUsuario, getPerfilHref } from '@/lib/perfil-utils'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 
 /**
  * @param {{ isOpen: boolean, onClose: () => void, empresaId: string }} props
@@ -39,6 +40,8 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
           data: { session },
         } = await supabase.auth.getSession()
         const uid = session?.user?.id ?? null
+        const emailSessao = session?.user?.email ?? null
+        const podeVerPreview = podeVerConteudoEmpresaPreviewApp(emailSessao, modoAtivo)
         if (ativo) setMeuId(uid)
 
         const { data: favs, error } = await supabase
@@ -121,7 +124,7 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
         /** Ainda “empresa” após dedupe (só preview na view): forçar nome/@ de turista ou profissional se existir (só fora do modo apresentação). */
         const previewUids = new Set([...preferTipoPorUsuarioId.keys()])
         const aindaEmpresa =
-          !modoAtivo && previewUids.size > 0
+          !podeVerPreview && previewUids.size > 0
             ? lista.filter((row) => previewUids.has(row.id) && String(row.tipo ?? '').toLowerCase() === 'empresa')
             : []
         if (aindaEmpresa.length > 0) {
