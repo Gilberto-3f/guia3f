@@ -123,10 +123,25 @@ export default function BottomBar() {
 
         const { data: userData } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
         const role = userData?.role ?? null
+        /** Mesma regra que `roleParaBarra`: modo apresentação pode mostrar barra “empresa” com role BD diferente. */
+        const roleContagem =
+          modoAtivo && perfilSimulado ? perfilSimulado.tipo : role === 'admin' ? 'admin' : role
         /** `authUserId` só depois do `role` — evita um frame em que o 5.º ícone aponta para `/perfil` e redireciona empresa para mensagem errada. */
         if (ativo) {
           setUserRole(role)
           setAuthUserId(uid)
+        }
+
+        /** Destinatário das notificações na bolinha: gestor da empresa em modo simulação. */
+        let usuarioIdContagemAtividades = uid
+        if (roleContagem === 'empresa' && modoAtivo && contextoEmpresaId) {
+          const { data: empGestor } = await supabase
+            .from('empresas')
+            .select('usuario_id')
+            .eq('id', contextoEmpresaId)
+            .maybeSingle()
+          const g = empGestor?.usuario_id
+          if (g != null && String(g).trim() !== '') usuarioIdContagemAtividades = String(g)
         }
 
         if (role === 'empresa') {
@@ -139,18 +154,6 @@ export default function BottomBar() {
           if (ativo) {
             setEmpresaId(empresa?.id ?? null)
             setFotoPerfil(empresa?.foto_url != null ? String(empresa.foto_url) : null)
-          }
-          const { count, error: cEmp } = await supabase
-            .from('atividades')
-            .select('*', { count: 'exact', head: true })
-            .eq('usuario_id', uid)
-            .eq('lida', false)
-          if (ativo) {
-            if (!cEmp && typeof count === 'number') {
-              setNaoLidasAtividades(count)
-            } else {
-              setNaoLidasAtividades(0)
-            }
           }
         } else {
           if (ativo) setEmpresaId(null)
@@ -203,20 +206,28 @@ export default function BottomBar() {
           } else if (ativo) {
             setFotoPerfil(null)
           }
+        }
 
-          if (ativo && role !== 'empresa') {
+        if (ativo) {
+          if (roleContagem === 'empresa') {
+            const { count, error: errEmp } = await supabase
+              .from('atividades')
+              .select('*', { count: 'exact', head: true })
+              .eq('usuario_id', usuarioIdContagemAtividades)
+              .eq('lida', false)
+            if (!errEmp && typeof count === 'number') setNaoLidasAtividades(count)
+            else setNaoLidasAtividades(0)
+          } else if (role != null) {
             const { count, error: cErr } = await supabase
               .from('atividades')
               .select('*', { count: 'exact', head: true })
               .eq('usuario_id', uid)
               .eq('lida', false)
-              .neq('tipo', 'avaliou')
-              .neq('tipo', 'seguiu_empresa')
-            if (!cErr && typeof count === 'number') {
-              setNaoLidasAtividades(count)
-            } else if (ativo) {
-              setNaoLidasAtividades(0)
-            }
+              .not('tipo', 'in', '(avaliou,seguiu_empresa)')
+            if (!cErr && typeof count === 'number') setNaoLidasAtividades(count)
+            else setNaoLidasAtividades(0)
+          } else {
+            setNaoLidasAtividades(0)
           }
         }
       } finally {
@@ -233,7 +244,7 @@ export default function BottomBar() {
       ativo = false
       window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
     }
-  }, [pathname])
+  }, [pathname, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
 
   useEffect(() => {
     if (!authUserId) {
