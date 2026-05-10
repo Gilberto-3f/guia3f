@@ -527,11 +527,17 @@ export default function AtividadesPage() {
 
       const empresaUsuarioIds = ids.filter((id) => m[id]?.role === 'empresa')
       if (empresaUsuarioIds.length > 0) {
-        const { data: emps } = await supabase.from('empresas').select('id, usuario_id').in('usuario_id', empresaUsuarioIds)
+        /** Ignorar empresas só modo apresentação para o mapa gestor → empresa (evita link errado / preview). */
+        const { data: emps } = await supabase
+          .from('empresas')
+          .select('id, usuario_id, somente_modo_apresentacao')
+          .in('usuario_id', empresaUsuarioIds)
+          .not('somente_modo_apresentacao', 'eq', true)
         const sm: Record<string, string> = {}
         for (const e of emps ?? []) {
           const rec = e as { id: string; usuario_id: string }
-          sm[rec.usuario_id] = String(rec.id)
+          const uid = String(rec.usuario_id)
+          if (uid && !sm[uid]) sm[uid] = String(rec.id)
         }
         if (merge) {
           setSeguidoEmpresaMap((prev) => ({ ...prev, ...sm }))
@@ -1310,7 +1316,14 @@ export default function AtividadesPage() {
       const seguidoTipo = typeof ex.seguido_tipo === 'string' ? ex.seguido_tipo : 'turista'
       const uSeg = perfilMap[seguidorId]
       const uAlvo = perfilMap[seguidoId]
-      const empId = seguidoTipo === 'empresa' ? seguidoEmpresaMap[seguidoId] ?? null : null
+      const empresaIdExtra =
+        ex && typeof ex === 'object' && typeof (ex as Record<string, unknown>).empresa_id === 'string'
+          ? String((ex as Record<string, unknown>).empresa_id).trim()
+          : ''
+      const empId =
+        seguidoTipo === 'empresa'
+          ? (empresaIdExtra !== '' ? empresaIdExtra : seguidoEmpresaMap[seguidoId] ?? null)
+          : null
       return (
         <AtividadeSeguidor
           key={r.id}

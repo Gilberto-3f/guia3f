@@ -65,6 +65,19 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
           setSeguindoMap({})
         }
 
+        /** Quem tem empresa só de demonstração: preferir linha turista/profissional no dedupe (evita “Restaurante Demo” no popup social). */
+        const { data: previewRows } = await supabase
+          .from('empresas')
+          .select('usuario_id')
+          .in('usuario_id', ids)
+          .eq('somente_modo_apresentacao', true)
+        /** @type {Map<string, string | null>} */
+        const preferTipoPorUsuarioId = new Map()
+        for (const row of previewRows ?? []) {
+          const u = row?.usuario_id != null ? String(row.usuario_id).trim() : ''
+          if (u) preferTipoPorUsuarioId.set(u, 'turista')
+        }
+
         const { data: rawPerfis, error: errPerf } = await supabase
           .from('perfis_para_busca')
           .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
@@ -72,12 +85,12 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
 
         if (errPerf) console.error('perfis_para_busca (seguidores empresa):', errPerf)
 
-        const perfisDedup = dedupePerfisPorUsuario(rawPerfis ?? [])
+        const perfisDedup = dedupePerfisPorUsuario(rawPerfis ?? [], preferTipoPorUsuarioId)
         const porUsuario = new Map(perfisDedup.map((p) => [String(p.usuario_id), p]))
 
         const { data: usuarios } = await supabase.from('usuarios').select('id, email').in('id', ids)
 
-        const lista = ids.map((id) => {
+        let lista = ids.map((id) => {
           const p = porUsuario.get(id)
           if (p) {
             return {
@@ -100,6 +113,49 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
             empresa_id: null,
           }
         })
+
+        /** Ainda “empresa” após dedupe (só preview na view): forçar nome/@ de turista ou profissional se existir. */
+        const previewUids = new Set([...preferTipoPorUsuarioId.keys()])
+        const aindaEmpresa = lista.filter((row) => previewUids.has(row.id) && String(row.tipo ?? '').toLowerCase() === 'empresa')
+        if (aindaEmpresa.length > 0) {
+          const uids = aindaEmpresa.map((r) => r.id)
+          const [{ data: turRows }, { data: profRows }] = await Promise.all([
+            supabase.from('turistas').select('usuario_id, nome_completo, nome_usuario, foto_perfil_url').in('usuario_id', uids),
+            supabase.from('profissionais').select('usuario_id, nome_completo, nome_usuario, foto_perfil_url').in('usuario_id', uids),
+          ])
+          const socialById = new Map()
+          for (const t of turRows ?? []) {
+            const uid = t?.usuario_id != null ? String(t.usuario_id) : ''
+            if (!uid) continue
+            socialById.set(uid, {
+              nome: t.nome_completo != null ? String(t.nome_completo) : '',
+              username: t.nome_usuario != null ? String(t.nome_usuario) : '',
+              foto: t.foto_perfil_url != null ? String(t.foto_perfil_url) : null,
+            })
+          }
+          for (const p of profRows ?? []) {
+            const uid = p?.usuario_id != null ? String(p.usuario_id) : ''
+            if (!uid || socialById.has(uid)) continue
+            socialById.set(uid, {
+              nome: p.nome_completo != null ? String(p.nome_completo) : '',
+              username: p.nome_usuario != null ? String(p.nome_usuario) : '',
+              foto: p.foto_perfil_url != null ? String(p.foto_perfil_url) : null,
+            })
+          }
+          lista = lista.map((row) => {
+            if (!previewUids.has(row.id) || String(row.tipo ?? '').toLowerCase() !== 'empresa') return row
+            const s = socialById.get(row.id)
+            if (!s || (!s.username && !s.nome)) return row
+            return {
+              ...row,
+              nome: s.nome.trim() !== '' ? s.nome : row.nome,
+              username: s.username.trim() !== '' ? s.username : row.username,
+              foto_url: s.foto ?? row.foto_url,
+              tipo: 'turista',
+              empresa_id: null,
+            }
+          })
+        }
 
         if (ativo) setSeguidores(lista)
       } finally {

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
+import { getPerfilHref } from '@/lib/perfil-utils'
 
 /**
  * @param {{
@@ -31,11 +32,14 @@ export default function AtividadeSeguidor({
   meuUsuarioId = null,
 }) {
   const router = useRouter()
-  const hrefAlvo =
-    seguidoTipo === 'empresa' && empresaId ? `/empresa/${empresaId}` : `/perfil/${seguidoUsuarioId}`
-  const hrefSeguidor = seguidorFoto != null || usernameSeguidor
-    ? `/perfil/${seguidorUsuarioId}`
-    : `/perfil/${seguidorUsuarioId}`
+  const hrefAlvo = getPerfilHref({
+    usuario_id: seguidoUsuarioId,
+    tipo: seguidoTipo,
+    role: seguidoTipo,
+    empresa_id: empresaId,
+  })
+  /** Seguidor: rota social padrão (detalhe empresa/tipo pode vir do mapa na página de atividades). */
+  const hrefSeguidor = `/perfil/${seguidorUsuarioId}`
 
   const euSouSeguido = Boolean(meuUsuarioId && String(seguidoUsuarioId) === String(meuUsuarioId))
   const euSouSeguidor = Boolean(meuUsuarioId && String(seguidorUsuarioId) === String(meuUsuarioId))
