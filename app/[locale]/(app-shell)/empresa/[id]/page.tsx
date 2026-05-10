@@ -24,6 +24,13 @@ import UploadFotos360Adm from '@/components/empresa/UploadFotos360Adm'
 import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
+function debugEmpresa(...args: unknown[]) {
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console -- debug seguir empresa
+    console.log(...args)
+  }
+}
+
 function asHorarios(value: unknown) {
   if (value && typeof value === 'object' && !Array.isArray(value)) return value
   if (typeof value === 'string') {
@@ -90,6 +97,7 @@ export default function EmpresaPage() {
   const carregarEmpresa = useCallback(async (opts?: { silent?: boolean }) => {
     if (!empresaId) return
     const silent = Boolean(opts?.silent)
+    debugEmpresa('[Empresa] carregarEmpresa início', { empresaId, silent, usuarioId })
     if (!silent) setLoading(true)
     try {
       const {
@@ -115,7 +123,11 @@ export default function EmpresaPage() {
 
       let isSeguindo = false
       if (usuarioId) {
-        const { data: favorito } = await supabase
+        debugEmpresa('[Empresa] carregarEmpresa — buscando favorito', {
+          empresaId,
+          usuarioIdConsulta: usuarioId,
+        })
+        const { data: favorito, error: errFavorito } = await supabase
           .from('favoritos')
           .select('id')
           .eq('usuario_id', usuarioId)
@@ -124,6 +136,15 @@ export default function EmpresaPage() {
           .maybeSingle()
 
         isSeguindo = Boolean(favorito)
+        debugEmpresa('[Empresa] carregarEmpresa — resultado favoritos', {
+          is_seguindo: isSeguindo,
+          favoritoRow: favorito ?? null,
+          errFavorito,
+        })
+      } else {
+        debugEmpresa('[Empresa] carregarEmpresa — sem usuarioId, is_seguindo permanece false', {
+          empresaId,
+        })
       }
 
       setEmpresa({
@@ -256,6 +277,7 @@ export default function EmpresaPage() {
                 size="compact"
                 showInlineError={false}
                 onToggle={(seguindoNovo) => {
+                  debugEmpresa('[Empresa] onToggle BotaoSeguir', { seguindoNovo, empresaId })
                   setEmpresa((prev) => (prev ? { ...prev, is_seguindo: seguindoNovo } : prev))
                   void carregarEmpresa({ silent: true })
                 }}

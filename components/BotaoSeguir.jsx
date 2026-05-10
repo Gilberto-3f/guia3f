@@ -5,6 +5,13 @@ import { Heart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
+function debugSeguir(/** @type {unknown[]} */ ...args) {
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log(...args)
+  }
+}
+
 /**
  * @param {{
  *   empresaId?: string,
@@ -40,6 +47,11 @@ export default function BotaoSeguir({
 
   /** Evita que `isFollowing` desatualizado do pai sobrescreva o estado durante o request. */
   useEffect(() => {
+    debugSeguir('[BotaoSeguir] useEffect sync', {
+      initialFollowing,
+      loading,
+      acao: loading ? 'skip (loading)' : 'setSeguindo(initialFollowing)',
+    })
     if (loading) return
     setSeguindo(initialFollowing)
   }, [initialFollowing, loading])
@@ -52,6 +64,15 @@ export default function BotaoSeguir({
       return
     }
     const estadoAntes = seguindo
+    const novoEsperado = !estadoAntes
+    debugSeguir('[BotaoSeguir] handleToggle iniciado', {
+      empresaId: empresaId ?? null,
+      alvoId: alvoId ?? null,
+      alvoTipo: alvoTipo ?? null,
+      estadoAntes,
+      novoEsperadoOtimista: novoEsperado,
+      podeInteragir,
+    })
     setLoading(true)
     setSeguindo(!estadoAntes)
     try {
@@ -59,20 +80,27 @@ export default function BotaoSeguir({
         data: { session },
       } = await supabase.auth.getSession()
       if (!session) {
+        debugSeguir('[BotaoSeguir] sem sessão, revertendo estado')
         setErro('Entre na sua conta para seguir.')
         setSeguindo(estadoAntes)
         return
       }
 
+      debugSeguir('[BotaoSeguir] sessão OK', { usuarioId: session.user.id })
+
       const tipo = alvoTipo || (empresaId ? 'empresa' : 'usuario')
       const id = tipo === 'empresa' ? String(empresaId || alvoId || '') : String(alvoId || '')
       if (!id) {
+        debugSeguir('[BotaoSeguir] id vazio após resolver tipo', { tipo })
         setErro('Ação indisponível.')
         setSeguindo(estadoAntes)
         return
       }
 
       if (tipo === 'empresa') {
+        const operacao = estadoAntes ? 'delete_favorito_empresa' : 'insert_favorito_empresa'
+        debugSeguir('[BotaoSeguir] operação empresa', { operacao, idAlvo: id })
+
         if (estadoAntes) {
           const { error } = await supabase
             .from('favoritos')
@@ -80,38 +108,57 @@ export default function BotaoSeguir({
             .eq('usuario_id', session.user.id)
             .eq('alvo_id', id)
             .eq('alvo_tipo', 'empresa')
+          debugSeguir('[BotaoSeguir] resposta Supabase (delete favoritos)', { error })
           if (error) throw error
         } else {
-          const { error } = await supabase.from('favoritos').insert({
-            usuario_id: session.user.id,
-            alvo_id: id,
-            alvo_tipo: 'empresa',
-          })
+          const { data, error } = await supabase
+            .from('favoritos')
+            .insert({
+              usuario_id: session.user.id,
+              alvo_id: id,
+              alvo_tipo: 'empresa',
+            })
+            .select('id')
+            .maybeSingle()
+          debugSeguir('[BotaoSeguir] resposta Supabase (insert favoritos)', { data, error })
           if (error) throw error
         }
       } else {
         if (id === session.user.id) {
+          debugSeguir('[BotaoSeguir] mesmo usuário, revertendo')
           setSeguindo(estadoAntes)
           return
         }
+        const operacaoRede = estadoAntes ? 'delete_redecontatos' : 'insert_redecontatos'
+        debugSeguir('[BotaoSeguir] operação rede', { operacaoRede, id })
+
         if (estadoAntes) {
           const { error } = await supabase.from('redecontatos').delete().eq('seguidor_id', session.user.id).eq('seguido_id', id)
+          debugSeguir('[BotaoSeguir] resposta Supabase (delete redecontatos)', { error })
           if (error) throw error
         } else {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('redecontatos')
             .insert({ seguidor_id: session.user.id, seguido_id: id, seguido_tipo: seguidoTipo || 'user' })
+            .select('id')
+            .maybeSingle()
+          debugSeguir('[BotaoSeguir] resposta Supabase (insert redecontatos)', { data, error })
           if (error) throw error
         }
       }
 
       const novo = !estadoAntes
+      debugSeguir('[BotaoSeguir] toggle concluído com sucesso', {
+        novoEstadoEsperado: novo,
+        chamaOnToggle: true,
+      })
       onToggle?.(novo)
       window.dispatchEvent(new Event('perfil-atualizado'))
       if (tipo === 'empresa') {
         window.dispatchEvent(new Event('guia-feed-rede-reload'))
       }
     } catch (err) {
+      debugSeguir('[BotaoSeguir] catch — revertendo para estadoAntes', { estadoAntes, err })
       setSeguindo(estadoAntes)
       let msg = 'Não foi possível concluir a ação. Tente de novo.'
       const raw =
@@ -132,6 +179,7 @@ export default function BotaoSeguir({
       }
       setErro(msg)
     } finally {
+      debugSeguir('[BotaoSeguir] finally — loading=false (próximo useEffect pode sincronizar com prop)')
       setLoading(false)
     }
   }
