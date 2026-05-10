@@ -130,7 +130,7 @@ async function ensureEmpresaPreviewAdm(adminUserId, segmentoDb, nomeExibicao) {
 }
 
 /**
- * @returns {{ perfil: import('./ModoApresentacaoContext.jsx').PerfilSimulado | null, contextoUsuarioId: string | null, contextoEmpresaId: string | null } | null}
+ * @returns {{ perfil: import('./ModoApresentacaoContext.jsx').PerfilSimulado | null, contextoUsuarioId: string | null, contextoEmpresaId: string | null, viewerUid?: string | null } | null}
  */
 function readPersistedState() {
   if (typeof window === 'undefined') return null
@@ -150,6 +150,7 @@ function readPersistedState() {
           },
           contextoUsuarioId: null,
           contextoEmpresaId: null,
+          viewerUid: null,
         }
       }
       try {
@@ -160,6 +161,7 @@ function readPersistedState() {
           perfil,
           contextoUsuarioId: null,
           contextoEmpresaId: null,
+          viewerUid: null,
         }
       } catch {
         return null
@@ -176,24 +178,27 @@ function readPersistedState() {
         },
         contextoUsuarioId: null,
         contextoEmpresaId: null,
+        viewerUid: null,
       }
     }
     const j = JSON.parse(s)
     const perfil = parseStoredPerfil(j.perfil)
     if (!perfil) return null
     const contextoEmpresaId = j.contextoEmpresaId != null ? String(j.contextoEmpresaId) : null
-    return { perfil, contextoUsuarioId: null, contextoEmpresaId }
+    const viewerUid = j.viewerUid != null ? String(j.viewerUid).trim() : null
+    return { perfil, contextoUsuarioId: null, contextoEmpresaId, viewerUid: viewerUid || null }
   } catch {
     return null
   }
 }
 
-function persistState(perfil, contextoUsuarioId, contextoEmpresaId) {
+function persistState(perfil, contextoUsuarioId, contextoEmpresaId, viewerUid) {
   try {
     const payload = JSON.stringify({
       perfil,
       contextoUsuarioId,
       contextoEmpresaId,
+      viewerUid: viewerUid != null ? String(viewerUid) : null,
     })
     sessionStorage.setItem(STORAGE_KEY, payload)
     localStorage.setItem(STORAGE_KEY, payload)
@@ -233,14 +238,31 @@ export function ModoApresentacaoProvider({ children }) {
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
-    const p = readPersistedState()
-    if (p?.perfil) {
-      setModoAtivo(true)
-      setPerfilSimulado(p.perfil)
-      setContextoUsuarioId(null)
-      setContextoEmpresaId(p.contextoEmpresaId)
+    let cancel = false
+    void (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id != null ? String(session.user.id) : null
+      const p = readPersistedState()
+      if (cancel) return
+      if (p?.perfil) {
+        const storedUid = p.viewerUid != null && String(p.viewerUid).trim() !== '' ? String(p.viewerUid).trim() : null
+        /** Só reativa modo apresentação se o estado persistido for do mesmo utilizador (evita misturar sessões / dados demo fora do modo). */
+        if (storedUid && uid && storedUid === uid) {
+          setModoAtivo(true)
+          setPerfilSimulado(p.perfil)
+          setContextoUsuarioId(p.contextoUsuarioId ?? null)
+          setContextoEmpresaId(p.contextoEmpresaId ?? null)
+        } else {
+          clearPersisted()
+        }
+      }
+      setHydrated(true)
+    })()
+    return () => {
+      cancel = true
     }
-    setHydrated(true)
   }, [])
 
   const limparAviso = useCallback(() => setAvisoBloqueio(null), [])
@@ -297,7 +319,7 @@ export function ModoApresentacaoProvider({ children }) {
       setContextoUsuarioId(ctxUid)
       setContextoEmpresaId(ctxEmp)
       setModoAtivo(true)
-      persistState(perfil, ctxUid, ctxEmp)
+      persistState(perfil, ctxUid, ctxEmp, myUid)
     } finally {
       setLoadingAtivacao(false)
     }

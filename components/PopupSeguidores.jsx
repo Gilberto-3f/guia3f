@@ -7,11 +7,13 @@ import { X, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import BotaoSeguir from '@/components/BotaoSeguir'
 import { dedupePerfisPorUsuario, getPerfilHref } from '@/lib/perfil-utils'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 /**
  * @param {{ isOpen: boolean, onClose: () => void, empresaId: string }} props
  */
 export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
+  const { modoAtivo } = useModoApresentacao()
   const [seguidores, setSeguidores] = useState(
     /** @type {{ id: string, nome: string, username: string, foto_url: string | null, tipo?: string, empresa_id?: string | null }[]} */ ([])
   )
@@ -65,17 +67,19 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
           setSeguindoMap({})
         }
 
-        /** Quem tem empresa só de demonstração: preferir linha turista/profissional no dedupe (evita “Restaurante Demo” no popup social). */
-        const { data: previewRows } = await supabase
-          .from('empresas')
-          .select('usuario_id')
-          .in('usuario_id', ids)
-          .eq('somente_modo_apresentacao', true)
+        /** Fora do modo apresentação: não misturar empresa demo no nome/avatar (preferir turista no dedupe). */
         /** @type {Map<string, string | null>} */
         const preferTipoPorUsuarioId = new Map()
-        for (const row of previewRows ?? []) {
-          const u = row?.usuario_id != null ? String(row.usuario_id).trim() : ''
-          if (u) preferTipoPorUsuarioId.set(u, 'turista')
+        if (!modoAtivo) {
+          const { data: previewRows } = await supabase
+            .from('empresas')
+            .select('usuario_id')
+            .in('usuario_id', ids)
+            .eq('somente_modo_apresentacao', true)
+          for (const row of previewRows ?? []) {
+            const u = row?.usuario_id != null ? String(row.usuario_id).trim() : ''
+            if (u) preferTipoPorUsuarioId.set(u, 'turista')
+          }
         }
 
         const { data: rawPerfis, error: errPerf } = await supabase
@@ -114,9 +118,12 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
           }
         })
 
-        /** Ainda “empresa” após dedupe (só preview na view): forçar nome/@ de turista ou profissional se existir. */
+        /** Ainda “empresa” após dedupe (só preview na view): forçar nome/@ de turista ou profissional se existir (só fora do modo apresentação). */
         const previewUids = new Set([...preferTipoPorUsuarioId.keys()])
-        const aindaEmpresa = lista.filter((row) => previewUids.has(row.id) && String(row.tipo ?? '').toLowerCase() === 'empresa')
+        const aindaEmpresa =
+          !modoAtivo && previewUids.size > 0
+            ? lista.filter((row) => previewUids.has(row.id) && String(row.tipo ?? '').toLowerCase() === 'empresa')
+            : []
         if (aindaEmpresa.length > 0) {
           const uids = aindaEmpresa.map((r) => r.id)
           const [{ data: turRows }, { data: profRows }] = await Promise.all([
@@ -167,7 +174,7 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
     return () => {
       ativo = false
     }
-  }, [isOpen, empresaId])
+  }, [isOpen, empresaId, modoAtivo])
 
   if (!isOpen) return null
 

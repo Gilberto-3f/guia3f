@@ -346,6 +346,15 @@ export default function AtividadesPage() {
         const role = m[id]?.role
         preferTipo.set(id, role != null && role !== '' ? String(role) : null)
       }
+      const { data: previewEmpRows } = await supabase
+        .from('empresas')
+        .select('id')
+        .in('usuario_id', ids)
+        .eq('somente_modo_apresentacao', true)
+      const previewEmpresaIdSet = new Set(
+        (previewEmpRows ?? []).map((r) => String((r as { id: string }).id)).filter(Boolean)
+      )
+
       const perfisBusca = await buscarPerfisPorIds(supabase, ids, preferTipo)
       for (const pb of perfisBusca) {
         const uid = String(pb.usuario_id ?? '')
@@ -366,6 +375,11 @@ export default function AtividadesPage() {
           ) && tipo === 'empresa'
 
         const podeAplicarEmpresa = tipo === 'empresa' ? permitirEmpresaPreview : true
+
+        /** Fora do modo apresentação: nunca misturar nome/foto/username da empresa demo (`perfis_para_busca`). */
+        if (tipo === 'empresa' && empId && previewEmpresaIdSet.has(empId) && !modoAtivo) {
+          continue
+        }
 
         m[uid] = {
           ...cur,
@@ -404,8 +418,15 @@ export default function AtividadesPage() {
       }
       const empBy = new Map<string, { nome_usuario?: string | null; foto_url?: string | null }>()
       for (const e of rowsEmp ?? []) {
-        const u = e as { usuario_id: string; nome_usuario?: string | null; foto_url?: string | null }
-        if (u.usuario_id) empBy.set(String(u.usuario_id), u)
+        const u = e as {
+          usuario_id: string
+          nome_usuario?: string | null
+          foto_url?: string | null
+          somente_modo_apresentacao?: boolean | null
+        }
+        if (!u.usuario_id) continue
+        if (!modoAtivo && u.somente_modo_apresentacao === true) continue
+        empBy.set(String(u.usuario_id), u)
       }
 
       const pickFoto = (row: {
@@ -426,6 +447,7 @@ export default function AtividadesPage() {
         const emp = empBy.get(uid)
 
         if (role === 'empresa' && emp) {
+          /** Com modo inativo, `empBy` já exclui preview; se ainda assim não houver `emp`, cai nos ramos turista/admin abaixo. */
           const nu = emp.nome_usuario != null && String(emp.nome_usuario).trim() !== '' ? String(emp.nome_usuario).trim() : null
           const fp = emp.foto_url != null && String(emp.foto_url).trim() !== '' ? String(emp.foto_url) : null
           m[uid] = {
