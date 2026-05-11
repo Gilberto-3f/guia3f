@@ -14,6 +14,7 @@ import { getPerfilHref } from '@/lib/perfil-utils'
  *   seguidoUsuarioId: string
  *   seguidoTipo: string
  *   empresaId: string | null
+ *   hrefSeguidor?: string
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
  *   meuUsuarioId?: string | null
@@ -27,6 +28,7 @@ export default function AtividadeSeguidor({
   seguidoUsuarioId,
   seguidoTipo,
   empresaId,
+  hrefSeguidor,
   tempoInteracao = '',
   modoMinhaConta = false,
   meuUsuarioId = null,
@@ -38,8 +40,8 @@ export default function AtividadeSeguidor({
     role: seguidoTipo,
     empresa_id: empresaId,
   })
-  /** Seguidor: rota social padrão (detalhe empresa/tipo pode vir do mapa na página de atividades). */
-  const hrefSeguidor = `/perfil/${seguidorUsuarioId}`
+  /** Seguidor: usa a mesma rota calculada para o username e para o avatar. */
+  const hrefSeguidorDestino = hrefSeguidor || `/perfil/${seguidorUsuarioId}`
 
   const euSouSeguido = Boolean(meuUsuarioId && String(seguidoUsuarioId) === String(meuUsuarioId))
   const euSouSeguidor = Boolean(meuUsuarioId && String(seguidorUsuarioId) === String(meuUsuarioId))
@@ -51,7 +53,7 @@ export default function AtividadeSeguidor({
         <button
           type="button"
           className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
-          onClick={() => router.push(hrefSeguidor)}
+          onClick={() => router.push(hrefSeguidorDestino)}
         >
           <AvatarImage src={seguidorFoto} alt="" fill className="object-cover" sizes="40px" />
         </button>
@@ -65,7 +67,7 @@ export default function AtividadeSeguidor({
             <button
               type="button"
               className="font-medium text-[#0097b2] hover:underline"
-              onClick={() => router.push(hrefSeguidor)}
+              onClick={() => router.push(hrefSeguidorDestino)}
             >
               @{usernameSeguidor}
             </button>{' '}
@@ -76,7 +78,7 @@ export default function AtividadeSeguidor({
             <button
               type="button"
               className="font-medium text-[#0097b2] hover:underline"
-              onClick={() => router.push(hrefSeguidor)}
+              onClick={() => router.push(hrefSeguidorDestino)}
             >
               @{usernameSeguidor}
             </button>{' '}
@@ -94,7 +96,7 @@ export default function AtividadeSeguidor({
             <button
               type="button"
               className="font-medium text-[#0097b2] hover:underline"
-              onClick={() => router.push(hrefSeguidor)}
+              onClick={() => router.push(hrefSeguidorDestino)}
             >
               @{usernameSeguidor}
             </button>{' '}

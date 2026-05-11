@@ -1317,6 +1317,7 @@ export default function AtividadesPage() {
           seguidorUsuarioId={seguidorId}
           usernameSeguidor={usernameSeg}
           seguidorFoto={uSeg?.foto_perfil_url ?? null}
+          hrefSeguidor={hrefUsuario(seguidorId)}
           usernameSeguido={usernameEmp}
           seguidoUsuarioId={empresaIdStr || seguidorId}
           seguidoTipo="empresa"
@@ -1349,6 +1350,7 @@ export default function AtividadesPage() {
           seguidorUsuarioId={seguidorId}
           usernameSeguidor={uSeg?.username ?? 'usuario'}
           seguidorFoto={uSeg?.foto_perfil_url ?? null}
+          hrefSeguidor={hrefUsuario(seguidorId)}
           usernameSeguido={uAlvo?.username ?? 'usuario'}
           seguidoUsuarioId={seguidoId}
           seguidoTipo={seguidoTipo}
