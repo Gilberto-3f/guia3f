@@ -144,7 +144,7 @@ export default function AbaAvaliacoes({
           supabase.from('usuarios').select('id, email').in('id', uids),
           supabase
             .from('avaliacao_respostas')
-            .select('id, avaliacao_id, resposta_text')
+            .select('id, avaliacao_id, texto')
             .in(
               'avaliacao_id',
               rows.map((r) => r.id)
@@ -185,7 +185,7 @@ export default function AbaAvaliacoes({
         const respostaPorAvaliacao = new Map()
         if (!respRes.error && respRes.data) {
           for (const r of respRes.data) {
-            respostaPorAvaliacao.set(String(r.avaliacao_id), { id: String(r.id), texto: String(r.resposta_text ?? '') })
+            respostaPorAvaliacao.set(String(r.avaliacao_id), { id: String(r.id), texto: String(r.texto ?? '') })
           }
         }
 
@@ -398,7 +398,7 @@ export default function AbaAvaliacoes({
           avaliacao_id: avaliacaoIdParam,
           empresa_id: empresaId,
           autor_usuario_id: usuarioId,
-          resposta_text: texto,
+          texto,
         },
         { onConflict: 'avaliacao_id' }
       )
@@ -644,8 +644,8 @@ export default function AbaAvaliacoes({
                           setReplyDraft(e.target.value)
                           setErroRespostaEmpresa('')
                         }}
-                        placeholder="Resposta visível para usuários autenticados"
-                        className="w-full resize-none rounded-lg border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                        placeholder="Escreva sua resposta..."
+                        className="w-full resize-none rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                         rows={3}
                       />
                       {erroRespostaEmpresa ? <p className="text-sm text-red-600">{erroRespostaEmpresa}</p> : null}
