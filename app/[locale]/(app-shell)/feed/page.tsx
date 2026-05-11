@@ -122,6 +122,7 @@ function FeedPageInner() {
   const comentarioParam = searchParams.get('comentario')
 
   const [posts, setPosts] = useState<PostFeedRow[]>([])
+  const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -161,6 +162,10 @@ function FeedPageInner() {
   const [storiesPorAutor, setStoriesPorAutor] = useState<
     Record<string, { id: string; visualizado_por: unknown; conteudo_url?: string | null }>
   >({})
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const bumpStoriesBar = useCallback(() => {
     setStoriesBarReload((n) => n + 1)
@@ -714,7 +719,7 @@ function FeedPageInner() {
     )
   }
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="animate-pulse text-gray-400">Carregando feed...</div>

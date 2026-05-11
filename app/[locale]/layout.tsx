@@ -55,8 +55,8 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={`${inter.className} h-full antialiased`}>
-      <body className="min-h-full">
+    <html lang={locale} suppressHydrationWarning className={`${inter.className} h-full antialiased`}>
+      <body suppressHydrationWarning className="min-h-full">
         <NextIntlClientProvider messages={messages}>
           <SupabaseCookieSync />
           {children}
