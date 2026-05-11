@@ -99,10 +99,7 @@ const USUARIOS_SELECT = `
   id,
   email,
   role,
-  username,
-  turistas (nome_completo, nome_usuario, foto_perfil_url),
-  profissionais (nome_completo, nome_usuario, foto_perfil_url),
-  empresas (id, nome_fantasia, nome_usuario, foto_url)
+  username
 `
 
 export default function AtividadesPage() {
