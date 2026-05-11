@@ -43,6 +43,7 @@ export default function AtividadeSeguidor({
 
   const euSouSeguido = Boolean(meuUsuarioId && String(seguidoUsuarioId) === String(meuUsuarioId))
   const euSouSeguidor = Boolean(meuUsuarioId && String(seguidorUsuarioId) === String(meuUsuarioId))
+  const seguidoEhEmpresa = String(seguidoTipo ?? '').toLowerCase() === 'empresa' || Boolean(empresaId)
 
   return (
     <div className="grid min-w-0 grid-cols-[2.5rem_1fr] items-start gap-x-2 text-sm text-gray-800">
@@ -86,7 +87,7 @@ export default function AtividadeSeguidor({
             >
               @{usernameSeguidor}
             </button>{' '}
-            começou a seguir{' '}
+            {seguidoEhEmpresa ? 'começou a seguir a página da empresa ' : 'começou a seguir '}
             <Link href={hrefAlvo} className="font-medium text-[#0097b2] hover:underline">
               @{usernameSeguido}
             </Link>
