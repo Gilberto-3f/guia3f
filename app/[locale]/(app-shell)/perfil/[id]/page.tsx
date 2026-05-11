@@ -148,6 +148,25 @@ export default function PerfilSocialPage() {
     []
   )
 
+  const atualizarMetricasPerfil = useCallback(async () => {
+    if (!profileId) return
+    const [{ count: cFav }, { count: cSegU }, { count: cSegMe }, { count: cAval }] = await Promise.all([
+      supabase
+        .from('favoritos')
+        .select('id', { count: 'exact', head: true })
+        .eq('usuario_id', profileId)
+        .eq('alvo_tipo', 'empresa'),
+      supabase.from('redecontatos').select('id', { count: 'exact', head: true }).eq('seguidor_id', profileId),
+      supabase.from('redecontatos').select('id', { count: 'exact', head: true }).eq('seguido_id', profileId),
+      supabase.from('avaliacoes').select('id', { count: 'exact', head: true }).eq('usuario_id', profileId),
+    ])
+
+    setNFavEmp(cFav ?? 0)
+    setNFavUsers(cSegU ?? 0)
+    setNSeguidores(cSegMe ?? 0)
+    setNAval(cAval ?? 0)
+  }, [profileId])
+
   const carregar = useCallback(async () => {
     if (!profileId) return
     setLoading(true)
@@ -316,21 +335,7 @@ export default function PerfilSocialPage() {
         }
       }
 
-      const [{ count: cFav }, { count: cSegU }, { count: cSegMe }, { count: cAval }] = await Promise.all([
-        supabase
-          .from('favoritos')
-          .select('id', { count: 'exact', head: true })
-          .eq('usuario_id', profileId)
-          .eq('alvo_tipo', 'empresa'),
-        supabase.from('redecontatos').select('id', { count: 'exact', head: true }).eq('seguidor_id', profileId),
-        supabase.from('redecontatos').select('id', { count: 'exact', head: true }).eq('seguido_id', profileId),
-        supabase.from('avaliacoes').select('id', { count: 'exact', head: true }).eq('usuario_id', profileId),
-      ])
-
-      setNFavEmp(cFav ?? 0)
-      setNFavUsers(cSegU ?? 0)
-      setNSeguidores(cSegMe ?? 0)
-      setNAval(cAval ?? 0)
+      await atualizarMetricasPerfil()
 
       const { data: postsFoto } = await supabase
         .from('posts')
@@ -436,11 +441,19 @@ export default function PerfilSocialPage() {
     } finally {
       setLoading(false)
     }
-  }, [profileId, meuId])
+  }, [profileId, meuId, atualizarMetricasPerfil])
 
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  useEffect(() => {
+    const onPerfilAtualizado = () => {
+      void atualizarMetricasPerfil()
+    }
+    window.addEventListener('perfil-atualizado', onPerfilAtualizado)
+    return () => window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
+  }, [atualizarMetricasPerfil])
 
   useEffect(() => {
     const boot = async () => {
@@ -596,7 +609,11 @@ export default function PerfilSocialPage() {
                 alvoTipo="usuario"
                 seguidoTipo={perfilRole}
                 isFollowing={seguindoPerfil}
-                onToggle={(novo) => setSeguindoPerfil(novo)}
+                onToggle={(novo) => {
+                  setSeguindoPerfil(novo)
+                  setNSeguidores((n) => Math.max(0, n + (novo ? 1 : -1)))
+                  void atualizarMetricasPerfil()
+                }}
                 layout="inline"
               />
             ) : null}

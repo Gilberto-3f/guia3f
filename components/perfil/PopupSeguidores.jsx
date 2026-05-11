@@ -62,6 +62,15 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
     if (aberto) void carregar()
   }, [aberto, carregar])
 
+  useEffect(() => {
+    if (!aberto) return
+    const onPerfilAtualizado = () => {
+      void carregar()
+    }
+    window.addEventListener('perfil-atualizado', onPerfilAtualizado)
+    return () => window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
+  }, [aberto, carregar])
+
   if (!aberto) return null
 
   return (
