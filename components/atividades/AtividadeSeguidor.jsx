@@ -69,10 +69,7 @@ export default function AtividadeSeguidor({
             >
               @{usernameSeguidor}
             </button>{' '}
-            começou a seguir sua página{' '}
-            <Link href={hrefAlvo} className="font-medium text-[#0097b2] hover:underline">
-              @{usernameSeguido}
-            </Link>
+            começou a seguir sua página
           </>
         ) : modoMinhaConta && euSouSeguido ? (
           <>
