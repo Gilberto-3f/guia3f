@@ -17,7 +17,7 @@ import AtividadeCurtiuStory from '@/components/atividades/AtividadeCurtiuStory'
 import AtividadeComentario from '@/components/atividades/AtividadeComentario'
 import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
 import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
-import { agruparAtividadesCurtidasPost, urlFotoPost } from '@/lib/atividades-feed'
+import { atividadeVisivelNaMinhaContaPessoal, agruparAtividadesCurtidasPost, urlFotoPost } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
@@ -679,6 +679,8 @@ export default function AtividadesPage() {
         .from('atividades')
         .select('*')
         .eq('usuario_id', uid)
+        /* Mesma base da aba "Minha conta" dos perfis sociais: só interações no conteúdo pessoal. */
+        .not('tipo', 'in', '(avaliou,seguiu_empresa)')
         .order('created_at', { ascending: false })
         .range(0, limEmp - 1)
 
@@ -687,7 +689,7 @@ export default function AtividadesPage() {
         console.error('[Atividades][empresa] erro ao carregar Minha conta:', minhaEmpresaRes.error)
       }
 
-      const minhaEmpresa = (minhaEmpresaRes.data ?? []) as AtividadeRow[]
+      const minhaEmpresa = ((minhaEmpresaRes.data ?? []) as AtividadeRow[]).filter(atividadeVisivelNaMinhaContaPessoal)
       setListaMinha(minhaEmpresa)
       setOffsetMinha(minhaEmpresa.length)
 
@@ -758,21 +760,7 @@ export default function AtividadesPage() {
     }
 
     const amigos = (amigosRes.data ?? []) as AtividadeRow[]
-    const minha = (minhaRes.data ?? []).filter((r) => {
-      if (r.tipo === 'avaliou' || r.tipo === 'seguiu_empresa') return false
-      const ex = r.dados_extras
-      if (
-        r.tipo === 'seguiu' &&
-        ex &&
-        typeof ex === 'object' &&
-        String((ex as Record<string, unknown>).seguido_tipo) === 'empresa' &&
-        r.usuario_id === uid &&
-        r.autor_id === uid
-      ) {
-        return false
-      }
-      return true
-    }) as AtividadeRow[]
+    const minha = ((minhaRes.data ?? []) as AtividadeRow[]).filter(atividadeVisivelNaMinhaContaPessoal)
 
     logDiagAmigos('após parse', { uid, seguindo, amigosLen: amigos.length, res: amigosRes })
 

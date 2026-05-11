@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { atividadeVisivelNaMinhaContaPessoal } from '@/lib/atividades-feed'
 
 /**
  * @param {string} path
@@ -67,6 +68,23 @@ async function contarMensagensNaoLidasCanais(userId) {
     if (!usuarioMarcouLeituraNaMensagem(row.lida_por, userId)) n += 1
   }
   return n
+}
+
+/**
+ * Badge do coração deve contar a mesma lista exibida em Atividades > Minha Conta.
+ * @param {string} userId
+ */
+async function contarAtividadesMinhaContaNaoLidas(userId) {
+  if (!userId) return 0
+  const { data, error } = await supabase
+    .from('atividades')
+    .select('id, tipo, dados_extras')
+    .eq('usuario_id', userId)
+    .eq('lida', false)
+    .not('tipo', 'in', '(avaliou,seguiu_empresa)')
+    .limit(1000)
+  if (error || !data) return 0
+  return data.filter(atividadeVisivelNaMinhaContaPessoal).length
 }
 
 function matchPath(path, pathname) {
@@ -210,22 +228,11 @@ export default function BottomBar() {
 
         if (ativo) {
           if (roleContagem === 'empresa') {
-            const { count, error: errEmp } = await supabase
-              .from('atividades')
-              .select('*', { count: 'exact', head: true })
-              .eq('usuario_id', usuarioIdContagemAtividades)
-              .eq('lida', false)
-            if (!errEmp && typeof count === 'number') setNaoLidasAtividades(count)
-            else setNaoLidasAtividades(0)
+            const total = await contarAtividadesMinhaContaNaoLidas(usuarioIdContagemAtividades)
+            if (ativo) setNaoLidasAtividades(total)
           } else if (role != null) {
-            const { count, error: cErr } = await supabase
-              .from('atividades')
-              .select('*', { count: 'exact', head: true })
-              .eq('usuario_id', uid)
-              .eq('lida', false)
-              .not('tipo', 'in', '(avaliou,seguiu_empresa)')
-            if (!cErr && typeof count === 'number') setNaoLidasAtividades(count)
-            else setNaoLidasAtividades(0)
+            const total = await contarAtividadesMinhaContaNaoLidas(uid)
+            if (ativo) setNaoLidasAtividades(total)
           } else {
             setNaoLidasAtividades(0)
           }
