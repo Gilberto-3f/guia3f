@@ -17,7 +17,12 @@ import AtividadeCurtiuStory from '@/components/atividades/AtividadeCurtiuStory'
 import AtividadeComentario from '@/components/atividades/AtividadeComentario'
 import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
 import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
-import { atividadeVisivelNaMinhaContaPessoal, agruparAtividadesCurtidasPost, urlFotoPost } from '@/lib/atividades-feed'
+import {
+  atividadeVisivelNaMinhaContaEmpresa,
+  atividadeVisivelNaMinhaContaPessoal,
+  agruparAtividadesCurtidasPost,
+  urlFotoPost,
+} from '@/lib/atividades-feed'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
@@ -679,8 +684,8 @@ export default function AtividadesPage() {
         .from('atividades')
         .select('*')
         .eq('usuario_id', uid)
-        /* Mesma base da aba "Minha conta" dos perfis sociais: só interações no conteúdo pessoal. */
-        .not('tipo', 'in', '(avaliou,seguiu_empresa)')
+        /* Empresa deve ver novos seguidores da página; só avaliações ficam fora daqui. */
+        .not('tipo', 'in', '(avaliou)')
         .order('created_at', { ascending: false })
         .range(0, limEmp - 1)
 
@@ -689,7 +694,7 @@ export default function AtividadesPage() {
         console.error('[Atividades][empresa] erro ao carregar Minha conta:', minhaEmpresaRes.error)
       }
 
-      const minhaEmpresa = ((minhaEmpresaRes.data ?? []) as AtividadeRow[]).filter(atividadeVisivelNaMinhaContaPessoal)
+      const minhaEmpresa = ((minhaEmpresaRes.data ?? []) as AtividadeRow[]).filter(atividadeVisivelNaMinhaContaEmpresa)
       setListaMinha(minhaEmpresa)
       setOffsetMinha(minhaEmpresa.length)
 

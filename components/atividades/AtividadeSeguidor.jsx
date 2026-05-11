@@ -60,7 +60,21 @@ export default function AtividadeSeguidor({
         ) : null}
       </div>
       <p className="min-w-0 pt-0.5 leading-snug">
-        {modoMinhaConta && euSouSeguido ? (
+        {modoMinhaConta && seguidoEhEmpresa ? (
+          <>
+            <button
+              type="button"
+              className="font-medium text-[#0097b2] hover:underline"
+              onClick={() => router.push(hrefSeguidor)}
+            >
+              @{usernameSeguidor}
+            </button>{' '}
+            começou a seguir sua página{' '}
+            <Link href={hrefAlvo} className="font-medium text-[#0097b2] hover:underline">
+              @{usernameSeguido}
+            </Link>
+          </>
+        ) : modoMinhaConta && euSouSeguido ? (
           <>
             <button
               type="button"
