@@ -26,6 +26,11 @@ const CATEGORIAS_DENUNCIA_STORY = [
   { id: 'Outro', label: 'Outro' },
 ]
 
+/** @param {number} min @param {number} v @param {number} max */
+function clampNumber(min, v, max) {
+  return Math.max(min, Math.min(max, v))
+}
+
 /**
  * @param {{ usuario_id?: string } | string | null | undefined} entry
  */
@@ -215,6 +220,9 @@ export default function StoryViewer({
   const swipeRef = useRef(/** @type {{ x0: number, y0: number, t0: number } | null} */ (null))
   const timerStartRef = useRef(/** @type {number | null} */ (null))
   const rafRef = useRef(/** @type {number | null} */ (null))
+  const pressStartRef = useRef(0)
+  const pressLongRef = useRef(false)
+  const marcacaoCardSeqRef = useRef(0)
   /** Dedo a segurar: temporizador congelado até `pointerup`. */
   const holdPausedRef = useRef(false)
   const frozenElapsedRef = useRef(0)
@@ -250,6 +258,11 @@ export default function StoryViewer({
   const [checandoRepost, setChecandoRepost] = useState(false)
   const [autorOriginalRepostId, setAutorOriginalRepostId] = useState(/** @type {string | null} */ (null))
   const [rotuloAutorOriginalRepost, setRotuloAutorOriginalRepost] = useState(/** @type {string | null} */ (null))
+  const [cardMarcacao, setCardMarcacao] = useState(
+    /** @type {null | { usuario_id: string, username: string, nome: string, foto_url: string | null, tipo: string, empresa_id: string | null, href: string, x: number, y: number }} */ (
+      null
+    )
+  )
 
   const uid = meuUsuarioId != null && meuUsuarioId !== '' ? String(meuUsuarioId) : null
   const curtiu = uid ? curtidasLista.some((c) => c.usuario_id === uid) : false
@@ -684,6 +697,7 @@ export default function StoryViewer({
     setDenCategoria('Conteúdo impróprio')
     setRepostando(false)
     setRepostExistenteId(null)
+    setCardMarcacao(null)
   }, [story?.id])
 
   useEffect(() => {
@@ -805,6 +819,95 @@ export default function StoryViewer({
   const linkStr = story.link != null ? String(story.link).trim() : ''
   const textoScale = typeof tx?.texto_scale === 'number' && Number.isFinite(tx.texto_scale) ? tx.texto_scale : 1
   const emailsVisualizacao = visualizadoPorEmails(story.visualizado_por)
+
+  const abrirCardMarcacao = async (marcacao, pos) => {
+    const usuarioId = String(marcacao?.usuario_id ?? '').trim()
+    const usernameBase = String(marcacao?.username ?? 'usuario').replace(/^@+/, '').trim() || 'usuario'
+    if (!usuarioId) return
+
+    const x = clampNumber(110, pos.clientX, Math.max(110, window.innerWidth - 110))
+    const y = clampNumber(80, pos.clientY + 14, Math.max(80, window.innerHeight - 160))
+    const seq = marcacaoCardSeqRef.current + 1
+    marcacaoCardSeqRef.current = seq
+
+    setCardMarcacao({
+      usuario_id: usuarioId,
+      username: usernameBase,
+      nome: `@${usernameBase}`,
+      foto_url: null,
+      tipo: String(marcacao?.tipo ?? ''),
+      empresa_id: null,
+      href: `/perfil/${usuarioId}`,
+      x,
+      y,
+    })
+
+    const { data, error } = await supabase
+      .from('perfis_para_busca')
+      .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
+      .eq('usuario_id', usuarioId)
+      .limit(1)
+      .maybeSingle()
+    if (marcacaoCardSeqRef.current !== seq) return
+    if (error) {
+      console.error('[StoryViewer] perfil da marcação:', error)
+      return
+    }
+    if (!data) return
+    const perfilUsuarioId = data.usuario_id != null ? String(data.usuario_id) : usuarioId
+    const tipo = data.tipo != null ? String(data.tipo) : String(marcacao?.tipo ?? '')
+    const empresaId = data.empresa_id != null ? String(data.empresa_id) : null
+    const username = data.username != null ? String(data.username).replace(/^@+/, '').trim() : usernameBase
+    setCardMarcacao({
+      usuario_id: perfilUsuarioId,
+      username: username || usernameBase,
+      nome: data.nome != null && String(data.nome).trim() ? String(data.nome).trim() : `@${username || usernameBase}`,
+      foto_url: data.foto_url != null && String(data.foto_url).trim() ? String(data.foto_url) : null,
+      tipo,
+      empresa_id: empresaId,
+      href: getPerfilHref({
+        usuario_id: perfilUsuarioId,
+        tipo,
+        empresa_id: empresaId,
+        role: empresaId ? 'empresa' : undefined,
+      }),
+      x,
+      y,
+    })
+  }
+
+  const podeIniciarPausaPeloAlvo = (target) => {
+    const el = /** @type {HTMLElement | null} */ (target)
+    if (!el?.closest) return true
+    if (el.closest('[data-story-no-hold]')) return false
+    if (el.closest('[data-story-footer]')) return false
+    if (el.closest('a[href], input, textarea, select')) return false
+    return true
+  }
+
+  const iniciarPressaoStory = (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    if (!podeIniciarPausaPeloAlvo(e.target)) return
+    pressStartRef.current = performance.now()
+    pressLongRef.current = false
+    pausarPorSegurar()
+  }
+
+  const finalizarPressaoStory = () => {
+    const startedAt = pressStartRef.current
+    if (startedAt > 0 && performance.now() - startedAt > 260) pressLongRef.current = true
+    pressStartRef.current = 0
+    retomarAposSoltar()
+  }
+
+  const navegarPorToque = (direcao) => {
+    if (pressLongRef.current) {
+      pressLongRef.current = false
+      return
+    }
+    if (direcao < 0) onIrAnterior?.()
+    else onIrProximo?.()
+  }
 
   const repostarStory = async () => {
     if (!story?.id || !uid || !storyOriginalParaRepostId || repostando || !podeRepostarStory) return
@@ -1011,6 +1114,7 @@ export default function StoryViewer({
   const headerExtras = isVideo ? (
     <button
       type="button"
+      data-story-no-hold
       onClick={() => setMuted((m) => !m)}
       className="rounded-full bg-black/35 p-2 text-white backdrop-blur-sm"
       aria-label={muted ? 'Ativar som' : 'Silenciar'}
@@ -1018,6 +1122,8 @@ export default function StoryViewer({
       {muted ? <VolumeX size={22} /> : <Volume2 size={22} />}
     </button>
   ) : null
+  const storyMenuItemClass =
+    'flex w-full min-h-11 items-center gap-3 px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-[#007a8f] disabled:opacity-50'
 
   return (
     <div ref={rootRef} className="fixed inset-0 z-[100] flex flex-col bg-black">
@@ -1047,7 +1153,13 @@ export default function StoryViewer({
       </div>
 
       {!isVideo ? (
-        <div className="relative min-h-0 flex-1">
+        <div
+          className="relative min-h-0 flex-1"
+          onPointerDown={iniciarPressaoStory}
+          onPointerUp={finalizarPressaoStory}
+          onPointerCancel={finalizarPressaoStory}
+          onPointerLeave={finalizarPressaoStory}
+        >
           <div className="absolute inset-0">
             <StoryCanvas
               layout="viewerCover"
@@ -1061,6 +1173,7 @@ export default function StoryViewer({
               fundo={fundo}
               textoScale={textoScale}
               linkHref={linkStr || null}
+              onMarcacaoClick={(marcacao, pos) => void abrirCardMarcacao(marcacao, pos)}
             />
           </div>
           {typeof onIrAnterior === 'function' ? (
@@ -1068,7 +1181,7 @@ export default function StoryViewer({
               type="button"
               className="absolute bottom-32 left-0 top-20 z-[14] w-[min(28%,140px)] max-w-[140px] cursor-pointer bg-transparent"
               aria-label="Story anterior"
-              onClick={() => onIrAnterior()}
+              onClick={() => navegarPorToque(-1)}
             />
           ) : null}
           {typeof onIrProximo === 'function' ? (
@@ -1076,7 +1189,7 @@ export default function StoryViewer({
               type="button"
               className="absolute bottom-32 right-0 top-20 z-[14] w-[min(28%,140px)] max-w-[140px] cursor-pointer bg-transparent"
               aria-label="Story seguinte"
-              onClick={() => onIrProximo()}
+              onClick={() => navegarPorToque(1)}
             />
           ) : null}
           <div
@@ -1112,7 +1225,13 @@ export default function StoryViewer({
           </div>
         </div>
       ) : (
-        <div className="relative flex min-h-0 flex-1 flex-col">
+        <div
+          className="relative flex min-h-0 flex-1 flex-col"
+          onPointerDown={iniciarPressaoStory}
+          onPointerUp={finalizarPressaoStory}
+          onPointerCancel={finalizarPressaoStory}
+          onPointerLeave={finalizarPressaoStory}
+        >
           <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/55 to-transparent pt-[max(0.75rem,env(safe-area-inset-top))] pb-12">
             <div className="pointer-events-auto flex items-start justify-between gap-2 px-3">
               <div className="min-w-0">{headerLeft}</div>
@@ -1125,7 +1244,7 @@ export default function StoryViewer({
                 type="button"
                 className="absolute bottom-32 left-0 top-24 z-[14] w-[min(28%,140px)] max-w-[140px] cursor-pointer bg-transparent"
                 aria-label="Story anterior"
-                onClick={() => onIrAnterior()}
+                onClick={() => navegarPorToque(-1)}
               />
             ) : null}
             {typeof onIrProximo === 'function' ? (
@@ -1133,7 +1252,7 @@ export default function StoryViewer({
                 type="button"
                 className="absolute bottom-32 right-0 top-24 z-[14] w-[min(28%,140px)] max-w-[140px] cursor-pointer bg-transparent"
                 aria-label="Story seguinte"
-                onClick={() => onIrProximo()}
+                onClick={() => navegarPorToque(1)}
               />
             ) : null}
             <div
@@ -1169,7 +1288,13 @@ export default function StoryViewer({
               playsInline
               loop
               onTimeUpdate={onTimeUpdate}
-              onClick={() => togglePlay()}
+              onClick={() => {
+                if (pressLongRef.current) {
+                  pressLongRef.current = false
+                  return
+                }
+                togglePlay()
+              }}
             />
             {!playing ? (
               <button
@@ -1209,6 +1334,43 @@ export default function StoryViewer({
         </div>
       )}
 
+      {cardMarcacao ? (
+        <>
+          <button
+            type="button"
+            data-story-no-hold
+            className="fixed inset-0 z-[55] bg-transparent"
+            aria-label="Fechar card da marcação"
+            onClick={() => setCardMarcacao(null)}
+          />
+          <Link
+            href={cardMarcacao.href}
+            data-story-no-hold
+            className="fixed z-[60] flex w-[min(calc(100vw-2rem),280px)] items-center gap-3 rounded-2xl border border-white/20 bg-white p-3 text-gray-900 shadow-2xl"
+            style={{
+              left: `${cardMarcacao.x}px`,
+              top: `${cardMarcacao.y}px`,
+              transform: 'translateX(-50%)',
+            }}
+            onClick={() => setCardMarcacao(null)}
+          >
+            <span className="relative block h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
+              {cardMarcacao.foto_url ? (
+                <AvatarImage src={cardMarcacao.foto_url} alt="" width={48} height={48} className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0097b2]/80 to-[#006b7d] text-sm font-bold uppercase text-white">
+                  {iniciaisRotulo(cardMarcacao.nome)}
+                </span>
+              )}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-gray-900">{cardMarcacao.nome}</span>
+              <span className="block truncate text-xs font-medium text-gray-500">@{cardMarcacao.username}</span>
+            </span>
+          </Link>
+        </>
+      ) : null}
+
       <footer
         data-story-footer
         className={`pointer-events-auto z-40 flex w-full items-center gap-3 border-t border-white/10 bg-black/75 px-4 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 ${
@@ -1235,12 +1397,12 @@ export default function StoryViewer({
                   onClick={() => setMenuMaisOpcoes(false)}
                 />
                 <div
-                  className="absolute bottom-full left-0 z-[46] mb-2 w-[min(calc(100vw-2rem),280px)] overflow-hidden rounded-2xl border border-white/15 bg-zinc-900 py-2 shadow-xl"
+                  className="absolute bottom-full left-0 z-[46] mb-2 w-[min(calc(100vw-2rem),280px)] overflow-hidden rounded-lg bg-[#0097b2] py-1 text-white shadow-lg"
                   role="menu"
                 >
-                  <div className="border-b border-white/10 px-2 py-2">
+                  <div>
                     {seguindoAutor === null ? (
-                      <p className="px-2 py-2 text-center text-xs text-white/60">A carregar…</p>
+                      <p className="px-4 py-3 text-center text-xs text-white/75">A carregar…</p>
                     ) : (
                       <BotaoSeguir
                         alvoId={autorId ?? undefined}
@@ -1252,20 +1414,20 @@ export default function StoryViewer({
                           setSeguindoAutor(novo)
                           window.dispatchEvent(new Event('guia-feed-rede-reload'))
                         }}
-                        buttonClassName="flex w-full min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/15"
+                        buttonClassName={storyMenuItemClass}
                       />
                     )}
                   </div>
                   <button
                     type="button"
                     role="menuitem"
-                    className="flex w-full min-h-11 items-center gap-2 px-4 py-3 text-left text-sm font-medium text-white hover:bg-white/10"
+                    className={storyMenuItemClass}
                     onClick={() => {
                       setMenuMaisOpcoes(false)
                       setModalDenunciar(true)
                     }}
                   >
-                    <Flag size={18} className="shrink-0 text-amber-400" aria-hidden />
+                    <Flag size={16} className="shrink-0 text-white" aria-hidden />
                     Denunciar publicação
                   </button>
                 </div>

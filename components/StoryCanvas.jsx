@@ -80,6 +80,7 @@ function clampFundoPan(scale, px, py, geo, imageObjectFit) {
  *   marcacoes?: { usuario_id: string, username: string, tipo?: string, posicao_x?: number, posicao_y?: number }[]
  *   allowEditMarcacoes?: boolean
  *   onMarcacaoPos?: (usuarioId: string, p: { x: number, y: number }) => void
+ *   onMarcacaoClick?: (marcacao: { usuario_id: string, username: string, tipo?: string, posicao_x?: number, posicao_y?: number }, pos: { clientX: number, clientY: number }) => void
  *   onEditarLegenda?: () => void
  *   onEditarLink?: () => void
  *   linkHref?: string | null
@@ -108,6 +109,7 @@ export default function StoryCanvas({
   marcacoes = [],
   allowEditMarcacoes = false,
   onMarcacaoPos,
+  onMarcacaoClick,
   onEditarLegenda,
   onEditarLink,
   linkHref = null,
@@ -647,8 +649,9 @@ export default function StoryCanvas({
             }}
             role="text"
             aria-label={`Marcação @${username}`}
-            className={`absolute z-10 inline-block max-w-[88%] select-none rounded bg-black/35 px-2 py-1 text-center text-base font-semibold text-white sm:text-lg ${
-              allowEditMarcacoes ? 'cursor-move touch-none' : ''
+            className={`absolute inline-block max-w-[88%] select-none rounded bg-black/35 px-2 py-1 text-center text-base font-semibold text-white sm:text-lg ${
+              onMarcacaoClick && !allowEditMarcacoes ? 'z-[18] cursor-pointer' : 'z-10'
+            } ${allowEditMarcacoes ? 'cursor-move touch-none' : ''
             }`}
             style={{
               left: `${x}%`,
@@ -656,7 +659,16 @@ export default function StoryCanvas({
               transform: `translate(-50%, -50%) scale(${textoScale})`,
               textShadow: textoSombreado.textShadow,
             }}
-            onPointerDown={(e) => startMarcacao(e, m)}
+            onPointerDown={(e) => {
+              if (allowEditMarcacoes) startMarcacao(e, m)
+              else if (onMarcacaoClick) e.stopPropagation()
+            }}
+            onClick={(e) => {
+              if (!onMarcacaoClick || allowEditMarcacoes) return
+              e.preventDefault()
+              e.stopPropagation()
+              onMarcacaoClick(m, { clientX: e.clientX, clientY: e.clientY })
+            }}
           >
             @{username}
           </div>

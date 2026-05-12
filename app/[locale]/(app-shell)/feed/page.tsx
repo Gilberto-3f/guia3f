@@ -149,6 +149,8 @@ function FeedPageInner() {
   const mergeGenRef = useRef(0)
   const sentinelRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const fetchPostAttempted = useRef<string | null>(null)
+  const storyCacheRef = useRef(new Map<string, StoryViewerState>())
+  const storyImagePreloadRef = useRef(new Set<string>())
   const [bloqueioEmpresaFeed, setBloqueioEmpresaFeed] = useState(false)
 
   const [meuId, setMeuId] = useState<string | null>(null)
@@ -188,6 +190,14 @@ function FeedPageInner() {
 
   const bumpStoriesBar = useCallback(() => {
     setStoriesBarReload((n) => n + 1)
+  }, [])
+
+  const preloadStoryImage = useCallback((url: string | null | undefined) => {
+    const src = String(url ?? '').trim()
+    if (!src || storyImagePreloadRef.current.has(src)) return
+    storyImagePreloadRef.current.add(src)
+    const img = new window.Image()
+    img.src = src
   }, [])
 
   const carregarStoriesAutores = useCallback(async (lista: PostFeedRow[], viewerEmail: string | null) => {
@@ -565,6 +575,11 @@ function FeedPageInner() {
       console.warn('[feed] carregarStoryPorId chamado sem storyId:', storyId)
       return null
     }
+    const cached = storyCacheRef.current.get(storyId)
+    if (cached) {
+      preloadStoryImage(cached.conteudo_url)
+      return cached
+    }
     const { data, error } = await supabase
       .from('stories')
       .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos, autor_id, curtidas, visualizado_por, marcacoes, repost_story_id')
@@ -576,8 +591,19 @@ function FeedPageInner() {
     }
     const mapped = mapStoryRowToViewerState(data as StoryRowSelect)
     if (!mapped) console.warn('carregarStoryPorId: story inválido', storyId)
+    if (mapped) {
+      storyCacheRef.current.set(mapped.id, mapped)
+      preloadStoryImage(mapped.conteudo_url)
+    }
     return mapped
-  }, [])
+  }, [preloadStoryImage])
+
+  useEffect(() => {
+    if (!storyModal) return
+    preloadStoryImage(storyModal.data.conteudo_url)
+    const nextId = storyModal.ids[storyModal.index + 1]
+    if (nextId) void carregarStoryPorId(nextId)
+  }, [storyModal, carregarStoryPorId, preloadStoryImage])
 
   /** Fila de stories de um autor (antigo → novo); sempre abre no mais antigo (índice 0). */
   const montarPackStoryAutor = useCallback(
