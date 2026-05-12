@@ -413,12 +413,12 @@ export default function BottomBar() {
                 notificarSomenteLeitura()
               }
             }}
-            className={`flex flex-col items-center ${isFeedPage ? 'p-1' : 'p-2'}`}
+            className={`flex flex-col items-center ${isFeedPage ? 'p-0' : 'p-2'}`}
             aria-label={isFeedPage ? t('newPost') : t('feed')}
           >
             {isFeedPage ? (
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0097b2] shadow-lg">
-                <Plus className="h-6 w-6 text-white" strokeWidth={2.5} aria-hidden />
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0097b2] shadow-lg">
+                <Plus className="h-5 w-5 text-white" strokeWidth={2.5} aria-hidden />
               </span>
             ) : (
               <span className={terceiroActive ? 'text-[#0097b2]' : 'text-gray-400'}>
