@@ -101,19 +101,32 @@ type StoryRowSelect = {
 
 function mapStoryRowToViewerState(data: StoryRowSelect | null): StoryViewerState | null {
   if (!data) return null
+  const id = String(data.id ?? '').trim()
+  if (!id) {
+    console.warn('[feed] story sem id:', data)
+    return null
+  }
   const url = String(data.conteudo_url ?? '').trim()
-  if (!url) return null
+  if (!url) {
+    console.warn('[feed] story sem conteudo_url:', data)
+    return null
+  }
+  const autorId = String(data.autor_id ?? '').trim()
+  if (!autorId) {
+    console.warn('[feed] story sem autor_id:', data)
+    return null
+  }
   const ts = data.texto_sobreposto
   const textoParsed =
     ts && typeof ts === 'object' && !Array.isArray(ts) ? (ts as StoryViewerState['texto_sobreposto']) : null
   return {
-    id: String(data.id),
+    id,
     tipo: data.tipo != null ? String(data.tipo) : 'foto',
     conteudo_url: url,
     texto_sobreposto: textoParsed,
     link: data.link != null ? String(data.link) : null,
     duracao_segundos: data.duracao_segundos != null ? Number(data.duracao_segundos) : null,
-    autorUsuarioId: data.autor_id != null ? String(data.autor_id) : null,
+    autorUsuarioId: autorId,
     curtidas: data.curtidas ?? null,
     visualizado_por: data.visualizado_por ?? null,
     marcacoes: data.marcacoes ?? null,
@@ -205,7 +218,13 @@ function FeedPageInner() {
       const porAutor = new Map<string, StoryAggRow[]>()
       for (const row of data ?? []) {
         if (isTipoVideoPost((row as { tipo?: string }).tipo)) continue
-        const aid = String((row as { autor_id: unknown }).autor_id)
+        const id = String((row as { id?: unknown }).id ?? '').trim()
+        const aid = String((row as { autor_id?: unknown }).autor_id ?? '').trim()
+        const url = String((row as { conteudo_url?: unknown }).conteudo_url ?? '').trim()
+        if (!id || !aid || !url) {
+          console.warn('[feed] Story de autor inválido ignorado:', row)
+          continue
+        }
         if (!porAutor.has(aid)) porAutor.set(aid, [])
         porAutor.get(aid)!.push(row as StoryAggRow)
       }
@@ -542,6 +561,10 @@ function FeedPageInner() {
   }, [storyModal])
 
   const carregarStoryPorId = useCallback(async (storyId: string): Promise<StoryViewerState | null> => {
+    if (!storyId) {
+      console.warn('[feed] carregarStoryPorId chamado sem storyId:', storyId)
+      return null
+    }
     const { data, error } = await supabase
       .from('stories')
       .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos, autor_id, curtidas, visualizado_por, marcacoes, repost_story_id')
@@ -559,14 +582,26 @@ function FeedPageInner() {
   /** Fila de stories de um autor (antigo → novo); sempre abre no mais antigo (índice 0). */
   const montarPackStoryAutor = useCallback(
     async (autorUsuarioId: string): Promise<{ ids: string[]; index: number; data: StoryViewerState } | null> => {
+      if (!autorUsuarioId) {
+        console.warn('[feed] montarPackStoryAutor chamado sem autor:', autorUsuarioId)
+        return null
+      }
       const { data: rows, error } = await supabase
         .from('stories')
-        .select('id, tipo, created_at, visualizado_por')
+        .select('id, tipo, created_at, visualizado_por, conteudo_url, autor_id')
         .eq('autor_id', autorUsuarioId)
         .gt('expira_em', new Date().toISOString())
         .order('created_at', { ascending: true })
       if (error || !rows?.length) return null
-      const asc = rows.filter((r) => !isTipoVideoPost((r as { tipo?: string }).tipo))
+      const asc = rows.filter((r) => {
+        const ok =
+          !isTipoVideoPost((r as { tipo?: string }).tipo) &&
+          Boolean((r as { id?: unknown }).id) &&
+          Boolean((r as { autor_id?: unknown }).autor_id) &&
+          String((r as { conteudo_url?: unknown }).conteudo_url ?? '').trim() !== ''
+        if (!ok) console.warn('[feed] Story inválido ignorado na fila:', r)
+        return ok
+      })
       if (asc.length === 0) return null
       const ids = asc.map((r) => String((r as { id: unknown }).id))
       const index = 0
@@ -579,6 +614,10 @@ function FeedPageInner() {
 
   const abrirStory = useCallback(
     async (id: string, meta?: StoryOpenMeta) => {
+      if (!id) {
+        console.warn('[feed] abrirStory chamado sem id:', id)
+        return
+      }
       const probe = await carregarStoryPorId(id)
       if (!probe) return
       const autorId = probe.autorUsuarioId

@@ -137,6 +137,11 @@ export default function PostCard({
   onEngagementChange,
   ocultarCabecalhoCard = false,
 }) {
+  if (!post || !post.id || !post.autor) {
+    console.warn('[PostCard] post inválido:', post)
+    return null
+  }
+
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const bloqueioApresentacao = !podeInteragir
   const [comentAberto, setComentAberto] = useState(false)
@@ -727,7 +732,7 @@ export default function PostCard({
               />
             </div>
           )}
-          <p className="min-w-0 flex-1 text-xs leading-snug text-gray-600">
+          <div className="min-w-0 flex-1 text-xs leading-snug text-gray-600">
             {autorId ? (
               <Link href={hrefAutor} className="font-semibold text-gray-800 hover:text-[#0097b2]">
                 @{post.autor?.username ?? ''}
@@ -760,7 +765,7 @@ export default function PostCard({
             )}
             <span className="text-gray-400">{' · '}</span>
             <span className="text-gray-400">{formatarDataRelativaPublicacao(post.created_at)}</span>
-          </p>
+          </div>
         </div>
         <MenuPost {...menuProps} />
       </div>

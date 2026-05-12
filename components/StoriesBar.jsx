@@ -187,12 +187,18 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       return
     }
 
+    const storiesValidas = (storiesRows ?? []).filter((s) => {
+      const ok = Boolean(s?.id && s?.autor_id && String(s.conteudo_url ?? '').trim())
+      if (!ok) console.warn('[StoriesBar] Story inválido ignorado:', s)
+      return ok
+    })
+
     const seguidosIds = new Set([
       ...(seguidosRows ?? []).map((r) => String(r.seguido_id)),
       ...autoresEmpresasFavoritas,
     ].filter(Boolean))
 
-    const storyAutorIds = [...new Set((storiesRows ?? []).map((s) => String(s.autor_id)).filter(Boolean))]
+    const storyAutorIds = [...new Set(storiesValidas.map((s) => String(s.autor_id)).filter(Boolean))]
     let empresasRows = /** @type {{ usuario_id: string, nome_fantasia: string | null, nome_usuario: string | null, foto_url: string | null }[]} */ (
       []
     )
@@ -212,7 +218,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     const empresaAutorSet = new Set((emps ?? []).map((e) => String(e.usuario_id)).filter(Boolean))
 
     /** Stories permitidos: o próprio utilizador, seguidos (não empresa) ou qualquer empresa; sem vídeo. */
-    const storiesFiltradas = (storiesRows ?? []).filter((s) => {
+    const storiesFiltradas = storiesValidas.filter((s) => {
       if (isTipoVideoPost(s.tipo)) return false
       const aid = String(s.autor_id)
       if (aid === uid) return true

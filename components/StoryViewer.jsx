@@ -708,7 +708,10 @@ export default function StoryViewer({
     }
   }, [uid, autorId, souAutor, story?.id])
 
-  if (!story) return null
+  if (!story || !story.id || !story.conteudo_url) {
+    console.warn('[StoryViewer] Story inválido:', story)
+    return null
+  }
 
   const tx = story.texto_sobreposto && typeof story.texto_sobreposto === 'object' && !Array.isArray(story.texto_sobreposto)
     ? /** @type {{ texto?: string | null, posicao_x?: number, posicao_y?: number, link_posicao_x?: number, link_posicao_y?: number, fundo_fit?: string, fundo_scale?: number, fundo_pan_x_pct?: number, fundo_pan_y_pct?: number, texto_scale?: number }} */ (
