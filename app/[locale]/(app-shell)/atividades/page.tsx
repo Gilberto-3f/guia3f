@@ -87,6 +87,7 @@ function mergeAtividadesPorId(anteriores: AtividadeRow[], novas: AtividadeRow[])
 }
 
 type PerfilMap = Record<string, ReturnType<typeof pickAutorDisplay>>
+type EmpresaAvaliacaoMap = Record<string, { nome: string; username: string; foto_url: string | null }>
 
 /** Uma entrada por UUID em `atividades`, antes de enriquecer — evita merges bloqueados por `!m[uid]`. */
 function placeholderPerfil(uid: string): ReturnType<typeof pickAutorDisplay> {
@@ -142,6 +143,7 @@ export default function AtividadesPage() {
   const [meuRole, setMeuRole] = useState<string | null>(null)
   /** Nome da empresa logada (aba Atividades — linhas `avaliou` e texto da página). */
   const [minhaEmpresaAtividades, setMinhaEmpresaAtividades] = useState<{ id: string; nome: string } | null>(null)
+  const [empresaAvaliacaoMap, setEmpresaAvaliacaoMap] = useState<EmpresaAvaliacaoMap>({})
   const [carregando, setCarregando] = useState(true)
   const [listaAmigos, setListaAmigos] = useState<AtividadeRow[]>([])
   const [listaMinha, setListaMinha] = useState<AtividadeRow[]>([])
@@ -644,6 +646,60 @@ export default function AtividadesPage() {
     }
   }, [])
 
+  const carregarEmpresasAvaliacoes = useCallback(async (rows: AtividadeRow[], opcoes?: { merge?: boolean }) => {
+    const merge = Boolean(opcoes?.merge)
+    const empresaIds = [
+      ...new Set(
+        rows
+          .filter((r) => r.tipo === 'avaliou')
+          .map((r) => {
+            const ex = r.dados_extras ?? {}
+            return typeof ex.empresa_id === 'string' && ex.empresa_id.trim() !== ''
+              ? ex.empresa_id.trim()
+              : String(r.alvo_id ?? '').trim()
+          })
+          .filter(Boolean)
+      ),
+    ]
+
+    if (empresaIds.length === 0) {
+      if (!merge) setEmpresaAvaliacaoMap({})
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('empresas')
+      .select('id, nome_fantasia, nome_usuario, foto_url')
+      .in('id', empresaIds)
+
+    if (error || !data) {
+      if (!merge) setEmpresaAvaliacaoMap({})
+      return
+    }
+
+    const mapa: EmpresaAvaliacaoMap = {}
+    for (const raw of data) {
+      const e = raw as { id: string; nome_fantasia?: string | null; nome_usuario?: string | null; foto_url?: string | null }
+      const id = String(e.id ?? '')
+      if (!id) continue
+      mapa[id] = {
+        nome:
+          e.nome_fantasia != null && String(e.nome_fantasia).trim() !== ''
+            ? String(e.nome_fantasia).trim()
+            : 'Empresa',
+        username:
+          e.nome_usuario != null && String(e.nome_usuario).trim() !== '' ? String(e.nome_usuario).trim() : '',
+        foto_url: e.foto_url != null && String(e.foto_url).trim() !== '' ? String(e.foto_url) : null,
+      }
+    }
+
+    if (merge) {
+      setEmpresaAvaliacaoMap((prev) => ({ ...prev, ...mapa }))
+    } else {
+      setEmpresaAvaliacaoMap(mapa)
+    }
+  }, [])
+
   const recarregar = useCallback(async () => {
     const {
       data: { session },
@@ -656,6 +712,7 @@ export default function AtividadesPage() {
       setMinhaEmpresaAtividades(null)
       setListaAmigos([])
       setListaMinha([])
+      setEmpresaAvaliacaoMap({})
       setQtdSeguindo(0)
       seguindoRef.current = []
       setOffsetAmigos(0)
@@ -673,6 +730,7 @@ export default function AtividadesPage() {
     if (role === 'empresa') {
       setErroAmigos(null)
       setListaAmigos([])
+      setEmpresaAvaliacaoMap({})
       setQtdSeguindo(0)
       seguindoRef.current = []
       setOffsetAmigos(0)
@@ -699,6 +757,7 @@ export default function AtividadesPage() {
       setOffsetMinha(minhaEmpresa.length)
 
       await carregarPerfis(minhaEmpresa, { merge: false })
+      await carregarEmpresasAvaliacoes(minhaEmpresa, { merge: false })
 
       const postIdsEmp: string[] = []
       for (const r of minhaEmpresa) {
@@ -778,6 +837,7 @@ export default function AtividadesPage() {
 
     const todos = [...amigos, ...minha]
     await carregarPerfis(todos, { merge: false })
+    await carregarEmpresasAvaliacoes(todos, { merge: false })
 
     const postIds: string[] = []
     for (const r of todos) {
@@ -791,7 +851,7 @@ export default function AtividadesPage() {
     await carregarPostsMeta(postIds, { merge: false })
 
     setCarregando(false)
-  }, [carregarPerfis, carregarPostsMeta])
+  }, [carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta])
 
   const carregarMaisAtividades = useCallback(async () => {
     if (carregandoMais) return
@@ -829,6 +889,7 @@ export default function AtividadesPage() {
       setOffsetAmigos(start + novas.length)
       setTemMaisAmigos(novas.length === lim)
       await carregarPerfis(novas, { merge: true })
+      await carregarEmpresasAvaliacoes(novas, { merge: true })
       const postIds: string[] = []
       for (const r of novas) {
         if (r.tipo === 'curtiu_post') postIds.push(r.alvo_id)
@@ -842,7 +903,7 @@ export default function AtividadesPage() {
     } finally {
       setCarregandoMais(false)
     }
-  }, [aba, meuId, offsetAmigos, temMaisAmigos, carregarPerfis, carregarPostsMeta])
+  }, [aba, meuId, offsetAmigos, temMaisAmigos, carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta])
 
   useEffect(() => {
     void recarregar()
@@ -1207,10 +1268,12 @@ export default function AtividadesPage() {
             : 0
       const feedback =
         typeof ex.feedback === 'string' && ex.feedback.trim() !== '' ? String(ex.feedback).trimEnd() : null
+      const empresaAvaliacao = empresaAvaliacaoMap[empresaIdRaw]
       const nomeEmpresa =
-        minhaEmpresaAtividades && minhaEmpresaAtividades.id === empresaIdRaw
+        empresaAvaliacao?.nome ??
+        (minhaEmpresaAtividades && minhaEmpresaAtividades.id === empresaIdRaw
           ? minhaEmpresaAtividades.nome
-          : minhaEmpresaAtividades?.nome ?? 'sua empresa'
+          : minhaEmpresaAtividades?.nome ?? 'sua empresa')
       return (
         <AtividadeAvaliacao
           key={r.id}
@@ -1220,6 +1283,8 @@ export default function AtividadesPage() {
           hrefAtor={hrefUsuario(r.autor_id)}
           nomeEmpresa={nomeEmpresa}
           empresaId={empresaIdRaw || (minhaEmpresaAtividades?.id ?? '')}
+          empresaUsername={empresaAvaliacao?.username ?? ''}
+          empresaFoto={empresaAvaliacao?.foto_url ?? null}
           nota={Number.isFinite(nota) ? nota : 0}
           feedback={feedback}
           tempoInteracao={formatarDataAtividades(r.created_at)}

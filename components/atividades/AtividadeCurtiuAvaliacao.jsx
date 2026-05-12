@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Link, useRouter } from '@/i18n/navigation'
+import { Star } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
@@ -38,7 +39,16 @@ export default function AtividadeCurtiuAvaliacao({
       : meta && typeof meta.comentario === 'string'
         ? meta.comentario
         : ''
-  const estrelas = '⭐'.repeat(Math.min(5, Math.max(1, Math.round(Number(nota)) || 1)))
+  const notaVal = Math.min(5, Math.max(0, Math.round(Number(nota)) || 0))
+  const nomeEmpresa =
+    meta?.nome_fantasia != null && String(meta.nome_fantasia).trim() !== ''
+      ? String(meta.nome_fantasia).trim()
+      : 'Estabelecimento'
+  const usernameEmpresa =
+    meta?.nome_usuario != null && String(meta.nome_usuario).trim() !== ''
+      ? String(meta.nome_usuario).trim().replace(/^@+/, '')
+      : ''
+  const fotoEmpresa = meta?.foto_url != null && String(meta.foto_url).trim() !== '' ? String(meta.foto_url) : null
   const resumoModal = modoMinhaConta ? 'curtiu sua avaliação' : `curtiu avaliação de @${donorUsername}`
 
   return (
@@ -76,11 +86,26 @@ export default function AtividadeCurtiuAvaliacao({
             <button
               type="button"
               onClick={() => setModal(true)}
-              className="mt-1.5 block min-h-0 w-full text-left"
+              className="mt-2 flex w-full flex-col items-center rounded-lg bg-gray-50 px-3 py-3 text-center hover:bg-gray-100"
             >
-              <p className="text-sm text-amber-600">{estrelas}</p>
+              <span className="relative h-12 w-12 overflow-hidden rounded-md bg-gray-100">
+                <AvatarImage src={fotoEmpresa} alt="" fill className="object-cover" sizes="48px" />
+              </span>
+              <span className="mt-2 max-w-full truncate font-semibold text-gray-900">{nomeEmpresa}</span>
+              {usernameEmpresa ? <span className="max-w-full truncate text-sm text-gray-500">@{usernameEmpresa}</span> : null}
+              <span className="mt-3 flex items-center justify-center gap-0.5" aria-label={`Nota ${notaVal} de 5`}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    className={`h-6 w-6 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                    aria-hidden
+                  />
+                ))}
+              </span>
               {feedback ? (
-                <p className="mt-1 line-clamp-3 text-base text-gray-800">{String(feedback).trimEnd()}</p>
+                <span className="mt-3 line-clamp-3 text-left text-sm leading-relaxed text-gray-800">
+                  {String(feedback).trimEnd()}
+                </span>
               ) : null}
             </button>
           </div>
