@@ -14,6 +14,7 @@ import AtividadeCurtiuVerificacaoProfissional from '@/components/atividades/Ativ
 import AtividadeCurtiuRepost from '@/components/atividades/AtividadeCurtiuRepost'
 import AtividadeCurtiuAvaliacao from '@/components/atividades/AtividadeCurtiuAvaliacao'
 import AtividadeCurtiuStory from '@/components/atividades/AtividadeCurtiuStory'
+import AtividadeRepostouStory from '@/components/atividades/AtividadeRepostouStory'
 import AtividadeComentario from '@/components/atividades/AtividadeComentario'
 import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
 import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
@@ -363,9 +364,11 @@ export default function AtividadesPage() {
         const seguidor = ex.seguidor_id
         const seguido = ex.seguido_id
         const autorExtra = ex.autor_id
+        const autorOriginalId = ex.autor_original_id
         if (typeof seguidor === 'string') ids.add(seguidor)
         if (typeof seguido === 'string') ids.add(seguido)
         if (typeof autorExtra === 'string') ids.add(autorExtra)
+        if (typeof autorOriginalId === 'string') ids.add(autorOriginalId)
       }
     }
     return [...ids]
@@ -1523,6 +1526,46 @@ export default function AtividadesPage() {
           hrefDonor={hrefUsuario(r.usuario_id)}
           tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
+        />
+      )
+    }
+
+    if (r.tipo === 'repostou_story') {
+      const ex = r.dados_extras ?? {}
+      const storyId =
+        typeof ex.story_id === 'string' && ex.story_id.trim() !== ''
+          ? ex.story_id.trim()
+          : String(r.alvo_id ?? '').trim()
+      if (!storyId) return null
+      const originalAuthorId =
+        typeof ex.autor_original_id === 'string' && ex.autor_original_id.trim() !== ''
+          ? ex.autor_original_id.trim()
+          : r.usuario_id
+      const donor = perfilMap[originalAuthorId]
+      const unRep =
+        typeof ex.autor_username === 'string' && ex.autor_username.trim() !== ''
+          ? ex.autor_username.trim().replace(/^@+/, '')
+          : ''
+      const unOrig =
+        typeof ex.autor_original_username === 'string' && ex.autor_original_username.trim() !== ''
+          ? ex.autor_original_username.trim().replace(/^@+/, '')
+          : ''
+      const reposterUsername = unRep || ator?.username || 'usuario'
+      const originalUsername = unOrig || donor?.username || 'usuario'
+      const conteudoUrl =
+        typeof ex.conteudo_url === 'string' && ex.conteudo_url.trim() !== '' ? ex.conteudo_url.trim() : null
+      return (
+        <AtividadeRepostouStory
+          key={r.id}
+          reposterUsername={reposterUsername}
+          reposterFoto={ator?.foto_perfil_url ?? null}
+          hrefReposter={hrefUsuario(r.autor_id)}
+          originalUsername={originalUsername}
+          hrefOriginal={hrefUsuario(originalAuthorId)}
+          conteudoUrl={conteudoUrl}
+          tempoInteracao={formatarDataAtividades(r.created_at)}
+          modoMinhaConta={modoMinhaConta}
+          onAbrirStory={() => void carregarStoryPorId(storyId)}
         />
       )
     }
