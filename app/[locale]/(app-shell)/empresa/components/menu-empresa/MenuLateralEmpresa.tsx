@@ -14,7 +14,7 @@ interface MenuItem {
 }
 
 const MENU_ITEMS: MenuItem[] = [
-  { id: 'publicidade', icon: '📢', label: 'Publicidade', href: '/empresa/menu/publicidade' },
+  { id: 'publicidade', icon: '📢', label: 'Feed, Story e Publicidade', href: '/empresa/menu/publicidade' },
   { id: 'chat-adm', icon: '💬', label: 'Chat ADM', href: '/empresa/menu/chat-adm' },
   { id: 'denuncias', icon: '⚠️', label: 'Denúncias', href: '/empresa/menu/denuncias' },
   { id: 'compras-paraguai', icon: '🛍️', label: 'Compras Paraguai', href: '/empresa/menu/compras-paraguai' },

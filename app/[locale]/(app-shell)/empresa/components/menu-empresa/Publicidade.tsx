@@ -70,11 +70,12 @@ export default function Publicidade() {
 
   const [aba, setAba] = useState<'propagandas' | 'historico'>('propagandas')
   const [salvando, setSalvando] = useState(false)
-  const [removendoId, setRemovendoId] = useState<string | null>(null)
+  const [finalizandoId, setFinalizandoId] = useState<string | null>(null)
+  const [confirmarFinalizacaoId, setConfirmarFinalizacaoId] = useState<string | null>(null)
   /** Mensagens do formulário novo anúncio (abaixo do botão Salvar). */
   const [msgFormulario, setMsgFormulario] = useState<string | null>(null)
-  /** Feedback do botão Remover, ligado ao anúncio que disparou a ação. */
-  const [msgRemover, setMsgRemover] = useState<{ anuncioId: string; texto: string } | null>(null)
+  /** Feedback do botão Finalizar, ligado ao anúncio que disparou a ação. */
+  const [msgFinalizar, setMsgFinalizar] = useState<{ anuncioId: string; texto: string } | null>(null)
 
   const [arteFile, setArteFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -88,11 +89,15 @@ export default function Publicidade() {
     const hoje = hojeIso()
     return anuncios.filter((a) => anuncioHomeEmVeiculacao(a, hoje))
   }, [anuncios])
+  const anuncioAtivo = emVeiculacao[0] ?? null
 
   const historicoHome = useMemo(() => {
     const hoje = hojeIso()
     return anuncios.filter((a) => anuncioHomeNoHistorico(a, hoje))
   }, [anuncios])
+  const anuncioParaFinalizar = confirmarFinalizacaoId
+    ? anuncios.find((anuncio) => anuncio.id === confirmarFinalizacaoId)
+    : null
 
   useEffect(() => {
     return () => {
@@ -147,23 +152,24 @@ export default function Publicidade() {
     }
   }
 
-  const handleRemover = async (anuncioId: string) => {
-    if (!window.confirm('Remover este anúncio da Home? Ele deixa de ser exibido imediatamente.')) return
-    setMsgRemover(null)
-    setRemovendoId(anuncioId)
+  const handleFinalizar = async (anuncioId: string) => {
+    setMsgFinalizar(null)
+    setFinalizandoId(anuncioId)
     try {
       await desativarAnuncio(anuncioId)
-      setMsgRemover({
+      setMsgFinalizar({
         anuncioId,
-        texto: '✅ Anúncio removido. Você pode criar um novo quando quiser.',
+        texto: '✅ Anúncio finalizado e movido para o Histórico. Você pode criar um novo quando quiser.',
       })
+      setAba('historico')
     } catch {
-      setMsgRemover({
+      setMsgFinalizar({
         anuncioId,
-        texto: '❌ Não foi possível remover o anúncio. Tente de novo.',
+        texto: '❌ Não foi possível finalizar o anúncio. Tente de novo.',
       })
     } finally {
-      setRemovendoId(null)
+      setFinalizandoId(null)
+      setConfirmarFinalizacaoId(null)
     }
   }
 
@@ -233,19 +239,18 @@ export default function Publicidade() {
           </SecaoChevron>
 
           <SecaoChevron titulo="Propaganda na Home" aberta={secHome} onToggle={() => setSecHome((v) => !v)}>
-          {emVeiculacao.length > 0 ? (
+          {anuncioAtivo ? (
             <div className="space-y-4">
               <div className="rounded-lg border bg-gray-50 p-4">
                 <h3 className="mb-3 font-bold text-gray-900">Anúncio ativo na Home</h3>
                 <p className="mb-4 text-xs text-gray-600">
-                  Só é permitido um anúncio em veiculação por vez. Remova o atual para publicar outro.
+                  Só é permitido um anúncio em veiculação por vez. Finalize o atual para publicar outro criativo.
                 </p>
-                {emVeiculacao.map((anuncio) => (
-                  <div key={anuncio.id} className="rounded-lg border border-gray-200 p-4">
-                    {anuncio.imagem_url ? (
+                  <div className="rounded-lg border border-gray-200 p-4">
+                    {anuncioAtivo.imagem_url ? (
                       <div className="relative mx-auto mb-4 aspect-[2/1] w-full max-w-md overflow-hidden rounded-lg bg-gray-100">
                         <Image
-                          src={anuncio.imagem_url}
+                          src={anuncioAtivo.imagem_url}
                           alt="Anúncio na Home"
                           fill
                           className="object-cover"
@@ -255,44 +260,46 @@ export default function Publicidade() {
                     ) : null}
                     <p className="text-sm text-gray-900">
                       <span className="font-medium text-gray-700">Período:</span>{' '}
-                      {formatDate(anuncio.periodo_inicio)} — {formatDate(anuncio.periodo_fim)}
+                      {formatDate(anuncioAtivo.periodo_inicio)} — {formatDate(anuncioAtivo.periodo_fim)}
                     </p>
                     <p className="mt-2 text-sm text-gray-900">
                       <span className="font-medium text-gray-700">Visualizações:</span>{' '}
-                      {anuncio.impressoes_exibidas.toLocaleString('pt-BR')} ·{' '}
+                      {anuncioAtivo.impressoes_exibidas.toLocaleString('pt-BR')} ·{' '}
                       <span className="font-medium text-gray-700">Cliques:</span>{' '}
-                      {anuncio.cliques.toLocaleString('pt-BR')} ·{' '}
+                      {anuncioAtivo.cliques.toLocaleString('pt-BR')} ·{' '}
                       <span className="font-medium text-gray-700">CTR:</span>{' '}
-                      {formatCtr(anuncio.impressoes_exibidas, anuncio.cliques)}
+                      {formatCtr(anuncioAtivo.impressoes_exibidas, anuncioAtivo.cliques)}
                     </p>
                     <button
                       type="button"
-                      onClick={() => void handleRemover(anuncio.id)}
-                      disabled={removendoId === anuncio.id}
-                      className="mt-4 w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800 hover:bg-red-100 disabled:opacity-50"
+                      onClick={() => setConfirmarFinalizacaoId(anuncioAtivo.id)}
+                      disabled={finalizandoId === anuncioAtivo.id}
+                      className="mt-4 w-full rounded-lg bg-[#0097b2] px-4 py-3 text-sm font-bold text-white shadow-sm hover:opacity-95 disabled:opacity-50"
                     >
-                      {removendoId === anuncio.id ? 'Removendo...' : 'Remover anúncio'}
+                      {finalizandoId === anuncioAtivo.id ? 'Finalizando...' : 'Finalizar anúncio'}
                     </button>
-                    {msgRemover && msgRemover.anuncioId === anuncio.id ? (
+                    {msgFinalizar && msgFinalizar.anuncioId === anuncioAtivo.id ? (
                       <p
                         className={`mt-3 text-sm ${
-                          msgRemover.texto.startsWith('✅')
+                          msgFinalizar.texto.startsWith('✅')
                             ? 'text-green-800'
-                            : msgRemover.texto.startsWith('❌')
+                            : msgFinalizar.texto.startsWith('❌')
                               ? 'text-red-700'
                               : 'text-gray-900'
                         }`}
                         role="status"
                       >
-                        {msgRemover.texto}
+                        {msgFinalizar.texto}
                       </p>
                     ) : null}
                   </div>
-                ))}
               </div>
             </div>
           ) : (
             <div className="rounded-lg border bg-white p-4">
+              <p className="mb-3 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                Nenhum anúncio ativo. Crie um novo.
+              </p>
               <h3 className="mb-4 font-bold text-gray-900">🏠 Novo anúncio na Home do Guia</h3>
 
               <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -397,6 +404,41 @@ export default function Publicidade() {
           )}
         </div>
       )}
+      {anuncioParaFinalizar ? (
+        <div
+          className="fixed inset-0 z-[220] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirmar-finalizar-anuncio"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <h3 id="confirmar-finalizar-anuncio" className="text-lg font-bold text-gray-900">
+              Finalizar anúncio?
+            </h3>
+            <p className="mt-2 text-sm text-gray-600">
+              O anúncio deixa de aparecer na Home imediatamente e será movido para a aba Histórico.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmarFinalizacaoId(null)}
+                disabled={finalizandoId === anuncioParaFinalizar.id}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleFinalizar(anuncioParaFinalizar.id)}
+                disabled={finalizandoId === anuncioParaFinalizar.id || anuncioParaFinalizar.status !== 'ativo'}
+                className="flex-1 rounded-lg bg-[#0097b2] px-4 py-3 text-sm font-bold text-white hover:opacity-95 disabled:opacity-50"
+              >
+                {finalizandoId === anuncioParaFinalizar.id ? 'Finalizando...' : 'Finalizar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

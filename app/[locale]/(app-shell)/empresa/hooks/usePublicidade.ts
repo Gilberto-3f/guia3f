@@ -32,7 +32,7 @@ function isoDate(d: Date) {
 
 /** Mensagem ao tentar criar segundo anúncio home em veiculação. */
 export const MSG_ANUNCIO_HOME_LIMITE_ATIVO =
-  'Você já possui um anúncio ativo. Para criar um novo, remova ou aguarde o término do atual.'
+  'Você já possui um anúncio ativo. Para criar um novo, finalize ou aguarde o término do atual.'
 
 /** Home no ar na Guia (mesmas regras do carrossel público). */
 export function anuncioHomeEmVeiculacao(a: Anuncio, hojeIso: string): boolean {
@@ -102,12 +102,18 @@ export function usePublicidade(empresaId: string | null) {
   const desativarAnuncio = useCallback(
     async (anuncioId: string) => {
       if (!empresaId) throw new Error('Empresa não identificada')
-      const { error: upErr } = await supabase
+      const { data: atualizados, error: upErr } = await supabase
         .from('anuncios')
         .update({ status: 'inativo' })
         .eq('id', anuncioId)
         .eq('empresa_id', empresaId)
+        .eq('tipo', 'home')
+        .eq('status', 'ativo')
+        .select('id')
       if (upErr) throw upErr
+      if (!atualizados || atualizados.length === 0) {
+        throw new Error('Este anúncio não está ativo ou já foi finalizado.')
+      }
       await fetchDados()
     },
     [empresaId, fetchDados]

@@ -204,7 +204,7 @@ function secoesEmpresa() {
     { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
   ]
   const gEmp = [
-    { Icon: Megaphone, label: 'Publicidade', href: '/empresa/menu/publicidade' },
+    { Icon: Megaphone, label: 'Feed, Story e Publicidade', href: '/empresa/menu/publicidade' },
     { Icon: MessageSquare, label: 'Chat ADM', href: '/empresa/menu/chat-adm' },
     { Icon: ShoppingCart, label: 'Compras Paraguai', href: '/empresa/menu/compras-paraguai' },
     { Icon: Gem, label: 'Planos', href: '/empresa/menu/planos' },
