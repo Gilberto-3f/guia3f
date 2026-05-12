@@ -53,6 +53,7 @@ import MeusManifestos from '@/components/perfil/subpaginas/MeusManifestos'
 import EditarPaginaEmpresa from '@/components/perfil/subpaginas/EditarPaginaEmpresa'
 import CadastrarComissao from '@/components/perfil/subpaginas/CadastrarComissao'
 import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
+import HistoricoStories from '@/components/perfil/subpaginas/HistoricoStories'
 import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
 import ModoApresentacao from '@/components/perfil/subpaginas/ModoApresentacao'
 import AnexarDocumentos from '@/components/perfil/subpaginas/AnexarDocumentos'
@@ -119,6 +120,7 @@ function secoesTurista() {
     { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
     { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
+    { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
   ]
   const gAplic = [
     { Icon: History, label: 'Histórico de Compras', subitens: histComprasSubitensTurista() },
@@ -137,6 +139,7 @@ function secoesProfissional(ctx) {
       { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos' },
       { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
       { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
+      { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
     ],
     ctx
   )
@@ -198,6 +201,7 @@ function secoesEmpresa() {
     { Icon: Paperclip, label: 'Anexar documentos', subpagina: 'anexar-documentos-empresa' },
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
     { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
+    { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
   ]
   const gEmp = [
     { Icon: Megaphone, label: 'Publicidade', href: '/empresa/menu/publicidade' },
@@ -234,6 +238,7 @@ function secoesAdmin(ctx, { omitirModoNaLista }) {
       { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
       { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
       { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
+      { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
     ],
     ctx
   )
@@ -442,6 +447,7 @@ export default function MenuLateral({
         parcerias: 'Parcerias',
         recomendacoes: 'Recomendações',
         'historico-decisoes': 'Histórico de Decisões',
+        'historico-stories': 'Histórico de Stories',
         salvos: 'Publicações Salvas',
         'modo-apresentacao': 'Modo Apresentação',
         'anexar-documentos': 'Anexar Documentos',
@@ -554,6 +560,7 @@ export default function MenuLateral({
     if (id === 'manifestos') return <MeusManifestos />
     if (id === 'meu-historico') return <MeuHistorico tipo={histTipo} />
     if (id === 'historico-decisoes') return <HistoricoDecisoes />
+    if (id === 'historico-stories') return <HistoricoStories usuarioId={usuarioIdEfetivo} />
     if (id === 'modo-apresentacao') return <ModoApresentacao />
     if (id === 'editar-pagina' && empresa && empresaIdEfetivo) {
       return <EditarPaginaEmpresa empresa={empresa} empresaId={String(empresaIdEfetivo)} onSalvo={onPerfilAtualizado} />

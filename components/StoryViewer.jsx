@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ClipboardList, Flag, Heart, Link2, MoreHorizontal, Play, Volume2, VolumeX, X } from 'lucide-react'
+import { ClipboardList, Flag, Heart, Link2, MoreHorizontal, Play, Repeat2, Volume2, VolumeX, X } from 'lucide-react'
 import BotaoSeguir from '@/components/BotaoSeguir'
 import { supabase } from '@/lib/supabase'
 import {
@@ -90,6 +90,27 @@ function normalizarCurtidasRawParaArray(raw) {
 }
 
 /**
+ * @param {unknown} raw
+ * @returns {{ usuario_id: string, username: string, tipo: string }[]}
+ */
+function normalizarMarcacoesStory(raw) {
+  if (!Array.isArray(raw)) return []
+  const out = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const r = /** @type {Record<string, unknown>} */ (item)
+    const usuario_id = r.usuario_id != null ? String(r.usuario_id) : ''
+    if (!usuario_id) continue
+    out.push({
+      usuario_id,
+      username: r.username != null ? String(r.username) : '',
+      tipo: r.tipo != null ? String(r.tipo) : '',
+    })
+  }
+  return out
+}
+
+/**
  * Última curtida mais recente por utilizador → ordena ids do mais recente ao mais antigo.
  * @param {{ usuario_id: string, created_at?: string }[]} curtidasLista
  * @returns {string[]}
@@ -156,6 +177,8 @@ function iniciaisRotulo(rotulo) {
  *     autorUsuarioId?: string | null
  *     curtidas?: unknown
  *     visualizado_por?: unknown
+ *     marcacoes?: unknown
+ *     repost_story_id?: string | null
  *   } | null
  *   userEmail: string | null
  *   meuUsuarioId: string | null
@@ -220,6 +243,7 @@ export default function StoryViewer({
   const [denBusy, setDenBusy] = useState(false)
   const [toastMsg, setToastMsg] = useState(/** @type {string | null} */ (null))
   const [seguindoAutor, setSeguindoAutor] = useState(/** @type {boolean | null} */ (null))
+  const [repostando, setRepostando] = useState(false)
 
   const uid = meuUsuarioId != null && meuUsuarioId !== '' ? String(meuUsuarioId) : null
   const curtiu = uid ? curtidasLista.some((c) => c.usuario_id === uid) : false
@@ -643,12 +667,15 @@ export default function StoryViewer({
   }
 
   const souAutor = Boolean(uid && autorId && uid === autorId)
+  const marcacoesStory = normalizarMarcacoesStory(story?.marcacoes)
+  const podeRepostarStory = Boolean(uid && !souAutor && marcacoesStory.some((m) => m.usuario_id === uid))
 
   useEffect(() => {
     setMenuMaisOpcoes(false)
     setModalDenunciar(false)
     setDenTexto('')
     setDenCategoria('Conteúdo impróprio')
+    setRepostando(false)
   }, [story?.id])
 
   useEffect(() => {
@@ -702,6 +729,41 @@ export default function StoryViewer({
   const linkStr = story.link != null ? String(story.link).trim() : ''
   const textoScale = typeof tx?.texto_scale === 'number' && Number.isFinite(tx.texto_scale) ? tx.texto_scale : 1
   const emailsVisualizacao = visualizadoPorEmails(story.visualizado_por)
+
+  const repostarStory = async () => {
+    if (!story?.id || !uid || repostando || !podeRepostarStory) return
+    setRepostando(true)
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session?.user?.id) {
+        setToastMsg('Inicie sessão para repostar.')
+        return
+      }
+      const { data: userRow } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
+      const expira = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      const { error } = await supabase.from('stories').insert({
+        autor_id: session.user.id,
+        autor_tipo: typeof userRow?.role === 'string' && userRow.role ? userRow.role : 'turista',
+        tipo: story.tipo || 'foto',
+        conteudo_url: story.conteudo_url,
+        texto_sobreposto: story.texto_sobreposto ?? null,
+        link: story.link ?? null,
+        expira_em: expira,
+        duracao_segundos: story.duracao_segundos ?? 60,
+        marcacoes: [],
+        repost_story_id: story.id,
+      })
+      if (error) throw error
+      setToastMsg('Story repostado no seu perfil.')
+    } catch (e) {
+      console.error('[StoryViewer] repostar story:', e)
+      setToastMsg('Não foi possível repostar este story.')
+    } finally {
+      setRepostando(false)
+    }
+  }
 
   const enviarDenunciaStory = async () => {
     const motivoTrim = denCategoria.trim().slice(0, 100)
@@ -1096,20 +1158,34 @@ export default function StoryViewer({
             </span>
           </button>
         ) : uid ? (
-          <button
-            type="button"
-            disabled={curtirBusy}
-            onClick={() => void toggleCurtida()}
-            className="flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10 disabled:opacity-50"
-            aria-label={curtiu ? 'Remover curtida' : 'Curtir story'}
-          >
-            <Heart
-              size={32}
-              strokeWidth={2}
-              className={curtiu ? 'fill-red-500 text-red-500' : ''}
-              fill={curtiu ? 'currentColor' : 'none'}
-            />
-          </button>
+          <div className="flex items-center gap-2">
+            {podeRepostarStory ? (
+              <button
+                type="button"
+                disabled={repostando}
+                onClick={() => void repostarStory()}
+                className="flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10 disabled:opacity-50"
+                aria-label="Repostar story"
+              >
+                <Repeat2 size={30} strokeWidth={2} />
+                <span className="text-[10px] font-medium text-white/85">{repostando ? '...' : 'Repostar'}</span>
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={curtirBusy}
+              onClick={() => void toggleCurtida()}
+              className="flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10 disabled:opacity-50"
+              aria-label={curtiu ? 'Remover curtida' : 'Curtir story'}
+            >
+              <Heart
+                size={32}
+                strokeWidth={2}
+                className={curtiu ? 'fill-red-500 text-red-500' : ''}
+                fill={curtiu ? 'currentColor' : 'none'}
+              />
+            </button>
+          </div>
         ) : (
           <p className="text-center text-xs text-white/70">Inicie sessão para curtir</p>
         )}

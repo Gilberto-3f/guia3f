@@ -67,6 +67,8 @@ type StoryViewerState = {
   autorUsuarioId: string | null
   curtidas?: unknown
   visualizado_por?: unknown
+  marcacoes?: unknown
+  repost_story_id?: string | null
 }
 
 type StoryOpenMeta = {
@@ -93,6 +95,8 @@ type StoryRowSelect = {
   autor_id?: unknown
   curtidas?: unknown
   visualizado_por?: unknown
+  marcacoes?: unknown
+  repost_story_id?: unknown
 }
 
 function mapStoryRowToViewerState(data: StoryRowSelect | null): StoryViewerState | null {
@@ -112,6 +116,8 @@ function mapStoryRowToViewerState(data: StoryRowSelect | null): StoryViewerState
     autorUsuarioId: data.autor_id != null ? String(data.autor_id) : null,
     curtidas: data.curtidas ?? null,
     visualizado_por: data.visualizado_por ?? null,
+    marcacoes: data.marcacoes ?? null,
+    repost_story_id: data.repost_story_id != null ? String(data.repost_story_id) : null,
   }
 }
 
@@ -538,7 +544,7 @@ function FeedPageInner() {
   const carregarStoryPorId = useCallback(async (storyId: string): Promise<StoryViewerState | null> => {
     const { data, error } = await supabase
       .from('stories')
-      .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos, autor_id, curtidas, visualizado_por')
+      .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos, autor_id, curtidas, visualizado_por, marcacoes, repost_story_id')
       .eq('id', storyId)
       .maybeSingle()
     if (error) {

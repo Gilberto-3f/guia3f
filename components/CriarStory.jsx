@@ -22,6 +22,7 @@ export default function CriarStory({ autorTipo }) {
   const [fundo, setFundo] = useState({ scale: 1, pan_x_pct: 0, pan_y_pct: 0 })
   const [textoScale, setTextoScale] = useState(1)
   const [linkUrl, setLinkUrl] = useState('')
+  const [marcacoes, setMarcacoes] = useState(/** @type {{ usuario_id: string, username: string, tipo: string }[]} */ ([]))
   const [publicando, setPublicando] = useState(false)
 
   const inputPrincipalRef = useRef(/** @type {HTMLInputElement | null} */ (null))
@@ -107,6 +108,7 @@ export default function CriarStory({ autorTipo }) {
     setFundo({ scale: 1, pan_x_pct: 0, pan_y_pct: 0 })
     setTextoScale(1)
     setLinkUrl('')
+    setMarcacoes([])
     setPasso(1)
   }
 
@@ -157,6 +159,7 @@ export default function CriarStory({ autorTipo }) {
           texto_scale: textoScale,
         },
         link: linkUrl.trim() || null,
+        marcacoes,
         expira_em: expira,
         duracao_segundos: 60,
       })
@@ -222,6 +225,8 @@ export default function CriarStory({ autorTipo }) {
             onTextoScaleChange={setTextoScale}
             linkUrl={linkUrl}
             onLinkChange={setLinkUrl}
+            marcacoes={marcacoes}
+            onMarcacoesChange={setMarcacoes}
             onTrocarFoto={() => inputTrocarFotoRef.current?.click()}
             onPublicar={() => void publicar()}
             publicando={publicando}
