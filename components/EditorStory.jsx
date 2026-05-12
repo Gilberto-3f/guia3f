@@ -26,8 +26,8 @@ import { supabase } from '@/lib/supabase'
  *   onTextoScaleChange: (s: number) => void
  *   linkUrl: string
  *   onLinkChange: (s: string) => void
- *   marcacoes?: { usuario_id: string, username: string, tipo: string }[]
- *   onMarcacoesChange?: (m: { usuario_id: string, username: string, tipo: string }[]) => void
+ *   marcacoes?: { usuario_id: string, username: string, tipo: string, posicao_x?: number, posicao_y?: number }[]
+ *   onMarcacoesChange?: (m: { usuario_id: string, username: string, tipo: string, posicao_x?: number, posicao_y?: number }[]) => void
  *   onTrocarFoto: () => void
  *   onPublicar: () => void
  *   publicando?: boolean
@@ -112,12 +112,15 @@ export default function EditorStory({
   const adicionarMarcacao = (perfil) => {
     if (!onMarcacoesChange) return
     if (marcacoes.some((m) => m.usuario_id === perfil.usuario_id)) return
+    const offset = marcacoes.length % 5
     onMarcacoesChange([
       ...marcacoes,
       {
         usuario_id: perfil.usuario_id,
         username: perfil.username,
         tipo: perfil.tipo,
+        posicao_x: Math.min(82, 50 + offset * 5),
+        posicao_y: Math.min(82, 58 + offset * 6),
       },
     ])
     setTermoMarcacao('')
@@ -127,6 +130,12 @@ export default function EditorStory({
   /** @param {string} usuarioId */
   const removerMarcacao = (usuarioId) => {
     onMarcacoesChange?.(marcacoes.filter((m) => m.usuario_id !== usuarioId))
+  }
+
+  const moverMarcacao = (usuarioId, p) => {
+    onMarcacoesChange?.(
+      marcacoes.map((m) => (m.usuario_id === usuarioId ? { ...m, posicao_x: p.x, posicao_y: p.y } : m))
+    )
   }
 
   if (mediaKind !== 'image') {
@@ -144,14 +153,17 @@ export default function EditorStory({
           posicaoLegenda={posicao}
           linkUrl={linkUrl.trim()}
           posicaoLink={posicaoLink}
+          marcacoes={marcacoes}
           fundo={fundo}
           textoScale={textoScale}
           onTextoScaleChange={onTextoScaleChange}
           allowEditImage
           allowEditText
           allowEditLink={Boolean(linkUrl.trim())}
+          allowEditMarcacoes
           onLegendaPos={onPosicaoChange}
           onLinkPos={onPosicaoLinkChange}
+          onMarcacaoPos={moverMarcacao}
           onFundoChange={onFundoChange}
           onEditarLegenda={() => setPainel('legenda')}
           onEditarLink={() => setPainel('link')}

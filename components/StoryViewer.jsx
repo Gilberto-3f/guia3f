@@ -91,7 +91,7 @@ function normalizarCurtidasRawParaArray(raw) {
 
 /**
  * @param {unknown} raw
- * @returns {{ usuario_id: string, username: string, tipo: string }[]}
+ * @returns {{ usuario_id: string, username: string, tipo: string, posicao_x?: number, posicao_y?: number }[]}
  */
 function normalizarMarcacoesStory(raw) {
   if (!Array.isArray(raw)) return []
@@ -105,6 +105,8 @@ function normalizarMarcacoesStory(raw) {
       usuario_id,
       username: r.username != null ? String(r.username) : '',
       tipo: r.tipo != null ? String(r.tipo) : '',
+      posicao_x: typeof r.posicao_x === 'number' ? r.posicao_x : undefined,
+      posicao_y: typeof r.posicao_y === 'number' ? r.posicao_y : undefined,
     })
   }
   return out
@@ -244,6 +246,10 @@ export default function StoryViewer({
   const [toastMsg, setToastMsg] = useState(/** @type {string | null} */ (null))
   const [seguindoAutor, setSeguindoAutor] = useState(/** @type {boolean | null} */ (null))
   const [repostando, setRepostando] = useState(false)
+  const [repostExistenteId, setRepostExistenteId] = useState(/** @type {string | null} */ (null))
+  const [checandoRepost, setChecandoRepost] = useState(false)
+  const [autorOriginalRepostId, setAutorOriginalRepostId] = useState(/** @type {string | null} */ (null))
+  const [rotuloAutorOriginalRepost, setRotuloAutorOriginalRepost] = useState(/** @type {string | null} */ (null))
 
   const uid = meuUsuarioId != null && meuUsuarioId !== '' ? String(meuUsuarioId) : null
   const curtiu = uid ? curtidasLista.some((c) => c.usuario_id === uid) : false
@@ -668,7 +674,8 @@ export default function StoryViewer({
 
   const souAutor = Boolean(uid && autorId && uid === autorId)
   const marcacoesStory = normalizarMarcacoesStory(story?.marcacoes)
-  const podeRepostarStory = Boolean(uid && !souAutor && marcacoesStory.some((m) => m.usuario_id === uid))
+  const storyOriginalParaRepostId = story?.repost_story_id ? String(story.repost_story_id) : story?.id ? String(story.id) : null
+  const podeRepostarStory = Boolean(uid && !souAutor && storyOriginalParaRepostId && marcacoesStory.some((m) => m.usuario_id === uid))
 
   useEffect(() => {
     setMenuMaisOpcoes(false)
@@ -676,7 +683,73 @@ export default function StoryViewer({
     setDenTexto('')
     setDenCategoria('Conteúdo impróprio')
     setRepostando(false)
+    setRepostExistenteId(null)
   }, [story?.id])
+
+  useEffect(() => {
+    if (!uid || !storyOriginalParaRepostId || !podeRepostarStory) {
+      setRepostExistenteId(null)
+      setChecandoRepost(false)
+      return undefined
+    }
+    let cancel = false
+    setChecandoRepost(true)
+    void (async () => {
+      const { data, error } = await supabase
+        .from('stories')
+        .select('id')
+        .eq('autor_id', uid)
+        .eq('repost_story_id', storyOriginalParaRepostId)
+        .gt('expira_em', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (cancel) return
+      if (error) {
+        console.error('[StoryViewer] verificar repost existente:', error)
+        setRepostExistenteId(null)
+      } else {
+        setRepostExistenteId(data?.id != null ? String(data.id) : null)
+      }
+      setChecandoRepost(false)
+    })()
+    return () => {
+      cancel = true
+    }
+  }, [uid, storyOriginalParaRepostId, podeRepostarStory])
+
+  useEffect(() => {
+    const repostId = story?.repost_story_id ? String(story.repost_story_id) : ''
+    if (!repostId) {
+      setAutorOriginalRepostId(null)
+      setRotuloAutorOriginalRepost(null)
+      return undefined
+    }
+    let cancel = false
+    void (async () => {
+      const { data, error } = await supabase.from('stories').select('autor_id').eq('id', repostId).maybeSingle()
+      if (cancel) return
+      if (error || !data?.autor_id) {
+        if (error) console.error('[StoryViewer] autor original do repost:', error)
+        setAutorOriginalRepostId(null)
+        setRotuloAutorOriginalRepost('@usuario')
+        return
+      }
+      const originalAutorId = String(data.autor_id)
+      setAutorOriginalRepostId(originalAutorId)
+      const handle = await fetchNomeUsuarioParaStory(supabase, originalAutorId)
+      if (cancel) return
+      if (handle) {
+        const h = handle.trim()
+        setRotuloAutorOriginalRepost(h.startsWith('@') ? h : `@${h.replace(/^@/, '')}`)
+      } else {
+        setRotuloAutorOriginalRepost('@usuario')
+      }
+    })()
+    return () => {
+      cancel = true
+    }
+  }, [story?.repost_story_id])
 
   useEffect(() => {
     if (!toastMsg) return undefined
@@ -734,7 +807,7 @@ export default function StoryViewer({
   const emailsVisualizacao = visualizadoPorEmails(story.visualizado_por)
 
   const repostarStory = async () => {
-    if (!story?.id || !uid || repostando || !podeRepostarStory) return
+    if (!story?.id || !uid || !storyOriginalParaRepostId || repostando || !podeRepostarStory) return
     setRepostando(true)
     try {
       const {
@@ -744,22 +817,55 @@ export default function StoryViewer({
         setToastMsg('Inicie sessão para repostar.')
         return
       }
+      if (repostExistenteId) {
+        const { error: delErr } = await supabase
+          .from('stories')
+          .delete()
+          .eq('autor_id', session.user.id)
+          .eq('repost_story_id', storyOriginalParaRepostId)
+        if (delErr) throw delErr
+        setRepostExistenteId(null)
+        setToastMsg('Repost removido dos seus stories.')
+        window.dispatchEvent(new Event('guia-feed-rede-reload'))
+        return
+      }
+      const { data: jaExiste, error: existeErr } = await supabase
+        .from('stories')
+        .select('id')
+        .eq('autor_id', session.user.id)
+        .eq('repost_story_id', storyOriginalParaRepostId)
+        .gt('expira_em', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (existeErr) throw existeErr
+      if (jaExiste?.id) {
+        setRepostExistenteId(String(jaExiste.id))
+        setToastMsg('Este story já está repostado.')
+        return
+      }
       const { data: userRow } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
       const expira = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      const { error } = await supabase.from('stories').insert({
-        autor_id: session.user.id,
-        autor_tipo: typeof userRow?.role === 'string' && userRow.role ? userRow.role : 'turista',
-        tipo: story.tipo || 'foto',
-        conteudo_url: story.conteudo_url,
-        texto_sobreposto: story.texto_sobreposto ?? null,
-        link: story.link ?? null,
-        expira_em: expira,
-        duracao_segundos: story.duracao_segundos ?? 60,
-        marcacoes: [],
-        repost_story_id: story.id,
-      })
+      const { data: repostCriado, error } = await supabase
+        .from('stories')
+        .insert({
+          autor_id: session.user.id,
+          autor_tipo: typeof userRow?.role === 'string' && userRow.role ? userRow.role : 'turista',
+          tipo: story.tipo || 'foto',
+          conteudo_url: story.conteudo_url,
+          texto_sobreposto: story.texto_sobreposto ?? null,
+          link: story.link ?? null,
+          expira_em: expira,
+          duracao_segundos: story.duracao_segundos ?? 60,
+          marcacoes: story.marcacoes ?? [],
+          repost_story_id: storyOriginalParaRepostId,
+        })
+        .select('id')
+        .single()
       if (error) throw error
+      setRepostExistenteId(repostCriado?.id != null ? String(repostCriado.id) : null)
       setToastMsg('Story repostado no seu perfil.')
+      window.dispatchEvent(new Event('guia-feed-rede-reload'))
     } catch (e) {
       console.error('[StoryViewer] repostar story:', e)
       setToastMsg('Não foi possível repostar este story.')
@@ -863,22 +969,41 @@ export default function StoryViewer({
     setVideoProgress((v.currentTime / v.duration) * 100)
   }
 
+  const hrefAutorOriginalRepost = autorOriginalRepostId ? `/perfil/${autorOriginalRepostId}` : ''
+
   const headerLeft = autorId ? (
-    <Link
-      href={hrefAutor}
-      className="flex min-w-0 max-w-[78vw] items-center gap-2 py-1 text-white"
-    >
+    <div className="flex min-w-0 max-w-[78vw] items-center gap-2 py-1 text-white">
       <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-full bg-white/25 ring-2 ring-white/30">
-        {fotoAutor ? (
-          <AvatarImage src={fotoAutor} alt="" width={36} height={36} className="h-full w-full object-cover" />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center text-xs text-white/80">?</span>
-        )}
+        <Link href={hrefAutor} aria-label={`Perfil de ${rotuloAutor ?? 'usuário'}`} className="block h-full w-full">
+          {fotoAutor ? (
+            <AvatarImage src={fotoAutor} alt="" width={36} height={36} className="h-full w-full object-cover" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-xs text-white/80">?</span>
+          )}
+        </Link>
       </span>
       <span className="truncate text-sm font-semibold tracking-tight drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
-        {rotuloAutor ?? '…'}
+        {story.repost_story_id ? (
+          <>
+            <Link href={hrefAutor} className="hover:underline">
+              {rotuloAutor ?? '…'}
+            </Link>
+            <span className="font-medium text-white/85"> repostou story de </span>
+            {autorOriginalRepostId ? (
+              <Link href={hrefAutorOriginalRepost} className="hover:underline">
+                {rotuloAutorOriginalRepost ?? '…'}
+              </Link>
+            ) : (
+              <span>{rotuloAutorOriginalRepost ?? '…'}</span>
+            )}
+          </>
+        ) : (
+          <Link href={hrefAutor} className="hover:underline">
+            {rotuloAutor ?? '…'}
+          </Link>
+        )}
       </span>
-    </Link>
+    </div>
   ) : (
     <span />
   )
@@ -932,6 +1057,7 @@ export default function StoryViewer({
               posicaoLegenda={{ x: px, y: py }}
               linkUrl={linkStr}
               posicaoLink={{ x: linkX, y: linkY }}
+              marcacoes={marcacoesStory}
               fundo={fundo}
               textoScale={textoScale}
               linkHref={linkStr || null}
@@ -1165,13 +1291,17 @@ export default function StoryViewer({
             {podeRepostarStory ? (
               <button
                 type="button"
-                disabled={repostando}
+                disabled={repostando || checandoRepost}
                 onClick={() => void repostarStory()}
-                className="flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10 disabled:opacity-50"
-                aria-label="Repostar story"
+                className={`flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10 disabled:opacity-50 ${
+                  repostExistenteId ? 'text-[#0097b2]' : ''
+                }`}
+                aria-label={repostExistenteId ? 'Desfazer repost do story' : 'Repostar story'}
               >
                 <Repeat2 size={30} strokeWidth={2} />
-                <span className="text-[10px] font-medium text-white/85">{repostando ? '...' : 'Repostar'}</span>
+                <span className="text-[10px] font-medium text-white/85">
+                  {repostando || checandoRepost ? '...' : repostExistenteId ? 'Repostado' : 'Repostar'}
+                </span>
               </button>
             ) : null}
             <button

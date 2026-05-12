@@ -77,6 +77,9 @@ function clampFundoPan(scale, px, py, geo, imageObjectFit) {
  *   onFundoChange?: (f: StoryFundo) => void
  *   textoScale?: number
  *   onTextoScaleChange?: (s: number) => void
+ *   marcacoes?: { usuario_id: string, username: string, tipo?: string, posicao_x?: number, posicao_y?: number }[]
+ *   allowEditMarcacoes?: boolean
+ *   onMarcacaoPos?: (usuarioId: string, p: { x: number, y: number }) => void
  *   onEditarLegenda?: () => void
  *   onEditarLink?: () => void
  *   linkHref?: string | null
@@ -102,6 +105,9 @@ export default function StoryCanvas({
   onFundoChange,
   textoScale = 1,
   onTextoScaleChange,
+  marcacoes = [],
+  allowEditMarcacoes = false,
+  onMarcacaoPos,
   onEditarLegenda,
   onEditarLink,
   linkHref = null,
@@ -114,6 +120,7 @@ export default function StoryCanvas({
   const onTextoScaleChangeRef = useRef(onTextoScaleChange)
   const geoRef = useRef(/** @type {{ areaW: number, areaH: number, imgW: number, imgH: number }} */ ({ areaW: 0, areaH: 0, imgW: 0, imgH: 0 }))
   const legendaRef = useRef(/** @type {HTMLDivElement | null} */ (null))
+  const marcacaoRefs = useRef(/** @type {Map<string, HTMLDivElement>} */ (new Map()))
   /** Medição do chip do link (âncora/span), não do wrapper posicionado. */
   const linkChipRef = useRef(/** @type {HTMLAnchorElement | HTMLSpanElement | null} */ (null))
   /** Pinch: `mode` decide se altera foto ou overlay. */
@@ -126,11 +133,11 @@ export default function StoryCanvas({
   const textoScaleRef = useRef(textoScale)
   const imageObjectFitRef = useRef(imageObjectFit)
   const dragRef = useRef(
-    /** @type {null | { kind: 'img', sx: number, sy: number, fs: number, fpx: number, fpy: number } | { kind: 'text' | 'link', ox: number, oy: number }} */ (
+    /** @type {null | { kind: 'img', sx: number, sy: number, fs: number, fpx: number, fpy: number } | { kind: 'text' | 'link', ox: number, oy: number } | { kind: 'marcacao', usuarioId: string, ox: number, oy: number }} */ (
       null
     )
   )
-  const tapRef = useRef(/** @type {null | { kind: 'text' | 'link', x0: number, y0: number, moved: boolean }} */ (null))
+  const tapRef = useRef(/** @type {null | { kind: 'text' | 'link' | 'marcacao', x0: number, y0: number, moved: boolean }} */ (null))
   /** Viu ≥2 dedos neste gesto — evita abrir legenda após soltar o pinch. */
   const sawMultiTouchRef = useRef(false)
   /** Consome um `pointerUp` no overlay (texto/link) após pinch. */
@@ -279,8 +286,8 @@ export default function StoryCanvas({
     ]
   )
 
-  const clampOverlayPct = useCallback((kind, xPct, yPct) => {
-    const el = kind === 'text' ? legendaRef.current : linkChipRef.current
+  const clampOverlayPct = useCallback((kind, xPct, yPct, usuarioId = '') => {
+    const el = kind === 'text' ? legendaRef.current : kind === 'marcacao' ? marcacaoRefs.current.get(usuarioId) : linkChipRef.current
     const { areaW, areaH } = geoRef.current
     if (!el || !areaW || !areaH) {
       return {
@@ -331,6 +338,20 @@ export default function StoryCanvas({
         onLinkPos({ x: c.x, y: c.y })
         return
       }
+      if (d.kind === 'marcacao' && onMarcacaoPos) {
+        const t = tapRef.current
+        if (t?.kind === 'marcacao' && !t.moved) {
+          const dx = e.clientX - t.x0
+          const dy = e.clientY - t.y0
+          if (Math.hypot(dx, dy) > 6) tapRef.current = { ...t, moved: true }
+        }
+        const { x, y } = pctFromClient(e.clientX, e.clientY)
+        const rawX = x - d.ox
+        const rawY = y - d.oy
+        const c = clampOverlayPct('marcacao', rawX, rawY, d.usuarioId)
+        onMarcacaoPos(d.usuarioId, { x: c.x, y: c.y })
+        return
+      }
       if (d.kind === 'img' && onFundoChange && areaRef.current) {
         const rect = areaRef.current.getBoundingClientRect()
         const dx = ((e.clientX - d.sx) / rect.width) * 100
@@ -339,7 +360,7 @@ export default function StoryCanvas({
         onFundoChange({ scale: d.fs, ...c })
       }
     },
-    [onLegendaPos, onLinkPos, onFundoChange, pctFromClient, clampOverlayPct, imageObjectFit]
+    [onLegendaPos, onLinkPos, onMarcacaoPos, onFundoChange, pctFromClient, clampOverlayPct, imageObjectFit]
   )
 
   const pointerUp = useCallback(() => {
@@ -393,6 +414,24 @@ export default function StoryCanvas({
       }
     }
   }, [onEditarLegenda, onEditarLink])
+
+  const startMarcacao = useCallback(
+    /** @param {React.PointerEvent} e @param {{ usuario_id: string, posicao_x?: number, posicao_y?: number }} marcacao */
+    (e, marcacao) => {
+      if (!allowEditMarcacoes || !onMarcacaoPos || !marcacao.usuario_id) return
+      e.preventDefault()
+      e.stopPropagation()
+      setZoomTarget('overlay')
+      tapRef.current = { kind: 'marcacao', x0: e.clientX, y0: e.clientY, moved: false }
+      updateAreaGeo()
+      const { x, y } = pctFromClient(e.clientX, e.clientY)
+      const mx = typeof marcacao.posicao_x === 'number' ? marcacao.posicao_x : 50
+      const my = typeof marcacao.posicao_y === 'number' ? marcacao.posicao_y : 50
+      dragRef.current = { kind: 'marcacao', usuarioId: marcacao.usuario_id, ox: x - mx, oy: y - my }
+      e.currentTarget.setPointerCapture(e.pointerId)
+    },
+    [allowEditMarcacoes, onMarcacaoPos, pctFromClient, updateAreaGeo]
+  )
 
   const startText = useCallback(
     /** @param {React.PointerEvent} e */
@@ -592,6 +631,37 @@ export default function StoryCanvas({
           )}
         </div>
       ) : null}
+
+      {marcacoes.map((m, index) => {
+        const usuarioId = String(m.usuario_id ?? '')
+        const username = String(m.username ?? '').replace(/^@+/, '').trim()
+        if (!usuarioId || !username) return null
+        const x = typeof m.posicao_x === 'number' ? m.posicao_x : clamp(12, 50 + index * 4, 88)
+        const y = typeof m.posicao_y === 'number' ? m.posicao_y : clamp(14, 58 + index * 5, 88)
+        return (
+          <div
+            key={usuarioId}
+            ref={(el) => {
+              if (el) marcacaoRefs.current.set(usuarioId, el)
+              else marcacaoRefs.current.delete(usuarioId)
+            }}
+            role="text"
+            aria-label={`Marcação @${username}`}
+            className={`absolute z-10 inline-block max-w-[88%] select-none rounded bg-black/35 px-2 py-1 text-center text-base font-semibold text-white sm:text-lg ${
+              allowEditMarcacoes ? 'cursor-move touch-none' : ''
+            }`}
+            style={{
+              left: `${x}%`,
+              top: `${y}%`,
+              transform: `translate(-50%, -50%) scale(${textoScale})`,
+              textShadow: textoSombreado.textShadow,
+            }}
+            onPointerDown={(e) => startMarcacao(e, m)}
+          >
+            @{username}
+          </div>
+        )
+      })}
     </div>
   )
 }

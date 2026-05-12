@@ -22,7 +22,9 @@ export default function CriarStory({ autorTipo }) {
   const [fundo, setFundo] = useState({ scale: 1, pan_x_pct: 0, pan_y_pct: 0 })
   const [textoScale, setTextoScale] = useState(1)
   const [linkUrl, setLinkUrl] = useState('')
-  const [marcacoes, setMarcacoes] = useState(/** @type {{ usuario_id: string, username: string, tipo: string }[]} */ ([]))
+  const [marcacoes, setMarcacoes] = useState(
+    /** @type {{ usuario_id: string, username: string, tipo: string, posicao_x?: number, posicao_y?: number }[]} */ ([])
+  )
   const [publicando, setPublicando] = useState(false)
 
   const inputPrincipalRef = useRef(/** @type {HTMLInputElement | null} */ (null))
