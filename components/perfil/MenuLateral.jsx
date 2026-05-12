@@ -699,7 +699,7 @@ export default function MenuLateral({
           <>
             <div className="shrink-0 border-b border-gray-100 px-4 pt-0 pb-2">
               <div className="flex items-center gap-3">
-                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-gray-200">
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-200">
                   {fotoUrl ? <Image src={fotoUrl} alt="" fill className="object-cover" sizes="56px" /> : null}
                 </div>
                 <div className="min-w-0">

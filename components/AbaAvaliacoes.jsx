@@ -53,6 +53,9 @@ export default function AbaAvaliacoes({
   const [editingReplyAvaliacaoId, setEditingReplyAvaliacaoId] = useState(/** @type {string | null} */ (null))
   const [replyDraft, setReplyDraft] = useState('')
   const [savingReply, setSavingReply] = useState(false)
+  const [empresaResposta, setEmpresaResposta] = useState(
+    /** @type {{ foto_url: string | null, nome: string }} */ ({ foto_url: null, nome: 'Empresa' })
+  )
 
   useEffect(() => {
     const getUsuario = async () => {
@@ -67,6 +70,33 @@ export default function AbaAvaliacoes({
     }
     getUsuario()
   }, [])
+
+  useEffect(() => {
+    if (!empresaId) {
+      setEmpresaResposta({ foto_url: null, nome: 'Empresa' })
+      return
+    }
+    let cancelado = false
+    void supabase
+      .from('empresas')
+      .select('foto_url, nome_fantasia, nome_usuario')
+      .eq('id', empresaId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelado) return
+        const nome =
+          data?.nome_fantasia != null && String(data.nome_fantasia).trim() !== ''
+            ? String(data.nome_fantasia).trim()
+            : data?.nome_usuario != null && String(data.nome_usuario).trim() !== ''
+              ? String(data.nome_usuario).trim()
+              : 'Empresa'
+        const foto = data?.foto_url != null && String(data.foto_url).trim() !== '' ? String(data.foto_url) : null
+        setEmpresaResposta({ foto_url: foto, nome })
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [empresaId])
 
   const carregarSeqRef = useRef(0)
 
@@ -570,10 +600,10 @@ export default function AbaAvaliacoes({
                     alt={av.avaliador.nome}
                     width={40}
                     height={40}
-                    className="h-10 w-10 rounded-full object-cover"
+                    className="h-10 w-10 rounded-md object-cover"
                   />
                 ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-200">
                     <User size={20} className="text-gray-400" aria-hidden />
                   </div>
                 )}
@@ -628,9 +658,26 @@ export default function AbaAvaliacoes({
               ) : null}
 
               {av.resposta ? (
-                <div className="mt-3 rounded-r-lg border border-slate-100 bg-slate-50 py-2 pr-3 pl-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#0097b2]">Resposta da empresa</p>
-                  <p className="mt-1 text-sm text-gray-700">{av.resposta.texto}</p>
+                <div className="mt-3 flex items-start gap-3 rounded-r-lg border border-slate-100 bg-slate-50 py-2 pr-3 pl-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#0097b2]">Resposta da empresa</p>
+                    <p className="mt-1 text-sm text-gray-700">{av.resposta.texto}</p>
+                  </div>
+                  <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                    {empresaResposta.foto_url ? (
+                      <Image
+                        src={empresaResposta.foto_url}
+                        alt={empresaResposta.nome}
+                        fill
+                        className="object-cover"
+                        sizes="32px"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <ShieldCheck size={18} className="text-[#0097b2]" aria-hidden />
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : null}
 
