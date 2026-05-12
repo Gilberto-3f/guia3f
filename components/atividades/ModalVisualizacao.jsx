@@ -54,8 +54,29 @@ export default function ModalVisualizacao({
 
   /** Deslize horizontal no miolo do modal para mudar de foto (carrossel). */
   const swipeRef = useRef({ x: 0, y: 0, active: false })
+  const postCacheRef = useRef(/** @type {Map<string, ReturnType<typeof mapPostComAutoresRow> | null>} */ (new Map()))
 
   const postIdAtivo = ids[indiceAtual] ?? null
+
+  const carregarPostPorId = useCallback(async (postId) => {
+    const id = String(postId ?? '')
+    if (!id) return null
+    if (postCacheRef.current.has(id)) return postCacheRef.current.get(id) ?? null
+
+    const { data, error } = await supabase.from(POSTS_FEED_VIEW).select('*').eq('id', id).maybeSingle()
+    if (error || !data) {
+      postCacheRef.current.set(id, null)
+      return null
+    }
+    const row = /** @type {Record<string, unknown>} */ (data)
+    if (row.deleted_at != null) {
+      postCacheRef.current.set(id, null)
+      return null
+    }
+    const mapped = mapPostComAutoresRow(data)
+    postCacheRef.current.set(id, mapped)
+    return mapped
+  }, [])
 
   const onTouchStartCarouselNav = useCallback(
     (e) => {
@@ -143,27 +164,47 @@ export default function ModalVisualizacao({
     }
     let ativo = true
     void (async () => {
+      const cached = postCacheRef.current.get(postIdAtivo)
+      if (cached !== undefined) {
+        setPost(cached)
+        setCarregando(false)
+        return
+      }
+
       setCarregando(true)
-      const { data, error } = await supabase.from(POSTS_FEED_VIEW).select('*').eq('id', postIdAtivo).maybeSingle()
+      setPost(null)
+      const mapped = await carregarPostPorId(postIdAtivo)
       if (!ativo) return
-      if (error || !data) {
-        setPost(null)
-        setCarregando(false)
-        return
-      }
-      const row = /** @type {Record<string, unknown>} */ (data)
-      if (row.deleted_at != null) {
-        setPost(null)
-        setCarregando(false)
-        return
-      }
-      setPost(mapPostComAutoresRow(data))
+      setPost(mapped)
       setCarregando(false)
     })()
     return () => {
       ativo = false
     }
-  }, [aberto, postIdAtivo])
+  }, [aberto, postIdAtivo, carregarPostPorId])
+
+  useEffect(() => {
+    if (!aberto || !isCarrossel || ids.length < 2) return
+    const proximos = [indiceAtual + 1, indiceAtual - 1].filter((i) => i >= 0 && i < ids.length)
+    for (const i of proximos) {
+      const id = ids[i]
+      if (id && !postCacheRef.current.has(id)) {
+        void carregarPostPorId(id)
+      }
+    }
+  }, [aberto, carregarPostPorId, ids, indiceAtual, isCarrossel])
+
+  useEffect(() => {
+    if (!aberto || !isCarrossel) return
+    const urls = [thumbs[indiceAtual + 1], thumbs[indiceAtual - 1], thumbs[indiceAtual]]
+      .map((u) => (u != null ? String(u).trim() : ''))
+      .filter(Boolean)
+    for (const url of urls) {
+      const img = new window.Image()
+      img.decoding = 'async'
+      img.src = url
+    }
+  }, [aberto, thumbs, indiceAtual, isCarrossel])
 
   useEffect(() => {
     const postOriginalId =
@@ -272,7 +313,11 @@ export default function ModalVisualizacao({
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={onFechar} />
       <div
         className="relative z-[1] flex min-h-0 w-full max-w-[min(98.5vw,1152px)] flex-col overflow-hidden rounded-xl bg-white shadow-xl"
-        style={{ maxHeight: 'min(92vh, calc(100vh - 2rem))' }}
+        style={
+          isCarrossel
+            ? { height: 'min(92vh, calc(100vh - 2rem))', maxHeight: 'min(92vh, calc(100vh - 2rem))' }
+            : { maxHeight: 'min(92vh, calc(100vh - 2rem))' }
+        }
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-atividade-titulo"
@@ -387,9 +432,18 @@ export default function ModalVisualizacao({
             onTouchCancel={onTouchCancelCarouselNav}
           >
             {carregando ? (
-              <div className="py-12 text-center text-sm text-gray-400">Carregando publicação…</div>
+              <div
+                className={`flex ${isCarrossel ? 'min-h-[70vh]' : 'min-h-[240px]'} items-center justify-center rounded-xl bg-gray-50`}
+              >
+                <div className="h-72 w-full max-w-md animate-pulse rounded-xl bg-gray-200" aria-hidden />
+                <span className="sr-only">Carregando publicação…</span>
+              </div>
             ) : !post ? (
-              <div className="py-12 text-center text-sm text-gray-500">Esta publicação não está disponível.</div>
+              <div
+                className={`flex ${isCarrossel ? 'min-h-[70vh]' : 'min-h-[240px]'} items-center justify-center text-sm text-gray-500`}
+              >
+                Esta publicação não está disponível.
+              </div>
             ) : (
               <PostCard
                 post={post}
