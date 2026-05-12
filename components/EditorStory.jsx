@@ -7,7 +7,7 @@ import AvatarImage from '@/components/AvatarImage'
 import { supabase } from '@/lib/supabase'
 
 /**
- * @typedef {{ usuario_id: string, username: string, nome: string, foto_url: string | null, tipo: string }} PerfilMarcacao
+ * @typedef {{ usuario_id: string, username: string, nome: string, foto_url: string | null, tipo: string, empresa_id?: string | null }} PerfilMarcacao
  */
 
 /**
@@ -26,8 +26,8 @@ import { supabase } from '@/lib/supabase'
  *   onTextoScaleChange: (s: number) => void
  *   linkUrl: string
  *   onLinkChange: (s: string) => void
- *   marcacoes?: { usuario_id: string, username: string, tipo: string, posicao_x?: number, posicao_y?: number }[]
- *   onMarcacoesChange?: (m: { usuario_id: string, username: string, tipo: string, posicao_x?: number, posicao_y?: number }[]) => void
+ *   marcacoes?: { usuario_id: string, username: string, tipo: string, nome?: string, foto_url?: string | null, empresa_id?: string | null, posicao_x?: number, posicao_y?: number }[]
+ *   onMarcacoesChange?: (m: { usuario_id: string, username: string, tipo: string, nome?: string, foto_url?: string | null, empresa_id?: string | null, posicao_x?: number, posicao_y?: number }[]) => void
  *   onTrocarFoto: () => void
  *   onPublicar: () => void
  *   publicando?: boolean
@@ -58,6 +58,24 @@ export default function EditorStory({
   const [termoMarcacao, setTermoMarcacao] = useState('')
   const [buscandoMarcacao, setBuscandoMarcacao] = useState(false)
   const [resultadosMarcacao, setResultadosMarcacao] = useState(/** @type {PerfilMarcacao[]} */ ([]))
+  const [meuUsuarioId, setMeuUsuarioId] = useState(/** @type {string | null} */ (null))
+  const [toastMarcacao, setToastMarcacao] = useState(/** @type {string | null} */ (null))
+
+  useEffect(() => {
+    let cancel = false
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!cancel) setMeuUsuarioId(data.session?.user?.id ?? null)
+    })
+    return () => {
+      cancel = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!toastMarcacao) return undefined
+    const t = window.setTimeout(() => setToastMarcacao(null), 2800)
+    return () => window.clearTimeout(t)
+  }, [toastMarcacao])
 
   useEffect(() => {
     if (painel !== 'marcar') return
@@ -72,7 +90,7 @@ export default function EditorStory({
       void (async () => {
         setBuscandoMarcacao(true)
         const pattern = `%${termo}%`
-        const cols = 'usuario_id, username, nome, foto_url, tipo'
+        const cols = 'usuario_id, empresa_id, username, nome, foto_url, tipo'
         const [porUsername, porNome] = await Promise.all([
           supabase.from('perfis_para_busca').select(cols).ilike('username', pattern).limit(12),
           supabase.from('perfis_para_busca').select(cols).ilike('nome', pattern).limit(12),
@@ -96,6 +114,7 @@ export default function EditorStory({
             nome: row.nome != null ? String(row.nome) : 'Usuário',
             foto_url: row.foto_url != null ? String(row.foto_url) : null,
             tipo: row.tipo != null ? String(row.tipo) : 'turista',
+            empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
           })
         }
         setResultadosMarcacao([...map.values()].slice(0, 12))
@@ -111,6 +130,10 @@ export default function EditorStory({
   /** @param {PerfilMarcacao} perfil */
   const adicionarMarcacao = (perfil) => {
     if (!onMarcacoesChange) return
+    if (meuUsuarioId && perfil.usuario_id === meuUsuarioId) {
+      setToastMarcacao('Você não pode marcar a si mesmo')
+      return
+    }
     if (marcacoes.some((m) => m.usuario_id === perfil.usuario_id)) return
     const offset = marcacoes.length % 5
     onMarcacoesChange([
@@ -119,6 +142,9 @@ export default function EditorStory({
         usuario_id: perfil.usuario_id,
         username: perfil.username,
         tipo: perfil.tipo,
+        nome: perfil.nome,
+        foto_url: perfil.foto_url,
+        empresa_id: perfil.empresa_id ?? null,
         posicao_x: Math.min(82, 50 + offset * 5),
         posicao_y: Math.min(82, 58 + offset * 6),
       },
@@ -314,6 +340,11 @@ export default function EditorStory({
               autoFocus
             />
           </div>
+          {toastMarcacao ? (
+            <p className="mb-3 rounded-lg bg-white/10 px-3 py-2 text-center text-xs font-semibold text-white sm:bg-red-50 sm:text-red-700" role="status">
+              {toastMarcacao}
+            </p>
+          ) : null}
 
           {marcacoes.length > 0 ? (
             <div className="mb-3 flex flex-wrap gap-2">
@@ -339,6 +370,7 @@ export default function EditorStory({
             <ul className="divide-y divide-white/10 sm:divide-gray-100">
               {resultadosMarcacao.map((p) => {
                 const marcado = marcacoes.some((m) => m.usuario_id === p.usuario_id)
+                const souEu = Boolean(meuUsuarioId && p.usuario_id === meuUsuarioId)
                 return (
                   <li key={p.usuario_id} className="py-1">
                     <button
@@ -355,7 +387,7 @@ export default function EditorStory({
                         <span className="block truncate text-xs text-white/60 sm:text-gray-500">@{p.username}</span>
                       </span>
                       <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-white/70 sm:bg-gray-100 sm:text-gray-500">
-                        {marcado ? 'Marcado' : p.tipo}
+                        {marcado ? 'Marcado' : souEu ? 'Você' : p.tipo}
                       </span>
                     </button>
                   </li>

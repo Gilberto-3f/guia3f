@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ClipboardList, Flag, Heart, Link2, MoreHorizontal, Play, Repeat2, Volume2, VolumeX, X } from 'lucide-react'
 import BotaoSeguir from '@/components/BotaoSeguir'
@@ -96,7 +96,7 @@ function normalizarCurtidasRawParaArray(raw) {
 
 /**
  * @param {unknown} raw
- * @returns {{ usuario_id: string, username: string, tipo: string, posicao_x?: number, posicao_y?: number }[]}
+ * @returns {{ usuario_id: string, username: string, tipo: string, nome?: string, foto_url?: string | null, empresa_id?: string | null, posicao_x?: number, posicao_y?: number }[]}
  */
 function normalizarMarcacoesStory(raw) {
   if (!Array.isArray(raw)) return []
@@ -110,6 +110,9 @@ function normalizarMarcacoesStory(raw) {
       usuario_id,
       username: r.username != null ? String(r.username) : '',
       tipo: r.tipo != null ? String(r.tipo) : '',
+      nome: r.nome != null ? String(r.nome) : undefined,
+      foto_url: r.foto_url != null ? String(r.foto_url) : null,
+      empresa_id: r.empresa_id != null ? String(r.empresa_id) : null,
       posicao_x: typeof r.posicao_x === 'number' ? r.posicao_x : undefined,
       posicao_y: typeof r.posicao_y === 'number' ? r.posicao_y : undefined,
     })
@@ -223,6 +226,7 @@ export default function StoryViewer({
   const pressStartRef = useRef(0)
   const pressLongRef = useRef(false)
   const marcacaoCardSeqRef = useRef(0)
+  const marcacaoPerfilCacheRef = useRef(/** @type {Map<string, { usuario_id: string, username: string, nome: string, foto_url: string | null, tipo: string, empresa_id: string | null, href: string }>} */ (new Map()))
   /** Dedo a segurar: temporizador congelado até `pointerup`. */
   const holdPausedRef = useRef(false)
   const frozenElapsedRef = useRef(0)
@@ -686,9 +690,56 @@ export default function StoryViewer({
   }
 
   const souAutor = Boolean(uid && autorId && uid === autorId)
-  const marcacoesStory = normalizarMarcacoesStory(story?.marcacoes)
+  const marcacoesStory = useMemo(() => normalizarMarcacoesStory(story?.marcacoes), [story?.marcacoes])
   const storyOriginalParaRepostId = story?.repost_story_id ? String(story.repost_story_id) : story?.id ? String(story.id) : null
   const podeRepostarStory = Boolean(uid && !souAutor && storyOriginalParaRepostId && marcacoesStory.some((m) => m.usuario_id === uid))
+
+  useEffect(() => {
+    if (!story?.id || marcacoesStory.length === 0) return
+    let cancel = false
+    const ids = marcacoesStory
+      .map((m) => String(m.usuario_id ?? '').trim())
+      .filter((id) => id && !marcacaoPerfilCacheRef.current.has(id))
+    if (ids.length === 0) return
+
+    void (async () => {
+      const { data, error } = await supabase
+        .from('perfis_para_busca')
+        .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
+        .in('usuario_id', ids)
+      if (cancel) return
+      if (error) {
+        console.error('[StoryViewer] pré-carregar perfis das marcações:', error)
+        return
+      }
+      for (const row of data ?? []) {
+        const perfilUsuarioId = row.usuario_id != null ? String(row.usuario_id) : ''
+        if (!perfilUsuarioId) continue
+        const tipo = row.tipo != null ? String(row.tipo) : ''
+        const empresaId = row.empresa_id != null ? String(row.empresa_id) : null
+        const username = row.username != null ? String(row.username).replace(/^@+/, '').trim() : 'usuario'
+        const nome = row.nome != null && String(row.nome).trim() ? String(row.nome).trim() : `@${username}`
+        marcacaoPerfilCacheRef.current.set(perfilUsuarioId, {
+          usuario_id: perfilUsuarioId,
+          username,
+          nome,
+          foto_url: row.foto_url != null && String(row.foto_url).trim() ? String(row.foto_url) : null,
+          tipo,
+          empresa_id: empresaId,
+          href: getPerfilHref({
+            usuario_id: perfilUsuarioId,
+            tipo,
+            empresa_id: empresaId,
+            role: empresaId ? 'empresa' : undefined,
+          }),
+        })
+      }
+    })()
+
+    return () => {
+      cancel = true
+    }
+  }, [story?.id, marcacoesStory])
 
   useEffect(() => {
     setMenuMaisOpcoes(false)
@@ -825,22 +876,39 @@ export default function StoryViewer({
     const usernameBase = String(marcacao?.username ?? 'usuario').replace(/^@+/, '').trim() || 'usuario'
     if (!usuarioId) return
 
-    const x = clampNumber(110, pos.clientX, Math.max(110, window.innerWidth - 110))
-    const y = clampNumber(80, pos.clientY + 14, Math.max(80, window.innerHeight - 160))
+    const cardWidth = 220
+    const cardHeight = 58
+    const margin = 10
+    const x = clampNumber(cardWidth / 2 + margin, pos.clientX, Math.max(cardWidth / 2 + margin, window.innerWidth - cardWidth / 2 - margin))
+    const y = clampNumber(70, pos.clientY + 10, Math.max(70, window.innerHeight - cardHeight - margin))
     const seq = marcacaoCardSeqRef.current + 1
     marcacaoCardSeqRef.current = seq
-
-    setCardMarcacao({
+    const cached = marcacaoPerfilCacheRef.current.get(usuarioId)
+    const nomeMarcacao = typeof marcacao?.nome === 'string' && marcacao.nome.trim() ? marcacao.nome.trim() : `@${usernameBase}`
+    const tipoMarcacao = String(marcacao?.tipo ?? '')
+    const empresaIdMarcacao = marcacao?.empresa_id != null ? String(marcacao.empresa_id) : null
+    const fallback = cached ?? {
       usuario_id: usuarioId,
       username: usernameBase,
-      nome: `@${usernameBase}`,
-      foto_url: null,
-      tipo: String(marcacao?.tipo ?? ''),
-      empresa_id: null,
-      href: `/perfil/${usuarioId}`,
+      nome: nomeMarcacao,
+      foto_url: marcacao?.foto_url != null && String(marcacao.foto_url).trim() ? String(marcacao.foto_url) : null,
+      tipo: tipoMarcacao,
+      empresa_id: empresaIdMarcacao,
+      href: getPerfilHref({
+        usuario_id: usuarioId,
+        tipo: tipoMarcacao,
+        empresa_id: empresaIdMarcacao,
+        role: empresaIdMarcacao ? 'empresa' : undefined,
+      }),
+    }
+
+    setCardMarcacao({
+      ...fallback,
       x,
       y,
     })
+
+    if (cached) return
 
     const { data, error } = await supabase
       .from('perfis_para_busca')
@@ -858,7 +926,7 @@ export default function StoryViewer({
     const tipo = data.tipo != null ? String(data.tipo) : String(marcacao?.tipo ?? '')
     const empresaId = data.empresa_id != null ? String(data.empresa_id) : null
     const username = data.username != null ? String(data.username).replace(/^@+/, '').trim() : usernameBase
-    setCardMarcacao({
+    const perfilCard = {
       usuario_id: perfilUsuarioId,
       username: username || usernameBase,
       nome: data.nome != null && String(data.nome).trim() ? String(data.nome).trim() : `@${username || usernameBase}`,
@@ -871,9 +939,10 @@ export default function StoryViewer({
         empresa_id: empresaId,
         role: empresaId ? 'empresa' : undefined,
       }),
-      x,
-      y,
-    })
+    }
+    marcacaoPerfilCacheRef.current.set(usuarioId, perfilCard)
+    marcacaoPerfilCacheRef.current.set(perfilUsuarioId, perfilCard)
+    setCardMarcacao({ ...perfilCard, x, y })
   }
 
   const podeIniciarPausaPeloAlvo = (target) => {
@@ -960,7 +1029,7 @@ export default function StoryViewer({
           link: story.link ?? null,
           expira_em: expira,
           duracao_segundos: story.duracao_segundos ?? 60,
-          marcacoes: story.marcacoes ?? [],
+          marcacoes: [],
           repost_story_id: storyOriginalParaRepostId,
         })
         .select('id')
@@ -1126,7 +1195,18 @@ export default function StoryViewer({
     'flex w-full min-h-11 items-center gap-3 px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-[#007a8f] disabled:opacity-50'
 
   return (
-    <div ref={rootRef} className="fixed inset-0 z-[100] flex flex-col bg-black">
+    <div
+      ref={rootRef}
+      className="fixed inset-0 z-[100] flex select-none flex-col bg-black"
+      style={{
+        touchAction: 'manipulation',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+    >
       <div
         className="pointer-events-none absolute inset-x-0 top-0 z-30 pt-[max(0.35rem,env(safe-area-inset-top))]"
         aria-hidden
@@ -1346,7 +1426,7 @@ export default function StoryViewer({
           <Link
             href={cardMarcacao.href}
             data-story-no-hold
-            className="fixed z-[60] flex w-[min(calc(100vw-2rem),280px)] items-center gap-3 rounded-2xl border border-white/20 bg-white p-3 text-gray-900 shadow-2xl"
+            className="fixed z-[60] flex w-[min(calc(100vw-1.25rem),220px)] items-center gap-2 rounded-xl border border-white/20 bg-white p-2 text-gray-900 shadow-2xl"
             style={{
               left: `${cardMarcacao.x}px`,
               top: `${cardMarcacao.y}px`,
@@ -1354,9 +1434,9 @@ export default function StoryViewer({
             }}
             onClick={() => setCardMarcacao(null)}
           >
-            <span className="relative block h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
+            <span className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
               {cardMarcacao.foto_url ? (
-                <AvatarImage src={cardMarcacao.foto_url} alt="" width={48} height={48} className="h-full w-full object-cover" />
+                <AvatarImage src={cardMarcacao.foto_url} alt="" width={40} height={40} className="h-full w-full object-cover" />
               ) : (
                 <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0097b2]/80 to-[#006b7d] text-sm font-bold uppercase text-white">
                   {iniciaisRotulo(cardMarcacao.nome)}
@@ -1364,7 +1444,7 @@ export default function StoryViewer({
               )}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold text-gray-900">{cardMarcacao.nome}</span>
+              <span className="block truncate text-xs font-semibold text-gray-900">{cardMarcacao.nome}</span>
               <span className="block truncate text-xs font-medium text-gray-500">@{cardMarcacao.username}</span>
             </span>
           </Link>

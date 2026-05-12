@@ -77,10 +77,10 @@ function clampFundoPan(scale, px, py, geo, imageObjectFit) {
  *   onFundoChange?: (f: StoryFundo) => void
  *   textoScale?: number
  *   onTextoScaleChange?: (s: number) => void
- *   marcacoes?: { usuario_id: string, username: string, tipo?: string, posicao_x?: number, posicao_y?: number }[]
+ *   marcacoes?: { usuario_id: string, username: string, tipo?: string, nome?: string, foto_url?: string | null, empresa_id?: string | null, posicao_x?: number, posicao_y?: number }[]
  *   allowEditMarcacoes?: boolean
  *   onMarcacaoPos?: (usuarioId: string, p: { x: number, y: number }) => void
- *   onMarcacaoClick?: (marcacao: { usuario_id: string, username: string, tipo?: string, posicao_x?: number, posicao_y?: number }, pos: { clientX: number, clientY: number }) => void
+ *   onMarcacaoClick?: (marcacao: { usuario_id: string, username: string, tipo?: string, nome?: string, foto_url?: string | null, empresa_id?: string | null, posicao_x?: number, posicao_y?: number }, pos: { clientX: number, clientY: number }) => void
  *   onEditarLegenda?: () => void
  *   onEditarLink?: () => void
  *   linkHref?: string | null

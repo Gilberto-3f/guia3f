@@ -23,7 +23,7 @@ export default function CriarStory({ autorTipo }) {
   const [textoScale, setTextoScale] = useState(1)
   const [linkUrl, setLinkUrl] = useState('')
   const [marcacoes, setMarcacoes] = useState(
-    /** @type {{ usuario_id: string, username: string, tipo: string, posicao_x?: number, posicao_y?: number }[]} */ ([])
+    /** @type {{ usuario_id: string, username: string, tipo: string, nome?: string, foto_url?: string | null, empresa_id?: string | null, posicao_x?: number, posicao_y?: number }[]} */ ([])
   )
   const [publicando, setPublicando] = useState(false)
 
