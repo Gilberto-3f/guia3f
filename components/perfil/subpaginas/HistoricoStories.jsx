@@ -70,6 +70,27 @@ function normalizarMarcacoes(raw) {
     .filter(Boolean)
 }
 
+/** @param {string} conteudoUrl */
+function extrairCaminhoStorageStory(conteudoUrl) {
+  const raw = String(conteudoUrl ?? '').trim()
+  if (!raw) return null
+
+  const marker = '/storage/v1/object/public/stories/'
+  const idx = raw.indexOf(marker)
+  if (idx >= 0) {
+    const path = raw.slice(idx + marker.length).split('?')[0]
+    if (!path) return null
+    try {
+      return decodeURIComponent(path)
+    } catch {
+      return path
+    }
+  }
+
+  if (/^https?:\/\//i.test(raw)) return null
+  return raw.replace(/^\/+/, '')
+}
+
 /**
  * @param {{
  *   usuarioId: string | null
@@ -82,6 +103,7 @@ export default function HistoricoStories({ usuarioId }) {
   const [meuEmail, setMeuEmail] = useState(/** @type {string | null} */ (null))
   const [confirmando, setConfirmando] = useState(/** @type {{ story: StoryHistorico, etapa: 1 | 2 } | null} */ (null))
   const [excluindo, setExcluindo] = useState(false)
+  const [toast, setToast] = useState(/** @type {{ tipo: 'sucesso' | 'erro', texto: string } | null} */ (null))
 
   const carregar = useCallback(async () => {
     if (!usuarioId) {
@@ -136,6 +158,12 @@ export default function HistoricoStories({ usuarioId }) {
     void carregar()
   }, [carregar])
 
+  useEffect(() => {
+    if (!toast) return undefined
+    const t = window.setTimeout(() => setToast(null), 4500)
+    return () => window.clearTimeout(t)
+  }, [toast])
+
   const excluirStory = async () => {
     if (!confirmando || !usuarioId || excluindo) return
     if (confirmando.etapa === 1) {
@@ -144,18 +172,54 @@ export default function HistoricoStories({ usuarioId }) {
     }
     setExcluindo(true)
     try {
+      const story = confirmando.story
+      const conteudoUrl = String(story.conteudo_url ?? '').trim()
+      let outrosUsos = 0
+
+      if (conteudoUrl) {
+        const { count, error: usoErr } = await supabase
+          .from('stories')
+          .select('id', { count: 'exact', head: true })
+          .eq('conteudo_url', conteudoUrl)
+          .neq('id', story.id)
+
+        if (usoErr) throw usoErr
+        outrosUsos = count ?? 0
+      }
+
       const { error } = await supabase
         .from('stories')
         .delete()
-        .eq('id', confirmando.story.id)
+        .eq('id', story.id)
         .eq('autor_id', usuarioId)
       if (error) throw error
-      setStories((prev) => prev.filter((s) => s.id !== confirmando.story.id))
-      setStoryAberto((prev) => (prev?.id === confirmando.story.id ? null : prev))
+
+      let storageErro = false
+      if (conteudoUrl && outrosUsos === 0) {
+        const storagePath = extrairCaminhoStorageStory(conteudoUrl)
+        if (storagePath) {
+          const { error: removeErr } = await supabase.storage.from('stories').remove([storagePath])
+          if (removeErr) {
+            storageErro = true
+            console.error('[HistoricoStories] remover mídia:', removeErr)
+          }
+        }
+      }
+
+      setStories((prev) => prev.filter((s) => s.id !== story.id))
+      setStoryAberto((prev) => (prev?.id === story.id ? null : prev))
       setConfirmando(null)
+      setToast({
+        tipo: storageErro ? 'erro' : 'sucesso',
+        texto: storageErro
+          ? 'Story excluído, mas não foi possível remover a mídia do Storage.'
+          : outrosUsos > 0
+            ? 'Story excluído. A mídia foi mantida porque ainda é usada por reposts.'
+            : 'Story excluído definitivamente.',
+      })
     } catch (e) {
       console.error('[HistoricoStories] excluir:', e)
-      alert('Não foi possível excluir o story.')
+      setToast({ tipo: 'erro', texto: 'Não foi possível excluir o story.' })
     } finally {
       setExcluindo(false)
     }
@@ -276,6 +340,17 @@ export default function HistoricoStories({ usuarioId }) {
               </button>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {toast ? (
+        <div
+          className={`fixed bottom-5 left-1/2 z-[170] w-[min(calc(100vw-2rem),360px)] -translate-x-1/2 rounded-xl px-4 py-3 text-center text-sm font-semibold text-white shadow-lg ${
+            toast.tipo === 'erro' ? 'bg-red-600' : 'bg-[#0097b2]'
+          }`}
+          role="status"
+        >
+          {toast.texto}
         </div>
       ) : null}
     </div>
