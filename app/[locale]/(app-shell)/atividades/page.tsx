@@ -639,6 +639,117 @@ export default function AtividadesPage() {
       m = mergeRows(m, (origData ?? []) as unknown[])
     }
 
+    const postsAvaliacao = Object.values(m).filter((p) => {
+      const tipo = String(p.tipo ?? '').toLowerCase()
+      return tipo === 'avaliacao' && p.avaliacao_meta && typeof p.avaliacao_meta === 'object' && !Array.isArray(p.avaliacao_meta)
+    })
+
+    if (postsAvaliacao.length > 0) {
+      const empresaIds = new Set<string>()
+      const profissionalIds = new Set<string>()
+
+      for (const p of postsAvaliacao) {
+        const meta = p.avaliacao_meta as Record<string, unknown>
+        const alvoTipo = String(meta.alvo_tipo ?? '').toLowerCase()
+        const empresaId = meta.empresa_id != null ? String(meta.empresa_id).trim() : ''
+        const profissionalId =
+          meta.profissional_id != null
+            ? String(meta.profissional_id).trim()
+            : alvoTipo === 'profissional' && meta.alvo_id != null
+              ? String(meta.alvo_id).trim()
+              : ''
+        if (empresaId) empresaIds.add(empresaId)
+        if (profissionalId) profissionalIds.add(profissionalId)
+      }
+
+      const empresaIdsArr = [...empresaIds]
+      const profissionalIdsArr = [...profissionalIds]
+      const [empRes, profIdRes, profUsuarioRes] = await Promise.all([
+        empresaIdsArr.length > 0
+          ? supabase.from('empresas').select('id, nome_fantasia, nome_usuario, foto_url').in('id', empresaIdsArr)
+          : Promise.resolve({ data: [], error: null }),
+        profissionalIdsArr.length > 0
+          ? supabase
+              .from('profissionais')
+              .select('id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url')
+              .in('id', profissionalIdsArr)
+          : Promise.resolve({ data: [], error: null }),
+        profissionalIdsArr.length > 0
+          ? supabase
+              .from('profissionais')
+              .select('id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url')
+              .in('usuario_id', profissionalIdsArr)
+          : Promise.resolve({ data: [], error: null }),
+      ])
+
+      const empresasAtuais = new Map<string, { nome_fantasia?: string | null; nome_usuario?: string | null; foto_url?: string | null }>()
+      if (!empRes.error) {
+        for (const raw of empRes.data ?? []) {
+          const e = raw as { id?: string | null; nome_fantasia?: string | null; nome_usuario?: string | null; foto_url?: string | null }
+          const id = e.id != null ? String(e.id) : ''
+          if (id) empresasAtuais.set(id, e)
+        }
+      }
+
+      type ProfAtual = {
+        id?: string | null
+        usuario_id?: string | null
+        nome_completo?: string | null
+        nome_usuario?: string | null
+        foto_perfil_url?: string | null
+        foto_url?: string | null
+      }
+      const profissionaisAtuais = new Map<string, ProfAtual>()
+      for (const res of [profIdRes, profUsuarioRes]) {
+        if (res.error) continue
+        for (const raw of res.data ?? []) {
+          const p = raw as ProfAtual
+          const id = p.id != null ? String(p.id) : ''
+          const uid = p.usuario_id != null ? String(p.usuario_id) : ''
+          if (id) profissionaisAtuais.set(id, p)
+          if (uid) profissionaisAtuais.set(uid, p)
+        }
+      }
+
+      for (const p of postsAvaliacao) {
+        const meta = p.avaliacao_meta as Record<string, unknown>
+        const alvoTipo = String(meta.alvo_tipo ?? '').toLowerCase()
+        const empresaId = meta.empresa_id != null ? String(meta.empresa_id).trim() : ''
+        const profissionalId =
+          meta.profissional_id != null
+            ? String(meta.profissional_id).trim()
+            : alvoTipo === 'profissional' && meta.alvo_id != null
+              ? String(meta.alvo_id).trim()
+              : ''
+        const emp = empresaId ? empresasAtuais.get(empresaId) : null
+        if (emp) {
+          p.avaliacao_meta = {
+            ...meta,
+            nome_fantasia: emp.nome_fantasia != null ? String(emp.nome_fantasia) : meta.nome_fantasia,
+            nome_usuario: emp.nome_usuario != null ? String(emp.nome_usuario) : meta.nome_usuario,
+            foto_url: emp.foto_url != null && String(emp.foto_url).trim() !== '' ? String(emp.foto_url) : null,
+          }
+          continue
+        }
+        const prof = profissionalId ? profissionaisAtuais.get(profissionalId) : null
+        if (prof) {
+          const fotoPerfil =
+            prof.foto_perfil_url != null && String(prof.foto_perfil_url).trim() !== ''
+              ? String(prof.foto_perfil_url)
+              : prof.foto_url != null && String(prof.foto_url).trim() !== ''
+                ? String(prof.foto_url)
+                : null
+          p.avaliacao_meta = {
+            ...meta,
+            alvo_tipo: 'profissional',
+            nome_fantasia: prof.nome_completo != null ? String(prof.nome_completo) : meta.nome_fantasia,
+            nome_usuario: prof.nome_usuario != null ? String(prof.nome_usuario) : meta.nome_usuario,
+            foto_url: fotoPerfil,
+          }
+        }
+      }
+    }
+
     if (merge) {
       setPostMetaMap((prev) => ({ ...prev, ...m }))
     } else {

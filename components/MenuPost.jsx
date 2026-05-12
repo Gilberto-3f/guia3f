@@ -132,6 +132,7 @@ export default function MenuPost({
 
   // FIX: Avaliações compartilhadas no feed não devem ter "Editar" (edição é na página da empresa/perfil alvo).
   const podeEditar = meuPost && String(postTipo ?? '').toLowerCase() !== 'avaliacao'
+  const podeRepublicar = typeof onRepublicar === 'function' && String(postTipo ?? '').toLowerCase() !== 'avaliacao'
 
   return (
     <div className="relative" ref={ref}>
@@ -199,18 +200,20 @@ export default function MenuPost({
                 <Bookmark size={16} className="text-white" aria-hidden />
                 <span>{salvo ? 'Remover dos salvos' : 'Salvar'}</span>
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAberto(false)
-                  onRepublicar?.()
-                }}
-                disabled={!meuUsuarioId}
-                className={`${itemClass} disabled:opacity-50`}
-              >
-                <Repeat2 size={16} className="text-white" aria-hidden />
-                <span>Repostar</span>
-              </button>
+              {podeRepublicar ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAberto(false)
+                    onRepublicar()
+                  }}
+                  disabled={!meuUsuarioId}
+                  className={`${itemClass} disabled:opacity-50`}
+                >
+                  <Repeat2 size={16} className="text-white" aria-hidden />
+                  <span>Repostar</span>
+                </button>
+              ) : null}
               <button type="button" onClick={denunciar} className={itemClass}>
                 <Flag size={16} className="text-white" aria-hidden />
                 <span>Denunciar</span>

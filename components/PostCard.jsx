@@ -431,6 +431,7 @@ export default function PostCard({
   const mediaUrl = post.conteudo_url || post.foto_url
   const hasMedia = Boolean(mediaUrl)
   const tipoNorm = String(post.tipo || '').toLowerCase()
+  const ehAvaliacao = tipoNorm === 'avaliacao'
   const isVideoPost = isTipoVideoPost(post.tipo)
 
   useEffect(() => {
@@ -687,7 +688,7 @@ export default function PostCard({
     onSeguiuUsuario: () => setTickSeguir((t) => t + 1),
     onEditar: handleEditarPost,
     onSalvar: () => void handleSalvar(),
-    onRepublicar: () => void handleRepostar(),
+    onRepublicar: ehAvaliacao ? undefined : () => void handleRepostar(),
     bloqueado: bloqueioApresentacao,
   }
 
@@ -799,18 +800,20 @@ export default function PostCard({
       >
         <Share2 className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
       </button>
-      <button
-        type="button"
-        onClick={() => void handleRepostar()}
-        disabled={!meuUsuarioId || bloqueioApresentacao}
-        className="flex items-center gap-1 text-sm text-gray-800 disabled:opacity-50"
-      >
-        <Repeat2
-          className={`h-5 w-5 shrink-0 ${meuRepostPostId ? 'text-[#0097b2]' : 'text-gray-500'}`}
-          aria-hidden
-        />
-        <span>{repostTotal}</span>
-      </button>
+      {!ehAvaliacao ? (
+        <button
+          type="button"
+          onClick={() => void handleRepostar()}
+          disabled={!meuUsuarioId || bloqueioApresentacao}
+          className="flex items-center gap-1 text-sm text-gray-800 disabled:opacity-50"
+        >
+          <Repeat2
+            className={`h-5 w-5 shrink-0 ${meuRepostPostId ? 'text-[#0097b2]' : 'text-gray-500'}`}
+            aria-hidden
+          />
+          <span>{repostTotal}</span>
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={() => void handleSalvar()}
