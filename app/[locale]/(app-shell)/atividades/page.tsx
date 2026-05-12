@@ -17,6 +17,8 @@ import AtividadeCurtiuStory from '@/components/atividades/AtividadeCurtiuStory'
 import AtividadeComentario from '@/components/atividades/AtividadeComentario'
 import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
 import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
+import StoryViewer from '@/components/StoryViewer'
+import AvatarImage from '@/components/AvatarImage'
 import {
   atividadeVisivelNaMinhaContaEmpresa,
   atividadeVisivelNaMinhaContaPessoal,
@@ -88,6 +90,69 @@ function mergeAtividadesPorId(anteriores: AtividadeRow[], novas: AtividadeRow[])
 
 type PerfilMap = Record<string, ReturnType<typeof pickAutorDisplay>>
 type EmpresaAvaliacaoMap = Record<string, { nome: string; username: string; foto_url: string | null }>
+
+type StoryViewerState = {
+  id: string
+  tipo: string
+  conteudo_url: string
+  texto_sobreposto: {
+    texto?: string | null
+    posicao_x?: number
+    posicao_y?: number
+    link_posicao_x?: number
+    link_posicao_y?: number
+    fundo_fit?: 'contain' | 'cover'
+    fundo_scale?: number
+    fundo_pan_x_pct?: number
+    fundo_pan_y_pct?: number
+    texto_scale?: number
+  } | null
+  link: string | null
+  duracao_segundos: number | null
+  autorUsuarioId: string | null
+  curtidas?: unknown
+  visualizado_por?: unknown
+  marcacoes?: unknown
+  repost_story_id?: string | null
+}
+
+type StoryRowSelect = {
+  id: unknown
+  conteudo_url?: unknown
+  texto_sobreposto?: unknown
+  link?: unknown
+  tipo?: unknown
+  duracao_segundos?: unknown
+  autor_id?: unknown
+  curtidas?: unknown
+  visualizado_por?: unknown
+  marcacoes?: unknown
+  repost_story_id?: unknown
+}
+
+function mapStoryRowToViewerState(data: StoryRowSelect | null): StoryViewerState | null {
+  if (!data) return null
+  const id = String(data.id ?? '').trim()
+  const url = String(data.conteudo_url ?? '').trim()
+  const autorId = String(data.autor_id ?? '').trim()
+  if (!id || !url || !autorId) return null
+  const ts = data.texto_sobreposto
+  const textoParsed =
+    ts && typeof ts === 'object' && !Array.isArray(ts) ? (ts as StoryViewerState['texto_sobreposto']) : null
+  return {
+    id,
+    tipo: data.tipo != null ? String(data.tipo) : 'foto',
+    conteudo_url: url,
+    texto_sobreposto: textoParsed,
+    link: data.link != null ? String(data.link) : null,
+    duracao_segundos: data.duracao_segundos != null ? Number(data.duracao_segundos) : null,
+    autorUsuarioId: autorId,
+    curtidas: data.curtidas ?? null,
+    visualizado_por: data.visualizado_por ?? null,
+    marcacoes: data.marcacoes ?? null,
+    repost_story_id: data.repost_story_id != null ? String(data.repost_story_id) : null,
+  }
+}
 
 /** Uma entrada por UUID em `atividades`, antes de enriquecer — evita merges bloqueados por `!m[uid]`. */
 function placeholderPerfil(uid: string): ReturnType<typeof pickAutorDisplay> {
@@ -171,6 +236,7 @@ export default function AtividadesPage() {
       }
     >
   >({})
+  const [storyModal, setStoryModal] = useState<StoryViewerState | null>(null)
   const [seguidoEmpresaMap, setSeguidoEmpresaMap] = useState<Record<string, string>>({})
   const [qtdSeguindo, setQtdSeguindo] = useState(0)
 
@@ -296,8 +362,10 @@ export default function AtividadesPage() {
       if (ex && typeof ex === 'object') {
         const seguidor = ex.seguidor_id
         const seguido = ex.seguido_id
+        const autorExtra = ex.autor_id
         if (typeof seguidor === 'string') ids.add(seguidor)
         if (typeof seguido === 'string') ids.add(seguido)
+        if (typeof autorExtra === 'string') ids.add(autorExtra)
       }
     }
     return [...ids]
@@ -311,6 +379,26 @@ export default function AtividadesPage() {
     },
     [perfilMap]
   )
+
+  const carregarStoryPorId = useCallback(async (storyId: string) => {
+    const id = String(storyId ?? '').trim()
+    if (!id) return
+    const { data, error } = await supabase
+      .from('stories')
+      .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos, autor_id, curtidas, visualizado_por, marcacoes, repost_story_id')
+      .eq('id', id)
+      .maybeSingle()
+    if (error) {
+      console.error('[Atividades] carregar story:', error)
+      return
+    }
+    const mapped = mapStoryRowToViewerState(data as StoryRowSelect | null)
+    if (!mapped) {
+      console.warn('[Atividades] story inválido:', id)
+      return
+    }
+    setStoryModal(mapped)
+  }, [])
 
   const carregarPerfis = useCallback(
     async (rows: AtividadeRow[], opcoes?: { merge?: boolean }) => {
@@ -1162,7 +1250,27 @@ export default function AtividadesPage() {
 
   const listaAtividadesFiltrada = useMemo(() => {
     const raw = aba === 'amigos' ? listaAmigos : listaMinha
-    return raw.filter((r) => r.tipo !== 'avaliou')
+    const comentariosVistos = new Set<string>()
+    return raw.filter((r) => {
+      if (r.tipo === 'avaliou') return false
+      if (r.tipo === 'comentou' || r.tipo === 'curtiu_comentario') {
+        const ex = r.dados_extras ?? {}
+        const texto = typeof ex.texto === 'string' ? ex.texto.trim() : ''
+        if (!texto) return false
+        const comentarioId =
+          typeof ex.comentario_id === 'string' && ex.comentario_id.trim() !== ''
+            ? ex.comentario_id.trim()
+            : r.tipo === 'curtiu_comentario'
+              ? String(r.alvo_id ?? '').trim()
+              : ''
+        if (comentarioId) {
+          const key = `${r.tipo}:${comentarioId}`
+          if (comentariosVistos.has(key)) return false
+          comentariosVistos.add(key)
+        }
+      }
+      return true
+    })
   }, [aba, listaAmigos, listaMinha])
 
   const itensAgrupados = useMemo(() => {
@@ -1423,6 +1531,7 @@ export default function AtividadesPage() {
       const ex = r.dados_extras ?? {}
       const postId = typeof ex.post_id === 'string' ? ex.post_id : ''
       const texto = String(ex.texto ?? '')
+      if (!texto.trim()) return null
       const donorId = r.usuario_id
       const donor = perfilMap[donorId]
       return (
@@ -1445,6 +1554,7 @@ export default function AtividadesPage() {
     if (r.tipo === 'comentou') {
       const ex = r.dados_extras ?? {}
       const texto = String(ex.texto ?? '')
+      if (!texto.trim()) return null
       const postId = typeof ex.post_id === 'string' ? ex.post_id : r.alvo_id
       const comentarioId = typeof ex.comentario_id === 'string' ? ex.comentario_id : null
       const pm = postMetaMap[postId]
@@ -1470,6 +1580,57 @@ export default function AtividadesPage() {
           tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
         />
+      )
+    }
+
+    if (r.tipo === 'marcou_em_story') {
+      const ex = r.dados_extras ?? {}
+      const storyId =
+        typeof ex.story_id === 'string' && ex.story_id.trim() !== ''
+          ? ex.story_id.trim()
+          : String(r.alvo_id ?? '').trim()
+      if (!storyId) return null
+      const autorId =
+        typeof ex.autor_id === 'string' && ex.autor_id.trim() !== '' ? ex.autor_id.trim() : r.autor_id
+      const autorPerfil = perfilMap[autorId] ?? ator
+      const autorUsername =
+        typeof ex.autor_username === 'string' && ex.autor_username.trim() !== ''
+          ? ex.autor_username.trim().replace(/^@+/, '')
+          : (autorPerfil?.username ?? 'usuario')
+      const conteudoUrl =
+        typeof ex.conteudo_url === 'string' && ex.conteudo_url.trim() !== '' ? ex.conteudo_url.trim() : null
+      return (
+        <div key={r.id} className="grid min-w-0 grid-cols-[2.5rem_1fr] items-start gap-x-2 text-sm text-gray-800">
+          <div className="flex flex-col items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => router.push(hrefUsuario(autorId))}
+              className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+              aria-label={`Perfil de @${autorUsername}`}
+            >
+              <AvatarImage src={autorPerfil?.foto_perfil_url ?? null} alt="" fill className="object-cover" sizes="40px" />
+            </button>
+            <span className="max-w-[2.5rem] text-center text-[10px] leading-tight text-gray-500">
+              {formatarDataAtividades(r.created_at)}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => void carregarStoryPorId(storyId)}
+            className="flex min-w-0 items-center gap-3 rounded-xl p-1 text-left transition hover:bg-gray-100"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="text-sm leading-snug text-gray-800">
+                <span className="font-medium text-[#0097b2]">@{autorUsername}</span> marcou você em um story.
+              </span>
+            </span>
+            {conteudoUrl ? (
+              <span className="relative h-12 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                <AvatarImage src={conteudoUrl} alt="" fill className="object-cover" sizes="36px" />
+              </span>
+            ) : null}
+          </button>
+        </div>
       )
     }
 
@@ -1754,6 +1915,16 @@ export default function AtividadesPage() {
           </>
         )}
       </div>
+      {storyModal ? (
+        <StoryViewer
+          story={storyModal}
+          userEmail={meuEmail}
+          meuUsuarioId={meuId}
+          storyQueueLength={1}
+          storyQueueIndex={0}
+          onFechar={() => setStoryModal(null)}
+        />
+      ) : null}
     </div>
   )
 }
