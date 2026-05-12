@@ -44,10 +44,6 @@ export default function AtividadeCurtiuAvaliacao({
     meta?.nome_fantasia != null && String(meta.nome_fantasia).trim() !== ''
       ? String(meta.nome_fantasia).trim()
       : 'Estabelecimento'
-  const usernameEmpresa =
-    meta?.nome_usuario != null && String(meta.nome_usuario).trim() !== ''
-      ? String(meta.nome_usuario).trim().replace(/^@+/, '')
-      : ''
   const fotoEmpresa = meta?.foto_url != null && String(meta.foto_url).trim() !== '' ? String(meta.foto_url) : null
   const resumoModal = modoMinhaConta ? 'curtiu sua avaliação' : `curtiu avaliação de @${donorUsername}`
 
@@ -86,24 +82,27 @@ export default function AtividadeCurtiuAvaliacao({
             <button
               type="button"
               onClick={() => setModal(true)}
-              className="mt-2 flex w-full flex-col items-center rounded-lg bg-gray-50 px-3 py-3 text-center hover:bg-gray-100"
+              className="mt-2 w-full rounded-lg bg-white p-4 text-left shadow-sm hover:bg-gray-50"
             >
-              <span className="relative h-12 w-12 overflow-hidden rounded-md bg-gray-100">
-                <AvatarImage src={fotoEmpresa} alt="" fill className="object-cover" sizes="48px" />
-              </span>
-              <span className="mt-2 max-w-full truncate font-semibold text-gray-900">{nomeEmpresa}</span>
-              {usernameEmpresa ? <span className="max-w-full truncate text-sm text-gray-500">@{usernameEmpresa}</span> : null}
-              <span className="mt-3 flex items-center justify-center gap-0.5" aria-label={`Nota ${notaVal} de 5`}>
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star
-                    key={s}
-                    className={`h-6 w-6 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
-                    aria-hidden
-                  />
-                ))}
+              <span className="flex min-w-0 items-start gap-3">
+                <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  <AvatarImage src={fotoEmpresa} alt="" fill className="object-cover" sizes="40px" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block max-w-full truncate font-semibold text-gray-900">{nomeEmpresa}</span>
+                  <span className="mt-1 flex items-center gap-0.5" aria-label={`Nota ${notaVal} de 5`}>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        className={`h-5 w-5 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                        aria-hidden
+                      />
+                    ))}
+                  </span>
+                </span>
               </span>
               {feedback ? (
-                <span className="mt-3 line-clamp-3 text-left text-sm leading-relaxed text-gray-800">
+                <span className="mt-3 block line-clamp-3 text-center text-sm leading-relaxed text-gray-700">
                   {String(feedback).trimEnd()}
                 </span>
               ) : null}

@@ -7,8 +7,27 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import AvatarImage from '@/components/AvatarImage'
 
 /**
- * @typedef {{ id: string; nota: number; feedback: string | null; created_at: string; nome: string; username: string; fotoUrl: string | null; categoria: string | null }} LinhaAvaliacao
+ * @typedef {{ id: string; nota: number; feedback: string | null; resposta: string | null; created_at: string; nome: string; username: string; fotoUrl: string | null; categoria: string | null }} LinhaAvaliacao
  */
+
+/** @param {string | null | undefined} s */
+function fotoPerfil(s) {
+  const raw = s != null ? String(s).trim() : ''
+  return raw || null
+}
+
+/** @param {string} data */
+function formatarDataAvaliacao(data) {
+  const dt = new Date(data)
+  if (Number.isNaN(dt.getTime())) return ''
+  return dt.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 /**
  * @param {{
@@ -18,9 +37,9 @@ import AvatarImage from '@/components/AvatarImage'
  *   perfilTipo: 'turista' | 'profissional'
  * }} props
  */
-export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTipo: _perfilTipo }) {
+export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTipo }) {
   useModalScrollLock(aberto)
-  const [aba, setAba] = useState(/** @type {'empresa' | 'profissional'} */ ('empresa'))
+  const [aba, setAba] = useState(/** @type {'empresa' | 'profissional' | 'feedback'} */ ('empresa'))
   const [listaEmpresas, setListaEmpresas] = useState(/** @type {LinhaAvaliacao[]} */ ([]))
   const [listaProfissionais, setListaProfissionais] = useState(/** @type {LinhaAvaliacao[]} */ ([]))
 
@@ -66,53 +85,91 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
           username: emp?.nome_usuario ?? '',
           fotoUrl: emp?.foto_url ?? null,
           categoria: emp?.categoria ?? null,
+          resposta: null,
         }
       })
     )
 
-    const { data: avProf, error: errProf } = await supabase
+    const perfilProfissional = perfilTipo === 'profissional'
+    let profTargetIds = [profileId]
+    if (perfilProfissional) {
+      const { data: profProprio, error: profProprioErr } = await supabase
+        .from('profissionais')
+        .select('id, usuario_id')
+        .eq('usuario_id', profileId)
+        .maybeSingle()
+      if (profProprioErr) console.error('[PopupAvaliacoes] profissional próprio:', profProprioErr.message)
+      if (profProprio?.id) profTargetIds = [...new Set([profileId, String(profProprio.id)].filter(Boolean))]
+    }
+
+    const queryProf = supabase
       .from('avaliacoes')
-      .select('id, nota, feedback, created_at, alvo_id, alvo_tipo')
-      .eq('usuario_id', profileId)
+      .select('id, nota, feedback, created_at, usuario_id, alvo_id, alvo_tipo, avaliador_tipo')
       .eq('alvo_tipo', 'profissional')
       .order('created_at', { ascending: false })
 
-    if (errProf) console.error('[PopupAvaliacoes] avaliacoes profissional:', errProf.message)
+    const { data: avProf, error: errProf } = perfilProfissional
+      ? await queryProf.in('alvo_id', profTargetIds).eq('avaliador_tipo', 'turista')
+      : await queryProf.eq('usuario_id', profileId)
+
+    if (errProf) console.error('[PopupAvaliacoes] avaliacoes/feedback profissional:', errProf.message)
 
     const rowsProf = avProf ?? []
-    const profIds = [...new Set(rowsProf.map((r) => String(r.alvo_id)).filter(Boolean))]
-    /** @type {Map<string, { nome_completo: string; nome_usuario: string }>} */
+    const profIds = [...new Set(rowsProf.map((r) => String(perfilProfissional ? r.usuario_id : r.alvo_id)).filter(Boolean))]
+    /** @type {Map<string, { nome: string; username: string; fotoUrl: string | null }>} */
     const porProfId = new Map()
     if (profIds.length) {
-      const { data: profs, error: pErr } = await supabase
-        .from('profissionais')
-        .select('id, usuario_id, nome_completo, nome_usuario')
-        .in('id', profIds)
-      if (pErr) console.error('[PopupAvaliacoes] profissionais by id:', pErr.message)
-
-      const encontrados = new Set((profs ?? []).map((p) => String(p.id)))
-      const faltam = profIds.filter((id) => !encontrados.has(id))
-
-      for (const p of profs ?? []) {
-        porProfId.set(String(p.id), {
-          nome_completo: String(p.nome_completo ?? 'Profissional'),
-          nome_usuario: String(p.nome_usuario ?? ''),
-        })
-      }
-
-      if (faltam.length) {
-        const { data: profsU, error: pUErr } = await supabase
-          .from('profissionais')
-          .select('id, usuario_id, nome_completo, nome_usuario')
-          .in('usuario_id', faltam)
-        if (pUErr) console.error('[PopupAvaliacoes] profissionais by usuario_id:', pUErr.message)
-        for (const p of profsU ?? []) {
+      if (perfilProfissional) {
+        const { data: perfis, error: perfErr } = await supabase
+          .from('perfis_para_busca')
+          .select('usuario_id, username, nome, foto_url')
+          .in('usuario_id', profIds)
+        if (perfErr) console.error('[PopupAvaliacoes] perfis avaliadores:', perfErr.message)
+        for (const p of perfis ?? []) {
           const uid = String(p.usuario_id ?? '')
-          if (uid) {
-            porProfId.set(uid, {
-              nome_completo: String(p.nome_completo ?? 'Profissional'),
-              nome_usuario: String(p.nome_usuario ?? ''),
-            })
+          if (!uid) continue
+          porProfId.set(uid, {
+            nome: String(p.nome ?? 'Turista'),
+            username: String(p.username ?? ''),
+            fotoUrl: fotoPerfil(p.foto_url),
+          })
+        }
+      } else {
+        const { data: profs, error: pErr } = await supabase
+          .from('profissionais')
+          .select('id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url')
+          .in('id', profIds)
+        if (pErr) console.error('[PopupAvaliacoes] profissionais by id:', pErr.message)
+
+        const encontrados = new Set((profs ?? []).map((p) => String(p.id)))
+        const faltam = profIds.filter((id) => !encontrados.has(id))
+
+        for (const p of profs ?? []) {
+          const row = {
+            nome: String(p.nome_completo ?? 'Profissional'),
+            username: String(p.nome_usuario ?? ''),
+            fotoUrl: fotoPerfil(p.foto_perfil_url) ?? fotoPerfil(p.foto_url),
+          }
+          porProfId.set(String(p.id), row)
+          if (p.usuario_id) porProfId.set(String(p.usuario_id), row)
+        }
+
+        if (faltam.length) {
+          const { data: profsU, error: pUErr } = await supabase
+            .from('profissionais')
+            .select('id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url')
+            .in('usuario_id', faltam)
+          if (pUErr) console.error('[PopupAvaliacoes] profissionais by usuario_id:', pUErr.message)
+          for (const p of profsU ?? []) {
+            const uid = String(p.usuario_id ?? '')
+            if (!uid) continue
+            const row = {
+              nome: String(p.nome_completo ?? 'Profissional'),
+              username: String(p.nome_usuario ?? ''),
+              fotoUrl: fotoPerfil(p.foto_perfil_url) ?? fotoPerfil(p.foto_url),
+            }
+            porProfId.set(uid, row)
+            if (p.id) porProfId.set(String(p.id), row)
           }
         }
       }
@@ -120,34 +177,36 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
 
     setListaProfissionais(
       rowsProf.map((r) => {
-        const alvo = String(r.alvo_id)
+        const alvo = String(perfilProfissional ? r.usuario_id : r.alvo_id)
         const prof = porProfId.get(alvo)
         return {
           id: String(r.id),
           nota: Number(r.nota) || 0,
           feedback: r.feedback != null ? String(r.feedback) : null,
           created_at: String(r.created_at ?? ''),
-          nome: prof?.nome_completo ?? '—',
-          username: prof?.nome_usuario ?? '',
-          fotoUrl: null,
+          nome: prof?.nome ?? (perfilProfissional ? 'Turista' : '—'),
+          username: prof?.username ?? '',
+          fotoUrl: prof?.fotoUrl ?? null,
           categoria: null,
+          resposta: null,
         }
       })
     )
-  }, [profileId])
+  }, [perfilTipo, profileId])
 
   useEffect(() => {
     if (aberto) void carregar()
   }, [aberto, carregar])
 
   useEffect(() => {
-    if (listaProfissionais.length === 0 && aba === 'profissional') setAba('empresa')
-  }, [listaProfissionais.length, aba])
+    if (perfilTipo === 'profissional' && aba === 'profissional') setAba('feedback')
+    if (perfilTipo !== 'profissional' && aba === 'feedback') setAba('profissional')
+  }, [aba, perfilTipo])
 
   const filtradas = aba === 'empresa' ? listaEmpresas : listaProfissionais
   const labelA = 'EMPRESAS'
-  const labelB = 'PROFISSIONAIS'
-  const mostrarAbaProfissionais = listaProfissionais.length > 0
+  const labelB = perfilTipo === 'profissional' ? 'FEEDBACK' : 'PROFISSIONAIS'
+  const segundaAba = perfilTipo === 'profissional' ? 'feedback' : 'profissional'
 
   if (!aberto) return null
 
@@ -170,55 +229,60 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
           </button>
         </div>
 
-        <div className={`flex shrink-0 justify-center gap-4 border-b px-4 pb-2 ${mostrarAbaProfissionais ? '' : 'justify-center'}`}>
+        <div className="flex shrink-0 justify-center gap-4 border-b px-4 pb-2">
           <button
             type="button"
             onClick={() => setAba('empresa')}
-            className={`${mostrarAbaProfissionais ? 'flex-1' : 'w-full'} py-2 text-center text-sm ${
+            className={`flex-1 py-2 text-center text-sm ${
               aba === 'empresa' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'
             }`}
           >
             {labelA} ({listaEmpresas.length})
           </button>
-          {mostrarAbaProfissionais ? (
-            <button
-              type="button"
-              onClick={() => setAba('profissional')}
-              className={`flex-1 py-2 text-center text-sm ${
-                aba === 'profissional' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'
-              }`}
-            >
-              {labelB} ({listaProfissionais.length})
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => setAba(segundaAba)}
+            className={`flex-1 py-2 text-center text-sm ${
+              aba === segundaAba ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'
+            }`}
+          >
+            {labelB} ({listaProfissionais.length})
+          </button>
         </div>
 
-        <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-2">
+        <div className="scrollbar-perfil min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
           {filtradas.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
           {filtradas.map((r) => (
-            <div key={r.id} className="border-b border-gray-100 py-4 last:border-0">
-              <div className="flex flex-col items-center text-center">
-                <div className="relative h-12 w-12 overflow-hidden rounded-md bg-gray-100">
-                  <AvatarImage src={r.fotoUrl} alt="" fill className="object-cover" sizes="48px" />
+            <div key={r.id} className="rounded-lg bg-white p-4 shadow-sm">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  <AvatarImage src={r.fotoUrl} alt="" fill className="object-cover" sizes="40px" />
                 </div>
-                <p className="mt-2 max-w-full truncate text-sm font-semibold text-gray-900">{r.nome}</p>
-                {r.username ? <p className="max-w-full truncate text-sm text-gray-500">@{r.username}</p> : null}
-                <div className="mt-3 flex items-center justify-center gap-0.5" aria-label={`Nota ${r.nota} de 5`}>
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-6 w-6 shrink-0 ${i < r.nota ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
-                      aria-hidden
-                    />
-                  ))}
+                <div className="min-w-0 flex-1 text-left">
+                  <p className="max-w-full truncate text-sm font-semibold text-gray-900">{r.nome}</p>
+                  {r.username ? <p className="max-w-full truncate text-sm text-gray-500">@{r.username}</p> : null}
+                  <div className="mt-1 flex items-center gap-0.5" aria-label={`Nota ${r.nota} de 5`}>
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-5 w-5 shrink-0 ${i < r.nota ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                        aria-hidden
+                      />
+                    ))}
+                  </div>
+                  {formatarDataAvaliacao(r.created_at) ? (
+                    <time className="mt-1 block text-xs text-gray-400">{formatarDataAvaliacao(r.created_at)}</time>
+                  ) : null}
                 </div>
               </div>
               {r.feedback ? (
-                <p className="mt-3 whitespace-pre-wrap text-left text-sm leading-relaxed text-gray-800">{r.feedback}</p>
+                <p className="mt-3 whitespace-pre-wrap text-center text-sm leading-relaxed text-gray-700">{r.feedback}</p>
               ) : null}
-              <time className="mt-2 block text-center text-xs text-gray-400">
-                {new Date(r.created_at).toLocaleString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              </time>
+              {r.resposta ? (
+                <p className="mt-3 rounded-lg bg-gray-50 p-3 text-center text-sm leading-relaxed text-gray-700">
+                  {r.resposta}
+                </p>
+              ) : null}
             </div>
           ))}
         </div>

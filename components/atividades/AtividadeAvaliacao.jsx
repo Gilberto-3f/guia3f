@@ -71,35 +71,38 @@ export default function AtividadeAvaliacao({
               <span className="font-medium text-gray-700">{usernameEmpresa ? `@${usernameEmpresa}` : nomeEmpresa}</span>
             )}
           </p>
-          <div className="mt-2 flex flex-col items-center rounded-lg bg-gray-50 px-3 py-3 text-center">
-            {hrefEmpresa ? (
-              <Link href={hrefEmpresa} className="relative h-12 w-12 overflow-hidden rounded-md bg-gray-100">
-                <AvatarImage src={empresaFoto} alt="" fill className="object-cover" sizes="48px" />
-              </Link>
-            ) : (
-              <div className="relative h-12 w-12 overflow-hidden rounded-md bg-gray-100">
-                <AvatarImage src={empresaFoto} alt="" fill className="object-cover" sizes="48px" />
+          <div className="mt-2 rounded-lg bg-white p-4 shadow-sm">
+            <div className="flex min-w-0 items-start gap-3">
+              {hrefEmpresa ? (
+                <Link href={hrefEmpresa} className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  <AvatarImage src={empresaFoto} alt="" fill className="object-cover" sizes="40px" />
+                </Link>
+              ) : (
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  <AvatarImage src={empresaFoto} alt="" fill className="object-cover" sizes="40px" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                {hrefEmpresa ? (
+                  <Link href={hrefEmpresa} className="block max-w-full truncate font-semibold text-gray-900 hover:underline">
+                    {nomeEmpresa}
+                  </Link>
+                ) : (
+                  <p className="max-w-full truncate font-semibold text-gray-900">{nomeEmpresa}</p>
+                )}
+                <div className="mt-1 flex items-center gap-0.5" aria-label={`Nota ${notaVal} de 5`}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star
+                      key={s}
+                      className={`h-5 w-5 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                      aria-hidden
+                    />
+                  ))}
+                </div>
               </div>
-            )}
-            {hrefEmpresa ? (
-              <Link href={hrefEmpresa} className="mt-2 max-w-full truncate font-semibold text-gray-900 hover:underline">
-                {nomeEmpresa}
-              </Link>
-            ) : (
-              <p className="mt-2 max-w-full truncate font-semibold text-gray-900">{nomeEmpresa}</p>
-            )}
-            {usernameEmpresa ? <p className="max-w-full truncate text-sm text-gray-500">@{usernameEmpresa}</p> : null}
-            <div className="mt-3 flex items-center justify-center gap-0.5" aria-label={`Nota ${notaVal} de 5`}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star
-                  key={s}
-                  className={`h-6 w-6 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
-                  aria-hidden
-                />
-              ))}
             </div>
             {feedback ? (
-              <p className="mt-3 line-clamp-3 text-left text-sm leading-relaxed text-gray-800">{String(feedback).trimEnd()}</p>
+              <p className="mt-3 line-clamp-3 text-center text-sm leading-relaxed text-gray-700">{String(feedback).trimEnd()}</p>
             ) : null}
           </div>
         </div>
