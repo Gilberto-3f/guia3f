@@ -87,6 +87,7 @@ function clampFundoPan(scale, px, py, geo, imageObjectFit) {
  *   className?: string
  *   layout?: 'default' | 'editorFill' | 'viewerCover'
  *   imageObjectFit?: 'cover' | 'contain'
+ *   ocultarPlaceholderLegenda?: boolean
  * }} props
  */
 export default function StoryCanvas({
@@ -115,6 +116,7 @@ export default function StoryCanvas({
   linkHref = null,
   className = '',
   layout = 'default',
+  ocultarPlaceholderLegenda = false,
 }) {
   const areaRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const fundoRef = useRef(fundo)
@@ -567,7 +569,7 @@ export default function StoryCanvas({
         >
           {legenda}
         </div>
-      ) : allowEditText ? (
+      ) : allowEditText && !ocultarPlaceholderLegenda ? (
         <div
           ref={legendaRef}
           role="presentation"

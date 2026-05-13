@@ -117,7 +117,11 @@ export default function EditorStory({
             empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
           })
         }
-        setResultadosMarcacao([...map.values()].slice(0, 12))
+        setResultadosMarcacao(
+          [...map.values()]
+            .filter((p) => !meuUsuarioId || p.usuario_id !== meuUsuarioId)
+            .slice(0, 12)
+        )
         setBuscandoMarcacao(false)
       })()
     }, 250)
@@ -125,7 +129,7 @@ export default function EditorStory({
       cancel = true
       window.clearTimeout(t)
     }
-  }, [painel, termoMarcacao])
+  }, [painel, termoMarcacao, meuUsuarioId])
 
   /** @param {PerfilMarcacao} perfil */
   const adicionarMarcacao = (perfil) => {
@@ -187,6 +191,7 @@ export default function EditorStory({
           allowEditText
           allowEditLink={Boolean(linkUrl.trim())}
           allowEditMarcacoes
+          ocultarPlaceholderLegenda={painel !== 'legenda'}
           onLegendaPos={onPosicaoChange}
           onLinkPos={onPosicaoLinkChange}
           onMarcacaoPos={moverMarcacao}

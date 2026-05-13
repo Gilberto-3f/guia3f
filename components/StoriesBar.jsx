@@ -438,7 +438,11 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       })
     }
     window.addEventListener('guia-feed-rede-reload', onReload)
-    return () => window.removeEventListener('guia-feed-rede-reload', onReload)
+    window.addEventListener('guia-stories-bar-reload', onReload)
+    return () => {
+      window.removeEventListener('guia-feed-rede-reload', onReload)
+      window.removeEventListener('guia-stories-bar-reload', onReload)
+    }
   }, [load])
 
   useEffect(() => {

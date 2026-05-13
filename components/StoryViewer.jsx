@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ClipboardList, Flag, Heart, Link2, MoreHorizontal, Play, Repeat2, Volume2, VolumeX, X } from 'lucide-react'
+import { ClipboardList, Flag, Heart, Link2, MoreHorizontal, Play, Repeat2, Trash2, Volume2, VolumeX, X } from 'lucide-react'
 import BotaoSeguir from '@/components/BotaoSeguir'
 import { supabase } from '@/lib/supabase'
 import {
@@ -18,6 +18,25 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 const STORY_VIEW_MS = 15000
 const SWIPE_DOWN_PX = 96
 const SWIPE_SIDE_PX = 56
+
+/** @param {string} conteudoUrl */
+function extrairCaminhoStorageStory(conteudoUrl) {
+  const raw = String(conteudoUrl ?? '').trim()
+  if (!raw) return null
+  const marker = '/storage/v1/object/public/stories/'
+  const idx = raw.indexOf(marker)
+  if (idx >= 0) {
+    const path = raw.slice(idx + marker.length).split('?')[0]
+    if (!path) return null
+    try {
+      return decodeURIComponent(path)
+    } catch {
+      return path
+    }
+  }
+  if (/^https?:\/\//i.test(raw)) return null
+  return raw.replace(/^\/+/, '')
+}
 
 const CATEGORIAS_DENUNCIA_STORY = [
   { id: 'Conteúdo impróprio', label: 'Conteúdo impróprio' },
@@ -267,6 +286,9 @@ export default function StoryViewer({
       null
     )
   )
+  const [menuAutorStory, setMenuAutorStory] = useState(false)
+  const [confirmExcluirStoryEtapa, setConfirmExcluirStoryEtapa] = useState(/** @type {null | 1 | 2} */ (null))
+  const [excluindoStory, setExcluindoStory] = useState(false)
 
   const uid = meuUsuarioId != null && meuUsuarioId !== '' ? String(meuUsuarioId) : null
   const curtiu = uid ? curtidasLista.some((c) => c.usuario_id === uid) : false
@@ -998,7 +1020,7 @@ export default function StoryViewer({
         if (delErr) throw delErr
         setRepostExistenteId(null)
         setToastMsg('Repost removido dos seus stories.')
-        window.dispatchEvent(new Event('guia-feed-rede-reload'))
+        window.dispatchEvent(new Event('guia-stories-bar-reload'))
         return
       }
       const { data: jaExiste, error: existeErr } = await supabase
@@ -1037,7 +1059,7 @@ export default function StoryViewer({
       if (error) throw error
       setRepostExistenteId(repostCriado?.id != null ? String(repostCriado.id) : null)
       setToastMsg('Story repostado no seu perfil.')
-      window.dispatchEvent(new Event('guia-feed-rede-reload'))
+      window.dispatchEvent(new Event('guia-stories-bar-reload'))
     } catch (e) {
       console.error('[StoryViewer] repostar story:', e)
       setToastMsg('Não foi possível repostar este story.')
@@ -1045,6 +1067,53 @@ export default function StoryViewer({
       setRepostando(false)
     }
   }
+
+  const executarExclusaoStoryDefinitiva = useCallback(async () => {
+    if (!story?.id || !uid || confirmExcluirStoryEtapa !== 2) return
+    setExcluindoStory(true)
+    try {
+      const conteudoUrl = String(story.conteudo_url ?? '').trim()
+      let outrosUsos = 0
+      if (conteudoUrl) {
+        const { count, error: usoErr } = await supabase
+          .from('stories')
+          .select('id', { count: 'exact', head: true })
+          .eq('conteudo_url', conteudoUrl)
+          .neq('id', story.id)
+        if (usoErr) throw usoErr
+        outrosUsos = count ?? 0
+      }
+      const { error } = await supabase.from('stories').delete().eq('id', story.id).eq('autor_id', uid)
+      if (error) throw error
+      let storageErro = false
+      if (conteudoUrl && outrosUsos === 0) {
+        const storagePath = extrairCaminhoStorageStory(conteudoUrl)
+        if (storagePath) {
+          const { error: removeErr } = await supabase.storage.from('stories').remove([storagePath])
+          if (removeErr) {
+            storageErro = true
+            console.error('[StoryViewer] remover mídia:', removeErr)
+          }
+        }
+      }
+      setConfirmExcluirStoryEtapa(null)
+      setMenuAutorStory(false)
+      setToastMsg(
+        storageErro
+          ? 'Story excluído; não foi possível remover a mídia do armazenamento.'
+          : outrosUsos > 0
+            ? 'Story excluído. A mídia foi mantida porque ainda é usada por reposts.'
+            : 'Story excluído.'
+      )
+      window.dispatchEvent(new Event('guia-stories-bar-reload'))
+      onFechar()
+    } catch (e) {
+      console.error('[StoryViewer] excluir story:', e)
+      setToastMsg('Não foi possível excluir o story.')
+    } finally {
+      setExcluindoStory(false)
+    }
+  }, [confirmExcluirStoryEtapa, story?.id, story?.conteudo_url, uid, onFechar])
 
   const enviarDenunciaStory = async () => {
     const motivoTrim = denCategoria.trim().slice(0, 100)
@@ -1144,7 +1213,7 @@ export default function StoryViewer({
   const hrefAutorOriginalRepost = autorOriginalRepostId ? `/perfil/${autorOriginalRepostId}` : ''
 
   const headerLeft = autorId ? (
-    <div className="flex min-w-0 max-w-[78vw] items-center gap-2 py-1 text-white">
+    <div className="flex min-w-0 max-w-[82vw] items-center gap-2 py-1 text-white">
       <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-full bg-white/25 ring-2 ring-white/30">
         <Link href={hrefAutor} aria-label={`Perfil de ${rotuloAutor ?? 'usuário'}`} className="block h-full w-full">
           {fotoAutor ? (
@@ -1154,27 +1223,33 @@ export default function StoryViewer({
           )}
         </Link>
       </span>
-      <span className="truncate text-sm font-semibold tracking-tight drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+      <div className="flex min-w-0 flex-1 items-baseline gap-x-0.5 text-sm font-semibold tracking-tight drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
         {story.repost_story_id ? (
           <>
+            <span className="min-w-0 flex-1 truncate">
+              <Link href={hrefAutor} className="block truncate hover:underline">
+                {rotuloAutor ?? '…'}
+              </Link>
+            </span>
+            <span className="shrink-0 whitespace-nowrap text-white/85"> repostou de </span>
+            <span className="min-w-0 flex-1 truncate">
+              {autorOriginalRepostId ? (
+                <Link href={hrefAutorOriginalRepost} className="block truncate hover:underline">
+                  {rotuloAutorOriginalRepost ?? '…'}
+                </Link>
+              ) : (
+                <span className="block truncate">{rotuloAutorOriginalRepost ?? '…'}</span>
+              )}
+            </span>
+          </>
+        ) : (
+          <span className="min-w-0 flex-1 truncate">
             <Link href={hrefAutor} className="hover:underline">
               {rotuloAutor ?? '…'}
             </Link>
-            <span className="font-medium text-white/85"> repostou story de </span>
-            {autorOriginalRepostId ? (
-              <Link href={hrefAutorOriginalRepost} className="hover:underline">
-                {rotuloAutorOriginalRepost ?? '…'}
-              </Link>
-            ) : (
-              <span>{rotuloAutorOriginalRepost ?? '…'}</span>
-            )}
-          </>
-        ) : (
-          <Link href={hrefAutor} className="hover:underline">
-            {rotuloAutor ?? '…'}
-          </Link>
+          </span>
         )}
-      </span>
+      </div>
     </div>
   ) : (
     <span />
@@ -1454,117 +1529,221 @@ export default function StoryViewer({
       <footer
         data-story-footer
         className={`pointer-events-auto z-40 flex w-full items-center gap-3 border-t border-white/10 bg-black/75 px-4 py-3 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 ${
-          uid && !souAutor ? 'justify-between' : 'justify-center'
+          uid ? 'justify-between' : 'justify-center'
         }`}
       >
-        {uid && !souAutor ? (
-          <div className="relative flex shrink-0 items-center">
-            <button
-              type="button"
-              onClick={() => setMenuMaisOpcoes((v) => !v)}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10"
-              aria-label="Mais opções"
-              aria-expanded={menuMaisOpcoes}
-            >
-              <MoreHorizontal size={28} strokeWidth={2} aria-hidden />
-            </button>
-            {menuMaisOpcoes ? (
-              <>
+        {uid ? (
+          <>
+            {souAutor ? (
+              <div className="relative flex shrink-0 items-center">
                 <button
                   type="button"
-                  className="fixed inset-0 z-[45] bg-black/40"
-                  aria-label="Fechar menu"
-                  onClick={() => setMenuMaisOpcoes(false)}
-                />
-                <div
-                  className="absolute bottom-full left-0 z-[46] mb-2 w-[min(calc(100vw-2rem),280px)] overflow-hidden rounded-lg bg-[#0097b2] py-1 text-white shadow-lg"
-                  role="menu"
+                  onClick={() => setMenuAutorStory((v) => !v)}
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10"
+                  aria-label="Opções do story"
+                  aria-expanded={menuAutorStory}
                 >
-                  <div>
-                    {seguindoAutor === null ? (
-                      <p className="px-4 py-3 text-center text-xs text-white/75">A carregar…</p>
-                    ) : (
-                      <BotaoSeguir
-                        alvoId={autorId ?? undefined}
-                        alvoTipo="usuario"
-                        seguidoTipo="user"
-                        isFollowing={seguindoAutor}
-                        leadingIcon="none"
-                        onToggle={(novo) => {
-                          setSeguindoAutor(novo)
-                          window.dispatchEvent(new Event('guia-feed-rede-reload'))
+                  <MoreHorizontal size={28} strokeWidth={2} aria-hidden />
+                </button>
+                {menuAutorStory ? (
+                  <>
+                    <button
+                      type="button"
+                      className="fixed inset-0 z-[45] bg-black/40"
+                      aria-label="Fechar menu"
+                      onClick={() => setMenuAutorStory(false)}
+                    />
+                    <div
+                      className="absolute bottom-full left-0 z-[46] mb-2 w-[min(calc(100vw-2rem),280px)] overflow-hidden rounded-lg bg-[#0097b2] py-1 text-white shadow-lg"
+                      role="menu"
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={storyMenuItemClass}
+                        onClick={() => {
+                          setMenuAutorStory(false)
+                          setConfirmExcluirStoryEtapa(1)
                         }}
-                        buttonClassName={storyMenuItemClass}
-                      />
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={storyMenuItemClass}
-                    onClick={() => {
-                      setMenuMaisOpcoes(false)
-                      setModalDenunciar(true)
-                    }}
-                  >
-                    <Flag size={16} className="shrink-0 text-white" aria-hidden />
-                    Denunciar publicação
-                  </button>
-                </div>
-              </>
-            ) : null}
-          </div>
-        ) : null}
+                      >
+                        <Trash2 size={16} className="shrink-0 text-white" aria-hidden />
+                        Excluir story
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            ) : (
+              <div className="relative flex shrink-0 items-center">
+                <button
+                  type="button"
+                  onClick={() => setMenuMaisOpcoes((v) => !v)}
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-white transition hover:bg-white/10"
+                  aria-label="Mais opções"
+                  aria-expanded={menuMaisOpcoes}
+                >
+                  <MoreHorizontal size={28} strokeWidth={2} aria-hidden />
+                </button>
+                {menuMaisOpcoes ? (
+                  <>
+                    <button
+                      type="button"
+                      className="fixed inset-0 z-[45] bg-black/40"
+                      aria-label="Fechar menu"
+                      onClick={() => setMenuMaisOpcoes(false)}
+                    />
+                    <div
+                      className="absolute bottom-full left-0 z-[46] mb-2 w-[min(calc(100vw-2rem),280px)] overflow-hidden rounded-lg bg-[#0097b2] py-1 text-white shadow-lg"
+                      role="menu"
+                    >
+                      <div>
+                        {seguindoAutor === null ? (
+                          <p className="px-4 py-3 text-center text-xs text-white/75">A carregar…</p>
+                        ) : (
+                          <BotaoSeguir
+                            alvoId={autorId ?? undefined}
+                            alvoTipo="usuario"
+                            seguidoTipo="user"
+                            isFollowing={seguindoAutor}
+                            leadingIcon="none"
+                            onToggle={(novo) => {
+                              setSeguindoAutor(novo)
+                              window.dispatchEvent(new Event('guia-feed-rede-reload'))
+                            }}
+                            buttonClassName={storyMenuItemClass}
+                          />
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={storyMenuItemClass}
+                        onClick={() => {
+                          setMenuMaisOpcoes(false)
+                          setModalDenunciar(true)
+                        }}
+                      >
+                        <Flag size={16} className="shrink-0 text-white" aria-hidden />
+                        Denunciar publicação
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            )}
 
-        {souAutor ? (
-          <button
-            type="button"
-            onClick={() => setModalInsights(true)}
-            className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-full px-2 py-1 text-white transition hover:bg-white/10"
-            aria-label="Ver curtidas e visualizações"
-          >
-            <ClipboardList size={32} strokeWidth={2} />
-            <span className="text-[11px] font-medium text-white/90">
-              {curtidasLista.length} · {emailsVisualizacao.length}
-            </span>
-          </button>
-        ) : uid ? (
-          <div className="flex items-center gap-2">
-            {podeRepostarStory ? (
+            {souAutor ? (
               <button
                 type="button"
-                disabled={repostando || checandoRepost}
-                onClick={() => void repostarStory()}
-                className={`flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10 disabled:opacity-50 ${
-                  repostExistenteId ? 'text-[#0097b2]' : ''
-                }`}
-                aria-label={repostExistenteId ? 'Desfazer repost do story' : 'Repostar story'}
+                onClick={() => setModalInsights(true)}
+                className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-full px-2 py-1 text-white transition hover:bg-white/10"
+                aria-label="Ver curtidas e visualizações"
               >
-                <Repeat2 size={30} strokeWidth={2} />
-                <span className="text-[10px] font-medium text-white/85">
-                  {repostando || checandoRepost ? '...' : repostExistenteId ? 'Repostado' : 'Repostar'}
+                <ClipboardList size={32} strokeWidth={2} />
+                <span className="text-[11px] font-medium text-white/90">
+                  {curtidasLista.length} · {emailsVisualizacao.length}
                 </span>
               </button>
-            ) : null}
-            <button
-              type="button"
-              disabled={curtirBusy}
-              onClick={() => void toggleCurtida()}
-              className="flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10 disabled:opacity-50"
-              aria-label={curtiu ? 'Remover curtida' : 'Curtir story'}
-            >
-              <Heart
-                size={32}
-                strokeWidth={2}
-                className={curtiu ? 'fill-red-500 text-red-500' : ''}
-                fill={curtiu ? 'currentColor' : 'none'}
-              />
-            </button>
-          </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {podeRepostarStory ? (
+                  <button
+                    type="button"
+                    disabled={repostando || checandoRepost}
+                    onClick={() => void repostarStory()}
+                    className={`flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10 disabled:opacity-50 ${
+                      repostExistenteId ? 'text-[#0097b2]' : ''
+                    }`}
+                    aria-label={repostExistenteId ? 'Desfazer repost do story' : 'Repostar story'}
+                  >
+                    <Repeat2 size={30} strokeWidth={2} />
+                    <span className="text-[10px] font-medium text-white/85">
+                      {repostando || checandoRepost ? '...' : repostExistenteId ? 'Repostado' : 'Repostar'}
+                    </span>
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={curtirBusy}
+                  onClick={() => void toggleCurtida()}
+                  className="flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-full p-2 text-white transition hover:bg-white/10 disabled:opacity-50"
+                  aria-label={curtiu ? 'Remover curtida' : 'Curtir story'}
+                >
+                  <Heart
+                    size={32}
+                    strokeWidth={2}
+                    className={curtiu ? 'fill-red-500 text-red-500' : ''}
+                    fill={curtiu ? 'currentColor' : 'none'}
+                  />
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <p className="text-center text-xs text-white/70">Inicie sessão para curtir</p>
         )}
       </footer>
+
+      {confirmExcluirStoryEtapa ? (
+        <div className="fixed inset-0 z-[125] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0"
+            aria-label="Fechar"
+            onClick={() => !excluindoStory && setConfirmExcluirStoryEtapa(null)}
+          />
+          <div className="relative z-[1] w-full max-w-md rounded-t-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl sm:rounded-2xl">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-white">
+                {confirmExcluirStoryEtapa === 1 ? 'Excluir este story?' : 'Confirmar exclusão definitiva?'}
+              </h2>
+              <button
+                type="button"
+                disabled={excluindoStory}
+                onClick={() => setConfirmExcluirStoryEtapa(null)}
+                className="rounded-full p-2 text-white/80 hover:bg-white/10 disabled:opacity-50"
+                aria-label="Fechar"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <p className="mb-6 text-sm text-white/80">
+              {confirmExcluirStoryEtapa === 1
+                ? 'O story deixará de aparecer no seu perfil e para quem o visualiza.'
+                : 'Essa ação remove o story e não poderá ser desfeita. Deseja continuar?'}
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={excluindoStory}
+                onClick={() => setConfirmExcluirStoryEtapa(null)}
+                className="rounded-xl border border-white/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/10 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              {confirmExcluirStoryEtapa === 1 ? (
+                <button
+                  type="button"
+                  disabled={excluindoStory}
+                  onClick={() => setConfirmExcluirStoryEtapa(2)}
+                  className="rounded-xl bg-[#0097b2] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#007a8f] disabled:opacity-50"
+                >
+                  Continuar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={excluindoStory}
+                  onClick={() => void executarExclusaoStoryDefinitiva()}
+                  className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {excluindoStory ? 'A excluir…' : 'Excluir definitivamente'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {modalDenunciar ? (
         <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" role="dialog" aria-modal="true">

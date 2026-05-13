@@ -41,7 +41,7 @@ export default function AtividadeRepostouStory({
         <p className="leading-snug text-gray-800">
           {modoMinhaConta ? (
             <>
-              Você repostou um story de{' '}
+              Você repostou de{' '}
               <Link href={hrefOriginal} className="font-medium text-[#0097b2] hover:underline">
                 @{originalUsername}
               </Link>
@@ -52,7 +52,7 @@ export default function AtividadeRepostouStory({
               <Link href={hrefReposter} className="font-medium text-[#0097b2] hover:underline">
                 @{reposterUsername}
               </Link>{' '}
-              repostou um story de{' '}
+              repostou de{' '}
               <Link href={hrefOriginal} className="font-medium text-[#0097b2] hover:underline">
                 @{originalUsername}
               </Link>
