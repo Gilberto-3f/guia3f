@@ -19,6 +19,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { atividadeVisivelNaMinhaContaPessoal } from '@/lib/atividades-feed'
+import { GUIA_ATIVIDADES_BADGE_EVENT } from '@/lib/atividades-events'
 
 /**
  * @param {string} path
@@ -252,6 +253,44 @@ export default function BottomBar() {
       window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
     }
   }, [pathname, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
+
+  /** Curtida/descurtida: só reconta o badge, sem `getUserData()` completo. */
+  useEffect(() => {
+    if (!authUserId) return
+    let ativo = true
+
+    const refreshBadgeAtividades = async () => {
+      const roleContagem =
+        modoAtivo && perfilSimulado ? perfilSimulado.tipo : userRole === 'admin' ? 'admin' : userRole
+      let usuarioIdContagemAtividades = authUserId
+      if (roleContagem === 'empresa' && modoAtivo && contextoEmpresaId) {
+        const { data: empGestor } = await supabase
+          .from('empresas')
+          .select('usuario_id')
+          .eq('id', contextoEmpresaId)
+          .maybeSingle()
+        const g = empGestor?.usuario_id
+        if (g != null && String(g).trim() !== '') usuarioIdContagemAtividades = String(g)
+      }
+
+      let total = 0
+      if (roleContagem === 'empresa') {
+        total = await contarAtividadesMinhaContaNaoLidas(usuarioIdContagemAtividades)
+      } else if (userRole != null) {
+        total = await contarAtividadesMinhaContaNaoLidas(authUserId)
+      }
+      if (ativo) setNaoLidasAtividades(total)
+    }
+
+    const onBadge = () => {
+      void refreshBadgeAtividades()
+    }
+    window.addEventListener(GUIA_ATIVIDADES_BADGE_EVENT, onBadge)
+    return () => {
+      ativo = false
+      window.removeEventListener(GUIA_ATIVIDADES_BADGE_EVENT, onBadge)
+    }
+  }, [authUserId, userRole, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
 
   useEffect(() => {
     if (!authUserId) {
