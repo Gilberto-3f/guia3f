@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { formatarDataComentarioCurta } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 import { getPerfilHref } from '@/lib/perfil-utils'
+import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 
 /**
  * @typedef {{
@@ -70,14 +71,17 @@ export default function Comentario({
   const toggle = async () => {
     if (!usuarioId) return
     if (curtiu) {
-      await supabase.from('curtidas').delete().eq('comentario_id', node.id).eq('usuario_id', usuarioId)
+      const { error } = await supabase.from('curtidas').delete().eq('comentario_id', node.id).eq('usuario_id', usuarioId)
+      if (error) return
       setCurtiu(false)
       setTotal((t) => Math.max(0, t - 1))
+      notificarEngajamentoAtividades()
     } else {
       const { error } = await supabase.from('curtidas').insert({ comentario_id: node.id, usuario_id: usuarioId })
       if (error) return
       setCurtiu(true)
       setTotal((t) => t + 1)
+      notificarEngajamentoAtividades()
     }
   }
 

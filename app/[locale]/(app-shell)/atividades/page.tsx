@@ -30,6 +30,7 @@ import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
+import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 
 const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
 
@@ -1109,6 +1110,12 @@ export default function AtividadesPage() {
 
   useEffect(() => {
     void recarregar()
+  }, [recarregar])
+
+  useEffect(() => {
+    const onReload = () => void recarregar()
+    window.addEventListener(GUIA_ATIVIDADES_RELOAD_EVENT, onReload)
+    return () => window.removeEventListener(GUIA_ATIVIDADES_RELOAD_EVENT, onReload)
   }, [recarregar])
 
   useEffect(() => {

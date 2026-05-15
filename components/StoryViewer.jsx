@@ -14,6 +14,7 @@ import { getPerfilHref } from '@/lib/perfil-utils'
 import AvatarImage from '@/components/AvatarImage'
 import StoryCanvas from '@/components/StoryCanvas'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 
 const STORY_VIEW_MS = 15000
 const SWIPE_DOWN_PX = 96
@@ -662,6 +663,7 @@ export default function StoryViewer({
         setCurtidasLista(prevCurtidas)
         return
       }
+      notificarEngajamentoAtividades()
       let payload = data
       if (typeof payload === 'string') {
         try {

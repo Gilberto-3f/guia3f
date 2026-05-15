@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Heart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 
 /**
  * @param {{ postId: string, totalInicial: number, usuarioId: string | null }} props
@@ -33,14 +34,17 @@ export default function BotaoCurtir({ postId, totalInicial, usuarioId }) {
     }
     if (!usuarioId) return
     if (curtiu) {
-      await supabase.from('curtidas').delete().eq('post_id', postId).eq('usuario_id', usuarioId)
+      const { error } = await supabase.from('curtidas').delete().eq('post_id', postId).eq('usuario_id', usuarioId)
+      if (error) return
       setCurtiu(false)
       setTotal((t) => Math.max(0, t - 1))
+      notificarEngajamentoAtividades()
     } else {
       const { error } = await supabase.from('curtidas').insert({ post_id: postId, usuario_id: usuarioId })
       if (error) return
       setCurtiu(true)
       setTotal((t) => t + 1)
+      notificarEngajamentoAtividades()
     }
   }
 

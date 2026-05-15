@@ -14,6 +14,7 @@ import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/l
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 import { getPerfilHref } from '@/lib/perfil-utils'
 
 /** UUID da empresa avaliada no `avaliacao_meta`, ou `null`. */
@@ -537,13 +538,15 @@ export default function PostCard({
     }
     if (!meuUsuarioId) return
     if (curtiu) {
-      await supabase.from('curtidas').delete().eq('post_id', post.id).eq('usuario_id', meuUsuarioId)
+      const { error } = await supabase.from('curtidas').delete().eq('post_id', post.id).eq('usuario_id', meuUsuarioId)
+      if (error) return
       setCurtiu(false)
       setCurtTotal((t) => {
         const n = Math.max(0, t - 1)
         onEngagementChange?.(post.id, { total_curtidas: n })
         return n
       })
+      notificarEngajamentoAtividades()
     } else {
       const { error } = await supabase.from('curtidas').insert({ post_id: post.id, usuario_id: meuUsuarioId })
       if (error) return
@@ -553,6 +556,7 @@ export default function PostCard({
         onEngagementChange?.(post.id, { total_curtidas: n })
         return n
       })
+      notificarEngajamentoAtividades()
     }
   }
 
