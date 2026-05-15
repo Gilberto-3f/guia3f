@@ -11,7 +11,7 @@ import MenuPost from '@/components/MenuPost'
 import { supabase } from '@/lib/supabase'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/lib/feed-autor'
-import DataRelativaPublicacao from '@/components/DataRelativaPublicacao'
+import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
@@ -768,7 +768,9 @@ export default function PostCard({
               </>
             )}
             <span className="text-gray-400">{' · '}</span>
-            <span className="text-gray-400">{formatarDataRelativaPublicacao(post.created_at)}</span>
+            <span suppressHydrationWarning className="text-gray-400">
+              {formatarDataRelativaPublicacao(post.created_at)}
+            </span>
           </div>
         </div>
         <MenuPost {...menuProps} />
@@ -890,7 +892,9 @@ export default function PostCard({
             ) : (
               <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
             )}
-            <time className="mt-0.5 block text-xs text-gray-400">{formatarDataRelativaPublicacao(post.created_at)}</time>
+            <time suppressHydrationWarning className="mt-0.5 block text-xs text-gray-400">
+              {formatarDataRelativaPublicacao(post.created_at)}
+            </time>
           </div>
         </div>
         <MenuPost {...menuProps} />
@@ -919,7 +923,9 @@ export default function PostCard({
                 ) : (
                   <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
                 )}
-                <DataRelativaPublicacao iso={post.created_at} as="time" className="text-xs text-gray-400" />
+                <time suppressHydrationWarning className="text-xs text-gray-400">
+                  {formatarDataRelativaPublicacao(post.created_at)}
+                </time>
               </div>
               <MenuPost {...menuProps} />
             </div>
