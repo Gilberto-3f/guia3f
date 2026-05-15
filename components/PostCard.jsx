@@ -11,7 +11,7 @@ import MenuPost from '@/components/MenuPost'
 import { supabase } from '@/lib/supabase'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/lib/feed-autor'
-import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
+import DataRelativaPublicacao from '@/components/DataRelativaPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
@@ -904,7 +904,6 @@ export default function PostCard({
         ? /** @type {Record<string, unknown>} */ (post.avaliacao_meta)
         : {}
     const catRotulo = typeof meta.categoria_rotulo === 'string' ? meta.categoria_rotulo : '—'
-    const tempo = formatarDataRelativaPublicacao(post.created_at)
     return (
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
         {!ocultarCabecalhoCard ? (
@@ -920,7 +919,7 @@ export default function PostCard({
                 ) : (
                   <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
                 )}
-                <time className="text-xs text-gray-400">{tempo}</time>
+                <DataRelativaPublicacao iso={post.created_at} as="time" className="text-xs text-gray-400" />
               </div>
               <MenuPost {...menuProps} />
             </div>

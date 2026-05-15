@@ -6,6 +6,56 @@ import { Link2 } from 'lucide-react'
 
 /** @typedef {{ scale: number, pan_x_pct: number, pan_y_pct: number }} StoryFundo */
 
+/** @param {string} src */
+function isLocalMediaSrc(src) {
+  const s = String(src ?? '').trim()
+  return s.startsWith('/') || s.startsWith('data:')
+}
+
+/**
+ * Mídia do story: URLs remotas em `<img>` (como AvatarImage) para evitar hydration mismatch do `next/image`.
+ * @param {{
+ *   mediaSrc: string
+ *   imageObjectFit: 'cover' | 'contain'
+ *   onNaturalSize?: (w: number, h: number) => void
+ * }} props
+ */
+function StoryCanvasMedia({ mediaSrc, imageObjectFit, onNaturalSize }) {
+  const fitClass = imageObjectFit === 'contain' ? 'object-contain' : 'object-cover'
+  const reportSize = (/** @type {HTMLImageElement} */ img) => {
+    const w = img?.naturalWidth ?? 0
+    const h = img?.naturalHeight ?? 0
+    if (w > 0 && h > 0) onNaturalSize?.(w, h)
+  }
+
+  if (isLocalMediaSrc(mediaSrc)) {
+    return (
+      <Image
+        src={mediaSrc}
+        alt=""
+        fill
+        sizes="(max-width: 768px) 100vw, 430px"
+        className={`select-none ${fitClass}`}
+        unoptimized
+        draggable={false}
+        onLoadingComplete={(img) => reportSize(img)}
+      />
+    )
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={mediaSrc}
+      alt=""
+      className={`absolute inset-0 h-full w-full select-none ${fitClass}`}
+      draggable={false}
+      decoding="async"
+      onLoad={(e) => reportSize(e.currentTarget)}
+    />
+  )
+}
+
 /** @param {number} min @param {number} v @param {number} max */
 function clamp(min, v, max) {
   return Math.max(min, Math.min(max, v))
@@ -529,18 +579,11 @@ export default function StoryCanvas({
             transformOrigin: 'center center',
           }}
         >
-          <Image
-            src={mediaSrc}
-            alt=""
-            fill
-            sizes="(max-width: 768px) 100vw, 430px"
-            className={`select-none ${imageObjectFit === 'contain' ? 'object-contain' : 'object-cover'}`}
-            unoptimized
-            draggable={false}
-            onLoadingComplete={(img) => {
-              const w = img?.naturalWidth ?? 0
-              const h = img?.naturalHeight ?? 0
-              if (w > 0 && h > 0) geoRef.current = { ...geoRef.current, imgW: w, imgH: h }
+          <StoryCanvasMedia
+            mediaSrc={mediaSrc}
+            imageObjectFit={imageObjectFit}
+            onNaturalSize={(w, h) => {
+              geoRef.current = { ...geoRef.current, imgW: w, imgH: h }
             }}
           />
         </div>
