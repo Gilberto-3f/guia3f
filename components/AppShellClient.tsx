@@ -6,11 +6,58 @@ import { AdminPermissaoProvider } from '@/app/[locale]/(admin)/dashboard/admin/c
 import { ModoApresentacaoProvider, useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { ProfissionalGateProvider } from '@/context/ProfissionalGateContext'
 import ModoApresentacaoChrome from '@/components/ModoApresentacaoChrome'
-import ProfissionalGateBanner from '@/components/ProfissionalGateBanner'
 import BottomBar from '@/components/BottomBar'
 
 /** `feed/criar` emite quando o teclado está visível para esconder a barra (aba TEXTO ou legenda na FOTO). */
 const CRIAR_KEYBOARD_EVENT = 'guia-criar-keyboard'
+
+/**
+ * Classes e estrutura compartilhadas entre Suspense fallback e conteúdo real.
+ * Evita hydration mismatch (#418) quando o fallback divergia (gradiente vs gray-50, chrome ausente).
+ */
+function shellClasses(pathname: string, criarTecladoOcultaBarra: boolean) {
+  const isStoryCriar = pathname.includes('/feed/story/criar')
+  const hideBottomBar = isStoryCriar || (pathname.includes('/feed/criar') && criarTecladoOcultaBarra)
+  const paddingInferior = hideBottomBar ? '' : pathname.includes('/feed/criar') ? 'pb-14' : 'pb-20'
+  const fundoShell =
+    pathname.includes('/feed/criar') && !isStoryCriar
+      ? 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
+      : isStoryCriar
+        ? 'bg-black'
+        : 'bg-gray-50'
+  return { hideBottomBar, paddingInferior, fundoShell }
+}
+
+function AppShellLayoutFrame({
+  pathname,
+  modoAtivo,
+  criarTecladoOcultaBarra,
+  children,
+}: {
+  pathname: string
+  modoAtivo: boolean
+  criarTecladoOcultaBarra: boolean
+  children: ReactNode
+}) {
+  const { hideBottomBar, paddingInferior, fundoShell } = shellClasses(pathname, criarTecladoOcultaBarra)
+
+  return (
+    <div className={`flex min-h-screen min-h-dvh flex-col ${fundoShell} ${paddingInferior}`}>
+      {modoAtivo ? null : <ModoApresentacaoChrome />}
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      {!hideBottomBar ? <BottomBar /> : null}
+    </div>
+  )
+}
+
+/** Fallback: mesma árvore que o shell em /feed (gray-50, chrome, barra). pathname vazio → defaults de feed. */
+function AppShellSuspenseFallback({ children }: { children: ReactNode }) {
+  return (
+    <AppShellLayoutFrame pathname="" modoAtivo={false} criarTecladoOcultaBarra={false}>
+      {children}
+    </AppShellLayoutFrame>
+  )
+}
 
 function AppShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -30,29 +77,14 @@ function AppShellInner({ children }: { children: ReactNode }) {
     if (!pathname.includes('/feed/criar')) setCriarTecladoOcultaBarra(false)
   }, [pathname])
 
-  const isStoryCriar = pathname.includes('/feed/story/criar')
-  const hideBottomBar = isStoryCriar || (pathname.includes('/feed/criar') && criarTecladoOcultaBarra)
-  /** `pt-12` era para compensar o `ModoApresentacaoChrome`; sem ele não deve haver espaço extra. */
-  const paddingTopoModo = ''
-
-  const paddingInferior =
-    hideBottomBar ? '' : pathname.includes('/feed/criar') ? 'pb-14' : 'pb-20'
-
-  const fundoShell =
-    pathname.includes('/feed/criar') && !isStoryCriar
-      ? 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
-      : isStoryCriar
-        ? 'bg-black'
-        : 'bg-gray-50'
-
   return (
-    <div
-      className={`flex min-h-screen min-h-dvh flex-col ${fundoShell} ${paddingTopoModo} ${paddingInferior}`}
+    <AppShellLayoutFrame
+      pathname={pathname}
+      modoAtivo={modoAtivo}
+      criarTecladoOcultaBarra={criarTecladoOcultaBarra}
     >
-      {modoAtivo ? null : <ModoApresentacaoChrome />}
-      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-      {!hideBottomBar ? <BottomBar /> : null}
-    </div>
+      {children}
+    </AppShellLayoutFrame>
   )
 }
 
@@ -61,14 +93,7 @@ export default function AppShellClient({ children }: { children: ReactNode }) {
     <AdminPermissaoProvider>
       <ModoApresentacaoProvider>
         <ProfissionalGateProvider>
-          <Suspense
-            fallback={
-              <div className="flex min-h-screen min-h-dvh flex-col bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300 pb-20">
-                <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-                <BottomBar />
-              </div>
-            }
-          >
+          <Suspense fallback={<AppShellSuspenseFallback>{children}</AppShellSuspenseFallback>}>
             <AppShellInner>{children}</AppShellInner>
           </Suspense>
         </ProfissionalGateProvider>

@@ -113,7 +113,13 @@ function labelStoryEmpresa(e) {
  * }} props
  */
 export default function StoriesBar({ hidden = false, userEmail, onOpenStory, reloadSignal = 0 }) {
+  const [barMounted, setBarMounted] = useState(false)
   const { podeInteragir, notificarSomenteLeitura, modoAtivo, perfilSimulado } = useModoApresentacao()
+
+  useEffect(() => {
+    setBarMounted(true)
+  }, [])
+
   const simulandoEmpresa = Boolean(modoAtivo && perfilSimulado?.tipo === 'empresa')
   /** @type {{ avatarUrl: string | null, storyId: string | null, visualizado_por: unknown }} */
   const [meuSlot, setMeuSlot] = useState({
@@ -469,6 +475,10 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
   }, [load])
 
   if (hidden) return null
+
+  if (!barMounted) {
+    return <div aria-hidden className="h-[100px] shrink-0 border-b border-gray-200 bg-transparent" />
+  }
 
   const meuVisto = foiVisualizado(meuSlot.visualizado_por, userEmail)
   const meuTemStory = Boolean(meuSlot.storyId)
