@@ -5,6 +5,7 @@ import { Heart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
+import { asUuidFilter } from '@/lib/supabaseRestUuid'
 
 /**
  * @param {{ postId: string, totalInicial: number, usuarioId: string | null }} props
@@ -19,9 +20,11 @@ export default function BotaoCurtir({ postId, totalInicial, usuarioId }) {
   }, [totalInicial, postId])
 
   useEffect(() => {
-    if (!usuarioId || !postId) return
+    const pid = asUuidFilter(postId)
+    const uid = asUuidFilter(usuarioId)
+    if (!pid || !uid) return
     const check = async () => {
-      const { data } = await supabase.from('curtidas').select('id').eq('post_id', postId).eq('usuario_id', usuarioId).maybeSingle()
+      const { data } = await supabase.from('curtidas').select('id').match({ post_id: pid, usuario_id: uid }).maybeSingle()
       setCurtiu(Boolean(data))
     }
     void check()
@@ -32,15 +35,17 @@ export default function BotaoCurtir({ postId, totalInicial, usuarioId }) {
       notificarSomenteLeitura()
       return
     }
-    if (!usuarioId) return
+    const pid = asUuidFilter(postId)
+    const uid = asUuidFilter(usuarioId)
+    if (!pid || !uid) return
     if (curtiu) {
-      const { error } = await supabase.from('curtidas').delete().eq('post_id', postId).eq('usuario_id', usuarioId)
+      const { error } = await supabase.from('curtidas').delete().match({ post_id: pid, usuario_id: uid })
       if (error) return
       setCurtiu(false)
       setTotal((t) => Math.max(0, t - 1))
       notificarEngajamentoAtividades()
     } else {
-      const { error } = await supabase.from('curtidas').insert({ post_id: postId, usuario_id: usuarioId })
+      const { error } = await supabase.from('curtidas').insert({ post_id: pid, usuario_id: uid })
       if (error) return
       setCurtiu(true)
       setTotal((t) => t + 1)

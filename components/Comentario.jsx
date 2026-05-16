@@ -8,6 +8,7 @@ import { formatarDataComentarioCurta } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 import { getPerfilHref } from '@/lib/perfil-utils'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
+import { asUuidFilter } from '@/lib/supabaseRestUuid'
 
 /**
  * @typedef {{
@@ -55,13 +56,14 @@ export default function Comentario({
   }, [node.total_curtidas])
 
   useEffect(() => {
-    if (!usuarioId) return
+    const cid = asUuidFilter(node.id)
+    const uid = asUuidFilter(usuarioId)
+    if (!cid || !uid) return
     const check = async () => {
       const { data } = await supabase
         .from('curtidas')
         .select('id')
-        .eq('comentario_id', node.id)
-        .eq('usuario_id', usuarioId)
+        .match({ comentario_id: cid, usuario_id: uid })
         .maybeSingle()
       setCurtiu(Boolean(data))
     }
@@ -69,15 +71,17 @@ export default function Comentario({
   }, [node.id, usuarioId])
 
   const toggle = async () => {
-    if (!usuarioId) return
+    const cid = asUuidFilter(node.id)
+    const uid = asUuidFilter(usuarioId)
+    if (!cid || !uid) return
     if (curtiu) {
-      const { error } = await supabase.from('curtidas').delete().eq('comentario_id', node.id).eq('usuario_id', usuarioId)
+      const { error } = await supabase.from('curtidas').delete().match({ comentario_id: cid, usuario_id: uid })
       if (error) return
       setCurtiu(false)
       setTotal((t) => Math.max(0, t - 1))
       notificarEngajamentoAtividades()
     } else {
-      const { error } = await supabase.from('curtidas').insert({ comentario_id: node.id, usuario_id: usuarioId })
+      const { error } = await supabase.from('curtidas').insert({ comentario_id: cid, usuario_id: uid })
       if (error) return
       setCurtiu(true)
       setTotal((t) => t + 1)

@@ -16,6 +16,7 @@ import AvatarImage from '@/components/AvatarImage'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 import { getPerfilHref } from '@/lib/perfil-utils'
+import { asUuidFilter } from '@/lib/supabaseRestUuid'
 
 /** UUID da empresa avaliada no `avaliacao_meta`, ou `null`. */
 function postAvaliacaoEmpresaAlvoId(p) {
@@ -322,15 +323,16 @@ export default function PostCard({
   }, [post.total_curtidas, post.id])
 
   useEffect(() => {
-    if (!meuUsuarioId || !post.id) {
+    const pid = asUuidFilter(post.id)
+    const uid = asUuidFilter(meuUsuarioId)
+    if (!uid || !pid) {
       setCurtiu(false)
       return
     }
     void supabase
       .from('curtidas')
       .select('id')
-      .eq('post_id', post.id)
-      .eq('usuario_id', meuUsuarioId)
+      .match({ post_id: pid, usuario_id: uid })
       .maybeSingle()
       .then(({ data }) => setCurtiu(Boolean(data)))
   }, [post.id, meuUsuarioId])
@@ -536,9 +538,11 @@ export default function PostCard({
       notificarSomenteLeitura()
       return
     }
-    if (!meuUsuarioId) return
+    const pid = asUuidFilter(post.id)
+    const uid = asUuidFilter(meuUsuarioId)
+    if (!pid || !uid) return
     if (curtiu) {
-      const { error } = await supabase.from('curtidas').delete().eq('post_id', post.id).eq('usuario_id', meuUsuarioId)
+      const { error } = await supabase.from('curtidas').delete().match({ post_id: pid, usuario_id: uid })
       if (error) return
       setCurtiu(false)
       setCurtTotal((t) => {
@@ -548,7 +552,7 @@ export default function PostCard({
       })
       notificarEngajamentoAtividades()
     } else {
-      const { error } = await supabase.from('curtidas').insert({ post_id: post.id, usuario_id: meuUsuarioId })
+      const { error } = await supabase.from('curtidas').insert({ post_id: pid, usuario_id: uid })
       if (error) return
       setCurtiu(true)
       setCurtTotal((t) => {
