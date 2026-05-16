@@ -997,9 +997,12 @@ export default function PostCard({
     const aguardandoEmpresaAoVivo =
       Boolean(empresaAlvoId) && (!avaliacaoEmpresaDadosProntos || !avaliacaoConteudoDadosProntos)
 
-    const notaValMeta = Math.min(5, Math.max(0, Math.round(Number(meta.nota) || 0)))
-    const notaValLive = avaliacaoAlvoLive?.nota != null ? Math.min(5, Math.max(0, Math.round(Number(avaliacaoAlvoLive.nota) || 0))) : null
-    const notaVal = notaValLive != null ? notaValLive : notaValMeta
+    const notaNumMeta = Math.min(5, Math.max(0, Number(meta.nota) || 0))
+    const notaNumLive =
+      avaliacaoAlvoLive?.nota != null ? Math.min(5, Math.max(0, Number(avaliacaoAlvoLive.nota) || 0)) : null
+    const notaNum = notaNumLive != null ? notaNumLive : notaNumMeta
+    const notaVal = Math.min(5, Math.max(0, Math.round(notaNum)))
+    const notaTexto = notaNum > 0 ? (Number.isInteger(notaNum) ? String(notaNum) : notaNum.toFixed(1)) : null
 
     const feedbackTextMeta =
       meta.feedback != null && String(meta.feedback).trim() !== ''
@@ -1032,17 +1035,7 @@ export default function PostCard({
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
         {cabecalhoAutorFeed}
         <div className="px-4 pb-3 pt-0">
-          <div className="mb-3 flex justify-center" aria-label={`Nota ${notaVal} de 5`}>
-            <div className="flex flex-wrap items-center justify-center gap-0.5">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star
-                  key={s}
-                  className={`h-6 w-6 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
-                  aria-hidden
-                />
-              ))}
-            </div>
-          </div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">avaliação</p>
           <div className="mb-3 flex justify-center">
             <div
               className="flex w-full max-w-sm items-center gap-3 rounded-lg bg-gray-50 p-3"
@@ -1110,6 +1103,18 @@ export default function PostCard({
                 </>
               )}
             </div>
+          </div>
+          <div className="mb-3 flex items-center justify-center gap-2" aria-label={`Nota ${notaVal} de 5`}>
+            <div className="flex flex-wrap items-center gap-0.5">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star
+                  key={s}
+                  className={`h-6 w-6 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                  aria-hidden
+                />
+              ))}
+            </div>
+            {notaTexto ? <span className="text-sm font-semibold text-gray-800">{notaTexto}</span> : null}
           </div>
           {feedbackText ? (
             <p className="whitespace-pre-wrap text-left text-sm leading-relaxed text-gray-800">{feedbackText}</p>

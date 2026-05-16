@@ -7,11 +7,12 @@ import { Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
   fetchFotoPerfilUsuario,
-  fetchNomeUsuarioParaStory,
+  fetchFotosPerfilPorUsuarioIds,
   pickAutorDisplay,
   STORY_RING_GRADIENT,
   visualizadoPorEmails,
 } from '@/lib/feed-autor'
+import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { intercalarStoryAutores } from '@/lib/intercalarFeedEmpresa'
 import { fetchUsuarioIdsEmpresasFavoritas } from '@/lib/feedSeguidosEmpresasFavoritas'
@@ -130,9 +131,11 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
 
   /** @type {{ id: string, autorId: string, label: string, avatarUrl: string | null, visualizado_por: unknown }[]} */
   const [rings, setRings] = useState([])
+  const [storiesBarLoading, setStoriesBarLoading] = useState(true)
   const [meuUserId, setMeuUserId] = useState(/** @type {string | null} */ (null))
 
   const load = useCallback(async () => {
+    setStoriesBarLoading(true)
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -140,12 +143,14 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       setRings([])
       setMeuUserId(null)
       setMeuSlot({ avatarUrl: null, storyId: null, visualizado_por: null })
+      setStoriesBarLoading(false)
       return
     }
 
     const uid = session.user.id
     setMeuUserId(uid)
 
+    try {
     const USUARIOS_MEU_SELECT = `
       id,
       email,
@@ -369,40 +374,35 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       }
     }
 
-    await Promise.all(
-      ordered.map(async (aid) => {
-        if (!previews[aid]) {
-          const url = await fetchFotoPerfilUsuario(supabase, aid)
-          if (url) previews[aid] = url
-        }
-      })
-    )
-
-    for (const aid of ordered) {
-      if (labels[aid] != null) continue
-      const { data: uRow, error: oneErr } = await supabase
-        .from('usuarios')
-        .select(USUARIOS_MEU_SELECT)
-        .eq('id', aid)
-        .maybeSingle()
-      if (oneErr) console.warn('[StoriesBar] usuarios fallback', aid, oneErr)
-      if (uRow) {
-        const d = pickAutorDisplay(uRow)
-        labels[aid] = labelFromUsuarioRow(uRow)
-        if (!previews[aid] && d.foto_perfil_url) previews[aid] = d.foto_perfil_url
-      } else {
-        labels[aid] = 'Usuário'
+    const semFoto = ordered.filter((aid) => !previews[aid])
+    if (semFoto.length > 0) {
+      const fotosMap = await fetchFotosPerfilPorUsuarioIds(supabase, semFoto)
+      for (const aid of semFoto) {
+        const url = fotosMap.get(aid)
+        if (url) previews[aid] = url
       }
     }
 
-    await Promise.all(
-      ordered.map(async (aid) => {
-        if (empresaAutorSet.has(aid)) return
-        const nu = await fetchNomeUsuarioParaStory(supabase, aid)
-        const h = formatStoryHandle(nu)
-        if (h) labels[aid] = h
-      })
-    )
+    const semLabel = ordered.filter((aid) => labels[aid] == null)
+    if (semLabel.length > 0) {
+      const perfisBusca = await buscarPerfisPorIds(supabase, semLabel)
+      for (const p of perfisBusca) {
+        const id = String(p.usuario_id ?? '')
+        if (!id) continue
+        const nu = (p.username ?? '').trim()
+        const nome = (p.nome ?? '').trim()
+        if (nu) {
+          const h = formatStoryHandle(nu)
+          if (h) labels[id] = abreviarLabelStory(h)
+        } else if (nome) {
+          labels[id] = abreviarLabelStory(nome)
+        }
+        if (!previews[id] && p.foto_url) previews[id] = p.foto_url
+      }
+      for (const aid of semLabel) {
+        if (labels[aid] == null) labels[aid] = 'Usuário'
+      }
+    }
 
     const built = ordered
       .map((aid) => {
@@ -429,6 +429,12 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     )
 
     setRings([...naoVistos, ...vistos])
+    } catch (e) {
+      console.error('[StoriesBar] load:', e)
+      setRings([])
+    } finally {
+      setStoriesBarLoading(false)
+    }
   }, [userEmail, simulandoEmpresa])
 
   useEffect(() => {
@@ -572,24 +578,31 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
           <span className="max-w-[5rem] truncate text-center text-xs leading-tight text-gray-700">Seu story</span>
         </div>
 
-        {rings.map((s) => (
-          <StoryCircle
-            key={s.id}
-            id={s.id}
-            label={s.label}
-            avatarUrl={s.avatarUrl}
-            visualizado_por={s.visualizado_por}
-            userEmail={userEmail}
-            onPress={() => {
-              const filaAutores = filaAutoresParaNavegacao()
-              const filaAutorIndex = filaAutores.indexOf(s.autorId)
-              onOpenStory(s.id, {
-                filaAutores,
-                filaAutorIndex: filaAutorIndex >= 0 ? filaAutorIndex : 0,
-              })
-            }}
-          />
-        ))}
+        {storiesBarLoading
+          ? Array.from({ length: 6 }, (_, i) => (
+              <div key={`story-skel-${i}`} className="flex w-[76px] shrink-0 flex-col items-center gap-1" aria-hidden>
+                <div className="aspect-square w-[76px] max-w-[76px] animate-pulse rounded-full bg-gray-200" />
+                <div className="h-3 w-14 animate-pulse rounded bg-gray-200" />
+              </div>
+            ))
+          : rings.map((s) => (
+              <StoryCircle
+                key={s.id}
+                id={s.id}
+                label={s.label}
+                avatarUrl={s.avatarUrl}
+                visualizado_por={s.visualizado_por}
+                userEmail={userEmail}
+                onPress={() => {
+                  const filaAutores = filaAutoresParaNavegacao()
+                  const filaAutorIndex = filaAutores.indexOf(s.autorId)
+                  onOpenStory(s.id, {
+                    filaAutores,
+                    filaAutorIndex: filaAutorIndex >= 0 ? filaAutorIndex : 0,
+                  })
+                }}
+              />
+            ))}
       </div>
     </div>
   )
