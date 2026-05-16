@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Heart } from 'lucide-react'
+import { Heart, UserCheck, UserPlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
@@ -186,7 +186,9 @@ export default function BotaoSeguir({
 
   const wrapperClass =
     layout === 'inline'
-      ? 'flex shrink-0 flex-col items-end gap-1'
+      ? buttonClassName.trim()
+        ? 'flex w-full flex-col items-stretch gap-0'
+        : 'flex shrink-0 flex-col items-end gap-1'
       : 'flex flex-col items-end gap-1'
 
   const defaultBtn =
@@ -218,6 +220,12 @@ export default function BotaoSeguir({
       >
         {leadingIcon === 'heart' && !seguindo ? (
           <Heart size={iconSize} className="text-white" aria-hidden />
+        ) : null}
+        {leadingIcon === 'user-plus' && !seguindo ? (
+          <UserPlus size={iconSize} className="shrink-0 text-white" aria-hidden />
+        ) : null}
+        {leadingIcon === 'user-plus' && seguindo ? (
+          <UserCheck size={iconSize} className="shrink-0 text-white" aria-hidden />
         ) : null}
         <span>{seguindo ? 'Seguindo' : 'Seguir'}</span>
       </button>

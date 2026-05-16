@@ -1268,8 +1268,10 @@ export default function StoryViewer({
       {muted ? <VolumeX size={22} /> : <Volume2 size={22} />}
     </button>
   ) : null
+  const storyMenuPanelClass =
+    'absolute bottom-full left-0 z-[46] mb-2 w-max max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg bg-[#0097b2] py-1 text-white shadow-lg'
   const storyMenuItemClass =
-    'flex w-full min-h-11 items-center gap-3 px-4 py-3 text-left text-sm font-medium text-white transition-colors hover:bg-[#007a8f] disabled:opacity-50'
+    'flex w-full min-h-10 items-center gap-2.5 whitespace-nowrap px-3.5 py-2.5 text-left text-sm font-medium text-white transition-colors hover:bg-[#007a8f] disabled:opacity-50'
 
   return (
     <div
@@ -1556,7 +1558,7 @@ export default function StoryViewer({
                       onClick={() => setMenuAutorStory(false)}
                     />
                     <div
-                      className="absolute bottom-full left-0 z-[46] mb-2 w-[min(calc(100vw-2rem),280px)] overflow-hidden rounded-lg bg-[#0097b2] py-1 text-white shadow-lg"
+                      className={storyMenuPanelClass}
                       role="menu"
                     >
                       <button
@@ -1595,19 +1597,21 @@ export default function StoryViewer({
                       onClick={() => setMenuMaisOpcoes(false)}
                     />
                     <div
-                      className="absolute bottom-full left-0 z-[46] mb-2 w-[min(calc(100vw-2rem),280px)] overflow-hidden rounded-lg bg-[#0097b2] py-1 text-white shadow-lg"
+                      className={storyMenuPanelClass}
                       role="menu"
                     >
-                      <div>
+                      <div className="w-full">
                         {seguindoAutor === null ? (
-                          <p className="px-4 py-3 text-center text-xs text-white/75">A carregar…</p>
+                          <p className="whitespace-nowrap px-3.5 py-2.5 text-center text-xs text-white/75">A carregar…</p>
                         ) : (
                           <BotaoSeguir
                             alvoId={autorId ?? undefined}
                             alvoTipo="usuario"
                             seguidoTipo="user"
                             isFollowing={seguindoAutor}
-                            leadingIcon="none"
+                            leadingIcon="user-plus"
+                            layout="inline"
+                            showInlineError={false}
                             onToggle={(novo) => {
                               setSeguindoAutor(novo)
                               window.dispatchEvent(new Event('guia-feed-rede-reload'))
