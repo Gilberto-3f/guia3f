@@ -46,7 +46,7 @@ export default function AtividadeRepostouStory({
         <p className="leading-snug text-gray-800">
           {modoMinhaConta ? (
             <>
-              Você repostou um story em que foi marcado por{' '}
+              Você repostou um story de{' '}
               {original !== 'alguém' ? (
                 <Link href={hrefOriginalEfetivo} className="font-medium text-[#0097b2] hover:underline">
                   @{original}
@@ -61,7 +61,7 @@ export default function AtividadeRepostouStory({
               <Link href={hrefReposter} className="font-medium text-[#0097b2] hover:underline">
                 @{reposter}
               </Link>{' '}
-              repostou um story em que foi marcado por{' '}
+              repostou um story de{' '}
               {original !== 'alguém' ? (
                 <Link href={hrefOriginalEfetivo} className="font-medium text-[#0097b2] hover:underline">
                   @{original}
@@ -79,10 +79,10 @@ export default function AtividadeRepostouStory({
           <button
             type="button"
             onClick={onAbrirStory}
-            className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100 transition hover:opacity-90"
+            className="relative h-12 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100 transition hover:opacity-90"
             aria-label="Abrir story"
           >
-            <AvatarImage src={conteudoUrl} alt="" fill className="object-cover" sizes="64px" />
+            <AvatarImage src={conteudoUrl} alt="" fill className="object-cover" sizes="36px" />
           </button>
         ) : (
           <button
