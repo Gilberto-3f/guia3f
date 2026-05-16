@@ -543,7 +543,10 @@ export default function PostCard({
     if (!pid || !uid) return
     if (curtiu) {
       const { error } = await supabase.from('curtidas').delete().match({ post_id: pid, usuario_id: uid })
-      if (error) return
+      if (error) {
+        console.error('[PostCard] descurtir:', error)
+        return
+      }
       setCurtiu(false)
       setCurtTotal((t) => {
         const n = Math.max(0, t - 1)
@@ -553,7 +556,10 @@ export default function PostCard({
       notificarEngajamentoAtividades()
     } else {
       const { error } = await supabase.from('curtidas').insert({ post_id: pid, usuario_id: uid })
-      if (error) return
+      if (error) {
+        console.error('[PostCard] curtir:', error)
+        return
+      }
       setCurtiu(true)
       setCurtTotal((t) => {
         const n = t + 1
@@ -1035,7 +1041,7 @@ export default function PostCard({
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
         {cabecalhoAutorFeed}
         <div className="px-4 pb-3 pt-0">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">avaliação</p>
+          <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-gray-500">avaliação</p>
           <div className="mb-3 flex justify-center">
             <div
               className="flex w-full max-w-sm items-center gap-3 rounded-lg bg-gray-50 p-3"

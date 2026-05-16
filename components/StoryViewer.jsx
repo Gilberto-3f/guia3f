@@ -1225,28 +1225,28 @@ export default function StoryViewer({
           )}
         </Link>
       </span>
-      <div className="flex min-w-0 flex-1 items-baseline gap-x-0.5 overflow-hidden text-sm font-semibold tracking-tight drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+      <div className="flex min-w-0 flex-1 items-baseline gap-x-1 overflow-hidden text-sm tracking-tight drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
         {story.repost_story_id ? (
           <>
             <span className="shrink-0 whitespace-nowrap">
-              <Link href={hrefAutor} className="hover:underline">
+              <Link href={hrefAutor} className="font-semibold hover:underline">
                 {rotuloAutor ?? '…'}
               </Link>
             </span>
-            <span className="shrink-0 whitespace-nowrap text-white/85"> repostou de </span>
+            <span className="shrink-0 whitespace-nowrap px-0.5 font-normal text-white/85">repostou de</span>
             <span className="min-w-0 flex-1 truncate">
               {autorOriginalRepostId ? (
-                <Link href={hrefAutorOriginalRepost} className="block truncate hover:underline">
+                <Link href={hrefAutorOriginalRepost} className="block truncate font-semibold hover:underline">
                   {rotuloAutorOriginalRepost ?? '…'}
                 </Link>
               ) : (
-                <span className="block truncate">{rotuloAutorOriginalRepost ?? '…'}</span>
+                <span className="block truncate font-semibold">{rotuloAutorOriginalRepost ?? '…'}</span>
               )}
             </span>
           </>
         ) : (
           <span className="min-w-0 flex-1 truncate">
-            <Link href={hrefAutor} className="block truncate hover:underline">
+            <Link href={hrefAutor} className="block truncate font-semibold hover:underline">
               {rotuloAutor ?? '…'}
             </Link>
           </span>

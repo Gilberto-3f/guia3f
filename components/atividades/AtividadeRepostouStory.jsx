@@ -14,6 +14,7 @@ import { normalizarUsernameAtividade } from '@/lib/formatarTextoRepostStory'
  *   conteudoUrl: string | null
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
+ *   euRepostei?: boolean
  *   onAbrirStory: () => void
  * }} props
  */
@@ -26,11 +27,34 @@ export default function AtividadeRepostouStory({
   conteudoUrl,
   tempoInteracao = '',
   modoMinhaConta = false,
+  euRepostei = false,
   onAbrirStory,
 }) {
   const reposter = normalizarUsernameAtividade(reposterUsername) || 'usuario'
   const original = normalizarUsernameAtividade(originalUsername) || 'alguém'
   const hrefOriginalEfetivo = original !== 'alguém' ? hrefOriginal : hrefReposter
+
+  const textoMinhaConta =
+    euRepostei ? (
+      <>
+        Você repostou um story de{' '}
+        {original !== 'alguém' ? (
+          <Link href={hrefOriginalEfetivo} className="font-medium text-[#0097b2] hover:underline">
+            @{original}
+          </Link>
+        ) : (
+          <span className="font-medium text-gray-700">alguém</span>
+        )}
+        .
+      </>
+    ) : (
+      <>
+        <Link href={hrefReposter} className="font-medium text-[#0097b2] hover:underline">
+          @{reposter}
+        </Link>{' '}
+        repostou um story que você o marcou.
+      </>
+    )
 
   return (
     <div className="grid min-w-0 grid-cols-[2.5rem_1fr_auto] items-start gap-x-2 text-sm text-gray-800">
@@ -45,17 +69,7 @@ export default function AtividadeRepostouStory({
       <div className="min-w-0 self-center pt-0.5">
         <p className="leading-snug text-gray-800">
           {modoMinhaConta ? (
-            <>
-              Você repostou um story de{' '}
-              {original !== 'alguém' ? (
-                <Link href={hrefOriginalEfetivo} className="font-medium text-[#0097b2] hover:underline">
-                  @{original}
-                </Link>
-              ) : (
-                <span className="font-medium text-gray-700">alguém</span>
-              )}
-              .
-            </>
+            textoMinhaConta
           ) : (
             <>
               <Link href={hrefReposter} className="font-medium text-[#0097b2] hover:underline">

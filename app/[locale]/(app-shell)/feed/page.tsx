@@ -838,6 +838,9 @@ function FeedPageInner() {
               onPostLocalPatch={(postId, patch) => {
                 setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, ...patch } : x)))
               }}
+              onEngagementChange={(postId, patch) => {
+                setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, ...patch } : x)))
+              }}
               onRepostRemovido={(repostPostId) => {
                 setPosts((prev) => prev.filter((p) => p.id !== repostPostId))
               }}

@@ -1568,6 +1568,7 @@ export default function AtividadesPage() {
           conteudoUrl={conteudoUrl}
           tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
+          euRepostei={Boolean(meuId && r.autor_id === meuId)}
           onAbrirStory={() => void carregarStoryPorId(storyId)}
         />
       )
