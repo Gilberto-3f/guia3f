@@ -1123,7 +1123,7 @@ export default function PostCard({
             {notaTexto ? <span className="text-sm font-semibold text-gray-800">{notaTexto}</span> : null}
           </div>
           {feedbackText ? (
-            <p className="whitespace-pre-wrap text-left text-sm leading-relaxed text-gray-800">{feedbackText}</p>
+            <p className="whitespace-pre-wrap text-center text-sm leading-relaxed text-gray-800">{feedbackText}</p>
           ) : null}
         </div>
         <div className="border-t border-gray-100">{acoesPost}</div>
