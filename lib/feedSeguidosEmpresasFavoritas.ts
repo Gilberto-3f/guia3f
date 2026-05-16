@@ -21,3 +21,26 @@ export async function fetchUsuarioIdsEmpresasFavoritas(
   if (errE || !emps?.length) return []
   return [...new Set(emps.map((e) => String((e as { usuario_id: unknown }).usuario_id)).filter(Boolean))]
 }
+
+/**
+ * IDs de autores cujas interações aparecem na aba Amigos de `/atividades`:
+ * perfis seguidos em `redecontatos` + donos de empresas favoritadas (`favoritos`).
+ */
+export async function fetchAutorIdsSeguidosAmigos(
+  supabase: SupabaseClient,
+  meuId: string | null
+): Promise<string[]> {
+  if (!meuId) return []
+  const [{ data: segRows, error: errRede }, autoresEmpresas] = await Promise.all([
+    supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId),
+    fetchUsuarioIdsEmpresasFavoritas(supabase, meuId),
+  ])
+  if (errRede && process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.error('[Atividades] redecontatos (seguindo):', errRede)
+  }
+  const seguidosRede = (segRows ?? [])
+    .map((r) => String((r as { seguido_id: string }).seguido_id))
+    .filter(Boolean)
+  return [...new Set([...seguidosRede, ...autoresEmpresas])].filter(Boolean)
+}

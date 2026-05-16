@@ -32,6 +32,7 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 import { resolverUsernameOriginalRepostStory, normalizarUsernameAtividade } from '@/lib/formatarTextoRepostStory'
+import { fetchAutorIdsSeguidosAmigos } from '@/lib/feedSeguidosEmpresasFavoritas'
 
 const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
 
@@ -980,12 +981,7 @@ export default function AtividadesPage() {
 
     setMinhaEmpresaAtividades(null)
 
-    const { data: segRows, error: erroRede } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid)
-    if (erroRede && process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
-      console.error('[Atividades][Amigos][diag] erro redecontatos (quem sigo):', erroRede)
-    }
-    const seguindo = (segRows ?? []).map((r) => String((r as { seguido_id: string }).seguido_id))
+    const seguindo = await fetchAutorIdsSeguidosAmigos(supabase, uid)
     seguindoRef.current = seguindo
     setQtdSeguindo(seguindo.length)
 
@@ -1111,6 +1107,14 @@ export default function AtividadesPage() {
 
   useEffect(() => {
     void recarregar()
+  }, [recarregar])
+
+  useEffect(() => {
+    const onRedeReload = () => {
+      void recarregar()
+    }
+    window.addEventListener('guia-feed-rede-reload', onRedeReload)
+    return () => window.removeEventListener('guia-feed-rede-reload', onRedeReload)
   }, [recarregar])
 
   useEffect(() => {
