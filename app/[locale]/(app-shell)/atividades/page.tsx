@@ -31,6 +31,7 @@ import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
+import { resolverUsernameOriginalRepostStory, normalizarUsernameAtividade } from '@/lib/formatarTextoRepostStory'
 
 const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
 
@@ -999,7 +1000,7 @@ export default function AtividadesPage() {
             .in('autor_id', seguindo)
             /* Destinatário = eu → fica só na aba "Minha conta"; aqui só o que seguidos fazem no conteúdo de terceiros. */
             .neq('usuario_id', uid)
-            .neq('tipo', 'avaliou')
+            .not('tipo', 'in', '(avaliou,marcou_em_story)')
             .order('created_at', { ascending: false })
             .range(0, lim - 1)
         : Promise.resolve({ data: [] as AtividadeRow[], error: null }),
@@ -1073,7 +1074,7 @@ export default function AtividadesPage() {
         .select('*')
         .in('autor_id', seg)
         .neq('usuario_id', uid)
-        .neq('tipo', 'avaliou')
+        .not('tipo', 'in', '(avaliou,marcou_em_story)')
         .order('created_at', { ascending: false })
         .range(start, start + lim - 1)
       if (error) {
@@ -1549,16 +1550,11 @@ export default function AtividadesPage() {
           ? ex.autor_original_id.trim()
           : r.usuario_id
       const donor = perfilMap[originalAuthorId]
-      const unRep =
-        typeof ex.autor_username === 'string' && ex.autor_username.trim() !== ''
-          ? ex.autor_username.trim().replace(/^@+/, '')
-          : ''
-      const unOrig =
-        typeof ex.autor_original_username === 'string' && ex.autor_original_username.trim() !== ''
-          ? ex.autor_original_username.trim().replace(/^@+/, '')
-          : ''
-      const reposterUsername = unRep || ator?.username || 'usuario'
-      const originalUsername = unOrig || donor?.username || 'usuario'
+      const reposterUsername =
+        normalizarUsernameAtividade(
+          typeof ex.autor_username === 'string' ? ex.autor_username : ator?.username
+        ) || 'usuario'
+      const originalUsername = resolverUsernameOriginalRepostStory(ex, donor?.username ?? '')
       const conteudoUrl =
         typeof ex.conteudo_url === 'string' && ex.conteudo_url.trim() !== '' ? ex.conteudo_url.trim() : null
       return (
