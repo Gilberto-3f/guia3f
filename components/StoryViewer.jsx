@@ -1215,7 +1215,7 @@ export default function StoryViewer({
   const hrefAutorOriginalRepost = autorOriginalRepostId ? `/perfil/${autorOriginalRepostId}` : ''
 
   const headerLeft = autorId ? (
-    <div className="flex min-w-0 max-w-[82vw] items-center gap-2 py-1 text-white">
+    <div className="flex min-w-0 flex-1 items-center gap-2 py-1 text-white">
       <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-full bg-white/25 ring-2 ring-white/30">
         <Link href={hrefAutor} aria-label={`Perfil de ${rotuloAutor ?? 'usuário'}`} className="block h-full w-full">
           {fotoAutor ? (
@@ -1225,11 +1225,11 @@ export default function StoryViewer({
           )}
         </Link>
       </span>
-      <div className="flex min-w-0 flex-1 items-baseline gap-x-0.5 text-sm font-semibold tracking-tight drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+      <div className="flex min-w-0 flex-1 items-baseline gap-x-0.5 overflow-hidden text-sm font-semibold tracking-tight drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
         {story.repost_story_id ? (
           <>
-            <span className="min-w-0 flex-1 truncate">
-              <Link href={hrefAutor} className="block truncate hover:underline">
+            <span className="shrink-0 whitespace-nowrap">
+              <Link href={hrefAutor} className="hover:underline">
                 {rotuloAutor ?? '…'}
               </Link>
             </span>
@@ -1246,7 +1246,7 @@ export default function StoryViewer({
           </>
         ) : (
           <span className="min-w-0 flex-1 truncate">
-            <Link href={hrefAutor} className="hover:underline">
+            <Link href={hrefAutor} className="block truncate hover:underline">
               {rotuloAutor ?? '…'}
             </Link>
           </span>
@@ -1377,8 +1377,8 @@ export default function StoryViewer({
             aria-hidden
           />
           <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/55 to-transparent pt-[max(0.75rem,env(safe-area-inset-top))] pb-10">
-            <div className="pointer-events-auto flex items-start justify-between gap-2 px-3">
-              <div className="min-w-0">{headerLeft}</div>
+            <div className="pointer-events-auto flex min-w-0 items-start gap-2 px-3">
+              <div className="min-w-0 flex-1">{headerLeft}</div>
               <div className="flex shrink-0 items-center gap-2 pr-1">{headerExtras}</div>
             </div>
           </div>
@@ -1392,8 +1392,8 @@ export default function StoryViewer({
           onPointerLeave={finalizarPressaoStory}
         >
           <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/55 to-transparent pt-[max(0.75rem,env(safe-area-inset-top))] pb-12">
-            <div className="pointer-events-auto flex items-start justify-between gap-2 px-3">
-              <div className="min-w-0">{headerLeft}</div>
+            <div className="pointer-events-auto flex min-w-0 items-start gap-2 px-3">
+              <div className="min-w-0 flex-1">{headerLeft}</div>
               <div className="flex shrink-0 items-center gap-2 pr-1">{headerExtras}</div>
             </div>
           </div>
