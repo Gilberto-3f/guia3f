@@ -1123,6 +1123,35 @@ export default function AtividadesPage() {
     return () => window.removeEventListener(GUIA_ATIVIDADES_RELOAD_EVENT, onReload)
   }, [recarregar])
 
+  /** Seguidores com a aba aberta: reflete DELETE em `atividades` após descurtir (trigger no banco). */
+  useEffect(() => {
+    if (!meuId) return
+    let debounceTimer: ReturnType<typeof setTimeout> | undefined
+    const agendarRecarga = () => {
+      if (debounceTimer !== undefined) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        debounceTimer = undefined
+        void recarregar()
+      }, 400)
+    }
+    const channel = supabase
+      .channel(`atividades-sync-${meuId}`)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'atividades' }, agendarRecarga)
+      .subscribe()
+    return () => {
+      if (debounceTimer !== undefined) clearTimeout(debounceTimer)
+      void supabase.removeChannel(channel)
+    }
+  }, [meuId, recarregar])
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void recarregar()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [recarregar])
+
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return
     // eslint-disable-next-line no-console

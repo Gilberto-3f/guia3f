@@ -542,18 +542,22 @@ export default function PostCard({
     const uid = asUuidFilter(meuUsuarioId)
     if (!pid || !uid) return
     if (curtiu) {
-      const { error } = await supabase.from('curtidas').delete().match({ post_id: pid, usuario_id: uid })
-      if (error) {
-        console.error('[PostCard] descurtir:', error)
-        return
-      }
+      const totalAntes = curtTotal
       setCurtiu(false)
       setCurtTotal((t) => {
         const n = Math.max(0, t - 1)
         onEngagementChange?.(post.id, { total_curtidas: n })
         return n
       })
-      notificarEngajamentoAtividades()
+      const { error } = await supabase.from('curtidas').delete().match({ post_id: pid, usuario_id: uid })
+      if (error) {
+        console.error('[PostCard] descurtir:', error)
+        setCurtiu(true)
+        setCurtTotal(totalAntes)
+        onEngagementChange?.(post.id, { total_curtidas: totalAntes })
+        return
+      }
+      notificarEngajamentoAtividades({ sincronizarLista: true })
     } else {
       const { error } = await supabase.from('curtidas').insert({ post_id: pid, usuario_id: uid })
       if (error) {

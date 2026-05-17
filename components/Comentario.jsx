@@ -75,11 +75,17 @@ export default function Comentario({
     const uid = asUuidFilter(usuarioId)
     if (!cid || !uid) return
     if (curtiu) {
-      const { error } = await supabase.from('curtidas').delete().match({ comentario_id: cid, usuario_id: uid })
-      if (error) return
+      const totalAntes = total
       setCurtiu(false)
       setTotal((t) => Math.max(0, t - 1))
-      notificarEngajamentoAtividades()
+      const { error } = await supabase.from('curtidas').delete().match({ comentario_id: cid, usuario_id: uid })
+      if (error) {
+        console.error('[Comentario] descurtir:', error)
+        setCurtiu(true)
+        setTotal(totalAntes)
+        return
+      }
+      notificarEngajamentoAtividades({ sincronizarLista: true })
     } else {
       const { error } = await supabase.from('curtidas').insert({ comentario_id: cid, usuario_id: uid })
       if (error) return
