@@ -78,14 +78,23 @@ export default function Comentario({
       const totalAntes = total
       setCurtiu(false)
       setTotal((t) => Math.max(0, t - 1))
-      const { error } = await supabase.from('curtidas').delete().match({ comentario_id: cid, usuario_id: uid })
-      if (error) {
-        console.error('[Comentario] descurtir:', error)
+      const { data: removidas, error } = await supabase
+        .from('curtidas')
+        .delete()
+        .match({ comentario_id: cid, usuario_id: uid })
+        .select('id')
+      if (error || !removidas?.length) {
+        if (error) console.error('[Comentario] descurtir:', error)
+        else console.warn('[Comentario] descurtir: nenhuma curtida removida', { cid, uid })
         setCurtiu(true)
         setTotal(totalAntes)
         return
       }
-      notificarEngajamentoAtividades({ sincronizarLista: true })
+      const curtidaId = removidas[0]?.id != null ? String(removidas[0].id) : undefined
+      notificarEngajamentoAtividades({
+        sincronizarLista: true,
+        remover: { autorId: uid, comentarioId: cid, curtidaId },
+      })
     } else {
       const { error } = await supabase.from('curtidas').insert({ comentario_id: cid, usuario_id: uid })
       if (error) return

@@ -549,15 +549,24 @@ export default function PostCard({
         onEngagementChange?.(post.id, { total_curtidas: n })
         return n
       })
-      const { error } = await supabase.from('curtidas').delete().match({ post_id: pid, usuario_id: uid })
-      if (error) {
-        console.error('[PostCard] descurtir:', error)
+      const { data: removidas, error } = await supabase
+        .from('curtidas')
+        .delete()
+        .match({ post_id: pid, usuario_id: uid })
+        .select('id')
+      if (error || !removidas?.length) {
+        if (error) console.error('[PostCard] descurtir:', error)
+        else console.warn('[PostCard] descurtir: nenhuma curtida removida (post_id/usuario_id)', { pid, uid })
         setCurtiu(true)
         setCurtTotal(totalAntes)
         onEngagementChange?.(post.id, { total_curtidas: totalAntes })
         return
       }
-      notificarEngajamentoAtividades({ sincronizarLista: true })
+      const curtidaId = removidas[0]?.id != null ? String(removidas[0].id) : undefined
+      notificarEngajamentoAtividades({
+        sincronizarLista: true,
+        remover: { autorId: uid, postId: pid, curtidaId },
+      })
     } else {
       const { error } = await supabase.from('curtidas').insert({ post_id: pid, usuario_id: uid })
       if (error) {

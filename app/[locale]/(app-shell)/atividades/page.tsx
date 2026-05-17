@@ -24,6 +24,7 @@ import {
   atividadeVisivelNaMinhaContaEmpresa,
   atividadeVisivelNaMinhaContaPessoal,
   agruparAtividadesCurtidasPost,
+  filtrarAtividadesAposDescurtir,
   urlFotoPost,
 } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
@@ -905,6 +906,23 @@ export default function AtividadesPage() {
     }
   }, [])
 
+  const aplicarRemocaoLocal = useCallback(
+    (
+      crit: {
+        autorId?: string
+        postId?: string
+        comentarioId?: string
+        curtidaId?: string
+        atividadeId?: string
+      } | null
+    ) => {
+      if (!crit) return
+      setListaAmigos((prev) => filtrarAtividadesAposDescurtir(prev, crit))
+      setListaMinha((prev) => filtrarAtividadesAposDescurtir(prev, crit))
+    },
+    []
+  )
+
   const recarregar = useCallback(async () => {
     const {
       data: { session },
@@ -1118,10 +1136,23 @@ export default function AtividadesPage() {
   }, [recarregar])
 
   useEffect(() => {
-    const onReload = () => void recarregar()
-    window.addEventListener(GUIA_ATIVIDADES_RELOAD_EVENT, onReload)
-    return () => window.removeEventListener(GUIA_ATIVIDADES_RELOAD_EVENT, onReload)
-  }, [recarregar])
+    const onReload = (e: Event) => {
+      const detail =
+        e instanceof CustomEvent
+          ? (e.detail as {
+              autorId?: string
+              postId?: string
+              comentarioId?: string
+              curtidaId?: string
+              atividadeId?: string
+            } | null)
+          : null
+      aplicarRemocaoLocal(detail)
+      void recarregar()
+    }
+    window.addEventListener(GUIA_ATIVIDADES_RELOAD_EVENT, onReload as EventListener)
+    return () => window.removeEventListener(GUIA_ATIVIDADES_RELOAD_EVENT, onReload as EventListener)
+  }, [recarregar, aplicarRemocaoLocal])
 
   /** Seguidores com a aba aberta: reflete DELETE em `atividades` após descurtir (trigger no banco). */
   useEffect(() => {
@@ -1136,13 +1167,32 @@ export default function AtividadesPage() {
     }
     const channel = supabase
       .channel(`atividades-sync-${meuId}`)
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'atividades' }, agendarRecarga)
-      .subscribe()
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'atividades' },
+        (payload) => {
+          if (process.env.NODE_ENV === 'development') {
+            // eslint-disable-next-line no-console
+            console.log('[Atividades][Realtime] DELETE atividade', payload)
+          }
+          const old = payload.old as { id?: string } | undefined
+          if (old?.id) {
+            aplicarRemocaoLocal({ atividadeId: String(old.id) })
+          }
+          agendarRecarga()
+        }
+      )
+      .subscribe((status) => {
+        if (process.env.NODE_ENV === 'development') {
+          // eslint-disable-next-line no-console
+          console.log('[Atividades][Realtime] subscription status:', status)
+        }
+      })
     return () => {
       if (debounceTimer !== undefined) clearTimeout(debounceTimer)
       void supabase.removeChannel(channel)
     }
-  }, [meuId, recarregar])
+  }, [meuId, recarregar, aplicarRemocaoLocal])
 
   useEffect(() => {
     const onVisible = () => {
@@ -1317,7 +1367,7 @@ export default function AtividadesPage() {
     })
   }, [aba, listaAmigos, listaMinha])
 
-  const itensAgrupados = useMemo(() => {
+  const itensAgrupados = useMemo((): ReturnType<typeof agruparAtividadesCurtidasPost> => {
     const ord = [...listaAtividadesFiltrada].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     const out = agruparAtividadesCurtidasPost(ord, postMetaMap)
     if (process.env.NODE_ENV === 'development' && aba === 'amigos') {
@@ -1362,7 +1412,7 @@ export default function AtividadesPage() {
       const inter = perfilMap[item.autor_id]
       const donor = perfilMap[item.usuario_dono_id]
       /** Uma URL por linha (alinhada a `postIds`); placeholder se a meta ainda não tiver foto. */
-      const urlsGrid = item.rows.map((r) => {
+      const urlsGrid = item.rows.map((r: AtividadeRow) => {
         const u = urlFotoPost(postMetaMap[r.alvo_id])
         return u && String(u).trim() !== '' ? String(u) : '/window.svg'
       })
@@ -1375,7 +1425,7 @@ export default function AtividadesPage() {
           hrefInteractor={hrefUsuario(item.autor_id)}
           hrefDonor={hrefUsuario(item.usuario_dono_id)}
           urls={urlsGrid}
-          postIds={item.rows.map((r) => String(r.alvo_id))}
+          postIds={item.rows.map((r: AtividadeRow) => String(r.alvo_id))}
           totalCurtidas={item.rows.length}
           tempoInteracao={formatarDataAtividades(item.created_at)}
           modoMinhaConta={modoMinhaConta}
@@ -1386,7 +1436,7 @@ export default function AtividadesPage() {
     if (item.kind === 'curtiu_post_fotos_multi') {
       const inter = perfilMap[item.autor_id]
       /** Uma URL por linha (alinhada a `postIds`); placeholder se a meta ainda não tiver foto. */
-      const urlsGrid = item.rows.map((r) => {
+      const urlsGrid = item.rows.map((r: AtividadeRow) => {
         const u = urlFotoPost(postMetaMap[r.alvo_id])
         return u && String(u).trim() !== '' ? String(u) : '/window.svg'
       })
@@ -1397,7 +1447,7 @@ export default function AtividadesPage() {
           interactorFoto={inter?.foto_perfil_url ?? null}
           hrefInteractor={hrefUsuario(item.autor_id)}
           urls={urlsGrid}
-          postIds={item.rows.map((r) => String(r.alvo_id))}
+          postIds={item.rows.map((r: AtividadeRow) => String(r.alvo_id))}
           totalCurtidas={item.rows.length}
           tempoInteracao={formatarDataAtividades(item.created_at)}
           modoMinhaConta={modoMinhaConta}
@@ -1968,7 +2018,7 @@ export default function AtividadesPage() {
         ) : (
           <>
             <div className="space-y-6">
-              {itensAgrupados.map((it, i) => {
+              {itensAgrupados.map((it: (typeof itensAgrupados)[number], i: number) => {
                 const rowKey =
                   it.kind === 'curtiu_post_fotos'
                     ? `cf-${it.autor_id}-${it.usuario_dono_id}-${it.created_at}`

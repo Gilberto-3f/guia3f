@@ -39,11 +39,26 @@ export default function BotaoCurtir({ postId, totalInicial, usuarioId }) {
     const uid = asUuidFilter(usuarioId)
     if (!pid || !uid) return
     if (curtiu) {
-      const { error } = await supabase.from('curtidas').delete().match({ post_id: pid, usuario_id: uid })
-      if (error) return
+      const totalAntes = total
       setCurtiu(false)
       setTotal((t) => Math.max(0, t - 1))
-      notificarEngajamentoAtividades()
+      const { data: removidas, error } = await supabase
+        .from('curtidas')
+        .delete()
+        .match({ post_id: pid, usuario_id: uid })
+        .select('id')
+      if (error || !removidas?.length) {
+        if (error) console.error('[BotaoCurtir] descurtir:', error)
+        else console.warn('[BotaoCurtir] descurtir: nenhuma curtida removida', { pid, uid })
+        setCurtiu(true)
+        setTotal(totalAntes)
+        return
+      }
+      const curtidaId = removidas[0]?.id != null ? String(removidas[0].id) : undefined
+      notificarEngajamentoAtividades({
+        sincronizarLista: true,
+        remover: { autorId: uid, postId: pid, curtidaId },
+      })
     } else {
       const { error } = await supabase.from('curtidas').insert({ post_id: pid, usuario_id: uid })
       if (error) return
