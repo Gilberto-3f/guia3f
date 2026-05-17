@@ -3,18 +3,18 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import {
-  buildPannellumTourConfig,
+  buildPannellumEditorConfig,
   getPannellum,
+  HOTSPOT_PREVIEW_ID,
   loadPannellumAssets,
   novoHotspotId,
   parseTourConfig,
+  preloadPanorama,
   sincronizarTourComFotos,
 } from '@/lib/pannellumTour'
 import { patchEmpresaTour360 } from '@/lib/tour360Api'
 
 /**
- * Editor de tour 360° (admin): hotspots entre cenas.
- *
  * @param {{
  *   empresaId: string
  *   fotos360Url: string[]
@@ -32,13 +32,21 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
   const [tour, setTour] = useState(tourInicial)
   const [cenaAtivaId, setCenaAtivaId] = useState(tourInicial.cenas[0]?.id ?? '')
   const [modoAdicionar, setModoAdicionar] = useState(false)
-  const [formHotspot, setFormHotspot] = useState(/** @type {{ pitch: number, yaw: number, sceneId: string, text: string } | null} */ (null))
+  const [draftHotspot, setDraftHotspot] = useState(
+    /** @type {{ pitch: number, yaw: number, sceneId: string, text: string } | null} */ (null)
+  )
   const [salvando, setSalvando] = useState(false)
   const [msg, setMsg] = useState(/** @type {string | null} */ (null))
+  const [viewerPronto, setViewerPronto] = useState(false)
 
   const reactDomId = useId().replace(/:/g, '')
   const viewerId = `pannellum-editor-${reactDomId}`
   const viewerRef = useRef(/** @type {import('@/lib/pannellumTour').PannellumViewer | null} */ (null))
+  const modoAdicionarRef = useRef(false)
+
+  useEffect(() => {
+    modoAdicionarRef.current = modoAdicionar
+  }, [modoAdicionar])
 
   useEffect(() => {
     const synced = sincronizarTourComFotos(urls, parseTourConfig(tourRaw))
@@ -49,63 +57,44 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
   const cenaAtiva = tour.cenas.find((c) => c.id === cenaAtivaId) ?? tour.cenas[0]
   const outrasCenas = tour.cenas.filter((c) => c.id !== cenaAtiva?.id)
 
-  const montarConfigEditor = useCallback(() => {
-    if (!cenaAtiva) return null
-    return buildPannellumTourConfig({
-      ...tour,
-      firstScene: cenaAtiva.id,
-    })
-  }, [cenaAtiva, tour])
+  const hotspotsKey = cenaAtiva ? cenaAtiva.hotspots.map((h) => h.id).join(',') : ''
+  const viewKey = JSON.stringify(cenaAtiva?.view ?? {})
+
+  const initViewer = useCallback(async () => {
+    if (!cenaAtiva) return
+    setViewerPronto(false)
+    try {
+      try {
+        await preloadPanorama(cenaAtiva.url)
+      } catch {
+        /* continua */
+      }
+      await loadPannellumAssets()
+      const Pannellum = getPannellum()
+      const config = buildPannellumEditorConfig(tour, cenaAtiva.id, [])
+      if (!Pannellum || !config) return
+      const el = document.getElementById(viewerId)
+      if (!el) return
+      if (viewerRef.current?.destroy) {
+        try {
+          viewerRef.current.destroy()
+        } catch {
+          /* ignore */
+        }
+        viewerRef.current = null
+      }
+      el.innerHTML = ''
+      const viewer = Pannellum.viewer(viewerId, config)
+      viewerRef.current = viewer
+      viewer.on?.('load', () => setViewerPronto(true))
+    } catch {
+      setViewerPronto(false)
+    }
+  }, [cenaAtiva, tour, viewerId, viewKey, hotspotsKey])
 
   useEffect(() => {
-    if (!cenaAtiva) return
-    let cancelado = false
-
-    const run = async () => {
-      try {
-        await loadPannellumAssets()
-        if (cancelado) return
-        const Pannellum = getPannellum()
-        const config = montarConfigEditor()
-        if (!Pannellum || !config) return
-        const el = document.getElementById(viewerId)
-        if (!el) return
-        if (viewerRef.current?.destroy) {
-          try {
-            viewerRef.current.destroy()
-          } catch {
-            /* ignore */
-          }
-          viewerRef.current = null
-        }
-        el.innerHTML = ''
-        const viewer = Pannellum.viewer(viewerId, config)
-        viewerRef.current = viewer
-
-        if (modoAdicionar && viewer.on && viewer.mouseEventToCoords) {
-          viewer.on('mousedown', (ev) => {
-            if (!modoAdicionar) return
-            const coords = viewer.mouseEventToCoords?.(ev)
-            if (!coords || coords.length < 2) return
-            const [pitch, yaw] = coords
-            setFormHotspot({
-              pitch,
-              yaw,
-              sceneId: outrasCenas[0]?.id ?? '',
-              text: '',
-            })
-            setModoAdicionar(false)
-          })
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-
-    void run()
-
+    void initViewer()
     return () => {
-      cancelado = true
       if (viewerRef.current?.destroy) {
         try {
           viewerRef.current.destroy()
@@ -114,10 +103,57 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
         }
       }
       viewerRef.current = null
+      setViewerPronto(false)
       const el = document.getElementById(viewerId)
       if (el) el.innerHTML = ''
     }
-  }, [cenaAtiva, viewerId, montarConfigEditor, modoAdicionar, outrasCenas])
+  }, [initViewer, viewerId])
+
+  const aplicarPreviewHotspot = useCallback(
+    (pitch, yaw) => {
+      const viewer = viewerRef.current
+      if (!viewer || !cenaAtiva) return
+      try {
+        viewer.removeHotSpot?.(HOTSPOT_PREVIEW_ID, cenaAtiva.id)
+      } catch {
+        /* ignore */
+      }
+      viewer.addHotSpot?.(
+        {
+          id: HOTSPOT_PREVIEW_ID,
+          pitch,
+          yaw,
+          type: 'info',
+          text: 'Novo ponto',
+        },
+        cenaAtiva.id
+      )
+    },
+    [cenaAtiva]
+  )
+
+  useEffect(() => {
+    if (!draftHotspot || !viewerPronto) return
+    aplicarPreviewHotspot(draftHotspot.pitch, draftHotspot.yaw)
+  }, [draftHotspot?.pitch, draftHotspot?.yaw, viewerPronto, aplicarPreviewHotspot, draftHotspot])
+
+  const handleOverlayClick = (/** @type {React.MouseEvent<HTMLButtonElement>} */ e) => {
+    if (!modoAdicionarRef.current) return
+    const viewer = viewerRef.current
+    if (!viewer?.mouseEventToCoords) return
+    const coords = viewer.mouseEventToCoords(e.nativeEvent)
+    if (!coords || coords.length < 2) return
+    const [pitch, yaw] = coords
+    setDraftHotspot({
+      pitch,
+      yaw,
+      sceneId: outrasCenas[0]?.id ?? '',
+      text: '',
+    })
+    setModoAdicionar(false)
+    viewer.setPitch?.(pitch)
+    viewer.setYaw?.(yaw)
+  }
 
   const atualizarHotspotsCena = (hotspots) => {
     if (!cenaAtiva) return
@@ -127,21 +163,43 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
     }))
   }
 
+  const atualizarViewCena = (patch) => {
+    if (!cenaAtiva) return
+    setTour((prev) => ({
+      ...prev,
+      cenas: prev.cenas.map((c) =>
+        c.id === cenaAtiva.id ? { ...c, view: { ...c.view, ...patch } } : c
+      ),
+    }))
+    const viewer = viewerRef.current
+    if (patch.pitch != null) viewer?.setPitch?.(patch.pitch)
+    if (patch.yaw != null) viewer?.setYaw?.(patch.yaw)
+  }
+
+  const capturarVisaoAtual = () => {
+    const viewer = viewerRef.current
+    if (!viewer || !cenaAtiva) return
+    const pitch = viewer.getPitch?.() ?? cenaAtiva.view?.pitch ?? 0
+    const yaw = viewer.getYaw?.() ?? cenaAtiva.view?.yaw ?? 0
+    atualizarViewCena({ pitch, yaw })
+    setMsg('Visão da cena guardada.')
+  }
+
   const confirmarHotspot = () => {
-    if (!formHotspot || !cenaAtiva) return
-    if (!formHotspot.sceneId || formHotspot.sceneId === cenaAtiva.id) {
+    if (!draftHotspot || !cenaAtiva) return
+    if (!draftHotspot.sceneId || draftHotspot.sceneId === cenaAtiva.id) {
       setMsg('Escolha outro ambiente como destino.')
       return
     }
     const novo = {
       id: novoHotspotId(),
-      pitch: formHotspot.pitch,
-      yaw: formHotspot.yaw,
-      sceneId: formHotspot.sceneId,
-      text: formHotspot.text.trim() || undefined,
+      pitch: draftHotspot.pitch,
+      yaw: draftHotspot.yaw,
+      sceneId: draftHotspot.sceneId,
+      text: draftHotspot.text.trim() || undefined,
     }
     atualizarHotspotsCena([...cenaAtiva.hotspots, novo])
-    setFormHotspot(null)
+    setDraftHotspot(null)
     setMsg(null)
   }
 
@@ -166,6 +224,7 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
       return
     }
     setTour(synced)
+    setDraftHotspot(null)
     setMsg('Tour salvo.')
     onSalvo?.()
   }
@@ -178,6 +237,8 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
     )
   }
 
+  const view = cenaAtiva?.view ?? {}
+
   return (
     <div className="border-t border-[#E0E0E0] bg-gray-50 px-3 py-3">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-700">Editar tour</p>
@@ -189,7 +250,7 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
             type="button"
             onClick={() => {
               setCenaAtivaId(c.id)
-              setFormHotspot(null)
+              setDraftHotspot(null)
               setModoAdicionar(false)
             }}
             className={`rounded-lg px-2 py-1 text-xs font-medium ring-1 ${
@@ -204,7 +265,71 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
       {cenaAtiva ? (
         <>
           <div className="relative mb-3 overflow-hidden rounded-xl bg-black">
-            <div id={viewerId} className="h-[min(50vh,400px)] w-full" />
+            <div id={viewerId} className="h-[min(55vh,420px)] w-full" />
+            {modoAdicionar ? (
+              <button
+                type="button"
+                className="absolute inset-0 z-10 cursor-crosshair bg-transparent"
+                aria-label="Clique na imagem para posicionar o ponto"
+                onClick={handleOverlayClick}
+              />
+            ) : null}
+            {modoAdicionar ? (
+              <p className="pointer-events-none absolute bottom-2 left-0 right-0 z-20 text-center text-xs font-medium text-white drop-shadow">
+                Toque no local onde o ponto deve aparecer
+              </p>
+            ) : null}
+          </div>
+
+          <div className="mb-3 space-y-3 rounded-lg border border-gray-200 bg-white p-3 text-xs">
+            <p className="font-semibold text-gray-800">Campo de visão (ajuste fino)</p>
+            <p className="text-gray-600">Arraste a imagem e use os controlos para nivelar o horizonte e definir o enquadramento.</p>
+            <label className="flex items-center gap-2">
+              <span className="w-24 shrink-0">Inclinação</span>
+              <input
+                type="range"
+                min={-90}
+                max={90}
+                step={0.5}
+                value={view.horizonPitch ?? 0}
+                onChange={(e) => atualizarViewCena({ horizonPitch: Number(e.target.value) })}
+                className="min-w-0 flex-1"
+              />
+              <span className="w-10 tabular-nums">{(view.horizonPitch ?? 0).toFixed(1)}°</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <span className="w-24 shrink-0">Rotação</span>
+              <input
+                type="range"
+                min={-30}
+                max={30}
+                step={0.5}
+                value={view.horizonRoll ?? 0}
+                onChange={(e) => atualizarViewCena({ horizonRoll: Number(e.target.value) })}
+                className="min-w-0 flex-1"
+              />
+              <span className="w-10 tabular-nums">{(view.horizonRoll ?? 0).toFixed(1)}°</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <span className="w-24 shrink-0">Zoom (hfov)</span>
+              <input
+                type="range"
+                min={50}
+                max={120}
+                step={1}
+                value={view.hfov ?? 100}
+                onChange={(e) => atualizarViewCena({ hfov: Number(e.target.value) })}
+                className="min-w-0 flex-1"
+              />
+              <span className="w-10 tabular-nums">{view.hfov ?? 100}</span>
+            </label>
+            <button
+              type="button"
+              onClick={capturarVisaoAtual}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-gray-800 hover:bg-gray-50"
+            >
+              Guardar visão atual da cena
+            </button>
           </div>
 
           <div className="mb-3 flex flex-wrap gap-2">
@@ -213,12 +338,12 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
               disabled={!outrasCenas.length}
               onClick={() => {
                 setModoAdicionar(true)
-                setFormHotspot(null)
+                setDraftHotspot(null)
                 setMsg(outrasCenas.length ? null : 'Adicione pelo menos duas imagens para conectar ambientes.')
               }}
               className="rounded-lg border border-[#0097b2] bg-white px-3 py-1.5 text-xs font-semibold text-[#0097b2] disabled:opacity-50"
             >
-              {modoAdicionar ? 'Clique na imagem…' : '+ Ponto de navegação'}
+              {modoAdicionar ? 'Toque na imagem…' : '+ Ponto de navegação'}
             </button>
             <label className="flex items-center gap-1 text-xs text-gray-600">
               Cena inicial:
@@ -236,17 +361,47 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
             </label>
           </div>
 
-          {formHotspot ? (
+          {draftHotspot ? (
             <div className="mb-3 rounded-lg border border-[#0097b2]/30 bg-white p-3 text-xs">
-              <p className="mb-2 font-medium text-gray-800">Novo ponto (pitch {formHotspot.pitch.toFixed(1)}, yaw {formHotspot.yaw.toFixed(1)})</p>
+              <p className="mb-2 font-medium text-gray-800">Posição do ponto de navegação</p>
+              <label className="mb-2 flex items-center gap-2">
+                <span className="w-14 shrink-0">Pitch</span>
+                <input
+                  type="range"
+                  min={-90}
+                  max={90}
+                  step={0.5}
+                  value={draftHotspot.pitch}
+                  onChange={(e) =>
+                    setDraftHotspot((f) => (f ? { ...f, pitch: Number(e.target.value) } : f))
+                  }
+                  className="min-w-0 flex-1"
+                />
+                <span className="w-10 tabular-nums">{draftHotspot.pitch.toFixed(1)}°</span>
+              </label>
+              <label className="mb-2 flex items-center gap-2">
+                <span className="w-14 shrink-0">Yaw</span>
+                <input
+                  type="range"
+                  min={-180}
+                  max={180}
+                  step={0.5}
+                  value={draftHotspot.yaw}
+                  onChange={(e) =>
+                    setDraftHotspot((f) => (f ? { ...f, yaw: Number(e.target.value) } : f))
+                  }
+                  className="min-w-0 flex-1"
+                />
+                <span className="w-10 tabular-nums">{draftHotspot.yaw.toFixed(1)}°</span>
+              </label>
               <label className="mb-2 block">
                 Ir para:
                 <select
-                  value={formHotspot.sceneId}
-                  onChange={(e) => setFormHotspot((f) => (f ? { ...f, sceneId: e.target.value } : f))}
+                  value={draftHotspot.sceneId}
+                  onChange={(e) => setDraftHotspot((f) => (f ? { ...f, sceneId: e.target.value } : f))}
                   className="mt-1 block w-full rounded border border-gray-300 px-2 py-1"
                 >
-                  {outrasCenas.map((c, i) => (
+                  {outrasCenas.map((c) => (
                     <option key={c.id} value={c.id}>
                       Ambiente {tour.cenas.findIndex((x) => x.id === c.id) + 1}
                     </option>
@@ -257,17 +412,17 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
                 Texto (opcional):
                 <input
                   type="text"
-                  value={formHotspot.text}
-                  onChange={(e) => setFormHotspot((f) => (f ? { ...f, text: e.target.value } : f))}
+                  value={draftHotspot.text}
+                  onChange={(e) => setDraftHotspot((f) => (f ? { ...f, text: e.target.value } : f))}
                   className="mt-1 block w-full rounded border border-gray-300 px-2 py-1"
                   placeholder="Ex.: Ir para o quarto"
                 />
               </label>
               <div className="flex gap-2">
                 <button type="button" onClick={confirmarHotspot} className="rounded-lg bg-[#0097b2] px-3 py-1.5 text-white">
-                  Adicionar
+                  Confirmar ponto
                 </button>
-                <button type="button" onClick={() => setFormHotspot(null)} className="rounded-lg border border-gray-300 px-3 py-1.5">
+                <button type="button" onClick={() => setDraftHotspot(null)} className="rounded-lg border border-gray-300 px-3 py-1.5">
                   Cancelar
                 </button>
               </div>
@@ -277,13 +432,16 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
           {cenaAtiva.hotspots.length > 0 ? (
             <ul className="mb-3 space-y-1 text-xs">
               {cenaAtiva.hotspots.map((h) => {
-                const dest = tour.cenas.find((c) => c.id === h.sceneId)
-                const destIdx = dest ? tour.cenas.findIndex((c) => c.id === dest.id) + 1 : '?'
+                const destIdx = tour.cenas.findIndex((c) => c.id === h.sceneId) + 1
                 return (
                   <li key={h.id} className="flex items-center justify-between rounded bg-white px-2 py-1 ring-1 ring-black/5">
                     <span>
-                      → Ambiente {destIdx}
+                      → Ambiente {destIdx > 0 ? destIdx : '?'}
                       {h.text ? ` (${h.text})` : ''}
+                      <span className="text-gray-500">
+                        {' '}
+                        · p{h.pitch.toFixed(0)} y{h.yaw.toFixed(0)}
+                      </span>
                     </span>
                     <button type="button" onClick={() => removerHotspot(h.id)} className="text-red-600" aria-label="Remover ponto">
                       <Trash2 size={14} />

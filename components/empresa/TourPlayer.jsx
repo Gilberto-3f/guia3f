@@ -1,12 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import {
   buildPannellumTourConfig,
   getPannellum,
+  getPrimeiraCena,
   loadPannellumAssets,
   parseTourConfig,
+  preloadPanorama,
   sincronizarTourComFotos,
   tourTemNavegacao,
 } from '@/lib/pannellumTour'
@@ -31,25 +33,41 @@ export default function TourPlayer({ fotos360Url, tourConfig: tourConfigRaw, aut
   const reactDomId = useId().replace(/:/g, '')
   const containerElId = `pannellum-tour-${reactDomId}`
   const viewerRef = useRef(/** @type {import('@/lib/pannellumTour').PannellumViewer | null} */ (null))
-  const [aberto, setAberto] = useState(false)
+  const [fechado, setFechado] = useState(false)
   const [erro, setErro] = useState('')
 
+  const mostrarFullscreen = temTour && !fechado
+
   const fechar = useCallback(() => {
-    setAberto(false)
+    setFechado(true)
     onFechar?.()
   }, [onFechar])
 
-  useLayoutEffect(() => {
-    if (autoOpen && temTour) setAberto(true)
-  }, [autoOpen, temTour])
+  const reabrir = useCallback(() => {
+    setFechado(false)
+    setErro('')
+  }, [])
 
   useEffect(() => {
-    if (!aberto || !temTour) return
+    if (autoOpen && temTour) setFechado(false)
+  }, [autoOpen, temTour, tour])
+
+  useEffect(() => {
+    if (!mostrarFullscreen) return
+
     let cancelado = false
 
     const run = async () => {
       setErro('')
       try {
+        const primeira = getPrimeiraCena(tour)
+        if (primeira?.url) {
+          try {
+            await preloadPanorama(primeira.url)
+          } catch {
+            /* continua */
+          }
+        }
         await loadPannellumAssets()
         if (cancelado) return
         const Pannellum = getPannellum()
@@ -90,7 +108,7 @@ export default function TourPlayer({ fotos360Url, tourConfig: tourConfigRaw, aut
       const el = document.getElementById(containerElId)
       if (el) el.innerHTML = ''
     }
-  }, [aberto, tour, containerElId, temTour])
+  }, [mostrarFullscreen, tour, containerElId])
 
   if (!urls.length) {
     return <p className="py-10 text-center text-sm text-gray-500">Nenhuma imagem 360° cadastrada</p>
@@ -100,13 +118,13 @@ export default function TourPlayer({ fotos360Url, tourConfig: tourConfigRaw, aut
     return <p className="py-10 text-center text-sm text-gray-500">Nenhum tour virtual cadastrado</p>
   }
 
-  if (!aberto) {
+  if (fechado) {
     return (
-      <div className="py-6 text-center">
+      <div className="py-4 text-center">
         <p className="mb-3 text-sm font-medium text-[#001f3f]">{temNavegacao ? 'Tour Virtual' : 'Vista 360°'}</p>
         <button
           type="button"
-          onClick={() => setAberto(true)}
+          onClick={reabrir}
           className="rounded-lg bg-[#0097b2] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95"
         >
           {temNavegacao ? 'Iniciar tour virtual' : 'Abrir vista 360°'}
@@ -131,7 +149,9 @@ export default function TourPlayer({ fotos360Url, tourConfig: tourConfigRaw, aut
         <X className="h-6 w-6" aria-hidden />
       </button>
       {erro ? (
-        <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-white">{erro}</div>
+        <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-white">
+          {erro}
+        </div>
       ) : (
         <div id={containerElId} className="h-full w-full min-h-0 flex-1" />
       )}

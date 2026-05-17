@@ -1,3 +1,11 @@
+export type CenaView360 = {
+  pitch?: number
+  yaw?: number
+  hfov?: number
+  horizonPitch?: number
+  horizonRoll?: number
+}
+
 export type HotspotTour360 = {
   id: string
   pitch: number
@@ -11,6 +19,7 @@ export type CenaTour360 = {
   url: string
   label?: string
   hotspots: HotspotTour360[]
+  view?: CenaView360
 }
 
 export type TourConfig = {
