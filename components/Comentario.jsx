@@ -8,6 +8,7 @@ import { formatarDataComentarioCurta } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 import { getPerfilHref } from '@/lib/perfil-utils'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
+import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
 import { asUuidFilter } from '@/lib/supabaseRestUuid'
 
 /**
@@ -90,10 +91,10 @@ export default function Comentario({
         setTotal(totalAntes)
         return
       }
-      const curtidaId = removidas[0]?.id != null ? String(removidas[0].id) : undefined
+      await limparAtividadesAposDescurtir(supabase, { comentarioId: cid, usuarioId: uid })
       notificarEngajamentoAtividades({
         sincronizarLista: true,
-        remover: { autorId: uid, comentarioId: cid, curtidaId },
+        remover: { autorId: uid, comentarioId: cid },
       })
     } else {
       const { error } = await supabase.from('curtidas').insert({ comentario_id: cid, usuario_id: uid })

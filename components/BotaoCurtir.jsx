@@ -5,6 +5,7 @@ import { Heart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
+import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
 import { asUuidFilter } from '@/lib/supabaseRestUuid'
 
 /**
@@ -54,10 +55,10 @@ export default function BotaoCurtir({ postId, totalInicial, usuarioId }) {
         setTotal(totalAntes)
         return
       }
-      const curtidaId = removidas[0]?.id != null ? String(removidas[0].id) : undefined
+      await limparAtividadesAposDescurtir(supabase, { postId: pid, usuarioId: uid })
       notificarEngajamentoAtividades({
         sincronizarLista: true,
-        remover: { autorId: uid, postId: pid, curtidaId },
+        remover: { autorId: uid, postId: pid },
       })
     } else {
       const { error } = await supabase.from('curtidas').insert({ post_id: pid, usuario_id: uid })

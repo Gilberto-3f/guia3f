@@ -15,6 +15,7 @@ import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
+import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
 import { getPerfilHref } from '@/lib/perfil-utils'
 import { asUuidFilter } from '@/lib/supabaseRestUuid'
 
@@ -562,10 +563,10 @@ export default function PostCard({
         onEngagementChange?.(post.id, { total_curtidas: totalAntes })
         return
       }
-      const curtidaId = removidas[0]?.id != null ? String(removidas[0].id) : undefined
+      await limparAtividadesAposDescurtir(supabase, { postId: pid, usuarioId: uid })
       notificarEngajamentoAtividades({
         sincronizarLista: true,
-        remover: { autorId: uid, postId: pid, curtidaId },
+        remover: { autorId: uid, postId: pid },
       })
     } else {
       const { error } = await supabase.from('curtidas').insert({ post_id: pid, usuario_id: uid })
