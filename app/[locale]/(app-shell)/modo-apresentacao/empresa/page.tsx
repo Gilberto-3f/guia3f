@@ -24,6 +24,7 @@ import AbaBotaoDinamico from '@/components/AbaBotaoDinamico'
 import AbaFotosEmpresa from '@/components/empresa/AbaFotosEmpresa'
 import AbaPostsEmpresa from '@/components/empresa/AbaPostsEmpresa'
 import AbaTour360Empresa from '@/components/empresa/AbaTour360Empresa'
+import { parseTourConfig, sincronizarTourComFotos } from '@/lib/pannellumTour'
 
 type GateState =
   | { status: 'loading' }
@@ -132,6 +133,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
         horarios: asHorarios(empresaData.horarios),
         fotos_url: asJsonArray(empresaData.fotos_url),
         fotos_360_url: asJsonArray(empresaData.fotos_360_url),
+        tour_config: parseTourConfig(empresaData.tour_config),
       })
     } finally {
       setLoadingEmpresa(false)
@@ -150,6 +152,9 @@ export default function EmpresaPreviewModoApresentacaoPage() {
   }, [draft, empresaBase])
 
   const fotos360ListaPreview = empresaMerged ? asJsonArray(empresaMerged.fotos_360_url) : []
+  const tourConfigPreview = empresaMerged
+    ? sincronizarTourComFotos(fotos360ListaPreview, parseTourConfig(empresaMerged.tour_config))
+    : { firstScene: null, cenas: [] }
   const empresaUsuarioIdPostsPreview =
     empresaMerged?.usuario_id != null ? String(empresaMerged.usuario_id) : null
 
@@ -391,7 +396,9 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               />
             ) : null}
             {subAbaAtiva === 'posts' ? <AbaPostsEmpresa empresaUsuarioId={empresaUsuarioIdPostsPreview} /> : null}
-            {subAbaAtiva === 'tour360' ? <AbaTour360Empresa fotos360Url={fotos360ListaPreview} /> : null}
+            {subAbaAtiva === 'tour360' ? (
+              <AbaTour360Empresa fotos360Url={fotos360ListaPreview} tourConfig={tourConfigPreview} />
+            ) : null}
           </div>
         </div>
       ) : null}

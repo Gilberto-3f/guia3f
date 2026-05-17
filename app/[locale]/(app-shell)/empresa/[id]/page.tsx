@@ -20,7 +20,9 @@ import AbaBotaoDinamico from '@/components/AbaBotaoDinamico'
 import AbaFotosEmpresa from '@/components/empresa/AbaFotosEmpresa'
 import AbaPostsEmpresa from '@/components/empresa/AbaPostsEmpresa'
 import AbaTour360Empresa from '@/components/empresa/AbaTour360Empresa'
+import EditorTour360 from '@/components/empresa/EditorTour360'
 import UploadFotos360Adm from '@/components/empresa/UploadFotos360Adm'
+import { parseTourConfig, sincronizarTourComFotos } from '@/lib/pannellumTour'
 import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
@@ -174,6 +176,7 @@ export default function EmpresaPage() {
         horarios: asHorarios(empresaData.horarios),
         fotos_url: asJsonArray(empresaData.fotos_url),
         fotos_360_url: asJsonArray(empresaData.fotos_360_url),
+        tour_config: parseTourConfig(empresaData.tour_config),
       })
       setTotalSeguidores(totalSeg)
     } finally {
@@ -259,6 +262,10 @@ export default function EmpresaPage() {
   }
 
   const fotos360Lista = Array.isArray(empresa.fotos_360_url) ? /** @type {string[]} */ (empresa.fotos_360_url) : []
+  const tourConfigMerged = sincronizarTourComFotos(
+    fotos360Lista,
+    parseTourConfig(empresa.tour_config)
+  )
   const empresaUsuarioIdPosts = empresa.usuario_id != null ? String(empresa.usuario_id) : null
 
   const empresaEndereco = {
@@ -450,11 +457,20 @@ export default function EmpresaPage() {
           </div>
 
           {subAbaAtiva === 'tour360' && podeEditarFotos360 ? (
-            <UploadFotos360Adm
-              empresaId={empresaId}
-              fotos360Atuais={fotos360Lista}
-              onAtualizado={() => void carregarEmpresa({ silent: true })}
-            />
+            <>
+              <UploadFotos360Adm
+                empresaId={empresaId}
+                fotos360Atuais={fotos360Lista}
+                tourConfigAtual={tourConfigMerged}
+                onAtualizado={() => void carregarEmpresa({ silent: true })}
+              />
+              <EditorTour360
+                empresaId={empresaId}
+                fotos360Url={fotos360Lista}
+                tourConfig={tourConfigMerged}
+                onSalvo={() => void carregarEmpresa({ silent: true })}
+              />
+            </>
           ) : null}
 
           <div className="min-h-0">
@@ -467,7 +483,9 @@ export default function EmpresaPage() {
               />
             ) : null}
             {subAbaAtiva === 'posts' ? <AbaPostsEmpresa empresaUsuarioId={empresaUsuarioIdPosts} /> : null}
-            {subAbaAtiva === 'tour360' ? <AbaTour360Empresa fotos360Url={fotos360Lista} /> : null}
+            {subAbaAtiva === 'tour360' ? (
+              <AbaTour360Empresa fotos360Url={fotos360Lista} tourConfig={tourConfigMerged} />
+            ) : null}
           </div>
         </div>
       ) : null}
