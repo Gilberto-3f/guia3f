@@ -31,3 +31,12 @@ export const TOUR_CONFIG_VAZIO: TourConfig = {
   firstScene: null,
   cenas: [],
 }
+
+export type StatusConexaoTour = {
+  deIdx: number
+  paraIdx: number
+  deId: string
+  paraId: string
+  yaw?: number
+  estado: 'conectado' | 'pendente'
+}

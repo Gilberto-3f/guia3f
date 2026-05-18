@@ -1,5 +1,8 @@
-import type { CenaTour360, CenaView360, TourConfig } from '@/lib/tour360Types'
+import type { CenaTour360, CenaView360, StatusConexaoTour, TourConfig } from '@/lib/tour360Types'
 import { TOUR_CONFIG_VAZIO } from '@/lib/tour360Types'
+
+/** Pitch padrão para setas de navegação (nível porta/chão). */
+export const PITCH_HOTSPOT_NAVEGACAO = -12
 
 export const PANNELLUM_CSS = 'https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css'
 export const PANNELLUM_JS = 'https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js'
@@ -338,3 +341,71 @@ export function novoHotspotId(): string {
 }
 
 export const HOTSPOT_PREVIEW_ID = 'hs-preview-draft'
+
+/** Yaw 0–360 (régua do editor) → posição horizontal % da imagem equiretangular. */
+export function yawGrausParaPosicaoPercent(yawGraus: number): number {
+  const n = ((yawGraus % 360) + 360) % 360
+  return 50 - (n / 360) * 100
+}
+
+/** Converte yaw da régua (0–360) para yaw do Pannellum (-180–180). */
+export function yawEditorParaPannellum(yawGraus: number): number {
+  const n = ((yawGraus % 360) + 360) % 360
+  return n > 180 ? n - 360 : n
+}
+
+/** Converte yaw Pannellum → régua 0–360. */
+export function yawPannellumParaEditor(yaw: number): number {
+  return ((yaw % 360) + 360) % 360
+}
+
+export function indiceAmbiente(tour: TourConfig, cenaId: string): number {
+  const i = tour.cenas.findIndex((c) => c.id === cenaId)
+  return i >= 0 ? i + 1 : 0
+}
+
+/** Lista status de conexões entre pares de ambientes. */
+export function calcularStatusTour(tour: TourConfig): StatusConexaoTour[] {
+  const linhas: StatusConexaoTour[] = []
+  const n = tour.cenas.length
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue
+      const origem = tour.cenas[i]
+      const destino = tour.cenas[j]
+      const hs = origem.hotspots.find((h) => h.sceneId === destino.id)
+      if (hs) {
+        linhas.push({
+          deIdx: i + 1,
+          paraIdx: j + 1,
+          deId: origem.id,
+          paraId: destino.id,
+          yaw: hs.yaw,
+          estado: 'conectado',
+        })
+      }
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue
+      const temIda = tour.cenas[i].hotspots.some((h) => h.sceneId === tour.cenas[j].id)
+      const temVolta = tour.cenas[j].hotspots.some((h) => h.sceneId === tour.cenas[i].id)
+      if (temIda && !temVolta) {
+        const ja = linhas.some(
+          (l) => l.deIdx === j + 1 && l.paraIdx === i + 1 && l.estado === 'pendente'
+        )
+        if (!ja) {
+          linhas.push({
+            deIdx: j + 1,
+            paraIdx: i + 1,
+            deId: tour.cenas[j].id,
+            paraId: tour.cenas[i].id,
+            estado: 'pendente',
+          })
+        }
+      }
+    }
+  }
+  return linhas.sort((a, b) => a.deIdx - b.deIdx || a.paraIdx - b.paraIdx)
+}
