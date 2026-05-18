@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import FotoCapa from '@/components/perfil/FotoCapa'
 import MenuLateral from '@/components/perfil/MenuLateral'
+import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
 import NomeSocial from '@/components/perfil/NomeSocial'
 import DescricaoCurta from '@/components/perfil/DescricaoCurta'
 import MetricasPerfil from '@/components/perfil/MetricasPerfil'
@@ -617,16 +618,7 @@ export default function PerfilSocialPage() {
                 layout="inline"
               />
             ) : null}
-            {mostrarMenu ? (
-              <button
-                type="button"
-                onClick={() => setMenuAberto(true)}
-                className="shrink-0 px-1 text-[30px] font-bold leading-none text-[#0097b2]"
-                aria-label="Menu"
-              >
-                ☰⋮
-              </button>
-            ) : null}
+            {mostrarMenu ? <BotaoAbrirMenuLateral onClick={() => setMenuAberto(true)} /> : null}
           </div>
         </div>
       </header>

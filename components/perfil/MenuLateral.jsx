@@ -24,9 +24,11 @@ import {
   Paperclip,
   Scale,
   Settings,
+  Shield,
   ShieldAlert,
   ShoppingBag,
   ShoppingCart,
+  Smartphone,
   Speaker,
   Star,
   Table,
@@ -93,6 +95,15 @@ const itemConfig = /** @type {const} */ {
 
 const itemSair = /** @type {const} */ { Icon: LogOut, label: 'Sair', acao: 'logout' }
 
+/** @type {Record<string, import('react').ComponentType<{ className?: string }>>} */
+const ICONE_GRUPO = {
+  admin: Shield,
+  usuario: User,
+  aplicativo: Smartphone,
+  empresa: Building2,
+  profissional: Star,
+}
+
 /**
  * @param {MenuItem[]} itens
  * @param {MenuContext} ctx
@@ -125,8 +136,9 @@ function secoesTurista() {
   const gAplic = [
     { Icon: History, label: 'Histórico de Compras', subitens: histComprasSubitensTurista() },
     { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
+    itemConfig,
   ]
-  return [/** @type {const} */ { tipo: 'emergencia', item: em }, { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario }, { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic }, { tipo: 'config' }, { tipo: 'sair' }]
+  return [/** @type {const} */ { tipo: 'emergencia', item: em }, { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario }, { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic }, { tipo: 'sair' }]
 }
 
 /**
@@ -178,6 +190,7 @@ function secoesProfissional(ctx) {
         subitens: histComprasSubitensGeral(),
       },
       { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
+      itemConfig,
     ],
     ctx
   )
@@ -187,7 +200,6 @@ function secoesProfissional(ctx) {
     /** @type {const} */ { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario },
     ...secProf,
     { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic },
-    { tipo: 'config' },
     { tipo: 'sair' },
   ]
 }
@@ -212,8 +224,9 @@ function secoesEmpresa() {
   const gAplic = [
     { Icon: AlertTriangle, label: 'Avaliações e denúncias', href: '/empresa/menu/denuncias' },
     { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
+    itemConfig,
   ]
-  return [/** @type {const} */ { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario }, { tipo: 'grupo', key: 'empresa', label: 'EMPRESA', items: gEmp }, { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic }, { tipo: 'config' }, { tipo: 'sair' }]
+  return [/** @type {const} */ { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario }, { tipo: 'grupo', key: 'empresa', label: 'EMPRESA', items: gEmp }, { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic }, { tipo: 'sair' }]
 }
 
 /**
@@ -246,10 +259,11 @@ function secoesAdmin(ctx, { omitirModoNaLista }) {
     [
       { Icon: History, label: 'Histórico de Compras', subitens: histComprasSubitensGeral() },
       { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
+      itemConfig,
     ],
     ctx
   )
-  return [/** @type {const} */ { tipo: 'grupo', key: 'admin', label: 'ADMIN', items: gAdmin }, { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario }, { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic }, { tipo: 'config' }, { tipo: 'sair' }]
+  return [/** @type {const} */ { tipo: 'grupo', key: 'admin', label: 'ADMIN', items: gAdmin }, { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario }, { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic }, { tipo: 'sair' }]
 }
 
 /**
@@ -297,7 +311,7 @@ export default function MenuLateral({
   const modoApresentacaoAtivo = modoAtivo
 
   const [gruposAbertos, setGruposAbertos] = useState(() => ({
-    usuario: true,
+    usuario: false,
     aplicativo: false,
     profissional: false,
     empresa: false,
@@ -377,7 +391,7 @@ export default function MenuLateral({
   useEffect(() => {
     if (!aberto) return
     setGruposAbertos({
-      usuario: true,
+      usuario: false,
       aplicativo: false,
       profissional: false,
       empresa: false,
@@ -582,9 +596,11 @@ export default function MenuLateral({
 
   const modItem = { Icon: Users, label: 'Modo Apresentação', subpagina: 'modo-apresentacao' }
 
-  /** @param {MenuItem[]} lista */
-  const renderListaItens = (lista) => (
-    <ul className="space-y-1">
+  /** @param {MenuItem[]} lista @param {{ compact?: boolean }} [opts] */
+  const renderListaItens = (lista, opts = {}) => {
+    const { compact = false } = opts
+    return (
+    <ul className={compact ? 'space-y-0.5' : 'space-y-1'}>
       {lista.map((item, idx) => {
         const Ico = item.Icon
         return (
@@ -592,10 +608,17 @@ export default function MenuLateral({
             <button
               type="button"
               onClick={() => executarItem(item)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-800 transition hover:bg-gray-100"
+              className={`flex w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-100 ${
+                compact ? 'py-1.5' : 'py-2.5'
+              }`}
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-700" aria-hidden>
-                <Ico size={20} strokeWidth={1.75} />
+              <span
+                className={`flex shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500 ${
+                  compact ? 'h-8 w-8' : 'h-9 w-9'
+                }`}
+                aria-hidden
+              >
+                <Ico size={compact ? 16 : 20} strokeWidth={1.75} />
               </span>
               <span className="flex-1">{item.label}</span>
               {(item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)) > 0 ||
@@ -615,7 +638,8 @@ export default function MenuLateral({
         )
       })}
     </ul>
-  )
+    )
+  }
 
   const toggleGrupo = (g) => {
     setGruposAbertos((p) => ({ ...p, [g]: !p[g] }))
@@ -731,30 +755,24 @@ export default function MenuLateral({
                   return <div key={`em-${i}`}>{renderItemLinha(sec.item, { emergencia: true })}</div>
                 }
                 if (sec.tipo === 'grupo') {
-                  const ab = gruposAbertos[sec.key] ?? true
+                  const ab = gruposAbertos[sec.key] ?? false
+                  const GrupoIcon = ICONE_GRUPO[sec.key] ?? User
                   return (
                     <div key={`g-${sec.key}`} className="border-b border-gray-100">
                       <button
                         type="button"
                         onClick={() => toggleGrupo(sec.key)}
-                        className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs font-bold uppercase tracking-wide text-gray-600"
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
                       >
-                        <span>{sec.label}</span>
-                        {ab ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
+                        <span className="flex min-w-0 flex-1 items-center gap-2">
+                          <GrupoIcon className="h-5 w-5 shrink-0 text-[#0097b2]" aria-hidden />
+                          <span className="text-base font-semibold uppercase tracking-wide text-gray-900">{sec.label}</span>
+                        </span>
+                        {ab ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />}
                       </button>
                       {ab ? (
-                        <div className="border-l-2 border-gray-200 pb-2 pl-2 pr-0 ml-2">{renderListaItens(filtrarMenu(sec.items, ctx))}</div>
+                        <div className="pb-2 pl-2 pr-0 ml-2">{renderListaItens(filtrarMenu(sec.items, ctx), { compact: true })}</div>
                       ) : null}
-                    </div>
-                  )
-                }
-                if (sec.tipo === 'config') {
-                  return (
-                    <div key="cfg" className="px-1 pt-1">
-                      {renderItemLinha(
-                        { Icon: itemConfig.Icon, label: itemConfig.label, subpagina: itemConfig.subpagina },
-                        { semIconBg: false }
-                      )}
                     </div>
                   )
                 }

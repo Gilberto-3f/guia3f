@@ -8,6 +8,7 @@ import BotaoVoltar from '@/components/BotaoVoltar'
 import Username from '@/components/Username'
 import FotoHero from '@/components/FotoHero'
 import MenuLateral from '@/components/perfil/MenuLateral'
+import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
 import NomeEmpresa from '@/components/NomeEmpresa'
 import BotaoSeguir from '@/components/BotaoSeguir'
 import ContadorSeguidores from '@/components/ContadorSeguidores'
@@ -295,14 +296,7 @@ export default function EmpresaPage() {
           </div>
           <div className="flex shrink-0 justify-end">
             {podeAbrirMenu ? (
-              <button
-                type="button"
-                onClick={() => setMenuAberto(true)}
-                className="shrink-0 px-1 text-[30px] font-bold leading-none text-[#0097b2]"
-                aria-label="Menu"
-              >
-                ☰⋮
-              </button>
+              <BotaoAbrirMenuLateral onClick={() => setMenuAberto(true)} />
             ) : !donoEmpresa ? (
               <BotaoSeguir
                 empresaId={empresaId}

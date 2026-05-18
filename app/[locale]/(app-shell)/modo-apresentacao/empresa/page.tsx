@@ -10,6 +10,7 @@ import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useEmpresaPreviewDraft } from '@/hooks/useEmpresaPreviewDraft'
 import EmpresaPreviewEditorDrawer from '@/components/empresa/EmpresaPreviewEditorDrawer'
 
+import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
 import Username from '@/components/Username'
 import FotoHero from '@/components/FotoHero'
 import NomeEmpresa from '@/components/NomeEmpresa'
@@ -253,14 +254,10 @@ export default function EmpresaPreviewModoApresentacaoPage() {
           <div className="flex min-w-0 items-center gap-2">
             <Username username={nomeUsuario} />
           </div>
-          <button
-            type="button"
+          <BotaoAbrirMenuLateral
             onClick={() => setMenuAberto(true)}
-            className="shrink-0 rounded-full bg-black/5 px-3 py-2 text-lg font-bold leading-none text-gray-900 hover:bg-black/10"
-            aria-label="Menu"
-          >
-            ☰⋮
-          </button>
+            className="shrink-0 rounded-full bg-black/5 px-2.5 py-2 text-gray-900 hover:bg-black/10"
+          />
         </div>
       </div>
 
