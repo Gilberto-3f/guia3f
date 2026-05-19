@@ -5,7 +5,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
-import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
+import { getPerfilHref } from '@/lib/perfil-utils'
+import { enriquecerMinhasAtividadesPerfis, fetchMinhasAtividadesLinhas } from '@/lib/fetchMinhasAtividades'
 
 /**
  * @typedef {{
@@ -26,39 +27,6 @@ import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
  */
 
 /**
- * @param {unknown} p
- * @returns {{ deleted_at: unknown, texto: unknown, conteudo_url: unknown, foto_url: unknown, tipo?: unknown, autor_id?: unknown } | null}
- */
-function postEmb(p) {
-  if (p == null) return null
-  const raw = Array.isArray(p) ? p[0] : p
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
-  const pr = /** @type {Record<string, unknown>} */ (raw)
-  return {
-    deleted_at: pr.deleted_at,
-    texto: pr.texto,
-    conteudo_url: pr.conteudo_url,
-    foto_url: pr.foto_url,
-    tipo: pr.tipo,
-    autor_id: pr.autor_id,
-  }
-}
-
-/**
- * Mesma ideia que o feed de atividades: foto / misto, ou mídia sem texto legível.
- * @param {{ texto?: unknown, conteudo_url?: unknown, foto_url?: unknown, tipo?: unknown } | null} pr
- */
-function postInteracaoEhFoto(pr) {
-  if (!pr) return false
-  const t = String(pr.tipo ?? 'texto').toLowerCase()
-  if (t === 'foto' || t === 'misto') return true
-  const url = pr.conteudo_url || pr.foto_url
-  const hasUrl = url != null && String(url).trim() !== ''
-  const hasText = pr.texto != null && String(pr.texto).trim() !== ''
-  return hasUrl && !hasText
-}
-
-/**
  * @param {{
  *   usuarioId: string
  *   onAbrirPublicacao: (postId: string, comentarioId?: string | null) => void
@@ -74,122 +42,23 @@ export default function MinhasAtividades({ usuarioId, onAbrirPublicacao }) {
     let ativo = true
     const run = async () => {
       setCarregando(true)
-      const [cRes, ccRes, kRes] = await Promise.all([
-        supabase
-          .from('curtidas')
-          .select('id, created_at, post_id, posts(id, texto, conteudo_url, foto_url, deleted_at)')
-          .eq('usuario_id', usuarioId)
-          .not('post_id', 'is', null)
-          .order('created_at', { ascending: false })
-          .limit(40),
-        supabase
-          .from('curtidas')
-          .select(
-            'id, created_at, comentario_id, comentarios(id, texto, post_id, deleted_at, posts(id, texto, conteudo_url, foto_url, deleted_at))'
-          )
-          .eq('usuario_id', usuarioId)
-          .is('post_id', null)
-          .not('comentario_id', 'is', null)
-          .order('created_at', { ascending: false })
-          .limit(40),
-        supabase
-          .from('comentarios')
-          .select('id, texto, created_at, post_id, posts(id, texto, conteudo_url, foto_url, deleted_at, tipo, autor_id)')
-          .eq('autor_id', usuarioId)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false })
-          .limit(40),
-      ])
-      if (!ativo) return
+      try {
+        const base = /** @type {LinhaInteracao[]} */ (await fetchMinhasAtividadesLinhas(supabase, usuarioId))
+        if (!ativo) return
+        setLinhas(base)
+        setCarregando(false)
 
-      /** @type {LinhaInteracao[]} */
-      const acc = []
-
-      for (const row of cRes.data ?? []) {
-        const pr = postEmb(row.posts)
-        if (!pr || pr.deleted_at != null) continue
-        const url = pr.conteudo_url || pr.foto_url
-        acc.push({
-          id: `c-${row.id}`,
-          ts: String(row.created_at ?? ''),
-          postId: String(row.post_id ?? ''),
-          kind: 'curtida',
-          comentarioId: null,
-          thumb: url != null ? String(url) : null,
-          texto: pr.texto != null ? String(pr.texto) : null,
-        })
-      }
-
-      for (const row of ccRes.data ?? []) {
-        const cid = row.comentario_id != null ? String(row.comentario_id) : ''
-        const rawCom = row.comentarios
-        const com = Array.isArray(rawCom) ? rawCom[0] : rawCom
-        if (!com || typeof com !== 'object' || Array.isArray(com)) continue
-        const cr = /** @type {Record<string, unknown>} */ (com)
-        if (cr.deleted_at != null) continue
-        const postIdCom = cr.post_id != null ? String(cr.post_id) : ''
-        if (!postIdCom) continue
-        const pr = postEmb(cr.posts)
-        if (!pr || pr.deleted_at != null) continue
-        const url = pr.conteudo_url || pr.foto_url
-        acc.push({
-          id: `cc-${row.id}`,
-          ts: String(row.created_at ?? ''),
-          postId: postIdCom,
-          kind: 'curtida',
-          comentarioId: cid || null,
-          thumb: url != null ? String(url) : null,
-          texto: pr.texto != null ? String(pr.texto) : null,
-          textoComentario: cr.texto != null ? String(cr.texto) : null,
-        })
-      }
-
-      const comentarioRows = /** @type {Record<string, unknown>[]} */ (kRes.data ?? [])
-      const autorIdsPost = [
-        ...new Set(
-          comentarioRows
-            .map((row) => {
-              const pr = postEmb(row.posts)
-              return pr?.autor_id != null ? String(pr.autor_id) : ''
-            })
-            .filter(Boolean)
-        ),
-      ]
-      /** @type {Map<string, { usuario_id: string; username: string; empresa_id: string | null; tipo: string }>} */
-      const perfilAutorPost = new Map()
-      if (autorIdsPost.length > 0) {
-        const perfis = await buscarPerfisPorIds(supabase, autorIdsPost)
-        for (const p of perfis) {
-          perfilAutorPost.set(String(p.usuario_id), p)
+        const enriquecidas = /** @type {LinhaInteracao[]} */ (
+          await enriquecerMinhasAtividadesPerfis(supabase, base)
+        )
+        if (!ativo) return
+        setLinhas(enriquecidas)
+      } catch {
+        if (ativo) {
+          setLinhas([])
+          setCarregando(false)
         }
       }
-
-      for (const row of comentarioRows) {
-        const pr = postEmb(row.posts)
-        if (!pr || pr.deleted_at != null) continue
-        const url = pr.conteudo_url || pr.foto_url
-        const autorPostId = pr.autor_id != null ? String(pr.autor_id) : ''
-        const perfilAutor = autorPostId ? perfilAutorPost.get(autorPostId) : undefined
-        acc.push({
-          id: `k-${row.id}`,
-          ts: String(row.created_at ?? ''),
-          postId: String(row.post_id ?? ''),
-          kind: 'comentario',
-          comentarioId: String(row.id),
-          thumb: url != null ? String(url) : null,
-          texto: pr.texto != null ? String(pr.texto) : null,
-          textoComentario: row.texto != null ? String(row.texto) : null,
-          postAutorUsuarioId: autorPostId || null,
-          postAutorUsername: perfilAutor?.username != null ? String(perfilAutor.username) : 'usuario',
-          postAutorEmpresaId: perfilAutor?.empresa_id != null ? String(perfilAutor.empresa_id) : null,
-          postAutorTipo: perfilAutor?.tipo != null ? String(perfilAutor.tipo) : null,
-          postEhFoto: postInteracaoEhFoto(pr),
-        })
-      }
-
-      acc.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
-      setLinhas(acc.slice(0, 60))
-      setCarregando(false)
     }
     void run()
     return () => {

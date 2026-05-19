@@ -18,12 +18,14 @@ import {
   Handshake,
   History,
   LayoutDashboard,
+  MapPin,
   Megaphone,
   MessageSquare,
   Paperclip,
+  Phone,
   Scale,
+  Search,
   Settings,
-  ShieldAlert,
   ShoppingBag,
   ShoppingCart,
   Speaker,
@@ -39,7 +41,11 @@ import { supabase } from '@/lib/supabase'
 import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
-import Emergencia from '@/components/perfil/subpaginas/Emergencia'
+import EmergenciaItemEsquecido from '@/components/perfil/subpaginas/emergencia/EmergenciaItemEsquecido'
+import EmergenciaPerdido from '@/components/perfil/subpaginas/emergencia/EmergenciaPerdido'
+import EmergenciaSocorro from '@/components/perfil/subpaginas/emergencia/EmergenciaSocorro'
+import EmergenciaMensageiroAdm from '@/components/perfil/subpaginas/emergencia/EmergenciaMensageiroAdm'
+import { prefetchMinhasAtividades } from '@/lib/fetchMinhasAtividades'
 import EditarPerfil from '@/components/perfil/subpaginas/EditarPerfil'
 import MeuHistorico from '@/components/perfil/subpaginas/MeuHistorico'
 import MinhasAtividades from '@/components/perfil/subpaginas/MinhasAtividades'
@@ -138,7 +144,12 @@ const histComprasSubitensProfissionalPessoal = () => [
 ]
 
 function secoesTurista() {
-  const em = { Icon: ShieldAlert, label: 'Emergência', subpagina: 'emergencia' }
+  const gEmergencia = [
+    { Icon: Search, label: 'Item esquecido', subpagina: 'emergencia-item-esquecido' },
+    { Icon: MapPin, label: 'Estou perdido(a)', subpagina: 'emergencia-perdido' },
+    { Icon: AlertTriangle, label: 'SOCORRO', subpagina: 'emergencia-socorro' },
+    { Icon: Phone, label: 'Contatar ADM', subpagina: 'emergencia-adm' },
+  ]
   const gUsuario = [
     { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
@@ -150,7 +161,12 @@ function secoesTurista() {
     { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
     itemConfig,
   ]
-  return [/** @type {const} */ { tipo: 'emergencia', item: em }, { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: gUsuario }, { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic }, { tipo: 'sair' }]
+  return [
+    /** @type {const} */ { tipo: 'grupo', key: 'emergencia', label: 'Emergência', labelNegrito: true, items: gEmergencia },
+    { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: gUsuario },
+    { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic },
+    { tipo: 'sair' },
+  ]
 }
 
 /**
@@ -353,6 +369,7 @@ export default function MenuLateral({
   const modoApresentacaoAtivo = modoAtivo
 
   const [gruposAbertos, setGruposAbertos] = useState(() => ({
+    emergencia: false,
     usuario: false,
     aplicativo: false,
     profissional: false,
@@ -449,11 +466,13 @@ export default function MenuLateral({
     if (!aberto) return
     if (!usuarioIdEfetivo) return
     void fetchHistoricoUsuario(usuarioIdEfetivo)
+    prefetchMinhasAtividades(supabase, usuarioIdEfetivo)
   }, [aberto, fetchHistoricoUsuario, usuarioIdEfetivo])
 
   useEffect(() => {
     if (!aberto) return
     setGruposAbertos({
+      emergencia: false,
       usuario: false,
       aplicativo: false,
       profissional: false,
@@ -511,7 +530,10 @@ export default function MenuLateral({
     }
     if (item.subpagina) {
       const titulos = {
-        emergencia: 'Emergência',
+        'emergencia-item-esquecido': 'Item esquecido',
+        'emergencia-perdido': 'Estou perdido(a)',
+        'emergencia-socorro': 'SOCORRO',
+        'emergencia-adm': 'Contatar ADM',
         'editar-perfil': 'Editar Perfil',
         'minhas-atividades': 'Minhas Atividades',
         configuracoes: 'Configurações',
@@ -595,7 +617,17 @@ export default function MenuLateral({
     if (!usuarioIdEfetivo && id !== 'modo-apresentacao') return null
     const histTipo = topo.historicoTipo || 'contratacoes'
 
-    if (id === 'emergencia') return <Emergencia />
+    if (id === 'emergencia-item-esquecido') return <EmergenciaItemEsquecido />
+    if (id === 'emergencia-perdido') return <EmergenciaPerdido />
+    if (id === 'emergencia-socorro') return <EmergenciaSocorro />
+    if (id === 'emergencia-adm')
+      return (
+        <EmergenciaMensageiroAdm
+          titulo="Contatar ADM"
+          subtitulo="Troque informações com um administrador pelo canal oficial."
+          placeholder="Escreva sua mensagem…"
+        />
+      )
     if (id === 'editar-perfil')
       return (
         <EditarPerfil
@@ -863,9 +895,6 @@ export default function MenuLateral({
 
             <nav className="scrollbar-perfil min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-2 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
               {secoes.map((sec, i) => {
-                if (sec.tipo === 'emergencia') {
-                  return <div key={`em-${i}`}>{renderItemLinha(sec.item, { emergencia: true })}</div>
-                }
                 if (sec.tipo === 'grupo') {
                   const ab = gruposAbertos[sec.key] ?? false
                   return (
@@ -879,7 +908,11 @@ export default function MenuLateral({
                           <span className="shrink-0 text-base leading-none text-gray-900" aria-hidden>
                             •
                           </span>
-                          <span className="text-base font-normal tracking-wide text-gray-900">{sec.label}</span>
+                          <span
+                            className={`text-base tracking-wide text-gray-900 ${sec.labelNegrito ? 'font-bold' : 'font-normal'}`}
+                          >
+                            {sec.label}
+                          </span>
                         </span>
                         {ab ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />}
                       </button>
