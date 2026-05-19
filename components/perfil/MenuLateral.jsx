@@ -18,7 +18,6 @@ import {
   Handshake,
   History,
   LayoutDashboard,
-  LogOut,
   Megaphone,
   MessageSquare,
   Paperclip,
@@ -28,6 +27,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Speaker,
+  Star,
   Table,
   User,
   Users,
@@ -94,7 +94,13 @@ const itemConfig = /** @type {const} */ {
   subpagina: 'configuracoes',
 }
 
-const itemSair = /** @type {const} */ { Icon: LogOut, label: 'Sair', acao: 'logout' }
+const itemSair = /** @type {const} */ { label: 'Sair', acao: 'logout' }
+
+/** Ícones dos subgrupos dentro de Aplicativo (alinhados ao item Configurações). */
+const ICONE_SUBGRUPO = {
+  'aplic-pessoal': User,
+  'aplic-prof-hist': Star,
+}
 
 function empresaComprasParaguaiVisivel(ctx) {
   const cat = String(ctx.empresaCategoria ?? '').toLowerCase()
@@ -681,7 +687,7 @@ export default function MenuLateral({
             <button
               type="button"
               onClick={() => executarItem(item)}
-              className={`flex w-full items-center gap-3 rounded-xl text-left text-sm font-medium text-gray-700 transition hover:bg-gray-100 ${
+              className={`flex w-full items-center gap-3 rounded-xl text-left text-sm font-medium text-gray-600 transition hover:bg-gray-100 ${
                 compact ? 'px-0 py-1.5' : 'px-3 py-2.5'
               }`}
             >
@@ -724,6 +730,7 @@ export default function MenuLateral({
   const renderSubgrupos = (subgrupos) =>
     subgrupos.map((sg) => {
       const abSub = gruposAbertos[sg.key] ?? false
+      const SubIcon = ICONE_SUBGRUPO[sg.key] ?? User
       const itensSub = filtrarMenu(sg.items, ctx)
       if (itensSub.length === 0) return null
       return (
@@ -731,13 +738,16 @@ export default function MenuLateral({
           <button
             type="button"
             onClick={() => toggleGrupo(sg.key)}
-            className="flex w-full items-center justify-between gap-2 py-2 pl-1 pr-0 text-left"
+            className="flex w-full items-center justify-between gap-2 py-2 pl-0 pr-0 text-left"
           >
-            <span className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="shrink-0 text-base leading-none text-gray-800" aria-hidden>
-                •
+            <span className="flex min-w-0 flex-1 items-center gap-3">
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500"
+                aria-hidden
+              >
+                <SubIcon size={16} strokeWidth={1.75} />
               </span>
-              <span className="text-sm font-normal tracking-wide text-gray-800">{sg.label}</span>
+              <span className="text-sm font-normal tracking-wide text-gray-900">{sg.label}</span>
             </span>
             {abSub ? (
               <ChevronUp className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
@@ -765,7 +775,7 @@ export default function MenuLateral({
         className={
           isEm
             ? 'mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50'
-            : 'mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-800 transition hover:bg-gray-100'
+            : 'mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-600 transition hover:bg-gray-100'
         }
       >
         {!semIconBg ? (
@@ -833,7 +843,7 @@ export default function MenuLateral({
 
         {!topo ? (
           <>
-            <div className="shrink-0 border-b border-gray-100 px-4 pt-0 pb-2">
+            <div className="shrink-0 border-b border-gray-100 px-4 pt-0 pb-3">
               <div className="flex items-center gap-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-200">
                   {fotoUrl ? <Image src={fotoUrl} alt="" fill className="object-cover" sizes="56px" /> : null}
@@ -851,7 +861,7 @@ export default function MenuLateral({
               </div>
             ) : null}
 
-            <nav className="scrollbar-perfil min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-2 pt-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+            <nav className="scrollbar-perfil min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-2 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
               {secoes.map((sec, i) => {
                 if (sec.tipo === 'emergencia') {
                   return <div key={`em-${i}`}>{renderItemLinha(sec.item, { emergencia: true })}</div>
@@ -897,7 +907,9 @@ export default function MenuLateral({
                         className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition hover:bg-gray-100"
                       >
                         <span className="flex min-w-0 flex-1 items-center gap-2">
-                          <LogOut className="h-5 w-5 shrink-0 text-gray-900" aria-hidden />
+                          <span className="shrink-0 text-base leading-none text-gray-900" aria-hidden>
+                            •
+                          </span>
                           <span className="text-base font-normal tracking-wide text-gray-900">{itemSair.label}</span>
                         </span>
                       </button>
