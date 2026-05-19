@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronRight, FileText, ScrollText, Shield } from 'lucide-react'
+import { ArrowLeft, ChevronRight, FileText, ScrollText, Shield } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 const APP_VERSION = '1.0.0'
@@ -12,10 +12,7 @@ const SECOES = [
   { id: 'termos', campo: 'termos_uso', titulo: 'Termos de uso', Icon: FileText },
 ]
 
-/**
- * @param {{ onVoltar: () => void }} props
- */
-export default function RegrasEcossistema({ onVoltar }) {
+export default function RegrasEcossistema() {
   const [loading, setLoading] = useState(true)
   const [config, setConfig] = useState(/** @type {Record<string, string>} */ ({}))
   const [secaoAtiva, setSecaoAtiva] = useState(/** @type {string | null} */ (null))
@@ -53,8 +50,13 @@ export default function RegrasEcossistema({ onVoltar }) {
     const texto = config[secao.campo] ?? 'Conteúdo em atualização.'
     return (
       <div className="px-1 pb-4">
-        <button type="button" onClick={() => setSecaoAtiva(null)} className="mb-3 text-sm font-medium text-[#0097b2] hover:underline">
-          ← Voltar
+        <button
+          type="button"
+          onClick={() => setSecaoAtiva(null)}
+          className="mb-3 flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+          Voltar
         </button>
         <h2 className="text-lg font-bold text-gray-900">{secao.titulo}</h2>
         <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{texto}</div>
@@ -64,16 +66,10 @@ export default function RegrasEcossistema({ onVoltar }) {
 
   return (
     <div className="px-1 pb-4">
-      <button type="button" onClick={onVoltar} className="mb-3 text-sm font-medium text-[#0097b2] hover:underline">
-        ← Voltar
-      </button>
-      <h2 className="text-lg font-bold text-gray-900">Regras do ecossistema</h2>
-      <p className="mt-1 text-sm text-gray-600">Como o Guia 3F funciona e suas diretrizes de uso.</p>
-
-      {loading ? <p className="mt-6 text-center text-sm text-gray-400">Carregando…</p> : null}
+      {loading ? <p className="mt-2 text-center text-sm text-gray-400">Carregando…</p> : null}
 
       {!loading ? (
-        <ul className="mt-4 divide-y divide-gray-100 rounded-xl border border-gray-100">
+        <ul className="mt-1 divide-y divide-gray-100">
           {SECOES.map(({ id, titulo, Icon }) => (
             <li key={id}>
               <button

@@ -16,7 +16,6 @@ import {
   Moon,
   Trash2,
 } from 'lucide-react'
-import RegrasEcossistema from '@/components/perfil/subpaginas/RegrasEcossistema'
 
 const IDIOMAS = [
   { codigo: 'pt', label: 'Português', bandeira: '🇧🇷' },
@@ -27,15 +26,15 @@ const IDIOMAS = [
 /**
  * @param {{
  *   variant?: 'turista' | 'profissional' | 'empresa' | 'admin'
+ *   onAbrirRegras?: () => void
  * }} props
  */
-export default function Configuracoes({ variant = 'turista' }) {
+export default function Configuracoes({ variant = 'turista', onAbrirRegras }) {
   const router = useRouter()
   const locale = useLocale()
   const [modoNoturno, setModoNoturno] = useState(false)
   const [notificacoes, setNotificacoes] = useState(true)
   const [idiomaAberto, setIdiomaAberto] = useState(false)
-  const [view, setView] = useState(/** @type {'main' | 'regras'} */ ('main'))
 
   const mostrarFalarComAdm = variant === 'profissional'
   const idiomaAtual = IDIOMAS.find((i) => i.codigo === locale) ?? IDIOMAS[0]
@@ -46,18 +45,13 @@ export default function Configuracoes({ variant = 'turista' }) {
     router.refresh()
   }
 
-  if (view === 'regras') {
-    return <RegrasEcossistema onVoltar={() => setView('main')} />
-  }
-
   return (
-    <div className="space-y-1 px-1 pb-4">
-      {/* Idioma — chevron */}
-      <div className="rounded-xl border border-gray-100">
+    <div className="space-y-0 px-1 pb-4">
+      <div>
         <button
           type="button"
           onClick={() => setIdiomaAberto((v) => !v)}
-          className="flex w-full items-center gap-3 px-3 py-3 text-left"
+          className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-gray-50"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
             <Globe className="h-5 w-5" strokeWidth={1.75} aria-hidden />
@@ -73,7 +67,7 @@ export default function Configuracoes({ variant = 'turista' }) {
           )}
         </button>
         {idiomaAberto ? (
-          <div className="border-t border-gray-100 px-3 pb-2 pt-1">
+          <div className="px-3 pb-2">
             {IDIOMAS.map((item) => (
               <button
                 key={item.codigo}
@@ -91,8 +85,7 @@ export default function Configuracoes({ variant = 'turista' }) {
         ) : null}
       </div>
 
-      {/* Modo noturno */}
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-3 py-3">
+      <div className="flex items-center justify-between gap-3 px-3 py-3 transition hover:bg-gray-50">
         <span className="flex min-w-0 items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
             <Moon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
@@ -102,8 +95,7 @@ export default function Configuracoes({ variant = 'turista' }) {
         <Toggle checked={modoNoturno} onChange={setModoNoturno} />
       </div>
 
-      {/* Silenciar notificações */}
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-3 py-3">
+      <div className="flex items-center justify-between gap-3 px-3 py-3 transition hover:bg-gray-50">
         <span className="flex min-w-0 items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
             <BellOff className="h-5 w-5" strokeWidth={1.75} aria-hidden />
@@ -114,22 +106,19 @@ export default function Configuracoes({ variant = 'turista' }) {
       </div>
 
       {mostrarFalarComAdm ? (
-        <Link
-          href="/canal"
-          className="flex items-center gap-3 rounded-xl border border-[#0097b2]/20 bg-[#e6f7fa]/50 px-3 py-3 transition hover:bg-[#e6f7fa]"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#0097b2]">
+        <Link href="/canal" className="flex items-center gap-3 px-3 py-3 transition hover:bg-gray-50">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
             <MessageSquare className="h-5 w-5" strokeWidth={1.75} aria-hidden />
           </span>
-          <span className="text-sm font-medium text-[#007d94]">Falar com ADM</span>
+          <span className="flex-1 text-sm font-medium text-gray-800">Falar com ADM</span>
         </Link>
       ) : null}
 
-      <div className="border-t border-gray-100 pt-2">
+      <div className="mt-2 border-t border-gray-100 pt-1">
         <button
           type="button"
-          onClick={() => setView('regras')}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-gray-50"
+          onClick={() => onAbrirRegras?.()}
+          className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-gray-50"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
             <BookOpen className="h-5 w-5" strokeWidth={1.75} aria-hidden />
@@ -140,7 +129,7 @@ export default function Configuracoes({ variant = 'turista' }) {
 
         <Link
           href="/recuperar-senha"
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-gray-50"
+          className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-gray-50"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
             <KeyRound className="h-5 w-5" strokeWidth={1.75} aria-hidden />
@@ -151,12 +140,12 @@ export default function Configuracoes({ variant = 'turista' }) {
         <button
           type="button"
           onClick={() => window.alert('Fluxo de exclusão de conta: em breve com confirmação por e-mail.')}
-          className="mt-1 flex w-full items-center gap-3 rounded-xl bg-red-50 px-3 py-3 text-left transition hover:bg-red-100/80"
+          className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-gray-50"
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-red-600">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
             <Trash2 className="h-5 w-5" strokeWidth={1.75} aria-hidden />
           </span>
-          <span className="flex-1 text-sm font-medium text-red-600">Excluir conta</span>
+          <span className="flex-1 text-sm font-medium text-gray-800">Excluir conta</span>
         </button>
       </div>
     </div>

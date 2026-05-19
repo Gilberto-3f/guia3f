@@ -52,6 +52,7 @@ import HistoricoCompras from '@/components/perfil/subpaginas/HistoricoCompras'
 import MinhasAtividades from '@/components/perfil/subpaginas/MinhasAtividades'
 import PostIsoladoDrawer from '@/components/perfil/subpaginas/PostIsoladoDrawer'
 import Configuracoes from '@/components/perfil/subpaginas/Configuracoes'
+import RegrasEcossistema from '@/components/perfil/subpaginas/RegrasEcossistema'
 import Comissoes from '@/components/perfil/subpaginas/Comissoes'
 import AgendamentoAutomatico from '@/components/perfil/subpaginas/AgendamentoAutomatico'
 import TabelaValores from '@/components/perfil/subpaginas/TabelaValores'
@@ -156,9 +157,9 @@ function secoesTurista() {
     itemConfig,
   ]
   return [
-    /** @type {const} */ { tipo: 'grupo', key: 'emergencia', label: 'Emergência', labelNegrito: true, items: gEmergencia },
     { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: gUsuario },
     { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic },
+    /** @type {const} */ { tipo: 'grupo', key: 'emergencia', label: 'Emergência', items: gEmergencia },
     { tipo: 'sair' },
   ]
 }
@@ -527,6 +528,7 @@ export default function MenuLateral({
         'editar-perfil': 'Editar Perfil',
         'minhas-atividades': 'Minhas Atividades',
         configuracoes: 'Configurações',
+        'regras-ecossistema': 'Regras do ecossistema',
         comissoes: 'Comissões',
         agendamento: 'Agendamento Automático',
         tabela: 'Tabela de Valores',
@@ -657,7 +659,14 @@ export default function MenuLateral({
           }}
         />
       )
-    if (id === 'configuracoes') return <Configuracoes variant={menuVariantEfetivo} />
+    if (id === 'configuracoes')
+      return (
+        <Configuracoes
+          variant={menuVariantEfetivo}
+          onAbrirRegras={() => abrirPagina('Regras do ecossistema', 'regras-ecossistema')}
+        />
+      )
+    if (id === 'regras-ecossistema') return <RegrasEcossistema />
     if (id === 'historico-compras') return <HistoricoCompras />
     if (id === 'comissoes') return <Comissoes />
     if (id === 'agendamento') return <AgendamentoAutomatico />
