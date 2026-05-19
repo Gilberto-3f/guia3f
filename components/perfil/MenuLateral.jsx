@@ -24,13 +24,10 @@ import {
   Paperclip,
   Scale,
   Settings,
-  Shield,
   ShieldAlert,
   ShoppingBag,
   ShoppingCart,
-  Smartphone,
   Speaker,
-  Star,
   Table,
   User,
   Users,
@@ -98,17 +95,6 @@ const itemConfig = /** @type {const} */ {
 }
 
 const itemSair = /** @type {const} */ { Icon: LogOut, label: 'Sair', acao: 'logout' }
-
-/** @type {Record<string, import('react').ComponentType<{ className?: string }>>} */
-const ICONE_GRUPO = {
-  admin: Shield,
-  usuario: User,
-  aplicativo: Smartphone,
-  empresa: Building2,
-  profissional: Star,
-  'aplic-pessoal': User,
-  'aplic-prof-hist': Star,
-}
 
 function empresaComprasParaguaiVisivel(ctx) {
   const cat = String(ctx.empresaCategoria ?? '').toLowerCase()
@@ -738,7 +724,6 @@ export default function MenuLateral({
   const renderSubgrupos = (subgrupos) =>
     subgrupos.map((sg) => {
       const abSub = gruposAbertos[sg.key] ?? false
-      const SubIcon = ICONE_GRUPO[sg.key] ?? User
       const itensSub = filtrarMenu(sg.items, ctx)
       if (itensSub.length === 0) return null
       return (
@@ -749,7 +734,9 @@ export default function MenuLateral({
             className="flex w-full items-center justify-between gap-2 py-2 pl-1 pr-0 text-left"
           >
             <span className="flex min-w-0 flex-1 items-center gap-2">
-              <SubIcon className="h-4 w-4 shrink-0 text-gray-700" aria-hidden />
+              <span className="shrink-0 text-base leading-none text-gray-800" aria-hidden>
+                •
+              </span>
               <span className="text-sm font-normal tracking-wide text-gray-800">{sg.label}</span>
             </span>
             {abSub ? (
@@ -871,7 +858,6 @@ export default function MenuLateral({
                 }
                 if (sec.tipo === 'grupo') {
                   const ab = gruposAbertos[sec.key] ?? false
-                  const GrupoIcon = ICONE_GRUPO[sec.key] ?? User
                   return (
                     <div key={`g-${sec.key}`} className="border-b border-gray-100">
                       <button
@@ -880,7 +866,9 @@ export default function MenuLateral({
                         className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
                       >
                         <span className="flex min-w-0 flex-1 items-center gap-2">
-                          <GrupoIcon className="h-5 w-5 shrink-0 text-gray-900" aria-hidden />
+                          <span className="shrink-0 text-base leading-none text-gray-900" aria-hidden>
+                            •
+                          </span>
                           <span className="text-base font-normal tracking-wide text-gray-900">{sec.label}</span>
                         </span>
                         {ab ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />}
