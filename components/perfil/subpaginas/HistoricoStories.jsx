@@ -242,11 +242,19 @@ export default function HistoricoStories({ usuarioId }) {
             const expirado = story.expira_em ? Date.parse(story.expira_em) <= Date.now() : false
             return (
               <li key={story.id} className="py-2 first:pt-0">
-                <div className="rounded-xl border border-gray-100 p-2">
+                <div className="relative rounded-xl border border-gray-100 p-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmando({ story, etapa: 1 })}
+                    className="absolute right-1.5 top-1.5 z-10 rounded-lg p-1.5 text-red-600 hover:bg-red-50"
+                    aria-label="Excluir story"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  </button>
                   <button
                     type="button"
                     onClick={() => setStoryAberto(story)}
-                    className="flex w-full min-w-0 gap-3 text-left"
+                    className="flex w-full min-w-0 gap-3 pr-8 text-left"
                     aria-label="Abrir story"
                   >
                     <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
@@ -282,16 +290,6 @@ export default function HistoricoStories({ usuarioId }) {
                       ) : null}
                     </div>
                   </button>
-                  <div className="mt-2 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmando({ story, etapa: 1 })}
-                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden />
-                      Excluir
-                    </button>
-                  </div>
                 </div>
               </li>
             )
