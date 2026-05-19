@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
 
 /**
  * @param {{
@@ -19,15 +20,11 @@ export default function FotoCapa({ src, nomeFallback = '', onOpenMenu, mostrarMe
         <div className="flex h-full w-full items-center justify-center text-4xl font-bold text-white/40">{nomeFallback.charAt(0) || '?'}</div>
       )}
       {mostrarMenu && onOpenMenu ? (
-        <button
-          type="button"
+        <BotaoAbrirMenuLateral
           onClick={onOpenMenu}
-          className="absolute right-4 top-4 z-10 flex items-center gap-0.5 rounded-full bg-black/30 p-2 text-white"
-          aria-label="Menu"
-        >
-          <span className="text-xl leading-none">☰</span>
-          <span className="text-xl leading-none">⋮</span>
-        </button>
+          className="absolute right-4 top-4 z-10 rounded-full bg-black/30 p-2 text-white"
+          iconClassName="h-6 w-6 text-white"
+        />
       ) : null}
     </div>
   )
