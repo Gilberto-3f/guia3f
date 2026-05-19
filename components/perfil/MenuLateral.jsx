@@ -699,7 +699,7 @@ export default function MenuLateral({
         <AnexarDocumentosEmpresa
           empresaId={String(empresaIdEfetivo)}
           usuarioId={usuarioIdEfetivo}
-          categoria={empresa?.categoria != null ? String(empresa.categoria) : null}
+          nomeFantasiaInicial={empresa?.nome_fantasia != null ? String(empresa.nome_fantasia) : ''}
           onConcluido={onPerfilAtualizado}
         />
       )

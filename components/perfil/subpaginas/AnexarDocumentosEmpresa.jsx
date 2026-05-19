@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const MAX_BYTES = 5 * 1024 * 1024
@@ -41,23 +41,87 @@ async function uploadEmpresaDoc(file, userId, empresaId, rotulo) {
 }
 
 /**
- * @param {{ empresaId: string | null, usuarioId: string | null, categoria?: string | null, onConcluido?: () => void }} props
+ * @param {{ label: string, file: File | null, onChange: (f: File | null) => void, accept?: string }} props
  */
-export default function AnexarDocumentosEmpresa({ empresaId, usuarioId, categoria, onConcluido }) {
-  const [frente, setFrente] = useState(/** @type {File | null} */ (null))
-  const [verso, setVerso] = useState(/** @type {File | null} */ (null))
-  const [residencia, setResidencia] = useState(/** @type {File | null} */ (null))
+function CampoArquivo({ label, file, onChange, accept = ACCEPT }) {
+  const inputId = useId()
+
+  return (
+    <div>
+      <p className="text-sm font-semibold text-gray-800">{label}</p>
+      <div className="mt-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+        <label
+          htmlFor={inputId}
+          className="inline-flex cursor-pointer items-center rounded-md bg-[#0097b2] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#007d94]"
+        >
+          Escolher arquivo
+        </label>
+        <input
+          id={inputId}
+          type="file"
+          accept={accept}
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null
+            onChange(f)
+            e.target.value = ''
+          }}
+        />
+        {file ? <p className="mt-2 truncate text-xs text-gray-500">{file.name}</p> : null}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * @param {{
+ *   empresaId: string | null
+ *   usuarioId: string | null
+ *   nomeFantasiaInicial?: string | null
+ *   documentoFiscalInicial?: string | null
+ *   onConcluido?: () => void
+ * }} props
+ */
+export default function AnexarDocumentosEmpresa({
+  empresaId,
+  usuarioId,
+  nomeFantasiaInicial = '',
+  documentoFiscalInicial = '',
+  onConcluido,
+}) {
+  const [nomeFantasia, setNomeFantasia] = useState(String(nomeFantasiaInicial ?? ''))
+  const [documentoFiscal, setDocumentoFiscal] = useState(String(documentoFiscalInicial ?? ''))
+  const [endereco, setEndereco] = useState(/** @type {File | null} */ (null))
   const [comercial, setComercial] = useState(/** @type {File | null} */ (null))
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
   const [okMsg, setOkMsg] = useState('')
 
-  const catLabel = categoria != null && String(categoria).trim() !== '' ? String(categoria).trim() : 'sua categoria'
+  useEffect(() => {
+    if (!empresaId) return
+    let ativo = true
+    void (async () => {
+      const { data } = await supabase
+        .from('empresas')
+        .select('nome_fantasia, documento_fiscal')
+        .eq('id', empresaId)
+        .maybeSingle()
+      if (!ativo || !data) return
+      if (data.nome_fantasia) setNomeFantasia(String(data.nome_fantasia))
+      const fiscal =
+        data.documento_fiscal != null
+          ? String(data.documento_fiscal)
+          : ''
+      if (fiscal) setDocumentoFiscal(fiscal)
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [empresaId])
 
-  const onChange =
+  const onChangeArquivo =
     (setter) =>
-    /** @param {React.ChangeEvent<HTMLInputElement>} */ (e) => {
-      const f = e.target.files?.[0] ?? null
+    /** @param {File | null} f */ (f) => {
       setErro('')
       setOkMsg('')
       if (!f) {
@@ -68,7 +132,6 @@ export default function AnexarDocumentosEmpresa({ empresaId, usuarioId, categori
       if (v) {
         setErro(v)
         setter(null)
-        e.target.value = ''
         return
       }
       setter(f)
@@ -81,17 +144,20 @@ export default function AnexarDocumentosEmpresa({ empresaId, usuarioId, categori
       setErro('Sessão inválida.')
       return
     }
-    if (!frente || !verso || !residencia || !comercial) {
-      setErro('Envie os quatro documentos obrigatórios.')
+    if (!nomeFantasia.trim()) {
+      setErro('Informe o nome fantasia.')
       return
     }
-    for (const pair of [
-      [frente, 'frente'],
-      [verso, 'verso'],
-      [residencia, 'residencia'],
-      [comercial, 'comercial'],
-    ]) {
-      const v = validarArquivo(/** @type {File} */ (pair[0]))
+    if (!documentoFiscal.trim()) {
+      setErro('Informe o CNPJ, RUC ou CUIT.')
+      return
+    }
+    if (!endereco || !comercial) {
+      setErro('Envie o comprovante de endereço e o documento comercial.')
+      return
+    }
+    for (const f of [endereco, comercial]) {
+      const v = validarArquivo(f)
       if (v) {
         setErro(v)
         return
@@ -100,21 +166,19 @@ export default function AnexarDocumentosEmpresa({ empresaId, usuarioId, categori
 
     setEnviando(true)
     try {
-      const [uF, uV, uR, uC] = await Promise.all([
-        uploadEmpresaDoc(frente, usuarioId, empresaId, 'id-frente'),
-        uploadEmpresaDoc(verso, usuarioId, empresaId, 'id-verso'),
-        uploadEmpresaDoc(residencia, usuarioId, empresaId, 'residencia'),
-        uploadEmpresaDoc(comercial, usuarioId, empresaId, 'doc-categoria'),
+      const [uEndereco, uComercial] = await Promise.all([
+        uploadEmpresaDoc(endereco, usuarioId, empresaId, 'comprovante-endereco'),
+        uploadEmpresaDoc(comercial, usuarioId, empresaId, 'doc-comercial'),
       ])
 
       const agora = new Date().toISOString()
       const { error: upErr } = await supabase
         .from('empresas')
         .update({
-          documento_frente_url: uF,
-          documento_verso_url: uV,
-          comprovante_residencia_url: uR,
-          documento_comercial_url: uC,
+          nome_fantasia: nomeFantasia.trim(),
+          documento_fiscal: documentoFiscal.trim(),
+          comprovante_residencia_url: uEndereco,
+          documento_comercial_url: uComercial,
           documentos_enviados_em: agora,
         })
         .eq('id', empresaId)
@@ -134,43 +198,45 @@ export default function AnexarDocumentosEmpresa({ empresaId, usuarioId, categori
     } finally {
       setEnviando(false)
     }
-  }, [usuarioId, empresaId, frente, verso, residencia, comercial, onConcluido])
+  }, [usuarioId, empresaId, nomeFantasia, documentoFiscal, endereco, comercial, onConcluido])
 
-  const inputCls =
-    'block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 file:mr-3 file:rounded-md file:border-0 file:bg-[#0097b2] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white'
+  const inputTextoCls =
+    'mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-[#0097b2] focus:ring-1 focus:ring-[#0097b2]'
 
   return (
     <div className="space-y-5 text-gray-900">
-      <div>
-        <h2 className="text-lg font-bold text-[#001f3f]">Anexar documentos</h2>
-        <p className="mt-1 text-sm leading-snug text-gray-600">
-          Envie a documentação da empresa na categoria <span className="font-semibold text-gray-800">{catLabel}</span>:
-          identidade do representante legal (frente e verso), comprovante de residência e documento comercial ou de
-          atividade (alvará, cartão CNPJ, contrato social ou equivalente). Formatos: JPG, PNG ou PDF. Máximo 5 MB por
-          arquivo.
-        </p>
-      </div>
+      <h2 className="text-lg font-bold text-[#001f3f]">Anexar documentos</h2>
 
       {erro ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{erro}</div> : null}
-      {okMsg ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{okMsg}</div> : null}
+      {okMsg ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{okMsg}</div>
+      ) : null}
 
-      <div className="space-y-3">
-        <label className="block text-sm font-semibold text-gray-800">
-          Documento de identidade do representante (frente)
-          <input type="file" accept={ACCEPT} className={`mt-1 ${inputCls}`} onChange={onChange(setFrente)} />
+      <div className="space-y-4">
+        <label className="block">
+          <span className="text-sm font-semibold text-gray-800">Nome fantasia</span>
+          <input
+            type="text"
+            value={nomeFantasia}
+            onChange={(e) => setNomeFantasia(e.target.value)}
+            placeholder="Nome da empresa"
+            className={inputTextoCls}
+          />
         </label>
-        <label className="block text-sm font-semibold text-gray-800">
-          Documento de identidade do representante (verso)
-          <input type="file" accept={ACCEPT} className={`mt-1 ${inputCls}`} onChange={onChange(setVerso)} />
+
+        <label className="block">
+          <span className="text-sm font-semibold text-gray-800">CNPJ / RUC / CUIT</span>
+          <input
+            type="text"
+            value={documentoFiscal}
+            onChange={(e) => setDocumentoFiscal(e.target.value)}
+            placeholder="Documento fiscal da empresa"
+            className={inputTextoCls}
+          />
         </label>
-        <label className="block text-sm font-semibold text-gray-800">
-          Comprovante de residência
-          <input type="file" accept={ACCEPT} className={`mt-1 ${inputCls}`} onChange={onChange(setResidencia)} />
-        </label>
-        <label className="block text-sm font-semibold text-gray-800">
-          Documento comercial / da categoria
-          <input type="file" accept={ACCEPT} className={`mt-1 ${inputCls}`} onChange={onChange(setComercial)} />
-        </label>
+
+        <CampoArquivo label="Comprovante de endereço" file={endereco} onChange={onChangeArquivo(setEndereco)} />
+        <CampoArquivo label="Documento comercial" file={comercial} onChange={onChangeArquivo(setComercial)} />
       </div>
 
       <button
