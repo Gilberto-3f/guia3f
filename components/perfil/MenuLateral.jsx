@@ -48,6 +48,7 @@ import EmergenciaMensageiroAdm from '@/components/perfil/subpaginas/emergencia/E
 import { prefetchMinhasAtividades } from '@/lib/fetchMinhasAtividades'
 import EditarPerfil from '@/components/perfil/subpaginas/EditarPerfil'
 import MeuHistorico from '@/components/perfil/subpaginas/MeuHistorico'
+import HistoricoCompras from '@/components/perfil/subpaginas/HistoricoCompras'
 import MinhasAtividades from '@/components/perfil/subpaginas/MinhasAtividades'
 import PostIsoladoDrawer from '@/components/perfil/subpaginas/PostIsoladoDrawer'
 import Configuracoes from '@/components/perfil/subpaginas/Configuracoes'
@@ -126,10 +127,7 @@ function filtrarMenu(itens, ctx) {
   return itens.filter((item) => (item.condicional ? item.condicional(ctx) : true))
 }
 
-const histComprasSubitensTurista = () => [
-  { Icon: Car, label: 'Contratações', subpagina: 'contratacoes' },
-  { Icon: ShoppingBag, label: 'Compras', subpagina: 'compras' },
-]
+const itemHistoricoCompras = { Icon: History, label: 'Histórico de Compras', subpagina: 'historico-compras' }
 
 const histComprasSubitensGeral = () => [
   { Icon: Handshake, label: 'Parcerias', subpagina: 'parcerias' },
@@ -138,10 +136,6 @@ const histComprasSubitensGeral = () => [
   { Icon: ShoppingBag, label: 'Compras', subpagina: 'compras' },
 ]
 
-const histComprasSubitensProfissionalPessoal = () => [
-  { Icon: Car, label: 'Contratações', subpagina: 'contratacoes' },
-  { Icon: ShoppingBag, label: 'Compras', subpagina: 'compras' },
-]
 
 function secoesTurista() {
   const gEmergencia = [
@@ -157,7 +151,7 @@ function secoesTurista() {
     { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
   ]
   const gAplic = [
-    { Icon: History, label: 'Histórico de Compras', subitens: histComprasSubitensTurista() },
+    itemHistoricoCompras,
     { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
     itemConfig,
   ]
@@ -213,11 +207,7 @@ function secoesProfissional(ctx) {
       key: 'aplic-pessoal',
       label: 'Pessoal',
       items: [
-        {
-          Icon: History,
-          label: 'Histórico de Compras',
-          subitens: histComprasSubitensProfissionalPessoal(),
-        },
+        itemHistoricoCompras,
         { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
       ],
     },
@@ -549,6 +539,7 @@ export default function MenuLateral({
         compras: 'Compras',
         parcerias: 'Parcerias',
         recomendacoes: 'Recomendações',
+        'historico-compras': 'Histórico de Compras',
         'historico-decisoes': 'Denúncias e Decisões',
         'historico-stories': 'Histórico de Stories',
         salvos: 'Publicações Salvas',
@@ -666,7 +657,8 @@ export default function MenuLateral({
           }}
         />
       )
-    if (id === 'configuracoes') return <Configuracoes />
+    if (id === 'configuracoes') return <Configuracoes variant={menuVariantEfetivo} />
+    if (id === 'historico-compras') return <HistoricoCompras />
     if (id === 'comissoes') return <Comissoes />
     if (id === 'agendamento') return <AgendamentoAutomatico />
     if (id === 'tabela') return <TabelaValores />
