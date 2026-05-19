@@ -104,6 +104,14 @@ const ICONE_GRUPO = {
   profissional: Star,
 }
 
+/** @type {Record<string, string>} */
+const ROTULO_PERFIL = {
+  admin: 'ADMIN',
+  turista: 'TURISTA',
+  profissional: 'PROFISSIONAL',
+  empresa: 'EMPRESA',
+}
+
 /**
  * @param {MenuItem[]} itens
  * @param {MenuContext} ctx
@@ -608,8 +616,8 @@ export default function MenuLateral({
             <button
               type="button"
               onClick={() => executarItem(item)}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-100 ${
-                compact ? 'py-1.5' : 'py-2.5'
+              className={`flex w-full items-center gap-3 rounded-xl text-left text-sm font-medium text-gray-700 transition hover:bg-gray-100 ${
+                compact ? 'px-0 py-1.5' : 'px-3 py-2.5'
               }`}
             >
               <span
@@ -729,18 +737,18 @@ export default function MenuLateral({
         {!topo ? (
           <>
             <div className="shrink-0 border-b border-gray-100 px-4 pt-0 pb-2">
-              <div className="flex items-center gap-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-orange-500">
+                {ROTULO_PERFIL[menuVariantEfetivo] ?? String(menuVariantEfetivo).toUpperCase()}
+              </p>
+              <div className="mt-1 flex items-center gap-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-200">
                   {fotoUrl ? <Image src={fotoUrl} alt="" fill className="object-cover" sizes="56px" /> : null}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-gray-900">{nome || 'Usuário'}</p>
+                  <p className="truncate text-base font-semibold text-gray-900">{nome || 'Usuário'}</p>
                   <p className="truncate text-sm text-gray-500">@{username || 'usuario'}</p>
                 </div>
               </div>
-              {variant === 'admin' && adminLevel >= 1 ? (
-                <p className="mt-2 text-xs font-semibold text-amber-700">ADMIN</p>
-              ) : null}
             </div>
 
             {mostrarFichaModoFixa ? (
@@ -766,23 +774,27 @@ export default function MenuLateral({
                       >
                         <span className="flex min-w-0 flex-1 items-center gap-2">
                           <GrupoIcon className="h-5 w-5 shrink-0 text-[#0097b2]" aria-hidden />
-                          <span className="text-base font-semibold uppercase tracking-wide text-gray-900">{sec.label}</span>
+                          <span className="text-base font-normal uppercase tracking-wide text-[#0097b2]">{sec.label}</span>
                         </span>
-                        {ab ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />}
+                        {ab ? <ChevronUp className="h-4 w-4 shrink-0 text-[#0097b2]/70" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-[#0097b2]/70" aria-hidden />}
                       </button>
                       {ab ? (
-                        <div className="pb-2 pl-2 pr-0 ml-2">{renderListaItens(filtrarMenu(sec.items, ctx), { compact: true })}</div>
+                        <div className="px-3 pb-2">{renderListaItens(filtrarMenu(sec.items, ctx), { compact: true })}</div>
                       ) : null}
                     </div>
                   )
                 }
                 if (sec.tipo === 'sair') {
                   return (
-                    <div key="out" className="border-t border-gray-200 px-1 py-1">
-                      {renderItemLinha(
-                        { Icon: itemSair.Icon, label: itemSair.label, acao: itemSair.acao },
-                        { semIconBg: false }
-                      )}
+                    <div key="out" className="border-t border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => executarItem(itemSair)}
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-gray-800 transition hover:bg-gray-100"
+                      >
+                        <LogOut className="h-5 w-5 shrink-0 text-[#0097b2]" aria-hidden />
+                        <span>{itemSair.label}</span>
+                      </button>
                     </div>
                   )
                 }

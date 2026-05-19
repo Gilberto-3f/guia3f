@@ -10,7 +10,7 @@ type BotaoAbrirMenuLateralProps = {
 
 export default function BotaoAbrirMenuLateral({
   onClick,
-  className = 'flex shrink-0 items-center gap-0.5 px-1 text-[#0097b2]',
+  className = 'flex shrink-0 items-center gap-0 px-1 text-[#0097b2]',
   iconClassName = 'h-6 w-6',
 }: BotaoAbrirMenuLateralProps) {
   return (
