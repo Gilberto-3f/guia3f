@@ -119,14 +119,6 @@ function empresaComprasParaguaiVisivel(ctx) {
   return cat === 'lojas' && cidade.includes('ciudad del este')
 }
 
-/** @type {Record<string, string>} */
-const ROTULO_PERFIL = {
-  admin: 'ADMIN',
-  turista: 'TURISTA',
-  profissional: 'PROFISSIONAL',
-  empresa: 'EMPRESA',
-}
-
 /**
  * @param {MenuItem[]} itens
  * @param {MenuContext} ctx
@@ -154,7 +146,7 @@ const histComprasSubitensProfissionalPessoal = () => [
 ]
 
 function secoesTurista() {
-  const em = { Icon: ShieldAlert, label: 'EMERGÊNCIA', subpagina: 'emergencia' }
+  const em = { Icon: ShieldAlert, label: 'Emergência', subpagina: 'emergencia' }
   const gUsuario = [
     { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
@@ -163,10 +155,10 @@ function secoesTurista() {
   ]
   const gAplic = [
     { Icon: History, label: 'Histórico de Compras', subitens: histComprasSubitensTurista() },
-    { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
+    { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
     itemConfig,
   ]
-  return [/** @type {const} */ { tipo: 'emergencia', item: em }, { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario }, { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic }, { tipo: 'sair' }]
+  return [/** @type {const} */ { tipo: 'emergencia', item: em }, { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: gUsuario }, { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic }, { tipo: 'sair' }]
 }
 
 /**
@@ -211,19 +203,19 @@ function secoesProfissional(ctx) {
   const aplicSubgrupos = [
     {
       key: 'aplic-pessoal',
-      label: 'PESSOAL',
+      label: 'Pessoal',
       items: [
         {
           Icon: History,
           label: 'Histórico de Compras',
           subitens: histComprasSubitensProfissionalPessoal(),
         },
-        { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
+        { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
       ],
     },
     {
       key: 'aplic-prof-hist',
-      label: 'PROFISSIONAL',
+      label: 'Históricos de Trabalho',
       items: filtrarMenu(
         [
           {
@@ -240,12 +232,12 @@ function secoesProfissional(ctx) {
     },
   ]
   return [
-    /** @type {const} */ { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario },
-    /** @type {const} */ { tipo: 'grupo', key: 'profissional', label: 'PROFISSIONAL', items: gPro },
+    /** @type {const} */ { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: gUsuario },
+    /** @type {const} */ { tipo: 'grupo', key: 'profissional', label: 'Profissional', items: gPro },
     {
       tipo: 'grupo',
       key: 'aplicativo',
-      label: 'APLICATIVO',
+      label: 'Aplicativo',
       subgrupos: aplicSubgrupos,
       items: [itemConfig],
     },
@@ -281,10 +273,10 @@ function secoesEmpresa(ctx) {
   )
   const gAplic = [
     { Icon: AlertTriangle, label: 'Avaliações e denúncias', href: '/empresa/menu/denuncias' },
-    { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
+    { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
     itemConfig,
   ]
-  return [/** @type {const} */ { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario }, { tipo: 'grupo', key: 'empresa', label: 'EMPRESA', items: gEmp }, { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic }, { tipo: 'sair' }]
+  return [/** @type {const} */ { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: gUsuario }, { tipo: 'grupo', key: 'empresa', label: 'Empresa', items: gEmp }, { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic }, { tipo: 'sair' }]
 }
 
 /**
@@ -316,12 +308,12 @@ function secoesAdmin(ctx, { omitirModoNaLista }) {
   const gAplic = filtrarMenu(
     [
       { Icon: History, label: 'Histórico de Compras', subitens: histComprasSubitensGeral() },
-      { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
+      { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
       itemConfig,
     ],
     ctx
   )
-  return [/** @type {const} */ { tipo: 'grupo', key: 'admin', label: 'ADMIN', items: gAdmin }, { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario }, { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic }, { tipo: 'sair' }]
+  return [/** @type {const} */ { tipo: 'grupo', key: 'admin', label: 'Admin', items: gAdmin }, { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: gUsuario }, { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic }, { tipo: 'sair' }]
 }
 
 /**
@@ -543,7 +535,7 @@ export default function MenuLateral({
         compras: 'Compras',
         parcerias: 'Parcerias',
         recomendacoes: 'Recomendações',
-        'historico-decisoes': 'Histórico de Decisões',
+        'historico-decisoes': 'Denúncias e Decisões',
         'historico-stories': 'Histórico de Stories',
         salvos: 'Publicações Salvas',
         'modo-apresentacao': 'Modo Apresentação',
@@ -658,7 +650,17 @@ export default function MenuLateral({
     if (id === 'historico-manifestos') return <HistoricoManifestos />
     if (id === 'parcerias-prof') return <ParceriasProfissional />
     if (id === 'meu-historico') return <MeuHistorico tipo={histTipo} />
-    if (id === 'historico-decisoes') return <HistoricoDecisoes />
+    if (id === 'historico-decisoes') {
+      const denunciadoTipo =
+        menuVariantEfetivo === 'empresa' ? 'empresa' : menuVariantEfetivo === 'profissional' ? 'profissional' : 'turista'
+      return (
+        <HistoricoDecisoes
+          usuarioId={usuarioIdEfetivo}
+          empresaId={empresaIdEfetivo ? String(empresaIdEfetivo) : null}
+          denunciadoTipo={denunciadoTipo}
+        />
+      )
+    }
     if (id === 'historico-stories') return <HistoricoStories usuarioId={usuarioIdEfetivo} />
     if (id === 'modo-apresentacao') return <ModoApresentacao />
     if (id === 'editar-pagina' && empresa && empresaIdEfetivo) {
@@ -748,7 +750,7 @@ export default function MenuLateral({
           >
             <span className="flex min-w-0 flex-1 items-center gap-2">
               <SubIcon className="h-4 w-4 shrink-0 text-gray-700" aria-hidden />
-              <span className="text-sm font-normal uppercase tracking-wide text-gray-800">{sg.label}</span>
+              <span className="text-sm font-normal tracking-wide text-gray-800">{sg.label}</span>
             </span>
             {abSub ? (
               <ChevronUp className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
@@ -850,9 +852,6 @@ export default function MenuLateral({
                   {fotoUrl ? <Image src={fotoUrl} alt="" fill className="object-cover" sizes="56px" /> : null}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-wide text-orange-500">
-                    {ROTULO_PERFIL[menuVariantEfetivo] ?? String(menuVariantEfetivo).toUpperCase()}
-                  </p>
                   <p className="truncate text-base font-semibold text-gray-900">{nome || 'Usuário'}</p>
                   <p className="truncate text-sm text-gray-500">@{username || 'usuario'}</p>
                 </div>
@@ -882,7 +881,7 @@ export default function MenuLateral({
                       >
                         <span className="flex min-w-0 flex-1 items-center gap-2">
                           <GrupoIcon className="h-5 w-5 shrink-0 text-gray-900" aria-hidden />
-                          <span className="text-base font-normal uppercase tracking-wide text-gray-900">{sec.label}</span>
+                          <span className="text-base font-normal tracking-wide text-gray-900">{sec.label}</span>
                         </span>
                         {ab ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />}
                       </button>
@@ -907,10 +906,12 @@ export default function MenuLateral({
                       <button
                         type="button"
                         onClick={() => executarItem(itemSair)}
-                        className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-gray-800 transition hover:bg-gray-100"
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition hover:bg-gray-100"
                       >
-                        <LogOut className="h-5 w-5 shrink-0 text-[#0097b2]" aria-hidden />
-                        <span>{itemSair.label}</span>
+                        <span className="flex min-w-0 flex-1 items-center gap-2">
+                          <LogOut className="h-5 w-5 shrink-0 text-gray-900" aria-hidden />
+                          <span className="text-base font-normal tracking-wide text-gray-900">{itemSair.label}</span>
+                        </span>
                       </button>
                     </div>
                   )
