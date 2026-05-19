@@ -15,8 +15,8 @@ export default function BotaoAbrirMenuLateral({
 }: BotaoAbrirMenuLateralProps) {
   return (
     <button type="button" onClick={onClick} className={className} aria-label="Menu">
-      <Menu className={iconClassName} strokeWidth={2.25} aria-hidden />
       <MoreVertical className={iconClassName} strokeWidth={2.25} aria-hidden />
+      <Menu className={iconClassName} strokeWidth={2.25} aria-hidden />
     </button>
   )
 }

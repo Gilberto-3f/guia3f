@@ -737,14 +737,14 @@ export default function MenuLateral({
         {!topo ? (
           <>
             <div className="shrink-0 border-b border-gray-100 px-4 pt-0 pb-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-orange-500">
-                {ROTULO_PERFIL[menuVariantEfetivo] ?? String(menuVariantEfetivo).toUpperCase()}
-              </p>
-              <div className="mt-1 flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-200">
                   {fotoUrl ? <Image src={fotoUrl} alt="" fill className="object-cover" sizes="56px" /> : null}
                 </div>
                 <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-orange-500">
+                    {ROTULO_PERFIL[menuVariantEfetivo] ?? String(menuVariantEfetivo).toUpperCase()}
+                  </p>
                   <p className="truncate text-base font-semibold text-gray-900">{nome || 'Usuário'}</p>
                   <p className="truncate text-sm text-gray-500">@{username || 'usuario'}</p>
                 </div>
@@ -773,10 +773,10 @@ export default function MenuLateral({
                         className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
                       >
                         <span className="flex min-w-0 flex-1 items-center gap-2">
-                          <GrupoIcon className="h-5 w-5 shrink-0 text-[#0097b2]" aria-hidden />
-                          <span className="text-base font-normal uppercase tracking-wide text-[#0097b2]">{sec.label}</span>
+                          <GrupoIcon className="h-5 w-5 shrink-0 text-gray-900" aria-hidden />
+                          <span className="text-base font-normal uppercase tracking-wide text-gray-900">{sec.label}</span>
                         </span>
-                        {ab ? <ChevronUp className="h-4 w-4 shrink-0 text-[#0097b2]/70" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-[#0097b2]/70" aria-hidden />}
+                        {ab ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />}
                       </button>
                       {ab ? (
                         <div className="px-3 pb-2">{renderListaItens(filtrarMenu(sec.items, ctx), { compact: true })}</div>
