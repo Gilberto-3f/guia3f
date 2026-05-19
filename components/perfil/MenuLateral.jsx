@@ -60,6 +60,8 @@ import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
 import ModoApresentacao from '@/components/perfil/subpaginas/ModoApresentacao'
 import AnexarDocumentos from '@/components/perfil/subpaginas/AnexarDocumentos'
 import AnexarDocumentosEmpresa from '@/components/perfil/subpaginas/AnexarDocumentosEmpresa'
+import HistoricoManifestos from '@/components/perfil/subpaginas/HistoricoManifestos'
+import ParceriasProfissional from '@/components/perfil/subpaginas/ParceriasProfissional'
 
 /**
  * @typedef {{ tipo: 'menu', titulo: string, itens: MenuItem[] } | { tipo: 'pagina', titulo: string, id: string, historicoTipo?: string, postId?: string, comentarioId?: string | null }} HistoricoEntry
@@ -84,6 +86,8 @@ import AnexarDocumentosEmpresa from '@/components/perfil/subpaginas/AnexarDocume
  *   placaVermelha: boolean
  *   adminLevel: number
  *   recursosProfissionaisLiberados: boolean
+ *   empresaCategoria?: string
+ *   empresaCidade?: string
  * }} MenuContext
  */
 
@@ -102,6 +106,17 @@ const ICONE_GRUPO = {
   aplicativo: Smartphone,
   empresa: Building2,
   profissional: Star,
+  'aplic-pessoal': User,
+  'aplic-prof-hist': Star,
+}
+
+function empresaComprasParaguaiVisivel(ctx) {
+  const cat = String(ctx.empresaCategoria ?? '').toLowerCase()
+  const cidade = String(ctx.empresaCidade ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+  return cat === 'lojas' && cidade.includes('ciudad del este')
 }
 
 /** @type {Record<string, string>} */
@@ -129,6 +144,11 @@ const histComprasSubitensTurista = () => [
 const histComprasSubitensGeral = () => [
   { Icon: Handshake, label: 'Parcerias', subpagina: 'parcerias' },
   { Icon: Speaker, label: 'Recomendações', subpagina: 'recomendacoes' },
+  { Icon: Car, label: 'Contratações', subpagina: 'contratacoes' },
+  { Icon: ShoppingBag, label: 'Compras', subpagina: 'compras' },
+]
+
+const histComprasSubitensProfissionalPessoal = () => [
   { Icon: Car, label: 'Contratações', subpagina: 'contratacoes' },
   { Icon: ShoppingBag, label: 'Compras', subpagina: 'compras' },
 ]
@@ -163,51 +183,72 @@ function secoesProfissional(ctx) {
     ],
     ctx
   )
-  const gPro = ctx.recursosProfissionaisLiberados
-    ? filtrarMenu(
-        [
-          { Icon: DollarSign, label: 'Comissões', subpagina: 'comissoes' },
-          {
-            Icon: Calendar,
-            label: 'Agendamento Automático',
-            subpagina: 'agendamento',
-            condicional: (c) => c.placaVermelha === true,
-          },
-          {
-            Icon: Table,
-            label: 'Tabela de Valores',
-            subpagina: 'tabela',
-            condicional: (c) => c.placaVermelha === true,
-          },
-          {
-            Icon: ClipboardList,
-            label: 'Meus Manifestos',
-            subpagina: 'manifestos',
-            condicional: (c) => c.placaVermelha === true,
-          },
-          { Icon: Handshake, label: 'Histórico de Parcerias', subpagina: 'parcerias' },
-        ],
-        ctx
-      )
-    : []
-  const gAplic = filtrarMenu(
+  const gPro = filtrarMenu(
     [
+      { Icon: DollarSign, label: 'Comissões', subpagina: 'comissoes' },
+      { Icon: Handshake, label: 'Parcerias', subpagina: 'parcerias-prof' },
       {
-        Icon: History,
-        label: 'Histórico de Compras',
-        subitens: histComprasSubitensGeral(),
+        Icon: ClipboardList,
+        label: 'Manifesto',
+        subpagina: 'manifestos',
+        condicional: (c) => c.placaVermelha === true,
       },
-      { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
-      itemConfig,
+      {
+        Icon: Table,
+        label: 'Tabela de Valores',
+        subpagina: 'tabela',
+        condicional: (c) => c.placaVermelha === true,
+      },
+      {
+        Icon: Calendar,
+        label: 'Agendamento Automático',
+        subpagina: 'agendamento',
+        condicional: (c) => c.placaVermelha === true,
+      },
     ],
     ctx
   )
-  const secProf =
-    gPro.length > 0 ? [/** @type {const} */ { tipo: 'grupo', key: 'profissional', label: 'PROFISSIONAL', items: gPro }] : []
+  const aplicSubgrupos = [
+    {
+      key: 'aplic-pessoal',
+      label: 'PESSOAL',
+      items: [
+        {
+          Icon: History,
+          label: 'Histórico de Compras',
+          subitens: histComprasSubitensProfissionalPessoal(),
+        },
+        { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
+      ],
+    },
+    {
+      key: 'aplic-prof-hist',
+      label: 'PROFISSIONAL',
+      items: filtrarMenu(
+        [
+          {
+            Icon: ClipboardList,
+            label: 'Histórico de Manifestos',
+            subpagina: 'historico-manifestos',
+            condicional: (c) => c.placaVermelha === true,
+          },
+          { Icon: Handshake, label: 'Histórico de Parcerias', subpagina: 'parcerias' },
+          { Icon: Speaker, label: 'Histórico de Recomendações', subpagina: 'recomendacoes' },
+        ],
+        ctx
+      ),
+    },
+  ]
   return [
     /** @type {const} */ { tipo: 'grupo', key: 'usuario', label: 'USUÁRIO', items: gUsuario },
-    ...secProf,
-    { tipo: 'grupo', key: 'aplicativo', label: 'APLICATIVO', items: gAplic },
+    /** @type {const} */ { tipo: 'grupo', key: 'profissional', label: 'PROFISSIONAL', items: gPro },
+    {
+      tipo: 'grupo',
+      key: 'aplicativo',
+      label: 'APLICATIVO',
+      subgrupos: aplicSubgrupos,
+      items: [itemConfig],
+    },
     { tipo: 'sair' },
   ]
 }
@@ -215,7 +256,7 @@ function secoesProfissional(ctx) {
 /**
  * @param {MenuContext} ctx
  */
-function secoesEmpresa() {
+function secoesEmpresa(ctx) {
   const gUsuario = [
     { Icon: Building2, label: 'Editar Página', subpagina: 'editar-pagina' },
     { Icon: Paperclip, label: 'Anexar documentos', subpagina: 'anexar-documentos-empresa' },
@@ -223,12 +264,21 @@ function secoesEmpresa() {
     { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
     { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
   ]
-  const gEmp = [
-    { Icon: Megaphone, label: 'Feed, Story e Publicidade', href: '/empresa/menu/publicidade' },
-    { Icon: MessageSquare, label: 'Chat ADM', href: '/empresa/menu/chat-adm' },
-    { Icon: ShoppingCart, label: 'Compras Paraguai', href: '/empresa/menu/compras-paraguai' },
-    { Icon: Gem, label: 'Planos', href: '/empresa/menu/planos' },
-  ]
+  const gEmp = filtrarMenu(
+    [
+      { Icon: Megaphone, label: 'Feed, Story e Publicidade', href: '/empresa/menu/publicidade' },
+      { Icon: DollarSign, label: 'Cadastrar Comissões', subpagina: 'cadastrar-comissao' },
+      {
+        Icon: ShoppingCart,
+        label: 'Compras Paraguai',
+        href: '/empresa/menu/compras-paraguai',
+        condicional: empresaComprasParaguaiVisivel,
+      },
+      { Icon: Gem, label: 'Planos', href: '/empresa/menu/planos' },
+      { Icon: MessageSquare, label: 'Chat ADM', href: '/empresa/menu/chat-adm' },
+    ],
+    ctx
+  )
   const gAplic = [
     { Icon: AlertTriangle, label: 'Avaliações e denúncias', href: '/empresa/menu/denuncias' },
     { Icon: Scale, label: 'Histórico de Decisões', subpagina: 'historico-decisoes' },
@@ -324,6 +374,8 @@ export default function MenuLateral({
     profissional: false,
     empresa: false,
     admin: false,
+    'aplic-pessoal': false,
+    'aplic-prof-hist': false,
   }))
 
   const simulandoComoPerfil = Boolean(
@@ -346,14 +398,31 @@ export default function MenuLateral({
   const usuarioIdEfetivo = usuarioId
   const empresaIdEfetivo = empresaId
 
-  const ctx = { variant: menuVariantEfetivo, placaVermelha, adminLevel, recursosProfissionaisLiberados }
+  const empresaCategoria = empresa?.categoria != null ? String(empresa.categoria) : ''
+  const empresaCidade = empresa?.cidade != null ? String(empresa.cidade) : ''
+
+  const ctx = {
+    variant: menuVariantEfetivo,
+    placaVermelha,
+    adminLevel,
+    recursosProfissionaisLiberados,
+    empresaCategoria,
+    empresaCidade,
+  }
 
   const secoes = useMemo(() => {
     if (!variant) return []
-    const c = { variant: menuVariantEfetivo, placaVermelha, adminLevel, recursosProfissionaisLiberados }
+    const c = {
+      variant: menuVariantEfetivo,
+      placaVermelha,
+      adminLevel,
+      recursosProfissionaisLiberados,
+      empresaCategoria,
+      empresaCidade,
+    }
     const t = secoesTurista()
     const p = secoesProfissional(c)
-    const e = secoesEmpresa()
+    const e = secoesEmpresa(c)
     const a = secoesAdmin(c, { omitirModoNaLista: omitirModoNaListaAdmin })
     if (simulandoComoPerfil && perfilSimulado) {
       if (perfilSimulado.tipo === 'empresa') return e
@@ -374,6 +443,8 @@ export default function MenuLateral({
     simulandoComoPerfil,
     perfilSimulado,
     omitirModoNaListaAdmin,
+    empresaCategoria,
+    empresaCidade,
   ])
 
   useEffect(() => {
@@ -404,6 +475,8 @@ export default function MenuLateral({
       profissional: false,
       empresa: false,
       admin: false,
+      'aplic-pessoal': false,
+      'aplic-prof-hist': false,
     })
   }, [aberto, menuVariantEfetivo, variant])
 
@@ -461,9 +534,11 @@ export default function MenuLateral({
         comissoes: 'Comissões',
         agendamento: 'Agendamento Automático',
         tabela: 'Tabela de Valores',
-        manifestos: 'Meus Manifestos',
+        manifestos: 'Manifesto',
+        'historico-manifestos': 'Histórico de Manifestos',
+        'parcerias-prof': 'Parcerias',
         'editar-pagina': 'Editar Página',
-        'cadastrar-comissao': 'Cadastrar Comissão',
+        'cadastrar-comissao': 'Cadastrar Comissões',
         contratacoes: 'Contratações',
         compras: 'Compras',
         parcerias: 'Parcerias',
@@ -580,6 +655,8 @@ export default function MenuLateral({
     if (id === 'agendamento') return <AgendamentoAutomatico />
     if (id === 'tabela') return <TabelaValores />
     if (id === 'manifestos') return <MeusManifestos />
+    if (id === 'historico-manifestos') return <HistoricoManifestos />
+    if (id === 'parcerias-prof') return <ParceriasProfissional />
     if (id === 'meu-historico') return <MeuHistorico tipo={histTipo} />
     if (id === 'historico-decisoes') return <HistoricoDecisoes />
     if (id === 'historico-stories') return <HistoricoStories usuarioId={usuarioIdEfetivo} />
@@ -652,6 +729,37 @@ export default function MenuLateral({
   const toggleGrupo = (g) => {
     setGruposAbertos((p) => ({ ...p, [g]: !p[g] }))
   }
+
+  /**
+   * @param {Array<{ key: string, label: string, items: MenuItem[] }>} subgrupos
+   */
+  const renderSubgrupos = (subgrupos) =>
+    subgrupos.map((sg) => {
+      const abSub = gruposAbertos[sg.key] ?? false
+      const SubIcon = ICONE_GRUPO[sg.key] ?? User
+      const itensSub = filtrarMenu(sg.items, ctx)
+      if (itensSub.length === 0) return null
+      return (
+        <div key={sg.key} className="mb-1 border-b border-gray-50 last:border-0">
+          <button
+            type="button"
+            onClick={() => toggleGrupo(sg.key)}
+            className="flex w-full items-center justify-between gap-2 py-2 pl-1 pr-0 text-left"
+          >
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <SubIcon className="h-4 w-4 shrink-0 text-gray-700" aria-hidden />
+              <span className="text-sm font-normal uppercase tracking-wide text-gray-800">{sg.label}</span>
+            </span>
+            {abSub ? (
+              <ChevronUp className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
+            )}
+          </button>
+          {abSub ? <div className="pb-1">{renderListaItens(itensSub, { compact: true })}</div> : null}
+        </div>
+      )
+    })
 
   if (!aberto || !variant) return null
 
@@ -779,7 +887,16 @@ export default function MenuLateral({
                         {ab ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />}
                       </button>
                       {ab ? (
-                        <div className="px-3 pb-2">{renderListaItens(filtrarMenu(sec.items, ctx), { compact: true })}</div>
+                        <div className="px-3 pb-2">
+                          {sec.subgrupos?.length ? renderSubgrupos(sec.subgrupos) : null}
+                          {sec.subgrupos?.length
+                            ? (sec.items?.length ?? 0) > 0 ? (
+                                <div className="mt-1 border-t border-gray-100 pt-1">
+                                  {renderListaItens(filtrarMenu(sec.items, ctx), { compact: true })}
+                                </div>
+                              ) : null
+                            : renderListaItens(filtrarMenu(sec.items ?? [], ctx), { compact: true })}
+                        </div>
                       ) : null}
                     </div>
                   )
