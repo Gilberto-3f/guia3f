@@ -22,6 +22,9 @@ const ICONE_POR_CATEGORIA: Record<string, string> = Object.fromEntries(
 
 const SEM_PRAZO_DATA = '2099-12-31'
 
+const INPUT_CLS =
+  'rounded-lg border border-gray-200 bg-white p-2 text-sm text-gray-900 placeholder:text-gray-400'
+
 function abaCls(ativa: boolean) {
   return `flex-1 border-b-[3px] py-3 text-center text-sm font-semibold transition-colors sm:text-base ${
     ativa ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
@@ -209,7 +212,7 @@ export default function CadastrarComissao() {
                   pax: { ...beneficios.pax, valor: parseFloat(e.target.value) || 0 },
                 })
               }
-              className="w-32 rounded-lg border border-gray-200 p-2 text-sm"
+              className={`w-32 ${INPUT_CLS}`}
             />
           ) : null}
         </div>
@@ -240,7 +243,7 @@ export default function CadastrarComissao() {
                   percentual: { ...beneficios.percentual, valor: parseFloat(e.target.value) || 0 },
                 })
               }
-              className="w-32 rounded-lg border border-gray-200 p-2 text-sm"
+              className={`w-32 ${INPUT_CLS}`}
             />
           ) : null}
         </div>
@@ -271,7 +274,7 @@ export default function CadastrarComissao() {
                   fixo: { ...beneficios.fixo, valor: parseFloat(e.target.value) || 0 },
                 })
               }
-              className="w-32 rounded-lg border border-gray-200 p-2 text-sm"
+              className={`w-32 ${INPUT_CLS}`}
             />
           ) : null}
         </div>
@@ -303,7 +306,7 @@ export default function CadastrarComissao() {
                     extra: { ...beneficios.extra, texto: e.target.value },
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm"
+                className={`mt-1 w-full ${INPUT_CLS}`}
                 rows={2}
               />
             ) : null}
@@ -332,7 +335,7 @@ export default function CadastrarComissao() {
               type="date"
               value={form.validade}
               onChange={(e) => atualizarFormulario(categoria, { validade: e.target.value })}
-              className="mt-2 w-full rounded-lg border border-gray-200 bg-white p-2 text-sm"
+              className={`mt-2 w-full ${INPUT_CLS}`}
               aria-label="Data limite da oferta"
             />
           ) : (

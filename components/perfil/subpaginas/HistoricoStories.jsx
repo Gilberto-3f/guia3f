@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { Eye, Heart, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -297,16 +298,21 @@ export default function HistoricoStories({ usuarioId }) {
         </ul>
       ) : null}
 
-      {storyAberto ? (
-        <StoryViewer
-          story={storyAberto}
-          userEmail={meuEmail}
-          meuUsuarioId={usuarioId}
-          onFechar={() => setStoryAberto(null)}
-          storyQueueLength={1}
-          storyQueueIndex={0}
-        />
-      ) : null}
+      {storyAberto && typeof document !== 'undefined'
+        ? createPortal(
+            <div className="fixed inset-0 z-[200]" role="presentation">
+              <StoryViewer
+                story={storyAberto}
+                userEmail={meuEmail}
+                meuUsuarioId={usuarioId}
+                onFechar={() => setStoryAberto(null)}
+                storyQueueLength={1}
+                storyQueueIndex={0}
+              />
+            </div>,
+            document.body
+          )
+        : null}
 
       {confirmando ? (
         <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/50 p-4">
