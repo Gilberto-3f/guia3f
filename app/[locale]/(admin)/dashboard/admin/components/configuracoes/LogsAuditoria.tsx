@@ -37,8 +37,8 @@ function formatarDataHora(iso: string) {
   })
 }
 
-function escaparCsv(c: string) {
-  return `"${c.replace(/"/g, '""')}"`
+function escaparCsv(c: string | null | undefined) {
+  return `"${String(c ?? '').replace(/"/g, '""')}"`
 }
 
 function getStatusIcon(status: string) {
@@ -54,11 +54,11 @@ function getStatusIcon(status: string) {
   return '📋'
 }
 
-function descricaoModulo(log: LogRow) {
+function descricaoModulo(log: LogRow): string {
   const det = log.detalhes
   if (!det || typeof det !== 'object' || Array.isArray(det)) return log.tipo ?? '—'
   const d = det as Record<string, unknown>
-  const mod = d.modulo != null ? String(d.modulo) : log.tipo
+  const mod = d.modulo != null ? String(d.modulo) : (log.tipo ?? '—')
   const extra: string[] = []
   if (d.empresa_nome) extra.push(String(d.empresa_nome))
   if (d.comunidade) extra.push(String(d.comunidade))
