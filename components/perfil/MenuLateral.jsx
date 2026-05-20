@@ -63,6 +63,8 @@ import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 import HistoricoStories from '@/components/perfil/subpaginas/HistoricoStories'
 import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
 import ModoApresentacao from '@/components/perfil/subpaginas/ModoApresentacao'
+import NomeComVerificacao from '@/components/NomeComVerificacao'
+import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import AnexarDocumentos from '@/components/perfil/subpaginas/AnexarDocumentos'
 import AnexarDocumentosEmpresa from '@/components/perfil/subpaginas/AnexarDocumentosEmpresa'
 import HistoricoManifestos from '@/components/perfil/subpaginas/HistoricoManifestos'
@@ -358,6 +360,35 @@ export default function MenuLateral({
   const { historico: historicoDecisoes, fetchHistoricoUsuario } = useInfracoes()
   const { modoAtivo, perfilSimulado } = useModoApresentacao()
   const modoApresentacaoAtivo = modoAtivo
+
+  const [profVerificadoMenu, setProfVerificadoMenu] = useState(false)
+
+  useEffect(() => {
+    if (!aberto || variant !== 'profissional' || !usuarioId) {
+      setProfVerificadoMenu(false)
+      return
+    }
+    let ativo = true
+    void (async () => {
+      const { data } = await supabase
+        .from('profissionais')
+        .select('docs_verificado, status')
+        .eq('usuario_id', usuarioId)
+        .maybeSingle()
+      if (!ativo) return
+      setProfVerificadoMenu(contaVerificadaDocumentacao('profissional', data))
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [aberto, variant, usuarioId])
+
+  const contaVerificadaHeader =
+    variant === 'empresa' && empresa
+      ? contaVerificadaDocumentacao('empresa', empresa)
+      : variant === 'profissional'
+        ? profVerificadoMenu
+        : false
 
   const [gruposAbertos, setGruposAbertos] = useState(() => ({
     emergencia: false,
@@ -718,7 +749,7 @@ export default function MenuLateral({
             <button
               type="button"
               onClick={() => executarItem(item)}
-              className={`flex w-full items-center gap-3 rounded-xl text-left text-sm font-medium text-gray-600 transition hover:bg-gray-100 ${
+              className={`flex w-full items-center gap-3 rounded-xl text-left text-sm font-medium text-gray-900 transition hover:bg-gray-100 ${
                 compact ? 'px-0 py-1.5' : 'px-3 py-2.5'
               }`}
             >
@@ -806,7 +837,7 @@ export default function MenuLateral({
         className={
           isEm
             ? 'mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50'
-            : 'mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-600 transition hover:bg-gray-100'
+            : 'mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-900 transition hover:bg-gray-100'
         }
       >
         {!semIconBg ? (
@@ -880,7 +911,13 @@ export default function MenuLateral({
                   {fotoUrl ? <Image src={fotoUrl} alt="" fill className="object-cover" sizes="56px" /> : null}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-base font-semibold text-gray-900">{nome || 'Usuário'}</p>
+                  <p className="truncate text-base font-semibold text-gray-900">
+                    <NomeComVerificacao
+                      nome={nome || 'Usuário'}
+                      verificado={contaVerificadaHeader}
+                      nomeClassName="truncate"
+                    />
+                  </p>
                   <p className="truncate text-sm text-gray-500">@{username || 'usuario'}</p>
                 </div>
               </div>

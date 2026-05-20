@@ -5,6 +5,7 @@ import { Star, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import AvatarImage from '@/components/AvatarImage'
+import NomeComVerificacao from '@/components/NomeComVerificacao'
 
 /**
  * @typedef {{ id: string; nota: number; feedback: string | null; resposta: string | null; created_at: string; nome: string; username: string; fotoUrl: string | null; categoria: string | null }} LinhaAvaliacao
@@ -259,7 +260,9 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
                   <AvatarImage src={r.fotoUrl} alt="" fill className="object-cover" sizes="40px" />
                 </div>
                 <div className="min-w-0 flex-1 text-left">
-                  <p className="max-w-full truncate text-sm font-semibold text-gray-900">{r.nome}</p>
+                  <p className="max-w-full truncate text-sm font-semibold text-gray-900">
+                    <NomeComVerificacao nome={r.nome} verificado={Boolean(r.verificado)} nomeClassName="truncate" />
+                  </p>
                   {r.username ? <p className="max-w-full truncate text-sm text-gray-500">@{r.username}</p> : null}
                   <div className="mt-1 flex items-center gap-0.5" aria-label={`Nota ${r.nota} de 5`}>
                     {Array.from({ length: 5 }, (_, i) => (

@@ -47,12 +47,12 @@ function CampoArquivo({ label, file, onChange, accept = ACCEPT }) {
   const inputId = useId()
 
   return (
-    <div>
-      <p className="text-sm font-semibold text-gray-800">{label}</p>
-      <div className="mt-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="min-w-0 flex-1 text-sm font-semibold text-gray-800">{label}</span>
+      <div className="flex flex-wrap items-center gap-2">
         <label
           htmlFor={inputId}
-          className="inline-flex cursor-pointer items-center rounded-md bg-[#0097b2] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#007d94]"
+          className="shrink-0 cursor-pointer rounded-md bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#007d94]"
         >
           Escolher arquivo
         </label>
@@ -67,7 +67,7 @@ function CampoArquivo({ label, file, onChange, accept = ACCEPT }) {
             e.target.value = ''
           }}
         />
-        {file ? <p className="mt-2 truncate text-xs text-gray-500">{file.name}</p> : null}
+        {file ? <span className="sr-only">Arquivo: {file.name}</span> : null}
       </div>
     </div>
   )

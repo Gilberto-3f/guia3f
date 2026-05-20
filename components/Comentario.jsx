@@ -6,6 +6,7 @@ import { Heart, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { formatarDataComentarioCurta } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { getPerfilHref } from '@/lib/perfil-utils'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
@@ -155,10 +156,20 @@ export default function Comentario({
           <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
             {perfilHref ? (
               <Link href={perfilHref} className="text-sm font-semibold text-gray-900 hover:text-[#0097b2]">
-                @{uname}
+                <UsuarioHandleVerificado
+                  username={uname}
+                  verificado={Boolean(node.autor?.verificado)}
+                  asButton={false}
+                  className="text-sm font-semibold text-gray-900 hover:text-[#0097b2]"
+                />
               </Link>
             ) : (
-              <span className="text-sm font-semibold text-gray-900">@{uname}</span>
+              <UsuarioHandleVerificado
+                username={uname}
+                verificado={Boolean(node.autor?.verificado)}
+                asButton={false}
+                className="text-sm font-semibold text-gray-900"
+              />
             )}
             <span className="text-xs text-gray-400">· {tempo}</span>
           </div>

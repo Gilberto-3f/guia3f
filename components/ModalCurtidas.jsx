@@ -5,7 +5,9 @@ import Link from 'next/link'
 import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
+import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
 import AvatarImage from '@/components/AvatarImage'
+import NomeComVerificacao from '@/components/NomeComVerificacao'
 
 /**
  * @param {{
@@ -64,6 +66,7 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
       }
 
       const perfis = await buscarPerfisPorIds(supabase, ordemIds)
+      const verificadoPorUsuario = await fetchVerificadoPorUsuarioIds(supabase, ordemIds)
       const byUid = new Map(perfis.map((p) => [String(p.usuario_id), p]))
 
       const linhas = ordemIds.map((id) => {
@@ -78,6 +81,7 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
           foto: p?.foto_url != null && String(p.foto_url).trim() !== '' ? String(p.foto_url) : null,
           role: tipo || 'user',
           empresaId: p?.empresa_id != null ? String(p.empresa_id) : '',
+          verificado: Boolean(verificadoPorUsuario.get(id)),
         }
       })
 
@@ -200,7 +204,9 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-gray-900">{u.nome}</p>
+                      <p className="truncate text-sm font-semibold text-gray-900">
+                        <NomeComVerificacao nome={u.nome} verificado={Boolean(u.verificado)} nomeClassName="truncate" />
+                      </p>
                       <p className="truncate text-xs text-gray-500">@{u.username}</p>
                     </div>
                   </Link>

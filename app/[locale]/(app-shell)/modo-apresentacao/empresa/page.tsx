@@ -265,7 +265,12 @@ export default function EmpresaPreviewModoApresentacaoPage() {
 
       <div className="border-b border-gray-100 bg-white p-4">
         <div className="mb-2 flex items-start justify-between gap-2">
-          <NomeEmpresa nome={nomeFantasia} />
+          <NomeEmpresa
+            nome={nomeFantasia}
+            verificado={
+              Boolean(empresaMerged.docs_verificado) || String(empresaMerged.status ?? '') === 'ativo'
+            }
+          />
           <BotaoSeguir empresaId={empresaId} isFollowing={false} onToggle={() => {}} />
         </div>
 

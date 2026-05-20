@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Loader2, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay, fetchFotoPerfilUsuario } from '@/lib/feed-autor'
+import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
 import AbasAtividades from '@/components/atividades/AbasAtividades'
 import AtividadeCurtidas from '@/components/atividades/AtividadeCurtidas'
 import AtividadeCurtiuComentario from '@/components/atividades/AtividadeCurtiuComentario'
@@ -632,6 +633,13 @@ export default function AtividadesPage() {
           }
         })
       )
+
+      const verificadoMap = await fetchVerificadoPorUsuarioIds(supabase, ids)
+      for (const id of ids) {
+        if (m[id]) {
+          m[id] = { ...m[id], verificado: Boolean(verificadoMap.get(id)) }
+        }
+      }
 
       if (process.env.NODE_ENV === 'development') {
         const amostra = ids.slice(0, 5).map((id) => ({
@@ -1701,6 +1709,8 @@ export default function AtividadesPage() {
           usernameAtor={ator?.username ?? 'usuario'}
           interactorFoto={ator?.foto_perfil_url ?? null}
           usernameDono={donor?.username ?? 'usuario'}
+          atorVerificado={Boolean(ator?.verificado)}
+          donoVerificado={Boolean(donor?.verificado)}
           hrefInteractor={hrefUsuario(r.autor_id)}
           hrefDono={hrefUsuario(donorId)}
           emFoto={emFoto}

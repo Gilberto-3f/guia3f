@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import Comentario from '@/components/Comentario'
 import { fetchFotoPerfilUsuario, fetchFotosPerfilPorUsuarioIds } from '@/lib/feed-autor'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
+import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
 import AvatarImage from '@/components/AvatarImage'
 
 /**
@@ -106,6 +107,7 @@ export default function ModalComentarios({
     const perfis = await buscarPerfisPorIds(supabase, autorIds)
     const perfilPorUsuario = new Map(perfis.map((p) => [String(p.usuario_id), p]))
     const fotosPorUsuario = await fetchFotosPerfilPorUsuarioIds(supabase, autorIds)
+    const verificadoPorUsuario = await fetchVerificadoPorUsuarioIds(supabase, autorIds)
 
     const flat = rows.map((r) => {
       const rr = /** @type {Record<string, unknown>} */ (r)
@@ -118,6 +120,7 @@ export default function ModalComentarios({
           : p && p.foto_url != null
             ? String(p.foto_url)
             : null
+      const verificado = Boolean(aid && verificadoPorUsuario.get(aid))
       const autor = p
         ? {
             nome: String(p.nome ?? 'Usuário'),
@@ -126,10 +129,19 @@ export default function ModalComentarios({
             usuario_id: aid,
             tipo: p.tipo ?? null,
             empresa_id: p.empresa_id ?? null,
+            verificado,
           }
         : aid && fotosPorUsuario.has(aid)
-          ? { nome: 'Usuário', username: 'usuario', foto_perfil_url: fotoAtual, usuario_id: aid, tipo: null, empresa_id: null }
-          : fallback
+          ? {
+              nome: 'Usuário',
+              username: 'usuario',
+              foto_perfil_url: fotoAtual,
+              usuario_id: aid,
+              tipo: null,
+              empresa_id: null,
+              verificado,
+            }
+          : { ...fallback, verificado }
       return {
         id: String(rr.id),
         texto: String(rr.texto ?? ''),

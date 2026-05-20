@@ -4,6 +4,8 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Heart } from 'lucide-react'
 import BotaoDinamico from '@/components/BotaoDinamico'
+import NomeComVerificacao from '@/components/NomeComVerificacao'
+import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 
 const BANDEIRA_POR_CIDADE = {
   'Foz do Iguaçu': '🇧🇷',
@@ -82,7 +84,13 @@ export default function CardAtrativo({ empresa }) {
 
       <div className="px-4 pb-4 pt-3">
         {/* FIX: nome cor #001f3f */}
-        <h3 className="line-clamp-1 text-base font-extrabold text-[#001f3f]">{empresa.nome_fantasia}</h3>
+        <h3 className="line-clamp-1 text-base font-extrabold text-[#001f3f]">
+          <NomeComVerificacao
+            nome={String(empresa.nome_fantasia ?? '')}
+            verificado={contaVerificadaDocumentacao('empresa', empresa)}
+            nomeClassName="line-clamp-1"
+          />
+        </h3>
 
         {/* FIX: descrição até 170 chars */}
         {desc ? <p className="mt-1 text-sm text-gray-600">{desc}</p> : null}

@@ -13,6 +13,7 @@ import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/lib/feed-autor'
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
@@ -763,10 +764,22 @@ export default function PostCard({
           <div className="min-w-0 flex-1 text-xs leading-snug text-gray-600">
             {autorId ? (
               <Link href={hrefAutor} className="font-semibold text-gray-800 hover:text-[#0097b2]">
-                @{post.autor?.username ?? ''}
+                <UsuarioHandleVerificado
+                  username={post.autor?.username ?? ''}
+                  verificado={Boolean(post.autor?.verificado)}
+                  asButton={false}
+                  className="font-semibold text-gray-800 hover:text-[#0097b2]"
+                />
               </Link>
             ) : (
-              <span className="font-semibold text-gray-800">@{post.autor?.username ?? ''}</span>
+              <span className="font-semibold text-gray-800">
+                <UsuarioHandleVerificado
+                  username={post.autor?.username ?? ''}
+                  verificado={Boolean(post.autor?.verificado)}
+                  asButton={false}
+                  className="font-semibold text-gray-800"
+                />
+              </span>
             )}
             {isSelfRepost ? (
               <span>{repostEhFoto ? ' repostou uma foto' : ' repostou um post'}</span>
@@ -911,10 +924,22 @@ export default function PostCard({
           <div>
             {autorId ? (
               <Link href={hrefAutor} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
-                @{post.autor?.username ?? ''}
+                <UsuarioHandleVerificado
+                  username={post.autor?.username ?? ''}
+                  verificado={Boolean(post.autor?.verificado)}
+                  asButton={false}
+                  className="font-semibold text-gray-800 hover:text-[#0097b2]"
+                />
               </Link>
             ) : (
-              <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+              <p className="text-sm font-semibold text-gray-800">
+                <UsuarioHandleVerificado
+                  username={post.autor?.username ?? ''}
+                  verificado={Boolean(post.autor?.verificado)}
+                  asButton={false}
+                  className="font-semibold text-gray-800"
+                />
+              </p>
             )}
             <time suppressHydrationWarning className="mt-0.5 block text-xs text-gray-400">
               {formatarDataRelativaPublicacao(post.created_at)}
@@ -942,10 +967,22 @@ export default function PostCard({
               <div>
                 {autorId ? (
                   <Link href={hrefAutor} className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]">
-                    @{post.autor?.username ?? ''}
+                    <UsuarioHandleVerificado
+                      username={post.autor?.username ?? ''}
+                      verificado={Boolean(post.autor?.verificado)}
+                      asButton={false}
+                      className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]"
+                    />
                   </Link>
                 ) : (
-                  <p className="text-sm font-semibold text-gray-800">@{post.autor?.username ?? ''}</p>
+                  <p className="text-sm font-semibold text-gray-800">
+                    <UsuarioHandleVerificado
+                      username={post.autor?.username ?? ''}
+                      verificado={Boolean(post.autor?.verificado)}
+                      asButton={false}
+                      className="text-sm font-semibold text-gray-800"
+                    />
+                  </p>
                 )}
                 <time suppressHydrationWarning className="text-xs text-gray-400">
                   {formatarDataRelativaPublicacao(post.created_at)}

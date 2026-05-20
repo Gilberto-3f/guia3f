@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const MAX_BYTES = 5 * 1024 * 1024
@@ -168,8 +168,34 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
     }
   }, [usuarioId, nomeCompleto, whatsapp, identidade, endereco, profissao, onConcluido])
 
-  const fileInputCls =
-    'block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 file:mr-3 file:rounded-md file:border-0 file:bg-[#0097b2] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white'
+  /**
+   * @param {{ label: string, file: File | null, onChange: (f: File | null) => void }} props
+   */
+  function CampoArquivo({ label, file, onChange }) {
+    const inputId = useId()
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="min-w-0 flex-1 text-sm font-semibold text-gray-800">{label}</span>
+        <label
+          htmlFor={inputId}
+          className="shrink-0 cursor-pointer rounded-md bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#007d94]"
+        >
+          Escolher arquivo
+        </label>
+        <input
+          id={inputId}
+          type="file"
+          accept={ACCEPT}
+          className="sr-only"
+          onChange={(e) => {
+            onChange(e.target.files?.[0] ?? null)
+            e.target.value = ''
+          }}
+        />
+        {file ? <span className="sr-only">Arquivo: {file.name}</span> : null}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5 text-gray-900">
@@ -213,18 +239,9 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       </div>
 
       <div className="space-y-3">
-        <label className="block text-sm font-semibold text-gray-800">
-          Documento de identificação
-          <input type="file" accept={ACCEPT} className={`mt-1 ${fileInputCls}`} onChange={onChange(setIdentidade)} />
-        </label>
-        <label className="block text-sm font-semibold text-gray-800">
-          Comprovante de endereço
-          <input type="file" accept={ACCEPT} className={`mt-1 ${fileInputCls}`} onChange={onChange(setEndereco)} />
-        </label>
-        <label className="block text-sm font-semibold text-gray-800">
-          Comprovante de profissão
-          <input type="file" accept={ACCEPT} className={`mt-1 ${fileInputCls}`} onChange={onChange(setProfissao)} />
-        </label>
+        <CampoArquivo label="Documento de identificação" file={identidade} onChange={onChange(setIdentidade)} />
+        <CampoArquivo label="Comprovante de endereço" file={endereco} onChange={onChange(setEndereco)} />
+        <CampoArquivo label="Comprovante de profissão" file={profissao} onChange={onChange(setProfissao)} />
       </div>
 
       <button

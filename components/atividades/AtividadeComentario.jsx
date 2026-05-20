@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
 /**
@@ -57,17 +58,21 @@ export default function AtividadeComentario({
           </div>
           <div className="min-w-0">
             <p className="text-sm leading-snug text-gray-800">
-              <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
-                @{usernameAtor}
-              </button>{' '}
+              <UsuarioHandleVerificado
+                username={usernameAtor}
+                verificado={atorVerificado}
+                onClick={() => router.push(hrefInteractor)}
+              />{' '}
               {modoMinhaConta ? (
                 <>comentou {emFoto ? 'sua foto' : 'seu post'}</>
               ) : (
                 <>
                   comentou {emFoto ? 'foto' : 'post'} de{' '}
-                  <button type="button" onClick={() => router.push(hrefDono)} className="font-medium text-[#0097b2] hover:underline">
-                    @{usernameDono}
-                  </button>
+                  <UsuarioHandleVerificado
+                    username={usernameDono}
+                    verificado={donoVerificado}
+                    onClick={() => router.push(hrefDono)}
+                  />
                 </>
               )}
               :

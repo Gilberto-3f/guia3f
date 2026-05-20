@@ -1,20 +1,24 @@
 'use client'
 
 import { ShieldCheck } from 'lucide-react'
+import NomeComVerificacao from '@/components/NomeComVerificacao'
 
 /**
  * @param {{
  *   nome: string
  *   mostrarCartao?: boolean
  *   profissionalVerificado?: boolean
+ *   contaVerificada?: boolean
  *   onAbrirCartao?: () => void
  * }} props
  * profissionalVerificado: true quando status aprovado (escudo verde); senão escudo vermelho com ?.
+ * contaVerificada: selo verde à frente do nome (documentação em ordem).
  */
 export default function NomeSocial({
   nome,
   mostrarCartao = false,
   profissionalVerificado = false,
+  contaVerificada = false,
   onAbrirCartao,
 }) {
   return (
@@ -43,7 +47,9 @@ export default function NomeSocial({
           </button>
         )
       ) : null}
-      <h1 className="min-w-0 truncate text-left text-2xl font-bold text-[#001f3f]">{nome}</h1>
+      <h1 className="min-w-0 text-left text-2xl font-bold text-[#001f3f]">
+        <NomeComVerificacao nome={nome} verificado={contaVerificada} nomeClassName="truncate" />
+      </h1>
     </div>
   )
 }

@@ -7,6 +7,8 @@ import Estrelas from '@/components/Estrelas'
 import EstrelasAvaliacao from '@/components/EstrelasAvaliacao'
 import GraficoAvaliacoes from '@/components/GraficoAvaliacoes'
 import { MoreVertical, Trash2, Pencil, ShieldCheck, User } from 'lucide-react'
+import NomeComVerificacao from '@/components/NomeComVerificacao'
+import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
 
 /**
  * @param {{
@@ -149,7 +151,7 @@ export default function AbaAvaliacoes({
         created_at: av.created_at,
         avaliador_tipo: av.avaliador_tipo,
         usuario_id: av.usuario_id,
-        avaliador: { nome: 'Usuário', username: 'usuario', foto_url: null },
+        avaliador: { nome: 'Usuário', username: 'usuario', foto_url: null, verificado: false },
         resposta: null,
       }))
 
@@ -228,7 +230,14 @@ export default function AbaAvaliacoes({
             const resp = respostaPorAvaliacao.get(String(a.id)) ?? null
             return {
               ...a,
-              avaliador: perf ? { nome: perf.nome, username: perf.username, foto_url: perf.foto } : a.avaliador,
+              avaliador: perf
+                ? {
+                    nome: perf.nome,
+                    username: perf.username,
+                    foto_url: perf.foto,
+                    verificado: Boolean(verificadoPorUsuario.get(uid)),
+                  }
+                : a.avaliador,
               resposta: resp,
             }
           })
@@ -608,7 +617,13 @@ export default function AbaAvaliacoes({
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-gray-800">{av.avaliador.nome}</p>
+                  <p className="truncate font-medium text-gray-800">
+                    <NomeComVerificacao
+                      nome={av.avaliador.nome}
+                      verificado={Boolean(av.avaliador.verificado)}
+                      nomeClassName="truncate"
+                    />
+                  </p>
                   <p className="truncate text-xs text-gray-500">@{av.avaliador.username}</p>
                 </div>
                 <div className="shrink-0">

@@ -8,6 +8,7 @@ import FotoCapa from '@/components/perfil/FotoCapa'
 import MenuLateral from '@/components/perfil/MenuLateral'
 import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
 import NomeSocial from '@/components/perfil/NomeSocial'
+import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import DescricaoCurta from '@/components/perfil/DescricaoCurta'
 import MetricasPerfil from '@/components/perfil/MetricasPerfil'
 import AbasPerfil from '@/components/perfil/AbasPerfil'
@@ -95,12 +96,14 @@ export default function PerfilSocialPage() {
     cadastradoEm: string | null
     /** `profissionais.status` — `aprovado` = cartão “VERIFICADO”; caso contrário “EM ANÁLISE”. */
     statusProfissional: string | null
+    docsVerificado: boolean
   }>({
     categorias: null,
     placaVermelha: false,
     verificadoEm: null,
     cadastradoEm: null,
     statusProfissional: null,
+    docsVerificado: false,
   })
 
   const patchFotoPost = useCallback((postId: string, updates: { total_curtidas?: number; total_comentarios?: number }) => {
@@ -217,7 +220,7 @@ export default function PerfilSocialPage() {
           supabase
             .from('profissionais')
             .select(
-              'nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado_em, created_at, status'
+              'nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status'
             )
             .eq('usuario_id', profileId)
             .maybeSingle(),
@@ -236,6 +239,7 @@ export default function PerfilSocialPage() {
           const rr = prof as unknown as {
             categorias?: string[] | null
             placa_vermelha?: boolean | null
+            docs_verificado?: boolean | null
             docs_verificado_em?: string | null
             created_at?: string | null
             status?: string | null
@@ -246,6 +250,7 @@ export default function PerfilSocialPage() {
             verificadoEm: rr.docs_verificado_em ?? rr.created_at ?? null,
             cadastradoEm: rr.created_at ?? null,
             statusProfissional: rr.status != null ? String(rr.status) : null,
+            docsVerificado: Boolean(rr.docs_verificado),
           })
         } else if (!turRes.error && tur && typeof tur === 'object' && !Array.isArray(tur)) {
           perfilRow = tur as Record<string, unknown>
@@ -255,13 +260,14 @@ export default function PerfilSocialPage() {
             verificadoEm: null,
             cadastradoEm: null,
             statusProfissional: null,
+            docsVerificado: false,
           })
         }
       } else if (role === 'profissional') {
         const { data: prof, error: ep } = await supabase
           .from('profissionais')
           .select(
-            'nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado_em, created_at, status'
+            'nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status'
           )
           .eq('usuario_id', profileId)
           .maybeSingle()
@@ -271,6 +277,7 @@ export default function PerfilSocialPage() {
           const rr = prof as unknown as {
             categorias?: string[] | null
             placa_vermelha?: boolean | null
+            docs_verificado?: boolean | null
             docs_verificado_em?: string | null
             created_at?: string | null
             status?: string | null
@@ -281,6 +288,7 @@ export default function PerfilSocialPage() {
             verificadoEm: rr.docs_verificado_em ?? rr.created_at ?? null,
             cadastradoEm: rr.created_at ?? null,
             statusProfissional: rr.status != null ? String(rr.status) : null,
+            docsVerificado: Boolean(rr.docs_verificado),
           })
         }
       } else if (role === 'turista') {
@@ -299,6 +307,7 @@ export default function PerfilSocialPage() {
           verificadoEm: null,
           cadastradoEm: null,
           statusProfissional: null,
+          docsVerificado: false,
         })
       }
 
@@ -634,6 +643,13 @@ export default function PerfilSocialPage() {
           nome={nome}
           mostrarCartao={perfilRole === 'profissional'}
           profissionalVerificado={profMeta.statusProfissional === 'aprovado'}
+          contaVerificada={
+            perfilRole === 'profissional' &&
+            contaVerificadaDocumentacao('profissional', {
+              docs_verificado: profMeta.docsVerificado,
+              status: profMeta.statusProfissional,
+            })
+          }
           onAbrirCartao={() => setPopCartao(true)}
         />
         <div className="mt-1">

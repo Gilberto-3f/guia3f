@@ -321,7 +321,10 @@ export default function EmpresaPage() {
 
       <div className="border-b border-gray-100 bg-white p-4">
         <div className="mb-2">
-          <NomeEmpresa nome={nomeFantasia} />
+          <NomeEmpresa
+            nome={nomeFantasia}
+            verificado={Boolean(empresa.docs_verificado) || String(empresa.status ?? '') === 'ativo'}
+          />
         </div>
 
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
