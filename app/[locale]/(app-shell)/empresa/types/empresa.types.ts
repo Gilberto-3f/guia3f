@@ -1,4 +1,4 @@
-export type MenuEmpresaTab = 'publicidade' | 'chat-adm' | 'denuncias' | 'compras-paraguai' | 'planos'
+export type MenuEmpresaTab = 'feed-stories' | 'publicidade' | 'chat-adm' | 'denuncias' | 'compras-paraguai' | 'planos'
 
 export interface Anuncio {
   id: string

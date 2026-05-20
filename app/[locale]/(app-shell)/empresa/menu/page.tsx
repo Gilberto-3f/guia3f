@@ -7,7 +7,7 @@ export default function MenuEmpresaPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace('/empresa/menu/publicidade')
+    router.replace('/empresa/menu/feed-stories')
   }, [router])
 
   return null

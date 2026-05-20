@@ -17,6 +17,7 @@ import {
   Gem,
   Handshake,
   History,
+  Images,
   LayoutDashboard,
   MapPin,
   Megaphone,
@@ -257,7 +258,8 @@ function secoesEmpresa(ctx) {
   ]
   const gEmp = filtrarMenu(
     [
-      { Icon: Megaphone, label: 'Feed, Story e Publicidade', href: '/empresa/menu/publicidade' },
+      { Icon: Images, label: 'Feed e Storys', href: '/empresa/menu/feed-stories' },
+      { Icon: Megaphone, label: 'Publicidade', href: '/empresa/menu/publicidade' },
       { Icon: DollarSign, label: 'Cadastrar Comissões', subpagina: 'cadastrar-comissao' },
       {
         Icon: ShoppingCart,
