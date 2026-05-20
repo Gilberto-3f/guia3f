@@ -169,6 +169,7 @@ function placeholderPerfil(uid: string): ReturnType<typeof pickAutorDisplay> {
     usuario_id: uid,
     empresa_id: '',
     role: 'user',
+    verificado: false,
   }
 }
 
