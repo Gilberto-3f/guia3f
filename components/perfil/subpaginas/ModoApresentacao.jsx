@@ -1,7 +1,5 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import ModoApresentacaoIcon from '@/components/ModoApresentacaoIcon'
@@ -24,27 +22,17 @@ const empresas = [
 const itemBtnCls =
   'flex w-full min-w-0 items-center gap-2.5 py-2 pl-4 text-left text-gray-900 transition hover:bg-gray-50 disabled:opacity-60'
 
-const pastaBtnCls =
-  'flex w-full min-w-0 items-center gap-2 py-2 text-left text-gray-900 transition hover:bg-gray-50'
-
 /**
- * @param {{ titulo: string, aberto: boolean, onToggle: () => void, children: React.ReactNode }} props
+ * @param {{ titulo: string, children: React.ReactNode }} props
  */
-function PastaModoApresentacao({ titulo, aberto, onToggle, children }) {
+function PastaModoApresentacao({ titulo, children }) {
   return (
-    <section>
-      <button type="button" onClick={onToggle} className={pastaBtnCls} aria-expanded={aberto}>
-        <span className="min-w-0 flex-1 text-base font-bold leading-snug">
-          <span aria-hidden>• </span>
-          {titulo}
-        </span>
-        {aberto ? (
-          <ChevronUp className="h-5 w-5 shrink-0 text-gray-500" strokeWidth={2} aria-hidden />
-        ) : (
-          <ChevronDown className="h-5 w-5 shrink-0 text-gray-500" strokeWidth={2} aria-hidden />
-        )}
-      </button>
-      {aberto ? children : null}
+    <section className="space-y-1">
+      <p className="py-1 text-base font-bold leading-snug text-gray-900">
+        <span aria-hidden>• </span>
+        {titulo}
+      </p>
+      {children}
     </section>
   )
 }
@@ -56,22 +44,12 @@ export default function ModoApresentacao() {
   const router = useRouter()
   const { ativarModo, desativarModo, modoAtivo, perfilSimulado, loadingAtivacao } = useModoApresentacao()
 
-  const [pastasAbertas, setPastasAbertas] = useState(() => ({
-    turista: true,
-    profissionais: false,
-    empresas: false,
-  }))
-
-  const togglePasta = (id) => {
-    setPastasAbertas((p) => ({ ...p, [id]: !p[id] }))
-  }
-
   const irGuia = () => {
     router.push('/guia')
   }
 
   return (
-    <div className="space-y-2 px-0">
+    <div className="space-y-3 px-0">
       {modoAtivo && perfilSimulado ? (
         <div className="flex min-w-0 items-center gap-2 py-1">
           <ModoApresentacaoIcon iconeKey={perfilSimulado.iconeKey} className="h-5 w-5 shrink-0 text-amber-800" />
@@ -79,11 +57,7 @@ export default function ModoApresentacao() {
         </div>
       ) : null}
 
-      <PastaModoApresentacao
-        titulo="Turista"
-        aberto={pastasAbertas.turista}
-        onToggle={() => togglePasta('turista')}
-      >
+      <PastaModoApresentacao titulo="Turista">
         <button
           type="button"
           disabled={loadingAtivacao}
@@ -98,11 +72,7 @@ export default function ModoApresentacao() {
         </button>
       </PastaModoApresentacao>
 
-      <PastaModoApresentacao
-        titulo="Profissionais"
-        aberto={pastasAbertas.profissionais}
-        onToggle={() => togglePasta('profissionais')}
-      >
+      <PastaModoApresentacao titulo="Profissionais">
         <ul className="divide-y divide-gray-100">
           {profissionais.map((p) => (
             <li key={p.id}>
@@ -128,11 +98,7 @@ export default function ModoApresentacao() {
         </ul>
       </PastaModoApresentacao>
 
-      <PastaModoApresentacao
-        titulo="Empresas"
-        aberto={pastasAbertas.empresas}
-        onToggle={() => togglePasta('empresas')}
-      >
+      <PastaModoApresentacao titulo="Empresas">
         <ul className="divide-y divide-gray-100">
           {empresas.map((e) => (
             <li key={e.id}>

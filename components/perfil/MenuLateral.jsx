@@ -778,7 +778,7 @@ export default function MenuLateral({
               >
                 <SubIcon size={16} strokeWidth={1.75} />
               </span>
-              <span className="text-sm font-normal tracking-wide text-gray-900">{sg.label}</span>
+              <span className="text-sm font-bold tracking-wide text-gray-900">{sg.label}</span>
             </span>
             {abSub ? (
               <ChevronUp className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
@@ -907,11 +907,7 @@ export default function MenuLateral({
                           <span className="shrink-0 text-base leading-none text-gray-900" aria-hidden>
                             •
                           </span>
-                          <span
-                            className={`text-base tracking-wide text-gray-900 ${sec.labelNegrito ? 'font-bold' : 'font-normal'}`}
-                          >
-                            {sec.label}
-                          </span>
+                          <span className="text-base font-bold tracking-wide text-gray-900">{sec.label}</span>
                         </span>
                         {ab ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />}
                       </button>
@@ -942,7 +938,7 @@ export default function MenuLateral({
                           <span className="shrink-0 text-base leading-none text-gray-900" aria-hidden>
                             •
                           </span>
-                          <span className="text-base font-normal tracking-wide text-gray-900">{itemSair.label}</span>
+                          <span className="text-base font-bold tracking-wide text-gray-900">{itemSair.label}</span>
                         </span>
                       </button>
                     </div>
