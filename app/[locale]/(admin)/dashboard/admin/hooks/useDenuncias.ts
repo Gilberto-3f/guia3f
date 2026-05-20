@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePermissao } from './usePermissao'
+import { adminContextFromGate, registrarLogVerificacao } from '../utils/registrarLogVerificacao'
 import type { AplicarPenalidadeParams, Denuncia, DenunciasFiltros } from '../types/admin.types'
 
 type DenunciaRow = {
@@ -225,16 +226,15 @@ export function useDenuncias(filtros: DenunciasFiltros) {
   }, [fetchContadores, filtrosStableKey, getComunidade, nivel, resolveDenunciado])
 
   const applyAudit = useCallback(
-    async (denunciaId: string, acao: string, detalhes: Record<string, unknown>) => {
+    async (denunciaId: string, acao: string, statusFinal: string, detalhes: Record<string, unknown>) => {
       if (!admin) return
-      await supabase.from('logs_verificacao').insert({
+      await registrarLogVerificacao({
         tipo: 'denuncia',
         perfil_id: denunciaId,
         acao,
-        admin_id: admin.id,
-        admin_email: admin.email ?? admin.username ?? 'admin',
-        admin_nivel: admin.admin_level,
-        detalhes,
+        status_final: statusFinal,
+        admin: adminContextFromGate(admin),
+        detalhes: { modulo: 'denuncias', ...detalhes },
       })
     },
     [admin]
@@ -261,7 +261,12 @@ export function useDenuncias(filtros: DenunciasFiltros) {
         })
         .eq('id', denuncia_id)
       if (updateErr) throw updateErr
-      await applyAudit(denuncia_id, `denuncia_${acao}`, detalhes)
+      const statusMap: Record<string, string> = {
+        advertir: 'denuncia_advertencia',
+        suspender: 'denuncia_suspensao',
+        banir: 'denuncia_banimento',
+      }
+      await applyAudit(denuncia_id, `denuncia_${acao}`, statusMap[acao] ?? `denuncia_${acao}`, detalhes)
       await fetchDenuncias({ skeleton: false })
     },
     [admin, applyAudit, fetchDenuncias]
@@ -272,7 +277,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
       if (!admin) throw new Error('Admin não autenticado')
       const { error: updateErr } = await supabase.from('denuncias').update({ status: 'em_investigacao', responsavel_id: admin.id }).eq('id', denuncia_id)
       if (updateErr) throw updateErr
-      await applyAudit(denuncia_id, 'denuncia_em_investigacao', {})
+      await applyAudit(denuncia_id, 'denuncia_em_investigacao', 'em_investigacao', {})
       await fetchDenuncias({ skeleton: false })
     },
     [admin, applyAudit, fetchDenuncias]
@@ -291,7 +296,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
       }
       const { error: updateErr } = await supabase.from('denuncias').update(payload).eq('id', denuncia_id)
       if (updateErr) throw updateErr
-      await applyAudit(denuncia_id, 'denuncia_arquivada', { motivo: motivo.trim() })
+      await applyAudit(denuncia_id, 'denuncia_arquivada', 'arquivada', { motivo: motivo.trim() })
       await fetchDenuncias({ skeleton: false })
     },
     [admin, applyAudit, fetchDenuncias]

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
+import { statusFinalDoLog } from '../../utils/registrarLogVerificacao'
 
 type Filtros = {
   periodo: '7d' | '30d' | '90d' | 'todos'
@@ -15,6 +16,7 @@ type LogRow = {
   created_at: string
   admin_email: string | null
   acao: string
+  tipo: string | null
   detalhes: unknown
 }
 
@@ -39,14 +41,29 @@ function escaparCsv(c: string) {
   return `"${c.replace(/"/g, '""')}"`
 }
 
-function getAcaoIcon(acao: string) {
-  const a = acao.toLowerCase()
+function getStatusIcon(status: string) {
+  const a = status.toLowerCase()
   if (a.includes('aprov')) return '✅'
   if (a.includes('reprov')) return '❌'
+  if (a.includes('investig')) return '🔍'
+  if (a.includes('arquiv')) return '📁'
   if (a.includes('suspens')) return '⏸️'
   if (a.includes('ban')) return '⛔'
   if (a.includes('advert')) return '📝'
+  if (a.includes('doc')) return '📄'
   return '📋'
+}
+
+function descricaoModulo(log: LogRow) {
+  const det = log.detalhes
+  if (!det || typeof det !== 'object' || Array.isArray(det)) return log.tipo ?? '—'
+  const d = det as Record<string, unknown>
+  const mod = d.modulo != null ? String(d.modulo) : log.tipo
+  const extra: string[] = []
+  if (d.empresa_nome) extra.push(String(d.empresa_nome))
+  if (d.comunidade) extra.push(String(d.comunidade))
+  if (d.motivo) extra.push(String(d.motivo).slice(0, 80))
+  return extra.length ? `${mod} · ${extra.join(' · ')}` : mod
 }
 
 export function LogsAuditoria() {
@@ -76,7 +93,11 @@ export function LogsAuditoria() {
       const limite = getDataLimite(filtros.periodo)
       if (limite) query = query.gte('created_at', limite)
       if (filtros.admin !== 'todos') query = query.eq('admin_email', filtros.admin)
-      if (filtros.acao !== 'todas') query = query.ilike('acao', `%${filtros.acao}%`)
+      if (filtros.acao === 'comissao') {
+        query = query.or('acao.ilike.%comissao%,tipo.eq.comissao_oferta')
+      } else if (filtros.acao !== 'todas') {
+        query = query.ilike('acao', `%${filtros.acao}%`)
+      }
 
       const { data, error } = await query
       if (error) throw error
@@ -106,8 +127,8 @@ export function LogsAuditoria() {
       const dados = logs.map((log) => ({
         Data: formatarDataHora(log.created_at),
         Admin: log.admin_email ?? 'Sistema',
-        Ação: log.acao,
-        Descrição: log.detalhes ? JSON.stringify(log.detalhes).slice(0, 200) : '-',
+        Status: statusFinalDoLog(log),
+        Módulo: descricaoModulo(log),
       }))
       if (formato === 'json') {
         const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' })
@@ -118,8 +139,8 @@ export function LogsAuditoria() {
         a.click()
         URL.revokeObjectURL(url)
       } else {
-        const headers = ['Data', 'Admin', 'Ação', 'Descrição']
-        const rows = dados.map((d) => [d.Data, d.Admin, d.Ação, d.Descrição])
+        const headers = ['Data', 'Admin', 'Status', 'Módulo']
+        const rows = dados.map((d) => [d.Data, d.Admin, d.Status, d.Módulo])
         const csv = [headers, ...rows].map((row) => row.map((cell) => escaparCsv(cell)).join(',')).join('\n')
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
         const url = URL.createObjectURL(blob)
@@ -181,6 +202,7 @@ export function LogsAuditoria() {
               <option value="suspens">Suspensões</option>
               <option value="ban">Banimentos</option>
               <option value="advert">Advertências</option>
+              <option value="comissao">Comissões / benefícios</option>
             </select>
           </label>
         </div>
@@ -188,9 +210,11 @@ export function LogsAuditoria() {
 
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         {loading ? (
-          <div className="p-8 text-center text-sm text-gray-500">Carregando logs...</div>
+          <div className="p-8 text-center text-sm text-gray-500">Carregando auditoria…</div>
         ) : logs.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-500">Nenhum log encontrado</div>
+          <div className="p-8 text-center text-sm text-gray-500">
+            Nenhum registro de auditoria no período. As verificações feitas pelo ADM aparecem aqui.
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px]">
@@ -198,25 +222,28 @@ export function LogsAuditoria() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Data/Hora</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Admin</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Ação</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Descrição</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Status final</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Contexto</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {logs.map((log) => (
+                {logs.map((log) => {
+                  const status = statusFinalDoLog(log)
+                  return (
                   <tr key={log.id} className="hover:bg-gray-50">
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-800">{formatarDataHora(log.created_at)}</td>
                     <td className="px-4 py-3 text-sm text-gray-800">{log.admin_email ?? 'Sistema'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-800">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
                       <span className="inline-flex items-center gap-1">
-                        {getAcaoIcon(log.acao)} {log.acao}
+                        {getStatusIcon(status)} {status}
                       </span>
                     </td>
-                    <td className="max-w-md truncate px-4 py-3 text-sm text-gray-600">
-                      {log.detalhes ? JSON.stringify(log.detalhes).slice(0, 100) : '-'}
+                    <td className="max-w-md truncate px-4 py-3 text-sm text-gray-600 capitalize">
+                      {descricaoModulo(log)}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

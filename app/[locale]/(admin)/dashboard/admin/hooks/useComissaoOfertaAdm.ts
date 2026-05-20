@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useSharedAdminGate } from '../context/AdminPermissaoContext'
+import { adminContextFromGate, registrarLogVerificacao } from '../utils/registrarLogVerificacao'
 
 export type BeneficiosOferta = {
   pax?: { ativo?: boolean; valor?: number }
@@ -76,6 +78,9 @@ export function textoValidadeOferta(oferta: OfertaComissaoAdm) {
 }
 
 export function useComissaoOfertaAdm(statusFiltro: 'pendente' | 'todos' = 'pendente') {
+  const gate = useSharedAdminGate()
+  const admin = gate.status === 'ok' ? gate.admin : null
+
   const [ofertas, setOfertas] = useState<OfertaComissaoAdm[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -134,16 +139,35 @@ export function useComissaoOfertaAdm(statusFiltro: 'pendente' | 'todos' = 'pende
 
   const atualizarStatus = useCallback(
     async (id: string, status: 'aprovada' | 'reprovada') => {
+      const oferta = ofertas.find((o) => o.id === id)
       setAcaoId(id)
       try {
         const { error: e } = await supabase.from('comissao_oferta').update({ status }).eq('id', id)
         if (e) throw e
+
+        if (admin) {
+          await registrarLogVerificacao({
+            tipo: 'comissao_oferta',
+            perfil_id: id,
+            acao: status === 'aprovada' ? 'comissao_aprovada' : 'comissao_reprovada',
+            status_final: status,
+            admin: adminContextFromGate(admin),
+            alvo_id: oferta?.empresaId ?? null,
+            detalhes: {
+              modulo: 'analise_beneficios',
+              empresa_nome: oferta?.empresaNome,
+              empresa_username: oferta?.empresaUsername,
+              comunidade: oferta?.categoriaProfissional,
+            },
+          })
+        }
+
         setOfertas((prev) => prev.filter((o) => o.id !== id))
       } finally {
         setAcaoId(null)
       }
     },
-    []
+    [admin, ofertas]
   )
 
   return {

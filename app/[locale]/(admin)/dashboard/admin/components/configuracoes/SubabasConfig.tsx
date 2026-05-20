@@ -8,7 +8,7 @@ export type ConfigSubabaId = 'apis' | 'logs' | 'geral' | 'seguranca'
 
 const opts: { id: ConfigSubabaId; label: string; Icon: LucideIcon }[] = [
   { id: 'apis', label: 'APIs', Icon: Plug },
-  { id: 'logs', label: 'Logs', Icon: ScrollText },
+  { id: 'logs', label: 'Auditoria', Icon: ScrollText },
   { id: 'geral', label: 'Geral', Icon: Settings },
   { id: 'seguranca', label: 'Segurança', Icon: Lock },
 ]

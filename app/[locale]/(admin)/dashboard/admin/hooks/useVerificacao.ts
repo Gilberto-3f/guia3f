@@ -11,6 +11,7 @@ import type {
 } from '../types/admin.types'
 import { usePermissao } from './usePermissao'
 import { proximaRevisaoDepoisDeAprovacao } from '@/lib/verificacao-documentos'
+import { adminContextFromGate, registrarLogVerificacao } from '../utils/registrarLogVerificacao'
 
 /** JSONB ou coluna legada: normaliza para string[]. */
 function parseCategoriasProfissional(raw: unknown): string[] {
@@ -260,6 +261,16 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
         })
         .eq('id', id)
       if (error) throw error
+      if (admin) {
+        await registrarLogVerificacao({
+          tipo,
+          perfil_id: id,
+          acao: 'docs_verificado',
+          status_final: 'docs_verificado',
+          admin: adminContextFromGate(admin),
+          detalhes: { modulo: 'verificacao_perfil' },
+        })
+      }
       await fetchData()
     },
     [admin, fetchData]
@@ -325,9 +336,19 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
           console.warn('[aprovar profissional] post feed:', e)
         }
       }
+      if (admin) {
+        await registrarLogVerificacao({
+          tipo,
+          perfil_id: id,
+          acao: 'aprovado',
+          status_final: 'aprovado',
+          admin: adminContextFromGate(admin),
+          detalhes: { modulo: 'verificacao_perfil' },
+        })
+      }
       await fetchData()
     },
-    [admin?.id, fetchData]
+    [admin, fetchData]
   )
 
   const reprovar = useCallback(
@@ -347,6 +368,16 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       if (error) throw error
       if (perfil?.usuario_id) {
         await supabase.from('usuarios').update({ status: 'reprovado' }).eq('id', perfil.usuario_id)
+      }
+      if (admin) {
+        await registrarLogVerificacao({
+          tipo,
+          perfil_id: id,
+          acao: 'reprovado',
+          status_final: 'reprovado',
+          admin: adminContextFromGate(admin),
+          detalhes: { modulo: 'verificacao_perfil', motivo },
+        })
       }
       await fetchData()
     },
