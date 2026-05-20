@@ -422,6 +422,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
                       type="button"
                       role="tab"
                       aria-selected={ativo}
+                      aria-label={rótulo}
                       onClick={() => setCategoriaAba(cat)}
                       className={`flex min-h-[3rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-center transition-all min-[400px]:min-h-[3.25rem] sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2.5 ${
                         ativo
@@ -430,9 +431,11 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
                       }`}
                     >
                       <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                      <span className="max-w-full text-[0.65rem] font-medium leading-tight [overflow-wrap:balance] min-[400px]:text-xs">
-                        {rótulo}
-                      </span>
+                      {ativo ? (
+                        <span className="max-w-full text-[0.65rem] font-medium leading-tight [overflow-wrap:balance] min-[400px]:text-xs">
+                          {rótulo}
+                        </span>
+                      ) : null}
                     </button>
                   )
                 })}
