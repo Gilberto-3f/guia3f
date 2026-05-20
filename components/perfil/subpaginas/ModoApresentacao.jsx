@@ -58,8 +58,8 @@ export default function ModoApresentacao() {
 
   const [pastasAbertas, setPastasAbertas] = useState(() => ({
     turista: true,
-    profissionais: true,
-    empresas: true,
+    profissionais: false,
+    empresas: false,
   }))
 
   const togglePasta = (id) => {

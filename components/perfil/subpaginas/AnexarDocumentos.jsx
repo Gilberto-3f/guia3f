@@ -1,10 +1,13 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const MAX_BYTES = 5 * 1024 * 1024
 const ACCEPT = 'image/jpeg,image/png,application/pdf'
+
+const textInputCls =
+  'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-2 focus:ring-[#0097b2]/30'
 
 /**
  * @param {File} file
@@ -43,13 +46,33 @@ async function uploadProfDoc(file, userId, rotulo) {
  * @param {{ usuarioId: string | null, onConcluido?: () => void }} props
  */
 export default function AnexarDocumentos({ usuarioId, onConcluido }) {
-  const [frente, setFrente] = useState(/** @type {File | null} */ (null))
-  const [verso, setVerso] = useState(/** @type {File | null} */ (null))
-  const [residencia, setResidencia] = useState(/** @type {File | null} */ (null))
+  const [nomeCompleto, setNomeCompleto] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
+  const [identidade, setIdentidade] = useState(/** @type {File | null} */ (null))
+  const [endereco, setEndereco] = useState(/** @type {File | null} */ (null))
   const [profissao, setProfissao] = useState(/** @type {File | null} */ (null))
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
   const [okMsg, setOkMsg] = useState('')
+
+  useEffect(() => {
+    if (!usuarioId) return
+    let ativo = true
+    void (async () => {
+      const { data } = await supabase
+        .from('profissionais')
+        .select('nome_completo, whatsapp, telefone')
+        .eq('usuario_id', usuarioId)
+        .maybeSingle()
+      if (!ativo || !data) return
+      setNomeCompleto(String(data.nome_completo ?? '').trim())
+      const contato = String(data.whatsapp ?? data.telefone ?? '').trim()
+      if (contato) setWhatsapp(contato)
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [usuarioId])
 
   const onChange =
     (setter) =>
@@ -79,14 +102,23 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       setErro('Sessão inválida.')
       return
     }
-    if (!frente || !verso || !residencia || !profissao) {
-      setErro('Envie os quatro documentos obrigatórios.')
+    const nome = nomeCompleto.trim()
+    const wa = whatsapp.trim()
+    if (!nome) {
+      setErro('Informe o nome completo.')
+      return
+    }
+    if (!wa) {
+      setErro('Informe o WhatsApp.')
+      return
+    }
+    if (!identidade || !endereco || !profissao) {
+      setErro('Envie os três documentos obrigatórios.')
       return
     }
     for (const pair of [
-      [frente, 'frente'],
-      [verso, 'verso'],
-      [residencia, 'residencia'],
+      [identidade, 'identidade'],
+      [endereco, 'endereco'],
       [profissao, 'profissao'],
     ]) {
       const v = validarArquivo(/** @type {File} */ (pair[0]))
@@ -98,10 +130,9 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
 
     setEnviando(true)
     try {
-      const [uF, uV, uR, uP] = await Promise.all([
-        uploadProfDoc(frente, usuarioId, 'id-frente'),
-        uploadProfDoc(verso, usuarioId, 'id-verso'),
-        uploadProfDoc(residencia, usuarioId, 'residencia'),
+      const [uId, uEnd, uProf] = await Promise.all([
+        uploadProfDoc(identidade, usuarioId, 'identidade'),
+        uploadProfDoc(endereco, usuarioId, 'endereco'),
         uploadProfDoc(profissao, usuarioId, 'profissao'),
       ])
 
@@ -109,10 +140,12 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       const { error: upErr } = await supabase
         .from('profissionais')
         .update({
-          documento_frente_url: uF,
-          documento_verso_url: uV,
-          comprovante_residencia_url: uR,
-          comprovante_profissao_url: uP,
+          nome_completo: nome,
+          whatsapp: wa,
+          documento_frente_url: uId,
+          documento_verso_url: null,
+          comprovante_residencia_url: uEnd,
+          comprovante_profissao_url: uProf,
           documentos_enviados_em: agora,
           status: 'aguardando_analise',
         })
@@ -133,40 +166,64 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
     } finally {
       setEnviando(false)
     }
-  }, [usuarioId, frente, verso, residencia, profissao, onConcluido])
+  }, [usuarioId, nomeCompleto, whatsapp, identidade, endereco, profissao, onConcluido])
 
-  const inputCls =
+  const fileInputCls =
     'block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 file:mr-3 file:rounded-md file:border-0 file:bg-[#0097b2] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white'
 
   return (
     <div className="space-y-5 text-gray-900">
-      <div>
-        <h2 className="text-lg font-bold text-[#001f3f]">Anexar documentos</h2>
-        <p className="mt-1 text-sm leading-snug text-gray-600">
-          Envie documento de identidade (frente e verso), comprovante de residência e comprovante de profissão. Formatos:
-          JPG, PNG ou PDF. Máximo 5 MB por arquivo.
-        </p>
-      </div>
+      <h2 className="text-lg font-bold text-[#001f3f]">Anexar documentos</h2>
 
       {erro ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{erro}</div> : null}
       {okMsg ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{okMsg}</div> : null}
 
       <div className="space-y-3">
         <label className="block text-sm font-semibold text-gray-800">
-          Documento de identidade (frente)
-          <input type="file" accept={ACCEPT} className={`mt-1 ${inputCls}`} onChange={onChange(setFrente)} />
+          Nome completo
+          <input
+            type="text"
+            value={nomeCompleto}
+            onChange={(e) => {
+              setErro('')
+              setOkMsg('')
+              setNomeCompleto(e.target.value)
+            }}
+            className={textInputCls}
+            autoComplete="name"
+            placeholder="Seu nome completo"
+          />
         </label>
         <label className="block text-sm font-semibold text-gray-800">
-          Documento de identidade (verso)
-          <input type="file" accept={ACCEPT} className={`mt-1 ${inputCls}`} onChange={onChange(setVerso)} />
+          WhatsApp
+          <input
+            type="tel"
+            value={whatsapp}
+            onChange={(e) => {
+              setErro('')
+              setOkMsg('')
+              setWhatsapp(e.target.value)
+            }}
+            className={textInputCls}
+            autoComplete="tel"
+            placeholder="(00) 00000-0000"
+            inputMode="tel"
+          />
+        </label>
+      </div>
+
+      <div className="space-y-3">
+        <label className="block text-sm font-semibold text-gray-800">
+          Documento de identificação
+          <input type="file" accept={ACCEPT} className={`mt-1 ${fileInputCls}`} onChange={onChange(setIdentidade)} />
         </label>
         <label className="block text-sm font-semibold text-gray-800">
-          Comprovante de residência
-          <input type="file" accept={ACCEPT} className={`mt-1 ${inputCls}`} onChange={onChange(setResidencia)} />
+          Comprovante de endereço
+          <input type="file" accept={ACCEPT} className={`mt-1 ${fileInputCls}`} onChange={onChange(setEndereco)} />
         </label>
         <label className="block text-sm font-semibold text-gray-800">
           Comprovante de profissão
-          <input type="file" accept={ACCEPT} className={`mt-1 ${inputCls}`} onChange={onChange(setProfissao)} />
+          <input type="file" accept={ACCEPT} className={`mt-1 ${fileInputCls}`} onChange={onChange(setProfissao)} />
         </label>
       </div>
 
