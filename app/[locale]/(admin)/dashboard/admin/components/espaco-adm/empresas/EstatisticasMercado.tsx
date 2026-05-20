@@ -1,8 +1,10 @@
 'use client'
 
-import { PlaceholderCard } from '../../shared/PlaceholderCard'
-
 export function EstatisticasMercado() {
-  return <PlaceholderCard title="📈 Estatísticas de Mercado (agregado)" />
+  return (
+    <p className="py-4 text-center text-sm text-gray-500">
+      Módulo em desenvolvimento — estatísticas agregadas do mercado serão configuradas em breve.
+    </p>
+  )
 }
 

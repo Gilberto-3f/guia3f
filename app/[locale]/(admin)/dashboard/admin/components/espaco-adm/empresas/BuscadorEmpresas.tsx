@@ -16,9 +16,9 @@ export function BuscadorEmpresas({
   onSelect: (e: EmpresaAdm) => void
 }) {
   return (
-    <div className="mt-3 space-y-3">
+    <div className="space-y-3">
       <input
-        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#0097b2]"
+        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#0097b2]"
         placeholder="Buscar empresa por nome ou @..."
         value={busca}
         onChange={(e) => onBuscaChange(e.target.value)}
