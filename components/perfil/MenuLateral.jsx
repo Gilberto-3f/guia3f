@@ -59,7 +59,6 @@ import AgendamentoAutomatico from '@/components/perfil/subpaginas/AgendamentoAut
 import TabelaValores from '@/components/perfil/subpaginas/TabelaValores'
 import MeusManifestos from '@/components/perfil/subpaginas/MeusManifestos'
 import EditarPaginaEmpresa from '@/components/perfil/subpaginas/EditarPaginaEmpresa'
-import CadastrarComissao from '@/components/perfil/subpaginas/CadastrarComissao'
 import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 import HistoricoStories from '@/components/perfil/subpaginas/HistoricoStories'
 import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
@@ -260,7 +259,7 @@ function secoesEmpresa(ctx) {
     [
       { Icon: Images, label: 'Feed e Storys', href: '/empresa/menu/feed-stories' },
       { Icon: Megaphone, label: 'Publicidade', href: '/empresa/menu/publicidade' },
-      { Icon: DollarSign, label: 'Cadastrar Comissões', subpagina: 'cadastrar-comissao' },
+      { Icon: DollarSign, label: 'Cadastrar Comissão', href: '/empresa/menu/cadastrar-comissao' },
       {
         Icon: ShoppingCart,
         label: 'Compras Paraguai',
@@ -537,7 +536,6 @@ export default function MenuLateral({
         'historico-manifestos': 'Histórico de Manifestos',
         'parcerias-prof': 'Parcerias',
         'editar-pagina': 'Editar Página',
-        'cadastrar-comissao': 'Cadastrar Comissões',
         contratacoes: 'Contratações',
         compras: 'Compras',
         parcerias: 'Parcerias',
@@ -692,7 +690,6 @@ export default function MenuLateral({
     if (id === 'editar-pagina' && empresa && empresaIdEfetivo) {
       return <EditarPaginaEmpresa empresa={empresa} empresaId={String(empresaIdEfetivo)} onSalvo={onPerfilAtualizado} />
     }
-    if (id === 'cadastrar-comissao' && empresaIdEfetivo) return <CadastrarComissao empresaId={empresaIdEfetivo} />
     if (id === 'anexar-documentos')
       return <AnexarDocumentos usuarioId={usuarioIdEfetivo} onConcluido={onPerfilAtualizado} />
     if (id === 'anexar-documentos-empresa' && empresaIdEfetivo && usuarioIdEfetivo)
