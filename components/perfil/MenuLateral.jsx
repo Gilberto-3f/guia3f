@@ -273,7 +273,6 @@ function secoesEmpresa(ctx) {
     ctx
   )
   const gAplic = [
-    { Icon: AlertTriangle, label: 'Avaliações e denúncias', href: '/empresa/menu/denuncias' },
     { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
     itemConfig,
   ]
