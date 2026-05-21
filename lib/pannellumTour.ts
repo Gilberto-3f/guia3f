@@ -4,8 +4,8 @@ import { TOUR_CONFIG_VAZIO } from '@/lib/tour360Types'
 /** Pitch padrão para setas de navegação (nível porta/chão). */
 export const PITCH_HOTSPOT_NAVEGACAO = -12
 
-/** Classe CSS dos hotspots de navegação (setas estilo Street View). */
-export const CSS_HOTSPOT_NAVEGACAO = 'tour-nav-hotspot'
+/** Classes no elemento pnlm-hotspot-base (Pannellum não adiciona pnlm-hotspot quando há cssClass). */
+export const CSS_HOTSPOT_NAVEGACAO = 'pnlm-hotspot tour-nav-hotspot'
 
 export type HotspotPannellumDraft = {
   pitch: number
