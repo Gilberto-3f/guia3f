@@ -154,10 +154,18 @@ function viewToPannellumParams(view?: CenaView360): Record<string, unknown> {
 }
 
 function buildSceneConfig(cena: CenaTour360): Record<string, unknown> {
+  const viewParams = viewToPannellumParams(cena.view)
+  const primeiroHs = cena.hotspots[0]
+  /** Sem vista salva, abre a cena olhando para a primeira seta (se existir). */
+  const vistaParaPrimeiraSeta =
+    !Object.keys(viewParams).length && primeiroHs
+      ? { yaw: primeiroHs.yaw, pitch: primeiroHs.pitch }
+      : {}
   return {
     ...PANNELLUM_VIEW_DEFAULTS,
     panorama: cena.url,
-    ...viewToPannellumParams(cena.view),
+    ...vistaParaPrimeiraSeta,
+    ...viewParams,
     hotSpots: cena.hotspots.map((h) => hotspotNavegacaoParaPannellum(h)),
   }
 }

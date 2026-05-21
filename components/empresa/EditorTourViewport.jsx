@@ -41,12 +41,19 @@ export default function EditorTourViewport({
           className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
           aria-hidden
         >
-          <div
-            className={`flex h-12 w-12 items-center justify-center rounded-full text-xl font-bold text-white shadow-lg ring-2 ring-white/80 ${
-              destinoConectado ? 'bg-[#00D443]' : 'bg-[#0097b2]'
-            }`}
-          >
-            {numeroDestino != null ? numeroDestino : '?'}
+          <div className="flex flex-col items-center drop-shadow-lg">
+            <div
+              className={`flex h-12 w-12 items-center justify-center rounded-full text-xl font-bold text-white ring-2 ring-white/90 ${
+                destinoConectado ? 'bg-[#00D443]' : 'bg-[#0097b2]'
+              }`}
+            >
+              {numeroDestino != null ? numeroDestino : '?'}
+            </div>
+            <div
+              className={`-mt-0.5 h-0 w-0 border-x-[10px] border-t-[14px] border-x-transparent ${
+                destinoConectado ? 'border-t-[#00D443]' : 'border-t-[#0097b2]'
+              }`}
+            />
           </div>
         </div>
 

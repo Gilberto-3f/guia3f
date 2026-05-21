@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import EditorTourPannellum from '@/components/empresa/EditorTourPannellum'
+import EditorTourViewport from '@/components/empresa/EditorTourViewport'
 import {
   calcularStatusTour,
   indiceAmbiente,
@@ -16,7 +16,7 @@ import {
 import { patchEmpresaTour360 } from '@/lib/tour360Api'
 
 /**
- * Editor visual do tour 360° (Pannellum + setas clicáveis + régua de ajuste).
+ * Editor visual do tour 360° (pino fixo no centro + régua; setas no tour via Pannellum).
  *
  * @param {{
  *   empresaId: string
@@ -171,37 +171,28 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
 
       {cenaAtiva ? (
         <>
-          <div className="mb-3">
-            <EditorTourPannellum
-              tour={tour}
-              cenaId={cenaAtiva.id}
-              destinoDraftId={destinoDraftId}
-              destinoIdx={destinoIdx}
-              yawEditor={yawEditor}
+          <div className="mb-2">
+            <EditorTourViewport
+              panoramaUrl={cenaAtiva.url}
+              yawGraus={yawEditor}
               onYawChange={setYawEditor}
+              numeroDestino={destinoIdx}
+              destinoConectado={Boolean(destinoDraftId && hotspotExistenteDestino)}
             />
           </div>
-
-          {destinoDraftId ? (
-            <div className="mb-4 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <span className="shrink-0 text-xs font-bold text-gray-500" aria-hidden>
-                ◄
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={360}
-                step={0.5}
-                value={yawEditor}
-                onChange={(e) => setYawEditor(Number(e.target.value))}
-                className="h-2 min-w-0 flex-1 cursor-ew-resize appearance-none rounded-full bg-gray-200 accent-[#0097b2]"
-                aria-label="Ajuste fino da posição da seta"
-              />
-              <span className="w-12 shrink-0 text-right text-xs font-semibold tabular-nums text-gray-700">
-                {Math.round(yawEditor)}°
-              </span>
-            </div>
-          ) : null}
+          <p className="mb-4 text-center text-[11px] leading-snug text-gray-600">
+            {destinoDraftId ? (
+              <>
+                O ponto no centro é onde a seta ficará na tour. Mova a foto com a régua até o local certo e toque em{' '}
+                <strong>CONECTAR</strong> (ambiente {destinoIdx ?? '?'}).
+              </>
+            ) : (
+              <>
+                Toque em <strong>+ NOVO</strong>, escolha o ambiente de destino e use a régua para alinhar o ponto
+                central.
+              </>
+            )}
+          </p>
 
           <div className="mb-4 flex gap-2">
             <button

@@ -94,9 +94,11 @@ body {
   }
 }
 
-/* Pannellum com cssClass custom usa pnlm-hotspot-base + tour-nav-hotspot (não pnlm-hotspot) */
-.pnlm-hotspot-base.tour-nav-hotspot {
+/* Pannellum com cssClass: elemento = pnlm-hotspot-base + classes custom */
+.pnlm-hotspot-base.tour-nav-hotspot,
+.pnlm-hotspot.tour-nav-hotspot {
   position: relative !important;
+  z-index: 10 !important;
   width: 52px !important;
   height: 52px !important;
   margin-left: -26px !important;
@@ -108,9 +110,11 @@ body {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35) !important;
   cursor: pointer !important;
   opacity: 1 !important;
+  visibility: visible !important;
 }
 
-.pnlm-hotspot-base.tour-nav-hotspot::before {
+.pnlm-hotspot-base.tour-nav-hotspot::before,
+.pnlm-hotspot.tour-nav-hotspot::before {
   content: '';
   position: absolute;
   left: 50%;
@@ -125,16 +129,18 @@ body {
 }
 
 .pnlm-hotspot-base.tour-nav-hotspot .pnlm-tooltip,
-.pnlm-hotspot-base.tour-nav-hotspot span {
+.pnlm-hotspot.tour-nav-hotspot .pnlm-tooltip {
   display: none !important;
 }
 
-.pnlm-hotspot-base.tour-nav-draft {
+.pnlm-hotspot-base.tour-nav-draft,
+.pnlm-hotspot.tour-nav-draft {
   pointer-events: none !important;
   border-color: #00d443 !important;
   animation: tour-nav-pulse 1.4s ease-in-out infinite;
 }
 
-.pnlm-hotspot-base.tour-nav-draft::before {
+.pnlm-hotspot-base.tour-nav-draft::before,
+.pnlm-hotspot.tour-nav-draft::before {
   border-bottom-color: #00d443;
 }
