@@ -47,6 +47,7 @@ import EmergenciaPerdido from '@/components/perfil/subpaginas/emergencia/Emergen
 import EmergenciaSocorro from '@/components/perfil/subpaginas/emergencia/EmergenciaSocorro'
 import EmergenciaMensageiroAdm from '@/components/perfil/subpaginas/emergencia/EmergenciaMensageiroAdm'
 import { prefetchMinhasAtividades } from '@/lib/fetchMinhasAtividades'
+import { prefetchComissoesOfertas } from '@/lib/fetchComissoesOfertas'
 import EditarPerfil from '@/components/perfil/subpaginas/EditarPerfil'
 import MeuHistorico from '@/components/perfil/subpaginas/MeuHistorico'
 import HistoricoCompras from '@/components/perfil/subpaginas/HistoricoCompras'
@@ -221,7 +222,7 @@ function secoesProfissional(ctx) {
         [
           {
             Icon: ClipboardList,
-            label: 'Histórico de Manifestos',
+            label: 'Manifestos Concluídos',
             subpagina: 'historico-manifestos',
             condicional: (c) => c.placaVermelha === true,
           },
@@ -489,7 +490,10 @@ export default function MenuLateral({
     if (!usuarioIdEfetivo) return
     void fetchHistoricoUsuario(usuarioIdEfetivo)
     prefetchMinhasAtividades(supabase, usuarioIdEfetivo)
-  }, [aberto, fetchHistoricoUsuario, usuarioIdEfetivo])
+    if (variant === 'profissional' || menuVariantEfetivo === 'profissional') {
+      prefetchComissoesOfertas(supabase, usuarioIdEfetivo)
+    }
+  }, [aberto, fetchHistoricoUsuario, usuarioIdEfetivo, variant, menuVariantEfetivo])
 
   useEffect(() => {
     if (!aberto) return
@@ -564,7 +568,7 @@ export default function MenuLateral({
         agendamento: 'Agendamento Automático',
         tabela: 'Tabela de Valores',
         manifestos: 'Manifesto',
-        'historico-manifestos': 'Histórico de Manifestos',
+        'historico-manifestos': 'Manifestos Concluídos',
         'parcerias-prof': 'Parcerias',
         'editar-pagina': 'Editar Página',
         contratacoes: 'Contratações',
@@ -579,7 +583,7 @@ export default function MenuLateral({
         'anexar-documentos': 'Anexar Documentos',
         'anexar-documentos-empresa': 'Anexar documentos',
       }
-      const titulosProfissional = ['historico-compras', 'parcerias', 'recomendacoes']
+      const titulosProfissional = ['historico-compras', 'parcerias', 'recomendacoes', 'historico-manifestos']
       const t =
         menuVariantEfetivo === 'profissional' && titulosProfissional.includes(item.subpagina)
           ? item.label
@@ -702,7 +706,7 @@ export default function MenuLateral({
       )
     if (id === 'regras-ecossistema') return <RegrasEcossistema />
     if (id === 'historico-compras') return <HistoricoCompras />
-    if (id === 'comissoes') return <Comissoes />
+    if (id === 'comissoes') return <Comissoes usuarioId={usuarioIdEfetivo} />
     if (id === 'agendamento') return <AgendamentoAutomatico />
     if (id === 'tabela') return <TabelaValores />
     if (id === 'manifestos') return <MeusManifestos />

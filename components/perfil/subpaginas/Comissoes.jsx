@@ -11,20 +11,11 @@ import {
 } from '@/lib/comissoesCategorias'
 import {
   deletarFavoritoEmpresa,
-  listarEmpresaIdsFavoritasPorUsuario,
   payloadFavoritoEmpresa,
 } from '@/lib/favoritosEmpresa'
+import { fetchComissoesOfertasData, getComissoesOfertasCache } from '@/lib/fetchComissoesOfertas'
 
 const SEM_PRAZO_DATA = '2099-12-31'
-
-const SLUG_PARA_OFERTA_CATEGORIA = {
-  motorista_app: 'Motorista de APP',
-  guia: 'Guia de Turismo',
-  van: 'Motorista de Van',
-  taxista: 'Taxista',
-  anfitriao: 'Anfitrião',
-  anfitrião: 'Anfitrião',
-}
 
 const FILTROS_BANDEIRA = [
   { id: 'foz', bandeira: '🇧🇷', label: 'Brasil — Foz do Iguaçu', match: ['foz do iguacu', 'foz do iguaçu'] },
@@ -45,19 +36,6 @@ function cidadeCombinaFiltro(cidade, filtroId) {
   if (!f?.match?.length) return true
   const norm = normalizarTexto(cidade)
   return f.match.some((m) => norm.includes(m))
-}
-
-function ofertaVigente(oferta) {
-  const raw = oferta.beneficios
-  const b =
-    raw && typeof raw === 'object' && !Array.isArray(raw)
-      ? /** @type {{ por_tempo_limitado?: boolean }} */ (raw)
-      : {}
-  if (b.por_tempo_limitado !== true) return true
-  const data = oferta.data_validade ? String(oferta.data_validade).slice(0, 10) : ''
-  if (!data || data === SEM_PRAZO_DATA) return true
-  const hoje = new Date().toISOString().slice(0, 10)
-  return data >= hoje
 }
 
 function listarBeneficiosAtivos(b) {
@@ -84,7 +62,11 @@ function textoValidadeOferta(oferta) {
   return `Válida até ${new Date(data + 'T12:00:00').toLocaleDateString('pt-BR')}`
 }
 
-export default function Comissoes() {
+/**
+ * @param {{ usuarioId?: string | null }} props
+ */
+export default function Comissoes({ usuarioId = null }) {
+  const cacheInicial = usuarioId ? getComissoesOfertasCache(usuarioId) : null
   const filtrosRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const inputBuscaRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const [busca, setBusca] = useState('')
@@ -92,109 +74,54 @@ export default function Comissoes() {
   const [filtroCidade, setFiltroCidade] = useState('foz')
   const [somenteFavoritos, setSomenteFavoritos] = useState(false)
   const [categoriaAba, setCategoriaAba] = useState(/** @type {string} */ (ORDEM_CATEGORIA_COMERCIO[0]))
-  const [ofertas, setOfertas] = useState(/** @type {Array<Record<string, unknown>>} */ ([]))
-  const [favoritosEmpresaIds, setFavoritosEmpresaIds] = useState(/** @type {Set<string>} */ (new Set()))
-  const [carregando, setCarregando] = useState(true)
-  const [erro, setErro] = useState(/** @type {string | null} */ (null))
-  const [semComunidade, setSemComunidade] = useState(false)
+  const [ofertas, setOfertas] = useState(/** @type {Array<Record<string, unknown>>} */ (cacheInicial?.ofertas ?? []))
+  const [favoritosEmpresaIds, setFavoritosEmpresaIds] = useState(
+    /** @type {Set<string>} */ (new Set(cacheInicial?.favoritosEmpresaIds ?? []))
+  )
+  const [carregando, setCarregando] = useState(!cacheInicial)
+  const [erro, setErro] = useState(/** @type {string | null} */ (cacheInicial?.erro ?? null))
+  const [semComunidade, setSemComunidade] = useState(cacheInicial?.semComunidade ?? false)
   const [favLoadingId, setFavLoadingId] = useState(/** @type {string | null} */ (null))
 
-  const carregarFavoritos = useCallback(async (uid) => {
-    try {
-      const ids = await listarEmpresaIdsFavoritasPorUsuario(supabase, uid)
-      setFavoritosEmpresaIds(new Set(ids))
-    } catch (e) {
-      console.error('[Comissoes] favoritos:', e)
-      setFavoritosEmpresaIds(new Set())
-    }
-  }, [])
-
   const carregar = useCallback(async () => {
-    setCarregando(true)
-    setErro(null)
-    setSemComunidade(false)
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    const uid = session?.user?.id ?? null
-    if (!uid) {
+    if (!usuarioId) {
       setOfertas([])
       setErro('Faça login para ver as ofertas.')
+      setSemComunidade(false)
       setCarregando(false)
       return
     }
 
-    await carregarFavoritos(uid)
-
-    const { data: prof } = await supabase.from('profissionais').select('categorias').eq('usuario_id', uid).maybeSingle()
-    const slugs = Array.isArray(prof?.categorias) ? prof.categorias.map((c) => String(c).toLowerCase()) : []
-    const categoriasOferta = [
-      ...new Set(slugs.map((s) => SLUG_PARA_OFERTA_CATEGORIA[/** @type {keyof typeof SLUG_PARA_OFERTA_CATEGORIA} */ (s)]).filter(Boolean)),
-    ]
-
-    if (categoriasOferta.length === 0) {
-      setSemComunidade(true)
-      setOfertas([])
-      setCarregando(false)
-      return
+    const tinhaCache = !!getComissoesOfertasCache(usuarioId)
+    if (!tinhaCache) {
+      setCarregando(true)
+      setErro(null)
+      setSemComunidade(false)
     }
 
-    const { data, error } = await supabase
-      .from('comissao_oferta')
-      .select(
-        `
-        id,
-        empresa_id,
-        categoria_profissional,
-        beneficios,
-        data_validade,
-        created_at,
-        empresas (
-          id,
-          nome_fantasia,
-          nome_usuario,
-          foto_url,
-          cidade,
-          categoria
-        )
-      `
-      )
-      .eq('status', 'aprovada')
-      .in('categoria_profissional', categoriasOferta)
-      .order('created_at', { ascending: false })
-
-    if (error) {
+    try {
+      const { ofertas: lista, favoritosEmpresaIds: favIds, semComunidade: semCom, erro: err } =
+        await fetchComissoesOfertasData(supabase, usuarioId)
+      setOfertas(lista)
+      setFavoritosEmpresaIds(new Set(favIds))
+      setSemComunidade(semCom)
+      setErro(err)
+    } catch (e) {
+      console.error('[Comissoes] carregar:', e)
       setErro('Não foi possível carregar as ofertas de comissão.')
       setOfertas([])
+    } finally {
       setCarregando(false)
-      return
     }
-
-    const vistos = new Set()
-    const dedup = []
-    for (const row of data ?? []) {
-      const empId = String(row.empresa_id ?? '')
-      if (!empId || vistos.has(empId)) continue
-      if (!ofertaVigente(row)) continue
-      vistos.add(empId)
-      dedup.push(row)
-    }
-
-    setOfertas(dedup)
-    setCarregando(false)
-  }, [carregarFavoritos])
+  }, [usuarioId])
 
   useEffect(() => {
     void carregar()
   }, [carregar])
 
   const toggleFavoritoEmpresa = async (empresaId) => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    const uid = session?.user?.id
-    if (!uid || !empresaId) return
+    if (!usuarioId || !empresaId) return
+    const uid = usuarioId
 
     setFavLoadingId(empresaId)
     const eraFav = favoritosEmpresaIds.has(empresaId)
