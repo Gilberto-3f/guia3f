@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
-import { Info, Search, Star } from 'lucide-react'
+import { ChevronDown, Info, Search, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
   ORDEM_CATEGORIA_COMERCIO,
@@ -71,6 +72,34 @@ function listarBeneficiosAtivos(b) {
 function BotaoInfoBeneficio({ tipo, aberto, onToggle, onFechar }) {
   const btnRef = useRef(/** @type {HTMLButtonElement | null} */ (null))
   const popupRef = useRef(/** @type {HTMLDivElement | null} */ (null))
+  const [popupPos, setPopupPos] = useState(/** @type {{ top: number; left: number; width: number } | null} */ (null))
+
+  const atualizarPosicao = useCallback(() => {
+    const btn = btnRef.current
+    if (!btn) return
+    const rect = btn.getBoundingClientRect()
+    const largura = Math.min(264, window.innerWidth - 24)
+    const left = Math.max(12, Math.min(rect.right - largura, window.innerWidth - largura - 12))
+    setPopupPos({
+      top: rect.bottom + 10,
+      left,
+      width: largura,
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!aberto) {
+      setPopupPos(null)
+      return
+    }
+    atualizarPosicao()
+    window.addEventListener('resize', atualizarPosicao)
+    window.addEventListener('scroll', atualizarPosicao, true)
+    return () => {
+      window.removeEventListener('resize', atualizarPosicao)
+      window.removeEventListener('scroll', atualizarPosicao, true)
+    }
+  }, [aberto, atualizarPosicao])
 
   useEffect(() => {
     if (!aberto) return
@@ -87,6 +116,21 @@ function BotaoInfoBeneficio({ tipo, aberto, onToggle, onFechar }) {
     }
   }, [aberto, onFechar])
 
+  const popup =
+    aberto && popupPos && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={popupRef}
+            role="tooltip"
+            style={{ position: 'fixed', top: popupPos.top, left: popupPos.left, width: popupPos.width }}
+            className="z-[200] rounded-lg bg-[#0097b2] px-3 py-2.5 text-left text-xs leading-snug text-white shadow-lg"
+          >
+            {INFO_BENEFICIO[tipo]}
+          </div>,
+          document.body
+        )
+      : null
+
   return (
     <div className="relative shrink-0 self-start">
       <button
@@ -102,15 +146,7 @@ function BotaoInfoBeneficio({ tipo, aberto, onToggle, onFechar }) {
       >
         <Info className="h-4 w-4" strokeWidth={2.25} aria-hidden />
       </button>
-      {aberto ? (
-        <div
-          ref={popupRef}
-          role="tooltip"
-          className="absolute right-0 top-full z-30 mt-1 w-[min(16.5rem,calc(100vw-2.5rem))] rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-xs leading-snug text-gray-700 shadow-lg"
-        >
-          {INFO_BENEFICIO[tipo]}
-        </div>
-      ) : null}
+      {popup}
     </div>
   )
 }
@@ -148,6 +184,7 @@ export default function Comissoes({ usuarioId = null }) {
   const [semComunidade, setSemComunidade] = useState(cacheInicial?.semComunidade ?? false)
   const [favLoadingId, setFavLoadingId] = useState(/** @type {string | null} */ (null))
   const [beneficioInfoAberto, setBeneficioInfoAberto] = useState(/** @type {string | null} */ (null))
+  const [cardsExpandidos, setCardsExpandidos] = useState(/** @type {Set<string>} */ (new Set()))
 
   const carregar = useCallback(async () => {
     if (!usuarioId) {
@@ -429,73 +466,105 @@ export default function Comissoes({ usuarioId = null }) {
               .trim()
             const fotoUrl = empresa.foto_url ? String(empresa.foto_url) : null
             const favBusy = favLoadingId === empresaId
+            const cardKey = empresaId || String(oferta.id)
+            const expandido = cardsExpandidos.has(cardKey)
 
             return (
-              <li key={String(oferta.id)} className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                <button
-                  type="button"
-                  disabled={favBusy}
-                  onClick={() => void toggleFavoritoEmpresa(empresaId)}
-                  className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 shadow-sm ring-1 ring-gray-200 transition hover:bg-amber-50 disabled:opacity-50"
-                  aria-label={isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-                  aria-pressed={isFav}
-                >
-                  <Star
-                    className={`h-5 w-5 ${isFav ? 'fill-amber-400 text-amber-500' : 'text-gray-400'}`}
-                    strokeWidth={2}
-                    aria-hidden
-                  />
-                </button>
-
-                <div className="flex items-center gap-3 border-b border-gray-100 px-3 py-3 pr-12">
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                    {fotoUrl ? (
-                      <Image src={fotoUrl} alt="" fill className="object-cover" sizes="48px" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">—</div>
-                    )}
+              <li key={String(oferta.id)} className="relative rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="relative px-3 py-3 pr-12">
+                  <div className="flex items-center gap-3">
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                      {fotoUrl ? (
+                        <Image src={fotoUrl} alt="" fill className="object-cover" sizes="48px" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">—</div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-gray-900">{nomeFantasia}</p>
+                      {username ? (
+                        <p className="truncate text-xs font-medium text-[#0097b2]">@{username}</p>
+                      ) : (
+                        <p className="text-xs text-gray-400">—</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-gray-900">{nomeFantasia}</p>
-                    {username ? (
-                      <p className="truncate text-xs font-medium text-[#0097b2]">@{username}</p>
-                    ) : (
-                      <p className="text-xs text-gray-400">—</p>
-                    )}
+
+                  <div className="absolute right-2 top-2 z-10 flex flex-col items-center gap-0.5">
+                    <button
+                      type="button"
+                      disabled={favBusy}
+                      onClick={() => void toggleFavoritoEmpresa(empresaId)}
+                      className="flex h-8 w-8 items-center justify-center transition disabled:opacity-50"
+                      aria-label={isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                      aria-pressed={isFav}
+                    >
+                      <Star
+                        className={`h-5 w-5 ${isFav ? 'fill-amber-400 text-amber-500' : 'text-gray-400'}`}
+                        strokeWidth={2}
+                        aria-hidden
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCardsExpandidos((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(cardKey)) {
+                            next.delete(cardKey)
+                            setBeneficioInfoAberto(null)
+                          } else {
+                            next.add(cardKey)
+                          }
+                          return next
+                        })
+                      }}
+                      className="flex h-7 w-8 items-center justify-center text-[#0097b2] transition hover:bg-[#0097b2]/10 rounded-md"
+                      aria-expanded={expandido}
+                      aria-label={expandido ? 'Ocultar oferta da empresa' : 'Ver oferta da empresa'}
+                    >
+                      <ChevronDown
+                        className={`h-5 w-5 transition-transform duration-200 ${expandido ? 'rotate-180' : ''}`}
+                        strokeWidth={2.25}
+                        aria-hidden
+                      />
+                    </button>
                   </div>
                 </div>
 
-                <div className="space-y-2 px-3 py-3">
-                  <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Oferta da Empresa</p>
-                  {itens.length === 0 ? (
-                    <p className="text-sm text-gray-500">Nenhum benefício cadastrado nesta proposta.</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {itens.map((item) => {
-                        const infoKey = `${String(oferta.id)}-${item.tipo}`
-                        return (
-                          <li key={infoKey} className="rounded-lg bg-gray-50 px-3 py-2">
-                            <div className="flex items-center gap-2">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-medium text-gray-700">{item.label}</p>
-                                <p className="text-sm font-semibold text-[#001f3f]">{item.valor}</p>
+                {expandido ? (
+                  <div className="space-y-2 border-t border-gray-100 px-3 py-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Oferta da Empresa</p>
+                    {itens.length === 0 ? (
+                      <p className="text-sm text-gray-500">Nenhum benefício cadastrado nesta proposta.</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {itens.map((item) => {
+                          const infoKey = `${String(oferta.id)}-${item.tipo}`
+                          return (
+                            <li key={infoKey} className="rounded-lg bg-gray-50 px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-medium text-gray-700">{item.label}</p>
+                                  <p className="text-sm font-semibold text-[#001f3f]">{item.valor}</p>
+                                </div>
+                                <BotaoInfoBeneficio
+                                  tipo={item.tipo}
+                                  aberto={beneficioInfoAberto === infoKey}
+                                  onToggle={() =>
+                                    setBeneficioInfoAberto((atual) => (atual === infoKey ? null : infoKey))
+                                  }
+                                  onFechar={() => setBeneficioInfoAberto(null)}
+                                />
                               </div>
-                              <BotaoInfoBeneficio
-                                tipo={item.tipo}
-                                aberto={beneficioInfoAberto === infoKey}
-                                onToggle={() =>
-                                  setBeneficioInfoAberto((atual) => (atual === infoKey ? null : infoKey))
-                                }
-                                onFechar={() => setBeneficioInfoAberto(null)}
-                              />
-                            </div>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  )}
-                  {validadeTxt ? <p className="text-xs text-amber-700">{validadeTxt}</p> : null}
-                </div>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
+                    {validadeTxt ? <p className="text-xs text-amber-700">{validadeTxt}</p> : null}
+                  </div>
+                ) : null}
               </li>
             )
           })}
