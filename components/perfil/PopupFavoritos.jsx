@@ -7,6 +7,7 @@ import { Heart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import BotaoSeguir from '@/components/BotaoSeguir'
 import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
+import { listarEmpresaIdsFavoritasPorUsuario, usuarioSegueEmpresa } from '@/lib/favoritosEmpresa'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 /**
@@ -36,14 +37,13 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
   const souEu = meuId != null && meuId === profileId
 
   const carregar = useCallback(async () => {
-    const { data: fav, error: errFav } = await supabase
-      .from('favoritos')
-      .select('alvo_id')
-      .eq('usuario_id', profileId)
-      .eq('alvo_tipo', 'empresa')
-    if (errFav) console.error('Favoritos (empresas):', errFav)
+    let empresaIds = []
+    try {
+      empresaIds = await listarEmpresaIdsFavoritasPorUsuario(supabase, profileId)
+    } catch (errFav) {
+      console.error('Favoritos (empresas):', errFav)
+    }
 
-    const empresaIds = [...new Set((fav ?? []).map((r) => String(r.alvo_id)).filter(Boolean))]
     setCountEmpresasFavoritas(empresaIds.length)
     if (empresaIds.length === 0) {
       setEmps([])
@@ -91,14 +91,13 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
       )
 
       if (meuId && empresaIds.length > 0) {
-        const { data: meusFav, error: errMF } = await supabase
-          .from('favoritos')
-          .select('alvo_id')
-          .eq('usuario_id', meuId)
-          .eq('alvo_tipo', 'empresa')
-          .in('alvo_id', empresaIds)
-        if (errMF) console.error('favoritos (visitante):', errMF)
-        setMeuFavEmpresaIds(new Set((meusFav ?? []).map((r) => String(r.alvo_id)).filter(Boolean)))
+        const favSet = new Set()
+        await Promise.all(
+          empresaIds.map(async (eid) => {
+            if (await usuarioSegueEmpresa(supabase, meuId, eid)) favSet.add(eid)
+          })
+        )
+        setMeuFavEmpresaIds(favSet)
       } else {
         setMeuFavEmpresaIds(new Set())
       }
@@ -196,7 +195,9 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
         ? emps.map((row) => {
             const href = getPerfilHref({ ...row, tipo: 'empresa' })
             const eid = row.empresa_id ? String(row.empresa_id) : ''
-                const jaFavVisitante = eid ? meuFavEmpresaIds.has(eid) : false
+                const perfilSegueEmpresa = true
+                const visitanteSegue = eid ? meuFavEmpresaIds.has(eid) : false
+                const mostrarSeguindo = souEu ? perfilSegueEmpresa : visitanteSegue
                 return (
                   <div key={eid || row.usuario_id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
                     <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50">
@@ -211,7 +212,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
                     {meuId && eid ? (
                       <BotaoSeguir
                         empresaId={eid}
-                        isFollowing={souEu ? true : jaFavVisitante}
+                        isFollowing={mostrarSeguindo}
                         layout="inline"
                         size="compact"
                         leadingIcon="none"

@@ -521,7 +521,8 @@ export default function PerfilSocialPage() {
     [postsFotos.length, postsTexto.length, repostadosPosts.length]
   )
 
-  const favoritosTotal = nFavEmp + nFavUsers
+  /** Contador do coração: apenas perfis seguidos (turistas/profissionais), não empresas favoritadas. */
+  const favoritosTotal = nFavUsers
 
   const abrirFavoritos = useCallback(() => {
     setPopSeg(false)

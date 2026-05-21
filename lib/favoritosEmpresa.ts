@@ -125,3 +125,49 @@ export async function listarUsuarioIdsSeguidoresEmpresa(
   }
   return [...ids]
 }
+
+/** IDs de empresas favoritadas/seguidas por um utilizador (`favoritos` legado + `alvo_id`). */
+export async function listarEmpresaIdsFavoritasPorUsuario(
+  supabase: SupabaseClient,
+  usuarioId: string
+): Promise<string[]> {
+  const uid = String(usuarioId)
+
+  const { data, error } = await supabase
+    .from('favoritos')
+    .select('empresa_id, alvo_id, alvo_tipo')
+    .eq('usuario_id', uid)
+
+  if (error) {
+    const [porTipo, porEmpresa] = await Promise.all([
+      supabase
+        .from('favoritos')
+        .select('empresa_id, alvo_id, alvo_tipo')
+        .eq('usuario_id', uid)
+        .eq('alvo_tipo', 'empresa'),
+      supabase.from('favoritos').select('empresa_id, alvo_id, alvo_tipo').eq('usuario_id', uid).not('empresa_id', 'is', null),
+    ])
+    const rows = [...(porTipo.data ?? []), ...(porEmpresa.data ?? [])]
+    const ids = new Set<string>()
+    for (const row of rows) {
+      const eid = String(row.alvo_id ?? row.empresa_id ?? '').trim()
+      if (eid && favoritoSegueEmpresa(row, eid)) ids.add(eid)
+    }
+    return [...ids]
+  }
+
+  const ids = new Set<string>()
+  for (const row of data ?? []) {
+    const eidEmpresa = row.empresa_id != null ? String(row.empresa_id).trim() : ''
+    if (eidEmpresa) {
+      ids.add(eidEmpresa)
+      continue
+    }
+    if (row.alvo_id == null) continue
+    const tipo = row.alvo_tipo != null ? String(row.alvo_tipo).toLowerCase() : ''
+    if (tipo !== '' && tipo !== 'empresa') continue
+    const eid = String(row.alvo_id).trim()
+    if (eid) ids.add(eid)
+  }
+  return [...ids]
+}

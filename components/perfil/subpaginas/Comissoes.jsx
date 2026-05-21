@@ -9,6 +9,7 @@ import {
   ROTULO_CATEGORIA_COMERCIO,
   categoriaCombinaChaveComercio,
 } from '@/lib/comissoesCategorias'
+import { payloadFavoritoEmpresa } from '@/lib/favoritosEmpresa'
 
 const SEM_PRAZO_DATA = '2099-12-31'
 
@@ -223,11 +224,7 @@ export default function Comissoes() {
           return next
         })
       } else {
-        const { error } = await supabase.from('favoritos').insert({
-          usuario_id: uid,
-          alvo_id: empresaId,
-          alvo_tipo: 'empresa',
-        })
+        const { error } = await supabase.from('favoritos').insert(payloadFavoritoEmpresa(uid, empresaId))
         if (error) throw error
         setFavoritosEmpresaIds((prev) => new Set(prev).add(empresaId))
       }

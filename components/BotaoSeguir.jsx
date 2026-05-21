@@ -66,13 +66,16 @@ export default function BotaoSeguir({
       const uid = session?.user?.id
       if (!uid || cancelado) return
       const segue = await usuarioSegueEmpresa(supabase, uid, idEmpresa)
-      if (!cancelado && !loading) setSeguindo(segue)
+      if (!cancelado && !loading) {
+        /** Não rebaixar para "Seguir" se o pai já indicou seguindo (ex.: popup de favoritos próprios). */
+        setSeguindo(Boolean(segue) || Boolean(initialFollowing))
+      }
     })()
 
     return () => {
       cancelado = true
     }
-  }, [empresaId, alvoId, alvoTipo, loading])
+  }, [empresaId, alvoId, alvoTipo, loading, initialFollowing])
 
   const handleToggle = async (e) => {
     e.stopPropagation()
