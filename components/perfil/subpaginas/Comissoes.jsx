@@ -80,6 +80,7 @@ function textoValidadeOferta(oferta) {
 }
 
 export default function Comissoes() {
+  const filtrosRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const inputBuscaRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const [busca, setBusca] = useState('')
   const [pesquisaAberta, setPesquisaAberta] = useState(false)
@@ -263,6 +264,26 @@ export default function Comissoes() {
     setBusca('')
   }, [])
 
+  useEffect(() => {
+    if (!pesquisaAberta) return
+    const t = window.requestAnimationFrame(() => inputBuscaRef.current?.focus())
+    return () => window.cancelAnimationFrame(t)
+  }, [pesquisaAberta])
+
+  useEffect(() => {
+    if (!pesquisaAberta) return
+    const onPointerDown = (e) => {
+      const el = filtrosRef.current
+      if (el && !el.contains(/** @type {Node} */ (e.target))) fecharPesquisa()
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('touchstart', onPointerDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('touchstart', onPointerDown)
+    }
+  }, [pesquisaAberta, fecharPesquisa])
+
   const bandeiraBtnCls = (ativo) =>
     `flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-lg transition ${
       ativo
@@ -274,63 +295,48 @@ export default function Comissoes() {
     <div className="space-y-4 px-1 pb-2">
       <h1 className="text-xl font-bold text-[#001f3f]">Comissões</h1>
 
-      <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Cidade</p>
-        <div className="relative flex min-h-11 items-center gap-2">
-          <div className="relative min-h-11 min-w-0 flex-1 overflow-hidden">
-            <div
-              className={`flex h-full items-center gap-2 transition-[opacity,transform] duration-300 ease-out ${
-                pesquisaAberta ? 'pointer-events-none -translate-x-full opacity-0' : 'translate-x-0 opacity-100'
-              }`}
-              aria-hidden={pesquisaAberta}
-            >
-              {FILTROS_BANDEIRA.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={bandeiraBtnCls(!somenteFavoritos && filtroCidade === c.id)}
-                  onClick={() => {
-                    setSomenteFavoritos(false)
-                    setFiltroCidade(c.id)
-                  }}
-                  aria-label={c.label}
-                  title={c.label}
-                >
-                  <span aria-hidden>{c.bandeira}</span>
-                </button>
-              ))}
-            </div>
-
-            <div
-              className={`absolute inset-0 flex items-center transition-[opacity,transform] duration-300 ease-out ${
-                pesquisaAberta ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-full opacity-0'
-              }`}
-            >
-              <div className="flex w-full min-w-0 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
-                <Search className="pointer-events-none h-4 w-4 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
-                <input
-                  ref={inputBuscaRef}
-                  type="search"
-                  tabIndex={pesquisaAberta ? 0 : -1}
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar empresa pelo nome…"
-                  className="min-w-0 flex-1 border-0 bg-transparent py-0.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
-                  aria-label="Buscar empresa pelo nome"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      e.preventDefault()
-                      fecharPesquisa()
-                    }
-                  }}
-                />
-              </div>
-            </div>
+      <div ref={filtrosRef} className="space-y-2">
+        {pesquisaAberta ? (
+          <div className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
+            <Search className="pointer-events-none h-4 w-4 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
+            <input
+              ref={inputBuscaRef}
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar empresa pelo nome…"
+              className="min-w-0 flex-1 border-0 bg-transparent py-0.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
+              aria-label="Buscar empresa pelo nome"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  fecharPesquisa()
+                }
+              }}
+            />
           </div>
+        ) : null}
+
+        <div className="flex min-h-11 items-center gap-2">
+          {FILTROS_BANDEIRA.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={bandeiraBtnCls(!somenteFavoritos && filtroCidade === c.id)}
+              onClick={() => {
+                setSomenteFavoritos(false)
+                setFiltroCidade(c.id)
+              }}
+              aria-label={c.label}
+              title={c.label}
+            >
+              <span aria-hidden>{c.bandeira}</span>
+            </button>
+          ))}
 
           <button
             type="button"
-            className={`${bandeiraBtnCls(somenteFavoritos)} relative z-10`}
+            className={`${bandeiraBtnCls(somenteFavoritos)} ml-auto`}
             onClick={() => setSomenteFavoritos((v) => !v)}
             aria-label="Favoritos"
             aria-pressed={somenteFavoritos}
@@ -345,7 +351,11 @@ export default function Comissoes() {
 
           <button
             type="button"
-            className={`${bandeiraBtnCls(false)} relative z-10`}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition ${
+              pesquisaAberta
+                ? 'border-[#0097b2] bg-[#0097b2] ring-2 ring-[#0097b2]/40'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}
             aria-label={pesquisaAberta ? 'Fechar pesquisa' : 'Abrir pesquisa'}
             aria-expanded={pesquisaAberta}
             onClick={() => {
@@ -359,13 +369,21 @@ export default function Comissoes() {
               })
             }}
           >
-            <Search className="h-5 w-5 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
+            <Search
+              className={`h-5 w-5 ${pesquisaAberta ? 'text-white' : 'text-[#0097b2]'}`}
+              strokeWidth={2.25}
+              aria-hidden
+            />
           </button>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl bg-[#0097b2]" role="tablist" aria-label="Categorias de comércio">
-        <div className="flex gap-1 p-1">
+      <div
+        className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+        role="tablist"
+        aria-label="Categorias de comércio"
+      >
+        <div className="grid grid-cols-4 gap-0.5 p-0.5">
           {ORDEM_CATEGORIA_COMERCIO.map((cat) => {
             const ativo = categoriaAba === cat
             const meta = ROTULO_CATEGORIA_COMERCIO[/** @type {keyof typeof ROTULO_CATEGORIA_COMERCIO} */ (cat)]
@@ -379,14 +397,23 @@ export default function Comissoes() {
                 aria-selected={ativo}
                 aria-label={rotulo}
                 onClick={() => setCategoriaAba(cat)}
-                className={`flex min-h-[3rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-center transition-all sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2.5 ${
-                  ativo ? 'bg-white font-semibold text-[#0097b2] shadow-sm' : 'text-white hover:bg-white/15'
+                className={`flex min-h-[3.25rem] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 py-2 text-center transition-all ${
+                  ativo
+                    ? 'bg-[#0097b2] font-semibold text-white shadow-sm'
+                    : 'text-[#0097b2] hover:bg-[#0097b2]/8'
                 }`}
               >
-                <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                {ativo ? (
-                  <span className="max-w-full text-[0.65rem] font-medium leading-tight min-[400px]:text-xs">{rotulo}</span>
-                ) : null}
+                <Icon
+                  className={`h-[1.125rem] w-[1.125rem] shrink-0 sm:h-5 sm:w-5 ${ativo ? 'text-white' : 'text-[#0097b2]'}`}
+                  aria-hidden
+                />
+                <span
+                  className={`w-full px-0.5 text-[9px] font-medium leading-tight tracking-tight sm:text-[10px] ${
+                    ativo ? 'text-white' : 'text-[#0097b2]'
+                  }`}
+                >
+                  {rotulo}
+                </span>
               </button>
             )
           })}
