@@ -183,12 +183,12 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
           <p className="mb-4 text-center text-[11px] leading-snug text-gray-600">
             {destinoDraftId ? (
               <>
-                O ponto no centro é onde a seta ficará na tour. Mova a foto com a régua até o local certo e toque em{' '}
-                <strong>CONECTAR</strong> (ambiente {destinoIdx ?? '?'}).
+                O ponto no centro é onde a seta ficará na tour. Arraste a foto com o dedo (esquerda/direita) até o local
+                certo e toque em <strong>CONECTAR</strong> (ambiente {destinoIdx ?? '?'}).
               </>
             ) : (
               <>
-                Toque em <strong>+ NOVO</strong>, escolha o ambiente de destino e use a régua para alinhar o ponto
+                Toque em <strong>+ NOVO</strong>, escolha o ambiente de destino e arraste a foto para alinhar o ponto
                 central.
               </>
             )}
