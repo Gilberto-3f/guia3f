@@ -16,9 +16,10 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
  *   onFechar: () => void
  *   profileId: string
  *   meuId: string | null
+ *   onMetricasAlteradas?: () => void
  * }} props
  */
-export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
+export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onMetricasAlteradas }) {
   useModalScrollLock(aberto)
   const [aba, setAba] = useState(/** @type {'empresas' | 'usuarios'} */ ('empresas'))
   const [emps, setEmps] = useState(
@@ -136,7 +137,11 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId }) {
         }))
       )
     }
-  }, [profileId, meuId])
+
+    if (meuId != null && meuId === profileId) {
+      onMetricasAlteradas?.()
+    }
+  }, [profileId, meuId, onMetricasAlteradas])
 
   useEffect(() => {
     if (aberto) void carregar()

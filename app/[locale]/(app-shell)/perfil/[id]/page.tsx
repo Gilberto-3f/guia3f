@@ -521,8 +521,8 @@ export default function PerfilSocialPage() {
     [postsFotos.length, postsTexto.length, repostadosPosts.length]
   )
 
-  /** Contador do coração: apenas perfis seguidos (turistas/profissionais), não empresas favoritadas. */
-  const favoritosTotal = nFavUsers
+  /** Contador do coração: empresas favoritadas + perfis seguidos (igual ao popup FAVORITOS). */
+  const favoritosTotal = nFavEmp + nFavUsers
 
   const abrirFavoritos = useCallback(() => {
     setPopSeg(false)
@@ -705,7 +705,16 @@ export default function PerfilSocialPage() {
         onPerfilAtualizado={() => void carregar()}
       />
 
-      <PopupFavoritos aberto={popFav} onFechar={() => setPopFav(false)} profileId={profileId} meuId={meuId} />
+      <PopupFavoritos
+        aberto={popFav}
+        onFechar={() => {
+          setPopFav(false)
+          void atualizarMetricasPerfil()
+        }}
+        onMetricasAlteradas={() => void atualizarMetricasPerfil()}
+        profileId={profileId}
+        meuId={meuId}
+      />
       <PopupSeguidores aberto={popSeg} onFechar={() => setPopSeg(false)} profileId={profileId} meuId={meuId} />
       <PopupAvaliacoes
         aberto={popAval}
