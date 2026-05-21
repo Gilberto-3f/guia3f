@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Search, Star } from 'lucide-react'
+import { Info, Search, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
   ORDEM_CATEGORIA_COMERCIO,
@@ -38,16 +38,81 @@ function cidadeCombinaFiltro(cidade, filtroId) {
   return f.match.some((m) => norm.includes(m))
 }
 
+/** @type {Record<'pax' | 'percentual' | 'fixo' | 'extra', string>} */
+const INFO_BENEFICIO = {
+  pax: 'Comissão paga por passageiro direcionado para nossa loja (comprando/consumindo ou não).',
+  percentual: 'Comissão é uma porcentagem paga sobre a compra ou consumo do cliente na empresa.',
+  fixo: 'Comissão é um valor fixo por passageiro que consumir ou comprar na empresa.',
+  extra: 'Um benefício particular e personalizado que a empresa oferece além das comissões.',
+}
+
 function listarBeneficiosAtivos(b) {
-  /** @type {{ label: string, valor: string }[]} */
+  /** @type {{ tipo: 'pax' | 'percentual' | 'fixo' | 'extra', label: string, valor: string }[]} */
   const itens = []
-  if (b.pax?.ativo) itens.push({ label: 'PAX (por cliente)', valor: `R$ ${b.pax.valor ?? 0}` })
-  if (b.percentual?.ativo) itens.push({ label: '% sobre venda', valor: `${b.percentual.valor ?? 0}%` })
-  if (b.fixo?.ativo) itens.push({ label: 'Valor fixo por indicação', valor: `R$ ${b.fixo.valor ?? 0}` })
+  if (b.pax?.ativo) itens.push({ tipo: 'pax', label: 'PAX (por cliente)', valor: `R$ ${b.pax.valor ?? 0}` })
+  if (b.percentual?.ativo)
+    itens.push({ tipo: 'percentual', label: '% sobre venda', valor: `${b.percentual.valor ?? 0}%` })
+  if (b.fixo?.ativo)
+    itens.push({ tipo: 'fixo', label: 'Valor fixo por indicação', valor: `R$ ${b.fixo.valor ?? 0}` })
   if (b.extra?.ativo && String(b.extra.texto ?? '').trim()) {
-    itens.push({ label: 'Benefício extra', valor: String(b.extra.texto).trim() })
+    itens.push({ tipo: 'extra', label: 'Benefício extra', valor: String(b.extra.texto).trim() })
   }
   return itens
+}
+
+/**
+ * @param {{
+ *   tipo: 'pax' | 'percentual' | 'fixo' | 'extra'
+ *   aberto: boolean
+ *   onToggle: () => void
+ *   onFechar: () => void
+ * }} props
+ */
+function BotaoInfoBeneficio({ tipo, aberto, onToggle, onFechar }) {
+  const btnRef = useRef(/** @type {HTMLButtonElement | null} */ (null))
+  const popupRef = useRef(/** @type {HTMLDivElement | null} */ (null))
+
+  useEffect(() => {
+    if (!aberto) return
+    const onPointerDown = (e) => {
+      const alvo = /** @type {Node} */ (e.target)
+      if (btnRef.current?.contains(alvo) || popupRef.current?.contains(alvo)) return
+      onFechar()
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('touchstart', onPointerDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('touchstart', onPointerDown)
+    }
+  }, [aberto, onFechar])
+
+  return (
+    <div className="relative shrink-0 self-start">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggle()
+        }}
+        className="flex h-7 w-7 items-center justify-center rounded-full text-[#0097b2] transition hover:bg-[#0097b2]/10"
+        aria-label={`Informações sobre ${tipo}`}
+        aria-expanded={aberto}
+      >
+        <Info className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+      </button>
+      {aberto ? (
+        <div
+          ref={popupRef}
+          role="tooltip"
+          className="absolute right-0 top-full z-30 mt-1 w-[min(16.5rem,calc(100vw-2.5rem))] rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-xs leading-snug text-gray-700 shadow-lg"
+        >
+          {INFO_BENEFICIO[tipo]}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function textoValidadeOferta(oferta) {
@@ -82,6 +147,7 @@ export default function Comissoes({ usuarioId = null }) {
   const [erro, setErro] = useState(/** @type {string | null} */ (cacheInicial?.erro ?? null))
   const [semComunidade, setSemComunidade] = useState(cacheInicial?.semComunidade ?? false)
   const [favLoadingId, setFavLoadingId] = useState(/** @type {string | null} */ (null))
+  const [beneficioInfoAberto, setBeneficioInfoAberto] = useState(/** @type {string | null} */ (null))
 
   const carregar = useCallback(async () => {
     if (!usuarioId) {
@@ -405,12 +471,27 @@ export default function Comissoes({ usuarioId = null }) {
                     <p className="text-sm text-gray-500">Nenhum benefício cadastrado nesta proposta.</p>
                   ) : (
                     <ul className="space-y-2">
-                      {itens.map((item) => (
-                        <li key={item.label} className="rounded-lg bg-gray-50 px-3 py-2">
-                          <p className="text-xs font-medium text-gray-700">{item.label}</p>
-                          <p className="text-sm font-semibold text-[#001f3f]">{item.valor}</p>
-                        </li>
-                      ))}
+                      {itens.map((item) => {
+                        const infoKey = `${String(oferta.id)}-${item.tipo}`
+                        return (
+                          <li key={infoKey} className="rounded-lg bg-gray-50 px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-gray-700">{item.label}</p>
+                                <p className="text-sm font-semibold text-[#001f3f]">{item.valor}</p>
+                              </div>
+                              <BotaoInfoBeneficio
+                                tipo={item.tipo}
+                                aberto={beneficioInfoAberto === infoKey}
+                                onToggle={() =>
+                                  setBeneficioInfoAberto((atual) => (atual === infoKey ? null : infoKey))
+                                }
+                                onFechar={() => setBeneficioInfoAberto(null)}
+                              />
+                            </div>
+                          </li>
+                        )
+                      })}
                     </ul>
                   )}
                   {validadeTxt ? <p className="text-xs text-amber-700">{validadeTxt}</p> : null}
