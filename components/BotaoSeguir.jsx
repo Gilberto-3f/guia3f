@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Heart, UserCheck, UserPlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { deletarFavoritoEmpresa, payloadFavoritoEmpresa } from '@/lib/favoritosEmpresa'
+import { deletarFavoritoEmpresa, payloadFavoritoEmpresa, usuarioSegueEmpresa } from '@/lib/favoritosEmpresa'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 function debugSeguir(/** @type {unknown[]} */ ...args) {
@@ -46,16 +46,33 @@ export default function BotaoSeguir({
   const [erro, setErro] = useState(/** @type {string | null} */ (null))
   const [loading, setLoading] = useState(false)
 
-  /** Evita que `isFollowing` desatualizado do pai sobrescreva o estado durante o request. */
+  /** Sincroniza com a prop do pai; durante request não sobrescreve estado otimista. */
   useEffect(() => {
-    debugSeguir('[BotaoSeguir] useEffect sync', {
-      initialFollowing,
-      loading,
-      acao: loading ? 'skip (loading)' : 'setSeguindo(initialFollowing)',
-    })
     if (loading) return
     setSeguindo(initialFollowing)
   }, [initialFollowing, loading])
+
+  /** Confirma no Supabase (fonte de verdade) — evita prop desatualizada do pai. */
+  useEffect(() => {
+    const idEmpresa = String(empresaId || alvoId || '')
+    const tipo = alvoTipo || (empresaId ? 'empresa' : 'usuario')
+    if (tipo !== 'empresa' || !idEmpresa) return
+
+    let cancelado = false
+    void (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id
+      if (!uid || cancelado) return
+      const segue = await usuarioSegueEmpresa(supabase, uid, idEmpresa)
+      if (!cancelado && !loading) setSeguindo(segue)
+    })()
+
+    return () => {
+      cancelado = true
+    }
+  }, [empresaId, alvoId, alvoTipo, loading])
 
   const handleToggle = async (e) => {
     e.stopPropagation()
