@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
-import type { TourConfig } from '@/lib/tour360Types'
 import {
   buildPannellumEditorConfig,
   CSS_HOTSPOT_NAVEGACAO,
@@ -18,7 +17,7 @@ import {
  * Editor 360° com Pannellum: setas salvas + rascunho; clique na cena posiciona a seta.
  *
  * @param {{
- *   tour: TourConfig
+ *   tour: import('@/lib/tour360Types').TourConfig
  *   cenaId: string
  *   destinoDraftId: string | null
  *   destinoIdx: number | null
