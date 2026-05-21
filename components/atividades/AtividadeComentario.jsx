@@ -19,12 +19,16 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  *   comentarioId?: string | null
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
+ *   atorVerificado?: boolean
+ *   donoVerificado?: boolean
  * }} props
  */
 export default function AtividadeComentario({
   usernameAtor,
   interactorFoto,
   usernameDono,
+  atorVerificado = false,
+  donoVerificado = false,
   hrefInteractor,
   hrefDono,
   emFoto,
