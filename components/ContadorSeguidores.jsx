@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { contarSeguidoresEmpresa } from '@/lib/favoritosEmpresa'
 import PopupSeguidores from '@/components/PopupSeguidores'
 
 /**
@@ -18,13 +19,12 @@ export default function ContadorSeguidores({ empresaId, total }) {
 
   const atualizarTotalDoServidor = useCallback(async () => {
     if (!empresaId) return
-    const { count, error } = await supabase
-      .from('favoritos')
-      .select('id', { count: 'exact', head: true })
-      .eq('alvo_id', empresaId)
-      .eq('alvo_tipo', 'empresa')
-    if (error) return
-    setTotalExibido(typeof count === 'number' && !Number.isNaN(count) ? count : 0)
+    try {
+      const count = await contarSeguidoresEmpresa(supabase, empresaId)
+      setTotalExibido(count)
+    } catch {
+      /* mantém total anterior */
+    }
   }, [empresaId])
 
   useEffect(() => {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Heart, UserCheck, UserPlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { deletarFavoritoEmpresa, payloadFavoritoEmpresa } from '@/lib/favoritosEmpresa'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 function debugSeguir(/** @type {unknown[]} */ ...args) {
@@ -102,22 +103,12 @@ export default function BotaoSeguir({
         debugSeguir('[BotaoSeguir] operação empresa', { operacao, idAlvo: id })
 
         if (estadoAntes) {
-          const { error } = await supabase
-            .from('favoritos')
-            .delete()
-            .eq('usuario_id', session.user.id)
-            .eq('alvo_id', id)
-            .eq('alvo_tipo', 'empresa')
-          debugSeguir('[BotaoSeguir] resposta Supabase (delete favoritos)', { error })
-          if (error) throw error
+          await deletarFavoritoEmpresa(supabase, session.user.id, id)
+          debugSeguir('[BotaoSeguir] delete favoritos empresa concluído', { idAlvo: id })
         } else {
           const { data, error } = await supabase
             .from('favoritos')
-            .insert({
-              usuario_id: session.user.id,
-              alvo_id: id,
-              alvo_tipo: 'empresa',
-            })
+            .insert(payloadFavoritoEmpresa(session.user.id, id))
             .select('id')
             .maybeSingle()
           debugSeguir('[BotaoSeguir] resposta Supabase (insert favoritos)', { data, error })

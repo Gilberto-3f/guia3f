@@ -167,10 +167,11 @@ export default function AbaAvaliacoes({
       void (async () => {
         if (uids.length === 0 || rows.length === 0) return
 
+        try {
         /** @type {Map<string, { nome: string, username: string, foto: string | null }>} */
         const perfilPorUsuario = new Map()
 
-        const [turRes, profRes, usrRes, respRes] = await Promise.all([
+        const [turRes, profRes, usrRes, respRes, verificadoPorUsuario] = await Promise.all([
           supabase.from('turistas').select('usuario_id, nome_completo, nome_usuario, foto_perfil_url').in('usuario_id', uids),
           supabase.from('profissionais').select('usuario_id, nome_completo, nome_usuario, foto_perfil_url').in('usuario_id', uids),
           supabase.from('usuarios').select('id, email').in('id', uids),
@@ -182,6 +183,7 @@ export default function AbaAvaliacoes({
               rows.map((r) => r.id)
             )
             .eq('empresa_id', empresaId),
+          fetchVerificadoPorUsuarioIds(supabase, uids),
         ])
 
         for (const t of turRes.data || []) {
@@ -242,6 +244,9 @@ export default function AbaAvaliacoes({
             }
           })
         )
+        } catch (err) {
+          console.error('[AbaAvaliacoes] enriquecimento perfis:', err)
+        }
       })()
 
       if (usuarioId) {

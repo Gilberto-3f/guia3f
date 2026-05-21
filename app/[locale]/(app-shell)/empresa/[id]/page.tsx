@@ -27,6 +27,7 @@ import { parseTourConfig, sincronizarTourComFotos } from '@/lib/pannellumTour'
 import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
+import { contarSeguidoresEmpresa, usuarioSegueEmpresa } from '@/lib/favoritosEmpresa'
 
 function debugEmpresa(...args: unknown[]) {
   if (process.env.NODE_ENV === 'development') {
@@ -138,38 +139,24 @@ export default function EmpresaPage() {
           empresaId,
           viewerUid,
         })
-        const { data: favorito, error: errFavorito } = await supabase
-          .from('favoritos')
-          .select('id')
-          .eq('usuario_id', viewerUid)
-          .eq('alvo_id', empresaId)
-          .eq('alvo_tipo', 'empresa')
-          .maybeSingle()
-
-        isSeguindo = Boolean(favorito)
+        isSeguindo = await usuarioSegueEmpresa(supabase, viewerUid, empresaId)
         debugEmpresa('[Empresa] carregarEmpresa — resultado favoritos', {
           is_seguindo: isSeguindo,
-          favoritoRow: favorito ?? null,
-          errFavorito,
         })
       } else {
         debugEmpresa('[Empresa] carregarEmpresa — visitante anónimo, is_seguindo false', { empresaId })
       }
 
-      const { count: cntSeguidoresFav, error: errCntSeg } = await supabase
-        .from('favoritos')
-        .select('id', { count: 'exact', head: true })
-        .eq('alvo_id', empresaId)
-        .eq('alvo_tipo', 'empresa')
-
-      if (errCntSeg) {
+      let totalSeg = 0
+      try {
+        totalSeg = await contarSeguidoresEmpresa(supabase, empresaId)
+      } catch (errCntSeg) {
         debugEmpresa('[Empresa] contagem seguidores (favoritos) falhou', errCntSeg)
+        totalSeg = Number(empresaData.total_seguidores) || 0
       }
-
-      const totalSeg =
-        typeof cntSeguidoresFav === 'number' && !Number.isNaN(cntSeguidoresFav)
-          ? cntSeguidoresFav
-          : Number(empresaData.total_seguidores) || 0
+      if (totalSeg === 0) {
+        totalSeg = Number(empresaData.total_seguidores) || 0
+      }
 
       setEmpresa({
         ...empresaData,
@@ -307,8 +294,9 @@ export default function EmpresaPage() {
                 onToggle={(seguindoNovo) => {
                   debugEmpresa('[Empresa] onToggle BotaoSeguir', { seguindoNovo, empresaId })
                   setEmpresa((prev) => (prev ? { ...prev, is_seguindo: seguindoNovo } : prev))
-                  queueMicrotask(() => {
-                    void carregarEmpresa({ silent: true })
+                  setTotalSeguidores((prev) => {
+                    const base = prev ?? totalSeg
+                    return seguindoNovo ? base + 1 : Math.max(0, base - 1)
                   })
                 }}
               />

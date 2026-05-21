@@ -1,6 +1,7 @@
 'use client'
 
-import { MapPin, Phone, User, Globe, Clock, Facebook, Instagram, Music2 } from 'lucide-react'
+import { useState } from 'react'
+import { MapPin, Phone, User, Globe, Clock, Facebook, Instagram, Music2, ChevronDown, ChevronUp } from 'lucide-react'
 import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
 import HorariosFuncionamento from '@/components/HorariosFuncionamento'
 
@@ -9,10 +10,43 @@ const ICON_CLASS = 'shrink-0 text-[#0097b2]'
 /** Título de secção (Endereço, Horário, Contato, …): ícone + texto alinhados. */
 function TituloSecao({ Icon, titulo }) {
   return (
-    <div className="mb-2 flex items-center gap-2">
+    <div className="flex min-w-0 flex-1 items-center gap-2">
       <Icon className={`h-6 w-6 ${ICON_CLASS}`} strokeWidth={2} aria-hidden />
       <h3 className="text-lg font-bold text-gray-900">{titulo}</h3>
     </div>
+  )
+}
+
+/**
+ * Secção recolhível com chevron (exceto botão de corrida).
+ * @param {{ id: string, titulo: string, Icon: import('lucide-react').LucideIcon, children: import('react').ReactNode, defaultAberto?: boolean }} props
+ */
+function SecaoRecolhivel({ id, titulo, Icon, children, defaultAberto = true }) {
+  const [aberto, setAberto] = useState(defaultAberto)
+  const panelId = `aba-endereco-${id}`
+
+  return (
+    <section className="border-t border-gray-100 pt-5">
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 text-left"
+        aria-expanded={aberto}
+        aria-controls={panelId}
+      >
+        <TituloSecao Icon={Icon} titulo={titulo} />
+        {aberto ? (
+          <ChevronUp className="h-5 w-5 shrink-0 text-[#0097b2]" aria-hidden />
+        ) : (
+          <ChevronDown className="h-5 w-5 shrink-0 text-[#0097b2]" aria-hidden />
+        )}
+      </button>
+      {aberto ? (
+        <div id={panelId} className="mt-2">
+          {children}
+        </div>
+      ) : null}
+    </section>
   )
 }
 
@@ -139,6 +173,8 @@ export default function AbaEndereco({ empresa }) {
       : null
 
   const siteHref = hrefWebsite(empresa.website)
+  const temContato = Boolean(empresa.whatsapp || empresa.telefone)
+  const temRedes = Boolean(redes.instagram || redes.facebook || redes.tiktok)
 
   return (
     <div className="space-y-6 pb-0 text-gray-900 [&>section:last-child]:mb-0">
@@ -153,8 +189,7 @@ export default function AbaEndereco({ empresa }) {
         />
       </section>
 
-      <section className="space-y-2 border-t border-gray-100 pt-5">
-        <TituloSecao Icon={MapPin} titulo="Endereço" />
+      <SecaoRecolhivel id="endereco" titulo="Endereço" Icon={MapPin}>
         <div className="min-w-0">
           <p className="text-base font-medium text-gray-900">{empresa.endereco}</p>
           {empresa.bairro != null && String(empresa.bairro).trim() !== '' ? (
@@ -162,43 +197,42 @@ export default function AbaEndereco({ empresa }) {
           ) : null}
           {empresa.cidade ? <p className="mt-0.5 text-base text-gray-600">{empresa.cidade}</p> : null}
         </div>
-      </section>
+      </SecaoRecolhivel>
 
-      <section className="border-t border-gray-100 pt-5">
-        <TituloSecao Icon={Clock} titulo="Horário de Funcionamento" />
+      <SecaoRecolhivel id="horario" titulo="Horário de Funcionamento" Icon={Clock}>
         <HorariosFuncionamento horarios={empresa.horarios || {}} />
-      </section>
+      </SecaoRecolhivel>
 
-      {(empresa.whatsapp || empresa.telefone) && (
-        <section className="space-y-4 border-t border-gray-100 pt-5">
-          <TituloSecao Icon={Phone} titulo="Contato" />
-          {empresa.whatsapp ? (
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-gray-600">WhatsApp</p>
-              <a
-                href={`https://wa.me/${String(empresa.whatsapp).replace(/\D/g, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-base font-normal text-gray-900 hover:text-[#0097b2]"
-              >
-                {empresa.whatsapp}
-              </a>
-            </div>
-          ) : null}
-          {empresa.telefone ? (
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-gray-600">Telefone</p>
-              <a href={`tel:${empresa.telefone}`} className="block text-base font-normal text-gray-900 hover:text-[#0097b2]">
-                {empresa.telefone}
-              </a>
-            </div>
-          ) : null}
-        </section>
-      )}
+      {temContato ? (
+        <SecaoRecolhivel id="contato" titulo="Contato" Icon={Phone}>
+          <div className="space-y-4">
+            {empresa.whatsapp ? (
+              <div>
+                <p className="mb-1.5 text-sm font-medium text-gray-600">WhatsApp</p>
+                <a
+                  href={`https://wa.me/${String(empresa.whatsapp).replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-base font-normal text-gray-900 hover:text-[#0097b2]"
+                >
+                  {empresa.whatsapp}
+                </a>
+              </div>
+            ) : null}
+            {empresa.telefone ? (
+              <div>
+                <p className="mb-1.5 text-sm font-medium text-gray-600">Telefone</p>
+                <a href={`tel:${empresa.telefone}`} className="block text-base font-normal text-gray-900 hover:text-[#0097b2]">
+                  {empresa.telefone}
+                </a>
+              </div>
+            ) : null}
+          </div>
+        </SecaoRecolhivel>
+      ) : null}
 
-      {(redes.instagram || redes.facebook || redes.tiktok) && (
-        <section className="border-t border-gray-100 pt-5">
-          <TituloSecao Icon={User} titulo="Redes sociais" />
+      {temRedes ? (
+        <SecaoRecolhivel id="redes" titulo="Redes sociais" Icon={User}>
           <div className="flex flex-wrap gap-3">
             {redes.instagram && hrefInstagram(redes.instagram) ? (
               <a
@@ -234,12 +268,11 @@ export default function AbaEndereco({ empresa }) {
               </a>
             ) : null}
           </div>
-        </section>
-      )}
+        </SecaoRecolhivel>
+      ) : null}
 
       {siteHref ? (
-        <section className="border-t border-gray-100 pt-5">
-          <TituloSecao Icon={Globe} titulo="Website" />
+        <SecaoRecolhivel id="website" titulo="Website" Icon={Globe}>
           <a
             href={siteHref}
             target="_blank"
@@ -249,12 +282,11 @@ export default function AbaEndereco({ empresa }) {
             <Globe size={28} className="shrink-0 text-[#0097b2]" aria-hidden />
             <span className="break-all">{labelWebsite(siteHref)}</span>
           </a>
-        </section>
+        </SecaoRecolhivel>
       ) : null}
 
       {mapSrc ? (
-        <section className="mb-0 border-t border-gray-100 pt-5 pb-0">
-          <TituloSecao Icon={MapPin} titulo="Mapa" />
+        <SecaoRecolhivel id="mapa" titulo="Mapa" Icon={MapPin} defaultAberto>
           <div className="mb-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-100 leading-none shadow-sm">
             <iframe
               title="Localização no mapa"
@@ -265,7 +297,7 @@ export default function AbaEndereco({ empresa }) {
               allowFullScreen
             />
           </div>
-        </section>
+        </SecaoRecolhivel>
       ) : null}
     </div>
   )

@@ -7,6 +7,7 @@ import { X, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import BotaoSeguir from '@/components/BotaoSeguir'
 import { dedupePerfisPorUsuario, getPerfilHref } from '@/lib/perfil-utils'
+import { listarUsuarioIdsSeguidoresEmpresa } from '@/lib/favoritosEmpresa'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 
@@ -44,18 +45,13 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
         const podeVerPreview = podeVerConteudoEmpresaPreviewApp(emailSessao, modoAtivo)
         if (ativo) setMeuId(uid)
 
-        const { data: favs, error } = await supabase
-          .from('favoritos')
-          .select('usuario_id')
-          .eq('alvo_id', empresaId)
-          .eq('alvo_tipo', 'empresa')
-
-        if (error) {
+        let ids = []
+        try {
+          ids = await listarUsuarioIdsSeguidoresEmpresa(supabase, empresaId)
+        } catch {
           if (ativo) setSeguidores([])
           return
         }
-
-        const ids = [...new Set((favs ?? []).map((f) => String(f.usuario_id)).filter(Boolean))]
         if (ids.length === 0) {
           if (ativo) setSeguidores([])
           return
