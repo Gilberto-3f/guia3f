@@ -593,7 +593,7 @@ export default function PerfilSocialPage() {
 
   return (
     <div className="bg-gray-50">
-      <header className="sticky top-0 z-30 border-b border-gray-100 bg-white">
+      <header className="border-b border-gray-100 bg-white">
         <div className="flex items-center justify-between gap-2 px-4 py-1.5">
           <div className="flex min-w-0 items-center gap-2">
             <button

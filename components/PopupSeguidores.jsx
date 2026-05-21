@@ -58,11 +58,28 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
           return
         }
 
-        if (uid) {
-          const { data: meusSeg } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid).in('seguido_id', ids)
+        const [meusSegRes, previewRes, perfisRes, usuariosRes] = await Promise.all([
+          uid
+            ? supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid).in('seguido_id', ids)
+            : Promise.resolve({ data: [], error: null }),
+          !modoAtivo
+            ? supabase
+                .from('empresas')
+                .select('usuario_id')
+                .in('usuario_id', ids)
+                .eq('somente_modo_apresentacao', true)
+            : Promise.resolve({ data: [], error: null }),
+          supabase
+            .from('perfis_para_busca')
+            .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
+            .in('usuario_id', ids),
+          supabase.from('usuarios').select('id, email').in('id', ids),
+        ])
+
+        if (uid && ativo) {
           const m = /** @type {Record<string, boolean>} */ ({})
-          for (const r of meusSeg ?? []) m[String(r.seguido_id)] = true
-          if (ativo) setSeguindoMap(m)
+          for (const r of meusSegRes.data ?? []) m[String(r.seguido_id)] = true
+          setSeguindoMap(m)
         } else if (ativo) {
           setSeguindoMap({})
         }
@@ -70,29 +87,17 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
         /** Fora do modo apresentação: não misturar empresa demo no nome/avatar (preferir turista no dedupe). */
         /** @type {Map<string, string | null>} */
         const preferTipoPorUsuarioId = new Map()
-        if (!modoAtivo) {
-          const { data: previewRows } = await supabase
-            .from('empresas')
-            .select('usuario_id')
-            .in('usuario_id', ids)
-            .eq('somente_modo_apresentacao', true)
-          for (const row of previewRows ?? []) {
-            const u = row?.usuario_id != null ? String(row.usuario_id).trim() : ''
-            if (u) preferTipoPorUsuarioId.set(u, 'turista')
-          }
+        for (const row of previewRes.data ?? []) {
+          const u = row?.usuario_id != null ? String(row.usuario_id).trim() : ''
+          if (u) preferTipoPorUsuarioId.set(u, 'turista')
         }
 
-        const { data: rawPerfis, error: errPerf } = await supabase
-          .from('perfis_para_busca')
-          .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
-          .in('usuario_id', ids)
+        if (perfisRes.error) console.error('perfis_para_busca (seguidores empresa):', perfisRes.error)
 
-        if (errPerf) console.error('perfis_para_busca (seguidores empresa):', errPerf)
-
-        const perfisDedup = dedupePerfisPorUsuario(rawPerfis ?? [], preferTipoPorUsuarioId)
+        const perfisDedup = dedupePerfisPorUsuario(perfisRes.data ?? [], preferTipoPorUsuarioId)
         const porUsuario = new Map(perfisDedup.map((p) => [String(p.usuario_id), p]))
 
-        const { data: usuarios } = await supabase.from('usuarios').select('id, email').in('id', ids)
+        const usuarios = usuariosRes.data
 
         let lista = ids.map((id) => {
           const p = porUsuario.get(id)

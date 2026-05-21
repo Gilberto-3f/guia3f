@@ -24,38 +24,47 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
       []
     )
   )
+  const [carregando, setCarregando] = useState(false)
 
   const carregar = useCallback(async () => {
-    const { data: rows, error: errR } = await supabase.from('redecontatos').select('seguidor_id').eq('seguido_id', profileId)
-    if (errR) console.error('redecontatos (seguidores):', errR)
+    setCarregando(true)
+    try {
+      const { data: rows, error: errR } = await supabase
+        .from('redecontatos')
+        .select('seguidor_id')
+        .eq('seguido_id', profileId)
+      if (errR) console.error('redecontatos (seguidores):', errR)
 
-    const ids = [...new Set((rows ?? []).map((r) => String(r.seguidor_id)).filter(Boolean))]
-    if (ids.length === 0) {
-      setLista([])
-      return
+      const ids = [...new Set((rows ?? []).map((r) => String(r.seguidor_id)).filter(Boolean))]
+      if (ids.length === 0) {
+        setLista([])
+        return
+      }
+
+      const [perfis, meusRes] = await Promise.all([
+        buscarPerfisSociaisPorIds(supabase, ids),
+        meuId
+          ? supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId).in('seguido_id', ids)
+          : Promise.resolve({ data: [], error: null }),
+      ])
+
+      if (meusRes.error) console.error('redecontatos (meu seguindo):', meusRes.error)
+      const minhas = new Set((meusRes.data ?? []).map((m) => String(m.seguido_id)))
+
+      setLista(
+        perfis.map((p) => ({
+          usuario_id: String(p.usuario_id ?? ''),
+          empresa_id: null,
+          tipo: 'usuario',
+          nome: String(p.nome ?? 'Usuário'),
+          username: String(p.username ?? 'usuario'),
+          foto_url: p.foto_url != null ? String(p.foto_url) : null,
+          jaSigo: minhas.has(String(p.usuario_id ?? '')),
+        }))
+      )
+    } finally {
+      setCarregando(false)
     }
-
-    const perfis = await buscarPerfisSociaisPorIds(supabase, ids)
-
-    /** @type {Set<string>} */
-    let minhas = new Set()
-    if (meuId) {
-      const { data: meus, error: errM } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId)
-      if (errM) console.error('redecontatos (meu seguindo):', errM)
-      minhas = new Set((meus ?? []).map((m) => String(m.seguido_id)))
-    }
-
-    setLista(
-      perfis.map((p) => ({
-        usuario_id: String(p.usuario_id ?? ''),
-        empresa_id: null,
-        tipo: 'usuario',
-        nome: String(p.nome ?? 'Usuário'),
-        username: String(p.username ?? 'usuario'),
-        foto_url: p.foto_url != null ? String(p.foto_url) : null,
-        jaSigo: minhas.has(String(p.usuario_id ?? '')),
-      }))
-    )
   }, [profileId, meuId])
 
   useEffect(() => {
@@ -92,8 +101,13 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
           </button>
         </div>
         <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-2">
-          {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
-          {lista.map((row) => {
+          {carregando ? (
+            <p className="py-8 text-center text-sm text-gray-500">Carregando…</p>
+          ) : lista.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p>
+          ) : null}
+          {!carregando
+            ? lista.map((row) => {
             const href = getPerfilHref(row)
             return (
               <div key={row.usuario_id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
@@ -121,7 +135,8 @@ export default function PopupSeguidores({ aberto, onFechar, profileId, meuId }) 
                 ) : null}
               </div>
             )
-          })}
+          })
+            : null}
         </div>
       </div>
     </div>

@@ -7,7 +7,10 @@ import { Heart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import BotaoSeguir from '@/components/BotaoSeguir'
 import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
-import { listarEmpresaIdsFavoritasPorUsuario, usuarioSegueEmpresa } from '@/lib/favoritosEmpresa'
+import {
+  filtrarEmpresaIdsSeguidasPorUsuario,
+  listarEmpresaIdsFavoritasPorUsuario,
+} from '@/lib/favoritosEmpresa'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 /**
@@ -32,35 +35,45 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
   )
   const [confirmUser, setConfirmUser] = useState(/** @type {string | null} */ (null))
   const [meuFavEmpresaIds, setMeuFavEmpresaIds] = useState(/** @type {Set<string>} */ (new Set()))
-  /** Contagem alinhada à query `favoritos` (linhas com `alvo_tipo = empresa`), não só linhas com perfil em `perfis_para_busca`. */
   const [countEmpresasFavoritas, setCountEmpresasFavoritas] = useState(0)
+  const [carregandoEmpresas, setCarregandoEmpresas] = useState(false)
+  const [carregandoUsuarios, setCarregandoUsuarios] = useState(false)
 
   const souEu = meuId != null && meuId === profileId
 
-  const carregar = useCallback(async () => {
-    let empresaIds = []
+  const carregarEmpresas = useCallback(async () => {
+    setCarregandoEmpresas(true)
     try {
-      empresaIds = await listarEmpresaIdsFavoritasPorUsuario(supabase, profileId)
-    } catch (errFav) {
-      console.error('Favoritos (empresas):', errFav)
-    }
+      let empresaIds = []
+      try {
+        empresaIds = await listarEmpresaIdsFavoritasPorUsuario(supabase, profileId)
+      } catch (errFav) {
+        console.error('Favoritos (empresas):', errFav)
+      }
 
-    setCountEmpresasFavoritas(empresaIds.length)
-    if (empresaIds.length === 0) {
-      setEmps([])
-      setMeuFavEmpresaIds(new Set())
-    } else {
-      const { data: perfisEmp, error: errPE } = await supabase
-        .from('perfis_para_busca')
-        .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
-        .eq('tipo', 'empresa')
-        .in('empresa_id', empresaIds)
+      setCountEmpresasFavoritas(empresaIds.length)
+      if (empresaIds.length === 0) {
+        setEmps([])
+        setMeuFavEmpresaIds(new Set())
+        return
+      }
 
-      if (errPE) console.error('perfis_para_busca (favoritos empresas):', errPE)
+      const [perfisEmpRes, favSet] = await Promise.all([
+        supabase
+          .from('perfis_para_busca')
+          .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
+          .eq('tipo', 'empresa')
+          .in('empresa_id', empresaIds),
+        meuId
+          ? filtrarEmpresaIdsSeguidasPorUsuario(supabase, meuId, empresaIds)
+          : Promise.resolve(new Set()),
+      ])
 
-      /** @type {Map<string, PerfilBuscaRow>} */
+      if (perfisEmpRes.error) console.error('perfis_para_busca (favoritos empresas):', perfisEmpRes.error)
+
+      /** @type {Map<string, object>} */
       const porEmpresa = new Map()
-      for (const r of /** @type {PerfilBuscaRow[]} */ (perfisEmp ?? [])) {
+      for (const r of perfisEmpRes.data ?? []) {
         const eid = r.empresa_id != null ? String(r.empresa_id) : ''
         if (!eid) continue
         const cur = porEmpresa.get(eid)
@@ -68,7 +81,6 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
         else if (String(r.username ?? '') < String(cur.username ?? '')) porEmpresa.set(eid, r)
       }
 
-      /** Uma linha por `alvo_id` em favoritos; fallback se `perfis_para_busca` não devolver linha (RLS, atraso). */
       setEmps(
         empresaIds.map((eid) => {
           const p = porEmpresa.get(eid)
@@ -90,40 +102,37 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
           }
         })
       )
-
-      if (meuId && empresaIds.length > 0) {
-        const favSet = new Set()
-        await Promise.all(
-          empresaIds.map(async (eid) => {
-            if (await usuarioSegueEmpresa(supabase, meuId, eid)) favSet.add(eid)
-          })
-        )
-        setMeuFavEmpresaIds(favSet)
-      } else {
-        setMeuFavEmpresaIds(new Set())
-      }
+      setMeuFavEmpresaIds(favSet)
+    } finally {
+      setCarregandoEmpresas(false)
     }
+  }, [profileId, meuId])
 
-    const { data: seg, error: errSeg } = await supabase
-      .from('redecontatos')
-      .select('seguido_id, seguido_tipo')
-      .eq('seguidor_id', profileId)
+  const carregarUsuarios = useCallback(async () => {
+    setCarregandoUsuarios(true)
+    try {
+      const { data: seg, error: errSeg } = await supabase
+        .from('redecontatos')
+        .select('seguido_id, seguido_tipo')
+        .eq('seguidor_id', profileId)
 
-    if (errSeg) console.error('redecontatos (favoritos usuários):', errSeg)
+      if (errSeg) console.error('redecontatos (favoritos usuários):', errSeg)
 
-    const ids = [...new Set((seg ?? []).map((s) => String(s.seguido_id)).filter(Boolean))]
-    if (ids.length === 0) {
-      setUsers([])
-    } else {
-      const perfis = await buscarPerfisSociaisPorIds(supabase, ids)
-
-      /** @type {Set<string>} */
-      let minhas = new Set()
-      if (meuId) {
-        const { data: meus, error: errM } = await supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId)
-        if (errM) console.error('redecontatos (meu seguindo):', errM)
-        minhas = new Set((meus ?? []).map((m) => String(m.seguido_id)))
+      const ids = [...new Set((seg ?? []).map((s) => String(s.seguido_id)).filter(Boolean))]
+      if (ids.length === 0) {
+        setUsers([])
+        return
       }
+
+      const [perfis, meusRes] = await Promise.all([
+        buscarPerfisSociaisPorIds(supabase, ids),
+        meuId
+          ? supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId).in('seguido_id', ids)
+          : Promise.resolve({ data: [], error: null }),
+      ])
+
+      if (meusRes.error) console.error('redecontatos (meu seguindo):', meusRes.error)
+      const minhas = new Set((meusRes.data ?? []).map((m) => String(m.seguido_id)))
 
       setUsers(
         perfis.map((p) => ({
@@ -136,12 +145,17 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
           jaSigo: minhas.has(String(p.usuario_id ?? '')),
         }))
       )
+    } finally {
+      setCarregandoUsuarios(false)
     }
+  }, [profileId, meuId])
 
+  const carregar = useCallback(async () => {
+    await Promise.all([carregarEmpresas(), carregarUsuarios()])
     if (meuId != null && meuId === profileId) {
       onMetricasAlteradas?.()
     }
-  }, [profileId, meuId, onMetricasAlteradas])
+  }, [carregarEmpresas, carregarUsuarios, meuId, profileId, onMetricasAlteradas])
 
   useEffect(() => {
     if (aberto) void carregar()
@@ -157,6 +171,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
   if (!aberto) return null
 
   const lista = aba === 'empresas' ? emps : users
+  const carregandoAba = aba === 'empresas' ? carregandoEmpresas : carregandoUsuarios
 
   return (
     <div className="fixed inset-0 z-[230] flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onClick={onFechar} role="presentation">
@@ -183,23 +198,27 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
             onClick={() => setAba('empresas')}
             className={`flex-1 py-2 text-center text-sm ${aba === 'empresas' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'}`}
           >
-            EMPRESAS ({countEmpresasFavoritas})
+            EMPRESAS ({carregandoEmpresas ? '…' : countEmpresasFavoritas})
           </button>
           <button
             type="button"
             onClick={() => setAba('usuarios')}
             className={`flex-1 py-2 text-center text-sm ${aba === 'usuarios' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'}`}
           >
-            USUÁRIOS ({users.length})
+            USUÁRIOS ({carregandoUsuarios ? '…' : users.length})
           </button>
         </div>
 
         <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-2">
-          {lista.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
-      {aba === 'empresas'
-        ? emps.map((row) => {
-            const href = getPerfilHref({ ...row, tipo: 'empresa' })
-            const eid = row.empresa_id ? String(row.empresa_id) : ''
+          {carregandoAba ? (
+            <p className="py-8 text-center text-sm text-gray-500">Carregando…</p>
+          ) : lista.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p>
+          ) : null}
+          {!carregandoAba && aba === 'empresas'
+            ? emps.map((row) => {
+                const href = getPerfilHref({ ...row, tipo: 'empresa' })
+                const eid = row.empresa_id ? String(row.empresa_id) : ''
                 const perfilSegueEmpresa = true
                 const visitanteSegue = eid ? meuFavEmpresaIds.has(eid) : false
                 const mostrarSeguindo = souEu ? perfilSegueEmpresa : visitanteSegue
@@ -222,13 +241,15 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
                         size="compact"
                         leadingIcon="none"
                         showInlineError={false}
-                        onToggle={() => void carregar()}
+                        onToggle={() => void carregarEmpresas()}
                       />
                     ) : null}
                   </div>
                 )
               })
-            : users.map((row) => {
+            : null}
+          {!carregandoAba && aba === 'usuarios'
+            ? users.map((row) => {
                 const href = getPerfilHref(row)
                 return (
                   <div key={row.usuario_id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
@@ -251,12 +272,13 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
                         size="compact"
                         leadingIcon="none"
                         showInlineError={false}
-                        onToggle={() => void carregar()}
+                        onToggle={() => void carregarUsuarios()}
                       />
                     ) : null}
                   </div>
                 )
-              })}
+              })
+            : null}
         </div>
       </div>
 

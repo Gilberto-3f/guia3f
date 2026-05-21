@@ -84,6 +84,35 @@ export async function listarUsuarioIdsSeguidoresEmpresa(
   return [...ids]
 }
 
+/** Subconjunto de `empresaIds` que o utilizador segue (uma query). */
+export async function filtrarEmpresaIdsSeguidasPorUsuario(
+  supabase: SupabaseClient,
+  usuarioId: string,
+  empresaIds: string[]
+): Promise<Set<string>> {
+  const ids = [...new Set(empresaIds.map((id) => String(id).trim()).filter(Boolean))]
+  if (!ids.length) return new Set()
+
+  const { data, error } = await supabase
+    .from('favoritos')
+    .select('alvo_id')
+    .eq('usuario_id', String(usuarioId))
+    .eq('alvo_tipo', TIPO_EMPRESA)
+    .in('alvo_id', ids)
+
+  if (error) {
+    console.error('[favoritosEmpresa] filtrarEmpresaIdsSeguidasPorUsuario:', error.message)
+    return new Set()
+  }
+
+  const seguidas = new Set<string>()
+  for (const row of data ?? []) {
+    const eid = row.alvo_id != null ? String(row.alvo_id).trim() : ''
+    if (eid) seguidas.add(eid)
+  }
+  return seguidas
+}
+
 /** IDs de empresas seguidas/favoritadas por um utilizador. */
 export async function listarEmpresaIdsFavoritasPorUsuario(
   supabase: SupabaseClient,

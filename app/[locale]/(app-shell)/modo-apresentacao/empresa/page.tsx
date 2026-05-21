@@ -249,7 +249,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
+      <div className="border-b border-gray-100 bg-white">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <Username username={nomeUsuario} />
