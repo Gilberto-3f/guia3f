@@ -153,7 +153,14 @@ export default function TourPlayer({ fotos360Url, tourConfig: tourConfigRaw, aut
           {erro}
         </div>
       ) : (
-        <div id={containerElId} className="h-full w-full min-h-0 flex-1" />
+        <>
+          <div id={containerElId} className="h-full w-full min-h-0 flex-1" />
+          {temNavegacao ? (
+            <p className="pointer-events-none absolute bottom-4 left-0 right-0 z-20 px-4 text-center text-xs text-white/90 drop-shadow">
+              Toque nas setas para ir ao próximo ambiente
+            </p>
+          ) : null}
+        </>
       )}
     </div>
   )

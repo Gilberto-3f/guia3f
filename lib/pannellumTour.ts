@@ -4,6 +4,31 @@ import { TOUR_CONFIG_VAZIO } from '@/lib/tour360Types'
 /** Pitch padrão para setas de navegação (nível porta/chão). */
 export const PITCH_HOTSPOT_NAVEGACAO = -12
 
+/** Classe CSS dos hotspots de navegação (setas estilo Street View). */
+export const CSS_HOTSPOT_NAVEGACAO = 'tour-nav-hotspot'
+
+export type HotspotPannellumDraft = {
+  pitch: number
+  yaw: number
+  sceneId: string
+  label?: string
+}
+
+function hotspotNavegacaoParaPannellum(
+  h: { id: string; pitch: number; yaw: number; sceneId: string; text?: string },
+  opts?: { rascunho?: boolean }
+): Record<string, unknown> {
+  return {
+    id: h.id,
+    pitch: h.pitch,
+    yaw: h.yaw,
+    type: 'scene',
+    text: h.text?.trim() || 'Continuar',
+    sceneId: h.sceneId,
+    cssClass: opts?.rascunho ? `${CSS_HOTSPOT_NAVEGACAO} tour-nav-draft` : CSS_HOTSPOT_NAVEGACAO,
+  }
+}
+
 export const PANNELLUM_CSS = 'https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css'
 export const PANNELLUM_JS = 'https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js'
 
@@ -133,14 +158,7 @@ function buildSceneConfig(cena: CenaTour360): Record<string, unknown> {
     ...PANNELLUM_VIEW_DEFAULTS,
     panorama: cena.url,
     ...viewToPannellumParams(cena.view),
-    hotSpots: cena.hotspots.map((h) => ({
-      id: h.id,
-      pitch: h.pitch,
-      yaw: h.yaw,
-      type: 'scene',
-      text: h.text?.trim() || 'Continuar',
-      sceneId: h.sceneId,
-    })),
+    hotSpots: cena.hotspots.map((h) => hotspotNavegacaoParaPannellum(h)),
   }
 }
 
@@ -261,31 +279,29 @@ export function buildPannellumTourConfig(tour: TourConfig): Record<string, unkno
   }
 }
 
-/** Config de uma cena para o editor (inclui hotspots de preview opcionais). */
+/** Config de uma cena para o editor (hotspots salvos + seta rascunho opcional). */
 export function buildPannellumEditorConfig(
   tour: TourConfig,
   cenaId: string,
-  extraHotspots: Array<{ id: string; pitch: number; yaw: number; text?: string }> = []
+  rascunho?: HotspotPannellumDraft | null
 ): Record<string, unknown> | null {
   const cena = tour.cenas.find((c) => c.id === cenaId)
   if (!cena) return null
-  const hotSpots = [
-    ...cena.hotspots.map((h) => ({
-      id: h.id,
-      pitch: h.pitch,
-      yaw: h.yaw,
-      type: 'scene',
-      text: h.text?.trim() || 'Continuar',
-      sceneId: h.sceneId,
-    })),
-    ...extraHotspots.map((h) => ({
-      id: h.id,
-      pitch: h.pitch,
-      yaw: h.yaw,
-      type: 'info',
-      text: h.text ?? 'Novo ponto',
-    })),
-  ]
+  const hotSpots: Record<string, unknown>[] = cena.hotspots.map((h) => hotspotNavegacaoParaPannellum(h))
+  if (rascunho) {
+    hotSpots.push(
+      hotspotNavegacaoParaPannellum(
+        {
+          id: HOTSPOT_PREVIEW_ID,
+          pitch: rascunho.pitch,
+          yaw: rascunho.yaw,
+          sceneId: rascunho.sceneId,
+          text: rascunho.label ?? 'Nova seta',
+        },
+        { rascunho: true }
+      )
+    )
+  }
   return {
     default: {
       firstScene: cena.id,
