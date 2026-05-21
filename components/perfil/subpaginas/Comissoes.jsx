@@ -9,7 +9,11 @@ import {
   ROTULO_CATEGORIA_COMERCIO,
   categoriaCombinaChaveComercio,
 } from '@/lib/comissoesCategorias'
-import { payloadFavoritoEmpresa } from '@/lib/favoritosEmpresa'
+import {
+  deletarFavoritoEmpresa,
+  listarEmpresaIdsFavoritasPorUsuario,
+  payloadFavoritoEmpresa,
+} from '@/lib/favoritosEmpresa'
 
 const SEM_PRAZO_DATA = '2099-12-31'
 
@@ -96,27 +100,13 @@ export default function Comissoes() {
   const [favLoadingId, setFavLoadingId] = useState(/** @type {string | null} */ (null))
 
   const carregarFavoritos = useCallback(async (uid) => {
-    const { data, error } = await supabase
-      .from('favoritos')
-      .select('alvo_id, empresa_id')
-      .eq('usuario_id', uid)
-      .eq('alvo_tipo', 'empresa')
-
-    if (error) {
-      const { data: legado } = await supabase.from('favoritos').select('empresa_id').eq('usuario_id', uid)
-      const ids = new Set(
-        (legado ?? []).map((r) => String(r.empresa_id ?? '')).filter(Boolean)
-      )
-      setFavoritosEmpresaIds(ids)
-      return
+    try {
+      const ids = await listarEmpresaIdsFavoritasPorUsuario(supabase, uid)
+      setFavoritosEmpresaIds(new Set(ids))
+    } catch (e) {
+      console.error('[Comissoes] favoritos:', e)
+      setFavoritosEmpresaIds(new Set())
     }
-
-    const ids = new Set()
-    for (const row of data ?? []) {
-      const id = String(row.alvo_id ?? row.empresa_id ?? '').trim()
-      if (id) ids.add(id)
-    }
-    setFavoritosEmpresaIds(ids)
   }, [])
 
   const carregar = useCallback(async () => {
@@ -211,13 +201,7 @@ export default function Comissoes() {
 
     try {
       if (eraFav) {
-        const { error } = await supabase
-          .from('favoritos')
-          .delete()
-          .eq('usuario_id', uid)
-          .eq('alvo_id', empresaId)
-          .eq('alvo_tipo', 'empresa')
-        if (error) throw error
+        await deletarFavoritoEmpresa(supabase, uid, empresaId)
         setFavoritosEmpresaIds((prev) => {
           const next = new Set(prev)
           next.delete(empresaId)

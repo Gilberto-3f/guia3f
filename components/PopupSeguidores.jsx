@@ -48,7 +48,8 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
         let ids = []
         try {
           ids = await listarUsuarioIdsSeguidoresEmpresa(supabase, empresaId)
-        } catch {
+        } catch (err) {
+          console.error('listar seguidores empresa:', err)
           if (ativo) setSeguidores([])
           return
         }

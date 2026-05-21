@@ -154,9 +154,6 @@ export default function EmpresaPage() {
         debugEmpresa('[Empresa] contagem seguidores (favoritos) falhou', errCntSeg)
         totalSeg = Number(empresaData.total_seguidores) || 0
       }
-      if (totalSeg === 0) {
-        totalSeg = Number(empresaData.total_seguidores) || 0
-      }
 
       setEmpresa({
         ...empresaData,
