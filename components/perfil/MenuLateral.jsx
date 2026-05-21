@@ -208,9 +208,9 @@ function secoesProfissional(ctx) {
   const aplicSubgrupos = [
     {
       key: 'aplic-pessoal',
-      label: 'Pessoal',
+      label: 'Histórico Pessoal',
       items: [
-        itemHistoricoCompras,
+        { Icon: History, label: 'Minhas Compras', subpagina: 'historico-compras' },
         { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
       ],
     },
@@ -225,8 +225,8 @@ function secoesProfissional(ctx) {
             subpagina: 'historico-manifestos',
             condicional: (c) => c.placaVermelha === true,
           },
-          { Icon: Handshake, label: 'Histórico de Parcerias', subpagina: 'parcerias' },
-          { Icon: Speaker, label: 'Histórico de Recomendações', subpagina: 'recomendacoes' },
+          { Icon: Handshake, label: 'Parcerias Fechadas', subpagina: 'parcerias' },
+          { Icon: Speaker, label: 'Recomendações Feitas', subpagina: 'recomendacoes' },
         ],
         ctx
       ),
@@ -579,7 +579,11 @@ export default function MenuLateral({
         'anexar-documentos': 'Anexar Documentos',
         'anexar-documentos-empresa': 'Anexar documentos',
       }
-      const t = titulos[item.subpagina] || item.label
+      const titulosProfissional = ['historico-compras', 'parcerias', 'recomendacoes']
+      const t =
+        menuVariantEfetivo === 'profissional' && titulosProfissional.includes(item.subpagina)
+          ? item.label
+          : titulos[item.subpagina] || item.label
       if (item.subpagina === 'historico-decisoes') {
         const unreadIds = (historicoDecisoes ?? []).filter((h) => !h.visualizado).map((h) => h.id)
         if (unreadIds.length > 0) {
