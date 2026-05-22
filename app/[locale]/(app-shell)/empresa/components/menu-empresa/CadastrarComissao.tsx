@@ -300,23 +300,9 @@ export default function CadastrarComissao() {
   const renderBeneficios = (categoria: ComunidadeLabel) => {
     const form = formularios[categoria]
     const beneficios = form.beneficios
-    const ofertaAtiva = ofertasAtivasPorComunidade.get(categoria)
-    const statusAtivo = ofertaAtiva ? String(ofertaAtiva.status ?? 'pendente') : null
 
     return (
       <div className="space-y-4 border-t border-gray-100 pt-3">
-        {ofertaAtiva ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-900">
-            Esta comunidade já possui uma oferta ativa (
-            <span className={`font-semibold ${classeStatusOferta(statusAtivo ?? '')}`}>
-              {rotuloStatusOferta(statusAtivo ?? '')}
-            </span>
-            ). Ao cadastrar outra, a oferta atual passará para <strong>Removido</strong> e a nova será
-            enviada para análise.
-          </p>
-        ) : (
-          <p className="text-xs text-gray-500">Nenhuma oferta ativa nesta comunidade — você pode cadastrar uma nova proposta.</p>
-        )}
         {renderLinhaBeneficio(
           categoria,
           'pax',
@@ -453,11 +439,7 @@ export default function CadastrarComissao() {
           onClick={() => handleSubmit(categoria)}
           className="w-full rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white transition hover:bg-[#008199] disabled:opacity-60"
         >
-          {salvando === categoria
-            ? 'Cadastrando…'
-            : ofertaAtiva
-              ? 'Cadastrar (substituir oferta ativa)'
-              : 'Cadastrar'}
+          {salvando === categoria ? 'Cadastrando…' : 'Cadastrar'}
         </button>
       </div>
     )
@@ -489,7 +471,8 @@ export default function CadastrarComissao() {
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Comunidades</p>
           {COMUNIDADES.map(({ label, iconeKey }) => {
             const aberta = comunidadesAbertas[label]
-            const temAtiva = ofertasAtivasPorComunidade.has(label)
+            const ofertaAtiva = ofertasAtivasPorComunidade.get(label)
+            const statusAtivo = ofertaAtiva ? String(ofertaAtiva.status ?? 'pendente') : null
             return (
               <div key={label} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
                 <button
@@ -503,11 +486,13 @@ export default function CadastrarComissao() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-gray-900">{label}</span>
-                    {temAtiva ? (
-                      <span className="text-[11px] font-medium text-[#0097b2]">Oferta ativa — substituir ao cadastrar</span>
-                    ) : (
-                      <span className="text-[11px] text-gray-500">Sem oferta ativa</span>
-                    )}
+                    {statusAtivo ? (
+                      <span
+                        className={`text-[11px] font-semibold ${classeStatusOferta(statusAtivo)}`}
+                      >
+                        {rotuloStatusOferta(statusAtivo)}
+                      </span>
+                    ) : null}
                   </span>
                   {aberta ? (
                     <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
@@ -639,21 +624,20 @@ export default function CadastrarComissao() {
           aria-modal="true"
           aria-labelledby="substituir-oferta-titulo"
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-            <h2 id="substituir-oferta-titulo" className="text-base font-bold text-[#001f3f]">
+          <div className="w-full max-w-sm rounded-2xl bg-[#001f3f] p-5 text-white shadow-xl">
+            <h2 id="substituir-oferta-titulo" className="text-base font-bold text-white">
               Substituir oferta ativa?
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-gray-700">
+            <p className="mt-3 text-sm leading-relaxed text-white">
               A oferta ativa de <strong>{substituicaoPendente.categoria}</strong> no momento mudará de status para{' '}
-              <strong className="text-red-600">Removido</strong>. Deseja substituir e enviar esta nova proposta para
-              análise?
+              <strong>Removido</strong>. Deseja substituir e enviar esta nova proposta para análise?
             </p>
             <div className="mt-5 flex gap-2">
               <button
                 type="button"
                 disabled={salvando === substituicaoPendente.categoria}
                 onClick={() => setSubstituicaoPendente(null)}
-                className="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="flex-1 rounded-xl border border-white py-2.5 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
               >
                 Não
               </button>
@@ -666,7 +650,7 @@ export default function CadastrarComissao() {
                     substituicaoPendente.ofertaAtivaId
                   )
                 }
-                className="flex-1 rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white hover:opacity-95 disabled:opacity-60"
+                className="flex-1 rounded-xl border border-white bg-green-600 py-2.5 text-sm font-bold text-white hover:bg-green-500 disabled:opacity-60"
               >
                 {salvando === substituicaoPendente.categoria ? 'Salvando…' : 'Sim'}
               </button>
