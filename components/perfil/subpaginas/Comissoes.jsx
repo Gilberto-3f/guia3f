@@ -41,10 +41,25 @@ function cidadeCombinaFiltro(cidade, filtroId) {
 
 /** @type {Record<'pax' | 'percentual' | 'fixo' | 'extra', string>} */
 const INFO_BENEFICIO = {
-  pax: 'Comissão paga por passageiro direcionado para nossa loja (comprando/consumindo ou não).',
-  percentual: 'Comissão é uma porcentagem paga sobre a compra ou consumo do cliente na empresa.',
-  fixo: 'Comissão é um valor fixo por passageiro que consumir ou comprar na empresa.',
-  extra: 'Um benefício particular e personalizado que a empresa oferece além das comissões.',
+  pax: 'Comissão paga por passageiro\n direcionado à nossa loja\n(comprando ou consumindo).',
+  percentual: 'Comissão em percentual\n sobre a compra ou consumo\n do cliente na empresa.',
+  fixo: 'Valor fixo de comissão\n por passageiro que consumir\n ou comprar na empresa.',
+  extra: 'Benefício personalizado\n oferecido pela empresa\n além das comissões.',
+}
+
+/** @param {Record<string, unknown>} oferta */
+function parseEmpresaOferta(oferta) {
+  const emp = oferta.empresas
+  if (!emp || typeof emp !== 'object' || Array.isArray(emp)) return null
+  return /** @type {Record<string, unknown>} */ (emp)
+}
+
+/** @param {Record<string, unknown>} empresa */
+function empresaCombinaTermo(empresa, termo) {
+  if (!termo) return true
+  const nome = normalizarTexto(empresa.nome_fantasia)
+  const user = normalizarTexto(String(empresa.nome_usuario ?? '').replace(/^@+/, ''))
+  return nome.includes(termo) || user.includes(termo)
 }
 
 function listarBeneficiosAtivos(b) {
@@ -78,7 +93,7 @@ function BotaoInfoBeneficio({ tipo, aberto, onToggle, onFechar }) {
     const btn = btnRef.current
     if (!btn) return
     const rect = btn.getBoundingClientRect()
-    const largura = Math.min(264, window.innerWidth - 24)
+    const largura = Math.min(280, window.innerWidth - 24)
     const left = Math.max(12, Math.min(rect.right - largura, window.innerWidth - largura - 12))
     setPopupPos({
       top: rect.bottom + 10,
@@ -172,6 +187,8 @@ export default function Comissoes({ usuarioId = null }) {
   const inputBuscaRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const [busca, setBusca] = useState('')
   const [pesquisaAberta, setPesquisaAberta] = useState(false)
+  const [empresaSelecionadaId, setEmpresaSelecionadaId] = useState(/** @type {string | null} */ (null))
+  const [listaResultadosAberta, setListaResultadosAberta] = useState(false)
   const [filtroCidade, setFiltroCidade] = useState('foz')
   const [somenteFavoritos, setSomenteFavoritos] = useState(false)
   const [categoriaAba, setCategoriaAba] = useState(/** @type {string} */ (ORDEM_CATEGORIA_COMERCIO[0]))
@@ -249,30 +266,79 @@ export default function Comissoes({ usuarioId = null }) {
     }
   }
 
+  const termoBusca = useMemo(() => normalizarTexto(busca), [busca])
+
+  const resultadosBusca = useMemo(() => {
+    if (!termoBusca) return []
+    const vistos = new Set()
+    /** @type {{ oferta: Record<string, unknown>; empresa: Record<string, unknown>; empresaId: string }[]} */
+    const lista = []
+    for (const oferta of ofertas) {
+      const empresa = parseEmpresaOferta(oferta)
+      if (!empresa) continue
+      const empresaId = String(empresa.id ?? oferta.empresa_id ?? '')
+      if (!empresaId || vistos.has(empresaId)) continue
+      if (!empresaCombinaTermo(empresa, termoBusca)) continue
+      vistos.add(empresaId)
+      lista.push({ oferta, empresa, empresaId })
+    }
+    return lista
+  }, [ofertas, termoBusca])
+
   const cards = useMemo(() => {
-    const termo = normalizarTexto(busca)
+    if (empresaSelecionadaId) {
+      return ofertas.filter((oferta) => {
+        const empresa = parseEmpresaOferta(oferta)
+        if (!empresa) return false
+        return String(empresa.id ?? oferta.empresa_id ?? '') === empresaSelecionadaId
+      })
+    }
+
+    const termo = termoBusca
+    if (termo) return []
+
     return ofertas.filter((oferta) => {
-      const emp = oferta.empresas
-      const empresa =
-        emp && typeof emp === 'object' && !Array.isArray(emp) ? /** @type {Record<string, unknown>} */ (emp) : null
+      const empresa = parseEmpresaOferta(oferta)
       if (!empresa) return false
 
       const empresaId = String(empresa.id ?? oferta.empresa_id ?? '')
-      const nome = normalizarTexto(empresa.nome_fantasia)
-      const user = normalizarTexto(String(empresa.nome_usuario ?? '').replace(/^@+/, ''))
-      if (termo && !nome.includes(termo) && !user.includes(termo)) return false
-
       if (somenteFavoritos && !favoritosEmpresaIds.has(empresaId)) return false
       if (!cidadeCombinaFiltro(String(empresa.cidade ?? ''), filtroCidade)) return false
       if (!categoriaCombinaChaveComercio(String(empresa.categoria ?? ''), categoriaAba)) return false
 
       return true
     })
-  }, [ofertas, busca, filtroCidade, somenteFavoritos, favoritosEmpresaIds, categoriaAba])
+  }, [
+    ofertas,
+    termoBusca,
+    empresaSelecionadaId,
+    filtroCidade,
+    somenteFavoritos,
+    favoritosEmpresaIds,
+    categoriaAba,
+  ])
+
+  const selecionarEmpresaBusca = useCallback((empresaId, nomeExibicao, cardKey) => {
+    setEmpresaSelecionadaId(empresaId)
+    setBusca(nomeExibicao)
+    setListaResultadosAberta(false)
+    setCardsExpandidos(new Set([cardKey]))
+    setBeneficioInfoAberto(null)
+  }, [])
 
   const fecharPesquisa = useCallback(() => {
     setPesquisaAberta(false)
     setBusca('')
+    setEmpresaSelecionadaId(null)
+    setListaResultadosAberta(false)
+    setCardsExpandidos(new Set())
+    setBeneficioInfoAberto(null)
+  }, [])
+
+  const limparSelecaoBusca = useCallback(() => {
+    setEmpresaSelecionadaId(null)
+    setCardsExpandidos(new Set())
+    setBeneficioInfoAberto(null)
   }, [])
 
   useEffect(() => {
@@ -308,23 +374,66 @@ export default function Comissoes({ usuarioId = null }) {
 
       <div ref={filtrosRef} className="space-y-2">
         {pesquisaAberta ? (
-          <div className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
-            <Search className="pointer-events-none h-4 w-4 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
-            <input
-              ref={inputBuscaRef}
-              type="search"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar empresa pelo nome…"
-              className="min-w-0 flex-1 border-0 bg-transparent py-0.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
-              aria-label="Buscar empresa pelo nome"
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  e.preventDefault()
-                  fecharPesquisa()
-                }
-              }}
-            />
+          <div className="relative">
+            <div className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
+              <Search className="pointer-events-none h-4 w-4 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
+              <input
+                ref={inputBuscaRef}
+                type="search"
+                value={busca}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setBusca(v)
+                  setListaResultadosAberta(true)
+                  if (empresaSelecionadaId) limparSelecaoBusca()
+                }}
+                onFocus={() => setListaResultadosAberta(true)}
+                placeholder="Buscar empresa pelo nome…"
+                className="min-w-0 flex-1 border-0 bg-transparent py-0.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0"
+                aria-label="Buscar empresa pelo nome"
+                aria-expanded={listaResultadosAberta && resultadosBusca.length > 0}
+                aria-controls="comissoes-resultados-busca"
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault()
+                    fecharPesquisa()
+                  }
+                }}
+              />
+            </div>
+            {listaResultadosAberta && termoBusca && !empresaSelecionadaId ? (
+              <ul
+                id="comissoes-resultados-busca"
+                role="listbox"
+                className="absolute left-0 right-0 top-full z-30 mt-1 max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+              >
+                {resultadosBusca.length === 0 ? (
+                  <li className="px-3 py-2.5 text-sm text-gray-500">Nenhuma empresa encontrada.</li>
+                ) : (
+                  resultadosBusca.map(({ empresa, empresaId, oferta }) => {
+                    const nome = String(empresa.nome_fantasia ?? 'Empresa')
+                    const username = String(empresa.nome_usuario ?? '')
+                      .replace(/^@+/, '')
+                      .trim()
+                    const cardKey = empresaId || String(oferta.id)
+                    return (
+                      <li key={empresaId} role="option">
+                        <button
+                          type="button"
+                          className="flex w-full flex-col items-start px-3 py-2.5 text-left hover:bg-[#0097b2]/8"
+                          onClick={() => selecionarEmpresaBusca(empresaId, nome, cardKey)}
+                        >
+                          <span className="text-sm font-semibold text-gray-900">{nome}</span>
+                          {username ? (
+                            <span className="text-xs font-medium text-[#0097b2]">@{username}</span>
+                          ) : null}
+                        </button>
+                      </li>
+                    )
+                  })
+                )}
+              </ul>
+            ) : null}
           </div>
         ) : null}
 
@@ -348,7 +457,10 @@ export default function Comissoes({ usuarioId = null }) {
           <button
             type="button"
             className={`${bandeiraBtnCls(somenteFavoritos)} ml-auto`}
-            onClick={() => setSomenteFavoritos((v) => !v)}
+            onClick={() => {
+              setSomenteFavoritos((v) => !v)
+              if (pesquisaAberta || empresaSelecionadaId) fecharPesquisa()
+            }}
             aria-label="Favoritos"
             aria-pressed={somenteFavoritos}
             title="Empresas favoritas"
@@ -407,7 +519,10 @@ export default function Comissoes({ usuarioId = null }) {
                 role="tab"
                 aria-selected={ativo}
                 aria-label={rotulo}
-                onClick={() => setCategoriaAba(cat)}
+                onClick={() => {
+                  setCategoriaAba(cat)
+                  if (pesquisaAberta || empresaSelecionadaId) fecharPesquisa()
+                }}
                 className={`flex min-h-[3.25rem] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 py-2 text-center transition-all ${
                   ativo
                     ? 'bg-[#0097b2] font-semibold text-white shadow-sm'
@@ -448,9 +563,7 @@ export default function Comissoes({ usuarioId = null }) {
       ) : (
         <ul className="space-y-3">
           {cards.map((oferta) => {
-            const emp = oferta.empresas
-            const empresa =
-              emp && typeof emp === 'object' && !Array.isArray(emp) ? /** @type {Record<string, unknown>} */ (emp) : {}
+            const empresa = parseEmpresaOferta(oferta) ?? {}
             const empresaId = String(empresa.id ?? oferta.empresa_id ?? '')
             const isFav = favoritosEmpresaIds.has(empresaId)
             const raw = oferta.beneficios
@@ -467,7 +580,8 @@ export default function Comissoes({ usuarioId = null }) {
             const fotoUrl = empresa.foto_url ? String(empresa.foto_url) : null
             const favBusy = favLoadingId === empresaId
             const cardKey = empresaId || String(oferta.id)
-            const expandido = cardsExpandidos.has(cardKey)
+            const expandido =
+              empresaSelecionadaId === empresaId || cardsExpandidos.has(cardKey)
 
             return (
               <li key={String(oferta.id)} className="relative rounded-xl border border-gray-200 bg-white shadow-sm">
