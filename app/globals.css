@@ -94,24 +94,24 @@ body {
   }
 }
 
-/* Tour 360° — setas (também em public/globals.css?v=N para PWA) */
+/* Pannellum: pnlm-hotspot-base + tour-nav-hotspot (cssClass custom) */
 .pnlm-hotspot-base.tour-nav-hotspot,
 .pnlm-hotspot.tour-nav-hotspot {
-  visibility: visible !important;
-  opacity: 1 !important;
   display: block !important;
   position: relative !important;
-  width: 52px !important;
-  height: 52px !important;
-  margin-left: -26px !important;
-  margin-top: -26px !important;
-  background: #fff !important;
-  background-image: none !important;
-  border: 3px solid #0097b2 !important;
-  border-radius: 50% !important;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3) !important;
-  cursor: pointer !important;
   z-index: 100 !important;
+  width: 48px !important;
+  height: 48px !important;
+  margin-left: -24px !important;
+  margin-top: -24px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  background-image: none !important;
+  border: 2px solid #0097b2 !important;
+  border-radius: 50% !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35) !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+  visibility: visible !important;
   pointer-events: auto !important;
 }
 
@@ -119,14 +119,14 @@ body {
 .pnlm-hotspot.tour-nav-hotspot::before {
   content: '→' !important;
   position: absolute !important;
-  top: 50% !important;
   left: 50% !important;
+  top: 50% !important;
   transform: translate(-50%, -50%) !important;
   width: auto !important;
   height: auto !important;
   margin: 0 !important;
   border: none !important;
-  font-size: 24px !important;
+  font-size: 20px !important;
   font-weight: bold !important;
   line-height: 1 !important;
   color: #0097b2 !important;
@@ -139,18 +139,13 @@ body {
 
 .pnlm-hotspot-base.tour-nav-draft,
 .pnlm-hotspot.tour-nav-draft {
-  visibility: visible !important;
-  opacity: 1 !important;
-  display: block !important;
   pointer-events: none !important;
-  background: rgba(0, 151, 178, 0.2) !important;
-  border: 3px solid #00d443 !important;
+  background: rgba(0, 151, 178, 0.25) !important;
+  border-color: #00d443 !important;
   animation: tour-nav-pulse 1.4s ease-in-out infinite;
 }
 
 .pnlm-hotspot-base.tour-nav-draft::before,
 .pnlm-hotspot.tour-nav-draft::before {
-  content: '➕' !important;
-  font-size: 20px !important;
   color: #00d443 !important;
 }
