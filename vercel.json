@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "build": {
+    "env": {
+      "VERCEL_CLI_VERSION": "vercel@50.38.3"
+    }
+  },
+  "buildCommand": "NEXT_ADAPTER_PATH= npm run build"
+}

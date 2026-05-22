@@ -31,7 +31,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  allowedDevOrigins: ["192.168.0.103", "localhost", "127.0.0.1"],
 };
+
+/** Só em dev — evita interferir no adapter da Vercel (Next 16.2+) em produção. */
+if (process.env.NODE_ENV === "development") {
+  nextConfig.allowedDevOrigins = ["192.168.0.103", "localhost", "127.0.0.1"];
+}
 
 export default withNextIntl(nextConfig);
