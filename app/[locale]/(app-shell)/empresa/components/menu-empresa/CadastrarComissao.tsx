@@ -624,20 +624,21 @@ export default function CadastrarComissao() {
           aria-modal="true"
           aria-labelledby="substituir-oferta-titulo"
         >
-          <div className="w-full max-w-sm rounded-2xl bg-[#001f3f] p-5 text-white shadow-xl">
+          <div className="w-full max-w-sm rounded-2xl bg-[#0097b2] p-5 text-white shadow-xl">
             <h2 id="substituir-oferta-titulo" className="text-base font-bold text-white">
               Substituir oferta ativa?
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-white">
               A oferta ativa de <strong>{substituicaoPendente.categoria}</strong> no momento mudará de status para{' '}
-              <strong>Removido</strong>. Deseja substituir e enviar esta nova proposta para análise?
+              <strong className="text-red-400">Removido</strong>. Deseja substituir e enviar esta nova proposta para
+              análise?
             </p>
             <div className="mt-5 flex gap-2">
               <button
                 type="button"
                 disabled={salvando === substituicaoPendente.categoria}
                 onClick={() => setSubstituicaoPendente(null)}
-                className="flex-1 rounded-xl border border-white py-2.5 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold text-[#0097b2] hover:bg-white/90 disabled:opacity-50"
               >
                 Não
               </button>
