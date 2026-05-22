@@ -1,9 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import BotaoInfoBeneficio from '@/components/comissoes/BotaoInfoBeneficio'
 import ModoApresentacaoIcon from '@/components/ModoApresentacaoIcon'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
+import { ROTULOS_BENEFICIO } from '@/lib/comissoesBeneficiosInfo'
+import type { TipoBeneficioComissao } from '@/lib/comissoesBeneficiosInfo'
 import { supabase } from '@/lib/supabase'
 
 const COMUNIDADES = [
@@ -61,10 +64,12 @@ function comunidadesAbertasIniciais() {
 
 function resumoBeneficios(b: Record<string, { ativo?: boolean; valor?: number; texto?: string }>) {
   const partes: string[] = []
-  if (b.pax?.ativo) partes.push(`PAX: R$ ${b.pax.valor ?? 0}`)
-  if (b.percentual?.ativo) partes.push(`% venda: ${b.percentual.valor ?? 0}%`)
-  if (b.fixo?.ativo) partes.push(`Indicação: R$ ${b.fixo.valor ?? 0}`)
-  if (b.extra?.ativo && b.extra.texto) partes.push(`Extra: ${String(b.extra.texto).slice(0, 80)}`)
+  if (b.pax?.ativo) partes.push(`${ROTULOS_BENEFICIO.pax}: R$ ${b.pax.valor ?? 0}`)
+  if (b.percentual?.ativo) partes.push(`${ROTULOS_BENEFICIO.percentual}: ${b.percentual.valor ?? 0}%`)
+  if (b.fixo?.ativo) partes.push(`${ROTULOS_BENEFICIO.fixo}: R$ ${b.fixo.valor ?? 0}`)
+  if (b.extra?.ativo && b.extra.texto) {
+    partes.push(`${ROTULOS_BENEFICIO.extra}: ${String(b.extra.texto).slice(0, 80)}`)
+  }
   return partes.length ? partes.join(' · ') : 'Nenhum benefício informado'
 }
 
@@ -91,6 +96,7 @@ export default function CadastrarComissao() {
   const [carregando, setCarregando] = useState(true)
   const [msg, setMsg] = useState<string | null>(null)
   const [salvando, setSalvando] = useState<ComunidadeLabel | null>(null)
+  const [beneficioInfoAberto, setBeneficioInfoAberto] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     if (!empresaId) {
@@ -180,138 +186,146 @@ export default function CadastrarComissao() {
     void carregar()
   }
 
+  const renderLinhaBeneficio = (
+    categoria: ComunidadeLabel,
+    tipo: TipoBeneficioComissao,
+    idSuffix: string,
+    label: string,
+    checked: boolean,
+    onChecked: (ativo: boolean) => void,
+    campo: ReactNode
+  ) => {
+    const infoKey = `${categoria}-${tipo}`
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id={`${categoria}-${idSuffix}`}
+            checked={checked}
+            onChange={(e) => onChecked(e.target.checked)}
+            className="shrink-0"
+          />
+          <label htmlFor={`${categoria}-${idSuffix}`} className="min-w-0 flex-1 text-sm font-medium text-gray-700">
+            {label}
+          </label>
+          <BotaoInfoBeneficio
+            tipo={tipo}
+            aberto={beneficioInfoAberto === infoKey}
+            onToggle={() => setBeneficioInfoAberto((atual) => (atual === infoKey ? null : infoKey))}
+            onFechar={() => setBeneficioInfoAberto(null)}
+          />
+        </div>
+        {checked ? <div className="pl-6">{campo}</div> : null}
+      </div>
+    )
+  }
+
   const renderBeneficios = (categoria: ComunidadeLabel) => {
     const form = formularios[categoria]
     const beneficios = form.beneficios
 
     return (
-      <div className="space-y-3 border-t border-gray-100 pt-3">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="space-y-4 border-t border-gray-100 pt-3">
+        {renderLinhaBeneficio(
+          categoria,
+          'pax',
+          'pax',
+          ROTULOS_BENEFICIO.pax,
+          beneficios.pax.ativo,
+          (ativo) =>
+            atualizarBeneficios(categoria, {
+              ...beneficios,
+              pax: { ...beneficios.pax, ativo },
+            }),
           <input
-            type="checkbox"
-            id={`${categoria}-pax`}
-            checked={beneficios.pax.ativo}
+            type="number"
+            placeholder="Valor (R$)"
+            value={beneficios.pax.valor || ''}
             onChange={(e) =>
               atualizarBeneficios(categoria, {
                 ...beneficios,
-                pax: { ...beneficios.pax, ativo: e.target.checked },
+                pax: { ...beneficios.pax, valor: parseFloat(e.target.value) || 0 },
               })
             }
+            className={`w-full ${INPUT_CLS}`}
           />
-          <label htmlFor={`${categoria}-pax`} className="text-sm text-gray-700">
-            PAX (por cliente)
-          </label>
-          {beneficios.pax.ativo ? (
-            <input
-              type="number"
-              placeholder="Valor (R$)"
-              value={beneficios.pax.valor || ''}
-              onChange={(e) =>
-                atualizarBeneficios(categoria, {
-                  ...beneficios,
-                  pax: { ...beneficios.pax, valor: parseFloat(e.target.value) || 0 },
-                })
-              }
-              className={`w-32 ${INPUT_CLS}`}
-            />
-          ) : null}
-        </div>
+        )}
 
-        <div className="flex flex-wrap items-center gap-3">
+        {renderLinhaBeneficio(
+          categoria,
+          'percentual',
+          'pct',
+          ROTULOS_BENEFICIO.percentual,
+          beneficios.percentual.ativo,
+          (ativo) =>
+            atualizarBeneficios(categoria, {
+              ...beneficios,
+              percentual: { ...beneficios.percentual, ativo },
+            }),
           <input
-            type="checkbox"
-            id={`${categoria}-pct`}
-            checked={beneficios.percentual.ativo}
+            type="number"
+            placeholder="Percentual (%)"
+            value={beneficios.percentual.valor || ''}
             onChange={(e) =>
               atualizarBeneficios(categoria, {
                 ...beneficios,
-                percentual: { ...beneficios.percentual, ativo: e.target.checked },
+                percentual: { ...beneficios.percentual, valor: parseFloat(e.target.value) || 0 },
               })
             }
+            className={`w-full ${INPUT_CLS}`}
           />
-          <label htmlFor={`${categoria}-pct`} className="text-sm text-gray-700">
-            % sobre venda
-          </label>
-          {beneficios.percentual.ativo ? (
-            <input
-              type="number"
-              placeholder="%"
-              value={beneficios.percentual.valor || ''}
-              onChange={(e) =>
-                atualizarBeneficios(categoria, {
-                  ...beneficios,
-                  percentual: { ...beneficios.percentual, valor: parseFloat(e.target.value) || 0 },
-                })
-              }
-              className={`w-32 ${INPUT_CLS}`}
-            />
-          ) : null}
-        </div>
+        )}
 
-        <div className="flex flex-wrap items-center gap-3">
+        {renderLinhaBeneficio(
+          categoria,
+          'fixo',
+          'fixo',
+          ROTULOS_BENEFICIO.fixo,
+          beneficios.fixo.ativo,
+          (ativo) =>
+            atualizarBeneficios(categoria, {
+              ...beneficios,
+              fixo: { ...beneficios.fixo, ativo },
+            }),
           <input
-            type="checkbox"
-            id={`${categoria}-fixo`}
-            checked={beneficios.fixo.ativo}
+            type="number"
+            placeholder="Valor (R$)"
+            value={beneficios.fixo.valor || ''}
             onChange={(e) =>
               atualizarBeneficios(categoria, {
                 ...beneficios,
-                fixo: { ...beneficios.fixo, ativo: e.target.checked },
+                fixo: { ...beneficios.fixo, valor: parseFloat(e.target.value) || 0 },
               })
             }
+            className={`w-full ${INPUT_CLS}`}
           />
-          <label htmlFor={`${categoria}-fixo`} className="text-sm text-gray-700">
-            Valor fixo por indicação
-          </label>
-          {beneficios.fixo.ativo ? (
-            <input
-              type="number"
-              placeholder="Valor (R$)"
-              value={beneficios.fixo.valor || ''}
-              onChange={(e) =>
-                atualizarBeneficios(categoria, {
-                  ...beneficios,
-                  fixo: { ...beneficios.fixo, valor: parseFloat(e.target.value) || 0 },
-                })
-              }
-              className={`w-32 ${INPUT_CLS}`}
-            />
-          ) : null}
-        </div>
+        )}
 
-        <div className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            id={`${categoria}-extra`}
-            checked={beneficios.extra.ativo}
+        {renderLinhaBeneficio(
+          categoria,
+          'extra',
+          'extra',
+          ROTULOS_BENEFICIO.extra,
+          beneficios.extra.ativo,
+          (ativo) =>
+            atualizarBeneficios(categoria, {
+              ...beneficios,
+              extra: { ...beneficios.extra, ativo },
+            }),
+          <textarea
+            placeholder="Descreva o benefício extra…"
+            value={beneficios.extra.texto}
             onChange={(e) =>
               atualizarBeneficios(categoria, {
                 ...beneficios,
-                extra: { ...beneficios.extra, ativo: e.target.checked },
+                extra: { ...beneficios.extra, texto: e.target.value },
               })
             }
-            className="mt-2"
+            className={`w-full ${INPUT_CLS}`}
+            rows={2}
           />
-          <div className="flex-1">
-            <label htmlFor={`${categoria}-extra`} className="text-sm text-gray-700">
-              Benefício extra
-            </label>
-            {beneficios.extra.ativo ? (
-              <textarea
-                placeholder="Descreva o benefício extra…"
-                value={beneficios.extra.texto}
-                onChange={(e) =>
-                  atualizarBeneficios(categoria, {
-                    ...beneficios,
-                    extra: { ...beneficios.extra, texto: e.target.value },
-                  })
-                }
-                className={`mt-1 w-full ${INPUT_CLS}`}
-                rows={2}
-              />
-            ) : null}
-          </div>
-        </div>
+        )}
 
         <div className="rounded-lg bg-gray-50 p-3">
           <div className="flex items-center gap-3">

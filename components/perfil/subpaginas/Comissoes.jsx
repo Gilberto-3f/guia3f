@@ -1,9 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import Image from 'next/image'
-import { ChevronDown, Info, Search, Star } from 'lucide-react'
+import { ChevronDown, Search, Star } from 'lucide-react'
+import BotaoInfoBeneficio from '@/components/comissoes/BotaoInfoBeneficio'
+import { ROTULOS_BENEFICIO } from '@/lib/comissoesBeneficiosInfo'
 import { supabase } from '@/lib/supabase'
 import {
   ORDEM_CATEGORIA_COMERCIO,
@@ -39,33 +40,6 @@ function cidadeCombinaFiltro(cidade, filtroId) {
   return f.match.some((m) => norm.includes(m))
 }
 
-/** Largura fixa do tooltip — força 3 linhas curtas (menos extensão horizontal). */
-const LARGURA_POPUP_INFO_PX = 168
-
-/** @type {Record<'pax' | 'percentual' | 'fixo' | 'extra', [string, string, string]>} */
-const INFO_BENEFICIO_LINHAS = {
-  pax: [
-    'Comissão paga por passageiro',
-    'que trouxerem no local',
-    'da empresa.',
-  ],
-  percentual: [
-    'Comissão paga sobre uma',
-    'porcentagem da compra ou consumo',
-    'do cliente na empresa.',
-  ],
-  fixo: [
-    'Comissão de valor fixo',
-    'por passageiro que consumir',
-    'ou comprar na empresa.',
-  ],
-  extra: [
-    'Benefício particular e',
-    'personalizado que a empresa oferece',
-    'além das comissões.',
-  ],
-}
-
 /** @param {Record<string, unknown>} oferta */
 function parseEmpresaOferta(oferta) {
   const emp = oferta.empresas
@@ -84,109 +58,15 @@ function empresaCombinaTermo(empresa, termo) {
 function listarBeneficiosAtivos(b) {
   /** @type {{ tipo: 'pax' | 'percentual' | 'fixo' | 'extra', label: string, valor: string }[]} */
   const itens = []
-  if (b.pax?.ativo) itens.push({ tipo: 'pax', label: 'PAX', valor: `R$ ${b.pax.valor ?? 0}` })
+  if (b.pax?.ativo) itens.push({ tipo: 'pax', label: ROTULOS_BENEFICIO.pax, valor: `R$ ${b.pax.valor ?? 0}` })
   if (b.percentual?.ativo)
-    itens.push({ tipo: 'percentual', label: 'PORCENTAGEM', valor: `${b.percentual.valor ?? 0}%` })
+    itens.push({ tipo: 'percentual', label: ROTULOS_BENEFICIO.percentual, valor: `${b.percentual.valor ?? 0}%` })
   if (b.fixo?.ativo)
-    itens.push({ tipo: 'fixo', label: 'INDICAÇÃO', valor: `R$ ${b.fixo.valor ?? 0}` })
+    itens.push({ tipo: 'fixo', label: ROTULOS_BENEFICIO.fixo, valor: `R$ ${b.fixo.valor ?? 0}` })
   if (b.extra?.ativo && String(b.extra.texto ?? '').trim()) {
-    itens.push({ tipo: 'extra', label: 'BENEFÍCIO EXTRA', valor: String(b.extra.texto).trim() })
+    itens.push({ tipo: 'extra', label: ROTULOS_BENEFICIO.extra, valor: String(b.extra.texto).trim() })
   }
   return itens
-}
-
-/**
- * @param {{
- *   tipo: 'pax' | 'percentual' | 'fixo' | 'extra'
- *   aberto: boolean
- *   onToggle: () => void
- *   onFechar: () => void
- * }} props
- */
-function BotaoInfoBeneficio({ tipo, aberto, onToggle, onFechar }) {
-  const btnRef = useRef(/** @type {HTMLButtonElement | null} */ (null))
-  const popupRef = useRef(/** @type {HTMLDivElement | null} */ (null))
-  const [popupPos, setPopupPos] = useState(/** @type {{ top: number; left: number; width: number } | null} */ (null))
-
-  const atualizarPosicao = useCallback(() => {
-    const btn = btnRef.current
-    if (!btn) return
-    const rect = btn.getBoundingClientRect()
-    const largura = Math.min(LARGURA_POPUP_INFO_PX, window.innerWidth - 24)
-    const left = Math.max(12, Math.min(rect.right - largura, window.innerWidth - largura - 12))
-    setPopupPos({
-      top: rect.bottom + 10,
-      left,
-      width: largura,
-    })
-  }, [])
-
-  useEffect(() => {
-    if (!aberto) {
-      setPopupPos(null)
-      return
-    }
-    atualizarPosicao()
-    window.addEventListener('resize', atualizarPosicao)
-    window.addEventListener('scroll', atualizarPosicao, true)
-    return () => {
-      window.removeEventListener('resize', atualizarPosicao)
-      window.removeEventListener('scroll', atualizarPosicao, true)
-    }
-  }, [aberto, atualizarPosicao])
-
-  useEffect(() => {
-    if (!aberto) return
-    const onPointerDown = (e) => {
-      const alvo = /** @type {Node} */ (e.target)
-      if (btnRef.current?.contains(alvo) || popupRef.current?.contains(alvo)) return
-      onFechar()
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('touchstart', onPointerDown)
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('touchstart', onPointerDown)
-    }
-  }, [aberto, onFechar])
-
-  const popup =
-    aberto && popupPos && typeof document !== 'undefined'
-      ? createPortal(
-          <div
-            ref={popupRef}
-            role="tooltip"
-            style={{ position: 'fixed', top: popupPos.top, left: popupPos.left, width: popupPos.width }}
-            className="z-[200] rounded-lg bg-[#0097b2] px-2.5 py-2 text-left text-white shadow-lg"
-          >
-            {INFO_BENEFICIO_LINHAS[tipo].map((linha) => (
-              <span key={linha} className="block text-[11px] leading-[1.35]">
-                {linha}
-              </span>
-            ))}
-          </div>,
-          document.body
-        )
-      : null
-
-  return (
-    <div className="relative shrink-0 self-start">
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation()
-          onToggle()
-        }}
-        className="flex h-7 w-7 items-center justify-center rounded-full text-[#0097b2] transition hover:bg-[#0097b2]/10"
-        aria-label={`Informações sobre ${tipo}`}
-        aria-expanded={aberto}
-      >
-        <Info className="h-4 w-4" strokeWidth={2.25} aria-hidden />
-      </button>
-      {popup}
-    </div>
-  )
 }
 
 function textoValidadeOferta(oferta) {

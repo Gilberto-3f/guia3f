@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { ROTULOS_BENEFICIO } from '@/lib/comissoesBeneficiosInfo'
 import { supabase } from '@/lib/supabase'
 import { useSharedAdminGate } from '../context/AdminPermissaoContext'
 import { adminContextFromGate, registrarLogVerificacao } from '../utils/registrarLogVerificacao'
@@ -61,11 +62,11 @@ function parseOfertaRow(row: Record<string, unknown>): OfertaComissaoAdm | null 
 
 export function listarBeneficiosAtivos(b: BeneficiosOferta) {
   const itens: { label: string; valor: string }[] = []
-  if (b.pax?.ativo) itens.push({ label: 'PAX (por cliente)', valor: `R$ ${b.pax.valor ?? 0}` })
-  if (b.percentual?.ativo) itens.push({ label: '% sobre venda', valor: `${b.percentual.valor ?? 0}%` })
-  if (b.fixo?.ativo) itens.push({ label: 'Valor fixo por indicação', valor: `R$ ${b.fixo.valor ?? 0}` })
+  if (b.pax?.ativo) itens.push({ label: ROTULOS_BENEFICIO.pax, valor: `R$ ${b.pax.valor ?? 0}` })
+  if (b.percentual?.ativo) itens.push({ label: ROTULOS_BENEFICIO.percentual, valor: `${b.percentual.valor ?? 0}%` })
+  if (b.fixo?.ativo) itens.push({ label: ROTULOS_BENEFICIO.fixo, valor: `R$ ${b.fixo.valor ?? 0}` })
   if (b.extra?.ativo && String(b.extra.texto ?? '').trim()) {
-    itens.push({ label: 'Benefício extra', valor: String(b.extra.texto).trim() })
+    itens.push({ label: ROTULOS_BENEFICIO.extra, valor: String(b.extra.texto).trim() })
   }
   return itens
 }
