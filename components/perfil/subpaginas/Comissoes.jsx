@@ -46,22 +46,22 @@ const LARGURA_POPUP_INFO_PX = 168
 const INFO_BENEFICIO_LINHAS = {
   pax: [
     'Comissão paga por passageiro',
-    'direcionado à nossa loja',
-    '(comprando ou consumindo).',
+    'que trouxerem no local',
+    'da empresa.',
   ],
   percentual: [
-    'Comissão em percentual',
-    'sobre compra ou consumo',
+    'Comissão paga sobre uma',
+    'porcentagem da compra ou consumo',
     'do cliente na empresa.',
   ],
   fixo: [
-    'Valor fixo de comissão',
+    'Comissão de valor fixo',
     'por passageiro que consumir',
     'ou comprar na empresa.',
   ],
   extra: [
-    'Benefício personalizado',
-    'oferecido pela empresa',
+    'Benefício particular e',
+    'personalizado que a empresa oferece',
     'além das comissões.',
   ],
 }
@@ -84,13 +84,13 @@ function empresaCombinaTermo(empresa, termo) {
 function listarBeneficiosAtivos(b) {
   /** @type {{ tipo: 'pax' | 'percentual' | 'fixo' | 'extra', label: string, valor: string }[]} */
   const itens = []
-  if (b.pax?.ativo) itens.push({ tipo: 'pax', label: 'PAX (por cliente)', valor: `R$ ${b.pax.valor ?? 0}` })
+  if (b.pax?.ativo) itens.push({ tipo: 'pax', label: 'PAX', valor: `R$ ${b.pax.valor ?? 0}` })
   if (b.percentual?.ativo)
-    itens.push({ tipo: 'percentual', label: '% sobre venda', valor: `${b.percentual.valor ?? 0}%` })
+    itens.push({ tipo: 'percentual', label: 'PORCENTAGEM', valor: `${b.percentual.valor ?? 0}%` })
   if (b.fixo?.ativo)
-    itens.push({ tipo: 'fixo', label: 'Valor fixo por indicação', valor: `R$ ${b.fixo.valor ?? 0}` })
+    itens.push({ tipo: 'fixo', label: 'INDICAÇÃO', valor: `R$ ${b.fixo.valor ?? 0}` })
   if (b.extra?.ativo && String(b.extra.texto ?? '').trim()) {
-    itens.push({ tipo: 'extra', label: 'Benefício extra', valor: String(b.extra.texto).trim() })
+    itens.push({ tipo: 'extra', label: 'BENEFÍCIO EXTRA', valor: String(b.extra.texto).trim() })
   }
   return itens
 }
