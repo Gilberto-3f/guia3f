@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { getPerfilHref } from '@/lib/perfil-utils'
 import Estrelas from '@/components/Estrelas'
 import EstrelasAvaliacao from '@/components/EstrelasAvaliacao'
 import GraficoAvaliacoes from '@/components/GraficoAvaliacoes'
@@ -605,32 +607,54 @@ export default function AbaAvaliacoes({
         </div>
       ) : (
         <div className="space-y-4">
-          {avaliacoesFiltradas.map((av) => (
+          {avaliacoesFiltradas.map((av) => {
+            const perfilHref = av.usuario_id
+              ? getPerfilHref({ usuario_id: av.usuario_id, tipo: av.avaliador_tipo })
+              : null
+            const avatarEl = av.avaliador.foto_url ? (
+              <Image
+                src={av.avaliador.foto_url}
+                alt={av.avaliador.nome}
+                width={40}
+                height={40}
+                className="h-10 w-10 rounded-md object-cover"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-200">
+                <User size={20} className="text-gray-400" aria-hidden />
+              </div>
+            )
+            const identidadeEl = (
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-gray-800">
+                  <NomeComVerificacao
+                    nome={av.avaliador.nome}
+                    verificado={Boolean(av.avaliador.verificado)}
+                    nomeClassName="truncate"
+                  />
+                </p>
+                <p className="truncate text-xs text-gray-500">@{av.avaliador.username}</p>
+              </div>
+            )
+
+            return (
             <div key={av.id} className="rounded-xl bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-center gap-3">
-                {av.avaliador.foto_url ? (
-                  <Image
-                    src={av.avaliador.foto_url}
-                    alt={av.avaliador.nome}
-                    width={40}
-                    height={40}
-                    className="h-10 w-10 rounded-md object-cover"
-                  />
+                {perfilHref ? (
+                  <Link
+                    href={perfilHref}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-md transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0097b2]"
+                    aria-label={`Ver perfil de ${av.avaliador.nome}`}
+                  >
+                    {avatarEl}
+                    {identidadeEl}
+                  </Link>
                 ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-200">
-                    <User size={20} className="text-gray-400" aria-hidden />
-                  </div>
+                  <>
+                    {avatarEl}
+                    {identidadeEl}
+                  </>
                 )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-gray-800">
-                    <NomeComVerificacao
-                      nome={av.avaliador.nome}
-                      verificado={Boolean(av.avaliador.verificado)}
-                      nomeClassName="truncate"
-                    />
-                  </p>
-                  <p className="truncate text-xs text-gray-500">@{av.avaliador.username}</p>
-                </div>
                 <div className="shrink-0">
                   <Estrelas nota={av.nota} tamanho={14} />
                 </div>
@@ -765,7 +789,8 @@ export default function AbaAvaliacoes({
                 })}
               </p>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
