@@ -6,6 +6,9 @@ import type { ReactNode } from "react";
 
 const inter = Inter({ subsets: ["latin"] });
 
+/** Incrementar quando overrides do tour/PWA em public/globals.css mudarem. */
+const GLOBAL_CSS_VERSION = "2";
+
 export const metadata: Metadata = {
   applicationName: "Guia 3F",
   title: "Guia 3F",
@@ -34,6 +37,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="pt" suppressHydrationWarning className={`${inter.className} h-full antialiased`}>
+      <head>
+        <link rel="stylesheet" href={`/globals.css?v=${GLOBAL_CSS_VERSION}`} />
+      </head>
       <body suppressHydrationWarning className="min-h-full">
         {children}
       </body>
