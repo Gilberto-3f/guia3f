@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Info } from 'lucide-react'
-import { INFO_BENEFICIO_LINHAS, LARGURA_POPUP_INFO_PX } from '@/lib/comissoesBeneficiosInfo'
+import { INFO_BENEFICIO_TEXTO, LARGURA_POPUP_INFO_PX } from '@/lib/comissoesBeneficiosInfo'
 
 /**
  * @param {{
@@ -67,13 +67,9 @@ export default function BotaoInfoBeneficio({ tipo, aberto, onToggle, onFechar })
             ref={popupRef}
             role="tooltip"
             style={{ position: 'fixed', top: popupPos.top, left: popupPos.left, width: popupPos.width }}
-            className="z-[200] rounded-lg bg-[#0097b2] px-2.5 py-2 text-left text-white shadow-lg"
+            className="z-[200] rounded-lg bg-[#0097b2] px-2.5 py-2 text-left text-[11px] leading-snug text-white shadow-lg"
           >
-            {INFO_BENEFICIO_LINHAS[tipo].map((linha, i) => (
-              <span key={i} className="block text-[11px] leading-[1.35]">
-                {linha}
-              </span>
-            ))}
+            {INFO_BENEFICIO_TEXTO[tipo]}
           </div>,
           document.body
         )
