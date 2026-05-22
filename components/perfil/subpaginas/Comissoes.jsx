@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { ChevronDown, Search, Star } from 'lucide-react'
 import BotaoInfoBeneficio from '@/components/comissoes/BotaoInfoBeneficio'
-import { ROTULOS_BENEFICIO } from '@/lib/comissoesBeneficiosInfo'
+import { listarBeneficiosOferta, ROTULOS_BENEFICIO } from '@/lib/comissoesBeneficiosInfo'
 import { supabase } from '@/lib/supabase'
 import {
   ORDEM_CATEGORIA_COMERCIO,
@@ -56,17 +56,17 @@ function empresaCombinaTermo(empresa, termo) {
 }
 
 function listarBeneficiosAtivos(b) {
-  /** @type {{ tipo: 'pax' | 'percentual' | 'fixo' | 'extra', label: string, valor: string }[]} */
-  const itens = []
-  if (b.pax?.ativo) itens.push({ tipo: 'pax', label: ROTULOS_BENEFICIO.pax, valor: `R$ ${b.pax.valor ?? 0}` })
-  if (b.percentual?.ativo)
-    itens.push({ tipo: 'percentual', label: ROTULOS_BENEFICIO.percentual, valor: `${b.percentual.valor ?? 0}%` })
-  if (b.fixo?.ativo)
-    itens.push({ tipo: 'fixo', label: ROTULOS_BENEFICIO.fixo, valor: `R$ ${b.fixo.valor ?? 0}` })
-  if (b.extra?.ativo && String(b.extra.texto ?? '').trim()) {
-    itens.push({ tipo: 'extra', label: ROTULOS_BENEFICIO.extra, valor: String(b.extra.texto).trim() })
-  }
-  return itens
+  return listarBeneficiosOferta(b).map((item) => {
+    const tipo =
+      item.label === ROTULOS_BENEFICIO.pax
+        ? 'pax'
+        : item.label === ROTULOS_BENEFICIO.percentual
+          ? 'percentual'
+          : item.label === ROTULOS_BENEFICIO.fixo
+            ? 'fixo'
+            : 'extra'
+    return { tipo, label: item.label, valor: item.valor }
+  })
 }
 
 function textoValidadeOferta(oferta) {

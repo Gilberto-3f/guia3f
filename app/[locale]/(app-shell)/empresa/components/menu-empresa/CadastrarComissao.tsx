@@ -5,7 +5,13 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import BotaoInfoBeneficio from '@/components/comissoes/BotaoInfoBeneficio'
 import ModoApresentacaoIcon from '@/components/ModoApresentacaoIcon'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
-import { ROTULOS_BENEFICIO } from '@/lib/comissoesBeneficiosInfo'
+import {
+  classeStatusOferta,
+  listarBeneficiosOferta,
+  ofertaPodeSerRemovidaPelaEmpresa,
+  rotuloStatusOferta,
+  ROTULOS_BENEFICIO,
+} from '@/lib/comissoesBeneficiosInfo'
 import type { TipoBeneficioComissao } from '@/lib/comissoesBeneficiosInfo'
 import { supabase } from '@/lib/supabase'
 
@@ -62,17 +68,6 @@ function comunidadesAbertasIniciais() {
   return Object.fromEntries(COMUNIDADES.map((c) => [c.label, false])) as Record<ComunidadeLabel, boolean>
 }
 
-function resumoBeneficios(b: Record<string, { ativo?: boolean; valor?: number; texto?: string }>) {
-  const partes: string[] = []
-  if (b.pax?.ativo) partes.push(`${ROTULOS_BENEFICIO.pax}: R$ ${b.pax.valor ?? 0}`)
-  if (b.percentual?.ativo) partes.push(`${ROTULOS_BENEFICIO.percentual}: ${b.percentual.valor ?? 0}%`)
-  if (b.fixo?.ativo) partes.push(`${ROTULOS_BENEFICIO.fixo}: R$ ${b.fixo.valor ?? 0}`)
-  if (b.extra?.ativo && b.extra.texto) {
-    partes.push(`${ROTULOS_BENEFICIO.extra}: ${String(b.extra.texto).slice(0, 80)}`)
-  }
-  return partes.length ? partes.join(' · ') : 'Nenhum benefício informado'
-}
-
 function textoValidadeOferta(oferta: Record<string, unknown>) {
   const raw = oferta.beneficios
   const b =
@@ -97,6 +92,8 @@ export default function CadastrarComissao() {
   const [msg, setMsg] = useState<string | null>(null)
   const [salvando, setSalvando] = useState<ComunidadeLabel | null>(null)
   const [beneficioInfoAberto, setBeneficioInfoAberto] = useState<string | null>(null)
+  const [historicoStatusAberto, setHistoricoStatusAberto] = useState<Set<string>>(new Set())
+  const [removendoOfertaId, setRemovendoOfertaId] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     if (!empresaId) {
@@ -184,6 +181,38 @@ export default function CadastrarComissao() {
     setComunidadesAbertas((p) => ({ ...p, [categoria]: false }))
     setMsg(`Oferta cadastrada para ${categoria}.`)
     void carregar()
+  }
+
+  const removerOferta = async (ofertaId: string) => {
+    if (!empresaId || !ofertaId) return
+    setRemovendoOfertaId(ofertaId)
+    setMsg(null)
+    const { error } = await supabase
+      .from('comissao_oferta')
+      .update({ status: 'removido' })
+      .eq('id', ofertaId)
+      .eq('empresa_id', empresaId)
+    setRemovendoOfertaId(null)
+    if (error) {
+      setMsg(error.message || 'Não foi possível remover a oferta.')
+      return
+    }
+    setHistoricoStatusAberto((prev) => {
+      const next = new Set(prev)
+      next.delete(ofertaId)
+      return next
+    })
+    setMsg('Oferta removida. Ela não aparecerá mais para os profissionais.')
+    void carregar()
+  }
+
+  const toggleHistoricoStatus = (ofertaId: string) => {
+    setHistoricoStatusAberto((prev) => {
+      const next = new Set(prev)
+      if (next.has(ofertaId)) next.delete(ofertaId)
+      else next.add(ofertaId)
+      return next
+    })
   }
 
   const renderLinhaBeneficio = (
@@ -432,8 +461,11 @@ export default function CadastrarComissao() {
                   raw && typeof raw === 'object' && !Array.isArray(raw)
                     ? (raw as Record<string, { ativo?: boolean; valor?: number; texto?: string }>)
                     : {}
+                const itensBeneficio = listarBeneficiosOferta(b)
                 const categoria = String(oferta.categoria_profissional ?? '')
                 const iconeKey = ICONE_POR_CATEGORIA[categoria] ?? 'profissional'
+                const ofertaId = String(oferta.id ?? '')
+                const status = String(oferta.status ?? 'pendente')
                 const dia = oferta.created_at
                   ? new Date(String(oferta.created_at)).toLocaleDateString('pt-BR', {
                       day: '2-digit',
@@ -448,9 +480,12 @@ export default function CadastrarComissao() {
                     })
                   : ''
                 const validadeTxt = textoValidadeOferta(oferta)
+                const statusExpandido = historicoStatusAberto.has(ofertaId)
+                const podeRemover = ofertaPodeSerRemovidaPelaEmpresa(status)
+                const removendo = removendoOfertaId === ofertaId
 
                 return (
-                  <li key={String(oferta.id)} className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+                  <li key={ofertaId} className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <span className="text-xs font-medium text-gray-500">{dia}</span>
                       {hora ? <span className="text-xs text-gray-400">{hora}</span> : null}
@@ -461,9 +496,61 @@ export default function CadastrarComissao() {
                       </span>
                       <span className="font-bold text-[#001f3f]">{categoria}</span>
                     </div>
-                    <p className="mt-1 text-sm text-gray-600">{resumoBeneficios(b)}</p>
-                    {validadeTxt ? <p className="mt-1 text-xs text-amber-700">{validadeTxt}</p> : null}
-                    <p className="mt-2 text-xs text-gray-400 capitalize">Status: {String(oferta.status ?? 'pendente')}</p>
+                    {itensBeneficio.length === 0 ? (
+                      <p className="mt-2 text-sm text-gray-500">Nenhum benefício informado</p>
+                    ) : (
+                      <ul className="mt-2 space-y-1.5">
+                        {itensBeneficio.map((item) => (
+                          <li
+                            key={`${ofertaId}-${item.label}`}
+                            className="flex flex-wrap items-baseline gap-x-2 text-sm text-gray-700"
+                          >
+                            <span className="font-semibold text-gray-800">{item.label}:</span>
+                            <span>{item.valor}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {validadeTxt ? <p className="mt-2 text-xs text-amber-700">{validadeTxt}</p> : null}
+                    <div className="mt-3 border-t border-gray-100 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleHistoricoStatus(ofertaId)}
+                        className="flex w-full items-center justify-between gap-2 text-left"
+                        aria-expanded={statusExpandido}
+                      >
+                        <span className="text-xs text-gray-500">
+                          Status:{' '}
+                          <span className={`font-semibold ${classeStatusOferta(status)}`}>
+                            {rotuloStatusOferta(status)}
+                          </span>
+                        </span>
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${
+                            statusExpandido ? 'rotate-180' : ''
+                          }`}
+                          aria-hidden
+                        />
+                      </button>
+                      {statusExpandido ? (
+                        <div className="mt-2 pl-1">
+                          {podeRemover ? (
+                            <button
+                              type="button"
+                              disabled={removendo}
+                              onClick={() => void removerOferta(ofertaId)}
+                              className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                            >
+                              {removendo ? 'Removendo…' : 'Remover'}
+                            </button>
+                          ) : (
+                            <p className="text-xs text-gray-500">
+                              Esta oferta já foi removida e não é exibida aos profissionais.
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
                   </li>
                 )
               })}
