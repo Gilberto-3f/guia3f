@@ -39,12 +39,31 @@ function cidadeCombinaFiltro(cidade, filtroId) {
   return f.match.some((m) => norm.includes(m))
 }
 
-/** @type {Record<'pax' | 'percentual' | 'fixo' | 'extra', string>} */
-const INFO_BENEFICIO = {
-  pax: 'Comissão paga por passageiro\n direcionado à nossa loja\n(comprando ou consumindo).',
-  percentual: 'Comissão em percentual\n sobre a compra ou consumo\n do cliente na empresa.',
-  fixo: 'Valor fixo de comissão\n por passageiro que consumir\n ou comprar na empresa.',
-  extra: 'Benefício personalizado\n oferecido pela empresa\n além das comissões.',
+/** Largura fixa do tooltip — força 3 linhas curtas (menos extensão horizontal). */
+const LARGURA_POPUP_INFO_PX = 168
+
+/** @type {Record<'pax' | 'percentual' | 'fixo' | 'extra', [string, string, string]>} */
+const INFO_BENEFICIO_LINHAS = {
+  pax: [
+    'Comissão paga por passageiro',
+    'direcionado à nossa loja',
+    '(comprando ou consumindo).',
+  ],
+  percentual: [
+    'Comissão em percentual',
+    'sobre compra ou consumo',
+    'do cliente na empresa.',
+  ],
+  fixo: [
+    'Valor fixo de comissão',
+    'por passageiro que consumir',
+    'ou comprar na empresa.',
+  ],
+  extra: [
+    'Benefício personalizado',
+    'oferecido pela empresa',
+    'além das comissões.',
+  ],
 }
 
 /** @param {Record<string, unknown>} oferta */
@@ -93,7 +112,7 @@ function BotaoInfoBeneficio({ tipo, aberto, onToggle, onFechar }) {
     const btn = btnRef.current
     if (!btn) return
     const rect = btn.getBoundingClientRect()
-    const largura = Math.min(280, window.innerWidth - 24)
+    const largura = Math.min(LARGURA_POPUP_INFO_PX, window.innerWidth - 24)
     const left = Math.max(12, Math.min(rect.right - largura, window.innerWidth - largura - 12))
     setPopupPos({
       top: rect.bottom + 10,
@@ -138,9 +157,13 @@ function BotaoInfoBeneficio({ tipo, aberto, onToggle, onFechar }) {
             ref={popupRef}
             role="tooltip"
             style={{ position: 'fixed', top: popupPos.top, left: popupPos.left, width: popupPos.width }}
-            className="z-[200] rounded-lg bg-[#0097b2] px-3 py-2.5 text-left text-xs leading-snug text-white shadow-lg"
+            className="z-[200] rounded-lg bg-[#0097b2] px-2.5 py-2 text-left text-white shadow-lg"
           >
-            {INFO_BENEFICIO[tipo]}
+            {INFO_BENEFICIO_LINHAS[tipo].map((linha) => (
+              <span key={linha} className="block text-[11px] leading-[1.35]">
+                {linha}
+              </span>
+            ))}
           </div>,
           document.body
         )
