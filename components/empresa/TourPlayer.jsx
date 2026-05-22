@@ -90,17 +90,12 @@ export default function TourPlayer({ fotos360Url, tourConfig: tourConfigRaw, aut
         const viewer = Pannellum.viewer(containerElId, config)
         viewerRef.current = viewer
 
-        const orientarCenaParaSetas = (sceneId) => {
-          const id = typeof sceneId === 'string' ? sceneId : tour.firstScene ?? tour.cenas[0]?.id
-          const cena = tour.cenas.find((c) => c.id === id)
-          const hs = cena?.hotspots[0]
-          if (!hs) return
-          viewer.setYaw?.(hs.yaw)
-          viewer.setPitch?.(hs.pitch)
+        const aposCenaCarregada = () => {
+          viewer.resize?.()
         }
 
-        viewer.on?.('load', () => orientarCenaParaSetas(tour.firstScene ?? tour.cenas[0]?.id))
-        viewer.on?.('scenechange', (sceneId) => orientarCenaParaSetas(sceneId))
+        viewer.on?.('load', aposCenaCarregada)
+        viewer.on?.('scenechange', aposCenaCarregada)
       } catch {
         if (!cancelado) setErro('Não foi possível carregar o tour virtual.')
       }

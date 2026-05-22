@@ -4,8 +4,14 @@ import { TOUR_CONFIG_VAZIO } from '@/lib/tour360Types'
 /** Pitch padrão para setas de navegação (nível porta/chão). */
 export const PITCH_HOTSPOT_NAVEGACAO = -12
 
-/** Classes no elemento pnlm-hotspot-base (Pannellum não adiciona pnlm-hotspot quando há cssClass). */
-export const CSS_HOTSPOT_NAVEGACAO = 'pnlm-hotspot tour-nav-hotspot'
+/** Classe no elemento pnlm-hotspot-base (Pannellum prefixa pnlm-hotspot-base automaticamente). */
+export const CSS_HOTSPOT_NAVEGACAO = 'tour-nav-hotspot'
+
+/**
+ * Altura do panorama no editor (% do viewport).
+ * Valor alto gera faixa horizontal larga para arrastar sem clipPath (sem faixas pretas).
+ */
+export const EDITOR_PANORAMA_BG_ALTURA_PERCENT = 320
 
 export type HotspotPannellumDraft = {
   pitch: number
@@ -153,9 +159,12 @@ function viewToPannellumParams(view?: CenaView360): Record<string, unknown> {
   return o
 }
 
-function buildSceneConfig(cena: CenaTour360): Record<string, unknown> {
+function buildSceneConfig(cena: CenaTour360, idsCenasValidos: Set<string>): Record<string, unknown> {
   const viewParams = viewToPannellumParams(cena.view)
-  const primeiroHs = cena.hotspots[0]
+  const hotspotsValidos = cena.hotspots.filter(
+    (h) => h.sceneId !== cena.id && idsCenasValidos.has(h.sceneId)
+  )
+  const primeiroHs = hotspotsValidos[0]
   /** Sem vista salva, abre a cena olhando para a primeira seta (se existir). */
   const vistaParaPrimeiraSeta =
     !Object.keys(viewParams).length && primeiroHs
@@ -166,7 +175,7 @@ function buildSceneConfig(cena: CenaTour360): Record<string, unknown> {
     panorama: cena.url,
     ...vistaParaPrimeiraSeta,
     ...viewParams,
-    hotSpots: cena.hotspots.map((h) => hotspotNavegacaoParaPannellum(h)),
+    hotSpots: hotspotsValidos.map((h) => hotspotNavegacaoParaPannellum(h)),
   }
 }
 
@@ -273,9 +282,10 @@ export function buildPannellumTourConfig(tour: TourConfig): Record<string, unkno
   if (!tour.cenas.length) return null
   const first =
     tour.firstScene && tour.cenas.some((c) => c.id === tour.firstScene) ? tour.firstScene : tour.cenas[0].id
+  const idsCenasValidos = new Set(tour.cenas.map((c) => c.id))
   const scenes: Record<string, unknown> = {}
   for (const cena of tour.cenas) {
-    scenes[cena.id] = buildSceneConfig(cena)
+    scenes[cena.id] = buildSceneConfig(cena, idsCenasValidos)
   }
   return {
     default: {

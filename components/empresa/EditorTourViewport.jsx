@@ -1,7 +1,10 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { yawGrausParaPosicaoPercent } from '@/lib/pannellumTour'
+import {
+  EDITOR_PANORAMA_BG_ALTURA_PERCENT,
+  yawGrausParaPosicaoPercent,
+} from '@/lib/pannellumTour'
 
 /**
  * Faixa da foto 360° + pino fixo + arraste horizontal (sem Pannellum).
@@ -72,7 +75,7 @@ export default function EditorTourViewport({
     <div className="w-full">
       <div
         ref={areaRef}
-        className="relative aspect-[16/9] w-full touch-none overflow-hidden rounded-lg bg-[#1a1a1a] select-none"
+        className="relative aspect-[16/9] w-full touch-none overflow-hidden rounded-lg bg-black select-none"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -84,7 +87,7 @@ export default function EditorTourViewport({
           className={`absolute inset-0 ${arrastando ? '' : 'transition-[background-position] duration-150 ease-out'}`}
           style={{
             backgroundImage: `url(${panoramaUrl})`,
-            backgroundSize: 'auto 100%',
+            backgroundSize: `auto ${EDITOR_PANORAMA_BG_ALTURA_PERCENT}%`,
             backgroundPosition: `${bgPosX}% 50%`,
             backgroundRepeat: 'no-repeat',
           }}
