@@ -630,7 +630,7 @@ export default function CadastrarComissao() {
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-white">
               A oferta ativa de <strong>{substituicaoPendente.categoria}</strong> no momento mudará de status para{' '}
-              <strong className="text-red-400">Removido</strong>. Deseja substituir e enviar esta nova proposta para
+              <strong>Removido</strong>. Deseja substituir e enviar esta nova proposta para
               análise?
             </p>
             <div className="mt-5 flex gap-2">
