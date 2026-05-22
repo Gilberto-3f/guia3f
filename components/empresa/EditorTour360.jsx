@@ -110,14 +110,18 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
     setMsg(`Ambiente ${indiceAmbiente(tour, cenaAtiva.id)} conectado com Ambiente ${indiceAmbiente(tour, destinoDraftId)} (${Math.round(yawEditor)}°).`)
   }
 
-  const removerHotspot = (id) => {
-    if (!cenaAtiva) return
+  const removerConexao = (deId, paraId) => {
     setTour((prev) => ({
       ...prev,
       cenas: prev.cenas.map((c) =>
-        c.id === cenaAtiva.id ? { ...c, hotspots: c.hotspots.filter((h) => h.id !== id) } : c
+        c.id === deId ? { ...c, hotspots: c.hotspots.filter((h) => h.sceneId !== paraId) } : c
       ),
     }))
+    if (cenaAtiva?.id === deId && destinoDraftId === paraId) {
+      setDestinoDraftId(null)
+      setYawEditor(0)
+    }
+    setMsg(null)
   }
 
   const salvarTour = async () => {
@@ -180,19 +184,6 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
               destinoConectado={Boolean(destinoDraftId && hotspotExistenteDestino)}
             />
           </div>
-          <p className="mb-4 text-center text-[11px] leading-snug text-gray-600">
-            {destinoDraftId ? (
-              <>
-                O ponto no centro é onde a seta ficará na tour. Arraste a foto com o dedo (esquerda/direita) até o local
-                certo e toque em <strong>CONECTAR</strong> (ambiente {destinoIdx ?? '?'}).
-              </>
-            ) : (
-              <>
-                Toque em <strong>+ NOVO</strong>, escolha o ambiente de destino e arraste a foto para alinhar o ponto
-                central.
-              </>
-            )}
-          </p>
 
           <div className="mb-4 flex gap-2">
             <button
@@ -234,69 +225,53 @@ export default function EditorTour360({ empresaId, fotos360Url, tourConfig: tour
             ) : (
               <ul className="space-y-1.5">
                 {statusLinhas.map((linha, i) => (
-                  <li key={`${linha.deIdx}-${linha.paraIdx}-${linha.estado}-${i}`}>
-                    <span className="font-semibold text-gray-800">AMBIENTE {linha.deIdx}</span>{' '}
+                  <li
+                    key={`${linha.deIdx}-${linha.paraIdx}-${linha.estado}-${i}`}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="font-semibold text-gray-800">AMBIENTE {linha.deIdx}</span>{' '}
+                      {linha.estado === 'conectado' ? (
+                        <>
+                          <span className="italic text-green-600">conectado com</span>{' '}
+                          <span className="font-semibold text-gray-800">AMBIENTE {linha.paraIdx}</span>
+                          {linha.yaw != null ? (
+                            <span className="text-gray-500">
+                              {' '}
+                              ({Math.round(yawPannellumParaEditor(linha.yaw))}°)
+                            </span>
+                          ) : null}
+                        </>
+                      ) : (
+                        <>
+                          <span className="italic text-red-600">pendente</span>{' '}
+                          <span className="font-semibold text-gray-800">AMBIENTE {linha.paraIdx}</span>
+                        </>
+                      )}
+                    </span>
                     {linha.estado === 'conectado' ? (
-                      <>
-                        <span className="italic text-green-600">conectado com</span>{' '}
-                        <span className="font-semibold text-gray-800">AMBIENTE {linha.paraIdx}</span>
-                        {linha.yaw != null ? (
-                          <span className="text-gray-500"> ({Math.round(yawPannellumParaEditor(linha.yaw))}°)</span>
-                        ) : null}
-                      </>
-                    ) : (
-                      <>
-                        <span className="italic text-red-600">pendente</span>{' '}
-                        <span className="font-semibold text-gray-800">AMBIENTE {linha.paraIdx}</span>
-                      </>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => removerConexao(linha.deId, linha.paraId)}
+                        className="shrink-0 rounded p-1 text-red-600 hover:bg-red-50"
+                        aria-label={`Remover conexão ambiente ${linha.deIdx} com ambiente ${linha.paraIdx}`}
+                      >
+                        <Trash2 size={16} aria-hidden />
+                      </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>
             )}
           </div>
 
-          {cenaAtiva.hotspots.length > 0 ? (
-            <ul className="mb-4 space-y-1 text-xs">
-              <p className="font-medium text-gray-700">Pontos neste ambiente:</p>
-              {cenaAtiva.hotspots.map((h) => {
-                const para = indiceAmbiente(tour, h.sceneId)
-                return (
-                  <li
-                    key={h.id}
-                    className="flex items-center justify-between rounded bg-white px-2 py-1.5 ring-1 ring-black/5"
-                  >
-                    <button
-                      type="button"
-                      className="text-left text-gray-800 hover:text-[#0097b2]"
-                      onClick={() => {
-                        setDestinoDraftId(h.sceneId)
-                        setYawEditor(yawPannellumParaEditor(h.yaw))
-                      }}
-                    >
-                      → Ambiente {para} · {Math.round(yawPannellumParaEditor(h.yaw))}°
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removerHotspot(h.id)}
-                      className="text-red-600"
-                      aria-label="Remover"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          ) : null}
-
           <button
             type="button"
             disabled={salvando}
             onClick={() => void salvarTour()}
-            className="w-full rounded-lg bg-[#0097b2] py-3 text-sm font-bold text-white shadow-sm disabled:opacity-50"
+            className="w-full rounded-lg bg-green-600 py-3 text-sm font-bold uppercase tracking-wide text-white shadow-sm hover:bg-green-500 disabled:opacity-50"
           >
-            {salvando ? 'A guardar…' : 'Salvar tour'}
+            {salvando ? 'A GUARDAR…' : 'SALVAR TOUR'}
           </button>
         </>
       ) : null}

@@ -21,8 +21,6 @@ import AbaBotaoDinamico from '@/components/AbaBotaoDinamico'
 import AbaFotosEmpresa from '@/components/empresa/AbaFotosEmpresa'
 import AbaPostsEmpresa from '@/components/empresa/AbaPostsEmpresa'
 import AbaTour360Empresa from '@/components/empresa/AbaTour360Empresa'
-import EditorTour360 from '@/components/empresa/EditorTour360'
-import UploadFotos360Adm from '@/components/empresa/UploadFotos360Adm'
 import { parseTourConfig, sincronizarTourComFotos } from '@/lib/pannellumTour'
 import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
@@ -438,23 +436,6 @@ export default function EmpresaPage() {
             </button>
           </div>
 
-          {subAbaAtiva === 'tour360' && podeEditarFotos360 ? (
-            <>
-              <UploadFotos360Adm
-                empresaId={empresaId}
-                fotos360Atuais={fotos360Lista}
-                tourConfigAtual={tourConfigMerged}
-                onAtualizado={() => void carregarEmpresa({ silent: true })}
-              />
-              <EditorTour360
-                empresaId={empresaId}
-                fotos360Url={fotos360Lista}
-                tourConfig={tourConfigMerged}
-                onSalvo={() => void carregarEmpresa({ silent: true })}
-              />
-            </>
-          ) : null}
-
           <div className="min-h-0">
             {subAbaAtiva === 'fotos' ? (
               <AbaFotosEmpresa
@@ -466,7 +447,13 @@ export default function EmpresaPage() {
             ) : null}
             {subAbaAtiva === 'posts' ? <AbaPostsEmpresa empresaUsuarioId={empresaUsuarioIdPosts} /> : null}
             {subAbaAtiva === 'tour360' ? (
-              <AbaTour360Empresa fotos360Url={fotos360Lista} tourConfig={tourConfigMerged} />
+              <AbaTour360Empresa
+                fotos360Url={fotos360Lista}
+                tourConfig={tourConfigMerged}
+                modoAdministracao={podeEditarFotos360}
+                empresaId={empresaId}
+                onAtualizado={() => void carregarEmpresa({ silent: true })}
+              />
             ) : null}
           </div>
         </div>

@@ -19,9 +19,16 @@ import {
  *   tourConfig: import('@/lib/tour360Types').TourConfig | unknown
  *   autoOpen?: boolean
  *   onFechar?: () => void
+ *   painelAntesIniciar?: import('react').ReactNode
  * }} props
  */
-export default function TourPlayer({ fotos360Url, tourConfig: tourConfigRaw, autoOpen = true, onFechar }) {
+export default function TourPlayer({
+  fotos360Url,
+  tourConfig: tourConfigRaw,
+  autoOpen = true,
+  onFechar,
+  painelAntesIniciar = null,
+}) {
   const urls = useMemo(
     () => (Array.isArray(fotos360Url) ? fotos360Url.filter((u) => typeof u === 'string' && u.trim()) : []),
     [fotos360Url]
@@ -128,15 +135,18 @@ export default function TourPlayer({ fotos360Url, tourConfig: tourConfigRaw, aut
 
   if (fechado) {
     return (
-      <div className="py-4 text-center">
-        <p className="mb-3 text-sm font-medium text-[#001f3f]">{temNavegacao ? 'Tour Virtual' : 'Vista 360°'}</p>
-        <button
-          type="button"
-          onClick={reabrir}
-          className="rounded-lg bg-[#0097b2] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95"
-        >
-          {temNavegacao ? 'Iniciar tour virtual' : 'Abrir vista 360°'}
-        </button>
+      <div className="px-3 py-4">
+        {painelAntesIniciar}
+        <div className="text-center">
+          <p className="mb-3 text-sm font-medium text-[#001f3f]">{temNavegacao ? 'Tour Virtual' : 'Vista 360°'}</p>
+          <button
+            type="button"
+            onClick={reabrir}
+            className="rounded-lg bg-[#0097b2] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95"
+          >
+            {temNavegacao ? 'Iniciar Tour Virtual' : 'Abrir Vista 360°'}
+          </button>
+        </div>
       </div>
     )
   }

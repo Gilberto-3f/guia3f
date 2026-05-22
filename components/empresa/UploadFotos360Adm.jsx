@@ -98,9 +98,6 @@ export default function UploadFotos360Adm({ empresaId, fotos360Atuais, tourConfi
 
   return (
     <div className="border-b border-[#E0E0E0] bg-gray-50 px-3 py-3">
-      <p className="mb-2 text-xs text-gray-600">
-        Adicionar vista 360° (imagem equiretangular 2:1). Arraste no visualizador para girar após publicar.
-      </p>
       <input
         ref={inputRef}
         type="file"
