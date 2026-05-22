@@ -13,88 +13,11 @@ export const CSS_HOTSPOT_NAVEGACAO = 'tour-nav-hotspot'
  */
 export const EDITOR_PANORAMA_BG_ALTURA_PERCENT = 320
 
-export type HotspotPannellumDraft = {
-  pitch: number
-  yaw: number
-  sceneId: string
-  label?: string
-}
-
-function hotspotNavegacaoParaPannellum(
-  h: { id: string; pitch: number; yaw: number; sceneId: string; text?: string },
-  opts?: { rascunho?: boolean }
-): Record<string, unknown> {
-  return {
-    id: h.id,
-    pitch: h.pitch,
-    yaw: h.yaw,
-    type: 'scene',
-    text: h.text?.trim() || 'Continuar',
-    sceneId: h.sceneId,
-    cssClass: opts?.rascunho ? `${CSS_HOTSPOT_NAVEGACAO} tour-nav-draft` : CSS_HOTSPOT_NAVEGACAO,
-  }
-}
-
-export const PANNELLUM_CSS = 'https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css'
-export const PANNELLUM_JS = 'https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js'
-
-/** Parâmetros de visualização — reduzem distorção percebida e forçam carregamento imediato. */
-export const PANNELLUM_VIEW_DEFAULTS: Record<string, unknown> = {
-  type: 'equirectangular',
-  autoLoad: true,
-  autoRotate: 0,
-  compass: false,
-  showZoomCtrl: true,
-  showFullscreenCtrl: false,
-  hfov: 100,
-  minHfov: 50,
-  maxHfov: 120,
-  horizonPitch: 0,
-  horizonRoll: 0,
-}
-
-/** @type {Promise<void> | null} */
-let cssPromise: Promise<void> | null = null
-/** @type {Promise<void> | null} */
-let jsPromise: Promise<void> | null = null
-
 const preloadCache = new Map<string, Promise<void>>()
 
-export function loadPannellumAssets(): Promise<void> {
-  if (typeof window === 'undefined') return Promise.resolve()
-
-  if (!cssPromise) {
-    cssPromise = new Promise((resolve) => {
-      if (document.querySelector('link[data-pannellum-css="1"]')) {
-        resolve()
-        return
-      }
-      const l = document.createElement('link')
-      l.rel = 'stylesheet'
-      l.href = PANNELLUM_CSS
-      l.setAttribute('data-pannellum-css', '1')
-      l.onload = () => resolve()
-      l.onerror = () => resolve()
-      document.head.appendChild(l)
-    })
-  }
-
-  if (!jsPromise) {
-    jsPromise = new Promise((resolve, reject) => {
-      if ((window as Window & { pannellum?: unknown }).pannellum) {
-        resolve()
-        return
-      }
-      const s = document.createElement('script')
-      s.src = PANNELLUM_JS
-      s.async = true
-      s.onload = () => resolve()
-      s.onerror = () => reject(new Error('Pannellum'))
-      document.body.appendChild(s)
-    })
-  }
-
-  return Promise.all([cssPromise, jsPromise]).then(() => {})
+/** Hotspots de navegação válidos para a cena (destino existente e diferente da origem). */
+export function filtrarHotspotsNavegacao(cena: CenaTour360, idsCenasValidos: Set<string>) {
+  return cena.hotspots.filter((h) => h.sceneId !== cena.id && idsCenasValidos.has(h.sceneId))
 }
 
 /** Pré-carrega panorama para evitar tela "Click to Load". */
@@ -120,63 +43,6 @@ export function preloadPanorama(url: string): Promise<void> {
 
   preloadCache.set(u, p)
   return p
-}
-
-export type PannellumViewer = {
-  destroy?: () => void
-  on?: (event: string, fn: (ev?: unknown) => void) => void
-  mouseEventToCoords?: (ev: MouseEvent) => [number, number]
-  getPitch?: () => number
-  getYaw?: () => number
-  setPitch?: (pitch: number) => void
-  setYaw?: (yaw: number) => void
-  addHotSpot?: (hs: Record<string, unknown>, sceneId?: string) => void
-  removeHotSpot?: (id: string, sceneId?: string) => void
-  loadScene?: (sceneId: string) => void
-}
-
-export type PannellumApi = {
-  viewer: (target: string, config: Record<string, unknown>) => PannellumViewer
-}
-
-export function getPannellum(): PannellumApi | null {
-  if (typeof window === 'undefined') return null
-  return (window as Window & { pannellum?: PannellumApi }).pannellum ?? null
-}
-
-function viewToPannellumParams(view?: CenaView360): Record<string, unknown> {
-  if (!view) return {}
-  const o: Record<string, unknown> = {}
-  if (typeof view.pitch === 'number' && Number.isFinite(view.pitch)) o.pitch = view.pitch
-  if (typeof view.yaw === 'number' && Number.isFinite(view.yaw)) o.yaw = view.yaw
-  if (typeof view.hfov === 'number' && Number.isFinite(view.hfov)) o.hfov = view.hfov
-  if (typeof view.horizonPitch === 'number' && Number.isFinite(view.horizonPitch)) {
-    o.horizonPitch = view.horizonPitch
-  }
-  if (typeof view.horizonRoll === 'number' && Number.isFinite(view.horizonRoll)) {
-    o.horizonRoll = view.horizonRoll
-  }
-  return o
-}
-
-function buildSceneConfig(cena: CenaTour360, idsCenasValidos: Set<string>): Record<string, unknown> {
-  const viewParams = viewToPannellumParams(cena.view)
-  const hotspotsValidos = cena.hotspots.filter(
-    (h) => h.sceneId !== cena.id && idsCenasValidos.has(h.sceneId)
-  )
-  const primeiroHs = hotspotsValidos[0]
-  /** Sem vista salva, abre a cena olhando para a primeira seta (se existir). */
-  const vistaParaPrimeiraSeta =
-    !Object.keys(viewParams).length && primeiroHs
-      ? { yaw: primeiroHs.yaw, pitch: primeiroHs.pitch }
-      : {}
-  return {
-    ...PANNELLUM_VIEW_DEFAULTS,
-    panorama: cena.url,
-    ...vistaParaPrimeiraSeta,
-    ...viewParams,
-    hotSpots: hotspotsValidos.map((h) => hotspotNavegacaoParaPannellum(h)),
-  }
 }
 
 export function cenaIdFromUrl(url: string, index: number): string {
@@ -278,65 +144,6 @@ export function getPrimeiraCena(tour: TourConfig): CenaTour360 | null {
   return tour.cenas.find((c) => c.id === id) ?? tour.cenas[0]
 }
 
-export function buildPannellumTourConfig(tour: TourConfig): Record<string, unknown> | null {
-  if (!tour.cenas.length) return null
-  const first =
-    tour.firstScene && tour.cenas.some((c) => c.id === tour.firstScene) ? tour.firstScene : tour.cenas[0].id
-  const idsCenasValidos = new Set(tour.cenas.map((c) => c.id))
-  const scenes: Record<string, unknown> = {}
-  for (const cena of tour.cenas) {
-    scenes[cena.id] = buildSceneConfig(cena, idsCenasValidos)
-  }
-  return {
-    default: {
-      firstScene: first,
-      sceneFadeDuration: 500,
-      autoLoad: true,
-    },
-    scenes,
-  }
-}
-
-/** Config de uma cena para o editor (hotspots salvos + seta rascunho opcional). */
-export function buildPannellumEditorConfig(
-  tour: TourConfig,
-  cenaId: string,
-  rascunho?: HotspotPannellumDraft | null
-): Record<string, unknown> | null {
-  const cena = tour.cenas.find((c) => c.id === cenaId)
-  if (!cena) return null
-  const hotSpots: Record<string, unknown>[] = cena.hotspots.map((h) => hotspotNavegacaoParaPannellum(h))
-  if (rascunho) {
-    hotSpots.push(
-      hotspotNavegacaoParaPannellum(
-        {
-          id: HOTSPOT_PREVIEW_ID,
-          pitch: rascunho.pitch,
-          yaw: rascunho.yaw,
-          sceneId: rascunho.sceneId,
-          text: rascunho.label ?? 'Nova seta',
-        },
-        { rascunho: true }
-      )
-    )
-  }
-  return {
-    default: {
-      firstScene: cena.id,
-      sceneFadeDuration: 0,
-      autoLoad: true,
-    },
-    scenes: {
-      [cena.id]: {
-        ...PANNELLUM_VIEW_DEFAULTS,
-        panorama: cena.url,
-        ...viewToPannellumParams(cena.view),
-        hotSpots,
-      },
-    },
-  }
-}
-
 export function medirProporcaoImagem(file: File): Promise<{ width: number; height: number; ratio: number }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
@@ -373,8 +180,6 @@ export function storagePathFromPublicUrl(publicUrl: string): string | null {
 export function novoHotspotId(): string {
   return `hs_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
-
-export const HOTSPOT_PREVIEW_ID = 'hs-preview-draft'
 
 /** Yaw 0–360 (régua do editor) → posição horizontal % da imagem equiretangular. */
 export function yawGrausParaPosicaoPercent(yawGraus: number): number {

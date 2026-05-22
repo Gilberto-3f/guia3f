@@ -1,17 +1,23 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import {
-  buildPannellumTourConfig,
-  getPannellum,
+  filtrarHotspotsNavegacao,
   getPrimeiraCena,
-  loadPannellumAssets,
   parseTourConfig,
   preloadPanorama,
   sincronizarTourComFotos,
   tourTemNavegacao,
 } from '@/lib/pannellumTour'
+
+const TourPannellumView = dynamic(() => import('@/components/empresa/TourPannellumView'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full flex-1 items-center justify-center text-sm text-white">Carregando tour…</div>
+  ),
+})
 
 /**
  * @param {{
@@ -30,13 +36,22 @@ export default function TourPlayer({ fotos360Url, tourConfig: tourConfigRaw, aut
 
   const temTour = tour.cenas.length > 0
   const temNavegacao = tourTemNavegacao(tour)
-  const reactDomId = useId().replace(/:/g, '')
-  const containerElId = `pannellum-tour-${reactDomId}`
-  const viewerRef = useRef(/** @type {import('@/lib/pannellumTour').PannellumViewer | null} */ (null))
+  const idsCenasValidos = useMemo(() => new Set(tour.cenas.map((c) => c.id)), [tour.cenas])
+
+  const primeiraCena = useMemo(() => getPrimeiraCena(tour), [tour])
+  const [cenaId, setCenaId] = useState(() => primeiraCena?.id ?? '')
+  const pannellumRef = useRef(/** @type {import('pannellum-react').Pannellum | null} */ (null))
   const [fechado, setFechado] = useState(false)
   const [erro, setErro] = useState('')
+  const [panoramaPronto, setPanoramaPronto] = useState(false)
 
-  const mostrarFullscreen = temTour && !fechado
+  const cenaAtual = tour.cenas.find((c) => c.id === cenaId) ?? primeiraCena
+  const hotspots = useMemo(
+    () => (cenaAtual ? filtrarHotspotsNavegacao(cenaAtual, idsCenasValidos) : []),
+    [cenaAtual, idsCenasValidos]
+  )
+
+  const mostrarFullscreen = temTour && !fechado && Boolean(cenaAtual?.url)
 
   const fechar = useCallback(() => {
     setFechado(true)
@@ -46,77 +61,69 @@ export default function TourPlayer({ fotos360Url, tourConfig: tourConfigRaw, aut
   const reabrir = useCallback(() => {
     setFechado(false)
     setErro('')
+    setPanoramaPronto(false)
   }, [])
+
+  const carregarCena = useCallback(
+    async (sceneId) => {
+      if (!idsCenasValidos.has(sceneId)) return
+      const destino = tour.cenas.find((c) => c.id === sceneId)
+      if (!destino?.url) return
+      setPanoramaPronto(false)
+      try {
+        await preloadPanorama(destino.url)
+      } catch {
+        /* continua */
+      }
+      setCenaId(sceneId)
+    },
+    [idsCenasValidos, tour.cenas]
+  )
 
   useEffect(() => {
     if (autoOpen && temTour) setFechado(false)
   }, [autoOpen, temTour, tour])
 
   useEffect(() => {
-    if (!mostrarFullscreen) return
+    const id = primeiraCena?.id ?? ''
+    if (id) setCenaId(id)
+  }, [primeiraCena?.id, tour])
+
+  useEffect(() => {
+    if (!mostrarFullscreen || !cenaAtual?.url) return
 
     let cancelado = false
+    setErro('')
+    setPanoramaPronto(false)
 
     const run = async () => {
-      setErro('')
       try {
-        const primeira = getPrimeiraCena(tour)
-        if (primeira?.url) {
-          try {
-            await preloadPanorama(primeira.url)
-          } catch {
-            /* continua */
-          }
-        }
-        await loadPannellumAssets()
-        if (cancelado) return
-        const Pannellum = getPannellum()
-        const config = buildPannellumTourConfig(tour)
-        if (!Pannellum || !config) {
-          setErro('Visualizador 360° indisponível.')
-          return
-        }
-        const el = document.getElementById(containerElId)
-        if (!el) return
-        if (viewerRef.current?.destroy) {
-          try {
-            viewerRef.current.destroy()
-          } catch {
-            /* ignore */
-          }
-          viewerRef.current = null
-        }
-        el.innerHTML = ''
-        const viewer = Pannellum.viewer(containerElId, config)
-        viewerRef.current = viewer
-
-        const aposCenaCarregada = () => {
-          viewer.resize?.()
-        }
-
-        viewer.on?.('load', aposCenaCarregada)
-        viewer.on?.('scenechange', aposCenaCarregada)
+        await preloadPanorama(cenaAtual.url)
+        if (!cancelado) setPanoramaPronto(true)
       } catch {
-        if (!cancelado) setErro('Não foi possível carregar o tour virtual.')
+        if (!cancelado) {
+          setPanoramaPronto(true)
+          setErro('Não foi possível pré-carregar o panorama.')
+        }
       }
     }
 
     void run()
-
     return () => {
       cancelado = true
-      if (viewerRef.current?.destroy) {
-        try {
-          viewerRef.current.destroy()
-        } catch {
-          /* ignore */
-        }
-      }
-      viewerRef.current = null
-      const el = document.getElementById(containerElId)
-      if (el) el.innerHTML = ''
     }
-  }, [mostrarFullscreen, tour, containerElId])
+  }, [mostrarFullscreen, cenaAtual?.url])
+
+  const onPanoramaLoad = useCallback(() => {
+    setErro('')
+    requestAnimationFrame(() => {
+      pannellumRef.current?.forceRender?.()
+    })
+  }, [])
+
+  const onPanoramaError = useCallback(() => {
+    setErro('Não foi possível carregar o tour virtual.')
+  }, [])
 
   if (!urls.length) {
     return <p className="py-10 text-center text-sm text-gray-500">Nenhuma imagem 360° cadastrada</p>
@@ -156,13 +163,28 @@ export default function TourPlayer({ fotos360Url, tourConfig: tourConfigRaw, aut
       >
         <X className="h-6 w-6" aria-hidden />
       </button>
-      {erro ? (
-        <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-white">
-          {erro}
-        </div>
+      {erro && !panoramaPronto ? (
+        <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-white">{erro}</div>
+      ) : !panoramaPronto || !cenaAtual ? (
+        <div className="flex flex-1 items-center justify-center text-sm text-white">Carregando tour…</div>
       ) : (
         <>
-          <div id={containerElId} className="h-full w-full min-h-0 flex-1" />
+          <div className="relative h-full w-full min-h-0 flex-1">
+            <TourPannellumView
+              key={cenaAtual.id}
+              cena={cenaAtual}
+              hotspots={hotspots}
+              onNavigate={(sceneId) => void carregarCena(sceneId)}
+              onLoad={onPanoramaLoad}
+              onError={onPanoramaError}
+              viewerRef={pannellumRef}
+            />
+          </div>
+          {erro ? (
+            <p className="pointer-events-none absolute top-14 left-0 right-0 z-20 px-4 text-center text-xs text-amber-200">
+              {erro}
+            </p>
+          ) : null}
           {temNavegacao ? (
             <p className="pointer-events-none absolute bottom-4 left-0 right-0 z-20 px-4 text-center text-xs text-white/90 drop-shadow">
               Toque nas setas para ir ao próximo ambiente

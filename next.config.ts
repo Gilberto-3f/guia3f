@@ -12,6 +12,7 @@ try {
 }
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["pannellum-react"],
   images: {
     remotePatterns: [
       {
