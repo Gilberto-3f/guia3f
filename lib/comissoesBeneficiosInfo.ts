@@ -54,6 +54,28 @@ export function listarBeneficiosOferta(b: BeneficiosOfertaRecord): { label: stri
 
 export type StatusOfertaComissao = 'pendente' | 'aprovada' | 'reprovada' | 'removido' | string
 
+/** Oferta que ocupa a “vaga” da comunidade (ainda não removida/recusada). */
+export const STATUS_OFERTA_ATIVA = ['pendente', 'aprovada'] as const
+
+export function isStatusOfertaAtiva(status: StatusOfertaComissao): boolean {
+  const s = String(status ?? '').toLowerCase()
+  return s === 'pendente' || s === 'aprovada'
+}
+
+/** Mapa comunidade → oferta ativa mais recente (ofertas em ordem desc por created_at). */
+export function mapaOfertasAtivasPorComunidade(
+  ofertas: Array<{ categoria_profissional?: unknown; status?: unknown; id?: unknown; created_at?: unknown }>
+): Map<string, Record<string, unknown>> {
+  const map = new Map<string, Record<string, unknown>>()
+  for (const o of ofertas) {
+    const cat = String(o.categoria_profissional ?? '').trim()
+    if (!cat || map.has(cat)) continue
+    if (!isStatusOfertaAtiva(String(o.status ?? ''))) continue
+    map.set(cat, o as Record<string, unknown>)
+  }
+  return map
+}
+
 export function rotuloStatusOferta(status: StatusOfertaComissao): string {
   const s = String(status ?? 'pendente').toLowerCase()
   if (s === 'aprovada') return 'Aprovada'

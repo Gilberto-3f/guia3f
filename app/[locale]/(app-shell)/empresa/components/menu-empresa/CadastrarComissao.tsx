@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import BotaoInfoBeneficio from '@/components/comissoes/BotaoInfoBeneficio'
 import ModoApresentacaoIcon from '@/components/ModoApresentacaoIcon'
@@ -8,6 +8,7 @@ import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empres
 import {
   classeStatusOferta,
   listarBeneficiosOferta,
+  mapaOfertasAtivasPorComunidade,
   ofertaPodeSerRemovidaPelaEmpresa,
   rotuloStatusOferta,
   ROTULOS_BENEFICIO,
@@ -94,6 +95,12 @@ export default function CadastrarComissao() {
   const [beneficioInfoAberto, setBeneficioInfoAberto] = useState<string | null>(null)
   const [historicoStatusAberto, setHistoricoStatusAberto] = useState<Set<string>>(new Set())
   const [removendoOfertaId, setRemovendoOfertaId] = useState<string | null>(null)
+  const [substituicaoPendente, setSubstituicaoPendente] = useState<{
+    categoria: ComunidadeLabel
+    ofertaAtivaId: string
+  } | null>(null)
+
+  const ofertasAtivasPorComunidade = useMemo(() => mapaOfertasAtivasPorComunidade(ofertas), [ofertas])
 
   const carregar = useCallback(async () => {
     if (!empresaId) {
@@ -142,20 +149,24 @@ export default function CadastrarComissao() {
     beneficios.fixo.ativo ||
     (beneficios.extra.ativo && String(beneficios.extra.texto).trim() !== '')
 
-  const handleSubmit = async (categoria: ComunidadeLabel) => {
+  const executarCadastro = async (categoria: ComunidadeLabel, ofertaAtivaIdSubstituir: string | null) => {
     if (!empresaId) return
     const form = formularios[categoria]
-    if (!temBeneficioAtivo(form.beneficios)) {
-      setMsg('Ative pelo menos um benefício antes de cadastrar.')
-      return
-    }
-    if (form.porTempoLimitado && !form.validade) {
-      setMsg('Informe a data limite ou desmarque "por tempo limitado?".')
-      return
-    }
-
-    setMsg(null)
     setSalvando(categoria)
+    setMsg(null)
+
+    if (ofertaAtivaIdSubstituir) {
+      const { error: errRemover } = await supabase
+        .from('comissao_oferta')
+        .update({ status: 'removido' })
+        .eq('id', ofertaAtivaIdSubstituir)
+        .eq('empresa_id', empresaId)
+      if (errRemover) {
+        setSalvando(null)
+        setMsg(errRemover.message || 'Não foi possível remover a oferta anterior.')
+        return
+      }
+    }
 
     const beneficiosPayload = {
       ...form.beneficios,
@@ -173,14 +184,50 @@ export default function CadastrarComissao() {
     setSalvando(null)
 
     if (error) {
-      setMsg(error.message)
+      if (error.code === '23505') {
+        setMsg(
+          'Já existe uma oferta ativa para esta comunidade. Remova a oferta atual no histórico ou confirme a substituição.'
+        )
+      } else {
+        setMsg(error.message)
+      }
+      void carregar()
       return
     }
 
     setFormularios((p) => ({ ...p, [categoria]: criarFormularioVazio() }))
     setComunidadesAbertas((p) => ({ ...p, [categoria]: false }))
-    setMsg(`Oferta cadastrada para ${categoria}.`)
+    setSubstituicaoPendente(null)
+    setMsg(
+      ofertaAtivaIdSubstituir
+        ? `Oferta substituída para ${categoria}. A anterior foi marcada como removida.`
+        : `Oferta cadastrada para ${categoria}.`
+    )
     void carregar()
+  }
+
+  const handleSubmit = (categoria: ComunidadeLabel) => {
+    if (!empresaId) return
+    const form = formularios[categoria]
+    if (!temBeneficioAtivo(form.beneficios)) {
+      setMsg('Ative pelo menos um benefício antes de cadastrar.')
+      return
+    }
+    if (form.porTempoLimitado && !form.validade) {
+      setMsg('Informe a data limite ou desmarque "por tempo limitado?".')
+      return
+    }
+
+    const ofertaAtiva = ofertasAtivasPorComunidade.get(categoria)
+    if (ofertaAtiva) {
+      const id = String(ofertaAtiva.id ?? '')
+      if (id) {
+        setSubstituicaoPendente({ categoria, ofertaAtivaId: id })
+        return
+      }
+    }
+
+    void executarCadastro(categoria, null)
   }
 
   const removerOferta = async (ofertaId: string) => {
@@ -253,9 +300,23 @@ export default function CadastrarComissao() {
   const renderBeneficios = (categoria: ComunidadeLabel) => {
     const form = formularios[categoria]
     const beneficios = form.beneficios
+    const ofertaAtiva = ofertasAtivasPorComunidade.get(categoria)
+    const statusAtivo = ofertaAtiva ? String(ofertaAtiva.status ?? 'pendente') : null
 
     return (
       <div className="space-y-4 border-t border-gray-100 pt-3">
+        {ofertaAtiva ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-900">
+            Esta comunidade já possui uma oferta ativa (
+            <span className={`font-semibold ${classeStatusOferta(statusAtivo ?? '')}`}>
+              {rotuloStatusOferta(statusAtivo ?? '')}
+            </span>
+            ). Ao cadastrar outra, a oferta atual passará para <strong>Removido</strong> e a nova será
+            enviada para análise.
+          </p>
+        ) : (
+          <p className="text-xs text-gray-500">Nenhuma oferta ativa nesta comunidade — você pode cadastrar uma nova proposta.</p>
+        )}
         {renderLinhaBeneficio(
           categoria,
           'pax',
@@ -389,10 +450,14 @@ export default function CadastrarComissao() {
         <button
           type="button"
           disabled={salvando === categoria}
-          onClick={() => void handleSubmit(categoria)}
+          onClick={() => handleSubmit(categoria)}
           className="w-full rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white transition hover:bg-[#008199] disabled:opacity-60"
         >
-          {salvando === categoria ? 'Cadastrando…' : 'Cadastrar'}
+          {salvando === categoria
+            ? 'Cadastrando…'
+            : ofertaAtiva
+              ? 'Cadastrar (substituir oferta ativa)'
+              : 'Cadastrar'}
         </button>
       </div>
     )
@@ -424,6 +489,7 @@ export default function CadastrarComissao() {
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Comunidades</p>
           {COMUNIDADES.map(({ label, iconeKey }) => {
             const aberta = comunidadesAbertas[label]
+            const temAtiva = ofertasAtivasPorComunidade.has(label)
             return (
               <div key={label} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
                 <button
@@ -435,7 +501,14 @@ export default function CadastrarComissao() {
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-[#0097b2]">
                     <ModoApresentacaoIcon iconeKey={iconeKey} className="h-5 w-5" />
                   </span>
-                  <span className="min-w-0 flex-1 text-sm font-semibold text-gray-900">{label}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-gray-900">{label}</span>
+                    {temAtiva ? (
+                      <span className="text-[11px] font-medium text-[#0097b2]">Oferta ativa — substituir ao cadastrar</span>
+                    ) : (
+                      <span className="text-[11px] text-gray-500">Sem oferta ativa</span>
+                    )}
+                  </span>
                   {aberta ? (
                     <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
                   ) : (
@@ -558,6 +631,49 @@ export default function CadastrarComissao() {
           )}
         </div>
       )}
+
+      {substituicaoPendente ? (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="substituir-oferta-titulo"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <h2 id="substituir-oferta-titulo" className="text-base font-bold text-[#001f3f]">
+              Substituir oferta ativa?
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-gray-700">
+              A oferta ativa de <strong>{substituicaoPendente.categoria}</strong> no momento mudará de status para{' '}
+              <strong className="text-red-600">Removido</strong>. Deseja substituir e enviar esta nova proposta para
+              análise?
+            </p>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                disabled={salvando === substituicaoPendente.categoria}
+                onClick={() => setSubstituicaoPendente(null)}
+                className="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Não
+              </button>
+              <button
+                type="button"
+                disabled={salvando === substituicaoPendente.categoria}
+                onClick={() =>
+                  void executarCadastro(
+                    substituicaoPendente.categoria,
+                    substituicaoPendente.ofertaAtivaId
+                  )
+                }
+                className="flex-1 rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white hover:opacity-95 disabled:opacity-60"
+              >
+                {salvando === substituicaoPendente.categoria ? 'Salvando…' : 'Sim'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
