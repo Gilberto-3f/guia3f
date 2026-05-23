@@ -11,13 +11,21 @@ import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
 import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
+import { isCanalAdmProfissionalGlobal, isCanalFinanceiroProfissional } from '@/lib/canaisProfissionalSlugs'
+import {
+  resolverInboxCanalAdmProfissional,
+  type CanalAdmInboxConfig,
+} from '@/lib/canaisProfissionalAdm'
 
 type TipoUsuario = 'turista' | 'profissional' | 'empresa' | 'admin' | null
 
-type CanalRow = { id: string; nome: string; tipo_publico: string | null; comunidade_prof: string | null }
-
-function isCanalNomeFinanceiro(nome: string) {
-  return nome.trim().toUpperCase() === 'FINANCEIRO'
+type CanalRow = {
+  id: string
+  nome: string
+  tipo_publico: string | null
+  comunidade_prof: string | null
+  categoria: string | null
+  empresa_id: string | null
 }
 
 export default function CanalDetalhePage() {
@@ -34,6 +42,7 @@ export default function CanalDetalhePage() {
   const [canal, setCanal] = useState<CanalRow | null>(null)
   const [canalMissing, setCanalMissing] = useState(false)
   const [abaPais, setAbaPais] = useState('geral')
+  const [inboxCanalAdm, setInboxCanalAdm] = useState<CanalAdmInboxConfig | null>(null)
 
   const paises = ['BR', 'AR', 'PY', 'geral']
   const paisesEmpresaProfissionais = ['BR', 'PY', 'AR']
@@ -95,25 +104,41 @@ export default function CanalDetalhePage() {
       setCanalMissing(false)
       const { data, error } = await supabase
         .from('canais')
-        .select('id, nome, tipo_publico, comunidade_prof')
+        .select('id, nome, tipo_publico, comunidade_prof, categoria, empresa_id')
         .eq('id', canalId)
         .maybeSingle()
 
       if (error || !data) {
         setCanal(null)
         setCanalMissing(true)
+        setInboxCanalAdm(null)
       } else {
-        setCanal({
+        const row: CanalRow = {
           id: String(data.id),
           nome: String(data.nome ?? ''),
           tipo_publico: data.tipo_publico != null ? String(data.tipo_publico) : null,
           comunidade_prof: data.comunidade_prof != null ? String(data.comunidade_prof) : null,
-        })
+          categoria: data.categoria != null ? String(data.categoria) : null,
+          empresa_id: data.empresa_id != null ? String(data.empresa_id) : null,
+        }
+        setCanal(row)
         setCanalMissing(false)
+
+        if (
+          userTipoEfetivo === 'profissional' &&
+          usuarioId &&
+          isCanalAdmProfissionalGlobal(row) &&
+          !isCanalFinanceiroProfissional(row.nome)
+        ) {
+          const inbox = await resolverInboxCanalAdmProfissional(supabase, usuarioId, row.id)
+          setInboxCanalAdm(inbox)
+        } else {
+          setInboxCanalAdm(null)
+        }
       }
       setCarregandoCanal(false)
     })()
-  }, [authPronto, userTipoEfetivo, canalId, router])
+  }, [authPronto, userTipoEfetivo, canalId, router, usuarioId])
 
   useEffect(() => {
     if (!canal) return
@@ -172,7 +197,7 @@ export default function CanalDetalhePage() {
   }
 
   if (userTipoEfetivo === 'profissional') {
-    const isFinanceiro = isCanalNomeFinanceiro(canal.nome)
+    const isFinanceiro = isCanalFinanceiroProfissional(canal.nome)
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
         <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-100 bg-white px-2 py-3">
@@ -197,7 +222,13 @@ export default function CanalDetalhePage() {
               </div>
             )
           ) : (
-            <CanalMensagens canalId={canalId} paisTab="geral" podePostar={false} podeReagir={podeInteragir} />
+            <CanalMensagens
+              canalId={canalId}
+              paisTab="geral"
+              podePostar={false}
+              podeReagir={podeInteragir}
+              inboxCanalAdm={inboxCanalAdm}
+            />
           )}
         </div>
       </div>
@@ -205,7 +236,7 @@ export default function CanalDetalhePage() {
   }
 
   if (userTipoEfetivo === 'empresa') {
-    const isFinanceiro = isCanalNomeFinanceiro(canal.nome)
+    const isFinanceiro = isCanalFinanceiroProfissional(canal.nome)
     const mostrarAbasTresPaises = canal.tipo_publico === 'profissional'
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">

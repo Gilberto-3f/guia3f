@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Building2, ChevronDown, ChevronUp, Crown, Landmark, MessageCircle, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
 import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
+import { isCanalAdmProfissionalGlobal, isCanalFinanceiroProfissional } from '@/lib/canaisProfissionalSlugs'
 import CanalEmpresaRow from '@/components/CanalEmpresaRow'
 
 /** @type {readonly string[]} */
@@ -171,7 +172,9 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
   const part = useMemo(() => {
     const administracao = canais.filter(
-      (c) => c.tipo_publico === 'profissional' && (c.categoria === 'admin' || nomeNorm(c.nome) === 'FINANCEIRO'),
+      (c) =>
+        c.tipo_publico === 'profissional' &&
+        (isCanalAdmProfissionalGlobal(c) || isCanalFinanceiroProfissional(c.nome)),
     )
     const empresas = canais.filter((c) => c.tipo_publico === 'empresa' && c.empresa_id != null && c.comunidade_prof != null)
     return { administracao, empresas }
@@ -261,7 +264,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       const lista = /** @type {Canal[]} */ (data ?? [])
       const filtrada = lista.filter((c) => {
         if (c.tipo_publico === 'profissional') {
-          if (c.categoria === 'admin' || nomeNorm(c.nome) === 'FINANCEIRO') return true
+          if (isCanalAdmProfissionalGlobal(c) || isCanalFinanceiroProfissional(c.nome)) return true
           return c.categoria != null && CATEGORIAS_PROFISSIONAIS.includes(c.categoria)
         }
         if (c.tipo_publico === 'empresa') {
@@ -312,8 +315,8 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
    */
   const getIcon = (canal) => {
     if (canal.tipo_publico === 'empresa') return Building2
-    if (nomeNorm(canal.nome) === 'ADM') return Crown
-    if (nomeNorm(canal.nome) === 'FINANCEIRO') return Landmark
+    if (isCanalAdmProfissionalGlobal(canal)) return Crown
+    if (isCanalFinanceiroProfissional(canal.nome)) return Landmark
     return MessageCircle
   }
 

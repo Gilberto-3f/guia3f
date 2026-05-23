@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { Send, Paperclip, Image as ImageIcon } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
+import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
 
 /**
  * @param {unknown} raw
@@ -77,9 +78,16 @@ async function buscarRemetente({ mensagem }) {
  *   paisTab?: string
  *   podePostar: boolean
  *   podeReagir: boolean
+ *   inboxCanalAdm?: import('@/lib/canaisProfissionalAdm').CanalAdmInboxConfig | null
  * }} props
  */
-export default function CanalMensagens({ canalId, paisTab = 'geral', podePostar, podeReagir }) {
+export default function CanalMensagens({
+  canalId,
+  paisTab = 'geral',
+  podePostar,
+  podeReagir,
+  inboxCanalAdm = null,
+}) {
   /** @type {Array<{ id: string, texto: string | null, anexo_url: string | null, anexo_tipo: string | null, reacoes: unknown[], created_at: string, remetente: { id: string, nome: string, foto_url: string | null, role: string } }>} */
   const [mensagens, setMensagens] = useState([])
   const [novaMensagem, setNovaMensagem] = useState('')
@@ -106,18 +114,20 @@ export default function CanalMensagens({ canalId, paisTab = 'geral', podePostar,
       } = await supabase.auth.getSession()
       setUid(session?.user?.id ?? null)
 
-      let q = supabase.from('mensagens_canal').select('*').eq('canal_id', canalId)
-
-      if (paisTab && paisTab !== 'geral') {
-        q = q.or(`pais.eq.${paisTab},pais.eq.geral`)
-      }
-
-      const { data, error } = await q.order('created_at', { ascending: true }).limit(80)
-
-      if (error) throw error
+      const rows = inboxCanalAdm
+        ? await listarMensagensInboxCanalAdm(supabase, inboxCanalAdm, { paisTab, limit: 120 })
+        : await (async () => {
+            let q = supabase.from('mensagens_canal').select('*').eq('canal_id', canalId)
+            if (paisTab && paisTab !== 'geral') {
+              q = q.or(`pais.eq.${paisTab},pais.eq.geral`)
+            }
+            const { data, error } = await q.order('created_at', { ascending: true }).limit(80)
+            if (error) throw error
+            return data ?? []
+          })()
 
       const mensagensCompletas = await Promise.all(
-        (data ?? []).map(async (msg) => {
+        rows.map(async (msg) => {
           const m = /** @type {Record<string, unknown>} */ (msg)
           const remetente = await buscarRemetente({ mensagem: m })
           return {
@@ -139,7 +149,7 @@ export default function CanalMensagens({ canalId, paisTab = 'geral', podePostar,
     } finally {
       setLoading(false)
     }
-  }, [canalId, paisTab])
+  }, [canalId, paisTab, inboxCanalAdm])
 
   useEffect(() => {
     void carregarMensagens()
@@ -164,38 +174,27 @@ export default function CanalMensagens({ canalId, paisTab = 'geral', podePostar,
   useEffect(() => {
     if (!canalId) return
 
-    const channel = supabase
-      .channel(`mensagens-canal-${canalId}`)
-      .on(
+    const idsMonitor =
+      inboxCanalAdm != null
+        ? [inboxCanalAdm.canalAdmId, ...inboxCanalAdm.canaisBroadcastIds]
+        : [canalId]
+
+    const ch = supabase.channel(`mensagens-canal-${canalId}-inbox`)
+    for (const cid of idsMonitor) {
+      ch.on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'mensagens_canal', filter: `canal_id=eq.${canalId}` },
-        async (payload) => {
-          const row = /** @type {Record<string, unknown>} */ (payload.new)
-          const remetente = await buscarRemetente({ mensagem: row })
-          setMensagens((prev) => {
-            if (prev.some((p) => p.id === String(row.id))) return prev
-            return [
-              ...prev,
-              {
-                id: String(row.id),
-                texto: row.texto != null ? String(row.texto) : null,
-                anexo_url: row.anexo_url != null ? String(row.anexo_url) : null,
-                anexo_tipo: row.anexo_tipo != null ? String(row.anexo_tipo) : null,
-                reacoes: asReacoesArray(row.reacoes),
-                created_at: String(row.created_at ?? ''),
-                remetente,
-              },
-            ]
-          })
-          setTimeout(scrollToBottom, 100)
+        { event: 'INSERT', schema: 'public', table: 'mensagens_canal', filter: `canal_id=eq.${cid}` },
+        () => {
+          void carregarMensagens()
         }
       )
-      .subscribe()
+    }
+    void ch.subscribe()
 
     return () => {
-      void supabase.removeChannel(channel)
+      void supabase.removeChannel(ch)
     }
-  }, [canalId])
+  }, [canalId, inboxCanalAdm, carregarMensagens])
 
   const handleEnviar = async () => {
     if (!novaMensagem.trim() && !anexo) return

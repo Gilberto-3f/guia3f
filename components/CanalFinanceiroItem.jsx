@@ -32,7 +32,15 @@ export default function CanalFinanceiroItem({ item, userTipo }) {
       case 'pagamento':
         return <CheckCircle size={20} className="text-blue-500" aria-hidden />
       case 'manifesto':
+      case 'manifesto_indicacao':
         return <FileText size={20} className="text-purple-500" aria-hidden />
+      case 'mensagem_adm':
+        return <FileText size={20} className="text-[#0097b2]" aria-hidden />
+      case 'recibo_atendimento':
+        return <CheckCircle size={20} className="text-emerald-600" aria-hidden />
+      case 'extrato_parceria':
+      case 'extrato_comissao':
+        return <DollarSign size={20} className="text-amber-600" aria-hidden />
       default:
         return <FileText size={20} className="text-gray-500" aria-hidden />
     }
