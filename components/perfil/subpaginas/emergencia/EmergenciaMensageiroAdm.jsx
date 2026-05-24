@@ -2,15 +2,17 @@
 
 import { useCallback, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { enviarMensagemMensageiroAdm } from '@/lib/mensageiroAdm'
 
 /**
- * Mensageiro de emergência com a equipe ADM (UI pronta; integração de envio em evolução).
+ * Mensageiro de emergência / contato com a equipe ADM (canal Mensageiro ADM).
  *
  * @param {{
  *   titulo?: string
  *   subtitulo?: string
  *   incluirLocalizacao?: boolean
  *   placeholder?: string
+ *   origem?: 'emergencia' | 'falar_adm'
  * }} props
  */
 export default function EmergenciaMensageiroAdm({
@@ -18,6 +20,7 @@ export default function EmergenciaMensageiroAdm({
   subtitulo = 'Descreva sua situação. Um administrador irá orientá-lo o mais rápido possível.',
   incluirLocalizacao = false,
   placeholder = 'Descreva o que está acontecendo…',
+  origem = 'emergencia',
 }) {
   const [mensagem, setMensagem] = useState('')
   const [localizacao, setLocalizacao] = useState(/** @type {string | null} */ (null))
@@ -56,11 +59,42 @@ export default function EmergenciaMensageiroAdm({
         window.alert('Inicie sessão para enviar mensagens.')
         return
       }
+
+      const { data: usuario } = await supabase.from('usuarios').select('role, email').eq('id', session.user.id).maybeSingle()
+      const role = String(usuario?.role ?? 'usuário')
+
+      let nomeExibicao = usuario?.email ? String(usuario.email).split('@')[0] : null
+      if (role === 'turista') {
+        const { data: t } = await supabase.from('turistas').select('nome_completo').eq('usuario_id', session.user.id).maybeSingle()
+        if (t?.nome_completo) nomeExibicao = String(t.nome_completo)
+      } else if (role === 'profissional') {
+        const { data: p } = await supabase
+          .from('profissionais')
+          .select('nome_completo')
+          .eq('usuario_id', session.user.id)
+          .maybeSingle()
+        if (p?.nome_completo) nomeExibicao = String(p.nome_completo)
+      } else if (role === 'empresa') {
+        const { data: e } = await supabase.from('empresas').select('nome_fantasia').eq('usuario_id', session.user.id).maybeSingle()
+        if (e?.nome_fantasia) nomeExibicao = String(e.nome_fantasia)
+      }
+
       const corpo = incluirLocalizacao && localizacao ? `${texto}\n\n📍 Localização: ${localizacao}` : texto
-      // Canal/mensagens de emergência ADM — integração completa em breve
-      console.info('[Emergência ADM]', { usuarioId: session.user.id, corpo })
-      window.alert('Mensagem registrada. A equipe ADM entrará em contato em breve.')
+
+      const res = await enviarMensagemMensageiroAdm(supabase, session.user.id, corpo, {
+        origem,
+        role,
+        nomeExibicao,
+      })
+
+      if (!res.ok) {
+        window.alert(res.error ?? 'Não foi possível enviar. Tente novamente.')
+        return
+      }
+
+      window.alert('Mensagem enviada à equipe ADM. Responderemos o mais rápido possível.')
       setMensagem('')
+      setLocalizacao(null)
     } finally {
       setEnviando(false)
     }

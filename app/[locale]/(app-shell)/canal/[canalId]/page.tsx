@@ -16,6 +16,14 @@ import {
   resolverInboxCanalAdmProfissional,
   type CanalAdmInboxConfig,
 } from '@/lib/canaisProfissionalAdm'
+import {
+  isCanalAdmEmpresaGlobal,
+  isCanalFinanceiroEmpresa,
+} from '@/lib/canaisEmpresaSlugs'
+import {
+  resolverInboxCanalAdmEmpresa,
+  type CanalAdmEmpresaInboxConfig,
+} from '@/lib/canaisEmpresaAdm'
 
 type TipoUsuario = 'turista' | 'profissional' | 'empresa' | 'admin' | null
 
@@ -42,7 +50,7 @@ export default function CanalDetalhePage() {
   const [canal, setCanal] = useState<CanalRow | null>(null)
   const [canalMissing, setCanalMissing] = useState(false)
   const [abaPais, setAbaPais] = useState('geral')
-  const [inboxCanalAdm, setInboxCanalAdm] = useState<CanalAdmInboxConfig | null>(null)
+  const [inboxCanalAdm, setInboxCanalAdm] = useState<CanalAdmInboxConfig | CanalAdmEmpresaInboxConfig | null>(null)
 
   const paises = ['BR', 'AR', 'PY', 'geral']
   const paisesEmpresaProfissionais = ['BR', 'PY', 'AR']
@@ -131,6 +139,14 @@ export default function CanalDetalhePage() {
           !isCanalFinanceiroProfissional(row.nome)
         ) {
           const inbox = await resolverInboxCanalAdmProfissional(supabase, usuarioId, row.id)
+          setInboxCanalAdm(inbox)
+        } else if (
+          userTipoEfetivo === 'empresa' &&
+          usuarioId &&
+          isCanalAdmEmpresaGlobal(row) &&
+          !isCanalFinanceiroEmpresa(row.nome)
+        ) {
+          const inbox = await resolverInboxCanalAdmEmpresa(supabase, usuarioId, row.id)
           setInboxCanalAdm(inbox)
         } else {
           setInboxCanalAdm(null)
@@ -236,8 +252,11 @@ export default function CanalDetalhePage() {
   }
 
   if (userTipoEfetivo === 'empresa') {
-    const isFinanceiro = isCanalFinanceiroProfissional(canal.nome)
+    const isFinanceiro = isCanalFinanceiroEmpresa(canal.nome)
+    const isCanalAdmInbox = isCanalAdmEmpresaGlobal(canal) && inboxCanalAdm != null
     const mostrarAbasTresPaises = canal.tipo_publico === 'profissional'
+    const podePostarCanal =
+      !isCanalAdmInbox && canal.tipo_publico === 'empresa' && canal.empresa_id != null && podeInteragir
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
         <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-100 bg-white px-2 py-3">
@@ -268,8 +287,10 @@ export default function CanalDetalhePage() {
               <CanalMensagens
                 canalId={canalId}
                 paisTab={mostrarAbasTresPaises ? abaPais : 'geral'}
-                podePostar={podeInteragir}
+                podePostar={podePostarCanal}
                 podeReagir={podeInteragir}
+                inboxCanalAdm={isCanalAdmInbox ? inboxCanalAdm : null}
+                inboxModo="empresa"
               />
             </>
           )}

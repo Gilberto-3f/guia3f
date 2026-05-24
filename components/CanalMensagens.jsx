@@ -7,6 +7,7 @@ import { Send, Paperclip, Image as ImageIcon } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
+import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
 
 /**
  * @param {unknown} raw
@@ -78,7 +79,8 @@ async function buscarRemetente({ mensagem }) {
  *   paisTab?: string
  *   podePostar: boolean
  *   podeReagir: boolean
- *   inboxCanalAdm?: import('@/lib/canaisProfissionalAdm').CanalAdmInboxConfig | null
+ *   inboxCanalAdm?: import('@/lib/canaisProfissionalAdm').CanalAdmInboxConfig | import('@/lib/canaisEmpresaAdm').CanalAdmEmpresaInboxConfig | null
+ *   inboxModo?: 'profissional' | 'empresa'
  * }} props
  */
 export default function CanalMensagens({
@@ -87,6 +89,7 @@ export default function CanalMensagens({
   podePostar,
   podeReagir,
   inboxCanalAdm = null,
+  inboxModo = 'profissional',
 }) {
   /** @type {Array<{ id: string, texto: string | null, anexo_url: string | null, anexo_tipo: string | null, reacoes: unknown[], created_at: string, remetente: { id: string, nome: string, foto_url: string | null, role: string } }>} */
   const [mensagens, setMensagens] = useState([])
@@ -115,7 +118,9 @@ export default function CanalMensagens({
       setUid(session?.user?.id ?? null)
 
       const rows = inboxCanalAdm
-        ? await listarMensagensInboxCanalAdm(supabase, inboxCanalAdm, { paisTab, limit: 120 })
+        ? inboxModo === 'empresa'
+          ? await listarMensagensInboxCanalAdmEmpresa(supabase, inboxCanalAdm, { paisTab, limit: 120 })
+          : await listarMensagensInboxCanalAdm(supabase, inboxCanalAdm, { paisTab, limit: 120 })
         : await (async () => {
             let q = supabase.from('mensagens_canal').select('*').eq('canal_id', canalId)
             if (paisTab && paisTab !== 'geral') {
@@ -149,7 +154,7 @@ export default function CanalMensagens({
     } finally {
       setLoading(false)
     }
-  }, [canalId, paisTab, inboxCanalAdm])
+  }, [canalId, paisTab, inboxCanalAdm, inboxModo])
 
   useEffect(() => {
     void carregarMensagens()

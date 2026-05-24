@@ -40,6 +40,12 @@ export default function CanalFinanceiroItem({ item, userTipo }) {
         return <CheckCircle size={20} className="text-emerald-600" aria-hidden />
       case 'extrato_parceria':
       case 'extrato_comissao':
+      case 'extrato_comissao_paga':
+      case 'pagamento_pendente':
+      case 'plano_assinatura':
+      case 'relatorio_pax':
+      case 'relatorio_parceria':
+      case 'comprovante_pagamento':
         return <DollarSign size={20} className="text-amber-600" aria-hidden />
       default:
         return <FileText size={20} className="text-gray-500" aria-hidden />
