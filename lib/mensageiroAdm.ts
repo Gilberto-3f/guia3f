@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { marcarCanalComoLido } from '@/lib/canalBadge'
+import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 
 export type ContextoMensageiroAdm = {
   origem: 'emergencia' | 'falar_adm' | 'sistema'
@@ -51,5 +53,9 @@ export async function enviarMensagemMensageiroAdm(
   })
 
   if (error) return { ok: false, error: error.message }
+
+  await marcarCanalComoLido(supabase, remetenteId, String(canal.id))
+  notificarBadgeCanais()
+
   return { ok: true }
 }

@@ -20,6 +20,8 @@ import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { atividadeVisivelNaMinhaContaPessoal } from '@/lib/atividades-feed'
 import { GUIA_ATIVIDADES_BADGE_EVENT } from '@/lib/atividades-events'
+import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
+import { contarMensagensNaoLidasCanais } from '@/lib/canalBadge'
 
 /**
  * @param {string} path
@@ -33,42 +35,6 @@ function isBarraAtividades(pathname) {
   if (!pathname) return false
   if (pathname.includes('/perfil/atividades')) return false
   return pathname === '/atividades' || pathname.endsWith('/atividades') || pathname.includes('/atividades/')
-}
-
-/**
- * `lida_por`: JSONB [{ usuario_id, lida_em }, …]
- * @param {unknown} lidaPorRaw
- * @param {string} userId
- */
-function usuarioMarcouLeituraNaMensagem(lidaPorRaw, userId) {
-  if (!userId) return false
-  const arr = Array.isArray(lidaPorRaw) ? lidaPorRaw : []
-  return arr.some((entry) => {
-    if (!entry || typeof entry !== 'object') return false
-    const id = /** @type {{ usuario_id?: string }} */ (entry).usuario_id
-    return id != null && String(id) === String(userId)
-  })
-}
-
-/**
- * Mensagens de outros utilizadores em canais acessíveis (RLS), ainda não lidas pelo utilizador.
- * @param {string} userId
- */
-async function contarMensagensNaoLidasCanais(userId) {
-  if (!userId) return 0
-  const desde = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString()
-  const { data, error } = await supabase
-    .from('mensagens_canal')
-    .select('lida_por')
-    .neq('remetente_id', userId)
-    .gte('created_at', desde)
-    .limit(2500)
-  if (error || !data) return 0
-  let n = 0
-  for (const row of data) {
-    if (!usuarioMarcouLeituraNaMensagem(row.lida_por, userId)) n += 1
-  }
-  return n
 }
 
 /**
@@ -254,7 +220,7 @@ export default function BottomBar() {
     }
   }, [pathname, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
 
-  /** Curtida/descurtida: só reconta o badge, sem `getUserData()` completo. */
+  /** Feed social (`atividades`): badge do coração — independente do ícone Canal. */
   useEffect(() => {
     if (!authUserId) return
     let ativo = true
@@ -286,9 +252,27 @@ export default function BottomBar() {
       void refreshBadgeAtividades()
     }
     window.addEventListener(GUIA_ATIVIDADES_BADGE_EVENT, onBadge)
+
+    const chAtividades = supabase
+      .channel(`bottom-bar-atividades-${authUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'atividades',
+          filter: `usuario_id=eq.${authUserId}`,
+        },
+        () => {
+          void refreshBadgeAtividades()
+        },
+      )
+      .subscribe()
+
     return () => {
       ativo = false
       window.removeEventListener(GUIA_ATIVIDADES_BADGE_EVENT, onBadge)
+      void supabase.removeChannel(chAtividades)
     }
   }, [authUserId, userRole, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
 
@@ -298,19 +282,31 @@ export default function BottomBar() {
       return
     }
     let cancelled = false
-    const refresh = async () => {
-      const n = await contarMensagensNaoLidasCanais(authUserId)
+    const refreshCanais = async () => {
+      const n = await contarMensagensNaoLidasCanais(supabase, authUserId)
       if (!cancelled) setNaoLidasCanais(n)
     }
-    void refresh()
+    void refreshCanais()
+
+    const onCanaisBadge = () => {
+      void refreshCanais()
+    }
+    window.addEventListener(GUIA_CANAIS_BADGE_EVENT, onCanaisBadge)
+
     const channel = supabase
       .channel(`bottom-bar-mensagens-canal-${authUserId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagens_canal' }, () => {
-        void refresh()
-      })
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'mensagens_canal' },
+        () => {
+          void refreshCanais()
+        },
+      )
       .subscribe()
+
     return () => {
       cancelled = true
+      window.removeEventListener(GUIA_CANAIS_BADGE_EVENT, onCanaisBadge)
       void supabase.removeChannel(channel)
     }
   }, [authUserId, pathname])

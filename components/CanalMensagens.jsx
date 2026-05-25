@@ -7,6 +7,8 @@ import { Send, Paperclip } from 'lucide-react'
 import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
 import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
+import { marcarCanalComoLido } from '@/lib/canalBadge'
+import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import CanalMensagemImagem from '@/components/CanalMensagemImagem'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
@@ -137,6 +139,8 @@ export default function CanalMensagens({
       if (session?.user?.id) {
         const me = remetentesMap.get(session.user.id)
         if (me) setMeuRemetente(me)
+        await marcarCanalComoLido(supabase, session.user.id, canalId)
+        notificarBadgeCanais()
       }
       if (!silent) setTimeout(scrollToBottom, 100)
     } catch (e) {
@@ -304,6 +308,8 @@ export default function CanalMensagens({
           remetente,
         }
         setMensagens((prev) => (prev.some((m) => m.id === nova.id) ? prev : [...prev, nova]))
+        await marcarCanalComoLido(supabase, session.user.id, canalId)
+        notificarBadgeCanais()
         setTimeout(scrollToBottom, 50)
       }
     } catch (e) {

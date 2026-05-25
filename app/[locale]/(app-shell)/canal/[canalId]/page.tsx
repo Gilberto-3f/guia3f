@@ -10,6 +10,8 @@ import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
+import { marcarCanalComoLido } from '@/lib/canalBadge'
+import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { canalMensageiroAdmSemAbasPais, rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 import { isCanalAdmProfissionalGlobal, isCanalFinanceiroProfissional } from '@/lib/canaisProfissionalSlugs'
 import {
@@ -163,19 +165,13 @@ export default function CanalDetalhePage() {
   }, [canal, userTipoEfetivo])
 
   useEffect(() => {
-    if (userTipoEfetivo !== 'profissional' || !usuarioId || !canalId || !canal) return
+    if (!usuarioId || !canalId || !canal) return
 
     void (async () => {
-      await supabase.from('canal_leitura_profissional').upsert(
-        {
-          usuario_id: usuarioId,
-          canal_id: canalId,
-          visto_em: new Date().toISOString(),
-        },
-        { onConflict: 'usuario_id,canal_id' },
-      )
+      await marcarCanalComoLido(supabase, usuarioId, canalId)
+      notificarBadgeCanais()
     })()
-  }, [userTipoEfetivo, usuarioId, canalId, canal])
+  }, [usuarioId, canalId, canal])
 
   const voltarCanais = () => {
     router.push('/canal')
