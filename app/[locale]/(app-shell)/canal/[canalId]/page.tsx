@@ -110,6 +110,8 @@ export default function CanalDetalhePage() {
     void (async () => {
       setCarregandoCanal(true)
       setCanalMissing(false)
+      setInboxCanalAdm(null)
+
       const { data, error } = await supabase
         .from('canais')
         .select('id, nome, tipo_publico, comunidade_prof, categoria, empresa_id')
@@ -119,40 +121,38 @@ export default function CanalDetalhePage() {
       if (error || !data) {
         setCanal(null)
         setCanalMissing(true)
-        setInboxCanalAdm(null)
-      } else {
-        const row: CanalRow = {
-          id: String(data.id),
-          nome: String(data.nome ?? ''),
-          tipo_publico: data.tipo_publico != null ? String(data.tipo_publico) : null,
-          comunidade_prof: data.comunidade_prof != null ? String(data.comunidade_prof) : null,
-          categoria: data.categoria != null ? String(data.categoria) : null,
-          empresa_id: data.empresa_id != null ? String(data.empresa_id) : null,
-        }
-        setCanal(row)
-        setCanalMissing(false)
-
-        if (
-          userTipoEfetivo === 'profissional' &&
-          usuarioId &&
-          isCanalAdmProfissionalGlobal(row) &&
-          !isCanalFinanceiroProfissional(row.nome)
-        ) {
-          const inbox = await resolverInboxCanalAdmProfissional(supabase, usuarioId, row.id)
-          setInboxCanalAdm(inbox)
-        } else if (
-          userTipoEfetivo === 'empresa' &&
-          usuarioId &&
-          isCanalAdmEmpresaGlobal(row) &&
-          !isCanalFinanceiroEmpresa(row.nome)
-        ) {
-          const inbox = await resolverInboxCanalAdmEmpresa(supabase, usuarioId, row.id)
-          setInboxCanalAdm(inbox)
-        } else {
-          setInboxCanalAdm(null)
-        }
+        setCarregandoCanal(false)
+        return
       }
+
+      const row: CanalRow = {
+        id: String(data.id),
+        nome: String(data.nome ?? ''),
+        tipo_publico: data.tipo_publico != null ? String(data.tipo_publico) : null,
+        comunidade_prof: data.comunidade_prof != null ? String(data.comunidade_prof) : null,
+        categoria: data.categoria != null ? String(data.categoria) : null,
+        empresa_id: data.empresa_id != null ? String(data.empresa_id) : null,
+      }
+      setCanal(row)
+      setCanalMissing(false)
       setCarregandoCanal(false)
+
+      const precisaInboxProf =
+        userTipoEfetivo === 'profissional' &&
+        usuarioId &&
+        isCanalAdmProfissionalGlobal(row) &&
+        !isCanalFinanceiroProfissional(row.nome)
+      const precisaInboxEmp =
+        userTipoEfetivo === 'empresa' &&
+        usuarioId &&
+        isCanalAdmEmpresaGlobal(row) &&
+        !isCanalFinanceiroEmpresa(row.nome)
+
+      if (precisaInboxProf) {
+        void resolverInboxCanalAdmProfissional(supabase, usuarioId, row.id).then(setInboxCanalAdm)
+      } else if (precisaInboxEmp) {
+        void resolverInboxCanalAdmEmpresa(supabase, usuarioId, row.id).then(setInboxCanalAdm)
+      }
     })()
   }, [authPronto, userTipoEfetivo, canalId, router, usuarioId])
 
@@ -181,7 +181,7 @@ export default function CanalDetalhePage() {
     router.push('/canal')
   }
 
-  if (!authPronto || (userTipoEfetivo !== 'turista' && carregandoCanal)) {
+  if (!authPronto) {
     return (
       <div className="flex min-h-screen items-center justify-center pb-20">
         <div className="animate-pulse text-gray-400">Carregando...</div>
@@ -197,7 +197,7 @@ export default function CanalDetalhePage() {
     )
   }
 
-  if (canalMissing || !canal) {
+  if (!carregandoCanal && (canalMissing || !canal)) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 pb-20">
         <p className="text-center text-gray-600">Canal não encontrado ou sem permissão.</p>
@@ -212,8 +212,15 @@ export default function CanalDetalhePage() {
     )
   }
 
+  const tituloCanal =
+    canal == null
+      ? '…'
+      : userTipoEfetivo === 'empresa' && canal.comunidade_prof
+        ? tituloCanalEmpresaLista(canal.comunidade_prof)
+        : rotuloNomeCanalAdministracao(canal.nome)
+
   if (userTipoEfetivo === 'profissional') {
-    const isFinanceiro = isCanalFinanceiroProfissional(canal.nome)
+    const isFinanceiro = canal != null && isCanalFinanceiroProfissional(canal.nome)
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
         <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
@@ -225,15 +232,13 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">
-            {rotuloNomeCanalAdministracao(canal.nome)}
-          </h1>
+          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">{tituloCanal}</h1>
           <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções">
             ⋮
           </button>
         </header>
         <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">
-          {isFinanceiro && financeUid ? (
+          {canal != null && isFinanceiro && financeUid ? (
             recursosProfissionaisLiberados ? (
               <CanalFinanceiroLista usuarioId={financeUid} tipo="profissional" />
             ) : (
@@ -257,11 +262,15 @@ export default function CanalDetalhePage() {
   }
 
   if (userTipoEfetivo === 'empresa') {
-    const isFinanceiro = isCanalFinanceiroEmpresa(canal.nome)
-    const isCanalAdmInbox = isCanalAdmEmpresaGlobal(canal) && inboxCanalAdm != null
-    const mostrarAbasTresPaises = canal.tipo_publico === 'profissional'
+    const isFinanceiro = canal != null && isCanalFinanceiroEmpresa(canal.nome)
+    const isCanalAdmInbox = canal != null && isCanalAdmEmpresaGlobal(canal) && inboxCanalAdm != null
+    const mostrarAbasTresPaises = canal != null && canal.tipo_publico === 'profissional'
     const podePostarCanal =
-      !isCanalAdmInbox && canal.tipo_publico === 'empresa' && canal.empresa_id != null && podeInteragir
+      canal != null &&
+      !isCanalAdmInbox &&
+      canal.tipo_publico === 'empresa' &&
+      canal.empresa_id != null &&
+      podeInteragir
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
         <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
@@ -273,17 +282,13 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">
-            {canal.comunidade_prof
-              ? tituloCanalEmpresaLista(canal.comunidade_prof)
-              : rotuloNomeCanalAdministracao(canal.nome)}
-          </h1>
+          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">{tituloCanal}</h1>
           <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções">
             ⋮
           </button>
         </header>
         <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">
-          {isFinanceiro && financeUid ? (
+          {canal != null && isFinanceiro && financeUid ? (
             <CanalFinanceiroLista usuarioId={financeUid} tipo="empresa" />
           ) : (
             <>
@@ -308,7 +313,7 @@ export default function CanalDetalhePage() {
   }
 
   if (userTipoEfetivo === 'admin') {
-    const mostrarAbasPais = canal.nome !== 'Mensageiro ADM'
+    const mostrarAbasPais = canal != null && canal.nome !== 'Mensageiro ADM'
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
         <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
@@ -320,9 +325,7 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">
-            {rotuloNomeCanalAdministracao(canal.nome)}
-          </h1>
+          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">{tituloCanal}</h1>
           <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções">
             ⋮
           </button>

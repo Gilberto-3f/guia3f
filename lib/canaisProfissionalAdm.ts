@@ -36,12 +36,18 @@ export async function resolverInboxCanalAdmProfissional(
 ): Promise<CanalAdmInboxConfig> {
   const categoriasSlugs = await buscarCategoriasSlugsProfissional(supabase, usuarioId)
 
-  const { data: canais } = await supabase
+  let q = supabase
     .from('canais')
     .select('id, nome, categoria, tipo_publico, empresa_id, ativo')
     .eq('tipo_publico', 'profissional')
     .eq('ativo', true)
     .is('empresa_id', null)
+
+  if (categoriasSlugs.length > 0) {
+    q = q.in('categoria', categoriasSlugs)
+  }
+
+  const { data: canais } = await q
 
   const canaisBroadcastIds: string[] = []
   for (const c of canais ?? []) {

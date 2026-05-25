@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { Send, Paperclip } from 'lucide-react'
 import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
 import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
+import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
 
 /**
  * @param {unknown} raw
@@ -37,60 +38,6 @@ function agruparReacoes(reacoes) {
  */
 function formatarHora(data) {
   return new Date(data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-}
-
-/**
- * @param {{ mensagem: Record<string, unknown> }} args
- */
-async function buscarRemetente({ mensagem }) {
-  const remetenteId = mensagem.remetente_id
-  if (!remetenteId) {
-    return { id: '', nome: 'Usuário', foto_url: null, role: '' }
-  }
-
-  const { data: usuario } = await supabase
-    .from('usuarios')
-    .select('id, email, role')
-    .eq('id', remetenteId)
-    .maybeSingle()
-
-  const email = usuario?.email ?? ''
-  let nome = email ? email.split('@')[0] : 'Usuário'
-  let foto = null
-  const role = usuario?.role ?? ''
-
-  if (usuario?.role === 'turista') {
-    const { data: turista } = await supabase
-      .from('turistas')
-      .select('nome_completo, foto_perfil_url')
-      .eq('usuario_id', usuario.id)
-      .maybeSingle()
-    if (turista?.nome_completo) nome = String(turista.nome_completo)
-    if (turista?.foto_perfil_url) foto = String(turista.foto_perfil_url)
-  } else if (usuario?.role === 'profissional') {
-    const { data: profissional } = await supabase
-      .from('profissionais')
-      .select('nome_completo, foto_perfil_url')
-      .eq('usuario_id', usuario.id)
-      .maybeSingle()
-    if (profissional?.nome_completo) nome = String(profissional.nome_completo)
-    if (profissional?.foto_perfil_url) foto = String(profissional.foto_perfil_url)
-  } else if (usuario?.role === 'empresa') {
-    const { data: empresa } = await supabase
-      .from('empresas')
-      .select('nome_fantasia, foto_url')
-      .eq('usuario_id', usuario.id)
-      .maybeSingle()
-    if (empresa?.nome_fantasia) nome = String(empresa.nome_fantasia)
-    if (empresa?.foto_url) foto = String(empresa.foto_url)
-  }
-
-  return {
-    id: usuario?.id != null ? String(usuario.id) : '',
-    nome,
-    foto_url: foto,
-    role,
-  }
 }
 
 /**
@@ -132,16 +79,11 @@ export default function CanalMensagens({
     if (!canalId) return
     setLoading(true)
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      setUid(session?.user?.id ?? null)
-
-      const rows = inboxCanalAdm
+      const fetchRows = inboxCanalAdm
         ? inboxModo === 'empresa'
-          ? await listarMensagensInboxCanalAdmEmpresa(supabase, inboxCanalAdm, { paisTab, limit: 120 })
-          : await listarMensagensInboxCanalAdm(supabase, inboxCanalAdm, { paisTab, limit: 120 })
-        : await (async () => {
+          ? listarMensagensInboxCanalAdmEmpresa(supabase, inboxCanalAdm, { paisTab, limit: 120 })
+          : listarMensagensInboxCanalAdm(supabase, inboxCanalAdm, { paisTab, limit: 120 })
+        : (async () => {
             let q = supabase.from('mensagens_canal').select('*').eq('canal_id', canalId)
             if (paisTab && paisTab !== 'geral') {
               q = q.or(`pais.eq.${paisTab},pais.eq.geral`)
@@ -151,21 +93,32 @@ export default function CanalMensagens({
             return data ?? []
           })()
 
-      const mensagensCompletas = await Promise.all(
-        rows.map(async (msg) => {
+      const [{ data: { session } }, rows] = await Promise.all([supabase.auth.getSession(), fetchRows])
+      setUid(session?.user?.id ?? null)
+
+      const remetenteIds = rows
+        .map((msg) => {
           const m = /** @type {Record<string, unknown>} */ (msg)
-          const remetente = await buscarRemetente({ mensagem: m })
-          return {
-            id: String(m.id),
-            texto: m.texto != null ? String(m.texto) : null,
-            anexo_url: m.anexo_url != null ? String(m.anexo_url) : null,
-            anexo_tipo: m.anexo_tipo != null ? String(m.anexo_tipo) : null,
-            reacoes: asReacoesArray(m.reacoes),
-            created_at: String(m.created_at ?? ''),
-            remetente,
-          }
+          return m.remetente_id != null ? String(m.remetente_id) : ''
         })
-      )
+        .filter(Boolean)
+      const remetentesMap = await buscarRemetentesEmLote(supabase, remetenteIds)
+      const fallbackRemetente = { id: '', nome: 'Usuário', foto_url: null, role: '' }
+
+      const mensagensCompletas = rows.map((msg) => {
+        const m = /** @type {Record<string, unknown>} */ (msg)
+        const rid = m.remetente_id != null ? String(m.remetente_id) : ''
+        const remetente = (rid && remetentesMap.get(rid)) || fallbackRemetente
+        return {
+          id: String(m.id),
+          texto: m.texto != null ? String(m.texto) : null,
+          anexo_url: m.anexo_url != null ? String(m.anexo_url) : null,
+          anexo_tipo: m.anexo_tipo != null ? String(m.anexo_tipo) : null,
+          reacoes: asReacoesArray(m.reacoes),
+          created_at: String(m.created_at ?? ''),
+          remetente,
+        }
+      })
 
       setMensagens(mensagensCompletas)
       setTimeout(scrollToBottom, 100)

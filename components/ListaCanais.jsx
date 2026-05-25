@@ -474,7 +474,7 @@ export default function ListaCanais({
       <div className="overflow-hidden bg-white">
         {renderGrupoChevron({
           id: 'administracaoUnificada',
-          titulo: agruparPorTipo ? 'Administrativo' : 'ADMINISTRAÇÃO',
+          titulo: agruparPorTipo ? 'ADMINISTRATIVO' : 'ADMINISTRAÇÃO',
           itens: adminUnificado,
           administracao: true,
         })}

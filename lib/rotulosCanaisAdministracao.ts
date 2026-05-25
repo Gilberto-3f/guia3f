@@ -21,6 +21,6 @@ export function rotuloNomeCanalAdministracao(nome: string | null | undefined) {
   if (!raw) return 'Canal'
   const n = nomeNormCanal(raw)
   if (n === 'FINANCEIRO') return 'Canal Financeiro'
-  if (n === 'ADM' || n === 'MENSAGEIRO' || n === 'MENSAGEIRO ADM' || raw === 'Mensageiro ADM') return 'mensageiro ADM'
+  if (n === 'ADM' || n === 'MENSAGEIRO' || n === 'MENSAGEIRO ADM' || raw === 'Mensageiro ADM') return 'Mensageiro ADM'
   return raw
 }
