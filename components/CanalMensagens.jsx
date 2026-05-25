@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
-import { Send, Paperclip } from 'lucide-react'
+import { MoreVertical, Pencil, Send, Paperclip, X, Check } from 'lucide-react'
 import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
 import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
@@ -79,6 +79,10 @@ export default function CanalMensagens({
   const fileInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
   const [reacaoPickerId, setReacaoPickerId] = useState(/** @type {string | null} */ (null))
+  const [menuMsgId, setMenuMsgId] = useState(/** @type {string | null} */ (null))
+  const [editandoId, setEditandoId] = useState(/** @type {string | null} */ (null))
+  const [editTexto, setEditTexto] = useState('')
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false)
   const mensagensLenRef = useRef(0)
   mensagensLenRef.current = mensagens.length
 
@@ -334,6 +338,35 @@ export default function CanalMensagens({
    * @param {string} mensagemId
    * @param {string} emoji
    */
+  const handleSalvarEdicao = async () => {
+    if (!editandoId || !editTexto.trim() || !uid) return
+    setSalvandoEdicao(true)
+    try {
+      const { error } = await supabase
+        .from('mensagens_canal')
+        .update({ texto: editTexto.trim() })
+        .eq('id', editandoId)
+        .eq('remetente_id', uid)
+
+      if (error) throw error
+
+      setMensagens((prev) =>
+        prev.map((m) => (m.id === editandoId ? { ...m, texto: editTexto.trim() } : m)),
+      )
+      setEditandoId(null)
+      setEditTexto('')
+      setMenuMsgId(null)
+    } catch (e) {
+      console.error('Erro ao editar mensagem:', e)
+    } finally {
+      setSalvandoEdicao(false)
+    }
+  }
+
+  /**
+   * @param {string} mensagemId
+   * @param {string} emoji
+   */
   const handleReagir = async (mensagemId, emoji) => {
     if (!podeReagir || !uid) return
 
@@ -377,87 +410,169 @@ export default function CanalMensagens({
   /**
    * @param {{ foto_url: string | null, nome: string }} remetente
    */
+  /**
+   * @param {{ foto_url: string | null, nome: string }} remetente
+   */
   const renderAvatarRemetente = (remetente) => {
     if (remetente.foto_url) {
       return (
-        <div className="relative h-8 w-8 shrink-0 self-end overflow-hidden rounded-full bg-gray-200">
+        <div className="relative h-9 w-9 shrink-0 self-end overflow-hidden rounded-full border-2 border-white/80 bg-gray-100 shadow-sm">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={remetente.foto_url} alt="" width={32} height={32} className="h-full w-full object-cover" />
+          <img src={remetente.foto_url} alt="" width={36} height={36} className="h-full w-full object-cover" />
         </div>
       )
     }
     return (
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center self-end rounded-full bg-gray-300">
-        <span className="text-xs font-medium text-gray-600">{remetente.nome.charAt(0).toUpperCase()}</span>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full border-2 border-white/80 bg-white text-xs font-semibold text-[#0097b2] shadow-sm">
+        {remetente.nome.charAt(0).toUpperCase()}
       </div>
     )
   }
 
+  const bubbleBase = 'canal-bubble rounded-2xl px-3 py-2 text-sm text-gray-900'
+
   return (
-    <div className="canal-chat flex h-full min-h-0 flex-1 flex-col bg-gray-50">
-      <div className="canal-chat-messages scrollbar-perfil min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 py-2">
+    <div className="canal-chat flex h-full min-h-0 flex-1 flex-col">
+      <div
+        className="canal-chat-messages scrollbar-perfil min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-2"
+        onClick={() => {
+          setMenuMsgId(null)
+          setReacaoPickerId(null)
+        }}
+      >
         {mensagens.length === 0 ? (
-          <div className="py-8 text-center text-gray-400">Nenhuma mensagem ainda. Seja o primeiro a enviar!</div>
+          <div className="py-8 text-center text-white/90">Nenhuma mensagem ainda. Seja o primeiro a enviar!</div>
         ) : (
           mensagens.map((msg) => {
             const isOwn = uid != null && msg.remetente.id === uid
             const reacoesAgrupadas = agruparReacoes(msg.reacoes)
             const temReacoes = Object.keys(reacoesAgrupadas).length > 0
             const pickerAberto = reacaoPickerId === msg.id
+            const menuAberto = menuMsgId === msg.id
+            const emEdicao = editandoId === msg.id
+            const podeEditarMsg = isOwn && podePostar && msg.texto
 
             return (
               <div
                 key={msg.id}
-                className={`group flex w-full gap-1.5 ${isOwn ? 'justify-end' : 'justify-start'}`}
+                className={`group flex w-full items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}
               >
-                {!isOwn ? renderAvatarRemetente(msg.remetente) : null}
+                {renderAvatarRemetente(msg.remetente)}
 
-                <div className={`flex max-w-[75%] flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
-                  {!isOwn ? (
-                    <span className="mb-0.5 px-1 text-xs font-semibold text-gray-600">{msg.remetente.nome}</span>
-                  ) : null}
-
-                  <div
-                    className={
-                      isOwn
-                        ? 'canal-bubble-own rounded-2xl rounded-br-md bg-[#0097b2] px-3 py-2 text-white shadow-sm'
-                        : 'canal-bubble-other rounded-2xl rounded-bl-md border border-gray-200/80 bg-[#e5e5ea] px-3 py-2 text-gray-900 shadow-sm'
-                    }
+                <div className={`flex max-w-[78%] flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+                  <span
+                    className={`mb-0.5 max-w-full truncate px-1 text-xs font-semibold ${
+                      isOwn ? 'text-white/95' : 'text-white/95'
+                    }`}
                   >
-                    {msg.texto ? (
-                      <p className={`whitespace-pre-wrap break-words text-sm ${isOwn ? 'text-white' : 'text-gray-900'}`}>
-                        {msg.texto}
-                      </p>
-                    ) : null}
+                    {msg.remetente.nome}
+                  </span>
 
-                    {msg.anexo_url && msg.anexo_tipo === 'imagem' ? (
-                      <div className={msg.texto ? 'mt-1.5' : ''}>
-                        <CanalMensagemImagem src={msg.anexo_url} />
+                  <div className={`relative flex items-start gap-1 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div
+                      className={`${bubbleBase} ${isOwn ? 'rounded-br-sm' : 'rounded-bl-sm'} min-w-[4rem]`}
+                    >
+                      {emEdicao ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={editTexto}
+                            onChange={(e) => setEditTexto(e.target.value)}
+                            rows={3}
+                            className="w-full resize-none rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-gray-900 focus:border-[#0097b2] focus:outline-none"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditandoId(null)
+                                setEditTexto('')
+                              }}
+                              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
+                            >
+                              <X className="h-3.5 w-3.5" aria-hidden />
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              disabled={salvandoEdicao || !editTexto.trim()}
+                              onClick={() => void handleSalvarEdicao()}
+                              className="inline-flex items-center gap-1 rounded-full bg-[#0097b2] px-2 py-1 text-xs text-white disabled:opacity-50"
+                            >
+                              <Check className="h-3.5 w-3.5" aria-hidden />
+                              Salvar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {msg.texto ? (
+                            <p className="whitespace-pre-wrap break-words text-sm text-gray-900">{msg.texto}</p>
+                          ) : null}
+
+                          {msg.anexo_url && msg.anexo_tipo === 'imagem' ? (
+                            <div className={msg.texto ? 'mt-1.5' : ''}>
+                              <CanalMensagemImagem src={msg.anexo_url} />
+                            </div>
+                          ) : null}
+
+                          {msg.anexo_url && msg.anexo_tipo === 'documento' ? (
+                            <a
+                              href={msg.anexo_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-1 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-[#0097b2] underline-offset-2 hover:underline"
+                            >
+                              <Paperclip size={14} aria-hidden />
+                              Ver anexo
+                            </a>
+                          ) : null}
+
+                          <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-gray-500">
+                            <span>{formatarHora(msg.created_at)}</span>
+                            {isOwn ? <span aria-hidden>✓</span> : null}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {podeEditarMsg && !emEdicao ? (
+                      <div className="relative shrink-0 self-center">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setMenuMsgId(menuAberto ? null : msg.id)
+                            setReacaoPickerId(null)
+                          }}
+                          className={`rounded-full p-1 text-white/90 hover:bg-white/20 ${
+                            menuAberto ? 'bg-white/20' : 'opacity-0 group-hover:opacity-100'
+                          }`}
+                          aria-label="Opções da mensagem"
+                        >
+                          <MoreVertical className="h-4 w-4" aria-hidden />
+                        </button>
+                        {menuAberto ? (
+                          <div
+                            className="absolute top-full z-30 mt-1 min-w-[8.5rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                            style={isOwn ? { right: 0 } : { left: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditandoId(msg.id)
+                                setEditTexto(msg.texto ?? '')
+                                setMenuMsgId(null)
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
+                            >
+                              <Pencil className="h-4 w-4 text-[#0097b2]" aria-hidden />
+                              Editar
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
-
-                    {msg.anexo_url && msg.anexo_tipo === 'documento' ? (
-                      <a
-                        href={msg.anexo_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`mt-1 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm underline-offset-2 hover:underline ${
-                          isOwn ? 'text-white/95' : 'text-[#0097b2]'
-                        }`}
-                      >
-                        <Paperclip size={14} aria-hidden />
-                        Ver anexo
-                      </a>
-                    ) : null}
-
-                    <div
-                      className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
-                        isOwn ? 'text-white/80' : 'text-gray-500'
-                      }`}
-                    >
-                      <span>{formatarHora(msg.created_at)}</span>
-                      {isOwn ? <span aria-hidden>✓</span> : null}
-                    </div>
                   </div>
 
                   {temReacoes ? (

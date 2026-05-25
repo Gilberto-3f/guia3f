@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, MoreVertical } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
@@ -229,8 +229,8 @@ export default function CanalDetalhePage() {
             <ChevronLeft className="h-6 w-6" />
           </button>
           <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">{tituloCanal}</h1>
-          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções">
-            ⋮
+          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções do canal">
+            <MoreVertical className="h-5 w-5" aria-hidden />
           </button>
         </header>
         <div className="flex min-h-0 flex-1 flex-col">
@@ -279,8 +279,8 @@ export default function CanalDetalhePage() {
             <ChevronLeft className="h-6 w-6" />
           </button>
           <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">{tituloCanal}</h1>
-          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções">
-            ⋮
+          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções do canal">
+            <MoreVertical className="h-5 w-5" aria-hidden />
           </button>
         </header>
         <div className="flex min-h-0 flex-1 flex-col">
@@ -322,8 +322,8 @@ export default function CanalDetalhePage() {
             <ChevronLeft className="h-6 w-6" />
           </button>
           <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">{tituloCanal}</h1>
-          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções">
-            ⋮
+          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções do canal">
+            <MoreVertical className="h-5 w-5" aria-hidden />
           </button>
         </header>
         <div className="flex min-h-0 flex-1 flex-col">

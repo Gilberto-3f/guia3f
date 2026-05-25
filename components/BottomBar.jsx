@@ -45,13 +45,14 @@ async function contarAtividadesMinhaContaNaoLidas(userId) {
   if (!userId) return 0
   const { data, error } = await supabase
     .from('atividades')
-    .select('id, tipo, dados_extras')
+    .select('id, tipo, dados_extras, autor_id, usuario_id')
     .eq('usuario_id', userId)
+    .neq('autor_id', userId)
     .eq('lida', false)
     .not('tipo', 'in', '(avaliou,seguiu_empresa)')
     .limit(1000)
   if (error || !data) return 0
-  return data.filter(atividadeVisivelNaMinhaContaPessoal).length
+  return data.filter((row) => atividadeVisivelNaMinhaContaPessoal(row, userId)).length
 }
 
 function matchPath(path, pathname) {
@@ -193,17 +194,6 @@ export default function BottomBar() {
           }
         }
 
-        if (ativo) {
-          if (roleContagem === 'empresa') {
-            const total = await contarAtividadesMinhaContaNaoLidas(usuarioIdContagemAtividades)
-            if (ativo) setNaoLidasAtividades(total)
-          } else if (role != null) {
-            const total = await contarAtividadesMinhaContaNaoLidas(uid)
-            if (ativo) setNaoLidasAtividades(total)
-          } else {
-            setNaoLidasAtividades(0)
-          }
-        }
       } finally {
         if (ativo) setBarSessaoPronta(true)
       }
@@ -218,9 +208,9 @@ export default function BottomBar() {
       ativo = false
       window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
     }
-  }, [pathname, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
+  }, [modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
 
-  /** Feed social (`atividades`): badge do coração — independente do ícone Canal. */
+  /** Feed social (`atividades`): badge do coração — nunca mistura com `mensagens_canal`. */
   useEffect(() => {
     if (!authUserId) return
     let ativo = true
@@ -253,17 +243,35 @@ export default function BottomBar() {
     }
     window.addEventListener(GUIA_ATIVIDADES_BADGE_EVENT, onBadge)
 
+    void refreshBadgeAtividades()
+
     const chAtividades = supabase
       .channel(`bottom-bar-atividades-${authUserId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'atividades',
           filter: `usuario_id=eq.${authUserId}`,
         },
-        () => {
+        (payload) => {
+          const autor = payload.new?.autor_id != null ? String(payload.new.autor_id) : ''
+          if (autor && autor === authUserId) return
+          void refreshBadgeAtividades()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'atividades',
+          filter: `usuario_id=eq.${authUserId}`,
+        },
+        (payload) => {
+          const autor = payload.new?.autor_id != null ? String(payload.new.autor_id) : ''
+          if (autor && autor === authUserId) return
           void refreshBadgeAtividades()
         },
       )
@@ -309,7 +317,7 @@ export default function BottomBar() {
       window.removeEventListener(GUIA_CANAIS_BADGE_EVENT, onCanaisBadge)
       void supabase.removeChannel(channel)
     }
-  }, [authUserId, pathname])
+  }, [authUserId])
 
   /**
    * Safari iOS move `position: fixed; bottom: 0` com o teclado; compensamos fora de `/feed/criar`,
