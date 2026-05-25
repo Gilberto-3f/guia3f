@@ -15,6 +15,13 @@ export function excluirCanalMensageiroVisaoAdm(c: { nome?: string | null; tipo_p
   return false
 }
 
+/** Mensageiro ADM (canal global admin): sem abas de país/bandeiras. */
+export function canalMensageiroAdmSemAbasPais(nome: string | null | undefined) {
+  const raw = (nome ?? '').trim()
+  const n = nomeNormCanal(raw)
+  return n === 'ADM' || n === 'MENSAGEIRO' || n === 'MENSAGEIRO ADM' || raw === 'Mensageiro ADM'
+}
+
 /** Lista Administração + título na página do canal (quando for ADM/Financeiro). */
 export function rotuloNomeCanalAdministracao(nome: string | null | undefined) {
   const raw = (nome ?? '').trim()

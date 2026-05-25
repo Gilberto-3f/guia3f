@@ -7,6 +7,9 @@ import { Send, Paperclip } from 'lucide-react'
 import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
 import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
+import CanalMensagemImagem from '@/components/CanalMensagemImagem'
+
+const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 
 /**
  * @param {unknown} raw
@@ -61,8 +64,12 @@ export default function CanalMensagens({
   /** @type {Array<{ id: string, texto: string | null, anexo_url: string | null, anexo_tipo: string | null, reacoes: unknown[], created_at: string, remetente: { id: string, nome: string, foto_url: string | null, role: string } }>} */
   const [mensagens, setMensagens] = useState([])
   const [novaMensagem, setNovaMensagem] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [loadingInicial, setLoadingInicial] = useState(true)
   const [enviando, setEnviando] = useState(false)
+  const [meuRemetente, setMeuRemetente] = useState(
+    /** @type {{ id: string, nome: string, foto_url: string | null, role: string } | null} */ (null),
+  )
+  const [paddingTeclado, setPaddingTeclado] = useState(0)
   const [anexo, setAnexo] = useState(/** @type {File | null} */ (null))
   const [anexoPreview, setAnexoPreview] = useState(/** @type {string | null} */ (null))
   const [uid, setUid] = useState(/** @type {string | null} */ (null))
@@ -70,14 +77,20 @@ export default function CanalMensagens({
   const fileInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
   const [reacaoPickerId, setReacaoPickerId] = useState(/** @type {string | null} */ (null))
+  const mensagensLenRef = useRef(0)
+  mensagensLenRef.current = mensagens.length
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const carregarMensagens = useCallback(async () => {
+  /**
+   * @param {{ silent?: boolean }} [opts]
+   */
+  const carregarMensagens = useCallback(async (opts = {}) => {
     if (!canalId) return
-    setLoading(true)
+    const silent = opts.silent === true
+    if (!silent && mensagensLenRef.current === 0) setLoadingInicial(true)
     try {
       const fetchRows = inboxCanalAdm
         ? inboxModo === 'empresa'
@@ -121,17 +134,66 @@ export default function CanalMensagens({
       })
 
       setMensagens(mensagensCompletas)
-      setTimeout(scrollToBottom, 100)
+      if (session?.user?.id) {
+        const me = remetentesMap.get(session.user.id)
+        if (me) setMeuRemetente(me)
+      }
+      if (!silent) setTimeout(scrollToBottom, 100)
     } catch (e) {
       console.error('Erro ao carregar mensagens:', e)
     } finally {
-      setLoading(false)
+      if (!silent) setLoadingInicial(false)
     }
   }, [canalId, paisTab, inboxCanalAdm, inboxModo])
 
   useEffect(() => {
     void carregarMensagens()
   }, [carregarMensagens])
+
+  useEffect(() => {
+    if (!podePostar) return
+
+    const emit = (hide) => {
+      window.dispatchEvent(new CustomEvent(TECLADO_BOTTOM_BAR_EVENT, { detail: { hide } }))
+    }
+
+    const tecladoProvavelmenteVisivel = () => {
+      const vv = window.visualViewport
+      if (!vv) return false
+      return window.innerHeight - vv.height > 72
+    }
+
+    const check = () => {
+      const foco = document.activeElement === textareaRef.current
+      const kb = tecladoProvavelmenteVisivel()
+      const hide = foco || kb
+      if (kb && window.visualViewport) {
+        const vv = window.visualViewport
+        setPaddingTeclado(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)))
+      } else {
+        setPaddingTeclado(0)
+      }
+      emit(hide)
+    }
+
+    check()
+    const vv = window.visualViewport
+    vv?.addEventListener('resize', check)
+    vv?.addEventListener('scroll', check)
+    window.addEventListener('resize', check)
+    document.addEventListener('focusin', check)
+    document.addEventListener('focusout', check)
+
+    return () => {
+      vv?.removeEventListener('resize', check)
+      vv?.removeEventListener('scroll', check)
+      window.removeEventListener('resize', check)
+      document.removeEventListener('focusin', check)
+      document.removeEventListener('focusout', check)
+      emit(false)
+      setPaddingTeclado(0)
+    }
+  }, [podePostar])
 
   useEffect(() => {
     if (!podePostar) return
@@ -155,7 +217,7 @@ export default function CanalMensagens({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'mensagens_canal', filter: `canal_id=eq.${cid}` },
         () => {
-          void carregarMensagens()
+          void carregarMensagens({ silent: true })
         }
       )
     }
@@ -170,6 +232,12 @@ export default function CanalMensagens({
     if (!novaMensagem.trim() && !anexo) return
 
     setEnviando(true)
+    const textoEnviar = novaMensagem.trim()
+    const anexoEnviar = anexo
+    setNovaMensagem('')
+    setAnexo(null)
+    setAnexoPreview(null)
+
     try {
       const {
         data: { session },
@@ -179,39 +247,78 @@ export default function CanalMensagens({
       let anexoUrl = null
       let anexoTipo = null
 
-      if (anexo) {
-        const fileExt = anexo.name.split('.').pop() || 'bin'
+      if (anexoEnviar) {
+        const fileExt = anexoEnviar.name.split('.').pop() || 'bin'
         const fileName = `${Date.now()}.${fileExt}`
         const filePath = `${session.user.id}/${canalId}/${fileName}`
 
-        const { error: uploadError } = await supabase.storage.from('mensagens').upload(filePath, anexo)
+        const { error: uploadError } = await supabase.storage.from('mensagens').upload(filePath, anexoEnviar, {
+          upsert: true,
+          contentType: anexoEnviar.type || undefined,
+        })
 
-        if (!uploadError) {
-          const { data: pub } = supabase.storage.from('mensagens').getPublicUrl(filePath)
-          anexoUrl = pub.publicUrl
-          anexoTipo = anexo.type.startsWith('image/') ? 'imagem' : 'documento'
+        if (uploadError) {
+          console.error('Upload anexo:', uploadError)
+          throw uploadError
         }
+
+        const { data: pub } = supabase.storage.from('mensagens').getPublicUrl(filePath)
+        anexoUrl = pub.publicUrl
+        anexoTipo = anexoEnviar.type.startsWith('image/') ? 'imagem' : 'documento'
       }
 
       const paisMsg = paisTab && paisTab !== 'geral' ? paisTab : 'geral'
 
-      const { error } = await supabase.from('mensagens_canal').insert({
-        canal_id: canalId,
-        remetente_id: session.user.id,
-        texto: novaMensagem.trim() || null,
-        anexo_url: anexoUrl,
-        anexo_tipo: anexoTipo,
-        pais: paisMsg,
-      })
+      const { data: row, error } = await supabase
+        .from('mensagens_canal')
+        .insert({
+          canal_id: canalId,
+          remetente_id: session.user.id,
+          texto: textoEnviar || null,
+          anexo_url: anexoUrl,
+          anexo_tipo: anexoTipo,
+          pais: paisMsg,
+        })
+        .select('id, texto, anexo_url, anexo_tipo, reacoes, created_at, remetente_id')
+        .single()
 
       if (error) throw error
 
-      setNovaMensagem('')
-      setAnexo(null)
-      setAnexoPreview(null)
-      await carregarMensagens()
+      const remetente =
+        meuRemetente ??
+        (await buscarRemetentesEmLote(supabase, [session.user.id])).get(session.user.id) ?? {
+          id: session.user.id,
+          nome: 'Eu',
+          foto_url: null,
+          role: '',
+        }
+
+      if (row) {
+        const nova = {
+          id: String(row.id),
+          texto: row.texto != null ? String(row.texto) : null,
+          anexo_url: row.anexo_url != null ? String(row.anexo_url) : null,
+          anexo_tipo: row.anexo_tipo != null ? String(row.anexo_tipo) : null,
+          reacoes: asReacoesArray(row.reacoes),
+          created_at: String(row.created_at ?? new Date().toISOString()),
+          remetente,
+        }
+        setMensagens((prev) => (prev.some((m) => m.id === nova.id) ? prev : [...prev, nova]))
+        setTimeout(scrollToBottom, 50)
+      }
     } catch (e) {
       console.error('Erro ao enviar mensagem:', e)
+      setNovaMensagem(textoEnviar)
+      if (anexoEnviar) {
+        setAnexo(anexoEnviar)
+        if (anexoEnviar.type.startsWith('image/')) {
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            setAnexoPreview(typeof reader.result === 'string' ? reader.result : null)
+          }
+          reader.readAsDataURL(anexoEnviar)
+        }
+      }
     } finally {
       setEnviando(false)
     }
@@ -250,7 +357,7 @@ export default function CanalMensagens({
     )
   }
 
-  if (loading) {
+  if (loadingInicial && mensagens.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="animate-pulse text-gray-400">Carregando mensagens...</div>
@@ -267,8 +374,9 @@ export default function CanalMensagens({
   const renderAvatarRemetente = (remetente) => {
     if (remetente.foto_url) {
       return (
-        <div className="relative h-8 w-8 shrink-0 self-end overflow-hidden rounded-full">
-          <Image src={remetente.foto_url} alt="" width={32} height={32} className="object-cover" />
+        <div className="relative h-8 w-8 shrink-0 self-end overflow-hidden rounded-full bg-gray-200">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={remetente.foto_url} alt="" width={32} height={32} className="h-full w-full object-cover" />
         </div>
       )
     }
@@ -281,7 +389,7 @@ export default function CanalMensagens({
 
   return (
     <div className="canal-chat flex h-full min-h-0 flex-1 flex-col bg-gray-50">
-      <div className="canal-chat-messages scrollbar-perfil min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+      <div className="canal-chat-messages scrollbar-perfil min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 py-2">
         {mensagens.length === 0 ? (
           <div className="py-8 text-center text-gray-400">Nenhuma mensagem ainda. Seja o primeiro a enviar!</div>
         ) : (
@@ -294,7 +402,7 @@ export default function CanalMensagens({
             return (
               <div
                 key={msg.id}
-                className={`group flex w-full gap-2 ${isOwn ? 'justify-end' : 'justify-start'}`}
+                className={`group flex w-full gap-1.5 ${isOwn ? 'justify-end' : 'justify-start'}`}
               >
                 {!isOwn ? renderAvatarRemetente(msg.remetente) : null}
 
@@ -317,8 +425,8 @@ export default function CanalMensagens({
                     ) : null}
 
                     {msg.anexo_url && msg.anexo_tipo === 'imagem' ? (
-                      <div className={`relative mt-1 h-40 max-w-[220px] ${msg.texto ? 'mt-2' : ''}`}>
-                        <Image src={msg.anexo_url} alt="" fill className="rounded-lg object-cover" sizes="220px" />
+                      <div className={msg.texto ? 'mt-1.5' : ''}>
+                        <CanalMensagemImagem src={msg.anexo_url} />
                       </div>
                     ) : null}
 
@@ -408,7 +516,10 @@ export default function CanalMensagens({
       </div>
 
       {podePostar ? (
-        <div className="shrink-0 border-t border-gray-200 bg-white p-3">
+        <div
+          className="sticky bottom-0 z-20 shrink-0 border-t border-gray-200 bg-white px-2 py-2"
+          style={{ paddingBottom: paddingTeclado > 0 ? paddingTeclado : undefined }}
+        >
           {anexoPreview ? (
             <div className="relative mb-2 inline-block">
               <div className="relative h-20 w-20 overflow-hidden rounded-lg">

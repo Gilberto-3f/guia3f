@@ -10,7 +10,7 @@ import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
-import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
+import { canalMensageiroAdmSemAbasPais, rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 import { isCanalAdmProfissionalGlobal, isCanalFinanceiroProfissional } from '@/lib/canaisProfissionalSlugs'
 import {
   resolverInboxCanalAdmProfissional,
@@ -222,7 +222,7 @@ export default function CanalDetalhePage() {
   if (userTipoEfetivo === 'profissional') {
     const isFinanceiro = canal != null && isCanalFinanceiroProfissional(canal.nome)
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
+      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
             type="button"
@@ -237,7 +237,7 @@ export default function CanalDetalhePage() {
             ⋮
           </button>
         </header>
-        <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col">
           {canal != null && isFinanceiro && financeUid ? (
             recursosProfissionaisLiberados ? (
               <CanalFinanceiroLista usuarioId={financeUid} tipo="profissional" />
@@ -272,7 +272,7 @@ export default function CanalDetalhePage() {
       canal.empresa_id != null &&
       podeInteragir
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
+      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
             type="button"
@@ -287,7 +287,7 @@ export default function CanalDetalhePage() {
             ⋮
           </button>
         </header>
-        <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col">
           {canal != null && isFinanceiro && financeUid ? (
             <CanalFinanceiroLista usuarioId={financeUid} tipo="empresa" />
           ) : (
@@ -313,9 +313,9 @@ export default function CanalDetalhePage() {
   }
 
   if (userTipoEfetivo === 'admin') {
-    const mostrarAbasPais = canal != null && canal.nome !== 'Mensageiro ADM'
+    const mostrarAbasPais = canal != null && !canalMensageiroAdmSemAbasPais(canal.nome)
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
+      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
             type="button"
@@ -330,7 +330,7 @@ export default function CanalDetalhePage() {
             ⋮
           </button>
         </header>
-        <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col">
           {mostrarAbasPais ? (
             <div className="shrink-0 border-b border-gray-100 bg-white">
               <CanalAbasPais paises={paises} abaAtiva={abaPais} onAbaChange={setAbaPais} />

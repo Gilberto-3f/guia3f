@@ -90,7 +90,7 @@ export default function CanalPage() {
     }
 
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
+      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
           <div className="p-4">
             <h1 className="text-xl font-bold text-gray-800">Canal do turista</h1>
@@ -106,7 +106,7 @@ export default function CanalPage() {
 
   if (userTipoEfetivo === 'profissional') {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
+      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
           <div className="p-4">
             <h1 className="text-xl font-bold text-gray-800">Profissional</h1>
@@ -125,7 +125,7 @@ export default function CanalPage() {
 
   if (userTipoEfetivo === 'empresa') {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
+      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
           <div className="p-4">
             <h1 className="text-xl font-bold text-gray-800">Empresa</h1>
@@ -144,7 +144,7 @@ export default function CanalPage() {
 
   if (userTipoEfetivo === 'admin') {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
+      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
           <div className="p-4">
             <h1 className="text-xl font-bold text-gray-800">Canais ADM</h1>

@@ -15,10 +15,18 @@ const CRIAR_KEYBOARD_EVENT = 'guia-criar-keyboard'
  * Classes e estrutura compartilhadas entre Suspense fallback e conteúdo real.
  * Evita hydration mismatch (#418) quando o fallback divergia (gradiente vs gray-50, chrome ausente).
  */
-function shellClasses(pathname: string, criarTecladoOcultaBarra: boolean) {
+function shellClasses(pathname: string, tecladoOcultaBarra: boolean) {
   const isStoryCriar = pathname.includes('/feed/story/criar')
-  const hideBottomBar = isStoryCriar || (pathname.includes('/feed/criar') && criarTecladoOcultaBarra)
-  const paddingInferior = hideBottomBar ? '' : pathname.includes('/feed/criar') ? 'pb-14' : 'pb-20'
+  const isCanal = pathname.includes('/canal')
+  const hideBottomBar =
+    isStoryCriar || ((pathname.includes('/feed/criar') || isCanal) && tecladoOcultaBarra)
+  const paddingInferior = hideBottomBar
+    ? ''
+    : isCanal
+      ? 'pb-14'
+      : pathname.includes('/feed/criar')
+        ? 'pb-14'
+        : 'pb-20'
   const fundoShell =
     pathname.includes('/feed/criar') && !isStoryCriar
       ? 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
@@ -31,15 +39,15 @@ function shellClasses(pathname: string, criarTecladoOcultaBarra: boolean) {
 function AppShellLayoutFrame({
   pathname,
   modoAtivo,
-  criarTecladoOcultaBarra,
+  tecladoOcultaBarra,
   children,
 }: {
   pathname: string
   modoAtivo: boolean
-  criarTecladoOcultaBarra: boolean
+  tecladoOcultaBarra: boolean
   children: ReactNode
 }) {
-  const { hideBottomBar, paddingInferior, fundoShell } = shellClasses(pathname, criarTecladoOcultaBarra)
+  const { hideBottomBar, paddingInferior, fundoShell } = shellClasses(pathname, tecladoOcultaBarra)
 
   return (
     <div className={`flex min-h-screen min-h-dvh flex-col ${fundoShell} ${paddingInferior}`}>
@@ -53,7 +61,7 @@ function AppShellLayoutFrame({
 /** Fallback: mesma árvore que o shell em /feed (gray-50, chrome, barra). pathname vazio → defaults de feed. */
 function AppShellSuspenseFallback({ children }: { children: ReactNode }) {
   return (
-    <AppShellLayoutFrame pathname="" modoAtivo={false} criarTecladoOcultaBarra={false}>
+    <AppShellLayoutFrame pathname="" modoAtivo={false} tecladoOcultaBarra={false}>
       {children}
     </AppShellLayoutFrame>
   )
@@ -61,27 +69,27 @@ function AppShellSuspenseFallback({ children }: { children: ReactNode }) {
 
 function AppShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname()
-  const [criarTecladoOcultaBarra, setCriarTecladoOcultaBarra] = useState(false)
+  const [tecladoOcultaBarra, setTecladoOcultaBarra] = useState(false)
   const { modoAtivo } = useModoApresentacao()
 
   useEffect(() => {
     const onKb = (e: Event) => {
       const d = (e as CustomEvent<{ hide?: boolean }>).detail
-      setCriarTecladoOcultaBarra(!!d?.hide)
+      setTecladoOcultaBarra(!!d?.hide)
     }
     window.addEventListener(CRIAR_KEYBOARD_EVENT, onKb as EventListener)
     return () => window.removeEventListener(CRIAR_KEYBOARD_EVENT, onKb as EventListener)
   }, [])
 
   useEffect(() => {
-    if (!pathname.includes('/feed/criar')) setCriarTecladoOcultaBarra(false)
+    if (!pathname.includes('/feed/criar') && !pathname.includes('/canal')) setTecladoOcultaBarra(false)
   }, [pathname])
 
   return (
     <AppShellLayoutFrame
       pathname={pathname}
       modoAtivo={modoAtivo}
-      criarTecladoOcultaBarra={criarTecladoOcultaBarra}
+      tecladoOcultaBarra={tecladoOcultaBarra}
     >
       {children}
     </AppShellLayoutFrame>
