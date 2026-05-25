@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ChevronDown, ChevronUp, Crown, Landmark, Users } from 'lucide-react'
 import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
+import { buscarUltimasMensagensCanais, formatarListaHora } from '@/lib/canalLista'
+import CanalListaRow from '@/components/CanalListaRow'
 
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App', 'Anfitriao']
@@ -150,6 +152,8 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
+  /** @type {Record<string, { preview: string, created_at: string }>} */
+  const [ultimasMensagens, setUltimasMensagens] = useState({})
 
   /**
    * Garante que a pasta ADMINISTRAÇÃO sempre exiba ADM e Financeiro (nessa ordem).
@@ -293,7 +297,11 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         }
         return empId != null && String(c.empresa_id ?? '') === String(empId)
       })
-      setCanais(ordenarCanais(filtrada))
+      const ordenados = ordenarCanais(filtrada)
+      setCanais(ordenados)
+      const ids = ordenados.map((c) => c.id).filter((id) => !String(id).startsWith('__placeholder'))
+      const ultimas = await buscarUltimasMensagensCanais(supabase, ids)
+      setUltimasMensagens(ultimas)
     } catch (e) {
       console.error('Erro ao carregar canais empresa:', e)
     } finally {
@@ -347,30 +355,32 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         : canal.comunidade_prof != null
           ? tituloCanalEmpresaLista(canal.comunidade_prof)
           : canal.nome
+    const ultima = ultimasMensagens[canal.id]
+    const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
+
     return (
-      <button
+      <CanalListaRow
         key={canal.id}
-        type="button"
+        label={label}
+        preview={ultima?.preview || (horaIso ? ' ' : null)}
+        hora={formatarListaHora(horaIso)}
+        naoLidas={0}
+        active={isActive}
+        disabled={isPlaceholder}
         onClick={() => {
           if (isPlaceholder) return
           onSelectCanal(canal)
         }}
-        disabled={isPlaceholder}
-        className={`flex w-full items-center gap-3 border-b border-gray-100 p-4 text-left transition-colors ${
-          isPlaceholder ? 'cursor-not-allowed opacity-60' : isActive ? 'bg-[#0097b2]/5' : 'hover:bg-gray-50'
-        }`}
-      >
-        <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-            isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
-          }`}
-        >
-          <Icon size={20} aria-hidden />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-medium text-gray-800">{label}</h3>
-        </div>
-      </button>
+        avatar={
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
+              isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
+            }`}
+          >
+            <Icon size={22} aria-hidden />
+          </div>
+        }
+      />
     )
   }
 
@@ -424,7 +434,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl shadow-sm">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-white">
         {renderGrupo({ id: 'administracao', titulo: 'ADMINISTRAÇÃO', itens: part.administracao })}
         {renderGrupo({ id: 'profissionais', titulo: 'PROFISSIONAIS', itens: ordenarCanais(part.profissionais) })}
       </div>

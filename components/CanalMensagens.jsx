@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
-import { Send, Paperclip, Image as ImageIcon } from 'lucide-react'
-import AvatarImage from '@/components/AvatarImage'
-import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
+import { Send, Paperclip } from 'lucide-react'
 import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
 import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
 
@@ -17,6 +15,28 @@ function asReacoesArray(raw) {
   if (Array.isArray(raw)) return raw
   if (raw == null) return []
   return []
+}
+
+/**
+ * @param {unknown} reacoes
+ * @returns {Record<string, number>}
+ */
+function agruparReacoes(reacoes) {
+  const arr = /** @type {{ tipo?: string }[]} */ (asReacoesArray(reacoes))
+  /** @type {Record<string, number>} */
+  const map = {}
+  for (const r of arr) {
+    const emoji = r.tipo
+    if (emoji) map[emoji] = (map[emoji] ?? 0) + 1
+  }
+  return map
+}
+
+/**
+ * @param {string} data
+ */
+function formatarHora(data) {
+  return new Date(data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
 /**
@@ -99,10 +119,10 @@ export default function CanalMensagens({
   const [anexo, setAnexo] = useState(/** @type {File | null} */ (null))
   const [anexoPreview, setAnexoPreview] = useState(/** @type {string | null} */ (null))
   const [uid, setUid] = useState(/** @type {string | null} */ (null))
-  const [minhaFotoUrl, setMinhaFotoUrl] = useState(/** @type {string | null} */ (null))
   const messagesEndRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const fileInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
+  const [reacaoPickerId, setReacaoPickerId] = useState(/** @type {string | null} */ (null))
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -159,14 +179,6 @@ export default function CanalMensagens({
   useEffect(() => {
     void carregarMensagens()
   }, [carregarMensagens])
-
-  useEffect(() => {
-    if (!podePostar || !uid) {
-      setMinhaFotoUrl(null)
-      return
-    }
-    void fetchFotoPerfilUsuario(supabase, uid).then(setMinhaFotoUrl)
-  }, [podePostar, uid])
 
   useEffect(() => {
     if (!podePostar) return
@@ -279,24 +291,6 @@ export default function CanalMensagens({
     }
   }
 
-  /**
-   * @param {string} data
-   */
-  const formatarData = (data) => {
-    const date = new Date(data)
-    const hoje = new Date()
-    const ontem = new Date(hoje)
-    ontem.setDate(ontem.getDate() - 1)
-
-    if (date.toDateString() === hoje.toDateString()) {
-      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    }
-    if (date.toDateString() === ontem.toDateString()) {
-      return `Ontem ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
-    }
-    return date.toLocaleDateString('pt-BR')
-  }
-
   if (!canalId) {
     return (
       <div className="flex flex-1 items-center justify-center p-4 text-gray-400">Selecione um canal.</div>
@@ -312,75 +306,150 @@ export default function CanalMensagens({
   }
 
   const emojis = ['👍', '❤️', '😂', '😮', '😢', '😡']
+  const podeEnviar = Boolean((novaMensagem.trim() || anexo) && uid && !enviando)
+
+  /**
+   * @param {{ foto_url: string | null, nome: string }} remetente
+   */
+  const renderAvatarRemetente = (remetente) => {
+    if (remetente.foto_url) {
+      return (
+        <div className="relative h-8 w-8 shrink-0 self-end overflow-hidden rounded-full">
+          <Image src={remetente.foto_url} alt="" width={32} height={32} className="object-cover" />
+        </div>
+      )
+    }
+    return (
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center self-end rounded-full bg-gray-300">
+        <span className="text-xs font-medium text-gray-600">{remetente.nome.charAt(0).toUpperCase()}</span>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+    <div className="canal-chat flex h-full min-h-0 flex-1 flex-col bg-gray-50">
+      <div className="canal-chat-messages scrollbar-perfil min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
         {mensagens.length === 0 ? (
           <div className="py-8 text-center text-gray-400">Nenhuma mensagem ainda. Seja o primeiro a enviar!</div>
         ) : (
-          mensagens.map((msg) => (
-            <div key={msg.id} className="flex gap-3">
-              {msg.remetente.foto_url ? (
-                <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
-                  <Image src={msg.remetente.foto_url} alt="" width={32} height={32} className="object-cover" />
-                </div>
-              ) : (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-200">
-                  <span className="text-xs text-gray-500">{msg.remetente.nome.charAt(0).toUpperCase()}</span>
-                </div>
-              )}
+          mensagens.map((msg) => {
+            const isOwn = uid != null && msg.remetente.id === uid
+            const reacoesAgrupadas = agruparReacoes(msg.reacoes)
+            const temReacoes = Object.keys(reacoesAgrupadas).length > 0
+            const pickerAberto = reacaoPickerId === msg.id
 
-              <div className="min-w-0 flex-1">
-                <div className="mb-1 flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-gray-800">{msg.remetente.nome}</span>
-                  <span className="text-xs text-gray-400">{formatarData(msg.created_at)}</span>
-                </div>
+            return (
+              <div
+                key={msg.id}
+                className={`group flex w-full gap-2 ${isOwn ? 'justify-end' : 'justify-start'}`}
+              >
+                {!isOwn ? renderAvatarRemetente(msg.remetente) : null}
 
-                {msg.texto ? <p className="mb-2 text-sm text-gray-700">{msg.texto}</p> : null}
+                <div className={`flex max-w-[75%] flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+                  {!isOwn ? (
+                    <span className="mb-0.5 px-1 text-xs font-semibold text-gray-600">{msg.remetente.nome}</span>
+                  ) : null}
 
-                {msg.anexo_url && msg.anexo_tipo === 'imagem' ? (
-                  <div className="relative mb-2 h-40 max-w-[200px]">
-                    <Image src={msg.anexo_url} alt="" fill className="rounded-lg object-cover" sizes="200px" />
-                  </div>
-                ) : null}
-
-                {msg.anexo_url && msg.anexo_tipo === 'documento' ? (
-                  <a
-                    href={msg.anexo_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mb-2 inline-flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1 text-sm text-gray-600 hover:bg-gray-200"
+                  <div
+                    className={
+                      isOwn
+                        ? 'canal-bubble-own rounded-2xl rounded-br-md bg-[#0097b2] px-3 py-2 text-white shadow-sm'
+                        : 'canal-bubble-other rounded-2xl rounded-bl-md border border-gray-200/80 bg-[#e5e5ea] px-3 py-2 text-gray-900 shadow-sm'
+                    }
                   >
-                    <Paperclip size={14} aria-hidden />
-                    Ver anexo
-                  </a>
-                ) : null}
+                    {msg.texto ? (
+                      <p className={`whitespace-pre-wrap break-words text-sm ${isOwn ? 'text-white' : 'text-gray-900'}`}>
+                        {msg.texto}
+                      </p>
+                    ) : null}
 
-                {podeReagir ? (
-                  <div className="mt-1 flex flex-wrap items-center gap-1">
-                    {emojis.map((emoji) => {
-                      const reacoes = /** @type {{ usuario_id: string, tipo: string }[]} */ (asReacoesArray(msg.reacoes))
-                      const ativo = uid ? reacoes.some((r) => r.usuario_id === uid && r.tipo === emoji) : false
-                      return (
+                    {msg.anexo_url && msg.anexo_tipo === 'imagem' ? (
+                      <div className={`relative mt-1 h-40 max-w-[220px] ${msg.texto ? 'mt-2' : ''}`}>
+                        <Image src={msg.anexo_url} alt="" fill className="rounded-lg object-cover" sizes="220px" />
+                      </div>
+                    ) : null}
+
+                    {msg.anexo_url && msg.anexo_tipo === 'documento' ? (
+                      <a
+                        href={msg.anexo_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`mt-1 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm underline-offset-2 hover:underline ${
+                          isOwn ? 'text-white/95' : 'text-[#0097b2]'
+                        }`}
+                      >
+                        <Paperclip size={14} aria-hidden />
+                        Ver anexo
+                      </a>
+                    ) : null}
+
+                    <div
+                      className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
+                        isOwn ? 'text-white/80' : 'text-gray-500'
+                      }`}
+                    >
+                      <span>{formatarHora(msg.created_at)}</span>
+                      {isOwn ? <span aria-hidden>✓</span> : null}
+                    </div>
+                  </div>
+
+                  {temReacoes ? (
+                    <div className="mt-1 flex flex-wrap gap-1 px-1">
+                      {Object.entries(reacoesAgrupadas).map(([emoji, count]) => (
                         <button
                           key={emoji}
                           type="button"
-                          onClick={() => void handleReagir(msg.id, emoji)}
-                          className={`rounded-full p-1 text-sm hover:bg-gray-100 ${ativo ? 'opacity-100' : 'opacity-60'}`}
+                          disabled={!podeReagir}
+                          onClick={() => podeReagir && void handleReagir(msg.id, emoji)}
+                          className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs shadow-sm disabled:cursor-default"
                         >
-                          {emoji}
+                          {emoji} {count}
                         </button>
-                      )
-                    })}
-                    {asReacoesArray(msg.reacoes).length > 0 ? (
-                      <span className="ml-1 text-xs text-gray-400">{asReacoesArray(msg.reacoes).length}</span>
-                    ) : null}
-                  </div>
-                ) : null}
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {podeReagir ? (
+                    <div className="relative mt-0.5 px-1">
+                      <button
+                        type="button"
+                        onClick={() => setReacaoPickerId(pickerAberto ? null : msg.id)}
+                        className={`rounded-full px-2 py-0.5 text-xs text-gray-500 transition hover:bg-gray-200/80 ${
+                          pickerAberto ? 'bg-gray-200/80' : 'opacity-0 group-hover:opacity-100'
+                        }`}
+                        aria-label="Reagir"
+                      >
+                        {pickerAberto ? '✕' : '😀'}
+                      </button>
+                      {pickerAberto ? (
+                        <div className="mt-1 flex flex-wrap gap-0.5 rounded-full border border-gray-200 bg-white px-2 py-1 shadow-md">
+                          {emojis.map((emoji) => {
+                            const reacoes = /** @type {{ usuario_id: string, tipo: string }[]} */ (
+                              asReacoesArray(msg.reacoes)
+                            )
+                            const ativo = uid ? reacoes.some((r) => r.usuario_id === uid && r.tipo === emoji) : false
+                            return (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => {
+                                  void handleReagir(msg.id, emoji)
+                                  setReacaoPickerId(null)
+                                }}
+                                className={`rounded-full p-1 text-base hover:bg-gray-100 ${ativo ? 'bg-gray-100' : ''}`}
+                              >
+                                {emoji}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -407,13 +476,14 @@ export default function CanalMensagens({
           ) : null}
 
           <div className="flex min-w-0 items-end gap-2">
-            <div className="relative h-9 w-9 shrink-0 self-center overflow-hidden rounded-md bg-gray-100">
-              {minhaFotoUrl ? (
-                <AvatarImage src={minhaFotoUrl} alt="" width={36} height={36} className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">?</div>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end text-gray-500 hover:text-[#0097b2]"
+              aria-label="Anexo"
+            >
+              <Paperclip className="h-5 w-5" aria-hidden />
+            </button>
             <textarea
               ref={textareaRef}
               rows={1}
@@ -426,32 +496,25 @@ export default function CanalMensagens({
                   void handleEnviar()
                 }
               }}
-              placeholder="Mensagem"
-              className="max-h-24 min-h-9 min-w-0 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
+              placeholder="Digite uma mensagem..."
+              className="max-h-24 min-h-10 min-w-0 flex-1 resize-none rounded-full border border-gray-200 bg-gray-100 px-4 py-2 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
             />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end text-gray-500 hover:text-[#0097b2]"
-              aria-label="Anexo"
-            >
-              <ImageIcon className="h-5 w-5" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleEnviar()}
-              disabled={(!novaMensagem.trim() && !anexo) || enviando || !uid}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-lg bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
-              aria-label="Enviar"
-            >
-              {enviando ? (
-                <span className="text-xs font-medium" aria-hidden>
-                  …
-                </span>
-              ) : (
-                <Send className="h-4 w-4" aria-hidden />
-              )}
-            </button>
+            {podeEnviar ? (
+              <button
+                type="button"
+                onClick={() => void handleEnviar()}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-full bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1]"
+                aria-label="Enviar"
+              >
+                {enviando ? (
+                  <span className="text-xs font-medium" aria-hidden>
+                    …
+                  </span>
+                ) : (
+                  <Send className="h-4 w-4" aria-hidden />
+                )}
+              </button>
+            ) : null}
             <input
               ref={fileInputRef}
               type="file"

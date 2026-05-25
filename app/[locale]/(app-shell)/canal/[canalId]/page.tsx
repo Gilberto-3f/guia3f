@@ -216,16 +216,21 @@ export default function CanalDetalhePage() {
     const isFinanceiro = isCanalFinanceiroProfissional(canal.nome)
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
-        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-100 bg-white px-2 py-3">
+        <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
             type="button"
             onClick={() => voltarCanais()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-700 hover:bg-gray-100"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
             aria-label="Voltar"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="min-w-0 flex-1 text-lg font-bold text-gray-800">{rotuloNomeCanalAdministracao(canal.nome)}</h1>
+          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">
+            {rotuloNomeCanalAdministracao(canal.nome)}
+          </h1>
+          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções">
+            ⋮
+          </button>
         </header>
         <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">
           {isFinanceiro && financeUid ? (
@@ -259,20 +264,23 @@ export default function CanalDetalhePage() {
       !isCanalAdmInbox && canal.tipo_publico === 'empresa' && canal.empresa_id != null && podeInteragir
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
-        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-100 bg-white px-2 py-3">
+        <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
             type="button"
             onClick={() => voltarCanais()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-700 hover:bg-gray-100"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
             aria-label="Voltar"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="min-w-0 flex-1 text-lg font-bold text-gray-800">
+          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">
             {canal.comunidade_prof
               ? tituloCanalEmpresaLista(canal.comunidade_prof)
               : rotuloNomeCanalAdministracao(canal.nome)}
           </h1>
+          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções">
+            ⋮
+          </button>
         </header>
         <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">
           {isFinanceiro && financeUid ? (
@@ -303,16 +311,21 @@ export default function CanalDetalhePage() {
     const mostrarAbasPais = canal.nome !== 'Mensageiro ADM'
     return (
       <div className="flex min-h-screen flex-col bg-gray-50 pb-20">
-        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-100 bg-white px-2 py-3">
+        <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
             type="button"
             onClick={() => voltarCanais()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-700 hover:bg-gray-100"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
             aria-label="Voltar"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="min-w-0 flex-1 text-lg font-bold text-gray-800">{rotuloNomeCanalAdministracao(canal.nome)}</h1>
+          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">
+            {rotuloNomeCanalAdministracao(canal.nome)}
+          </h1>
+          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções">
+            ⋮
+          </button>
         </header>
         <div className="flex min-h-0 min-h-[calc(100dvh-4rem)] flex-1 flex-col">
           {mostrarAbasPais ? (

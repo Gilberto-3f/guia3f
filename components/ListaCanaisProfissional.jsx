@@ -6,6 +6,8 @@ import { Building2, ChevronDown, ChevronUp, Crown, Landmark, MessageCircle, Shop
 import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 import { isCanalAdmProfissionalGlobal, isCanalFinanceiroProfissional } from '@/lib/canaisProfissionalSlugs'
 import CanalEmpresaRow from '@/components/CanalEmpresaRow'
+import CanalListaRow from '@/components/CanalListaRow'
+import { buscarUltimasMensagensCanais, canalTemNaoLidas, formatarListaHora } from '@/lib/canalLista'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -167,6 +169,10 @@ function ordenarCanais(lista) {
 export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionadoId, leituraTick = 0 }) {
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
+  /** @type {Record<string, { preview: string, created_at: string }>} */
+  const [ultimasMensagens, setUltimasMensagens] = useState({})
+  /** @type {Record<string, string>} */
+  const [leiturasPorCanal, setLeiturasPorCanal] = useState({})
   const [categoriaAba, setCategoriaAba] = useState(ORDEM_CATEGORIA_EMPRESA[0] ?? 'Restaurantes')
   const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({ administracao: false }))
 
@@ -276,7 +282,22 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         }
         return false
       })
-      setCanais(ordenarCanais(filtrada))
+      const ordenados = ordenarCanais(filtrada)
+      setCanais(ordenados)
+
+      const ids = ordenados.map((c) => c.id).filter((id) => !String(id).startsWith('__placeholder'))
+      const [ultimas, leiturasRes] = await Promise.all([
+        buscarUltimasMensagensCanais(supabase, ids),
+        supabase.from('canal_leitura_profissional').select('canal_id, visto_em').eq('usuario_id', uid),
+      ])
+      setUltimasMensagens(ultimas)
+
+      /** @type {Record<string, string>} */
+      const leituras = {}
+      for (const row of leiturasRes.data ?? []) {
+        leituras[String(row.canal_id)] = String(row.visto_em ?? '')
+      }
+      setLeiturasPorCanal(leituras)
     } catch (e) {
       console.error('Erro ao carregar canais profissional:', e)
     } finally {
@@ -328,6 +349,10 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     const Icon = getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
     const label = opts.blocoAdministracao ? rotuloNomeCanalAdministracao(canal.nome) : canal.nome
+    const ultima = ultimasMensagens[canal.id]
+    const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
+    const naoLidas = canalTemNaoLidas(canal.ultima_mensagem_em, leiturasPorCanal[canal.id]) ? 1 : 0
+
     if (!opts.blocoAdministracao && canal.tipo_publico === 'empresa') {
       const comuSlug = toSlug(canal.comunidade_prof != null ? String(canal.comunidade_prof) : '')
       const comunidadeLabel =
@@ -345,33 +370,36 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
       return (
         <CanalEmpresaRow
+          key={canal.id}
           canal={canal}
           comunidadeLabel={comunidadeLabel}
           onClick={() => onSelectCanal(canal)}
           active={isActive}
+          preview={ultima?.preview ?? comunidadeLabel}
+          hora={formatarListaHora(horaIso)}
+          naoLidas={naoLidas}
         />
       )
     }
     return (
-      <button
+      <CanalListaRow
         key={canal.id}
-        type="button"
+        label={label}
+        preview={ultima?.preview || (horaIso ? ' ' : null)}
+        hora={formatarListaHora(horaIso)}
+        naoLidas={naoLidas}
+        active={isActive}
         onClick={() => onSelectCanal(canal)}
-        className={`flex w-full items-center gap-3 border-b border-gray-100 p-4 text-left transition-colors ${
-          isActive ? 'bg-[#0097b2]/5' : 'hover:bg-gray-50'
-        }`}
-      >
-        <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-            isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
-          }`}
-        >
-          <Icon size={20} aria-hidden />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-medium text-gray-800">{label}</h3>
-        </div>
-      </button>
+        avatar={
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
+              isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
+            }`}
+          >
+            <Icon size={22} aria-hidden />
+          </div>
+        }
+      />
     )
   }
 

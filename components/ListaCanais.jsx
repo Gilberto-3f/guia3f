@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { MessageCircle, Building2, Crown, ChevronUp, ChevronDown, Landmark } from 'lucide-react'
 import { excluirCanalMensageiroVisaoAdm, rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
+import { buscarUltimasMensagensCanais, formatarListaHora } from '@/lib/canalLista'
+import CanalListaRow from '@/components/CanalListaRow'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -273,6 +275,8 @@ export default function ListaCanais({
 }) {
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
+  /** @type {Record<string, { preview: string, created_at: string }>} */
+  const [ultimasMensagens, setUltimasMensagens] = useState({})
 
   const part = useMemo(() => {
     if (agruparPorTipo) return particionarVisaoAdminTodos(canais)
@@ -340,7 +344,11 @@ export default function ListaCanais({
           return tb - ta
         })
 
-        setCanais([...fixos, ...rotativos])
+        const ordenados = [...fixos, ...rotativos]
+        setCanais(ordenados)
+        const ids = ordenados.map((c) => c.id).filter((id) => !id.startsWith('__placeholder'))
+        const ultimas = await buscarUltimasMensagensCanais(supabase, ids)
+        setUltimasMensagens(ultimas)
       } catch (e) {
         console.error('Erro ao carregar canais:', e)
       } finally {
@@ -381,29 +389,29 @@ export default function ListaCanais({
     const Icon = getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
     const label = opts.blocoAdministracao ? rotuloNomeCanalAdministracao(canal.nome) : canal.nome
+    const ultima = ultimasMensagens[canal.id]
+    const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
+    const naoLidas = canal.nao_lidas != null && canal.nao_lidas > 0 ? canal.nao_lidas : 0
+
     return (
-      <button
+      <CanalListaRow
         key={canal.id}
-        type="button"
+        label={label}
+        preview={ultima?.preview || (horaIso ? ' ' : null)}
+        hora={formatarListaHora(horaIso)}
+        naoLidas={naoLidas}
+        active={isActive}
         onClick={() => onSelectCanal(canal)}
-        className={`flex w-full items-center gap-3 border-b border-gray-100 p-4 text-left transition-colors ${
-          isActive ? 'bg-[#0097b2]/5' : 'hover:bg-gray-50'
-        }`}
-      >
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-full ${
-            isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
-          }`}
-        >
-          <Icon size={20} aria-hidden />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-medium text-gray-800">{label}</h3>
-          {canal.nao_lidas != null && canal.nao_lidas > 0 ? (
-            <span className="mt-1 inline-block rounded-full bg-red-500 px-2 py-0.5 text-xs text-white">{canal.nao_lidas}</span>
-          ) : null}
-        </div>
-      </button>
+        avatar={
+          <div
+            className={`flex h-12 w-12 items-center justify-center rounded-full ${
+              isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
+            }`}
+          >
+            <Icon size={22} aria-hidden />
+          </div>
+        }
+      />
     )
   }
 
@@ -463,7 +471,7 @@ export default function ListaCanais({
       : []
 
     return (
-      <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+      <div className="overflow-hidden bg-white">
         {renderGrupoChevron({
           id: 'administracaoUnificada',
           titulo: agruparPorTipo ? 'MENSAGEIRO ADM' : 'ADMINISTRAÇÃO',
@@ -477,5 +485,5 @@ export default function ListaCanais({
     )
   }
 
-  return <div className="overflow-hidden rounded-xl bg-white shadow-sm">{canais.map((canal) => renderRow(canal))}</div>
+  return <div className="overflow-hidden bg-white">{canais.map((canal) => renderRow(canal))}</div>
 }
