@@ -10,6 +10,7 @@ import {
 } from '@/lib/rotulosCanaisAdministracao'
 import { buscarUltimasMensagensCanais, formatarListaHora } from '@/lib/canalLista'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
+import { particionarVisaoAdminTodos } from '@/lib/canaisAdminParticao'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
 import CanalListaRow from '@/components/CanalListaRow'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
@@ -189,70 +190,7 @@ function particionarPorPerfil(canaisOrdenados, tipoPublico) {
 }
 
 /**
- * Visão admin: todos os tipos carregados — mesmas regras do relatório, com rótulos distintos quando há colisão de nome.
- * @param {Canal[]} canaisOrdenados
- */
-function particionarVisaoAdminTodos(canaisOrdenados) {
-  /**
-   * Só `FINANCEIRO` global (empresa, sem `empresa_id`). O ADM de `tipo_publico` empresa
-   * não entra na lista: já existe o canal `admin` com ADM — evita duas linhas "ADM".
-   */
-  const administracaoEmp = canaisOrdenados.filter(
-    (c) => c.tipo_publico === 'empresa' && c.empresa_id == null && nomeNorm(c.nome) === 'FINANCEIRO',
-  )
-  return {
-    administrador: canaisOrdenados.filter(
-      (c) => c.tipo_publico === 'admin' && c.categoria === 'admin' && !excluirCanalMensageiroVisaoAdm(c),
-    ),
-    administracaoProf: canaisOrdenados.filter(
-      (c) => c.tipo_publico === 'profissional' && (c.categoria === 'admin' || nomeNorm(c.nome) === 'FINANCEIRO'),
-    ),
-    // Alguns canais legados vêm como `tipo_publico='empresa'`, mas são categorias de PROFISSIONAIS.
-    // Deduplica para manter apenas 1 canal por categoria (5 ao todo).
-    profissionais: (() => {
-      const candidatos = canaisOrdenados.filter((c) => {
-        const cat = (c.categoria ?? '').trim().toLowerCase()
-        const isProf = c.tipo_publico === 'profissional' && cat && CATEGORIAS_PROFISSIONAIS.includes(cat)
-        return isProf || canalEhProfissional(c) || chaveProfissional(c) != null
-      })
 
-      /** @type {Map<string, Canal>} */
-      const best = new Map()
-      for (const c of candidatos) {
-        const k = chaveProfissional(c)
-        if (!k) continue
-        const cur = best.get(k)
-        if (!cur) {
-          best.set(k, c)
-          continue
-        }
-        // Preferir o canal "oficial": tipo_publico profissional + categoria válida.
-        const catC = (c.categoria ?? '').trim().toLowerCase()
-        const catCur = (cur.categoria ?? '').trim().toLowerCase()
-        const scoreC =
-          (c.tipo_publico === 'profissional' ? 10 : 0) + (catC && CATEGORIAS_PROFISSIONAIS.includes(catC) ? 5 : 0)
-        const scoreCur =
-          (cur.tipo_publico === 'profissional' ? 10 : 0) +
-          (catCur && CATEGORIAS_PROFISSIONAIS.includes(catCur) ? 5 : 0)
-        if (scoreC > scoreCur) best.set(k, c)
-      }
-
-      return [...best.values()]
-    })(),
-    administracaoEmp: /** @type {Canal[]} */ (administracaoEmp),
-    /** Somente canais vinculados a segmento de negócios (categoria) — evita duplicar ADM. */
-    empresas: canaisOrdenados.filter(
-      (c) =>
-        c.tipo_publico === 'empresa' &&
-        nomeNorm(c.nome) !== 'ADM' &&
-        nomeNorm(c.nome) !== 'FINANCEIRO' &&
-        canalEMSegmentoNegocio(c) &&
-        !canalEhProfissional(c),
-    ),
-  }
-}
-
-/**
  * @param {Canal[]} canaisOrdenados
  * @param {{ administrador: Canal[]; administracaoProf: Canal[]; profissionais: Canal[]; administracaoEmp: Canal[]; empresas: Canal[] }} part
  */
@@ -326,6 +264,16 @@ export default function ListaCanais({
     })
   }, [gruposIniciais])
 
+  const filtrarIdsContagem = useCallback(
+    (/** @type {string[]} */ ids) => {
+      if (agruparPorTipo || tipoPublico === 'admin') {
+        return ids.filter((id) => particionIds.has(id))
+      }
+      return ids
+    },
+    [agruparPorTipo, tipoPublico, particionIds],
+  )
+
   const recarregarContagens = useCallback(async () => {
     const {
       data: { session },
@@ -333,7 +281,7 @@ export default function ListaCanais({
     const uid = session?.user?.id
     if (!uid) return
 
-    const ids = canais.map((c) => c.id).filter((id) => !id.startsWith('__placeholder'))
+    const ids = filtrarIdsContagem(canais.map((c) => c.id).filter((id) => !id.startsWith('__placeholder')))
     if (ids.length === 0) {
       setNaoLidasPorCanal({})
       return
@@ -341,7 +289,7 @@ export default function ListaCanais({
 
     const contagens = await contarNaoLidasPorCanalIds(supabase, uid, ids)
     setNaoLidasPorCanal(contagens)
-  }, [canais])
+  }, [canais, filtrarIdsContagem])
 
   useEffect(() => {
     const onBadge = () => {
@@ -390,12 +338,19 @@ export default function ListaCanais({
 
         const ordenados = [...fixos, ...rotativos]
         setCanais(ordenados)
-        const ids = ordenados.map((c) => c.id).filter((id) => !id.startsWith('__placeholder'))
-        const ultimas = await buscarUltimasMensagensCanais(supabase, ids)
+        const idsBrutos = ordenados.map((c) => c.id).filter((id) => !id.startsWith('__placeholder'))
+        const idsVisiveisAdmin =
+          agruparPorTipo || tipoPublico === 'admin'
+            ? idsEmParticao(particionarVisaoAdminTodos(ordenados))
+            : null
+        const idsContagem = idsVisiveisAdmin
+          ? idsBrutos.filter((id) => idsVisiveisAdmin.has(id))
+          : idsBrutos
+        const ultimas = await buscarUltimasMensagensCanais(supabase, idsBrutos)
         setUltimasMensagens(ultimas)
 
         if (uid) {
-          const contagens = await contarNaoLidasPorCanalIds(supabase, uid, ids)
+          const contagens = await contarNaoLidasPorCanalIds(supabase, uid, idsContagem)
           setNaoLidasPorCanal(contagens)
         }
       } catch (e) {

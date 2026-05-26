@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams, usePathname, useRouter } from 'next/navigation'
 import { ChevronLeft, MoreVertical } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
@@ -10,7 +10,7 @@ import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
-import { marcarCanalComoLido } from '@/lib/canalBadge'
+import { marcarCanalComoLidoResiliente } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { canalMensageiroAdmSemAbasPais, rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 import {
@@ -186,33 +186,40 @@ export default function CanalDetalhePage() {
     else if (userTipoEfetivo === 'empresa') setAbaPais('geral')
   }, [canal, userTipoEfetivo])
 
+  const pathname = usePathname()
+
+  const marcarLeituraCanalAtual = useCallback(async () => {
+    if (!usuarioId || !canalId || !canal) return
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    const token = session?.access_token ?? null
+
+    if (userTipoEfetivo === 'profissional' && canal.nome && isCanalFinanceiroProfissional(canal.nome)) {
+      await marcarFinanceiroLidoProfissional(supabase, usuarioId)
+    } else if (userTipoEfetivo === 'empresa' && canal.nome && isCanalFinanceiroEmpresa(canal.nome)) {
+      await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
+    } else {
+      await marcarCanalComoLidoResiliente(supabase, usuarioId, canalId, null, token)
+    }
+    notificarBadgeCanais()
+  }, [usuarioId, canalId, canal, userTipoEfetivo])
+
   useEffect(() => {
     if (!usuarioId || !canalId || !canal) return
+    void marcarLeituraCanalAtual()
+  }, [marcarLeituraCanalAtual, usuarioId, canalId, canal])
 
-    void (async () => {
-      if (userTipoEfetivo === 'profissional' && canal.nome && isCanalFinanceiroProfissional(canal.nome)) {
-        await marcarFinanceiroLidoProfissional(supabase, usuarioId)
-      } else if (userTipoEfetivo === 'empresa' && canal.nome && isCanalFinanceiroEmpresa(canal.nome)) {
-        await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
-      } else {
-        await marcarCanalComoLido(supabase, usuarioId, canalId, null)
-      }
-      notificarBadgeCanais()
-    })()
-  }, [usuarioId, canalId, canal, userTipoEfetivo])
+  /** Ao sair do detalhe (Home, barra, outro canal), garante gravação antes da recontagem da barra. */
+  useEffect(() => {
+    return () => {
+      void marcarLeituraCanalAtual()
+    }
+  }, [pathname, marcarLeituraCanalAtual])
 
   const voltarCanais = () => {
     void (async () => {
-      if (usuarioId && canalId && canal) {
-        if (userTipoEfetivo === 'profissional' && isCanalFinanceiroProfissional(canal.nome)) {
-          await marcarFinanceiroLidoProfissional(supabase, usuarioId)
-        } else if (userTipoEfetivo === 'empresa' && isCanalFinanceiroEmpresa(canal.nome)) {
-          await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
-        } else {
-          await marcarCanalComoLido(supabase, usuarioId, canalId, null)
-        }
-        notificarBadgeCanais()
-      }
+      await marcarLeituraCanalAtual()
       router.push('/canal')
     })()
   }

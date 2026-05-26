@@ -7,7 +7,7 @@ import { MoreVertical, Pencil, Send, Paperclip, X, Check } from 'lucide-react'
 import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
 import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
-import { marcarCanalComoLido } from '@/lib/canalBadge'
+import { marcarCanalComoLidoResiliente } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { mensagensComSeparadoresData } from '@/lib/canalMensagensUi'
 import { parseReacoesCanal, toggleReacaoMensagemCanal } from '@/lib/canalReacoes'
@@ -180,7 +180,13 @@ export default function CanalMensagens({
           mensagensCompletas.length > 0
             ? mensagensCompletas[mensagensCompletas.length - 1]?.created_at
             : null
-        await marcarCanalComoLido(supabase, session.user.id, canalId, ultimaIso)
+        await marcarCanalComoLidoResiliente(
+          supabase,
+          session.user.id,
+          canalId,
+          ultimaIso,
+          session.access_token,
+        )
         notificarBadgeCanais()
       }
       stickToBottomRef.current = true
@@ -205,7 +211,13 @@ export default function CanalMensagens({
         if (!session?.user?.id || !canalId) return
         const msgs = mensagensRef.current
         const ultima = msgs.length > 0 ? msgs[msgs.length - 1]?.created_at : null
-        await marcarCanalComoLido(supabase, session.user.id, canalId, ultima ?? null)
+        await marcarCanalComoLidoResiliente(
+          supabase,
+          session.user.id,
+          canalId,
+          ultima ?? null,
+          session.access_token,
+        )
         notificarBadgeCanais()
       })()
     }
@@ -394,7 +406,13 @@ export default function CanalMensagens({
           remetente,
         }
         setMensagens((prev) => (prev.some((m) => m.id === nova.id) ? prev : [...prev, nova]))
-        await marcarCanalComoLido(supabase, session.user.id, canalId, nova.created_at)
+        await marcarCanalComoLidoResiliente(
+          supabase,
+          session.user.id,
+          canalId,
+          nova.created_at,
+          session.access_token,
+        )
         notificarBadgeCanais()
         stickToBottomRef.current = true
         requestAnimationFrame(() => scrollToBottom('smooth'))

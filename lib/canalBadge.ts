@@ -80,6 +80,61 @@ export async function marcarCanalComoLido(
 }
 
 /**
+ * Grava leitura com `fetch(..., { keepalive: true })` para sobreviver à navegação (barra inferior / Home).
+ * Complementa `marcarCanalComoLido` quando o cliente Supabase aborta o upsert no unmount.
+ */
+export function enviarMarcacaoLeituraKeepalive(
+  accessToken: string,
+  usuarioId: string,
+  canalId: string,
+  ultimaMensagemIso?: string | null,
+): void {
+  if (!accessToken || !usuarioId || !canalId) return
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !anonKey) return
+
+  const visto_em = calcularVistoEmAposLeitura(ultimaMensagemIso)
+
+  try {
+    void fetch(`${url}/rest/v1/canal_leitura_profissional?on_conflict=usuario_id,canal_id`, {
+      method: 'POST',
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify({
+        usuario_id: usuarioId,
+        canal_id: canalId,
+        visto_em,
+      }),
+      keepalive: true,
+    })
+  } catch {
+    /* navegação em curso */
+  }
+}
+
+/**
+ * Marca leitura e dispara keepalive (última mensagem conhecida na tela).
+ */
+export async function marcarCanalComoLidoResiliente(
+  supabase: SupabaseClient,
+  usuarioId: string,
+  canalId: string,
+  ultimaMensagemIso?: string | null,
+  accessToken?: string | null,
+): Promise<boolean> {
+  if (accessToken) {
+    enviarMarcacaoLeituraKeepalive(accessToken, usuarioId, canalId, ultimaMensagemIso)
+  }
+  return marcarCanalComoLido(supabase, usuarioId, canalId, ultimaMensagemIso)
+}
+
+/**
  * Mensagens não lidas nos canais acessíveis: só de outros remetentes e posteriores a `visto_em`.
  * Não usa a tabela `atividades` — badge separado do coração (feed social).
  */

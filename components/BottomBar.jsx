@@ -373,9 +373,26 @@ export default function BottomBar() {
   }, [authUserId])
 
   /** Ao navegar entre telas, reconta (fallback se Realtime ainda não estiver na publication). */
+  const prevPathnameRef = useRef(/** @type {string | null} */ (null))
   useEffect(() => {
     if (!authUserId) return
-    void contarMensagensNaoLidasCanais(supabase, authUserId).then((n) => setNaoLidasCanais(n))
+
+    const prev = prevPathnameRef.current
+    prevPathnameRef.current = pathname ?? null
+
+    const saiuDoDetalheCanal =
+      prev != null && /\/canal\/[^/]+/.test(prev) && (pathname == null || !/\/canal\/[^/]+/.test(pathname))
+
+    const refresh = () => {
+      void contarMensagensNaoLidasCanais(supabase, authUserId).then((n) => setNaoLidasCanais(n))
+    }
+
+    if (saiuDoDetalheCanal) {
+      const t = setTimeout(refresh, 700)
+      return () => clearTimeout(t)
+    }
+
+    refresh()
   }, [pathname, authUserId])
 
   /**
