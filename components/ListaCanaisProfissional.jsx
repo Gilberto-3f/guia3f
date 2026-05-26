@@ -3,10 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Building2, ChevronDown, ChevronUp, Landmark, MessageCircle, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
-import {
-  rotuloNomeCanalAdministracao,
-  TITULO_PASTA_ADMINISTRADORES_APP,
-} from '@/lib/rotulosCanaisAdministracao'
+import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 import {
   isCanalAdmProfissionalGlobal,
@@ -512,7 +509,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
               onClick={() => toggleGrupo('administracao')}
               className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-base"
             >
-              <span className="font-bold leading-snug text-[#0097b2]">{TITULO_PASTA_ADMINISTRADORES_APP}</span>
+              <span className="font-bold leading-snug text-[#0097b2]">ADMINISTRAÇÃO</span>
               <span className="flex shrink-0 items-center gap-2">
                 {gruposAbertos['administracao'] === false ? (
                   <CanalNaoLidasBadge

@@ -1,4 +1,4 @@
-/** Título da pasta de canais ADM / Financeiro na lista. */
+/** Título da pasta de canais ADM na lista do perfil admin (Mensageiro ADM). Profissional/empresa mantêm "ADMINISTRAÇÃO". */
 export const TITULO_PASTA_ADMINISTRADORES_APP = 'ADMINISTRADORES DO APP'
 
 /**

@@ -3,10 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ChevronDown, ChevronUp, Crown, Landmark, Users } from 'lucide-react'
-import {
-  rotuloNomeCanalAdministracao,
-  TITULO_PASTA_ADMINISTRADORES_APP,
-} from '@/lib/rotulosCanaisAdministracao'
+import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 import { buscarUltimasMensagensCanais, formatarListaHora } from '@/lib/canalLista'
 import { contarFinanceiroNaoLidasEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
@@ -496,11 +493,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <div className="min-h-0 flex-1 overflow-y-auto bg-white">
-        {renderGrupo({
-          id: 'administracao',
-          titulo: TITULO_PASTA_ADMINISTRADORES_APP,
-          itens: part.administracao,
-        })}
+        {renderGrupo({ id: 'administracao', titulo: 'ADMINISTRAÇÃO', itens: part.administracao })}
         {renderGrupo({
           id: 'profissionais',
           titulo: 'PROFISSIONAIS',
