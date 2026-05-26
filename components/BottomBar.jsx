@@ -290,24 +290,43 @@ export default function BottomBar() {
       return
     }
     let cancelled = false
+    /** @type {ReturnType<typeof setTimeout> | null} */
+    let debounceId = null
+
     const refreshCanais = async () => {
       const n = await contarMensagensNaoLidasCanais(supabase, authUserId)
       if (!cancelled) setNaoLidasCanais(n)
     }
+
+    const scheduleRefresh = () => {
+      if (debounceId) clearTimeout(debounceId)
+      debounceId = setTimeout(() => {
+        debounceId = null
+        void refreshCanais()
+      }, 400)
+    }
+
     void refreshCanais()
 
     const onCanaisBadge = () => {
-      void refreshCanais()
+      scheduleRefresh()
     }
     window.addEventListener(GUIA_CANAIS_BADGE_EVENT, onCanaisBadge)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refreshCanais()
+    }
+    document.addEventListener('visibilitychange', onVisible)
 
     const channel = supabase
       .channel(`bottom-bar-mensagens-canal-${authUserId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'mensagens_canal' },
-        () => {
-          void refreshCanais()
+        (payload) => {
+          const autor = payload.new?.remetente_id != null ? String(payload.new.remetente_id) : ''
+          if (autor && autor === authUserId) return
+          scheduleRefresh()
         },
       )
       .on(
@@ -319,7 +338,7 @@ export default function BottomBar() {
           filter: `usuario_id=eq.${authUserId}`,
         },
         () => {
-          void refreshCanais()
+          scheduleRefresh()
         },
       )
       .on(
@@ -331,20 +350,33 @@ export default function BottomBar() {
           filter: `usuario_id=eq.${authUserId}`,
         },
         () => {
-          void refreshCanais()
+          scheduleRefresh()
         },
       )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'canal_financeiro' }, () => {
-        void refreshCanais()
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'canal_financeiro' }, () => {
+        scheduleRefresh()
       })
-      .subscribe()
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'canal_financeiro' }, () => {
+        scheduleRefresh()
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') void refreshCanais()
+      })
 
     return () => {
       cancelled = true
+      if (debounceId) clearTimeout(debounceId)
       window.removeEventListener(GUIA_CANAIS_BADGE_EVENT, onCanaisBadge)
+      document.removeEventListener('visibilitychange', onVisible)
       void supabase.removeChannel(channel)
     }
   }, [authUserId])
+
+  /** Ao navegar entre telas, reconta (fallback se Realtime ainda não estiver na publication). */
+  useEffect(() => {
+    if (!authUserId) return
+    void contarMensagensNaoLidasCanais(supabase, authUserId).then((n) => setNaoLidasCanais(n))
+  }, [pathname, authUserId])
 
   /**
    * Safari iOS move `position: fixed; bottom: 0` com o teclado; compensamos fora de `/feed/criar`,

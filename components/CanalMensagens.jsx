@@ -295,6 +295,7 @@ export default function CanalMensagens({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'mensagens_canal', filter: `canal_id=eq.${cid}` },
         () => {
+          notificarBadgeCanais()
           void carregarMensagens({ silent: true })
         },
       )

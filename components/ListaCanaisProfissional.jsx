@@ -14,7 +14,7 @@ import CanalListaRow from '@/components/CanalListaRow'
 import { buscarUltimasMensagensCanais, formatarListaHora } from '@/lib/canalLista'
 import { contarFinanceiroNaoLidasProfissional } from '@/lib/canaisProfissionalVisibilidade'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
-import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
+import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -370,6 +370,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'mensagens_canal', filter: `canal_id=eq.${canalId}` },
         () => {
+          notificarBadgeCanais()
           void carregar()
         },
       )
