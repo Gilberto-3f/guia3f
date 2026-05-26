@@ -84,10 +84,10 @@ async function toggleReacaoMensagemCanalFallback(
   if (!rowAtual) throw new Error('mensagem_nao_encontrada')
 
   const reacoes = parseReacoesCanal(rowAtual.reacoes)
-  const jaReagiu = reacoes.some((r) => r.usuario_id === uid && r.tipo === emoji)
-  const novasReacoes = jaReagiu
+  const jaReagiuMesmoEmoji = reacoes.some((r) => r.usuario_id === uid && r.tipo === emoji)
+  const novasReacoes = jaReagiuMesmoEmoji
     ? reacoes.filter((r) => !(r.usuario_id === uid && r.tipo === emoji))
-    : [...reacoes, { usuario_id: uid, tipo: emoji }]
+    : [...reacoes.filter((r) => r.usuario_id !== uid), { usuario_id: uid, tipo: emoji }]
 
   const { data: atualizado, error: updErr } = await supabase
     .from('mensagens_canal')

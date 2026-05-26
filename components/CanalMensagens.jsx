@@ -10,7 +10,9 @@ import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
 import { marcarCanalComoLidoResiliente } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { mensagensComSeparadoresData } from '@/lib/canalMensagensUi'
+import { ehAnexoImagemCanal } from '@/lib/canalAnexoUrl'
 import { parseReacoesCanal, toggleReacaoMensagemCanal } from '@/lib/canalReacoes'
+import { EMOJIS_REACAO_CANAL } from '@/lib/canalReacoesEmojis'
 import CanalMensagemImagem from '@/components/CanalMensagemImagem'
 import AvatarImage from '@/components/AvatarImage'
 
@@ -23,11 +25,16 @@ const LONG_PRESS_REACAO_MS = 500
  */
 function agruparReacoes(reacoes) {
   const arr = parseReacoesCanal(reacoes)
+  /** Uma reação por usuário (última prevalece em dados legados). */
+  /** @type {Map<string, string>} */
+  const porUsuario = new Map()
+  for (const r of arr) {
+    if (r.usuario_id && r.tipo) porUsuario.set(r.usuario_id, r.tipo)
+  }
   /** @type {Record<string, number>} */
   const map = {}
-  for (const r of arr) {
-    const emoji = r.tipo
-    if (emoji) map[emoji] = (map[emoji] ?? 0) + 1
+  for (const emoji of porUsuario.values()) {
+    map[emoji] = (map[emoji] ?? 0) + 1
   }
   return map
 }
@@ -354,9 +361,15 @@ export default function CanalMensagens({
         const fileName = `${Date.now()}.${fileExt}`
         const filePath = `${session.user.id}/${canalId}/${fileName}`
 
+        const contentType =
+          anexoEnviar.type && anexoEnviar.type.startsWith('image/')
+            ? anexoEnviar.type
+            : anexoEnviar.type || 'application/octet-stream'
+
         const { error: uploadError } = await supabase.storage.from('mensagens').upload(filePath, anexoEnviar, {
           upsert: true,
-          contentType: anexoEnviar.type || undefined,
+          contentType,
+          cacheControl: '3600',
         })
 
         if (uploadError) {
@@ -493,7 +506,7 @@ export default function CanalMensagens({
     )
   }
 
-  const emojis = ['👍', '❤️', '😂', '😮', '😢', '😡']
+  const emojis = EMOJIS_REACAO_CANAL
   const podeEnviar = Boolean((novaMensagem.trim() || anexo) && uid && !enviando)
 
   const itensLista = mensagensComSeparadoresData(mensagens, (m) => m.created_at)
@@ -583,7 +596,8 @@ export default function CanalMensagens({
                         >
                           {emojis.map((emoji) => {
                             const reacoes = parseReacoesCanal(msg.reacoes)
-                            const ativo = uid ? reacoes.some((r) => r.usuario_id === uid && r.tipo === emoji) : false
+                            const minhaReacao = uid ? reacoes.find((r) => r.usuario_id === uid) : null
+                            const ativo = minhaReacao?.tipo === emoji
                             return (
                               <button
                                 key={emoji}
