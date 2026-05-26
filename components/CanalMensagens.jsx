@@ -699,7 +699,11 @@ export default function CanalMensagens({
                   </div>
 
                   {temReacoes ? (
-                    <div className="mt-1 flex flex-wrap gap-1 px-1">
+                    <div
+                      className={`mt-1 flex flex-wrap gap-1 ${
+                        isOwn ? 'justify-end' : 'justify-start pl-10'
+                      }`}
+                    >
                       {Object.entries(reacoesAgrupadas).map(([emoji, count]) => (
                         <button
                           key={emoji}

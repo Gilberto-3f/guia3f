@@ -70,7 +70,17 @@ AS $$
             SELECT 1
             FROM profissionais p
             WHERE p.usuario_id = auth.uid()
-              AND c.comunidade_prof = ANY (p.categorias)
+              AND p.categorias IS NOT NULL
+              AND (
+                (
+                  jsonb_typeof(p.categorias) = 'array'
+                  AND p.categorias @> to_jsonb(ARRAY[c.comunidade_prof]::text[])
+                )
+                OR (
+                  jsonb_typeof(p.categorias) = 'string'
+                  AND p.categorias = to_jsonb(c.comunidade_prof)
+                )
+              )
           )
         )
         OR (

@@ -191,8 +191,10 @@ export default function CanalDetalhePage() {
     void (async () => {
       if (userTipoEfetivo === 'profissional' && canal.nome && isCanalFinanceiroProfissional(canal.nome)) {
         await marcarFinanceiroLidoProfissional(supabase, usuarioId)
-        notificarBadgeCanais()
+      } else {
+        await marcarCanalComoLido(supabase, usuarioId, canalId, null)
       }
+      notificarBadgeCanais()
     })()
   }, [usuarioId, canalId, canal, userTipoEfetivo])
 

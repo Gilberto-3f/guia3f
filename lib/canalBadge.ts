@@ -41,8 +41,8 @@ export async function marcarCanalComoLido(
   usuarioId: string,
   canalId: string,
   ultimaMensagemIso?: string | null,
-): Promise<void> {
-  if (!usuarioId || !canalId) return
+): Promise<boolean> {
+  if (!usuarioId || !canalId) return false
 
   let ultima = ultimaMensagemIso
   if (!ultima) {
@@ -50,15 +50,28 @@ export async function marcarCanalComoLido(
   }
 
   const visto_em = calcularVistoEmAposLeitura(ultima)
-  const { error } = await supabase.from('canal_leitura_profissional').upsert(
-    {
-      usuario_id: usuarioId,
-      canal_id: canalId,
-      visto_em,
-    },
-    { onConflict: 'usuario_id,canal_id' },
-  )
-  if (error) console.error('marcarCanalComoLido:', error)
+  const { data, error } = await supabase
+    .from('canal_leitura_profissional')
+    .upsert(
+      {
+        usuario_id: usuarioId,
+        canal_id: canalId,
+        visto_em,
+      },
+      { onConflict: 'usuario_id,canal_id' },
+    )
+    .select('visto_em')
+    .maybeSingle()
+
+  if (error) {
+    console.error('marcarCanalComoLido:', error)
+    return false
+  }
+  if (!data?.visto_em) {
+    console.error('marcarCanalComoLido: nenhuma linha gravada (verifique RLS em canal_leitura_profissional)')
+    return false
+  }
+  return true
 }
 
 /**

@@ -272,6 +272,11 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     return () => window.removeEventListener(GUIA_CANAIS_BADGE_EVENT, onBadge)
   }, [recarregarContagens])
 
+  useEffect(() => {
+    if (canais.length === 0) return
+    void recarregarContagens()
+  }, [canais, recarregarContagens])
+
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
@@ -376,6 +381,44 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     }
   }, [idsMonitor, carregar])
 
+  useEffect(() => {
+    if (idsMonitor.length === 0) return
+
+    let cancelled = false
+    let chLeitura = /** @type {ReturnType<typeof supabase.channel> | null} */ (null)
+
+    const setup = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id
+      if (!uid || cancelled) return
+
+      chLeitura = supabase
+        .channel(`lista-canais-prof-leitura-${uid}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'canal_leitura_profissional',
+            filter: `usuario_id=eq.${uid}`,
+          },
+          () => {
+            if (!cancelled) void recarregarContagens()
+          },
+        )
+        .subscribe()
+    }
+
+    void setup()
+
+    return () => {
+      cancelled = true
+      if (chLeitura) void supabase.removeChannel(chLeitura)
+    }
+  }, [idsMonitor, recarregarContagens])
+
   /**
    * @param {Canal} canal
    */
@@ -439,7 +482,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         onClick={() => onSelectCanal(canal)}
         avatar={
           <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${
               isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
             }`}
           >

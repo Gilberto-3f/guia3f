@@ -80,7 +80,7 @@ export default function CanalEmpresaRow({
       active={active}
       onClick={onClick}
       avatar={
-        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gray-100">
+        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
           <AvatarImage src={fotoUrl} alt="" width={48} height={48} className="h-full w-full object-cover" />
         </div>
       }
