@@ -1,5 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { obterIdsCanaisMensagensAdmin } from '@/lib/canaisAdminVisibilidade'
+import {
+  contarMensagensNaoLidasInboxAdmin,
+  contarNaoLidasPorCanalIdsAdmin,
+} from '@/lib/canaisAdminVisibilidade'
 import {
   contarFinanceiroNaoLidasEmpresa,
   obterIdsCanaisMensagensEmpresa,
@@ -159,7 +162,7 @@ export async function contarMensagensNaoLidasCanais(
     canalIdsPermitidos = await obterIdsCanaisMensagensEmpresa(supabase, userId)
     extraFinanceiro = await contarFinanceiroNaoLidasEmpresa(supabase, userId)
   } else if (role === 'admin') {
-    canalIdsPermitidos = await obterIdsCanaisMensagensAdmin(supabase)
+    return contarMensagensNaoLidasInboxAdmin(supabase, userId)
   }
 
   const [{ data: mensagens, error: msgErr }, { data: leituras, error: leitErr }] = await Promise.all([
@@ -216,6 +219,11 @@ export async function contarNaoLidasPorCanalIds(
 ): Promise<Record<string, number>> {
   const out: Record<string, number> = {}
   if (!userId || canalIds.length === 0) return out
+
+  const { data: userRow } = await supabase.from('usuarios').select('role').eq('id', userId).maybeSingle()
+  if (userRow?.role === 'admin') {
+    return contarNaoLidasPorCanalIdsAdmin(supabase, userId, canalIds)
+  }
 
   for (const id of canalIds) out[id] = 0
 

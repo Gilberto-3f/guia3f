@@ -1,3 +1,4 @@
+import { ehCanalInboxMensageiroAdm } from '@/lib/canaisAdminVisibilidade'
 import { excluirCanalMensageiroVisaoAdm, nomeNormCanal } from '@/lib/rotulosCanaisAdministracao'
 
 /** @type {readonly string[]} */
@@ -63,7 +64,9 @@ export function particionarVisaoAdminTodos(canaisOrdenados: CanalParticaoAdmin[]
   )
   return {
     administrador: canaisOrdenados.filter(
-      (c) => c.tipo_publico === 'admin' && c.categoria === 'admin' && !excluirCanalMensageiroVisaoAdm(c),
+      (c) =>
+        ehCanalInboxMensageiroAdm(c) ||
+        (c.tipo_publico === 'admin' && c.categoria === 'admin' && !excluirCanalMensageiroVisaoAdm(c)),
     ),
     administracaoProf: canaisOrdenados.filter(
       (c) =>

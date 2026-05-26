@@ -10,6 +10,7 @@ import {
 } from '@/lib/rotulosCanaisAdministracao'
 import { buscarUltimasMensagensCanais, formatarListaHora } from '@/lib/canalLista'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
+import { ehCanalInboxMensageiroAdm, obterIdCanalInboxMensageiroAdm } from '@/lib/canaisAdminVisibilidade'
 import { particionarVisaoAdminTodos } from '@/lib/canaisAdminParticao'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
 import CanalListaRow from '@/components/CanalListaRow'
@@ -264,15 +265,13 @@ export default function ListaCanais({
     })
   }, [gruposIniciais])
 
-  const filtrarIdsContagem = useCallback(
-    (/** @type {string[]} */ ids) => {
-      if (agruparPorTipo || tipoPublico === 'admin') {
-        return ids.filter((id) => particionIds.has(id))
-      }
-      return ids
-    },
-    [agruparPorTipo, tipoPublico, particionIds],
-  )
+  /** Admin: badge só no inbox Mensageiro ADM; broadcast não notifica. */
+  const resolverIdsContagemAdmin = useCallback(async () => {
+    const inboxNaLista = canais.filter((c) => ehCanalInboxMensageiroAdm(c)).map((c) => c.id)
+    if (inboxNaLista.length > 0) return inboxNaLista
+    const inboxId = await obterIdCanalInboxMensageiroAdm(supabase)
+    return inboxId ? [inboxId] : []
+  }, [canais])
 
   const recarregarContagens = useCallback(async () => {
     const {
@@ -281,15 +280,21 @@ export default function ListaCanais({
     const uid = session?.user?.id
     if (!uid) return
 
-    const ids = filtrarIdsContagem(canais.map((c) => c.id).filter((id) => !id.startsWith('__placeholder')))
-    if (ids.length === 0) {
+    const todosIds = canais.map((c) => c.id).filter((id) => !id.startsWith('__placeholder'))
+    const ids =
+      agruparPorTipo || tipoPublico === 'admin'
+        ? await resolverIdsContagemAdmin()
+        : todosIds
+
+    if (ids.length === 0 && (agruparPorTipo || tipoPublico === 'admin')) {
       setNaoLidasPorCanal({})
       return
     }
 
-    const contagens = await contarNaoLidasPorCanalIds(supabase, uid, ids)
+    const idsContagem = agruparPorTipo || tipoPublico === 'admin' ? ids : todosIds
+    const contagens = await contarNaoLidasPorCanalIds(supabase, uid, idsContagem)
     setNaoLidasPorCanal(contagens)
-  }, [canais, filtrarIdsContagem])
+  }, [canais, agruparPorTipo, tipoPublico, resolverIdsContagemAdmin])
 
   useEffect(() => {
     const onBadge = () => {
@@ -339,13 +344,13 @@ export default function ListaCanais({
         const ordenados = [...fixos, ...rotativos]
         setCanais(ordenados)
         const idsBrutos = ordenados.map((c) => c.id).filter((id) => !id.startsWith('__placeholder'))
-        const idsVisiveisAdmin =
-          agruparPorTipo || tipoPublico === 'admin'
-            ? idsEmParticao(particionarVisaoAdminTodos(ordenados))
-            : null
-        const idsContagem = idsVisiveisAdmin
-          ? idsBrutos.filter((id) => idsVisiveisAdmin.has(id))
-          : idsBrutos
+        let idsContagem = idsBrutos
+        if (agruparPorTipo || tipoPublico === 'admin') {
+          const inboxNaLista = ordenados.filter((c) => ehCanalInboxMensageiroAdm(c)).map((c) => c.id)
+          const inboxId =
+            inboxNaLista.length > 0 ? inboxNaLista[0] : await obterIdCanalInboxMensageiroAdm(supabase)
+          idsContagem = inboxId ? [inboxId] : []
+        }
         const ultimas = await buscarUltimasMensagensCanais(supabase, idsBrutos)
         setUltimasMensagens(ultimas)
 
