@@ -9,6 +9,7 @@ import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
 import { marcarCanalComoLido } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
+import { mensagensComSeparadoresData } from '@/lib/canalMensagensUi'
 import CanalMensagemImagem from '@/components/CanalMensagemImagem'
 import AvatarImage from '@/components/AvatarImage'
 
@@ -89,7 +90,9 @@ export default function CanalMensagens({
   const [editTexto, setEditTexto] = useState('')
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
   const mensagensLenRef = useRef(0)
+  const mensagensRef = useRef(mensagens)
   mensagensLenRef.current = mensagens.length
+  mensagensRef.current = mensagens
 
   const scrollToBottom = useCallback((behavior = 'auto') => {
     const el = messagesContainerRef.current
@@ -201,6 +204,21 @@ export default function CanalMensagens({
   useEffect(() => {
     void carregarMensagens()
   }, [carregarMensagens])
+
+  useEffect(() => {
+    return () => {
+      void (async () => {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (!session?.user?.id || !canalId) return
+        const msgs = mensagensRef.current
+        const ultima = msgs.length > 0 ? msgs[msgs.length - 1]?.created_at : null
+        await marcarCanalComoLido(supabase, session.user.id, canalId, ultima ?? null)
+        notificarBadgeCanais()
+      })()
+    }
+  }, [canalId])
 
   useEffect(() => {
     const el = messagesContainerRef.current
@@ -469,6 +487,8 @@ export default function CanalMensagens({
   const emojis = ['👍', '❤️', '😂', '😮', '😢', '😡']
   const podeEnviar = Boolean((novaMensagem.trim() || anexo) && uid && !enviando)
 
+  const itensLista = mensagensComSeparadoresData(mensagens, (m) => m.created_at)
+
   /**
    * @param {{ foto_url: string | null, nome: string }} remetente
    */
@@ -500,7 +520,18 @@ export default function CanalMensagens({
         {mensagens.length === 0 ? (
           <div className="py-8 text-center text-gray-500">Nenhuma mensagem ainda. Seja o primeiro a enviar!</div>
         ) : (
-          mensagens.map((msg) => {
+          itensLista.map((item) => {
+            if (item.type === 'date') {
+              return (
+                <div key={item.key} className="flex justify-center py-2">
+                  <span className="canal-chat-date-separator rounded-lg px-3 py-1 text-xs font-medium text-white shadow-sm">
+                    {item.label}
+                  </span>
+                </div>
+              )
+            }
+
+            const msg = item.msg
             const isOwn = uid != null && msg.remetente.id === uid
             const reacoesAgrupadas = agruparReacoes(msg.reacoes)
             const temReacoes = Object.keys(reacoesAgrupadas).length > 0

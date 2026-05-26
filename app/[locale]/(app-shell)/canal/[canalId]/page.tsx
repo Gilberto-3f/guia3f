@@ -10,6 +10,7 @@ import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
+import { marcarCanalComoLido } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { canalMensageiroAdmSemAbasPais, rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 import {
@@ -196,7 +197,17 @@ export default function CanalDetalhePage() {
   }, [usuarioId, canalId, canal, userTipoEfetivo])
 
   const voltarCanais = () => {
-    router.push('/canal')
+    void (async () => {
+      if (usuarioId && canalId && canal) {
+        if (userTipoEfetivo === 'profissional' && isCanalFinanceiroProfissional(canal.nome)) {
+          await marcarFinanceiroLidoProfissional(supabase, usuarioId)
+        } else {
+          await marcarCanalComoLido(supabase, usuarioId, canalId, null)
+        }
+        notificarBadgeCanais()
+      }
+      router.push('/canal')
+    })()
   }
 
   if (!authPronto) {

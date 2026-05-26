@@ -11,7 +11,9 @@ import {
 } from '@/lib/canaisProfissionalSlugs'
 import CanalEmpresaRow from '@/components/CanalEmpresaRow'
 import CanalListaRow from '@/components/CanalListaRow'
-import { buscarUltimasMensagensCanais, canalTemNaoLidas, formatarListaHora } from '@/lib/canalLista'
+import { buscarUltimasMensagensCanais, formatarListaHora } from '@/lib/canalLista'
+import { contarFinanceiroNaoLidasProfissional } from '@/lib/canaisProfissionalVisibilidade'
+import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 
 /** @type {readonly string[]} */
@@ -184,8 +186,8 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
   const [loading, setLoading] = useState(true)
   /** @type {Record<string, { preview: string, created_at: string }>} */
   const [ultimasMensagens, setUltimasMensagens] = useState({})
-  /** @type {Record<string, string>} */
-  const [leiturasPorCanal, setLeiturasPorCanal] = useState({})
+  /** @type {Record<string, number>} */
+  const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
   const [categoriaAba, setCategoriaAba] = useState(ORDEM_CATEGORIA_EMPRESA[0] ?? 'Restaurantes')
   const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({ administracao: false }))
 
@@ -239,33 +241,36 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     })
   }
 
-  const recarregarLeituras = useCallback(async () => {
+  const recarregarContagens = useCallback(async () => {
     const {
       data: { session },
     } = await supabase.auth.getSession()
     const uid = session?.user?.id
     if (!uid) return
 
-    const leiturasRes = await supabase
-      .from('canal_leitura_profissional')
-      .select('canal_id, visto_em')
-      .eq('usuario_id', uid)
-
-    /** @type {Record<string, string>} */
-    const leituras = {}
-    for (const row of leiturasRes.data ?? []) {
-      leituras[String(row.canal_id)] = String(row.visto_em ?? '')
+    const ids = canais.map((c) => c.id).filter((id) => !String(id).startsWith('__placeholder'))
+    if (ids.length === 0) {
+      setNaoLidasPorCanal({})
+      return
     }
-    setLeiturasPorCanal(leituras)
-  }, [])
+
+    const contagens = await contarNaoLidasPorCanalIds(supabase, uid, ids)
+    const fin = await contarFinanceiroNaoLidasProfissional(supabase, uid)
+    for (const c of canais) {
+      if (isCanalFinanceiroProfissional(c.nome)) {
+        contagens[c.id] = fin
+      }
+    }
+    setNaoLidasPorCanal(contagens)
+  }, [canais])
 
   useEffect(() => {
     const onBadge = () => {
-      void recarregarLeituras()
+      void recarregarContagens()
     }
     window.addEventListener(GUIA_CANAIS_BADGE_EVENT, onBadge)
     return () => window.removeEventListener(GUIA_CANAIS_BADGE_EVENT, onBadge)
-  }, [recarregarLeituras])
+  }, [recarregarContagens])
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -327,18 +332,17 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       setCanais(ordenados)
 
       const ids = ordenados.map((c) => c.id).filter((id) => !String(id).startsWith('__placeholder'))
-      const [ultimas, leiturasRes] = await Promise.all([
-        buscarUltimasMensagensCanais(supabase, ids),
-        supabase.from('canal_leitura_profissional').select('canal_id, visto_em').eq('usuario_id', uid),
-      ])
+      const ultimas = await buscarUltimasMensagensCanais(supabase, ids)
       setUltimasMensagens(ultimas)
 
-      /** @type {Record<string, string>} */
-      const leituras = {}
-      for (const row of leiturasRes.data ?? []) {
-        leituras[String(row.canal_id)] = String(row.visto_em ?? '')
+      const contagens = await contarNaoLidasPorCanalIds(supabase, uid, ids)
+      const fin = await contarFinanceiroNaoLidasProfissional(supabase, uid)
+      for (const c of ordenados) {
+        if (isCanalFinanceiroProfissional(c.nome)) {
+          contagens[c.id] = fin
+        }
       }
-      setLeiturasPorCanal(leituras)
+      setNaoLidasPorCanal(contagens)
     } catch (e) {
       console.error('Erro ao carregar canais profissional:', e)
     } finally {
@@ -394,7 +398,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         : canal.nome
     const ultima = ultimasMensagens[canal.id]
     const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
-    const naoLidas = canalTemNaoLidas(horaIso, leiturasPorCanal[canal.id]) ? 1 : 0
+    const naoLidas = naoLidasPorCanal[canal.id] ?? 0
 
     if (!opts.blocoAdministracao && canal.tipo_publico === 'empresa') {
       const comuSlug = toSlug(canal.comunidade_prof != null ? String(canal.comunidade_prof) : '')

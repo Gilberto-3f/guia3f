@@ -334,6 +334,9 @@ export default function BottomBar() {
           void refreshCanais()
         },
       )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'canal_financeiro' }, () => {
+        void refreshCanais()
+      })
       .subscribe()
 
     return () => {
