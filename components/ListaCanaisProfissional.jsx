@@ -164,6 +164,14 @@ function ordenarCanais(lista) {
   return [...fixos, ...rotativos]
 }
 
+/** Pasta ADMINISTRAÇÃO: canal da categoria (ADM) primeiro, Financeiro por último. */
+function ordenarAdministracao(lista) {
+  const financeiro = lista.filter((c) => isCanalFinanceiroProfissional(c.nome))
+  const categorias = lista.filter((c) => !isCanalFinanceiroProfissional(c.nome))
+  categorias.sort((a, b) => (a.ordem_posicao ?? 0) - (b.ordem_posicao ?? 0))
+  return [...categorias, ...financeiro]
+}
+
 /**
  * @param {{
  *   onSelectCanal: (c: Canal) => void
@@ -182,8 +190,8 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
   const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({ administracao: false }))
 
   const part = useMemo(() => {
-    const administracao = canais.filter(
-      (c) => c.tipo_publico === 'profissional' && !isCanalAdmProfissionalGlobal(c),
+    const administracao = ordenarAdministracao(
+      canais.filter((c) => c.tipo_publico === 'profissional' && !isCanalAdmProfissionalGlobal(c)),
     )
     const empresas = canais.filter((c) => c.tipo_publico === 'empresa' && c.empresa_id != null && c.comunidade_prof != null)
     return { administracao, empresas }

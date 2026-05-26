@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { MoreVertical, Pencil, Send, Paperclip, X, Check } from 'lucide-react'
@@ -13,6 +13,7 @@ import CanalMensagemImagem from '@/components/CanalMensagemImagem'
 import AvatarImage from '@/components/AvatarImage'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
+const LONG_PRESS_REACAO_MS = 500
 
 /**
  * @param {unknown} raw
@@ -77,6 +78,9 @@ export default function CanalMensagens({
   const [anexoPreview, setAnexoPreview] = useState(/** @type {string | null} */ (null))
   const [uid, setUid] = useState(/** @type {string | null} */ (null))
   const messagesEndRef = useRef(/** @type {HTMLDivElement | null} */ (null))
+  const messagesContainerRef = useRef(/** @type {HTMLDivElement | null} */ (null))
+  const stickToBottomRef = useRef(true)
+  const longPressTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null))
   const fileInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
   const [reacaoPickerId, setReacaoPickerId] = useState(/** @type {string | null} */ (null))
@@ -87,9 +91,43 @@ export default function CanalMensagens({
   const mensagensLenRef = useRef(0)
   mensagensLenRef.current = mensagens.length
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+  const scrollToBottom = useCallback((behavior = 'auto') => {
+    const el = messagesContainerRef.current
+    if (el) {
+      if (behavior === 'smooth') {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+      } else {
+        el.scrollTop = el.scrollHeight
+      }
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: behavior === 'smooth' ? 'smooth' : 'auto' })
+    }
+  }, [])
+
+  const cancelarLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }, [])
+
+  /**
+   * @param {string} msgId
+   */
+  const iniciarLongPressReacao = useCallback(
+    (msgId) => {
+      if (!podeReagir) return
+      cancelarLongPress()
+      longPressTimerRef.current = setTimeout(() => {
+        setReacaoPickerId(msgId)
+        setMenuMsgId(null)
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate(12)
+        }
+      }, LONG_PRESS_REACAO_MS)
+    },
+    [podeReagir, cancelarLongPress],
+  )
 
   /**
    * @param {{ silent?: boolean }} [opts]
@@ -151,17 +189,35 @@ export default function CanalMensagens({
         await marcarCanalComoLido(supabase, session.user.id, canalId, ultimaIso)
         notificarBadgeCanais()
       }
-      if (!silent) setTimeout(scrollToBottom, 100)
+      stickToBottomRef.current = true
+      requestAnimationFrame(() => scrollToBottom(silent ? 'auto' : 'smooth'))
     } catch (e) {
       console.error('Erro ao carregar mensagens:', e)
     } finally {
       if (!silent) setLoadingInicial(false)
     }
-  }, [canalId, paisTab, inboxCanalAdm, inboxModo])
+  }, [canalId, paisTab, inboxCanalAdm, inboxModo, scrollToBottom])
 
   useEffect(() => {
     void carregarMensagens()
   }, [carregarMensagens])
+
+  useEffect(() => {
+    const el = messagesContainerRef.current
+    if (!el) return
+    const onScroll = () => {
+      const dist = el.scrollHeight - el.scrollTop - el.clientHeight
+      stickToBottomRef.current = dist < 96
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useLayoutEffect(() => {
+    if (stickToBottomRef.current && mensagens.length > 0) {
+      scrollToBottom('auto')
+    }
+  }, [mensagens, scrollToBottom])
 
   useEffect(() => {
     if (!podePostar) return
@@ -319,7 +375,8 @@ export default function CanalMensagens({
         setMensagens((prev) => (prev.some((m) => m.id === nova.id) ? prev : [...prev, nova]))
         await marcarCanalComoLido(supabase, session.user.id, canalId, nova.created_at)
         notificarBadgeCanais()
-        setTimeout(scrollToBottom, 50)
+        stickToBottomRef.current = true
+        requestAnimationFrame(() => scrollToBottom('smooth'))
       }
     } catch (e) {
       console.error('Erro ao enviar mensagem:', e)
@@ -433,7 +490,8 @@ export default function CanalMensagens({
   return (
     <div className="canal-chat flex h-full min-h-0 flex-1 flex-col">
       <div
-        className="canal-chat-messages scrollbar-perfil min-h-0 flex-1 space-y-1 overflow-y-auto px-2 py-2"
+        ref={messagesContainerRef}
+        className="canal-chat-messages scrollbar-perfil flex min-h-0 flex-1 flex-col justify-end space-y-1 overflow-y-auto px-2 py-2"
         onClick={() => {
           setMenuMsgId(null)
           setReacaoPickerId(null)
@@ -461,17 +519,50 @@ export default function CanalMensagens({
                 className={`group flex w-full ${isOwn ? 'justify-end' : 'justify-start'}`}
               >
                 <div className={`flex max-w-[82%] flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
-                  <span className="mb-0 max-w-full truncate px-0.5 text-[11px] font-semibold leading-tight text-gray-600">
-                    {msg.remetente.nome}
-                  </span>
-
                   <div className={`flex items-end gap-1.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
                     {renderAvatarRemetente(msg.remetente)}
 
                     <div className={`relative flex items-start gap-1 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div
-                      className={`${bubbleBase} ${isOwn ? 'rounded-br-sm' : 'rounded-bl-sm'} min-w-[4rem]`}
+                      className={`relative ${bubbleBase} ${isOwn ? 'rounded-br-sm' : 'rounded-bl-sm'} min-w-[4rem] select-none touch-manipulation`}
+                      onPointerDown={() => {
+                        if (!emEdicao && podeReagir) iniciarLongPressReacao(msg.id)
+                      }}
+                      onPointerUp={cancelarLongPress}
+                      onPointerLeave={cancelarLongPress}
+                      onPointerCancel={cancelarLongPress}
+                      onContextMenu={(e) => {
+                        if (podeReagir && !emEdicao) e.preventDefault()
+                      }}
                     >
+                      {pickerAberto && podeReagir && !emEdicao ? (
+                        <div
+                          className={`absolute bottom-full z-40 mb-2 flex gap-0.5 rounded-full border border-gray-200 bg-white px-2 py-1.5 shadow-lg ${isOwn ? 'right-0' : 'left-0'}`}
+                          onClick={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          {emojis.map((emoji) => {
+                            const reacoes = /** @type {{ usuario_id: string, tipo: string }[]} */ (
+                              asReacoesArray(msg.reacoes)
+                            )
+                            const ativo = uid ? reacoes.some((r) => r.usuario_id === uid && r.tipo === emoji) : false
+                            return (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => {
+                                  void handleReagir(msg.id, emoji)
+                                  setReacaoPickerId(null)
+                                }}
+                                className={`rounded-full p-1.5 text-lg hover:bg-gray-100 ${ativo ? 'bg-gray-100' : ''}`}
+                                aria-label={`Reagir com ${emoji}`}
+                              >
+                                {emoji}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      ) : null}
                       {emEdicao ? (
                         <div className="space-y-2">
                           <textarea
@@ -604,43 +695,6 @@ export default function CanalMensagens({
                     </div>
                   ) : null}
 
-                  {podeReagir ? (
-                    <div className="relative mt-0.5 px-1">
-                      <button
-                        type="button"
-                        onClick={() => setReacaoPickerId(pickerAberto ? null : msg.id)}
-                        className={`rounded-full px-2 py-0.5 text-xs text-gray-500 transition hover:bg-gray-200/80 ${
-                          pickerAberto ? 'bg-gray-200/80' : 'opacity-0 group-hover:opacity-100'
-                        }`}
-                        aria-label="Reagir"
-                      >
-                        {pickerAberto ? '✕' : '😀'}
-                      </button>
-                      {pickerAberto ? (
-                        <div className="mt-1 flex flex-wrap gap-0.5 rounded-full border border-gray-200 bg-white px-2 py-1 shadow-md">
-                          {emojis.map((emoji) => {
-                            const reacoes = /** @type {{ usuario_id: string, tipo: string }[]} */ (
-                              asReacoesArray(msg.reacoes)
-                            )
-                            const ativo = uid ? reacoes.some((r) => r.usuario_id === uid && r.tipo === emoji) : false
-                            return (
-                              <button
-                                key={emoji}
-                                type="button"
-                                onClick={() => {
-                                  void handleReagir(msg.id, emoji)
-                                  setReacaoPickerId(null)
-                                }}
-                                className={`rounded-full p-1 text-base hover:bg-gray-100 ${ativo ? 'bg-gray-100' : ''}`}
-                              >
-                                {emoji}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
                 </div>
               </div>
             )
