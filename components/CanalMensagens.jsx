@@ -144,7 +144,11 @@ export default function CanalMensagens({
       if (session?.user?.id) {
         const me = remetentesMap.get(session.user.id)
         if (me) setMeuRemetente(me)
-        await marcarCanalComoLido(supabase, session.user.id, canalId)
+        const ultimaIso =
+          mensagensCompletas.length > 0
+            ? mensagensCompletas[mensagensCompletas.length - 1]?.created_at
+            : null
+        await marcarCanalComoLido(supabase, session.user.id, canalId, ultimaIso)
         notificarBadgeCanais()
       }
       if (!silent) setTimeout(scrollToBottom, 100)
@@ -313,7 +317,7 @@ export default function CanalMensagens({
           remetente,
         }
         setMensagens((prev) => (prev.some((m) => m.id === nova.id) ? prev : [...prev, nova]))
-        await marcarCanalComoLido(supabase, session.user.id, canalId)
+        await marcarCanalComoLido(supabase, session.user.id, canalId, nova.created_at)
         notificarBadgeCanais()
         setTimeout(scrollToBottom, 50)
       }

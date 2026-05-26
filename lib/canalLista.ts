@@ -76,5 +76,8 @@ export async function buscarUltimasMensagensCanais(
 export function canalTemNaoLidas(ultimaMensagemEm: string | null | undefined, vistoEm: string | null | undefined): boolean {
   if (!ultimaMensagemEm) return false
   if (!vistoEm) return true
-  return new Date(ultimaMensagemEm).getTime() > new Date(vistoEm).getTime()
+  const ultima = new Date(ultimaMensagemEm).getTime()
+  const visto = new Date(vistoEm).getTime()
+  if (Number.isNaN(ultima) || Number.isNaN(visto)) return false
+  return ultima > visto
 }

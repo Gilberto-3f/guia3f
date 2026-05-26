@@ -5,19 +5,33 @@ import {
 } from '@/lib/canaisProfissionalVisibilidade'
 
 /**
+ * `visto_em` após leitura: cobre a última mensagem visível (+ folga de 1s para relógio/Postgres).
+ */
+export function calcularVistoEmAposLeitura(ultimaMensagemIso?: string | null): string {
+  let t = Date.now()
+  if (ultimaMensagemIso) {
+    const msg = new Date(ultimaMensagemIso).getTime()
+    if (!Number.isNaN(msg)) t = Math.max(t, msg)
+  }
+  return new Date(t + 1000).toISOString()
+}
+
+/**
  * Marca o canal como lido para o utilizador (tabela `canal_leitura_profissional` — uso por qualquer role).
  */
 export async function marcarCanalComoLido(
   supabase: SupabaseClient,
   usuarioId: string,
   canalId: string,
+  ultimaMensagemIso?: string | null,
 ): Promise<void> {
   if (!usuarioId || !canalId) return
+  const visto_em = calcularVistoEmAposLeitura(ultimaMensagemIso)
   const { error } = await supabase.from('canal_leitura_profissional').upsert(
     {
       usuario_id: usuarioId,
       canal_id: canalId,
-      visto_em: new Date().toISOString(),
+      visto_em,
     },
     { onConflict: 'usuario_id,canal_id' },
   )

@@ -310,6 +310,30 @@ export default function BottomBar() {
           void refreshCanais()
         },
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'canal_leitura_profissional',
+          filter: `usuario_id=eq.${authUserId}`,
+        },
+        () => {
+          void refreshCanais()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'canal_leitura_profissional',
+          filter: `usuario_id=eq.${authUserId}`,
+        },
+        () => {
+          void refreshCanais()
+        },
+      )
       .subscribe()
 
     return () => {

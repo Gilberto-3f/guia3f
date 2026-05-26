@@ -10,7 +10,6 @@ import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
-import { marcarCanalComoLido } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { canalMensageiroAdmSemAbasPais, rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 import {
@@ -189,11 +188,10 @@ export default function CanalDetalhePage() {
     if (!usuarioId || !canalId || !canal) return
 
     void (async () => {
-      await marcarCanalComoLido(supabase, usuarioId, canalId)
       if (userTipoEfetivo === 'profissional' && canal.nome && isCanalFinanceiroProfissional(canal.nome)) {
         await marcarFinanceiroLidoProfissional(supabase, usuarioId)
+        notificarBadgeCanais()
       }
-      notificarBadgeCanais()
     })()
   }, [usuarioId, canalId, canal, userTipoEfetivo])
 

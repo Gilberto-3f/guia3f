@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import ListaCanais from '@/components/ListaCanais'
@@ -13,6 +14,7 @@ type TipoUsuario = 'turista' | 'profissional' | 'empresa' | 'admin' | null
 
 export default function CanalPage() {
   const router = useRouter()
+  const pathname = usePathname()
   const { modoAtivo, perfilSimulado, podeInteragir } = useModoApresentacao()
   const [userTipo, setUserTipo] = useState<TipoUsuario>(null)
   const [loading, setLoading] = useState(true)
@@ -52,6 +54,16 @@ export default function CanalPage() {
 
     void init()
   }, [router])
+
+  /** Ao voltar da conversa para a lista, atualiza leituras e badge da barra. */
+  useEffect(() => {
+    if (!pathname) return
+    const noDetalhe = /\/canal\/[^/]+/.test(pathname)
+    const naLista = pathname.includes('/canal') && !noDetalhe
+    if (naLista) {
+      window.dispatchEvent(new Event(GUIA_CANAIS_BADGE_EVENT))
+    }
+  }, [pathname])
 
   useEffect(() => {
     if (userTipoEfetivo !== 'turista') return

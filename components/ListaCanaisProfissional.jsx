@@ -12,6 +12,7 @@ import {
 import CanalEmpresaRow from '@/components/CanalEmpresaRow'
 import CanalListaRow from '@/components/CanalListaRow'
 import { buscarUltimasMensagensCanais, canalTemNaoLidas, formatarListaHora } from '@/lib/canalLista'
+import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -230,6 +231,34 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     })
   }
 
+  const recarregarLeituras = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    const uid = session?.user?.id
+    if (!uid) return
+
+    const leiturasRes = await supabase
+      .from('canal_leitura_profissional')
+      .select('canal_id, visto_em')
+      .eq('usuario_id', uid)
+
+    /** @type {Record<string, string>} */
+    const leituras = {}
+    for (const row of leiturasRes.data ?? []) {
+      leituras[String(row.canal_id)] = String(row.visto_em ?? '')
+    }
+    setLeiturasPorCanal(leituras)
+  }, [])
+
+  useEffect(() => {
+    const onBadge = () => {
+      void recarregarLeituras()
+    }
+    window.addEventListener(GUIA_CANAIS_BADGE_EVENT, onBadge)
+    return () => window.removeEventListener(GUIA_CANAIS_BADGE_EVENT, onBadge)
+  }, [recarregarLeituras])
+
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
@@ -357,7 +386,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         : canal.nome
     const ultima = ultimasMensagens[canal.id]
     const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
-    const naoLidas = canalTemNaoLidas(canal.ultima_mensagem_em, leiturasPorCanal[canal.id]) ? 1 : 0
+    const naoLidas = canalTemNaoLidas(horaIso, leiturasPorCanal[canal.id]) ? 1 : 0
 
     if (!opts.blocoAdministracao && canal.tipo_publico === 'empresa') {
       const comuSlug = toSlug(canal.comunidade_prof != null ? String(canal.comunidade_prof) : '')
