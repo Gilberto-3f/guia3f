@@ -10,6 +10,7 @@ import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
 import { marcarCanalComoLido } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { mensagensComSeparadoresData } from '@/lib/canalMensagensUi'
+import { parseReacoesCanal, toggleReacaoMensagemCanal } from '@/lib/canalReacoes'
 import CanalMensagemImagem from '@/components/CanalMensagemImagem'
 import AvatarImage from '@/components/AvatarImage'
 
@@ -17,21 +18,11 @@ const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 const LONG_PRESS_REACAO_MS = 500
 
 /**
- * @param {unknown} raw
- * @returns {unknown[]}
- */
-function asReacoesArray(raw) {
-  if (Array.isArray(raw)) return raw
-  if (raw == null) return []
-  return []
-}
-
-/**
  * @param {unknown} reacoes
  * @returns {Record<string, number>}
  */
 function agruparReacoes(reacoes) {
-  const arr = /** @type {{ tipo?: string }[]} */ (asReacoesArray(reacoes))
+  const arr = parseReacoesCanal(reacoes)
   /** @type {Record<string, number>} */
   const map = {}
   for (const r of arr) {
@@ -175,7 +166,7 @@ export default function CanalMensagens({
           texto: m.texto != null ? String(m.texto) : null,
           anexo_url: m.anexo_url != null ? String(m.anexo_url) : null,
           anexo_tipo: m.anexo_tipo != null ? String(m.anexo_tipo) : null,
-          reacoes: asReacoesArray(m.reacoes),
+          reacoes: parseReacoesCanal(m.reacoes),
           created_at: String(m.created_at ?? ''),
           remetente,
         }
@@ -305,7 +296,18 @@ export default function CanalMensagens({
         { event: 'INSERT', schema: 'public', table: 'mensagens_canal', filter: `canal_id=eq.${cid}` },
         () => {
           void carregarMensagens({ silent: true })
-        }
+        },
+      )
+      ch.on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'mensagens_canal', filter: `canal_id=eq.${cid}` },
+        (payload) => {
+          const novo = payload.new
+          if (!novo?.id) return
+          const id = String(novo.id)
+          const reacoes = parseReacoesCanal(novo.reacoes)
+          setMensagens((prev) => prev.map((m) => (m.id === id ? { ...m, reacoes } : m)))
+        },
       )
     }
     void ch.subscribe()
@@ -386,7 +388,7 @@ export default function CanalMensagens({
           texto: row.texto != null ? String(row.texto) : null,
           anexo_url: row.anexo_url != null ? String(row.anexo_url) : null,
           anexo_tipo: row.anexo_tipo != null ? String(row.anexo_tipo) : null,
-          reacoes: asReacoesArray(row.reacoes),
+          reacoes: parseReacoesCanal(row.reacoes),
           created_at: String(row.created_at ?? new Date().toISOString()),
           remetente,
         }
@@ -451,19 +453,7 @@ export default function CanalMensagens({
     if (!podeReagir || !uid) return
 
     try {
-      const mensagem = mensagens.find((m) => m.id === mensagemId)
-      const reacoes = /** @type {{ usuario_id: string, tipo: string }[]} */ (asReacoesArray(mensagem?.reacoes))
-
-      const jaReagiu = reacoes.some((r) => r.usuario_id === uid && r.tipo === emoji)
-
-      const novasReacoes = jaReagiu
-        ? reacoes.filter((r) => !(r.usuario_id === uid && r.tipo === emoji))
-        : [...reacoes, { usuario_id: uid, tipo: emoji }]
-
-      const { error } = await supabase.from('mensagens_canal').update({ reacoes: novasReacoes }).eq('id', mensagemId)
-
-      if (error) throw error
-
+      const novasReacoes = await toggleReacaoMensagemCanal(supabase, mensagemId, emoji)
       setMensagens((prev) => prev.map((m) => (m.id === mensagemId ? { ...m, reacoes: novasReacoes } : m)))
     } catch (e) {
       console.error('Erro ao reagir:', e)
@@ -573,9 +563,7 @@ export default function CanalMensagens({
                           onPointerDown={(e) => e.stopPropagation()}
                         >
                           {emojis.map((emoji) => {
-                            const reacoes = /** @type {{ usuario_id: string, tipo: string }[]} */ (
-                              asReacoesArray(msg.reacoes)
-                            )
+                            const reacoes = parseReacoesCanal(msg.reacoes)
                             const ativo = uid ? reacoes.some((r) => r.usuario_id === uid && r.tipo === emoji) : false
                             return (
                               <button
