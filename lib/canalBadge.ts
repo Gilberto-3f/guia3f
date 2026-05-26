@@ -1,4 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import {
+  contarFinanceiroNaoLidasProfissional,
+  obterIdsCanaisMensagensProfissional,
+} from '@/lib/canaisProfissionalVisibilidade'
 
 /**
  * Marca o canal como lido para o utilizador (tabela `canal_leitura_profissional` — uso por qualquer role).
@@ -30,7 +34,18 @@ export async function contarMensagensNaoLidasCanais(
 ): Promise<number> {
   if (!userId) return 0
 
+  const { data: userRow } = await supabase.from('usuarios').select('role').eq('id', userId).maybeSingle()
+  const role = userRow?.role != null ? String(userRow.role) : ''
+
   const desde = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString()
+
+  /** Profissional: só canal da categoria + empresas da comunidade (+ financeiro via tabela própria). */
+  let canalIdsPermitidos: Set<string> | null = null
+  let extraFinanceiro = 0
+  if (role === 'profissional') {
+    canalIdsPermitidos = await obterIdsCanaisMensagensProfissional(supabase, userId)
+    extraFinanceiro = await contarFinanceiroNaoLidasProfissional(supabase, userId)
+  }
 
   const [{ data: mensagens, error: msgErr }, { data: leituras, error: leitErr }] = await Promise.all([
     supabase
@@ -64,6 +79,7 @@ export async function contarMensagensNaoLidasCanais(
 
     const cid = row.canal_id != null ? String(row.canal_id) : ''
     if (!cid) continue
+    if (canalIdsPermitidos != null && !canalIdsPermitidos.has(cid)) continue
 
     const created = new Date(String(row.created_at ?? 0)).getTime()
     if (Number.isNaN(created)) continue
@@ -72,5 +88,5 @@ export async function contarMensagensNaoLidasCanais(
     if (created > visto) n += 1
   }
 
-  return n
+  return n + extraFinanceiro
 }

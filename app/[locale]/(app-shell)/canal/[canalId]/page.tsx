@@ -13,11 +13,14 @@ import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
 import { marcarCanalComoLido } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { canalMensageiroAdmSemAbasPais, rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
-import { isCanalAdmProfissionalGlobal, isCanalFinanceiroProfissional } from '@/lib/canaisProfissionalSlugs'
 import {
-  resolverInboxCanalAdmProfissional,
-  type CanalAdmInboxConfig,
-} from '@/lib/canaisProfissionalAdm'
+  buscarSlugsCategoriasProfissional,
+  canalEmpresaVisivelParaProfissional,
+  canalGlobalProfissionalVisivel,
+  marcarFinanceiroLidoProfissional,
+} from '@/lib/canaisProfissionalVisibilidade'
+import { isCanalAdmProfissionalGlobal, isCanalFinanceiroProfissional } from '@/lib/canaisProfissionalSlugs'
+import type { CanalAdmInboxConfig } from '@/lib/canaisProfissionalAdm'
 import {
   isCanalAdmEmpresaGlobal,
   isCanalFinanceiroEmpresa,
@@ -135,24 +138,42 @@ export default function CanalDetalhePage() {
         categoria: data.categoria != null ? String(data.categoria) : null,
         empresa_id: data.empresa_id != null ? String(data.empresa_id) : null,
       }
+
+      if (userTipoEfetivo === 'profissional' && usuarioId) {
+        if (isCanalAdmProfissionalGlobal(row)) {
+          setCarregandoCanal(false)
+          router.replace('/canal')
+          return
+        }
+        const slugs = await buscarSlugsCategoriasProfissional(supabase, usuarioId)
+        if (row.tipo_publico === 'profissional' && !canalGlobalProfissionalVisivel(row, slugs)) {
+          setCanal(null)
+          setCanalMissing(true)
+          setCarregandoCanal(false)
+          return
+        }
+        if (row.tipo_publico === 'empresa' && row.empresa_id) {
+          const okEmpresa = canalEmpresaVisivelParaProfissional(row, slugs, null)
+          if (!okEmpresa) {
+            setCanal(null)
+            setCanalMissing(true)
+            setCarregandoCanal(false)
+            return
+          }
+        }
+      }
+
       setCanal(row)
       setCanalMissing(false)
       setCarregandoCanal(false)
 
-      const precisaInboxProf =
-        userTipoEfetivo === 'profissional' &&
-        usuarioId &&
-        isCanalAdmProfissionalGlobal(row) &&
-        !isCanalFinanceiroProfissional(row.nome)
       const precisaInboxEmp =
         userTipoEfetivo === 'empresa' &&
         usuarioId &&
         isCanalAdmEmpresaGlobal(row) &&
         !isCanalFinanceiroEmpresa(row.nome)
 
-      if (precisaInboxProf) {
-        void resolverInboxCanalAdmProfissional(supabase, usuarioId, row.id).then(setInboxCanalAdm)
-      } else if (precisaInboxEmp) {
+      if (precisaInboxEmp) {
         void resolverInboxCanalAdmEmpresa(supabase, usuarioId, row.id).then(setInboxCanalAdm)
       }
     })()
@@ -169,9 +190,12 @@ export default function CanalDetalhePage() {
 
     void (async () => {
       await marcarCanalComoLido(supabase, usuarioId, canalId)
+      if (userTipoEfetivo === 'profissional' && canal.nome && isCanalFinanceiroProfissional(canal.nome)) {
+        await marcarFinanceiroLidoProfissional(supabase, usuarioId)
+      }
       notificarBadgeCanais()
     })()
-  }, [usuarioId, canalId, canal])
+  }, [usuarioId, canalId, canal, userTipoEfetivo])
 
   const voltarCanais = () => {
     router.push('/canal')
@@ -213,7 +237,9 @@ export default function CanalDetalhePage() {
       ? '…'
       : userTipoEfetivo === 'empresa' && canal.comunidade_prof
         ? tituloCanalEmpresaLista(canal.comunidade_prof)
-        : rotuloNomeCanalAdministracao(canal.nome)
+        : userTipoEfetivo === 'profissional' && isCanalFinanceiroProfissional(canal.nome)
+          ? rotuloNomeCanalAdministracao(canal.nome)
+          : canal.nome
 
   if (userTipoEfetivo === 'profissional') {
     const isFinanceiro = canal != null && isCanalFinanceiroProfissional(canal.nome)
@@ -249,7 +275,7 @@ export default function CanalDetalhePage() {
               paisTab="geral"
               podePostar={false}
               podeReagir={podeInteragir}
-              inboxCanalAdm={inboxCanalAdm}
+              inboxCanalAdm={null}
             />
           )}
         </div>

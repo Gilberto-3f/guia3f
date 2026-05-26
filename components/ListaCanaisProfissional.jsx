@@ -2,9 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Building2, ChevronDown, ChevronUp, Crown, Landmark, MessageCircle, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
+import { Building2, ChevronDown, ChevronUp, Landmark, MessageCircle, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
 import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
-import { isCanalAdmProfissionalGlobal, isCanalFinanceiroProfissional } from '@/lib/canaisProfissionalSlugs'
+import {
+  isCanalAdmProfissionalGlobal,
+  isCanalFinanceiroProfissional,
+  slugCanalComunidadeProfissional,
+} from '@/lib/canaisProfissionalSlugs'
 import CanalEmpresaRow from '@/components/CanalEmpresaRow'
 import CanalListaRow from '@/components/CanalListaRow'
 import { buscarUltimasMensagensCanais, canalTemNaoLidas, formatarListaHora } from '@/lib/canalLista'
@@ -178,9 +182,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
   const part = useMemo(() => {
     const administracao = canais.filter(
-      (c) =>
-        c.tipo_publico === 'profissional' &&
-        (isCanalAdmProfissionalGlobal(c) || isCanalFinanceiroProfissional(c.nome)),
+      (c) => c.tipo_publico === 'profissional' && !isCanalAdmProfissionalGlobal(c),
     )
     const empresas = canais.filter((c) => c.tipo_publico === 'empresa' && c.empresa_id != null && c.comunidade_prof != null)
     return { administracao, empresas }
@@ -270,8 +272,10 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       const lista = /** @type {Canal[]} */ (data ?? [])
       const filtrada = lista.filter((c) => {
         if (c.tipo_publico === 'profissional') {
-          if (isCanalAdmProfissionalGlobal(c) || isCanalFinanceiroProfissional(c.nome)) return true
-          return c.categoria != null && CATEGORIAS_PROFISSIONAIS.includes(c.categoria)
+          if (isCanalAdmProfissionalGlobal(c)) return false
+          if (isCanalFinanceiroProfissional(c.nome)) return true
+          const slug = slugCanalComunidadeProfissional(c.categoria, c.nome)
+          return slug != null && slugsProfissional.includes(slug)
         }
         if (c.tipo_publico === 'empresa') {
           if (c.empresa_id == null) return false
@@ -336,7 +340,6 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
    */
   const getIcon = (canal) => {
     if (canal.tipo_publico === 'empresa') return Building2
-    if (isCanalAdmProfissionalGlobal(canal)) return Crown
     if (isCanalFinanceiroProfissional(canal.nome)) return Landmark
     return MessageCircle
   }
@@ -348,7 +351,10 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
   function renderRow(canal, opts = {}) {
     const Icon = getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
-    const label = opts.blocoAdministracao ? rotuloNomeCanalAdministracao(canal.nome) : canal.nome
+    const label =
+      opts.blocoAdministracao && isCanalFinanceiroProfissional(canal.nome)
+        ? rotuloNomeCanalAdministracao(canal.nome)
+        : canal.nome
     const ultima = ultimasMensagens[canal.id]
     const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
     const naoLidas = canalTemNaoLidas(canal.ultima_mensagem_em, leiturasPorCanal[canal.id]) ? 1 : 0
