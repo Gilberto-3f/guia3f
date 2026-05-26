@@ -19,6 +19,7 @@ import {
   canalGlobalProfissionalVisivel,
   marcarFinanceiroLidoProfissional,
 } from '@/lib/canaisProfissionalVisibilidade'
+import { marcarFinanceiroLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { isCanalAdmProfissionalGlobal, isCanalFinanceiroProfissional } from '@/lib/canaisProfissionalSlugs'
 import type { CanalAdmInboxConfig } from '@/lib/canaisProfissionalAdm'
 import {
@@ -191,6 +192,8 @@ export default function CanalDetalhePage() {
     void (async () => {
       if (userTipoEfetivo === 'profissional' && canal.nome && isCanalFinanceiroProfissional(canal.nome)) {
         await marcarFinanceiroLidoProfissional(supabase, usuarioId)
+      } else if (userTipoEfetivo === 'empresa' && canal.nome && isCanalFinanceiroEmpresa(canal.nome)) {
+        await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
       } else {
         await marcarCanalComoLido(supabase, usuarioId, canalId, null)
       }
@@ -203,6 +206,8 @@ export default function CanalDetalhePage() {
       if (usuarioId && canalId && canal) {
         if (userTipoEfetivo === 'profissional' && isCanalFinanceiroProfissional(canal.nome)) {
           await marcarFinanceiroLidoProfissional(supabase, usuarioId)
+        } else if (userTipoEfetivo === 'empresa' && isCanalFinanceiroEmpresa(canal.nome)) {
+          await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
         } else {
           await marcarCanalComoLido(supabase, usuarioId, canalId, null)
         }

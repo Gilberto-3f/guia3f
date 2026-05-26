@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Building2, ChevronDown, ChevronUp, Landmark, MessageCircle, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
-import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
+import {
+  rotuloNomeCanalAdministracao,
+  TITULO_PASTA_ADMINISTRADORES_APP,
+} from '@/lib/rotulosCanaisAdministracao'
+import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 import {
   isCanalAdmProfissionalGlobal,
   isCanalFinanceiroProfissional,
@@ -506,14 +510,24 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
             <button
               type="button"
               onClick={() => toggleGrupo('administracao')}
-              className="flex w-full items-center justify-between px-4 py-3 text-left text-base"
+              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-base"
             >
-              <span className="font-bold leading-snug text-[#0097b2]">ADMINISTRAÇÃO</span>
-              {gruposAbertos['administracao'] !== false ? (
-                <ChevronUp size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
-              ) : (
-                <ChevronDown size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
-              )}
+              <span className="font-bold leading-snug text-[#0097b2]">{TITULO_PASTA_ADMINISTRADORES_APP}</span>
+              <span className="flex shrink-0 items-center gap-2">
+                {gruposAbertos['administracao'] === false ? (
+                  <CanalNaoLidasBadge
+                    count={part.administracao.reduce(
+                      (s, c) => s + (naoLidasPorCanal[c.id] ?? 0),
+                      0,
+                    )}
+                  />
+                ) : null}
+                {gruposAbertos['administracao'] !== false ? (
+                  <ChevronUp size={18} aria-hidden className="text-[#0097b2]" />
+                ) : (
+                  <ChevronDown size={18} aria-hidden className="text-[#0097b2]" />
+                )}
+              </span>
             </button>
             {gruposAbertos['administracao'] !== false ? (
               <div>

@@ -1,4 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { obterIdsCanaisMensagensAdmin } from '@/lib/canaisAdminVisibilidade'
+import {
+  contarFinanceiroNaoLidasEmpresa,
+  obterIdsCanaisMensagensEmpresa,
+} from '@/lib/canaisEmpresaVisibilidade'
 import {
   contarFinanceiroNaoLidasProfissional,
   obterIdsCanaisMensagensProfissional,
@@ -89,12 +94,17 @@ export async function contarMensagensNaoLidasCanais(
 
   const desde = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString()
 
-  /** Profissional: só canal da categoria + empresas da comunidade (+ financeiro via tabela própria). */
+  /** Filtra mensagens aos canais visíveis por perfil (+ avisos financeiros em tabela própria). */
   let canalIdsPermitidos: Set<string> | null = null
   let extraFinanceiro = 0
   if (role === 'profissional') {
     canalIdsPermitidos = await obterIdsCanaisMensagensProfissional(supabase, userId)
     extraFinanceiro = await contarFinanceiroNaoLidasProfissional(supabase, userId)
+  } else if (role === 'empresa') {
+    canalIdsPermitidos = await obterIdsCanaisMensagensEmpresa(supabase, userId)
+    extraFinanceiro = await contarFinanceiroNaoLidasEmpresa(supabase, userId)
+  } else if (role === 'admin') {
+    canalIdsPermitidos = await obterIdsCanaisMensagensAdmin(supabase)
   }
 
   const [{ data: mensagens, error: msgErr }, { data: leituras, error: leitErr }] = await Promise.all([

@@ -1,11 +1,18 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { MessageCircle, Building2, Crown, ChevronUp, ChevronDown, Landmark } from 'lucide-react'
-import { excluirCanalMensageiroVisaoAdm, rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
+import {
+  excluirCanalMensageiroVisaoAdm,
+  rotuloNomeCanalAdministracao,
+  TITULO_PASTA_ADMINISTRADORES_APP,
+} from '@/lib/rotulosCanaisAdministracao'
 import { buscarUltimasMensagensCanais, formatarListaHora } from '@/lib/canalLista'
+import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
+import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
 import CanalListaRow from '@/components/CanalListaRow'
+import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -277,6 +284,8 @@ export default function ListaCanais({
   const [loading, setLoading] = useState(true)
   /** @type {Record<string, { preview: string, created_at: string }>} */
   const [ultimasMensagens, setUltimasMensagens] = useState({})
+  /** @type {Record<string, number>} */
+  const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
 
   const part = useMemo(() => {
     if (agruparPorTipo) return particionarVisaoAdminTodos(canais)
@@ -317,10 +326,45 @@ export default function ListaCanais({
     })
   }, [gruposIniciais])
 
+  const recarregarContagens = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    const uid = session?.user?.id
+    if (!uid) return
+
+    const ids = canais.map((c) => c.id).filter((id) => !id.startsWith('__placeholder'))
+    if (ids.length === 0) {
+      setNaoLidasPorCanal({})
+      return
+    }
+
+    const contagens = await contarNaoLidasPorCanalIds(supabase, uid, ids)
+    setNaoLidasPorCanal(contagens)
+  }, [canais])
+
+  useEffect(() => {
+    const onBadge = () => {
+      void recarregarContagens()
+    }
+    window.addEventListener(GUIA_CANAIS_BADGE_EVENT, onBadge)
+    return () => window.removeEventListener(GUIA_CANAIS_BADGE_EVENT, onBadge)
+  }, [recarregarContagens])
+
+  useEffect(() => {
+    if (canais.length === 0) return
+    void recarregarContagens()
+  }, [canais, recarregarContagens])
+
   useEffect(() => {
     const carregarCanais = async () => {
       setLoading(true)
       try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        const uid = session?.user?.id
+
         let query = supabase.from('canais').select('*').eq('ativo', true)
 
         if (tipoPublico != null && tipoPublico !== '') {
@@ -349,6 +393,11 @@ export default function ListaCanais({
         const ids = ordenados.map((c) => c.id).filter((id) => !id.startsWith('__placeholder'))
         const ultimas = await buscarUltimasMensagensCanais(supabase, ids)
         setUltimasMensagens(ultimas)
+
+        if (uid) {
+          const contagens = await contarNaoLidasPorCanalIds(supabase, uid, ids)
+          setNaoLidasPorCanal(contagens)
+        }
       } catch (e) {
         console.error('Erro ao carregar canais:', e)
       } finally {
@@ -358,6 +407,29 @@ export default function ListaCanais({
 
     void carregarCanais()
   }, [tipoPublico, paisFiltro])
+
+  const idsMonitor = useMemo(() => canais.map((c) => c.id).filter((id) => !id.startsWith('__placeholder')), [canais])
+
+  useEffect(() => {
+    if (idsMonitor.length === 0) return
+
+    const ch = supabase.channel('lista-canais-adm-mensagens')
+    for (const canalId of idsMonitor) {
+      ch.on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'mensagens_canal', filter: `canal_id=eq.${canalId}` },
+        () => {
+          notificarBadgeCanais()
+          void recarregarContagens()
+        },
+      )
+    }
+    void ch.subscribe()
+
+    return () => {
+      void supabase.removeChannel(ch)
+    }
+  }, [idsMonitor, recarregarContagens])
 
   /**
    * @param {Canal} canal
@@ -391,7 +463,7 @@ export default function ListaCanais({
     const label = opts.blocoAdministracao ? rotuloNomeCanalAdministracao(canal.nome) : canal.nome
     const ultima = ultimasMensagens[canal.id]
     const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
-    const naoLidas = canal.nao_lidas != null && canal.nao_lidas > 0 ? canal.nao_lidas : 0
+    const naoLidas = naoLidasPorCanal[canal.id] ?? 0
 
     return (
       <CanalListaRow
@@ -404,7 +476,7 @@ export default function ListaCanais({
         onClick={() => onSelectCanal(canal)}
         avatar={
           <div
-            className={`flex h-12 w-12 items-center justify-center rounded-full ${
+            className={`flex h-12 w-12 items-center justify-center rounded-md ${
               isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
             }`}
           >
@@ -422,19 +494,23 @@ export default function ListaCanais({
     if (itens.length === 0) return null
     const aberto = gruposAbertos[id] !== false
     const adm = administracao === true
+    const totalPasta = itens.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0)
     return (
       <div className="border-b border-gray-100">
         <button
           type="button"
           onClick={() => toggleGrupo(id)}
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-base"
+          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-base"
         >
           <span className="font-bold leading-snug text-[#0097b2]">{titulo}</span>
-          {aberto ? (
-            <ChevronUp size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
-          ) : (
-            <ChevronDown size={18} aria-hidden className="shrink-0 text-[#0097b2]" />
-          )}
+          <span className="flex shrink-0 items-center gap-2">
+            {!aberto ? <CanalNaoLidasBadge count={totalPasta} /> : null}
+            {aberto ? (
+              <ChevronUp size={18} aria-hidden className="text-[#0097b2]" />
+            ) : (
+              <ChevronDown size={18} aria-hidden className="text-[#0097b2]" />
+            )}
+          </span>
         </button>
         {aberto ? (
           <div>
@@ -474,7 +550,7 @@ export default function ListaCanais({
       <div className="overflow-hidden bg-white">
         {renderGrupoChevron({
           id: 'administracaoUnificada',
-          titulo: agruparPorTipo ? 'ADMINISTRATIVO' : 'ADMINISTRAÇÃO',
+          titulo: TITULO_PASTA_ADMINISTRADORES_APP,
           itens: adminUnificado,
           administracao: true,
         })}

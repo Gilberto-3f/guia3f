@@ -1,3 +1,6 @@
+/** Título da pasta de canais ADM / Financeiro na lista. */
+export const TITULO_PASTA_ADMINISTRADORES_APP = 'ADMINISTRADORES DO APP'
+
 /**
  * Rótulos na pasta Administração e no cabeçalho do detalhe do canal.
  * Nomes na BD (ADM, Financeiro, Mensageiro ADM) mantêm-se; só a UI muda.

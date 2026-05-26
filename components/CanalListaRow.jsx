@@ -1,5 +1,7 @@
 'use client'
 
+import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
+
 /**
  * Linha de canal estilo lista WhatsApp.
  * @param {{
@@ -60,11 +62,7 @@ export default function CanalListaRow({
           >
             {preview || ' '}
           </p>
-          {naoLidas > 0 ? (
-            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#0097b2] px-1.5 text-[10px] font-bold text-white">
-              {naoLidas > 99 ? '99+' : naoLidas}
-            </span>
-          ) : null}
+          <CanalNaoLidasBadge count={naoLidas} />
         </div>
       </div>
     </button>
