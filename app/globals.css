@@ -150,18 +150,21 @@ body {
   color: #00d443 !important;
 }
 
-/* Canais — fundo azul, balões brancos */
+/* Canais — fundo branco, balões azul marca / cinza (outros) */
 .canal-chat {
-  background-color: #0097b2;
+  background-color: #ffffff;
 }
 
 .canal-chat-messages {
-  background-color: #0097b2;
+  background-color: #ffffff;
 }
 
-.canal-bubble {
-  background-color: #ffffff;
+.canal-bubble-own {
+  background-color: #0097b2;
+  color: #ffffff;
+}
+
+.canal-bubble-other {
+  background-color: #e5e5ea;
   color: #111827;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }

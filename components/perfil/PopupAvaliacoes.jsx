@@ -263,24 +263,29 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
                   <p className="max-w-full truncate text-sm font-semibold text-gray-900">
                     <NomeComVerificacao nome={r.nome} verificado={Boolean(r.verificado)} nomeClassName="truncate" />
                   </p>
-                  {r.username ? <p className="max-w-full truncate text-sm text-gray-500">@{r.username}</p> : null}
-                  <div className="mt-1 flex items-center gap-0.5" aria-label={`Nota ${r.nota} de 5`}>
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-5 w-5 shrink-0 ${i < r.nota ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
-                        aria-hidden
-                      />
-                    ))}
-                  </div>
-                  {formatarDataAvaliacao(r.created_at) ? (
-                    <time className="mt-1 block text-xs text-gray-400">{formatarDataAvaliacao(r.created_at)}</time>
+                  {r.username ? (
+                    <p className="max-w-full truncate text-sm text-[#0097b2]">@{r.username}</p>
                   ) : null}
                 </div>
               </div>
-              {r.feedback ? (
-                <p className="mt-3 whitespace-pre-wrap text-center text-sm leading-relaxed text-gray-700">{r.feedback}</p>
-              ) : null}
+
+              <div className="mt-2 flex flex-col items-center text-center">
+                <div className="flex items-center justify-center gap-0.5" aria-label={`Nota ${r.nota} de 5`}>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-5 w-5 shrink-0 ${i < r.nota ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                      aria-hidden
+                    />
+                  ))}
+                </div>
+                {formatarDataAvaliacao(r.created_at) ? (
+                  <time className="mt-0.5 text-xs text-[#0097b2]/80">{formatarDataAvaliacao(r.created_at)}</time>
+                ) : null}
+                {r.feedback ? (
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{r.feedback}</p>
+                ) : null}
+              </div>
               {r.resposta ? (
                 <p className="mt-3 rounded-lg bg-gray-50 p-3 text-center text-sm leading-relaxed text-gray-700">
                   {r.resposta}
