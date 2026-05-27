@@ -12,6 +12,7 @@ import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
  *   active?: boolean
  *   disabled?: boolean
  *   somenteTitulo?: boolean
+ *   subtitulo?: string | null
  *   onClick: () => void
  *   avatar: import('react').ReactNode
  * }} props
@@ -24,6 +25,7 @@ export default function CanalListaRow({
   active = false,
   disabled = false,
   somenteTitulo = false,
+  subtitulo = null,
   onClick,
   avatar,
 }) {
@@ -41,13 +43,16 @@ export default function CanalListaRow({
       >
         <div className="shrink-0">{avatar}</div>
         <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
-          <h3
-            className={`min-w-0 truncate text-[15px] ${
-              naoLido ? 'font-bold text-gray-900' : 'font-medium text-gray-800'
-            }`}
-          >
-            {label}
-          </h3>
+          <div className="min-w-0 flex-1">
+            <h3
+              className={`truncate text-[15px] ${
+                naoLido ? 'font-bold text-gray-900' : 'font-medium text-gray-800'
+              }`}
+            >
+              {label}
+            </h3>
+            {subtitulo ? <p className="mt-0.5 truncate text-xs text-gray-500">{subtitulo}</p> : null}
+          </div>
           <CanalNaoLidasBadge count={naoLidas} />
         </div>
       </button>

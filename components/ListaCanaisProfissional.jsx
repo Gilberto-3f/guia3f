@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Building2, ChevronDown, ChevronUp, Landmark, MessageCircle, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
+import { Building2, ChevronDown, ChevronUp, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
 import {
   CLASSE_AVATAR_CANAL_PROFISSIONAL,
   iconeCanalProfissionalLista,
   rotuloCanalListaProfissional,
-  chaveProfissionalCanal,
 } from '@/lib/canaisProfissionaisListaUi'
+import { canalExibeContagemMembros, formatarLegendaMembrosCanal } from '@/lib/canalMembrosContagem'
+import { useContagemMembrosCanais } from '@/hooks/useContagemMembrosCanais'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 import {
   isCanalAdmProfissionalGlobal,
@@ -206,6 +207,8 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     const empresas = canais.filter((c) => c.tipo_publico === 'empresa' && c.empresa_id != null && c.comunidade_prof != null)
     return { administracao, empresas }
   }, [canais])
+
+  const membrosPorCanal = useContagemMembrosCanais(part.administracao)
 
   const totalNaoLidasEmpresas = useMemo(
     () => part.empresas.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0),
@@ -448,8 +451,14 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
    */
   const getIcon = (canal) => {
     if (canal.tipo_publico === 'empresa') return Building2
-    if (isCanalFinanceiroProfissional(canal.nome)) return Landmark
-    return MessageCircle
+    return iconeCanalProfissionalLista(canal)
+  }
+
+  const legendaMembros = (canal) => {
+    if (!canalExibeContagemMembros(canal)) return null
+    const n = membrosPorCanal[canal.id]
+    if (n === undefined) return null
+    return formatarLegendaMembrosCanal(n)
   }
 
   /**
@@ -502,6 +511,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         preview={ehAdministracao ? null : ultima?.preview || (horaIso ? ' ' : null)}
         hora={ehAdministracao ? null : formatarListaHora(horaIso)}
         somenteTitulo={ehAdministracao}
+        subtitulo={ehAdministracao ? legendaMembros(canal) : null}
         naoLidas={naoLidas}
         active={isActive}
         onClick={() => onSelectCanal(canal)}

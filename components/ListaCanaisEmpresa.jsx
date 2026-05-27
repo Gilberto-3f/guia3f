@@ -2,15 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ChevronDown, ChevronUp, Crown, Landmark } from 'lucide-react'
+import { ChevronDown, ChevronUp, Crown } from 'lucide-react'
 import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 import {
   CLASSE_AVATAR_CANAL_PROFISSIONAL,
+  canalNomeEhFinanceiro,
+  iconeCanalFinanceiro,
   iconeCanalProfissionalLista,
   rotuloCanalProfissionalLista,
   toSlugComunidadeProf,
   tituloCanalEmpresaLista,
 } from '@/lib/canaisProfissionaisListaUi'
+import { canalExibeContagemMembros, formatarLegendaMembrosCanal } from '@/lib/canalMembrosContagem'
+import { useContagemMembrosCanais } from '@/hooks/useContagemMembrosCanais'
 import { buscarUltimasMensagensCanais, formatarListaHora, patchUltimaMensagemCanal } from '@/lib/canalLista'
 import { contarFinanceiroNaoLidasEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
@@ -213,6 +217,13 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     }
   }, [canais, empresaId])
 
+  const canaisParaMembros = useMemo(
+    () => [...part.administracao, ...part.profissionais],
+    [part],
+  )
+
+  const membrosPorCanal = useContagemMembrosCanais(canaisParaMembros)
+
   const gruposIniciais = useMemo(
     () => ({
       administracao: part.administracao.length > 0,
@@ -361,7 +372,15 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
    */
   const getIcon = (canal) => {
     if (nomeNorm(canal.nome) === 'ADM') return Crown
-    return Landmark
+    if (canalNomeEhFinanceiro(canal.nome)) return iconeCanalFinanceiro()
+    return iconeCanalProfissionalLista(canal)
+  }
+
+  const legendaMembros = (canal) => {
+    if (!canalExibeContagemMembros(canal)) return null
+    const n = membrosPorCanal[canal.id]
+    if (n === undefined) return null
+    return formatarLegendaMembrosCanal(n)
   }
 
   /**
@@ -391,7 +410,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         label={label}
         preview={ehProfissional ? null : ultima?.preview || (horaIso ? ' ' : null)}
         hora={ehProfissional ? null : formatarListaHora(horaIso)}
-        somenteTitulo={ehProfissional}
+        somenteTitulo={ehProfissional || (canal.empresa_id == null && canalExibeContagemMembros(canal))}
+        subtitulo={
+          ehProfissional || canalExibeContagemMembros(canal) ? legendaMembros(canal) : null
+        }
         naoLidas={naoLidas}
         active={isActive}
         disabled={isPlaceholder}

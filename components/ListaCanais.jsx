@@ -2,12 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { MessageCircle, Building2, Crown, ChevronUp, ChevronDown, Landmark } from 'lucide-react'
+import { MessageCircle, Building2, Crown, ChevronUp, ChevronDown } from 'lucide-react'
 import {
   CLASSE_AVATAR_CANAL_PROFISSIONAL,
+  canalNomeEhFinanceiro,
+  iconeCanalFinanceiro,
   iconeCanalProfissionalLista,
   rotuloCanalProfissionalLista,
 } from '@/lib/canaisProfissionaisListaUi'
+import { canalExibeContagemMembros, formatarLegendaMembrosCanal } from '@/lib/canalMembrosContagem'
+import { useContagemMembrosCanais } from '@/hooks/useContagemMembrosCanais'
 import {
   CHAVES_SEGMENTO_EMPRESA,
   CLASSE_AVATAR_CANAL_EMPRESA_SEGMENTO,
@@ -255,6 +259,16 @@ export default function ListaCanais({
     return ordenarBlocoAdministracaoUnificada(all)
   }, [part])
 
+  const canaisParaMembros = useMemo(() => {
+    const list = [...(part.profissionais ?? []), ...(part.empresas ?? [])]
+    for (const c of adminUnificado) {
+      if (canalExibeContagemMembros(c)) list.push(c)
+    }
+    return list
+  }, [part, adminUnificado])
+
+  const membrosPorCanal = useContagemMembrosCanais(canaisParaMembros)
+
   const gruposIniciais = useMemo(() => {
     const keys = /** @type {const} */ (['administracaoUnificada', 'profissionais', 'empresas'])
     const init = /** @type {Record<string, boolean>} */ ({})
@@ -419,9 +433,16 @@ export default function ListaCanais({
   const getIcon = (canal) => {
     const n = nomeNorm(canal.nome)
     if (n === 'ADM') return Crown
-    if (n === 'FINANCEIRO') return Landmark
+    if (canalNomeEhFinanceiro(canal.nome)) return iconeCanalFinanceiro()
     if (canal.tipo_publico === 'empresa') return Building2
     return MessageCircle
+  }
+
+  const legendaMembros = (canal) => {
+    if (!canalExibeContagemMembros(canal)) return null
+    const n = membrosPorCanal[canal.id]
+    if (n === undefined) return null
+    return formatarLegendaMembrosCanal(n)
   }
 
   const toggleGrupo = (grupo) => {
@@ -467,6 +488,9 @@ export default function ListaCanais({
         preview={estiloSegmento ? null : ultima?.preview || (horaIso ? ' ' : null)}
         hora={estiloSegmento ? null : formatarListaHora(horaIso)}
         somenteTitulo={estiloSegmento}
+        subtitulo={
+          estiloSegmento || canalExibeContagemMembros(canal) ? legendaMembros(canal) : null
+        }
         naoLidas={naoLidas}
         active={isActive}
         onClick={() => onSelectCanal(canal)}
