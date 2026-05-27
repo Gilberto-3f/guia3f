@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ChevronDown, ChevronUp, Crown, Landmark, Users } from 'lucide-react'
+import { ChevronDown, ChevronUp, Crown, Landmark, Bus, Car, Compass, Home, Smartphone } from 'lucide-react'
 import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
 import { buscarUltimasMensagensCanais, formatarListaHora } from '@/lib/canalLista'
 import { contarFinanceiroNaoLidasEmpresa } from '@/lib/canaisEmpresaVisibilidade'
@@ -76,19 +76,36 @@ function nomeNorm(nome) {
 }
 
 /**
- * Título no cabeçalho / lista (comunidade → rótulo).
+ * Título no cabeçalho / lista (comunidade → rótulo de exibição).
+ * Slugs e rótulos legados no banco permanecem iguais; só muda o texto visível.
  * @param {string | null | undefined} comunidade
  */
 export function tituloCanalEmpresaLista(comunidade) {
-  const c = String(comunidade ?? '').trim()
-  const map = {
-    Van: 'Motoristas Van',
-    Taxista: 'Taxistas',
-    Guia: 'Guias de Turismo',
-    'Motorista de App': 'Motoristas App',
-    Anfitriao: 'Anfitriões',
+  const slug = toSlug(comunidade)
+  const porSlug = {
+    motorista_app: 'Motoristas de APP',
+    guia: 'Guias de Turismo',
+    van: 'Motoristas de Van',
+    taxista: 'Taxistas',
+    anfitriao: 'Anfitriões',
   }
-  return map[c] ?? (c || 'Profissionais')
+  if (slug && porSlug[slug]) return porSlug[slug]
+  const c = String(comunidade ?? '').trim()
+  return c || 'Profissionais'
+}
+
+/**
+ * Ícone por comunidade profissional (mesma família visual do modo apresentação).
+ * @param {string | null | undefined} comunidade
+ */
+function iconeComunidadeProfissional(comunidade) {
+  const slug = toSlug(comunidade)
+  if (slug === 'motorista_app') return Smartphone
+  if (slug === 'guia') return Compass
+  if (slug === 'van') return Bus
+  if (slug === 'taxista') return Car
+  if (slug === 'anfitriao') return Home
+  return Compass
 }
 
 /**
@@ -392,7 +409,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const getIcon = (canal) => {
     if (nomeNorm(canal.nome) === 'ADM') return Crown
     if (nomeNorm(canal.nome) === 'FINANCEIRO') return Landmark
-    return Users
+    if (canal.comunidade_prof != null && String(canal.comunidade_prof).trim() !== '') {
+      return iconeComunidadeProfissional(canal.comunidade_prof)
+    }
+    return Compass
   }
 
   /**
