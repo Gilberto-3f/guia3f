@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Building2, ChevronDown, ChevronUp, Landmark, MessageCircle, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
-import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
+import {
+  rotuloCanalListaProfissional,
+  tituloPastaCanalColetivoProfissional,
+  chaveProfissionalCanal,
+} from '@/lib/canaisProfissionaisListaUi'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 import {
   isCanalAdmProfissionalGlobal,
@@ -190,15 +194,33 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
   /** @type {Record<string, number>} */
   const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
   const [categoriaAba, setCategoriaAba] = useState(ORDEM_CATEGORIA_EMPRESA[0] ?? 'Restaurantes')
-  const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({ administracao: false }))
+  const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({
+    canalColetivo: false,
+    empresas: false,
+  }))
+  /** Slugs das categorias do profissional logado (rótulo da pasta coletiva). */
+  const [slugsProfissional, setSlugsProfissional] = useState(/** @type {string[]} */ ([]))
 
   const part = useMemo(() => {
     const administracao = ordenarAdministracao(
       canais.filter((c) => c.tipo_publico === 'profissional' && !isCanalAdmProfissionalGlobal(c)),
     )
+    const canalColetivo = administracao.filter((c) => !isCanalFinanceiroProfissional(c.nome))
+    const financeiro = administracao.filter((c) => isCanalFinanceiroProfissional(c.nome))
     const empresas = canais.filter((c) => c.tipo_publico === 'empresa' && c.empresa_id != null && c.comunidade_prof != null)
-    return { administracao, empresas }
+    return { canalColetivo, financeiro, empresas }
   }, [canais])
+
+  const tituloPastaColetivo = useMemo(() => {
+    const primeiro = part.canalColetivo[0]
+    const slug = primeiro ? chaveProfissionalCanal(primeiro) : slugsProfissional[0]
+    return tituloPastaCanalColetivoProfissional(slug)
+  }, [part.canalColetivo, slugsProfissional])
+
+  const totalNaoLidasEmpresas = useMemo(
+    () => part.empresas.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0),
+    [part.empresas, naoLidasPorCanal],
+  )
 
   /** Sempre expõe as 4 segmentações de empresas (vazias se necessário) + outras chaves com canais. */
   const abasCategoriasEmpresas = useMemo(() => {
@@ -292,7 +314,8 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
       const { data: prof } = await supabase.from('profissionais').select('categorias').eq('usuario_id', uid).maybeSingle()
       const cats = Array.isArray(prof?.categorias) ? prof.categorias.map(String) : []
-      const slugsProfissional = cats.map((c) => toSlug(c)).filter(Boolean)
+      const slugsCarregados = cats.map((c) => toSlug(c)).filter(Boolean)
+      setSlugsProfissional(slugsCarregados)
 
       /** @type {Set<string> | null} */
       let empresasAprovadas = null
@@ -323,14 +346,14 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
           if (isCanalAdmProfissionalGlobal(c)) return false
           if (isCanalFinanceiroProfissional(c.nome)) return true
           const slug = slugCanalComunidadeProfissional(c.categoria, c.nome)
-          return slug != null && slugsProfissional.includes(slug)
+          return slug != null && slugsCarregados.includes(slug)
         }
         if (c.tipo_publico === 'empresa') {
           if (c.empresa_id == null) return false
           if (empresasAprovadas && !empresasAprovadas.has(String(c.empresa_id))) return false
           const comuSlug = toSlug(c.comunidade_prof != null ? String(c.comunidade_prof) : '')
           if (!comuSlug || !CATEGORIAS_PROFISSIONAIS.includes(comuSlug)) return false
-          return slugsProfissional.includes(comuSlug)
+          return slugsCarregados.includes(comuSlug)
         }
         return false
       })
@@ -432,20 +455,19 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
   /**
    * @param {Canal} canal
-   * @param {{ blocoAdministracao?: boolean }} [opts]
+   * @param {{ canalProfissional?: boolean }} [opts]
    */
   function renderRow(canal, opts = {}) {
     const Icon = getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
-    const label =
-      opts.blocoAdministracao && isCanalFinanceiroProfissional(canal.nome)
-        ? rotuloNomeCanalAdministracao(canal.nome)
-        : canal.nome
+    const label = opts.canalProfissional
+      ? rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional)
+      : canal.nome
     const ultima = ultimasMensagens[canal.id]
     const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
     const naoLidas = naoLidasPorCanal[canal.id] ?? 0
 
-    if (!opts.blocoAdministracao && canal.tipo_publico === 'empresa') {
+    if (!opts.canalProfissional && canal.tipo_publico === 'empresa') {
       const comuSlug = toSlug(canal.comunidade_prof != null ? String(canal.comunidade_prof) : '')
       const comunidadeLabel =
         comuSlug === 'motorista_app'
@@ -502,35 +524,32 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <div className="min-h-0 flex min-h-0 flex-1 flex-col overflow-y-auto md:min-h-0">
-        {part.administracao.length > 0 ? (
+        {part.canalColetivo.length > 0 ? (
           <div className="shrink-0 border-b border-gray-100">
             <button
               type="button"
-              onClick={() => toggleGrupo('administracao')}
+              onClick={() => toggleGrupo('canalColetivo')}
               className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-base"
             >
-              <span className="font-bold leading-snug text-[#0097b2]">ADMINISTRAÇÃO</span>
+              <span className="min-w-0 flex-1 font-bold leading-snug text-[#0097b2]">{tituloPastaColetivo}</span>
               <span className="flex shrink-0 items-center gap-2">
-                {gruposAbertos['administracao'] === false ? (
+                {gruposAbertos.canalColetivo === false ? (
                   <CanalNaoLidasBadge
-                    count={part.administracao.reduce(
-                      (s, c) => s + (naoLidasPorCanal[c.id] ?? 0),
-                      0,
-                    )}
+                    count={part.canalColetivo.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0)}
                   />
                 ) : null}
-                {gruposAbertos['administracao'] !== false ? (
+                {gruposAbertos.canalColetivo !== false ? (
                   <ChevronUp size={18} aria-hidden className="text-[#0097b2]" />
                 ) : (
                   <ChevronDown size={18} aria-hidden className="text-[#0097b2]" />
                 )}
               </span>
             </button>
-            {gruposAbertos['administracao'] !== false ? (
+            {gruposAbertos.canalColetivo !== false ? (
               <div>
-                {part.administracao.map((canal) => (
-                  <div key={canal.id} className="pl-0">
-                    {renderRow(canal, { blocoAdministracao: true })}
+                {part.canalColetivo.map((canal) => (
+                  <div key={canal.id} className="pl-4">
+                    {renderRow(canal, { canalProfissional: true })}
                   </div>
                 ))}
               </div>
@@ -538,54 +557,83 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
           </div>
         ) : null}
 
-        {categoriaAba && abasCategoriasEmpresas.length > 0 ? (
-          <>
-            <div
-              className="sticky top-0 z-10 w-full min-w-0 shrink-0 bg-[#0097b2]"
-              role="tablist"
-              aria-label="Categorias"
-            >
-              <div className="flex gap-1 p-1">
-                {abasCategoriasEmpresas.map(([cat]) => {
-                  const ativo = categoriaAba === cat
-                  const { Icon, rótulo } = metaCategoriaEmpresa(cat)
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      role="tab"
-                      aria-selected={ativo}
-                      aria-label={rótulo}
-                      onClick={() => setCategoriaAba(cat)}
-                      className={`flex min-h-[3rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-center transition-all min-[400px]:min-h-[3.25rem] sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2.5 ${
-                        ativo
-                          ? 'bg-white font-semibold text-[#0097b2] shadow-sm'
-                          : 'text-white hover:bg-white/15'
-                      }`}
-                    >
-                      <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                      {ativo ? (
-                        <span className="max-w-full text-[0.65rem] font-medium leading-tight [overflow-wrap:balance] min-[400px]:text-xs">
-                          {rótulo}
-                        </span>
-                      ) : null}
-                    </button>
-                  )
-                })}
+        {part.financeiro.length > 0 ? (
+          <div className="shrink-0 border-b border-gray-100">
+            {part.financeiro.map((canal) => (
+              <div key={canal.id} className="pl-0">
+                {renderRow(canal, { canalProfissional: true })}
               </div>
-            </div>
-            <div className="min-h-0 flex-1" role="tabpanel">
-              {itensAbaAtiva.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500">Nenhum canal nesta categoria.</p>
-              ) : (
-                itensAbaAtiva.map((canal) => (
-                  <div key={canal.id} className="pl-0">
-                    {renderRow(canal)}
+            ))}
+          </div>
+        ) : null}
+
+        {categoriaAba && abasCategoriasEmpresas.length > 0 ? (
+          <div className="shrink-0 border-b border-gray-100">
+            <button
+              type="button"
+              onClick={() => toggleGrupo('empresas')}
+              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-base"
+            >
+              <span className="font-bold leading-snug text-[#0097b2]">EMPRESAS</span>
+              <span className="flex shrink-0 items-center gap-2">
+                {gruposAbertos.empresas === false ? <CanalNaoLidasBadge count={totalNaoLidasEmpresas} /> : null}
+                {gruposAbertos.empresas !== false ? (
+                  <ChevronUp size={18} aria-hidden className="text-[#0097b2]" />
+                ) : (
+                  <ChevronDown size={18} aria-hidden className="text-[#0097b2]" />
+                )}
+              </span>
+            </button>
+            {gruposAbertos.empresas !== false ? (
+              <>
+                <div
+                  className="sticky top-0 z-10 w-full min-w-0 shrink-0 bg-[#0097b2]"
+                  role="tablist"
+                  aria-label="Categorias de empresas"
+                >
+                  <div className="flex gap-1 p-1">
+                    {abasCategoriasEmpresas.map(([cat]) => {
+                      const ativo = categoriaAba === cat
+                      const { Icon, rótulo } = metaCategoriaEmpresa(cat)
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          role="tab"
+                          aria-selected={ativo}
+                          aria-label={rótulo}
+                          onClick={() => setCategoriaAba(cat)}
+                          className={`flex min-h-[3rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-center transition-all min-[400px]:min-h-[3.25rem] sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2.5 ${
+                            ativo
+                              ? 'bg-white font-semibold text-[#0097b2] shadow-sm'
+                              : 'text-white hover:bg-white/15'
+                          }`}
+                        >
+                          <Icon className="h-5 w-5 shrink-0" aria-hidden />
+                          {ativo ? (
+                            <span className="max-w-full text-[0.65rem] font-medium leading-tight [overflow-wrap:balance] min-[400px]:text-xs">
+                              {rótulo}
+                            </span>
+                          ) : null}
+                        </button>
+                      )
+                    })}
                   </div>
-                ))
-              )}
-            </div>
-          </>
+                </div>
+                <div className="min-h-0 flex-1" role="tabpanel">
+                  {itensAbaAtiva.length === 0 ? (
+                    <p className="p-4 text-sm text-gray-500">Nenhum canal nesta categoria.</p>
+                  ) : (
+                    itensAbaAtiva.map((canal) => (
+                      <div key={canal.id} className="pl-0">
+                        {renderRow(canal)}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </div>

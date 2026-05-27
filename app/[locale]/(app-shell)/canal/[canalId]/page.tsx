@@ -10,6 +10,7 @@ import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
+import { rotuloCanalListaProfissional } from '@/lib/canaisProfissionaisListaUi'
 import { marcarCanalComoLidoResiliente } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { canalMensageiroAdmSemAbasPais, rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
@@ -260,8 +261,8 @@ export default function CanalDetalhePage() {
       ? '…'
       : userTipoEfetivo === 'empresa' && canal.comunidade_prof
         ? tituloCanalEmpresaLista(canal.comunidade_prof)
-        : userTipoEfetivo === 'profissional' && isCanalFinanceiroProfissional(canal.nome)
-          ? rotuloNomeCanalAdministracao(canal.nome)
+        : userTipoEfetivo === 'profissional'
+          ? rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional)
           : canal.nome
 
   if (userTipoEfetivo === 'profissional') {
