@@ -98,24 +98,26 @@ export default function CanalMensagens({
   uidRef.current = uid
 
   const scrollToBottom = useCallback((behavior = 'auto') => {
-    const instant = behavior !== 'smooth'
-    const irAoFim = () => {
-      const el = messagesContainerRef.current
-      if (el) {
-        if (instant) {
-          el.scrollTop = el.scrollHeight
-        } else {
-          el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-        }
-      }
-      messagesEndRef.current?.scrollIntoView({
-        behavior: instant ? 'instant' : 'smooth',
-        block: 'end',
-      })
+    const el = messagesContainerRef.current
+    if (!el) return
+    const top = el.scrollHeight - el.clientHeight
+    if (behavior === 'smooth') {
+      el.scrollTo({ top, behavior: 'smooth' })
+    } else {
+      el.scrollTop = top
     }
-    irAoFim()
-    requestAnimationFrame(irAoFim)
   }, [])
+
+  const garantirScrollNoRodape = useCallback(() => {
+    const irAoFim = () => scrollToBottom('auto')
+    irAoFim()
+    requestAnimationFrame(() => {
+      irAoFim()
+      requestAnimationFrame(irAoFim)
+    })
+    window.setTimeout(irAoFim, 50)
+    window.setTimeout(irAoFim, 200)
+  }, [scrollToBottom])
 
   const cancelarLongPress = useCallback(() => {
     if (longPressTimerRef.current) {
@@ -154,18 +156,7 @@ export default function CanalMensagens({
         ? inboxModo === 'empresa'
           ? listarMensagensInboxCanalAdmEmpresa(supabase, inboxCanalAdm, { paisTab, limit: 120 })
           : listarMensagensInboxCanalAdm(supabase, inboxCanalAdm, { paisTab, limit: 120 })
-        : (async () => {
-            let q = supabase
-              .from('mensagens_canal')
-              .select('id, texto, anexo_url, anexo_tipo, reacoes, created_at, remetente_id, pais')
-              .eq('canal_id', canalId)
-            if (paisTab && paisTab !== 'geral') {
-              q = q.or(`pais.eq.${paisTab},pais.eq.geral`)
-            }
-            const { data, error } = await q.order('created_at', { ascending: true }).limit(80)
-            if (error) throw error
-            return data ?? []
-          })()
+        : listarMensagensCanalRecentes(supabase, canalId, { paisTab, limit: 80 })
 
       const [{ data: { session } }, rows] = await Promise.all([supabase.auth.getSession(), fetchRows])
       setUid(session?.user?.id ?? null)
@@ -257,9 +248,19 @@ export default function CanalMensagens({
   }, [])
 
   useLayoutEffect(() => {
-    if (!stickToBottomRef.current || mensagens.length === 0) return
-    scrollToBottom('auto')
-  }, [mensagens, loadingInicial, scrollToBottom])
+    if (!stickToBottomRef.current || mensagens.length === 0 || loadingInicial) return
+    garantirScrollNoRodape()
+  }, [mensagens, loadingInicial, garantirScrollNoRodape])
+
+  useEffect(() => {
+    const el = messagesContainerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      if (stickToBottomRef.current) scrollToBottom('auto')
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [scrollToBottom])
 
   useEffect(() => {
     if (!podePostar) return
@@ -381,7 +382,7 @@ export default function CanalMensagens({
             }
 
             if (stickToBottomRef.current) {
-              requestAnimationFrame(() => scrollToBottom('auto'))
+              garantirScrollNoRodape()
             }
           })()
         },
@@ -403,7 +404,7 @@ export default function CanalMensagens({
     return () => {
       void supabase.removeChannel(ch)
     }
-  }, [canalId, inboxCanalAdm, paisTab, scrollToBottom])
+  }, [canalId, inboxCanalAdm, paisTab, garantirScrollNoRodape])
 
   const handleEnviar = async () => {
     if (!novaMensagem.trim() && !anexo) return
@@ -496,6 +497,7 @@ export default function CanalMensagens({
         )
         notificarBadgeCanais()
         stickToBottomRef.current = true
+        garantirScrollNoRodape()
         requestAnimationFrame(() => scrollToBottom('smooth'))
       }
     } catch (e) {
@@ -610,7 +612,9 @@ export default function CanalMensagens({
         {mensagens.length === 0 ? (
           <div className="py-8 text-center text-gray-500">Nenhuma mensagem ainda. Seja o primeiro a enviar!</div>
         ) : (
-          itensLista.map((item) => {
+          <div className="flex min-h-full flex-col">
+          <div className="mt-auto flex flex-col space-y-1">
+          {itensLista.map((item) => {
             if (item.type === 'date') {
               return (
                 <div key={item.key} className="flex justify-center py-2">
@@ -822,9 +826,11 @@ export default function CanalMensagens({
                 </div>
               </div>
             )
-          })
+          })}
+          </div>
+          </div>
         )}
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
       </div>
 
       {podePostar ? (

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { resolverUrlAnexoMensagemCanal, urlPublicaAnexoMensagemCanal } from '@/lib/canalAnexoUrl'
 
@@ -55,9 +56,22 @@ export default function CanalMensagemImagem({ src, className = '' }) {
       ? createPortal(
           <div
             className="fixed inset-0 z-[250] flex items-center justify-center bg-black"
-            role="presentation"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Visualização da imagem"
             onClick={fechar}
           >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                fechar()
+              }}
+              className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white"
+              aria-label="Fechar imagem"
+            >
+              <X size={24} aria-hidden />
+            </button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={url}

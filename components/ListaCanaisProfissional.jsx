@@ -536,7 +536,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
               onClick={() => toggleGrupo('administracao')}
               className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-base"
             >
-              <span className="min-w-0 flex-1 font-bold leading-snug text-[#0097b2]">Administração</span>
+              <span className="min-w-0 flex-1 font-bold leading-snug text-[#0097b2]">ADMINISTRAÇÃO</span>
               <span className="flex shrink-0 items-center gap-2">
                 {gruposAbertos.administracao === false ? (
                   <CanalNaoLidasBadge
