@@ -16,6 +16,9 @@ function pickFoto(row: { foto_perfil_url?: unknown; foto_url?: unknown } | null 
 
 const empty = { data: [] as Record<string, unknown>[], error: null }
 
+/** Cache em memória por sessão — evita refetch de avatares/nomes repetidos no chat. */
+const remetenteCache = new Map<string, RemetenteCanal>()
+
 /**
  * Resolve remetentes de mensagens de canal em poucas queries (evita N+1).
  */
@@ -27,8 +30,22 @@ export async function buscarRemetentesEmLote(
   const unique = [...new Set(remetenteIds.map((id) => String(id ?? '').trim()).filter(Boolean))]
   if (unique.length === 0) return map
 
-  const { data: users, error } = await supabase.from('usuarios').select('id, email, role').in('id', unique)
-  if (error || !users?.length) return map
+  const missing = unique.filter((id) => !remetenteCache.has(id))
+  for (const id of unique) {
+    const hit = remetenteCache.get(id)
+    if (hit) map.set(id, hit)
+  }
+  if (missing.length === 0) return map
+
+  const { data: users, error } = await supabase.from('usuarios').select('id, email, role').in('id', missing)
+  if (error || !users?.length) {
+    const out = new Map<string, RemetenteCanal>()
+    for (const id of unique) {
+      const hit = remetenteCache.get(id)
+      if (hit) out.set(id, hit)
+    }
+    return out
+  }
 
   const turistaIds: string[] = []
   const profIds: string[] = []
@@ -116,11 +133,22 @@ export async function buscarRemetentesEmLote(
     map.set(uid, { id: uid, nome, foto_url: pickFoto(row), role: 'admin' })
   }
 
-  for (const id of unique) {
+  for (const id of missing) {
     if (map.has(id)) continue
     const email = emailPorId.get(id) ?? ''
-    map.set(id, { id, nome: email ? email.split('@')[0] : 'Usuário', foto_url: null, role: '' })
+    const fallback = { id, nome: email ? email.split('@')[0] : 'Usuário', foto_url: null, role: '' }
+    map.set(id, fallback)
+    remetenteCache.set(id, fallback)
   }
 
-  return map
+  for (const [id, rem] of map) {
+    remetenteCache.set(id, rem)
+  }
+
+  const out = new Map<string, RemetenteCanal>()
+  for (const id of unique) {
+    const hit = remetenteCache.get(id)
+    if (hit) out.set(id, hit)
+  }
+  return out
 }

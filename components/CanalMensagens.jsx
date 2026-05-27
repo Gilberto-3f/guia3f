@@ -89,8 +89,12 @@ export default function CanalMensagens({
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
   const mensagensLenRef = useRef(0)
   const mensagensRef = useRef(mensagens)
+  const meuRemetenteRef = useRef(meuRemetente)
+  const uidRef = useRef(uid)
   mensagensLenRef.current = mensagens.length
   mensagensRef.current = mensagens
+  meuRemetenteRef.current = meuRemetente
+  uidRef.current = uid
 
   const scrollToBottom = useCallback((behavior = 'auto') => {
     const el = messagesContainerRef.current
@@ -143,7 +147,10 @@ export default function CanalMensagens({
           ? listarMensagensInboxCanalAdmEmpresa(supabase, inboxCanalAdm, { paisTab, limit: 120 })
           : listarMensagensInboxCanalAdm(supabase, inboxCanalAdm, { paisTab, limit: 120 })
         : (async () => {
-            let q = supabase.from('mensagens_canal').select('*').eq('canal_id', canalId)
+            let q = supabase
+              .from('mensagens_canal')
+              .select('id, texto, anexo_url, anexo_tipo, reacoes, created_at, remetente_id, pais')
+              .eq('canal_id', canalId)
             if (paisTab && paisTab !== 'geral') {
               q = q.or(`pais.eq.${paisTab},pais.eq.geral`)
             }
@@ -313,9 +320,63 @@ export default function CanalMensagens({
       ch.on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'mensagens_canal', filter: `canal_id=eq.${cid}` },
-        () => {
-          notificarBadgeCanais()
-          void carregarMensagens({ silent: true })
+        (payload) => {
+          const novo = payload.new
+          if (!novo?.id) return
+
+          const paisMsg = novo.pais != null ? String(novo.pais) : 'geral'
+          if (paisTab && paisTab !== 'geral' && paisMsg !== paisTab && paisMsg !== 'geral') return
+
+          void (async () => {
+            const id = String(novo.id)
+            const rid = novo.remetente_id != null ? String(novo.remetente_id) : ''
+            const remetentesMap = rid ? await buscarRemetentesEmLote(supabase, [rid]) : new Map()
+            const fallback = { id: '', nome: 'Usuário', foto_url: null, role: '' }
+            const remetente =
+              (rid && remetentesMap.get(rid)) ||
+              (rid && uidRef.current === rid ? meuRemetenteRef.current : null) ||
+              fallback
+
+            const novaMsg = {
+              id,
+              texto: novo.texto != null ? String(novo.texto) : null,
+              anexo_url: novo.anexo_url != null ? String(novo.anexo_url) : null,
+              anexo_tipo: novo.anexo_tipo != null ? String(novo.anexo_tipo) : null,
+              reacoes: parseReacoesCanal(novo.reacoes),
+              created_at: String(novo.created_at ?? ''),
+              remetente,
+            }
+
+            let appended = false
+            setMensagens((prev) => {
+              if (prev.some((m) => m.id === id)) return prev
+              appended = true
+              return [...prev, novaMsg]
+            })
+            if (!appended) return
+
+            notificarBadgeCanais()
+
+            const currentUid = uidRef.current
+            if (currentUid && rid !== currentUid) {
+              const {
+                data: { session },
+              } = await supabase.auth.getSession()
+              if (session?.user?.id) {
+                await marcarCanalComoLidoResiliente(
+                  supabase,
+                  session.user.id,
+                  canalId,
+                  novaMsg.created_at,
+                  session.access_token,
+                )
+              }
+            }
+
+            if (stickToBottomRef.current) {
+              requestAnimationFrame(() => scrollToBottom('auto'))
+            }
+          })()
         },
       )
       ch.on(
@@ -335,7 +396,7 @@ export default function CanalMensagens({
     return () => {
       void supabase.removeChannel(ch)
     }
-  }, [canalId, inboxCanalAdm, carregarMensagens])
+  }, [canalId, inboxCanalAdm, paisTab, scrollToBottom])
 
   const handleEnviar = async () => {
     if (!novaMensagem.trim() && !anexo) return

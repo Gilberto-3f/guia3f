@@ -119,11 +119,18 @@ export default function CanalDetalhePage() {
       setCanalMissing(false)
       setInboxCanalAdm(null)
 
-      const { data, error } = await supabase
+      const canalQuery = supabase
         .from('canais')
         .select('id, nome, tipo_publico, comunidade_prof, categoria, empresa_id')
         .eq('id', canalId)
         .maybeSingle()
+
+      const slugsPromise =
+        userTipoEfetivo === 'profissional' && usuarioId
+          ? buscarSlugsCategoriasProfissional(supabase, usuarioId)
+          : Promise.resolve(/** @type {string[] | null} */ (null))
+
+      const [{ data, error }, slugs] = await Promise.all([canalQuery, slugsPromise])
 
       if (error || !data) {
         setCanal(null)
@@ -147,7 +154,6 @@ export default function CanalDetalhePage() {
           router.replace('/canal')
           return
         }
-        const slugs = await buscarSlugsCategoriasProfissional(supabase, usuarioId)
         if (row.tipo_publico === 'profissional' && !canalGlobalProfissionalVisivel(row, slugs)) {
           setCanal(null)
           setCanalMissing(true)
@@ -205,11 +211,6 @@ export default function CanalDetalhePage() {
     }
     notificarBadgeCanais()
   }, [usuarioId, canalId, canal, userTipoEfetivo])
-
-  useEffect(() => {
-    if (!usuarioId || !canalId || !canal) return
-    void marcarLeituraCanalAtual()
-  }, [marcarLeituraCanalAtual, usuarioId, canalId, canal])
 
   /** Ao sair do detalhe (Home, barra, outro canal), garante gravação antes da recontagem da barra. */
   useEffect(() => {

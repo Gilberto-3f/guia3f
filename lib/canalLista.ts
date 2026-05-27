@@ -69,6 +69,23 @@ export async function buscarUltimasMensagensCanais(
   return map
 }
 
+/** Atualiza preview da última mensagem após INSERT realtime (evita refetch da lista inteira). */
+export function patchUltimaMensagemCanal(
+  prev: Record<string, UltimaMensagemCanal>,
+  canalId: string,
+  row: { texto?: unknown; anexo_tipo?: unknown; created_at?: unknown },
+): Record<string, UltimaMensagemCanal> {
+  const created = row.created_at != null ? String(row.created_at) : ''
+  if (!canalId || !created) return prev
+  return {
+    ...prev,
+    [canalId]: {
+      preview: resumoMensagem(row.texto != null ? String(row.texto) : null, row.anexo_tipo != null ? String(row.anexo_tipo) : null),
+      created_at: created,
+    },
+  }
+}
+
 /**
  * @param {string | null | undefined} ultimaMensagemEm
  * @param {string | null | undefined} vistoEm

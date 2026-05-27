@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { MessageCircle, Building2, Crown, ChevronUp, ChevronDown, Landmark } from 'lucide-react'
 import {
@@ -13,7 +13,7 @@ import {
   rotuloNomeCanalAdministracao,
   TITULO_PASTA_ADMINISTRADORES_APP,
 } from '@/lib/rotulosCanaisAdministracao'
-import { buscarUltimasMensagensCanais, formatarListaHora } from '@/lib/canalLista'
+import { buscarUltimasMensagensCanais, formatarListaHora, patchUltimaMensagemCanal } from '@/lib/canalLista'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { ehCanalInboxMensageiroAdm, obterIdCanalInboxMensageiroAdm } from '@/lib/canaisAdminVisibilidade'
 import { particionarVisaoAdminTodos } from '@/lib/canaisAdminParticao'
@@ -309,10 +309,15 @@ export default function ListaCanais({
     return () => window.removeEventListener(GUIA_CANAIS_BADGE_EVENT, onBadge)
   }, [recarregarContagens])
 
-  useEffect(() => {
-    if (canais.length === 0) return
-    void recarregarContagens()
-  }, [canais, recarregarContagens])
+  const contagensTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null))
+
+  const agendarRecarregarContagens = useCallback(() => {
+    if (contagensTimerRef.current) clearTimeout(contagensTimerRef.current)
+    contagensTimerRef.current = setTimeout(() => {
+      contagensTimerRef.current = null
+      void recarregarContagens()
+    }, 400)
+  }, [recarregarContagens])
 
   useEffect(() => {
     const carregarCanais = async () => {
@@ -356,13 +361,14 @@ export default function ListaCanais({
             inboxNaLista.length > 0 ? inboxNaLista[0] : await obterIdCanalInboxMensageiroAdm(supabase)
           idsContagem = inboxId ? [inboxId] : []
         }
-        const ultimas = await buscarUltimasMensagensCanais(supabase, idsBrutos)
+        const [ultimas, contagens] = await Promise.all([
+          buscarUltimasMensagensCanais(supabase, idsBrutos),
+          uid
+            ? contarNaoLidasPorCanalIds(supabase, uid, idsContagem)
+            : Promise.resolve(/** @type {Record<string, number>} */ ({})),
+        ])
         setUltimasMensagens(ultimas)
-
-        if (uid) {
-          const contagens = await contarNaoLidasPorCanalIds(supabase, uid, idsContagem)
-          setNaoLidasPorCanal(contagens)
-        }
+        if (uid) setNaoLidasPorCanal(contagens)
       } catch (e) {
         console.error('Erro ao carregar canais:', e)
       } finally {
@@ -383,18 +389,22 @@ export default function ListaCanais({
       ch.on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'mensagens_canal', filter: `canal_id=eq.${canalId}` },
-        () => {
+        (payload) => {
+          const novo = payload.new
+          if (!novo?.id) return
           notificarBadgeCanais()
-          void recarregarContagens()
+          setUltimasMensagens((prev) => patchUltimaMensagemCanal(prev, canalId, novo))
+          agendarRecarregarContagens()
         },
       )
     }
     void ch.subscribe()
 
     return () => {
+      if (contagensTimerRef.current) clearTimeout(contagensTimerRef.current)
       void supabase.removeChannel(ch)
     }
-  }, [idsMonitor, recarregarContagens])
+  }, [idsMonitor, agendarRecarregarContagens])
 
   /**
    * @param {Canal} canal

@@ -1,31 +1,22 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { resolverUrlAnexoMensagemCanal } from '@/lib/canalAnexoUrl'
+import { resolverUrlAnexoMensagemCanal, urlPublicaAnexoMensagemCanal } from '@/lib/canalAnexoUrl'
 
 /**
- * Imagem de mensagem de canal — resolve URL do Storage e fallback assinado se falhar o carregamento.
+ * Imagem de mensagem de canal — URL pública imediata; assinada só se o carregamento falhar.
  * @param {{ src: string; className?: string }} props
  */
 export default function CanalMensagemImagem({ src, className = '' }) {
-  const [url, setUrl] = useState(src)
+  const urlPublica = useMemo(() => urlPublicaAnexoMensagemCanal(supabase, src), [src])
+  const [url, setUrl] = useState(urlPublica)
   const [tentouAssinada, setTentouAssinada] = useState(false)
 
   useEffect(() => {
-    let cancelled = false
+    setUrl(urlPublica)
     setTentouAssinada(false)
-    setUrl(src)
-
-    void (async () => {
-      const resolved = await resolverUrlAnexoMensagemCanal(supabase, src)
-      if (!cancelled) setUrl(resolved)
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [src])
+  }, [urlPublica])
 
   const onError = useCallback(() => {
     if (tentouAssinada) return

@@ -46,11 +46,38 @@ export default function AvatarImage({
       />
     )
   }
+  const isSupabasePublic =
+    !isLocal && s.startsWith('https://') && s.includes('/storage/v1/object/public/')
+
   if (isLocal) {
-    return <Image src={s} alt={alt} width={width} height={height} className={className} />
+    return <Image src={s} alt={alt} width={width} height={height} className={className} priority={priority} />
   }
+
+  if (isSupabasePublic) {
+    return (
+      <Image
+        src={s}
+        alt={alt}
+        width={width}
+        height={height}
+        className={className}
+        sizes={sizes ?? `${width}px`}
+        priority={priority}
+      />
+    )
+  }
+
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={s} alt={alt} width={width} height={height} className={className} />
+    <img
+      src={s}
+      alt={alt}
+      width={width}
+      height={height}
+      className={className}
+      loading={priority ? 'eager' : 'lazy'}
+      fetchPriority={priority ? 'high' : 'auto'}
+      decoding="async"
+    />
   )
 }

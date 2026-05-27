@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ChevronDown, ChevronUp, Crown, Landmark } from 'lucide-react'
 import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
@@ -11,7 +11,7 @@ import {
   toSlugComunidadeProf,
   tituloCanalEmpresaLista,
 } from '@/lib/canaisProfissionaisListaUi'
-import { buscarUltimasMensagensCanais, formatarListaHora } from '@/lib/canalLista'
+import { buscarUltimasMensagensCanais, formatarListaHora, patchUltimaMensagemCanal } from '@/lib/canalLista'
 import { contarFinanceiroNaoLidasEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
@@ -266,10 +266,15 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     return () => window.removeEventListener(GUIA_CANAIS_BADGE_EVENT, onBadge)
   }, [recarregarContagens])
 
-  useEffect(() => {
-    if (canais.length === 0) return
-    void recarregarContagens()
-  }, [canais, recarregarContagens])
+  const contagensTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null))
+
+  const agendarRecarregarContagens = useCallback(() => {
+    if (contagensTimerRef.current) clearTimeout(contagensTimerRef.current)
+    contagensTimerRef.current = setTimeout(() => {
+      contagensTimerRef.current = null
+      void recarregarContagens()
+    }, 400)
+  }, [recarregarContagens])
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -303,11 +308,12 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       const ordenados = ordenarCanais(filtrada)
       setCanais(ordenados)
       const ids = ordenados.map((c) => c.id).filter((id) => !String(id).startsWith('__placeholder'))
-      const ultimas = await buscarUltimasMensagensCanais(supabase, ids)
+      const [ultimas, contagens, fin] = await Promise.all([
+        buscarUltimasMensagensCanais(supabase, ids),
+        contarNaoLidasPorCanalIds(supabase, uid, ids),
+        contarFinanceiroNaoLidasEmpresa(supabase, uid),
+      ])
       setUltimasMensagens(ultimas)
-
-      const contagens = await contarNaoLidasPorCanalIds(supabase, uid, ids)
-      const fin = await contarFinanceiroNaoLidasEmpresa(supabase, uid)
       for (const c of ordenados) {
         if (isCanalFinanceiroEmpresa(c.nome)) {
           contagens[c.id] = fin
@@ -333,18 +339,22 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       ch.on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'mensagens_canal', filter: `canal_id=eq.${canalId}` },
-        () => {
+        (payload) => {
+          const novo = payload.new
+          if (!novo?.id || String(canalId).startsWith('__placeholder')) return
           notificarBadgeCanais()
-          void carregar()
+          setUltimasMensagens((prev) => patchUltimaMensagemCanal(prev, canalId, novo))
+          agendarRecarregarContagens()
         },
       )
     }
     void ch.subscribe()
 
     return () => {
+      if (contagensTimerRef.current) clearTimeout(contagensTimerRef.current)
       void supabase.removeChannel(ch)
     }
-  }, [idsMonitor, carregar])
+  }, [idsMonitor, agendarRecarregarContagens])
 
   /**
    * @param {Canal} canal

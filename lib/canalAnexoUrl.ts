@@ -24,6 +24,18 @@ export function extrairPathBucketMensagens(anexoUrl: string): string | null {
   }
 }
 
+/** URL pública síncrona (sem round-trip async) quando o path do bucket é conhecido. */
+export function urlPublicaAnexoMensagemCanal(
+  supabase: SupabaseClient,
+  anexoUrl: string,
+): string {
+  if (!anexoUrl) return anexoUrl
+  const path = extrairPathBucketMensagens(anexoUrl)
+  if (!path) return anexoUrl
+  const { data } = supabase.storage.from(BUCKET_MENSAGENS).getPublicUrl(path)
+  return data.publicUrl
+}
+
 /**
  * Resolve URL exibível do anexo (pública; assinada se `forceSigned`).
  */
@@ -42,8 +54,7 @@ export async function resolverUrlAnexoMensagemCanal(
     if (!error && data?.signedUrl) return data.signedUrl
   }
 
-  const { data } = supabase.storage.from(BUCKET_MENSAGENS).getPublicUrl(path)
-  return data.publicUrl
+  return urlPublicaAnexoMensagemCanal(supabase, anexoUrl)
 }
 
 /** Anexo é imagem (`anexo_tipo` ou extensão na URL). */
