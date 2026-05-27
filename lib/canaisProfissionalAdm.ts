@@ -101,7 +101,7 @@ export async function listarMensagensInboxCanalAdm(
     q = q.or(`pais.eq.${paisTab},pais.eq.geral`)
   }
 
-  const { data, error } = await q.order('created_at', { ascending: true }).limit(limit)
+  const { data, error } = await q.order('created_at', { ascending: false }).limit(limit)
   if (error) throw error
 
   const rows = (data ?? []) as MensagemCanalRow[]
@@ -113,7 +113,7 @@ export async function listarMensagensInboxCanalAdm(
 
   const broadcastSet = new Set(inbox.canaisBroadcastIds)
 
-  return rows.filter((m) => {
+  const filtradas = rows.filter((m) => {
     if (m.canal_id === inbox.canalAdmId) {
       const role = rolePorId.get(m.remetente_id) ?? ''
       return role === 'admin'
@@ -123,4 +123,8 @@ export async function listarMensagensInboxCanalAdm(
     }
     return false
   })
+
+  return filtradas.sort(
+    (a, b) => new Date(String(a.created_at ?? 0)).getTime() - new Date(String(b.created_at ?? 0)).getTime(),
+  )
 }

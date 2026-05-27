@@ -9,6 +9,7 @@ import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
 import { marcarCanalComoLidoResiliente } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
+import { listarMensagensCanalRecentes } from '@/lib/canalMensagensFetch'
 import { mensagensComSeparadoresData } from '@/lib/canalMensagensUi'
 import { ehAnexoImagemCanal } from '@/lib/canalAnexoUrl'
 import { parseReacoesCanal, toggleReacaoMensagemCanal } from '@/lib/canalReacoes'
@@ -97,16 +98,23 @@ export default function CanalMensagens({
   uidRef.current = uid
 
   const scrollToBottom = useCallback((behavior = 'auto') => {
-    const el = messagesContainerRef.current
-    if (el) {
-      if (behavior === 'smooth') {
-        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-      } else {
-        el.scrollTop = el.scrollHeight
+    const instant = behavior !== 'smooth'
+    const irAoFim = () => {
+      const el = messagesContainerRef.current
+      if (el) {
+        if (instant) {
+          el.scrollTop = el.scrollHeight
+        } else {
+          el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+        }
       }
-    } else {
-      messagesEndRef.current?.scrollIntoView({ behavior: behavior === 'smooth' ? 'smooth' : 'auto' })
+      messagesEndRef.current?.scrollIntoView({
+        behavior: instant ? 'instant' : 'smooth',
+        block: 'end',
+      })
     }
+    irAoFim()
+    requestAnimationFrame(irAoFim)
   }, [])
 
   const cancelarLongPress = useCallback(() => {
@@ -204,15 +212,15 @@ export default function CanalMensagens({
         notificarBadgeCanais()
       }
       stickToBottomRef.current = true
-      requestAnimationFrame(() => scrollToBottom(silent ? 'auto' : 'smooth'))
     } catch (e) {
       console.error('Erro ao carregar mensagens:', e)
     } finally {
       if (!silent) setLoadingInicial(false)
     }
-  }, [canalId, paisTab, inboxCanalAdm, inboxModo, scrollToBottom])
+  }, [canalId, paisTab, inboxCanalAdm, inboxModo])
 
   useEffect(() => {
+    stickToBottomRef.current = true
     void carregarMensagens()
   }, [carregarMensagens])
 
@@ -249,10 +257,9 @@ export default function CanalMensagens({
   }, [])
 
   useLayoutEffect(() => {
-    if (stickToBottomRef.current && mensagens.length > 0) {
-      scrollToBottom('auto')
-    }
-  }, [mensagens, scrollToBottom])
+    if (!stickToBottomRef.current || mensagens.length === 0) return
+    scrollToBottom('auto')
+  }, [mensagens, loadingInicial, scrollToBottom])
 
   useEffect(() => {
     if (!podePostar) return
