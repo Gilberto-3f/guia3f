@@ -6,6 +6,7 @@ import { ChevronLeft, MoreVertical } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import BandeiraPais from '@/components/BandeiraPais'
 import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
@@ -34,6 +35,12 @@ import {
 
 type TipoUsuario = 'turista' | 'profissional' | 'empresa' | 'admin' | null
 
+type EmpresaCanalEmbed = {
+  nome_fantasia: string | null
+  cidade: string | null
+  foto_url: string | null
+}
+
 type CanalRow = {
   id: string
   nome: string
@@ -41,6 +48,7 @@ type CanalRow = {
   comunidade_prof: string | null
   categoria: string | null
   empresa_id: string | null
+  empresas?: EmpresaCanalEmbed | null
 }
 
 export default function CanalDetalhePage() {
@@ -121,7 +129,12 @@ export default function CanalDetalhePage() {
 
       const canalQuery = supabase
         .from('canais')
-        .select('id, nome, tipo_publico, comunidade_prof, categoria, empresa_id')
+        .select(
+          `
+          id, nome, tipo_publico, comunidade_prof, categoria, empresa_id,
+          empresas:empresa_id ( nome_fantasia, cidade, foto_url )
+          `,
+        )
         .eq('id', canalId)
         .maybeSingle()
 
@@ -139,6 +152,9 @@ export default function CanalDetalhePage() {
         return
       }
 
+      const empRaw = data.empresas as EmpresaCanalEmbed | EmpresaCanalEmbed[] | null | undefined
+      const emp = Array.isArray(empRaw) ? empRaw[0] : empRaw
+
       const row: CanalRow = {
         id: String(data.id),
         nome: String(data.nome ?? ''),
@@ -146,6 +162,13 @@ export default function CanalDetalhePage() {
         comunidade_prof: data.comunidade_prof != null ? String(data.comunidade_prof) : null,
         categoria: data.categoria != null ? String(data.categoria) : null,
         empresa_id: data.empresa_id != null ? String(data.empresa_id) : null,
+        empresas: emp
+          ? {
+              nome_fantasia: emp.nome_fantasia != null ? String(emp.nome_fantasia) : null,
+              cidade: emp.cidade != null ? String(emp.cidade) : null,
+              foto_url: emp.foto_url != null ? String(emp.foto_url) : null,
+            }
+          : null,
       }
 
       if (userTipoEfetivo === 'profissional' && usuarioId) {
@@ -257,14 +280,22 @@ export default function CanalDetalhePage() {
     )
   }
 
+  const ehCanalEmpresaParaProfissional =
+    canal != null &&
+    userTipoEfetivo === 'profissional' &&
+    canal.tipo_publico === 'empresa' &&
+    canal.empresa_id != null
+
   const tituloCanal =
     canal == null
       ? '…'
-      : userTipoEfetivo === 'empresa' && canal.comunidade_prof
-        ? tituloCanalEmpresaLista(canal.comunidade_prof)
-        : userTipoEfetivo === 'profissional'
-          ? rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional)
-          : canal.nome
+      : ehCanalEmpresaParaProfissional
+        ? String(canal.empresas?.nome_fantasia ?? '').trim() || canal.nome
+        : userTipoEfetivo === 'empresa' && canal.comunidade_prof
+          ? tituloCanalEmpresaLista(canal.comunidade_prof)
+          : userTipoEfetivo === 'profissional'
+            ? rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional)
+            : canal.nome
 
   if (userTipoEfetivo === 'profissional') {
     const isFinanceiro = canal != null && isCanalFinanceiroProfissional(canal.nome)
@@ -279,7 +310,16 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">{tituloCanal}</h1>
+          <h1 className="flex min-w-0 flex-1 items-center justify-center gap-2 truncate text-center text-lg font-semibold">
+            {ehCanalEmpresaParaProfissional ? (
+              <>
+                <BandeiraPais cidade={canal.empresas?.cidade} className="text-lg leading-none" />
+                <span className="truncate">{tituloCanal}</span>
+              </>
+            ) : (
+              <span className="truncate">{tituloCanal}</span>
+            )}
+          </h1>
           <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções do canal">
             <MoreVertical className="h-5 w-5" aria-hidden />
           </button>

@@ -1,6 +1,7 @@
 'use client'
 
 import AvatarImage from '@/components/AvatarImage'
+import BandeiraPais from '@/components/BandeiraPais'
 import CanalListaRow from '@/components/CanalListaRow'
 
 /**
@@ -11,42 +12,17 @@ function normTxt(v) {
 }
 
 /**
- * @param {string | null | undefined} handle
- */
-function formatHandle(handle) {
-  const h = normTxt(handle)
-  if (!h) return ''
-  return h.startsWith('@') ? h : `@${h}`
-}
-
-/**
- * @param {string | null | undefined} cidade
- * @returns {'BR' | 'PY' | 'AR' | null}
- */
-function inferPaisPorCidade(cidade) {
-  const c = normTxt(cidade).toLowerCase()
-  if (!c) return null
-  if (c.includes('foz')) return 'BR'
-  if (c.includes('iguazu')) return 'AR'
-  if (c.includes('ciudad')) return 'PY'
-  return null
-}
-
-/**
- * Row de canal de empresa para profissionais.
+ * Row de canal de empresa para profissionais (avatar + bandeira + nome + prévia da última mensagem).
  * @param {{
  *   canal: {
  *     id: string
- *     comunidade_prof?: string | null
  *     empresas?: {
  *       nome_fantasia?: string | null
- *       nome_usuario?: string | null
  *       foto_url?: string | null
  *       cidade?: string | null
  *     } | null
  *     nome?: string | null
  *   }
- *   comunidadeLabel?: string
  *   onClick: () => void
  *   active?: boolean
  *   preview?: string | null
@@ -56,7 +32,6 @@ function inferPaisPorCidade(cidade) {
  */
 export default function CanalEmpresaRow({
   canal,
-  comunidadeLabel,
   onClick,
   active = false,
   preview = null,
@@ -65,16 +40,19 @@ export default function CanalEmpresaRow({
 }) {
   const nomeEmpresa = normTxt(canal?.empresas?.nome_fantasia) || normTxt(canal?.nome) || 'Empresa'
   const fotoUrl = canal?.empresas?.foto_url ?? null
-  const pais = inferPaisPorCidade(canal?.empresas?.cidade)
-  const handle = formatHandle(canal?.empresas?.nome_usuario)
-  const subtitulo = normTxt(comunidadeLabel) || normTxt(canal?.comunidade_prof) || 'Comunidade'
-  const paisEmoji = pais === 'BR' ? ' 🇧🇷' : pais === 'PY' ? ' 🇵🇾' : pais === 'AR' ? ' 🇦🇷' : ''
-  const previewLinha = (preview || handle || subtitulo) + paisEmoji
+  const cidade = canal?.empresas?.cidade ?? null
+
+  const label = (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <BandeiraPais cidade={cidade} />
+      <span className="truncate">{nomeEmpresa}</span>
+    </span>
+  )
 
   return (
     <CanalListaRow
-      label={nomeEmpresa}
-      preview={previewLinha}
+      label={label}
+      preview={preview ?? ' '}
       hora={hora}
       naoLidas={naoLidas}
       active={active}

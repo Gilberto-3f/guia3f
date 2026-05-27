@@ -477,28 +477,13 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     const naoLidas = naoLidasPorCanal[canal.id] ?? 0
 
     if (!ehAdministracao && canal.tipo_publico === 'empresa') {
-      const comuSlug = toSlug(canal.comunidade_prof != null ? String(canal.comunidade_prof) : '')
-      const comunidadeLabel =
-        comuSlug === 'motorista_app'
-          ? 'Motorista de App'
-          : comuSlug === 'guia'
-            ? 'Guia'
-            : comuSlug === 'taxista'
-              ? 'Taxista'
-              : comuSlug === 'van'
-                ? 'Van'
-                : comuSlug === 'anfitriao'
-                  ? 'Anfitrião'
-                  : canal.comunidade_prof
-
       return (
         <CanalEmpresaRow
           key={canal.id}
           canal={canal}
-          comunidadeLabel={comunidadeLabel}
           onClick={() => onSelectCanal(canal)}
           active={isActive}
-          preview={ultima?.preview ?? comunidadeLabel}
+          preview={ultima?.preview ?? null}
           hora={formatarListaHora(horaIso)}
           naoLidas={naoLidas}
         />

@@ -5,7 +5,7 @@ import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 /**
  * Linha de canal estilo lista WhatsApp.
  * @param {{
- *   label: string
+ *   label: import('react').ReactNode
  *   preview?: string | null
  *   hora?: string | null
  *   naoLidas?: number
@@ -44,13 +44,13 @@ export default function CanalListaRow({
         <div className="shrink-0">{avatar}</div>
         <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3
-              className={`truncate text-[15px] ${
+            <div
+              className={`min-w-0 text-[15px] ${
                 naoLido ? 'font-bold text-gray-900' : 'font-medium text-gray-800'
               }`}
             >
               {label}
-            </h3>
+            </div>
             {subtitulo ? <p className="mt-0.5 truncate text-xs text-gray-500">{subtitulo}</p> : null}
           </div>
           <CanalNaoLidasBadge count={naoLidas} />
@@ -71,13 +71,13 @@ export default function CanalListaRow({
       <div className="shrink-0">{avatar}</div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <h3
-            className={`min-w-0 truncate text-[15px] ${
+          <div
+            className={`min-w-0 flex-1 text-[15px] ${
               naoLido ? 'font-bold text-gray-900' : 'font-medium text-gray-800'
             }`}
           >
             {label}
-          </h3>
+          </div>
           {hora ? (
             <span
               className={`shrink-0 text-xs ${naoLido ? 'font-semibold text-[#0097b2]' : 'text-gray-500'}`}
