@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Building2, ChevronDown, ChevronUp, Landmark, MessageCircle, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
 import {
+  CLASSE_AVATAR_CANAL_PROFISSIONAL,
+  iconeCanalProfissionalLista,
   rotuloCanalListaProfissional,
-  tituloPastaCanalColetivoProfissional,
   chaveProfissionalCanal,
 } from '@/lib/canaisProfissionaisListaUi'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
@@ -195,27 +196,16 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
   const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
   const [categoriaAba, setCategoriaAba] = useState(ORDEM_CATEGORIA_EMPRESA[0] ?? 'Restaurantes')
   const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({
-    canalColetivo: false,
+    administracao: false,
     empresas: false,
   }))
-  /** Slugs das categorias do profissional logado (rótulo da pasta coletiva). */
-  const [slugsProfissional, setSlugsProfissional] = useState(/** @type {string[]} */ ([]))
-
   const part = useMemo(() => {
     const administracao = ordenarAdministracao(
       canais.filter((c) => c.tipo_publico === 'profissional' && !isCanalAdmProfissionalGlobal(c)),
     )
-    const canalColetivo = administracao.filter((c) => !isCanalFinanceiroProfissional(c.nome))
-    const financeiro = administracao.filter((c) => isCanalFinanceiroProfissional(c.nome))
     const empresas = canais.filter((c) => c.tipo_publico === 'empresa' && c.empresa_id != null && c.comunidade_prof != null)
-    return { canalColetivo, financeiro, empresas }
+    return { administracao, empresas }
   }, [canais])
-
-  const tituloPastaColetivo = useMemo(() => {
-    const primeiro = part.canalColetivo[0]
-    const slug = primeiro ? chaveProfissionalCanal(primeiro) : slugsProfissional[0]
-    return tituloPastaCanalColetivoProfissional(slug)
-  }, [part.canalColetivo, slugsProfissional])
 
   const totalNaoLidasEmpresas = useMemo(
     () => part.empresas.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0),
@@ -320,7 +310,6 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       const { data: prof } = await supabase.from('profissionais').select('categorias').eq('usuario_id', uid).maybeSingle()
       const cats = Array.isArray(prof?.categorias) ? prof.categorias.map(String) : []
       const slugsCarregados = cats.map((c) => toSlug(c)).filter(Boolean)
-      setSlugsProfissional(slugsCarregados)
 
       /** @type {Set<string> | null} */
       let empresasAprovadas = null
@@ -468,16 +457,17 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
    * @param {{ canalProfissional?: boolean }} [opts]
    */
   function renderRow(canal, opts = {}) {
-    const Icon = getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
-    const label = opts.canalProfissional
+    const ehAdministracao = opts.canalProfissional === true
+    const Icon = ehAdministracao ? iconeCanalProfissionalLista(canal) : getIcon(canal)
+    const label = ehAdministracao
       ? rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional)
       : canal.nome
     const ultima = ultimasMensagens[canal.id]
     const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
     const naoLidas = naoLidasPorCanal[canal.id] ?? 0
 
-    if (!opts.canalProfissional && canal.tipo_publico === 'empresa') {
+    if (!ehAdministracao && canal.tipo_publico === 'empresa') {
       const comuSlug = toSlug(canal.comunidade_prof != null ? String(canal.comunidade_prof) : '')
       const comunidadeLabel =
         comuSlug === 'motorista_app'
@@ -509,16 +499,21 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       <CanalListaRow
         key={canal.id}
         label={label}
-        preview={ultima?.preview || (horaIso ? ' ' : null)}
-        hora={formatarListaHora(horaIso)}
+        preview={ehAdministracao ? null : ultima?.preview || (horaIso ? ' ' : null)}
+        hora={ehAdministracao ? null : formatarListaHora(horaIso)}
+        somenteTitulo={ehAdministracao}
         naoLidas={naoLidas}
         active={isActive}
         onClick={() => onSelectCanal(canal)}
         avatar={
           <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${
-              isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
-            }`}
+            className={
+              ehAdministracao
+                ? CLASSE_AVATAR_CANAL_PROFISSIONAL
+                : `flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${
+                    isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
+                  }`
+            }
           >
             <Icon size={22} aria-hidden />
           </div>
@@ -534,46 +529,36 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <div className="min-h-0 flex min-h-0 flex-1 flex-col overflow-y-auto md:min-h-0">
-        {part.canalColetivo.length > 0 ? (
+        {part.administracao.length > 0 ? (
           <div className="shrink-0 border-b border-gray-100">
             <button
               type="button"
-              onClick={() => toggleGrupo('canalColetivo')}
+              onClick={() => toggleGrupo('administracao')}
               className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-base"
             >
-              <span className="min-w-0 flex-1 font-bold leading-snug text-[#0097b2]">{tituloPastaColetivo}</span>
+              <span className="min-w-0 flex-1 font-bold leading-snug text-[#0097b2]">Administração</span>
               <span className="flex shrink-0 items-center gap-2">
-                {gruposAbertos.canalColetivo === false ? (
+                {gruposAbertos.administracao === false ? (
                   <CanalNaoLidasBadge
-                    count={part.canalColetivo.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0)}
+                    count={part.administracao.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0)}
                   />
                 ) : null}
-                {gruposAbertos.canalColetivo !== false ? (
+                {gruposAbertos.administracao !== false ? (
                   <ChevronUp size={18} aria-hidden className="text-[#0097b2]" />
                 ) : (
                   <ChevronDown size={18} aria-hidden className="text-[#0097b2]" />
                 )}
               </span>
             </button>
-            {gruposAbertos.canalColetivo !== false ? (
+            {gruposAbertos.administracao !== false ? (
               <div>
-                {part.canalColetivo.map((canal) => (
+                {part.administracao.map((canal) => (
                   <div key={canal.id} className="pl-4">
                     {renderRow(canal, { canalProfissional: true })}
                   </div>
                 ))}
               </div>
             ) : null}
-          </div>
-        ) : null}
-
-        {part.financeiro.length > 0 ? (
-          <div className="shrink-0 border-b border-gray-100">
-            {part.financeiro.map((canal) => (
-              <div key={canal.id} className="pl-0">
-                {renderRow(canal, { canalProfissional: true })}
-              </div>
-            ))}
           </div>
         ) : null}
 

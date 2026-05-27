@@ -9,6 +9,13 @@ import {
   rotuloCanalProfissionalLista,
 } from '@/lib/canaisProfissionaisListaUi'
 import {
+  CHAVES_SEGMENTO_EMPRESA,
+  CLASSE_AVATAR_CANAL_EMPRESA_SEGMENTO,
+  chaveSegmentoEmpresaDeCanal,
+  iconeCanalSegmentoEmpresaLista,
+  rotuloCanalSegmentoEmpresaLista,
+} from '@/lib/canaisEmpresasSegmentoUi'
+import {
   excluirCanalMensageiroVisaoAdm,
   rotuloNomeCanalAdministracao,
   TITULO_PASTA_ADMINISTRADORES_APP,
@@ -430,17 +437,25 @@ export default function ListaCanais({
 
   /**
    * @param {Canal} canal
-   * @param {{ blocoAdministracao?: boolean; pastaProfissionais?: boolean }} [opts]
+   * @param {{ blocoAdministracao?: boolean; pastaProfissionais?: boolean; pastaEmpresas?: boolean }} [opts]
    */
   function renderRow(canal, opts = {}) {
     const ehProfissional = opts.pastaProfissionais === true
-    const Icon = ehProfissional ? iconeCanalProfissionalLista(canal) : getIcon(canal)
+    const ehEmpresas = opts.pastaEmpresas === true
+    const estiloSegmento = ehProfissional || ehEmpresas
+    const Icon = ehProfissional
+      ? iconeCanalProfissionalLista(canal)
+      : ehEmpresas
+        ? iconeCanalSegmentoEmpresaLista(canal)
+        : getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
     const label = opts.blocoAdministracao
       ? rotuloNomeCanalAdministracao(canal.nome)
       : ehProfissional
         ? rotuloCanalProfissionalLista(canal)
-        : canal.nome
+        : ehEmpresas
+          ? rotuloCanalSegmentoEmpresaLista(canal)
+          : canal.nome
     const ultima = ultimasMensagens[canal.id]
     const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
     const naoLidas = naoLidasPorCanal[canal.id] ?? 0
@@ -449,17 +464,19 @@ export default function ListaCanais({
       <CanalListaRow
         key={canal.id}
         label={label}
-        preview={ehProfissional ? null : ultima?.preview || (horaIso ? ' ' : null)}
-        hora={ehProfissional ? null : formatarListaHora(horaIso)}
-        somenteTitulo={ehProfissional}
+        preview={estiloSegmento ? null : ultima?.preview || (horaIso ? ' ' : null)}
+        hora={estiloSegmento ? null : formatarListaHora(horaIso)}
+        somenteTitulo={estiloSegmento}
         naoLidas={naoLidas}
         active={isActive}
         onClick={() => onSelectCanal(canal)}
         avatar={
           <div
             className={
-              ehProfissional
-                ? CLASSE_AVATAR_CANAL_PROFISSIONAL
+              estiloSegmento
+                ? ehEmpresas
+                  ? CLASSE_AVATAR_CANAL_EMPRESA_SEGMENTO
+                  : CLASSE_AVATAR_CANAL_PROFISSIONAL
                 : `flex h-12 w-12 items-center justify-center rounded-md ${
                     isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
                   }`
@@ -473,13 +490,21 @@ export default function ListaCanais({
   }
 
   /**
-   * @param {{ id: string; titulo: string; itens: Canal[]; administracao?: boolean; pastaProfissionais?: boolean }} args
+   * @param {{ id: string; titulo: string; itens: Canal[]; administracao?: boolean; pastaProfissionais?: boolean; pastaEmpresas?: boolean }} args
    */
-  function renderGrupoChevron({ id, titulo, itens, administracao, pastaProfissionais }) {
+  function renderGrupoChevron({ id, titulo, itens, administracao, pastaProfissionais, pastaEmpresas }) {
     if (itens.length === 0) return null
     const aberto = gruposAbertos[id] !== false
     const adm = administracao === true
-    const totalPasta = itens.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0)
+    const itensRender =
+      pastaEmpresas === true
+        ? [...itens].sort((a, b) => {
+            const ia = CHAVES_SEGMENTO_EMPRESA.indexOf(chaveSegmentoEmpresaDeCanal(a) ?? '')
+            const ib = CHAVES_SEGMENTO_EMPRESA.indexOf(chaveSegmentoEmpresaDeCanal(b) ?? '')
+            return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+          })
+        : itens
+    const totalPasta = itensRender.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0)
     return (
       <div className="border-b border-gray-100">
         <button
@@ -499,9 +524,13 @@ export default function ListaCanais({
         </button>
         {aberto ? (
           <div>
-            {itens.map((canal) => (
+            {itensRender.map((canal) => (
               <div key={canal.id} className="pl-4">
-                {renderRow(canal, { blocoAdministracao: adm, pastaProfissionais: pastaProfissionais === true })}
+                {renderRow(canal, {
+                  blocoAdministracao: adm,
+                  pastaProfissionais: pastaProfissionais === true,
+                  pastaEmpresas: pastaEmpresas === true,
+                })}
               </div>
             ))}
           </div>
@@ -540,7 +569,7 @@ export default function ListaCanais({
           administracao: true,
         })}
         {renderGrupoChevron({ id: 'profissionais', titulo: 'PROFISSIONAIS', itens: part.profissionais, pastaProfissionais: true })}
-        {renderGrupoChevron({ id: 'empresas', titulo: 'EMPRESAS', itens: part.empresas })}
+        {renderGrupoChevron({ id: 'empresas', titulo: 'EMPRESAS', itens: part.empresas, pastaEmpresas: true })}
         {mostrarOutros ? outros.map((canal) => renderRow(canal)) : null}
       </div>
     )
