@@ -128,7 +128,7 @@ export default function CanalDetalhePage() {
       const slugsPromise =
         userTipoEfetivo === 'profissional' && usuarioId
           ? buscarSlugsCategoriasProfissional(supabase, usuarioId)
-          : Promise.resolve(/** @type {string[] | null} */ (null))
+          : Promise.resolve([])
 
       const [{ data, error }, slugs] = await Promise.all([canalQuery, slugsPromise])
 
