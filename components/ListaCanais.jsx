@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { MessageCircle, Building2, Crown, ChevronUp, ChevronDown, Landmark } from 'lucide-react'
 import {
+  CLASSE_AVATAR_CANAL_PROFISSIONAL,
+  iconeCanalProfissionalLista,
+  rotuloCanalProfissionalLista,
+} from '@/lib/canaisProfissionaisListaUi'
+import {
   excluirCanalMensageiroVisaoAdm,
   rotuloNomeCanalAdministracao,
   TITULO_PASTA_ADMINISTRADORES_APP,
@@ -415,12 +420,17 @@ export default function ListaCanais({
 
   /**
    * @param {Canal} canal
-   * @param {{ blocoAdministracao?: boolean }} [opts]
+   * @param {{ blocoAdministracao?: boolean; pastaProfissionais?: boolean }} [opts]
    */
   function renderRow(canal, opts = {}) {
-    const Icon = getIcon(canal)
+    const ehProfissional = opts.pastaProfissionais === true
+    const Icon = ehProfissional ? iconeCanalProfissionalLista(canal) : getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
-    const label = opts.blocoAdministracao ? rotuloNomeCanalAdministracao(canal.nome) : canal.nome
+    const label = opts.blocoAdministracao
+      ? rotuloNomeCanalAdministracao(canal.nome)
+      : ehProfissional
+        ? rotuloCanalProfissionalLista(canal)
+        : canal.nome
     const ultima = ultimasMensagens[canal.id]
     const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
     const naoLidas = naoLidasPorCanal[canal.id] ?? 0
@@ -429,16 +439,21 @@ export default function ListaCanais({
       <CanalListaRow
         key={canal.id}
         label={label}
-        preview={ultima?.preview || (horaIso ? ' ' : null)}
-        hora={formatarListaHora(horaIso)}
+        preview={ehProfissional ? null : ultima?.preview || (horaIso ? ' ' : null)}
+        hora={ehProfissional ? null : formatarListaHora(horaIso)}
+        somenteTitulo={ehProfissional}
         naoLidas={naoLidas}
         active={isActive}
         onClick={() => onSelectCanal(canal)}
         avatar={
           <div
-            className={`flex h-12 w-12 items-center justify-center rounded-md ${
-              isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
-            }`}
+            className={
+              ehProfissional
+                ? CLASSE_AVATAR_CANAL_PROFISSIONAL
+                : `flex h-12 w-12 items-center justify-center rounded-md ${
+                    isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
+                  }`
+            }
           >
             <Icon size={22} aria-hidden />
           </div>
@@ -448,9 +463,9 @@ export default function ListaCanais({
   }
 
   /**
-   * @param {{ id: string; titulo: string; itens: Canal[]; administracao?: boolean }} args
+   * @param {{ id: string; titulo: string; itens: Canal[]; administracao?: boolean; pastaProfissionais?: boolean }} args
    */
-  function renderGrupoChevron({ id, titulo, itens, administracao }) {
+  function renderGrupoChevron({ id, titulo, itens, administracao, pastaProfissionais }) {
     if (itens.length === 0) return null
     const aberto = gruposAbertos[id] !== false
     const adm = administracao === true
@@ -476,7 +491,7 @@ export default function ListaCanais({
           <div>
             {itens.map((canal) => (
               <div key={canal.id} className="pl-4">
-                {renderRow(canal, { blocoAdministracao: adm })}
+                {renderRow(canal, { blocoAdministracao: adm, pastaProfissionais: pastaProfissionais === true })}
               </div>
             ))}
           </div>
@@ -514,7 +529,7 @@ export default function ListaCanais({
           itens: adminUnificado,
           administracao: true,
         })}
-        {renderGrupoChevron({ id: 'profissionais', titulo: 'PROFISSIONAIS', itens: part.profissionais })}
+        {renderGrupoChevron({ id: 'profissionais', titulo: 'PROFISSIONAIS', itens: part.profissionais, pastaProfissionais: true })}
         {renderGrupoChevron({ id: 'empresas', titulo: 'EMPRESAS', itens: part.empresas })}
         {mostrarOutros ? outros.map((canal) => renderRow(canal)) : null}
       </div>

@@ -2,8 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ChevronDown, ChevronUp, Crown, Landmark, Bus, Car, Compass, Home, Smartphone } from 'lucide-react'
+import { ChevronDown, ChevronUp, Crown, Landmark } from 'lucide-react'
 import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
+import {
+  CLASSE_AVATAR_CANAL_PROFISSIONAL,
+  iconeCanalProfissionalLista,
+  rotuloCanalProfissionalLista,
+  toSlugComunidadeProf,
+  tituloCanalEmpresaLista,
+} from '@/lib/canaisProfissionaisListaUi'
 import { buscarUltimasMensagensCanais, formatarListaHora } from '@/lib/canalLista'
 import { contarFinanceiroNaoLidasEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
@@ -13,47 +20,14 @@ import CanalListaRow from '@/components/CanalListaRow'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
 /** @type {readonly string[]} */
-const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App', 'Anfitriao']
-
-/**
- * Normalização de `comunidade_prof` para slug (aceita rótulo legado ou slug).
- * Salvaguarda: não inserir slugs no banco enquanto existir legado em rótulo sem migração — pode duplicar comunidades.
- * Ver: docs/PROMPT-canais-habilitar-salvaguardas.txt
- */
-/** @type {Record<string, string>} */
-const COMUNIDADE_TO_SLUG = {
-  'Motorista de App': 'motorista_app',
-  'Motorista de Aplicativo': 'motorista_app',
-  'Guia de Turismo': 'guia',
-  Guia: 'guia',
-  Taxista: 'taxista',
-  Van: 'van',
-  Anfitrião: 'anfitriao',
-  Anfitriao: 'anfitriao',
-  motorista_app: 'motorista_app',
-  guia: 'guia',
-  taxista: 'taxista',
-  van: 'van',
-  anfitriao: 'anfitriao',
-}
+const COMUNIDADES_PROFISSIONAIS_SLUG = ['guia', 'taxista', 'van', 'motorista_app', 'anfitriao']
 
 /**
  * @param {string | null | undefined} valor
  */
 function toSlug(valor) {
-  const raw = String(valor ?? '').trim()
-  if (!raw) return ''
-  const mapped = COMUNIDADE_TO_SLUG[raw]
-  const base = mapped ?? raw.toLowerCase()
-  return base
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, '_')
-    .trim()
+  return toSlugComunidadeProf(valor)
 }
-
-/** @type {readonly string[]} */
-const COMUNIDADES_PROFISSIONAIS_SLUG = ['guia', 'taxista', 'van', 'motorista_app', 'anfitriao']
 
 /**
  * @param {string} slug
@@ -75,38 +49,7 @@ function nomeNorm(nome) {
   return (nome ?? '').trim().toUpperCase()
 }
 
-/**
- * Título no cabeçalho / lista (comunidade → rótulo de exibição).
- * Slugs e rótulos legados no banco permanecem iguais; só muda o texto visível.
- * @param {string | null | undefined} comunidade
- */
-export function tituloCanalEmpresaLista(comunidade) {
-  const slug = toSlug(comunidade)
-  const porSlug = {
-    motorista_app: 'Motoristas de APP',
-    guia: 'Guias de Turismo',
-    van: 'Motoristas de Van',
-    taxista: 'Taxistas',
-    anfitriao: 'Anfitriões',
-  }
-  if (slug && porSlug[slug]) return porSlug[slug]
-  const c = String(comunidade ?? '').trim()
-  return c || 'Profissionais'
-}
-
-/**
- * Ícone por comunidade profissional (mesma família visual do modo apresentação).
- * @param {string | null | undefined} comunidade
- */
-function iconeComunidadeProfissional(comunidade) {
-  const slug = toSlug(comunidade)
-  if (slug === 'motorista_app') return Smartphone
-  if (slug === 'guia') return Compass
-  if (slug === 'van') return Bus
-  if (slug === 'taxista') return Car
-  if (slug === 'anfitriao') return Home
-  return Compass
-}
+export { tituloCanalEmpresaLista }
 
 /**
  * @typedef {{
@@ -408,25 +351,25 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
    */
   const getIcon = (canal) => {
     if (nomeNorm(canal.nome) === 'ADM') return Crown
-    if (nomeNorm(canal.nome) === 'FINANCEIRO') return Landmark
-    if (canal.comunidade_prof != null && String(canal.comunidade_prof).trim() !== '') {
-      return iconeComunidadeProfissional(canal.comunidade_prof)
-    }
-    return Compass
+    return Landmark
   }
 
   /**
    * @param {Canal} canal
+   * @param {{ pastaProfissionais?: boolean }} [opts]
    */
-  function renderRow(canal) {
-    const Icon = getIcon(canal)
+  function renderRow(canal, opts = {}) {
+    const ehProfissional =
+      opts.pastaProfissionais ||
+      (canal.comunidade_prof != null && String(canal.comunidade_prof).trim() !== '')
+    const Icon = ehProfissional ? iconeCanalProfissionalLista(canal) : getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
     const isPlaceholder = String(canal.id ?? '').startsWith('__placeholder_')
     const label =
       canal.empresa_id == null && (nomeNorm(canal.nome) === 'ADM' || nomeNorm(canal.nome) === 'FINANCEIRO')
         ? rotuloNomeCanalAdministracao(canal.nome)
-        : canal.comunidade_prof != null
-          ? tituloCanalEmpresaLista(canal.comunidade_prof)
+        : ehProfissional
+          ? rotuloCanalProfissionalLista(canal)
           : canal.nome
     const ultima = ultimasMensagens[canal.id]
     const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
@@ -436,8 +379,9 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       <CanalListaRow
         key={canal.id}
         label={label}
-        preview={ultima?.preview || (horaIso ? ' ' : null)}
-        hora={formatarListaHora(horaIso)}
+        preview={ehProfissional ? null : ultima?.preview || (horaIso ? ' ' : null)}
+        hora={ehProfissional ? null : formatarListaHora(horaIso)}
+        somenteTitulo={ehProfissional}
         naoLidas={naoLidas}
         active={isActive}
         disabled={isPlaceholder}
@@ -447,9 +391,13 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         }}
         avatar={
           <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${
-              isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
-            }`}
+            className={
+              ehProfissional
+                ? CLASSE_AVATAR_CANAL_PROFISSIONAL
+                : `flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${
+                    isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
+                  }`
+            }
           >
             <Icon size={22} aria-hidden />
           </div>
@@ -496,7 +444,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
             <div>
               {itens.map((canal) => (
                 <div key={canal.id} className="pl-4">
-                  {renderRow(canal)}
+                  {renderRow(canal, { pastaProfissionais: id === 'profissionais' })}
                 </div>
               ))}
             </div>
