@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ChevronDown, ChevronUp, Crown } from 'lucide-react'
-import { rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import {
+  CLASSE_AVATAR_CANAL_EMPRESA_SEGMENTO,
   CLASSE_AVATAR_CANAL_PROFISSIONAL,
   canalNomeEhFinanceiro,
   iconeCanalFinanceiro,
@@ -13,6 +13,13 @@ import {
   toSlugComunidadeProf,
   tituloCanalEmpresaLista,
 } from '@/lib/canaisProfissionaisListaUi'
+import {
+  chaveSegmentoEmpresaDeCanal,
+  chaveSegmentoPorCategoriaEmpresa,
+  ehCanalSegmentoEmpresaGlobal,
+  iconeCanalSegmentoEmpresaLista,
+  rotuloCanalSegmentoEmpresaParaEmpresa,
+} from '@/lib/canaisEmpresasSegmentoUi'
 import { canalExibeContagemMembros, formatarLegendaMembrosCanal } from '@/lib/canalMembrosContagem'
 import { useContagemMembrosCanais } from '@/hooks/useContagemMembrosCanais'
 import { buscarUltimasMensagensCanais, formatarListaHora, patchUltimaMensagemCanal } from '@/lib/canalLista'
@@ -70,13 +77,12 @@ export { tituloCanalEmpresaLista }
  */
 
 /**
- * @param {string | null | undefined} n
+ * @param {{ nome?: string | null }} c
  * @returns {number}
  */
-function prioridadeAdmFinNome(n) {
-  const u = (n ?? '').trim().toUpperCase()
-  if (u === 'ADM') return 0
-  if (u === 'FINANCEIRO') return 1
+function prioridadeAdministracaoEmpresa(c) {
+  if (ehCanalSegmentoEmpresaGlobal(c)) return 0
+  if (nomeNorm(c.nome) === 'FINANCEIRO') return 1
   return 2
 }
 
@@ -99,8 +105,8 @@ function ordenarCanaisAdministracaoEmpresa(lista) {
   if (lista.length === 0) return /** @type {typeof lista} */ ([])
   const base = ordenarCanais([...lista])
   return base.sort((a, b) => {
-    const pa = prioridadeAdmFinNome(a.nome)
-    const pb = prioridadeAdmFinNome(b.nome)
+    const pa = prioridadeAdministracaoEmpresa(a)
+    const pb = prioridadeAdministracaoEmpresa(b)
     if (pa !== pb) return pa - pb
     if (a.ordem_tipo === 'fixo' && b.ordem_tipo === 'fixo') {
       return (a.ordem_posicao ?? 0) - (b.ordem_posicao ?? 0)
@@ -121,34 +127,42 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
+  const [empresaCategoria, setEmpresaCategoria] = useState(/** @type {string | null} */ (null))
+  const [admCanalIdGlobal, setAdmCanalIdGlobal] = useState(/** @type {string | null} */ (null))
   /** @type {Record<string, { preview: string, created_at: string }>} */
   const [ultimasMensagens, setUltimasMensagens] = useState({})
   /** @type {Record<string, number>} */
   const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
 
   /**
-   * Garante que a pasta ADMINISTRAÇÃO sempre exiba ADM e Financeiro (nessa ordem).
-   * Se o canal não existir no banco ainda, exibe um item desativado.
+   * Canal de segmento da empresa + Financeiro (sem expor o canal ADM / Mensageiro).
    * @param {Canal[]} lista
+   * @param {string | null} categoriaEmpresa
    */
-  function garantirAdministracao(lista) {
+  function garantirAdministracaoEmpresa(lista, categoriaEmpresa) {
+    const chaveEmp = chaveSegmentoPorCategoriaEmpresa(categoriaEmpresa)
+    const segmento =
+      lista.find(
+        (c) =>
+          ehCanalSegmentoEmpresaGlobal(c) && chaveEmp != null && chaveSegmentoEmpresaDeCanal(c) === chaveEmp,
+      ) ??
+      (chaveEmp
+        ? {
+            id: '__placeholder_segmento__',
+            nome: chaveEmp,
+            tipo_publico: 'empresa',
+            categoria: categoriaEmpresa,
+            comunidade_prof: null,
+            empresa_id: null,
+            ordem_tipo: 'fixo',
+            ordem_posicao: 1,
+            ultima_mensagem_em: null,
+          }
+        : null)
+    const fin = lista.find((c) => nomeNorm(c.nome) === 'FINANCEIRO')
     /** @type {Canal[]} */
     const out = []
-    const adm = lista.find((c) => nomeNorm(c.nome) === 'ADM')
-    const fin = lista.find((c) => nomeNorm(c.nome) === 'FINANCEIRO')
-    out.push(
-      adm ?? {
-        id: '__placeholder_adm__',
-        nome: 'ADM',
-        tipo_publico: 'empresa',
-        categoria: null,
-        comunidade_prof: null,
-        empresa_id: null,
-        ordem_tipo: 'fixo',
-        ordem_posicao: 1,
-        ultima_mensagem_em: null,
-      },
-    )
+    if (segmento) out.push(segmento)
     out.push(
       fin ?? {
         id: '__placeholder_financeiro__',
@@ -202,7 +216,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         (c) =>
           c.tipo_publico === 'empresa' &&
           c.empresa_id == null &&
-          (nomeNorm(c.nome) === 'ADM' || nomeNorm(c.nome) === 'FINANCEIRO'),
+          (nomeNorm(c.nome) === 'FINANCEIRO' || ehCanalSegmentoEmpresaGlobal(c)),
       ),
     )
     const profissionais = canais
@@ -212,10 +226,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         return Boolean(slug) && COMUNIDADES_PROFISSIONAIS_SLUG.includes(slug)
       })
     return {
-      administracao: garantirAdministracao(administracao),
+      administracao: garantirAdministracaoEmpresa(administracao, empresaCategoria),
       profissionais: garantirComunidadesProfissionais(profissionais),
     }
-  }, [canais, empresaId])
+  }, [canais, empresaId, empresaCategoria])
 
   const canaisParaMembros = useMemo(
     () => [...part.administracao, ...part.profissionais],
@@ -298,9 +312,12 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         setCanais([])
         return
       }
-      const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', uid).maybeSingle()
+      const { data: emp } = await supabase.from('empresas').select('id, categoria').eq('usuario_id', uid).maybeSingle()
       const empId = emp?.id != null ? String(emp.id) : null
+      const catEmp = emp?.categoria != null ? String(emp.categoria) : null
       setEmpresaId(empId)
+      setEmpresaCategoria(catEmp)
+      const chaveEmp = chaveSegmentoPorCategoriaEmpresa(catEmp)
 
       const { data, error } = await supabase
         .from('canais')
@@ -310,9 +327,16 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
 
       if (error) throw error
       const lista = /** @type {Canal[]} */ (data ?? [])
+      const admGlobal = lista.find((c) => c.empresa_id == null && nomeNorm(c.nome) === 'ADM')
+      setAdmCanalIdGlobal(admGlobal?.id != null ? String(admGlobal.id) : null)
+
       const filtrada = lista.filter((c) => {
         if (c.empresa_id == null) {
-          return nomeNorm(c.nome) === 'ADM' || nomeNorm(c.nome) === 'FINANCEIRO'
+          if (nomeNorm(c.nome) === 'FINANCEIRO') return true
+          if (ehCanalSegmentoEmpresaGlobal(c) && chaveEmp) {
+            return chaveSegmentoEmpresaDeCanal(c) === chaveEmp
+          }
+          return false
         }
         return empId != null && String(c.empresa_id ?? '') === String(empId)
       })
@@ -368,10 +392,22 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   }, [idsMonitor, agendarRecarregarContagens])
 
   /**
+   * Não lidas do canal de segmento incluem mensagens legadas no canal ADM global.
+   * @param {Canal} canal
+   */
+  const naoLidasExibidas = (canal) => {
+    let n = naoLidasPorCanal[canal.id] ?? 0
+    if (ehCanalSegmentoEmpresaGlobal(canal) && admCanalIdGlobal) {
+      n += naoLidasPorCanal[admCanalIdGlobal] ?? 0
+    }
+    return n
+  }
+
+  /**
    * @param {Canal} canal
    */
   const getIcon = (canal) => {
-    if (nomeNorm(canal.nome) === 'ADM') return Crown
+    if (ehCanalSegmentoEmpresaGlobal(canal)) return iconeCanalSegmentoEmpresaLista(canal)
     if (canalNomeEhFinanceiro(canal.nome)) return iconeCanalFinanceiro()
     return iconeCanalProfissionalLista(canal)
   }
@@ -391,18 +427,20 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     const ehProfissional =
       opts.pastaProfissionais ||
       (canal.comunidade_prof != null && String(canal.comunidade_prof).trim() !== '')
+    const ehSegmentoAdm = canal.empresa_id == null && ehCanalSegmentoEmpresaGlobal(canal)
     const Icon = ehProfissional ? iconeCanalProfissionalLista(canal) : getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
     const isPlaceholder = String(canal.id ?? '').startsWith('__placeholder_')
-    const label =
-      canal.empresa_id == null && (nomeNorm(canal.nome) === 'ADM' || nomeNorm(canal.nome) === 'FINANCEIRO')
-        ? rotuloNomeCanalAdministracao(canal.nome)
+    const label = ehSegmentoAdm
+      ? rotuloCanalSegmentoEmpresaParaEmpresa(canal)
+      : canal.empresa_id == null && canalNomeEhFinanceiro(canal.nome)
+        ? 'Financeiro'
         : ehProfissional
           ? rotuloCanalProfissionalLista(canal)
           : canal.nome
     const ultima = ultimasMensagens[canal.id]
     const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
-    const naoLidas = naoLidasPorCanal[canal.id] ?? 0
+    const naoLidas = naoLidasExibidas(canal)
 
     return (
       <CanalListaRow
@@ -410,7 +448,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         label={label}
         preview={ehProfissional ? null : ultima?.preview || (horaIso ? ' ' : null)}
         hora={ehProfissional ? null : formatarListaHora(horaIso)}
-        somenteTitulo={ehProfissional || (canal.empresa_id == null && canalExibeContagemMembros(canal))}
+        somenteTitulo={ehProfissional || ehSegmentoAdm || (canal.empresa_id == null && canalExibeContagemMembros(canal))}
         subtitulo={
           ehProfissional || canalExibeContagemMembros(canal) ? legendaMembros(canal) : null
         }
@@ -426,9 +464,11 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
             className={
               ehProfissional
                 ? CLASSE_AVATAR_CANAL_PROFISSIONAL
-                : `flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${
-                    isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
-                  }`
+                : ehSegmentoAdm
+                  ? CLASSE_AVATAR_CANAL_EMPRESA_SEGMENTO
+                  : `flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${
+                      isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
+                    }`
             }
           >
             <Icon size={22} aria-hidden />
@@ -451,7 +491,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   function renderGrupo({ id, titulo, itens, forcarVazio, mensagemVazio }) {
     if (itens.length === 0 && !forcarVazio) return null
     const aberto = gruposAbertos[id] !== false
-    const totalPasta = itens.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0)
+    const totalPasta = itens.reduce((s, c) => s + naoLidasExibidas(c), 0)
     return (
       <div className="border-b border-gray-100">
         <button

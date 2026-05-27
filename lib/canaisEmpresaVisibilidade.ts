@@ -1,5 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { isCanalFinanceiroEmpresa, nomeNormCanalEmpresa } from '@/lib/canaisEmpresaSlugs'
+import { buscarSegmentoSlugEmpresa } from '@/lib/canaisEmpresaAdm'
+import {
+  isCanalFinanceiroEmpresa,
+  nomeNormCanalEmpresa,
+  slugCanalSegmentoEmpresa,
+} from '@/lib/canaisEmpresaSlugs'
 
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS_SLUG = ['guia', 'taxista', 'van', 'motorista_app', 'anfitriao'] as const
@@ -26,9 +31,11 @@ export async function obterIdsCanaisMensagensEmpresa(
   const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', usuarioId).maybeSingle()
   const empresaId = emp?.id != null ? String(emp.id) : ''
 
+  const segmentosSlugs = await buscarSegmentoSlugEmpresa(supabase, usuarioId)
+
   const { data: canais, error } = await supabase
     .from('canais')
-    .select('id, nome, tipo_publico, empresa_id, comunidade_prof')
+    .select('id, nome, tipo_publico, categoria, empresa_id, comunidade_prof')
     .eq('ativo', true)
     .eq('tipo_publico', 'empresa')
 
@@ -42,7 +49,15 @@ export async function obterIdsCanaisMensagensEmpresa(
     const id = String(c.id)
     if (c.empresa_id == null) {
       const n = nomeNormCanalEmpresa(c.nome)
-      if (n === 'ADM' || n === 'FINANCEIRO') ids.add(id)
+      if (n === 'ADM' || n === 'FINANCEIRO') {
+        ids.add(id)
+        continue
+      }
+      const slug = slugCanalSegmentoEmpresa(
+        c.categoria != null ? String(c.categoria) : null,
+        c.nome != null ? String(c.nome) : null
+      )
+      if (slug && segmentosSlugs.includes(slug)) ids.add(id)
     } else if (empresaId && String(c.empresa_id) === empresaId) {
       const slug = toSlugComunidade(c.comunidade_prof != null ? String(c.comunidade_prof) : '')
       if (slug && (COMUNIDADES_PROFISSIONAIS_SLUG as readonly string[]).includes(slug)) {

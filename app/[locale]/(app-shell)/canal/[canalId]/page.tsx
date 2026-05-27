@@ -14,7 +14,12 @@ import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
 import { rotuloCanalListaProfissional } from '@/lib/canaisProfissionaisListaUi'
 import { marcarCanalComoLidoResiliente } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
-import { canalMensageiroAdmSemAbasPais, rotuloNomeCanalAdministracao } from '@/lib/rotulosCanaisAdministracao'
+import { canalMensageiroAdmSemAbasPais } from '@/lib/rotulosCanaisAdministracao'
+import {
+  ehCanalSegmentoEmpresaGlobal,
+  rotuloCanalSegmentoEmpresaParaEmpresa,
+  rotuloCanalSegmentoPorCategoriaEmpresa,
+} from '@/lib/canaisEmpresasSegmentoUi'
 import {
   buscarSlugsCategoriasProfissional,
   canalEmpresaVisivelParaProfissional,
@@ -29,6 +34,7 @@ import {
   isCanalFinanceiroEmpresa,
 } from '@/lib/canaisEmpresaSlugs'
 import {
+  buscarIdCanalAdmEmpresaGlobal,
   resolverInboxCanalAdmEmpresa,
   type CanalAdmEmpresaInboxConfig,
 } from '@/lib/canaisEmpresaAdm'
@@ -66,6 +72,7 @@ export default function CanalDetalhePage() {
   const [canalMissing, setCanalMissing] = useState(false)
   const [abaPais, setAbaPais] = useState('geral')
   const [inboxCanalAdm, setInboxCanalAdm] = useState<CanalAdmInboxConfig | CanalAdmEmpresaInboxConfig | null>(null)
+  const [empresaCategoria, setEmpresaCategoria] = useState<string | null>(null)
 
   const paises = ['BR', 'AR', 'PY', 'geral']
   const paisesEmpresaProfissionais = ['BR', 'PY', 'AR']
@@ -143,7 +150,15 @@ export default function CanalDetalhePage() {
           ? buscarSlugsCategoriasProfissional(supabase, usuarioId)
           : Promise.resolve([])
 
-      const [{ data, error }, slugs] = await Promise.all([canalQuery, slugsPromise])
+      const empresaCatPromise =
+        userTipoEfetivo === 'empresa' && usuarioId
+          ? supabase.from('empresas').select('categoria').eq('usuario_id', usuarioId).maybeSingle()
+          : Promise.resolve({ data: null })
+
+      const [{ data, error }, slugs, empCatRes] = await Promise.all([canalQuery, slugsPromise, empresaCatPromise])
+      setEmpresaCategoria(
+        empCatRes.data?.categoria != null ? String(empCatRes.data.categoria) : null,
+      )
 
       if (error || !data) {
         setCanal(null)
@@ -198,14 +213,29 @@ export default function CanalDetalhePage() {
       setCanalMissing(false)
       setCarregandoCanal(false)
 
+      const ehCanalSegmentoEmp =
+        userTipoEfetivo === 'empresa' &&
+        row.tipo_publico === 'empresa' &&
+        row.empresa_id == null &&
+        ehCanalSegmentoEmpresaGlobal(row)
+
       const precisaInboxEmp =
         userTipoEfetivo === 'empresa' &&
         usuarioId &&
-        isCanalAdmEmpresaGlobal(row) &&
-        !isCanalFinanceiroEmpresa(row.nome)
+        row.tipo_publico === 'empresa' &&
+        row.empresa_id == null &&
+        !isCanalFinanceiroEmpresa(row.nome) &&
+        (isCanalAdmEmpresaGlobal(row) || ehCanalSegmentoEmp)
 
       if (precisaInboxEmp) {
-        void resolverInboxCanalAdmEmpresa(supabase, usuarioId, row.id).then(setInboxCanalAdm)
+        void (async () => {
+          const admId = isCanalAdmEmpresaGlobal(row)
+            ? row.id
+            : await buscarIdCanalAdmEmpresaGlobal(supabase)
+          if (!admId) return
+          const inbox = await resolverInboxCanalAdmEmpresa(supabase, usuarioId, admId)
+          setInboxCanalAdm(inbox)
+        })()
       }
     })()
   }, [authPronto, userTipoEfetivo, canalId, router, usuarioId])
@@ -229,11 +259,20 @@ export default function CanalDetalhePage() {
       await marcarFinanceiroLidoProfissional(supabase, usuarioId)
     } else if (userTipoEfetivo === 'empresa' && canal.nome && isCanalFinanceiroEmpresa(canal.nome)) {
       await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
+    } else if (
+      userTipoEfetivo === 'empresa' &&
+      inboxCanalAdm != null &&
+      'canaisBroadcastIds' in inboxCanalAdm
+    ) {
+      const ids = [inboxCanalAdm.canalAdmId, ...inboxCanalAdm.canaisBroadcastIds]
+      for (const id of ids) {
+        if (id) await marcarCanalComoLidoResiliente(supabase, usuarioId, id, null, token)
+      }
     } else {
       await marcarCanalComoLidoResiliente(supabase, usuarioId, canalId, null, token)
     }
     notificarBadgeCanais()
-  }, [usuarioId, canalId, canal, userTipoEfetivo])
+  }, [usuarioId, canalId, canal, userTipoEfetivo, inboxCanalAdm])
 
   /** Ao sair do detalhe (Home, barra, outro canal), garante gravação antes da recontagem da barra. */
   useEffect(() => {
@@ -293,9 +332,18 @@ export default function CanalDetalhePage() {
         ? String(canal.empresas?.nome_fantasia ?? '').trim() || canal.nome
         : userTipoEfetivo === 'empresa' && canal.comunidade_prof
           ? tituloCanalEmpresaLista(canal.comunidade_prof)
-          : userTipoEfetivo === 'profissional'
-            ? rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional)
-            : canal.nome
+          : userTipoEfetivo === 'empresa' &&
+              canal.tipo_publico === 'empresa' &&
+              canal.empresa_id == null &&
+              !isCanalFinanceiroEmpresa(canal.nome)
+            ? ehCanalSegmentoEmpresaGlobal(canal)
+              ? rotuloCanalSegmentoEmpresaParaEmpresa(canal)
+              : isCanalAdmEmpresaGlobal(canal)
+                ? rotuloCanalSegmentoPorCategoriaEmpresa(empresaCategoria)
+                : canal.nome
+            : userTipoEfetivo === 'profissional'
+              ? rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional)
+              : canal.nome
 
   if (userTipoEfetivo === 'profissional') {
     const isFinanceiro = canal != null && isCanalFinanceiroProfissional(canal.nome)
@@ -350,7 +398,13 @@ export default function CanalDetalhePage() {
 
   if (userTipoEfetivo === 'empresa') {
     const isFinanceiro = canal != null && isCanalFinanceiroEmpresa(canal.nome)
-    const isCanalAdmInbox = canal != null && isCanalAdmEmpresaGlobal(canal) && inboxCanalAdm != null
+    const isCanalAdmInbox =
+      canal != null &&
+      inboxCanalAdm != null &&
+      canal.tipo_publico === 'empresa' &&
+      canal.empresa_id == null &&
+      !isFinanceiro &&
+      (isCanalAdmEmpresaGlobal(canal) || ehCanalSegmentoEmpresaGlobal(canal))
     const mostrarAbasTresPaises = canal != null && canal.tipo_publico === 'profissional'
     const podePostarCanal =
       canal != null &&

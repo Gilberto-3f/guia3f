@@ -25,6 +25,23 @@ export type MensagemCanalRow = {
   pais: string | null
 }
 
+/** ID do canal global ADM (tipo empresa). */
+export async function buscarIdCanalAdmEmpresaGlobal(
+  supabase: SupabaseClient
+): Promise<string | null> {
+  const { data } = await supabase
+    .from('canais')
+    .select('id, nome, tipo_publico, empresa_id, ativo')
+    .eq('tipo_publico', 'empresa')
+    .eq('ativo', true)
+    .is('empresa_id', null)
+
+  for (const c of data ?? []) {
+    if (isCanalAdmEmpresaGlobal(c)) return String(c.id)
+  }
+  return null
+}
+
 /**
  * Segmento (slug) da empresa autenticada.
  */
