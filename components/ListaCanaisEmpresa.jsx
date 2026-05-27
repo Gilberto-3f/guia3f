@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import {
-  CLASSE_AVATAR_CANAL_EMPRESA_SEGMENTO,
   CLASSE_AVATAR_CANAL_PROFISSIONAL,
   canalNomeEhFinanceiro,
   iconeCanalFinanceiro,
@@ -14,6 +13,7 @@ import {
   tituloCanalEmpresaLista,
 } from '@/lib/canaisProfissionaisListaUi'
 import {
+  CLASSE_AVATAR_CANAL_EMPRESA_SEGMENTO,
   chaveSegmentoEmpresaDeCanal,
   chaveSegmentoPorCategoriaEmpresa,
   ehCanalSegmentoEmpresaGlobal,
