@@ -83,6 +83,6 @@ export async function DELETE() {
     }
   )
 
-  await supabase.auth.signOut()
+  await supabase.auth.signOut({ scope: 'local' })
   return NextResponse.json({ ok: true })
 }

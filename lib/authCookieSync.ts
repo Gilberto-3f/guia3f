@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabase'
+
 /**
  * Alinha cookies HttpOnly (middleware / SSR) com a sessão do cliente Supabase (localStorage).
  */
@@ -24,4 +26,17 @@ export async function clearSessionCookiesOnServer(): Promise<boolean> {
     credentials: 'same-origin',
   })
   return res.ok
+}
+
+/**
+ * Encerra só a sessão deste aparelho/navegador.
+ * O padrão do Supabase (`signOut()` sem scope) é `global` e desloga todos os dispositivos.
+ */
+export async function signOutCurrentDevice(): Promise<void> {
+  await supabase.auth.signOut({ scope: 'local' })
+  try {
+    await clearSessionCookiesOnServer()
+  } catch {
+    /* ignore */
+  }
 }
