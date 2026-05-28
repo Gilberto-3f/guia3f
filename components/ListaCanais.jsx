@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { MessageCircle, Building2, Crown, ChevronUp, ChevronDown } from 'lucide-react'
 import {
+  CLASSE_AVATAR_CANAL_ADMINISTRACAO,
   CLASSE_AVATAR_CANAL_PROFISSIONAL,
   canalNomeEhFinanceiro,
   iconeCanalFinanceiro,
@@ -497,13 +498,15 @@ export default function ListaCanais({
         avatar={
           <div
             className={
-              estiloSegmento
-                ? ehEmpresas
-                  ? CLASSE_AVATAR_CANAL_EMPRESA_SEGMENTO
-                  : CLASSE_AVATAR_CANAL_PROFISSIONAL
-                : `flex h-12 w-12 items-center justify-center rounded-md ${
-                    isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
-                  }`
+              opts.blocoAdministracao
+                ? CLASSE_AVATAR_CANAL_ADMINISTRACAO
+                : estiloSegmento
+                  ? ehEmpresas
+                    ? CLASSE_AVATAR_CANAL_EMPRESA_SEGMENTO
+                    : CLASSE_AVATAR_CANAL_PROFISSIONAL
+                  : `flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${
+                      isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
+                    }`
             }
           >
             <Icon size={22} aria-hidden />

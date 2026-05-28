@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Building2, ChevronDown, ChevronUp, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
 import {
-  CLASSE_AVATAR_CANAL_PROFISSIONAL,
+  CLASSE_AVATAR_CANAL_ADMINISTRACAO,
   iconeCanalProfissionalLista,
   rotuloCanalListaProfissional,
 } from '@/lib/canaisProfissionaisListaUi'
@@ -504,7 +504,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
           <div
             className={
               ehAdministracao
-                ? CLASSE_AVATAR_CANAL_PROFISSIONAL
+                ? CLASSE_AVATAR_CANAL_ADMINISTRACAO
                 : `flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${
                     isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
                   }`

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import {
+  CLASSE_AVATAR_CANAL_ADMINISTRACAO,
   CLASSE_AVATAR_CANAL_PROFISSIONAL,
   canalNomeEhFinanceiro,
   iconeCanalFinanceiro,
@@ -13,7 +14,6 @@ import {
   tituloCanalEmpresaLista,
 } from '@/lib/canaisProfissionaisListaUi'
 import {
-  CLASSE_AVATAR_CANAL_EMPRESA_SEGMENTO,
   chaveSegmentoEmpresaDeCanal,
   chaveSegmentoPorCategoriaEmpresa,
   ehCanalSegmentoEmpresaGlobal,
@@ -26,7 +26,7 @@ import { buscarUltimasMensagensCanais, formatarListaHora, patchUltimaMensagemCan
 import { contarFinanceiroNaoLidasEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
-import { isCanalFinanceiroEmpresa } from '@/lib/canaisEmpresaSlugs'
+import { isCanalFinanceiroEmpresa, ROTULO_CANAL_FINANCEIRO_EMPRESA } from '@/lib/canaisEmpresaSlugs'
 import CanalListaRow from '@/components/CanalListaRow'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
@@ -421,12 +421,14 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
 
   /**
    * @param {Canal} canal
-   * @param {{ pastaProfissionais?: boolean }} [opts]
+   * @param {{ pastaProfissionais?: boolean; pastaAdministracao?: boolean }} [opts]
    */
   function renderRow(canal, opts = {}) {
+    const pastaAdministracao = opts.pastaAdministracao === true
     const ehProfissional =
-      opts.pastaProfissionais ||
-      (canal.comunidade_prof != null && String(canal.comunidade_prof).trim() !== '')
+      !pastaAdministracao &&
+      (opts.pastaProfissionais ||
+        (canal.comunidade_prof != null && String(canal.comunidade_prof).trim() !== ''))
     const ehSegmentoAdm = canal.empresa_id == null && ehCanalSegmentoEmpresaGlobal(canal)
     const Icon = ehProfissional ? iconeCanalProfissionalLista(canal) : getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
@@ -434,7 +436,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     const label = ehSegmentoAdm
       ? rotuloCanalSegmentoEmpresaParaEmpresa(canal)
       : canal.empresa_id == null && canalNomeEhFinanceiro(canal.nome)
-        ? 'Financeiro'
+        ? ROTULO_CANAL_FINANCEIRO_EMPRESA
         : ehProfissional
           ? rotuloCanalProfissionalLista(canal)
           : canal.nome
@@ -462,10 +464,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         avatar={
           <div
             className={
-              ehProfissional
-                ? CLASSE_AVATAR_CANAL_PROFISSIONAL
-                : ehSegmentoAdm
-                  ? CLASSE_AVATAR_CANAL_EMPRESA_SEGMENTO
+              pastaAdministracao
+                ? CLASSE_AVATAR_CANAL_ADMINISTRACAO
+                : ehProfissional
+                  ? CLASSE_AVATAR_CANAL_PROFISSIONAL
                   : `flex h-12 w-12 shrink-0 items-center justify-center rounded-md ${
                       isActive ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-500'
                     }`
@@ -516,7 +518,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
             <div>
               {itens.map((canal) => (
                 <div key={canal.id} className="pl-4">
-                  {renderRow(canal, { pastaProfissionais: id === 'profissionais' })}
+                  {renderRow(canal, {
+                    pastaProfissionais: id === 'profissionais',
+                    pastaAdministracao: id === 'administracao',
+                  })}
                 </div>
               ))}
             </div>

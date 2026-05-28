@@ -75,3 +75,6 @@ export function isCanalAdmEmpresaGlobal(canal: {
 export function isCanalFinanceiroEmpresa(nome: string | null | undefined): boolean {
   return nomeNormCanalEmpresa(nome) === 'FINANCEIRO'
 }
+
+/** Rótulo na lista e no cabeçalho do canal financeiro (usuário empresa). */
+export const ROTULO_CANAL_FINANCEIRO_EMPRESA = 'Canal Financeiro da Empresa'

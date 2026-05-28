@@ -32,6 +32,7 @@ import type { CanalAdmInboxConfig } from '@/lib/canaisProfissionalAdm'
 import {
   isCanalAdmEmpresaGlobal,
   isCanalFinanceiroEmpresa,
+  ROTULO_CANAL_FINANCEIRO_EMPRESA,
 } from '@/lib/canaisEmpresaSlugs'
 import {
   buscarIdCanalAdmEmpresaGlobal,
@@ -330,9 +331,11 @@ export default function CanalDetalhePage() {
       ? '…'
       : ehCanalEmpresaParaProfissional
         ? String(canal.empresas?.nome_fantasia ?? '').trim() || canal.nome
-        : userTipoEfetivo === 'empresa' && canal.comunidade_prof
-          ? tituloCanalEmpresaLista(canal.comunidade_prof)
-          : userTipoEfetivo === 'empresa' &&
+        : userTipoEfetivo === 'empresa' && canal != null && isCanalFinanceiroEmpresa(canal.nome)
+          ? ROTULO_CANAL_FINANCEIRO_EMPRESA
+          : userTipoEfetivo === 'empresa' && canal.comunidade_prof
+            ? tituloCanalEmpresaLista(canal.comunidade_prof)
+            : userTipoEfetivo === 'empresa' &&
               canal.tipo_publico === 'empresa' &&
               canal.empresa_id == null &&
               !isCanalFinanceiroEmpresa(canal.nome)
