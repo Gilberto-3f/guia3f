@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
-import { MoreVertical, Pencil, Send, Paperclip, X, Check, Mic } from 'lucide-react'
+import { Send, Paperclip, X, Check, Mic } from 'lucide-react'
 import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
 import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
@@ -18,6 +18,10 @@ import { EMOJIS_REACAO_CANAL } from '@/lib/canalReacoesEmojis'
 import CanalMensagemImagem from '@/components/CanalMensagemImagem'
 import CanalMensagemAudio from '@/components/CanalMensagemAudio'
 import AvatarImage from '@/components/AvatarImage'
+import MenuMensagemCanal from '@/components/canal/MenuMensagemCanal'
+import ModalDenunciaCanal from '@/components/canal/ModalDenunciaCanal'
+import { listarIdsMensagensSalvasCanal, toggleSalvarMensagemCanal } from '@/lib/canalSalvos'
+import { enviarDenunciaMensagemCanal } from '@/lib/canalDenuncias'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 const LONG_PRESS_REACAO_MS = 500
@@ -93,6 +97,8 @@ function formatarHora(data) {
  *   podeReagir: boolean
  *   inboxCanalAdm?: import('@/lib/canaisProfissionalAdm').CanalAdmInboxConfig | import('@/lib/canaisEmpresaAdm').CanalAdmEmpresaInboxConfig | null
  *   inboxModo?: 'profissional' | 'empresa'
+ *   canalNome?: string
+ *   destaqueMensagemId?: string | null
  * }} props
  */
 export default function CanalMensagens({
@@ -102,6 +108,8 @@ export default function CanalMensagens({
   podeReagir,
   inboxCanalAdm = null,
   inboxModo = 'profissional',
+  canalNome = 'Canal',
+  destaqueMensagemId = null,
 }) {
   /** @type {Array<{ id: string, texto: string | null, anexo_url: string | null, anexo_tipo: string | null, reacoes: unknown[], created_at: string, remetente: { id: string, nome: string, foto_url: string | null, role: string } }>} */
   const [mensagens, setMensagens] = useState([])
@@ -123,8 +131,12 @@ export default function CanalMensagens({
   const fileInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
   const [reacaoPickerId, setReacaoPickerId] = useState(/** @type {string | null} */ (null))
-  const [menuMsgId, setMenuMsgId] = useState(/** @type {string | null} */ (null))
   const [editandoId, setEditandoId] = useState(/** @type {string | null} */ (null))
+  const [idsSalvos, setIdsSalvos] = useState(/** @type {Set<string>} */ (() => new Set()))
+  const [denunciaMsg, setDenunciaMsg] = useState(
+    /** @type {{ id: string, texto: string | null } | null} */ (null),
+  )
+  const mensagemRefsMap = useRef(/** @type {Map<string, HTMLDivElement>} */ (new Map()))
   const [editTexto, setEditTexto] = useState('')
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
   const [gravandoAudio, setGravandoAudio] = useState(false)
@@ -810,6 +822,22 @@ export default function CanalMensagens({
    * @param {string} mensagemId
    * @param {string} emoji
    */
+  const handleToggleSalvar = async (mensagemId) => {
+    if (!uid) return
+    const salvo = idsSalvos.has(mensagemId)
+    try {
+      const agora = await toggleSalvarMensagemCanal(supabase, uid, canalId, mensagemId, salvo)
+      setIdsSalvos((prev) => {
+        const next = new Set(prev)
+        if (agora) next.add(mensagemId)
+        else next.delete(mensagemId)
+        return next
+      })
+    } catch (e) {
+      console.error('Erro ao salvar mensagem:', e)
+    }
+  }
+
   const handleReagir = async (mensagemId, emoji) => {
     if (!podeReagir || !uid) return
 
@@ -879,7 +907,6 @@ export default function CanalMensagens({
         ref={messagesContainerRef}
         className="canal-chat-messages scrollbar-perfil flex min-h-0 flex-1 flex-col justify-end space-y-1 overflow-y-auto px-2 py-2"
         onClick={() => {
-          setMenuMsgId(null)
           setReacaoPickerId(null)
         }}
       >
@@ -904,9 +931,9 @@ export default function CanalMensagens({
             const reacoesAgrupadas = agruparReacoes(msg.reacoes)
             const temReacoes = Object.keys(reacoesAgrupadas).length > 0
             const pickerAberto = reacaoPickerId === msg.id
-            const menuAberto = menuMsgId === msg.id
             const emEdicao = editandoId === msg.id
             const podeEditarMsg = isOwn && podePostar && msg.texto
+            const mostrarMenuMsg = Boolean(uid && !emEdicao)
 
             const bubbleBase = isOwn
               ? 'canal-bubble-own rounded-2xl px-3 py-2 text-sm text-white'
@@ -915,7 +942,11 @@ export default function CanalMensagens({
             return (
               <div
                 key={msg.id}
-                className={`group flex w-full ${isOwn ? 'justify-end' : 'justify-start'}`}
+                ref={(el) => {
+                  if (el) mensagemRefsMap.current.set(msg.id, el)
+                  else mensagemRefsMap.current.delete(msg.id)
+                }}
+                className={`group flex w-full rounded-lg transition-shadow ${isOwn ? 'justify-end' : 'justify-start'}`}
               >
                 <div className={`flex max-w-[82%] flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
                   <div className={`flex items-end gap-1.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -1045,43 +1076,26 @@ export default function CanalMensagens({
                       )}
                     </div>
 
-                    {podeEditarMsg && !emEdicao ? (
-                      <div className="relative shrink-0 self-center">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setMenuMsgId(menuAberto ? null : msg.id)
-                            setReacaoPickerId(null)
-                          }}
-                          className={`rounded-full p-1 text-gray-500 hover:bg-gray-100 ${
-                            menuAberto ? 'bg-gray-100' : 'opacity-0 group-hover:opacity-100'
-                          }`}
-                          aria-label="Opções da mensagem"
-                        >
-                          <MoreVertical className="h-4 w-4" aria-hidden />
-                        </button>
-                        {menuAberto ? (
-                          <div
-                            className="absolute top-full z-30 mt-1 min-w-[8.5rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
-                            style={isOwn ? { right: 0 } : { left: 0 }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditandoId(msg.id)
-                                setEditTexto(msg.texto ?? '')
-                                setMenuMsgId(null)
-                              }}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
-                            >
-                              <Pencil className="h-4 w-4 text-[#0097b2]" aria-hidden />
-                              Editar
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
+                    {mostrarMenuMsg ? (
+                      <MenuMensagemCanal
+                        salvo={idsSalvos.has(msg.id)}
+                        podeEditar={podeEditarMsg}
+                        alinhadoDireita={isOwn}
+                        onEditar={() => {
+                          setEditandoId(msg.id)
+                          setEditTexto(msg.texto ?? '')
+                          setReacaoPickerId(null)
+                        }}
+                        onSalvar={() => void handleToggleSalvar(msg.id)}
+                        onDenunciar={
+                          !isOwn
+                            ? () => {
+                                setDenunciaMsg({ id: msg.id, texto: msg.texto })
+                                setReacaoPickerId(null)
+                              }
+                            : undefined
+                        }
+                      />
                     ) : null}
                     </div>
                   </div>
@@ -1272,6 +1286,27 @@ export default function CanalMensagens({
           {!uid ? <p className="mt-2 text-center text-xs text-gray-500">Entre na conta para enviar.</p> : null}
         </div>
       ) : null}
+
+      <ModalDenunciaCanal
+        aberto={denunciaMsg != null}
+        titulo="Denunciar mensagem"
+        onFechar={() => setDenunciaMsg(null)}
+        onEnviar={async (motivo, descricao) => {
+          if (!uid || !denunciaMsg) return { ok: false, error: 'Sessão inválida.' }
+          const res = await enviarDenunciaMensagemCanal(supabase, {
+            denuncianteId: uid,
+            canalId,
+            canalNome,
+            mensagemId: denunciaMsg.id,
+            textoMensagem: denunciaMsg.texto,
+            tipo: 'mensagem',
+            motivo,
+            descricao,
+          })
+          if (res.ok) setDenunciaMsg(null)
+          return res
+        }}
+      />
     </div>
   )
 }
