@@ -100,6 +100,7 @@ export default function CanalMensagens({
   const messagesEndRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const messagesContainerRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const stickToBottomRef = useRef(true)
+  const precisaScrollInicialRef = useRef(true)
   const longPressTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null))
   const fileInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
@@ -129,7 +130,10 @@ export default function CanalMensagens({
   }, [])
 
   const garantirScrollNoRodape = useCallback(() => {
-    const irAoFim = () => scrollToBottom('auto')
+    const irAoFim = () => {
+      scrollToBottom('auto')
+      messagesEndRef.current?.scrollIntoView({ block: 'end', behavior: 'auto' })
+    }
     irAoFim()
     requestAnimationFrame(() => {
       irAoFim()
@@ -137,6 +141,7 @@ export default function CanalMensagens({
     })
     window.setTimeout(irAoFim, 50)
     window.setTimeout(irAoFim, 200)
+    window.setTimeout(irAoFim, 400)
   }, [scrollToBottom])
 
   const cancelarLongPress = useCallback(() => {
@@ -202,6 +207,8 @@ export default function CanalMensagens({
 
       setMensagens(mensagensCompletas)
       prefetchImagensAnexosCanal(supabase, mensagensCompletas)
+      precisaScrollInicialRef.current = true
+      stickToBottomRef.current = true
       if (session?.user?.id) {
         const me = remetentesMap.get(session.user.id)
         if (me) setMeuRemetente(me)
@@ -227,9 +234,15 @@ export default function CanalMensagens({
   }, [canalId, paisTab, inboxCanalAdm, inboxModo])
 
   useEffect(() => {
+    precisaScrollInicialRef.current = true
     stickToBottomRef.current = true
     void carregarMensagens()
   }, [carregarMensagens])
+
+  useEffect(() => {
+    precisaScrollInicialRef.current = true
+    stickToBottomRef.current = true
+  }, [canalId])
 
   useEffect(() => {
     return () => {
@@ -264,9 +277,16 @@ export default function CanalMensagens({
   }, [])
 
   useLayoutEffect(() => {
-    if (!stickToBottomRef.current || mensagens.length === 0 || loadingInicial) return
-    garantirScrollNoRodape()
-  }, [mensagens, loadingInicial, garantirScrollNoRodape])
+    if (loadingInicial || mensagens.length === 0) return
+
+    if (precisaScrollInicialRef.current) {
+      garantirScrollNoRodape()
+      precisaScrollInicialRef.current = false
+      return
+    }
+
+    if (stickToBottomRef.current) garantirScrollNoRodape()
+  }, [mensagens, loadingInicial, canalId, garantirScrollNoRodape])
 
   useEffect(() => {
     const el = messagesContainerRef.current
@@ -435,12 +455,15 @@ export default function CanalMensagens({
   }, [canalId, inboxCanalAdm, paisTab, garantirScrollNoRodape])
 
   const handleEnviar = async () => {
-    if (!novaMensagem.trim() && !anexo) return
+    const textoBruto = textareaRef.current?.value ?? novaMensagem
+    const textoEnviar = textoBruto.trim()
+    if (!textoEnviar && !anexo) return
+    if (enviando) return
 
     setEnviando(true)
-    const textoEnviar = novaMensagem.trim()
     const anexoEnviar = anexo
     setNovaMensagem('')
+    if (textareaRef.current) textareaRef.current.value = ''
     setAnexo(null)
     setAnexoPreview(null)
 
@@ -457,9 +480,9 @@ export default function CanalMensagens({
         let arquivoUpload = anexoEnviar
         if (anexoEnviar.type.startsWith('image/')) {
           arquivoUpload = await compressImageFileForStoryUpload(anexoEnviar, {
-            maxWidth: 1280,
-            jpegQuality: 0.85,
-            maxBytesSkip: 450_000,
+            maxWidth: 960,
+            jpegQuality: 0.82,
+            maxBytesSkip: 280_000,
           })
         }
 
@@ -913,7 +936,13 @@ export default function CanalMensagens({
             </div>
           ) : null}
 
-          <div className="flex min-w-0 items-end gap-2">
+          <form
+            className="flex min-w-0 items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void handleEnviar()
+            }}
+          >
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -927,6 +956,7 @@ export default function CanalMensagens({
               rows={1}
               value={novaMensagem}
               disabled={!uid || enviando}
+              enterKeyHint="send"
               onChange={(e) => setNovaMensagem(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -937,22 +967,22 @@ export default function CanalMensagens({
               placeholder="Digite uma mensagem..."
               className="max-h-24 min-h-10 min-w-0 flex-1 resize-none rounded-full border border-gray-200 bg-gray-100 px-4 py-2 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
             />
-            {podeEnviar ? (
-              <button
-                type="button"
-                onClick={() => void handleEnviar()}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-full bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1]"
-                aria-label="Enviar"
-              >
-                {enviando ? (
-                  <span className="text-xs font-medium" aria-hidden>
-                    …
-                  </span>
-                ) : (
-                  <Send className="h-4 w-4" aria-hidden />
-                )}
-              </button>
-            ) : null}
+            <button
+              type="submit"
+              disabled={!podeEnviar}
+              onMouseDown={(e) => e.preventDefault()}
+              onTouchStart={(e) => e.preventDefault()}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-full bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1] disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Enviar"
+            >
+              {enviando ? (
+                <span className="text-xs font-medium" aria-hidden>
+                  …
+                </span>
+              ) : (
+                <Send className="h-4 w-4" aria-hidden />
+              )}
+            </button>
             <input
               ref={fileInputRef}
               type="file"
@@ -974,7 +1004,7 @@ export default function CanalMensagens({
               }}
               className="hidden"
             />
-          </div>
+          </form>
           {!uid ? <p className="mt-2 text-center text-xs text-gray-500">Entre na conta para enviar.</p> : null}
         </div>
       ) : null}

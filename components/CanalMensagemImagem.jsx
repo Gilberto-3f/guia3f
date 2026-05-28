@@ -5,13 +5,20 @@ import Image from 'next/image'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { resolverUrlAnexoMensagemCanal, urlPublicaAnexoMensagemCanal } from '@/lib/canalAnexoUrl'
+import {
+  resolverUrlAnexoMensagemCanal,
+  urlPreviewImagemAnexoMensagemCanal,
+  urlPublicaAnexoMensagemCanal,
+} from '@/lib/canalAnexoUrl'
 
 const PREVIEW_W = 280
 const PREVIEW_H = 256
 
 function urlUsaNextImage(url) {
-  return url.startsWith('https://') && url.includes('/storage/v1/object/public/')
+  return (
+    url.startsWith('https://') &&
+    (url.includes('/storage/v1/object/public/') || url.includes('/storage/v1/render/image/public/'))
+  )
 }
 
 /**
@@ -20,7 +27,8 @@ function urlUsaNextImage(url) {
  */
 export default function CanalMensagemImagem({ src, className = '', priority = false }) {
   const urlPublica = useMemo(() => urlPublicaAnexoMensagemCanal(supabase, src), [src])
-  const [url, setUrl] = useState(urlPublica)
+  const urlPreview = useMemo(() => urlPreviewImagemAnexoMensagemCanal(supabase, src), [src])
+  const [url, setUrl] = useState(urlPreview)
   const [tentouAssinada, setTentouAssinada] = useState(false)
   const [aberto, setAberto] = useState(false)
   const [montado, setMontado] = useState(false)
@@ -31,9 +39,9 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
   }, [])
 
   useEffect(() => {
-    setUrl(urlPublica)
+    setUrl(urlPreview)
     setTentouAssinada(false)
-  }, [urlPublica])
+  }, [urlPreview])
 
   const fechar = useCallback(() => setAberto(false), [])
 
@@ -52,13 +60,21 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
   }, [aberto, fechar])
 
   const onError = useCallback(() => {
+    if (url !== urlPublica && url !== urlPreview) {
+      setUrl(urlPublica)
+      return
+    }
+    if (url === urlPreview && urlPreview !== urlPublica) {
+      setUrl(urlPublica)
+      return
+    }
     if (tentouAssinada) return
     setTentouAssinada(true)
     void (async () => {
       const signed = await resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true })
       setUrl(signed)
     })()
-  }, [src, tentouAssinada])
+  }, [src, tentouAssinada, url, urlPreview, urlPublica])
 
   const previewClass = `max-h-64 w-full max-w-[min(100%,280px)] rounded-lg object-contain ${className}`
 
@@ -109,12 +125,12 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
             </button>
             {otimizada ? (
               <div className="relative h-[100dvh] w-[100vw]" onClick={(e) => e.stopPropagation()}>
-                <Image src={url} alt="" fill className="object-contain" sizes="100vw" priority />
+                <Image src={urlPublica} alt="" fill className="object-contain" sizes="100vw" priority />
               </div>
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={url}
+                src={urlPublica}
                 alt=""
                 className="max-h-[100dvh] max-w-[100vw] object-contain"
                 decoding="async"

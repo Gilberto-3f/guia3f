@@ -270,15 +270,14 @@ export default function ListaCanais({
 
   const membrosPorCanal = useContagemMembrosCanais(canaisParaMembros)
 
-  const gruposIniciais = useMemo(() => {
-    const keys = /** @type {const} */ (['administracaoUnificada', 'profissionais', 'empresas'])
-    const init = /** @type {Record<string, boolean>} */ ({})
-    const adminUnificadoLen = (part.administrador?.length ?? 0) + (part.administracaoProf?.length ?? 0) + (part.administracaoEmp?.length ?? 0)
-    init.administracaoUnificada = adminUnificadoLen > 0
-    init.profissionais = (part.profissionais?.length ?? 0) > 0
-    init.empresas = (part.empresas?.length ?? 0) > 0
-    return init
-  }, [part])
+  const gruposIniciais = useMemo(
+    () => ({
+      administracaoUnificada: false,
+      profissionais: false,
+      empresas: false,
+    }),
+    [],
+  )
 
   const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({}))
 
@@ -448,7 +447,7 @@ export default function ListaCanais({
 
   const toggleGrupo = (grupo) => {
     setGruposAbertos((prev) => {
-      const aberto = prev[grupo] !== false
+      const aberto = prev[grupo] === true
       return { ...prev, [grupo]: !aberto }
     })
   }
@@ -521,7 +520,7 @@ export default function ListaCanais({
    */
   function renderGrupoChevron({ id, titulo, itens, administracao, pastaProfissionais, pastaEmpresas }) {
     if (itens.length === 0) return null
-    const aberto = gruposAbertos[id] !== false
+    const aberto = gruposAbertos[id] === true
     const adm = administracao === true
     const itensRender =
       pastaEmpresas === true

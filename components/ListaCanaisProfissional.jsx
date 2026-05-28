@@ -255,7 +255,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
   const toggleGrupo = (id) => {
     setGruposAbertos((prev) => {
-      const aberto = prev[id] !== false
+      const aberto = prev[id] === true
       return { ...prev, [id]: !aberto }
     })
   }
@@ -548,14 +548,14 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
                     count={part.administracao.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0)}
                   />
                 ) : null}
-                {gruposAbertos.administracao !== false ? (
+                {gruposAbertos.administracao === true ? (
                   <ChevronUp size={18} aria-hidden className="text-[#0097b2]" />
                 ) : (
                   <ChevronDown size={18} aria-hidden className="text-[#0097b2]" />
                 )}
               </span>
             </button>
-            {gruposAbertos.administracao !== false ? (
+            {gruposAbertos.administracao === true ? (
               <div>
                 {part.administracao.map((canal) => (
                   <div key={canal.id} className="pl-4">
@@ -577,14 +577,14 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
               <span className="font-bold leading-snug text-[#0097b2]">EMPRESAS</span>
               <span className="flex shrink-0 items-center gap-2">
                 {gruposAbertos.empresas === false ? <CanalNaoLidasBadge count={totalNaoLidasEmpresas} /> : null}
-                {gruposAbertos.empresas !== false ? (
+                {gruposAbertos.empresas === true ? (
                   <ChevronUp size={18} aria-hidden className="text-[#0097b2]" />
                 ) : (
                   <ChevronDown size={18} aria-hidden className="text-[#0097b2]" />
                 )}
               </span>
             </button>
-            {gruposAbertos.empresas !== false ? (
+            {gruposAbertos.empresas === true ? (
               <>
                 <div
                   className="sticky top-0 z-10 w-full min-w-0 shrink-0 bg-[#0097b2]"

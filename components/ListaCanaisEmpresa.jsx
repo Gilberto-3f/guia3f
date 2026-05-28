@@ -243,10 +243,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
 
   const gruposIniciais = useMemo(
     () => ({
-      administracao: part.administracao.length > 0,
-      profissionais: part.profissionais.length > 0,
+      administracao: false,
+      profissionais: false,
     }),
-    [part],
+    [],
   )
 
   const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({}))
@@ -499,7 +499,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
 
   const toggleGrupo = (id) => {
     setGruposAbertos((prev) => {
-      const aberto = prev[id] !== false
+      const aberto = prev[id] === true
       return { ...prev, [id]: !aberto }
     })
   }
@@ -509,7 +509,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
    */
   function renderGrupo({ id, titulo, itens, forcarVazio, mensagemVazio }) {
     if (itens.length === 0 && !forcarVazio) return null
-    const aberto = gruposAbertos[id] !== false
+    const aberto = gruposAbertos[id] === true
     const totalPasta = itens.reduce((s, c) => s + naoLidasExibidas(c), 0)
     return (
       <div className="border-b border-gray-100">

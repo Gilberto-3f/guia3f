@@ -57,6 +57,26 @@ export async function resolverUrlAnexoMensagemCanal(
   return urlPublicaAnexoMensagemCanal(supabase, anexoUrl)
 }
 
+/**
+ * URL redimensionada no edge do Supabase (menos bytes; vale para anexos antigos e novos).
+ */
+export function urlPreviewImagemAnexoMensagemCanal(
+  supabase: SupabaseClient,
+  anexoUrl: string,
+  opts?: { width?: number; quality?: number },
+): string {
+  const width = opts?.width ?? 560
+  const quality = opts?.quality ?? 75
+  const path = extrairPathBucketMensagens(anexoUrl)
+  if (!path) return urlPublicaAnexoMensagemCanal(supabase, anexoUrl)
+
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, '')
+  if (!baseUrl) return urlPublicaAnexoMensagemCanal(supabase, anexoUrl)
+
+  const encoded = path.split('/').map((seg) => encodeURIComponent(seg)).join('/')
+  return `${baseUrl}/storage/v1/render/image/public/${BUCKET_MENSAGENS}/${encoded}?width=${width}&quality=${quality}&resize=contain`
+}
+
 /** Pré-carrega as últimas imagens do chat no navegador (útil ao abrir o canal). */
 export function prefetchImagensAnexosCanal(
   supabase: SupabaseClient,
@@ -68,7 +88,7 @@ export function prefetchImagensAnexosCanal(
   for (let i = mensagens.length - 1; i >= 0 && carregadas < limit; i--) {
     const m = mensagens[i]
     if (!m.anexo_url || !ehAnexoImagemCanal(m.anexo_url, m.anexo_tipo)) continue
-    const url = urlPublicaAnexoMensagemCanal(supabase, m.anexo_url)
+    const url = urlPreviewImagemAnexoMensagemCanal(supabase, m.anexo_url)
     const img = new window.Image()
     img.decoding = 'async'
     img.src = url
