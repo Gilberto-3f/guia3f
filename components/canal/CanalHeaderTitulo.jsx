@@ -10,14 +10,16 @@
  * }} props
  */
 export default function CanalHeaderTitulo({ onAbrirDrawer, disabled = false, children, className = '' }) {
+  const abrir = () => {
+    if (!disabled) onAbrirDrawer()
+  }
+
   return (
     <button
       type="button"
-      onClick={() => {
-        if (!disabled) onAbrirDrawer()
-      }}
+      onClick={abrir}
       disabled={disabled}
-      className={`flex min-w-0 flex-1 flex-col items-center justify-center text-center text-white transition hover:bg-white/10 disabled:cursor-default disabled:hover:bg-transparent ${className}`}
+      className={`flex min-h-10 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center text-center text-white transition hover:bg-white/10 active:bg-white/15 disabled:cursor-default disabled:hover:bg-transparent ${className}`}
       aria-label="Informações do canal"
     >
       {children}

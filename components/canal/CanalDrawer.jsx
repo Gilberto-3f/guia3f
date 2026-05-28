@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import {
   ArrowLeft,
@@ -70,6 +71,8 @@ export default function CanalDrawer({
   const [denuncias, setDenuncias] = useState([])
   const [loadingDenuncias, setLoadingDenuncias] = useState(false)
   const [modalDenunciaCanal, setModalDenunciaCanal] = useState(false)
+  const [portalPronto, setPortalPronto] = useState(false)
+  const [visivel, setVisivel] = useState(false)
 
   const membrosPorCanal = useContagemMembrosCanais([canal])
   const totalMembros = membrosPorCanal[canal.id] ?? 0
@@ -82,12 +85,18 @@ export default function CanalDrawer({
   const IconeCanal = iconeCanalProfissionalLista(canal)
 
   useEffect(() => {
+    setPortalPronto(true)
+  }, [])
+
+  useLayoutEffect(() => {
     if (!aberto) {
+      setVisivel(false)
       setEntered(false)
       return
     }
-    const t = requestAnimationFrame(() => setEntered(true))
-    return () => cancelAnimationFrame(t)
+    setVisivel(true)
+    const id = requestAnimationFrame(() => setEntered(true))
+    return () => cancelAnimationFrame(id)
   }, [aberto])
 
   useEffect(() => {
@@ -95,6 +104,12 @@ export default function CanalDrawer({
       setAba('info')
       setTermoBusca('')
       setResultadosBusca([])
+      return
+    }
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
     }
   }, [aberto])
 
@@ -236,7 +251,7 @@ export default function CanalDrawer({
     [],
   )
 
-  if (!aberto) return null
+  if (!portalPronto || !visivel) return null
 
   const botoesAcao = [
     { id: 'midia', label: 'Mídia', icon: ImageIcon },
@@ -245,9 +260,14 @@ export default function CanalDrawer({
     { id: 'mais', label: '', icon: MoreHorizontal, semTexto: true },
   ]
 
-  return (
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-[90] max-h-[100dvh]">
+      <div
+        className={`fixed inset-0 z-[250] max-h-[100dvh] transition-opacity duration-300 ${
+          entered ? 'opacity-100' : 'opacity-0'
+        }`}
+        role="presentation"
+      >
         <button type="button" className="absolute inset-0 bg-black/70" aria-label="Fechar" onClick={onFechar} />
         <aside
           className={`absolute right-0 top-0 flex h-full max-h-[100dvh] w-full flex-col overflow-hidden bg-[#0e0e0e] text-white shadow-2xl transition-transform duration-300 ease-out sm:max-w-md ${
@@ -493,6 +513,7 @@ export default function CanalDrawer({
         onFechar={() => setModalDenunciaCanal(false)}
         onEnviar={enviarDenunciaCanal}
       />
-    </>
+    </>,
+    document.body,
   )
 }
