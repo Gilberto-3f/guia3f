@@ -11,10 +11,6 @@ import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
 import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
-import dynamic from 'next/dynamic'
-import CanalHeaderTitulo from '@/components/canal/CanalHeaderTitulo'
-
-const CanalDrawer = dynamic(() => import('@/components/canal/CanalDrawer'), { ssr: false })
 import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
 import { rotuloCanalListaProfissional } from '@/lib/canaisProfissionaisListaUi'
@@ -80,8 +76,6 @@ export default function CanalDetalhePage() {
   const [inboxCanalAdm, setInboxCanalAdm] = useState<CanalAdmInboxConfig | CanalAdmEmpresaInboxConfig | null>(null)
   const [empresaCategoria, setEmpresaCategoria] = useState<string | null>(null)
   const [meuUsername, setMeuUsername] = useState<string | null>(null)
-  const [drawerCanalAberto, setDrawerCanalAberto] = useState(false)
-  const [destaqueMensagemId, setDestaqueMensagemId] = useState<string | null>(null)
 
   const paises = ['BR', 'AR', 'PY', 'geral']
   const paisesEmpresaProfissionais = ['BR', 'PY', 'AR']
@@ -291,19 +285,6 @@ export default function CanalDetalhePage() {
     }
   }, [pathname, marcarLeituraCanalAtual])
 
-  const canalParaDrawer = useMemo(() => {
-    if (!canal) return null
-    return {
-      id: canal.id,
-      nome: canal.nome,
-      tipo_publico: canal.tipo_publico,
-      categoria: canal.categoria,
-      comunidade_prof: canal.comunidade_prof,
-      empresa_id: canal.empresa_id,
-      empresas: canal.empresas,
-    }
-  }, [canal])
-
   const voltarCanais = () => {
     void (async () => {
       await marcarLeituraCanalAtual()
@@ -368,54 +349,9 @@ export default function CanalDetalhePage() {
               ? rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional)
               : canal.nome
 
-  const ehCanalFinanceiroAtual =
-    canal != null &&
-    (isCanalFinanceiroProfissional(canal.nome) || isCanalFinanceiroEmpresa(canal.nome))
-
-  const podeMostrarDrawerCanal = Boolean(canalId) && !ehCanalFinanceiroAtual
-
-  const canalDrawerDados = useMemo(() => {
-    if (!canalId) return null
-    if (canalParaDrawer) return canalParaDrawer
-    return {
-      id: canalId,
-      nome: tituloCanal !== '…' ? tituloCanal : 'Canal',
-      tipo_publico: null,
-      categoria: null,
-      comunidade_prof: null,
-      empresa_id: null,
-      empresas: null,
-    }
-  }, [canalId, canalParaDrawer, tituloCanal])
-
-  const abrirDrawerCanal = useCallback(() => {
-    if (!podeMostrarDrawerCanal) return
-    setDrawerCanalAberto(true)
-  }, [podeMostrarDrawerCanal])
-
-  const drawerCanalOverlay =
-    drawerCanalAberto && podeMostrarDrawerCanal && canalDrawerDados ? (
-      <CanalDrawer
-        aberto
-        onFechar={() => setDrawerCanalAberto(false)}
-        canalId={canalId}
-        canal={canalDrawerDados}
-        tituloCanal={tituloCanal}
-        usuarioId={usuarioId}
-        paisTab={
-          userTipoEfetivo === 'empresa' && canal?.tipo_publico === 'profissional' ? abaPais : 'geral'
-        }
-        onAbrirSalvosMensagem={(id) => {
-          setDestaqueMensagemId(id)
-          setDrawerCanalAberto(false)
-        }}
-      />
-    ) : null
-
   if (userTipoEfetivo === 'profissional') {
     const isFinanceiro = canal != null && isCanalFinanceiroProfissional(canal.nome)
     return (
-      <>
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
@@ -426,7 +362,7 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal} disabled={isFinanceiro}>
+          <h1 className="flex min-w-0 flex-1 flex-col items-center justify-center text-center">
             {isFinanceiro ? (
               <CanalFinanceiroListaRotulo username={meuUsername} inverse />
             ) : ehCanalEmpresaParaProfissional ? (
@@ -437,14 +373,8 @@ export default function CanalDetalhePage() {
             ) : (
               <span className="truncate text-lg font-semibold">{tituloCanal}</span>
             )}
-          </CanalHeaderTitulo>
-          <button
-            type="button"
-            onClick={() => abrirDrawerCanal()}
-            disabled={isFinanceiro}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10 disabled:opacity-30"
-            aria-label="Mais opções do canal"
-          >
+          </h1>
+          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções do canal">
             <MoreVertical className="h-5 w-5" aria-hidden />
           </button>
         </header>
@@ -465,14 +395,10 @@ export default function CanalDetalhePage() {
               podePostar={false}
               podeReagir={podeInteragir}
               inboxCanalAdm={null}
-              canalNome={tituloCanal}
-              destaqueMensagemId={destaqueMensagemId}
             />
           )}
         </div>
       </div>
-      {drawerCanalOverlay}
-      </>
     )
   }
 
@@ -493,7 +419,6 @@ export default function CanalDetalhePage() {
       canal.empresa_id != null &&
       podeInteragir
     return (
-      <>
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
@@ -504,20 +429,14 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal} disabled={isFinanceiro}>
+          <h1 className="flex min-w-0 flex-1 flex-col items-center justify-center text-center">
             {isFinanceiro ? (
               <CanalFinanceiroListaRotulo username={meuUsername} inverse />
             ) : (
               <span className="truncate text-lg font-semibold">{tituloCanal}</span>
             )}
-          </CanalHeaderTitulo>
-          <button
-            type="button"
-            onClick={() => abrirDrawerCanal()}
-            disabled={isFinanceiro}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10 disabled:opacity-30"
-            aria-label="Mais opções do canal"
-          >
+          </h1>
+          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções do canal">
             <MoreVertical className="h-5 w-5" aria-hidden />
           </button>
         </header>
@@ -538,22 +457,17 @@ export default function CanalDetalhePage() {
                 podeReagir={podeInteragir}
                 inboxCanalAdm={isCanalAdmInbox ? inboxCanalAdm : null}
                 inboxModo="empresa"
-                canalNome={tituloCanal}
-                destaqueMensagemId={destaqueMensagemId}
               />
             </>
           )}
         </div>
       </div>
-      {drawerCanalOverlay}
-      </>
     )
   }
 
   if (userTipoEfetivo === 'admin') {
     const mostrarAbasPais = canal != null && !canalMensageiroAdmSemAbasPais(canal.nome)
     return (
-      <>
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
@@ -564,15 +478,8 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal}>
-            <span className="truncate text-lg font-semibold">{tituloCanal}</span>
-          </CanalHeaderTitulo>
-          <button
-            type="button"
-            onClick={() => abrirDrawerCanal()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
-            aria-label="Mais opções do canal"
-          >
+          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">{tituloCanal}</h1>
+          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções do canal">
             <MoreVertical className="h-5 w-5" aria-hidden />
           </button>
         </header>
@@ -587,13 +494,9 @@ export default function CanalDetalhePage() {
             paisTab={mostrarAbasPais ? abaPais : 'geral'}
             podePostar={podeInteragir}
             podeReagir={podeInteragir}
-            canalNome={tituloCanal}
-            destaqueMensagemId={destaqueMensagemId}
           />
         </div>
       </div>
-      {drawerCanalOverlay}
-      </>
     )
   }
 
