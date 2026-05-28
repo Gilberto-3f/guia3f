@@ -29,6 +29,7 @@ export function resumoMensagem(texto: string | null | undefined, anexoTipo: stri
   const t = (texto ?? '').trim()
   if (t) return t.length > 72 ? `${t.slice(0, 72)}…` : t
   if (anexoTipo === 'imagem') return '📷 Foto'
+  if (anexoTipo === 'audio') return '🎤 Áudio'
   if (anexoTipo === 'documento') return '📎 Anexo'
   return ''
 }

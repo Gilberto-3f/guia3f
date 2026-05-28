@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
-import { MoreVertical, Pencil, Send, Paperclip, X, Check } from 'lucide-react'
+import { MoreVertical, Pencil, Send, Paperclip, X, Check, Mic } from 'lucide-react'
 import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
 import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
@@ -11,16 +11,34 @@ import { marcarCanalComoLidoResiliente } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { listarMensagensCanalRecentes } from '@/lib/canalMensagensFetch'
 import { mensagensComSeparadoresData } from '@/lib/canalMensagensUi'
-import { ehAnexoImagemCanal, prefetchImagensAnexosCanal } from '@/lib/canalAnexoUrl'
+import { ehAnexoAudioCanal, ehAnexoImagemCanal, prefetchImagensAnexosCanal } from '@/lib/canalAnexoUrl'
 import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import { parseReacoesCanal, toggleReacaoMensagemCanal } from '@/lib/canalReacoes'
 import { EMOJIS_REACAO_CANAL } from '@/lib/canalReacoesEmojis'
 import CanalMensagemImagem from '@/components/CanalMensagemImagem'
+import CanalMensagemAudio from '@/components/CanalMensagemAudio'
 import AvatarImage from '@/components/AvatarImage'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 const LONG_PRESS_REACAO_MS = 500
+const GRAVACAO_MIN_MS = 400
 const FALLBACK_REMETENTE = { id: '', nome: 'Usuário', foto_url: null, role: '' }
+
+/** @returns {string} */
+function mimeTypeGravacaoCanal() {
+  const candidatos = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
+  for (const m of candidatos) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) return m
+  }
+  return ''
+}
+
+/** @param {string} mime */
+function extensaoAudioGravacao(mime) {
+  if (mime.includes('mp4')) return 'm4a'
+  if (mime.includes('ogg')) return 'ogg'
+  return 'webm'
+}
 
 /**
  * @param {Record<string, unknown>} m
@@ -109,6 +127,17 @@ export default function CanalMensagens({
   const [editandoId, setEditandoId] = useState(/** @type {string | null} */ (null))
   const [editTexto, setEditTexto] = useState('')
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
+  const [gravandoAudio, setGravandoAudio] = useState(false)
+  const [segundosGravacao, setSegundosGravacao] = useState(0)
+  const mediaRecorderRef = useRef(/** @type {MediaRecorder | null} */ (null))
+  const audioChunksRef = useRef(/** @type {Blob[]} */ ([]))
+  const streamAudioRef = useRef(/** @type {MediaStream | null} */ (null))
+  const gravacaoInicioRef = useRef(0)
+  const gravacaoTimerRef = useRef(/** @type {ReturnType<typeof setInterval> | null} */ (null))
+  const gravandoAudioRef = useRef(false)
+  const gravacaoSolicitadaRef = useRef(false)
+  const enviarAoPararGravacaoRef = useRef(true)
+  const finalizarGravacaoAudioRef = useRef(/** @type {(enviar: boolean) => Promise<void>} */ (async () => {}))
   const mensagensLenRef = useRef(0)
   const mensagensRef = useRef(mensagens)
   const meuRemetenteRef = useRef(meuRemetente)
@@ -117,6 +146,33 @@ export default function CanalMensagens({
   mensagensRef.current = mensagens
   meuRemetenteRef.current = meuRemetente
   uidRef.current = uid
+  gravandoAudioRef.current = gravandoAudio
+
+  const pararStreamGravacao = useCallback(() => {
+    streamAudioRef.current?.getTracks().forEach((t) => t.stop())
+    streamAudioRef.current = null
+  }, [])
+
+  const limparTimerGravacao = useCallback(() => {
+    if (gravacaoTimerRef.current) {
+      clearInterval(gravacaoTimerRef.current)
+      gravacaoTimerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      limparTimerGravacao()
+      try {
+        if (mediaRecorderRef.current?.state === 'recording') {
+          mediaRecorderRef.current.stop()
+        }
+      } catch {
+        /* ignore */
+      }
+      pararStreamGravacao()
+    }
+  }, [limparTimerGravacao, pararStreamGravacao])
 
   const scrollToBottom = useCallback((behavior = 'auto') => {
     const el = messagesContainerRef.current
@@ -454,20 +510,15 @@ export default function CanalMensagens({
     }
   }, [canalId, inboxCanalAdm, paisTab, garantirScrollNoRodape])
 
-  const handleEnviar = async () => {
-    const textoBruto = textareaRef.current?.value ?? novaMensagem
-    const textoEnviar = textoBruto.trim()
-    if (!textoEnviar && !anexo) return
-    if (enviando) return
+  /**
+   * @param {string} textoEnviar
+   * @param {File | null} anexoEnviar
+   * @param {string | null} [anexoTipoForcado]
+   */
+  const enviarMensagemCanal = useCallback(
+    async (textoEnviar, anexoEnviar, anexoTipoForcado = null) => {
+      if (!textoEnviar && !anexoEnviar) return
 
-    setEnviando(true)
-    const anexoEnviar = anexo
-    setNovaMensagem('')
-    if (textareaRef.current) textareaRef.current.value = ''
-    setAnexo(null)
-    setAnexoPreview(null)
-
-    try {
       const {
         data: { session },
       } = await supabase.auth.getSession()
@@ -493,10 +544,7 @@ export default function CanalMensagens({
         const fileName = `${Date.now()}.${fileExt}`
         const filePath = `${session.user.id}/${canalId}/${fileName}`
 
-        const contentType =
-          arquivoUpload.type && arquivoUpload.type.startsWith('image/')
-            ? arquivoUpload.type
-            : arquivoUpload.type || 'application/octet-stream'
+        const contentType = arquivoUpload.type || 'application/octet-stream'
 
         const { error: uploadError } = await supabase.storage.from('mensagens').upload(filePath, arquivoUpload, {
           upsert: true,
@@ -511,7 +559,15 @@ export default function CanalMensagens({
 
         const { data: pub } = supabase.storage.from('mensagens').getPublicUrl(filePath)
         anexoUrl = pub.publicUrl
-        anexoTipo = arquivoUpload.type.startsWith('image/') ? 'imagem' : 'documento'
+        if (anexoTipoForcado) {
+          anexoTipo = anexoTipoForcado
+        } else if (arquivoUpload.type.startsWith('image/')) {
+          anexoTipo = 'imagem'
+        } else if (arquivoUpload.type.startsWith('audio/')) {
+          anexoTipo = 'audio'
+        } else {
+          anexoTipo = 'documento'
+        }
       }
 
       const paisMsg = paisTab && paisTab !== 'geral' ? paisTab : 'geral'
@@ -532,7 +588,7 @@ export default function CanalMensagens({
       if (error) throw error
 
       const remetente =
-        meuRemetente ??
+        meuRemetenteRef.current ??
         (await buscarRemetentesEmLote(supabase, [session.user.id])).get(session.user.id) ?? {
           id: session.user.id,
           nome: 'Eu',
@@ -563,6 +619,25 @@ export default function CanalMensagens({
         garantirScrollNoRodape()
         requestAnimationFrame(() => scrollToBottom('smooth'))
       }
+    },
+    [canalId, paisTab, garantirScrollNoRodape, scrollToBottom],
+  )
+
+  const handleEnviar = async () => {
+    const textoBruto = textareaRef.current?.value ?? novaMensagem
+    const textoEnviar = textoBruto.trim()
+    if (!textoEnviar && !anexo) return
+    if (enviando || gravandoAudio) return
+
+    setEnviando(true)
+    const anexoEnviar = anexo
+    setNovaMensagem('')
+    if (textareaRef.current) textareaRef.current.value = ''
+    setAnexo(null)
+    setAnexoPreview(null)
+
+    try {
+      await enviarMensagemCanal(textoEnviar, anexoEnviar)
     } catch (e) {
       console.error('Erro ao enviar mensagem:', e)
       setNovaMensagem(textoEnviar)
@@ -580,6 +655,127 @@ export default function CanalMensagens({
       setEnviando(false)
     }
   }
+
+  const iniciarGravacaoAudio = useCallback(async () => {
+    if (enviando || gravandoAudioRef.current || gravacaoSolicitadaRef.current || !uid || typeof navigator === 'undefined') {
+      return
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      console.error('Gravação de áudio não suportada neste navegador.')
+      return
+    }
+
+    gravacaoSolicitadaRef.current = true
+    enviarAoPararGravacaoRef.current = true
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (!gravacaoSolicitadaRef.current) {
+        stream.getTracks().forEach((t) => t.stop())
+        return
+      }
+
+      streamAudioRef.current = stream
+      const mime = mimeTypeGravacaoCanal()
+      const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
+      audioChunksRef.current = []
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+      mediaRecorderRef.current = recorder
+      gravacaoInicioRef.current = Date.now()
+      recorder.start()
+      setGravandoAudio(true)
+      setSegundosGravacao(0)
+      limparTimerGravacao()
+      gravacaoTimerRef.current = setInterval(() => {
+        setSegundosGravacao(Math.floor((Date.now() - gravacaoInicioRef.current) / 1000))
+      }, 200)
+      if ('vibrate' in navigator) navigator.vibrate(8)
+
+      if (!enviarAoPararGravacaoRef.current) {
+        void finalizarGravacaoAudioRef.current(false)
+      }
+    } catch (e) {
+      console.error('Erro ao acessar microfone:', e)
+      pararStreamGravacao()
+      setGravandoAudio(false)
+      gravacaoSolicitadaRef.current = false
+    }
+  }, [enviando, uid, limparTimerGravacao, pararStreamGravacao])
+
+  /**
+   * @param {boolean} enviar
+   */
+  const finalizarGravacaoAudio = useCallback(
+    async (enviar) => {
+      enviarAoPararGravacaoRef.current = enviar
+
+      if (!gravandoAudioRef.current && !mediaRecorderRef.current) {
+        if (gravacaoSolicitadaRef.current && !enviar) {
+          gravacaoSolicitadaRef.current = false
+        }
+        if (gravacaoSolicitadaRef.current && enviar) {
+          return
+        }
+        if (!gravacaoSolicitadaRef.current) return
+      }
+
+      if (!mediaRecorderRef.current && gravacaoSolicitadaRef.current) {
+        if (!enviar) gravacaoSolicitadaRef.current = false
+        return
+      }
+
+      gravacaoSolicitadaRef.current = false
+      limparTimerGravacao()
+      setGravandoAudio(false)
+      setSegundosGravacao(0)
+
+      const recorder = mediaRecorderRef.current
+      mediaRecorderRef.current = null
+      if (!recorder) {
+        pararStreamGravacao()
+        return
+      }
+
+      const duracaoMs = Date.now() - gravacaoInicioRef.current
+
+      if (recorder.state === 'recording') {
+        await new Promise((resolve) => {
+          recorder.addEventListener('stop', resolve, { once: true })
+          try {
+            recorder.stop()
+          } catch {
+            resolve(undefined)
+          }
+        })
+      }
+      pararStreamGravacao()
+
+      const chunks = audioChunksRef.current
+      audioChunksRef.current = []
+
+      if (!enviar || duracaoMs < GRAVACAO_MIN_MS || chunks.length === 0) return
+
+      const mime = recorder.mimeType || 'audio/webm'
+      const blob = new Blob(chunks, { type: mime })
+      if (blob.size < 80) return
+
+      const ext = extensaoAudioGravacao(mime)
+      const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: mime })
+
+      setEnviando(true)
+      try {
+        await enviarMensagemCanal('', file, 'audio')
+      } catch (e) {
+        console.error('Erro ao enviar áudio:', e)
+      } finally {
+        setEnviando(false)
+      }
+    },
+    [enviarMensagemCanal, limparTimerGravacao, pararStreamGravacao],
+  )
+  finalizarGravacaoAudioRef.current = finalizarGravacaoAudio
 
   /**
    * @param {string} mensagemId
@@ -653,7 +849,9 @@ export default function CanalMensagens({
   }
 
   const emojis = EMOJIS_REACAO_CANAL
-  const podeEnviar = Boolean((novaMensagem.trim() || anexo) && uid && !enviando)
+  const temTextoOuAnexo = Boolean(novaMensagem.trim() || anexo)
+  const podeEnviar = Boolean(temTextoOuAnexo && uid && !enviando && !gravandoAudio)
+  const mostrarMic = Boolean(uid && !temTextoOuAnexo && !enviando)
 
   const itensLista = mensagensComSeparadoresData(mensagens, (m) => m.created_at)
 
@@ -815,6 +1013,12 @@ export default function CanalMensagens({
                             </div>
                           ) : null}
 
+                          {ehAnexoAudioCanal(msg.anexo_url, msg.anexo_tipo) ? (
+                            <div className={msg.texto ? 'mt-1.5' : ''}>
+                              <CanalMensagemAudio key={msg.anexo_url} src={msg.anexo_url} isOwn={isOwn} />
+                            </div>
+                          ) : null}
+
                           {msg.anexo_url && msg.anexo_tipo === 'documento' ? (
                             <a
                               href={msg.anexo_url}
@@ -917,6 +1121,20 @@ export default function CanalMensagens({
           className="sticky bottom-0 z-20 shrink-0 border-t border-gray-200 bg-white px-2 py-2"
           style={{ paddingBottom: paddingTeclado > 0 ? paddingTeclado : undefined }}
         >
+          {gravandoAudio ? (
+            <div className="mb-2 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+              </span>
+              <span className="font-medium">Gravando…</span>
+              <span className="tabular-nums text-red-600">
+                {Math.floor(segundosGravacao / 60)}:{String(segundosGravacao % 60).padStart(2, '0')}
+              </span>
+              <span className="text-xs text-red-500">Solte para enviar</span>
+            </div>
+          ) : null}
+
           {anexoPreview ? (
             <div className="relative mb-2 inline-block">
               <div className="relative h-20 w-20 overflow-hidden rounded-lg">
@@ -946,7 +1164,8 @@ export default function CanalMensagens({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end text-gray-500 hover:text-[#0097b2]"
+              disabled={gravandoAudio}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end text-gray-500 hover:text-[#0097b2] disabled:opacity-40"
               aria-label="Anexo"
             >
               <Paperclip className="h-5 w-5" aria-hidden />
@@ -955,7 +1174,7 @@ export default function CanalMensagens({
               ref={textareaRef}
               rows={1}
               value={novaMensagem}
-              disabled={!uid || enviando}
+              disabled={!uid || enviando || gravandoAudio}
               enterKeyHint="send"
               onChange={(e) => setNovaMensagem(e.target.value)}
               onKeyDown={(e) => {
@@ -964,25 +1183,70 @@ export default function CanalMensagens({
                   void handleEnviar()
                 }
               }}
-              placeholder="Digite uma mensagem..."
-              className="max-h-24 min-h-10 min-w-0 flex-1 resize-none rounded-full border border-gray-200 bg-gray-100 px-4 py-2 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
+              placeholder={gravandoAudio ? 'Gravando áudio…' : 'Digite uma mensagem...'}
+              className="max-h-24 min-h-10 min-w-0 flex-1 resize-none rounded-full border border-gray-200 bg-gray-100 px-4 py-2 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2] disabled:opacity-60"
             />
-            <button
-              type="submit"
-              disabled={!podeEnviar}
-              onMouseDown={(e) => e.preventDefault()}
-              onTouchStart={(e) => e.preventDefault()}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-full bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1] disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Enviar"
-            >
-              {enviando ? (
-                <span className="text-xs font-medium" aria-hidden>
-                  …
-                </span>
-              ) : (
-                <Send className="h-4 w-4" aria-hidden />
-              )}
-            </button>
+            {mostrarMic ? (
+              <button
+                type="button"
+                disabled={!uid}
+                onPointerDown={(e) => {
+                  e.preventDefault()
+                  try {
+                    e.currentTarget.setPointerCapture(e.pointerId)
+                  } catch {
+                    /* ignore */
+                  }
+                  void iniciarGravacaoAudio()
+                }}
+                onPointerUp={(e) => {
+                  e.preventDefault()
+                  try {
+                    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                      e.currentTarget.releasePointerCapture(e.pointerId)
+                    }
+                  } catch {
+                    /* ignore */
+                  }
+                  void finalizarGravacaoAudio(true)
+                }}
+                onPointerCancel={(e) => {
+                  e.preventDefault()
+                  try {
+                    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                      e.currentTarget.releasePointerCapture(e.pointerId)
+                    }
+                  } catch {
+                    /* ignore */
+                  }
+                  void finalizarGravacaoAudio(false)
+                }}
+                onContextMenu={(e) => e.preventDefault()}
+                className={`inline-flex h-10 w-10 shrink-0 touch-none select-none items-center justify-center self-end rounded-full text-white shadow-sm transition ${
+                  gravandoAudio ? 'bg-red-500 hover:bg-red-600' : 'bg-[#0097b2] hover:bg-[#0088a1]'
+                }`}
+                aria-label="Segure para gravar áudio"
+              >
+                <Mic className="h-5 w-5" aria-hidden />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!podeEnviar}
+                onMouseDown={(e) => e.preventDefault()}
+                onTouchStart={(e) => e.preventDefault()}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-full bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1] disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Enviar"
+              >
+                {enviando ? (
+                  <span className="text-xs font-medium" aria-hidden>
+                    …
+                  </span>
+                ) : (
+                  <Send className="h-4 w-4" aria-hidden />
+                )}
+              </button>
+            )}
             <input
               ref={fileInputRef}
               type="file"

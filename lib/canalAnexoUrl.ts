@@ -101,6 +101,14 @@ export function ehAnexoImagemCanal(anexoUrl: string | null | undefined, anexoTip
   if (!anexoUrl) return false
   const tipo = (anexoTipo ?? '').trim().toLowerCase()
   if (tipo === 'imagem' || tipo.startsWith('image/')) return true
-  if (tipo === 'documento') return false
+  if (tipo === 'documento' || tipo === 'audio' || tipo.startsWith('audio/')) return false
   return EXT_IMAGEM.test(anexoUrl)
+}
+
+/** Anexo é áudio (`anexo_tipo` ou extensão na URL). */
+export function ehAnexoAudioCanal(anexoUrl: string | null | undefined, anexoTipo: string | null | undefined): boolean {
+  if (!anexoUrl) return false
+  const tipo = (anexoTipo ?? '').trim().toLowerCase()
+  if (tipo === 'audio' || tipo.startsWith('audio/')) return true
+  return /\.(webm|ogg|opus|mp3|m4a|aac|wav)(\?.*)?$/i.test(anexoUrl)
 }
