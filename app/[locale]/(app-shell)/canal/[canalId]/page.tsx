@@ -10,6 +10,8 @@ import BandeiraPais from '@/components/BandeiraPais'
 import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
+import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
+import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
 import { rotuloCanalListaProfissional } from '@/lib/canaisProfissionaisListaUi'
 import { marcarCanalComoLidoResiliente } from '@/lib/canalBadge'
@@ -32,7 +34,6 @@ import type { CanalAdmInboxConfig } from '@/lib/canaisProfissionalAdm'
 import {
   isCanalAdmEmpresaGlobal,
   isCanalFinanceiroEmpresa,
-  ROTULO_CANAL_FINANCEIRO_EMPRESA,
 } from '@/lib/canaisEmpresaSlugs'
 import {
   buscarIdCanalAdmEmpresaGlobal,
@@ -74,6 +75,7 @@ export default function CanalDetalhePage() {
   const [abaPais, setAbaPais] = useState('geral')
   const [inboxCanalAdm, setInboxCanalAdm] = useState<CanalAdmInboxConfig | CanalAdmEmpresaInboxConfig | null>(null)
   const [empresaCategoria, setEmpresaCategoria] = useState<string | null>(null)
+  const [meuUsername, setMeuUsername] = useState<string | null>(null)
 
   const paises = ['BR', 'AR', 'PY', 'geral']
   const paisesEmpresaProfissionais = ['BR', 'PY', 'AR']
@@ -100,6 +102,7 @@ export default function CanalDetalhePage() {
       }
 
       setUsuarioId(session.user.id)
+      void fetchNomeUsuarioParaStory(supabase, session.user.id).then((nu) => setMeuUsername(nu))
 
       const { data: userData } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
       const role = userData?.role ?? null
@@ -331,9 +334,7 @@ export default function CanalDetalhePage() {
       ? '…'
       : ehCanalEmpresaParaProfissional
         ? String(canal.empresas?.nome_fantasia ?? '').trim() || canal.nome
-        : userTipoEfetivo === 'empresa' && canal != null && isCanalFinanceiroEmpresa(canal.nome)
-          ? ROTULO_CANAL_FINANCEIRO_EMPRESA
-          : userTipoEfetivo === 'empresa' && canal.comunidade_prof
+        : userTipoEfetivo === 'empresa' && canal.comunidade_prof
             ? tituloCanalEmpresaLista(canal.comunidade_prof)
             : userTipoEfetivo === 'empresa' &&
               canal.tipo_publico === 'empresa' &&
@@ -361,14 +362,16 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="flex min-w-0 flex-1 items-center justify-center gap-2 truncate text-center text-lg font-semibold">
-            {ehCanalEmpresaParaProfissional ? (
-              <>
+          <h1 className="flex min-w-0 flex-1 flex-col items-center justify-center text-center">
+            {isFinanceiro ? (
+              <CanalFinanceiroListaRotulo username={meuUsername} inverse />
+            ) : ehCanalEmpresaParaProfissional ? (
+              <span className="flex min-w-0 items-center justify-center gap-2 truncate text-lg font-semibold">
                 <BandeiraPais cidade={canal.empresas?.cidade} className="text-lg leading-none" />
                 <span className="truncate">{tituloCanal}</span>
-              </>
+              </span>
             ) : (
-              <span className="truncate">{tituloCanal}</span>
+              <span className="truncate text-lg font-semibold">{tituloCanal}</span>
             )}
           </h1>
           <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções do canal">
@@ -426,7 +429,13 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">{tituloCanal}</h1>
+          <h1 className="flex min-w-0 flex-1 flex-col items-center justify-center text-center">
+            {isFinanceiro ? (
+              <CanalFinanceiroListaRotulo username={meuUsername} inverse />
+            ) : (
+              <span className="truncate text-lg font-semibold">{tituloCanal}</span>
+            )}
+          </h1>
           <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Opções do canal">
             <MoreVertical className="h-5 w-5" aria-hidden />
           </button>

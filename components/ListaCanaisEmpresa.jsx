@@ -26,8 +26,10 @@ import { buscarUltimasMensagensCanais, formatarListaHora, patchUltimaMensagemCan
 import { contarFinanceiroNaoLidasEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
-import { isCanalFinanceiroEmpresa, ROTULO_CANAL_FINANCEIRO_EMPRESA } from '@/lib/canaisEmpresaSlugs'
+import { isCanalFinanceiroEmpresa } from '@/lib/canaisEmpresaSlugs'
+import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
 import CanalListaRow from '@/components/CanalListaRow'
+import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
 /** @type {readonly string[]} */
@@ -133,6 +135,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const [ultimasMensagens, setUltimasMensagens] = useState({})
   /** @type {Record<string, number>} */
   const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
+  const [meuUsername, setMeuUsername] = useState(/** @type {string | null} */ (null))
 
   /**
    * Canal de segmento da empresa + Financeiro (sem expor o canal ADM / Mensageiro).
@@ -343,11 +346,13 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       const ordenados = ordenarCanais(filtrada)
       setCanais(ordenados)
       const ids = ordenados.map((c) => c.id).filter((id) => !String(id).startsWith('__placeholder'))
-      const [ultimas, contagens, fin] = await Promise.all([
+      const [ultimas, contagens, fin, username] = await Promise.all([
         buscarUltimasMensagensCanais(supabase, ids),
         contarNaoLidasPorCanalIds(supabase, uid, ids),
         contarFinanceiroNaoLidasEmpresa(supabase, uid),
+        fetchNomeUsuarioParaStory(supabase, uid),
       ])
+      setMeuUsername(username)
       setUltimasMensagens(ultimas)
       for (const c of ordenados) {
         if (isCanalFinanceiroEmpresa(c.nome)) {
@@ -430,16 +435,19 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       (opts.pastaProfissionais ||
         (canal.comunidade_prof != null && String(canal.comunidade_prof).trim() !== ''))
     const ehSegmentoAdm = canal.empresa_id == null && ehCanalSegmentoEmpresaGlobal(canal)
+    const ehFinanceiro = canal.empresa_id == null && isCanalFinanceiroEmpresa(canal.nome)
     const Icon = ehProfissional ? iconeCanalProfissionalLista(canal) : getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
     const isPlaceholder = String(canal.id ?? '').startsWith('__placeholder_')
-    const label = ehSegmentoAdm
-      ? rotuloCanalSegmentoEmpresaParaEmpresa(canal)
-      : canal.empresa_id == null && canalNomeEhFinanceiro(canal.nome)
-        ? ROTULO_CANAL_FINANCEIRO_EMPRESA
-        : ehProfissional
-          ? rotuloCanalProfissionalLista(canal)
-          : canal.nome
+    const label = ehFinanceiro ? (
+      <CanalFinanceiroListaRotulo username={meuUsername} />
+    ) : ehSegmentoAdm ? (
+      rotuloCanalSegmentoEmpresaParaEmpresa(canal)
+    ) : ehProfissional ? (
+      rotuloCanalProfissionalLista(canal)
+    ) : (
+      canal.nome
+    )
     const ultima = ultimasMensagens[canal.id]
     const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
     const naoLidas = naoLidasExibidas(canal)
@@ -450,9 +458,18 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         label={label}
         preview={ehProfissional ? null : ultima?.preview || (horaIso ? ' ' : null)}
         hora={ehProfissional ? null : formatarListaHora(horaIso)}
-        somenteTitulo={ehProfissional || ehSegmentoAdm || (canal.empresa_id == null && canalExibeContagemMembros(canal))}
+        somenteTitulo={
+          ehFinanceiro ||
+          ehProfissional ||
+          ehSegmentoAdm ||
+          (canal.empresa_id == null && canalExibeContagemMembros(canal))
+        }
         subtitulo={
-          ehProfissional || canalExibeContagemMembros(canal) ? legendaMembros(canal) : null
+          ehFinanceiro
+            ? null
+            : ehProfissional || canalExibeContagemMembros(canal)
+              ? legendaMembros(canal)
+              : null
         }
         naoLidas={naoLidas}
         active={isActive}

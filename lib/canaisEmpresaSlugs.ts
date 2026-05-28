@@ -76,5 +76,5 @@ export function isCanalFinanceiroEmpresa(nome: string | null | undefined): boole
   return nomeNormCanalEmpresa(nome) === 'FINANCEIRO'
 }
 
-/** Rótulo na lista e no cabeçalho do canal financeiro (usuário empresa). */
-export const ROTULO_CANAL_FINANCEIRO_EMPRESA = 'Canal Financeiro da Empresa'
+/** @deprecated Use `TITULO_CANAL_FINANCEIRO_PESSOAL` em `CanalFinanceiroListaRotulo`. */
+export const ROTULO_CANAL_FINANCEIRO_EMPRESA = 'Seu Canal Financeiro'

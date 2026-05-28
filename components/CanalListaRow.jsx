@@ -29,8 +29,6 @@ export default function CanalListaRow({
   onClick,
   avatar,
 }) {
-  const naoLido = naoLidas > 0
-
   if (somenteTitulo) {
     return (
       <button
@@ -44,13 +42,7 @@ export default function CanalListaRow({
         <div className="shrink-0">{avatar}</div>
         <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <div
-              className={`min-w-0 text-[15px] ${
-                naoLido ? 'font-bold text-gray-900' : 'font-medium text-gray-800'
-              }`}
-            >
-              {label}
-            </div>
+            <div className="min-w-0 text-[15px] font-normal text-gray-800">{label}</div>
             {subtitulo ? <p className="mt-0.5 truncate text-xs text-gray-500">{subtitulo}</p> : null}
           </div>
           <CanalNaoLidasBadge count={naoLidas} />
@@ -71,27 +63,15 @@ export default function CanalListaRow({
       <div className="shrink-0">{avatar}</div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <div
-            className={`min-w-0 flex-1 text-[15px] ${
-              naoLido ? 'font-bold text-gray-900' : 'font-medium text-gray-800'
-            }`}
-          >
-            {label}
-          </div>
+          <div className="min-w-0 flex-1 text-[15px] font-normal text-gray-800">{label}</div>
           {hora ? (
-            <span
-              className={`shrink-0 text-xs ${naoLido ? 'font-semibold text-[#0097b2]' : 'text-gray-500'}`}
-            >
+            <span className="shrink-0 text-xs text-gray-500">
               {hora}
             </span>
           ) : null}
         </div>
         <div className="mt-0.5 flex items-center justify-between gap-2">
-          <p
-            className={`min-w-0 truncate text-sm ${
-              naoLido ? 'font-medium text-gray-700' : 'text-gray-500'
-            }`}
-          >
+          <p className="min-w-0 truncate text-sm font-normal text-gray-500">
             {preview || ' '}
           </p>
           <CanalNaoLidasBadge count={naoLidas} />

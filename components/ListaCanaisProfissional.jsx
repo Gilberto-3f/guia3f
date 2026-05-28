@@ -17,7 +17,9 @@ import {
   slugCanalComunidadeProfissional,
 } from '@/lib/canaisProfissionalSlugs'
 import CanalEmpresaRow from '@/components/CanalEmpresaRow'
+import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
 import CanalListaRow from '@/components/CanalListaRow'
+import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
 import { buscarUltimasMensagensCanais, formatarListaHora, patchUltimaMensagemCanal } from '@/lib/canalLista'
 import { contarFinanceiroNaoLidasProfissional } from '@/lib/canaisProfissionalVisibilidade'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
@@ -195,6 +197,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
   const [ultimasMensagens, setUltimasMensagens] = useState({})
   /** @type {Record<string, number>} */
   const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
+  const [meuUsername, setMeuUsername] = useState(/** @type {string | null} */ (null))
   const [categoriaAba, setCategoriaAba] = useState(ORDEM_CATEGORIA_EMPRESA[0] ?? 'Restaurantes')
   const [gruposAbertos, setGruposAbertos] = useState(/** @type {Record<string, boolean>} */ ({
     administracao: false,
@@ -358,11 +361,13 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       setCanais(ordenados)
 
       const ids = ordenados.map((c) => c.id).filter((id) => !String(id).startsWith('__placeholder'))
-      const [ultimas, contagens, fin] = await Promise.all([
+      const [ultimas, contagens, fin, username] = await Promise.all([
         buscarUltimasMensagensCanais(supabase, ids),
         contarNaoLidasPorCanalIds(supabase, uid, ids),
         contarFinanceiroNaoLidasProfissional(supabase, uid),
+        fetchNomeUsuarioParaStory(supabase, uid),
       ])
+      setMeuUsername(username)
       setUltimasMensagens(ultimas)
       for (const c of ordenados) {
         if (isCanalFinanceiroProfissional(c.nome)) {
@@ -468,10 +473,15 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
   function renderRow(canal, opts = {}) {
     const isActive = canalSelecionadoId === canal.id
     const ehAdministracao = opts.canalProfissional === true
+    const ehFinanceiro = ehAdministracao && isCanalFinanceiroProfissional(canal.nome)
     const Icon = ehAdministracao ? iconeCanalProfissionalLista(canal) : getIcon(canal)
-    const label = ehAdministracao
-      ? rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional)
-      : canal.nome
+    const label = ehFinanceiro ? (
+      <CanalFinanceiroListaRotulo username={meuUsername} />
+    ) : ehAdministracao ? (
+      rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional)
+    ) : (
+      canal.nome
+    )
     const ultima = ultimasMensagens[canal.id]
     const horaIso = canal.ultima_mensagem_em ?? ultima?.created_at ?? null
     const naoLidas = naoLidasPorCanal[canal.id] ?? 0
@@ -496,7 +506,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         preview={ehAdministracao ? null : ultima?.preview || (horaIso ? ' ' : null)}
         hora={ehAdministracao ? null : formatarListaHora(horaIso)}
         somenteTitulo={ehAdministracao}
-        subtitulo={ehAdministracao ? legendaMembros(canal) : null}
+        subtitulo={ehAdministracao && !ehFinanceiro ? legendaMembros(canal) : null}
         naoLidas={naoLidas}
         active={isActive}
         onClick={() => onSelectCanal(canal)}
