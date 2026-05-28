@@ -44,7 +44,9 @@ export default function MenuMensagemCanal({
           e.stopPropagation()
           setAberto((v) => !v)
         }}
-        className={`rounded-full p-1 text-gray-500 hover:bg-gray-100 ${aberto ? 'bg-gray-100' : 'opacity-0 group-hover:opacity-100'}`}
+        className={`rounded-full p-1 text-gray-500 hover:bg-gray-100 max-md:opacity-100 ${
+          aberto ? 'bg-gray-100 opacity-100' : 'opacity-0 group-hover:opacity-100'
+        }`}
         aria-label="Opções da mensagem"
       >
         <MoreVertical className="h-4 w-4" aria-hidden />

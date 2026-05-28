@@ -122,6 +122,7 @@ export default function CanalMensagens({
   const [reacaoPickerId, setReacaoPickerId] = useState(/** @type {string | null} */ (null))
   const [editandoId, setEditandoId] = useState(/** @type {string | null} */ (null))
   const [idsSalvos, setIdsSalvos] = useState(/** @type {Set<string>} */ (() => new Set()))
+  const [mensagemDestacadaId, setMensagemDestacadaId] = useState(/** @type {string | null} */ (null))
   const [denunciaMsg, setDenunciaMsg] = useState(
     /** @type {{ id: string, texto: string | null } | null} */ (null),
   )
@@ -295,6 +296,36 @@ export default function CanalMensagens({
     stickToBottomRef.current = true
     void carregarMensagens()
   }, [carregarMensagens])
+
+  useEffect(() => {
+    if (!uid || !canalId) {
+      setIdsSalvos(new Set())
+      return
+    }
+    void listarIdsMensagensSalvasCanal(supabase, uid, canalId).then(setIdsSalvos)
+  }, [uid, canalId])
+
+  useEffect(() => {
+    if (!destaqueMensagemId || loadingInicial) return
+
+    setMensagemDestacadaId(destaqueMensagemId)
+
+    const rolarParaMensagem = () => {
+      const el = mensagemRefsMap.current.get(destaqueMensagemId)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
+    rolarParaMensagem()
+    requestAnimationFrame(rolarParaMensagem)
+    const tScroll = window.setTimeout(rolarParaMensagem, 300)
+
+    const tHighlight = window.setTimeout(() => setMensagemDestacadaId(null), 2500)
+
+    return () => {
+      clearTimeout(tScroll)
+      clearTimeout(tHighlight)
+    }
+  }, [destaqueMensagemId, loadingInicial, mensagens.length])
 
   useEffect(() => {
     precisaScrollInicialRef.current = true
@@ -946,7 +977,9 @@ export default function CanalMensagens({
                   if (el) mensagemRefsMap.current.set(msg.id, el)
                   else mensagemRefsMap.current.delete(msg.id)
                 }}
-                className={`group flex w-full rounded-lg transition-shadow ${isOwn ? 'justify-end' : 'justify-start'}`}
+                className={`group flex w-full rounded-lg transition-shadow ${
+                  isOwn ? 'justify-end' : 'justify-start'
+                } ${mensagemDestacadaId === msg.id ? 'ring-2 ring-[#0097b2] ring-offset-1' : ''}`}
               >
                 <div className={`flex max-w-[82%] flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
                   <div className={`flex items-end gap-1.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
