@@ -11,8 +11,10 @@ import CanalMensagens from '@/components/CanalMensagens'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
 import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
-import CanalDrawer from '@/components/canal/CanalDrawer'
+import dynamic from 'next/dynamic'
 import CanalHeaderTitulo from '@/components/canal/CanalHeaderTitulo'
+
+const CanalDrawer = dynamic(() => import('@/components/canal/CanalDrawer'), { ssr: false })
 import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
 import { rotuloCanalListaProfissional } from '@/lib/canaisProfissionaisListaUi'
@@ -392,9 +394,9 @@ export default function CanalDetalhePage() {
   }, [podeMostrarDrawerCanal])
 
   const drawerCanalOverlay =
-    podeMostrarDrawerCanal && canalDrawerDados ? (
+    drawerCanalAberto && podeMostrarDrawerCanal && canalDrawerDados ? (
       <CanalDrawer
-        aberto={drawerCanalAberto}
+        aberto
         onFechar={() => setDrawerCanalAberto(false)}
         canalId={canalId}
         canal={canalDrawerDados}

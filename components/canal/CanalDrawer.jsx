@@ -72,7 +72,11 @@ export default function CanalDrawer({
   const [portalPronto, setPortalPronto] = useState(false)
   const [visivel, setVisivel] = useState(false)
 
-  const membrosPorCanal = useContagemMembrosCanais([canal])
+  const canaisContagem = useMemo(
+    () => [canal],
+    [canal.id, canal.nome, canal.tipo_publico, canal.categoria, canal.comunidade_prof, canal.empresa_id],
+  )
+  const membrosPorCanal = useContagemMembrosCanais(canaisContagem)
   const totalMembros = membrosPorCanal[canal.id] ?? 0
   const legendaMembros = canalExibeContagemMembros(canal)
     ? formatarLegendaMembrosCanal(totalMembros)
@@ -249,7 +253,8 @@ export default function CanalDrawer({
     [],
   )
 
-  if (!portalPronto || !visivel) return null
+  if (!aberto || !portalPronto || !visivel) return null
+  if (typeof document === 'undefined') return null
 
   const botoesAcao = [
     { id: 'midia', label: 'Mídia', icon: ImageIcon },
