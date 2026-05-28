@@ -14,11 +14,9 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useContagemMembrosCanais } from '@/hooks/useContagemMembrosCanais'
-import {
-  canalExibeContagemMembros,
-  formatarLegendaMembrosCanal,
-  type CanalMembrosRow,
-} from '@/lib/canalMembrosContagem'
+import { canalExibeContagemMembros, formatarLegendaMembrosCanal } from '@/lib/canalMembrosContagem'
+
+/** @typedef {import('@/lib/canalMembrosContagem').CanalMembrosRow} CanalMembrosRow */
 import {
   iconeCanalProfissionalLista,
   CLASSE_AVATAR_CANAL_PROFISSIONAL,
