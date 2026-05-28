@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { MoreVertical, Pencil, Send, Paperclip, X, Check } from 'lucide-react'
@@ -11,7 +11,8 @@ import { marcarCanalComoLidoResiliente } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { listarMensagensCanalRecentes } from '@/lib/canalMensagensFetch'
 import { mensagensComSeparadoresData } from '@/lib/canalMensagensUi'
-import { ehAnexoImagemCanal } from '@/lib/canalAnexoUrl'
+import { ehAnexoImagemCanal, prefetchImagensAnexosCanal } from '@/lib/canalAnexoUrl'
+import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import { parseReacoesCanal, toggleReacaoMensagemCanal } from '@/lib/canalReacoes'
 import { EMOJIS_REACAO_CANAL } from '@/lib/canalReacoesEmojis'
 import CanalMensagemImagem from '@/components/CanalMensagemImagem'
@@ -19,6 +20,25 @@ import AvatarImage from '@/components/AvatarImage'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 const LONG_PRESS_REACAO_MS = 500
+const FALLBACK_REMETENTE = { id: '', nome: 'Usuário', foto_url: null, role: '' }
+
+/**
+ * @param {Record<string, unknown>} m
+ * @param {Map<string, import('@/lib/canalRemetentes').RemetenteCanal>} remetentesMap
+ */
+function mensagemCanalFromRow(m, remetentesMap) {
+  const rid = m.remetente_id != null ? String(m.remetente_id) : ''
+  const remetente = (rid && remetentesMap.get(rid)) || FALLBACK_REMETENTE
+  return {
+    id: String(m.id),
+    texto: m.texto != null ? String(m.texto) : null,
+    anexo_url: m.anexo_url != null ? String(m.anexo_url) : null,
+    anexo_tipo: m.anexo_tipo != null ? String(m.anexo_tipo) : null,
+    reacoes: parseReacoesCanal(m.reacoes),
+    created_at: String(m.created_at ?? ''),
+    remetente,
+  }
+}
 
 /**
  * @param {unknown} reacoes
@@ -161,6 +181,13 @@ export default function CanalMensagens({
       const [{ data: { session } }, rows] = await Promise.all([supabase.auth.getSession(), fetchRows])
       setUid(session?.user?.id ?? null)
 
+      const mensagensRapidas = rows.map((msg) =>
+        mensagemCanalFromRow(/** @type {Record<string, unknown>} */ (msg), new Map()),
+      )
+      setMensagens(mensagensRapidas)
+      prefetchImagensAnexosCanal(supabase, mensagensRapidas)
+      if (!silent) setLoadingInicial(false)
+
       const remetenteIds = rows
         .map((msg) => {
           const m = /** @type {Record<string, unknown>} */ (msg)
@@ -168,24 +195,13 @@ export default function CanalMensagens({
         })
         .filter(Boolean)
       const remetentesMap = await buscarRemetentesEmLote(supabase, remetenteIds)
-      const fallbackRemetente = { id: '', nome: 'Usuário', foto_url: null, role: '' }
 
-      const mensagensCompletas = rows.map((msg) => {
-        const m = /** @type {Record<string, unknown>} */ (msg)
-        const rid = m.remetente_id != null ? String(m.remetente_id) : ''
-        const remetente = (rid && remetentesMap.get(rid)) || fallbackRemetente
-        return {
-          id: String(m.id),
-          texto: m.texto != null ? String(m.texto) : null,
-          anexo_url: m.anexo_url != null ? String(m.anexo_url) : null,
-          anexo_tipo: m.anexo_tipo != null ? String(m.anexo_tipo) : null,
-          reacoes: parseReacoesCanal(m.reacoes),
-          created_at: String(m.created_at ?? ''),
-          remetente,
-        }
-      })
+      const mensagensCompletas = rows.map((msg) =>
+        mensagemCanalFromRow(/** @type {Record<string, unknown>} */ (msg), remetentesMap),
+      )
 
       setMensagens(mensagensCompletas)
+      prefetchImagensAnexosCanal(supabase, mensagensCompletas)
       if (session?.user?.id) {
         const me = remetentesMap.get(session.user.id)
         if (me) setMeuRemetente(me)
@@ -338,12 +354,9 @@ export default function CanalMensagens({
           void (async () => {
             const id = String(novo.id)
             const rid = novo.remetente_id != null ? String(novo.remetente_id) : ''
-            const remetentesMap = rid ? await buscarRemetentesEmLote(supabase, [rid]) : new Map()
-            const fallback = { id: '', nome: 'Usuário', foto_url: null, role: '' }
-            const remetente =
-              (rid && remetentesMap.get(rid)) ||
-              (rid && uidRef.current === rid ? meuRemetenteRef.current : null) ||
-              fallback
+            const remetenteRapido =
+              (rid && uidRef.current === rid && meuRemetenteRef.current) ||
+              (rid ? { id: rid, nome: '…', foto_url: null, role: '' } : FALLBACK_REMETENTE)
 
             const novaMsg = {
               id,
@@ -352,7 +365,7 @@ export default function CanalMensagens({
               anexo_tipo: novo.anexo_tipo != null ? String(novo.anexo_tipo) : null,
               reacoes: parseReacoesCanal(novo.reacoes),
               created_at: String(novo.created_at ?? ''),
-              remetente,
+              remetente: remetenteRapido,
             }
 
             let appended = false
@@ -362,6 +375,21 @@ export default function CanalMensagens({
               return [...prev, novaMsg]
             })
             if (!appended) return
+
+            if (ehAnexoImagemCanal(novaMsg.anexo_url, novaMsg.anexo_tipo)) {
+              prefetchImagensAnexosCanal(supabase, [novaMsg], 1)
+            }
+
+            if (rid) {
+              const remetentesMap = await buscarRemetentesEmLote(supabase, [rid])
+              const remetente = remetentesMap.get(rid)
+              if (remetente) {
+                setMensagens((prev) =>
+                  prev.map((m) => (m.id === id ? { ...m, remetente } : m)),
+                )
+                if (uidRef.current === rid) setMeuRemetente(remetente)
+              }
+            }
 
             notificarBadgeCanais()
 
@@ -426,19 +454,31 @@ export default function CanalMensagens({
       let anexoTipo = null
 
       if (anexoEnviar) {
-        const fileExt = anexoEnviar.name.split('.').pop() || 'bin'
+        let arquivoUpload = anexoEnviar
+        if (anexoEnviar.type.startsWith('image/')) {
+          arquivoUpload = await compressImageFileForStoryUpload(anexoEnviar, {
+            maxWidth: 1280,
+            jpegQuality: 0.85,
+            maxBytesSkip: 450_000,
+          })
+        }
+
+        const fileExt =
+          arquivoUpload.type === 'image/jpeg'
+            ? 'jpg'
+            : arquivoUpload.name.split('.').pop() || 'bin'
         const fileName = `${Date.now()}.${fileExt}`
         const filePath = `${session.user.id}/${canalId}/${fileName}`
 
         const contentType =
-          anexoEnviar.type && anexoEnviar.type.startsWith('image/')
-            ? anexoEnviar.type
-            : anexoEnviar.type || 'application/octet-stream'
+          arquivoUpload.type && arquivoUpload.type.startsWith('image/')
+            ? arquivoUpload.type
+            : arquivoUpload.type || 'application/octet-stream'
 
-        const { error: uploadError } = await supabase.storage.from('mensagens').upload(filePath, anexoEnviar, {
+        const { error: uploadError } = await supabase.storage.from('mensagens').upload(filePath, arquivoUpload, {
           upsert: true,
           contentType,
-          cacheControl: '3600',
+          cacheControl: '31536000',
         })
 
         if (uploadError) {
@@ -448,7 +488,7 @@ export default function CanalMensagens({
 
         const { data: pub } = supabase.storage.from('mensagens').getPublicUrl(filePath)
         anexoUrl = pub.publicUrl
-        anexoTipo = anexoEnviar.type.startsWith('image/') ? 'imagem' : 'documento'
+        anexoTipo = arquivoUpload.type.startsWith('image/') ? 'imagem' : 'documento'
       }
 
       const paisMsg = paisTab && paisTab !== 'geral' ? paisTab : 'geral'
@@ -561,6 +601,19 @@ export default function CanalMensagens({
       console.error('Erro ao reagir:', e)
     }
   }
+
+  const idsImagemPrioridade = useMemo(() => {
+    const ids = new Set()
+    let n = 0
+    for (let i = mensagens.length - 1; i >= 0 && n < 8; i--) {
+      const m = mensagens[i]
+      if (ehAnexoImagemCanal(m.anexo_url, m.anexo_tipo)) {
+        ids.add(m.id)
+        n++
+      }
+    }
+    return ids
+  }, [mensagens])
 
   if (!canalId) {
     return (
@@ -730,9 +783,12 @@ export default function CanalMensagens({
                             </p>
                           ) : null}
 
-                          {msg.anexo_url && msg.anexo_tipo === 'imagem' ? (
+                          {ehAnexoImagemCanal(msg.anexo_url, msg.anexo_tipo) ? (
                             <div className={msg.texto ? 'mt-1.5' : ''}>
-                              <CanalMensagemImagem src={msg.anexo_url} />
+                              <CanalMensagemImagem
+                                src={msg.anexo_url}
+                                priority={idsImagemPrioridade.has(msg.id)}
+                              />
                             </div>
                           ) : null}
 

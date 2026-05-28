@@ -57,6 +57,25 @@ export async function resolverUrlAnexoMensagemCanal(
   return urlPublicaAnexoMensagemCanal(supabase, anexoUrl)
 }
 
+/** Pré-carrega as últimas imagens do chat no navegador (útil ao abrir o canal). */
+export function prefetchImagensAnexosCanal(
+  supabase: SupabaseClient,
+  mensagens: Array<{ anexo_url: string | null; anexo_tipo: string | null }>,
+  limit = 8,
+): void {
+  if (typeof window === 'undefined' || limit <= 0) return
+  let carregadas = 0
+  for (let i = mensagens.length - 1; i >= 0 && carregadas < limit; i--) {
+    const m = mensagens[i]
+    if (!m.anexo_url || !ehAnexoImagemCanal(m.anexo_url, m.anexo_tipo)) continue
+    const url = urlPublicaAnexoMensagemCanal(supabase, m.anexo_url)
+    const img = new window.Image()
+    img.decoding = 'async'
+    img.src = url
+    carregadas++
+  }
+}
+
 /** Anexo é imagem (`anexo_tipo` ou extensão na URL). */
 export function ehAnexoImagemCanal(anexoUrl: string | null | undefined, anexoTipo: string | null | undefined): boolean {
   if (!anexoUrl) return false
