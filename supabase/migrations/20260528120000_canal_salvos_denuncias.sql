@@ -39,10 +39,18 @@ COMMENT ON TABLE public.denuncias_mensagem_canal IS 'Denúncias de mensagens ou 
 
 DROP TRIGGER IF EXISTS trg_denuncias_mensagem_canal_updated ON public.denuncias_mensagem_canal;
 
+CREATE OR REPLACE FUNCTION public.update_denuncias_mensagem_canal_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TRIGGER trg_denuncias_mensagem_canal_updated
 BEFORE UPDATE ON public.denuncias_mensagem_canal
 FOR EACH ROW
-EXECUTE FUNCTION public.update_denuncias_updated_at();
+EXECUTE FUNCTION public.update_denuncias_mensagem_canal_updated_at();
 
 ALTER TABLE public.mensagens_canal_salvas ENABLE ROW LEVEL SECURITY;
 

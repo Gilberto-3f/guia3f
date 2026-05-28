@@ -22,27 +22,16 @@ import MenuMensagemCanal from '@/components/canal/MenuMensagemCanal'
 import ModalDenunciaCanal from '@/components/canal/ModalDenunciaCanal'
 import { listarIdsMensagensSalvasCanal, toggleSalvarMensagemCanal } from '@/lib/canalSalvos'
 import { enviarDenunciaMensagemCanal } from '@/lib/canalDenuncias'
+import {
+  contentTypeUploadAudio,
+  extensaoAudioGravacao,
+  mimeTypeGravacaoCanal,
+} from '@/lib/canalAudioGravacao'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 const LONG_PRESS_REACAO_MS = 500
 const GRAVACAO_MIN_MS = 400
 const FALLBACK_REMETENTE = { id: '', nome: 'Usuário', foto_url: null, role: '' }
-
-/** @returns {string} */
-function mimeTypeGravacaoCanal() {
-  const candidatos = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
-  for (const m of candidatos) {
-    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) return m
-  }
-  return ''
-}
-
-/** @param {string} mime */
-function extensaoAudioGravacao(mime) {
-  if (mime.includes('mp4')) return 'm4a'
-  if (mime.includes('ogg')) return 'ogg'
-  return 'webm'
-}
 
 /**
  * @param {Record<string, unknown>} m
@@ -549,14 +538,20 @@ export default function CanalMensagens({
           })
         }
 
-        const fileExt =
+        let fileExt =
           arquivoUpload.type === 'image/jpeg'
             ? 'jpg'
             : arquivoUpload.name.split('.').pop() || 'bin'
+        if (anexoTipoForcado === 'audio' || arquivoUpload.type.startsWith('audio/')) {
+          fileExt = extensaoAudioGravacao(arquivoUpload.type || 'audio/webm')
+        }
         const fileName = `${Date.now()}.${fileExt}`
         const filePath = `${session.user.id}/${canalId}/${fileName}`
 
-        const contentType = arquivoUpload.type || 'application/octet-stream'
+        const contentType =
+          anexoTipoForcado === 'audio' || arquivoUpload.type.startsWith('audio/')
+            ? contentTypeUploadAudio(arquivoUpload.type || 'audio/webm')
+            : arquivoUpload.type || 'application/octet-stream'
 
         const { error: uploadError } = await supabase.storage.from('mensagens').upload(filePath, arquivoUpload, {
           upsert: true,
@@ -696,7 +691,7 @@ export default function CanalMensagens({
       }
       mediaRecorderRef.current = recorder
       gravacaoInicioRef.current = Date.now()
-      recorder.start()
+      recorder.start(250)
       setGravandoAudio(true)
       setSegundosGravacao(0)
       limparTimerGravacao()
@@ -755,6 +750,11 @@ export default function CanalMensagens({
       if (recorder.state === 'recording') {
         await new Promise((resolve) => {
           recorder.addEventListener('stop', resolve, { once: true })
+          try {
+            if (typeof recorder.requestData === 'function') recorder.requestData()
+          } catch {
+            /* ignore */
+          }
           try {
             recorder.stop()
           } catch {

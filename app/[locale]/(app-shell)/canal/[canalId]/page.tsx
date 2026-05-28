@@ -12,6 +12,7 @@ import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
 import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
 import CanalDrawer from '@/components/canal/CanalDrawer'
+import CanalHeaderTitulo from '@/components/canal/CanalHeaderTitulo'
 import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
 import { rotuloCanalListaProfissional } from '@/lib/canaisProfissionaisListaUi'
@@ -536,12 +537,14 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="min-w-0 flex-1 truncate text-center text-lg font-semibold">{tituloCanal}</h1>
+          <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal}>
+            <span className="truncate text-lg font-semibold">{tituloCanal}</span>
+          </CanalHeaderTitulo>
           <button
             type="button"
             onClick={() => abrirDrawerCanal()}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
-            aria-label="Informações do canal"
+            aria-label="Mais opções do canal"
           >
             <MoreVertical className="h-5 w-5" aria-hidden />
           </button>
