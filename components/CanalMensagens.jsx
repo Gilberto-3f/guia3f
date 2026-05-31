@@ -1064,7 +1064,11 @@ export default function CanalMensagens({
                           ) : null}
 
                           {ehAnexoImagemCanal(msg.anexo_url, msg.anexo_tipo) ? (
-                            <div className={msg.texto ? 'mt-1.5' : ''}>
+                            <div
+                              className={msg.texto ? 'mt-1.5' : ''}
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <CanalMensagemImagem
                                 src={msg.anexo_url}
                                 priority={idsImagemPrioridade.has(msg.id)}

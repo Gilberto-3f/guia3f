@@ -1,47 +1,52 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
+  extrairPathBucketMensagens,
   resolverUrlAnexoMensagemCanal,
   urlPreviewImagemAnexoMensagemCanal,
   urlPublicaAnexoMensagemCanal,
 } from '@/lib/canalAnexoUrl'
 
-const PREVIEW_W = 280
-const PREVIEW_H = 256
-
-function urlUsaNextImage(url) {
-  return (
-    url.startsWith('https://') &&
-    (url.includes('/storage/v1/object/public/') || url.includes('/storage/v1/render/image/public/'))
-  )
-}
-
 /**
- * Imagem de mensagem de canal — preview no chat; toque abre visualizador em tela cheia (fundo preto).
+ * Imagem de mensagem de canal — miniatura no chat; toque abre visualizador em tela cheia (fundo preto).
  * @param {{ src: string; className?: string; priority?: boolean }} props
  */
 export default function CanalMensagemImagem({ src, className = '', priority = false }) {
   const urlPublica = useMemo(() => urlPublicaAnexoMensagemCanal(supabase, src), [src])
   const urlPreview = useMemo(() => urlPreviewImagemAnexoMensagemCanal(supabase, src), [src])
-  const [url, setUrl] = useState(urlPreview)
-  const [tentouAssinada, setTentouAssinada] = useState(false)
+  const [urlChat, setUrlChat] = useState(urlPreview)
+  const [urlOverlay, setUrlOverlay] = useState(urlPublica)
   const [aberto, setAberto] = useState(false)
   const [montado, setMontado] = useState(false)
-  const otimizada = urlUsaNextImage(url)
+  const signedProntoRef = useRef(/** @type {string | null} */ (null))
+  const fallbackChatRef = useRef(/** @type {'publica' | 'assinada' | 'done'} */ ('publica'))
 
   useEffect(() => {
     setMontado(true)
   }, [])
 
   useEffect(() => {
-    setUrl(urlPreview)
-    setTentouAssinada(false)
-  }, [urlPreview])
+    setUrlChat(urlPreview)
+    setUrlOverlay(urlPublica)
+    fallbackChatRef.current = 'publica'
+    signedProntoRef.current = null
+
+    const path = extrairPathBucketMensagens(src)
+    if (!path) return
+
+    let vivo = true
+    void resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true }).then((signed) => {
+      if (!vivo) return
+      signedProntoRef.current = signed
+    })
+    return () => {
+      vivo = false
+    }
+  }, [src, urlPreview, urlPublica])
 
   const fechar = useCallback(() => setAberto(false), [])
 
@@ -59,48 +64,58 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
     }
   }, [aberto, fechar])
 
-  const onError = useCallback(() => {
-    if (url !== urlPublica && url !== urlPreview) {
-      setUrl(urlPublica)
+  const onErrorChat = useCallback(() => {
+    if (fallbackChatRef.current === 'publica') {
+      fallbackChatRef.current = 'assinada'
+      if (urlChat !== urlPublica && urlPublica) {
+        setUrlChat(urlPublica)
+        return
+      }
+    }
+    if (fallbackChatRef.current === 'assinada') {
+      fallbackChatRef.current = 'done'
+      const signed = signedProntoRef.current
+      if (signed && urlChat !== signed) {
+        setUrlChat(signed)
+        return
+      }
+      void resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true }).then((s) => {
+        if (s) setUrlChat(s)
+      })
+    }
+  }, [src, urlChat, urlPublica])
+
+  const onErrorOverlay = useCallback(() => {
+    const signed = signedProntoRef.current
+    if (signed && urlOverlay !== signed) {
+      setUrlOverlay(signed)
       return
     }
-    if (url === urlPreview && urlPreview !== urlPublica) {
-      setUrl(urlPublica)
-      return
-    }
-    if (tentouAssinada) return
-    setTentouAssinada(true)
-    void (async () => {
-      const signed = await resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true })
-      setUrl(signed)
-    })()
-  }, [src, tentouAssinada, url, urlPreview, urlPublica])
+    void resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true }).then((s) => {
+      if (s) setUrlOverlay(s)
+    })
+  }, [src, urlOverlay])
+
+  const abrirOverlay = useCallback(
+    (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setUrlOverlay(urlChat || urlPublica)
+      setAberto(true)
+      if (urlPublica && urlPublica !== urlChat) {
+        const img = new window.Image()
+        img.onload = () => setUrlOverlay(urlPublica)
+        img.src = urlPublica
+      }
+    },
+    [urlChat, urlPublica],
+  )
+
+  const pararPropagacao = useCallback((e) => {
+    e.stopPropagation()
+  }, [])
 
   const previewClass = `max-h-64 w-full max-w-[min(100%,280px)] rounded-lg object-contain ${className}`
-
-  const previewImg = otimizada ? (
-    <Image
-      src={url}
-      alt=""
-      width={PREVIEW_W}
-      height={PREVIEW_H}
-      className={previewClass}
-      sizes="(max-width: 360px) 280px, 50vw"
-      priority={priority}
-      onError={onError}
-    />
-  ) : (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={url}
-      alt=""
-      className={previewClass}
-      loading={priority ? 'eager' : 'lazy'}
-      fetchPriority={priority ? 'high' : 'auto'}
-      decoding="async"
-      onError={onError}
-    />
-  )
 
   const overlay =
     aberto && montado
@@ -123,22 +138,16 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
             >
               <X size={18} strokeWidth={2} aria-hidden />
             </button>
-            {otimizada ? (
-              <div className="relative h-[100dvh] w-[100vw]" onClick={(e) => e.stopPropagation()}>
-                <Image src={urlPublica} alt="" fill className="object-contain" sizes="100vw" priority />
-              </div>
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={urlPublica}
-                alt=""
-                className="max-h-[100dvh] max-w-[100vw] object-contain"
-                decoding="async"
-                fetchPriority="high"
-                onClick={(e) => e.stopPropagation()}
-                onError={onError}
-              />
-            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={urlOverlay}
+              alt=""
+              className="max-h-[100dvh] max-w-[100vw] object-contain"
+              decoding="async"
+              fetchPriority="high"
+              onClick={(e) => e.stopPropagation()}
+              onError={onErrorOverlay}
+            />
           </div>,
           document.body,
         )
@@ -148,11 +157,23 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
     <>
       <button
         type="button"
-        onClick={() => setAberto(true)}
-        className="inline-block cursor-pointer border-0 bg-transparent p-0 text-left"
+        onClick={abrirOverlay}
+        onPointerDown={pararPropagacao}
+        onPointerUp={pararPropagacao}
+        onPointerCancel={pararPropagacao}
+        className="inline-block cursor-pointer border-0 bg-transparent p-0 text-left touch-manipulation"
         aria-label="Abrir imagem em tela cheia"
       >
-        {previewImg}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={urlChat}
+          alt=""
+          className={previewClass}
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
+          decoding="async"
+          onError={onErrorChat}
+        />
       </button>
       {overlay}
     </>

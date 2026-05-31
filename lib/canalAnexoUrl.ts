@@ -4,6 +4,10 @@ const BUCKET_MENSAGENS = 'mensagens'
 
 const EXT_IMAGEM = /\.(jpe?g|png|gif|webp|avif|bmp|svg)(\?.*)?$/i
 
+/** Cache em memória de URLs assinadas (evita round-trip repetido no chat). */
+const cacheSignedUrl = new Map<string, { url: string; expira: number }>()
+const TTL_SIGNED_MS = 50 * 60 * 1000
+
 /**
  * Extrai o path interno do bucket `mensagens` a partir da URL pública/assinada.
  */
@@ -50,8 +54,15 @@ export async function resolverUrlAnexoMensagemCanal(
   if (!path) return anexoUrl
 
   if (opts?.forceSigned) {
+    const agora = Date.now()
+    const emCache = cacheSignedUrl.get(path)
+    if (emCache && emCache.expira > agora) return emCache.url
+
     const { data, error } = await supabase.storage.from(BUCKET_MENSAGENS).createSignedUrl(path, 60 * 60)
-    if (!error && data?.signedUrl) return data.signedUrl
+    if (!error && data?.signedUrl) {
+      cacheSignedUrl.set(path, { url: data.signedUrl, expira: agora + TTL_SIGNED_MS })
+      return data.signedUrl
+    }
   }
 
   return urlPublicaAnexoMensagemCanal(supabase, anexoUrl)
