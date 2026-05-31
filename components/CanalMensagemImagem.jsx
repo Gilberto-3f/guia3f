@@ -118,10 +118,10 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
                 e.stopPropagation()
                 fechar()
               }}
-              className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white"
+              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full text-gray-300 transition-colors hover:text-gray-100"
               aria-label="Fechar imagem"
             >
-              <X size={24} aria-hidden />
+              <X size={18} strokeWidth={2} aria-hidden />
             </button>
             {otimizada ? (
               <div className="relative h-[100dvh] w-[100vw]" onClick={(e) => e.stopPropagation()}>

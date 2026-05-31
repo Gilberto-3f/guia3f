@@ -536,7 +536,7 @@ export default function ListaCanais({
         <button
           type="button"
           onClick={() => toggleGrupo(id)}
-          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-base"
+          className="flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-base"
         >
           <span className="font-bold leading-snug text-[#0097b2]">{titulo}</span>
           <span className="flex shrink-0 items-center gap-2">
@@ -551,7 +551,7 @@ export default function ListaCanais({
         {aberto ? (
           <div>
             {itensRender.map((canal) => (
-              <div key={canal.id} className="pl-4">
+              <div key={canal.id} className="pl-2">
                 {renderRow(canal, {
                   blocoAdministracao: adm,
                   pastaProfissionais: pastaProfissionais === true,

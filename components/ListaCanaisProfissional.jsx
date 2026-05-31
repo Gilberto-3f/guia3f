@@ -539,7 +539,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
             <button
               type="button"
               onClick={() => toggleGrupo('administracao')}
-              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-base"
+              className="flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-base"
             >
               <span className="min-w-0 flex-1 font-bold leading-snug text-[#0097b2]">ADMINISTRAÇÃO</span>
               <span className="flex shrink-0 items-center gap-2">
@@ -558,7 +558,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
             {gruposAbertos.administracao === true ? (
               <div>
                 {part.administracao.map((canal) => (
-                  <div key={canal.id} className="pl-4">
+                  <div key={canal.id} className="pl-2">
                     {renderRow(canal, { canalProfissional: true })}
                   </div>
                 ))}
@@ -572,7 +572,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
             <button
               type="button"
               onClick={() => toggleGrupo('empresas')}
-              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-base"
+              className="flex w-full items-center justify-between gap-2 px-3 py-3 text-left text-base"
             >
               <span className="font-bold leading-snug text-[#0097b2]">EMPRESAS</span>
               <span className="flex shrink-0 items-center gap-2">

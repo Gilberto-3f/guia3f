@@ -35,12 +35,12 @@ export default function CanalListaRow({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={`flex w-full items-center gap-3 border-b border-gray-200/80 px-4 py-3 text-left transition-colors ${
+        className={`flex w-full items-center gap-3 px-3 py-0 text-left transition-colors ${
           disabled ? 'cursor-not-allowed opacity-60' : active ? 'bg-[#0097b2]/8' : 'hover:bg-gray-50'
         }`}
       >
-        <div className="shrink-0">{avatar}</div>
-        <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+        <div className="shrink-0 self-center py-3">{avatar}</div>
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-2 border-b border-gray-200/80 py-3">
           <div className="min-w-0 flex-1">
             <div className="min-w-0 text-[15px] font-normal text-gray-800">{label}</div>
             {subtitulo ? <p className="mt-0.5 truncate text-xs text-gray-500">{subtitulo}</p> : null}
@@ -56,12 +56,12 @@ export default function CanalListaRow({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex w-full items-center gap-3 border-b border-gray-200/80 px-4 py-3 text-left transition-colors ${
+      className={`flex w-full items-center gap-3 px-3 py-0 text-left transition-colors ${
         disabled ? 'cursor-not-allowed opacity-60' : active ? 'bg-[#0097b2]/8' : 'hover:bg-gray-50'
       }`}
     >
-      <div className="shrink-0">{avatar}</div>
-      <div className="min-w-0 flex-1">
+      <div className="shrink-0 self-center py-3">{avatar}</div>
+      <div className="min-w-0 flex-1 border-b border-gray-200/80 py-3">
         <div className="flex items-baseline justify-between gap-2">
           <div className="min-w-0 flex-1 text-[15px] font-normal text-gray-800">{label}</div>
           {hora ? (
