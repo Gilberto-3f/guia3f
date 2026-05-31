@@ -44,9 +44,12 @@ const FALLBACK_REMETENTE = { id: '', nome: 'Usuário', foto_url: null, role: '' 
  */
 function mensagemCanalFromRow(m, remetentesMap) {
   const rid = m.remetente_id != null ? String(m.remetente_id) : ''
-  const remetente = (rid && remetentesMap.get(rid)) || FALLBACK_REMETENTE
+  const remetente =
+    (rid && remetentesMap.get(rid)) ||
+    (rid ? { ...FALLBACK_REMETENTE, id: rid } : FALLBACK_REMETENTE)
   return {
     id: String(m.id),
+    remetente_id: rid,
     texto: m.texto != null ? String(m.texto) : null,
     anexo_url: m.anexo_url != null ? String(m.anexo_url) : null,
     anexo_tipo: m.anexo_tipo != null ? String(m.anexo_tipo) : null,
@@ -93,6 +96,7 @@ function formatarHora(data) {
  *   inboxModo?: 'profissional' | 'empresa'
  *   canalNome?: string
  *   destaqueMensagemId?: string | null
+ *   usuarioId?: string | null
  * }} props
  */
 export default function CanalMensagens({
@@ -104,8 +108,9 @@ export default function CanalMensagens({
   inboxModo = 'profissional',
   canalNome = 'Canal',
   destaqueMensagemId = null,
+  usuarioId: usuarioIdProp = null,
 }) {
-  /** @type {Array<{ id: string, texto: string | null, anexo_url: string | null, anexo_tipo: string | null, reacoes: unknown[], created_at: string, remetente: { id: string, nome: string, foto_url: string | null, role: string } }>} */
+  /** @type {Array<{ id: string, remetente_id: string, texto: string | null, anexo_url: string | null, anexo_tipo: string | null, reacoes: unknown[], created_at: string, remetente: { id: string, nome: string, foto_url: string | null, role: string } }>} */
   const [mensagens, setMensagens] = useState([])
   const [novaMensagem, setNovaMensagem] = useState('')
   const [loadingInicial, setLoadingInicial] = useState(true)
@@ -116,7 +121,7 @@ export default function CanalMensagens({
   const [paddingTeclado, setPaddingTeclado] = useState(0)
   const [anexo, setAnexo] = useState(/** @type {File | null} */ (null))
   const [anexoPreview, setAnexoPreview] = useState(/** @type {string | null} */ (null))
-  const [uid, setUid] = useState(/** @type {string | null} */ (null))
+  const [uid, setUid] = useState(/** @type {string | null} */ (usuarioIdProp))
   const messagesEndRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const messagesContainerRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const stickToBottomRef = useRef(true)
@@ -247,15 +252,9 @@ export default function CanalMensagens({
         : listarMensagensCanalRecentes(supabase, canalId, { paisTab, limit: 80 })
 
       const [{ data: { session } }, rows] = await Promise.all([supabase.auth.getSession(), fetchRows])
-      setUid(session?.user?.id ?? null)
+      const uidSessao = session?.user?.id ?? usuarioIdProp ?? null
+      if (uidSessao) setUid(uidSessao)
       accessTokenRef.current = session?.access_token ?? null
-
-      const mensagensRapidas = rows.map((msg) =>
-        mensagemCanalFromRow(/** @type {Record<string, unknown>} */ (msg), new Map()),
-      )
-      void aquecerCacheImagensMensagensCanal(supabase, mensagensRapidas, { canalId, limit: 16 })
-      setMensagens(mensagensRapidas)
-      if (!silent) setLoadingInicial(false)
 
       const remetenteIds = rows
         .map((msg) => {
@@ -269,8 +268,9 @@ export default function CanalMensagens({
         mensagemCanalFromRow(/** @type {Record<string, unknown>} */ (msg), remetentesMap),
       )
 
-      setMensagens(mensagensCompletas)
       void aquecerCacheImagensMensagensCanal(supabase, mensagensCompletas, { canalId, limit: 16 })
+      setMensagens(mensagensCompletas)
+      if (!silent) setLoadingInicial(false)
       precisaScrollInicialRef.current = true
       stickToBottomRef.current = true
       if (session?.user?.id) {
@@ -291,7 +291,11 @@ export default function CanalMensagens({
     } finally {
       if (!silent) setLoadingInicial(false)
     }
-  }, [canalId, paisTab, inboxCanalAdm, inboxModo])
+  }, [canalId, paisTab, inboxCanalAdm, inboxModo, usuarioIdProp])
+
+  useEffect(() => {
+    if (usuarioIdProp) setUid(usuarioIdProp)
+  }, [usuarioIdProp])
 
   useEffect(() => {
     const base = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -969,7 +973,9 @@ export default function CanalMensagens({
             }
 
             const msg = item.msg
-            const isOwn = uid != null && msg.remetente.id === uid
+            const isOwn =
+              uid != null &&
+              (msg.remetente_id === uid || msg.remetente.id === uid)
             const reacoesAgrupadas = agruparReacoes(msg.reacoes)
             const temReacoes = Object.keys(reacoesAgrupadas).length > 0
             const pickerAberto = reacaoPickerId === msg.id

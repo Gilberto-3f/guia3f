@@ -145,7 +145,6 @@ export default function CanalDetalhePage() {
       const uid = session.user.id
       accessTokenRef.current = session.access_token
       setUsuarioId(uid)
-      setAuthPronto(true)
       void fetchNomeUsuarioParaStory(supabase, uid).then((nu) => {
         if (!cancelado) setMeuUsername(nu)
       })
@@ -162,6 +161,7 @@ export default function CanalDetalhePage() {
         else if (role === 'empresa') setUserTipo('empresa')
         else if (role === 'admin') setUserTipo('admin')
         else setUserTipo(null)
+        setAuthPronto(true)
         return
       }
 
@@ -190,6 +190,8 @@ export default function CanalDetalhePage() {
       else if (role === 'empresa') setUserTipo('empresa')
       else if (role === 'admin') setUserTipo('admin')
       else setUserTipo(null)
+
+      setAuthPronto(true)
 
       const tipoLocal = tipoEfetivoDeRole(role)
       if (tipoLocal === 'turista') {
@@ -459,7 +461,7 @@ export default function CanalDetalhePage() {
     void marcarLeituraCanalAtual()
   }, [router, marcarLeituraCanalAtual, marcarLeituraCanalAtualRapida])
 
-  if (!authPronto) {
+  if (!authPronto || userTipoEfetivo == null || carregandoCanal) {
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
@@ -488,7 +490,7 @@ export default function CanalDetalhePage() {
     )
   }
 
-  if (!carregandoCanal && (canalMissing || !canal)) {
+  if (canalMissing || !canal) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 pb-20">
         <p className="text-center text-gray-600">Canal não encontrado ou sem permissão.</p>
@@ -552,6 +554,7 @@ export default function CanalDetalhePage() {
           ) : (
             <CanalMensagens
               canalId={canalId}
+              usuarioId={usuarioId}
               paisTab="geral"
               podePostar={false}
               podeReagir={podeInteragir}
@@ -624,6 +627,7 @@ export default function CanalDetalhePage() {
               ) : null}
               <CanalMensagens
                 canalId={canalId}
+                usuarioId={usuarioId}
                 paisTab={mostrarAbasTresPaises ? abaPais : 'geral'}
                 podePostar={podePostarCanal}
                 podeReagir={podeInteragir}
@@ -675,6 +679,7 @@ export default function CanalDetalhePage() {
           ) : null}
           <CanalMensagens
             canalId={canalId}
+            usuarioId={usuarioId}
             paisTab={mostrarAbasPais ? abaPais : 'geral'}
             podePostar={podeInteragir}
             podeReagir={podeInteragir}
