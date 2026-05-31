@@ -218,7 +218,6 @@ export default function CanalMensagens({
       cancelarLongPress()
       longPressTimerRef.current = setTimeout(() => {
         setReacaoPickerId(msgId)
-        setMenuMsgId(null)
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           navigator.vibrate(12)
         }
@@ -1110,6 +1109,14 @@ export default function CanalMensagens({
                           setReacaoPickerId(null)
                         }}
                         onSalvar={() => void handleToggleSalvar(msg.id)}
+                        onInteragir={
+                          podeReagir
+                            ? () => {
+                                setReacaoPickerId(msg.id)
+                                cancelarLongPress()
+                              }
+                            : undefined
+                        }
                         onDenunciar={
                           !isOwn
                             ? () => {

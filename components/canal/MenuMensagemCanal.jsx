@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Bookmark, Flag, MoreVertical, Pencil } from 'lucide-react'
+import { Bookmark, Flag, HeartHandshake, MoreVertical, Pencil } from 'lucide-react'
 
-const MENU_LARGURA_PX = 208
+/** Largura original (208px) menos dois quintos → 3/5 ≈ 125px */
+const MENU_LARGURA_PX = 125
 const MARGEM_VIEWPORT_PX = 8
 
 /**
@@ -16,6 +17,7 @@ const MARGEM_VIEWPORT_PX = 8
  *   onEditar?: () => void
  *   onSalvar?: () => void
  *   onDenunciar?: () => void
+ *   onInteragir?: () => void
  *   alinhadoDireita?: boolean
  * }} props
  */
@@ -25,6 +27,7 @@ export default function MenuMensagemCanal({
   onEditar,
   onSalvar,
   onDenunciar,
+  onInteragir,
   alinhadoDireita = true,
 }) {
   const [aberto, setAberto] = useState(false)
@@ -60,7 +63,7 @@ export default function MenuMensagemCanal({
     atualizarPosicao()
     const id = requestAnimationFrame(() => atualizarPosicao())
     return () => cancelAnimationFrame(id)
-  }, [aberto, atualizarPosicao, podeEditar, onSalvar, onDenunciar])
+  }, [aberto, atualizarPosicao, podeEditar, onSalvar, onDenunciar, onInteragir])
 
   useEffect(() => {
     if (!aberto) return
@@ -88,7 +91,7 @@ export default function MenuMensagemCanal({
   }, [aberto])
 
   const itemClass =
-    'flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-white transition-colors hover:bg-[#007a8f]'
+    'flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs leading-snug text-white transition-colors hover:bg-[#007a8f]'
 
   const popup =
     aberto && popupPos && typeof document !== 'undefined'
@@ -96,9 +99,22 @@ export default function MenuMensagemCanal({
           <div
             ref={popupRef}
             style={{ position: 'fixed', top: popupPos.top, left: popupPos.left, width: MENU_LARGURA_PX }}
-            className="z-[200] min-w-[11rem] overflow-hidden rounded-lg bg-[#0097b2] py-1 text-white shadow-lg"
+            className="z-[200] overflow-hidden rounded-lg bg-[#0097b2] py-0.5 text-white shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
+            {onInteragir ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setAberto(false)
+                  onInteragir()
+                }}
+                className={itemClass}
+              >
+                <HeartHandshake size={14} className="shrink-0 text-white" aria-hidden />
+                <span>Interagir</span>
+              </button>
+            ) : null}
             {podeEditar ? (
               <button
                 type="button"
@@ -108,7 +124,7 @@ export default function MenuMensagemCanal({
                 }}
                 className={itemClass}
               >
-                <Pencil size={16} className="text-white" aria-hidden />
+                <Pencil size={14} className="shrink-0 text-white" aria-hidden />
                 <span>Editar</span>
               </button>
             ) : null}
@@ -121,8 +137,8 @@ export default function MenuMensagemCanal({
                 }}
                 className={itemClass}
               >
-                <Bookmark size={16} className={`text-white ${salvo ? 'fill-white' : ''}`} aria-hidden />
-                <span>{salvo ? 'Remover dos salvos' : 'Salvar'}</span>
+                <Bookmark size={14} className={`shrink-0 text-white ${salvo ? 'fill-white' : ''}`} aria-hidden />
+                <span className="min-w-0 truncate">{salvo ? 'Remover salvo' : 'Salvar'}</span>
               </button>
             ) : null}
             {onDenunciar ? (
@@ -134,7 +150,7 @@ export default function MenuMensagemCanal({
                 }}
                 className={itemClass}
               >
-                <Flag size={16} className="text-white" aria-hidden />
+                <Flag size={14} className="shrink-0 text-white" aria-hidden />
                 <span>Denunciar</span>
               </button>
             ) : null}
