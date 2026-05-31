@@ -15,6 +15,7 @@ import {
   aquecerCacheImagensMensagensCanal,
   ehAnexoAudioCanal,
   ehAnexoImagemCanal,
+  primarCacheMiniaturasChatCanal,
   prepararImagensChatCanal,
 } from '@/lib/canalAnexoUrl'
 import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
@@ -251,10 +252,19 @@ export default function CanalMensagens({
           : listarMensagensInboxCanalAdm(supabase, inboxCanalAdm, { paisTab, limit: 120 })
         : listarMensagensCanalRecentes(supabase, canalId, { paisTab, limit: 80 })
 
-      const [{ data: { session } }, rows] = await Promise.all([supabase.auth.getSession(), fetchRows])
+      const rowsPromise = fetchRows
+      const sessionPromise = usuarioIdProp ? null : supabase.auth.getSession()
+
+      if (usuarioIdProp) setUid(usuarioIdProp)
+
+      const [sessionRes, rows] = await Promise.all([
+        sessionPromise ?? Promise.resolve({ data: { session: null } }),
+        rowsPromise,
+      ])
+      const session = sessionRes.data.session
       const uidSessao = session?.user?.id ?? usuarioIdProp ?? null
       if (uidSessao) setUid(uidSessao)
-      accessTokenRef.current = session?.access_token ?? null
+      if (session?.access_token) accessTokenRef.current = session.access_token
 
       const remetenteIds = rows
         .map((msg) => {
@@ -262,27 +272,50 @@ export default function CanalMensagens({
           return m.remetente_id != null ? String(m.remetente_id) : ''
         })
         .filter(Boolean)
+
+      primarCacheMiniaturasChatCanal(
+        supabase,
+        rows.map((msg) => {
+          const m = /** @type {Record<string, unknown>} */ (msg)
+          return {
+            anexo_url: m.anexo_url != null ? String(m.anexo_url) : null,
+            anexo_tipo: m.anexo_tipo != null ? String(m.anexo_tipo) : null,
+          }
+        }),
+        { limit: 16 },
+      )
+
       const remetentesMap = await buscarRemetentesEmLote(supabase, remetenteIds)
 
       const mensagensCompletas = rows.map((msg) =>
         mensagemCanalFromRow(/** @type {Record<string, unknown>} */ (msg), remetentesMap),
       )
-
-      await aquecerCacheImagensMensagensCanal(supabase, mensagensCompletas, { canalId, limit: 16 })
       setMensagens(mensagensCompletas)
       if (!silent) setLoadingInicial(false)
+      aquecerCacheImagensMensagensCanal(supabase, mensagensCompletas, { canalId, limit: 16 })
       precisaScrollInicialRef.current = true
       stickToBottomRef.current = true
-      if (session?.user?.id) {
-        const me = remetentesMap.get(session.user.id)
+
+      const marcarLeitura = (token, uid) => {
+        const me = remetentesMap.get(uid)
         if (me) setMeuRemetente(me)
         const ultimaIso =
           mensagensCompletas.length > 0
             ? mensagensCompletas[mensagensCompletas.length - 1]?.created_at
             : null
-        enviarMarcacaoLeituraKeepalive(session.access_token, session.user.id, canalId, ultimaIso)
-        void marcarCanalComoLido(supabase, session.user.id, canalId, ultimaIso).then(() => {
+        enviarMarcacaoLeituraKeepalive(token, uid, canalId, ultimaIso)
+        void marcarCanalComoLido(supabase, uid, canalId, ultimaIso).then(() => {
           notificarBadgeCanais()
+        })
+      }
+
+      if (session?.user?.id && session.access_token) {
+        marcarLeitura(session.access_token, session.user.id)
+      } else if (uidSessao) {
+        void supabase.auth.getSession().then(({ data: { session: s } }) => {
+          if (!s?.user?.id || !s.access_token) return
+          accessTokenRef.current = s.access_token
+          marcarLeitura(s.access_token, s.user.id)
         })
       }
       stickToBottomRef.current = true

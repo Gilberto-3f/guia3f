@@ -185,13 +185,35 @@ export async function resolverUrlChatImagemCanal(
 }
 
 /**
- * Pré-resolve assinadas em lote, escolhe melhor URL de chat e pré-carrega no navegador.
- * Deve ser aguardado antes de renderizar mensagens com imagem.
+ * Preenche o cache de chat com URLs de miniatura (síncrono, sem rede).
+ * Permite mostrar mensagens de imediato com skeleton/img a partir da thumb.
  */
-export async function prepararImagensChatCanal(
+export function primarCacheMiniaturasChatCanal(
   supabase: SupabaseClient,
   mensagens: Array<{ anexo_url: string | null; anexo_tipo: string | null }>,
-  opts?: { canalId?: string; limit?: number },
+  opts?: { limit?: number },
+): void {
+  if (typeof window === 'undefined') return
+  const limit = opts?.limit ?? 16
+  const anexos = coletarAnexosImagemRecentes(mensagens, limit)
+  const agora = Date.now()
+  const expira = agora + TTL_CHAT_MS
+  for (const anexoUrl of anexos) {
+    const path = extrairPathBucketMensagens(anexoUrl)
+    if (!path) continue
+    const emCache = cacheUrlChat.get(path)
+    if (emCache && emCache.expira > agora) continue
+    const thumb = urlExibicaoChatImagemAnexoCanal(supabase, anexoUrl)
+    cacheUrlChat.set(path, { url: thumb, expira })
+    prefetchUrlNoNavegador(thumb, 'low')
+  }
+}
+
+/** Probe + assinada em background; atualiza cache se a thumb não carregar. */
+async function refinarCacheImagensChatCanal(
+  supabase: SupabaseClient,
+  mensagens: Array<{ anexo_url: string | null; anexo_tipo: string | null }>,
+  opts?: { limit?: number },
 ): Promise<void> {
   if (typeof window === 'undefined') return
   const limit = opts?.limit ?? 16
@@ -205,7 +227,15 @@ export async function prepararImagensChatCanal(
   let i = 0
   await Promise.all(
     anexos.map(async (anexoUrl) => {
-      const url = await resolverUrlChatImagemCanal(supabase, anexoUrl)
+      const path = extrairPathBucketMensagens(anexoUrl)
+      if (!path) return
+      const thumb = urlExibicaoChatImagemAnexoCanal(supabase, anexoUrl)
+      const [thumbOk, signed] = await Promise.all([
+        probeCarregaImagem(thumb, PROBE_THUMB_MS),
+        resolverUrlAnexoMensagemCanal(supabase, anexoUrl, { forceSigned: true }),
+      ])
+      const url = thumbOk ? thumb : signed
+      cacheUrlChat.set(path, { url, expira: Date.now() + TTL_CHAT_MS })
       prefetchUrlNoNavegador(url, i < 6 ? 'high' : 'low')
       i++
     }),
@@ -213,26 +243,38 @@ export async function prepararImagensChatCanal(
 }
 
 /**
- * Pré-carrega imagens do canal (usa `prepararImagensChatCanal` com dedupe por canalId).
+ * Pré-resolve assinadas e refina URLs (probe). Use em background — não bloqueie o chat.
  */
-export async function aquecerCacheImagensMensagensCanal(
+export async function prepararImagensChatCanal(
   supabase: SupabaseClient,
   mensagens: Array<{ anexo_url: string | null; anexo_tipo: string | null }>,
   opts?: { canalId?: string; limit?: number },
 ): Promise<void> {
+  primarCacheMiniaturasChatCanal(supabase, mensagens, { limit: opts?.limit })
+  await refinarCacheImagensChatCanal(supabase, mensagens, { limit: opts?.limit })
+}
+
+/**
+ * Aquecimento rápido (síncrono) + refinamento em background com dedupe por canal.
+ */
+export function aquecerCacheImagensMensagensCanal(
+  supabase: SupabaseClient,
+  mensagens: Array<{ anexo_url: string | null; anexo_tipo: string | null }>,
+  opts?: { canalId?: string; limit?: number },
+): void {
   if (typeof window === 'undefined') return
+  primarCacheMiniaturasChatCanal(supabase, mensagens, { limit: opts?.limit })
+
   const canalKey = opts?.canalId ?? '_'
+  if (aquecimentoInflight.has(canalKey)) return
 
-  const existente = aquecimentoInflight.get(canalKey)
-  if (existente) return existente
-
-  const tarefa = prepararImagensChatCanal(supabase, mensagens, opts)
+  const tarefa = refinarCacheImagensChatCanal(supabase, mensagens, { limit: opts?.limit })
   aquecimentoInflight.set(canalKey, tarefa)
-  try {
-    await tarefa
-  } finally {
-    aquecimentoInflight.delete(canalKey)
-  }
+  void tarefa.finally(() => {
+    if (aquecimentoInflight.get(canalKey) === tarefa) {
+      aquecimentoInflight.delete(canalKey)
+    }
+  })
 }
 
 /** @deprecated Use `prepararImagensChatCanal`. Mantido para mensagens novas em tempo real. */

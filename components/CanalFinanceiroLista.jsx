@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import CanalFinanceiroItem from '@/components/CanalFinanceiroItem'
+import CanalFinanceiroConversa from '@/components/CanalFinanceiroConversa'
 
 /**
  * @param {{ usuarioId: string, tipo: 'profissional' | 'empresa' }} props
@@ -107,12 +108,15 @@ export default function CanalFinanceiroLista({ usuarioId, tipo }) {
   }
 
   return (
-    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <CanalFinanceiroConversa usuarioId={usuarioId} />
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
       {itens.length === 0 ? (
         <div className="py-8 text-center text-gray-400">Nenhuma movimentação financeira ainda</div>
       ) : (
         itens.map((item) => <CanalFinanceiroItem key={item.id} item={item} userTipo={tipo} />)
       )}
+      </div>
     </div>
   )
 }

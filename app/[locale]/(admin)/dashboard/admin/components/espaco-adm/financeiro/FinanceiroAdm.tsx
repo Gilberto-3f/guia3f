@@ -4,12 +4,12 @@ import { ConfigPlanos } from './ConfigPlanos'
 import { ConfigComissoes } from './ConfigComissoes'
 import { ConfigServicosTabelados } from './ConfigServicosTabelados'
 import { CadastroEmpresasParceiras } from './CadastroEmpresasParceiras'
-import { MensagensFinanceiroAdm } from './MensagensFinanceiroAdm'
+import { CanalFinanceiroAdm } from './CanalFinanceiroAdm'
 
 export function FinanceiroAdm() {
   return (
     <div className="space-y-4">
-      <MensagensFinanceiroAdm />
+      <CanalFinanceiroAdm />
       <ConfigPlanos />
       <ConfigComissoes />
       <ConfigServicosTabelados />
