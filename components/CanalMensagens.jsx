@@ -7,7 +7,7 @@ import { Send, Paperclip, X, Check, Mic } from 'lucide-react'
 import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
 import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
-import { marcarCanalComoLidoResiliente } from '@/lib/canalBadge'
+import { enviarMarcacaoLeituraKeepalive, marcarCanalComoLido } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { listarMensagensCanalRecentes } from '@/lib/canalMensagensFetch'
 import { mensagensComSeparadoresData } from '@/lib/canalMensagensUi'
@@ -144,6 +144,7 @@ export default function CanalMensagens({
   const mensagensRef = useRef(mensagens)
   const meuRemetenteRef = useRef(meuRemetente)
   const uidRef = useRef(uid)
+  const accessTokenRef = useRef(/** @type {string | null} */ (null))
   mensagensLenRef.current = mensagens.length
   mensagensRef.current = mensagens
   meuRemetenteRef.current = meuRemetente
@@ -242,6 +243,7 @@ export default function CanalMensagens({
 
       const [{ data: { session } }, rows] = await Promise.all([supabase.auth.getSession(), fetchRows])
       setUid(session?.user?.id ?? null)
+      accessTokenRef.current = session?.access_token ?? null
 
       const mensagensRapidas = rows.map((msg) =>
         mensagemCanalFromRow(/** @type {Record<string, unknown>} */ (msg), new Map()),
@@ -273,14 +275,10 @@ export default function CanalMensagens({
           mensagensCompletas.length > 0
             ? mensagensCompletas[mensagensCompletas.length - 1]?.created_at
             : null
-        await marcarCanalComoLidoResiliente(
-          supabase,
-          session.user.id,
-          canalId,
-          ultimaIso,
-          session.access_token,
-        )
-        notificarBadgeCanais()
+        enviarMarcacaoLeituraKeepalive(session.access_token, session.user.id, canalId, ultimaIso)
+        void marcarCanalComoLido(supabase, session.user.id, canalId, ultimaIso).then(() => {
+          notificarBadgeCanais()
+        })
       }
       stickToBottomRef.current = true
     } catch (e) {
@@ -333,22 +331,14 @@ export default function CanalMensagens({
 
   useEffect(() => {
     return () => {
-      void (async () => {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-        if (!session?.user?.id || !canalId) return
-        const msgs = mensagensRef.current
-        const ultima = msgs.length > 0 ? msgs[msgs.length - 1]?.created_at : null
-        await marcarCanalComoLidoResiliente(
-          supabase,
-          session.user.id,
-          canalId,
-          ultima ?? null,
-          session.access_token,
-        )
-        notificarBadgeCanais()
-      })()
+      const uidLocal = uidRef.current
+      const token = accessTokenRef.current
+      if (!uidLocal || !canalId || !token) return
+      const msgs = mensagensRef.current
+      const ultima = msgs.length > 0 ? msgs[msgs.length - 1]?.created_at : null
+      enviarMarcacaoLeituraKeepalive(token, uidLocal, canalId, ultima ?? null)
+      notificarBadgeCanais()
+      void marcarCanalComoLido(supabase, uidLocal, canalId, ultima ?? null)
     }
   }, [canalId])
 

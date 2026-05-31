@@ -127,7 +127,9 @@ export default function CanalPage() {
         <div className="flex min-h-0 min-h-[calc(100dvh-7rem)] flex-1 flex-col overflow-hidden">
           <ListaCanaisProfissional
             onSelectCanal={(c) => {
-              if (c?.id) router.push(`/canal/${c.id}`)
+              if (!c?.id) return
+              router.prefetch(`/canal/${c.id}`)
+              router.push(`/canal/${c.id}`)
             }}
           />
         </div>
@@ -146,7 +148,9 @@ export default function CanalPage() {
         <div className="flex min-h-0 min-h-[calc(100dvh-7rem)] flex-1 flex-col overflow-hidden">
           <ListaCanaisEmpresa
             onSelectCanal={(c) => {
-              if (c?.id) router.push(`/canal/${c.id}`)
+              if (!c?.id) return
+              router.prefetch(`/canal/${c.id}`)
+              router.push(`/canal/${c.id}`)
             }}
           />
         </div>
@@ -167,7 +171,9 @@ export default function CanalPage() {
             tipoPublico={null}
             agruparPorTipo
             onSelectCanal={(c) => {
-              if (c?.id) router.push(`/canal/${c.id}`)
+              if (!c?.id) return
+              router.prefetch(`/canal/${c.id}`)
+              router.push(`/canal/${c.id}`)
             }}
           />
         </div>

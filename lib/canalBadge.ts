@@ -86,6 +86,18 @@ export async function marcarCanalComoLido(
  * Grava leitura com `fetch(..., { keepalive: true })` para sobreviver à navegação (barra inferior / Home).
  * Complementa `marcarCanalComoLido` quando o cliente Supabase aborta o upsert no unmount.
  */
+/** Marca leitura via keepalive (não bloqueia navegação). */
+export function marcarCanaisLidosKeepalive(
+  accessToken: string,
+  usuarioId: string,
+  canalIds: string[],
+  ultimaMensagemIso?: string | null,
+): void {
+  for (const canalId of canalIds) {
+    if (canalId) enviarMarcacaoLeituraKeepalive(accessToken, usuarioId, canalId, ultimaMensagemIso)
+  }
+}
+
 export function enviarMarcacaoLeituraKeepalive(
   accessToken: string,
   usuarioId: string,

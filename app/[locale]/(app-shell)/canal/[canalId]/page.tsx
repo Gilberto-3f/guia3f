@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { ChevronLeft, MoreVertical } from 'lucide-react'
@@ -8,7 +8,6 @@ import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import BandeiraPais from '@/components/BandeiraPais'
-import CanalMensagens from '@/components/CanalMensagens'
 import CanalHeaderTitulo from '@/components/canal/CanalHeaderTitulo'
 import CanalAbasPais from '@/components/CanalAbasPais'
 import CanalFinanceiroLista from '@/components/CanalFinanceiroLista'
@@ -16,7 +15,11 @@ import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
 import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
 import { tituloCanalEmpresaLista } from '@/components/ListaCanaisEmpresa'
 import { rotuloCanalListaProfissional } from '@/lib/canaisProfissionaisListaUi'
-import { marcarCanalComoLidoResiliente } from '@/lib/canalBadge'
+import {
+  enviarMarcacaoLeituraKeepalive,
+  marcarCanalComoLido,
+  marcarCanaisLidosKeepalive,
+} from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { canalMensageiroAdmSemAbasPais } from '@/lib/rotulosCanaisAdministracao'
 import {
@@ -44,6 +47,15 @@ import {
 } from '@/lib/canaisEmpresaAdm'
 
 const CanalDrawer = dynamic(() => import('@/components/canal/CanalDrawer'), { ssr: false })
+
+const CanalMensagens = dynamic(() => import('@/components/CanalMensagens'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-1 items-center justify-center">
+      <div className="animate-pulse text-sm text-gray-400">Carregando mensagens...</div>
+    </div>
+  ),
+})
 
 type TipoUsuario = 'turista' | 'profissional' | 'empresa' | 'admin' | null
 
@@ -96,9 +108,29 @@ export default function CanalDetalhePage() {
   }, [modoAtivo, perfilSimulado, userTipo])
 
   const financeUid = useMemo(() => usuarioId, [usuarioId])
+  const accessTokenRef = useRef<string | null>(null)
+
+  /** Tipo efetivo a partir do role da BD (sem depender do setState de `userTipo`). */
+  const tipoEfetivoDeRole = useCallback(
+    (role: string | null | undefined): TipoUsuario => {
+      if (modoAtivo && perfilSimulado) {
+        if (perfilSimulado.tipo === 'turista') return 'turista'
+        if (perfilSimulado.tipo === 'profissional') return 'profissional'
+        if (perfilSimulado.tipo === 'empresa') return 'empresa'
+      }
+      if (role === 'turista') return 'turista'
+      if (role === 'profissional') return 'profissional'
+      if (role === 'empresa') return 'empresa'
+      if (role === 'admin') return 'admin'
+      return null
+    },
+    [modoAtivo, perfilSimulado],
+  )
 
   useEffect(() => {
-    const init = async () => {
+    let cancelado = false
+
+    void (async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession()
@@ -106,45 +138,37 @@ export default function CanalDetalhePage() {
         router.replace('/login')
         return
       }
+      if (cancelado) return
 
-      setUsuarioId(session.user.id)
-      void fetchNomeUsuarioParaStory(supabase, session.user.id).then((nu) => setMeuUsername(nu))
-
-      const { data: userData } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
-      const role = userData?.role ?? null
-
-      if (role === 'turista') setUserTipo('turista')
-      else if (role === 'profissional') setUserTipo('profissional')
-      else if (role === 'empresa') setUserTipo('empresa')
-      else if (role === 'admin') setUserTipo('admin')
-      else setUserTipo(null)
-
+      const uid = session.user.id
+      accessTokenRef.current = session.access_token
+      setUsuarioId(uid)
       setAuthPronto(true)
-    }
+      void fetchNomeUsuarioParaStory(supabase, uid).then((nu) => {
+        if (!cancelado) setMeuUsername(nu)
+      })
 
-    void init()
-  }, [router])
+      if (!canalId) {
+        setCanal(null)
+        setCanalMissing(true)
+        setCarregandoCanal(false)
+        const { data: userData } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
+        if (cancelado) return
+        const role = userData?.role != null ? String(userData.role) : null
+        if (role === 'turista') setUserTipo('turista')
+        else if (role === 'profissional') setUserTipo('profissional')
+        else if (role === 'empresa') setUserTipo('empresa')
+        else if (role === 'admin') setUserTipo('admin')
+        else setUserTipo(null)
+        return
+      }
 
-  useEffect(() => {
-    if (!authPronto) return
-    if (userTipoEfetivo === 'turista') {
-      setCarregandoCanal(false)
-      router.replace('/canal')
-      return
-    }
-    if (!canalId) {
-      setCanal(null)
-      setCanalMissing(true)
-      setCarregandoCanal(false)
-      return
-    }
-
-    void (async () => {
       setCarregandoCanal(true)
       setCanalMissing(false)
       setInboxCanalAdm(null)
 
-      const canalQuery = supabase
+      const rolePromise = supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
+      const canalPromise = supabase
         .from('canais')
         .select(
           `
@@ -155,21 +179,34 @@ export default function CanalDetalhePage() {
         .eq('id', canalId)
         .maybeSingle()
 
-      const slugsPromise =
-        userTipoEfetivo === 'profissional' && usuarioId
-          ? buscarSlugsCategoriasProfissional(supabase, usuarioId)
-          : Promise.resolve([])
+      const [{ data: userData }, canalRes] = await Promise.all([rolePromise, canalPromise])
+      if (cancelado) return
 
-      const empresaCatPromise =
-        userTipoEfetivo === 'empresa' && usuarioId
-          ? supabase.from('empresas').select('categoria').eq('usuario_id', usuarioId).maybeSingle()
-          : Promise.resolve({ data: null })
+      const role = userData?.role != null ? String(userData.role) : null
+      if (role === 'turista') setUserTipo('turista')
+      else if (role === 'profissional') setUserTipo('profissional')
+      else if (role === 'empresa') setUserTipo('empresa')
+      else if (role === 'admin') setUserTipo('admin')
+      else setUserTipo(null)
 
-      const [{ data, error }, slugs, empCatRes] = await Promise.all([canalQuery, slugsPromise, empresaCatPromise])
-      setEmpresaCategoria(
-        empCatRes.data?.categoria != null ? String(empCatRes.data.categoria) : null,
-      )
+      const tipoLocal = tipoEfetivoDeRole(role)
+      if (tipoLocal === 'turista') {
+        setCarregandoCanal(false)
+        router.replace('/canal')
+        return
+      }
 
+      const [slugs, empCatRes] = await Promise.all([
+        tipoLocal === 'profissional' ? buscarSlugsCategoriasProfissional(supabase, uid) : Promise.resolve([]),
+        tipoLocal === 'empresa'
+          ? supabase.from('empresas').select('categoria').eq('usuario_id', uid).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ])
+      if (cancelado) return
+
+      setEmpresaCategoria(empCatRes.data?.categoria != null ? String(empCatRes.data.categoria) : null)
+
+      const { data, error } = canalRes
       if (error || !data) {
         setCanal(null)
         setCanalMissing(true)
@@ -196,7 +233,7 @@ export default function CanalDetalhePage() {
           : null,
       }
 
-      if (userTipoEfetivo === 'profissional' && usuarioId) {
+      if (tipoLocal === 'profissional') {
         if (isCanalAdmProfissionalGlobal(row)) {
           setCarregandoCanal(false)
           router.replace('/canal')
@@ -224,14 +261,13 @@ export default function CanalDetalhePage() {
       setCarregandoCanal(false)
 
       const ehCanalSegmentoEmp =
-        userTipoEfetivo === 'empresa' &&
+        tipoLocal === 'empresa' &&
         row.tipo_publico === 'empresa' &&
         row.empresa_id == null &&
         ehCanalSegmentoEmpresaGlobal(row)
 
       const precisaInboxEmp =
-        userTipoEfetivo === 'empresa' &&
-        usuarioId &&
+        tipoLocal === 'empresa' &&
         row.tipo_publico === 'empresa' &&
         row.empresa_id == null &&
         !isCanalFinanceiroEmpresa(row.nome) &&
@@ -239,16 +275,18 @@ export default function CanalDetalhePage() {
 
       if (precisaInboxEmp) {
         void (async () => {
-          const admId = isCanalAdmEmpresaGlobal(row)
-            ? row.id
-            : await buscarIdCanalAdmEmpresaGlobal(supabase)
+          const admId = isCanalAdmEmpresaGlobal(row) ? row.id : await buscarIdCanalAdmEmpresaGlobal(supabase)
           if (!admId) return
-          const inbox = await resolverInboxCanalAdmEmpresa(supabase, usuarioId, admId)
-          setInboxCanalAdm(inbox)
+          const inbox = await resolverInboxCanalAdmEmpresa(supabase, uid, admId)
+          if (!cancelado) setInboxCanalAdm(inbox)
         })()
       }
     })()
-  }, [authPronto, userTipoEfetivo, canalId, router, usuarioId])
+
+    return () => {
+      cancelado = true
+    }
+  }, [canalId, router, modoAtivo, perfilSimulado, tipoEfetivoDeRole])
 
   useEffect(() => {
     if (!canal) return
@@ -258,12 +296,33 @@ export default function CanalDetalhePage() {
 
   const pathname = usePathname()
 
+  const marcarLeituraCanalAtualRapida = useCallback(() => {
+    if (!usuarioId || !canalId || !canal) return
+    const token = accessTokenRef.current
+    if (!token) return
+
+    if (userTipoEfetivo === 'profissional' && canal.nome && isCanalFinanceiroProfissional(canal.nome)) {
+      return
+    }
+    if (userTipoEfetivo === 'empresa' && canal.nome && isCanalFinanceiroEmpresa(canal.nome)) {
+      return
+    }
+
+    if (
+      userTipoEfetivo === 'empresa' &&
+      inboxCanalAdm != null &&
+      'canaisBroadcastIds' in inboxCanalAdm
+    ) {
+      const ids = [inboxCanalAdm.canalAdmId, ...inboxCanalAdm.canaisBroadcastIds].filter(Boolean)
+      marcarCanaisLidosKeepalive(token, usuarioId, ids)
+    } else {
+      enviarMarcacaoLeituraKeepalive(token, usuarioId, canalId, null)
+    }
+    notificarBadgeCanais()
+  }, [usuarioId, canalId, canal, userTipoEfetivo, inboxCanalAdm])
+
   const marcarLeituraCanalAtual = useCallback(async () => {
     if (!usuarioId || !canalId || !canal) return
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    const token = session?.access_token ?? null
 
     if (userTipoEfetivo === 'profissional' && canal.nome && isCanalFinanceiroProfissional(canal.nome)) {
       await marcarFinanceiroLidoProfissional(supabase, usuarioId)
@@ -275,21 +334,22 @@ export default function CanalDetalhePage() {
       'canaisBroadcastIds' in inboxCanalAdm
     ) {
       const ids = [inboxCanalAdm.canalAdmId, ...inboxCanalAdm.canaisBroadcastIds]
-      for (const id of ids) {
-        if (id) await marcarCanalComoLidoResiliente(supabase, usuarioId, id, null, token)
-      }
+      await Promise.all(
+        ids.filter(Boolean).map((id) => marcarCanalComoLido(supabase, usuarioId, id, null)),
+      )
     } else {
-      await marcarCanalComoLidoResiliente(supabase, usuarioId, canalId, null, token)
+      await marcarCanalComoLido(supabase, usuarioId, canalId, null)
     }
     notificarBadgeCanais()
   }, [usuarioId, canalId, canal, userTipoEfetivo, inboxCanalAdm])
 
-  /** Ao sair do detalhe (Home, barra, outro canal), garante gravação antes da recontagem da barra. */
+  /** Ao sair do detalhe, marca leitura em background (keepalive já disparado no voltar). */
   useEffect(() => {
     return () => {
+      marcarLeituraCanalAtualRapida()
       void marcarLeituraCanalAtual()
     }
-  }, [pathname, marcarLeituraCanalAtual])
+  }, [pathname, marcarLeituraCanalAtual, marcarLeituraCanalAtualRapida])
 
   useEffect(() => {
     setDrawerCanalAberto(false)
@@ -366,17 +426,29 @@ export default function CanalDetalhePage() {
       />
     ) : null
 
-  const voltarCanais = () => {
-    void (async () => {
-      await marcarLeituraCanalAtual()
-      router.push('/canal')
-    })()
-  }
+  const voltarCanais = useCallback(() => {
+    marcarLeituraCanalAtualRapida()
+    router.push('/canal')
+    void marcarLeituraCanalAtual()
+  }, [router, marcarLeituraCanalAtual, marcarLeituraCanalAtualRapida])
 
   if (!authPronto) {
     return (
-      <div className="flex min-h-screen items-center justify-center pb-20">
-        <div className="animate-pulse text-gray-400">Carregando...</div>
+      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
+        <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
+          <button
+            type="button"
+            onClick={() => router.push('/canal')}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
+            aria-label="Voltar"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+          <span className="truncate text-lg font-semibold">…</span>
+        </header>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="animate-pulse text-sm text-gray-400">Carregando...</div>
+        </div>
       </div>
     )
   }
