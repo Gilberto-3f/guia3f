@@ -15,7 +15,7 @@ import {
   aquecerCacheImagensMensagensCanal,
   ehAnexoAudioCanal,
   ehAnexoImagemCanal,
-  prefetchImagensAnexosCanal,
+  prepararImagensChatCanal,
 } from '@/lib/canalAnexoUrl'
 import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import { parseReacoesCanal, toggleReacaoMensagemCanal } from '@/lib/canalReacoes'
@@ -268,7 +268,7 @@ export default function CanalMensagens({
         mensagemCanalFromRow(/** @type {Record<string, unknown>} */ (msg), remetentesMap),
       )
 
-      void aquecerCacheImagensMensagensCanal(supabase, mensagensCompletas, { canalId, limit: 16 })
+      await aquecerCacheImagensMensagensCanal(supabase, mensagensCompletas, { canalId, limit: 16 })
       setMensagens(mensagensCompletas)
       if (!silent) setLoadingInicial(false)
       precisaScrollInicialRef.current = true
@@ -500,7 +500,7 @@ export default function CanalMensagens({
             if (!appended) return
 
             if (ehAnexoImagemCanal(novaMsg.anexo_url, novaMsg.anexo_tipo)) {
-              prefetchImagensAnexosCanal(supabase, [novaMsg], 1)
+              void prepararImagensChatCanal(supabase, [novaMsg], { limit: 1 })
             }
 
             if (rid) {

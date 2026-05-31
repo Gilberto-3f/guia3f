@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { ImageIcon, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
-  extrairPathBucketMensagens,
+  obterUrlChatImagemEmCache,
   resolverUrlAnexoMensagemCanal,
-  urlExibicaoChatImagemAnexoCanal,
+  resolverUrlChatImagemCanal,
   urlPublicaAnexoMensagemCanal,
 } from '@/lib/canalAnexoUrl'
 
@@ -17,36 +17,41 @@ import {
  */
 export default function CanalMensagemImagem({ src, className = '', priority = false }) {
   const urlPublica = useMemo(() => urlPublicaAnexoMensagemCanal(supabase, src), [src])
-  const urlChatInicial = useMemo(() => urlExibicaoChatImagemAnexoCanal(supabase, src), [src])
-  const [urlChat, setUrlChat] = useState(urlChatInicial)
+  const [srcAtivo, setSrcAtivo] = useState(/** @type {string | null} */ (null))
   const [urlOverlay, setUrlOverlay] = useState(urlPublica)
+  const [carregada, setCarregada] = useState(false)
+  const [falhou, setFalhou] = useState(false)
   const [aberto, setAberto] = useState(false)
   const [montado, setMontado] = useState(false)
-  const signedProntoRef = useRef(/** @type {string | null} */ (null))
-  const tentouAssinadaRef = useRef(false)
+  const tentouFallbackRef = useRef(false)
 
   useEffect(() => {
     setMontado(true)
   }, [])
 
   useEffect(() => {
-    setUrlChat(urlChatInicial)
-    setUrlOverlay(urlPublica)
-    tentouAssinadaRef.current = false
-    signedProntoRef.current = null
-
-    const path = extrairPathBucketMensagens(src)
-    if (!path) return
-
     let vivo = true
-    void resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true }).then((signed) => {
-      if (!vivo) return
-      signedProntoRef.current = signed
-    })
+    tentouFallbackRef.current = false
+    setCarregada(false)
+    setFalhou(false)
+    setUrlOverlay(urlPublica)
+
+    const emCache = obterUrlChatImagemEmCache(src)
+    if (emCache) {
+      setSrcAtivo(emCache)
+    } else {
+      setSrcAtivo(null)
+      void (async () => {
+        const resolvida = await resolverUrlChatImagemCanal(supabase, src)
+        if (!vivo) return
+        setSrcAtivo(resolvida)
+      })()
+    }
+
     return () => {
       vivo = false
     }
-  }, [src, urlChatInicial, urlPublica])
+  }, [src, urlPublica])
 
   const fechar = useCallback(() => setAberto(false), [])
 
@@ -65,45 +70,42 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
   }, [aberto, fechar])
 
   const onErrorChat = useCallback(() => {
-    if (tentouAssinadaRef.current) return
-    tentouAssinadaRef.current = true
-    const signed = signedProntoRef.current
-    if (signed && urlChat !== signed) {
-      setUrlChat(signed)
+    if (tentouFallbackRef.current) {
+      setFalhou(true)
+      setCarregada(false)
       return
     }
-    void resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true }).then((s) => {
-      if (s) {
-        signedProntoRef.current = s
-        setUrlChat(s)
+    tentouFallbackRef.current = true
+    setCarregada(false)
+    void resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true }).then((signed) => {
+      if (signed && signed !== srcAtivo) {
+        setSrcAtivo(signed)
+        setFalhou(false)
+      } else {
+        setFalhou(true)
       }
     })
-  }, [src, urlChat])
+  }, [src, srcAtivo])
 
   const onErrorOverlay = useCallback(() => {
-    const signed = signedProntoRef.current
-    if (signed && urlOverlay !== signed) {
-      setUrlOverlay(signed)
-      return
-    }
-    void resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true }).then((s) => {
-      if (s) setUrlOverlay(s)
+    void resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true }).then((signed) => {
+      if (signed) setUrlOverlay(signed)
     })
-  }, [src, urlOverlay])
+  }, [src])
 
   const abrirOverlay = useCallback(
     (e) => {
       e.preventDefault()
       e.stopPropagation()
-      setUrlOverlay(urlChat || urlPublica)
+      setUrlOverlay(srcAtivo || urlPublica)
       setAberto(true)
-      if (urlPublica && urlPublica !== urlChat) {
+      if (urlPublica && urlPublica !== srcAtivo) {
         const img = new window.Image()
         img.onload = () => setUrlOverlay(urlPublica)
         img.src = urlPublica
       }
     },
-    [urlChat, urlPublica],
+    [srcAtivo, urlPublica],
   )
 
   const pararPropagacao = useCallback((e) => {
@@ -111,6 +113,7 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
   }, [])
 
   const previewClass = `max-h-64 w-full max-w-[min(100%,280px)] rounded-lg object-contain ${className}`
+  const skeletonClass = `flex max-h-64 min-h-[7rem] w-full max-w-[min(100%,280px)] items-center justify-center rounded-lg bg-gray-200/90 ${className}`
 
   const overlay =
     aberto && montado
@@ -156,19 +159,43 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
         onPointerDown={pararPropagacao}
         onPointerUp={pararPropagacao}
         onPointerCancel={pararPropagacao}
-        className="inline-block cursor-pointer border-0 bg-transparent p-0 text-left touch-manipulation"
+        className="relative inline-block cursor-pointer border-0 bg-transparent p-0 text-left touch-manipulation"
         aria-label="Abrir imagem em tela cheia"
+        disabled={falhou && !srcAtivo}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={urlChat}
-          alt=""
-          className={previewClass}
-          loading={priority ? 'eager' : 'lazy'}
-          fetchPriority={priority ? 'high' : 'auto'}
-          decoding="async"
-          onError={onErrorChat}
-        />
+        {!carregada && !falhou ? (
+          <div className={skeletonClass} aria-hidden>
+            <div className="flex flex-col items-center gap-1.5 text-gray-500">
+              <span className="h-8 w-8 animate-pulse rounded-full bg-gray-300/80" />
+              <span className="text-[10px] font-medium">A carregar foto…</span>
+            </div>
+          </div>
+        ) : null}
+
+        {falhou ? (
+          <div
+            className={`${skeletonClass} text-center text-xs text-gray-500`}
+            role="status"
+          >
+            <ImageIcon className="mx-auto mb-1 h-6 w-6 opacity-60" aria-hidden />
+            Não foi possível carregar a foto
+          </div>
+        ) : null}
+
+        {srcAtivo && !falhou ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={srcAtivo}
+            src={srcAtivo}
+            alt=""
+            className={`${previewClass} ${carregada ? 'opacity-100' : 'absolute h-0 w-0 opacity-0'}`}
+            loading={priority ? 'eager' : 'lazy'}
+            fetchPriority={priority ? 'high' : 'auto'}
+            decoding="async"
+            onLoad={() => setCarregada(true)}
+            onError={onErrorChat}
+          />
+        ) : null}
       </button>
       {overlay}
     </>
