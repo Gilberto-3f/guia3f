@@ -11,7 +11,12 @@ import { enviarMarcacaoLeituraKeepalive, marcarCanalComoLido } from '@/lib/canal
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { listarMensagensCanalRecentes } from '@/lib/canalMensagensFetch'
 import { mensagensComSeparadoresData } from '@/lib/canalMensagensUi'
-import { ehAnexoAudioCanal, ehAnexoImagemCanal, prefetchImagensAnexosCanal } from '@/lib/canalAnexoUrl'
+import {
+  aquecerCacheImagensMensagensCanal,
+  ehAnexoAudioCanal,
+  ehAnexoImagemCanal,
+  prefetchImagensAnexosCanal,
+} from '@/lib/canalAnexoUrl'
 import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import { parseReacoesCanal, toggleReacaoMensagemCanal } from '@/lib/canalReacoes'
 import { EMOJIS_REACAO_CANAL } from '@/lib/canalReacoesEmojis'
@@ -248,8 +253,8 @@ export default function CanalMensagens({
       const mensagensRapidas = rows.map((msg) =>
         mensagemCanalFromRow(/** @type {Record<string, unknown>} */ (msg), new Map()),
       )
+      void aquecerCacheImagensMensagensCanal(supabase, mensagensRapidas, { canalId, limit: 16 })
       setMensagens(mensagensRapidas)
-      prefetchImagensAnexosCanal(supabase, mensagensRapidas)
       if (!silent) setLoadingInicial(false)
 
       const remetenteIds = rows
@@ -265,7 +270,7 @@ export default function CanalMensagens({
       )
 
       setMensagens(mensagensCompletas)
-      prefetchImagensAnexosCanal(supabase, mensagensCompletas)
+      void aquecerCacheImagensMensagensCanal(supabase, mensagensCompletas, { canalId, limit: 16 })
       precisaScrollInicialRef.current = true
       stickToBottomRef.current = true
       if (session?.user?.id) {
@@ -287,6 +292,23 @@ export default function CanalMensagens({
       if (!silent) setLoadingInicial(false)
     }
   }, [canalId, paisTab, inboxCanalAdm, inboxModo])
+
+  useEffect(() => {
+    const base = process.env.NEXT_PUBLIC_SUPABASE_URL
+    if (!base || typeof document === 'undefined') return
+    try {
+      const origin = new URL(base).origin
+      if (document.querySelector(`link[data-guia-preconnect="${origin}"]`)) return
+      const link = document.createElement('link')
+      link.rel = 'preconnect'
+      link.href = origin
+      link.crossOrigin = 'anonymous'
+      link.setAttribute('data-guia-preconnect', origin)
+      document.head.appendChild(link)
+    } catch {
+      /* ignore */
+    }
+  }, [])
 
   useEffect(() => {
     precisaScrollInicialRef.current = true
@@ -872,7 +894,7 @@ export default function CanalMensagens({
   const idsImagemPrioridade = useMemo(() => {
     const ids = new Set()
     let n = 0
-    for (let i = mensagens.length - 1; i >= 0 && n < 8; i--) {
+    for (let i = mensagens.length - 1; i >= 0 && n < 16; i--) {
       const m = mensagens[i]
       if (ehAnexoImagemCanal(m.anexo_url, m.anexo_tipo)) {
         ids.add(m.id)

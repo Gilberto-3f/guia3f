@@ -20,6 +20,8 @@ import {
   marcarCanalComoLido,
   marcarCanaisLidosKeepalive,
 } from '@/lib/canalBadge'
+import { aquecerCacheImagensMensagensCanal } from '@/lib/canalAnexoUrl'
+import { listarMensagensCanalRecentes } from '@/lib/canalMensagensFetch'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { canalMensageiroAdmSemAbasPais } from '@/lib/rotulosCanaisAdministracao'
 import {
@@ -293,6 +295,31 @@ export default function CanalDetalhePage() {
     if (userTipoEfetivo === 'empresa' && canal.tipo_publico === 'profissional') setAbaPais('BR')
     else if (userTipoEfetivo === 'empresa') setAbaPais('geral')
   }, [canal, userTipoEfetivo])
+
+  /** Aquece imagens do chat antes do bundle do CanalMensagens (primeira abertura do app). */
+  useEffect(() => {
+    if (!canalId || !canal) return
+    if (isCanalFinanceiroProfissional(canal.nome) || isCanalFinanceiroEmpresa(canal.nome)) return
+
+    let cancelado = false
+    void (async () => {
+      try {
+        const rows = await listarMensagensCanalRecentes(supabase, canalId, { limit: 24 })
+        if (cancelado) return
+        const stubs = rows.map((r) => ({
+          anexo_url: r.anexo_url != null ? String(r.anexo_url) : null,
+          anexo_tipo: r.anexo_tipo != null ? String(r.anexo_tipo) : null,
+        }))
+        await aquecerCacheImagensMensagensCanal(supabase, stubs, { canalId, limit: 16 })
+      } catch {
+        /* não bloqueia abertura do canal */
+      }
+    })()
+
+    return () => {
+      cancelado = true
+    }
+  }, [canalId, canal])
 
   const pathname = usePathname()
 

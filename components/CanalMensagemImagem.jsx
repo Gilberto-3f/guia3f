@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import {
   extrairPathBucketMensagens,
   resolverUrlAnexoMensagemCanal,
-  urlPreviewImagemAnexoMensagemCanal,
+  urlExibicaoChatImagemAnexoCanal,
   urlPublicaAnexoMensagemCanal,
 } from '@/lib/canalAnexoUrl'
 
@@ -17,22 +17,22 @@ import {
  */
 export default function CanalMensagemImagem({ src, className = '', priority = false }) {
   const urlPublica = useMemo(() => urlPublicaAnexoMensagemCanal(supabase, src), [src])
-  const urlPreview = useMemo(() => urlPreviewImagemAnexoMensagemCanal(supabase, src), [src])
-  const [urlChat, setUrlChat] = useState(urlPreview)
+  const urlChatInicial = useMemo(() => urlExibicaoChatImagemAnexoCanal(supabase, src), [src])
+  const [urlChat, setUrlChat] = useState(urlChatInicial)
   const [urlOverlay, setUrlOverlay] = useState(urlPublica)
   const [aberto, setAberto] = useState(false)
   const [montado, setMontado] = useState(false)
   const signedProntoRef = useRef(/** @type {string | null} */ (null))
-  const fallbackChatRef = useRef(/** @type {'publica' | 'assinada' | 'done'} */ ('publica'))
+  const tentouAssinadaRef = useRef(false)
 
   useEffect(() => {
     setMontado(true)
   }, [])
 
   useEffect(() => {
-    setUrlChat(urlPreview)
+    setUrlChat(urlChatInicial)
     setUrlOverlay(urlPublica)
-    fallbackChatRef.current = 'publica'
+    tentouAssinadaRef.current = false
     signedProntoRef.current = null
 
     const path = extrairPathBucketMensagens(src)
@@ -46,7 +46,7 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
     return () => {
       vivo = false
     }
-  }, [src, urlPreview, urlPublica])
+  }, [src, urlChatInicial, urlPublica])
 
   const fechar = useCallback(() => setAberto(false), [])
 
@@ -65,25 +65,20 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
   }, [aberto, fechar])
 
   const onErrorChat = useCallback(() => {
-    if (fallbackChatRef.current === 'publica') {
-      fallbackChatRef.current = 'assinada'
-      if (urlChat !== urlPublica && urlPublica) {
-        setUrlChat(urlPublica)
-        return
-      }
+    if (tentouAssinadaRef.current) return
+    tentouAssinadaRef.current = true
+    const signed = signedProntoRef.current
+    if (signed && urlChat !== signed) {
+      setUrlChat(signed)
+      return
     }
-    if (fallbackChatRef.current === 'assinada') {
-      fallbackChatRef.current = 'done'
-      const signed = signedProntoRef.current
-      if (signed && urlChat !== signed) {
-        setUrlChat(signed)
-        return
+    void resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true }).then((s) => {
+      if (s) {
+        signedProntoRef.current = s
+        setUrlChat(s)
       }
-      void resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true }).then((s) => {
-        if (s) setUrlChat(s)
-      })
-    }
-  }, [src, urlChat, urlPublica])
+    })
+  }, [src, urlChat])
 
   const onErrorOverlay = useCallback(() => {
     const signed = signedProntoRef.current

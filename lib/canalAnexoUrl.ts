@@ -88,23 +88,93 @@ export function urlPreviewImagemAnexoMensagemCanal(
   return `${baseUrl}/storage/v1/render/image/public/${BUCKET_MENSAGENS}/${encoded}?width=${width}&quality=${quality}&resize=contain`
 }
 
-/** Pré-carrega as últimas imagens do chat no navegador (útil ao abrir o canal). */
+/** URL preferida na miniatura do chat (pública = sem cold start do endpoint /render/image). */
+export function urlExibicaoChatImagemAnexoCanal(
+  supabase: SupabaseClient,
+  anexoUrl: string,
+): string {
+  return urlPublicaAnexoMensagemCanal(supabase, anexoUrl)
+}
+
+const aquecimentoInflight = new Map<string, Promise<void>>()
+
+/**
+ * Pré-resolve URLs assinadas em lote e aquece o cache HTTP do navegador.
+ * Chamar assim que as mensagens chegarem (antes ou junto do primeiro render das `<img>`).
+ */
+export async function aquecerCacheImagensMensagensCanal(
+  supabase: SupabaseClient,
+  mensagens: Array<{ anexo_url: string | null; anexo_tipo: string | null }>,
+  opts?: { canalId?: string; limit?: number },
+): Promise<void> {
+  if (typeof window === 'undefined') return
+  const limit = opts?.limit ?? 16
+  const canalKey = opts?.canalId ?? '_'
+
+  const existente = aquecimentoInflight.get(canalKey)
+  if (existente) return existente
+
+  const tarefa = (async () => {
+    const anexos: string[] = []
+    for (let i = mensagens.length - 1; i >= 0 && anexos.length < limit; i--) {
+      const m = mensagens[i]
+      if (!m.anexo_url || !ehAnexoImagemCanal(m.anexo_url, m.anexo_tipo)) continue
+      anexos.push(m.anexo_url)
+    }
+    if (anexos.length === 0) return
+
+    prefetchImagensAnexosCanal(supabase, mensagens, limit)
+
+    void Promise.all(
+      anexos.map((anexoUrl) =>
+        resolverUrlAnexoMensagemCanal(supabase, anexoUrl, { forceSigned: true }).catch(() => null),
+      ),
+    )
+  })()
+
+  aquecimentoInflight.set(canalKey, tarefa)
+  try {
+    await tarefa
+  } finally {
+    aquecimentoInflight.delete(canalKey)
+  }
+}
+
+/** Pré-carrega imagens no navegador (URL pública + preload nas primeiras). */
 export function prefetchImagensAnexosCanal(
   supabase: SupabaseClient,
   mensagens: Array<{ anexo_url: string | null; anexo_tipo: string | null }>,
-  limit = 8,
+  limit = 16,
 ): void {
   if (typeof window === 'undefined' || limit <= 0) return
   let carregadas = 0
   for (let i = mensagens.length - 1; i >= 0 && carregadas < limit; i--) {
     const m = mensagens[i]
     if (!m.anexo_url || !ehAnexoImagemCanal(m.anexo_url, m.anexo_tipo)) continue
-    const url = urlPreviewImagemAnexoMensagemCanal(supabase, m.anexo_url)
+    const url = urlExibicaoChatImagemAnexoCanal(supabase, m.anexo_url)
+    if (carregadas < 4) {
+      try {
+        const link = document.createElement('link')
+        link.rel = 'preload'
+        link.as = 'image'
+        link.href = url
+        document.head.appendChild(link)
+        window.setTimeout(() => link.remove(), 60_000)
+      } catch {
+        /* ignore */
+      }
+    }
     const img = new window.Image()
     img.decoding = 'async'
+    img.fetchPriority = carregadas < 6 ? 'high' : 'low'
     img.src = url
     carregadas++
   }
+}
+
+/** Limpa fila de aquecimento (ex.: logout). */
+export function limparAquecimentoImagensCanais(): void {
+  aquecimentoInflight.clear()
 }
 
 /** Anexo é imagem (`anexo_tipo` ou extensão na URL). */
