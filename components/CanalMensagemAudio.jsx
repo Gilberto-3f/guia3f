@@ -121,13 +121,11 @@ export default function CanalMensagemAudio({ src, isOwn = false }) {
     ? formatarTempo((duracao || 0) * progresso)
     : formatarTempo(duracao)
 
-  const btnClass = isOwn
-    ? 'bg-white/20 text-white hover:bg-white/30'
-    : 'bg-[#0097b2]/15 text-[#0097b2] hover:bg-[#0097b2]/25'
+  const btnClass = 'bg-[#0097b2]/15 text-[#0097b2] hover:bg-[#0097b2]/25'
 
-  const barTrack = isOwn ? 'bg-white/25' : 'bg-gray-300'
-  const barFill = isOwn ? 'bg-white' : 'bg-[#0097b2]'
-  const timeClass = isOwn ? 'text-white/80' : 'text-gray-500'
+  const barTrack = 'bg-gray-300'
+  const barFill = 'bg-[#0097b2]'
+  const timeClass = 'text-gray-500'
 
   const avisoSafariWebm =
     erroPlayback && navegadorPrefereAudioMp4() && /\.webm/i.test(src)
@@ -170,7 +168,7 @@ export default function CanalMensagemAudio({ src, isOwn = false }) {
         </div>
       </div>
       {avisoSafariWebm ? (
-        <span className={`text-[10px] ${isOwn ? 'text-white/70' : 'text-gray-500'}`}>{avisoSafariWebm}</span>
+        <span className="text-[10px] text-gray-500">{avisoSafariWebm}</span>
       ) : null}
     </div>
   )

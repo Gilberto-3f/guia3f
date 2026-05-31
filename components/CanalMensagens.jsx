@@ -967,7 +967,7 @@ export default function CanalMensagens({
             const mostrarMenuMsg = Boolean(uid && !emEdicao)
 
             const bubbleBase = isOwn
-              ? 'canal-bubble-own rounded-2xl px-3 py-2 text-sm text-white'
+              ? 'canal-bubble-own rounded-2xl px-3 py-2 text-sm text-gray-900'
               : 'canal-bubble-other rounded-2xl px-3 py-2 text-sm text-gray-900'
 
             return (
@@ -985,7 +985,7 @@ export default function CanalMensagens({
                   <div className={`flex items-end gap-1.5 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
                     {renderAvatarRemetente(msg.remetente)}
 
-                    <div className={`relative flex items-start gap-1 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className={`relative flex items-start gap-0 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div
                       className={`relative ${bubbleBase} ${isOwn ? 'rounded-br-sm' : 'rounded-bl-sm'} min-w-[4rem] select-none touch-manipulation`}
                       onPointerDown={() => {
@@ -1059,11 +1059,7 @@ export default function CanalMensagens({
                       ) : (
                         <>
                           {msg.texto ? (
-                            <p
-                              className={`whitespace-pre-wrap break-words text-sm ${
-                                isOwn ? 'text-white' : 'text-gray-900'
-                              }`}
-                            >
+                            <p className="whitespace-pre-wrap break-words text-sm text-gray-900">
                               {msg.texto}
                             </p>
                           ) : null}
@@ -1088,20 +1084,14 @@ export default function CanalMensagens({
                               href={msg.anexo_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className={`mt-1 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm underline-offset-2 hover:underline ${
-                                isOwn ? 'text-white/95' : 'text-[#0097b2]'
-                              }`}
+                              className="mt-1 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-[#0097b2] underline-offset-2 hover:underline"
                             >
                               <Paperclip size={14} aria-hidden />
                               Ver anexo
                             </a>
                           ) : null}
 
-                          <div
-                            className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
-                              isOwn ? 'text-white/75' : 'text-gray-500'
-                            }`}
-                          >
+                          <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-gray-500">
                             <span>{formatarHora(msg.created_at)}</span>
                             {isOwn ? <span aria-hidden>✓</span> : null}
                           </div>
