@@ -64,3 +64,53 @@ export async function resolverUrlsDocumentosStorage(
   )
   return map
 }
+
+/**
+ * Dashboard ADM: URLs assinadas via API (service role), contorna RLS do bucket privado.
+ */
+export async function resolverUrlsDocumentosStorageAdmin(urls: string[]): Promise<Map<string, string>> {
+  const unicas = [...new Set(urls.map((u) => u.trim()).filter(Boolean))]
+  const map = new Map<string, string>()
+  if (!unicas.length) return map
+
+  const agora = Date.now()
+  const pendentes: string[] = []
+  for (const original of unicas) {
+    const path = extrairPathBucketDocumentos(original)
+    if (path) {
+      const emCache = cacheSignedUrl.get(path)
+      if (emCache && emCache.expira > agora) {
+        map.set(original, emCache.url)
+        continue
+      }
+    }
+    pendentes.push(original)
+  }
+
+  if (!pendentes.length) return map
+
+  try {
+    const res = await fetch('/api/admin/documentos-urls', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls: pendentes }),
+    })
+    const json = (await res.json().catch(() => ({}))) as { urls?: Record<string, string>; error?: string }
+    if (!res.ok) {
+      for (const u of pendentes) map.set(u, u)
+      return map
+    }
+    for (const original of pendentes) {
+      const resolvida = json.urls?.[original] ?? original
+      map.set(original, resolvida)
+      const path = extrairPathBucketDocumentos(original)
+      if (path && resolvida !== original) {
+        cacheSignedUrl.set(path, { url: resolvida, expira: agora + TTL_SIGNED_MS })
+      }
+    }
+  } catch {
+    for (const u of pendentes) map.set(u, u)
+  }
+  return map
+}

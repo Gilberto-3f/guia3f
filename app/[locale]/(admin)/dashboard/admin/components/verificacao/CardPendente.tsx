@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import { resolverUrlsDocumentosStorage } from '@/lib/documentosStorageUrl'
+import { resolverUrlsDocumentosStorageAdmin } from '@/lib/documentosStorageUrl'
 import { VisualizadorDocs } from './VisualizadorDocs'
 import { PreviewDocumento, isPdfUrl } from './PreviewDocumento'
 import { usePermissao } from '../../hooks/usePermissao'
@@ -120,7 +119,7 @@ export function CardPendente({
   useEffect(() => {
     if (!urlsDocs.length) return
     let ativo = true
-    void resolverUrlsDocumentosStorage(supabase, urlsDocs).then((map) => {
+    void resolverUrlsDocumentosStorageAdmin(urlsDocs).then((map) => {
       if (ativo) setUrlsResolvidas(map)
     })
     return () => {

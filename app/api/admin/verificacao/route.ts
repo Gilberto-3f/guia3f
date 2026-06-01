@@ -1,16 +1,10 @@
 import { NextResponse } from 'next/server'
-import { assertAdminSession } from '@/lib/adminApiAuth'
+import { assertAdminSession, adminPodeRecurso } from '@/lib/adminApiAuth'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { proximaRevisaoDepoisDeAprovacao } from '@/lib/verificacao-documentos'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
 
 type PerfilVerificacao = 'turistas' | 'profissionais' | 'empresas'
-
-function adminTemRecurso(adminPermissoes: unknown, recurso: string): boolean {
-  const raw = adminPermissoes as { recursos?: string[] } | null
-  const recursos = Array.isArray(raw?.recursos) ? raw.recursos : []
-  return recursos.includes('*') || recursos.includes(recurso)
-}
 
 function getTableByTipo(tipo: PerfilVerificacao): 'turistas' | 'profissionais' | 'empresas' {
   return tipo
@@ -22,15 +16,23 @@ export async function POST(req: Request) {
     const session = await assertAdminSession()
     if (!session.ok) return session.error
 
-    const { supabase: supabaseUser, userId } = session
+    const { userId } = session
+    const adminDb = createSupabaseAdmin()
 
-    const { data: adminRow, error: adminErr } = await supabaseUser
+    const { data: adminRow, error: adminErr } = await adminDb
       .from('usuarios')
-      .select('id, email, username, admin_level, admin_permissoes')
+      .select('id, email, role, admin_level, admin_permissoes')
       .eq('id', userId)
       .maybeSingle()
-    if (adminErr || !adminRow) {
-      return NextResponse.json({ error: 'Admin não encontrado.' }, { status: 403 })
+
+    if (adminErr) {
+      return NextResponse.json({ error: adminErr.message }, { status: 400 })
+    }
+    if (!adminRow) {
+      return NextResponse.json(
+        { error: 'Usuário autenticado sem registro em usuarios. Peça suporte para vincular o perfil ADM.' },
+        { status: 403 },
+      )
     }
 
     const body = (await req.json()) as Record<string, unknown>
@@ -43,12 +45,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Parâmetros inválidos.' }, { status: 400 })
     }
 
-    if (acao === 'aprovar' && !adminTemRecurso(adminRow.admin_permissoes, 'aprovar')) {
+    const role = String(adminRow.role ?? '')
+    const nivel = Number(adminRow.admin_level ?? 0)
+
+    if (acao === 'aprovar' && !adminPodeRecurso(adminRow.admin_permissoes, nivel, role, 'aprovar')) {
       return NextResponse.json({ error: 'Sem permissão para aprovar.' }, { status: 403 })
     }
     if (acao === 'reprovar') {
       if (!motivo) return NextResponse.json({ error: 'Motivo obrigatório.' }, { status: 400 })
-      if (!adminTemRecurso(adminRow.admin_permissoes, 'reprovar')) {
+      if (!adminPodeRecurso(adminRow.admin_permissoes, nivel, role, 'reprovar')) {
         return NextResponse.json({ error: 'Sem permissão para reprovar.' }, { status: 403 })
       }
     }
@@ -56,15 +61,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Ação inválida.' }, { status: 400 })
     }
 
-    const admin = createSupabaseAdmin()
     const table = getTableByTipo(tipo)
 
-    const { data: perfil, error: perfilErr } = await admin.from(table).select('usuario_id').eq('id', id).single()
+    const { data: perfil, error: perfilErr } = await adminDb.from(table).select('usuario_id').eq('id', id).single()
     if (perfilErr) {
       return NextResponse.json({ error: perfilErr.message }, { status: 400 })
     }
 
     const nowIso = new Date().toISOString()
+    const adminEmail = String(adminRow.email ?? 'admin')
 
     if (acao === 'aprovar') {
       const extraProf =
@@ -88,7 +93,7 @@ export async function POST(req: Request) {
             }
           : {}
 
-      const { error: updErr } = await admin
+      const { error: updErr } = await adminDb
         .from(table)
         .update({
           status: 'aprovado',
@@ -107,7 +112,7 @@ export async function POST(req: Request) {
       }
 
       if (perfil?.usuario_id) {
-        const { error: userErr } = await admin.from('usuarios').update({ status: 'ativo' }).eq('id', perfil.usuario_id)
+        const { error: userErr } = await adminDb.from('usuarios').update({ status: 'ativo' }).eq('id', perfil.usuario_id)
         if (userErr) {
           return NextResponse.json({ error: userErr.message }, { status: 400 })
         }
@@ -115,7 +120,7 @@ export async function POST(req: Request) {
 
       if (tipo === 'profissionais') {
         try {
-          const { data: prof } = await admin
+          const { data: prof } = await adminDb
             .from('profissionais')
             .select('usuario_id, nome_usuario, categorias')
             .eq('id', id)
@@ -123,7 +128,7 @@ export async function POST(req: Request) {
           if (prof?.usuario_id) {
             const nomeUsuario = String(prof.nome_usuario ?? '').trim().replace(/^@+/, '')
             const categoriaRotulo = formatProfissionalCategorias(prof.categorias)
-            await admin.from('posts').insert({
+            await adminDb.from('posts').insert({
               autor_id: String(prof.usuario_id),
               tipo: 'verificacao_profissional',
               texto: `@${nomeUsuario || 'usuario'} agora é um profissional verificado da plataforma`,
@@ -139,13 +144,13 @@ export async function POST(req: Request) {
         }
       }
 
-      await admin.from('logs_verificacao').insert({
+      await adminDb.from('logs_verificacao').insert({
         tipo,
         perfil_id: id,
         acao: 'aprovado',
         admin_id: userId,
-        admin_email: adminRow.email ?? adminRow.username ?? 'admin',
-        admin_nivel: adminRow.admin_level ?? 0,
+        admin_email: adminEmail,
+        admin_nivel: nivel,
         alvo_id: null,
         detalhes: { status_final: 'aprovado', modulo: 'verificacao_perfil' },
       })
@@ -153,7 +158,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true })
     }
 
-    const { error: reprovErr } = await admin
+    const { error: reprovErr } = await adminDb
       .from(table)
       .update({
         status: 'reprovado',
@@ -168,16 +173,16 @@ export async function POST(req: Request) {
     }
 
     if (perfil?.usuario_id) {
-      await admin.from('usuarios').update({ status: 'reprovado' }).eq('id', perfil.usuario_id)
+      await adminDb.from('usuarios').update({ status: 'reprovado' }).eq('id', perfil.usuario_id)
     }
 
-    await admin.from('logs_verificacao').insert({
+    await adminDb.from('logs_verificacao').insert({
       tipo,
       perfil_id: id,
       acao: 'reprovado',
       admin_id: userId,
-      admin_email: adminRow.email ?? adminRow.username ?? 'admin',
-      admin_nivel: adminRow.admin_level ?? 0,
+      admin_email: adminEmail,
+      admin_nivel: nivel,
       alvo_id: null,
       detalhes: { status_final: 'reprovado', modulo: 'verificacao_perfil', motivo },
     })

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { resolverUrlsDocumentosStorage } from '@/lib/documentosStorageUrl'
+import { resolverUrlsDocumentosStorageAdmin } from '@/lib/documentosStorageUrl'
 import type {
   ContadoresVerificacao,
   PendenteEmpresa,
@@ -93,7 +93,7 @@ function urlsDocumentosDeRow(tipo: PerfilVerificacao, r: Record<string, unknown>
 
 function aquecerCacheDocumentos(tipo: PerfilVerificacao, rows: Record<string, unknown>[]) {
   const urls = [...new Set(rows.flatMap((r) => urlsDocumentosDeRow(tipo, r)))]
-  if (urls.length) void resolverUrlsDocumentosStorage(supabase, urls)
+  if (urls.length) void resolverUrlsDocumentosStorageAdmin(urls)
 }
 
 export function useVerificacao(filtros: FiltrosVerificacao) {

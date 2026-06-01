@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import { resolverUrlDocumentoStorage } from '@/lib/documentosStorageUrl'
+import { resolverUrlsDocumentosStorageAdmin } from '@/lib/documentosStorageUrl'
 
 export function isPdfUrl(url: string): boolean {
   return url.toLowerCase().includes('.pdf')
@@ -34,8 +33,8 @@ export function PreviewDocumento({
     let ativo = true
     setErro(false)
     setSrc(null)
-    void resolverUrlDocumentoStorage(supabase, url).then((resolvida) => {
-      if (ativo) setSrc(resolvida)
+    void resolverUrlsDocumentosStorageAdmin([url]).then((map) => {
+      if (ativo) setSrc(map.get(url) ?? url)
     })
     return () => {
       ativo = false
