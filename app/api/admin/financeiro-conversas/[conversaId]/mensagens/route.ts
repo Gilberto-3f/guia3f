@@ -19,12 +19,16 @@ export async function POST(req: Request, ctx: RouteCtx) {
 
   const { conversaId } = await ctx.params
   const body = (await req.json()) as Record<string, unknown>
-  const texto = String(body.texto ?? '')
+  const texto = body.texto != null ? String(body.texto) : null
+  const anexo_url = body.anexo_url != null ? String(body.anexo_url) : null
+  const anexo_tipo = body.anexo_tipo != null ? String(body.anexo_tipo) : null
 
   const res = await enviarMensagemConversaFinanceiro(auth.supabase, {
     conversaId,
     remetenteId: auth.userId,
     texto,
+    anexo_url,
+    anexo_tipo,
   })
 
   if (!res.ok) {

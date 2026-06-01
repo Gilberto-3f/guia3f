@@ -35,7 +35,9 @@ type ConversaHistorico = {
 type Mensagem = {
   id: string
   remetente_id: string
-  texto: string
+  texto: string | null
+  anexo_url: string | null
+  anexo_tipo: string | null
   created_at: string
 }
 
@@ -312,6 +314,19 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                       {new Date(m.created_at).toLocaleString('pt-BR')} ·{' '}
                     </span>
                     {m.texto}
+                    {m.anexo_url ? (
+                      <span className="block text-xs text-[#0097b2]">
+                        {m.anexo_tipo === 'audio'
+                          ? 'Áudio'
+                          : m.anexo_tipo === 'imagem'
+                            ? 'Imagem'
+                            : 'Anexo'}{' '}
+                        ·{' '}
+                        <a href={m.anexo_url} target="_blank" rel="noopener noreferrer" className="underline">
+                          abrir
+                        </a>
+                      </span>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -464,6 +479,20 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                           mensagens.map((m) => (
                             <li key={m.id} className="rounded-lg bg-white px-2 py-1.5 text-sm text-gray-900">
                               {m.texto}
+                              {m.anexo_url ? (
+                                <a
+                                  href={m.anexo_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mt-0.5 block text-xs text-[#0097b2] underline"
+                                >
+                                  {m.anexo_tipo === 'audio'
+                                    ? 'Ouvir áudio'
+                                    : m.anexo_tipo === 'imagem'
+                                      ? 'Ver imagem'
+                                      : 'Ver anexo'}
+                                </a>
+                              ) : null}
                               <div className="text-[10px] text-gray-400">
                                 {new Date(m.created_at).toLocaleString('pt-BR')}
                               </div>

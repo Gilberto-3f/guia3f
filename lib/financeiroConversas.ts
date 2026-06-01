@@ -20,7 +20,9 @@ export type FinanceiroMensagemRow = {
   id: string
   conversa_id: string
   remetente_id: string
-  texto: string
+  texto: string | null
+  anexo_url: string | null
+  anexo_tipo: string | null
   created_at: string
 }
 
@@ -164,25 +166,28 @@ export async function listarMensagensConversa(
 ): Promise<FinanceiroMensagemRow[]> {
   const { data } = await supabase
     .from('financeiro_mensagens')
-    .select('id, conversa_id, remetente_id, texto, created_at')
+    .select('id, conversa_id, remetente_id, texto, anexo_url, anexo_tipo, created_at')
     .eq('conversa_id', conversaId)
     .order('created_at', { ascending: true })
 
-  return (data ?? []).map((m) => ({
-    id: String(m.id),
-    conversa_id: String(m.conversa_id),
-    remetente_id: String(m.remetente_id),
-    texto: String(m.texto ?? ''),
-    created_at: String(m.created_at ?? ''),
-  }))
+  return (data ?? []).map(mapMensagem)
 }
 
 export async function enviarMensagemConversaFinanceiro(
   supabase: SupabaseClient,
-  params: { conversaId: string; remetenteId: string; texto: string },
+  params: {
+    conversaId: string
+    remetenteId: string
+    texto?: string | null
+    anexo_url?: string | null
+    anexo_tipo?: string | null
+  },
 ): Promise<{ ok: boolean; mensagem?: FinanceiroMensagemRow; error?: string }> {
-  const texto = params.texto.trim()
-  if (!texto) return { ok: false, error: 'Mensagem vazia.' }
+  const texto = params.texto?.trim() ? params.texto.trim() : null
+  const anexoUrl = params.anexo_url?.trim() ? params.anexo_url.trim() : null
+  const anexoTipo = params.anexo_tipo?.trim() ? params.anexo_tipo.trim() : null
+
+  if (!texto && !anexoUrl) return { ok: false, error: 'Mensagem vazia.' }
 
   const { data: conv } = await supabase
     .from('financeiro_conversas')
@@ -200,26 +205,19 @@ export async function enviarMensagemConversaFinanceiro(
       conversa_id: params.conversaId,
       remetente_id: params.remetenteId,
       texto,
+      anexo_url: anexoUrl,
+      anexo_tipo: anexoTipo,
     })
-    .select('id, conversa_id, remetente_id, texto, created_at')
+    .select('id, conversa_id, remetente_id, texto, anexo_url, anexo_tipo, created_at')
     .maybeSingle()
 
   if (error) return { ok: false, error: error.message }
   if (!data) return { ok: false, error: 'Falha ao enviar.' }
 
-  return {
-    ok: true,
-    mensagem: {
-      id: String(data.id),
-      conversa_id: String(data.conversa_id),
-      remetente_id: String(data.remetente_id),
-      texto: String(data.texto),
-      created_at: String(data.created_at ?? ''),
-    },
-  }
+  return { ok: true, mensagem: mapMensagem(data) }
 }
 
-/** Conversa aberta do usuário (profissional/empresa) com a administração. */
+/** Conversa aberta iniciada pelo ADM (profissional/empresa). */
 export async function buscarConversaAbertaParaAlvo(
   supabase: SupabaseClient,
   alvoUsuarioId: string,
@@ -229,11 +227,42 @@ export async function buscarConversaAbertaParaAlvo(
     .select('*')
     .eq('alvo_usuario_id', alvoUsuarioId)
     .eq('status', 'aberta')
+    .eq('iniciada_por_adm', true)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
   return data ? mapConversa(data) : null
+}
+
+/** Todas as conversas do mensageiro ADM para o alvo (aberta + arquivadas). */
+export async function listarConversasFinanceiroParaAlvo(
+  supabase: SupabaseClient,
+  alvoUsuarioId: string,
+  opts?: { limit?: number },
+): Promise<FinanceiroConversaRow[]> {
+  const limit = opts?.limit ?? 30
+  const { data } = await supabase
+    .from('financeiro_conversas')
+    .select('*')
+    .eq('alvo_usuario_id', alvoUsuarioId)
+    .eq('iniciada_por_adm', true)
+    .order('updated_at', { ascending: false })
+    .limit(limit)
+
+  return (data ?? []).map(mapConversa)
+}
+
+function mapMensagem(row: Record<string, unknown>): FinanceiroMensagemRow {
+  return {
+    id: String(row.id),
+    conversa_id: String(row.conversa_id),
+    remetente_id: String(row.remetente_id),
+    texto: row.texto != null ? String(row.texto) : null,
+    anexo_url: row.anexo_url != null ? String(row.anexo_url) : null,
+    anexo_tipo: row.anexo_tipo != null ? String(row.anexo_tipo) : null,
+    created_at: String(row.created_at ?? ''),
+  }
 }
 
 function mapConversa(row: Record<string, unknown>): FinanceiroConversaRow {
