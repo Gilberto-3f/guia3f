@@ -78,7 +78,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       supabase
         .from('profissionais')
         .select('*', { count: 'exact', head: true })
-        .eq('docs_verificado', false)
+        .eq('status', 'aguardando_analise')
         .not('documentos_enviados_em', 'is', null),
       supabase
         .from('empresas')
@@ -125,7 +125,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     const { data, error } = await supabase
       .from('profissionais')
       .select('*')
-      .eq('docs_verificado', false)
+      .eq('status', 'aguardando_analise')
       .not('documentos_enviados_em', 'is', null)
       .order('documentos_enviados_em', { ascending: true })
     if (error) throw error
@@ -237,45 +237,6 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
   const getTableByTipo = (tipo: PerfilVerificacao) =>
     tipo === 'turistas' ? 'turistas' : tipo === 'profissionais' ? 'profissionais' : 'empresas'
 
-  const marcarDocsVerificado = useCallback(
-    async (id: string, tipo: PerfilVerificacao) => {
-      if (!admin) throw new Error('Admin não autenticado')
-      const table = getTableByTipo(tipo)
-      const nowIso = new Date().toISOString()
-      const extraProf =
-        tipo === 'profissionais'
-          ? {
-              ultima_revisao_docs_em: nowIso,
-              proxima_revisao_docs_em: proximaRevisaoDepoisDeAprovacao(),
-            }
-          : {}
-      const { error } = await supabase
-        .from(table)
-        .update({
-          docs_verificado: true,
-          docs_verificado_por: admin.id,
-          docs_verificado_em: nowIso,
-          verificado_por: admin.id,
-          verificado_em: nowIso,
-          ...extraProf,
-        })
-        .eq('id', id)
-      if (error) throw error
-      if (admin) {
-        await registrarLogVerificacao({
-          tipo,
-          perfil_id: id,
-          acao: 'docs_verificado',
-          status_final: 'docs_verificado',
-          admin: adminContextFromGate(admin),
-          detalhes: { modulo: 'verificacao_perfil' },
-        })
-      }
-      await fetchData()
-    },
-    [admin, fetchData]
-  )
-
   const aprovar = useCallback(
     async (id: string, tipo: PerfilVerificacao) => {
       const table = getTableByTipo(tipo)
@@ -384,5 +345,5 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     [admin, fetchData]
   )
 
-  return { pendentes, contadores, loading, error, marcarDocsVerificado, aprovar, reprovar, refetch: fetchData }
+  return { pendentes, contadores, loading, error, aprovar, reprovar, refetch: fetchData }
 }

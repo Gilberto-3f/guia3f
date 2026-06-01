@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { VisualizadorDocs } from './VisualizadorDocs'
+import { PreviewDocumento, isPdfUrl } from './PreviewDocumento'
 import { usePermissao } from '../../hooks/usePermissao'
 
 export type CadastroPendente = {
@@ -33,10 +34,6 @@ const BADGE_EMPRESA_CATEGORIA: Record<string, string> = {
 function badgeEmpresaCategoriaClass(cat: string): string {
   const k = cat.trim()
   return BADGE_EMPRESA_CATEGORIA[k] ?? 'border-gray-200 bg-gray-100 text-gray-800'
-}
-
-function isPdfUrl(url: string): boolean {
-  return url.toLowerCase().includes('.pdf')
 }
 
 function collectDocThumbs(tipo: 'turistas' | 'profissionais' | 'empresas', raw: Record<string, unknown>): DocThumb[] {
@@ -83,13 +80,11 @@ export function CardPendente({
   tipo,
   onAprovar,
   onReprovar,
-  onDocsVerificado,
 }: {
   item: CadastroPendente
   tipo: 'turistas' | 'profissionais' | 'empresas'
   onAprovar: () => void
   onReprovar: (motivo: string) => void
-  onDocsVerificado: () => void
 }) {
   const [modalAberto, setModalAberto] = useState(false)
   const [reprovarAberto, setReprovarAberto] = useState(false)
@@ -206,7 +201,7 @@ export function CardPendente({
                           <span className="line-clamp-2 text-[10px] text-gray-500">{t.label}</span>
                         </div>
                       ) : (
-                        <img src={t.url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                        <PreviewDocumento url={t.url} label={t.label} className="h-full w-full" objectFit="cover" />
                       )}
                     </div>
                     <span className="border-t border-gray-100 bg-white px-1.5 py-1 text-center text-[10px] font-semibold leading-tight text-gray-700">{t.label}</span>
@@ -214,8 +209,8 @@ export function CardPendente({
                 ))}
               </div>
             )}
-            <div className="mt-2 flex flex-wrap gap-2">
-              {tipo !== 'empresas' && thumbs.length > 0 ? (
+            {tipo !== 'empresas' && thumbs.length > 0 ? (
+              <div className="mt-2">
                 <button
                   type="button"
                   onClick={() => setModalAberto(true)}
@@ -223,15 +218,8 @@ export function CardPendente({
                 >
                   Ver todos / ampliar
                 </button>
-              ) : null}
-              {!item.docsVerificado ? (
-                <button type="button" onClick={onDocsVerificado} className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100">
-                  Marcar documentos verificados
-                </button>
-              ) : (
-                <span className="self-center text-[11px] text-emerald-700">Docs verificados{item.docsVerificadoEm ? ` · ${item.docsVerificadoEm}` : ''}</span>
-              )}
-            </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
@@ -286,13 +274,7 @@ export function CardPendente({
         </div>
       </div>
 
-      <VisualizadorDocs
-        aberto={modalAberto}
-        onClose={() => setModalAberto(false)}
-        pendente={item.raw}
-        tipo={tipo}
-        onMarcarVerificado={onDocsVerificado}
-      />
+      <VisualizadorDocs aberto={modalAberto} onClose={() => setModalAberto(false)} pendente={item.raw} tipo={tipo} />
     </>
   )
 }

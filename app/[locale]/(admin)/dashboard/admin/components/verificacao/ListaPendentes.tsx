@@ -8,7 +8,7 @@ import { formatContatoExibicao, formatProfissionalCategorias, pickDocumentoFisca
 
 export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 'empresas' }) {
   const [feedback, setFeedback] = useState<string | null>(null)
-  const { pendentes, loading, error, aprovar, reprovar, marcarDocsVerificado } = useVerificacao({
+  const { pendentes, loading, error, aprovar, reprovar } = useVerificacao({
     perfil: tipo,
   })
 
@@ -91,11 +91,6 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
             key={i.id}
             item={i}
             tipo={tipo}
-            onDocsVerificado={() => {
-              void marcarDocsVerificado(i.id, tipo)
-                .then(() => setFeedback('Documentos marcados como verificados.'))
-                .catch(() => setFeedback('Não foi possível marcar documentos. Tente de novo.'))
-            }}
             onAprovar={() => {
               void aprovar(i.id, tipo)
                 .then(() => setFeedback('Cadastro aprovado com sucesso.'))
