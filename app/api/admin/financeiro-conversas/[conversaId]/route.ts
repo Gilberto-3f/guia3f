@@ -6,7 +6,7 @@ type RouteCtx = { params: Promise<{ conversaId: string }> }
 
 export async function GET(_req: Request, ctx: RouteCtx) {
   const auth = await assertAdminSession()
-  if ('error' in auth && auth.error) return auth.error
+  if (!auth.ok) return auth.error
 
   const { conversaId } = await ctx.params
   const { data: conversa, error } = await auth.supabase
@@ -25,7 +25,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
 
 export async function PATCH(req: Request, ctx: RouteCtx) {
   const auth = await assertAdminSession()
-  if ('error' in auth && auth.error) return auth.error
+  if (!auth.ok) return auth.error
 
   const { conversaId } = await ctx.params
   const body = (await req.json()) as Record<string, unknown>

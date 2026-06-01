@@ -5,7 +5,7 @@ import { carregarDesempenhoFinanceiro } from '@/lib/financeiroDesempenho'
 
 export async function GET(req: Request) {
   const auth = await assertAdminSession()
-  if ('error' in auth && auth.error) return auth.error
+  if (!auth.ok) return auth.error
 
   const url = new URL(req.url)
   const tipo = url.searchParams.get('tipo') === 'empresa' ? 'empresa' : 'profissional'

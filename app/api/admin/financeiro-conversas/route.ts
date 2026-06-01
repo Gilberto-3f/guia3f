@@ -10,7 +10,7 @@ import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroE
 
 export async function GET() {
   const auth = await assertAdminSession()
-  if ('error' in auth && auth.error) return auth.error
+  if (!auth.ok) return auth.error
 
   const conversas = await listarHistoricoConversasAdm(auth.supabase, auth.userId)
   const alvoIds = [...new Set(conversas.map((c) => c.alvo_usuario_id))]
@@ -63,7 +63,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const auth = await assertAdminSession()
-  if ('error' in auth && auth.error) return auth.error
+  if (!auth.ok) return auth.error
 
   const body = (await req.json()) as Record<string, unknown>
   const alvoUsuarioId = String(body.alvo_usuario_id ?? '').trim()
