@@ -169,6 +169,17 @@ body {
   color: #111827;
 }
 
+/* Canal financeiro (ADM, profissional, empresa): texto legível em inputs */
+.canal-financeiro-ui input,
+.canal-financeiro-ui textarea {
+  color: #111827;
+}
+
+.canal-financeiro-ui input::placeholder,
+.canal-financeiro-ui textarea::placeholder {
+  color: #6b7280;
+}
+
 .canal-chat-date-separator {
   background-color: #0097b2;
 }

@@ -35,7 +35,7 @@ export default function CanalFinanceiroItem({ item, userTipo }) {
       case 'manifesto_indicacao':
         return <FileText size={20} className="text-purple-500" aria-hidden />
       case 'mensagem_adm':
-        return <FileText size={20} className="text-[#0097b2]" aria-hidden />
+        return <FileText size={20} className="text-[#00D443]" aria-hidden />
       case 'recibo_atendimento':
         return <CheckCircle size={20} className="text-emerald-600" aria-hidden />
       case 'extrato_parceria':
@@ -72,13 +72,13 @@ export default function CanalFinanceiroItem({ item, userTipo }) {
   const valorNum = item.valor != null ? Number(item.valor) : null
 
   return (
-    <div className={`rounded-xl bg-white p-4 shadow-sm ${!estaLida ? 'border-l-4 border-[#0097b2]' : ''}`}>
+    <div className={`rounded-xl bg-white p-4 shadow-sm ${!estaLida ? 'border-l-4 border-[#00D443]' : ''}`}>
       <div className="flex gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100">{getIcon()}</div>
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <h3 className="font-medium text-gray-800">{item.titulo}</h3>
-            {!estaLida ? <span className="rounded-full bg-[#0097b2] px-2 py-0.5 text-xs text-white">Nova</span> : null}
+            {!estaLida ? <span className="rounded-full bg-[#00D443] px-2 py-0.5 text-xs text-white">Nova</span> : null}
           </div>
 
           <p className="mb-2 text-sm text-gray-600">
@@ -88,7 +88,7 @@ export default function CanalFinanceiroItem({ item, userTipo }) {
           {item.mensagem ? <p className="mb-2 text-sm text-gray-500">{item.mensagem}</p> : null}
 
           {valorNum != null && valorNum > 0 ? (
-            <p className="mb-2 text-lg font-bold text-[#0097b2]">R$ {valorNum.toFixed(2)}</p>
+            <p className="mb-2 text-lg font-bold text-[#00D443]">R$ {valorNum.toFixed(2)}</p>
           ) : null}
 
           {item.anexo_url ? (
@@ -96,7 +96,7 @@ export default function CanalFinanceiroItem({ item, userTipo }) {
               href={item.anexo_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="mb-2 inline-flex items-center gap-1 text-sm text-[#0097b2]"
+              className="mb-2 inline-flex items-center gap-1 text-sm text-[#00D443]"
             >
               <Eye size={14} aria-hidden />
               Ver comprovante
@@ -110,7 +110,7 @@ export default function CanalFinanceiroItem({ item, userTipo }) {
               type="button"
               onClick={() => void marcarComoLida()}
               disabled={marcandoLida}
-              className="mt-2 text-xs text-gray-400 hover:text-[#0097b2] disabled:opacity-50"
+              className="mt-2 text-xs text-gray-400 hover:text-[#00D443] disabled:opacity-50"
             >
               Marcar como lida
             </button>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BarChart3, MessageCircle, Search, Send, X } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
+const INPUT_FIN = 'text-gray-900 placeholder:text-gray-500 caret-gray-900'
 
 type AbaFinanceiro = 'profissional' | 'empresa' | 'historico'
 
@@ -71,7 +72,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
 
   const abaCls = (ativo: boolean) =>
     `flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition-colors sm:text-sm ${
-      ativo ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      ativo ? 'bg-[#00D443] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
     }`
 
   const carregarHistorico = useCallback(async () => {
@@ -220,25 +221,12 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
   }
 
   const shellClass = embedded
-    ? 'flex min-h-0 flex-1 flex-col overflow-y-auto bg-gray-50 p-4'
-    : 'rounded-2xl border border-gray-200 bg-white p-4 shadow-sm'
+    ? 'canal-financeiro-ui flex min-h-0 flex-1 flex-col overflow-y-auto bg-gray-50 p-4'
+    : 'canal-financeiro-ui rounded-2xl border border-gray-200 bg-white p-4 shadow-sm'
 
   return (
     <div className={shellClass}>
-      {!embedded ? (
-        <>
-          <h2 className="text-base font-bold text-gray-900">Canal Financeiro</h2>
-          <p className="mt-1 text-sm text-gray-600">
-            Pesquise profissionais ou empresas, converse em particular ou consulte o histórico de auditoria.
-          </p>
-        </>
-      ) : (
-        <p className="mb-3 text-sm text-gray-600">
-          Localize profissionais ou empresas, analise o desempenho ou converse em particular.
-        </p>
-      )}
-
-      <div className={`flex gap-2 ${embedded ? 'shrink-0' : 'mt-4'}`} role="tablist">
+      <div className="flex shrink-0 gap-2" role="tablist">
         <button
           type="button"
           role="tab"
@@ -282,7 +270,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
             <div>
               <button
                 type="button"
-                className="mb-2 text-sm text-[#0097b2]"
+                className="mb-2 text-sm font-medium text-gray-900"
                 onClick={() => {
                   setHistoricoDetalhe(null)
                   setMensagens([])
@@ -347,7 +335,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                   ? 'Buscar por nome ou @username…'
                   : 'Buscar empresa por nome ou @…'
               }
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#0097b2] focus:ring-1 focus:ring-[#0097b2]"
+              className={`w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#00D443] focus:ring-1 focus:ring-[#00D443] ${INPUT_FIN}`}
             />
           </div>
           {buscando ? <p className="mt-2 text-xs text-gray-500">Buscando…</p> : null}
@@ -373,7 +361,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
           ) : null}
 
           {selecionado ? (
-            <div className="mt-4 rounded-xl border border-[#0097b2]/30 bg-white p-4 shadow-sm">
+            <div className="mt-4 rounded-xl border border-[#00D443]/30 bg-white p-4 shadow-sm">
               <div className="flex items-start gap-3">
                 <AvatarImage src={selecionado.fotoUrl} alt="" width={56} height={56} className="rounded-full" />
                 <div className="min-w-0 flex-1">
@@ -407,7 +395,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                     type="button"
                     disabled={abrindoChat}
                     onClick={() => void abrirMensageiro()}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white hover:bg-[#008099] disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#00D443] px-3 py-2 text-sm font-semibold text-white hover:bg-[#00b83b] disabled:opacity-50"
                   >
                     <MessageCircle className="h-4 w-4" aria-hidden />
                     {abrindoChat ? 'Abrindo…' : 'Abrir mensageiro'}
@@ -416,7 +404,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                 <button
                   type="button"
                   onClick={() => void analisarDesempenho()}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#0097b2] px-3 py-2 text-sm font-medium text-[#0097b2] hover:bg-[#0097b2]/10"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#00D443] px-3 py-2 text-sm font-medium text-[#00D443] hover:bg-[#00D443]/10"
                 >
                   <BarChart3 className="h-4 w-4" aria-hidden />
                   Analisar desempenho
@@ -453,13 +441,13 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                         }
                       }}
                       placeholder="Mensagem…"
-                      className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#0097b2]"
+                      className={`min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#00D443] ${INPUT_FIN}`}
                     />
                     <button
                       type="button"
                       disabled={!textoMsg.trim() || enviando}
                       onClick={() => void enviarMensagem()}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0097b2] text-white disabled:opacity-50"
+                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#00D443] text-white disabled:opacity-50"
                       aria-label="Enviar"
                     >
                       <Send className="h-4 w-4" />
@@ -492,9 +480,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                 </div>
               ) : null}
             </div>
-          ) : (
-            <p className="mt-4 text-xs text-gray-500">Busque e selecione um usuário para ver o card de ações.</p>
-          )}
+          ) : null}
         </>
       )}
     </div>

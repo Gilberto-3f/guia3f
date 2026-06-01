@@ -71,9 +71,9 @@ export default function CanalFinanceiroConversa({ usuarioId }) {
   if (!conversaId) return null
 
   return (
-    <section className="border-b border-[#0097b2]/20 bg-[#0097b2]/5">
+    <section className="canal-financeiro-ui border-b border-[#00D443]/20 bg-[#00D443]/5">
       <div className="px-4 py-2">
-        <h3 className="text-sm font-semibold text-[#007a8c]">Conversa com a administração</h3>
+        <h3 className="text-sm font-semibold text-gray-900">Conversa com a administração</h3>
         <p className="text-xs text-gray-600">Mensageiro particular — responda abaixo.</p>
       </div>
       <ul className="max-h-48 space-y-2 overflow-y-auto px-4 pb-2">
@@ -98,7 +98,7 @@ export default function CanalFinanceiroConversa({ usuarioId }) {
           })
         )}
       </ul>
-      <div className="flex gap-2 border-t border-[#0097b2]/15 bg-white px-3 py-2">
+      <div className="flex gap-2 border-t border-[#00D443]/15 bg-white px-3 py-2">
         <input
           type="text"
           value={texto}
@@ -110,13 +110,13 @@ export default function CanalFinanceiroConversa({ usuarioId }) {
             }
           }}
           placeholder="Responder à administração…"
-          className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#0097b2]"
+          className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 outline-none focus:border-[#00D443]"
         />
         <button
           type="button"
           disabled={!texto.trim() || enviando}
           onClick={() => void enviar()}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0097b2] text-white disabled:opacity-50"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#00D443] text-white disabled:opacity-50"
           aria-label="Enviar"
         >
           <Send className="h-4 w-4" aria-hidden />

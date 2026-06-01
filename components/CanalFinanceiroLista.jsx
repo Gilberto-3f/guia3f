@@ -108,7 +108,7 @@ export default function CanalFinanceiroLista({ usuarioId, tipo }) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="canal-financeiro-ui flex min-h-0 flex-1 flex-col text-gray-900">
       <CanalFinanceiroConversa usuarioId={usuarioId} />
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
       {itens.length === 0 ? (
