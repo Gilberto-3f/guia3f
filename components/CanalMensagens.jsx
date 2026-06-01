@@ -33,6 +33,7 @@ import {
   extensaoAudioGravacao,
   mimeTypeGravacaoCanal,
 } from '@/lib/canalAudioGravacao'
+import { mensagemCanalVisivelNoFiltroPais } from '@/lib/canalAbasPaisColetivo'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 const LONG_PRESS_REACAO_MS = 500
@@ -98,11 +99,13 @@ function formatarHora(data) {
  *   canalNome?: string
  *   destaqueMensagemId?: string | null
  *   usuarioId?: string | null
+ *   modoFiltroPais?: import('@/lib/canalAbasPaisColetivo').ModoFiltroPaisCanal
  * }} props
  */
 export default function CanalMensagens({
   canalId,
   paisTab = 'geral',
+  modoFiltroPais = 'mensageiro_aba',
   podePostar,
   podeReagir,
   inboxCanalAdm = null,
@@ -248,9 +251,17 @@ export default function CanalMensagens({
     try {
       const fetchRows = inboxCanalAdm
         ? inboxModo === 'empresa'
-          ? listarMensagensInboxCanalAdmEmpresa(supabase, inboxCanalAdm, { paisTab, limit: 120 })
-          : listarMensagensInboxCanalAdm(supabase, inboxCanalAdm, { paisTab, limit: 120 })
-        : listarMensagensCanalRecentes(supabase, canalId, { paisTab, limit: 80 })
+          ? listarMensagensInboxCanalAdmEmpresa(supabase, inboxCanalAdm, {
+              paisTab,
+              limit: 120,
+              modoFiltroPais,
+            })
+          : listarMensagensInboxCanalAdm(supabase, inboxCanalAdm, {
+              paisTab,
+              limit: 120,
+              modoFiltroPais,
+            })
+        : listarMensagensCanalRecentes(supabase, canalId, { paisTab, limit: 80, modoFiltroPais })
 
       const rowsPromise = fetchRows
       const sessionPromise = usuarioIdProp ? null : supabase.auth.getSession()
@@ -324,7 +335,7 @@ export default function CanalMensagens({
     } finally {
       if (!silent) setLoadingInicial(false)
     }
-  }, [canalId, paisTab, inboxCanalAdm, inboxModo, usuarioIdProp])
+  }, [canalId, paisTab, modoFiltroPais, inboxCanalAdm, inboxModo, usuarioIdProp])
 
   useEffect(() => {
     if (usuarioIdProp) setUid(usuarioIdProp)
@@ -505,7 +516,7 @@ export default function CanalMensagens({
           if (!novo?.id) return
 
           const paisMsg = novo.pais != null ? String(novo.pais) : 'geral'
-          if (paisTab && paisTab !== 'geral' && paisMsg !== paisTab && paisMsg !== 'geral') return
+          if (!mensagemCanalVisivelNoFiltroPais(paisMsg, paisTab, modoFiltroPais)) return
 
           void (async () => {
             const id = String(novo.id)
@@ -588,7 +599,7 @@ export default function CanalMensagens({
     return () => {
       void supabase.removeChannel(ch)
     }
-  }, [canalId, inboxCanalAdm, paisTab, garantirScrollNoRodape])
+  }, [canalId, inboxCanalAdm, paisTab, modoFiltroPais, garantirScrollNoRodape])
 
   /**
    * @param {string} textoEnviar

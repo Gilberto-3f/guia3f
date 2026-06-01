@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { aplicarFiltroPaisMensagensCanal, type ModoFiltroPaisCanal } from '@/lib/canalAbasPaisColetivo'
 
 export type MensagemCanalBuscaRow = {
   id: string
@@ -13,7 +14,7 @@ export async function buscarMensagensCanalPorTexto(
   supabase: SupabaseClient,
   canalId: string,
   termo: string,
-  opts?: { paisTab?: string; limit?: number },
+  opts?: { paisTab?: string; limit?: number; modoFiltroPais?: ModoFiltroPaisCanal },
 ): Promise<MensagemCanalBuscaRow[]> {
   const q = termo.trim()
   if (!q || q.length < 2) return []
@@ -27,10 +28,11 @@ export async function buscarMensagensCanalPorTexto(
     .order('created_at', { ascending: false })
     .limit(limit)
 
-  const paisTab = opts?.paisTab
-  if (paisTab && paisTab !== 'geral') {
-    query = query.or(`pais.eq.${paisTab},pais.eq.geral`)
-  }
+  query = aplicarFiltroPaisMensagensCanal(
+    query,
+    opts?.paisTab,
+    opts?.modoFiltroPais ?? 'mensageiro_aba',
+  )
 
   const { data, error } = await query
   if (error) {

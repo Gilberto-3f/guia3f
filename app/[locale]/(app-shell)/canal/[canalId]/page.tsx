@@ -23,7 +23,9 @@ import {
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import {
   canalFiltraLeituraPorPaisProfissional,
+  canalFiltraLeituraPorPaisEmpresa,
   canalTemAbasPaisColetivo,
+  empresaPaisParaAba,
   PAISES_ABAS_CANAL_COLETIVO,
   profissionalPaisParaAba,
 } from '@/lib/canalAbasPaisColetivo'
@@ -113,6 +115,7 @@ export default function CanalDetalhePage() {
   const [drawerCanalAberto, setDrawerCanalAberto] = useState(false)
   const [destaqueMensagemId, setDestaqueMensagemId] = useState<string | null>(null)
   const [paisLeituraProfissional, setPaisLeituraProfissional] = useState('geral')
+  const [paisLeituraEmpresa, setPaisLeituraEmpresa] = useState('geral')
 
   const paisesAbasColetivo = useMemo(() => [...PAISES_ABAS_CANAL_COLETIVO], [])
 
@@ -228,6 +231,19 @@ export default function CanalDetalhePage() {
         if (!cancelado) {
           setPaisLeituraProfissional(
             profissionalPaisParaAba(profPais?.pais != null ? String(profPais.pais) : null),
+          )
+        }
+      }
+
+      if (role === 'empresa') {
+        const { data: empPais } = await supabase
+          .from('empresas')
+          .select('cidade')
+          .eq('usuario_id', uid)
+          .maybeSingle()
+        if (!cancelado) {
+          setPaisLeituraEmpresa(
+            empresaPaisParaAba(empPais?.cidade != null ? String(empPais.cidade) : null),
           )
         }
       }
@@ -460,15 +476,65 @@ export default function CanalDetalhePage() {
     [canal, userTipoEfetivo],
   )
 
-  const paisTabEnvio = mostrarAbasPaisColetivo ? abaPais : 'geral'
+
+  const modoFiltroPaisCanal = useMemo(() => {
+    if (mostrarAbasPaisColetivo) return 'mensageiro_aba' as const
+    if (
+      userTipoEfetivo === 'profissional' &&
+      canal &&
+      canalFiltraLeituraPorPaisProfissional(canal)
+    ) {
+      return 'leitura_publico' as const
+    }
+    if (
+      userTipoEfetivo === 'empresa' &&
+      canal &&
+      (canalFiltraLeituraPorPaisEmpresa(canal) || inboxCanalAdm != null)
+    ) {
+      return 'leitura_publico' as const
+    }
+    return 'mensageiro_aba' as const
+  }, [mostrarAbasPaisColetivo, userTipoEfetivo, canal, inboxCanalAdm])
+
+  const paisTabLeitura = useMemo(() => {
+    if (mostrarAbasPaisColetivo) return abaPais
+    if (userTipoEfetivo === 'profissional' && canal && canalFiltraLeituraPorPaisProfissional(canal)) {
+      return paisLeituraProfissional
+    }
+    if (userTipoEfetivo === 'empresa') {
+      if (inboxCanalAdm != null) return paisLeituraEmpresa
+      if (canal && canalFiltraLeituraPorPaisEmpresa(canal)) return paisLeituraEmpresa
+    }
+    return 'geral'
+  }, [
+    mostrarAbasPaisColetivo,
+    abaPais,
+    userTipoEfetivo,
+    canal,
+    paisLeituraProfissional,
+    paisLeituraEmpresa,
+    inboxCanalAdm,
+  ])
 
   const paisTabDrawer = useMemo(() => {
     if (mostrarAbasPaisColetivo) return abaPais
     if (userTipoEfetivo === 'profissional' && canal && canalFiltraLeituraPorPaisProfissional(canal)) {
       return paisLeituraProfissional
     }
+    if (userTipoEfetivo === 'empresa') {
+      if (inboxCanalAdm != null) return paisLeituraEmpresa
+      if (canal && canalFiltraLeituraPorPaisEmpresa(canal)) return paisLeituraEmpresa
+    }
     return 'geral'
-  }, [mostrarAbasPaisColetivo, abaPais, userTipoEfetivo, canal, paisLeituraProfissional])
+  }, [
+    mostrarAbasPaisColetivo,
+    abaPais,
+    userTipoEfetivo,
+    canal,
+    paisLeituraProfissional,
+    paisLeituraEmpresa,
+    inboxCanalAdm,
+  ])
 
   const abrirDrawerCanal = useCallback(() => {
     if (ehCanalFinanceiroAtual || !canal) return
@@ -489,6 +555,7 @@ export default function CanalDetalhePage() {
         tituloCanal={tituloCanal}
         usuarioId={usuarioId}
         paisTab={paisTabDrawer}
+        modoFiltroPais={modoFiltroPaisCanal}
         onAbrirSalvosMensagem={(id) => {
           setDestaqueMensagemId(id)
           fecharDrawerCanal()
@@ -599,9 +666,8 @@ export default function CanalDetalhePage() {
             <CanalMensagens
               canalId={canalId}
               usuarioId={usuarioId}
-              paisTab={
-                canal && canalFiltraLeituraPorPaisProfissional(canal) ? paisLeituraProfissional : 'geral'
-              }
+              paisTab={paisTabLeitura}
+              modoFiltroPais={modoFiltroPaisCanal}
               podePostar={false}
               podeReagir={podeInteragir}
               inboxCanalAdm={null}
@@ -682,7 +748,8 @@ export default function CanalDetalhePage() {
               <CanalMensagens
                 canalId={canalId}
                 usuarioId={usuarioId}
-                paisTab={paisTabEnvio}
+                paisTab={paisTabLeitura}
+                modoFiltroPais={modoFiltroPaisCanal}
                 podePostar={podePostarCanal}
                 podeReagir={podeInteragir}
                 inboxCanalAdm={isCanalAdmInbox ? inboxCanalAdm : null}
@@ -743,7 +810,8 @@ export default function CanalDetalhePage() {
               <CanalMensagens
                 canalId={canalId}
                 usuarioId={usuarioId}
-                paisTab={paisTabEnvio}
+                paisTab={paisTabLeitura}
+                modoFiltroPais={modoFiltroPaisCanal}
                 podePostar={podeInteragir}
                 podeReagir={podeInteragir}
                 canalNome={tituloCanal}

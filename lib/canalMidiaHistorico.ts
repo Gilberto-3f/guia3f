@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { aplicarFiltroPaisMensagensCanal, type ModoFiltroPaisCanal } from '@/lib/canalAbasPaisColetivo'
 import { ehAnexoAudioCanal, ehAnexoImagemCanal } from '@/lib/canalAnexoUrl'
 
 export type MidiaCanalRow = {
@@ -11,7 +12,7 @@ export type MidiaCanalRow = {
 export async function listarMidiaCanal(
   supabase: SupabaseClient,
   canalId: string,
-  opts?: { paisTab?: string; limit?: number },
+  opts?: { paisTab?: string; limit?: number; modoFiltroPais?: ModoFiltroPaisCanal },
 ): Promise<MidiaCanalRow[]> {
   const limit = opts?.limit ?? 60
   let query = supabase
@@ -22,10 +23,11 @@ export async function listarMidiaCanal(
     .order('created_at', { ascending: false })
     .limit(limit)
 
-  const paisTab = opts?.paisTab
-  if (paisTab && paisTab !== 'geral') {
-    query = query.or(`pais.eq.${paisTab},pais.eq.geral`)
-  }
+  query = aplicarFiltroPaisMensagensCanal(
+    query,
+    opts?.paisTab,
+    opts?.modoFiltroPais ?? 'mensageiro_aba',
+  )
 
   const { data, error } = await query
   if (error) {

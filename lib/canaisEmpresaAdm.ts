@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { aplicarFiltroPaisMensagensCanal, type ModoFiltroPaisCanal } from '@/lib/canalAbasPaisColetivo'
 import {
   SEGMENTOS_EMPRESA_SLUG,
   categoriaEmpresaParaSlug,
@@ -98,19 +99,18 @@ export async function resolverInboxCanalAdmEmpresa(
 export async function listarMensagensInboxCanalAdmEmpresa(
   supabase: SupabaseClient,
   inbox: CanalAdmEmpresaInboxConfig,
-  opts?: { paisTab?: string; limit?: number }
+  opts?: { paisTab?: string; limit?: number; modoFiltroPais?: ModoFiltroPaisCanal }
 ): Promise<MensagemCanalRow[]> {
   const ids = [inbox.canalAdmId, ...inbox.canaisBroadcastIds].filter(Boolean)
   if (ids.length === 0) return []
 
   const paisTab = opts?.paisTab ?? 'geral'
   const limit = opts?.limit ?? 120
+  const modo = opts?.modoFiltroPais ?? 'leitura_publico'
 
   let q = supabase.from('mensagens_canal').select('*').in('canal_id', ids)
 
-  if (paisTab && paisTab !== 'geral') {
-    q = q.or(`pais.eq.${paisTab},pais.eq.geral`)
-  }
+  q = aplicarFiltroPaisMensagensCanal(q, paisTab, modo)
 
   const { data, error } = await q.order('created_at', { ascending: false }).limit(limit)
   if (error) throw error

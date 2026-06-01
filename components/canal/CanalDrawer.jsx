@@ -44,6 +44,7 @@ import AvatarImage from '@/components/AvatarImage'
  *   tituloCanal: string
  *   usuarioId: string | null
  *   paisTab?: string
+ *   modoFiltroPais?: import('@/lib/canalAbasPaisColetivo').ModoFiltroPaisCanal
  *   onAbrirSalvosMensagem?: (mensagemId: string) => void
  * }} props
  */
@@ -55,6 +56,7 @@ export default function CanalDrawer({
   tituloCanal,
   usuarioId,
   paisTab = 'geral',
+  modoFiltroPais = 'mensageiro_aba',
   onAbrirSalvosMensagem,
 }) {
   const [entered, setEntered] = useState(false)
@@ -118,12 +120,12 @@ export default function CanalDrawer({
   const carregarMidia = useCallback(async () => {
     setLoadingMidia(true)
     try {
-      const rows = await listarMidiaCanal(supabase, canalId, { paisTab, limit: 72 })
+      const rows = await listarMidiaCanal(supabase, canalId, { paisTab, limit: 72, modoFiltroPais })
       setMidias(rows)
     } finally {
       setLoadingMidia(false)
     }
-  }, [canalId, paisTab])
+  }, [canalId, paisTab, modoFiltroPais])
 
   const carregarSalvos = useCallback(async () => {
     if (!usuarioId) {
@@ -206,7 +208,7 @@ export default function CanalDrawer({
     }
     setBuscando(true)
     try {
-      const rows = await buscarMensagensCanalPorTexto(supabase, canalId, t, { paisTab })
+      const rows = await buscarMensagensCanalPorTexto(supabase, canalId, t, { paisTab, modoFiltroPais })
       const remetenteIds = rows.map((r) => r.remetente_id).filter(Boolean)
       const remetentesMap = await buscarRemetentesEmLote(supabase, remetenteIds)
       setResultadosBusca(
@@ -218,7 +220,7 @@ export default function CanalDrawer({
     } finally {
       setBuscando(false)
     }
-  }, [termoBusca, canalId, paisTab])
+  }, [termoBusca, canalId, paisTab, modoFiltroPais])
 
   useEffect(() => {
     if (aba !== 'buscar') return

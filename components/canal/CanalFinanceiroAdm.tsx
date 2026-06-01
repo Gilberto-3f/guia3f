@@ -108,7 +108,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
 
   useEffect(() => {
     const termo = busca.trim()
-    if (aba === 'historico' || termo.length < 2) {
+    if (aba === 'historico' || selecionado || termo.length < 2) {
       setResultados([])
       return
     }
@@ -129,7 +129,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
       })()
     }, 320)
     return () => clearTimeout(t)
-  }, [busca, abaBusca, aba])
+  }, [busca, abaBusca, aba, selecionado])
 
   const carregarMensagens = useCallback(async (id: string) => {
     const res = await fetch(`/api/admin/financeiro-conversas/${id}/mensagens`)
@@ -225,14 +225,18 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ acao: 'encerrar' }),
       })
-      setConversaId(null)
-      setMensagens([])
-      setTextoMsg('')
-      setPainelMensageiro(false)
+      limparSelecao()
       if (aba === 'historico') void carregarHistorico()
     } catch {
       window.alert('Erro ao encerrar conversa.')
     }
+  }
+
+  const conversaEmAndamento = Boolean(conversaId)
+
+  const fecharCardLocalizado = () => {
+    if (conversaEmAndamento) return
+    limparSelecao()
   }
 
   const fecharHistoricoDetalhe = () => {
@@ -384,7 +388,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
               className={`w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#00D443] focus:ring-1 focus:ring-[#00D443] ${INPUT_FIN}`}
             />
           </div>
-          {buscando ? <p className="mt-2 text-xs text-gray-500">Buscando…</p> : null}
+          {buscando && !selecionado ? <p className="mt-2 text-xs text-gray-500">Buscando…</p> : null}
 
           {resultados.length > 0 && !selecionado ? (
             <ul className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-gray-100 bg-white">
@@ -399,6 +403,8 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                       setPainelMensageiro(false)
                       setPainelDesempenho(false)
                       setDesempenho(null)
+                      setBusca('')
+                      setResultados([])
                     }}
                     className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-gray-50"
                   >
@@ -414,8 +420,18 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
           ) : null}
 
           {selecionado ? (
-            <div className="mt-4 rounded-xl border border-[#0097b2]/25 bg-white p-4 shadow-sm">
-              <div className="flex items-start gap-3">
+            <div className="relative mt-4 rounded-xl border border-[#0097b2]/25 bg-white p-4 shadow-sm">
+              {!conversaEmAndamento ? (
+                <button
+                  type="button"
+                  onClick={fecharCardLocalizado}
+                  className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-red-500 transition hover:bg-red-50 hover:text-red-600"
+                  aria-label="Fechar card"
+                >
+                  <X className="h-5 w-5" strokeWidth={2.5} />
+                </button>
+              ) : null}
+              <div className="flex items-start gap-3 pr-8">
                 <AvatarImage
                   src={selecionado.fotoUrl}
                   alt=""
@@ -427,14 +443,6 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                   <div className="text-lg font-semibold leading-tight text-gray-900">{selecionado.nome}</div>
                   <div className="text-sm text-gray-600">{selecionado.username}</div>
                 </div>
-                <button
-                  type="button"
-                  onClick={limparSelecao}
-                  className="text-gray-400 hover:text-gray-600"
-                  aria-label="Limpar seleção"
-                >
-                  <X className="h-5 w-5" />
-                </button>
               </div>
 
               {selecionado.subtitulo ? (
@@ -473,9 +481,9 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                         <button
                           type="button"
                           onClick={() => void encerrarConversaAtiva()}
-                          className="text-xs font-medium text-gray-500 hover:text-gray-800"
+                          className="text-xs font-medium text-red-600 hover:text-red-700"
                         >
-                          Encerrar conversa
+                          Encerrar conversa e fechar card
                         </button>
                       </div>
                       <ul className="max-h-52 space-y-2 overflow-y-auto p-3">

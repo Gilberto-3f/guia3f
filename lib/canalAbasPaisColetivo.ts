@@ -1,5 +1,7 @@
+import type { PostgrestFilterBuilder } from '@supabase/postgrest-js'
+import { inferCodigoPaisEmpresa } from '@/lib/empresaPaisUi'
 import { toSlugComunidadeProf } from '@/lib/canaisProfissionaisListaUi'
-import { isCanalFinanceiroEmpresa } from '@/lib/canaisEmpresaSlugs'
+import { isCanalFinanceiroEmpresa, SEGMENTOS_EMPRESA_SLUG, slugCanalSegmentoEmpresa } from '@/lib/canaisEmpresaSlugs'
 import {
   CATEGORIAS_PROFISSIONAIS_SLUG,
   isCanalFinanceiroProfissional,
@@ -45,11 +47,25 @@ export function canalTemAbasPaisColetivo(
   if (!canal || canalMensageiroAdmSemAbasPais(canal.nome)) return false
 
   if (userTipo === 'admin') {
-    if (canal.tipo_publico !== 'profissional') return false
     if (canal.empresa_id != null) return false
-    if (isCanalFinanceiroProfissional(canal.nome)) return false
-    const slug = slugComunidadeAdmin(canal)
-    return slug != null && (CATEGORIAS_PROFISSIONAIS_SLUG as readonly string[]).includes(slug)
+    if (canalMensageiroAdmSemAbasPais(canal.nome)) return false
+
+    if (canal.tipo_publico === 'profissional') {
+      if (isCanalFinanceiroProfissional(canal.nome)) return false
+      const slug = slugComunidadeAdmin(canal)
+      return slug != null && (CATEGORIAS_PROFISSIONAIS_SLUG as readonly string[]).includes(slug)
+    }
+
+    if (canal.tipo_publico === 'empresa') {
+      if (isCanalFinanceiroEmpresa(canal.nome)) return false
+      const slug = slugCanalSegmentoEmpresa(
+        canal.categoria != null ? String(canal.categoria) : null,
+        canal.nome != null ? String(canal.nome) : null,
+      )
+      return slug != null && (SEGMENTOS_EMPRESA_SLUG as readonly string[]).includes(slug)
+    }
+
+    return false
   }
 
   if (userTipo === 'empresa') {
@@ -87,4 +103,64 @@ export function canalFiltraLeituraPorPaisProfissional(canal: CanalAbasInput | nu
     return slugComunidadeEmpresa(canal) != null
   }
   return false
+}
+
+/** Empresa lê inbox/segmento global filtrado pelo país inferido da cidade. */
+export function canalFiltraLeituraPorPaisEmpresa(canal: CanalAbasInput | null | undefined): boolean {
+  if (!canal) return false
+  if (canal.tipo_publico !== 'empresa' || canal.empresa_id != null) return false
+  if (isCanalFinanceiroEmpresa(canal.nome)) return false
+  const slug = slugCanalSegmentoEmpresa(
+    canal.categoria != null ? String(canal.categoria) : null,
+    canal.nome != null ? String(canal.nome) : null,
+  )
+  return slug != null && (SEGMENTOS_EMPRESA_SLUG as readonly string[]).includes(slug)
+}
+
+export function empresaPaisParaAba(cidade: string | null | undefined): CodigoPaisAba {
+  const cod = inferCodigoPaisEmpresa(cidade)
+  if (cod === 'BR' || cod === 'AR' || cod === 'PY') return cod
+  return 'geral'
+}
+
+/**
+ * - `mensageiro_aba`: cada aba (bandeira / Todos) é um mensageiro isolado (ADM e empresa ao publicar).
+ * - `leitura_publico`: destinatário vê mensagens do seu país + avisos em «Todos».
+ */
+export type ModoFiltroPaisCanal = 'mensageiro_aba' | 'leitura_publico'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type QueryComPais = PostgrestFilterBuilder<any, any, any, any, any>
+
+export function aplicarFiltroPaisMensagensCanal(
+  query: QueryComPais,
+  paisTab: string | undefined,
+  modo: ModoFiltroPaisCanal,
+): QueryComPais {
+  const tab = (paisTab && String(paisTab).trim()) || 'geral'
+
+  if (modo === 'mensageiro_aba') {
+    return query.eq('pais', tab)
+  }
+
+  if (tab === 'geral') {
+    return query.eq('pais', 'geral')
+  }
+  return query.or(`pais.eq.${tab},pais.eq.geral`)
+}
+
+/** Realtime: mensagem pertence à aba/modo atual. */
+export function mensagemCanalVisivelNoFiltroPais(
+  paisMsg: string | null | undefined,
+  paisTab: string | undefined,
+  modo: ModoFiltroPaisCanal,
+): boolean {
+  const msg = (paisMsg && String(paisMsg).trim()) || 'geral'
+  const tab = (paisTab && String(paisTab).trim()) || 'geral'
+
+  if (modo === 'mensageiro_aba') {
+    return msg === tab
+  }
+  if (tab === 'geral') return msg === 'geral'
+  return msg === tab || msg === 'geral'
 }

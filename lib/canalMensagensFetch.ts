@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { aplicarFiltroPaisMensagensCanal, type ModoFiltroPaisCanal } from '@/lib/canalAbasPaisColetivo'
 
 export const LIMITE_MENSAGENS_CANAL_PADRAO = 80
 
@@ -11,15 +12,16 @@ const COLUNAS_MENSAGEM =
 export async function listarMensagensCanalRecentes(
   supabase: SupabaseClient,
   canalId: string,
-  opts?: { paisTab?: string; limit?: number },
+  opts?: { paisTab?: string; limit?: number; modoFiltroPais?: ModoFiltroPaisCanal },
 ): Promise<Record<string, unknown>[]> {
   const limit = opts?.limit ?? LIMITE_MENSAGENS_CANAL_PADRAO
   let q = supabase.from('mensagens_canal').select(COLUNAS_MENSAGEM).eq('canal_id', canalId)
 
-  const paisTab = opts?.paisTab
-  if (paisTab && paisTab !== 'geral') {
-    q = q.or(`pais.eq.${paisTab},pais.eq.geral`)
-  }
+  q = aplicarFiltroPaisMensagensCanal(
+    q,
+    opts?.paisTab,
+    opts?.modoFiltroPais ?? 'mensageiro_aba',
+  )
 
   const { data, error } = await q.order('created_at', { ascending: false }).limit(limit)
   if (error) throw error
