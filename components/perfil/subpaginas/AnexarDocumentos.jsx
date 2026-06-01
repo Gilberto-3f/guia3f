@@ -59,11 +59,23 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
     if (!usuarioId) return
     let ativo = true
     void (async () => {
-      const { data } = await supabase
+      // Alguns bancos antigos ainda não têm `profissionais.telefone`; tenta com fallback.
+      const res1 = await supabase
         .from('profissionais')
         .select('nome_completo, whatsapp, telefone')
         .eq('usuario_id', usuarioId)
         .maybeSingle()
+
+      const data =
+        res1?.error
+          ? (
+              await supabase
+                .from('profissionais')
+                .select('nome_completo, whatsapp')
+                .eq('usuario_id', usuarioId)
+                .maybeSingle()
+            ).data
+          : res1.data
       if (!ativo || !data) return
       setNomeCompleto(String(data.nome_completo ?? '').trim())
       const contato = String(data.whatsapp ?? data.telefone ?? '').trim()
@@ -74,11 +86,10 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
     }
   }, [usuarioId])
 
-  const onChange =
+  const onChangeArquivo =
     (setter) =>
-    /** @param {React.ChangeEvent<HTMLInputElement>} e */
-    (e) => {
-      const f = e.target.files?.[0] ?? null
+    /** @param {File | null} f */
+    (f) => {
       setErro('')
       setOkMsg('')
       if (!f) {
@@ -89,7 +100,6 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       if (v) {
         setErro(v)
         setter(null)
-        e.target.value = ''
         return
       }
       setter(f)
@@ -239,9 +249,9 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       </div>
 
       <div className="space-y-3">
-        <CampoArquivo label="Documento de identificação" file={identidade} onChange={onChange(setIdentidade)} />
-        <CampoArquivo label="Comprovante de endereço" file={endereco} onChange={onChange(setEndereco)} />
-        <CampoArquivo label="Comprovante de profissão" file={profissao} onChange={onChange(setProfissao)} />
+        <CampoArquivo label="Documento de identificação" file={identidade} onChange={onChangeArquivo(setIdentidade)} />
+        <CampoArquivo label="Comprovante de endereço" file={endereco} onChange={onChangeArquivo(setEndereco)} />
+        <CampoArquivo label="Comprovante de profissão" file={profissao} onChange={onChangeArquivo(setProfissao)} />
       </div>
 
       <button
