@@ -726,6 +726,11 @@ export default function CanalMensagens({
       await enviarMensagemCanal(textoEnviar, anexoEnviar)
     } catch (e) {
       console.error('Erro ao enviar mensagem:', e)
+      const msg =
+        e && typeof e === 'object' && 'message' in e && typeof e.message === 'string'
+          ? e.message
+          : 'Não foi possível enviar a mensagem. Verifique sua conexão e tente novamente.'
+      if (typeof window !== 'undefined') window.alert(msg)
       setNovaMensagem(textoEnviar)
       if (anexoEnviar) {
         setAnexo(anexoEnviar)

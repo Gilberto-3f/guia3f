@@ -22,7 +22,12 @@ import {
 } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import {
-  canalMensageiroAdmSemAbasPais,
+  canalFiltraLeituraPorPaisProfissional,
+  canalTemAbasPaisColetivo,
+  PAISES_ABAS_CANAL_COLETIVO,
+  profissionalPaisParaAba,
+} from '@/lib/canalAbasPaisColetivo'
+import {
   isCanalFinanceiroHubAdm,
   rotuloNomeCanalAdministracao,
 } from '@/lib/rotulosCanaisAdministracao'
@@ -107,9 +112,9 @@ export default function CanalDetalhePage() {
   const [meuUsername, setMeuUsername] = useState<string | null>(null)
   const [drawerCanalAberto, setDrawerCanalAberto] = useState(false)
   const [destaqueMensagemId, setDestaqueMensagemId] = useState<string | null>(null)
+  const [paisLeituraProfissional, setPaisLeituraProfissional] = useState('geral')
 
-  const paises = ['BR', 'AR', 'PY', 'geral']
-  const paisesEmpresaProfissionais = ['BR', 'PY', 'AR']
+  const paisesAbasColetivo = useMemo(() => [...PAISES_ABAS_CANAL_COLETIVO], [])
 
   const userTipoEfetivo = useMemo((): TipoUsuario => {
     if (modoAtivo && perfilSimulado) {
@@ -167,14 +172,26 @@ export default function CanalDetalhePage() {
         const { data: userData } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
         if (cancelado) return
         const role = userData?.role != null ? String(userData.role) : null
-        if (role === 'turista') setUserTipo('turista')
-        else if (role === 'profissional') setUserTipo('profissional')
-        else if (role === 'empresa') setUserTipo('empresa')
-        else if (role === 'admin') setUserTipo('admin')
-        else setUserTipo(null)
-        setAuthPronto(true)
-        return
+      if (role === 'turista') setUserTipo('turista')
+      else if (role === 'profissional') setUserTipo('profissional')
+      else if (role === 'empresa') setUserTipo('empresa')
+      else if (role === 'admin') setUserTipo('admin')
+      else setUserTipo(null)
+      if (role === 'profissional') {
+        const { data: profPais } = await supabase
+          .from('profissionais')
+          .select('pais')
+          .eq('usuario_id', uid)
+          .maybeSingle()
+        if (!cancelado) {
+          setPaisLeituraProfissional(
+            profissionalPaisParaAba(profPais?.pais != null ? String(profPais.pais) : null),
+          )
+        }
       }
+      setAuthPronto(true)
+      return
+    }
 
       setCarregandoCanal(true)
       setCanalMissing(false)
@@ -201,6 +218,19 @@ export default function CanalDetalhePage() {
       else if (role === 'empresa') setUserTipo('empresa')
       else if (role === 'admin') setUserTipo('admin')
       else setUserTipo(null)
+
+      if (role === 'profissional') {
+        const { data: profPais } = await supabase
+          .from('profissionais')
+          .select('pais')
+          .eq('usuario_id', uid)
+          .maybeSingle()
+        if (!cancelado) {
+          setPaisLeituraProfissional(
+            profissionalPaisParaAba(profPais?.pais != null ? String(profPais.pais) : null),
+          )
+        }
+      }
 
       setAuthPronto(true)
 
@@ -305,9 +335,10 @@ export default function CanalDetalhePage() {
 
   useEffect(() => {
     if (!canal) return
-    if (userTipoEfetivo === 'empresa' && canal.tipo_publico === 'profissional') setAbaPais('BR')
-    else if (userTipoEfetivo === 'empresa') setAbaPais('geral')
-  }, [canal, userTipoEfetivo])
+    if (canalTemAbasPaisColetivo(canal, userTipoEfetivo)) {
+      setAbaPais('geral')
+    }
+  }, [canalId, canal, userTipoEfetivo])
 
   /** Pré-carrega o bundle do canal assim que está pronto. */
   useEffect(() => {
@@ -424,11 +455,20 @@ export default function CanalDetalhePage() {
     return isCanalFinanceiroProfissional(canal.nome) || isCanalFinanceiroEmpresa(canal.nome)
   }, [canal, userTipoEfetivo])
 
+  const mostrarAbasPaisColetivo = useMemo(
+    () => canal != null && canalTemAbasPaisColetivo(canal, userTipoEfetivo),
+    [canal, userTipoEfetivo],
+  )
+
+  const paisTabEnvio = mostrarAbasPaisColetivo ? abaPais : 'geral'
+
   const paisTabDrawer = useMemo(() => {
-    if (userTipoEfetivo === 'empresa' && canal?.tipo_publico === 'profissional') return abaPais
-    if (userTipoEfetivo === 'admin' && canal && !canalMensageiroAdmSemAbasPais(canal.nome)) return abaPais
+    if (mostrarAbasPaisColetivo) return abaPais
+    if (userTipoEfetivo === 'profissional' && canal && canalFiltraLeituraPorPaisProfissional(canal)) {
+      return paisLeituraProfissional
+    }
     return 'geral'
-  }, [userTipoEfetivo, canal, abaPais])
+  }, [mostrarAbasPaisColetivo, abaPais, userTipoEfetivo, canal, paisLeituraProfissional])
 
   const abrirDrawerCanal = useCallback(() => {
     if (ehCanalFinanceiroAtual || !canal) return
@@ -559,7 +599,9 @@ export default function CanalDetalhePage() {
             <CanalMensagens
               canalId={canalId}
               usuarioId={usuarioId}
-              paisTab="geral"
+              paisTab={
+                canal && canalFiltraLeituraPorPaisProfissional(canal) ? paisLeituraProfissional : 'geral'
+              }
               podePostar={false}
               podeReagir={podeInteragir}
               inboxCanalAdm={null}
@@ -583,13 +625,18 @@ export default function CanalDetalhePage() {
       canal.empresa_id == null &&
       !isFinanceiro &&
       (isCanalAdmEmpresaGlobal(canal) || ehCanalSegmentoEmpresaGlobal(canal))
-    const mostrarAbasTresPaises = canal != null && canal.tipo_publico === 'profissional'
-    const podePostarCanal =
+    const podePostarCanalColetivo =
       canal != null &&
       !isCanalAdmInbox &&
-      canal.tipo_publico === 'empresa' &&
-      canal.empresa_id != null &&
+      canalTemAbasPaisColetivo(canal, 'empresa') &&
       podeInteragir
+    const podePostarCanal =
+      podePostarCanalColetivo ||
+      (canal != null &&
+        !isCanalAdmInbox &&
+        canal.tipo_publico === 'empresa' &&
+        canal.empresa_id != null &&
+        podeInteragir)
     return (
       <>
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
@@ -627,15 +674,15 @@ export default function CanalDetalhePage() {
             <CanalFinanceiroLista usuarioId={financeUid} tipo="empresa" />
           ) : (
             <>
-              {mostrarAbasTresPaises ? (
+              {mostrarAbasPaisColetivo ? (
                 <div className="shrink-0 border-b border-gray-100 bg-white">
-                  <CanalAbasPais paises={paisesEmpresaProfissionais} abaAtiva={abaPais} onAbaChange={setAbaPais} />
+                  <CanalAbasPais paises={paisesAbasColetivo} abaAtiva={abaPais} onAbaChange={setAbaPais} />
                 </div>
               ) : null}
               <CanalMensagens
                 canalId={canalId}
                 usuarioId={usuarioId}
-                paisTab={mostrarAbasTresPaises ? abaPais : 'geral'}
+                paisTab={paisTabEnvio}
                 podePostar={podePostarCanal}
                 podeReagir={podeInteragir}
                 inboxCanalAdm={isCanalAdmInbox ? inboxCanalAdm : null}
@@ -654,7 +701,7 @@ export default function CanalDetalhePage() {
 
   if (userTipoEfetivo === 'admin') {
     const hubFinanceiroAdm = canal != null && isCanalFinanceiroHubAdm(canal)
-    const mostrarAbasPais = canal != null && !canalMensageiroAdmSemAbasPais(canal.nome)
+    const mostrarAbasPais = mostrarAbasPaisColetivo
     return (
       <>
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
@@ -690,13 +737,13 @@ export default function CanalDetalhePage() {
             <>
               {mostrarAbasPais ? (
                 <div className="shrink-0 border-b border-gray-100 bg-white">
-                  <CanalAbasPais paises={paises} abaAtiva={abaPais} onAbaChange={setAbaPais} />
+                  <CanalAbasPais paises={paisesAbasColetivo} abaAtiva={abaPais} onAbaChange={setAbaPais} />
                 </div>
               ) : null}
               <CanalMensagens
                 canalId={canalId}
                 usuarioId={usuarioId}
-                paisTab={mostrarAbasPais ? abaPais : 'geral'}
+                paisTab={paisTabEnvio}
                 podePostar={podeInteragir}
                 podeReagir={podeInteragir}
                 canalNome={tituloCanal}
