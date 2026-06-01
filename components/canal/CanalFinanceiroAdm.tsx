@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BarChart3, MessageCircle, Search, Send, X } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
-import { useSharedAdminGate } from '../../../context/AdminPermissaoContext'
 
 type AbaFinanceiro = 'profissional' | 'empresa' | 'historico'
 
@@ -47,8 +46,11 @@ type DesempenhoEmp = {
   receptivoPaxQtd: number
 }
 
-export function CanalFinanceiroAdm() {
-  const gate = useSharedAdminGate()
+/**
+ * Hub Canal Financeiro do ADM (pesquisa, mensageiro 1:1, desempenho, histórico).
+ * @param {{ embedded?: boolean }} props — `embedded`: layout do app Canais (sem card de dashboard).
+ */
+export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: boolean }) {
   const [aba, setAba] = useState<AbaFinanceiro>('profissional')
   const [busca, setBusca] = useState('')
   const [resultados, setResultados] = useState<Destinatario[]>([])
@@ -65,7 +67,6 @@ export function CanalFinanceiroAdm() {
   const [mostrarDesempenho, setMostrarDesempenho] = useState(false)
   const [carregandoDesempenho, setCarregandoDesempenho] = useState(false)
 
-  const podeUsar = gate.status === 'ok'
   const abaBusca: 'profissional' | 'empresa' = aba === 'empresa' ? 'empresa' : 'profissional'
 
   const abaCls = (ativo: boolean) =>
@@ -119,7 +120,7 @@ export function CanalFinanceiroAdm() {
   }, [])
 
   const abrirMensageiro = async () => {
-    if (!selecionado || !podeUsar) return
+    if (!selecionado) return
     setAbrindoChat(true)
     try {
       const res = await fetch('/api/admin/financeiro-conversas', {
@@ -218,36 +219,87 @@ export function CanalFinanceiroAdm() {
     setHistoricoDetalhe(null)
   }
 
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h2 className="text-base font-bold text-gray-900">Canal Financeiro</h2>
-      <p className="mt-1 text-sm text-gray-600">
-        Pesquise profissionais ou empresas, converse em particular ou consulte o histórico de auditoria.
-      </p>
+  const shellClass = embedded
+    ? 'flex min-h-0 flex-1 flex-col overflow-y-auto bg-gray-50 p-4'
+    : 'rounded-2xl border border-gray-200 bg-white p-4 shadow-sm'
 
-      <div className="mt-4 flex gap-2" role="tablist">
-        <button type="button" role="tab" className={abaCls(aba === 'profissional')} onClick={() => { setAba('profissional'); limparSelecao(); setBusca('') }}>
+  return (
+    <div className={shellClass}>
+      {!embedded ? (
+        <>
+          <h2 className="text-base font-bold text-gray-900">Canal Financeiro</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Pesquise profissionais ou empresas, converse em particular ou consulte o histórico de auditoria.
+          </p>
+        </>
+      ) : (
+        <p className="mb-3 text-sm text-gray-600">
+          Localize profissionais ou empresas, analise o desempenho ou converse em particular.
+        </p>
+      )}
+
+      <div className={`flex gap-2 ${embedded ? 'shrink-0' : 'mt-4'}`} role="tablist">
+        <button
+          type="button"
+          role="tab"
+          className={abaCls(aba === 'profissional')}
+          onClick={() => {
+            setAba('profissional')
+            limparSelecao()
+            setBusca('')
+          }}
+        >
           Profissional
         </button>
-        <button type="button" role="tab" className={abaCls(aba === 'empresa')} onClick={() => { setAba('empresa'); limparSelecao(); setBusca('') }}>
+        <button
+          type="button"
+          role="tab"
+          className={abaCls(aba === 'empresa')}
+          onClick={() => {
+            setAba('empresa')
+            limparSelecao()
+            setBusca('')
+          }}
+        >
           Empresas
         </button>
-        <button type="button" role="tab" className={abaCls(aba === 'historico')} onClick={() => { setAba('historico'); limparSelecao() }}>
+        <button
+          type="button"
+          role="tab"
+          className={abaCls(aba === 'historico')}
+          onClick={() => {
+            setAba('historico')
+            limparSelecao()
+          }}
+        >
           Histórico
         </button>
       </div>
 
       {aba === 'historico' ? (
-        <div className="mt-4">
+        <div className="mt-4 min-h-0 flex-1">
           {historicoDetalhe ? (
             <div>
-              <button type="button" className="mb-2 text-sm text-[#0097b2]" onClick={() => { setHistoricoDetalhe(null); setMensagens([]) }}>
+              <button
+                type="button"
+                className="mb-2 text-sm text-[#0097b2]"
+                onClick={() => {
+                  setHistoricoDetalhe(null)
+                  setMensagens([])
+                }}
+              >
                 ← Voltar à lista
               </button>
-              <ul className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-3">
+              <ul
+                className={`space-y-2 overflow-y-auto rounded-xl border border-gray-100 bg-white p-3 ${
+                  embedded ? 'max-h-[min(70vh,32rem)]' : 'max-h-64'
+                }`}
+              >
                 {mensagens.map((m) => (
                   <li key={m.id} className="text-sm text-gray-800">
-                    <span className="text-xs text-gray-500">{new Date(m.created_at).toLocaleString('pt-BR')} · </span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(m.created_at).toLocaleString('pt-BR')} ·{' '}
+                    </span>
                     {m.texto}
                   </li>
                 ))}
@@ -256,13 +308,13 @@ export function CanalFinanceiroAdm() {
           ) : historico.length === 0 ? (
             <p className="py-6 text-center text-sm text-gray-500">Nenhuma conversa encerrada ainda.</p>
           ) : (
-            <ul className="mt-2 max-h-80 space-y-2 overflow-y-auto">
+            <ul className={`mt-2 space-y-2 overflow-y-auto ${embedded ? 'max-h-[min(70vh,32rem)]' : 'max-h-80'}`}>
               {historico.map((h) => (
                 <li key={h.id}>
                   <button
                     type="button"
                     onClick={() => void verHistoricoDetalhe(h.id)}
-                    className="flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-left hover:bg-gray-100"
+                    className="flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2 text-left shadow-sm hover:bg-gray-50"
                   >
                     <AvatarImage src={h.alvo.fotoUrl} alt="" width={40} height={40} className="rounded-full" />
                     <div className="min-w-0 flex-1">
@@ -282,19 +334,26 @@ export function CanalFinanceiroAdm() {
       ) : (
         <>
           <div className="relative mt-4">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden />
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+              aria-hidden
+            />
             <input
               type="search"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder={abaBusca === 'profissional' ? 'Buscar por nome ou @username…' : 'Buscar empresa por nome ou @…'}
-              className="w-full rounded-xl border border-gray-200 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#0097b2] focus:ring-1 focus:ring-[#0097b2]"
+              placeholder={
+                abaBusca === 'profissional'
+                  ? 'Buscar por nome ou @username…'
+                  : 'Buscar empresa por nome ou @…'
+              }
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#0097b2] focus:ring-1 focus:ring-[#0097b2]"
             />
           </div>
           {buscando ? <p className="mt-2 text-xs text-gray-500">Buscando…</p> : null}
 
           {resultados.length > 0 && !selecionado ? (
-            <ul className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-gray-100">
+            <ul className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-gray-100 bg-white">
               {resultados.map((r) => (
                 <li key={r.usuarioId}>
                   <button
@@ -314,15 +373,22 @@ export function CanalFinanceiroAdm() {
           ) : null}
 
           {selecionado ? (
-            <div className="mt-4 rounded-xl border border-[#0097b2]/30 bg-[#0097b2]/5 p-4">
+            <div className="mt-4 rounded-xl border border-[#0097b2]/30 bg-white p-4 shadow-sm">
               <div className="flex items-start gap-3">
                 <AvatarImage src={selecionado.fotoUrl} alt="" width={56} height={56} className="rounded-full" />
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-gray-900">{selecionado.nome}</div>
                   <div className="text-sm text-gray-600">{selecionado.username}</div>
-                  {selecionado.subtitulo ? <div className="mt-0.5 text-xs text-gray-500">{selecionado.subtitulo}</div> : null}
+                  {selecionado.subtitulo ? (
+                    <div className="mt-0.5 text-xs text-gray-500">{selecionado.subtitulo}</div>
+                  ) : null}
                 </div>
-                <button type="button" onClick={limparSelecao} className="text-gray-400 hover:text-gray-600" aria-label="Limpar seleção">
+                <button
+                  type="button"
+                  onClick={limparSelecao}
+                  className="text-gray-400 hover:text-gray-600"
+                  aria-label="Limpar seleção"
+                >
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -339,7 +405,7 @@ export function CanalFinanceiroAdm() {
                 ) : (
                   <button
                     type="button"
-                    disabled={!podeUsar || abrindoChat}
+                    disabled={abrindoChat}
                     onClick={() => void abrirMensageiro()}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white hover:bg-[#008099] disabled:opacity-50"
                   >
@@ -358,20 +424,24 @@ export function CanalFinanceiroAdm() {
               </div>
 
               {conversaId ? (
-                <div className="mt-4 rounded-xl border border-gray-200 bg-white">
+                <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50">
                   <ul className="max-h-52 space-y-2 overflow-y-auto p-3">
                     {mensagens.length === 0 ? (
-                      <li className="text-center text-xs text-gray-500">Nenhuma mensagem ainda. Envie a primeira.</li>
+                      <li className="text-center text-xs text-gray-500">
+                        Nenhuma mensagem ainda. Envie a primeira.
+                      </li>
                     ) : (
                       mensagens.map((m) => (
-                        <li key={m.id} className="rounded-lg bg-gray-50 px-2 py-1.5 text-sm text-gray-800">
+                        <li key={m.id} className="rounded-lg bg-white px-2 py-1.5 text-sm text-gray-800">
                           {m.texto}
-                          <div className="text-[10px] text-gray-400">{new Date(m.created_at).toLocaleString('pt-BR')}</div>
+                          <div className="text-[10px] text-gray-400">
+                            {new Date(m.created_at).toLocaleString('pt-BR')}
+                          </div>
                         </li>
                       ))
                     )}
                   </ul>
-                  <div className="flex gap-2 border-t border-gray-100 p-2">
+                  <div className="flex gap-2 border-t border-gray-100 bg-white p-2">
                     <input
                       type="text"
                       value={textoMsg}
@@ -399,10 +469,14 @@ export function CanalFinanceiroAdm() {
               ) : null}
 
               {mostrarDesempenho ? (
-                <div className="mt-4 rounded-xl border border-gray-200 bg-white p-3 text-sm">
+                <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm">
                   <div className="mb-2 flex items-center justify-between">
                     <span className="font-semibold text-gray-800">Desempenho financeiro</span>
-                    <button type="button" className="text-xs text-gray-500" onClick={() => setMostrarDesempenho(false)}>
+                    <button
+                      type="button"
+                      className="text-xs text-gray-500"
+                      onClick={() => setMostrarDesempenho(false)}
+                    >
                       Fechar
                     </button>
                   </div>
@@ -430,10 +504,18 @@ export function CanalFinanceiroAdm() {
 function DesempenhoProfissionalView({ d }: { d: DesempenhoProf }) {
   return (
     <ul className="space-y-2 text-gray-700">
-      <li>Recomendações gerais: <strong>{d.recomendacoesTotal}</strong></li>
-      <li>Comissões ganhas: <strong>{d.comissoesGanhasQtd}</strong> (R$ {d.comissoesGanhasValor.toFixed(2)})</li>
-      <li>Parcerias fechadas: <strong>{d.parceriasFechadas}</strong></li>
-      <li>Atendimentos concluídos: <strong>{d.atendimentosConcluidos}</strong></li>
+      <li>
+        Recomendações gerais: <strong>{d.recomendacoesTotal}</strong>
+      </li>
+      <li>
+        Comissões ganhas: <strong>{d.comissoesGanhasQtd}</strong> (R$ {d.comissoesGanhasValor.toFixed(2)})
+      </li>
+      <li>
+        Parcerias fechadas: <strong>{d.parceriasFechadas}</strong>
+      </li>
+      <li>
+        Atendimentos concluídos: <strong>{d.atendimentosConcluidos}</strong>
+      </li>
       {d.topEmpresasIndicadas.length > 0 ? (
         <li>
           <span className="font-medium">Top empresas indicadas:</span>
@@ -453,8 +535,12 @@ function DesempenhoProfissionalView({ d }: { d: DesempenhoProf }) {
 function DesempenhoEmpresaView({ d }: { d: DesempenhoEmp }) {
   return (
     <ul className="space-y-2 text-gray-700">
-      <li>Comissões pagas: <strong>{d.comissoesPagasQtd}</strong> (R$ {d.comissoesPagasValor.toFixed(2)})</li>
-      <li>Receptivo PAX no local: <strong>{d.receptivoPaxQtd}</strong> registros</li>
+      <li>
+        Comissões pagas: <strong>{d.comissoesPagasQtd}</strong> (R$ {d.comissoesPagasValor.toFixed(2)})
+      </li>
+      <li>
+        Receptivo PAX no local: <strong>{d.receptivoPaxQtd}</strong> registros
+      </li>
     </ul>
   )
 }

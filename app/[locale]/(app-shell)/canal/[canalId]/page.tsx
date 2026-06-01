@@ -21,7 +21,11 @@ import {
   marcarCanaisLidosKeepalive,
 } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
-import { canalMensageiroAdmSemAbasPais } from '@/lib/rotulosCanaisAdministracao'
+import {
+  canalMensageiroAdmSemAbasPais,
+  isCanalFinanceiroHubAdm,
+  rotuloNomeCanalAdministracao,
+} from '@/lib/rotulosCanaisAdministracao'
 import {
   ehCanalSegmentoEmpresaGlobal,
   rotuloCanalSegmentoEmpresaParaEmpresa,
@@ -53,6 +57,15 @@ const CanalMensagens = dynamic(() => import('@/components/CanalMensagens'), {
   loading: () => (
     <div className="flex flex-1 items-center justify-center">
       <div className="animate-pulse text-sm text-gray-400">Carregando mensagens...</div>
+    </div>
+  ),
+})
+
+const CanalFinanceiroAdm = dynamic(() => import('@/components/canal/CanalFinanceiroAdm'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-1 items-center justify-center">
+      <div className="animate-pulse text-sm text-gray-400">Carregando canal financeiro...</div>
     </div>
   ),
 })
@@ -296,12 +309,16 @@ export default function CanalDetalhePage() {
     else if (userTipoEfetivo === 'empresa') setAbaPais('geral')
   }, [canal, userTipoEfetivo])
 
-  /** Pré-carrega o bundle do chat assim que o canal está pronto. */
+  /** Pré-carrega o bundle do canal assim que está pronto. */
   useEffect(() => {
     if (!canalId || !canal) return
     if (isCanalFinanceiroProfissional(canal.nome) || isCanalFinanceiroEmpresa(canal.nome)) return
+    if (userTipoEfetivo === 'admin' && isCanalFinanceiroHubAdm(canal)) {
+      void import('@/components/canal/CanalFinanceiroAdm')
+      return
+    }
     void import('@/components/CanalMensagens')
-  }, [canalId, canal])
+  }, [canalId, canal, userTipoEfetivo])
 
   const pathname = usePathname()
 
@@ -395,13 +412,17 @@ export default function CanalDetalhePage() {
     if (userTipoEfetivo === 'profissional') {
       return rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional)
     }
+    if (userTipoEfetivo === 'admin') {
+      return rotuloNomeCanalAdministracao(canal.nome)
+    }
     return canal.nome
   }, [canal, userTipoEfetivo, ehCanalEmpresaParaProfissional, empresaCategoria])
 
   const ehCanalFinanceiroAtual = useMemo(() => {
     if (!canal) return false
+    if (userTipoEfetivo === 'admin' && isCanalFinanceiroHubAdm(canal)) return true
     return isCanalFinanceiroProfissional(canal.nome) || isCanalFinanceiroEmpresa(canal.nome)
-  }, [canal])
+  }, [canal, userTipoEfetivo])
 
   const paisTabDrawer = useMemo(() => {
     if (userTipoEfetivo === 'empresa' && canal?.tipo_publico === 'profissional') return abaPais
@@ -626,6 +647,7 @@ export default function CanalDetalhePage() {
   }
 
   if (userTipoEfetivo === 'admin') {
+    const hubFinanceiroAdm = canal != null && isCanalFinanceiroHubAdm(canal)
     const mostrarAbasPais = canal != null && !canalMensageiroAdmSemAbasPais(canal.nome)
     return (
       <>
@@ -639,33 +661,40 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal}>
+          <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal} disabled={hubFinanceiroAdm}>
             <span className="truncate text-lg font-semibold">{tituloCanal}</span>
           </CanalHeaderTitulo>
           <button
             type="button"
             onClick={() => abrirDrawerCanal()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
+            disabled={hubFinanceiroAdm}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10 disabled:opacity-30"
             aria-label="Opções do canal"
           >
             <MoreVertical className="h-5 w-5" aria-hidden />
           </button>
         </header>
         <div className="flex min-h-0 flex-1 flex-col">
-          {mostrarAbasPais ? (
-            <div className="shrink-0 border-b border-gray-100 bg-white">
-              <CanalAbasPais paises={paises} abaAtiva={abaPais} onAbaChange={setAbaPais} />
-            </div>
-          ) : null}
-          <CanalMensagens
-            canalId={canalId}
-            usuarioId={usuarioId}
-            paisTab={mostrarAbasPais ? abaPais : 'geral'}
-            podePostar={podeInteragir}
-            podeReagir={podeInteragir}
-            canalNome={tituloCanal}
-            destaqueMensagemId={destaqueMensagemId}
-          />
+          {hubFinanceiroAdm ? (
+            <CanalFinanceiroAdm embedded />
+          ) : (
+            <>
+              {mostrarAbasPais ? (
+                <div className="shrink-0 border-b border-gray-100 bg-white">
+                  <CanalAbasPais paises={paises} abaAtiva={abaPais} onAbaChange={setAbaPais} />
+                </div>
+              ) : null}
+              <CanalMensagens
+                canalId={canalId}
+                usuarioId={usuarioId}
+                paisTab={mostrarAbasPais ? abaPais : 'geral'}
+                podePostar={podeInteragir}
+                podeReagir={podeInteragir}
+                canalNome={tituloCanal}
+                destaqueMensagemId={destaqueMensagemId}
+              />
+            </>
+          )}
         </div>
       </div>
       {drawerCanalOverlay}

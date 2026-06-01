@@ -22,7 +22,18 @@ export function excluirCanalMensageiroVisaoAdm(c: { nome?: string | null; tipo_p
 export function canalMensageiroAdmSemAbasPais(nome: string | null | undefined) {
   const raw = (nome ?? '').trim()
   const n = nomeNormCanal(raw)
-  return n === 'ADM' || n === 'MENSAGEIRO' || n === 'MENSAGEIRO ADM' || raw === 'Mensageiro ADM'
+  return (
+    n === 'ADM' ||
+    n === 'FINANCEIRO' ||
+    n === 'MENSAGEIRO' ||
+    n === 'MENSAGEIRO ADM' ||
+    raw === 'Mensageiro ADM'
+  )
+}
+
+/** Canal Financeiro na pasta ADMINISTRADORES DO APP (hub ADM — não é chat de comunidade). */
+export function isCanalFinanceiroHubAdm(canal: { nome?: string | null }) {
+  return nomeNormCanal(canal.nome) === 'FINANCEIRO'
 }
 
 /** Lista Administração + título na página do canal (quando for ADM/Financeiro). */
