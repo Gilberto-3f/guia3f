@@ -1,12 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, Mic, Paperclip, Send } from 'lucide-react'
+import { Mic, Paperclip, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import CanalMensagemAudio from '@/components/CanalMensagemAudio'
-import CanalMensagemImagem from '@/components/CanalMensagemImagem'
-import { ehAnexoAudioCanal, ehAnexoImagemCanal } from '@/lib/canalAnexoUrl'
+import AvatarImage from '@/components/AvatarImage'
+import FinanceiroDialogoVisual from '@/components/canal/FinanceiroDialogoVisual'
 import {
   contentTypeUploadAudio,
   extensaoAudioGravacao,
@@ -15,52 +14,27 @@ import {
 import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import {
   buscarConversaAbertaParaAlvo,
+  buscarPerfisAdmFinanceiro,
   enviarMensagemConversaFinanceiro,
   listarConversasFinanceiroParaAlvo,
   listarMensagensConversa,
+  type FinanceiroConversaRow,
+  type PerfilAdmFinanceiro,
 } from '@/lib/financeiroConversas'
+
+const AVATAR_QUADRADO = 'shrink-0 rounded-md object-cover'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 const GRAVACAO_MIN_MS = 400
 
 /**
- * @param {import('@/lib/financeiroConversas').FinanceiroMensagemRow} m
- * @param {string} usuarioId
+ * @param {FinanceiroConversaRow} c
  */
-function BalaoFinanceiro({ m, usuarioId }) {
-  const own = m.remetente_id === usuarioId
-  return (
-    <li
-      className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-        own ? 'ml-auto bg-[#d4edf4] text-gray-900' : 'bg-white text-gray-900 shadow-sm'
-      }`}
-    >
-      {m.texto ? <p className="whitespace-pre-wrap break-words">{m.texto}</p> : null}
-      {ehAnexoImagemCanal(m.anexo_url, m.anexo_tipo) && m.anexo_url ? (
-        <div className="mt-1">
-          <CanalMensagemImagem src={m.anexo_url} alt="" />
-        </div>
-      ) : null}
-      {ehAnexoAudioCanal(m.anexo_url, m.anexo_tipo) && m.anexo_url ? (
-        <div className="mt-1">
-          <CanalMensagemAudio src={m.anexo_url} isOwn={own} />
-        </div>
-      ) : null}
-      {m.anexo_url && m.anexo_tipo === 'documento' ? (
-        <a
-          href={m.anexo_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-1 inline-block text-sm font-medium text-[#0097b2] underline"
-        >
-          Ver documento
-        </a>
-      ) : null}
-      <div className="mt-0.5 text-[10px] text-gray-500">
-        {new Date(m.created_at).toLocaleString('pt-BR')}
-      </div>
-    </li>
-  )
+function rotuloDataConversa(c) {
+  if (c.status === 'encerrada' && c.encerrada_em) {
+    return new Date(c.encerrada_em).toLocaleString('pt-BR')
+  }
+  return new Date(c.updated_at).toLocaleString('pt-BR')
 }
 
 /**
@@ -76,7 +50,7 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
     /** @type {import('@/lib/financeiroConversas').FinanceiroConversaRow[]} */ ([]),
   )
   const [conversaVisualId, setConversaVisualId] = useState(/** @type {string | null} */ (null))
-  const [verArquivo, setVerArquivo] = useState(false)
+  const [perfisAdm, setPerfisAdm] = useState(/** @type {Map<string, PerfilAdmFinanceiro>} */ (new Map()))
   const [mensagens, setMensagens] = useState(
     /** @type {import('@/lib/financeiroConversas').FinanceiroMensagemRow[]} */ ([]),
   )
@@ -91,7 +65,6 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
   const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
   const fileInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const messagesEndRef = useRef(/** @type {HTMLDivElement | null} */ (null))
-  const messagesContainerRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const gravandoAudioRef = useRef(false)
   const gravacaoSolicitadaRef = useRef(false)
   const enviarAoPararGravacaoRef = useRef(true)
@@ -104,14 +77,22 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
     /** @type {(enviar: boolean) => Promise<void>} */ (async () => {}),
   )
 
-  const idAtivo = verArquivo ? null : (conversaVisualId ?? conversaAberta?.id ?? null)
+  const idAtivo = conversaVisualId
 
-  const conversaAtual =
-    idAtivo != null
-      ? conversaAberta?.id === idAtivo
-        ? conversaAberta
-        : arquivadas.find((c) => c.id === idAtivo) ?? null
-      : null
+  const conversaAtual = useMemo(() => {
+    if (!idAtivo) return null
+    if (conversaAberta?.id === idAtivo) return conversaAberta
+    return arquivadas.find((c) => c.id === idAtivo) ?? null
+  }, [idAtivo, conversaAberta, arquivadas])
+
+  const todasConversas = useMemo(() => {
+    const list = /** @type {FinanceiroConversaRow[]} */ ([])
+    if (conversaAberta) list.push(conversaAberta)
+    for (const c of arquivadas) {
+      if (!list.some((x) => x.id === c.id)) list.push(c)
+    }
+    return list
+  }, [conversaAberta, arquivadas])
 
   const podeResponder =
     conversaAtual != null &&
@@ -119,8 +100,7 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
     conversaAtual.iniciada_por_adm &&
     conversaAtual.id === conversaAberta?.id
 
-  const emChat = idAtivo != null
-  const mostrarListaArquivo = verArquivo && arquivadas.length > 0
+  const emLista = !idAtivo
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })
@@ -137,13 +117,11 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
       const encerradas = todas.filter((c) => c.status === 'encerrada')
       setConversaAberta(aberta)
       setArquivadas(encerradas)
-      if (aberta) {
-        setVerArquivo(false)
-        setConversaVisualId(aberta.id)
-      } else {
-        setVerArquivo(encerradas.length > 0)
-        setConversaVisualId(null)
-      }
+      setConversaVisualId(null)
+
+      const admIds = [...new Set(todas.map((c) => c.adm_usuario_id))]
+      const perfis = await buscarPerfisAdmFinanceiro(supabase, admIds)
+      setPerfisAdm(perfis)
     } finally {
       setLoading(false)
     }
@@ -445,112 +423,70 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
     )
   }
 
-  if (!emChat && !mostrarListaArquivo) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 text-center text-sm text-gray-500">
-        Nenhuma conversa iniciada pela administração.
-      </div>
-    )
-  }
+  if (emLista) {
+    if (todasConversas.length === 0) {
+      return (
+        <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 text-center text-sm text-gray-500">
+          Nenhuma conversa iniciada pela administração.
+        </div>
+      )
+    }
 
-  if (mostrarListaArquivo) {
     return (
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {conversaAberta ? (
-          <button
-            type="button"
-            onClick={() => {
-              setVerArquivo(false)
-              setConversaVisualId(conversaAberta.id)
-            }}
-            className="mb-3 flex w-full items-center gap-1 text-sm font-medium text-[#0097b2]"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden />
-            Voltar à conversa ativa
-          </button>
-        ) : null}
-        <p className="mb-3 text-center text-xs text-gray-500">Conversas encerradas pela administração</p>
-        <ul className="space-y-2">
-          {arquivadas.map((c) => (
+      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+        {todasConversas.map((c) => {
+          const adm = perfisAdm.get(c.adm_usuario_id)
+          const dataRotulo = rotuloDataConversa(c)
+          return (
             <li key={c.id}>
               <button
                 type="button"
-                onClick={() => {
-                  setVerArquivo(false)
-                  setConversaVisualId(c.id)
-                }}
-                className="w-full rounded-xl border border-gray-100 bg-white px-4 py-3 text-left shadow-sm hover:bg-gray-50"
+                onClick={() => setConversaVisualId(c.id)}
+                className="flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2 text-left shadow-sm hover:bg-gray-50"
               >
-                <div className="text-sm font-medium text-gray-900">
-                  {c.assunto?.trim() || 'Mensagem da administração'}
-                </div>
-                <div className="text-xs text-gray-500">
-                  Encerrada
-                  {c.encerrada_em ? ` · ${new Date(c.encerrada_em).toLocaleString('pt-BR')}` : ''}
+                <AvatarImage
+                  src={adm?.fotoUrl ?? null}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className={AVATAR_QUADRADO}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium text-gray-900">
+                    {adm?.nome ?? 'Administração'}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {adm?.username ?? '@administração'}
+                    {c.status === 'aberta' ? ' · Em andamento' : ' · Encerrada'}
+                    {' · '}
+                    {dataRotulo}
+                  </div>
+                  {c.assunto ? (
+                    <div className="truncate text-xs text-gray-600">{c.assunto}</div>
+                  ) : null}
                 </div>
               </button>
             </li>
-          ))}
-        </ul>
-      </div>
+          )
+        })}
+      </ul>
     )
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-gray-100 bg-white px-3 py-3 text-center">
-        {conversaAtual?.status === 'encerrada' ? (
-          <button
-            type="button"
-            onClick={() => {
-              if (conversaAberta) {
-                setVerArquivo(false)
-                setConversaVisualId(conversaAberta.id)
-              } else {
-                setVerArquivo(true)
-                setConversaVisualId(null)
-              }
-            }}
-            className="mb-2 flex items-center gap-1 text-sm text-[#0097b2]"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden />
-            Voltar
-          </button>
-        ) : null}
-        <h2 className="text-lg font-bold uppercase tracking-wide text-[#0097b2] sm:text-xl">
-          Mensagem do ADM
-        </h2>
-        {conversaAtual?.status === 'encerrada' ? (
-          <p className="mt-1 text-xs text-gray-500">Conversa encerrada — somente leitura</p>
-        ) : null}
-      </div>
-
-      <ul
-        ref={messagesContainerRef}
-        className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3"
-      >
-        {mensagens.length === 0 ? (
-          <li className="py-6 text-center text-sm text-gray-500">Aguardando mensagens…</li>
-        ) : (
-          mensagens.map((m) => <BalaoFinanceiro key={m.id} m={m} usuarioId={usuarioId} />)
-        )}
-        <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
-      </ul>
-
-      {arquivadas.length > 0 && conversaAberta ? (
-        <div className="shrink-0 border-t border-gray-100 bg-gray-50 px-3 py-2">
-          <button
-            type="button"
-            onClick={() => {
-              setVerArquivo(true)
-              setConversaVisualId(null)
-            }}
-            className="text-xs font-medium text-[#0097b2]"
-          >
-            Ver conversas encerradas ({arquivadas.length})
-          </button>
-        </div>
-      ) : null}
+      <FinanceiroDialogoVisual
+        mensagens={mensagens}
+        viewerUserId={usuarioId}
+        assunto={conversaAtual?.assunto}
+        subtitulo={
+          conversaAtual?.status === 'encerrada'
+            ? 'Conversa encerrada — somente leitura'
+            : undefined
+        }
+        onFechar={() => setConversaVisualId(null)}
+        messagesEndRef={messagesEndRef}
+      />
 
       {podeResponder ? (
         <div

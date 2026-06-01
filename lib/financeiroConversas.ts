@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
 
 export type AlvoTipoFinanceiro = 'profissional' | 'empresa'
 export type StatusConversaFinanceiro = 'aberta' | 'encerrada'
@@ -160,17 +161,68 @@ export async function listarHistoricoConversasAdm(
   return (data ?? []).map(mapConversa)
 }
 
+const COLS_MENSAGEM_FINANCEIRO =
+  'id, conversa_id, remetente_id, texto, anexo_url, anexo_tipo, created_at'
+const COLS_MENSAGEM_FINANCEIRO_BASE = 'id, conversa_id, remetente_id, texto, created_at'
+
 export async function listarMensagensConversa(
   supabase: SupabaseClient,
   conversaId: string,
 ): Promise<FinanceiroMensagemRow[]> {
-  const { data } = await supabase
+  let { data, error } = await supabase
     .from('financeiro_mensagens')
-    .select('id, conversa_id, remetente_id, texto, anexo_url, anexo_tipo, created_at')
+    .select(COLS_MENSAGEM_FINANCEIRO)
     .eq('conversa_id', conversaId)
     .order('created_at', { ascending: true })
 
-  return (data ?? []).map(mapMensagem)
+  if (error) {
+    console.error('listarMensagensConversa (anexos):', error.message)
+    const retry = await supabase
+      .from('financeiro_mensagens')
+      .select(COLS_MENSAGEM_FINANCEIRO_BASE)
+      .eq('conversa_id', conversaId)
+      .order('created_at', { ascending: true })
+    if (retry.error) {
+      console.error('listarMensagensConversa:', retry.error.message)
+      return []
+    }
+    data = (retry.data ?? []).map((row) => ({
+      ...row,
+      anexo_url: null,
+      anexo_tipo: null,
+    }))
+  }
+
+  return (data ?? []).map((row) => mapMensagem(row as Record<string, unknown>))
+}
+
+export type PerfilAdmFinanceiro = {
+  usuarioId: string
+  nome: string
+  username: string
+  fotoUrl: string | null
+}
+
+/** Perfis dos ADMs que iniciaram conversas financeiras (para cards do profissional/empresa). */
+export async function buscarPerfisAdmFinanceiro(
+  supabase: SupabaseClient,
+  admUsuarioIds: string[],
+): Promise<Map<string, PerfilAdmFinanceiro>> {
+  const map = new Map<string, PerfilAdmFinanceiro>()
+  const unique = [...new Set(admUsuarioIds.filter(Boolean))]
+  if (unique.length === 0) return map
+
+  const remetentes = await buscarRemetentesEmLote(supabase, unique)
+  for (const id of unique) {
+    const r = remetentes.get(id)
+    map.set(id, {
+      usuarioId: id,
+      nome: r?.nome?.trim() || 'Administração',
+      username: '@administração',
+      fotoUrl: r?.foto_url ?? null,
+    })
+  }
+  return map
 }
 
 export async function enviarMensagemConversaFinanceiro(

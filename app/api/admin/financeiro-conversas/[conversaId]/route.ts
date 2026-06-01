@@ -16,11 +16,19 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     .maybeSingle()
 
   if (error || !conversa) {
-    return NextResponse.json({ error: 'Conversa não encontrada.' }, { status: 404 })
+    return NextResponse.json({ ok: false, error: 'Conversa não encontrada.' }, { status: 404 })
   }
 
   const mensagens = await listarMensagensConversa(auth.supabase, conversaId)
-  return NextResponse.json({ ok: true, conversa, mensagens })
+  return NextResponse.json({
+    ok: true,
+    conversa: {
+      ...conversa,
+      assunto: conversa.assunto != null ? String(conversa.assunto) : null,
+      adm_usuario_id: String(conversa.adm_usuario_id),
+    },
+    mensagens,
+  })
 }
 
 export async function PATCH(req: Request, ctx: RouteCtx) {

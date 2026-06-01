@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BarChart3, MessageCircle, Search, Send, X } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
+import FinanceiroDialogoVisual from '@/components/canal/FinanceiroDialogoVisual'
 import { rotuloCategoriaCardFinanceiro } from '@/lib/canaisProfissionaisListaUi'
+import type { FinanceiroMensagemRow } from '@/lib/financeiroConversas'
 
 const INPUT_FIN = 'text-gray-900 placeholder:text-gray-500 caret-gray-900'
 const AVATAR_QUADRADO = 'shrink-0 rounded-md object-cover'
@@ -73,6 +75,11 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
   const [abrindoChat, setAbrindoChat] = useState(false)
   const [historico, setHistorico] = useState<ConversaHistorico[]>([])
   const [historicoDetalhe, setHistoricoDetalhe] = useState<string | null>(null)
+  const [historicoMensagens, setHistoricoMensagens] = useState<FinanceiroMensagemRow[]>([])
+  const [historicoAssunto, setHistoricoAssunto] = useState<string | null>(null)
+  const [historicoAdmId, setHistoricoAdmId] = useState<string | null>(null)
+  const [historicoCarregando, setHistoricoCarregando] = useState(false)
+  const [historicoErro, setHistoricoErro] = useState<string | null>(null)
   const [desempenho, setDesempenho] = useState<DesempenhoProf | DesempenhoEmp | null>(null)
   const [painelMensageiro, setPainelMensageiro] = useState(false)
   const [painelDesempenho, setPainelDesempenho] = useState(false)
@@ -228,11 +235,41 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
     }
   }
 
+  const fecharHistoricoDetalhe = () => {
+    setHistoricoDetalhe(null)
+    setHistoricoMensagens([])
+    setHistoricoAssunto(null)
+    setHistoricoAdmId(null)
+    setHistoricoErro(null)
+  }
+
   const verHistoricoDetalhe = async (id: string) => {
     setHistoricoDetalhe(id)
-    const res = await fetch(`/api/admin/financeiro-conversas/${id}`)
-    const json = (await res.json()) as { mensagens?: Mensagem[] }
-    setMensagens(json.mensagens ?? [])
+    setHistoricoCarregando(true)
+    setHistoricoErro(null)
+    setHistoricoMensagens([])
+    try {
+      const res = await fetch(`/api/admin/financeiro-conversas/${id}`)
+      const json = (await res.json()) as {
+        ok?: boolean
+        error?: string
+        mensagens?: FinanceiroMensagemRow[]
+        conversa?: { assunto?: string | null; adm_usuario_id?: string }
+      }
+      if (!res.ok || json.ok === false) {
+        setHistoricoErro(json.error ?? 'Não foi possível carregar o diálogo.')
+        return
+      }
+      setHistoricoMensagens(json.mensagens ?? [])
+      setHistoricoAssunto(json.conversa?.assunto != null ? String(json.conversa.assunto) : null)
+      setHistoricoAdmId(
+        json.conversa?.adm_usuario_id != null ? String(json.conversa.adm_usuario_id) : null,
+      )
+    } catch {
+      setHistoricoErro('Erro de rede ao carregar o diálogo.')
+    } finally {
+      setHistoricoCarregando(false)
+    }
   }
 
   const limparSelecao = () => {
@@ -242,7 +279,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
     setPainelMensageiro(false)
     setPainelDesempenho(false)
     setDesempenho(null)
-    setHistoricoDetalhe(null)
+    fecharHistoricoDetalhe()
   }
 
   const shellClass = embedded
@@ -290,47 +327,18 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
       </div>
 
       {aba === 'historico' ? (
-        <div className="mt-4 min-h-0 flex-1">
+        <div className={`mt-4 flex min-h-0 flex-1 flex-col ${embedded ? 'min-h-[min(70vh,32rem)]' : ''}`}>
           {historicoDetalhe ? (
-            <div>
-              <button
-                type="button"
-                className="mb-2 text-sm font-medium text-gray-900"
-                onClick={() => {
-                  setHistoricoDetalhe(null)
-                  setMensagens([])
-                }}
-              >
-                ← Voltar à lista
-              </button>
-              <ul
-                className={`space-y-2 overflow-y-auto rounded-xl border border-gray-100 bg-white p-3 ${
-                  embedded ? 'max-h-[min(70vh,32rem)]' : 'max-h-64'
-                }`}
-              >
-                {mensagens.map((m) => (
-                  <li key={m.id} className="text-sm text-gray-800">
-                    <span className="text-xs text-gray-500">
-                      {new Date(m.created_at).toLocaleString('pt-BR')} ·{' '}
-                    </span>
-                    {m.texto}
-                    {m.anexo_url ? (
-                      <span className="block text-xs text-[#0097b2]">
-                        {m.anexo_tipo === 'audio'
-                          ? 'Áudio'
-                          : m.anexo_tipo === 'imagem'
-                            ? 'Imagem'
-                            : 'Anexo'}{' '}
-                        ·{' '}
-                        <a href={m.anexo_url} target="_blank" rel="noopener noreferrer" className="underline">
-                          abrir
-                        </a>
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <FinanceiroDialogoVisual
+              mensagens={historicoMensagens}
+              viewerUserId={historicoAdmId ?? ''}
+              assunto={historicoAssunto}
+              subtitulo="Conversa encerrada — somente leitura"
+              carregando={historicoCarregando}
+              erro={historicoErro}
+              onFechar={fecharHistoricoDetalhe}
+              titulo="Histórico"
+            />
           ) : historico.length === 0 ? (
             <p className="py-6 text-center text-sm text-gray-500">Nenhuma conversa encerrada ainda.</p>
           ) : (
