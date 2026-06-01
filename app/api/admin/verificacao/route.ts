@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server'
-import { assertAdminSession, adminPodeRecurso } from '@/lib/adminApiAuth'
+import {
+  assertAdminSession,
+  adminPodeRecurso,
+  jsonAdminError,
+  loadAdminUsuarioRow,
+} from '@/lib/adminApiAuth'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { proximaRevisaoDepoisDeAprovacao } from '@/lib/verificacao-documentos'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
@@ -16,22 +21,31 @@ export async function POST(req: Request) {
     const session = await assertAdminSession()
     if (!session.ok) return session.error
 
-    const { userId } = session
-    const adminDb = createSupabaseAdmin()
+    const { userId: authUserId, email: authEmail } = session
 
-    const { data: adminRow, error: adminErr } = await adminDb
-      .from('usuarios')
-      .select('id, email, role, admin_level, admin_permissoes')
-      .eq('id', userId)
-      .maybeSingle()
+    let adminDb
+    try {
+      adminDb = createSupabaseAdmin()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'service_role_missing'
+      console.error('[api/admin/verificacao] createSupabaseAdmin', msg)
+      return jsonAdminError(
+        503,
+        'service_role',
+        'Serviço indisponível: configure SUPABASE_SERVICE_ROLE_KEY no servidor (Vercel).',
+      )
+    }
 
-    if (adminErr) {
-      return NextResponse.json({ error: adminErr.message }, { status: 400 })
+    const { row: adminRow, actorId, dbError } = await loadAdminUsuarioRow(authUserId, authEmail)
+    if (dbError) {
+      return jsonAdminError(503, 'load_admin', `Falha ao carregar admin: ${dbError}`)
     }
     if (!adminRow) {
-      return NextResponse.json(
-        { error: 'Usuário autenticado sem registro em usuarios. Peça suporte para vincular o perfil ADM.' },
-        { status: 403 },
+      return jsonAdminError(
+        403,
+        'admin_not_found',
+        'Administrador não encontrado em usuarios. Confira se o e-mail do login existe na tabela com role=admin.',
+        { authUserId },
       )
     }
 
@@ -42,41 +56,43 @@ export async function POST(req: Request) {
     const motivo = body.motivo != null ? String(body.motivo).trim() : ''
 
     if (!id || !['turistas', 'profissionais', 'empresas'].includes(tipo)) {
-      return NextResponse.json({ error: 'Parâmetros inválidos.' }, { status: 400 })
+      return jsonAdminError(400, 'params', 'Parâmetros inválidos (tipo ou id).')
     }
 
     const role = String(adminRow.role ?? '')
     const nivel = Number(adminRow.admin_level ?? 0)
 
     if (acao === 'aprovar' && !adminPodeRecurso(adminRow.admin_permissoes, nivel, role, 'aprovar')) {
-      return NextResponse.json({ error: 'Sem permissão para aprovar.' }, { status: 403 })
+      console.error('[api/admin/verificacao] sem recurso aprovar', { actorId, role, nivel })
+      return jsonAdminError(403, 'permission', 'Sem permissão para aprovar (admin_permissoes.recursos).')
     }
     if (acao === 'reprovar') {
-      if (!motivo) return NextResponse.json({ error: 'Motivo obrigatório.' }, { status: 400 })
+      if (!motivo) return jsonAdminError(400, 'params', 'Motivo da reprovação é obrigatório.')
       if (!adminPodeRecurso(adminRow.admin_permissoes, nivel, role, 'reprovar')) {
-        return NextResponse.json({ error: 'Sem permissão para reprovar.' }, { status: 403 })
+        return jsonAdminError(403, 'permission', 'Sem permissão para reprovar (admin_permissoes.recursos).')
       }
     }
     if (acao !== 'aprovar' && acao !== 'reprovar') {
-      return NextResponse.json({ error: 'Ação inválida.' }, { status: 400 })
+      return jsonAdminError(400, 'params', 'Ação inválida. Use aprovar ou reprovar.')
     }
 
     const table = getTableByTipo(tipo)
 
     const { data: perfil, error: perfilErr } = await adminDb.from(table).select('usuario_id').eq('id', id).single()
     if (perfilErr) {
-      return NextResponse.json({ error: perfilErr.message }, { status: 400 })
+      console.error('[api/admin/verificacao] perfil', perfilErr.message)
+      return jsonAdminError(400, 'load_perfil', perfilErr.message)
     }
 
     const nowIso = new Date().toISOString()
-    const adminEmail = String(adminRow.email ?? 'admin')
+    const adminEmail = String(adminRow.email ?? authEmail ?? 'admin')
 
     if (acao === 'aprovar') {
       const extraProf =
         tipo === 'profissionais'
           ? {
               docs_verificado: true,
-              docs_verificado_por: userId,
+              docs_verificado_por: actorId,
               docs_verificado_em: nowIso,
               ultima_revisao_docs_em: nowIso,
               proxima_revisao_docs_em: proximaRevisaoDepoisDeAprovacao(),
@@ -86,9 +102,9 @@ export async function POST(req: Request) {
         tipo === 'empresas'
           ? {
               docs_verificado: true,
-              docs_verificado_por: userId,
+              docs_verificado_por: actorId,
               docs_verificado_em: nowIso,
-              verificado_por: userId,
+              verificado_por: actorId,
               verificado_em: nowIso,
             }
           : {}
@@ -97,7 +113,7 @@ export async function POST(req: Request) {
         .from(table)
         .update({
           status: 'aprovado',
-          aprovado_por: userId,
+          aprovado_por: actorId,
           aprovado_em: nowIso,
           motivo_reprovacao: null,
           prazo_reenvio_dias: null,
@@ -108,13 +124,18 @@ export async function POST(req: Request) {
         })
         .eq('id', id)
       if (updErr) {
-        return NextResponse.json({ error: updErr.message }, { status: 400 })
+        console.error('[api/admin/verificacao] update aprovar', updErr.message)
+        return jsonAdminError(400, 'update_perfil', updErr.message)
       }
 
       if (perfil?.usuario_id) {
-        const { error: userErr } = await adminDb.from('usuarios').update({ status: 'ativo' }).eq('id', perfil.usuario_id)
+        const { error: userErr } = await adminDb
+          .from('usuarios')
+          .update({ status: 'ativo' })
+          .eq('id', perfil.usuario_id)
         if (userErr) {
-          return NextResponse.json({ error: userErr.message }, { status: 400 })
+          console.error('[api/admin/verificacao] update usuario', userErr.message)
+          return jsonAdminError(400, 'update_usuario', userErr.message)
         }
       }
 
@@ -139,21 +160,24 @@ export async function POST(req: Request) {
               },
             })
           }
-        } catch {
-          /* post no feed é best-effort */
+        } catch (e) {
+          console.warn('[api/admin/verificacao] post feed', e)
         }
       }
 
-      await adminDb.from('logs_verificacao').insert({
+      const { error: logErr } = await adminDb.from('logs_verificacao').insert({
         tipo,
         perfil_id: id,
         acao: 'aprovado',
-        admin_id: userId,
+        admin_id: actorId,
         admin_email: adminEmail,
         admin_nivel: nivel,
         alvo_id: null,
-        detalhes: { status_final: 'aprovado', modulo: 'verificacao_perfil' },
+        detalhes: { status_final: 'aprovado', modulo: 'verificacao_perfil', auth_user_id: authUserId },
       })
+      if (logErr) {
+        console.warn('[api/admin/verificacao] log insert', logErr.message)
+      }
 
       return NextResponse.json({ ok: true })
     }
@@ -165,11 +189,12 @@ export async function POST(req: Request) {
         motivo_reprovacao: motivo,
         prazo_reenvio_dias: 7,
         reprovado_em: nowIso,
-        reprovado_por: userId,
+        reprovado_por: actorId,
       })
       .eq('id', id)
     if (reprovErr) {
-      return NextResponse.json({ error: reprovErr.message }, { status: 400 })
+      console.error('[api/admin/verificacao] reprovar', reprovErr.message)
+      return jsonAdminError(400, 'update_perfil', reprovErr.message)
     }
 
     if (perfil?.usuario_id) {
@@ -180,19 +205,24 @@ export async function POST(req: Request) {
       tipo,
       perfil_id: id,
       acao: 'reprovado',
-      admin_id: userId,
+      admin_id: actorId,
       admin_email: adminEmail,
       admin_nivel: nivel,
       alvo_id: null,
-      detalhes: { status_final: 'reprovado', modulo: 'verificacao_perfil', motivo },
+      detalhes: { status_final: 'reprovado', modulo: 'verificacao_perfil', motivo, auth_user_id: authUserId },
     })
 
     return NextResponse.json({ ok: true })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro interno'
+    console.error('[api/admin/verificacao] unhandled', msg)
     if (msg.includes('SUPABASE_SERVICE_ROLE_KEY')) {
-      return NextResponse.json({ error: 'Serviço temporariamente indisponível (configuração do servidor).' }, { status: 503 })
+      return jsonAdminError(
+        503,
+        'service_role',
+        'Serviço temporariamente indisponível (SUPABASE_SERVICE_ROLE_KEY).',
+      )
     }
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return jsonAdminError(500, 'internal', msg)
   }
 }

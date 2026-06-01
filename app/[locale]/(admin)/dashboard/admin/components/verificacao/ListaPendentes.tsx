@@ -104,7 +104,9 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
             onReprovar={(motivo) => {
               void reprovar(i.id, tipo, motivo)
                 .then(() => setFeedback('Cadastro reprovado e prazo de 7 dias aplicado.'))
-                .catch(() => setFeedback('Não foi possível reprovar. Tente de novo.'))
+                .catch((err: unknown) =>
+                  setFeedback(err instanceof Error ? err.message : 'Não foi possível reprovar. Tente de novo.'),
+                )
             }}
           />
         ))}
