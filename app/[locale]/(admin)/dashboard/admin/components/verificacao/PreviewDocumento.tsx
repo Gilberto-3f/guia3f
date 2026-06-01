@@ -13,16 +13,24 @@ export function PreviewDocumento({
   label,
   className,
   objectFit = 'cover',
+  resolvedUrl,
 }: {
   url: string
   label: string
   className?: string
   objectFit?: 'cover' | 'contain'
+  /** URL já resolvida pelo card (evita round-trip duplicado). */
+  resolvedUrl?: string | null
 }) {
-  const [src, setSrc] = useState<string | null>(null)
+  const [src, setSrc] = useState<string | null>(resolvedUrl ?? null)
   const [erro, setErro] = useState(false)
 
   useEffect(() => {
+    if (resolvedUrl) {
+      setSrc(resolvedUrl)
+      setErro(false)
+      return
+    }
     let ativo = true
     setErro(false)
     setSrc(null)
@@ -32,7 +40,7 @@ export function PreviewDocumento({
     return () => {
       ativo = false
     }
-  }, [url])
+  }, [url, resolvedUrl])
 
   if (isPdfUrl(url)) {
     return (
@@ -43,12 +51,16 @@ export function PreviewDocumento({
     )
   }
 
-  if (erro || !src) {
+  if (erro) {
     return (
       <div className={`flex h-full w-full items-center justify-center bg-gray-100 text-[10px] text-gray-500 ${className ?? ''}`}>
-        {!src ? 'Carregando…' : 'Não foi possível carregar'}
+        Não foi possível carregar
       </div>
     )
+  }
+
+  if (!src) {
+    return <div className={`animate-pulse bg-gray-200 ${className ?? ''}`} aria-hidden />
   }
 
   return (
@@ -57,7 +69,8 @@ export function PreviewDocumento({
       alt={label}
       className={className}
       style={{ objectFit }}
-      loading="lazy"
+      loading="eager"
+      decoding="async"
       onError={() => setErro(true)}
     />
   )

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { resolverUrlsDocumentosStorage } from '@/lib/documentosStorageUrl'
 import type {
   ContadoresVerificacao,
   PendenteEmpresa,
@@ -10,8 +11,6 @@ import type {
   PerfilVerificacao,
 } from '../types/admin.types'
 import { usePermissao } from './usePermissao'
-import { proximaRevisaoDepoisDeAprovacao } from '@/lib/verificacao-documentos'
-import { adminContextFromGate, registrarLogVerificacao } from '../utils/registrarLogVerificacao'
 
 /** JSONB ou coluna legada: normaliza para string[]. */
 function parseCategoriasProfissional(raw: unknown): string[] {
@@ -61,8 +60,44 @@ export type FiltrosVerificacao = {
 
 type PendenteUnion = PendenteTurista | PendenteProfissional | PendenteEmpresa
 
+function urlsDocumentosDeRow(tipo: PerfilVerificacao, r: Record<string, unknown>): string[] {
+  const out: string[] = []
+  const push = (v: unknown) => {
+    const s = String(v ?? '').trim()
+    if (s) out.push(s)
+  }
+  if (tipo === 'turistas') {
+    push(r.documento_frente_url)
+    push(r.documento_verso_url)
+    return out
+  }
+  if (tipo === 'profissionais') {
+    const d = (r.documentos ?? {}) as Record<string, string>
+    push(r.documento_frente_url)
+    push(d.identidade_url)
+    push(r.documento_verso_url)
+    push(d.documento_verso_url)
+    push(r.comprovante_residencia_url)
+    push(d.comprovante_residencia_url)
+    push(r.comprovante_profissao_url)
+    push(d.comprovante_profissao_url)
+    return out
+  }
+  push(r.documento_frente_url)
+  push(r.documento_verso_url)
+  push(r.comprovante_residencia_url)
+  push(r.documento_comercial_url)
+  push(r.documento_url)
+  return out
+}
+
+function aquecerCacheDocumentos(tipo: PerfilVerificacao, rows: Record<string, unknown>[]) {
+  const urls = [...new Set(rows.flatMap((r) => urlsDocumentosDeRow(tipo, r)))]
+  if (urls.length) void resolverUrlsDocumentosStorage(supabase, urls)
+}
+
 export function useVerificacao(filtros: FiltrosVerificacao) {
-  const { admin, getComunidade } = usePermissao()
+  const { getComunidade } = usePermissao()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [pendentes, setPendentes] = useState<PendenteUnion[]>([])
@@ -119,6 +154,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       email: emailMap.get(String(r.usuario_id)) || null,
     }))
     setPendentes(mapped)
+    aquecerCacheDocumentos('turistas', rows)
   }, [])
 
   const fetchProfissionaisPendentes = useCallback(async () => {
@@ -169,6 +205,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       return true
     })
     setPendentes(filtered)
+    aquecerCacheDocumentos('profissionais', rows)
   }, [getComunidade])
 
   const fetchEmpresasPendentes = useCallback(async () => {
@@ -212,6 +249,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       }
     })
     setPendentes(mapped)
+    aquecerCacheDocumentos('empresas', rows)
   }, [])
 
   const fetchData = useCallback(async () => {
@@ -234,115 +272,38 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     void fetchData()
   }, [fetchData])
 
-  const getTableByTipo = (tipo: PerfilVerificacao) =>
-    tipo === 'turistas' ? 'turistas' : tipo === 'profissionais' ? 'profissionais' : 'empresas'
-
   const aprovar = useCallback(
     async (id: string, tipo: PerfilVerificacao) => {
-      const table = getTableByTipo(tipo)
-      const { data: perfil, error: perfilErr } = await supabase.from(table).select('usuario_id').eq('id', id).single()
-      if (perfilErr) throw perfilErr
-      const nowIso = new Date().toISOString()
-      const extraProf =
-        tipo === 'profissionais'
-          ? {
-              docs_verificado: true,
-              docs_verificado_por: admin?.id ?? null,
-              docs_verificado_em: nowIso,
-              ultima_revisao_docs_em: nowIso,
-              proxima_revisao_docs_em: proximaRevisaoDepoisDeAprovacao(),
-            }
-          : {}
-      const extraEmpresa =
-        tipo === 'empresas'
-          ? {
-              docs_verificado: true,
-              docs_verificado_por: admin?.id ?? null,
-              docs_verificado_em: nowIso,
-              verificado_por: admin?.id ?? null,
-              verificado_em: nowIso,
-            }
-          : {}
-      const { error } = await supabase
-        .from(table)
-        .update({
-          status: 'aprovado',
-          aprovado_por: admin?.id ?? null,
-          aprovado_em: nowIso,
-          motivo_reprovacao: null,
-          prazo_reenvio_dias: null,
-          reprovado_em: null,
-          reprovado_por: null,
-          ...extraProf,
-          ...extraEmpresa,
-        })
-        .eq('id', id)
-      if (error) throw error
-      if (perfil?.usuario_id) {
-        await supabase.from('usuarios').update({ status: 'ativo' }).eq('id', perfil.usuario_id)
-      }
-      if (tipo === 'profissionais') {
-        try {
-          const res = await fetch('/api/posts/profissional-verificado', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ profissionalId: id }),
-          })
-          if (!res.ok) {
-            const j = (await res.json().catch(() => ({}))) as { error?: string }
-            console.warn('[aprovar profissional] post feed:', j?.error ?? res.status)
-          }
-        } catch (e) {
-          console.warn('[aprovar profissional] post feed:', e)
-        }
-      }
-      if (admin) {
-        await registrarLogVerificacao({
-          tipo,
-          perfil_id: id,
-          acao: 'aprovado',
-          status_final: 'aprovado',
-          admin: adminContextFromGate(admin),
-          detalhes: { modulo: 'verificacao_perfil' },
-        })
+      const res = await fetch('/api/admin/verificacao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ acao: 'aprovar', tipo, id }),
+      })
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? 'Não foi possível aprovar.')
       }
       await fetchData()
     },
-    [admin, fetchData]
+    [fetchData]
   )
 
   const reprovar = useCallback(
     async (id: string, tipo: PerfilVerificacao, motivo: string) => {
-      if (!admin) throw new Error('Admin não autenticado')
-      const table = getTableByTipo(tipo)
-      const { data: perfil, error: perfilErr } = await supabase.from(table).select('usuario_id').eq('id', id).single()
-      if (perfilErr) throw perfilErr
-      const payload = {
-        status: 'reprovado',
-        motivo_reprovacao: motivo,
-        prazo_reenvio_dias: 7,
-        reprovado_em: new Date().toISOString(),
-        reprovado_por: admin.id,
-      }
-      const { error } = await supabase.from(table).update(payload).eq('id', id)
-      if (error) throw error
-      if (perfil?.usuario_id) {
-        await supabase.from('usuarios').update({ status: 'reprovado' }).eq('id', perfil.usuario_id)
-      }
-      if (admin) {
-        await registrarLogVerificacao({
-          tipo,
-          perfil_id: id,
-          acao: 'reprovado',
-          status_final: 'reprovado',
-          admin: adminContextFromGate(admin),
-          detalhes: { modulo: 'verificacao_perfil', motivo },
-        })
+      const res = await fetch('/api/admin/verificacao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ acao: 'reprovar', tipo, id, motivo }),
+      })
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? 'Não foi possível reprovar.')
       }
       await fetchData()
     },
-    [admin, fetchData]
+    [fetchData]
   )
 
   return { pendentes, contadores, loading, error, aprovar, reprovar, refetch: fetchData }

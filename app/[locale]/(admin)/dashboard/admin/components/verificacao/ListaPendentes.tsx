@@ -22,6 +22,7 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
         dataCadastro: new Date(p.created_at).toLocaleDateString('pt-BR'),
         email: p.email?.trim() || '—',
         whatsappLine: '—',
+        avatarUrl: p.foto_url,
         categoriaDisplay: undefined,
         empresaFiscal: undefined,
         alerta: null,
@@ -43,6 +44,7 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
           dataCadastro: new Date(p.created_at).toLocaleDateString('pt-BR'),
           email: p.email?.trim() || '—',
           whatsappLine: formatContatoExibicao(contato),
+          avatarUrl: p.foto_url,
           categoriaDisplay: formatProfissionalCategorias(categorias),
           empresaFiscal: undefined,
           alerta: p.placa_vermelha ? 'Placa vermelha' : null,
@@ -63,6 +65,7 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
         dataCadastro: new Date(p.created_at).toLocaleDateString('pt-BR'),
         email: p.email?.trim() || '—',
         whatsappLine: formatContatoExibicao(p.whatsapp || p.telefone),
+        avatarUrl: p.fotos_url?.[0] ?? null,
         categoriaDisplay: p.categoria?.trim() ? p.categoria : '—',
         empresaFiscal: pickDocumentoFiscalEmpresa(raw),
         alerta: null,
@@ -94,7 +97,9 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
             onAprovar={() => {
               void aprovar(i.id, tipo)
                 .then(() => setFeedback('Cadastro aprovado com sucesso.'))
-                .catch(() => setFeedback('Não foi possível aprovar. Verifique permissões e tente de novo.'))
+                .catch((err: unknown) =>
+                  setFeedback(err instanceof Error ? err.message : 'Não foi possível aprovar. Verifique permissões e tente de novo.')
+                )
             }}
             onReprovar={(motivo) => {
               void reprovar(i.id, tipo, motivo)

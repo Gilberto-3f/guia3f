@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { resolverUrlsDocumentosStorage } from '@/lib/documentosStorageUrl'
 import { VisualizadorDocs } from './VisualizadorDocs'
 import { PreviewDocumento, isPdfUrl } from './PreviewDocumento'
 import { usePermissao } from '../../hooks/usePermissao'
@@ -13,6 +15,7 @@ export type CadastroPendente = {
   dataCadastro: string
   email: string
   whatsappLine: string
+  avatarUrl?: string | null
   categoriaDisplay?: string
   empresaFiscal?: string
   alerta: string | null
@@ -47,9 +50,7 @@ function collectDocThumbs(tipo: 'turistas' | 'profissionais' | 'empresas', raw: 
   }
   if (tipo === 'profissionais') {
     const d = (raw.documentos ?? {}) as Record<string, string>
-    const idF = String(
-      raw.documento_frente_url ?? d.identidade_url ?? raw.identidade_url ?? ''
-    ).trim()
+    const idF = String(raw.documento_frente_url ?? d.identidade_url ?? raw.identidade_url ?? '').trim()
     const idV = String(d.documento_verso_url ?? raw.documento_verso_url ?? '').trim()
     const res = String(d.comprovante_residencia_url ?? raw.comprovante_residencia_url ?? '').trim()
     const prof = String(d.comprovante_profissao_url ?? raw.comprovante_profissao_url ?? '').trim()
@@ -75,6 +76,25 @@ function collectDocThumbs(tipo: 'turistas' | 'profissionais' | 'empresas', raw: 
   return []
 }
 
+function AvatarQuadrado({ url, nome }: { url?: string | null; nome: string }) {
+  const inicial = nome.trim().charAt(0).toUpperCase() || '?'
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt=""
+        className="h-14 w-14 shrink-0 rounded-lg object-cover bg-gray-100"
+        loading="lazy"
+      />
+    )
+  }
+  return (
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-gray-200 text-lg font-bold text-gray-500">
+      {inicial}
+    </div>
+  )
+}
+
 export function CardPendente({
   item,
   tipo,
@@ -89,11 +109,24 @@ export function CardPendente({
   const [modalAberto, setModalAberto] = useState(false)
   const [reprovarAberto, setReprovarAberto] = useState(false)
   const [motivoReprova, setMotivoReprova] = useState('')
+  const [urlsResolvidas, setUrlsResolvidas] = useState<Map<string, string>>(new Map())
   const { podeExecutarRecurso } = usePermissao()
 
   const thumbs = collectDocThumbs(tipo, item.raw)
+  const urlsDocs = useMemo(() => thumbs.map((t) => t.url), [thumbs])
   const podeAprovar = podeExecutarRecurso('aprovar')
   const podeReprovar = podeExecutarRecurso('reprovar')
+
+  useEffect(() => {
+    if (!urlsDocs.length) return
+    let ativo = true
+    void resolverUrlsDocumentosStorage(supabase, urlsDocs).then((map) => {
+      if (ativo) setUrlsResolvidas(map)
+    })
+    return () => {
+      ativo = false
+    }
+  }, [urlsDocs])
 
   const confirmarLiberar = () => {
     if (!window.confirm('Confirmar liberação (aprovação) deste cadastro?')) return
@@ -112,35 +145,37 @@ export function CardPendente({
     <>
       <div className="max-h-[85vh] overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="p-4">
-          <div className="break-words text-sm font-semibold text-gray-900">{item.email}</div>
-          <div className="mt-0.5 text-xs text-gray-500">{item.username}</div>
-
-          <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-gray-800">
-            <span className="font-semibold">{item.nome}</span>
-            {tipo !== 'turistas' ? (
-              <>
-                <span className="text-gray-400" aria-hidden>
-                  ·
-                </span>
-                <span className="text-gray-600">{item.whatsappLine}</span>
-              </>
-            ) : null}
-            <span className="text-gray-400" aria-hidden>
-              ·
-            </span>
-            <span className="text-gray-600">Cadastro: {item.dataCadastro}</span>
+          <div className="flex gap-3">
+            <AvatarQuadrado url={item.avatarUrl} nome={item.nome} />
+            <div className="min-w-0 flex-1">
+              <div className="break-words text-sm font-semibold text-gray-900">{item.email}</div>
+              <div className="mt-0.5 text-xs text-gray-500">{item.username}</div>
+            </div>
           </div>
 
-          {tipo === 'profissionais' && item.categoriaDisplay ? (
-            <div className="mt-2 text-sm text-gray-800">
-              <span className="font-medium text-gray-600">Categoria:</span> {item.categoriaDisplay}
+          <div className="mt-3 space-y-1 text-sm text-gray-800">
+            <div>
+              <span className="font-medium text-gray-600">Nome social:</span> {item.nome}
             </div>
-          ) : null}
+            {tipo !== 'turistas' && item.whatsappLine !== '—' ? (
+              <div>
+                <span className="font-medium text-gray-600">Telefone:</span> {item.whatsappLine}
+              </div>
+            ) : null}
+            <div>
+              <span className="font-medium text-gray-600">Cadastro:</span> {item.dataCadastro}
+            </div>
+            {tipo === 'profissionais' && item.categoriaDisplay && item.categoriaDisplay !== '—' ? (
+              <div>
+                <span className="font-medium text-gray-600">Categoria:</span> {item.categoriaDisplay}
+              </div>
+            ) : null}
+          </div>
 
           {tipo === 'empresas' ? (
-            <>
+            <div className="mt-2 space-y-1 text-sm text-gray-800">
               {item.categoriaDisplay && item.categoriaDisplay !== '—' ? (
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-gray-600">Categoria:</span>
                   <span
                     className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badgeEmpresaCategoriaClass(item.categoriaDisplay)}`}
@@ -149,17 +184,12 @@ export function CardPendente({
                   </span>
                 </div>
               ) : null}
-              {item.empresaFiscal ? (
-                <div className="mt-1 text-sm text-gray-800">
+              {item.empresaFiscal && item.empresaFiscal !== '—' ? (
+                <div>
                   <span className="font-medium text-gray-600">CNPJ / RUC / CUIT:</span> {item.empresaFiscal}
                 </div>
               ) : null}
-              {item.whatsappLine !== '—' ? (
-                <div className="mt-1 text-sm text-gray-800">
-                  <span className="font-medium text-gray-600">Contato:</span> {item.whatsappLine}
-                </div>
-              ) : null}
-            </>
+            </div>
           ) : null}
 
           {item.placaVermelha ? (
@@ -175,7 +205,7 @@ export function CardPendente({
             ) : tipo === 'empresas' ? (
               <div className="mt-2 flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs leading-relaxed text-gray-600">
-                  Documento comercial (CNPJ / RUC / CUIT). Abra para conferir antes de liberar o cadastro.
+                  Documento comercial (CNPJ / RUC / CUIT). Toque para conferir antes de liberar.
                 </p>
                 <button
                   type="button"
@@ -201,7 +231,13 @@ export function CardPendente({
                           <span className="line-clamp-2 text-[10px] text-gray-500">{t.label}</span>
                         </div>
                       ) : (
-                        <PreviewDocumento url={t.url} label={t.label} className="h-full w-full" objectFit="cover" />
+                        <PreviewDocumento
+                          url={t.url}
+                          label={t.label}
+                          className="h-full w-full"
+                          objectFit="cover"
+                          resolvedUrl={urlsResolvidas.get(t.url)}
+                        />
                       )}
                     </div>
                     <span className="border-t border-gray-100 bg-white px-1.5 py-1 text-center text-[10px] font-semibold leading-tight text-gray-700">{t.label}</span>
@@ -209,17 +245,6 @@ export function CardPendente({
                 ))}
               </div>
             )}
-            {tipo !== 'empresas' && thumbs.length > 0 ? (
-              <div className="mt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalAberto(true)}
-                  className="rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  Ver todos / ampliar
-                </button>
-              </div>
-            ) : null}
           </div>
 
           <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
@@ -274,7 +299,13 @@ export function CardPendente({
         </div>
       </div>
 
-      <VisualizadorDocs aberto={modalAberto} onClose={() => setModalAberto(false)} pendente={item.raw} tipo={tipo} />
+      <VisualizadorDocs
+        aberto={modalAberto}
+        onClose={() => setModalAberto(false)}
+        pendente={item.raw}
+        tipo={tipo}
+        urlsResolvidas={urlsResolvidas}
+      />
     </>
   )
 }
