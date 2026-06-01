@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BarChart3, MessageCircle, Search, Send, X } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
+import { rotuloCategoriaCardFinanceiro } from '@/lib/canaisProfissionaisListaUi'
+
 const INPUT_FIN = 'text-gray-900 placeholder:text-gray-500 caret-gray-900'
+const AVATAR_QUADRADO = 'shrink-0 rounded-md object-cover'
+const btnAcaoCls = (ativo: boolean) =>
+  `flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-semibold text-white transition-colors ${
+    ativo ? 'bg-[#00D443] hover:bg-[#00b83b]' : 'bg-[#0097b2] hover:bg-[#008099]'
+  }`
 
 type AbaFinanceiro = 'profissional' | 'empresa' | 'historico'
 
@@ -65,7 +72,8 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
   const [historico, setHistorico] = useState<ConversaHistorico[]>([])
   const [historicoDetalhe, setHistoricoDetalhe] = useState<string | null>(null)
   const [desempenho, setDesempenho] = useState<DesempenhoProf | DesempenhoEmp | null>(null)
-  const [mostrarDesempenho, setMostrarDesempenho] = useState(false)
+  const [painelMensageiro, setPainelMensageiro] = useState(false)
+  const [painelDesempenho, setPainelDesempenho] = useState(false)
   const [carregandoDesempenho, setCarregandoDesempenho] = useState(false)
 
   const abaBusca: 'profissional' | 'empresa' = aba === 'empresa' ? 'empresa' : 'profissional'
@@ -120,53 +128,6 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
     setMensagens(json.mensagens ?? [])
   }, [])
 
-  const abrirMensageiro = async () => {
-    if (!selecionado) return
-    setAbrindoChat(true)
-    try {
-      const res = await fetch('/api/admin/financeiro-conversas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          alvo_usuario_id: selecionado.usuarioId,
-          alvo_tipo: abaBusca,
-        }),
-      })
-      const json = (await res.json()) as { ok?: boolean; conversa?: { id: string }; error?: string }
-      if (!json.ok || !json.conversa?.id) {
-        window.alert(json.error ?? 'Não foi possível abrir o mensageiro.')
-        return
-      }
-      setConversaId(json.conversa.id)
-      await carregarMensagens(json.conversa.id)
-    } catch {
-      window.alert('Erro ao abrir mensageiro.')
-    } finally {
-      setAbrindoChat(false)
-    }
-  }
-
-  const fecharMensageiro = async () => {
-    if (!conversaId) {
-      setConversaId(null)
-      setMensagens([])
-      return
-    }
-    try {
-      await fetch(`/api/admin/financeiro-conversas/${conversaId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ acao: 'encerrar' }),
-      })
-      setConversaId(null)
-      setMensagens([])
-      setTextoMsg('')
-      if (aba === 'historico') void carregarHistorico()
-    } catch {
-      window.alert('Erro ao encerrar conversa.')
-    }
-  }
-
   const enviarMensagem = async () => {
     if (!conversaId || !textoMsg.trim() || enviando) return
     setEnviando(true)
@@ -188,9 +149,8 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
     }
   }
 
-  const analisarDesempenho = async () => {
+  const carregarDesempenho = async () => {
     if (!selecionado) return
-    setMostrarDesempenho(true)
     setCarregandoDesempenho(true)
     setDesempenho(null)
     try {
@@ -201,6 +161,68 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
       setDesempenho(json.desempenho ?? null)
     } finally {
       setCarregandoDesempenho(false)
+    }
+  }
+
+  const toggleMensageiro = async () => {
+    if (painelMensageiro) {
+      setPainelMensageiro(false)
+      return
+    }
+    if (!conversaId) {
+      setAbrindoChat(true)
+      try {
+        const res = await fetch('/api/admin/financeiro-conversas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            alvo_usuario_id: selecionado!.usuarioId,
+            alvo_tipo: abaBusca,
+          }),
+        })
+        const json = (await res.json()) as { ok?: boolean; conversa?: { id: string }; error?: string }
+        if (!json.ok || !json.conversa?.id) {
+          window.alert(json.error ?? 'Não foi possível abrir o mensageiro.')
+          return
+        }
+        setConversaId(json.conversa.id)
+        await carregarMensagens(json.conversa.id)
+        setPainelMensageiro(true)
+      } catch {
+        window.alert('Erro ao abrir mensageiro.')
+      } finally {
+        setAbrindoChat(false)
+      }
+      return
+    }
+    await carregarMensagens(conversaId)
+    setPainelMensageiro(true)
+  }
+
+  const toggleDesempenho = async () => {
+    if (painelDesempenho) {
+      setPainelDesempenho(false)
+      return
+    }
+    setPainelDesempenho(true)
+    if (!desempenho) await carregarDesempenho()
+  }
+
+  const encerrarConversaAtiva = async () => {
+    if (!conversaId) return
+    try {
+      await fetch(`/api/admin/financeiro-conversas/${conversaId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'encerrar' }),
+      })
+      setConversaId(null)
+      setMensagens([])
+      setTextoMsg('')
+      setPainelMensageiro(false)
+      if (aba === 'historico') void carregarHistorico()
+    } catch {
+      window.alert('Erro ao encerrar conversa.')
     }
   }
 
@@ -215,7 +237,8 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
     setSelecionado(null)
     setConversaId(null)
     setMensagens([])
-    setMostrarDesempenho(false)
+    setPainelMensageiro(false)
+    setPainelDesempenho(false)
     setDesempenho(null)
     setHistoricoDetalhe(null)
   }
@@ -304,7 +327,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                     onClick={() => void verHistoricoDetalhe(h.id)}
                     className="flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2 text-left shadow-sm hover:bg-gray-50"
                   >
-                    <AvatarImage src={h.alvo.fotoUrl} alt="" width={40} height={40} className="rounded-full" />
+                    <AvatarImage src={h.alvo.fotoUrl} alt="" width={40} height={40} className={AVATAR_QUADRADO} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium text-gray-900">{h.alvo.nome}</div>
                       <div className="text-xs text-gray-500">
@@ -346,10 +369,17 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                 <li key={r.usuarioId}>
                   <button
                     type="button"
-                    onClick={() => setSelecionado(r)}
+                    onClick={() => {
+                      setSelecionado(r)
+                      setConversaId(null)
+                      setMensagens([])
+                      setPainelMensageiro(false)
+                      setPainelDesempenho(false)
+                      setDesempenho(null)
+                    }}
                     className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-gray-50"
                   >
-                    <AvatarImage src={r.fotoUrl} alt="" width={36} height={36} className="rounded-full" />
+                    <AvatarImage src={r.fotoUrl} alt="" width={40} height={40} className={AVATAR_QUADRADO} />
                     <div>
                       <div className="text-sm font-medium text-gray-800">{r.nome}</div>
                       <div className="text-xs text-gray-500">{r.username}</div>
@@ -361,15 +391,18 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
           ) : null}
 
           {selecionado ? (
-            <div className="mt-4 rounded-xl border border-[#00D443]/30 bg-white p-4 shadow-sm">
+            <div className="mt-4 rounded-xl border border-[#0097b2]/25 bg-white p-4 shadow-sm">
               <div className="flex items-start gap-3">
-                <AvatarImage src={selecionado.fotoUrl} alt="" width={56} height={56} className="rounded-full" />
+                <AvatarImage
+                  src={selecionado.fotoUrl}
+                  alt=""
+                  width={56}
+                  height={56}
+                  className={`h-14 w-14 ${AVATAR_QUADRADO}`}
+                />
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-gray-900">{selecionado.nome}</div>
+                  <div className="text-lg font-semibold leading-tight text-gray-900">{selecionado.nome}</div>
                   <div className="text-sm text-gray-600">{selecionado.username}</div>
-                  {selecionado.subtitulo ? (
-                    <div className="mt-0.5 text-xs text-gray-500">{selecionado.subtitulo}</div>
-                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -381,93 +414,97 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                 </button>
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                {conversaId ? (
-                  <button
-                    type="button"
-                    onClick={() => void fecharMensageiro()}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Fechar mensageiro
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={abrindoChat}
-                    onClick={() => void abrirMensageiro()}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#00D443] px-3 py-2 text-sm font-semibold text-white hover:bg-[#00b83b] disabled:opacity-50"
-                  >
-                    <MessageCircle className="h-4 w-4" aria-hidden />
-                    {abrindoChat ? 'Abrindo…' : 'Abrir mensageiro'}
-                  </button>
-                )}
+              {selecionado.subtitulo ? (
+                <p className="mt-3 text-lg font-semibold leading-snug text-[#0097b2]">
+                  {rotuloCategoriaCardFinanceiro(selecionado.subtitulo)}
+                </p>
+              ) : null}
+
+              <div className="mt-4 flex gap-2">
                 <button
                   type="button"
-                  onClick={() => void analisarDesempenho()}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#00D443] px-3 py-2 text-sm font-medium text-[#00D443] hover:bg-[#00D443]/10"
+                  disabled={abrindoChat}
+                  onClick={() => void toggleMensageiro()}
+                  className={`${btnAcaoCls(painelMensageiro)} disabled:opacity-50`}
+                  aria-pressed={painelMensageiro}
                 >
-                  <BarChart3 className="h-4 w-4" aria-hidden />
-                  Analisar desempenho
+                  <MessageCircle className="h-4 w-4 shrink-0" aria-hidden />
+                  {abrindoChat ? 'Abrindo…' : 'Mensageiro'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void toggleDesempenho()}
+                  className={btnAcaoCls(painelDesempenho)}
+                  aria-pressed={painelDesempenho}
+                >
+                  <BarChart3 className="h-4 w-4 shrink-0" aria-hidden />
+                  Desempenho
                 </button>
               </div>
 
-              {conversaId ? (
+              {painelMensageiro ? (
                 <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50">
-                  <ul className="max-h-52 space-y-2 overflow-y-auto p-3">
-                    {mensagens.length === 0 ? (
-                      <li className="text-center text-xs text-gray-500">
-                        Nenhuma mensagem ainda. Envie a primeira.
-                      </li>
-                    ) : (
-                      mensagens.map((m) => (
-                        <li key={m.id} className="rounded-lg bg-white px-2 py-1.5 text-sm text-gray-800">
-                          {m.texto}
-                          <div className="text-[10px] text-gray-400">
-                            {new Date(m.created_at).toLocaleString('pt-BR')}
-                          </div>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                  <div className="flex gap-2 border-t border-gray-100 bg-white p-2">
-                    <input
-                      type="text"
-                      value={textoMsg}
-                      onChange={(e) => setTextoMsg(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          void enviarMensagem()
-                        }
-                      }}
-                      placeholder="Mensagem…"
-                      className={`min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#00D443] ${INPUT_FIN}`}
-                    />
-                    <button
-                      type="button"
-                      disabled={!textoMsg.trim() || enviando}
-                      onClick={() => void enviarMensagem()}
-                      className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#00D443] text-white disabled:opacity-50"
-                      aria-label="Enviar"
-                    >
-                      <Send className="h-4 w-4" />
-                    </button>
-                  </div>
+                  {conversaId ? (
+                    <>
+                      <div className="flex justify-end border-b border-gray-100 px-3 py-1.5">
+                        <button
+                          type="button"
+                          onClick={() => void encerrarConversaAtiva()}
+                          className="text-xs font-medium text-gray-500 hover:text-gray-800"
+                        >
+                          Encerrar conversa
+                        </button>
+                      </div>
+                      <ul className="max-h-52 space-y-2 overflow-y-auto p-3">
+                        {mensagens.length === 0 ? (
+                          <li className="text-center text-xs text-gray-500">
+                            Nenhuma mensagem ainda. Envie a primeira.
+                          </li>
+                        ) : (
+                          mensagens.map((m) => (
+                            <li key={m.id} className="rounded-lg bg-white px-2 py-1.5 text-sm text-gray-900">
+                              {m.texto}
+                              <div className="text-[10px] text-gray-400">
+                                {new Date(m.created_at).toLocaleString('pt-BR')}
+                              </div>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                      <div className="flex gap-2 border-t border-gray-100 bg-white p-2">
+                        <input
+                          type="text"
+                          value={textoMsg}
+                          onChange={(e) => setTextoMsg(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault()
+                              void enviarMensagem()
+                            }
+                          }}
+                          placeholder="Mensagem…"
+                          className={`min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#00D443] ${INPUT_FIN}`}
+                        />
+                        <button
+                          type="button"
+                          disabled={!textoMsg.trim() || enviando}
+                          onClick={() => void enviarMensagem()}
+                          className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#00D443] text-white disabled:opacity-50"
+                          aria-label="Enviar"
+                        >
+                          <Send className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="p-4 text-center text-sm text-gray-500">A preparar mensageiro…</p>
+                  )}
                 </div>
               ) : null}
 
-              {mostrarDesempenho ? (
-                <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="font-semibold text-gray-800">Desempenho financeiro</span>
-                    <button
-                      type="button"
-                      className="text-xs text-gray-500"
-                      onClick={() => setMostrarDesempenho(false)}
-                    >
-                      Fechar
-                    </button>
-                  </div>
+              {painelDesempenho ? (
+                <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900">
+                  <p className="mb-2 font-semibold text-gray-900">Desempenho financeiro</p>
                   {carregandoDesempenho ? (
                     <p className="text-gray-500">Carregando…</p>
                   ) : !desempenho ? (

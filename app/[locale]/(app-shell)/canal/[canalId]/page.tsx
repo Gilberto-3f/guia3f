@@ -532,15 +532,18 @@ export default function CanalDetalhePage() {
               <span className="truncate text-lg font-semibold">{tituloCanal}</span>
             )}
           </CanalHeaderTitulo>
-          <button
-            type="button"
-            onClick={() => abrirDrawerCanal()}
-            disabled={isFinanceiro}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10 disabled:opacity-30"
-            aria-label="Opções do canal"
-          >
-            <MoreVertical className="h-5 w-5" aria-hidden />
-          </button>
+          {isFinanceiro ? (
+            <div className="h-10 w-10 shrink-0" aria-hidden />
+          ) : (
+            <button
+              type="button"
+              onClick={() => abrirDrawerCanal()}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
+              aria-label="Opções do canal"
+            >
+              <MoreVertical className="h-5 w-5" aria-hidden />
+            </button>
+          )}
         </header>
         <div className="flex min-h-0 flex-1 flex-col">
           {canal != null && isFinanceiro && financeUid ? (
@@ -606,15 +609,18 @@ export default function CanalDetalhePage() {
               <span className="truncate text-lg font-semibold">{tituloCanal}</span>
             )}
           </CanalHeaderTitulo>
-          <button
-            type="button"
-            onClick={() => abrirDrawerCanal()}
-            disabled={isFinanceiro}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10 disabled:opacity-30"
-            aria-label="Opções do canal"
-          >
-            <MoreVertical className="h-5 w-5" aria-hidden />
-          </button>
+          {isFinanceiro ? (
+            <div className="h-10 w-10 shrink-0" aria-hidden />
+          ) : (
+            <button
+              type="button"
+              onClick={() => abrirDrawerCanal()}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
+              aria-label="Opções do canal"
+            >
+              <MoreVertical className="h-5 w-5" aria-hidden />
+            </button>
+          )}
         </header>
         <div className="flex min-h-0 flex-1 flex-col">
           {canal != null && isFinanceiro && financeUid ? (
@@ -664,15 +670,18 @@ export default function CanalDetalhePage() {
           <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal} disabled={hubFinanceiroAdm}>
             <span className="truncate text-lg font-semibold">{tituloCanal}</span>
           </CanalHeaderTitulo>
-          <button
-            type="button"
-            onClick={() => abrirDrawerCanal()}
-            disabled={hubFinanceiroAdm}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10 disabled:opacity-30"
-            aria-label="Opções do canal"
-          >
-            <MoreVertical className="h-5 w-5" aria-hidden />
-          </button>
+          {hubFinanceiroAdm ? (
+            <div className="h-10 w-10 shrink-0" aria-hidden />
+          ) : (
+            <button
+              type="button"
+              onClick={() => abrirDrawerCanal()}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
+              aria-label="Opções do canal"
+            >
+              <MoreVertical className="h-5 w-5" aria-hidden />
+            </button>
+          )}
         </header>
         <div className="flex min-h-0 flex-1 flex-col">
           {hubFinanceiroAdm ? (
