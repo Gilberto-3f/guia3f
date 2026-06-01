@@ -25,6 +25,7 @@ import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
 import { POST_DELETED_EVENT } from '@/components/MenuPost'
 import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
 
@@ -456,6 +457,15 @@ export default function PerfilSocialPage() {
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  useEffect(() => {
+    if (!profileId || !meuId || loading || erro) return
+    void registrarVisitaPerfil(supabase, {
+      donoUsuarioId: profileId,
+      visitanteUsuarioId: meuId,
+      tipoAlvo: 'perfil',
+    })
+  }, [profileId, meuId, loading, erro])
 
   useEffect(() => {
     const onPerfilAtualizado = () => {

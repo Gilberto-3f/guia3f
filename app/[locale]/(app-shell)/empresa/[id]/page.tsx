@@ -26,6 +26,7 @@ import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 import { contarSeguidoresEmpresa, usuarioSegueEmpresa } from '@/lib/favoritosEmpresa'
+import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 
 function debugEmpresa(...args: unknown[]) {
   if (process.env.NODE_ENV === 'development') {
@@ -176,6 +177,18 @@ export default function EmpresaPage() {
     if (!empresaId || !usuarioId) return
     void carregarEmpresa({ silent: true })
   }, [usuarioId, empresaId, carregarEmpresa])
+
+  useEffect(() => {
+    if (!empresa || !usuarioId || loading) return
+    const dono = String(empresa.usuario_id ?? '')
+    if (!dono || dono === usuarioId) return
+    void registrarVisitaPerfil(supabase, {
+      donoUsuarioId: dono,
+      visitanteUsuarioId: usuarioId,
+      tipoAlvo: 'empresa',
+      empresaId,
+    })
+  }, [empresa, usuarioId, loading, empresaId])
 
   useEffect(() => {
     const onAvaliacaoEnviada = (ev: Event) => {

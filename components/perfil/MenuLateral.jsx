@@ -22,6 +22,8 @@ import {
   MapPin,
   Megaphone,
   MessageSquare,
+  Check,
+  Eye,
   Paperclip,
   Phone,
   Scale,
@@ -70,6 +72,9 @@ import AnexarDocumentos from '@/components/perfil/subpaginas/AnexarDocumentos'
 import AnexarDocumentosEmpresa from '@/components/perfil/subpaginas/AnexarDocumentosEmpresa'
 import HistoricoManifestos from '@/components/perfil/subpaginas/HistoricoManifestos'
 import ParceriasProfissional from '@/components/perfil/subpaginas/ParceriasProfissional'
+import VisitantesPerfil from '@/components/perfil/subpaginas/VisitantesPerfil'
+import { empresaTemDocumentosAnexados, profissionalTemDocumentosAnexados } from '@/lib/documentosAnexadosMenu'
+import { contarVisitasPerfilPendentes } from '@/lib/perfilVisitas'
 
 /**
  * @typedef {{ tipo: 'menu', titulo: string, itens: MenuItem[] } | { tipo: 'pagina', titulo: string, id: string, historicoTipo?: string, postId?: string, comentarioId?: string | null }} HistoricoEntry
@@ -150,6 +155,7 @@ function secoesTurista() {
   ]
   const gUsuario = [
     { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
+    { Icon: Eye, label: 'Visitantes do perfil', subpagina: 'visitantes-perfil' },
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
     { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
     { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
@@ -174,6 +180,7 @@ function secoesProfissional(ctx) {
   const gUsuario = filtrarMenu(
     [
       { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
+      { Icon: Eye, label: 'Visitantes do perfil', subpagina: 'visitantes-perfil' },
       { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos' },
       { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
       { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
@@ -253,6 +260,7 @@ function secoesProfissional(ctx) {
 function secoesEmpresa(ctx) {
   const gUsuario = [
     { Icon: Building2, label: 'Editar Página', subpagina: 'editar-pagina' },
+    { Icon: Eye, label: 'Visitantes do perfil', subpagina: 'visitantes-perfil' },
     { Icon: Paperclip, label: 'Anexar documentos', subpagina: 'anexar-documentos-empresa' },
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
     { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
@@ -301,6 +309,7 @@ function secoesAdmin(ctx, { omitirModoNaLista }) {
   const gUsuario = filtrarMenu(
     [
       { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
+      { Icon: Eye, label: 'Visitantes do perfil', subpagina: 'visitantes-perfil' },
       { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
       { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
       { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
@@ -363,6 +372,9 @@ export default function MenuLateral({
   const modoApresentacaoAtivo = modoAtivo
 
   const [profVerificadoMenu, setProfVerificadoMenu] = useState(false)
+  const [docsAnexadosProf, setDocsAnexadosProf] = useState(false)
+  const [docsAnexadosEmpresa, setDocsAnexadosEmpresa] = useState(false)
+  const [visitasPendentes, setVisitasPendentes] = useState(0)
 
   useEffect(() => {
     if (!aberto || variant !== 'profissional' || !usuarioId) {
@@ -424,6 +436,41 @@ export default function MenuLateral({
 
   const empresaCategoria = empresa?.categoria != null ? String(empresa.categoria) : ''
   const empresaCidade = empresa?.cidade != null ? String(empresa.cidade) : ''
+
+  const atualizarIndicadoresMenu = useCallback(async () => {
+    if (!usuarioIdEfetivo) return
+    const pendentes = await contarVisitasPerfilPendentes(supabase, usuarioIdEfetivo)
+    setVisitasPendentes(pendentes)
+    if (menuVariantEfetivo === 'profissional') {
+      setDocsAnexadosProf(await profissionalTemDocumentosAnexados(supabase, usuarioIdEfetivo))
+      setDocsAnexadosEmpresa(false)
+    } else if (menuVariantEfetivo === 'empresa' && empresaIdEfetivo) {
+      setDocsAnexadosEmpresa(await empresaTemDocumentosAnexados(supabase, String(empresaIdEfetivo)))
+      setDocsAnexadosProf(false)
+    } else {
+      setDocsAnexadosProf(false)
+      setDocsAnexadosEmpresa(false)
+    }
+  }, [usuarioIdEfetivo, menuVariantEfetivo, empresaIdEfetivo])
+
+  useEffect(() => {
+    if (!aberto || !usuarioIdEfetivo) return
+    void atualizarIndicadoresMenu()
+  }, [aberto, usuarioIdEfetivo, atualizarIndicadoresMenu])
+
+  useEffect(() => {
+    const onRefresh = () => {
+      void atualizarIndicadoresMenu()
+    }
+    window.addEventListener('perfil-atualizado', onRefresh)
+    window.addEventListener('profissional-gate-refresh', onRefresh)
+    window.addEventListener('perfil-visitas-lidas', onRefresh)
+    return () => {
+      window.removeEventListener('perfil-atualizado', onRefresh)
+      window.removeEventListener('profissional-gate-refresh', onRefresh)
+      window.removeEventListener('perfil-visitas-lidas', onRefresh)
+    }
+  }, [atualizarIndicadoresMenu])
 
   const ctx = {
     variant: menuVariantEfetivo,
@@ -582,6 +629,7 @@ export default function MenuLateral({
         'modo-apresentacao': 'Modo Apresentação',
         'anexar-documentos': 'Anexar Documentos',
         'anexar-documentos-empresa': 'Anexar documentos',
+        'visitantes-perfil': 'Visitantes do perfil',
       }
       const titulosProfissional = ['historico-compras', 'parcerias', 'recomendacoes', 'historico-manifestos']
       const t =
@@ -724,6 +772,7 @@ export default function MenuLateral({
     if (id === 'editar-pagina' && empresa && empresaIdEfetivo) {
       return <EditarPaginaEmpresa empresa={empresa} empresaId={String(empresaIdEfetivo)} onSalvo={onPerfilAtualizado} />
     }
+    if (id === 'visitantes-perfil') return <VisitantesPerfil usuarioId={usuarioIdEfetivo} />
     if (id === 'anexar-documentos')
       return <AnexarDocumentos usuarioId={usuarioIdEfetivo} onConcluido={onPerfilAtualizado} />
     if (id === 'anexar-documentos-empresa' && empresaIdEfetivo && usuarioIdEfetivo)
@@ -747,15 +796,32 @@ export default function MenuLateral({
     <ul className={compact ? 'space-y-0.5' : 'space-y-1'}>
       {lista.map((item, idx) => {
         const Ico = item.Icon
+        const mostrarCheckDocs =
+          (item.subpagina === 'anexar-documentos' && docsAnexadosProf) ||
+          (item.subpagina === 'anexar-documentos-empresa' && docsAnexadosEmpresa)
+        const badgeItem =
+          item.badge ??
+          (item.subpagina === 'historico-decisoes'
+            ? historicoNaoLido
+            : item.subpagina === 'visitantes-perfil'
+              ? visitasPendentes
+              : 0)
         return (
           <li key={`${item.label}-${idx}`}>
             <button
               type="button"
               onClick={() => executarItem(item)}
-              className={`flex w-full items-center gap-3 rounded-xl text-left text-sm font-medium text-gray-900 transition hover:bg-gray-100 ${
+              className={`flex w-full items-center gap-2 rounded-xl text-left text-sm font-medium text-gray-900 transition hover:bg-gray-100 ${
                 compact ? 'px-0 py-1.5' : 'px-3 py-2.5'
               }`}
             >
+              {mostrarCheckDocs ? (
+                <Check
+                  className="h-4 w-4 shrink-0 text-emerald-400"
+                  strokeWidth={3}
+                  aria-label="Documentos anexados"
+                />
+              ) : null}
               <span
                 className={`flex shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500 ${
                   compact ? 'h-8 w-8' : 'h-9 w-9'
@@ -765,16 +831,13 @@ export default function MenuLateral({
                 <Ico size={compact ? 16 : 20} strokeWidth={1.75} />
               </span>
               <span className="flex-1">{item.label}</span>
-              {(item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)) > 0 ||
-              (item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo) ? (
+              {badgeItem > 0 || (item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo) ? (
                 <span
                   className={`rounded-full px-2 py-0.5 text-[11px] font-bold text-white ${
                     item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo ? 'bg-amber-500' : 'bg-red-500'
                   }`}
                 >
-                  {item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo
-                    ? 'ON'
-                    : item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)}
+                  {item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo ? 'ON' : badgeItem}
                 </span>
               ) : null}
             </button>
