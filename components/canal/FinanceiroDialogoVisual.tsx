@@ -7,19 +7,18 @@ import CanalMensagemImagem from '@/components/CanalMensagemImagem'
 import { ehAnexoAudioCanal, ehAnexoImagemCanal } from '@/lib/canalAnexoUrl'
 import type { FinanceiroMensagemRow } from '@/lib/financeiroConversas'
 
-/**
- * @param {{
- *   mensagens: FinanceiroMensagemRow[]
- *   viewerUserId: string
- *   assunto?: string | null
- *   subtitulo?: string | null
- *   carregando?: boolean
- *   erro?: string | null
- *   onFechar: () => void
- *   titulo?: string
- *   messagesEndRef?: RefObject<HTMLDivElement | null>
- * }} props
- */
+type FinanceiroDialogoVisualProps = {
+  mensagens: FinanceiroMensagemRow[]
+  viewerUserId: string
+  assunto?: string | null
+  subtitulo?: string | null
+  carregando?: boolean
+  erro?: string | null
+  onFechar: () => void
+  titulo?: string
+  messagesEndRef?: RefObject<HTMLDivElement | null>
+}
+
 export default function FinanceiroDialogoVisual({
   mensagens,
   viewerUserId,
@@ -30,7 +29,7 @@ export default function FinanceiroDialogoVisual({
   onFechar,
   titulo = 'Mensagem do ADM',
   messagesEndRef,
-}) {
+}: FinanceiroDialogoVisualProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="relative shrink-0 border-b border-gray-100 bg-white px-3 py-3">
@@ -71,7 +70,7 @@ export default function FinanceiroDialogoVisual({
                 {m.texto ? <p className="whitespace-pre-wrap break-words">{m.texto}</p> : null}
                 {ehAnexoImagemCanal(m.anexo_url, m.anexo_tipo) && m.anexo_url ? (
                   <div className="mt-1">
-                    <CanalMensagemImagem src={m.anexo_url} alt="" />
+                    <CanalMensagemImagem src={m.anexo_url} />
                   </div>
                 ) : null}
                 {ehAnexoAudioCanal(m.anexo_url, m.anexo_tipo) && m.anexo_url ? (

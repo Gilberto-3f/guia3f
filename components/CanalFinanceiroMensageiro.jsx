@@ -18,8 +18,6 @@ import {
   enviarMensagemConversaFinanceiro,
   listarConversasFinanceiroParaAlvo,
   listarMensagensConversa,
-  type FinanceiroConversaRow,
-  type PerfilAdmFinanceiro,
 } from '@/lib/financeiroConversas'
 
 const AVATAR_QUADRADO = 'shrink-0 rounded-md object-cover'
@@ -28,7 +26,7 @@ const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 const GRAVACAO_MIN_MS = 400
 
 /**
- * @param {FinanceiroConversaRow} c
+ * @param {import('@/lib/financeiroConversas').FinanceiroConversaRow} c
  */
 function rotuloDataConversa(c) {
   if (c.status === 'encerrada' && c.encerrada_em) {
@@ -50,7 +48,9 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
     /** @type {import('@/lib/financeiroConversas').FinanceiroConversaRow[]} */ ([]),
   )
   const [conversaVisualId, setConversaVisualId] = useState(/** @type {string | null} */ (null))
-  const [perfisAdm, setPerfisAdm] = useState(/** @type {Map<string, PerfilAdmFinanceiro>} */ (new Map()))
+  const [perfisAdm, setPerfisAdm] = useState(
+    /** @type {Map<string, import('@/lib/financeiroConversas').PerfilAdmFinanceiro>} */ (new Map()),
+  )
   const [mensagens, setMensagens] = useState(
     /** @type {import('@/lib/financeiroConversas').FinanceiroMensagemRow[]} */ ([]),
   )
@@ -86,7 +86,7 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
   }, [idAtivo, conversaAberta, arquivadas])
 
   const todasConversas = useMemo(() => {
-    const list = /** @type {FinanceiroConversaRow[]} */ ([])
+    const list = /** @type {import('@/lib/financeiroConversas').FinanceiroConversaRow[]} */ ([])
     if (conversaAberta) list.push(conversaAberta)
     for (const c of arquivadas) {
       if (!list.some((x) => x.id === c.id)) list.push(c)
