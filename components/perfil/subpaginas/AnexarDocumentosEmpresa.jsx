@@ -194,11 +194,21 @@ export default function AnexarDocumentosEmpresa({
           comprovante_residencia_url: uEndereco,
           documento_comercial_url: uComercial,
           documentos_enviados_em: agora,
+          status: 'aguardando_aprovacao',
+          docs_verificado: false,
+          docs_verificado_por: null,
+          docs_verificado_em: null,
+          motivo_reprovacao: null,
+          reprovado_em: null,
+          reprovado_por: null,
+          prazo_reenvio_dias: null,
         })
         .eq('id', empresaId)
         .eq('usuario_id', usuarioId)
 
       if (upErr) throw new Error(upErr.message)
+
+      await supabase.from('usuarios').update({ status: 'pre_aprovado' }).eq('id', usuarioId)
 
       setUrlEndereco(uEndereco)
       setUrlComercial(uComercial)

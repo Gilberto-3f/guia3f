@@ -358,6 +358,7 @@ export default function CadastroEmpresaPage() {
         descricao_curta: descricaoCurta.trim(),
         horarios_funcionamento: horariosSelecionados,
         documento_comercial_url: documentoComercialUrl,
+        documentos_enviados_em: new Date().toISOString(),
         geocoding_status: geo.status,
         latitude: geo.latitude,
         longitude: geo.longitude,

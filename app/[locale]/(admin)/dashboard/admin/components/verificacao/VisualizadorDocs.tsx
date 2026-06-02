@@ -41,7 +41,10 @@ export function VisualizadorDocs({
       ].filter((x) => x.url)
     }
     const comercial = pickDocumentoEmpresaUrl(pendente)
-    return [{ label: 'Documento comercial', url: comercial }].filter((x) => x.url)
+    const endereco = String(pendente.comprovante_residencia_url ?? '').trim()
+    const docs = [{ label: 'Documento comercial', url: comercial }]
+    if (endereco) docs.push({ label: 'Comprovante de endereço', url: endereco })
+    return docs.filter((x) => x.url)
   }, [pendente, tipo])
 
   if (!aberto) return null

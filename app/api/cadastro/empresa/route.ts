@@ -170,6 +170,7 @@ export async function POST(req: NextRequest) {
       descricao_curta: descricaoCurta,
       horarios_funcionamento: horariosSelecionados,
       documento_comercial_url: documentoComercialUrl,
+      documentos_enviados_em: new Date().toISOString(),
       geocoding_status: geo.status,
       latitude: geo.latitude,
       longitude: geo.longitude,

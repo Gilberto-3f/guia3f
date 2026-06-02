@@ -118,7 +118,9 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       supabase
         .from('empresas')
         .select('*', { count: 'exact', head: true })
-        .or('docs_verificado.eq.false,status.eq.aguardando_aprovacao'),
+        .eq('docs_verificado', false)
+        .neq('status', 'aprovado')
+        .or('documentos_enviados_em.not.is.null,documento_comercial_url.not.is.null'),
     ])
     if (t.error) throw t.error
     if (p.error) throw p.error
@@ -212,10 +214,15 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     const { data, error } = await supabase
       .from('empresas')
       .select('*')
-      .or('docs_verificado.eq.false,status.eq.aguardando_aprovacao')
+      .eq('docs_verificado', false)
+      .neq('status', 'aprovado')
+      .or('documentos_enviados_em.not.is.null,documento_comercial_url.not.is.null')
+      .order('documentos_enviados_em', { ascending: true, nullsFirst: true })
       .order('created_at', { ascending: true })
     if (error) throw error
-    const rows = (data ?? []) as Record<string, unknown>[]
+    const rows = (data ?? []).filter(
+      (r) => !Boolean((r as Record<string, unknown>).somente_modo_apresentacao),
+    ) as Record<string, unknown>[]
     const emailMap = await fetchEmailPorUsuarioIds(rows.map((r) => String(r.usuario_id ?? '')))
     const mapped: PendenteEmpresa[] = rows.map((r) => {
       const docRaw = r.documento_comercial_url ?? r.documento_url ?? r.documento_comercial
