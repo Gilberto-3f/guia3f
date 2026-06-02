@@ -151,7 +151,7 @@ export default function PopupCartaoVisitaProfissional({
               </div>
 
               <div className="mt-6 w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-4">
-                <p className="text-sm font-semibold text-gray-800">Nota de avaliação</p>
+                <p className="text-center text-sm font-semibold text-gray-800">Nota de avaliação</p>
                 <div className="mt-2 flex items-center justify-center gap-2">
                   <Star className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
                   <span className="text-xl font-bold text-gray-900">
@@ -159,9 +159,6 @@ export default function PopupCartaoVisitaProfissional({
                   </span>
                   <span className="text-sm text-gray-500">({total} avaliações)</span>
                 </div>
-                <p className="mt-2 text-center text-xs text-gray-500">
-                  Avaliações serão habilitadas após a implementação da Mobilidade.
-                </p>
               </div>
             </>
           ) : (

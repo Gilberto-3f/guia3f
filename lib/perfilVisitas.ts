@@ -14,10 +14,26 @@ export type VisitaPerfilRow = {
   pendente: boolean
 }
 
-const DEBOUNCE_MS = 30 * 60 * 1000
+/** Início do dia local (visitas únicas por visitante/dono/dia). */
+function inicioDoDiaLocalIso(): string {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d.toISOString()
+}
+
+/** Chave visitante + dia civil (YYYY-MM-DD local). */
+function chaveVisitaPorDia(visitanteUsuarioId: string | null, visitadoEm: string): string {
+  const vid = visitanteUsuarioId?.trim() || 'anon'
+  const d = new Date(visitadoEm)
+  if (Number.isNaN(d.getTime())) return `${vid}:`
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${vid}:${y}-${m}-${day}`
+}
 
 /**
- * Regista visita ao perfil ou página da empresa (ignora dono e visitas repetidas recentes).
+ * Regista visita ao perfil ou página da empresa (ignora dono e repetidas no mesmo dia).
  */
 export async function registrarVisitaPerfil(
   supabase: SupabaseClient,
@@ -32,22 +48,16 @@ export async function registrarVisitaPerfil(
   const visitante = params.visitanteUsuarioId?.trim()
   if (!dono || !visitante || dono === visitante) return
 
-  const desde = new Date(Date.now() - DEBOUNCE_MS).toISOString()
-  let q = supabase
+  const desde = inicioDoDiaLocalIso()
+  const { data: recente } = await supabase
     .from('perfil_visitas')
     .select('id')
     .eq('dono_usuario_id', dono)
     .eq('visitante_usuario_id', visitante)
     .gte('visitado_em', desde)
     .limit(1)
+    .maybeSingle()
 
-  if (params.tipoAlvo === 'empresa' && params.empresaId) {
-    q = q.eq('tipo_alvo', 'empresa').eq('empresa_id', params.empresaId)
-  } else {
-    q = q.eq('tipo_alvo', 'perfil')
-  }
-
-  const { data: recente } = await q.maybeSingle()
   if (recente?.id) return
 
   await supabase.from('perfil_visitas').insert({
@@ -62,14 +72,20 @@ export async function contarVisitasPerfilPendentes(
   supabase: SupabaseClient,
   donoUsuarioId: string,
 ): Promise<number> {
-  const { count, error } = await supabase
+  const { data, error } = await supabase
     .from('perfil_visitas')
-    .select('id', { count: 'exact', head: true })
+    .select('visitante_usuario_id, visitado_em')
     .eq('dono_usuario_id', donoUsuarioId)
     .is('visto_pelo_dono_em', null)
 
-  if (error) return 0
-  return count ?? 0
+  if (error || !data?.length) return 0
+
+  const chaves = new Set<string>()
+  for (const row of data) {
+    const vid = row.visitante_usuario_id != null ? String(row.visitante_usuario_id) : null
+    chaves.add(chaveVisitaPorDia(vid, String(row.visitado_em ?? '')))
+  }
+  return chaves.size
 }
 
 export async function marcarVisitasPerfilComoVistas(
@@ -128,22 +144,30 @@ export async function listarVisitasPerfil(
     }
   }
 
-  return data.map((row) => {
-    const vid = row.visitante_usuario_id != null ? String(row.visitante_usuario_id) : ''
-    const rem = vid ? remetentes.get(vid) : undefined
-    const username = usernamePorId.get(vid)
-    return {
-      id: String(row.id),
-      visitante_usuario_id: vid || null,
-      tipo_alvo: row.tipo_alvo === 'empresa' ? 'empresa' : 'perfil',
-      empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
-      visitado_em: String(row.visitado_em ?? ''),
-      visto_pelo_dono_em:
-        row.visto_pelo_dono_em != null ? String(row.visto_pelo_dono_em) : null,
-      visitante_nome: rem?.nome ?? 'Usuário',
-      visitante_username: username ? `@${username}` : '@—',
-      visitante_foto_url: rem?.foto_url ?? null,
-      pendente: row.visto_pelo_dono_em == null,
-    }
-  })
+  return data
+    .map((row) => {
+      const vid = row.visitante_usuario_id != null ? String(row.visitante_usuario_id) : ''
+      const rem = vid ? remetentes.get(vid) : undefined
+      const username = usernamePorId.get(vid)
+      return {
+        id: String(row.id),
+        visitante_usuario_id: vid || null,
+        tipo_alvo: row.tipo_alvo === 'empresa' ? 'empresa' : 'perfil',
+        empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
+        visitado_em: String(row.visitado_em ?? ''),
+        visto_pelo_dono_em:
+          row.visto_pelo_dono_em != null ? String(row.visto_pelo_dono_em) : null,
+        visitante_nome: rem?.nome ?? 'Usuário',
+        visitante_username: username ? `@${username}` : '@—',
+        visitante_foto_url: rem?.foto_url ?? null,
+        pendente: row.visto_pelo_dono_em == null,
+      }
+    })
+    .filter((row, idx, arr) => {
+      const key = chaveVisitaPorDia(row.visitante_usuario_id, row.visitado_em)
+      const firstIdx = arr.findIndex(
+        (r) => chaveVisitaPorDia(r.visitante_usuario_id, r.visitado_em) === key,
+      )
+      return firstIdx === idx
+    })
 }
