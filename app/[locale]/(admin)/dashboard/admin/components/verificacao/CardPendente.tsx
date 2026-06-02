@@ -169,6 +169,11 @@ export function CardPendente({
                 <span className="font-medium text-gray-600">Categoria:</span> {item.categoriaDisplay}
               </div>
             ) : null}
+            {tipo === 'profissionais' && item.placaVermelha ? (
+              <div>
+                <span className="font-medium text-gray-600">Placa vermelha:</span> Sim
+              </div>
+            ) : null}
           </div>
 
           {tipo === 'empresas' ? (
@@ -189,10 +194,6 @@ export function CardPendente({
                 </div>
               ) : null}
             </div>
-          ) : null}
-
-          {item.placaVermelha ? (
-            <div className="mt-2 inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">Placa vermelha</div>
           ) : null}
 
           {item.alerta ? <div className="mt-2 text-xs text-amber-800">{item.alerta}</div> : null}

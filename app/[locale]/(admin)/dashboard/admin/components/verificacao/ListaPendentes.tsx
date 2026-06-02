@@ -47,7 +47,7 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
           avatarUrl: p.foto_url,
           categoriaDisplay: formatProfissionalCategorias(categorias),
           empresaFiscal: undefined,
-          alerta: p.placa_vermelha ? 'Placa vermelha' : null,
+          alerta: null,
           docsVerificado: p.docs_verificado,
           docsVerificadoEm: p.docs_verificado_em ? new Date(p.docs_verificado_em).toLocaleDateString('pt-BR') : null,
           placaVermelha: p.placa_vermelha,

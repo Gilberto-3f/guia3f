@@ -6,6 +6,7 @@ import {
   loadAdminUsuarioRow,
 } from '@/lib/adminApiAuth'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { enviarMensagemAprovacaoCanalFinanceiro } from '@/lib/canalFinanceiroAprovacaoCadastro'
 import { proximaRevisaoDepoisDeAprovacao } from '@/lib/verificacao-documentos'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
 
@@ -159,9 +160,34 @@ export async function POST(req: Request) {
                 categorias: prof.categorias,
               },
             })
+            await enviarMensagemAprovacaoCanalFinanceiro(adminDb, {
+              tipo: 'profissional',
+              usuarioId: String(prof.usuario_id),
+              nomeUsuario,
+            })
           }
         } catch (e) {
-          console.warn('[api/admin/verificacao] post feed', e)
+          console.warn('[api/admin/verificacao] profissional pós-aprovação', e)
+        }
+      }
+
+      if (tipo === 'empresas' && perfil?.usuario_id) {
+        try {
+          const { data: emp } = await adminDb
+            .from('empresas')
+            .select('usuario_id, nome_usuario')
+            .eq('id', id)
+            .maybeSingle()
+          if (emp?.usuario_id) {
+            const nomeUsuario = String(emp.nome_usuario ?? '').trim().replace(/^@+/, '')
+            await enviarMensagemAprovacaoCanalFinanceiro(adminDb, {
+              tipo: 'empresa',
+              usuarioId: String(emp.usuario_id),
+              nomeUsuario,
+            })
+          }
+        } catch (e) {
+          console.warn('[api/admin/verificacao] empresa pós-aprovação', e)
         }
       }
 
