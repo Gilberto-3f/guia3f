@@ -437,32 +437,30 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
         {todasConversas.map((c) => {
           const adm = perfisAdm.get(c.adm_usuario_id)
           const dataRotulo = rotuloDataConversa(c)
+          const statusRotulo = c.status === 'aberta' ? 'Em andamento' : 'Encerrada'
           return (
             <li key={c.id}>
               <button
                 type="button"
                 onClick={() => setConversaVisualId(c.id)}
-                className="flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2 text-left shadow-sm hover:bg-gray-50"
+                className="flex w-full items-center gap-3 rounded-xl bg-[#0097b2] px-3 py-2 text-left shadow-sm hover:bg-[#008099]"
               >
                 <AvatarImage
                   src={adm?.fotoUrl ?? null}
                   alt=""
                   width={40}
                   height={40}
-                  className={AVATAR_QUADRADO}
+                  className={`${AVATAR_QUADRADO} ring-2 ring-white`}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium text-gray-900">
+                  <div className="truncate font-medium text-white">
                     {adm?.nome ?? 'Administração'}
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {adm?.username ?? '@administração'}
-                    {c.status === 'aberta' ? ' · Em andamento' : ' · Encerrada'}
-                    {' · '}
-                    {dataRotulo}
+                  <div className="text-xs text-white/90">
+                    {statusRotulo} · {dataRotulo}
                   </div>
                   {c.assunto ? (
-                    <div className="truncate text-xs text-gray-600">{c.assunto}</div>
+                    <div className="truncate text-xs text-white/80">{c.assunto}</div>
                   ) : null}
                 </div>
               </button>
@@ -473,19 +471,23 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
     )
   }
 
+  const admDialogo = conversaAtual ? perfisAdm.get(conversaAtual.adm_usuario_id) : null
+  const metaDialogo = conversaAtual
+    ? `${conversaAtual.status === 'aberta' ? 'Em andamento' : 'Encerrada'} · ${rotuloDataConversa(conversaAtual)}`
+    : null
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <FinanceiroDialogoVisual
         mensagens={mensagens}
         viewerUserId={usuarioId}
         assunto={conversaAtual?.assunto}
-        subtitulo={
-          conversaAtual?.status === 'encerrada'
-            ? 'Conversa encerrada — somente leitura'
-            : undefined
-        }
         onFechar={() => setConversaVisualId(null)}
         messagesEndRef={messagesEndRef}
+        cabecalhoHistorico
+        cabecalhoNome={admDialogo?.nome ?? 'Administração'}
+        cabecalhoFotoUrl={admDialogo?.fotoUrl ?? null}
+        cabecalhoMeta={metaDialogo}
       />
 
       {podeResponder ? (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BarChart3, MessageCircle, Search, Send, X } from 'lucide-react'
+import { BarChart3, ChevronUp, MessageCircle, Search, Send, X } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import CanalMensagemAudio from '@/components/CanalMensagemAudio'
 import CanalMensagemImagem from '@/components/CanalMensagemImagem'
@@ -135,6 +135,8 @@ function salvarPersistido(aba: AbaFinanceiro, cards: CardsPorAba) {
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
 }
 
+const COR_LOGO = '#0097b2'
+
 function BotaoFecharCirculoVermelho({
   onClick,
   ariaLabel = 'Fechar',
@@ -150,6 +152,24 @@ function BotaoFecharCirculoVermelho({
       aria-label={ariaLabel}
     >
       <X className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+    </button>
+  )
+}
+
+function BotaoChevronHistorico({ onClick, expandido }: { onClick: () => void; expandido: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white hover:bg-white/15"
+      aria-label={expandido ? 'Recolher diálogo' : 'Expandir diálogo'}
+      aria-expanded={expandido}
+    >
+      <ChevronUp
+        className={`h-6 w-6 transition-transform ${expandido ? '' : 'rotate-180'}`}
+        strokeWidth={2.5}
+        aria-hidden
+      />
     </button>
   )
 }
@@ -525,39 +545,53 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                 const expandido = historicoDetalhe === h.id
                 return (
                   <li key={h.id}>
-                    <div className="relative rounded-xl border border-gray-100 bg-white shadow-sm">
-                      <button
-                        type="button"
-                        onClick={() => void verHistoricoDetalhe(h.id)}
-                        className={`flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 ${expandido ? 'pr-10' : ''}`}
+                    <div className="overflow-hidden rounded-xl shadow-sm">
+                      <div
+                        className="relative flex items-center gap-2 px-3 py-2"
+                        style={{ backgroundColor: COR_LOGO }}
                       >
-                        <AvatarImage src={h.alvo.fotoUrl} alt="" width={40} height={40} className={AVATAR_QUADRADO} />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium text-gray-900">{h.alvo.nome}</div>
-                          <div className="text-xs text-gray-500">
-                            {h.alvo.username} · {h.alvo_tipo === 'profissional' ? 'Profissional' : 'Empresa'}
-                            {h.encerrada_em ? ` · ${new Date(h.encerrada_em).toLocaleString('pt-BR')}` : ''}
+                        <button
+                          type="button"
+                          onClick={() => void verHistoricoDetalhe(h.id)}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                        >
+                          <AvatarImage
+                            src={h.alvo.fotoUrl}
+                            alt=""
+                            width={40}
+                            height={40}
+                            className={`${AVATAR_QUADRADO} ring-2 ring-white`}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate font-medium text-white">{h.alvo.nome}</div>
+                            <div className="text-xs text-white/90">
+                              {h.alvo_tipo === 'profissional' ? 'Profissional' : 'Empresa'}
+                              {h.encerrada_em ? ` · ${new Date(h.encerrada_em).toLocaleString('pt-BR')}` : ''}
+                            </div>
+                            {h.assunto ? (
+                              <div className="truncate text-xs text-white/80">{h.assunto}</div>
+                            ) : null}
                           </div>
-                          {h.assunto ? <div className="truncate text-xs text-gray-600">{h.assunto}</div> : null}
-                        </div>
-                      </button>
+                        </button>
+                        <BotaoChevronHistorico
+                          expandido={expandido}
+                          onClick={() => {
+                            if (expandido) fecharHistoricoDetalhe()
+                            else void verHistoricoDetalhe(h.id)
+                          }}
+                        />
+                      </div>
 
                       {expandido ? (
-                        <>
-                          <div className="absolute right-2 top-2">
-                            <BotaoFecharCirculoVermelho
-                              onClick={fecharHistoricoDetalhe}
-                              ariaLabel="Fechar leitura"
-                            />
-                          </div>
+                        <div className="bg-white">
                           <ListaMensagensFinanceiro
                             mensagens={historicoMensagens}
                             viewerUserId={historicoAdmId ?? ''}
                             carregando={historicoCarregando}
                             erro={historicoErro}
-                            className="max-h-52 px-3 pb-3"
+                            className="max-h-52 px-3 py-3"
                           />
-                        </>
+                        </div>
                       ) : null}
                     </div>
                   </li>
