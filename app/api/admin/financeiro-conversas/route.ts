@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { assertAdminSession } from '@/lib/adminApiAuth'
+import { resolverHandleAdmFinanceiro } from '@/lib/financeiroConversaAuditoria'
 import {
   abrirConversaFinanceiroAdm,
   listarConversasAbertasAdm,
@@ -135,11 +136,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'alvo_usuario_id obrigatório.' }, { status: 400 })
   }
 
+  const admHandle = await resolverHandleAdmFinanceiro(auth.supabase, auth.userId)
+
   const res = await abrirConversaFinanceiroAdm(auth.supabase, {
     admUsuarioId: auth.userId,
     alvoUsuarioId,
     alvoTipo: alvoTipo as AlvoTipoFinanceiro,
     assunto,
+    admHandle,
   })
 
   if (!res.ok || !res.conversa) {

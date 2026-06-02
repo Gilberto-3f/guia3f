@@ -572,8 +572,8 @@ export default function CanalDetalhePage() {
 
   if (!authPronto || userTipoEfetivo == null || carregandoCanal) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
-        <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
+        <header className="z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
             type="button"
             onClick={() => router.push('/canal')}
@@ -618,8 +618,8 @@ export default function CanalDetalhePage() {
     const isFinanceiro = canal != null && isCanalFinanceiroProfissional(canal.nome)
     return (
       <>
-      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
-        <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
+        <header className="z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
             type="button"
             onClick={() => voltarCanais()}
@@ -653,7 +653,7 @@ export default function CanalDetalhePage() {
             </button>
           )}
         </header>
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {canal != null && isFinanceiro && financeUid ? (
             recursosProfissionaisLiberados ? (
               <CanalFinanceiroLista usuarioId={financeUid} tipo="profissional" />
@@ -664,6 +664,7 @@ export default function CanalDetalhePage() {
               </div>
             )
           ) : (
+            <div className="min-h-0 flex-1 overflow-hidden">
             <CanalMensagens
               canalId={canalId}
               usuarioId={usuarioId}
@@ -675,6 +676,7 @@ export default function CanalDetalhePage() {
               canalNome={tituloCanal}
               destaqueMensagemId={destaqueMensagemId}
             />
+            </div>
           )}
         </div>
       </div>
@@ -706,8 +708,8 @@ export default function CanalDetalhePage() {
         podeInteragir)
     return (
       <>
-      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
-        <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
+        <header className="z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
             type="button"
             onClick={() => voltarCanais()}
@@ -736,7 +738,7 @@ export default function CanalDetalhePage() {
             </button>
           )}
         </header>
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {canal != null && isFinanceiro && financeUid ? (
             recursosEmpresaLiberados ? (
               <CanalFinanceiroLista usuarioId={financeUid} tipo="empresa" />
@@ -749,10 +751,11 @@ export default function CanalDetalhePage() {
           ) : (
             <>
               {mostrarAbasPaisColetivo ? (
-                <div className="shrink-0 border-b border-gray-100 bg-white">
+                <div className="z-[9] shrink-0 border-b border-gray-100 bg-white shadow-sm">
                   <CanalAbasPais paises={paisesAbasColetivo} abaAtiva={abaPais} onAbaChange={setAbaPais} />
                 </div>
               ) : null}
+              <div className="min-h-0 flex-1 overflow-hidden">
               <CanalMensagens
                 canalId={canalId}
                 usuarioId={usuarioId}
@@ -765,6 +768,7 @@ export default function CanalDetalhePage() {
                 canalNome={tituloCanal}
                 destaqueMensagemId={destaqueMensagemId}
               />
+              </div>
             </>
           )}
         </div>
@@ -779,8 +783,8 @@ export default function CanalDetalhePage() {
     const mostrarAbasPais = mostrarAbasPaisColetivo
     return (
       <>
-      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
-        <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
+        <header className="z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
           <button
             type="button"
             onClick={() => voltarCanais()}
@@ -805,16 +809,17 @@ export default function CanalDetalhePage() {
             </button>
           )}
         </header>
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {hubFinanceiroAdm ? (
             <CanalFinanceiroAdm embedded />
           ) : (
             <>
               {mostrarAbasPais ? (
-                <div className="shrink-0 border-b border-gray-100 bg-white">
+                <div className="z-[9] shrink-0 border-b border-gray-100 bg-white shadow-sm">
                   <CanalAbasPais paises={paisesAbasColetivo} abaAtiva={abaPais} onAbaChange={setAbaPais} />
                 </div>
               ) : null}
+              <div className="min-h-0 flex-1 overflow-hidden">
               <CanalMensagens
                 canalId={canalId}
                 usuarioId={usuarioId}
@@ -825,6 +830,7 @@ export default function CanalDetalhePage() {
                 canalNome={tituloCanal}
                 destaqueMensagemId={destaqueMensagemId}
               />
+              </div>
             </>
           )}
         </div>

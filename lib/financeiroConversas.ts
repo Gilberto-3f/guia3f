@@ -1,4 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import {
+  appendAssuntoLogConversaFinanceiro,
+  linhaLogFinanceiroConversa,
+  resolverHandleAdmFinanceiro,
+} from '@/lib/financeiroConversaAuditoria'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
 
 export type AlvoTipoFinanceiro = 'profissional' | 'empresa'
@@ -97,6 +102,8 @@ export async function abrirConversaFinanceiroAdm(
     alvoUsuarioId: string
     alvoTipo: AlvoTipoFinanceiro
     assunto?: string | null
+    /** @username do ADM — gera linha «Acessado por …» no assunto. */
+    admHandle?: string | null
   },
 ): Promise<{ ok: boolean; conversa?: FinanceiroConversaRow; error?: string }> {
   const { data: aberta } = await supabase
@@ -108,7 +115,17 @@ export async function abrirConversaFinanceiroAdm(
     .maybeSingle()
 
   if (aberta?.id) {
+    if (params.admHandle) {
+      const linha = linhaLogFinanceiroConversa('acessado', params.admHandle)
+      await appendAssuntoLogConversaFinanceiro(supabase, String(aberta.id), linha)
+    }
     return { ok: true, conversa: mapConversa(aberta) }
+  }
+
+  let assuntoInicial = params.assunto?.trim() ? params.assunto.trim() : null
+  if (params.admHandle) {
+    const linha = linhaLogFinanceiroConversa('acessado', params.admHandle)
+    assuntoInicial = assuntoInicial ? `${assuntoInicial}\n${linha}` : linha
   }
 
   const { data, error } = await supabase
@@ -119,7 +136,7 @@ export async function abrirConversaFinanceiroAdm(
       alvo_tipo: params.alvoTipo,
       status: 'aberta',
       iniciada_por_adm: true,
-      assunto: params.assunto?.trim() ? params.assunto.trim() : null,
+      assunto: assuntoInicial,
     })
     .select('*')
     .maybeSingle()
@@ -132,7 +149,14 @@ export async function abrirConversaFinanceiroAdm(
 export async function encerrarConversaFinanceiro(
   supabase: SupabaseClient,
   conversaId: string,
+  opts?: { admUsuarioId?: string },
 ): Promise<{ ok: boolean; error?: string }> {
+  if (opts?.admUsuarioId) {
+    const handle = await resolverHandleAdmFinanceiro(supabase, opts.admUsuarioId)
+    const linha = linhaLogFinanceiroConversa('arquivado', handle)
+    await appendAssuntoLogConversaFinanceiro(supabase, conversaId, linha)
+  }
+
   const { error } = await supabase
     .from('financeiro_conversas')
     .update({ status: 'encerrada', encerrada_em: new Date().toISOString() })

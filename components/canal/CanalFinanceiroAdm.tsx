@@ -407,6 +407,19 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
     if (!desempenho) await carregarDesempenho()
   }
 
+  const registrarAcessoConversa = async (id: string) => {
+    try {
+      await fetch(`/api/admin/financeiro-conversas/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'registrar_acesso' }),
+      })
+      void carregarHistorico()
+    } catch {
+      /* ignore */
+    }
+  }
+
   const encerrarConversaAtiva = async () => {
     if (!conversaId) return
     try {
@@ -467,6 +480,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
       setHistoricoAdmId(
         json.conversa?.adm_usuario_id != null ? String(json.conversa.adm_usuario_id) : null,
       )
+      void registrarAcessoConversa(id)
     } catch {
       setHistoricoErro('Erro de rede ao carregar o diálogo.')
     } finally {
@@ -500,6 +514,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
             conversaId: aberta.id,
             painelMensageiro: true,
           })
+          void registrarAcessoConversa(aberta.id)
           await carregarMensagens(abaBusca, aberta.id)
         }
       } catch {
@@ -578,7 +593,9 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                               {h.encerrada_em ? ` · ${new Date(h.encerrada_em).toLocaleString('pt-BR')}` : ''}
                             </div>
                             {h.assunto ? (
-                              <div className="truncate text-xs text-white/80">{h.assunto}</div>
+                              <div className="line-clamp-3 whitespace-pre-line text-xs text-white/80">
+                                {h.assunto}
+                              </div>
                             ) : null}
                           </div>
                         </button>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ImageIcon, X } from 'lucide-react'
+import { ImageIcon, Hourglass, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
   obterUrlChatImagemEmCache,
@@ -125,7 +125,7 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
   }, [])
 
   const previewClass = `max-h-64 w-full max-w-[min(100%,280px)] rounded-lg object-contain ${className}`
-  const skeletonClass = `flex max-h-64 min-h-[7rem] w-full max-w-[min(100%,280px)] items-center justify-center rounded-lg bg-gray-200/90 ${className}`
+  const skeletonClass = `flex max-h-64 min-h-[7rem] w-full max-w-[min(100%,280px)] items-center justify-center rounded-lg bg-gray-100/90 ${className}`
 
   const overlay =
     aberto && montado
@@ -176,11 +176,8 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
         disabled={falhou && !srcAtivo}
       >
         {!carregada && !falhou ? (
-          <div className={skeletonClass} aria-hidden>
-            <div className="flex flex-col items-center gap-1.5 text-gray-500">
-              <span className="h-8 w-8 animate-pulse rounded-full bg-gray-300/80" />
-              <span className="text-[10px] font-medium">A carregar foto…</span>
-            </div>
+          <div className={skeletonClass} role="status" aria-label="Carregando imagem">
+            <Hourglass className="h-8 w-8 animate-spin text-[#0097b2]" strokeWidth={2} aria-hidden />
           </div>
         ) : null}
 

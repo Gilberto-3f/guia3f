@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { assertAdminSession } from '@/lib/adminApiAuth'
+import { registrarLogConversaFinanceiro } from '@/lib/financeiroConversaAuditoria'
 import { encerrarConversaFinanceiro, listarMensagensConversa } from '@/lib/financeiroConversas'
 
 type RouteCtx = { params: Promise<{ conversaId: string }> }
@@ -37,11 +38,24 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
 
   const { conversaId } = await ctx.params
   const body = (await req.json()) as Record<string, unknown>
-  if (body.acao !== 'encerrar') {
+  const acao = body.acao != null ? String(body.acao) : ''
+
+  if (acao === 'registrar_acesso') {
+    await registrarLogConversaFinanceiro(auth.supabase, {
+      conversaId,
+      admUsuarioId: auth.userId,
+      acao: 'acessado',
+    })
+    return NextResponse.json({ ok: true })
+  }
+
+  if (acao !== 'encerrar') {
     return NextResponse.json({ error: 'Ação inválida.' }, { status: 400 })
   }
 
-  const res = await encerrarConversaFinanceiro(auth.supabase, conversaId)
+  const res = await encerrarConversaFinanceiro(auth.supabase, conversaId, {
+    admUsuarioId: auth.userId,
+  })
   if (!res.ok) {
     return NextResponse.json({ error: res.error ?? 'Erro ao encerrar.' }, { status: 500 })
   }

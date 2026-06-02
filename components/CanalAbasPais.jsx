@@ -17,7 +17,7 @@ const EMOJI_PAIS = /** @type {const} */ ({
 })
 
 const tabBase =
-  'flex min-h-[2.75rem] flex-1 max-w-[5rem] flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-2 text-center transition-all'
+  'flex min-h-[2rem] flex-1 max-w-[3.25rem] flex-col items-center justify-center gap-0 rounded-md px-1 py-1 text-center transition-all'
 
 /**
  * @param {{
@@ -29,9 +29,9 @@ const tabBase =
  */
 export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadores = {} }) {
   return (
-    <div className="border-b border-gray-100 bg-white px-3 py-2">
+    <div className="bg-white px-2 py-1">
       <div
-        className="mx-auto flex w-full max-w-md items-stretch justify-center gap-2"
+        className="mx-auto flex w-full max-w-xs items-stretch justify-center gap-1.5"
         role="tablist"
         aria-label="Filtro por região"
       >
@@ -54,10 +54,10 @@ export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadore
                 onClick={() => onAbaChange(pais)}
                 className={`${tabBase} ${ring}`}
               >
-                <Users className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
-                <span className="text-[10px] font-medium leading-tight">Todos</span>
+                <Users className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+                <span className="text-[9px] font-medium leading-tight">Todos</span>
                 {contadores[pais] !== undefined ? (
-                  <span className="rounded bg-gray-100 px-1 text-[10px] tabular-nums text-gray-600">
+                  <span className="rounded bg-gray-100 px-0.5 text-[9px] tabular-nums text-gray-600">
                     {contadores[pais]}
                   </span>
                 ) : null}
@@ -77,14 +77,14 @@ export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadore
               aria-selected={ativo}
               title={a11y}
               aria-label={a11y}
-              onClick={() => onAbaChange(pais)}
+                onClick={() => onAbaChange(pais)}
               className={`${tabBase} ${ring} ${!ativo ? 'opacity-85' : ''}`}
             >
-              <span className="text-2xl leading-none" aria-hidden>
+              <span className="text-xl leading-none" aria-hidden>
                 {emoji}
               </span>
               {contadores[pais] !== undefined ? (
-                <span className="rounded bg-gray-100 px-1 text-[10px] tabular-nums text-gray-600">
+                <span className="rounded bg-gray-100 px-0.5 text-[9px] tabular-nums text-gray-600">
                   {contadores[pais]}
                 </span>
               ) : null}
