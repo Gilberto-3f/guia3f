@@ -161,6 +161,22 @@ export async function listarHistoricoConversasAdm(
   return (data ?? []).map(mapConversa)
 }
 
+/** Conversas abertas do ADM (cards com mensageiro ativo). */
+export async function listarConversasAbertasAdm(
+  supabase: SupabaseClient,
+  admUsuarioId: string,
+): Promise<FinanceiroConversaRow[]> {
+  const { data } = await supabase
+    .from('financeiro_conversas')
+    .select('*')
+    .eq('adm_usuario_id', admUsuarioId)
+    .eq('iniciada_por_adm', true)
+    .eq('status', 'aberta')
+    .order('updated_at', { ascending: false })
+
+  return (data ?? []).map(mapConversa)
+}
+
 const COLS_MENSAGEM_FINANCEIRO =
   'id, conversa_id, remetente_id, texto, anexo_url, anexo_tipo, created_at'
 const COLS_MENSAGEM_FINANCEIRO_BASE = 'id, conversa_id, remetente_id, texto, created_at'

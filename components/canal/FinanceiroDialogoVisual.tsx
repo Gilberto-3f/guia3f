@@ -36,10 +36,10 @@ export default function FinanceiroDialogoVisual({
         <button
           type="button"
           onClick={onFechar}
-          className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100"
+          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white shadow-sm hover:bg-red-600"
           aria-label="Fechar diálogo"
         >
-          <X className="h-5 w-5" aria-hidden />
+          <X className="h-4 w-4" strokeWidth={2.5} aria-hidden />
         </button>
         <h2 className="px-10 text-center text-lg font-bold uppercase tracking-wide text-[#0097b2] sm:text-xl">
           {titulo}

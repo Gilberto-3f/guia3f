@@ -1,63 +1,123 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { assertAdminSession } from '@/lib/adminApiAuth'
 import {
   abrirConversaFinanceiroAdm,
+  listarConversasAbertasAdm,
   listarHistoricoConversasAdm,
   type AlvoTipoFinanceiro,
 } from '@/lib/financeiroConversas'
 import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
 
-export async function GET() {
+async function perfisAlvoConversas(
+  supabase: SupabaseClient,
+  conversas: Array<{ alvo_usuario_id: string; alvo_tipo: AlvoTipoFinanceiro }>,
+) {
+  const alvoIds = [...new Set(conversas.map((c) => c.alvo_usuario_id))]
+
+  const perfis = new Map<
+    string,
+    { nome: string; username: string; fotoUrl: string | null; subtitulo: string }
+  >()
+  if (alvoIds.length === 0) return perfis
+
+  const [{ data: profs }, { data: emps }] = await Promise.all([
+    supabase
+      .from('profissionais')
+      .select('usuario_id, nome_completo, nome_usuario, foto_url, foto_perfil_url, categorias')
+      .in('usuario_id', alvoIds),
+    supabase
+      .from('empresas')
+      .select('usuario_id, nome_fantasia, nome_usuario, foto_url, categoria')
+      .in('usuario_id', alvoIds),
+  ])
+
+  for (const p of profs ?? []) {
+    const uid = String(p.usuario_id)
+    const nu = String(p.nome_usuario ?? '').trim()
+    const cats = Array.isArray(p.categorias) ? p.categorias.join(', ') : ''
+    perfis.set(uid, {
+      nome: String(p.nome_completo ?? 'Profissional'),
+      username: nu ? `@${nu}` : '@—',
+      fotoUrl:
+        p.foto_perfil_url != null
+          ? String(p.foto_perfil_url)
+          : p.foto_url != null
+            ? String(p.foto_url)
+            : null,
+      subtitulo: cats,
+    })
+  }
+  for (const e of emps ?? []) {
+    const uid = String(e.usuario_id)
+    const nu = String(e.nome_usuario ?? '').trim()
+    perfis.set(uid, {
+      nome: String(e.nome_fantasia ?? 'Empresa'),
+      username: nu ? `@${nu}` : '@—',
+      fotoUrl: e.foto_url != null ? String(e.foto_url) : null,
+      subtitulo: String(e.categoria ?? ''),
+    })
+  }
+
+  return perfis
+}
+
+export async function GET(req: Request) {
   const auth = await assertAdminSession()
   if (!auth.ok) return auth.error
 
-  const conversas = await listarHistoricoConversasAdm(auth.supabase, auth.userId)
-  const alvoIds = [...new Set(conversas.map((c) => c.alvo_usuario_id))]
+  const url = new URL(req.url)
+  const status = url.searchParams.get('status')
 
-  const perfis = new Map<string, { nome: string; username: string; fotoUrl: string | null }>()
-  if (alvoIds.length > 0) {
-    const [{ data: profs }, { data: emps }] = await Promise.all([
-      auth.supabase
-        .from('profissionais')
-        .select('usuario_id, nome_completo, nome_usuario, foto_url, foto_perfil_url')
-        .in('usuario_id', alvoIds),
-      auth.supabase
-        .from('empresas')
-        .select('usuario_id, nome_fantasia, nome_usuario, foto_url')
-        .in('usuario_id', alvoIds),
-    ])
-    for (const p of profs ?? []) {
-      const uid = String(p.usuario_id)
-      const nu = String(p.nome_usuario ?? '').trim()
-      perfis.set(uid, {
-        nome: String(p.nome_completo ?? 'Profissional'),
-        username: nu ? `@${nu}` : '@—',
-        fotoUrl:
-          p.foto_perfil_url != null
-            ? String(p.foto_perfil_url)
-            : p.foto_url != null
-              ? String(p.foto_url)
-              : null,
-      })
-    }
-    for (const e of emps ?? []) {
-      const uid = String(e.usuario_id)
-      const nu = String(e.nome_usuario ?? '').trim()
-      perfis.set(uid, {
-        nome: String(e.nome_fantasia ?? 'Empresa'),
-        username: nu ? `@${nu}` : '@—',
-        fotoUrl: e.foto_url != null ? String(e.foto_url) : null,
-      })
-    }
+  if (status === 'aberta') {
+    const conversas = await listarConversasAbertasAdm(auth.supabase, auth.userId)
+    const perfis = await perfisAlvoConversas(auth.supabase, conversas)
+
+    return NextResponse.json({
+      ok: true,
+      conversas: conversas.map((c) => {
+        const alvo = perfis.get(c.alvo_usuario_id) ?? {
+          nome: 'Usuário',
+          username: '@—',
+          fotoUrl: null,
+          subtitulo: '',
+        }
+        return {
+          ...c,
+          alvo: {
+            usuarioId: c.alvo_usuario_id,
+            nome: alvo.nome,
+            username: alvo.username,
+            fotoUrl: alvo.fotoUrl,
+            subtitulo: alvo.subtitulo,
+          },
+        }
+      }),
+    })
   }
+
+  const conversas = await listarHistoricoConversasAdm(auth.supabase, auth.userId)
+  const perfis = await perfisAlvoConversas(auth.supabase, conversas)
 
   return NextResponse.json({
     ok: true,
-    conversas: conversas.map((c) => ({
-      ...c,
-      alvo: perfis.get(c.alvo_usuario_id) ?? { nome: 'Usuário', username: '@—', fotoUrl: null },
-    })),
+    conversas: conversas.map((c) => {
+      const alvo = perfis.get(c.alvo_usuario_id) ?? {
+        nome: 'Usuário',
+        username: '@—',
+        fotoUrl: null,
+        subtitulo: '',
+      }
+      return {
+        ...c,
+        alvo: {
+          nome: alvo.nome,
+          username: alvo.username,
+          fotoUrl: alvo.fotoUrl,
+        },
+      }
+    }),
   })
 }
 
