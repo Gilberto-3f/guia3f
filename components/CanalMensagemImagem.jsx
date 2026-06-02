@@ -8,15 +8,20 @@ import {
   obterUrlChatImagemEmCache,
   resolverUrlAnexoMensagemCanal,
   resolverUrlChatImagemCanal,
+  urlExibicaoChatImagemAnexoCanal,
   urlPublicaAnexoMensagemCanal,
 } from '@/lib/canalAnexoUrl'
 
 /**
  * Imagem de mensagem de canal — miniatura no chat; toque abre visualizador em tela cheia (fundo preto).
- * @param {{ src: string; className?: string; priority?: boolean }} props
+ * @param {{ src: string; className?: string; priority?: boolean; modoGaleria?: boolean }} props
  */
-export default function CanalMensagemImagem({ src, className = '', priority = false }) {
+export default function CanalMensagemImagem({ src, className = '', priority = false, modoGaleria = false }) {
   const urlPublica = useMemo(() => urlPublicaAnexoMensagemCanal(supabase, src), [src])
+  const urlThumbGaleria = useMemo(
+    () => (modoGaleria ? urlExibicaoChatImagemAnexoCanal(supabase, src) : null),
+    [modoGaleria, src],
+  )
   const [srcAtivo, setSrcAtivo] = useState(/** @type {string | null} */ (null))
   const [urlOverlay, setUrlOverlay] = useState(urlPublica)
   const [carregada, setCarregada] = useState(false)
@@ -37,6 +42,13 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
     setUrlOverlay(urlPublica)
 
     const emCache = obterUrlChatImagemEmCache(src)
+    if (modoGaleria) {
+      setSrcAtivo(emCache || urlThumbGaleria || urlPublica)
+      return () => {
+        vivo = false
+      }
+    }
+
     if (emCache) {
       setSrcAtivo(emCache)
     } else {
@@ -51,7 +63,7 @@ export default function CanalMensagemImagem({ src, className = '', priority = fa
     return () => {
       vivo = false
     }
-  }, [src, urlPublica])
+  }, [src, urlPublica, modoGaleria, urlThumbGaleria])
 
   const fechar = useCallback(() => setAberto(false), [])
 

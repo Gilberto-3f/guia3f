@@ -277,6 +277,31 @@ export function aquecerCacheImagensMensagensCanal(
   })
 }
 
+/**
+ * Galeria do drawer do canal: thumbs imediatas + assinadas em paralelo (sem probe lento).
+ */
+export function aquecerGaleriaMidiaCanal(
+  supabase: SupabaseClient,
+  rows: Array<{ anexo_url: string | null; anexo_tipo: string | null }>,
+): void {
+  if (typeof window === 'undefined' || rows.length === 0) return
+  primarCacheMiniaturasChatCanal(supabase, rows, { limit: rows.length })
+  const imagens = rows.filter((r) => r.anexo_url && ehAnexoImagemCanal(r.anexo_url, r.anexo_tipo)).slice(0, 60)
+  void Promise.all(
+    imagens.map(async (r) => {
+      const anexoUrl = String(r.anexo_url)
+      const signed = await resolverUrlAnexoMensagemCanal(supabase, anexoUrl, { forceSigned: true }).catch(
+        () => null,
+      )
+      const path = extrairPathBucketMensagens(anexoUrl)
+      if (path && signed) {
+        cacheUrlChat.set(path, { url: signed, expira: Date.now() + TTL_CHAT_MS })
+        prefetchUrlNoNavegador(signed, 'low')
+      }
+    }),
+  )
+}
+
 /** @deprecated Use `prepararImagensChatCanal`. Mantido para mensagens novas em tempo real. */
 export function prefetchImagensAnexosCanal(
   supabase: SupabaseClient,

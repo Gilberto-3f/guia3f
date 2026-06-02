@@ -27,7 +27,7 @@ import { listarMidiaCanal } from '@/lib/canalMidiaHistorico'
 import { buscarMensagensCanalPorTexto } from '@/lib/canalMensagensBusca'
 import { enviarDenunciaMensagemCanal, listarDenunciasCanalDoUsuario } from '@/lib/canalDenuncias'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
-import { ehAnexoAudioCanal, ehAnexoImagemCanal } from '@/lib/canalAnexoUrl'
+import { aquecerGaleriaMidiaCanal, ehAnexoAudioCanal, ehAnexoImagemCanal } from '@/lib/canalAnexoUrl'
 import CanalMensagemImagem from '@/components/CanalMensagemImagem'
 import CanalMensagemAudio from '@/components/CanalMensagemAudio'
 import ModalDenunciaCanal from '@/components/canal/ModalDenunciaCanal'
@@ -121,6 +121,7 @@ export default function CanalDrawer({
     setLoadingMidia(true)
     try {
       const rows = await listarMidiaCanal(supabase, canalId, { paisTab, limit: 72, modoFiltroPais })
+      aquecerGaleriaMidiaCanal(supabase, rows)
       setMidias(rows)
     } finally {
       setLoadingMidia(false)
@@ -194,11 +195,18 @@ export default function CanalDrawer({
   }, [usuarioId, canalId])
 
   useEffect(() => {
+    if (!aberto) {
+      setMidias([])
+      return
+    }
+    void carregarMidia()
+  }, [aberto, canalId, paisTab, modoFiltroPais, carregarMidia])
+
+  useEffect(() => {
     if (!aberto) return
-    if (aba === 'midia') void carregarMidia()
     if (aba === 'salvos') void carregarSalvos()
     if (aba === 'mais') void carregarDenuncias()
-  }, [aberto, aba, carregarMidia, carregarSalvos, carregarDenuncias])
+  }, [aberto, aba, carregarSalvos, carregarDenuncias])
 
   const executarBusca = useCallback(async () => {
     const t = termoBusca.trim()
@@ -392,10 +400,15 @@ export default function CanalDrawer({
                   <p className="text-sm text-white/50">Nenhuma mídia compartilhada ainda.</p>
                 ) : (
                   <div className="grid grid-cols-3 gap-1">
-                    {midias.map((m) => (
+                    {midias.map((m, idx) => (
                       <div key={m.id} className="aspect-square overflow-hidden rounded-md bg-white/10">
                         {ehAnexoImagemCanal(m.anexo_url, m.anexo_tipo) ? (
-                          <CanalMensagemImagem src={m.anexo_url} className="h-full w-full object-cover" />
+                          <CanalMensagemImagem
+                            src={m.anexo_url}
+                            className="h-full w-full object-cover"
+                            modoGaleria
+                            priority={idx < 9}
+                          />
                         ) : ehAnexoAudioCanal(m.anexo_url, m.anexo_tipo) ? (
                           <div className="flex h-full items-center justify-center p-2">
                             <CanalMensagemAudio src={m.anexo_url} />

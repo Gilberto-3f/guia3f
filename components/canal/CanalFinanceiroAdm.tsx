@@ -148,11 +148,11 @@ function BotaoFecharCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white shadow-sm hover:opacity-90"
+      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white shadow-sm hover:opacity-90"
       style={{ backgroundColor: COR_LOGO }}
       aria-label={ariaLabel}
     >
-      <X className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+      <X className="h-3 w-3" strokeWidth={2.5} aria-hidden />
     </button>
   )
 }
@@ -652,16 +652,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
 
           {selecionado ? (
             <div className="relative mt-4 rounded-xl border border-[#0097b2]/25 bg-white p-4 shadow-sm">
-              <div className="absolute right-2 top-2 z-10 flex items-center gap-2">
-                {conversaEmAndamento && painelMensageiro ? (
-                  <button
-                    type="button"
-                    onClick={() => void encerrarConversaAtiva()}
-                    className="rounded-lg px-2 py-1 text-xs font-semibold text-[#0097b2] hover:bg-[#0097b2]/10"
-                  >
-                    Arquivar
-                  </button>
-                ) : null}
+              <div className="absolute right-2 top-2 z-10">
                 <BotaoFecharCard
                   onClick={fecharCardOuArquivar}
                   ariaLabel={
@@ -671,7 +662,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                   }
                 />
               </div>
-              <div className="flex items-start gap-3 pr-24">
+              <div className="flex items-start gap-3 pr-10">
                 <AvatarImage
                   src={selecionado.fotoUrl}
                   alt=""
