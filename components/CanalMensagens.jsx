@@ -1000,7 +1000,9 @@ export default function CanalMensagens({
     <div className="canal-chat flex h-full min-h-0 flex-1 flex-col">
       <div
         ref={messagesContainerRef}
-        className="canal-chat-messages scrollbar-perfil flex min-h-0 flex-1 flex-col justify-end space-y-1 overflow-y-auto px-2 py-2"
+        className={`canal-chat-messages scrollbar-perfil flex min-h-0 flex-1 flex-col space-y-1 overflow-y-auto px-2 py-2 ${
+          podePostar ? 'justify-end' : 'justify-start'
+        }`}
         onClick={() => {
           setReacaoPickerId(null)
         }}
@@ -1008,8 +1010,8 @@ export default function CanalMensagens({
         {mensagens.length === 0 ? (
           <div className="py-8 text-center text-gray-500">Nenhuma mensagem ainda. Seja o primeiro a enviar!</div>
         ) : (
-          <div className="flex min-h-full flex-col">
-          <div className="mt-auto flex flex-col space-y-1">
+          <div className={podePostar ? 'flex min-h-full flex-col' : 'flex flex-col space-y-1'}>
+          <div className={podePostar ? 'mt-auto flex flex-col space-y-1' : 'flex flex-col space-y-1'}>
           {itensLista.map((item) => {
             if (item.type === 'date') {
               return (

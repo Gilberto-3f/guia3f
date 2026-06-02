@@ -451,6 +451,49 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     }
   }, [idsMonitor, recarregarContagens])
 
+  useEffect(() => {
+    let cancelled = false
+    let chFin = /** @type {ReturnType<typeof supabase.channel> | null} */ (null)
+
+    const setup = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id
+      if (!uid || cancelled) return
+
+      const { data: prof } = await supabase.from('profissionais').select('id').eq('usuario_id', uid).maybeSingle()
+      const profissionalId = prof?.id != null ? String(prof.id) : null
+      if (!profissionalId || cancelled) return
+
+      chFin = supabase
+        .channel(`lista-canais-prof-financeiro-${profissionalId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'canal_financeiro',
+            filter: `profissional_id=eq.${profissionalId}`,
+          },
+          () => {
+            if (!cancelled) {
+              notificarBadgeCanais()
+              agendarRecarregarContagens()
+            }
+          },
+        )
+        .subscribe()
+    }
+
+    void setup()
+
+    return () => {
+      cancelled = true
+      if (chFin) void supabase.removeChannel(chFin)
+    }
+  }, [agendarRecarregarContagens])
+
   /**
    * @param {Canal} canal
    */

@@ -396,6 +396,49 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     }
   }, [idsMonitor, agendarRecarregarContagens])
 
+  useEffect(() => {
+    let cancelled = false
+    let chFin = /** @type {ReturnType<typeof supabase.channel> | null} */ (null)
+
+    const setup = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id
+      if (!uid || cancelled) return
+
+      const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', uid).maybeSingle()
+      const empresaId = emp?.id != null ? String(emp.id) : null
+      if (!empresaId || cancelled) return
+
+      chFin = supabase
+        .channel(`lista-canais-empresa-financeiro-${empresaId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'canal_financeiro',
+            filter: `empresa_id=eq.${empresaId}`,
+          },
+          () => {
+            if (!cancelled) {
+              notificarBadgeCanais()
+              agendarRecarregarContagens()
+            }
+          },
+        )
+        .subscribe()
+    }
+
+    void setup()
+
+    return () => {
+      cancelled = true
+      if (chFin) void supabase.removeChannel(chFin)
+    }
+  }, [agendarRecarregarContagens])
+
   /**
    * Não lidas do canal de segmento incluem mensagens legadas no canal ADM global.
    * @param {Canal} canal

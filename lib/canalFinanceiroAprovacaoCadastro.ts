@@ -26,9 +26,9 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
     usuarioId: string
     nomeUsuario: string
   },
-): Promise<void> {
+): Promise<{ ok: boolean; error?: string }> {
   const uid = params.usuarioId?.trim()
-  if (!uid) return
+  if (!uid) return { ok: false, error: 'usuario_id_vazio' }
 
   const mensagem = montarMensagemAprovacaoCadastro(params.nomeUsuario)
 
@@ -40,9 +40,10 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
       mensagem,
     })
     if (!res.ok) {
-      console.warn('[canalFinanceiroAprovacao] profissional', res.error)
+      console.error('[canalFinanceiroAprovacao] profissional', res.error)
+      return { ok: false, error: res.error ?? 'insert_falhou' }
     }
-    return
+    return { ok: true }
   }
 
   const res = await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
@@ -52,6 +53,8 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
     mensagem,
   })
   if (!res.ok) {
-    console.warn('[canalFinanceiroAprovacao] empresa', res.error)
+    console.error('[canalFinanceiroAprovacao] empresa', res.error)
+    return { ok: false, error: res.error ?? 'insert_falhou' }
   }
+  return { ok: true }
 }

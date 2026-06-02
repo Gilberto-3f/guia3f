@@ -160,18 +160,21 @@ export async function POST(req: Request) {
                 categorias: prof.categorias,
               },
             })
-            await enviarMensagemAprovacaoCanalFinanceiro(adminDb, {
+            const msgFin = await enviarMensagemAprovacaoCanalFinanceiro(adminDb, {
               tipo: 'profissional',
               usuarioId: String(prof.usuario_id),
               nomeUsuario,
             })
+            if (!msgFin.ok) {
+              console.error('[api/admin/verificacao] canal financeiro profissional:', msgFin.error)
+            }
           }
         } catch (e) {
           console.warn('[api/admin/verificacao] profissional pós-aprovação', e)
         }
       }
 
-      if (tipo === 'empresas' && perfil?.usuario_id) {
+      if (tipo === 'empresas') {
         try {
           const { data: emp } = await adminDb
             .from('empresas')
@@ -180,11 +183,14 @@ export async function POST(req: Request) {
             .maybeSingle()
           if (emp?.usuario_id) {
             const nomeUsuario = String(emp.nome_usuario ?? '').trim().replace(/^@+/, '')
-            await enviarMensagemAprovacaoCanalFinanceiro(adminDb, {
+            const msgFin = await enviarMensagemAprovacaoCanalFinanceiro(adminDb, {
               tipo: 'empresa',
               usuarioId: String(emp.usuario_id),
               nomeUsuario,
             })
+            if (!msgFin.ok) {
+              console.error('[api/admin/verificacao] canal financeiro empresa:', msgFin.error)
+            }
           }
         } catch (e) {
           console.warn('[api/admin/verificacao] empresa pós-aprovação', e)

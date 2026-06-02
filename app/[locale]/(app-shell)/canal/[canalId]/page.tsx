@@ -42,9 +42,7 @@ import {
   buscarSlugsCategoriasProfissional,
   canalEmpresaVisivelParaProfissional,
   canalGlobalProfissionalVisivel,
-  marcarFinanceiroLidoProfissional,
 } from '@/lib/canaisProfissionalVisibilidade'
-import { marcarFinanceiroLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { isCanalAdmProfissionalGlobal, isCanalFinanceiroProfissional } from '@/lib/canaisProfissionalSlugs'
 import type { CanalAdmInboxConfig } from '@/lib/canaisProfissionalAdm'
 import {
@@ -398,10 +396,13 @@ export default function CanalDetalhePage() {
     if (!usuarioId || !canalId || !canal) return
 
     if (userTipoEfetivo === 'profissional' && canal.nome && isCanalFinanceiroProfissional(canal.nome)) {
-      await marcarFinanceiroLidoProfissional(supabase, usuarioId)
-    } else if (userTipoEfetivo === 'empresa' && canal.nome && isCanalFinanceiroEmpresa(canal.nome)) {
-      await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
-    } else if (
+      return
+    }
+    if (userTipoEfetivo === 'empresa' && canal.nome && isCanalFinanceiroEmpresa(canal.nome)) {
+      return
+    }
+
+    if (
       userTipoEfetivo === 'empresa' &&
       inboxCanalAdm != null &&
       'canaisBroadcastIds' in inboxCanalAdm
