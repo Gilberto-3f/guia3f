@@ -137,7 +137,7 @@ function salvarPersistido(aba: AbaFinanceiro, cards: CardsPorAba) {
 
 const COR_LOGO = '#0097b2'
 
-function BotaoFecharCirculoVermelho({
+function BotaoFecharCard({
   onClick,
   ariaLabel = 'Fechar',
 }: {
@@ -148,10 +148,11 @@ function BotaoFecharCirculoVermelho({
     <button
       type="button"
       onClick={onClick}
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-500 text-white shadow-sm hover:bg-red-600"
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white shadow-sm hover:opacity-90"
+      style={{ backgroundColor: COR_LOGO }}
       aria-label={ariaLabel}
     >
-      <X className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+      <X className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
     </button>
   )
 }
@@ -409,21 +410,29 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
   const encerrarConversaAtiva = async () => {
     if (!conversaId) return
     try {
-      await fetch(`/api/admin/financeiro-conversas/${conversaId}`, {
+      const res = await fetch(`/api/admin/financeiro-conversas/${conversaId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ acao: 'encerrar' }),
       })
+      if (!res.ok) {
+        window.alert('Erro ao arquivar conversa.')
+        return
+      }
       limparPainel(abaBusca)
-      if (aba === 'historico') void carregarHistorico()
+      void carregarHistorico()
     } catch {
       window.alert('Erro ao arquivar conversa.')
     }
   }
 
   const fecharCardLocalizado = () => {
-    if (conversaEmAndamento) return
     limparPainel(abaBusca)
+  }
+
+  const fecharCardOuArquivar = () => {
+    if (conversaEmAndamento) void encerrarConversaAtiva()
+    else fecharCardLocalizado()
   }
 
   const fecharHistoricoDetalhe = () => {
@@ -643,12 +652,26 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
 
           {selecionado ? (
             <div className="relative mt-4 rounded-xl border border-[#0097b2]/25 bg-white p-4 shadow-sm">
-              {!conversaEmAndamento ? (
-                <div className="absolute right-2 top-2">
-                  <BotaoFecharCirculoVermelho onClick={fecharCardLocalizado} ariaLabel="Fechar card" />
-                </div>
-              ) : null}
-              <div className="flex items-start gap-3 pr-8">
+              <div className="absolute right-2 top-2 z-10 flex items-center gap-2">
+                {conversaEmAndamento && painelMensageiro ? (
+                  <button
+                    type="button"
+                    onClick={() => void encerrarConversaAtiva()}
+                    className="rounded-lg px-2 py-1 text-xs font-semibold text-[#0097b2] hover:bg-[#0097b2]/10"
+                  >
+                    Arquivar
+                  </button>
+                ) : null}
+                <BotaoFecharCard
+                  onClick={fecharCardOuArquivar}
+                  ariaLabel={
+                    conversaEmAndamento
+                      ? 'Encerrar diálogo, arquivar e fechar card'
+                      : 'Fechar card'
+                  }
+                />
+              </div>
+              <div className="flex items-start gap-3 pr-24">
                 <AvatarImage
                   src={selecionado.fotoUrl}
                   alt=""
@@ -722,11 +745,6 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                         >
                           <Send className="h-4 w-4" />
                         </button>
-                        <span className="shrink-0 text-xs font-semibold text-gray-600">Arquivar</span>
-                        <BotaoFecharCirculoVermelho
-                          onClick={() => void encerrarConversaAtiva()}
-                          ariaLabel="Arquivar conversa e fechar card"
-                        />
                       </div>
                     </>
                   ) : (
