@@ -7,7 +7,11 @@ import { Send, Paperclip, X, Check, Mic } from 'lucide-react'
 import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
 import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
-import { enviarMarcacaoLeituraKeepalive, marcarCanalComoLido } from '@/lib/canalBadge'
+import {
+  enviarMarcacaoLeituraKeepalive,
+  marcarCanalComoLido,
+  marcarCanalComoLidoResiliente,
+} from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { listarMensagensCanalRecentes } from '@/lib/canalMensagensFetch'
 import { mensagensComSeparadoresData } from '@/lib/canalMensagensUi'
