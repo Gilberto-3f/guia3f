@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { resolverUrlsDocumentosStorageAdmin } from '@/lib/documentosStorageUrl'
 import type {
@@ -253,16 +253,25 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
         telefone: r.telefone != null && String(r.telefone).trim() ? String(r.telefone).trim() : null,
         whatsapp: r.whatsapp != null && String(r.whatsapp).trim() ? String(r.whatsapp).trim() : null,
         status: r.status != null ? String(r.status) : null,
+        documento_fiscal:
+          r.documento_fiscal != null && String(r.documento_fiscal).trim()
+            ? String(r.documento_fiscal).trim()
+            : null,
       }
     })
     setPendentes(mapped)
     aquecerCacheDocumentos('empresas', rows)
   }, [])
 
+  /** Limpa lista antes da pintura ao trocar subaba — evita mapear linhas do perfil anterior. */
+  useLayoutEffect(() => {
+    setPendentes([])
+    setLoading(true)
+  }, [filtros.perfil])
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
-    setPendentes([])
     try {
       await fetchContadores()
       if (filtros.perfil === 'turistas') await fetchTuristasPendentes()

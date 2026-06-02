@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { pickDocumentoEmpresaUrl } from './verificacaoFormatters'
 import { isPdfUrl, PreviewDocumento } from './PreviewDocumento'
 import { useBodyScrollLock } from './useBodyScrollLock'
@@ -42,16 +43,22 @@ export function VisualizadorDocs({
     }
     const comercial = pickDocumentoEmpresaUrl(pendente)
     const endereco = String(pendente.comprovante_residencia_url ?? '').trim()
-    const docs = [{ label: 'Documento comercial', url: comercial }]
-    if (endereco) docs.push({ label: 'Comprovante de endereço', url: endereco })
-    return docs.filter((x) => x.url)
+    const repFrente = String(pendente.documento_frente_url ?? '').trim()
+    const repVerso = String(pendente.documento_verso_url ?? '').trim()
+    const lista = [
+      { label: 'Documento comercial (CNPJ / RUC / CUIT)', url: comercial },
+      { label: 'Comprovante de endereço', url: endereco },
+      { label: 'Representante — ID frente', url: repFrente },
+      { label: 'Representante — ID verso', url: repVerso },
+    ]
+    return lista.filter((x) => x.url)
   }, [pendente, tipo])
 
   if (!aberto) return null
 
-  return (
+  const conteudo = (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
@@ -104,4 +111,7 @@ export function VisualizadorDocs({
       </div>
     </div>
   )
+
+  if (typeof document === 'undefined') return conteudo
+  return createPortal(conteudo, document.body)
 }

@@ -13,6 +13,7 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
   })
 
   const itens = useMemo<CadastroPendente[]>(() => {
+    if (loading) return []
     if (tipo === 'turistas') {
       return (pendentes as PendenteTurista[]).map((p) => ({
         id: p.id,
@@ -57,16 +58,17 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
     }
     return (pendentes as PendenteEmpresa[]).map((p) => {
       const raw = { ...p } as Record<string, unknown>
+      const categoria = String(p.categoria ?? '').trim()
       return {
         id: p.id,
-        nome: p.nome_fantasia,
-        username: `@${p.nome_usuario}`,
+        nome: String(p.nome_fantasia ?? ''),
+        username: `@${String(p.nome_usuario ?? '')}`,
         label: 'Empresa',
         dataCadastro: new Date(p.created_at).toLocaleDateString('pt-BR'),
         email: p.email?.trim() || '—',
         whatsappLine: formatContatoExibicao(p.whatsapp || p.telefone),
         avatarUrl: p.fotos_url?.[0] ?? null,
-        categoriaDisplay: p.categoria?.trim() ? p.categoria : '—',
+        categoriaDisplay: categoria || '—',
         empresaFiscal: pickDocumentoFiscalEmpresa(raw),
         alerta: null,
         docsVerificado: p.docs_verificado,
@@ -75,7 +77,7 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
         raw,
       }
     })
-  }, [pendentes, tipo])
+  }, [pendentes, tipo, loading])
 
   return (
     <div className="space-y-3">

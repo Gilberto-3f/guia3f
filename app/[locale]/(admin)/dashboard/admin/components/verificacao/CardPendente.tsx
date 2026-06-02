@@ -33,8 +33,9 @@ const BADGE_EMPRESA_CATEGORIA: Record<string, string> = {
   Hospedagem: 'border-sky-200 bg-sky-50 text-sky-900',
 }
 
-function badgeEmpresaCategoriaClass(cat: string): string {
-  const k = cat.trim()
+function badgeEmpresaCategoriaClass(cat: string | undefined | null): string {
+  const k = String(cat ?? '').trim()
+  if (!k) return 'border-gray-200 bg-gray-100 text-gray-800'
   return BADGE_EMPRESA_CATEGORIA[k] ?? 'border-gray-200 bg-gray-100 text-gray-800'
 }
 
@@ -76,7 +77,7 @@ function collectDocThumbs(tipo: 'turistas' | 'profissionais' | 'empresas', raw: 
 }
 
 function AvatarQuadrado({ url, nome }: { url?: string | null; nome: string }) {
-  const inicial = nome.trim().charAt(0).toUpperCase() || '?'
+  const inicial = String(nome ?? '').trim().charAt(0).toUpperCase() || '?'
   if (url) {
     return (
       <img
@@ -112,7 +113,7 @@ export function CardPendente({
   const { podeExecutarRecurso } = usePermissao()
 
   const thumbs = collectDocThumbs(tipo, item.raw)
-  const urlsDocs = useMemo(() => thumbs.map((t) => t.url), [thumbs])
+  const urlsDocs = useMemo(() => thumbs.map((t) => t.url).filter((u): u is string => Boolean(u?.trim())), [thumbs])
   const podeAprovar = podeExecutarRecurso('aprovar')
   const podeReprovar = podeExecutarRecurso('reprovar')
 
@@ -202,19 +203,6 @@ export function CardPendente({
             <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Documentos</div>
             {thumbs.length === 0 ? (
               <div className="mt-2 rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 text-center text-xs text-gray-500">Nenhum anexo</div>
-            ) : tipo === 'empresas' ? (
-              <div className="mt-2 flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs leading-relaxed text-gray-600">
-                  Documento comercial (CNPJ / RUC / CUIT). Toque para conferir antes de liberar.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setModalAberto(true)}
-                  className="min-h-[44px] shrink-0 rounded-lg bg-[#0097b2] px-4 text-xs font-bold uppercase tracking-wide text-white shadow-sm transition hover:brightness-95 active:brightness-90"
-                >
-                  Ver documento
-                </button>
-              </div>
             ) : (
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {thumbs.map((t) => (

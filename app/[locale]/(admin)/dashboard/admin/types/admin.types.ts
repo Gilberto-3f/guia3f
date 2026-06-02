@@ -144,6 +144,8 @@ export type PendenteEmpresa = {
   whatsapp?: string | null
   /** `empresas.status` (ex.: aguardando_aprovacao, aprovado). */
   status?: string | null
+  /** CNPJ, RUC ou CUIT informado no cadastro. */
+  documento_fiscal?: string | null
 }
 
 export type PendenteVerificacao = PendenteTurista | PendenteProfissional | PendenteEmpresa
