@@ -6,6 +6,7 @@ import {
   isCanalFinanceiroProfissional,
   slugCanalComunidadeProfissional,
 } from '@/lib/canaisProfissionalSlugs'
+import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
 
 export type CanalVisibilidadeRow = {
   id: string
@@ -130,17 +131,20 @@ export async function contarFinanceiroNaoLidasProfissional(
   const profissionalId = prof?.id != null ? String(prof.id) : ''
   if (!profissionalId) return 0
 
-  const { count, error } = await supabase
-    .from('canal_financeiro')
-    .select('id', { count: 'exact', head: true })
-    .eq('profissional_id', profissionalId)
-    .eq('lida_por_profissional', false)
+  const [{ count, error }, mensageiro] = await Promise.all([
+    supabase
+      .from('canal_financeiro')
+      .select('id', { count: 'exact', head: true })
+      .eq('profissional_id', profissionalId)
+      .eq('lida_por_profissional', false),
+    contarMensageiroFinanceiroNaoLidas(supabase, usuarioId),
+  ])
 
   if (error) {
     console.error('contarFinanceiroNaoLidasProfissional:', error)
-    return 0
+    return mensageiro
   }
-  return count ?? 0
+  return (count ?? 0) + mensageiro
 }
 
 /** Marca todos os avisos financeiros do profissional como lidos (ao abrir o canal). */

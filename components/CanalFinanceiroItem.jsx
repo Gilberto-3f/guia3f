@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { DollarSign, FileText, CheckCircle, Eye } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 
 /**
  * @param {{
@@ -61,6 +62,7 @@ export default function CanalFinanceiroItem({ item, userTipo }) {
       const { error } = await supabase.from('canal_financeiro').update(patch).eq('id', item.id)
 
       if (error) throw error
+      notificarBadgeCanais()
     } catch (e) {
       console.error('Erro ao marcar como lida:', e)
     } finally {

@@ -483,6 +483,32 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
             }
           },
         )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'financeiro_mensagens',
+          },
+          () => {
+            if (!cancelled) {
+              notificarBadgeCanais()
+              agendarRecarregarContagens()
+            }
+          },
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'financeiro_conversa_leitura',
+            filter: `usuario_id=eq.${uid}`,
+          },
+          () => {
+            if (!cancelled) agendarRecarregarContagens()
+          },
+        )
         .subscribe()
     }
 

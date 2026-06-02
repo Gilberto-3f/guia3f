@@ -359,6 +359,21 @@ export default function BottomBar() {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'canal_financeiro' }, () => {
         scheduleRefresh()
       })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'financeiro_mensagens' }, () => {
+        scheduleRefresh()
+      })
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'financeiro_conversa_leitura',
+          filter: `usuario_id=eq.${authUserId}`,
+        },
+        () => {
+          scheduleRefresh()
+        },
+      )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') void refreshCanais()
       })

@@ -5,6 +5,7 @@ import {
   nomeNormCanalEmpresa,
   slugCanalSegmentoEmpresa,
 } from '@/lib/canaisEmpresaSlugs'
+import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
 
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS_SLUG = ['guia', 'taxista', 'van', 'motorista_app', 'anfitriao'] as const
@@ -77,17 +78,20 @@ export async function contarFinanceiroNaoLidasEmpresa(
   const empresaId = emp?.id != null ? String(emp.id) : ''
   if (!empresaId) return 0
 
-  const { count, error } = await supabase
-    .from('canal_financeiro')
-    .select('id', { count: 'exact', head: true })
-    .eq('empresa_id', empresaId)
-    .eq('lida_por_empresa', false)
+  const [{ count, error }, mensageiro] = await Promise.all([
+    supabase
+      .from('canal_financeiro')
+      .select('id', { count: 'exact', head: true })
+      .eq('empresa_id', empresaId)
+      .eq('lida_por_empresa', false),
+    contarMensageiroFinanceiroNaoLidas(supabase, usuarioId),
+  ])
 
   if (error) {
     console.error('contarFinanceiroNaoLidasEmpresa:', error)
-    return 0
+    return mensageiro
   }
-  return count ?? 0
+  return (count ?? 0) + mensageiro
 }
 
 export async function marcarFinanceiroLidoEmpresa(

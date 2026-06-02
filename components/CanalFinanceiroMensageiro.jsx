@@ -19,6 +19,8 @@ import {
   listarConversasFinanceiroParaAlvo,
   listarMensagensConversa,
 } from '@/lib/financeiroConversas'
+import { marcarMensageiroFinanceiroLido } from '@/lib/financeiroMensageiroLeitura'
+import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 
 const AVATAR_QUADRADO = 'shrink-0 rounded-md object-cover'
 
@@ -135,9 +137,11 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
       }
       const msgs = await listarMensagensConversa(supabase, conversaId)
       setMensagens(msgs)
+      await marcarMensageiroFinanceiroLido(supabase, usuarioId, conversaId)
+      notificarBadgeCanais()
       requestAnimationFrame(() => scrollToBottom())
     },
-    [scrollToBottom],
+    [scrollToBottom, usuarioId],
   )
 
   useEffect(() => {
@@ -163,6 +167,7 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
         },
         () => {
           void carregarMensagens(idAtivo)
+          notificarBadgeCanais()
         },
       )
       .subscribe()

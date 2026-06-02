@@ -6,6 +6,7 @@ import CanalFinanceiroItem from '@/components/CanalFinanceiroItem'
 import CanalFinanceiroMensageiro from '@/components/CanalFinanceiroMensageiro'
 import { marcarFinanceiroLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { marcarFinanceiroLidoProfissional } from '@/lib/canaisProfissionalVisibilidade'
+import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 
 const abaCls = (ativo) =>
@@ -22,6 +23,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
   const [itens, setItens] = useState([])
   const [loading, setLoading] = useState(true)
   const [naoLidas, setNaoLidas] = useState(0)
+  const [naoLidasMensageiro, setNaoLidasMensageiro] = useState(0)
 
   const marcarRelatoriosComoLidos = useCallback(async () => {
     if (!usuarioId) return
@@ -130,6 +132,8 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
           tipo === 'profissional' ? !item.lida_por_profissional : !item.lida_por_empresa,
         ).length,
       )
+      const msgNaoLidas = await contarMensageiroFinanceiroNaoLidas(supabase, usuarioId)
+      setNaoLidasMensageiro(msgNaoLidas)
     } catch (e) {
       console.error('Erro ao carregar canal financeiro:', e)
     } finally {
@@ -179,6 +183,34 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
             }
           },
         )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'financeiro_mensagens',
+          },
+          () => {
+            if (!cancelled) {
+              void carregar({ silencioso: true })
+              notificarBadgeCanais()
+            }
+          },
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'financeiro_conversa_leitura',
+            filter: `usuario_id=eq.${usuarioId}`,
+          },
+          () => {
+            if (!cancelled) {
+              void carregar({ silencioso: true })
+            }
+          },
+        )
         .subscribe()
     }
 
@@ -220,10 +252,15 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
             type="button"
             role="tab"
             aria-selected={aba === 'mensageiro'}
-            className={abaCls(aba === 'mensageiro')}
+            className={`${abaCls(aba === 'mensageiro')} relative`}
             onClick={() => setAba('mensageiro')}
           >
             Mensageiro ADM
+            {naoLidasMensageiro > 0 ? (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                {naoLidasMensageiro > 9 ? '9+' : naoLidasMensageiro}
+              </span>
+            ) : null}
           </button>
         </div>
       </div>
