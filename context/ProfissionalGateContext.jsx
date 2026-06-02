@@ -56,7 +56,7 @@ export function ProfissionalGateProvider({ children }) {
       setProfRow(null)
       const { data: e } = await supabase
         .from('empresas')
-        .select('status, docs_verificado')
+        .select('status, docs_verificado, aprovado_em, verificado_em')
         .eq('usuario_id', uid)
         .maybeSingle()
       setEmpRow(
@@ -64,6 +64,8 @@ export function ProfissionalGateProvider({ children }) {
           ? {
               status: e.status != null ? String(e.status) : null,
               docs_verificado: Boolean(e.docs_verificado),
+              aprovado_em: e.aprovado_em != null ? String(e.aprovado_em) : null,
+              verificado_em: e.verificado_em != null ? String(e.verificado_em) : null,
             }
           : null
       )

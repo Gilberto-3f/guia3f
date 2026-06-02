@@ -4,6 +4,7 @@ import {
   SEGMENTOS_EMPRESA_SLUG,
   categoriaEmpresaParaSlug,
   isCanalAdmEmpresaGlobal,
+  isCanalFinanceiroEmpresa,
   slugCanalSegmentoEmpresa,
 } from '@/lib/canaisEmpresaSlugs'
 
@@ -24,6 +25,23 @@ export type MensagemCanalRow = {
   reacoes: unknown
   created_at: string
   pais: string | null
+}
+
+/** ID do canal global Financeiro pessoal (tipo empresa, pasta Administração). */
+export async function buscarIdCanalFinanceiroEmpresaGlobal(
+  supabase: SupabaseClient,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from('canais')
+    .select('id, nome, tipo_publico, empresa_id, ativo')
+    .eq('tipo_publico', 'empresa')
+    .eq('ativo', true)
+    .is('empresa_id', null)
+
+  for (const c of data ?? []) {
+    if (isCanalFinanceiroEmpresa(c.nome != null ? String(c.nome) : null)) return String(c.id)
+  }
+  return null
 }
 
 /** ID do canal global ADM (tipo empresa). */

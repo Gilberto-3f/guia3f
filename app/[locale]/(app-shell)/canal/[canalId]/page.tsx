@@ -99,7 +99,7 @@ export default function CanalDetalhePage() {
   const canalId = params?.canalId != null ? String(params.canalId) : ''
 
   const { modoAtivo, perfilSimulado, podeInteragir } = useModoApresentacao()
-  const { recursosProfissionaisLiberados, recursosEmpresaLiberados } = useProfissionalGate()
+  const { recursosProfissionaisLiberados, recursosEmpresaLiberados, loading: gateLoading, refreshGate } = useProfissionalGate()
   const [userTipo, setUserTipo] = useState<TipoUsuario>(null)
   const [authPronto, setAuthPronto] = useState(false)
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
@@ -128,6 +128,12 @@ export default function CanalDetalhePage() {
 
   const financeUid = useMemo(() => usuarioId, [usuarioId])
   const accessTokenRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (userTipoEfetivo === 'empresa' || userTipoEfetivo === 'profissional') {
+      void refreshGate()
+    }
+  }, [userTipoEfetivo, refreshGate, canalId])
 
   /** Tipo efetivo a partir do role da BD (sem depender do setState de `userTipo`). */
   const tipoEfetivoDeRole = useCallback(
@@ -740,7 +746,9 @@ export default function CanalDetalhePage() {
         </header>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {canal != null && isFinanceiro && financeUid ? (
-            recursosEmpresaLiberados ? (
+            gateLoading ? (
+              <div className="flex flex-1 items-center justify-center text-sm text-gray-400">Carregando…</div>
+            ) : recursosEmpresaLiberados ? (
               <CanalFinanceiroLista usuarioId={financeUid} tipo="empresa" />
             ) : (
               <div className="flex flex-1 flex-col items-center justify-start px-4 py-10 text-center text-sm text-gray-600">

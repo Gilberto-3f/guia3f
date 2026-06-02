@@ -27,7 +27,7 @@ export function useEmpresaMenuGate(): EmpresaMenuGate {
       }
       const [{ data: userData }, { data: empData }] = await Promise.all([
         supabase.from('usuarios').select('role, status').eq('id', uid).maybeSingle(),
-        supabase.from('empresas').select('status, docs_verificado').eq('usuario_id', uid).maybeSingle(),
+        supabase.from('empresas').select('status, docs_verificado, aprovado_em, verificado_em').eq('usuario_id', uid).maybeSingle(),
       ])
       const role = userData?.role != null ? String(userData.role) : null
       const st =
@@ -43,6 +43,10 @@ export function useEmpresaMenuGate(): EmpresaMenuGate {
           ? {
               status: empData.status != null ? String(empData.status) : null,
               docs_verificado: Boolean(empData.docs_verificado),
+              aprovado_em:
+                'aprovado_em' in empData && empData.aprovado_em != null ? String(empData.aprovado_em) : null,
+              verificado_em:
+                'verificado_em' in empData && empData.verificado_em != null ? String(empData.verificado_em) : null,
             }
           : null
       if (!empresaRecursosLiberados(st, empRow)) {

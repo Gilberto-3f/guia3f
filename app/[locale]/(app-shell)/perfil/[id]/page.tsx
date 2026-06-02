@@ -8,6 +8,7 @@ import FotoCapa from '@/components/perfil/FotoCapa'
 import MenuLateral from '@/components/perfil/MenuLateral'
 import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
 import NomeSocial from '@/components/perfil/NomeSocial'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import DescricaoCurta from '@/components/perfil/DescricaoCurta'
 import MetricasPerfil from '@/components/perfil/MetricasPerfil'
@@ -594,8 +595,13 @@ export default function PerfilSocialPage() {
     .replace(/^@+/, '')
   const displayUsername =
     displayUsernameRaw.length > 15 ? `${displayUsernameRaw.slice(0, 15)}…` : displayUsernameRaw
-  const usernameTextClass =
-    displayUsernameRaw.length > 10 ? 'text-[13px]' : 'text-[15px]'
+
+  const contaVerificadaProfissional =
+    perfilRole === 'profissional' &&
+    contaVerificadaDocumentacao('profissional', {
+      docs_verificado: profMeta.docsVerificado,
+      status: profMeta.statusProfissional,
+    })
 
   const souDono = Boolean(meuId && profileId && meuId === profileId)
   const mostrarBotaoSeguir = Boolean(meuId && !souDono)
@@ -614,13 +620,24 @@ export default function PerfilSocialPage() {
             >
               <ArrowLeft size={20} className="text-gray-600" />
             </button>
-            <span
-              className={`block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-gray-600 ${
-                displayUsernameRaw.length > 10 ? 'text-[16px]' : 'text-[17px]'
-              }`}
-            >
-              @{displayUsername || 'usuario'}
-            </span>
+            {contaVerificadaProfissional && perfilRole === 'profissional' ? (
+              <UsuarioHandleVerificado
+                username={displayUsernameRaw || 'usuario'}
+                verificado
+                asButton={false}
+                className={`block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-gray-600 ${
+                  displayUsernameRaw.length > 10 ? 'text-[16px]' : 'text-[17px]'
+                }`}
+              />
+            ) : (
+              <span
+                className={`block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-gray-600 ${
+                  displayUsernameRaw.length > 10 ? 'text-[16px]' : 'text-[17px]'
+                }`}
+              >
+                @{displayUsername || 'usuario'}
+              </span>
+            )}
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
@@ -654,13 +671,8 @@ export default function PerfilSocialPage() {
           nome={nome}
           mostrarCartao={perfilRole === 'profissional'}
           profissionalVerificado={profMeta.statusProfissional === 'aprovado'}
-          contaVerificada={
-            perfilRole === 'profissional' &&
-            contaVerificadaDocumentacao('profissional', {
-              docs_verificado: profMeta.docsVerificado,
-              status: profMeta.statusProfissional,
-            })
-          }
+          contaVerificada={contaVerificadaProfissional}
+          seloVerificacaoNoNome={perfilRole !== 'profissional'}
           onAbrirCartao={() => setPopCartao(true)}
         />
         <div className="mt-1">

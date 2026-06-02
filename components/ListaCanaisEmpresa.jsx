@@ -26,6 +26,7 @@ import { buscarUltimasMensagensCanais, formatarListaHora, patchUltimaMensagemCan
 import { contarFinanceiroNaoLidasEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
+import { buscarIdCanalFinanceiroEmpresaGlobal } from '@/lib/canaisEmpresaAdm'
 import { isCanalFinanceiroEmpresa } from '@/lib/canaisEmpresaSlugs'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
@@ -127,7 +128,7 @@ function ordenarCanaisAdministracaoEmpresa(lista) {
  * }} props
  */
 export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }) {
-  const { recursosEmpresaLiberados, loading: gateLoading } = useProfissionalGate()
+  const { recursosEmpresaLiberados, loading: gateLoading, refreshGate } = useProfissionalGate()
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
@@ -138,13 +139,15 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   /** @type {Record<string, number>} */
   const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
   const [meuUsername, setMeuUsername] = useState(/** @type {string | null} */ (null))
+  const [financeiroCanalIdGlobal, setFinanceiroCanalIdGlobal] = useState(/** @type {string | null} */ (null))
 
   /**
    * Canal de segmento da empresa + Financeiro (sem expor o canal ADM / Mensageiro).
    * @param {Canal[]} lista
    * @param {string | null} categoriaEmpresa
+   * @param {string | null} financeiroIdResolvido
    */
-  function garantirAdministracaoEmpresa(lista, categoriaEmpresa) {
+  function garantirAdministracaoEmpresa(lista, categoriaEmpresa, financeiroIdResolvido) {
     const chaveEmp = chaveSegmentoPorCategoriaEmpresa(categoriaEmpresa)
     const segmento =
       lista.find(
@@ -164,7 +167,21 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
             ultima_mensagem_em: null,
           }
         : null)
-    const fin = lista.find((c) => nomeNorm(c.nome) === 'FINANCEIRO')
+    const fin =
+      lista.find((c) => nomeNorm(c.nome) === 'FINANCEIRO') ??
+      (financeiroIdResolvido
+        ? {
+            id: financeiroIdResolvido,
+            nome: 'Financeiro',
+            tipo_publico: 'empresa',
+            categoria: null,
+            comunidade_prof: null,
+            empresa_id: null,
+            ordem_tipo: 'fixo',
+            ordem_posicao: 2,
+            ultima_mensagem_em: null,
+          }
+        : null)
     /** @type {Canal[]} */
     const out = []
     if (segmento) out.push(segmento)
@@ -231,10 +248,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         return Boolean(slug) && COMUNIDADES_PROFISSIONAIS_SLUG.includes(slug)
       })
     return {
-      administracao: garantirAdministracaoEmpresa(administracao, empresaCategoria),
+      administracao: garantirAdministracaoEmpresa(administracao, empresaCategoria, financeiroCanalIdGlobal),
       profissionais: garantirComunidadesProfissionais(profissionais),
     }
-  }, [canais, empresaId, empresaCategoria])
+  }, [canais, empresaId, empresaCategoria, financeiroCanalIdGlobal])
 
   const canaisParaMembros = useMemo(
     () => [...part.administracao, ...part.profissionais],
@@ -324,11 +341,16 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       setEmpresaCategoria(catEmp)
       const chaveEmp = chaveSegmentoPorCategoriaEmpresa(catEmp)
 
-      const { data, error } = await supabase
-        .from('canais')
-        .select('id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, ultima_mensagem_em, ordem_tipo, ordem_posicao')
-        .eq('tipo_publico', 'empresa')
-        .eq('ativo', true)
+      const [{ data, error }, finCanalId] = await Promise.all([
+        supabase
+          .from('canais')
+          .select('id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, ultima_mensagem_em, ordem_tipo, ordem_posicao')
+          .eq('tipo_publico', 'empresa')
+          .eq('ativo', true),
+        buscarIdCanalFinanceiroEmpresaGlobal(supabase),
+      ])
+
+      setFinanceiroCanalIdGlobal(finCanalId)
 
       if (error) throw error
       const lista = /** @type {Canal[]} */ (data ?? [])
@@ -368,6 +390,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    void refreshGate()
+  }, [refreshGate])
 
   useEffect(() => {
     void carregar()
@@ -511,6 +537,8 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     const isActive = canalSelecionadoId === canal.id
     const isPlaceholder = String(canal.id ?? '').startsWith('__placeholder_')
     const financeiroBloqueado = ehFinanceiro && !recursosEmpresaLiberados && !gateLoading
+    const financeiroSemCanal = ehFinanceiro && isPlaceholder && !financeiroCanalIdGlobal
+    const rowDisabled = isPlaceholder && !(ehFinanceiro && recursosEmpresaLiberados && financeiroCanalIdGlobal)
     const label = ehFinanceiro ? (
       <CanalFinanceiroListaRotulo username={meuUsername} />
     ) : ehSegmentoAdm ? (
@@ -540,16 +568,24 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
           ehFinanceiro
             ? financeiroBloqueado
               ? 'Aguardando verificação do cadastro'
-              : null
+              : financeiroSemCanal
+                ? 'Canal em configuração — contacte o suporte'
+                : null
             : ehProfissional || canalExibeContagemMembros(canal)
               ? legendaMembros(canal)
               : null
         }
         naoLidas={naoLidas}
         active={isActive}
-        disabled={isPlaceholder}
+        disabled={rowDisabled}
         onClick={() => {
-          if (isPlaceholder) return
+          if (rowDisabled) return
+          if (ehFinanceiro && financeiroBloqueado) {
+            window.alert(
+              'O canal financeiro é liberado após a verificação dos seus documentos. Menu → USUÁRIO → Anexar documentos.',
+            )
+            return
+          }
           onSelectCanal(canal)
         }}
         avatar={

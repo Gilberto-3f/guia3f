@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import ListaCanais from '@/components/ListaCanais'
 import ListaCanaisEmpresa from '@/components/ListaCanaisEmpresa'
 import ListaCanaisProfissional from '@/components/ListaCanaisProfissional'
@@ -16,6 +17,7 @@ export default function CanalPage() {
   const router = useRouter()
   const pathname = usePathname()
   const { modoAtivo, perfilSimulado, podeInteragir } = useModoApresentacao()
+  const { refreshGate } = useProfissionalGate()
   const [userTipo, setUserTipo] = useState<TipoUsuario>(null)
   const [loading, setLoading] = useState(true)
   const [turismoCanalId, setTurismoCanalId] = useState<string | null>(null)
@@ -54,6 +56,12 @@ export default function CanalPage() {
 
     void init()
   }, [router])
+
+  useEffect(() => {
+    if (userTipoEfetivo === 'empresa' || userTipoEfetivo === 'profissional') {
+      void refreshGate()
+    }
+  }, [userTipoEfetivo, refreshGate])
 
   /** Ao voltar da conversa para a lista, atualiza leituras e badge da barra. */
   useEffect(() => {

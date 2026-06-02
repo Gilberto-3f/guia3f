@@ -9,6 +9,8 @@ export type LinhaProfissionalGate = {
 export type LinhaEmpresaGate = {
   status?: string | null
   docs_verificado?: boolean | null
+  aprovado_em?: string | null
+  verificado_em?: string | null
 }
 
 export function profissionalRecursosLiberados(
@@ -33,10 +35,12 @@ export function empresaRecursosLiberados(
   emp: LinhaEmpresaGate | null | undefined,
 ): boolean {
   if (!emp) return false
-  if (usuarioStatus !== 'ativo') return false
-  if (String(emp.status ?? '') !== 'aprovado') return false
-  if (!emp.docs_verificado) return false
-  return true
+  if (String(usuarioStatus ?? '') !== 'ativo') return false
+  if (String(emp.status ?? '').toLowerCase() !== 'aprovado') return false
+  if (emp.docs_verificado === true) return true
+  // Aprovação legada ou snapshot sem docs_verificado sincronizado
+  if (emp.aprovado_em || emp.verificado_em) return true
+  return false
 }
 
 /** Dias até `proxima_revisao_docs_em` (negativo se vencido). Null se sem data. */

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay, sanearAutoresPostsEmpresaPreview } from '@/lib/feed-autor'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
-import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
+import { isPostOcultoDoFeed } from '@/lib/feedFiltroSeguidos'
 import { fetchEmpresaFeedPromoAutorIds, intercalarPostsEmpresa } from '@/lib/intercalarFeedEmpresa'
 import { fetchUsuarioIdsEmpresasFavoritas } from '@/lib/feedSeguidosEmpresasFavoritas'
 import {
@@ -227,7 +227,7 @@ function FeedPageInner() {
       }
       const porAutor = new Map<string, StoryAggRow[]>()
       for (const row of data ?? []) {
-        if (isTipoVideoPost((row as { tipo?: string }).tipo)) continue
+        if (isPostOcultoDoFeed((row as { tipo?: string }).tipo)) continue
         const id = String((row as { id?: unknown }).id ?? '').trim()
         const aid = String((row as { autor_id?: unknown }).autor_id ?? '').trim()
         const url = String((row as { conteudo_url?: unknown }).conteudo_url ?? '').trim()
@@ -397,8 +397,8 @@ function FeedPageInner() {
       const orgRows = (dOrg ?? []).filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
       const proRows = (dPromo ?? []).filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
 
-      const orgMapped = orgRows.map(mapRow).filter((row) => !isTipoVideoPost(row.tipo))
-      const proMapped = proRows.map(mapRow).filter((row) => !isTipoVideoPost(row.tipo))
+      const orgMapped = orgRows.map(mapRow).filter((row) => !isPostOcultoDoFeed(row.tipo))
+      const proMapped = proRows.map(mapRow).filter((row) => !isPostOcultoDoFeed(row.tipo))
 
       const merged = intercalarPostsEmpresa(orgMapped, proMapped, (r) => r.autor?.usuario_id ?? '', 20)
       const saneados = await sanearAutoresPostsEmpresaPreview(
@@ -455,7 +455,7 @@ function FeedPageInner() {
       }
       const mapped = mapRow(data)
       const [row] = (await sanearAutoresPostsEmpresaPreview(supabase, [mapped], email, modoAtivo)) as PostFeedRow[]
-      if (isTipoVideoPost(row.tipo)) {
+      if (isPostOcultoDoFeed(row.tipo)) {
         fetchPostAttempted.current = null
         return
       }
@@ -621,7 +621,7 @@ function FeedPageInner() {
       if (error || !rows?.length) return null
       const asc = rows.filter((r) => {
         const ok =
-          !isTipoVideoPost((r as { tipo?: string }).tipo) &&
+          !isPostOcultoDoFeed((r as { tipo?: string }).tipo) &&
           Boolean((r as { id?: unknown }).id) &&
           Boolean((r as { autor_id?: unknown }).autor_id) &&
           String((r as { conteudo_url?: unknown }).conteudo_url ?? '').trim() !== ''

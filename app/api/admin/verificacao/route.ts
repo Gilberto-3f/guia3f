@@ -8,7 +8,6 @@ import {
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { enviarMensagemAprovacaoCanalFinanceiro } from '@/lib/canalFinanceiroAprovacaoCadastro'
 import { proximaRevisaoDepoisDeAprovacao } from '@/lib/verificacao-documentos'
-import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
 
 type PerfilVerificacao = 'turistas' | 'profissionais' | 'empresas'
 
@@ -149,17 +148,6 @@ export async function POST(req: Request) {
             .maybeSingle()
           if (prof?.usuario_id) {
             const nomeUsuario = String(prof.nome_usuario ?? '').trim().replace(/^@+/, '')
-            const categoriaRotulo = formatProfissionalCategorias(prof.categorias)
-            await adminDb.from('posts').insert({
-              autor_id: String(prof.usuario_id),
-              tipo: 'verificacao_profissional',
-              texto: `@${nomeUsuario || 'usuario'} agora é um profissional verificado da plataforma`,
-              avaliacao_meta: {
-                verificacao_profissional: true,
-                categoria_rotulo: categoriaRotulo,
-                categorias: prof.categorias,
-              },
-            })
             const msgFin = await enviarMensagemAprovacaoCanalFinanceiro(adminDb, {
               tipo: 'profissional',
               usuarioId: String(prof.usuario_id),

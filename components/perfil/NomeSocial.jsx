@@ -12,13 +12,15 @@ import NomeComVerificacao from '@/components/NomeComVerificacao'
  *   onAbrirCartao?: () => void
  * }} props
  * profissionalVerificado: true quando status aprovado (escudo verde); senão escudo vermelho com ?.
- * contaVerificada: selo verde à frente do nome (documentação em ordem).
+ * contaVerificada: selo verde à frente do nome (empresa/turista; profissional usa o selo no @username).
+ * seloVerificacaoNoNome: false para profissional (selo fica no cabeçalho).
  */
 export default function NomeSocial({
   nome,
   mostrarCartao = false,
   profissionalVerificado = false,
   contaVerificada = false,
+  seloVerificacaoNoNome = true,
   onAbrirCartao,
 }) {
   return (
@@ -48,7 +50,11 @@ export default function NomeSocial({
         )
       ) : null}
       <h1 className="min-w-0 text-left text-2xl font-bold text-[#001f3f]">
-        <NomeComVerificacao nome={nome} verificado={contaVerificada} nomeClassName="truncate" />
+        <NomeComVerificacao
+          nome={nome}
+          verificado={seloVerificacaoNoNome && contaVerificada}
+          nomeClassName="truncate"
+        />
       </h1>
     </div>
   )
