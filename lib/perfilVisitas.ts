@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
-import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 
 export type VisitaPerfilRow = {
   id: string
@@ -103,24 +102,19 @@ export async function listarVisitasPerfil(
   const visitanteIds = [
     ...new Set(data.map((r) => r.visitante_usuario_id).filter(Boolean) as string[]),
   ]
-  const remetentes = await buscarRemetentesEmLote(supabase, visitanteIds)
 
-  const fotos = await Promise.all(
-    visitanteIds.map(async (id) => {
-      const url = await fetchFotoPerfilUsuario(supabase, id)
-      return [id, url] as const
-    }),
-  )
-  const fotoPorId = new Map(fotos)
+  const [remetentes, profsRes, empsRes] = await Promise.all([
+    buscarRemetentesEmLote(supabase, visitanteIds),
+    visitanteIds.length > 0
+      ? supabase.from('profissionais').select('usuario_id, nome_usuario').in('usuario_id', visitanteIds)
+      : Promise.resolve({ data: [] as { usuario_id: string; nome_usuario: string | null }[] }),
+    visitanteIds.length > 0
+      ? supabase.from('empresas').select('usuario_id, nome_usuario').in('usuario_id', visitanteIds)
+      : Promise.resolve({ data: [] as { usuario_id: string; nome_usuario: string | null }[] }),
+  ])
 
-  const { data: profs } = await supabase
-    .from('profissionais')
-    .select('usuario_id, nome_usuario')
-    .in('usuario_id', visitanteIds)
-  const { data: emps } = await supabase
-    .from('empresas')
-    .select('usuario_id, nome_usuario')
-    .in('usuario_id', visitanteIds)
+  const profs = profsRes.data
+  const emps = empsRes.data
 
   const usernamePorId = new Map<string, string>()
   for (const p of profs ?? []) {
@@ -148,7 +142,7 @@ export async function listarVisitasPerfil(
         row.visto_pelo_dono_em != null ? String(row.visto_pelo_dono_em) : null,
       visitante_nome: rem?.nome ?? 'Usuário',
       visitante_username: username ? `@${username}` : '@—',
-      visitante_foto_url: (vid && fotoPorId.get(vid)) || rem?.foto_url || null,
+      visitante_foto_url: rem?.foto_url ?? null,
       pendente: row.visto_pelo_dono_em == null,
     }
   })

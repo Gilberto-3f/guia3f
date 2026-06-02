@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Eye } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import { supabase } from '@/lib/supabase'
 import { listarVisitasPerfil, marcarVisitasPerfilComoVistas } from '@/lib/perfilVisitas'
+
+const AVATAR_VISITANTE = 'h-11 w-11 shrink-0 rounded-md object-cover'
 
 /**
  * @param {{ usuarioId: string | null }} props
@@ -23,13 +24,14 @@ export default function VisitantesPerfil({ usuarioId }) {
     }
     setLoading(true)
     try {
-      const lista = await listarVisitasPerfil(supabase, usuarioId)
+      const lista = await listarVisitasPerfil(supabase, usuarioId, { limit: 60 })
       setVisitas(lista)
-      await marcarVisitasPerfilComoVistas(supabase, usuarioId)
-      window.dispatchEvent(new CustomEvent('perfil-visitas-lidas'))
     } finally {
       setLoading(false)
     }
+    void marcarVisitasPerfilComoVistas(supabase, usuarioId).then(() => {
+      window.dispatchEvent(new CustomEvent('perfil-visitas-lidas'))
+    })
   }, [usuarioId])
 
   useEffect(() => {
@@ -43,21 +45,23 @@ export default function VisitantesPerfil({ usuarioId }) {
 
   return (
     <div className="space-y-4 text-gray-900">
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0097b2]/10 text-[#0097b2]">
-          <Eye className="h-5 w-5" aria-hidden />
-        </span>
-        <div>
-          <h2 className="text-lg font-bold text-[#001f3f]">Visitantes do perfil</h2>
-          <p className="mt-1 text-sm text-gray-600">
-            Quem visitou seu perfil social ou a página da sua empresa. Novas visitas aparecem aqui até você
-            abrir esta lista.
-          </p>
-        </div>
-      </div>
+      <h2 className="text-lg font-bold text-[#001f3f]">Visitantes do perfil</h2>
 
       {loading ? (
-        <p className="py-8 text-center text-sm text-gray-500">Carregando visitantes…</p>
+        <ul className="space-y-2" aria-busy="true" aria-label="Carregando visitantes">
+          {[1, 2, 3].map((i) => (
+            <li
+              key={i}
+              className="flex animate-pulse items-center gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2.5"
+            >
+              <div className={`${AVATAR_VISITANTE} bg-gray-200`} />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="h-4 w-32 rounded bg-gray-200" />
+                <div className="h-3 w-24 rounded bg-gray-100" />
+              </div>
+            </li>
+          ))}
+        </ul>
       ) : visitas.length === 0 ? (
         <p className="rounded-xl border border-gray-100 bg-gray-50 py-10 text-center text-sm text-gray-500">
           Nenhuma visita registrada ainda.
@@ -77,7 +81,7 @@ export default function VisitantesPerfil({ usuarioId }) {
                   alt=""
                   width={44}
                   height={44}
-                  className="h-11 w-11 shrink-0 rounded-full object-cover"
+                  className={AVATAR_VISITANTE}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
