@@ -145,14 +145,15 @@ export async function listarVisitasPerfil(
   }
 
   return data
-    .map((row) => {
+    .map((row): VisitaPerfilRow => {
       const vid = row.visitante_usuario_id != null ? String(row.visitante_usuario_id) : ''
       const rem = vid ? remetentes.get(vid) : undefined
       const username = usernamePorId.get(vid)
+      const tipoAlvo: VisitaPerfilRow['tipo_alvo'] = row.tipo_alvo === 'empresa' ? 'empresa' : 'perfil'
       return {
         id: String(row.id),
         visitante_usuario_id: vid || null,
-        tipo_alvo: row.tipo_alvo === 'empresa' ? 'empresa' : 'perfil',
+        tipo_alvo: tipoAlvo,
         empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
         visitado_em: String(row.visitado_em ?? ''),
         visto_pelo_dono_em:
