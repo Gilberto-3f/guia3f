@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { diasAteRevisaoDocumentos, profissionalRecursosLiberados } from '@/lib/verificacao-documentos'
+import { diasAteRevisaoDocumentos, empresaRecursosLiberados, profissionalRecursosLiberados } from '@/lib/verificacao-documentos'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 const ProfissionalGateContext = createContext(null)
@@ -13,6 +13,7 @@ export function ProfissionalGateProvider({ children }) {
   const [usuarioStatus, setUsuarioStatus] = useState(/** @type {string | null} */ (null))
   const [userRole, setUserRole] = useState(/** @type {string | null} */ (null))
   const [profRow, setProfRow] = useState(null)
+  const [empRow, setEmpRow] = useState(null)
 
   const refreshGate = useCallback(async () => {
     const {
@@ -23,6 +24,7 @@ export function ProfissionalGateProvider({ children }) {
       setUsuarioStatus(null)
       setUserRole(null)
       setProfRow(null)
+      setEmpRow(null)
       setLoading(false)
       return
     }
@@ -49,8 +51,25 @@ export function ProfissionalGateProvider({ children }) {
             }
           : null
       )
+      setEmpRow(null)
+    } else if (role === 'empresa') {
+      setProfRow(null)
+      const { data: e } = await supabase
+        .from('empresas')
+        .select('status, docs_verificado')
+        .eq('usuario_id', uid)
+        .maybeSingle()
+      setEmpRow(
+        e && typeof e === 'object'
+          ? {
+              status: e.status != null ? String(e.status) : null,
+              docs_verificado: Boolean(e.docs_verificado),
+            }
+          : null
+      )
     } else {
       setProfRow(null)
+      setEmpRow(null)
     }
     setLoading(false)
   }, [])
@@ -62,18 +81,41 @@ export function ProfissionalGateProvider({ children }) {
   useEffect(() => {
     const onRef = () => void refreshGate()
     window.addEventListener('profissional-gate-refresh', onRef)
+    window.addEventListener('empresa-gate-refresh', onRef)
     window.addEventListener('perfil-atualizado', onRef)
     return () => {
       window.removeEventListener('profissional-gate-refresh', onRef)
+      window.removeEventListener('empresa-gate-refresh', onRef)
       window.removeEventListener('perfil-atualizado', onRef)
+    }
+  }, [refreshGate])
+
+  /** Atualiza gate quando ADM aprova cadastro (sem recarregar a página). */
+  useEffect(() => {
+    const ch = supabase
+      .channel('recursos-perfil-gate-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'empresas' }, () => {
+        void refreshGate()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profissionais' }, () => {
+        void refreshGate()
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'usuarios' }, () => {
+        void refreshGate()
+      })
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(ch)
     }
   }, [refreshGate])
 
   const roleEfetivo = modoAtivo && perfilSimulado ? perfilSimulado.tipo : userRole
 
   const value = useMemo(() => {
-    const liberado =
+    const liberadoProf =
       roleEfetivo !== 'profissional' ? true : profissionalRecursosLiberados(usuarioStatus, profRow)
+    const liberadoEmp =
+      roleEfetivo !== 'empresa' ? true : empresaRecursosLiberados(usuarioStatus, empRow)
     const dias =
       roleEfetivo === 'profissional' && profRow?.proxima_revisao_docs_em
         ? diasAteRevisaoDocumentos(profRow.proxima_revisao_docs_em)
@@ -84,12 +126,15 @@ export function ProfissionalGateProvider({ children }) {
       userRole,
       roleEfetivo,
       profRow,
-      recursosProfissionaisLiberados: liberado,
+      empRow,
+      recursosProfissionaisLiberados: liberadoProf,
+      recursosEmpresaLiberados: liberadoEmp,
       diasAteRevisaoDocs: dias,
       perfilEhProfissional: roleEfetivo === 'profissional',
+      perfilEhEmpresa: roleEfetivo === 'empresa',
       refreshGate,
     }
-  }, [loading, usuarioStatus, userRole, roleEfetivo, profRow, refreshGate])
+  }, [loading, usuarioStatus, userRole, roleEfetivo, profRow, empRow, refreshGate])
 
   return <ProfissionalGateContext.Provider value={value}>{children}</ProfissionalGateContext.Provider>
 }
@@ -103,9 +148,12 @@ export function useProfissionalGate() {
     userRole: null,
     roleEfetivo: null,
     profRow: null,
+    empRow: null,
     recursosProfissionaisLiberados: true,
+    recursosEmpresaLiberados: true,
     diasAteRevisaoDocs: null,
     perfilEhProfissional: false,
+    perfilEhEmpresa: false,
     refreshGate: async () => {},
   }
 }

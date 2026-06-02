@@ -114,7 +114,7 @@ export async function carregarBaseContagemMembrosCanais(supabase: SupabaseClient
 
   const { data: profs, error: profErr } = await supabase
     .from('profissionais')
-    .select('categorias, usuarios!inner(status, role)')
+    .select('categorias, usuarios!profissionais_usuario_id_fkey(status, role)')
     .eq('usuarios.status', 'ativo')
     .eq('usuarios.role', 'profissional')
 

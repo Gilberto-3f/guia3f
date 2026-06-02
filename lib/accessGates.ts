@@ -26,7 +26,14 @@ export function empresaPublicadaNoGuia(statusEmpresa: string | null | undefined)
   return String(statusEmpresa ?? '') === 'aprovado'
 }
 
-/** Conta empresa liberada para dashboard, publicidade, etc. */
-export function empresaContaOperacional(statusUsuario: string | null | undefined): boolean {
-  return String(statusUsuario ?? '') === 'ativo'
+/** Conta empresa liberada para dashboard, publicidade, canal financeiro, etc. */
+export function empresaContaOperacional(
+  statusUsuario: string | null | undefined,
+  statusEmpresa?: string | null,
+  docsVerificado?: boolean | null,
+): boolean {
+  if (String(statusUsuario ?? '') !== 'ativo') return false
+  if (statusEmpresa != null && String(statusEmpresa) !== 'aprovado') return false
+  if (docsVerificado === false) return false
+  return true
 }

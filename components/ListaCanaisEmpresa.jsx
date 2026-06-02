@@ -27,6 +27,7 @@ import { contarFinanceiroNaoLidasEmpresa } from '@/lib/canaisEmpresaVisibilidade
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { isCanalFinanceiroEmpresa } from '@/lib/canaisEmpresaSlugs'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
 import CanalListaRow from '@/components/CanalListaRow'
 import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
@@ -126,6 +127,7 @@ function ordenarCanaisAdministracaoEmpresa(lista) {
  * }} props
  */
 export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }) {
+  const { recursosEmpresaLiberados, loading: gateLoading } = useProfissionalGate()
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
@@ -508,6 +510,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     const Icon = ehProfissional ? iconeCanalProfissionalLista(canal) : getIcon(canal)
     const isActive = canalSelecionadoId === canal.id
     const isPlaceholder = String(canal.id ?? '').startsWith('__placeholder_')
+    const financeiroBloqueado = ehFinanceiro && !recursosEmpresaLiberados && !gateLoading
     const label = ehFinanceiro ? (
       <CanalFinanceiroListaRotulo username={meuUsername} />
     ) : ehSegmentoAdm ? (
@@ -535,7 +538,9 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         }
         subtitulo={
           ehFinanceiro
-            ? null
+            ? financeiroBloqueado
+              ? 'Aguardando verificação do cadastro'
+              : null
             : ehProfissional || canalExibeContagemMembros(canal)
               ? legendaMembros(canal)
               : null

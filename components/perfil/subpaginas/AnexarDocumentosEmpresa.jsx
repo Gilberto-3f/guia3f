@@ -216,6 +216,7 @@ export default function AnexarDocumentosEmpresa({
       setOkMsg('Documentos enviados com sucesso! Aguarde a análise do administrador.')
       try {
         window.dispatchEvent(new Event('perfil-atualizado'))
+        window.dispatchEvent(new Event('empresa-gate-refresh'))
       } catch {
         /* ignore */
       }

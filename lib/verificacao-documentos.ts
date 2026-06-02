@@ -6,6 +6,11 @@ export type LinhaProfissionalGate = {
   proxima_revisao_docs_em?: string | null
 }
 
+export type LinhaEmpresaGate = {
+  status?: string | null
+  docs_verificado?: boolean | null
+}
+
 export function profissionalRecursosLiberados(
   usuarioStatus: string | null | undefined,
   prof: LinhaProfissionalGate | null | undefined
@@ -19,6 +24,18 @@ export function profissionalRecursosLiberados(
     const t = new Date(pr).getTime()
     if (!Number.isFinite(t) || t < Date.now()) return false
   }
+  return true
+}
+
+/** Recursos da empresa (canal financeiro, menu operacional, etc.) só após ADM aprovar cadastro. */
+export function empresaRecursosLiberados(
+  usuarioStatus: string | null | undefined,
+  emp: LinhaEmpresaGate | null | undefined,
+): boolean {
+  if (!emp) return false
+  if (usuarioStatus !== 'ativo') return false
+  if (String(emp.status ?? '') !== 'aprovado') return false
+  if (!emp.docs_verificado) return false
   return true
 }
 

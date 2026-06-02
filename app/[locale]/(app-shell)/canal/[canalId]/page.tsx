@@ -99,7 +99,7 @@ export default function CanalDetalhePage() {
   const canalId = params?.canalId != null ? String(params.canalId) : ''
 
   const { modoAtivo, perfilSimulado, podeInteragir } = useModoApresentacao()
-  const { recursosProfissionaisLiberados } = useProfissionalGate()
+  const { recursosProfissionaisLiberados, recursosEmpresaLiberados } = useProfissionalGate()
   const [userTipo, setUserTipo] = useState<TipoUsuario>(null)
   const [authPronto, setAuthPronto] = useState(false)
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
@@ -738,7 +738,14 @@ export default function CanalDetalhePage() {
         </header>
         <div className="flex min-h-0 flex-1 flex-col">
           {canal != null && isFinanceiro && financeUid ? (
-            <CanalFinanceiroLista usuarioId={financeUid} tipo="empresa" />
+            recursosEmpresaLiberados ? (
+              <CanalFinanceiroLista usuarioId={financeUid} tipo="empresa" />
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-start px-4 py-10 text-center text-sm text-gray-600">
+                <p>O canal financeiro é liberado após a verificação dos seus documentos.</p>
+                <p className="mt-2 text-xs text-gray-500">Menu → USUÁRIO → Anexar documentos.</p>
+              </div>
+            )
           ) : (
             <>
               {mostrarAbasPaisColetivo ? (
