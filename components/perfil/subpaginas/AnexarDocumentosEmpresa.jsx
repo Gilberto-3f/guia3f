@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useId, useState } from 'react'
+import { Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 const MAX_BYTES = 5 * 1024 * 1024
@@ -41,18 +42,27 @@ async function uploadEmpresaDoc(file, userId, empresaId, rotulo) {
 }
 
 /**
- * @param {{ label: string, file: File | null, onChange: (f: File | null) => void, accept?: string }} props
+ * @param {{ label: string, file: File | null, onChange: (f: File | null) => void, accept?: string, jaAnexado?: boolean }} props
  */
-function CampoArquivo({ label, file, onChange, accept = ACCEPT }) {
+function CampoArquivo({ label, file, onChange, accept = ACCEPT, jaAnexado = false }) {
   const inputId = useId()
+  const mostrarCheck = jaAnexado || Boolean(file)
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="min-w-0 flex-1 text-sm font-semibold text-gray-800">{label}</span>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
+        {mostrarCheck ? (
+          <Check
+            className="h-5 w-5 text-emerald-400"
+            strokeWidth={3}
+            aria-hidden
+            title="Arquivo anexado"
+          />
+        ) : null}
         <label
           htmlFor={inputId}
-          className="shrink-0 cursor-pointer rounded-md bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#007d94]"
+          className="cursor-pointer rounded-md bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#007d94]"
         >
           Escolher arquivo
         </label>
@@ -93,6 +103,8 @@ export default function AnexarDocumentosEmpresa({
   const [documentoFiscal, setDocumentoFiscal] = useState(String(documentoFiscalInicial ?? ''))
   const [endereco, setEndereco] = useState(/** @type {File | null} */ (null))
   const [comercial, setComercial] = useState(/** @type {File | null} */ (null))
+  const [urlEndereco, setUrlEndereco] = useState('')
+  const [urlComercial, setUrlComercial] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
   const [okMsg, setOkMsg] = useState('')
@@ -103,7 +115,7 @@ export default function AnexarDocumentosEmpresa({
     void (async () => {
       const { data } = await supabase
         .from('empresas')
-        .select('nome_fantasia, documento_fiscal')
+        .select('nome_fantasia, documento_fiscal, comprovante_residencia_url, documento_comercial_url')
         .eq('id', empresaId)
         .maybeSingle()
       if (!ativo || !data) return
@@ -113,6 +125,8 @@ export default function AnexarDocumentosEmpresa({
           ? String(data.documento_fiscal)
           : ''
       if (fiscal) setDocumentoFiscal(fiscal)
+      setUrlEndereco(String(data.comprovante_residencia_url ?? '').trim())
+      setUrlComercial(String(data.documento_comercial_url ?? '').trim())
     })()
     return () => {
       ativo = false
@@ -186,6 +200,11 @@ export default function AnexarDocumentosEmpresa({
 
       if (upErr) throw new Error(upErr.message)
 
+      setUrlEndereco(uEndereco)
+      setUrlComercial(uComercial)
+      setEndereco(null)
+      setComercial(null)
+
       setOkMsg('Documentos enviados com sucesso! Aguarde a análise do administrador.')
       try {
         window.dispatchEvent(new Event('perfil-atualizado'))
@@ -235,8 +254,18 @@ export default function AnexarDocumentosEmpresa({
           />
         </label>
 
-        <CampoArquivo label="Comprovante de endereço" file={endereco} onChange={onChangeArquivo(setEndereco)} />
-        <CampoArquivo label="Documento comercial" file={comercial} onChange={onChangeArquivo(setComercial)} />
+        <CampoArquivo
+          label="Comprovante de endereço"
+          file={endereco}
+          onChange={onChangeArquivo(setEndereco)}
+          jaAnexado={Boolean(urlEndereco)}
+        />
+        <CampoArquivo
+          label="Documento comercial"
+          file={comercial}
+          onChange={onChangeArquivo(setComercial)}
+          jaAnexado={Boolean(urlComercial)}
+        />
       </div>
 
       <button

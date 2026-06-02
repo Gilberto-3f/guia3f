@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useId, useState } from 'react'
+import { Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 const MAX_BYTES = 5 * 1024 * 1024
@@ -51,6 +52,9 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
   const [identidade, setIdentidade] = useState(/** @type {File | null} */ (null))
   const [endereco, setEndereco] = useState(/** @type {File | null} */ (null))
   const [profissao, setProfissao] = useState(/** @type {File | null} */ (null))
+  const [urlIdentidade, setUrlIdentidade] = useState('')
+  const [urlEndereco, setUrlEndereco] = useState('')
+  const [urlProfissao, setUrlProfissao] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
   const [okMsg, setOkMsg] = useState('')
@@ -62,7 +66,9 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       // Alguns bancos antigos ainda não têm `profissionais.telefone`; tenta com fallback.
       const res1 = await supabase
         .from('profissionais')
-        .select('nome_completo, whatsapp, telefone')
+        .select(
+          'nome_completo, whatsapp, telefone, documento_frente_url, comprovante_residencia_url, comprovante_profissao_url',
+        )
         .eq('usuario_id', usuarioId)
         .maybeSingle()
 
@@ -71,7 +77,9 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
           ? (
               await supabase
                 .from('profissionais')
-                .select('nome_completo, whatsapp')
+                .select(
+                  'nome_completo, whatsapp, documento_frente_url, comprovante_residencia_url, comprovante_profissao_url',
+                )
                 .eq('usuario_id', usuarioId)
                 .maybeSingle()
             ).data
@@ -80,6 +88,9 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       setNomeCompleto(String(data.nome_completo ?? '').trim())
       const contato = String(data.whatsapp ?? data.telefone ?? '').trim()
       if (contato) setWhatsapp(contato)
+      setUrlIdentidade(String(data.documento_frente_url ?? '').trim())
+      setUrlEndereco(String(data.comprovante_residencia_url ?? '').trim())
+      setUrlProfissao(String(data.comprovante_profissao_url ?? '').trim())
     })()
     return () => {
       ativo = false
@@ -163,6 +174,13 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
 
       if (upErr) throw new Error(upErr.message)
 
+      setUrlIdentidade(uId)
+      setUrlEndereco(uEnd)
+      setUrlProfissao(uProf)
+      setIdentidade(null)
+      setEndereco(null)
+      setProfissao(null)
+
       setOkMsg('Documentos enviados com sucesso! Aguarde a análise do administrador.')
       try {
         window.dispatchEvent(new CustomEvent('profissional-gate-refresh'))
@@ -179,30 +197,41 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
   }, [usuarioId, nomeCompleto, whatsapp, identidade, endereco, profissao, onConcluido])
 
   /**
-   * @param {{ label: string, file: File | null, onChange: (f: File | null) => void }} props
+   * @param {{ label: string, file: File | null, onChange: (f: File | null) => void, jaAnexado?: boolean }} props
    */
-  function CampoArquivo({ label, file, onChange }) {
+  function CampoArquivo({ label, file, onChange, jaAnexado = false }) {
     const inputId = useId()
+    const mostrarCheck = jaAnexado || Boolean(file)
     return (
       <div className="flex flex-wrap items-center gap-2">
         <span className="min-w-0 flex-1 text-sm font-semibold text-gray-800">{label}</span>
-        <label
-          htmlFor={inputId}
-          className="shrink-0 cursor-pointer rounded-md bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#007d94]"
-        >
-          Escolher arquivo
-        </label>
-        <input
-          id={inputId}
-          type="file"
-          accept={ACCEPT}
-          className="sr-only"
-          onChange={(e) => {
-            onChange(e.target.files?.[0] ?? null)
-            e.target.value = ''
-          }}
-        />
-        {file ? <span className="sr-only">Arquivo: {file.name}</span> : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {mostrarCheck ? (
+            <Check
+              className="h-5 w-5 text-emerald-400"
+              strokeWidth={3}
+              aria-hidden
+              title="Arquivo anexado"
+            />
+          ) : null}
+          <label
+            htmlFor={inputId}
+            className="cursor-pointer rounded-md bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#007d94]"
+          >
+            Escolher arquivo
+          </label>
+          <input
+            id={inputId}
+            type="file"
+            accept={ACCEPT}
+            className="sr-only"
+            onChange={(e) => {
+              onChange(e.target.files?.[0] ?? null)
+              e.target.value = ''
+            }}
+          />
+          {file ? <span className="sr-only">Arquivo: {file.name}</span> : null}
+        </div>
       </div>
     )
   }
@@ -249,9 +278,24 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       </div>
 
       <div className="space-y-3">
-        <CampoArquivo label="Documento de identificação" file={identidade} onChange={onChangeArquivo(setIdentidade)} />
-        <CampoArquivo label="Comprovante de endereço" file={endereco} onChange={onChangeArquivo(setEndereco)} />
-        <CampoArquivo label="Comprovante de profissão" file={profissao} onChange={onChangeArquivo(setProfissao)} />
+        <CampoArquivo
+          label="Documento de identificação"
+          file={identidade}
+          onChange={onChangeArquivo(setIdentidade)}
+          jaAnexado={Boolean(urlIdentidade)}
+        />
+        <CampoArquivo
+          label="Comprovante de endereço"
+          file={endereco}
+          onChange={onChangeArquivo(setEndereco)}
+          jaAnexado={Boolean(urlEndereco)}
+        />
+        <CampoArquivo
+          label="Comprovante de profissão"
+          file={profissao}
+          onChange={onChangeArquivo(setProfissao)}
+          jaAnexado={Boolean(urlProfissao)}
+        />
       </div>
 
       <button

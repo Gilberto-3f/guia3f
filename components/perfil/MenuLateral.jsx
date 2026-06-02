@@ -22,7 +22,6 @@ import {
   MapPin,
   Megaphone,
   MessageSquare,
-  Check,
   Eye,
   Paperclip,
   Phone,
@@ -73,7 +72,6 @@ import AnexarDocumentosEmpresa from '@/components/perfil/subpaginas/AnexarDocume
 import HistoricoManifestos from '@/components/perfil/subpaginas/HistoricoManifestos'
 import ParceriasProfissional from '@/components/perfil/subpaginas/ParceriasProfissional'
 import VisitantesPerfil from '@/components/perfil/subpaginas/VisitantesPerfil'
-import { empresaTemDocumentosAnexados, profissionalTemDocumentosAnexados } from '@/lib/documentosAnexadosMenu'
 import { contarVisitasPerfilPendentes } from '@/lib/perfilVisitas'
 
 /**
@@ -372,8 +370,6 @@ export default function MenuLateral({
   const modoApresentacaoAtivo = modoAtivo
 
   const [profVerificadoMenu, setProfVerificadoMenu] = useState(false)
-  const [docsAnexadosProf, setDocsAnexadosProf] = useState(false)
-  const [docsAnexadosEmpresa, setDocsAnexadosEmpresa] = useState(false)
   const [visitasPendentes, setVisitasPendentes] = useState(0)
 
   useEffect(() => {
@@ -441,17 +437,7 @@ export default function MenuLateral({
     if (!usuarioIdEfetivo) return
     const pendentes = await contarVisitasPerfilPendentes(supabase, usuarioIdEfetivo)
     setVisitasPendentes(pendentes)
-    if (menuVariantEfetivo === 'profissional') {
-      setDocsAnexadosProf(await profissionalTemDocumentosAnexados(supabase, usuarioIdEfetivo))
-      setDocsAnexadosEmpresa(false)
-    } else if (menuVariantEfetivo === 'empresa' && empresaIdEfetivo) {
-      setDocsAnexadosEmpresa(await empresaTemDocumentosAnexados(supabase, String(empresaIdEfetivo)))
-      setDocsAnexadosProf(false)
-    } else {
-      setDocsAnexadosProf(false)
-      setDocsAnexadosEmpresa(false)
-    }
-  }, [usuarioIdEfetivo, menuVariantEfetivo, empresaIdEfetivo])
+  }, [usuarioIdEfetivo])
 
   useEffect(() => {
     if (!aberto || !usuarioIdEfetivo) return
@@ -796,9 +782,6 @@ export default function MenuLateral({
     <ul className={compact ? 'space-y-0.5' : 'space-y-1'}>
       {lista.map((item, idx) => {
         const Ico = item.Icon
-        const mostrarCheckDocs =
-          (item.subpagina === 'anexar-documentos' && docsAnexadosProf) ||
-          (item.subpagina === 'anexar-documentos-empresa' && docsAnexadosEmpresa)
         const badgeItem =
           item.badge ??
           (item.subpagina === 'historico-decisoes'
@@ -811,17 +794,10 @@ export default function MenuLateral({
             <button
               type="button"
               onClick={() => executarItem(item)}
-              className={`flex w-full items-center gap-2 rounded-xl text-left text-sm font-medium text-gray-900 transition hover:bg-gray-100 ${
+              className={`flex w-full items-center gap-3 rounded-xl text-left text-sm font-medium text-gray-900 transition hover:bg-gray-100 ${
                 compact ? 'px-0 py-1.5' : 'px-3 py-2.5'
               }`}
             >
-              {mostrarCheckDocs ? (
-                <Check
-                  className="h-4 w-4 shrink-0 text-emerald-400"
-                  strokeWidth={3}
-                  aria-label="Documentos anexados"
-                />
-              ) : null}
               <span
                 className={`flex shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500 ${
                   compact ? 'h-8 w-8' : 'h-9 w-9'
