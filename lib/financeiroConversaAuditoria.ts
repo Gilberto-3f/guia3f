@@ -53,8 +53,28 @@ export function assuntoSemLinhasAuditoria(assunto: string | null | undefined): s
   return rest.length ? rest.join('\n') : null
 }
 
-/** Acrescenta linha ao assunto (sem duplicar linha idêntica). */
-export async function appendAssuntoLogConversaFinanceiro(
+/** Linha única para exibição — prioriza arquivamento sobre acesso. */
+export function extrairLinhaAuditoriaUnica(assunto: string | null | undefined): string | null {
+  const linhas = extrairLinhasAuditoriaAssunto(assunto)
+  const arquivado = linhas.find((l) => /^Arquivado por/i.test(l))
+  if (arquivado) return arquivado
+  const acessado = linhas.find((l) => /^Acessado por/i.test(l))
+  return acessado ?? null
+}
+
+/** Substitui linhas de auditoria por uma única linha (mantém texto livre do assunto). */
+export function definirLinhaAuditoriaUnicaAssunto(
+  assuntoAtual: string | null | undefined,
+  linhaAuditoria: string,
+): string {
+  const livre = assuntoSemLinhasAuditoria(assuntoAtual)
+  const audit = linhaAuditoria.trim()
+  if (!audit) return livre ?? ''
+  return livre ? `${livre}\n${audit}` : audit
+}
+
+/** Grava uma única linha de auditoria no assunto (substitui «Acessado/Arquivado por …» anteriores). */
+export async function substituirLogConversaFinanceiro(
   supabase: SupabaseClient,
   conversaId: string,
   linha: string,
@@ -64,11 +84,18 @@ export async function appendAssuntoLogConversaFinanceiro(
   if (!id || !nova) return
 
   const { data } = await supabase.from('financeiro_conversas').select('assunto').eq('id', id).maybeSingle()
-  const atual = data?.assunto != null ? String(data.assunto).trim() : ''
-  if (atual.split('\n').some((l) => l.trim() === nova)) return
+  const atual = data?.assunto != null ? String(data.assunto) : null
+  const next = definirLinhaAuditoriaUnicaAssunto(atual, nova)
+  await supabase.from('financeiro_conversas').update({ assunto: next || null }).eq('id', id)
+}
 
-  const next = atual ? `${atual}\n${nova}` : nova
-  await supabase.from('financeiro_conversas').update({ assunto: next }).eq('id', id)
+/** @deprecated Preferir {@link substituirLogConversaFinanceiro} — mantido para compatibilidade interna. */
+export async function appendAssuntoLogConversaFinanceiro(
+  supabase: SupabaseClient,
+  conversaId: string,
+  linha: string,
+): Promise<void> {
+  await substituirLogConversaFinanceiro(supabase, conversaId, linha)
 }
 
 export async function registrarLogConversaFinanceiro(
@@ -77,5 +104,5 @@ export async function registrarLogConversaFinanceiro(
 ): Promise<void> {
   const handle = await resolverHandleAdmFinanceiro(supabase, params.admUsuarioId)
   const linha = linhaLogFinanceiroConversa(params.acao, handle)
-  await appendAssuntoLogConversaFinanceiro(supabase, params.conversaId, linha)
+  await substituirLogConversaFinanceiro(supabase, params.conversaId, linha)
 }

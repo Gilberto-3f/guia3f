@@ -10,7 +10,7 @@ import { ehAnexoAudioCanal, ehAnexoImagemCanal } from '@/lib/canalAnexoUrl'
 import type { FinanceiroMensagemRow } from '@/lib/financeiroConversas'
 import {
   assuntoSemLinhasAuditoria,
-  extrairLinhasAuditoriaAssunto,
+  extrairLinhaAuditoriaUnica,
 } from '@/lib/financeiroConversaAuditoria'
 
 const INPUT_FIN = 'text-gray-900 placeholder:text-gray-500 caret-gray-900'
@@ -408,9 +408,11 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
       return
     }
     patchPainel(abaBusca, { painelDesempenho: true })
+    if (conversaId) void registrarAcessoConversa(conversaId)
     if (!desempenho) await carregarDesempenho()
   }
 
+  /** Registra «Acessado por …» ao abrir o painel de desempenho (uma linha por conversa). */
   const registrarAcessoConversa = async (id: string) => {
     try {
       await fetch(`/api/admin/financeiro-conversas/${id}`, {
@@ -484,7 +486,6 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
       setHistoricoAdmId(
         json.conversa?.adm_usuario_id != null ? String(json.conversa.adm_usuario_id) : null,
       )
-      void registrarAcessoConversa(id)
     } catch {
       setHistoricoErro('Erro de rede ao carregar o diálogo.')
     } finally {
@@ -518,7 +519,6 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
             conversaId: aberta.id,
             painelMensageiro: true,
           })
-          void registrarAcessoConversa(aberta.id)
           await carregarMensagens(abaBusca, aberta.id)
         }
       } catch {
@@ -571,7 +571,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
             <ul className={`mt-2 space-y-2 overflow-y-auto ${embedded ? 'max-h-[min(70vh,32rem)]' : 'max-h-80'}`}>
               {historico.map((h) => {
                 const expandido = historicoDetalhe === h.id
-                const linhasAuditoria = extrairLinhasAuditoriaAssunto(h.assunto)
+                const linhaAuditoria = extrairLinhaAuditoriaUnica(h.assunto)
                 const assuntoLivre = assuntoSemLinhasAuditoria(h.assunto)
                 return (
                   <li key={h.id}>
@@ -609,21 +609,18 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                         />
                       </div>
 
-                      {linhasAuditoria.length > 0 || assuntoLivre ? (
-                        <div className="border-b border-gray-100 bg-white px-3 py-2">
-                          {linhasAuditoria.map((linha) => (
-                            <p key={linha} className="text-xs text-gray-600">
-                              {linha}
-                            </p>
-                          ))}
-                          {assuntoLivre ? (
-                            <p className="whitespace-pre-line text-xs text-gray-500">{assuntoLivre}</p>
-                          ) : null}
-                        </div>
-                      ) : null}
-
                       {expandido ? (
                         <div className="bg-white">
+                          {linhaAuditoria || assuntoLivre ? (
+                            <div className="border-b border-gray-100 px-3 py-2">
+                              {linhaAuditoria ? (
+                                <p className="text-xs text-gray-600">{linhaAuditoria}</p>
+                              ) : null}
+                              {assuntoLivre ? (
+                                <p className="whitespace-pre-line text-xs text-gray-500">{assuntoLivre}</p>
+                              ) : null}
+                            </div>
+                          ) : null}
                           <ListaMensagensFinanceiro
                             mensagens={historicoMensagens}
                             viewerUserId={historicoAdmId ?? ''}

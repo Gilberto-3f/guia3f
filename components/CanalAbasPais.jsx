@@ -16,8 +16,11 @@ const EMOJI_PAIS = /** @type {const} */ ({
   PY: '🇵🇾',
 })
 
-const tabBase =
-  'flex min-h-[2rem] flex-1 max-w-[3.25rem] flex-col items-center justify-center gap-0 rounded-md px-1 py-1 text-center transition-all'
+const tabGeral =
+  'flex min-h-[2rem] max-w-[3.25rem] flex-col items-center justify-center gap-0 rounded-md px-1.5 py-1 text-center transition-all'
+
+const tabBandeira =
+  'flex min-h-[2.75rem] max-w-[4.5rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 text-center transition-all'
 
 /**
  * @param {{
@@ -29,9 +32,9 @@ const tabBase =
  */
 export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadores = {} }) {
   return (
-    <div className="bg-white px-2 py-1">
+    <div className="bg-white px-4 py-2">
       <div
-        className="mx-auto flex w-full max-w-xs items-stretch justify-center gap-1.5"
+        className="mx-auto flex w-full max-w-md items-stretch justify-center gap-4"
         role="tablist"
         aria-label="Filtro por região"
       >
@@ -52,7 +55,7 @@ export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadore
                 title={a11y}
                 aria-label={a11y}
                 onClick={() => onAbaChange(pais)}
-                className={`${tabBase} ${ring}`}
+                className={`${tabGeral} ${ring}`}
               >
                 <Users className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
                 <span className="text-[9px] font-medium leading-tight">Todos</span>
@@ -77,14 +80,14 @@ export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadore
               aria-selected={ativo}
               title={a11y}
               aria-label={a11y}
-                onClick={() => onAbaChange(pais)}
-              className={`${tabBase} ${ring} ${!ativo ? 'opacity-85' : ''}`}
+              onClick={() => onAbaChange(pais)}
+              className={`${tabBandeira} ${ring} ${!ativo ? 'opacity-85' : ''}`}
             >
-              <span className="text-xl leading-none" aria-hidden>
+              <span className="text-[2rem] leading-none" aria-hidden>
                 {emoji}
               </span>
               {contadores[pais] !== undefined ? (
-                <span className="rounded bg-gray-100 px-0.5 text-[9px] tabular-nums text-gray-600">
+                <span className="rounded bg-gray-100 px-1 text-[9px] tabular-nums text-gray-600">
                   {contadores[pais]}
                 </span>
               ) : null}
