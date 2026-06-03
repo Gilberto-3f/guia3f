@@ -13,8 +13,8 @@ export default function GradeFiltros({ onFiltroClick }) {
     { id: 'passeios', nome: t('passeios'), icon: Ticket },
     { id: 'lojas', nome: t('lojas'), icon: ShoppingBag },
     { id: 'hospedagem', nome: t('hospedagem'), icon: Hotel },
-    { id: 'compras', nome: t('compras'), icon: ShoppingCart },
     { id: 'servicos_locais', nome: t('servicosLocais'), icon: Wrench },
+    { id: 'compras', nome: t('compras'), icon: ShoppingCart },
   ]
 
   return (

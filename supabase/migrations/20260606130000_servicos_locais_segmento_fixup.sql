@@ -1,4 +1,6 @@
--- Segmento Serviços Locais: canal global + helper RLS para segmentos de empresa no guia.
+-- Fix: Serviços Locais — canal global (índice parcial canais_unique_global_nome_tipo)
+-- Use este arquivo se 20260606120000 falhou no INSERT com ON CONFLICT (nome, tipo_publico).
+-- Idempotente: pode rodar mesmo que as funções já tenham sido criadas.
 
 INSERT INTO public.canais (
   nome,
@@ -89,7 +91,6 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.profissional_badges_segmentos_empresa () TO authenticated;
 
--- Atualiza visibilidade de mensagens/reações para incluir Serviços Locais.
 CREATE OR REPLACE FUNCTION public.usuario_pode_ver_canal_mensagem(p_canal_id uuid)
 RETURNS boolean
 LANGUAGE sql
