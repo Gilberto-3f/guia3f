@@ -59,9 +59,6 @@ function chaveProfissional(c: CanalParticaoAdmin): string | null {
  * Visão admin (Mensageiro ADM): mesmas pastas da lista — exclui canais ocultos/legados fora das pastas.
  */
 export function particionarVisaoAdminTodos(canaisOrdenados: CanalParticaoAdmin[]) {
-  const administracaoEmp = canaisOrdenados.filter(
-    (c) => c.tipo_publico === 'empresa' && c.empresa_id == null && nomeNormCanal(c.nome) === 'FINANCEIRO',
-  )
   return {
     administrador: canaisOrdenados.filter(
       (c) =>
@@ -103,7 +100,8 @@ export function particionarVisaoAdminTodos(canaisOrdenados: CanalParticaoAdmin[]
 
       return [...best.values()]
     })(),
-    administracaoEmp,
+    /** Canal Financeiro empresa é pessoal; hub ADM usa o canal profissional (evita duplicata na lista). */
+    administracaoEmp: [] as CanalParticaoAdmin[],
     empresas: canaisOrdenados.filter(
       (c) =>
         c.tipo_publico === 'empresa' &&

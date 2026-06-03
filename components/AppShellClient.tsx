@@ -48,11 +48,16 @@ function AppShellLayoutFrame({
   children: ReactNode
 }) {
   const { hideBottomBar, paddingInferior, fundoShell } = shellClasses(pathname, tecladoOcultaBarra)
+  const isCanal = pathname.includes('/canal')
 
   return (
-    <div className={`flex min-h-screen min-h-dvh flex-col ${fundoShell} ${paddingInferior}`}>
+    <div
+      className={`flex flex-col ${fundoShell} ${paddingInferior} ${
+        isCanal ? 'h-dvh max-h-dvh overflow-hidden' : 'min-h-screen min-h-dvh'
+      }`}
+    >
       {modoAtivo ? null : <ModoApresentacaoChrome />}
-      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      <div className={`flex min-h-0 flex-1 flex-col ${isCanal ? 'overflow-hidden' : ''}`}>{children}</div>
       {!hideBottomBar ? <BottomBar /> : null}
     </div>
   )

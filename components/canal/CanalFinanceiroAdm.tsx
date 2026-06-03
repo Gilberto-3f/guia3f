@@ -8,6 +8,10 @@ import CanalMensagemImagem from '@/components/CanalMensagemImagem'
 import { rotuloCategoriaCardFinanceiro } from '@/lib/canaisProfissionaisListaUi'
 import { ehAnexoAudioCanal, ehAnexoImagemCanal } from '@/lib/canalAnexoUrl'
 import type { FinanceiroMensagemRow } from '@/lib/financeiroConversas'
+import {
+  assuntoSemLinhasAuditoria,
+  extrairLinhasAuditoriaAssunto,
+} from '@/lib/financeiroConversaAuditoria'
 
 const INPUT_FIN = 'text-gray-900 placeholder:text-gray-500 caret-gray-900'
 const AVATAR_QUADRADO = 'shrink-0 rounded-md object-cover'
@@ -567,6 +571,8 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
             <ul className={`mt-2 space-y-2 overflow-y-auto ${embedded ? 'max-h-[min(70vh,32rem)]' : 'max-h-80'}`}>
               {historico.map((h) => {
                 const expandido = historicoDetalhe === h.id
+                const linhasAuditoria = extrairLinhasAuditoriaAssunto(h.assunto)
+                const assuntoLivre = assuntoSemLinhasAuditoria(h.assunto)
                 return (
                   <li key={h.id}>
                     <div className="overflow-hidden rounded-xl shadow-sm">
@@ -592,11 +598,6 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                               {h.alvo_tipo === 'profissional' ? 'Profissional' : 'Empresa'}
                               {h.encerrada_em ? ` · ${new Date(h.encerrada_em).toLocaleString('pt-BR')}` : ''}
                             </div>
-                            {h.assunto ? (
-                              <div className="line-clamp-3 whitespace-pre-line text-xs text-white/80">
-                                {h.assunto}
-                              </div>
-                            ) : null}
                           </div>
                         </button>
                         <BotaoChevronHistorico
@@ -607,6 +608,19 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                           }}
                         />
                       </div>
+
+                      {linhasAuditoria.length > 0 || assuntoLivre ? (
+                        <div className="border-b border-gray-100 bg-white px-3 py-2">
+                          {linhasAuditoria.map((linha) => (
+                            <p key={linha} className="text-xs text-gray-600">
+                              {linha}
+                            </p>
+                          ))}
+                          {assuntoLivre ? (
+                            <p className="whitespace-pre-line text-xs text-gray-500">{assuntoLivre}</p>
+                          ) : null}
+                        </div>
+                      ) : null}
 
                       {expandido ? (
                         <div className="bg-white">

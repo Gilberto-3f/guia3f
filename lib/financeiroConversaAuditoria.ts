@@ -32,6 +32,27 @@ export function linhaLogFinanceiroConversa(acao: AcaoLogFinanceiroConversa, hand
   return acao === 'arquivado' ? `Arquivado por ${h}` : `Acessado por ${h}`
 }
 
+const RE_LINHA_AUDITORIA = /^(Acessado por|Arquivado por)\s+@/i
+
+/** Linhas de rastreamento ADM (acesso/arquivamento) gravadas no campo `assunto`. */
+export function extrairLinhasAuditoriaAssunto(assunto: string | null | undefined): string[] {
+  if (assunto == null || !String(assunto).trim()) return []
+  return String(assunto)
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => RE_LINHA_AUDITORIA.test(l))
+}
+
+/** Texto livre do assunto, sem linhas de auditoria. */
+export function assuntoSemLinhasAuditoria(assunto: string | null | undefined): string | null {
+  if (assunto == null || !String(assunto).trim()) return null
+  const rest = String(assunto)
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !RE_LINHA_AUDITORIA.test(l))
+  return rest.length ? rest.join('\n') : null
+}
+
 /** Acrescenta linha ao assunto (sem duplicar linha idêntica). */
 export async function appendAssuntoLogConversaFinanceiro(
   supabase: SupabaseClient,

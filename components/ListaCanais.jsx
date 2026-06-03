@@ -134,7 +134,15 @@ function ordenarBlocoAdministracaoUnificada(lista) {
   // Evita duplicar "Canal ADM" quando há canais equivalentes (ex.: ADM e MENSAGEIRO).
   // Mantém o canal ADM quando existir e oculta o "MENSAGEIRO" (mesma função na UI).
   const temAdm = lista.some((c) => nomeNorm(c.nome) === 'ADM')
-  const filtrada = temAdm ? lista.filter((c) => nomeNorm(c.nome) !== 'MENSAGEIRO') : lista
+  let filtrada = temAdm ? lista.filter((c) => nomeNorm(c.nome) !== 'MENSAGEIRO') : lista
+
+  // Um único Canal Financeiro na pasta ADM (profissional tem prioridade sobre empresa).
+  const financeiros = filtrada.filter((c) => nomeNorm(c.nome) === 'FINANCEIRO')
+  if (financeiros.length > 1) {
+    const keeper =
+      financeiros.find((c) => c.tipo_publico === 'profissional') ?? financeiros[0]
+    filtrada = filtrada.filter((c) => nomeNorm(c.nome) !== 'FINANCEIRO' || c.id === keeper.id)
+  }
 
   const fixos = filtrada.filter((c) => c.ordem_tipo === 'fixo')
   const rot = filtrada.filter((c) => c.ordem_tipo !== 'fixo')

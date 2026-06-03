@@ -1001,7 +1001,7 @@ export default function CanalMensagens({
   }
 
   return (
-    <div className="canal-chat flex h-full min-h-0 flex-1 flex-col">
+    <div className="canal-chat flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <div
         ref={messagesContainerRef}
         className={`canal-chat-messages scrollbar-perfil flex min-h-0 flex-1 flex-col space-y-1 overflow-y-auto px-2 py-2 ${
