@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { ehCategoriaEmpresaPermitida } from '@/lib/segmentosEmpresaGuia'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
@@ -61,8 +62,7 @@ export async function POST(req: NextRequest) {
     const nomeFantasia = String(form.get('nomeFantasia') || '').trim()
     const nomeUsuario = String(form.get('nomeUsuario') || '').trim().toLowerCase().replace(/^@+/, '')
     const categoria = String(form.get('categoria') || '').trim()
-    const CATEGORIAS_PERMITIDAS = new Set(['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem'])
-    if (!CATEGORIAS_PERMITIDAS.has(categoria)) {
+    if (!ehCategoriaEmpresaPermitida(categoria)) {
       return NextResponse.json({ error: 'invalid_category' }, { status: 400 })
     }
     const cidade = String(form.get('cidade') || '').trim()

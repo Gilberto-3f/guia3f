@@ -426,6 +426,8 @@ function getLabelCategoriaGuia(categoria: string): string {
     lojas: 'Lojas',
     hotelaria: 'Hotelaria',
     passeios: 'Passeios',
+    hospedagem: 'Hospedagem',
+    servicos_locais: 'Serviços Locais',
   }
   return labels[categoria] ?? categoria
 }

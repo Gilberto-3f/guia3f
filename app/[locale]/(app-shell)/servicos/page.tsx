@@ -1,8 +1,19 @@
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from '@/i18n/navigation'
+
+/** Legado: redireciona para o segmento Serviços Locais no guia. */
 export default function ServicosPage() {
+  const router = useRouter()
+
+  useEffect(() => {
+    router.replace('/guia/servicos_locais')
+  }, [router])
+
   return (
-    <div className="p-6">
-      <h1 className="text-xl font-bold text-gray-900">Serviços</h1>
-      <p className="mt-2 text-gray-600">Conteúdo em breve.</p>
+    <div className="flex flex-1 items-center justify-center p-6">
+      <p className="text-sm text-gray-500">Redirecionando…</p>
     </div>
   )
 }

@@ -70,7 +70,9 @@ export function classificarAudienciaCanal(canal: CanalMembrosRow): AudienciaCana
               ? 'Lojas'
               : segSlug === 'hospedagem'
                 ? 'Hospedagem'
-                : null
+                : segSlug === 'servicos_locais'
+                  ? 'Serviços Locais'
+                  : null
       if (chaveFromSlug) return { tipo: 'empresas_segmento', chave: chaveFromSlug }
     }
   }

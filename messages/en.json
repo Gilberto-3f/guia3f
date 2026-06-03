@@ -190,6 +190,7 @@
         "Atrativos": "Attractions",
         "Lojas": "Shops",
         "Hospedagem": "Lodging",
+        "ServicosLocais": "Local Services",
         "comprasParaguai": "Paraguay shopping"
       },
       "cidade": {
@@ -254,6 +255,7 @@
     "compras": "Paraguay Shopping",
     "favoritos": "My Favorites",
     "servicos": "Services",
+    "servicosLocais": "Local Services",
     "tabGuia": "GUIDE",
     "tabMobilidade": "MOBILITY"
   }

@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { Calendar, Car, Hotel, Package, ShoppingBag, Ticket, Utensils } from 'lucide-react'
+import { Calendar, Car, Hotel, MessageCircle, Package, ShoppingBag, Ticket, Utensils } from 'lucide-react'
 
 export const ROTULO_ABA_SERVICO: Record<string, string> = {
   gastronomia: 'Reservar',
@@ -10,6 +10,8 @@ export const ROTULO_ABA_SERVICO: Record<string, string> = {
   Lojas: 'Produtos',
   hospedagem: 'Reservar',
   Hospedagem: 'Reservar',
+  servicos_locais: 'WhatsApp',
+  'Serviços Locais': 'WhatsApp',
   'Compras Paraguai': 'Ofertas',
   eventos: 'Ingressos',
   Eventos: 'Ingressos',
@@ -27,6 +29,8 @@ const ICONE_BA_SERVICO: Record<string, LucideIcon> = {
   Lojas: ShoppingBag,
   hospedagem: Hotel,
   Hospedagem: Hotel,
+  servicos_locais: MessageCircle,
+  'Serviços Locais': MessageCircle,
   'Compras Paraguai': ShoppingBag,
   eventos: Calendar,
   Eventos: Calendar,

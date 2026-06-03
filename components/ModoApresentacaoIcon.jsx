@@ -13,6 +13,7 @@ import {
   Smartphone,
   User,
   Utensils,
+  Wrench,
 } from 'lucide-react'
 
 /** @type {Record<string, import('lucide-react').LucideIcon>} */
@@ -27,6 +28,7 @@ const MAP = {
   lojas_py: ShoppingBag,
   passeios: MapPinned,
   hospedagem: Bed,
+  servicos_locais: Wrench,
   empresa: Building2,
   profissional: Briefcase,
 }

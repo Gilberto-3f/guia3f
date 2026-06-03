@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag } from 'lucide-react'
+import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag, MessageCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
@@ -24,6 +24,8 @@ const botoesPorCategoria = {
   Eventos: { texto: 'COMPRAR INGRESSO', icon: Calendar, cor: '#DDA0DD', acao: 'ticket' },
   Mobilidade: { texto: 'CHAMAR CORRIDA', icon: Car, cor: '#FFEAA7', acao: 'corrida' },
   'Compras Paraguai': { texto: 'VER OFERTAS', icon: ShoppingBag, cor: '#F1C40F', acao: 'produtos' },
+  servicos_locais: { texto: 'FALAR NO WHATSAPP', icon: MessageCircle, cor: '#25D366', acao: 'whatsapp' },
+  'Serviços Locais': { texto: 'FALAR NO WHATSAPP', icon: MessageCircle, cor: '#25D366', acao: 'whatsapp' },
 }
 
 function isHospedagem(cat) {
@@ -141,6 +143,16 @@ export default function AbaBotaoDinamico({
     setShowReservaMesaModal(false)
   }
 
+  const abrirWhatsappServicosLocais = () => {
+    const wa = whatsappWaUrl(whatsapp)
+    if (!wa) {
+      alert('WhatsApp da empresa não configurado.')
+      return
+    }
+    const texto = `Olá! Vi ${empresaNome} no Guia 3F e gostaria de mais informações.`
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(texto)}`, '_blank')
+  }
+
   const handleClick = () => {
     switch (config.acao) {
       case 'reserva':
@@ -160,6 +172,9 @@ export default function AbaBotaoDinamico({
         break
       case 'corrida':
         irMobilidadeEmpresa()
+        break
+      case 'whatsapp':
+        abrirWhatsappServicosLocais()
         break
       default:
         router.push(`/empresa/${empresaId}`)

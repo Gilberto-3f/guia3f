@@ -38,7 +38,7 @@ const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'an
 
 /** Valores legados (categoria) e rótulos atuais (cadastro / `empresa_categoria`). */
 const CATEGORIAS_EMPRESAS = ['gastronomia', 'lojas', 'passeios', 'hospedagem']
-const CATEGORIAS_EMPRESAS_ROTULO = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
+const CATEGORIAS_EMPRESAS_ROTULO = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem', 'Serviços Locais']
 
 /**
  * @param {Canal} c

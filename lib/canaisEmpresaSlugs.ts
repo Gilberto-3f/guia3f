@@ -1,7 +1,10 @@
-/** Slugs de segmento comercial (canais globais onde o ADM publica avisos). */
-export const SEGMENTOS_EMPRESA_SLUG = ['gastronomia', 'lojas', 'passeios', 'hospedagem'] as const
+import {
+  SEGMENTOS_EMPRESA_SLUG,
+  type SegmentoEmpresaSlug,
+  categoriaDbParaSlug,
+} from '@/lib/segmentosEmpresaGuia'
 
-export type SegmentoEmpresaSlug = (typeof SEGMENTOS_EMPRESA_SLUG)[number]
+export { SEGMENTOS_EMPRESA_SLUG, type SegmentoEmpresaSlug }
 
 const ROTULO_PARA_SLUG: Record<string, SegmentoEmpresaSlug> = {
   gastronomia: 'gastronomia',
@@ -16,6 +19,9 @@ const ROTULO_PARA_SLUG: Record<string, SegmentoEmpresaSlug> = {
   atrativos: 'passeios',
   hospedagem: 'hospedagem',
   Hospedagem: 'hospedagem',
+  servicos_locais: 'servicos_locais',
+  'Serviços Locais': 'servicos_locais',
+  'Servicos Locais': 'servicos_locais',
 }
 
 export function categoriaEmpresaParaSlug(valor: string | null | undefined): string {
@@ -50,6 +56,10 @@ export function slugCanalSegmentoEmpresa(
   if (rawNome === 'lojas') return 'lojas'
   if (rawNome === 'passeios') return 'passeios'
   if (rawNome === 'hospedagem') return 'hospedagem'
+  if (rawNome === 'servicos locais' || rawNome === 'serviços locais') return 'servicos_locais'
+
+  const fromDb = categoriaDbParaSlug(categoria)
+  if (fromDb) return fromDb
 
   if ((SEGMENTOS_EMPRESA_SLUG as readonly string[]).includes(rawNome)) {
     return rawNome

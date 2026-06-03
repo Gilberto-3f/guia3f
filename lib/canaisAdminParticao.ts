@@ -1,12 +1,14 @@
 import { ehCanalInboxMensageiroAdm } from '@/lib/canaisAdminVisibilidade'
 import { excluirCanalMensageiroVisaoAdm, nomeNormCanal } from '@/lib/rotulosCanaisAdministracao'
 
+import { CATEGORIAS_EMPRESA_DB, SEGMENTOS_EMPRESA_SLUG } from '@/lib/segmentosEmpresaGuia'
+
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao'] as const
 
 /** Valores legados (categoria) e rótulos atuais (cadastro / `empresa_categoria`). */
-const CATEGORIAS_EMPRESAS = ['gastronomia', 'lojas', 'passeios', 'hospedagem'] as const
-const CATEGORIAS_EMPRESAS_ROTULO = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem'] as const
+const CATEGORIAS_EMPRESAS = SEGMENTOS_EMPRESA_SLUG
+const CATEGORIAS_EMPRESAS_ROTULO = CATEGORIAS_EMPRESA_DB
 
 export type CanalParticaoAdmin = {
   id: string

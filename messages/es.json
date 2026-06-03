@@ -190,6 +190,7 @@
         "Atrativos": "Atractivos",
         "Lojas": "Tiendas",
         "Hospedagem": "Alojamiento",
+        "ServicosLocais": "Servicios Locales",
         "comprasParaguai": "Compras Paraguay"
       },
       "cidade": {
@@ -254,6 +255,7 @@
     "compras": "Compras Paraguay",
     "favoritos": "Mis Favoritos",
     "servicos": "Servicios",
+    "servicosLocais": "Servicios Locales",
     "tabGuia": "GUÍA",
     "tabMobilidade": "MOVILIDAD"
   }

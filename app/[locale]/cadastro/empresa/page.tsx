@@ -5,10 +5,11 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
+import { CATEGORIAS_EMPRESA_DB } from '@/lib/segmentosEmpresaGuia'
+
+type CategoriaEmpresa = (typeof CATEGORIAS_EMPRESA_DB)[number]
 
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'unavailable'
-
-type CategoriaEmpresa = 'Restaurantes' | 'Atrativos' | 'Lojas' | 'Hospedagem'
 
 type CidadeEmpresa = 'Foz do Iguacu' | 'Ciudad del Este' | 'Puerto Iguazu'
 
@@ -16,7 +17,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const usernameRegex = /^[a-z0-9._]{3,20}$/
 const maxDescricao = 170
 
-const categorias: CategoriaEmpresa[] = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
+const categorias: CategoriaEmpresa[] = [...CATEGORIAS_EMPRESA_DB]
 const cidades: CidadeEmpresa[] = ['Foz do Iguacu', 'Ciudad del Este', 'Puerto Iguazu']
 const diasSemana = ['Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado', 'Domingo']
 
@@ -51,6 +52,7 @@ const catMessageKey: Record<CategoriaEmpresa, string> = {
   Atrativos: 'empresa.cat.Atrativos',
   Lojas: 'empresa.cat.Lojas',
   Hospedagem: 'empresa.cat.Hospedagem',
+  'Serviços Locais': 'empresa.cat.ServicosLocais',
 }
 
 function catLabel(cat: CategoriaEmpresa, t: (k: string) => string) {

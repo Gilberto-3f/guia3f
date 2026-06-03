@@ -6,12 +6,15 @@ import { ArrowLeft, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import CardAtrativo from '@/components/CardAtrativo'
 
+import { slugGuiaParaCategoriaDb } from '@/lib/segmentosEmpresaGuia'
+
 /** Slug da URL (GradeFiltros) → valor de empresas.categoria no cadastro */
 const SLUG_PARA_CATEGORIA_DB: Record<string, string> = {
   gastronomia: 'Restaurantes',
   passeios: 'Atrativos',
   lojas: 'Lojas',
   hospedagem: 'Hospedagem',
+  servicos_locais: 'Serviços Locais',
   compras: 'Compras Paraguai',
   eventos: 'Eventos',
   mobilidade: 'Mobilidade',
@@ -33,6 +36,7 @@ const TITULO_CATEGORIA: Record<string, string> = {
   passeios: 'Passeios',
   lojas: 'Lojas',
   hospedagem: 'Hospedagem',
+  servicos_locais: 'Serviços Locais',
   compras: 'Compras Paraguai',
   eventos: 'Eventos',
   mobilidade: 'Mobilidade',
@@ -82,7 +86,7 @@ export default function ListagemCategoriaPage() {
   const [geoCarregando, setGeoCarregando] = useState(false)
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null)
 
-  const categoriaDb = SLUG_PARA_CATEGORIA_DB[slug] ?? slug
+  const categoriaDb = SLUG_PARA_CATEGORIA_DB[slug] ?? slugGuiaParaCategoriaDb(slug) ?? slug
   const cidadeDb = useMemo(() => CIDADE_POR_PAIS[pais], [pais])
 
   const cacheKey = useMemo(

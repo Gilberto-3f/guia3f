@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Building2, ChevronDown, ChevronUp, ShoppingBag, Star, Ticket, Utensils } from 'lucide-react'
+import { Building2, ChevronDown, ChevronUp, ShoppingBag, Star, Ticket, Utensils, Wrench } from 'lucide-react'
 import {
   CLASSE_AVATAR_CANAL_ADMINISTRACAO,
   iconeCanalProfissionalLista,
@@ -32,7 +32,7 @@ const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'an
 const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App', 'Anfitriao']
 
 /** Ordem amigável das categorias de empresa. */
-const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem']
+const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem', 'Serviços Locais']
 
 /**
  * Normalização de comunidade/categoria para slug.
@@ -78,6 +78,7 @@ const EMPRESA_CATEGORIA_SLUG_PARA_ABA = {
   atrativos: 'Atrativos',
   lojas: 'Lojas',
   hospedagem: 'Hospedagem',
+  servicos_locais: 'Serviços Locais',
 }
 
 /**
@@ -89,6 +90,7 @@ const EMPRESA_CATEGORIA_ROTULO_PARA_ABA = {
   Atrativos: 'Atrativos',
   Lojas: 'Lojas',
   Hospedagem: 'Hospedagem',
+  'Serviços Locais': 'Serviços Locais',
 }
 
 /**
@@ -124,6 +126,7 @@ const ROTULO_CATEGORIA = /** @type {const} */ ({
   Atrativos: { Icon: Ticket, rótulo: 'Atrativos' },
   Lojas: { Icon: ShoppingBag, rótulo: 'Lojas' },
   Hospedagem: { Icon: IconHospedagemEstrela, rótulo: 'Hospedagem' },
+  'Serviços Locais': { Icon: Wrench, rótulo: 'Serviços Locais' },
   Outros: { Icon: Building2, rótulo: 'Outros' },
 })
 

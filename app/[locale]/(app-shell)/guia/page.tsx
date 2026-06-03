@@ -37,8 +37,6 @@ export default function GuiaPage() {
   const handleFiltroClick = (filtroId: string) => {
     if (filtroId === 'compras') {
       router.push('/guia/compras')
-    } else if (filtroId === 'servicos') {
-      router.push('/servicos')
     } else {
       router.push(`/guia/${filtroId}`)
     }

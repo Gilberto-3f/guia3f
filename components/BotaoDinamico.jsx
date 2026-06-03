@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Ticket, Calendar, Car, Package, Utensils, ShoppingBag, X } from 'lucide-react'
+import { Ticket, Calendar, Car, Package, Utensils, ShoppingBag, MessageCircle, X } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
@@ -34,6 +34,11 @@ function isPasseios(cat) {
 function isLojas(cat) {
   const c = norm(cat)
   return c === 'lojas'
+}
+
+function isServicosLocais(cat) {
+  const c = norm(cat)
+  return c === 'servicos_locais' || c === 'serviços locais' || c === 'servicos locais'
 }
 
 /**
@@ -75,6 +80,7 @@ export default function BotaoDinamico({
     if (isGastronomia(categoria)) return { texto: 'RESERVAR MESA', icon: Utensils, acao: 'reserva_mesa' }
     if (isPasseios(categoria)) return { texto: 'COMPRAR TICKET', icon: Ticket, acao: 'ticket' }
     if (isHospedagem(categoria)) return { texto: 'RESERVAR QUARTO', icon: Calendar, acao: 'hospedagem' }
+    if (isServicosLocais(categoria)) return { texto: 'FALAR NO WHATSAPP', icon: MessageCircle, acao: 'whatsapp' }
 
     if (isLojas(categoria)) {
       const c = norm(cidade)
@@ -109,6 +115,16 @@ export default function BotaoDinamico({
     setShowReservaMesaModal(false)
   }
 
+  const abrirWhatsappServicosLocais = () => {
+    const wa = whatsappWaUrl(whatsapp)
+    if (!wa) {
+      alert('WhatsApp da empresa não configurado.')
+      return
+    }
+    const texto = `Olá! Vi ${empresaNome || 'sua empresa'} no Guia 3F e gostaria de mais informações.`
+    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(texto)}`, '_blank')
+  }
+
   const executarAcao = () => {
     if (!podeInteragir) {
       notificarSomenteLeitura()
@@ -139,6 +155,9 @@ export default function BotaoDinamico({
         break
       case 'hospedagem':
         setShowReservaPopup(true)
+        break
+      case 'whatsapp':
+        abrirWhatsappServicosLocais()
         break
       default:
         if (empresaId) router.push(`/empresa/${empresaId}`)

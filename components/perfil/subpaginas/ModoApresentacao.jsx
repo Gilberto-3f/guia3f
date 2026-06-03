@@ -17,6 +17,7 @@ const empresas = [
   { id: 'lojas_py', nome: 'Lojas', segmentoDb: 'lojas', iconeKey: 'lojas_py' },
   { id: 'passeios', nome: 'Passeios', segmentoDb: 'passeios', iconeKey: 'passeios' },
   { id: 'hospedagem', nome: 'Hospedagem', segmentoDb: 'hospedagem', iconeKey: 'hospedagem' },
+  { id: 'servicos_locais', nome: 'Serviços Locais', segmentoDb: 'servicos_locais', iconeKey: 'servicos_locais' },
 ]
 
 const itemBtnCls =
