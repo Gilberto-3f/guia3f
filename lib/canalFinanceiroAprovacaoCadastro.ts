@@ -1,6 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
-import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
+import {
+  abrirConversaFinanceiroAdm,
+  buscarConversaAbertaParaAlvo,
+  enviarMensagemConversaFinanceiro,
+} from '@/lib/financeiroConversas'
 
 const TITULO_APROVACAO = 'Cadastro aprovado'
 
@@ -17,7 +20,8 @@ Atenciosamente, Grupo Cacique`
 }
 
 /**
- * Notifica profissional ou empresa no canal financeiro privado após liberação do cadastro.
+ * Envia mensagem de boas-vindas na aba Mensagens ADM (financeiro_conversas + financeiro_mensagens)
+ * após liberação do cadastro de profissional ou empresa.
  */
 export async function enviarMensagemAprovacaoCanalFinanceiro(
   supabase: SupabaseClient,
@@ -25,36 +29,49 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
     tipo: 'profissional' | 'empresa'
     usuarioId: string
     nomeUsuario: string
+    admUsuarioId: string
   },
 ): Promise<{ ok: boolean; error?: string }> {
   const uid = params.usuarioId?.trim()
-  if (!uid) return { ok: false, error: 'usuario_id_vazio' }
+  const admId = params.admUsuarioId?.trim()
+  if (!uid || !admId) return { ok: false, error: 'ids_vazios' }
 
   const mensagem = montarMensagemAprovacaoCadastro(params.nomeUsuario)
 
-  if (params.tipo === 'profissional') {
-    const res = await inserirNotificacaoCanalFinanceiroProfissional(supabase, {
-      profissionalUsuarioId: uid,
-      tipo: 'mensagem_adm',
-      titulo: TITULO_APROVACAO,
-      mensagem,
+  let conversa = await buscarConversaAbertaParaAlvo(supabase, uid)
+  if (!conversa) {
+    const res = await abrirConversaFinanceiroAdm(supabase, {
+      admUsuarioId: admId,
+      alvoUsuarioId: uid,
+      alvoTipo: params.tipo,
+      assunto: TITULO_APROVACAO,
     })
-    if (!res.ok) {
-      console.error('[canalFinanceiroAprovacao] profissional', res.error)
-      return { ok: false, error: res.error ?? 'insert_falhou' }
+    if (!res.ok || !res.conversa?.id) {
+      console.error('[canalFinanceiroAprovacao] abrir conversa', res.error)
+      return { ok: false, error: res.error ?? 'conversa_falhou' }
     }
-    return { ok: true }
+    conversa = res.conversa
   }
 
-  const res = await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
-    empresaUsuarioId: uid,
-    tipo: 'mensagem_adm',
-    titulo: TITULO_APROVACAO,
-    mensagem,
+  const { count } = await supabase
+    .from('financeiro_mensagens')
+    .select('id', { count: 'exact', head: true })
+    .eq('conversa_id', conversa.id)
+    .ilike('texto', 'Bem-Vindo%')
+
+  if (count && count > 0) return { ok: true }
+
+  const remetenteId = conversa.adm_usuario_id || admId
+  const msg = await enviarMensagemConversaFinanceiro(supabase, {
+    conversaId: conversa.id,
+    remetenteId,
+    texto: mensagem,
   })
-  if (!res.ok) {
-    console.error('[canalFinanceiroAprovacao] empresa', res.error)
-    return { ok: false, error: res.error ?? 'insert_falhou' }
+
+  if (!msg.ok) {
+    console.error('[canalFinanceiroAprovacao] enviar mensagem', msg.error)
+    return { ok: false, error: msg.error ?? 'mensagem_falhou' }
   }
+
   return { ok: true }
 }

@@ -108,6 +108,16 @@ export async function POST(req: Request) {
               verificado_em: nowIso,
             }
           : {}
+      const extraTurista =
+        tipo === 'turistas'
+          ? {
+              docs_verificado: true,
+              docs_verificado_por: actorId,
+              docs_verificado_em: nowIso,
+              verificado_por: actorId,
+              verificado_em: nowIso,
+            }
+          : {}
 
       const { error: updErr } = await adminDb
         .from(table)
@@ -121,6 +131,7 @@ export async function POST(req: Request) {
           reprovado_por: null,
           ...extraProf,
           ...extraEmpresa,
+          ...extraTurista,
         })
         .eq('id', id)
       if (updErr) {
@@ -129,9 +140,13 @@ export async function POST(req: Request) {
       }
 
       if (perfil?.usuario_id) {
+        const userPatch =
+          tipo === 'turistas'
+            ? { status: 'ativo', documentacao_validada_adm: true }
+            : { status: 'ativo' }
         const { error: userErr } = await adminDb
           .from('usuarios')
-          .update({ status: 'ativo' })
+          .update(userPatch)
           .eq('id', perfil.usuario_id)
         if (userErr) {
           console.error('[api/admin/verificacao] update usuario', userErr.message)
@@ -152,6 +167,7 @@ export async function POST(req: Request) {
               tipo: 'profissional',
               usuarioId: String(prof.usuario_id),
               nomeUsuario,
+              admUsuarioId: actorId,
             })
             if (!msgFin.ok) {
               console.error('[api/admin/verificacao] canal financeiro profissional:', msgFin.error)
@@ -175,6 +191,7 @@ export async function POST(req: Request) {
               tipo: 'empresa',
               usuarioId: String(emp.usuario_id),
               nomeUsuario,
+              admUsuarioId: actorId,
             })
             if (!msgFin.ok) {
               console.error('[api/admin/verificacao] canal financeiro empresa:', msgFin.error)
