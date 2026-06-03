@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     const { data: created, error: cuErr } = await admin.auth.admin.createUser({
       email,
       password,
-      email_confirm: false,
+      email_confirm: true,
       user_metadata: { role: 'empresa' },
     })
     if (cuErr) {

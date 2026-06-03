@@ -35,7 +35,7 @@ export async function createAuthUserForCadastro(
     const { data, error } = await admin.auth.admin.createUser({
       email: params.email,
       password: params.password,
-      email_confirm: false,
+      email_confirm: true,
       user_metadata: { role },
     })
 
