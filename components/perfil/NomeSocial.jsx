@@ -9,6 +9,7 @@ import NomeComVerificacao from '@/components/NomeComVerificacao'
  *   mostrarCartao?: boolean
  *   profissionalVerificado?: boolean
  *   contaVerificada?: boolean
+ *   seloVerificacaoNoNome?: boolean
  *   onAbrirCartao?: () => void
  * }} props
  * profissionalVerificado: true quando status aprovado (escudo verde); senão escudo vermelho com ?.
