@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  createAuthUserForCadastro,
+  upsertUsuarioCadastro,
+} from '@/lib/cadastroCreateAuthUser'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -71,40 +75,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'username_taken' }, { status: 409 })
     }
 
-    const { data: created, error: cuErr } = await admin.auth.admin.createUser({
+    const authResult = await createAuthUserForCadastro(admin, {
       email,
       password,
-      email_confirm: false,
-      user_metadata: { role: 'profissional' },
+      role: 'profissional',
     })
-    if (cuErr) {
-      const msg = (cuErr.message || '').toLowerCase()
-      if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
+    if (!authResult.ok) {
+      if (authResult.kind === 'email_exists') {
         return NextResponse.json({ error: 'email_exists' }, { status: 409 })
       }
-      if (msg.includes('database error')) {
-        console.error('[cadastro/profissional] createUser:', cuErr.message)
+      if (authResult.kind === 'auth_database_error') {
+        console.error('[cadastro/profissional] createUser:', authResult.error)
         return NextResponse.json({ error: 'auth_database_error' }, { status: 503 })
       }
-      return NextResponse.json({ error: cuErr.message }, { status: 400 })
+      return NextResponse.json({ error: authResult.error }, { status: 400 })
     }
 
-    const userId = created.user?.id
-    if (!userId) {
-      return NextResponse.json({ error: 'no_user' }, { status: 500 })
-    }
+    const userId = authResult.user.id
 
-    const upsertUsuario = await admin.from('usuarios').upsert(
-      { id: userId, email, role: 'profissional', status: 'pre_aprovado' },
-      { onConflict: 'id' }
-    )
-    if (upsertUsuario.error) {
+    const { error: usuarioErr } = await upsertUsuarioCadastro(admin, {
+      id: userId,
+      email,
+      role: 'profissional',
+    })
+    if (usuarioErr) {
       try {
         await admin.auth.admin.deleteUser(userId)
       } catch {
         /* ignore */
       }
-      return NextResponse.json({ error: upsertUsuario.error.message }, { status: 500 })
+      return NextResponse.json({ error: usuarioErr }, { status: 500 })
     }
 
     const placaVermelha = PLACA_CATEGORIAS.has(categoria)
