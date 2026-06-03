@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
 
@@ -49,6 +49,8 @@ function mapApiProfissionalError(code: string | undefined, t: (key: string) => s
       return t('username.unavailable')
     case 'policies':
       return t('profissional.valPolicies')
+    case 'auth_database_error':
+      return t('apiErrorAuthDatabase')
     case 'invalid_username':
       return t('profissional.valUsername')
     default:
@@ -497,9 +499,19 @@ export default function CadastroProfissionalPage() {
               type="checkbox"
               checked={aceitePoliticas}
               onChange={(e) => setAceitePoliticas(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-gray-300"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300"
             />
-            <span>{t('profissional.acceptPolicies')}</span>
+            <span>
+              {t('profissional.acceptPoliciesIntro')}{' '}
+              <Link href="/politicas" className="underline hover:text-[#0097b2]">
+                {t('turista.privacy')}
+              </Link>{' '}
+              {t('profissional.acceptPoliciesAnd')}{' '}
+              <Link href="/regras" className="underline hover:text-[#0097b2]">
+                {t('turista.terms')}
+              </Link>
+              .
+            </span>
           </label>
 
           {erroEnvio && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erroEnvio}</p>}

@@ -63,6 +63,7 @@ export function PreviewDocumento({
   }
 
   return (
+    // eslint-disable-next-line @next/next/no-img-element -- preview de documentos do storage (URL assinada dinâmica)
     <img
       src={src}
       alt={label}
@@ -70,6 +71,7 @@ export function PreviewDocumento({
       style={{ objectFit }}
       loading="eager"
       decoding="async"
+      draggable={false}
       onError={() => setErro(true)}
     />
   )

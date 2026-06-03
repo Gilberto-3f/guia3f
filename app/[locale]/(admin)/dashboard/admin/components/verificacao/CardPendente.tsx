@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { resolverUrlsDocumentosStorageAdmin } from '@/lib/documentosStorageUrl'
-import { VisualizadorDocs } from './VisualizadorDocs'
+import { ModalDocumentoAmpliado } from './ModalDocumentoAmpliado'
 import { PreviewDocumento, isPdfUrl } from './PreviewDocumento'
 import { usePermissao } from '../../hooks/usePermissao'
 
@@ -106,7 +106,7 @@ export function CardPendente({
   onAprovar: () => void
   onReprovar: (motivo: string) => void
 }) {
-  const [modalAberto, setModalAberto] = useState(false)
+  const [docAmpliado, setDocAmpliado] = useState<DocThumb | null>(null)
   const [reprovarAberto, setReprovarAberto] = useState(false)
   const [motivoReprova, setMotivoReprova] = useState('')
   const [urlsResolvidas, setUrlsResolvidas] = useState<Map<string, string>>(new Map())
@@ -209,20 +209,22 @@ export function CardPendente({
                   <button
                     key={t.key}
                     type="button"
-                    onClick={() => setModalAberto(true)}
-                    className="group flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 text-left shadow-sm transition hover:border-[#0097b2]/50 hover:shadow"
+                    onClick={() => setDocAmpliado(t)}
+                    aria-label={`Ampliar ${t.label}`}
+                    className="group flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 text-left shadow-sm transition hover:border-[#0097b2]/50 hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0097b2]"
                   >
                     <div className="relative aspect-square w-full bg-gray-100">
                       {isPdfUrl(t.url) ? (
                         <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center">
                           <span className="text-[10px] font-bold text-gray-700">PDF</span>
                           <span className="line-clamp-2 text-[10px] text-gray-500">{t.label}</span>
+                          <span className="text-[9px] font-semibold text-[#0097b2]">Toque para abrir</span>
                         </div>
                       ) : (
                         <PreviewDocumento
                           url={t.url}
                           label={t.label}
-                          className="h-full w-full"
+                          className="pointer-events-none h-full w-full"
                           objectFit="cover"
                           resolvedUrl={urlsResolvidas.get(t.url)}
                         />
@@ -287,12 +289,10 @@ export function CardPendente({
         </div>
       </div>
 
-      <VisualizadorDocs
-        aberto={modalAberto}
-        onClose={() => setModalAberto(false)}
-        pendente={item.raw}
-        tipo={tipo}
-        urlsResolvidas={urlsResolvidas}
+      <ModalDocumentoAmpliado
+        doc={docAmpliado ? { label: docAmpliado.label, url: docAmpliado.url } : null}
+        onClose={() => setDocAmpliado(null)}
+        resolvedUrl={docAmpliado ? urlsResolvidas.get(docAmpliado.url) : undefined}
       />
     </>
   )

@@ -82,6 +82,10 @@ export async function POST(req: NextRequest) {
       if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
         return NextResponse.json({ error: 'email_exists' }, { status: 409 })
       }
+      if (msg.includes('database error')) {
+        console.error('[cadastro/profissional] createUser:', cuErr.message)
+        return NextResponse.json({ error: 'auth_database_error' }, { status: 503 })
+      }
       return NextResponse.json({ error: cuErr.message }, { status: 400 })
     }
 
