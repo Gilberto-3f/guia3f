@@ -76,7 +76,11 @@ export async function POST(req: Request) {
           .update({
             mensagem: `Pré-liberação recusada para @${sol.turista_username ?? 'turista'}.`,
             lida_por_profissional: true,
-            metadata: { solicitacao_id: solicitacaoId, respondido: 'recusada' },
+            metadata: {
+              solicitacao_id: solicitacaoId,
+              turista_username: sol.turista_username,
+              respondido: 'recusada',
+            },
           })
           .eq('id', sol.canal_financeiro_id)
       }
@@ -106,7 +110,12 @@ export async function POST(req: Request) {
         .update({
           mensagem: `Pré-liberação aprovada para @${sol.turista_username ?? 'turista'} até ${new Date(expira).toLocaleString('pt-BR')}.`,
           lida_por_profissional: true,
-          metadata: { solicitacao_id: solicitacaoId, respondido: 'aprovada', expira_em: expira },
+          metadata: {
+            solicitacao_id: solicitacaoId,
+            turista_username: sol.turista_username,
+            respondido: 'aprovada',
+            expira_em: expira,
+          },
         })
         .eq('id', sol.canal_financeiro_id)
     }

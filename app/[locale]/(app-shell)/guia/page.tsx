@@ -23,7 +23,13 @@ export default function GuiaPage() {
   const tMobilidade = useTranslations('Mobilidade')
   const tGuia = useTranslations('Guia')
   const router = useRouter()
-  const { roleEfetivo, recursosProfissionaisLiberados, loading: gateLoading } = useProfissionalGate()
+  const {
+    roleEfetivo,
+    recursosProfissionaisLiberados,
+    recursosTuristaLiberados,
+    perfilEhTurista,
+    loading: gateLoading,
+  } = useProfissionalGate()
   const {
     podeComprarReservar,
     avisarBloqueio,
@@ -36,8 +42,13 @@ export default function GuiaPage() {
   /** MOBILIDADE no topo: empresa/admin sempre; profissional só após verificação ADM (senão igual turista). */
   const profComRecursos =
     roleEfetivo === 'profissional' && !gateLoading && recursosProfissionaisLiberados
+  const turistaComPreLiberacao =
+    perfilEhTurista && !gateLoading && recursosTuristaLiberados
   const mostrarAbaMobilidade =
-    profComRecursos || roleEfetivo === 'empresa' || roleEfetivo === 'admin'
+    profComRecursos ||
+    roleEfetivo === 'empresa' ||
+    roleEfetivo === 'admin' ||
+    turistaComPreLiberacao
   const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
 
   useEffect(() => {

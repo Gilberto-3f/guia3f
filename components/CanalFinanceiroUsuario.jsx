@@ -7,6 +7,10 @@ import CanalFinanceiroItemPreLiberacao from '@/components/CanalFinanceiroItemPre
 import CanalFinanceiroMensageiro from '@/components/CanalFinanceiroMensageiro'
 import { marcarFinanceiroLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { marcarFinanceiroLidoProfissional } from '@/lib/canaisProfissionalVisibilidade'
+import {
+  itemCanalFinanceiroPreLiberacao,
+  listarPreLiberacoesPendentesProfissional,
+} from '@/lib/turistaPreLiberacao'
 import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 
@@ -46,9 +50,10 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
 
   useEffect(() => {
     if (aba !== 'relatorios' || loading || !usuarioId) return
-    const temNaoLidas = itens.some((item) =>
-      tipo === 'profissional' ? !item.lida_por_profissional : !item.lida_por_empresa,
-    )
+    const temNaoLidas = itens.some((item) => {
+      if (item.tipo === 'pre_liberacao_turista' && !item.metadata?.respondido) return false
+      return tipo === 'profissional' ? !item.lida_por_profissional : !item.lida_por_empresa
+    })
     if (temNaoLidas) void marcarRelatoriosComoLidos()
   }, [aba, loading, itens, usuarioId, tipo, marcarRelatoriosComoLidos])
 
@@ -99,7 +104,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
       const { data, error } = await query
       if (error) throw error
 
-      const formatados =
+      let formatados =
         data?.map((row) => {
           const r = /** @type {Record<string, unknown>} */ (row)
           const prof = r.profissionais
@@ -132,11 +137,35 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
           }
         }) ?? []
 
+      if (tipo === 'profissional') {
+        const pendentes = await listarPreLiberacoesPendentesProfissional(supabase, usuarioId)
+        const idsNaLista = new Set(
+          formatados
+            .filter((i) => i.tipo === 'pre_liberacao_turista')
+            .map((i) => String(i.metadata?.solicitacao_id ?? ''))
+            .filter(Boolean),
+        )
+        const sinteticos = pendentes
+          .filter((p) => !idsNaLista.has(p.id))
+          .map((p) => itemCanalFinanceiroPreLiberacao(p))
+        formatados = [...sinteticos, ...formatados]
+      }
+
+      formatados.sort((a, b) => {
+        const aPend =
+          a.tipo === 'pre_liberacao_turista' && !a.metadata?.respondido ? 1 : 0
+        const bPend =
+          b.tipo === 'pre_liberacao_turista' && !b.metadata?.respondido ? 1 : 0
+        if (aPend !== bPend) return bPend - aPend
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      })
+
       setItens(formatados)
       setNaoLidas(
-        formatados.filter((item) =>
-          tipo === 'profissional' ? !item.lida_por_profissional : !item.lida_por_empresa,
-        ).length,
+        formatados.filter((item) => {
+          if (item.tipo === 'pre_liberacao_turista' && !item.metadata?.respondido) return true
+          return tipo === 'profissional' ? !item.lida_por_profissional : !item.lida_por_empresa
+        }).length,
       )
       const msgNaoLidas = await contarMensageiroFinanceiroNaoLidas(supabase, usuarioId)
       setNaoLidasMensageiro(msgNaoLidas)
@@ -217,7 +246,26 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
             }
           },
         )
-        .subscribe()
+
+      if (tipo === 'profissional') {
+        ch = ch.on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'turista_pre_liberacoes',
+            filter: `profissional_usuario_id=eq.${usuarioId}`,
+          },
+          () => {
+            if (!cancelled) {
+              void carregar({ silencioso: true })
+              notificarBadgeCanais()
+            }
+          },
+        )
+      }
+
+      ch = ch.subscribe()
     }
 
     void setup()

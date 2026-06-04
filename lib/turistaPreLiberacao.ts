@@ -74,14 +74,24 @@ export async function inserirAvisoPreLiberacaoCanalFinanceiro(
   params: {
     profissionalId: string
     solicitacaoId: string
+    turistaUsuarioId: string
     turistaUsername: string
     turistaNome: string
     profUsername: string
   },
 ): Promise<{ ok: boolean; canalFinanceiroId?: string; error?: string }> {
   const mensagem =
-    `O turista @${params.turistaUsername} solicitou pré-liberação de 24h para compras e reservas no app.\n\n` +
+    `O turista @${params.turistaUsername} solicitou pré-liberação de 24h para compras, reservas e mobilidade no app.\n\n` +
     `Confirme se você atendeu ou conhece este usuário.`
+
+  const metadata = {
+    solicitacao_id: params.solicitacaoId,
+    turista_usuario_id: params.turistaUsuarioId,
+    turista_username: params.turistaUsername,
+    turista_nome: params.turistaNome,
+    prof_username: params.profUsername,
+    respondido: '',
+  }
 
   const { data, error } = await supabase
     .from('canal_financeiro')
@@ -93,18 +103,78 @@ export async function inserirAvisoPreLiberacaoCanalFinanceiro(
       mensagem,
       valor: null,
       lida_por_profissional: false,
-      metadata: {
-        solicitacao_id: params.solicitacaoId,
-        turista_username: params.turistaUsername,
-        turista_nome: params.turistaNome,
-        prof_username: params.profUsername,
-      },
+      metadata,
     })
     .select('id')
     .single()
 
   if (error || !data?.id) return { ok: false, error: error?.message ?? 'canal_financeiro_falhou' }
   return { ok: true, canalFinanceiroId: String(data.id) }
+}
+
+/** Solicitações pendentes visíveis ao profissional (fallback se o aviso no canal_financeiro falhou). */
+export async function listarPreLiberacoesPendentesProfissional(
+  supabase: SupabaseClient,
+  profissionalUsuarioId: string,
+): Promise<
+  {
+    id: string
+    turista_username: string | null
+    turista_nome: string | null
+    solicitado_em: string
+    canal_financeiro_id: string | null
+  }[]
+> {
+  if (!profissionalUsuarioId) return []
+  const { data, error } = await supabase
+    .from('turista_pre_liberacoes')
+    .select('id, turista_username, turista_nome, solicitado_em, canal_financeiro_id')
+    .eq('profissional_usuario_id', profissionalUsuarioId)
+    .eq('status', 'pendente')
+    .order('solicitado_em', { ascending: false })
+
+  if (error) {
+    console.error('listarPreLiberacoesPendentesProfissional:', error)
+    return []
+  }
+  return (data ?? []).map((r) => ({
+    id: String(r.id),
+    turista_username: r.turista_username != null ? String(r.turista_username) : null,
+    turista_nome: r.turista_nome != null ? String(r.turista_nome) : null,
+    solicitado_em: String(r.solicitado_em ?? ''),
+    canal_financeiro_id: r.canal_financeiro_id != null ? String(r.canal_financeiro_id) : null,
+  }))
+}
+
+export function itemCanalFinanceiroPreLiberacao(p: {
+  id: string
+  turista_username: string | null
+  turista_nome: string | null
+  solicitado_em: string
+  canal_financeiro_id: string | null
+}) {
+  const user = p.turista_username?.trim() || 'turista'
+  return {
+    id: p.canal_financeiro_id ?? `tpl-${p.id}`,
+    tipo: 'pre_liberacao_turista',
+    titulo: 'Pré-liberação de turista',
+    mensagem:
+      `O turista @${user} solicitou pré-liberação de 24h para compras, reservas e mobilidade no app.\n\n` +
+      `Confirme se você atendeu ou conhece este usuário.`,
+    valor: null,
+    anexo_url: null,
+    lida_por_profissional: false,
+    lida_por_empresa: false,
+    metadata: {
+      solicitacao_id: p.id,
+      turista_username: user,
+      turista_nome: p.turista_nome ?? '',
+      respondido: '',
+    },
+    created_at: p.solicitado_em || new Date().toISOString(),
+    profissional_nome: 'Profissional',
+    empresa_nome: 'Empresa',
+  }
 }
 
 export async function registrarContratacaoPreLiberada(

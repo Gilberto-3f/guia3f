@@ -22,6 +22,8 @@ import { atividadeVisivelNaMinhaContaPessoal } from '@/lib/atividades-feed'
 import { GUIA_ATIVIDADES_BADGE_EVENT } from '@/lib/atividades-events'
 import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 import { contarMensagensNaoLidasCanais } from '@/lib/canalBadge'
+import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 
 /**
  * @param {string} path
@@ -447,6 +449,15 @@ export default function BottomBar() {
 
   /** Turistas: Mobilidade no 2.º slot; demais perfis logados ou simulados: Canal. */
   const segundoEhMobilidadeNaBarra = roleParaBarra === 'turista'
+  const {
+    podeComprarReservar,
+    avisarBloqueio,
+    avisoAberto,
+    fecharAvisoBloqueio,
+    mensagemBloqueio,
+    tituloBloqueio,
+    loading: gateComprasLoading,
+  } = useGateComprasReservas()
 
   const getTerceiroHref = () => {
     if (isFeedPage) return '/feed/criar'
@@ -504,9 +515,24 @@ export default function BottomBar() {
         </Link>
 
         {segundoEhMobilidadeNaBarra ? (
-          <Link href="/mobilidade" className="flex flex-col items-center p-2" aria-label={t('mobility')}>
-            <Car size={24} className={matchPath('/mobilidade', pathname) ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
-          </Link>
+          podeComprarReservar || gateComprasLoading ? (
+            <Link href="/mobilidade" className="flex flex-col items-center p-2" aria-label={t('mobility')}>
+              <Car
+                size={24}
+                className={matchPath('/mobilidade', pathname) ? 'text-[#0097b2]' : 'text-gray-400'}
+                aria-hidden
+              />
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="flex flex-col items-center p-2"
+              aria-label={t('mobility')}
+              onClick={() => avisarBloqueio()}
+            >
+              <Car size={24} className="text-gray-400" aria-hidden />
+            </button>
+          )
         ) : (
           <Link href="/canal" className="relative flex flex-col items-center p-2" aria-label={t('channel')}>
             <MessageCircle
@@ -584,6 +610,15 @@ export default function BottomBar() {
           {getQuintoIcone()}
         </Link>
       </div>
+
+      {segundoEhMobilidadeNaBarra ? (
+        <PopupAvisoBloqueioConta
+          aberto={avisoAberto}
+          onFechar={fecharAvisoBloqueio}
+          titulo={tituloBloqueio}
+          mensagem={mensagemBloqueio}
+        />
+      ) : null}
     </div>
   )
 }

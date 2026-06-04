@@ -107,12 +107,25 @@ export async function POST(req: Request) {
     const aviso = await inserirAvisoPreLiberacaoCanalFinanceiro(adminDb, {
       profissionalId: prof.profissionalId,
       solicitacaoId: String(sol.id),
+      turistaUsuarioId: session.userId,
       turistaUsername: turistaUsername || session.userId.slice(0, 8),
       turistaNome,
       profUsername: prof.nomeUsuario,
     })
 
-    if (aviso.ok && aviso.canalFinanceiroId) {
+    if (!aviso.ok) {
+      await adminDb.from('turista_pre_liberacoes').delete().eq('id', sol.id)
+      return NextResponse.json(
+        {
+          error:
+            aviso.error ??
+            'Não foi possível notificar o profissional no canal financeiro. Tente novamente.',
+        },
+        { status: 500 },
+      )
+    }
+
+    if (aviso.canalFinanceiroId) {
       await adminDb
         .from('turista_pre_liberacoes')
         .update({ canal_financeiro_id: aviso.canalFinanceiroId })
@@ -121,7 +134,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      mensagem: `Solicitação enviada para @${prof.nomeUsuario}. Aguarde a confirmação no canal financeiro do profissional.`,
+      mensagem: `Solicitação enviada para @${prof.nomeUsuario}. O profissional verá o pedido em Canal → Financeiro → Relatórios do APP.`,
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'erro'

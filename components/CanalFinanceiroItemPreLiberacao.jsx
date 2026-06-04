@@ -14,7 +14,8 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
   const [loading, setLoading] = useState(false)
   const meta = item.metadata && typeof item.metadata === 'object' ? item.metadata : {}
   const solicitacaoId = String(meta.solicitacao_id ?? '').trim()
-  const respondido = String(meta.respondido ?? '')
+  const respondido = String(meta.respondido ?? '').trim()
+  const pendente = !respondido
 
   const responder = async (acao) => {
     if (!solicitacaoId || loading) return
@@ -49,11 +50,15 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="font-medium text-gray-800">{item.titulo}</h3>
-          <span className="mt-1 inline-block rounded-full bg-[#00D443] px-2 py-0.5 text-xs text-white">Nova</span>
+          {pendente ? (
+            <span className="mt-1 inline-block rounded-full bg-[#00D443] px-2 py-0.5 text-xs text-white">
+              Aguardando sua resposta
+            </span>
+          ) : null}
           {item.mensagem ? <p className="mt-2 whitespace-pre-line text-sm text-gray-600">{item.mensagem}</p> : null}
           <p className="mt-2 text-xs text-gray-400">{new Date(item.created_at).toLocaleString('pt-BR')}</p>
 
-          {!respondido ? (
+          {pendente ? (
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"

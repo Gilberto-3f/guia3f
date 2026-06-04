@@ -131,20 +131,31 @@ export async function contarFinanceiroNaoLidasProfissional(
   const profissionalId = prof?.id != null ? String(prof.id) : ''
   if (!profissionalId) return 0
 
-  const [{ count, error }, mensageiro] = await Promise.all([
+  const [{ count, error }, mensageiro, { data: pendentesTpl, error: tplErr }] = await Promise.all([
     supabase
       .from('canal_financeiro')
       .select('id', { count: 'exact', head: true })
       .eq('profissional_id', profissionalId)
       .eq('lida_por_profissional', false),
     contarMensageiroFinanceiroNaoLidas(supabase, usuarioId),
+    supabase
+      .from('turista_pre_liberacoes')
+      .select('id, canal_financeiro_id')
+      .eq('profissional_usuario_id', usuarioId)
+      .eq('status', 'pendente'),
   ])
 
   if (error) {
     console.error('contarFinanceiroNaoLidasProfissional:', error)
     return mensageiro
   }
-  return (count ?? 0) + mensageiro
+
+  const extraTpl =
+    tplErr || !pendentesTpl
+      ? 0
+      : pendentesTpl.filter((r) => r.canal_financeiro_id == null).length
+
+  return (count ?? 0) + extraTpl + mensageiro
 }
 
 /** Marca todos os avisos financeiros do profissional como lidos (ao abrir o canal). */
@@ -162,6 +173,7 @@ export async function marcarFinanceiroLidoProfissional(
     .update({ lida_por_profissional: true })
     .eq('profissional_id', profissionalId)
     .eq('lida_por_profissional', false)
+    .neq('tipo', 'pre_liberacao_turista')
 
   if (error) console.error('marcarFinanceiroLidoProfissional:', error)
 }

@@ -42,7 +42,12 @@ export default function EmergenciaPreLiberacao() {
         setFeedback({ tipo: 'erro', texto: json.error ?? 'Não foi possível enviar a solicitação.' })
         return
       }
-      setFeedback({ tipo: 'ok', texto: json.mensagem ?? 'Solicitação enviada.' })
+      setFeedback({
+        tipo: 'ok',
+        texto:
+          json.mensagem ??
+          'Solicitação enviada. O profissional verá o pedido em Canal → Financeiro → Relatórios do APP.',
+      })
       setCodigo('')
       window.dispatchEvent(new Event('turista-gate-refresh'))
     } catch {
