@@ -5,7 +5,12 @@ import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag, MessageCi
 import { useRouter } from 'next/navigation'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
-import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
+import {
+  openWhatsAppChat,
+  mensagemWhatsappReservaMesa,
+  mensagemWhatsappReservaMesaSimples,
+  mensagemWhatsappContatoGuia,
+} from '@/lib/whatsapp-empresa'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { AVISO_DOCS_PROF_ALERTA } from '@/lib/avisoDocsProfissionalTexto'
 import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-empresa'
@@ -119,8 +124,7 @@ export default function AbaBotaoDinamico({
   }
 
   const abrirWhatsappGastronomiaSimples = () => {
-    const texto = `Olá! Gostaria de reservar uma mesa em ${empresaNome}.`
-    if (!openWhatsAppChat(whatsapp, texto)) {
+    if (!openWhatsAppChat(whatsapp, mensagemWhatsappReservaMesaSimples())) {
       alert('WhatsApp da empresa não configurado.')
     }
   }
@@ -129,7 +133,7 @@ export default function AbaBotaoDinamico({
     const n = Math.max(1, Number(nPessoasMesa) || 1)
     const dataFmt = dataMesa?.trim() ? dataMesa.trim() : '(a combinar)'
     const horaFmt = horaMesa?.trim() ? horaMesa.trim() : '(a combinar)'
-    const texto = `Olá! Gostaria de reservar uma mesa em ${empresaNome} para o dia ${dataFmt} às ${horaFmt} para ${n} pessoa(s).`
+    const texto = mensagemWhatsappReservaMesa({ data: dataFmt, horario: horaFmt, pessoas: n })
     if (!openWhatsAppChat(whatsapp, texto)) {
       alert('WhatsApp da empresa não configurado.')
       return
@@ -138,8 +142,7 @@ export default function AbaBotaoDinamico({
   }
 
   const abrirWhatsappServicosLocais = () => {
-    const texto = `Olá! Vi ${empresaNome} no Guia 3F e gostaria de mais informações.`
-    if (!openWhatsAppChat(whatsapp, texto)) {
+    if (!openWhatsAppChat(whatsapp, mensagemWhatsappContatoGuia())) {
       alert('WhatsApp da empresa não configurado.')
     }
   }

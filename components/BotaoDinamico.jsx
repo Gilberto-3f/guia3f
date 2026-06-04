@@ -8,7 +8,11 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { AVISO_DOCS_PROF_ALERTA } from '@/lib/avisoDocsProfissionalTexto'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
-import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
+import {
+  openWhatsAppChat,
+  mensagemWhatsappReservaMesa,
+  mensagemWhatsappContatoGuia,
+} from '@/lib/whatsapp-empresa'
 
 // FIX: cor padronizada para TODAS as categorias
 const COR_PADRAO = '#00D443'
@@ -104,9 +108,7 @@ export default function BotaoDinamico({
       alert('Preencha data, horário e nº de pessoas.')
       return
     }
-    const texto =
-      `Olá! Gostaria de reservar uma mesa em ${empresaNome || 'sua empresa'}. ` +
-      `Data: ${d}. Horário: ${h}. Pessoas: ${p}.`
+    const texto = mensagemWhatsappReservaMesa({ data: d, horario: h, pessoas: p })
     if (!openWhatsAppChat(whatsapp, texto)) {
       alert('WhatsApp da empresa não configurado.')
       return
@@ -115,8 +117,7 @@ export default function BotaoDinamico({
   }
 
   const abrirWhatsappServicosLocais = () => {
-    const texto = `Olá! Vi ${empresaNome || 'sua empresa'} no Guia 3F e gostaria de mais informações.`
-    if (!openWhatsAppChat(whatsapp, texto)) {
+    if (!openWhatsAppChat(whatsapp, mensagemWhatsappContatoGuia())) {
       alert('WhatsApp da empresa não configurado.')
     }
   }

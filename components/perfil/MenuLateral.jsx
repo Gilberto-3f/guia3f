@@ -160,7 +160,7 @@ function itensMinhaConta() {
 }
 
 function subgrupoMinhaConta() {
-  return { key: 'usuario-minha-conta', label: 'Minha conta', items: itensMinhaConta() }
+  return { key: 'usuario-minha-conta', label: 'Minha Conta', items: itensMinhaConta() }
 }
 
 /**
@@ -172,6 +172,7 @@ function secaoUsuario(itensPrincipais) {
     key: 'usuario',
     label: 'Usuário',
     subgrupos: [subgrupoMinhaConta()],
+    subgruposDepois: true,
     items: itensPrincipais,
   }
 }
@@ -1055,6 +1056,15 @@ export default function MenuLateral({
                         <div className="px-3 pb-2">
                           {grupoBloqueado ? (
                             <AvisoDocsProfissionalBloqueado className="py-4" />
+                          ) : sec.subgruposDepois ? (
+                            <>
+                              {renderListaItens(filtrarMenu(sec.items ?? [], ctx), { compact: true })}
+                              {sec.subgrupos?.length ? (
+                                <div className={(sec.items?.length ?? 0) > 0 ? 'mt-1 border-t border-gray-100 pt-1' : ''}>
+                                  {renderSubgrupos(sec.subgrupos)}
+                                </div>
+                              ) : null}
+                            </>
                           ) : (
                             <>
                               {sec.subgrupos?.length ? renderSubgrupos(sec.subgrupos) : null}
