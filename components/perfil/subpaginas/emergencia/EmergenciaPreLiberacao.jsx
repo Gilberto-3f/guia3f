@@ -26,7 +26,7 @@ export default function EmergenciaPreLiberacao() {
         credentials: 'include',
         body: JSON.stringify({ codigo: c }),
       })
-      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; mensagem?: string; error?: string }
+      const json = await res.json().catch(() => ({}))
       if (!res.ok || !json.ok) {
         setFeedback({ tipo: 'erro', texto: json.error ?? 'Não foi possível enviar a solicitação.' })
         return

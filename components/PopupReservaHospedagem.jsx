@@ -7,8 +7,6 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
-import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
-import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 
 /**
  * @param {{

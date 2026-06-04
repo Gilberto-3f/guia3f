@@ -26,7 +26,7 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
         credentials: 'include',
         body: JSON.stringify({ solicitacao_id: solicitacaoId, acao }),
       })
-      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      const json = await res.json().catch(() => ({}))
       if (!res.ok || !json.ok) {
         window.alert(json.error ?? 'Não foi possível responder.')
         return
