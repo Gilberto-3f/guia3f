@@ -277,8 +277,14 @@ export default function CadastroTuristaPage() {
                 placeholder={t('email')}
               />
             )}
-            {!emailValido ? (
-              <p className="mt-1 text-xs text-red-600 not-italic">{t('common.emailInvalid')}</p>
+            {!modoLogado ? (
+              <p
+                className={`mt-1 text-xs not-italic ${
+                  emailSessao && !emailValido ? 'text-red-600' : 'text-[#001f3f]/80'
+                }`}
+              >
+                {emailSessao && !emailValido ? t('common.emailInvalid') : t('common.emailHint')}
+              </p>
             ) : null}
           </div>
 
