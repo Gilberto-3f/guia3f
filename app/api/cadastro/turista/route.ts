@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  createAuthUserForCadastro,
+  upsertUsuarioCadastro,
+} from '@/lib/cadastroCreateAuthUser'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { defaultUsernameForCadastro } from '@/lib/cadastroUsername'
 
@@ -27,23 +31,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'policies' }, { status: 400 })
     }
 
-    const { data: created, error: cuErr } = await admin.auth.admin.createUser({
+    const authResult = await createAuthUserForCadastro(admin, {
       email,
       password,
-      email_confirm: true,
-      user_metadata: { role: 'turista' },
+      role: 'turista',
     })
-    if (cuErr) {
-      const msg = (cuErr.message || '').toLowerCase()
-      if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
+    if (!authResult.ok) {
+      if (authResult.kind === 'email_exists') {
         return NextResponse.json({ error: 'email_exists' }, { status: 409 })
       }
-      return NextResponse.json({ error: cuErr.message }, { status: 400 })
+      if (authResult.kind === 'auth_database_error') {
+        console.error('[cadastro/turista] createUser:', authResult.error)
+        return NextResponse.json({ error: 'auth_database_error' }, { status: 503 })
+      }
+      return NextResponse.json({ error: authResult.error }, { status: 400 })
     }
 
-    const userId = created.user?.id
-    if (!userId) {
-      return NextResponse.json({ error: 'no_user' }, { status: 500 })
+    const userId = authResult.user.id
+
+    const { error: usuarioErr } = await upsertUsuarioCadastro(admin, {
+      id: userId,
+      email,
+      role: 'turista',
+    })
+    if (usuarioErr) {
+      try {
+        await admin.auth.admin.deleteUser(userId)
+      } catch {
+        /* ignore */
+      }
+      return NextResponse.json({ error: usuarioErr }, { status: 500 })
     }
 
     let nomeUsuario = defaultUsernameForCadastro(email, userId)

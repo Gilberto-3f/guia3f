@@ -66,6 +66,7 @@ function mapApiTuristaError(
     case 'invalid_password_format':
       return t('apiErrorInvalidPassword')
     case 'server_config':
+    case 'auth_database_error':
       return t('apiErrorServerConfig')
     case 'policies':
       return t('turista.valPolicies')
