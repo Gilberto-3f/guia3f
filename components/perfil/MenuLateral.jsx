@@ -116,8 +116,9 @@ const itemConfig = /** @type {const} */ {
 
 const itemSair = /** @type {const} */ { label: 'Sair', acao: 'logout' }
 
-/** Ícones dos subgrupos dentro de Aplicativo (alinhados ao item Configurações). */
+/** Ícones dos subgrupos dentro de Aplicativo e Usuário. */
 const ICONE_SUBGRUPO = {
+  'usuario-minha-conta': User,
   'aplic-pessoal': User,
   'aplic-prof-hist': Star,
 }
@@ -149,6 +150,32 @@ const histComprasSubitensGeral = () => [
   { Icon: ShoppingBag, label: 'Compras', subpagina: 'compras' },
 ]
 
+function itensMinhaConta() {
+  return [
+    { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
+    { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
+    { Icon: Eye, label: 'Visitantes do meu Perfil', subpagina: 'visitantes-perfil' },
+    { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
+  ]
+}
+
+function subgrupoMinhaConta() {
+  return { key: 'usuario-minha-conta', label: 'Minha conta', items: itensMinhaConta() }
+}
+
+/**
+ * @param {MenuItem[]} itensPrincipais
+ */
+function secaoUsuario(itensPrincipais) {
+  return {
+    tipo: 'grupo',
+    key: 'usuario',
+    label: 'Usuário',
+    subgrupos: [subgrupoMinhaConta()],
+    items: itensPrincipais,
+  }
+}
+
 
 function secoesTurista() {
   const gEmergencia = [
@@ -157,20 +184,14 @@ function secoesTurista() {
     { Icon: AlertTriangle, label: 'SOCORRO', subpagina: 'emergencia-socorro' },
     { Icon: Phone, label: 'Contatar ADM', subpagina: 'emergencia-adm' },
   ]
-  const gUsuario = [
-    { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
-    { Icon: Eye, label: 'Visitantes do perfil', subpagina: 'visitantes-perfil' },
-    { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-    { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
-    { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
-  ]
+  const gUsuario = [{ Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' }]
   const gAplic = [
     itemHistoricoCompras,
     { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
     itemConfig,
   ]
   return [
-    { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: gUsuario },
+    secaoUsuario(gUsuario),
     { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic },
     /** @type {const} */ { tipo: 'grupo', key: 'emergencia', label: 'Emergência', items: gEmergencia },
     { tipo: 'sair' },
@@ -184,11 +205,7 @@ function secoesProfissional(ctx) {
   const gUsuario = filtrarMenu(
     [
       { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
-      { Icon: Eye, label: 'Visitantes do perfil', subpagina: 'visitantes-perfil' },
       { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos' },
-      { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-      { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
-      { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
     ],
     ctx
   )
@@ -245,7 +262,7 @@ function secoesProfissional(ctx) {
     },
   ]
   return [
-    /** @type {const} */ { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: gUsuario },
+    secaoUsuario(gUsuario),
     /** @type {const} */ { tipo: 'grupo', key: 'profissional', label: 'Profissional', items: gPro },
     {
       tipo: 'grupo',
@@ -265,21 +282,18 @@ function secoesProfissional(ctx) {
  */
 function secoesProfissionalAguardandoDocs(ctx) {
   const turista = secoesTurista()
-  const gUsuario = turista.find((s) => s.tipo === 'grupo' && s.key === 'usuario')
-  const gEmergencia = turista.find((s) => s.tipo === 'grupo' && s.key === 'emergencia')
   const gAplicTurista = turista.find((s) => s.tipo === 'grupo' && s.key === 'aplicativo')
 
-  const usuarioItems = filtrarMenu(
-    [
-      ...(gUsuario?.items ?? []).slice(0, 1),
-      { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos' },
-      ...(gUsuario?.items ?? []).slice(1),
-    ],
-    ctx
-  )
-
   return [
-    { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: usuarioItems },
+    secaoUsuario(
+      filtrarMenu(
+        [
+          { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
+          { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos' },
+        ],
+        ctx
+      )
+    ),
     { tipo: 'grupo', key: 'profissional', label: 'Profissional', items: [] },
     {
       tipo: 'grupo',
@@ -288,7 +302,6 @@ function secoesProfissionalAguardandoDocs(ctx) {
       subgrupos: [{ key: 'aplic-prof-hist', label: 'Históricos de Trabalho', items: [] }],
       items: filtrarMenu(gAplicTurista?.items ?? [itemConfig], ctx),
     },
-    ...(gEmergencia ? [gEmergencia] : []),
     { tipo: 'sair' },
   ]
 }
@@ -299,11 +312,7 @@ function secoesProfissionalAguardandoDocs(ctx) {
 function secoesEmpresa(ctx) {
   const gUsuario = [
     { Icon: Building2, label: 'Editar Página', subpagina: 'editar-pagina' },
-    { Icon: Eye, label: 'Visitantes do perfil', subpagina: 'visitantes-perfil' },
     { Icon: Paperclip, label: 'Anexar documentos', subpagina: 'anexar-documentos-empresa' },
-    { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-    { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
-    { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
   ]
   const gEmp = filtrarMenu(
     [
@@ -325,7 +334,7 @@ function secoesEmpresa(ctx) {
     { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
     itemConfig,
   ]
-  return [/** @type {const} */ { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: gUsuario }, { tipo: 'grupo', key: 'empresa', label: 'Empresa', items: gEmp }, { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic }, { tipo: 'sair' }]
+  return [secaoUsuario(gUsuario), { tipo: 'grupo', key: 'empresa', label: 'Empresa', items: gEmp }, { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic }, { tipo: 'sair' }]
 }
 
 /**
@@ -345,16 +354,7 @@ function secoesAdmin(ctx, { omitirModoNaLista }) {
     ],
     ctx
   )
-  const gUsuario = filtrarMenu(
-    [
-      { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
-      { Icon: Eye, label: 'Visitantes do perfil', subpagina: 'visitantes-perfil' },
-      { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
-      { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
-      { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
-    ],
-    ctx
-  )
+  const gUsuario = filtrarMenu([{ Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' }], ctx)
   const gAplic = filtrarMenu(
     [
       { Icon: History, label: 'Histórico de Compras', subitens: histComprasSubitensGeral() },
@@ -363,7 +363,7 @@ function secoesAdmin(ctx, { omitirModoNaLista }) {
     ],
     ctx
   )
-  return [/** @type {const} */ { tipo: 'grupo', key: 'admin', label: 'Admin', items: gAdmin }, { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: gUsuario }, { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic }, { tipo: 'sair' }]
+  return [{ tipo: 'grupo', key: 'admin', label: 'Admin', items: gAdmin }, secaoUsuario(gUsuario), { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic }, { tipo: 'sair' }]
 }
 
 /**
@@ -584,6 +584,7 @@ export default function MenuLateral({
       profissional: false,
       empresa: false,
       admin: false,
+      'usuario-minha-conta': false,
       'aplic-pessoal': false,
       'aplic-prof-hist': false,
     })
@@ -668,7 +669,7 @@ export default function MenuLateral({
         'modo-apresentacao': 'Modo Apresentação',
         'anexar-documentos': 'Anexar Documentos',
         'anexar-documentos-empresa': 'Anexar documentos',
-        'visitantes-perfil': 'Visitantes do perfil',
+        'visitantes-perfil': 'Visitantes do meu Perfil',
       }
       const titulosProfissional = ['historico-compras', 'parcerias', 'recomendacoes', 'historico-manifestos']
       const t =

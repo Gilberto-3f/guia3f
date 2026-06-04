@@ -2,6 +2,7 @@
 
 import { ShieldCheck } from 'lucide-react'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
+import EscudoVerificacaoPendente from '@/components/EscudoVerificacaoPendente'
 
 /**
  * @param {{
@@ -42,11 +43,11 @@ export default function NomeSocial({
           <button
             type="button"
             onClick={() => onAbrirCartao?.()}
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F44336] text-[15px] font-bold leading-none text-white"
+            className="inline-flex shrink-0 items-center justify-center"
             aria-label="Abrir cartão de visita — perfil em análise"
             title="Cartão de visita — em análise"
           >
-            <span aria-hidden>?</span>
+            <EscudoVerificacaoPendente />
           </button>
         )
       ) : null}

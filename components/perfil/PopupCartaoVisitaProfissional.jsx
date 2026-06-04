@@ -1,7 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { ShieldCheck, ShieldQuestion, Star, X } from 'lucide-react'
+import { ShieldCheck, Star, X } from 'lucide-react'
+import EscudoVerificacaoPendente from '@/components/EscudoVerificacaoPendente'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
@@ -112,8 +113,8 @@ export default function PopupCartaoVisitaProfissional({
             </>
           ) : (
             <div className="flex items-center justify-center gap-2">
-              <ShieldQuestion className="h-5 w-5 text-[#ea580c]" aria-hidden />
-              <h2 className="text-xl font-bold tracking-wide text-[#ea580c]">EM ANÁLISE</h2>
+              <EscudoVerificacaoPendente className="h-6 w-6" iconSize={20} />
+              <h2 className="text-xl font-bold tracking-wide text-[#F44336]">EM ANÁLISE</h2>
             </div>
           )}
           <button
