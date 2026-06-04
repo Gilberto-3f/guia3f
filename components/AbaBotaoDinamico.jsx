@@ -5,7 +5,7 @@ import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag, MessageCi
 import { useRouter } from 'next/navigation'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
-import { whatsappWaUrl } from '@/lib/whatsapp-empresa'
+import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { AVISO_DOCS_PROF_ALERTA } from '@/lib/avisoDocsProfissionalTexto'
 import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-empresa'
@@ -119,37 +119,29 @@ export default function AbaBotaoDinamico({
   }
 
   const abrirWhatsappGastronomiaSimples = () => {
-    const wa = whatsappWaUrl(whatsapp)
-    if (!wa) {
-      alert('WhatsApp da empresa não configurado.')
-      return
-    }
     const texto = `Olá! Gostaria de reservar uma mesa em ${empresaNome}.`
-    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(texto)}`, '_blank')
+    if (!openWhatsAppChat(whatsapp, texto)) {
+      alert('WhatsApp da empresa não configurado.')
+    }
   }
 
   const confirmarReservaMesaWhatsapp = () => {
-    const wa = whatsappWaUrl(whatsapp)
-    if (!wa) {
-      alert('WhatsApp da empresa não configurado.')
-      return
-    }
     const n = Math.max(1, Number(nPessoasMesa) || 1)
     const dataFmt = dataMesa?.trim() ? dataMesa.trim() : '(a combinar)'
     const horaFmt = horaMesa?.trim() ? horaMesa.trim() : '(a combinar)'
     const texto = `Olá! Gostaria de reservar uma mesa em ${empresaNome} para o dia ${dataFmt} às ${horaFmt} para ${n} pessoa(s).`
-    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(texto)}`, '_blank')
+    if (!openWhatsAppChat(whatsapp, texto)) {
+      alert('WhatsApp da empresa não configurado.')
+      return
+    }
     setShowReservaMesaModal(false)
   }
 
   const abrirWhatsappServicosLocais = () => {
-    const wa = whatsappWaUrl(whatsapp)
-    if (!wa) {
-      alert('WhatsApp da empresa não configurado.')
-      return
-    }
     const texto = `Olá! Vi ${empresaNome} no Guia 3F e gostaria de mais informações.`
-    window.open(`https://wa.me/${wa}?text=${encodeURIComponent(texto)}`, '_blank')
+    if (!openWhatsAppChat(whatsapp, texto)) {
+      alert('WhatsApp da empresa não configurado.')
+    }
   }
 
   const handleClick = () => {

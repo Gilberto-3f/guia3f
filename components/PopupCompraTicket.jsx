@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { X, Ticket } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
-import { whatsappWaUrl } from '@/lib/whatsapp-empresa'
+import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
 
 /**
  * @param {{
@@ -55,15 +55,12 @@ export default function PopupCompraTicket({
         return
       }
 
-      const wa = whatsappWaUrl(whatsappDestino)
-      if (!wa) {
+      const tipoTxt = tipoIngresso === 'inteira' ? 'inteira' : 'meia'
+      const texto = `Olá! Gostaria de comprar ${quantidade} ingresso(s) (${tipoTxt}) em ${empresaNome}. Total: R$ ${total.toFixed(2)}.${cupom ? ` Cupom: ${cupom}.` : ''} (empresa: ${empresaId})`
+      if (!openWhatsAppChat(whatsappDestino, texto)) {
         alert('WhatsApp da empresa não configurado.')
         return
       }
-
-      const tipoTxt = tipoIngresso === 'inteira' ? 'inteira' : 'meia'
-      const texto = `Olá! Gostaria de comprar ${quantidade} ingresso(s) (${tipoTxt}) em ${empresaNome}. Total: R$ ${total.toFixed(2)}.${cupom ? ` Cupom: ${cupom}.` : ''} (empresa: ${empresaId})`
-      window.open(`https://wa.me/${wa}?text=${encodeURIComponent(texto)}`, '_blank')
       onClose()
     } finally {
       setLoading(false)

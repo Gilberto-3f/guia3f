@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { X, CalendarDays } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
-import { whatsappWaUrl } from '@/lib/whatsapp-empresa'
+import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
 
 /**
  * @param {{
@@ -67,14 +67,11 @@ export default function PopupReservaHospedagem({
         return
       }
 
-      const wa = whatsappWaUrl(whatsappDestino)
-      if (!wa) {
+      const mensagem = `Olá! Gostaria de reservar em ${empresaNome} do dia ${checkin} até ${checkout} (${noites} noite(s)). Total: R$ ${total.toFixed(2)}. (empresa: ${empresaId})`
+      if (!openWhatsAppChat(whatsappDestino, mensagem)) {
         alert('WhatsApp da empresa não configurado.')
         return
       }
-
-      const mensagem = `Olá! Gostaria de reservar em ${empresaNome} do dia ${checkin} até ${checkout} (${noites} noite(s)). Total: R$ ${total.toFixed(2)}. (empresa: ${empresaId})`
-      window.open(`https://wa.me/${wa}?text=${encodeURIComponent(mensagem)}`, '_blank')
       onClose()
     } finally {
       setLoading(false)

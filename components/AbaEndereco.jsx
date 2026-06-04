@@ -1,7 +1,7 @@
 'use client'
 
 import { MapPin, Phone, User, Globe, Clock, Facebook, Instagram, Music2 } from 'lucide-react'
-import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
+import { whatsappWebSendUrl, digitsWhatsapp } from '@/lib/whatsapp-empresa'
 import HorariosFuncionamento from '@/components/HorariosFuncionamento'
 
 const ICON_CLASS = 'shrink-0 text-[#0097b2]'
@@ -176,7 +176,7 @@ export default function AbaEndereco({ empresa }) {
             <div>
               <p className="mb-1.5 text-sm font-medium text-gray-600">WhatsApp</p>
               <a
-                href={`https://wa.me/${String(empresa.whatsapp).replace(/\D/g, '')}`}
+                href={whatsappWebSendUrl(digitsWhatsapp(empresa.whatsapp))}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-base font-normal text-gray-900 hover:text-[#0097b2]"
