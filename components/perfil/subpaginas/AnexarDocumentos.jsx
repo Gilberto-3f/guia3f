@@ -169,6 +169,9 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
           comprovante_profissao_url: uProf,
           documentos_enviados_em: agora,
           status: 'aguardando_analise',
+          docs_verificado: false,
+          docs_verificado_por: null,
+          docs_verificado_em: null,
         })
         .eq('usuario_id', usuarioId)
 

@@ -13,14 +13,27 @@ export type LinhaEmpresaGate = {
   verificado_em?: string | null
 }
 
+/** Status que nunca liberam recursos profissionais (mesmo com docs_verificado legado). */
+const STATUS_PROF_NAO_LIBERADO = new Set([
+  'pendente',
+  'pre_aprovado',
+  'aguardando_analise',
+  'aguardando_aprovacao',
+  'reprovado',
+  'revogado',
+  'expirado',
+])
+
 export function profissionalRecursosLiberados(
   usuarioStatus: string | null | undefined,
   prof: LinhaProfissionalGate | null | undefined
 ): boolean {
   if (!prof) return false
-  if (usuarioStatus !== 'ativo') return false
-  if (String(prof.status ?? '') !== 'aprovado') return false
-  if (!prof.docs_verificado) return false
+  if (String(usuarioStatus ?? '').toLowerCase() !== 'ativo') return false
+  const statusProf = String(prof.status ?? '').toLowerCase()
+  if (STATUS_PROF_NAO_LIBERADO.has(statusProf)) return false
+  if (statusProf !== 'aprovado') return false
+  if (prof.docs_verificado !== true) return false
   const pr = prof.proxima_revisao_docs_em
   if (pr) {
     const t = new Date(pr).getTime()

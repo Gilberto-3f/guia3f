@@ -6,7 +6,7 @@ import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 export default function MobilidadePage() {
   const { perfilEhProfissional, recursosProfissionaisLiberados, loading } = useProfissionalGate()
 
-  if (!loading && perfilEhProfissional && !recursosProfissionaisLiberados) {
+  if (perfilEhProfissional && (loading || !recursosProfissionaisLiberados)) {
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <AvisoDocsProfissionalBloqueado />

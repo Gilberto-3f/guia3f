@@ -623,7 +623,7 @@ export default function CanalDetalhePage() {
 
   if (userTipoEfetivo === 'profissional') {
     const isFinanceiro = canal != null && isCanalFinanceiroProfissional(canal.nome)
-    const profCanalBloqueadoPorDocs = !gateLoading && !recursosProfissionaisLiberados
+    const profCanalBloqueadoPorDocs = gateLoading || !recursosProfissionaisLiberados
     return (
       <>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">

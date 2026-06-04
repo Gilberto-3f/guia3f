@@ -197,7 +197,8 @@ function ordenarAdministracao(lista) {
  */
 export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionadoId, leituraTick = 0 }) {
   const { recursosProfissionaisLiberados, loading: gateLoading } = useProfissionalGate()
-  const canaisBloqueados = !gateLoading && !recursosProfissionaisLiberados
+  /** Enquanto o gate carrega, tratar como bloqueado (evita flash de canais liberados). */
+  const canaisBloqueados = gateLoading || !recursosProfissionaisLiberados
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
   /** @type {Record<string, { preview: string, created_at: string }>} */

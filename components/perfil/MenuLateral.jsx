@@ -43,6 +43,7 @@ import { signOutCurrentDevice } from '@/lib/authCookieSync'
 import { supabase } from '@/lib/supabase'
 import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 
 import EmergenciaItemEsquecido from '@/components/perfil/subpaginas/emergencia/EmergenciaItemEsquecido'
 import EmergenciaPerdido from '@/components/perfil/subpaginas/emergencia/EmergenciaPerdido'
@@ -404,6 +405,7 @@ export default function MenuLateral({
   bioText = '',
   recursosProfissionaisLiberados = true,
 }) {
+  const { loading: gateLoading } = useProfissionalGate()
   const router = useRouter()
   /** @type {[HistoricoEntry[], (h: HistoricoEntry[]) => void]} */
   const [historico, setHistorico] = useState(/** @type {HistoricoEntry[]} */ ([]))
@@ -471,6 +473,10 @@ export default function MenuLateral({
     return variant || 'turista'
   })()
 
+  const recursosProfLiberadosEfetivo =
+    menuVariantEfetivo === 'profissional' && !gateLoading && recursosProfissionaisLiberados
+  const profDocsBloqueado = menuVariantEfetivo === 'profissional' && !recursosProfLiberadosEfetivo
+
   /** Identidade social sempre a do utilizador logado (ADM); preview empresa é só noutras rotas. */
   const usuarioIdEfetivo = usuarioId
   const empresaIdEfetivo = empresaId
@@ -507,7 +513,7 @@ export default function MenuLateral({
     variant: menuVariantEfetivo,
     placaVermelha,
     adminLevel,
-    recursosProfissionaisLiberados,
+    recursosProfissionaisLiberados: recursosProfLiberadosEfetivo,
     empresaCategoria,
     empresaCidade,
   }
@@ -518,7 +524,7 @@ export default function MenuLateral({
       variant: menuVariantEfetivo,
       placaVermelha,
       adminLevel,
-      recursosProfissionaisLiberados,
+      recursosProfissionaisLiberados: recursosProfLiberadosEfetivo,
       empresaCategoria,
       empresaCidade,
     }
@@ -529,14 +535,14 @@ export default function MenuLateral({
     if (simulandoComoPerfil && perfilSimulado) {
       if (perfilSimulado.tipo === 'empresa') return e
       if (perfilSimulado.tipo === 'profissional') {
-        if (!recursosProfissionaisLiberados) return secoesProfissionalAguardandoDocs(c)
+        if (!recursosProfLiberadosEfetivo) return secoesProfissionalAguardandoDocs(c)
         return p
       }
       if (perfilSimulado.tipo === 'turista') return t
     }
     if (variant === 'turista') return t
     if (variant === 'profissional') {
-      if (!recursosProfissionaisLiberados) return secoesProfissionalAguardandoDocs(c)
+      if (!recursosProfLiberadosEfetivo) return secoesProfissionalAguardandoDocs(c)
       return p
     }
     if (variant === 'empresa') return e
@@ -547,7 +553,7 @@ export default function MenuLateral({
     menuVariantEfetivo,
     placaVermelha,
     adminLevel,
-    recursosProfissionaisLiberados,
+    recursosProfLiberadosEfetivo,
     simulandoComoPerfil,
     perfilSimulado,
     omitirModoNaListaAdmin,
@@ -624,8 +630,6 @@ export default function MenuLateral({
     setHistorico((h) => [...h, { tipo: 'pagina', titulo, id, historicoTipo }])
   }
 
-  const profDocsBloqueado = menuVariantEfetivo === 'profissional' && !recursosProfissionaisLiberados
-
   const executarItem = (item) => {
     if (item.acao === 'logout') {
       setModalLogout(true)
@@ -642,7 +646,7 @@ export default function MenuLateral({
       return
     }
     if (item.subpagina) {
-      if (subpaginaProfissionalBloqueadaPorDocs(item.subpagina, recursosProfissionaisLiberados, menuVariantEfetivo)) {
+      if (subpaginaProfissionalBloqueadaPorDocs(item.subpagina, recursosProfLiberadosEfetivo, menuVariantEfetivo)) {
         abrirPagina('Serviço indisponível', 'docs-prof-bloqueado')
         return
       }
