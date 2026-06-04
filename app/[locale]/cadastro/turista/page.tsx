@@ -70,6 +70,9 @@ function mapApiTuristaError(
     case 'policies':
       return t('turista.valPolicies')
     default:
+      if (code?.includes('documento_frente_url') || code?.includes('documento_verso_url')) {
+        return t('apiErrorServerConfig')
+      }
       return t('apiErrorDefault')
   }
 }
