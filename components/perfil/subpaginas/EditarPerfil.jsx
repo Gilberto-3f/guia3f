@@ -289,13 +289,11 @@ export default function EditarPerfil({
   /** Cores explícitas: evita herdar `text-white` (ou tema) e sumir em fundo branco — todos os perfis. */
   const labelClass = 'text-xs font-medium text-gray-800'
   const fieldClass =
-    'mt-1 w-full rounded-lg border border-gray-200 bg-white p-2 text-sm text-gray-900 placeholder:text-gray-500 outline-none focus:border-[#0097b2] focus:ring-1 focus:ring-[#0097b2]/35'
+    'mt-1 w-full rounded-lg border border-gray-200 bg-white p-2 text-base text-gray-900 placeholder:text-gray-500 outline-none focus:border-[#0097b2] focus:ring-1 focus:ring-[#0097b2]/35'
 
   return (
     <div className="space-y-4 bg-white px-1 pb-2 text-gray-900">
-      <div>
-        <label className={labelClass}>Foto de perfil</label>
-        <div className="mt-2 flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-3">
           <div className="relative h-32 w-32 overflow-hidden rounded-lg bg-gray-100">
             {fotoExibida ? (
               <img src={fotoExibida} alt="Foto de perfil" className="h-full w-full object-cover" />
@@ -321,6 +319,7 @@ export default function EditarPerfil({
           <button
             type="button"
             onClick={() => galeriaInputRef.current?.click()}
+            aria-label="Foto de perfil"
             className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-[#0097b2] px-3 py-2 text-sm font-semibold text-white"
           >
             <Camera className="h-4 w-4 shrink-0" aria-hidden />
@@ -336,8 +335,7 @@ export default function EditarPerfil({
               Cancelar nova foto
             </button>
           ) : null}
-        </div>
-        {erroFoto ? <p className="mt-2 text-sm text-red-600">{erroFoto}</p> : null}
+        {erroFoto ? <p className="w-full text-center text-sm text-red-600">{erroFoto}</p> : null}
       </div>
       <div>
         <label className={labelClass}>Nome</label>
