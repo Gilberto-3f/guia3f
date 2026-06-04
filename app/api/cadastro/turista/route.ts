@@ -6,25 +6,6 @@ const MAX_USERNAME_LEN = 20
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
 
-async function uploadFile(
-  admin: ReturnType<typeof createSupabaseAdmin>,
-  bucket: string,
-  folder: string,
-  userId: string,
-  file: File
-) {
-  const ext = file.name.split('.').pop() || 'bin'
-  const path = `${folder}/${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-  const buf = Buffer.from(await file.arrayBuffer())
-  const { error } = await admin.storage.from(bucket).upload(path, buf, {
-    contentType: file.type || 'application/octet-stream',
-    upsert: false,
-  })
-  if (error) throw new Error(error.message)
-  const { data } = admin.storage.from(bucket).getPublicUrl(path)
-  return data.publicUrl
-}
-
 export async function POST(req: NextRequest) {
   try {
     const admin = createSupabaseAdmin()
@@ -46,16 +27,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'policies' }, { status: 400 })
     }
 
-    const docFrente = form.get('documentoFrente')
-    const docVerso = form.get('documentoVerso')
-    const fotoPerfil = form.get('fotoPerfil')
-    if (!(docFrente instanceof File) || docFrente.size === 0 || !(docVerso instanceof File) || docVerso.size === 0) {
-      return NextResponse.json({ error: 'docs_required' }, { status: 400 })
-    }
-    if (!(fotoPerfil instanceof File) || fotoPerfil.size === 0) {
-      return NextResponse.json({ error: 'photo_required' }, { status: 400 })
-    }
-
     const { data: created, error: cuErr } = await admin.auth.admin.createUser({
       email,
       password,
@@ -75,18 +46,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'no_user' }, { status: 500 })
     }
 
-    const docFrenteUrl = await uploadFile(admin, 'documentos', 'documentos', userId, docFrente)
-    const docVersoUrl = await uploadFile(admin, 'documentos', 'documentos', userId, docVerso)
-    const fotoUrl = await uploadFile(admin, 'documentos', 'foto-perfil', userId, fotoPerfil)
-
     let nomeUsuario = defaultUsernameForCadastro(email, userId)
     const payload: Record<string, unknown> = {
       usuario_id: userId,
       nome_completo: nomeCompleto,
       nome_usuario: nomeUsuario,
-      documento_frente_url: docFrenteUrl,
-      documento_verso_url: docVersoUrl,
-      foto_perfil_url: fotoUrl,
       status: 'pre_aprovado',
     }
 

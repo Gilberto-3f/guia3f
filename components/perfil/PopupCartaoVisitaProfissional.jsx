@@ -98,7 +98,7 @@ export default function PopupCartaoVisitaProfissional({
           {verificado ? (
             <>
               <div className="flex items-center justify-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-[#00D443]" aria-hidden />
+                <ShieldCheck className="h-5 w-5 text-[#00D443]" fill="currentColor" stroke="white" strokeWidth={2} aria-hidden />
                 <h2 className="text-xl font-bold tracking-wide text-[#00D443]">VERIFICADO</h2>
               </div>
               <p className="mt-1 px-4 text-center text-sm text-gray-600">

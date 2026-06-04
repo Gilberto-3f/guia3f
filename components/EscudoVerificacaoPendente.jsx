@@ -22,8 +22,8 @@ export default function EscudoVerificacaoPendente({
           size={iconSize}
           className="text-[#00D443]"
           fill="currentColor"
-          stroke="#00D443"
-          strokeWidth={1.5}
+          stroke="white"
+          strokeWidth={2}
           aria-hidden
         />
       </span>

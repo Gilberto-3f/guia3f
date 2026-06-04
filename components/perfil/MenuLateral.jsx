@@ -71,6 +71,7 @@ import ModoApresentacao from '@/components/perfil/subpaginas/ModoApresentacao'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import AnexarDocumentos from '@/components/perfil/subpaginas/AnexarDocumentos'
+import AnexarDocumentosTurista from '@/components/perfil/subpaginas/AnexarDocumentosTurista'
 import AnexarDocumentosEmpresa from '@/components/perfil/subpaginas/AnexarDocumentosEmpresa'
 import HistoricoManifestos from '@/components/perfil/subpaginas/HistoricoManifestos'
 import ParceriasProfissional from '@/components/perfil/subpaginas/ParceriasProfissional'
@@ -189,7 +190,10 @@ function secoesTurista() {
     { Icon: Phone, label: 'Contatar ADM', subpagina: 'emergencia-adm' },
     { Icon: KeyRound, label: 'Código de pré-liberação', subpagina: 'emergencia-pre-liberacao' },
   ]
-  const gUsuario = [{ Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' }]
+  const gUsuario = [
+    { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
+    { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos-turista' },
+  ]
   const gAplic = [
     itemHistoricoCompras,
     { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
@@ -677,6 +681,7 @@ export default function MenuLateral({
         salvos: 'Publicações Salvas',
         'modo-apresentacao': 'Modo Apresentação',
         'anexar-documentos': 'Anexar Documentos',
+        'anexar-documentos-turista': 'Anexar Documentos',
         'anexar-documentos-empresa': 'Anexar documentos',
         'visitantes-perfil': 'Visitantes do meu Perfil',
       }
@@ -824,6 +829,8 @@ export default function MenuLateral({
       return <EditarPaginaEmpresa empresa={empresa} empresaId={String(empresaIdEfetivo)} onSalvo={onPerfilAtualizado} />
     }
     if (id === 'visitantes-perfil') return <VisitantesPerfil usuarioId={usuarioIdEfetivo} />
+    if (id === 'anexar-documentos-turista')
+      return <AnexarDocumentosTurista usuarioId={usuarioIdEfetivo} onConcluido={onPerfilAtualizado} />
     if (id === 'anexar-documentos')
       return <AnexarDocumentos usuarioId={usuarioIdEfetivo} onConcluido={onPerfilAtualizado} />
     if (id === 'anexar-documentos-empresa' && empresaIdEfetivo && usuarioIdEfetivo)
