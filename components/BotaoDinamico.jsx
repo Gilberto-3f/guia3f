@@ -6,6 +6,7 @@ import { useRouter } from '@/i18n/navigation'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { AVISO_DOCS_PROF_ALERTA } from '@/lib/avisoDocsProfissionalTexto'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
 import { whatsappWaUrl } from '@/lib/whatsapp-empresa'
 
@@ -131,9 +132,7 @@ export default function BotaoDinamico({
       return
     }
     if (config.acao === 'corrida' && perfilEhProfissional && !recursosProfissionaisLiberados) {
-      window.alert(
-        'Mobilidade disponível após verificação dos documentos. Use Menu → USUÁRIO → Anexar Documentos.'
-      )
+      window.alert(AVISO_DOCS_PROF_ALERTA)
       return
     }
     if (!empresaId) {

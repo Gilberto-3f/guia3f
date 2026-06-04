@@ -6,6 +6,7 @@ import { AdminPermissaoProvider } from '@/app/[locale]/(admin)/dashboard/admin/c
 import { ModoApresentacaoProvider, useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { ProfissionalGateProvider } from '@/context/ProfissionalGateContext'
 import ModoApresentacaoChrome from '@/components/ModoApresentacaoChrome'
+import ProfissionalGateBanner from '@/components/ProfissionalGateBanner'
 import BottomBar from '@/components/BottomBar'
 
 /** `feed/criar` emite quando o teclado está visível para esconder a barra (aba TEXTO ou legenda na FOTO). */
@@ -57,6 +58,7 @@ function AppShellLayoutFrame({
       }`}
     >
       {modoAtivo ? null : <ModoApresentacaoChrome />}
+      <ProfissionalGateBanner />
       <div className={`flex min-h-0 flex-1 flex-col ${isCanal ? 'overflow-hidden' : ''}`}>{children}</div>
       {!hideBottomBar ? <BottomBar /> : null}
     </div>

@@ -21,11 +21,13 @@ export default function GuiaPage() {
   const tMobilidade = useTranslations('Mobilidade')
   const tGuia = useTranslations('Guia')
   const router = useRouter()
-  const { roleEfetivo } = useProfissionalGate()
+  const { roleEfetivo, recursosProfissionaisLiberados, loading: gateLoading } = useProfissionalGate()
 
-  /** Aba MOBILIDADE no topo apenas para perfis que não usam Mobilidade como 2.º ícone da BottomBar (turistas). */
+  /** MOBILIDADE no topo: empresa/admin sempre; profissional só após verificação ADM (senão igual turista). */
+  const profComRecursos =
+    roleEfetivo === 'profissional' && !gateLoading && recursosProfissionaisLiberados
   const mostrarAbaMobilidade =
-    roleEfetivo === 'profissional' || roleEfetivo === 'empresa' || roleEfetivo === 'admin'
+    profComRecursos || roleEfetivo === 'empresa' || roleEfetivo === 'admin'
   const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
 
   useEffect(() => {

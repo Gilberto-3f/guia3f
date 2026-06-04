@@ -7,6 +7,7 @@ import PopupCompraTicket from '@/components/PopupCompraTicket'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
 import { whatsappWaUrl } from '@/lib/whatsapp-empresa'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { AVISO_DOCS_PROF_ALERTA } from '@/lib/avisoDocsProfissionalTexto'
 import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-empresa'
 import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
 
@@ -102,9 +103,7 @@ export default function AbaBotaoDinamico({
 
   const bloquearCorridaProfissional = () => {
     if (perfilEhProfissional && !recursosProfissionaisLiberados) {
-      window.alert(
-        'Mobilidade disponível após verificação dos documentos. Use Menu → USUÁRIO → Anexar Documentos.'
-      )
+      window.alert(AVISO_DOCS_PROF_ALERTA)
       return true
     }
     return false

@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { Car } from 'lucide-react'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { AVISO_DOCS_PROF_ALERTA } from '@/lib/avisoDocsProfissionalTexto'
 import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
 
 /**
@@ -31,9 +32,7 @@ export default function BotaoChamarCorrida({
 
   const handleClick = () => {
     if (perfilEhProfissional && !recursosProfissionaisLiberados) {
-      window.alert(
-        'Mobilidade disponível após verificação dos documentos. Menu → USUÁRIO → Anexar Documentos.'
-      )
+      window.alert(AVISO_DOCS_PROF_ALERTA)
       return
     }
 

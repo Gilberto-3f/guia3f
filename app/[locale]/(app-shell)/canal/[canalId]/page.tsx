@@ -7,6 +7,7 @@ import { ChevronLeft, MoreVertical } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
 import BandeiraPais from '@/components/BandeiraPais'
 import CanalHeaderTitulo from '@/components/canal/CanalHeaderTitulo'
 import CanalAbasPais from '@/components/CanalAbasPais'
@@ -622,6 +623,7 @@ export default function CanalDetalhePage() {
 
   if (userTipoEfetivo === 'profissional') {
     const isFinanceiro = canal != null && isCanalFinanceiroProfissional(canal.nome)
+    const profCanalBloqueadoPorDocs = !gateLoading && !recursosProfissionaisLiberados
     return (
       <>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
@@ -634,7 +636,7 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal} disabled={isFinanceiro}>
+          <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal} disabled={isFinanceiro || profCanalBloqueadoPorDocs}>
             {isFinanceiro ? (
               <CanalFinanceiroListaRotulo username={meuUsername} inverse />
             ) : ehCanalEmpresaParaProfissional ? (
@@ -646,7 +648,7 @@ export default function CanalDetalhePage() {
               <span className="truncate text-lg font-semibold">{tituloCanal}</span>
             )}
           </CanalHeaderTitulo>
-          {isFinanceiro ? (
+          {isFinanceiro || profCanalBloqueadoPorDocs ? (
             <div className="h-10 w-10 shrink-0" aria-hidden />
           ) : (
             <button
@@ -660,15 +662,10 @@ export default function CanalDetalhePage() {
           )}
         </header>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {canal != null && isFinanceiro && financeUid ? (
-            recursosProfissionaisLiberados ? (
-              <CanalFinanceiroLista usuarioId={financeUid} tipo="profissional" />
-            ) : (
-              <div className="flex flex-1 flex-col items-center justify-start px-4 py-10 text-center text-sm text-gray-600">
-                <p>O canal financeiro é liberado após a verificação dos seus documentos.</p>
-                <p className="mt-2 text-xs text-gray-500">Menu → USUÁRIO → Anexar Documentos.</p>
-              </div>
-            )
+          {profCanalBloqueadoPorDocs ? (
+            <AvisoDocsProfissionalBloqueado />
+          ) : canal != null && isFinanceiro && financeUid ? (
+            <CanalFinanceiroLista usuarioId={financeUid} tipo="profissional" />
           ) : (
             <div className="min-h-0 flex-1 overflow-hidden">
             <CanalMensagens

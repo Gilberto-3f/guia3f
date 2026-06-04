@@ -73,6 +73,12 @@ import HistoricoManifestos from '@/components/perfil/subpaginas/HistoricoManifes
 import ParceriasProfissional from '@/components/perfil/subpaginas/ParceriasProfissional'
 import VisitantesPerfil from '@/components/perfil/subpaginas/VisitantesPerfil'
 import { contarVisitasPerfilPendentes } from '@/lib/perfilVisitas'
+import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
+import {
+  GRUPOS_MENU_PROF_BLOQUEADOS_DOCS,
+  SUBGRUPOS_MENU_PROF_BLOQUEADOS_DOCS,
+  subpaginaProfissionalBloqueadaPorDocs,
+} from '@/lib/profissionalDocsBloqueado'
 
 /**
  * @typedef {{ tipo: 'menu', titulo: string, itens: MenuItem[] } | { tipo: 'pagina', titulo: string, id: string, historicoTipo?: string, postId?: string, comentarioId?: string | null }} HistoricoEntry
@@ -248,6 +254,41 @@ function secoesProfissional(ctx) {
       subgrupos: aplicSubgrupos,
       items: [itemConfig],
     },
+    { tipo: 'sair' },
+  ]
+}
+
+/**
+ * Profissional com documentos pendentes: mesmos itens do turista + Anexar Documentos;
+ * pastas Profissional e Históricos de Trabalho ficam bloqueadas (aviso ao expandir).
+ * @param {MenuContext} ctx
+ */
+function secoesProfissionalAguardandoDocs(ctx) {
+  const turista = secoesTurista()
+  const gUsuario = turista.find((s) => s.tipo === 'grupo' && s.key === 'usuario')
+  const gEmergencia = turista.find((s) => s.tipo === 'grupo' && s.key === 'emergencia')
+  const gAplicTurista = turista.find((s) => s.tipo === 'grupo' && s.key === 'aplicativo')
+
+  const usuarioItems = filtrarMenu(
+    [
+      ...(gUsuario?.items ?? []).slice(0, 1),
+      { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos' },
+      ...(gUsuario?.items ?? []).slice(1),
+    ],
+    ctx
+  )
+
+  return [
+    { tipo: 'grupo', key: 'usuario', label: 'Usuário', items: usuarioItems },
+    { tipo: 'grupo', key: 'profissional', label: 'Profissional', items: [] },
+    {
+      tipo: 'grupo',
+      key: 'aplicativo',
+      label: 'Aplicativo',
+      subgrupos: [{ key: 'aplic-prof-hist', label: 'Históricos de Trabalho', items: [] }],
+      items: filtrarMenu(gAplicTurista?.items ?? [itemConfig], ctx),
+    },
+    ...(gEmergencia ? [gEmergencia] : []),
     { tipo: 'sair' },
   ]
 }
@@ -483,11 +524,17 @@ export default function MenuLateral({
     const a = secoesAdmin(c, { omitirModoNaLista: omitirModoNaListaAdmin })
     if (simulandoComoPerfil && perfilSimulado) {
       if (perfilSimulado.tipo === 'empresa') return e
-      if (perfilSimulado.tipo === 'profissional') return p
+      if (perfilSimulado.tipo === 'profissional') {
+        if (!recursosProfissionaisLiberados) return secoesProfissionalAguardandoDocs(c)
+        return p
+      }
       if (perfilSimulado.tipo === 'turista') return t
     }
     if (variant === 'turista') return t
-    if (variant === 'profissional') return p
+    if (variant === 'profissional') {
+      if (!recursosProfissionaisLiberados) return secoesProfissionalAguardandoDocs(c)
+      return p
+    }
     if (variant === 'empresa') return e
     if (variant === 'admin') return a
     return []
@@ -572,6 +619,8 @@ export default function MenuLateral({
     setHistorico((h) => [...h, { tipo: 'pagina', titulo, id, historicoTipo }])
   }
 
+  const profDocsBloqueado = menuVariantEfetivo === 'profissional' && !recursosProfissionaisLiberados
+
   const executarItem = (item) => {
     if (item.acao === 'logout') {
       setModalLogout(true)
@@ -588,6 +637,10 @@ export default function MenuLateral({
       return
     }
     if (item.subpagina) {
+      if (subpaginaProfissionalBloqueadaPorDocs(item.subpagina, recursosProfissionaisLiberados, menuVariantEfetivo)) {
+        abrirPagina('Serviço indisponível', 'docs-prof-bloqueado')
+        return
+      }
       const titulos = {
         'emergencia-item-esquecido': 'Item esquecido',
         'emergencia-perdido': 'Estou perdido(a)',
@@ -735,6 +788,7 @@ export default function MenuLateral({
       )
     if (id === 'regras-ecossistema') return <RegrasEcossistema />
     if (id === 'historico-compras') return <HistoricoCompras />
+    if (id === 'docs-prof-bloqueado') return <AvisoDocsProfissionalBloqueado />
     if (id === 'comissoes') return <Comissoes usuarioId={usuarioIdEfetivo} />
     if (id === 'agendamento') return <AgendamentoAutomatico />
     if (id === 'tabela') return <TabelaValores />
@@ -835,8 +889,9 @@ export default function MenuLateral({
     subgrupos.map((sg) => {
       const abSub = gruposAbertos[sg.key] ?? false
       const SubIcon = ICONE_SUBGRUPO[sg.key] ?? User
+      const subgrupoBloqueado = profDocsBloqueado && SUBGRUPOS_MENU_PROF_BLOQUEADOS_DOCS.has(sg.key)
       const itensSub = filtrarMenu(sg.items, ctx)
-      if (itensSub.length === 0) return null
+      if (!subgrupoBloqueado && itensSub.length === 0) return null
       return (
         <div key={sg.key} className="mb-1 border-b border-gray-50 last:border-0">
           <button
@@ -859,7 +914,11 @@ export default function MenuLateral({
               <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
             )}
           </button>
-          {abSub ? <div className="pb-1">{renderListaItens(itensSub, { compact: true })}</div> : null}
+          {abSub ? (
+            <div className="pb-1">
+              {subgrupoBloqueado ? <AvisoDocsProfissionalBloqueado className="py-4" /> : renderListaItens(itensSub, { compact: true })}
+            </div>
+          ) : null}
         </div>
       )
     })
@@ -975,6 +1034,7 @@ export default function MenuLateral({
               {secoes.map((sec, i) => {
                 if (sec.tipo === 'grupo') {
                   const ab = gruposAbertos[sec.key] ?? false
+                  const grupoBloqueado = profDocsBloqueado && GRUPOS_MENU_PROF_BLOQUEADOS_DOCS.has(sec.key)
                   return (
                     <div key={`g-${sec.key}`} className="border-b border-gray-100">
                       <button
@@ -992,14 +1052,20 @@ export default function MenuLateral({
                       </button>
                       {ab ? (
                         <div className="px-3 pb-2">
-                          {sec.subgrupos?.length ? renderSubgrupos(sec.subgrupos) : null}
-                          {sec.subgrupos?.length
-                            ? (sec.items?.length ?? 0) > 0 ? (
-                                <div className="mt-1 border-t border-gray-100 pt-1">
-                                  {renderListaItens(filtrarMenu(sec.items, ctx), { compact: true })}
-                                </div>
-                              ) : null
-                            : renderListaItens(filtrarMenu(sec.items ?? [], ctx), { compact: true })}
+                          {grupoBloqueado ? (
+                            <AvisoDocsProfissionalBloqueado className="py-4" />
+                          ) : (
+                            <>
+                              {sec.subgrupos?.length ? renderSubgrupos(sec.subgrupos) : null}
+                              {sec.subgrupos?.length
+                                ? (sec.items?.length ?? 0) > 0 ? (
+                                    <div className="mt-1 border-t border-gray-100 pt-1">
+                                      {renderListaItens(filtrarMenu(sec.items, ctx), { compact: true })}
+                                    </div>
+                                  ) : null
+                                : renderListaItens(filtrarMenu(sec.items ?? [], ctx), { compact: true })}
+                            </>
+                          )}
                         </div>
                       ) : null}
                     </div>

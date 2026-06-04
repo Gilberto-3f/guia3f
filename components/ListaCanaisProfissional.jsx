@@ -24,6 +24,8 @@ import { buscarUltimasMensagensCanais, formatarListaHora, patchUltimaMensagemCan
 import { contarFinanceiroNaoLidasProfissional } from '@/lib/canaisProfissionalVisibilidade'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -194,6 +196,8 @@ function ordenarAdministracao(lista) {
  * }} props
  */
 export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionadoId, leituraTick = 0 }) {
+  const { recursosProfissionaisLiberados, loading: gateLoading } = useProfissionalGate()
+  const canaisBloqueados = !gateLoading && !recursosProfissionaisLiberados
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
   /** @type {Record<string, { preview: string, created_at: string }>} */
@@ -563,7 +567,10 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         <CanalEmpresaRow
           key={canal.id}
           canal={canal}
-          onClick={() => onSelectCanal(canal)}
+          onClick={() => {
+          if (canaisBloqueados) return
+          onSelectCanal(canal)
+        }}
           active={isActive}
           preview={ultima?.preview ?? null}
           hora={formatarListaHora(horaIso)}
@@ -581,7 +588,10 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         subtitulo={ehAdministracao && !ehFinanceiro ? legendaMembros(canal) : null}
         naoLidas={naoLidas}
         active={isActive}
-        onClick={() => onSelectCanal(canal)}
+        onClick={() => {
+          if (canaisBloqueados) return
+          onSelectCanal(canal)
+        }}
         avatar={
           <div
             className={
@@ -605,6 +615,11 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+      {canaisBloqueados ? (
+        <div className="shrink-0 border-b border-amber-100 bg-amber-50/90 px-2">
+          <AvisoDocsProfissionalBloqueado compact className="py-4" />
+        </div>
+      ) : null}
       <div className="min-h-0 flex min-h-0 flex-1 flex-col overflow-y-auto md:min-h-0">
         {part.administracao.length > 0 ? (
           <div className="shrink-0 border-b border-gray-100">
@@ -629,11 +644,15 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
             </button>
             {gruposAbertos.administracao === true ? (
               <div>
-                {part.administracao.map((canal) => (
-                  <div key={canal.id} className="pl-2">
-                    {renderRow(canal, { canalProfissional: true })}
-                  </div>
-                ))}
+                {canaisBloqueados ? (
+                  <AvisoDocsProfissionalBloqueado className="py-6" />
+                ) : (
+                  part.administracao.map((canal) => (
+                    <div key={canal.id} className="pl-2">
+                      {renderRow(canal, { canalProfissional: true })}
+                    </div>
+                  ))
+                )}
               </div>
             ) : null}
           </div>
@@ -657,6 +676,9 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
               </span>
             </button>
             {gruposAbertos.empresas === true ? (
+              canaisBloqueados ? (
+                <AvisoDocsProfissionalBloqueado className="py-6" />
+              ) : (
               <>
                 <div
                   className="sticky top-0 z-10 w-full min-w-0 shrink-0 bg-[#0097b2]"
@@ -704,6 +726,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
                   )}
                 </div>
               </>
+              )
             ) : null}
           </div>
         ) : null}
