@@ -1,6 +1,5 @@
 'use client'
 
-import { ShieldCheck } from 'lucide-react'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
 import EscudoVerificacaoPendente from '@/components/EscudoVerificacaoPendente'
 
@@ -28,28 +27,19 @@ export default function NomeSocial({
   return (
     <div className="flex min-w-0 items-center gap-2">
       {mostrarCartao ? (
-        profissionalVerificado ? (
-          <button
-            type="button"
-            onClick={() => onAbrirCartao?.()}
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white"
-            style={{ backgroundColor: '#00D443' }}
-            aria-label="Abrir cartão de visita — profissional verificado"
-            title="Cartão de visita"
-          >
-            <ShieldCheck size={18} className="text-white" aria-hidden />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onAbrirCartao?.()}
-            className="inline-flex shrink-0 items-center justify-center"
-            aria-label="Abrir cartão de visita — perfil em análise"
-            title="Cartão de visita — em análise"
-          >
-            <EscudoVerificacaoPendente />
-          </button>
-        )
+        <button
+          type="button"
+          onClick={() => onAbrirCartao?.()}
+          className="inline-flex shrink-0 items-center justify-center"
+          aria-label={
+            profissionalVerificado
+              ? 'Abrir cartão de visita — profissional verificado'
+              : 'Abrir cartão de visita — perfil em análise'
+          }
+          title="Cartão de visita"
+        >
+          <EscudoVerificacaoPendente verificado={profissionalVerificado} />
+        </button>
       ) : null}
       <h1 className="min-w-0 text-left text-2xl font-bold text-[#001f3f]">
         <NomeComVerificacao

@@ -3,16 +3,35 @@
 import { ShieldCheck } from 'lucide-react'
 
 /**
- * Escudo vermelho com "?" — paridade visual com ShieldCheck verde do perfil verificado.
- * @param {{ className?: string, iconSize?: number, title?: string }} props
+ * Escudo de verificação do profissional (sem bolha de fundo).
+ * Pendente: vermelho com "?". Verificado: verde sólido, mesmo formato do pendente.
+ * @param {{ className?: string, iconSize?: number, title?: string, verificado?: boolean }} props
  */
 export default function EscudoVerificacaoPendente({
   className = 'h-7 w-7',
   iconSize = 22,
-  title = 'Perfil em análise',
+  title,
+  verificado = false,
 }) {
+  const titulo = title ?? (verificado ? 'Profissional verificado' : 'Perfil em análise')
+
+  if (verificado) {
+    return (
+      <span className={`relative inline-flex shrink-0 items-center justify-center ${className}`} title={titulo}>
+        <ShieldCheck
+          size={iconSize}
+          className="text-[#00D443]"
+          fill="currentColor"
+          stroke="#00D443"
+          strokeWidth={1.5}
+          aria-hidden
+        />
+      </span>
+    )
+  }
+
   return (
-    <span className={`relative inline-flex shrink-0 items-center justify-center ${className}`} title={title}>
+    <span className={`relative inline-flex shrink-0 items-center justify-center ${className}`} title={titulo}>
       <ShieldCheck
         size={iconSize}
         className="text-[#F44336]"
