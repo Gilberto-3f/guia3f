@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import { useTranslations } from 'next-intl'
 import { Car, MapPin } from 'lucide-react'
 import PublicidadeHome from '@/components/PublicidadeHome'
@@ -22,6 +23,7 @@ export default function GuiaPage() {
   const tGuia = useTranslations('Guia')
   const router = useRouter()
   const { roleEfetivo, recursosProfissionaisLiberados, loading: gateLoading } = useProfissionalGate()
+  const { podeComprarReservar, avisarBloqueio } = useGateComprasReservas()
 
   /** MOBILIDADE no topo: empresa/admin sempre; profissional só após verificação ADM (senão igual turista). */
   const profComRecursos =
@@ -37,6 +39,10 @@ export default function GuiaPage() {
   }, [mostrarAbaMobilidade, abaAtiva])
 
   const handleFiltroClick = (filtroId: string) => {
+    if (!podeComprarReservar) {
+      avisarBloqueio()
+      return
+    }
     if (filtroId === 'compras') {
       router.push('/guia/compras')
     } else {

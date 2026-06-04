@@ -342,6 +342,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               categoria={categoria}
               empresaId={empresaId}
               empresaNome={nomeFantasia}
+              empresaUsername={empresaMerged.nome_usuario != null ? String(empresaMerged.nome_usuario) : null}
               cidade={String(empresaMerged.cidade ?? '')}
               horarios={horariosParsed}
               whatsapp={empresaMerged.whatsapp != null ? String(empresaMerged.whatsapp) : null}

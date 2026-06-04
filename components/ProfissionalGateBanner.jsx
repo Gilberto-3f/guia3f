@@ -1,7 +1,6 @@
 'use client'
 
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
-import { AVISO_DOCS_PROF_CAMINHO, AVISO_DOCS_PROF_TITULO } from '@/lib/avisoDocsProfissionalTexto'
 
 /** Faixa superior: verificação pendente ou renovação de documentos (profissional). */
 export default function ProfissionalGateBanner() {
@@ -10,12 +9,7 @@ export default function ProfissionalGateBanner() {
   if (loading || !perfilEhProfissional) return null
 
   if (!recursosProfissionaisLiberados) {
-    return (
-      <div className="sticky top-0 z-[45] border-b border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs leading-snug text-amber-950 sm:text-sm">
-        <strong>{AVISO_DOCS_PROF_TITULO}</strong>{' '}
-        <span className="text-amber-900/90">{AVISO_DOCS_PROF_CAMINHO}</span>
-      </div>
-    )
+    return null
   }
 
   if (diasAteRevisaoDocs == null) return null

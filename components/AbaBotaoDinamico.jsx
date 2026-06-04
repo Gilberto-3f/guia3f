@@ -11,8 +11,8 @@ import {
   mensagemWhatsappReservaMesaSimples,
   mensagemWhatsappContatoGuia,
 } from '@/lib/whatsapp-empresa'
-import { useProfissionalGate } from '@/context/ProfissionalGateContext'
-import { AVISO_DOCS_PROF_ALERTA } from '@/lib/avisoDocsProfissionalTexto'
+import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-empresa'
 import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
 
@@ -47,6 +47,7 @@ function isGastronomia(cat) {
  *   categoria: string
  *   empresaId: string
  *   empresaNome: string
+ *   empresaUsername?: string | null
  *   cidade?: string
  *   horarios?: Record<string, unknown>
  *   whatsapp?: string | null
@@ -59,6 +60,7 @@ export default function AbaBotaoDinamico({
   categoria,
   empresaId,
   empresaNome,
+  empresaUsername = null,
   cidade = '',
   horarios = {},
   whatsapp = null,
@@ -67,7 +69,7 @@ export default function AbaBotaoDinamico({
   precoDiaria = 0,
 }) {
   const router = useRouter()
-  const { perfilEhProfissional, recursosProfissionaisLiberados } = useProfissionalGate()
+  const { podeComprarReservar, avisarBloqueio } = useGateComprasReservas()
   const [showTicketPopup, setShowTicketPopup] = useState(false)
   const [showReservaPopup, setShowReservaPopup] = useState(false)
   const [showReservaMesaModal, setShowReservaMesaModal] = useState(false)
@@ -106,16 +108,9 @@ export default function AbaBotaoDinamico({
 
   const Icon = config.icon
 
-  const bloquearCorridaProfissional = () => {
-    if (perfilEhProfissional && !recursosProfissionaisLiberados) {
-      window.alert(AVISO_DOCS_PROF_ALERTA)
-      return true
-    }
-    return false
-  }
+  const exigeLiberacao = (acao) => ['reserva', 'ticket', 'produtos', 'corrida'].includes(acao)
 
   const irMobilidadeEmpresa = () => {
-    if (bloquearCorridaProfissional()) return
     const aviso = avaliarAvisoChamarCorrida(horarios)
     if (!aviso.irDireto) {
       if (!window.confirm(aviso.mensagem)) return
@@ -124,20 +119,34 @@ export default function AbaBotaoDinamico({
   }
 
   const abrirWhatsappGastronomiaSimples = () => {
-    if (!openWhatsAppChat(whatsapp, mensagemWhatsappReservaMesaSimples())) {
+    if (!openWhatsAppChat(whatsapp, mensagemWhatsappReservaMesaSimples(empresaUsername))) {
       alert('WhatsApp da empresa não configurado.')
     }
   }
 
   const confirmarReservaMesaWhatsapp = () => {
     const n = Math.max(1, Number(nPessoasMesa) || 1)
-    const dataFmt = dataMesa?.trim() ? dataMesa.trim() : '(a combinar)'
-    const horaFmt = horaMesa?.trim() ? horaMesa.trim() : '(a combinar)'
-    const texto = mensagemWhatsappReservaMesa({ data: dataFmt, horario: horaFmt, pessoas: n })
+    const dataFmt = dataMesa?.trim() || ''
+    const horaFmt = horaMesa?.trim() || ''
+    if (!dataFmt || !horaFmt) {
+      alert('Preencha data e horário.')
+      return
+    }
+    const texto = mensagemWhatsappReservaMesa({
+      username: empresaUsername,
+      data: dataFmt,
+      horario: horaFmt,
+      pessoas: n,
+    })
     if (!openWhatsAppChat(whatsapp, texto)) {
       alert('WhatsApp da empresa não configurado.')
       return
     }
+    void registrarUsoPreLiberacao({
+      tipo: 'reserva_mesa',
+      descricao: `Reserva mesa ${empresaNome}`,
+      empresaId,
+    })
     setShowReservaMesaModal(false)
   }
 
@@ -148,6 +157,10 @@ export default function AbaBotaoDinamico({
   }
 
   const handleClick = () => {
+    if (exigeLiberacao(config.acao) && !podeComprarReservar) {
+      avisarBloqueio()
+      return
+    }
     switch (config.acao) {
       case 'reserva':
         if (isHospedagem(categoria)) {
@@ -258,18 +271,27 @@ export default function AbaBotaoDinamico({
                 />
               </div>
               <div className="min-w-0 max-w-full">
-                <label htmlFor="reserva-mesa-pessoas" className="mb-1 block text-sm font-medium text-gray-700">
-                  Nº de pessoas
-                </label>
-                <input
-                  id="reserva-mesa-pessoas"
-                  type="number"
-                  min={1}
-                  max={99}
-                  value={nPessoasMesa}
-                  onChange={(e) => setNPessoasMesa(Number(e.target.value))}
-                  className="box-border w-44 max-w-full rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900"
-                />
+                <span className="mb-1 block text-sm font-medium text-gray-700">Mesa para</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-lg font-bold"
+                    onClick={() => setNPessoasMesa((n) => Math.max(1, n - 1))}
+                    aria-label="Menos pessoas"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-[2rem] text-center text-lg font-bold">{nPessoasMesa}</span>
+                  <span className="text-sm text-gray-600">pessoas</span>
+                  <button
+                    type="button"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-lg font-bold"
+                    onClick={() => setNPessoasMesa((n) => Math.min(30, n + 1))}
+                    aria-label="Mais pessoas"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </div>
             <div className="mt-5 flex flex-wrap justify-end gap-2">

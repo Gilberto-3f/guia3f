@@ -110,6 +110,7 @@ export default function CardAtrativo({ empresa }) {
             cidade={empresa.cidade}
             empresaId={empresa.id}
             empresaNome={empresa.nome_fantasia}
+            empresaUsername={empresa.nome_usuario ?? null}
             whatsapp={empresa.whatsapp ?? null}
             precoTicketInteira={Number(empresa.preco_ticket_inteira) || 0}
             precoTicketMeia={Number(empresa.preco_ticket_meia) || 0}

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import CanalFinanceiroItem from '@/components/CanalFinanceiroItem'
+import CanalFinanceiroItemPreLiberacao from '@/components/CanalFinanceiroItemPreLiberacao'
 import CanalFinanceiroMensageiro from '@/components/CanalFinanceiroMensageiro'
 import { marcarFinanceiroLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { marcarFinanceiroLidoProfissional } from '@/lib/canaisProfissionalVisibilidade'
@@ -79,6 +80,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
           anexo_url,
           lida_por_profissional,
           lida_por_empresa,
+          metadata,
           created_at,
           profissional_id,
           empresa_id,
@@ -120,6 +122,10 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
             anexo_url: r.anexo_url != null ? String(r.anexo_url) : null,
             lida_por_profissional: Boolean(r.lida_por_profissional),
             lida_por_empresa: Boolean(r.lida_por_empresa),
+            metadata:
+              r.metadata && typeof r.metadata === 'object' && !Array.isArray(r.metadata)
+                ? /** @type {Record<string, unknown>} */ (r.metadata)
+                : {},
             created_at: String(r.created_at ?? ''),
             profissional_nome: pn,
             empresa_nome: en,
@@ -270,7 +276,17 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
           {itens.length === 0 ? (
             <div className="py-8 text-center text-gray-400">Nenhuma movimentação financeira ainda</div>
           ) : (
-            itens.map((item) => <CanalFinanceiroItem key={item.id} item={item} userTipo={tipo} />)
+            itens.map((item) =>
+              item.tipo === 'pre_liberacao_turista' && tipo === 'profissional' ? (
+                <CanalFinanceiroItemPreLiberacao
+                  key={item.id}
+                  item={item}
+                  onRespondido={() => void carregar({ silencioso: true })}
+                />
+              ) : (
+                <CanalFinanceiroItem key={item.id} item={item} userTipo={tipo} />
+              ),
+            )
           )}
         </div>
       ) : (

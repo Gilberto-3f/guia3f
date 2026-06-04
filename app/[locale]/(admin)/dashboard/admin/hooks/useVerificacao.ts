@@ -140,7 +140,23 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       .order('created_at', { ascending: true })
     if (error) throw error
     const rows = (data ?? []) as Record<string, unknown>[]
-    const emailMap = await fetchEmailPorUsuarioIds(rows.map((r) => String(r.usuario_id ?? '')))
+    const uids = rows.map((r) => String(r.usuario_id ?? '')).filter(Boolean)
+    const prePorTurista = new Map<string, Record<string, unknown>[]>()
+    if (uids.length > 0) {
+      const { data: preRows } = await supabase
+        .from('turista_pre_liberacoes')
+        .select('*')
+        .in('turista_usuario_id', uids)
+        .order('solicitado_em', { ascending: false })
+      for (const pr of preRows ?? []) {
+        const uid = String((pr as Record<string, unknown>).turista_usuario_id ?? '')
+        if (!uid) continue
+        const arr = prePorTurista.get(uid) ?? []
+        arr.push(pr as Record<string, unknown>)
+        prePorTurista.set(uid, arr)
+      }
+    }
+    const emailMap = await fetchEmailPorUsuarioIds(uids)
     const mapped: PendenteTurista[] = rows.map((r) => ({
       id: String(r.id),
       usuario_id: String(r.usuario_id),
@@ -154,6 +170,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       docs_verificado_em: r.docs_verificado_em ? String(r.docs_verificado_em) : null,
       created_at: String(r.created_at ?? new Date().toISOString()),
       email: emailMap.get(String(r.usuario_id)) || null,
+      pre_liberacoes: prePorTurista.get(String(r.usuario_id ?? '')) ?? [],
     }))
     setPendentes(mapped)
     aquecerCacheDocumentos('turistas', rows)

@@ -615,11 +615,6 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
-      {canaisBloqueados ? (
-        <div className="shrink-0 border-b border-amber-100 bg-amber-50/90 px-2">
-          <AvisoDocsProfissionalBloqueado compact className="py-4" />
-        </div>
-      ) : null}
       <div className="min-h-0 flex min-h-0 flex-1 flex-col overflow-y-auto md:min-h-0">
         {part.administracao.length > 0 ? (
           <div className="shrink-0 border-b border-gray-100">

@@ -17,6 +17,7 @@ import {
   Gem,
   Handshake,
   History,
+  KeyRound,
   Images,
   LayoutDashboard,
   MapPin,
@@ -47,6 +48,7 @@ import EmergenciaItemEsquecido from '@/components/perfil/subpaginas/emergencia/E
 import EmergenciaPerdido from '@/components/perfil/subpaginas/emergencia/EmergenciaPerdido'
 import EmergenciaSocorro from '@/components/perfil/subpaginas/emergencia/EmergenciaSocorro'
 import EmergenciaMensageiroAdm from '@/components/perfil/subpaginas/emergencia/EmergenciaMensageiroAdm'
+import EmergenciaPreLiberacao from '@/components/perfil/subpaginas/emergencia/EmergenciaPreLiberacao'
 import { prefetchMinhasAtividades } from '@/lib/fetchMinhasAtividades'
 import { prefetchComissoesOfertas } from '@/lib/fetchComissoesOfertas'
 import EditarPerfil from '@/components/perfil/subpaginas/EditarPerfil'
@@ -184,6 +186,7 @@ function secoesTurista() {
     { Icon: MapPin, label: 'Estou perdido(a)', subpagina: 'emergencia-perdido' },
     { Icon: AlertTriangle, label: 'SOCORRO', subpagina: 'emergencia-socorro' },
     { Icon: Phone, label: 'Contatar ADM', subpagina: 'emergencia-adm' },
+    { Icon: KeyRound, label: 'Código de pré-liberação', subpagina: 'emergencia-pre-liberacao' },
   ]
   const gUsuario = [{ Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' }]
   const gAplic = [
@@ -648,6 +651,7 @@ export default function MenuLateral({
         'emergencia-perdido': 'Estou perdido(a)',
         'emergencia-socorro': 'SOCORRO',
         'emergencia-adm': 'Contatar ADM',
+        'emergencia-pre-liberacao': 'Código de pré-liberação',
         'editar-perfil': 'Editar Perfil',
         'minhas-atividades': 'Minhas Atividades',
         configuracoes: 'Configurações',
@@ -743,6 +747,7 @@ export default function MenuLateral({
           placeholder="Escreva sua mensagem…"
         />
       )
+    if (id === 'emergencia-pre-liberacao') return <EmergenciaPreLiberacao />
     if (id === 'editar-perfil')
       return (
         <EditarPerfil

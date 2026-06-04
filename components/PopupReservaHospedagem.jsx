@@ -5,6 +5,10 @@ import { X, CalendarDays } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
+import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
+import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 
 /**
  * @param {{
@@ -25,6 +29,7 @@ export default function PopupReservaHospedagem({
   precoDiaria,
 }) {
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
+  const { podeComprarReservar, avisarBloqueio } = useGateComprasReservas()
   const [checkin, setCheckin] = useState('')
   const [checkout, setCheckout] = useState('')
   const [loading, setLoading] = useState(false)
@@ -46,6 +51,10 @@ export default function PopupReservaHospedagem({
   const handleConfirmar = async () => {
     if (!podeInteragir) {
       notificarSomenteLeitura()
+      return
+    }
+    if (!podeComprarReservar) {
+      avisarBloqueio()
       return
     }
     if (!checkin || !checkout) {
@@ -72,6 +81,11 @@ export default function PopupReservaHospedagem({
         alert('WhatsApp da empresa não configurado.')
         return
       }
+      void registrarUsoPreLiberacao({
+        tipo: 'reserva_hospedagem',
+        descricao: `Hospedagem ${noites} noite(s) — ${empresaNome}`,
+        empresaId,
+      })
       onClose()
     } finally {
       setLoading(false)

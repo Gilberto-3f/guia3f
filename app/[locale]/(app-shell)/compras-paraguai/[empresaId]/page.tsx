@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import AvisoTuristaBloqueado from '@/components/AvisoTuristaBloqueado'
 
 type EmpresaRow = { id: string; nome_fantasia: string; foto_url: string | null }
 
@@ -28,6 +30,13 @@ export default function CatalogoEmpresaPage() {
   const [produtos, setProdutos] = useState<ProdutoRow[]>([])
   const [loading, setLoading] = useState(true)
   const [termoBusca, setTermoBusca] = useState('')
+  const { podeComprarReservar, avisarBloqueio, loading: gateLoading } = useGateComprasReservas()
+
+  useEffect(() => {
+    if (gateLoading || podeComprarReservar) return
+    avisarBloqueio()
+    router.replace('/guia')
+  }, [gateLoading, podeComprarReservar, avisarBloqueio, router])
 
   const carregarDados = useCallback(async () => {
     if (!empresaId) return
@@ -73,8 +82,16 @@ export default function CatalogoEmpresaPage() {
   }, [empresaId, termoBusca])
 
   useEffect(() => {
-    void carregarDados()
-  }, [carregarDados])
+    if (!gateLoading && podeComprarReservar) void carregarDados()
+  }, [carregarDados, gateLoading, podeComprarReservar])
+
+  if (!gateLoading && !podeComprarReservar) {
+    return (
+      <div className="flex min-h-screen flex-col bg-gray-50 p-4">
+        <AvisoTuristaBloqueado />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">

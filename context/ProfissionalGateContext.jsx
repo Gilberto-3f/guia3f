@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { diasAteRevisaoDocumentos, empresaRecursosLiberados, profissionalRecursosLiberados } from '@/lib/verificacao-documentos'
+import { turistaRecursosLiberados } from '@/lib/turistaAcesso'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 const ProfissionalGateContext = createContext(null)
@@ -14,6 +15,7 @@ export function ProfissionalGateProvider({ children }) {
   const [userRole, setUserRole] = useState(/** @type {string | null} */ (null))
   const [profRow, setProfRow] = useState(null)
   const [empRow, setEmpRow] = useState(null)
+  const [turistaGate, setTuristaGate] = useState(null)
 
   const refreshGate = useCallback(async () => {
     const {
@@ -25,11 +27,16 @@ export function ProfissionalGateProvider({ children }) {
       setUserRole(null)
       setProfRow(null)
       setEmpRow(null)
+      setTuristaGate(null)
       setLoading(false)
       return
     }
 
-    const { data: u } = await supabase.from('usuarios').select('status, role').eq('id', uid).maybeSingle()
+    const { data: u } = await supabase
+      .from('usuarios')
+      .select('status, role, documentacao_validada_adm, turista_pre_liberado_ate')
+      .eq('id', uid)
+      .maybeSingle()
     const ur = u && typeof u === 'object' ? u : null
     setUsuarioStatus(ur && 'status' in ur && ur.status != null ? String(ur.status) : null)
     setUserRole(ur && 'role' in ur && ur.role != null ? String(ur.role) : null)
@@ -52,8 +59,10 @@ export function ProfissionalGateProvider({ children }) {
           : null
       )
       setEmpRow(null)
+      setTuristaGate(null)
     } else if (role === 'empresa') {
       setProfRow(null)
+      setTuristaGate(null)
       const { data: e } = await supabase
         .from('empresas')
         .select('status, docs_verificado, aprovado_em, verificado_em')
@@ -69,9 +78,24 @@ export function ProfissionalGateProvider({ children }) {
             }
           : null
       )
+    } else if (role === 'turista') {
+      setProfRow(null)
+      setEmpRow(null)
+      setTuristaGate(
+        ur && typeof ur === 'object'
+          ? {
+              role: 'turista',
+              status: ur.status != null ? String(ur.status) : null,
+              documentacao_validada_adm: Boolean(ur.documentacao_validada_adm),
+              turista_pre_liberado_ate:
+                ur.turista_pre_liberado_ate != null ? String(ur.turista_pre_liberado_ate) : null,
+            }
+          : null,
+      )
     } else {
       setProfRow(null)
       setEmpRow(null)
+      setTuristaGate(null)
     }
     setLoading(false)
   }, [])
@@ -84,10 +108,12 @@ export function ProfissionalGateProvider({ children }) {
     const onRef = () => void refreshGate()
     window.addEventListener('profissional-gate-refresh', onRef)
     window.addEventListener('empresa-gate-refresh', onRef)
+    window.addEventListener('turista-gate-refresh', onRef)
     window.addEventListener('perfil-atualizado', onRef)
     return () => {
       window.removeEventListener('profissional-gate-refresh', onRef)
       window.removeEventListener('empresa-gate-refresh', onRef)
+      window.removeEventListener('turista-gate-refresh', onRef)
       window.removeEventListener('perfil-atualizado', onRef)
     }
   }, [refreshGate])
@@ -118,6 +144,8 @@ export function ProfissionalGateProvider({ children }) {
       roleEfetivo !== 'profissional' ? true : profissionalRecursosLiberados(usuarioStatus, profRow)
     const liberadoEmp =
       roleEfetivo !== 'empresa' ? true : empresaRecursosLiberados(usuarioStatus, empRow)
+    const liberadoTur =
+      roleEfetivo !== 'turista' ? true : turistaRecursosLiberados(turistaGate)
     const dias =
       roleEfetivo === 'profissional' && profRow?.proxima_revisao_docs_em
         ? diasAteRevisaoDocumentos(profRow.proxima_revisao_docs_em)
@@ -131,12 +159,15 @@ export function ProfissionalGateProvider({ children }) {
       empRow,
       recursosProfissionaisLiberados: liberadoProf,
       recursosEmpresaLiberados: liberadoEmp,
+      recursosTuristaLiberados: liberadoTur,
       diasAteRevisaoDocs: dias,
       perfilEhProfissional: roleEfetivo === 'profissional',
       perfilEhEmpresa: roleEfetivo === 'empresa',
+      perfilEhTurista: roleEfetivo === 'turista',
+      turistaGate,
       refreshGate,
     }
-  }, [loading, usuarioStatus, userRole, roleEfetivo, profRow, empRow, refreshGate])
+  }, [loading, usuarioStatus, userRole, roleEfetivo, profRow, empRow, turistaGate, refreshGate])
 
   return <ProfissionalGateContext.Provider value={value}>{children}</ProfissionalGateContext.Provider>
 }
@@ -153,9 +184,12 @@ export function useProfissionalGate() {
     empRow: null,
     recursosProfissionaisLiberados: true,
     recursosEmpresaLiberados: true,
+    recursosTuristaLiberados: true,
     diasAteRevisaoDocs: null,
     perfilEhProfissional: false,
     perfilEhEmpresa: false,
+    perfilEhTurista: false,
+    turistaGate: null,
     refreshGate: async () => {},
   }
 }

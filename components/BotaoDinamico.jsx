@@ -5,9 +5,9 @@ import { Ticket, Calendar, Car, Package, Utensils, ShoppingBag, MessageCircle, X
 import { useRouter } from '@/i18n/navigation'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
-import { useProfissionalGate } from '@/context/ProfissionalGateContext'
-import { AVISO_DOCS_PROF_ALERTA } from '@/lib/avisoDocsProfissionalTexto'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
+import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import {
   openWhatsAppChat,
   mensagemWhatsappReservaMesa,
@@ -52,6 +52,7 @@ function isServicosLocais(cat) {
  *   cidade?: string
  *   empresaId?: string
  *   empresaNome?: string
+ *   empresaUsername?: string | null
  *   whatsapp?: string | null
  *   precoTicketInteira?: number
  *   precoTicketMeia?: number
@@ -64,6 +65,7 @@ export default function BotaoDinamico({
   cidade = '',
   empresaId = '',
   empresaNome = '',
+  empresaUsername = null,
   whatsapp = null,
   precoTicketInteira = 0,
   precoTicketMeia,
@@ -72,13 +74,15 @@ export default function BotaoDinamico({
 }) {
   const router = useRouter()
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
-  const { perfilEhProfissional, recursosProfissionaisLiberados } = useProfissionalGate()
+  const { podeComprarReservar, avisarBloqueio } = useGateComprasReservas()
   const [showTicketPopup, setShowTicketPopup] = useState(false)
   const [showReservaPopup, setShowReservaPopup] = useState(false)
   const [showReservaMesaModal, setShowReservaMesaModal] = useState(false)
   const [reservaData, setReservaData] = useState('')
   const [reservaHora, setReservaHora] = useState('')
-  const [reservaPessoas, setReservaPessoas] = useState('2')
+  const [reservaPessoas, setReservaPessoas] = useState(2)
+
+  const ACOES_EXIGEM_LIBERACAO = ['reserva_mesa', 'ticket', 'hospedagem', 'produtos', 'corrida']
 
   // FIX: somente texto e ícone mudam por categoria/cidade
   const config = useMemo(() => {
@@ -103,16 +107,25 @@ export default function BotaoDinamico({
   const enviarWhatsappReservaMesa = () => {
     const d = reservaData.trim()
     const h = reservaHora.trim()
-    const p = reservaPessoas.trim()
-    if (!d || !h || !p) {
-      alert('Preencha data, horário e nº de pessoas.')
+    if (!d || !h) {
+      alert('Preencha data e horário.')
       return
     }
-    const texto = mensagemWhatsappReservaMesa({ data: d, horario: h, pessoas: p })
+    const texto = mensagemWhatsappReservaMesa({
+      username: empresaUsername,
+      data: d,
+      horario: h,
+      pessoas: reservaPessoas,
+    })
     if (!openWhatsAppChat(whatsapp, texto)) {
       alert('WhatsApp da empresa não configurado.')
       return
     }
+    void registrarUsoPreLiberacao({
+      tipo: 'reserva_mesa',
+      descricao: `Reserva mesa ${empresaNome}`,
+      empresaId,
+    })
     setShowReservaMesaModal(false)
   }
 
@@ -127,8 +140,8 @@ export default function BotaoDinamico({
       notificarSomenteLeitura()
       return
     }
-    if (config.acao === 'corrida' && perfilEhProfissional && !recursosProfissionaisLiberados) {
-      window.alert(AVISO_DOCS_PROF_ALERTA)
+    if (ACOES_EXIGEM_LIBERACAO.includes(config.acao) && !podeComprarReservar) {
+      avisarBloqueio()
       return
     }
     if (!empresaId) {
@@ -209,32 +222,43 @@ export default function BotaoDinamico({
                   <div>
                     <label className="block text-xs font-semibold text-gray-700">Data</label>
                     <input
+                      type="date"
                       value={reservaData}
                       onChange={(e) => setReservaData(e.target.value)}
-                      placeholder="Ex: 10/05"
-                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
-                      inputMode="text"
+                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700">Horário</label>
                     <input
+                      type="time"
                       value={reservaHora}
                       onChange={(e) => setReservaHora(e.target.value)}
-                      placeholder="Ex: 19:30"
-                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
-                      inputMode="text"
+                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700">Nº de pessoas</label>
-                    <input
-                      value={reservaPessoas}
-                      onChange={(e) => setReservaPessoas(e.target.value)}
-                      placeholder="Ex: 2"
-                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
-                      inputMode="numeric"
-                    />
+                    <label className="block text-xs font-semibold text-gray-700">Mesa para</label>
+                    <div className="mt-1 flex items-center gap-3">
+                      <button
+                        type="button"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-lg font-bold text-gray-700"
+                        onClick={() => setReservaPessoas((n) => Math.max(1, n - 1))}
+                        aria-label="Menos pessoas"
+                      >
+                        −
+                      </button>
+                      <span className="min-w-[2rem] text-center text-lg font-bold text-gray-900">{reservaPessoas}</span>
+                      <span className="text-sm text-gray-600">pessoas</span>
+                      <button
+                        type="button"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-lg font-bold text-gray-700"
+                        onClick={() => setReservaPessoas((n) => Math.min(30, n + 1))}
+                        aria-label="Mais pessoas"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                 </div>
 

@@ -397,6 +397,7 @@ export default function EmpresaPage() {
               categoria={categoria}
               empresaId={empresaId}
               empresaNome={nomeFantasia}
+              empresaUsername={empresa.nome_usuario != null ? String(empresa.nome_usuario) : null}
               cidade={String(empresa.cidade ?? '')}
               horarios={horariosParsed}
               whatsapp={empresa.whatsapp != null ? String(empresa.whatsapp) : null}

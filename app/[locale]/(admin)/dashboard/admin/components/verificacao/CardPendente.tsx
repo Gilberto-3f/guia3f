@@ -199,6 +199,49 @@ export function CardPendente({
 
           {item.alerta ? <div className="mt-2 text-xs text-amber-800">{item.alerta}</div> : null}
 
+          {tipo === 'turistas' && Array.isArray(item.raw.pre_liberacoes) && item.raw.pre_liberacoes.length > 0 ? (
+            <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-950">
+              <div className="font-semibold uppercase tracking-wide text-sky-800">Pré-liberação</div>
+              <ul className="mt-2 space-y-2">
+                {(item.raw.pre_liberacoes as Record<string, unknown>[]).map((pl) => {
+                  const st = String(pl.status ?? '')
+                  const prof = String(pl.prof_username ?? '—')
+                  const quando = pl.respondido_em
+                    ? new Date(String(pl.respondido_em)).toLocaleString('pt-BR')
+                    : pl.solicitado_em
+                      ? new Date(String(pl.solicitado_em)).toLocaleString('pt-BR')
+                      : '—'
+                  const contratos = Array.isArray(pl.contratacoes) ? pl.contratacoes : []
+                  return (
+                    <li key={String(pl.id ?? prof + quando)} className="border-t border-sky-100 pt-2 first:border-0 first:pt-0">
+                      <div>
+                        <span className="font-medium">Profissional:</span> @{prof} —{' '}
+                        <span className="font-medium">{st}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium">Quando:</span> {quando}
+                      </div>
+                      {contratos.length > 0 ? (
+                        <div className="mt-1">
+                          <span className="font-medium">Contratações no período:</span>
+                          <ul className="mt-0.5 list-inside list-disc">
+                            {contratos.slice(0, 8).map((c, i) => (
+                              <li key={i}>
+                                {String((c as Record<string, unknown>).descricao ?? (c as Record<string, unknown>).tipo ?? '—')}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div className="text-sky-800/80">Nenhuma contratação registrada no período.</div>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ) : null}
+
           <div className="mt-3 border-t border-gray-100 pt-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Documentos</div>
             {thumbs.length === 0 ? (

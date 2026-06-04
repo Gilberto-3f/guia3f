@@ -5,6 +5,8 @@ import { X, Ticket } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
+import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 
 /**
  * @param {{
@@ -27,6 +29,7 @@ export default function PopupCompraTicket({
   precoMeia,
 }) {
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
+  const { podeComprarReservar, avisarBloqueio } = useGateComprasReservas()
   const [quantidade, setQuantidade] = useState(1)
   const [tipoIngresso, setTipoIngresso] = useState(/** @type {'inteira' | 'meia'} */ ('inteira'))
   const [cupom, setCupom] = useState('')
@@ -45,6 +48,10 @@ export default function PopupCompraTicket({
       notificarSomenteLeitura()
       return
     }
+    if (!podeComprarReservar) {
+      avisarBloqueio()
+      return
+    }
     setLoading(true)
     try {
       const {
@@ -61,6 +68,11 @@ export default function PopupCompraTicket({
         alert('WhatsApp da empresa não configurado.')
         return
       }
+      void registrarUsoPreLiberacao({
+        tipo: 'compra_ticket',
+        descricao: `Ticket ${quantidade}x ${tipoIngresso} — ${empresaNome}`,
+        empresaId,
+      })
       onClose()
     } finally {
       setLoading(false)
