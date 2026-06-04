@@ -8,6 +8,34 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 const ProfissionalGateContext = createContext(null)
 
+/** @param {string} uid */
+async function carregarUsuarioGate(uid) {
+  const full = await supabase
+    .from('usuarios')
+    .select('status, role, documentacao_validada_adm, turista_pre_liberado_ate')
+    .eq('id', uid)
+    .maybeSingle()
+
+  if (
+    full.error &&
+    (full.error.code === '42703' || String(full.error.message ?? '').includes('does not exist'))
+  ) {
+    const slim = await supabase.from('usuarios').select('status, role').eq('id', uid).maybeSingle()
+    const u = slim.data && typeof slim.data === 'object' ? slim.data : null
+    if (!u) return { data: null, error: slim.error }
+    return {
+      data: {
+        ...u,
+        documentacao_validada_adm: false,
+        turista_pre_liberado_ate: null,
+      },
+      error: null,
+    }
+  }
+
+  return { data: full.data, error: full.error }
+}
+
 export function ProfissionalGateProvider({ children }) {
   const { modoAtivo, perfilSimulado } = useModoApresentacao()
   const [loading, setLoading] = useState(true)
@@ -16,6 +44,7 @@ export function ProfissionalGateProvider({ children }) {
   const [profRow, setProfRow] = useState(null)
   const [empRow, setEmpRow] = useState(null)
   const [turistaGate, setTuristaGate] = useState(null)
+  const [turistaDocsRow, setTuristaDocsRow] = useState(null)
 
   const refreshGate = useCallback(async () => {
     const {
@@ -28,15 +57,12 @@ export function ProfissionalGateProvider({ children }) {
       setProfRow(null)
       setEmpRow(null)
       setTuristaGate(null)
+      setTuristaDocsRow(null)
       setLoading(false)
       return
     }
 
-    const { data: u } = await supabase
-      .from('usuarios')
-      .select('status, role, documentacao_validada_adm, turista_pre_liberado_ate')
-      .eq('id', uid)
-      .maybeSingle()
+    const { data: u } = await carregarUsuarioGate(uid)
     const ur = u && typeof u === 'object' ? u : null
     setUsuarioStatus(ur && 'status' in ur && ur.status != null ? String(ur.status) : null)
     setUserRole(ur && 'role' in ur && ur.role != null ? String(ur.role) : null)
@@ -45,7 +71,9 @@ export function ProfissionalGateProvider({ children }) {
     if (role === 'profissional') {
       const { data: p } = await supabase
         .from('profissionais')
-        .select('status, docs_verificado, documentos_enviados_em, proxima_revisao_docs_em')
+        .select(
+          'status, docs_verificado, documentos_enviados_em, documento_frente_url, proxima_revisao_docs_em',
+        )
         .eq('usuario_id', uid)
         .maybeSingle()
       setProfRow(
@@ -54,15 +82,20 @@ export function ProfissionalGateProvider({ children }) {
               status: p.status != null ? String(p.status) : null,
               docs_verificado: Boolean(p.docs_verificado),
               proxima_revisao_docs_em: p.proxima_revisao_docs_em != null ? String(p.proxima_revisao_docs_em) : null,
-              documentos_enviados_em: p.documentos_enviados_em != null ? String(p.documentos_enviados_em) : null,
+              documentos_enviados_em:
+                p.documentos_enviados_em != null ? String(p.documentos_enviados_em) : null,
+              documento_frente_url:
+                p.documento_frente_url != null ? String(p.documento_frente_url) : null,
             }
-          : null
+          : null,
       )
       setEmpRow(null)
       setTuristaGate(null)
+      setTuristaDocsRow(null)
     } else if (role === 'empresa') {
       setProfRow(null)
       setTuristaGate(null)
+      setTuristaDocsRow(null)
       const { data: e } = await supabase
         .from('empresas')
         .select('status, docs_verificado, aprovado_em, verificado_em')
@@ -76,7 +109,7 @@ export function ProfissionalGateProvider({ children }) {
               aprovado_em: e.aprovado_em != null ? String(e.aprovado_em) : null,
               verificado_em: e.verificado_em != null ? String(e.verificado_em) : null,
             }
-          : null
+          : null,
       )
     } else if (role === 'turista') {
       setProfRow(null)
@@ -92,10 +125,27 @@ export function ProfissionalGateProvider({ children }) {
             }
           : null,
       )
+      const { data: t } = await supabase
+        .from('turistas')
+        .select('documento_frente_url, documento_verso_url, docs_verificado')
+        .eq('usuario_id', uid)
+        .maybeSingle()
+      setTuristaDocsRow(
+        t && typeof t === 'object'
+          ? {
+              documento_frente_url:
+                t.documento_frente_url != null ? String(t.documento_frente_url) : null,
+              documento_verso_url:
+                t.documento_verso_url != null ? String(t.documento_verso_url) : null,
+              docs_verificado: Boolean(t.docs_verificado),
+            }
+          : null,
+      )
     } else {
       setProfRow(null)
       setEmpRow(null)
       setTuristaGate(null)
+      setTuristaDocsRow(null)
     }
     setLoading(false)
   }, [])
@@ -126,6 +176,9 @@ export function ProfissionalGateProvider({ children }) {
         void refreshGate()
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profissionais' }, () => {
+        void refreshGate()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'turistas' }, () => {
         void refreshGate()
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'usuarios' }, () => {
@@ -165,9 +218,20 @@ export function ProfissionalGateProvider({ children }) {
       perfilEhEmpresa: roleEfetivo === 'empresa',
       perfilEhTurista: roleEfetivo === 'turista',
       turistaGate,
+      turistaDocsRow,
       refreshGate,
     }
-  }, [loading, usuarioStatus, userRole, roleEfetivo, profRow, empRow, turistaGate, refreshGate])
+  }, [
+    loading,
+    usuarioStatus,
+    userRole,
+    roleEfetivo,
+    profRow,
+    empRow,
+    turistaGate,
+    turistaDocsRow,
+    refreshGate,
+  ])
 
   return <ProfissionalGateContext.Provider value={value}>{children}</ProfissionalGateContext.Provider>
 }
@@ -190,6 +254,7 @@ export function useProfissionalGate() {
     perfilEhEmpresa: false,
     perfilEhTurista: false,
     turistaGate: null,
+    turistaDocsRow: null,
     refreshGate: async () => {},
   }
 }

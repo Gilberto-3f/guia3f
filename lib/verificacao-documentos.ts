@@ -4,6 +4,8 @@ export type LinhaProfissionalGate = {
   status?: string | null
   docs_verificado?: boolean | null
   proxima_revisao_docs_em?: string | null
+  documentos_enviados_em?: string | null
+  documento_frente_url?: string | null
 }
 
 export type LinhaEmpresaGate = {

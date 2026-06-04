@@ -8,6 +8,8 @@ import {
   normalizarUsername,
 } from '@/lib/turistaPreLiberacao'
 import { turistaRecursosLiberados } from '@/lib/turistaAcesso'
+import { turistaDocumentosEnviados } from '@/lib/faseVerificacaoConta'
+import { MSG_PRE_LIBERACAO_REQUER_DOCS } from '@/lib/avisoVerificacaoContaTexto'
 
 export async function POST(req: Request) {
   try {
@@ -39,6 +41,16 @@ export async function POST(req: Request) {
 
     if (turistaRecursosLiberados(u)) {
       return NextResponse.json({ error: 'conta_ja_liberada' }, { status: 400 })
+    }
+
+    const { data: turDocs } = await adminDb
+      .from('turistas')
+      .select('documento_frente_url, documento_verso_url')
+      .eq('usuario_id', session.userId)
+      .maybeSingle()
+
+    if (!turistaDocumentosEnviados(turDocs)) {
+      return NextResponse.json({ error: MSG_PRE_LIBERACAO_REQUER_DOCS }, { status: 400 })
     }
 
     const prof = await buscarProfissionalVerificadoPorUsername(adminDb, codigo)

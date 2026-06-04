@@ -188,11 +188,11 @@ function secoesTurista() {
     { Icon: MapPin, label: 'Estou perdido(a)', subpagina: 'emergencia-perdido' },
     { Icon: AlertTriangle, label: 'SOCORRO', subpagina: 'emergencia-socorro' },
     { Icon: Phone, label: 'Contatar ADM', subpagina: 'emergencia-adm' },
-    { Icon: KeyRound, label: 'Código de pré-liberação', subpagina: 'emergencia-pre-liberacao' },
   ]
   const gUsuario = [
     { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
     { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos-turista' },
+    { Icon: KeyRound, label: 'Pré-liberação de Cadastro', subpagina: 'emergencia-pre-liberacao' },
   ]
   const gAplic = [
     itemHistoricoCompras,
@@ -659,7 +659,7 @@ export default function MenuLateral({
         'emergencia-perdido': 'Estou perdido(a)',
         'emergencia-socorro': 'SOCORRO',
         'emergencia-adm': 'Contatar ADM',
-        'emergencia-pre-liberacao': 'Código de pré-liberação',
+        'emergencia-pre-liberacao': 'Pré-liberação de Cadastro',
         'editar-perfil': 'Editar Perfil',
         'minhas-atividades': 'Minhas Atividades',
         configuracoes: 'Configurações',

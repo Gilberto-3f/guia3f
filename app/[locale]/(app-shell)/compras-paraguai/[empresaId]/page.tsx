@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { ArrowLeft, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
-import AvisoTuristaBloqueado from '@/components/AvisoTuristaBloqueado'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 
 type EmpresaRow = { id: string; nome_fantasia: string; foto_url: string | null }
 
@@ -30,7 +30,15 @@ export default function CatalogoEmpresaPage() {
   const [produtos, setProdutos] = useState<ProdutoRow[]>([])
   const [loading, setLoading] = useState(true)
   const [termoBusca, setTermoBusca] = useState('')
-  const { podeComprarReservar, avisarBloqueio, loading: gateLoading } = useGateComprasReservas()
+  const {
+    podeComprarReservar,
+    avisarBloqueio,
+    loading: gateLoading,
+    avisoAberto,
+    fecharAvisoBloqueio,
+    mensagemBloqueio,
+    tituloBloqueio,
+  } = useGateComprasReservas()
 
   useEffect(() => {
     if (gateLoading || podeComprarReservar) return
@@ -87,9 +95,15 @@ export default function CatalogoEmpresaPage() {
 
   if (!gateLoading && !podeComprarReservar) {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50 p-4">
-        <AvisoTuristaBloqueado />
-      </div>
+      <PopupAvisoBloqueioConta
+        aberto={avisoAberto || Boolean(mensagemBloqueio)}
+        onFechar={() => {
+          fecharAvisoBloqueio()
+          router.replace('/guia')
+        }}
+        titulo={tituloBloqueio}
+        mensagem={mensagemBloqueio}
+      />
     )
   }
 
@@ -169,6 +183,13 @@ export default function CatalogoEmpresaPage() {
           </div>
         )}
       </div>
+
+      <PopupAvisoBloqueioConta
+        aberto={avisoAberto}
+        onFechar={fecharAvisoBloqueio}
+        titulo={tituloBloqueio}
+        mensagem={mensagemBloqueio}
+      />
     </div>
   )
 }

@@ -7,6 +7,7 @@ import PopupCompraTicket from '@/components/PopupCompraTicket'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import {
   openWhatsAppChat,
@@ -74,7 +75,14 @@ export default function BotaoDinamico({
 }) {
   const router = useRouter()
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
-  const { podeComprarReservar, avisarBloqueio } = useGateComprasReservas()
+  const {
+    podeComprarReservar,
+    avisarBloqueio,
+    avisoAberto,
+    fecharAvisoBloqueio,
+    mensagemBloqueio,
+    tituloBloqueio,
+  } = useGateComprasReservas()
   const [showTicketPopup, setShowTicketPopup] = useState(false)
   const [showReservaPopup, setShowReservaPopup] = useState(false)
   const [showReservaMesaModal, setShowReservaMesaModal] = useState(false)
@@ -301,6 +309,13 @@ export default function BotaoDinamico({
           />
         </>
       ) : null}
+
+      <PopupAvisoBloqueioConta
+        aberto={avisoAberto}
+        onFechar={fecharAvisoBloqueio}
+        titulo={tituloBloqueio}
+        mensagem={mensagemBloqueio}
+      />
     </>
   )
 }

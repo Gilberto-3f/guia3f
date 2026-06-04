@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { useTranslations } from 'next-intl'
 import { Car, MapPin } from 'lucide-react'
 import PublicidadeHome from '@/components/PublicidadeHome'
@@ -23,7 +24,14 @@ export default function GuiaPage() {
   const tGuia = useTranslations('Guia')
   const router = useRouter()
   const { roleEfetivo, recursosProfissionaisLiberados, loading: gateLoading } = useProfissionalGate()
-  const { podeComprarReservar, avisarBloqueio } = useGateComprasReservas()
+  const {
+    podeComprarReservar,
+    avisarBloqueio,
+    avisoAberto,
+    fecharAvisoBloqueio,
+    mensagemBloqueio,
+    tituloBloqueio,
+  } = useGateComprasReservas()
 
   /** MOBILIDADE no topo: empresa/admin sempre; profissional só após verificação ADM (senão igual turista). */
   const profComRecursos =
@@ -100,6 +108,13 @@ export default function GuiaPage() {
           <p className="mt-2 max-w-md text-sm text-gray-500">{tMobilidade('description')}</p>
         </main>
       )}
+
+      <PopupAvisoBloqueioConta
+        aberto={avisoAberto}
+        onFechar={fecharAvisoBloqueio}
+        titulo={tituloBloqueio}
+        mensagem={mensagemBloqueio}
+      />
     </div>
   )
 }

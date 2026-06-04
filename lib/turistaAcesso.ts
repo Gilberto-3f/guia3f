@@ -9,6 +9,12 @@ export type UsuarioTuristaGate = {
   turista_pre_liberado_ate?: string | null
 }
 
+export type TuristaDocsRow = {
+  documento_frente_url?: string | null
+  documento_verso_url?: string | null
+  docs_verificado?: boolean | null
+}
+
 export function turistaPreLiberacaoAtiva(ate: string | null | undefined): boolean {
   if (!ate) return false
   const t = new Date(ate).getTime()

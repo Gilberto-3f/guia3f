@@ -1,17 +1,28 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { KeyRound } from 'lucide-react'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { turistaDocumentosEnviados } from '@/lib/faseVerificacaoConta'
+import { MSG_PRE_LIBERACAO_REQUER_DOCS } from '@/lib/avisoVerificacaoContaTexto'
 
 /**
  * Turista: solicita pré-liberação de 24h informando username do profissional verificado.
  */
 export default function EmergenciaPreLiberacao() {
+  const { turistaDocsRow, recursosTuristaLiberados, loading: gateLoading } = useProfissionalGate()
   const [codigo, setCodigo] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [feedback, setFeedback] = useState(/** @type {{ tipo: 'ok' | 'erro', texto: string } | null} */ (null))
 
+  const docsEnviados = useMemo(() => turistaDocumentosEnviados(turistaDocsRow), [turistaDocsRow])
+  const podeSolicitar = !gateLoading && docsEnviados && !recursosTuristaLiberados
+
   const enviar = async () => {
+    if (!docsEnviados) {
+      setFeedback({ tipo: 'erro', texto: MSG_PRE_LIBERACAO_REQUER_DOCS })
+      return
+    }
     const c = codigo.trim().replace(/^@+/, '')
     if (!c) {
       setFeedback({ tipo: 'erro', texto: 'Informe o username do profissional que lhe atendeu.' })
@@ -48,42 +59,59 @@ export default function EmergenciaPreLiberacao() {
           <KeyRound size={22} aria-hidden />
         </span>
         <div>
-          <h2 className="text-lg font-bold text-gray-900">Código de pré-liberação</h2>
+          <h2 className="text-lg font-bold text-gray-900">Pré-liberação de Cadastro</h2>
           <p className="mt-1 text-sm text-gray-600">
-            Enquanto seu cadastro não é verificado pelo ADM, um profissional verificado pode liberar compras e reservas
-            no app por <strong>24 horas</strong>. Informe o <strong>username</strong> de quem lhe atendeu (sem @).
+            Informe o <strong>username</strong> do profissional verificado que lhe atendeu (sem @).
           </p>
         </div>
       </div>
 
-      <label className="block text-sm font-semibold text-gray-700">Username do profissional</label>
-      <input
-        value={codigo}
-        onChange={(e) => setCodigo(e.target.value)}
-        placeholder="Ex: joao_guia"
-        className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900"
-        autoCapitalize="off"
-        autoCorrect="off"
-      />
-
-      {feedback ? (
-        <p
-          className={`rounded-lg px-3 py-2 text-sm ${
-            feedback.tipo === 'ok' ? 'bg-emerald-50 text-emerald-900' : 'bg-red-50 text-red-900'
-          }`}
-        >
-          {feedback.texto}
-        </p>
+      {!gateLoading && !docsEnviados ? (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">{MSG_PRE_LIBERACAO_REQUER_DOCS}</p>
       ) : null}
 
-      <button
-        type="button"
-        disabled={enviando}
-        onClick={() => void enviar()}
-        className="w-full rounded-lg bg-[#00D443] py-3 text-sm font-bold text-white hover:opacity-95 disabled:opacity-60"
-      >
-        {enviando ? 'Enviando…' : 'Solicitar pré-liberação'}
-      </button>
+      {recursosTuristaLiberados ? (
+        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          Seu cadastro já está liberado para compras e reservas no app.
+        </p>
+      ) : (
+        <>
+          <label className="block text-sm font-semibold text-gray-700">Username do profissional</label>
+          <input
+            value={codigo}
+            onChange={(e) => setCodigo(e.target.value)}
+            placeholder="Ex: joao_guia"
+            disabled={!podeSolicitar}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 disabled:bg-gray-100"
+            autoCapitalize="off"
+            autoCorrect="off"
+          />
+
+          {feedback ? (
+            <p
+              className={`rounded-lg px-3 py-2 text-sm ${
+                feedback.tipo === 'ok' ? 'bg-emerald-50 text-emerald-900' : 'bg-red-50 text-red-900'
+              }`}
+            >
+              {feedback.texto}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            disabled={enviando || !podeSolicitar}
+            onClick={() => void enviar()}
+            className="w-full rounded-lg bg-[#00D443] py-3 text-sm font-bold text-white hover:opacity-95 disabled:opacity-60"
+          >
+            {enviando ? 'Enviando…' : 'Solicitar pré-liberação'}
+          </button>
+
+          <p className="text-sm leading-relaxed text-gray-600">
+            Enquanto seu cadastro não é verificado pelo ADM, um profissional verificado pode liberar compras e
+            reservas no app por <strong>24 horas</strong>, para vincular às suas compras de serviços pelo app.
+          </p>
+        </>
+      )}
     </div>
   )
 }

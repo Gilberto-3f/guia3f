@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 
 /**
@@ -29,7 +30,14 @@ export default function PopupCompraTicket({
   precoMeia,
 }) {
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
-  const { podeComprarReservar, avisarBloqueio } = useGateComprasReservas()
+  const {
+    podeComprarReservar,
+    avisarBloqueio,
+    avisoAberto,
+    fecharAvisoBloqueio,
+    mensagemBloqueio,
+    tituloBloqueio,
+  } = useGateComprasReservas()
   const [quantidade, setQuantidade] = useState(1)
   const [tipoIngresso, setTipoIngresso] = useState(/** @type {'inteira' | 'meia'} */ ('inteira'))
   const [cupom, setCupom] = useState('')
@@ -80,6 +88,7 @@ export default function PopupCompraTicket({
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white">
         <div className="flex items-center justify-between border-b border-gray-100 p-4">
@@ -172,5 +181,12 @@ export default function PopupCompraTicket({
         </div>
       </div>
     </div>
+      <PopupAvisoBloqueioConta
+        aberto={avisoAberto}
+        onFechar={fecharAvisoBloqueio}
+        titulo={tituloBloqueio}
+        mensagem={mensagemBloqueio}
+      />
+    </>
   )
 }

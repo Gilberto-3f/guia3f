@@ -12,6 +12,7 @@ import {
   mensagemWhatsappContatoGuia,
 } from '@/lib/whatsapp-empresa'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-empresa'
 import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
@@ -69,7 +70,15 @@ export default function AbaBotaoDinamico({
   precoDiaria = 0,
 }) {
   const router = useRouter()
-  const { podeComprarReservar, avisarBloqueio } = useGateComprasReservas()
+  const {
+    podeComprarReservar,
+    avisarBloqueio,
+    loading: gateLoading,
+    mensagemBloqueio,
+    tituloBloqueio,
+    avisoAberto,
+    fecharAvisoBloqueio,
+  } = useGateComprasReservas()
   const [showTicketPopup, setShowTicketPopup] = useState(false)
   const [showReservaPopup, setShowReservaPopup] = useState(false)
   const [showReservaMesaModal, setShowReservaMesaModal] = useState(false)
@@ -109,6 +118,9 @@ export default function AbaBotaoDinamico({
   const Icon = config.icon
 
   const exigeLiberacao = (acao) => ['reserva', 'ticket', 'produtos', 'corrida'].includes(acao)
+
+  const bloqueadoNaAba =
+    exigeLiberacao(config.acao) && !gateLoading && !podeComprarReservar && Boolean(mensagemBloqueio)
 
   const irMobilidadeEmpresa = () => {
     const aviso = avaliarAvisoChamarCorrida(horarios)
@@ -197,16 +209,32 @@ export default function AbaBotaoDinamico({
         >
           <Icon size={32} style={{ color: config.cor }} aria-hidden />
         </div>
-        <button
-          type="button"
-          onClick={handleClick}
-          className="w-full rounded-lg py-3 font-bold text-white transition-colors hover:opacity-90"
-          style={{ backgroundColor: config.cor }}
-        >
-          {config.texto}
-        </button>
-        <p className="mt-3 text-xs text-gray-400">Clique para {config.texto.toLowerCase()}</p>
+        {bloqueadoNaAba ? (
+          <div className="text-left">
+            <p className="text-sm font-semibold text-[#001f3f]">{tituloBloqueio}</p>
+            <p className="mt-2 text-sm leading-relaxed text-gray-700">{mensagemBloqueio}</p>
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={handleClick}
+              className="w-full rounded-lg py-3 font-bold text-white transition-colors hover:opacity-90"
+              style={{ backgroundColor: config.cor }}
+            >
+              {config.texto}
+            </button>
+            <p className="mt-3 text-xs text-gray-400">Clique para {config.texto.toLowerCase()}</p>
+          </>
+        )}
       </div>
+
+      <PopupAvisoBloqueioConta
+        aberto={avisoAberto}
+        onFechar={fecharAvisoBloqueio}
+        titulo={tituloBloqueio}
+        mensagem={mensagemBloqueio}
+      />
 
       <PopupCompraTicket
         isOpen={showTicketPopup}
