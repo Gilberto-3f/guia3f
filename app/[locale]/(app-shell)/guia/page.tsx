@@ -23,13 +23,7 @@ export default function GuiaPage() {
   const tMobilidade = useTranslations('Mobilidade')
   const tGuia = useTranslations('Guia')
   const router = useRouter()
-  const {
-    roleEfetivo,
-    recursosProfissionaisLiberados,
-    recursosTuristaLiberados,
-    perfilEhTurista,
-    loading: gateLoading,
-  } = useProfissionalGate()
+  const { roleEfetivo, perfilEhTurista, loading: gateLoading } = useProfissionalGate()
   const {
     podeComprarReservar,
     avisarBloqueio,
@@ -39,16 +33,12 @@ export default function GuiaPage() {
     tituloBloqueio,
   } = useGateComprasReservas()
 
-  /** MOBILIDADE no topo: empresa/admin sempre; profissional só após verificação ADM (senão igual turista). */
-  const profComRecursos =
-    roleEfetivo === 'profissional' && !gateLoading && recursosProfissionaisLiberados
-  const turistaComPreLiberacao =
-    perfilEhTurista && !gateLoading && recursosTuristaLiberados
-  const mostrarAbaMobilidade =
-    profComRecursos ||
-    roleEfetivo === 'empresa' ||
-    roleEfetivo === 'admin' ||
-    turistaComPreLiberacao
+  /** Abas Guia | Mobilidade: perfis com Canal na barra (profissional, empresa, admin). Turista vê só "Guia Turístico". */
+  const perfilComCanalNaBarra =
+    !gateLoading &&
+    (roleEfetivo === 'profissional' || roleEfetivo === 'empresa' || roleEfetivo === 'admin')
+  const mostrarAbaMobilidade = perfilComCanalNaBarra
+  const mostrarTituloGuiaTuristico = !gateLoading && perfilEhTurista
   const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
 
   useEffect(() => {
@@ -83,26 +73,43 @@ export default function GuiaPage() {
           />
         </div>
 
-        <div className="flex w-full border-b border-gray-200 bg-white">
-          <button
-            type="button"
-            onClick={() => setAbaAtiva('guia')}
-            className={abaGuiaCls(abaAtiva === 'guia', !mostrarAbaMobilidade)}
+        {gateLoading ? (
+          <div
+            className="flex w-full items-center justify-center border-b border-gray-200 bg-white py-4"
+            aria-busy="true"
+            aria-label={tGuia('loadingHeader')}
           >
-            <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
-            <span>{tGuia('tabGuia')}</span>
-          </button>
-          {mostrarAbaMobilidade ? (
+            <div className="h-5 w-36 animate-pulse rounded bg-gray-200" />
+          </div>
+        ) : mostrarTituloGuiaTuristico ? (
+          <div className="flex w-full border-b border-gray-200 bg-white">
+            <div className={abaGuiaCls(true, true)}>
+              <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
+              <span>{tGuia('title')}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex w-full border-b border-gray-200 bg-white">
             <button
               type="button"
-              onClick={() => setAbaAtiva('mobilidade')}
-              className={abaGuiaCls(abaAtiva === 'mobilidade', false)}
+              onClick={() => setAbaAtiva('guia')}
+              className={abaGuiaCls(abaAtiva === 'guia', !mostrarAbaMobilidade)}
             >
-              <Car className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
-              <span>{tGuia('tabMobilidade')}</span>
+              <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
+              <span>{tGuia('tabGuia')}</span>
             </button>
-          ) : null}
-        </div>
+            {mostrarAbaMobilidade ? (
+              <button
+                type="button"
+                onClick={() => setAbaAtiva('mobilidade')}
+                className={abaGuiaCls(abaAtiva === 'mobilidade', false)}
+              >
+                <Car className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
+                <span>{tGuia('tabMobilidade')}</span>
+              </button>
+            ) : null}
+          </div>
+        )}
       </header>
 
       {abaAtiva === 'guia' ? (

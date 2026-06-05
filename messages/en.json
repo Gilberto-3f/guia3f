@@ -270,10 +270,12 @@
     "profile": "Profile",
     "dashboard": "Dashboard",
     "companyGuia": "Company page on the guide",
-    "mobility": "Mobility"
+    "mobility": "Mobility",
+    "loadingBar": "Loading navigation bar"
   },
   "Guia": {
     "title": "Tourist Guide",
+    "loadingHeader": "Loading guide header",
     "categories": "Categories",
     "gastronomia": "Gastronomy",
     "passeios": "Tours",

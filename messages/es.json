@@ -270,10 +270,12 @@
     "profile": "Perfil",
     "dashboard": "Panel",
     "companyGuia": "Página de la empresa en la guía",
-    "mobility": "Movilidad"
+    "mobility": "Movilidad",
+    "loadingBar": "Cargando barra de navegación"
   },
   "Guia": {
     "title": "Guía Turístico",
+    "loadingHeader": "Cargando encabezado de la guía",
     "categories": "Categorías",
     "gastronomia": "Gastronomía",
     "passeios": "Paseos",

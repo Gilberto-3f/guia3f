@@ -277,7 +277,7 @@ export default function CadastroTuristaPage() {
   }
 
   const inputCls =
-    'w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none'
+    'w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none'
 
   return (
     <GuiaAuthShell largeHeaderLogo>
@@ -287,7 +287,7 @@ export default function CadastroTuristaPage() {
       <div className="rounded-xl bg-gray-100 p-5">
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="nomeSocial" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+            <label htmlFor="nomeSocial" className="mb-1 block text-sm font-medium text-[#001f3f]">
               {t('turista.socialName')}
             </label>
             <input
@@ -301,7 +301,7 @@ export default function CadastroTuristaPage() {
           </div>
 
           <div>
-            <label htmlFor="nomeUsuario" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+            <label htmlFor="nomeUsuario" className="mb-1 block text-sm font-medium text-[#001f3f]">
               {t('turista.username')}
             </label>
             <input
@@ -313,11 +313,11 @@ export default function CadastroTuristaPage() {
               placeholder={t('turista.usernamePlaceholder')}
               className={inputCls}
             />
-            <p className="mt-1 text-xs not-italic text-[#001f3f]">{usernameFeedback}</p>
+            <p className="mt-1 text-xs text-[#001f3f]">{usernameFeedback}</p>
           </div>
 
           <div>
-            <label htmlFor="whatsAppTurista" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+            <label htmlFor="whatsAppTurista" className="mb-1 block text-sm font-medium text-[#001f3f]">
               {t('turista.whatsapp')}
             </label>
             <input
@@ -334,7 +334,7 @@ export default function CadastroTuristaPage() {
           </div>
 
           <div>
-            <label htmlFor="emailCadastro" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+            <label htmlFor="emailCadastro" className="mb-1 block text-sm font-medium text-[#001f3f]">
               {t('email')}
             </label>
             {modoLogado ? (
@@ -353,7 +353,7 @@ export default function CadastroTuristaPage() {
             )}
             {!modoLogado ? (
               <p
-                className={`mt-1 text-xs not-italic ${
+                className={`mt-1 text-xs ${
                   emailSessao && !emailValido ? 'text-red-600' : 'text-[#001f3f]/80'
                 }`}
               >
@@ -365,7 +365,7 @@ export default function CadastroTuristaPage() {
           {!modoLogado ? (
             <>
               <div>
-                <label htmlFor="senhaCadastro" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+                <label htmlFor="senhaCadastro" className="mb-1 block text-sm font-medium text-[#001f3f]">
                   {t('password')}
                 </label>
                 <input
@@ -380,7 +380,7 @@ export default function CadastroTuristaPage() {
                 />
               </div>
               <div>
-                <label htmlFor="senhaConfirma" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+                <label htmlFor="senhaConfirma" className="mb-1 block text-sm font-medium text-[#001f3f]">
                   {t('confirmPassword')}
                 </label>
                 <input
@@ -397,7 +397,7 @@ export default function CadastroTuristaPage() {
             </>
           ) : null}
 
-          <div className="flex flex-wrap items-start gap-4 text-xs italic text-[#001f3f]">
+          <div className="flex flex-wrap items-start gap-4 text-xs text-[#001f3f]">
             <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"

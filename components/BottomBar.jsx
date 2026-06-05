@@ -92,6 +92,7 @@ export default function BottomBar() {
     let ativo = true
 
     const getUserData = async () => {
+      if (ativo) setBarSessaoPronta(false)
       try {
         const {
           data: { session },
@@ -207,9 +208,19 @@ export default function BottomBar() {
       void getUserData()
     }
     window.addEventListener('perfil-atualizado', onPerfilAtualizado)
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        void getUserData()
+      }
+    })
+
     return () => {
       ativo = false
       window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
+      subscription.unsubscribe()
     }
   }, [modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
 
@@ -524,7 +535,15 @@ export default function BottomBar() {
           <Home size={24} className={matchPath('/guia', pathname) ? 'text-[#0097b2]' : 'text-gray-400'} />
         </Link>
 
-        {segundoEhMobilidadeNaBarra ? (
+        {!barSessaoPronta ? (
+          <div
+            className="flex flex-col items-center p-2 opacity-50"
+            aria-busy="true"
+            aria-label={t('loadingBar')}
+          >
+            <MessageCircle size={24} className="text-gray-300" aria-hidden />
+          </div>
+        ) : segundoEhMobilidadeNaBarra ? (
           podeComprarReservar || gateComprasLoading ? (
             <Link href="/mobilidade" className="flex flex-col items-center p-2" aria-label={t('mobility')}>
               <Car

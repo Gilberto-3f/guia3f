@@ -47,6 +47,7 @@ export function ProfissionalGateProvider({ children }) {
   const [turistaDocsRow, setTuristaDocsRow] = useState(null)
 
   const refreshGate = useCallback(async () => {
+    setLoading(true)
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -152,6 +153,17 @@ export function ProfissionalGateProvider({ children }) {
 
   useEffect(() => {
     void refreshGate()
+  }, [refreshGate])
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        void refreshGate()
+      }
+    })
+    return () => subscription.unsubscribe()
   }, [refreshGate])
 
   useEffect(() => {
