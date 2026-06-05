@@ -15,6 +15,7 @@ import AvatarImage from '@/components/AvatarImage'
 import StoryCanvas from '@/components/StoryCanvas'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
+import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 
@@ -1037,6 +1038,7 @@ export default function StoryViewer({
         setRepostExistenteId(null)
         setToastMsg('Repost removido dos seus stories.')
         window.dispatchEvent(new Event('guia-stories-bar-reload'))
+        window.dispatchEvent(new Event(GUIA_ATIVIDADES_RELOAD_EVENT))
         return
       }
       const { data: jaExiste, error: existeErr } = await supabase
@@ -1076,6 +1078,7 @@ export default function StoryViewer({
       setRepostExistenteId(repostCriado?.id != null ? String(repostCriado.id) : null)
       setToastMsg('Story repostado no seu perfil.')
       window.dispatchEvent(new Event('guia-stories-bar-reload'))
+      window.dispatchEvent(new Event(GUIA_ATIVIDADES_RELOAD_EVENT))
     } catch (e) {
       console.error('[StoryViewer] repostar story:', e)
       setToastMsg('Não foi possível repostar este story.')

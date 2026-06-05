@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     if (!whatsapp) {
       return NextResponse.json({ error: 'invalid_whatsapp' }, { status: 400 })
     }
-    if (form.get('aceitePolitica') !== 'true' || form.get('aceiteTermos') !== 'true') {
+    if (form.get('aceitePoliticas') !== 'true' && (form.get('aceitePolitica') !== 'true' || form.get('aceiteTermos') !== 'true')) {
       return NextResponse.json({ error: 'policies' }, { status: 400 })
     }
 

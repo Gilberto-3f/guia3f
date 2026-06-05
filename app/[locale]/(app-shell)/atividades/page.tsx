@@ -24,6 +24,8 @@ import AvatarImage from '@/components/AvatarImage'
 import {
   atividadeVisivelNaMinhaContaEmpresa,
   atividadeVisivelNaMinhaContaPessoal,
+  atividadeRepostStoryVisivel,
+  storyIdDeAtividadeRepost,
   agruparAtividadesCurtidasPost,
   filtrarAtividadesAposDescurtir,
   urlFotoPost,
@@ -246,6 +248,38 @@ export default function AtividadesPage() {
   const [storyModal, setStoryModal] = useState<StoryViewerState | null>(null)
   const [seguidoEmpresaMap, setSeguidoEmpresaMap] = useState<Record<string, string>>({})
   const [qtdSeguindo, setQtdSeguindo] = useState(0)
+  /** Reposts de story ainda ativos no carrossel (expira_em > agora). */
+  const [storiesRepostAtivos, setStoriesRepostAtivos] = useState<Set<string>>(() => new Set())
+  const [storiesRepostAtivosPronto, setStoriesRepostAtivosPronto] = useState(false)
+
+  const carregarStoriesRepostAtivos = useCallback(async (rows: AtividadeRow[]) => {
+    const ids = [
+      ...new Set(
+        rows
+          .filter((r) => r.tipo === 'repostou_story')
+          .map((r) => storyIdDeAtividadeRepost(r))
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ]
+    if (ids.length === 0) {
+      setStoriesRepostAtivos(new Set())
+      setStoriesRepostAtivosPronto(true)
+      return
+    }
+    const { data, error } = await supabase
+      .from('stories')
+      .select('id')
+      .in('id', ids)
+      .gt('expira_em', new Date().toISOString())
+    if (error) {
+      console.error('[Atividades] stories repost ativos:', error)
+      setStoriesRepostAtivos(new Set())
+      setStoriesRepostAtivosPronto(true)
+      return
+    }
+    setStoriesRepostAtivos(new Set((data ?? []).map((r) => String((r as { id: string }).id))))
+    setStoriesRepostAtivosPronto(true)
+  }, [])
 
   const buscarUsuarios = useCallback(async (termo: string) => {
     const requestId = ++latestRequestId.current
@@ -952,8 +986,12 @@ export default function AtividadesPage() {
       setTemMaisAmigos(false)
       setTemMaisMinha(false)
       setErroAmigos(null)
+      setStoriesRepostAtivos(new Set())
+      setStoriesRepostAtivosPronto(false)
       return
     }
+
+    setStoriesRepostAtivosPronto(false)
 
     const { data: urow } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
     const role = (urow as { role?: string } | null)?.role ?? null
@@ -1001,6 +1039,8 @@ export default function AtividadesPage() {
         }
       }
       await carregarPostsMeta(postIdsEmp, { merge: false })
+
+      await carregarStoriesRepostAtivos(minhaEmpresa)
 
       setCarregando(false)
       return
@@ -1080,8 +1120,10 @@ export default function AtividadesPage() {
     }
     await carregarPostsMeta(postIds, { merge: false })
 
+    await carregarStoriesRepostAtivos(todos)
+
     setCarregando(false)
-  }, [carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta])
+  }, [carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesRepostAtivos])
 
   const carregarMaisAtividades = useCallback(async () => {
     if (carregandoMais) return
@@ -1130,10 +1172,11 @@ export default function AtividadesPage() {
         }
       }
       await carregarPostsMeta(postIds, { merge: true })
+      await carregarStoriesRepostAtivos([...listaAmigos, ...novas])
     } finally {
       setCarregandoMais(false)
     }
-  }, [aba, meuId, offsetAmigos, temMaisAmigos, carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta])
+  }, [aba, meuId, offsetAmigos, temMaisAmigos, listaAmigos, carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesRepostAtivos])
 
   useEffect(() => {
     void recarregar()
@@ -1359,6 +1402,11 @@ export default function AtividadesPage() {
     const comentariosVistos = new Set<string>()
     return raw.filter((r) => {
       if (r.tipo === 'avaliou') return false
+      if (r.tipo === 'repostou_story') {
+        if (!atividadeRepostStoryVisivel(r)) return false
+        const storyId = storyIdDeAtividadeRepost(r)
+        if (storyId && storiesRepostAtivosPronto && !storiesRepostAtivos.has(storyId)) return false
+      }
       if (r.tipo === 'comentou' || r.tipo === 'curtiu_comentario') {
         const ex = r.dados_extras ?? {}
         const texto = typeof ex.texto === 'string' ? ex.texto.trim() : ''
@@ -1377,7 +1425,7 @@ export default function AtividadesPage() {
       }
       return true
     })
-  }, [aba, listaAmigos, listaMinha])
+  }, [aba, listaAmigos, listaMinha, storiesRepostAtivos, storiesRepostAtivosPronto])
 
   const itensAgrupados = useMemo((): ReturnType<typeof agruparAtividadesCurtidasPost> => {
     const ord = [...listaAtividadesFiltrada].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())

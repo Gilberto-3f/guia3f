@@ -55,8 +55,7 @@ export default function CadastroTuristaPage() {
   const [senha, setSenha] = useState('')
   const [senhaConfirma, setSenhaConfirma] = useState('')
   const [modoLogado, setModoLogado] = useState(false)
-  const [aceitePolitica, setAceitePolitica] = useState(false)
-  const [aceiteTermos, setAceiteTermos] = useState(false)
+  const [aceitePoliticas, setAceitePoliticas] = useState(false)
 
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle')
   const [usernameFeedback, setUsernameFeedback] = useState('')
@@ -163,7 +162,7 @@ export default function CadastroTuristaPage() {
     if (!usernameLimpo || usernameStatus !== 'available') return t('turista.valUsername')
     if (!whatsApp.trim()) return t('turista.valWhatsapp')
     if (!emailValido) return t('turista.valEmail')
-    if (!aceitePolitica || !aceiteTermos) return t('turista.valPolicies')
+    if (!aceitePoliticas) return t('turista.valPolicies')
     if (!modoLogado) {
       if (!senhaRegex.test(senha)) return t('apiErrorInvalidPassword')
       if (senha !== senhaConfirma) return t('signUpPasswordMatch')
@@ -189,8 +188,9 @@ export default function CadastroTuristaPage() {
         fd.append('nomeCompleto', nomeSocial.trim())
         fd.append('nomeUsuario', usernameLimpo)
         fd.append('whatsapp', whatsApp.trim())
-        fd.append('aceitePolitica', String(aceitePolitica))
-        fd.append('aceiteTermos', String(aceiteTermos))
+        fd.append('aceitePoliticas', String(aceitePoliticas))
+        fd.append('aceitePolitica', String(aceitePoliticas))
+        fd.append('aceiteTermos', String(aceitePoliticas))
 
         const res = await fetch('/api/cadastro/turista', { method: 'POST', body: fd })
         const json = (await res.json().catch(() => ({}))) as {
@@ -397,38 +397,33 @@ export default function CadastroTuristaPage() {
             </>
           ) : null}
 
-          <div className="flex flex-wrap items-start gap-4 text-xs text-[#001f3f]">
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={aceitePolitica}
-                onChange={(e) => setAceitePolitica(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-400"
-              />
+          <label className="flex items-start gap-2 text-sm text-[#001f3f]">
+            <input
+              type="checkbox"
+              checked={aceitePoliticas}
+              onChange={(e) => setAceitePoliticas(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300"
+            />
+            <span>
+              {t('profissional.acceptPoliciesIntro')}{' '}
               <Link href="/politicas" className="underline hover:text-[#0097b2]">
                 {t('turista.privacy')}
-              </Link>
-            </label>
-            <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={aceiteTermos}
-                onChange={(e) => setAceiteTermos(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-400"
-              />
+              </Link>{' '}
+              {t('profissional.acceptPoliciesAnd')}{' '}
               <Link href="/regras" className="underline hover:text-[#0097b2]">
                 {t('turista.terms')}
               </Link>
-            </label>
-          </div>
+              .
+            </span>
+          </label>
 
           {erroEnvio && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erroEnvio}</p>}
 
           <button
             type="submit"
-            disabled={enviando || !(aceitePolitica && aceiteTermos)}
+            disabled={enviando || !aceitePoliticas}
             className={`mx-auto block w-full max-w-full rounded-full px-4 py-3.5 text-sm font-bold text-white transition-colors ${
-              !(aceitePolitica && aceiteTermos)
+              !aceitePoliticas
                 ? 'cursor-not-allowed bg-gray-400'
                 : enviando
                   ? 'cursor-wait bg-[#00D443] opacity-80'

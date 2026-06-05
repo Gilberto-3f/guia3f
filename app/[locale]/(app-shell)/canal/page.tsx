@@ -166,7 +166,7 @@ export default function CanalPage() {
         <div className="sticky top-0 z-10 bg-[#0097b2] px-4 py-3 text-white shadow-sm">
           <h1 className="text-xl font-bold">Canais ADM</h1>
         </div>
-        <div className="flex min-h-0 min-h-[calc(100dvh-7rem)] flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 min-h-[calc(100dvh-7rem)] flex-1 flex-col overflow-y-auto">
           <ListaCanais
             tipoPublico={null}
             agruparPorTipo

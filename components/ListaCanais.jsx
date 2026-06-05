@@ -595,7 +595,7 @@ export default function ListaCanais({
       : []
 
     return (
-      <div className="overflow-hidden bg-white">
+      <div className="bg-white pb-4">
         {renderGrupoChevron({
           id: 'administracaoUnificada',
           titulo: TITULO_PASTA_ADMINISTRADORES_APP,
