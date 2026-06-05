@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { DollarSign, Eye, MapPin, UserPlus, Users } from 'lucide-react'
+import { DollarSign, Eye, MapPin, UserPlus, Users, type LucideIcon } from 'lucide-react'
 import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useFunilConversao } from '../../hooks/useFunilConversao'
 import type { Periodo } from '../../types/dashboard.types'
@@ -17,6 +17,24 @@ interface Props {
 }
 
 type DetalheEtapa = 'recomendacoes' | 'pax' | 'vendas' | null
+
+type EtapaFunilConfig =
+  | {
+      id: 'visualizacoes' | 'seguidores'
+      expandable: false
+      icon: LucideIcon
+      label: string
+      valor: number
+      widthPercent: number
+    }
+  | {
+      id: Exclude<DetalheEtapa, null>
+      expandable: true
+      icon: LucideIcon
+      label: string
+      valor: number
+      widthPercent: number
+    }
 
 export default function FunilConversao({ periodo }: Props) {
   const { dados: empresa } = useDashboardEmpresa()
@@ -72,7 +90,7 @@ export default function FunilConversao({ periodo }: Props) {
     )
   }
 
-  const etapas = [
+  const etapas: EtapaFunilConfig[] = [
     {
       id: 'visualizacoes' as const,
       icon: Eye,
