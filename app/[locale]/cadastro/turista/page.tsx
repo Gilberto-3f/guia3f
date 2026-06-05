@@ -2,58 +2,16 @@
 
 import Link from 'next/link'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { useRouter } from '@/i18n/navigation'
+import { useLocale, useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
 
+type UsernameStatus = 'idle' | 'checking' | 'available' | 'unavailable'
+
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
-
-const MAX_USERNAME_LEN = 20
-const MAX_TENTATIVAS_USERNAME = 50
-
-async function gerarUsernameUnico(baseEmail: string, userId: string): Promise<string> {
-  const raw =
-    (baseEmail.split('@')[0] ?? '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '') || 'user'
-
-  const fallback = `u${userId.replace(/-/g, '')}`.slice(0, MAX_USERNAME_LEN)
-
-  async function tentar(tentativa: number): Promise<string> {
-    const sufixo = tentativa === 0 ? '' : String(tentativa)
-    const maxStem = MAX_USERNAME_LEN - sufixo.length
-    const stem = raw.slice(0, Math.max(1, maxStem))
-    let username = (stem + sufixo).slice(0, MAX_USERNAME_LEN)
-    if (username.length < 3) {
-      username = fallback.length >= 3 ? fallback : `u${userId.replace(/-/g, '').slice(0, 18)}`
-    }
-
-    const [turista, profissional, empresa] = await Promise.all([
-      supabase.from('turistas').select('id').eq('nome_usuario', username).limit(1),
-      supabase.from('profissionais').select('id').eq('nome_usuario', username).limit(1),
-      supabase.from('empresas').select('id').eq('nome_usuario', username).limit(1),
-    ])
-
-    if (turista.error || profissional.error || empresa.error) {
-      return fallback.length >= 3 ? fallback : `u${userId.replace(/-/g, '').slice(0, 18)}`
-    }
-
-    const existe =
-      (turista.data?.length ?? 0) > 0 ||
-      (profissional.data?.length ?? 0) > 0 ||
-      (empresa.data?.length ?? 0) > 0
-
-    if (!existe) return username
-    if (tentativa >= MAX_TENTATIVAS_USERNAME) {
-      return fallback.length >= 3 ? fallback : `u${userId.replace(/-/g, '').slice(0, 18)}`
-    }
-    return tentar(tentativa + 1)
-  }
-
-  return tentar(0)
-}
+const usernameRegex = /^[a-z0-9._]{3,20}$/
 
 function mapApiTuristaError(
   code: string | undefined,
@@ -65,6 +23,12 @@ function mapApiTuristaError(
     case 'invalid_password':
     case 'invalid_password_format':
       return t('apiErrorInvalidPassword')
+    case 'username_taken':
+      return t('username.unavailable')
+    case 'invalid_username':
+      return t('turista.valUsername')
+    case 'invalid_whatsapp':
+      return t('turista.valWhatsapp')
     case 'server_config':
     case 'auth_database_error':
       return t('apiErrorServerConfig')
@@ -80,10 +44,13 @@ function mapApiTuristaError(
 
 export default function CadastroTuristaPage() {
   const router = useRouter()
+  const locale = useLocale()
   const t = useTranslations('Cadastro')
   const tCommon = useTranslations('Common')
 
   const [nomeSocial, setNomeSocial] = useState('')
+  const [nomeUsuario, setNomeUsuario] = useState('')
+  const [whatsApp, setWhatsApp] = useState('')
   const [emailSessao, setEmailSessao] = useState('')
   const [senha, setSenha] = useState('')
   const [senhaConfirma, setSenhaConfirma] = useState('')
@@ -91,11 +58,17 @@ export default function CadastroTuristaPage() {
   const [aceitePolitica, setAceitePolitica] = useState(false)
   const [aceiteTermos, setAceiteTermos] = useState(false)
 
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle')
+  const [usernameFeedback, setUsernameFeedback] = useState('')
   const [erroEnvio, setErroEnvio] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [bootOk, setBootOk] = useState(false)
 
   const emailValido = useMemo(() => emailRegex.test(emailSessao), [emailSessao])
+  const usernameLimpo = useMemo(
+    () => nomeUsuario.trim().toLowerCase().replace(/^@+/, ''),
+    [nomeUsuario]
+  )
 
   useEffect(() => {
     let ativo = true
@@ -127,8 +100,68 @@ export default function CadastroTuristaPage() {
     }
   }, [router])
 
+  useEffect(() => {
+    if (!usernameLimpo) {
+      setUsernameStatus('idle')
+      setUsernameFeedback('')
+      return
+    }
+
+    if (!usernameRegex.test(usernameLimpo)) {
+      setUsernameStatus('unavailable')
+      setUsernameFeedback(t('username.rulesHint'))
+      return
+    }
+
+    if (!modoLogado) {
+      setUsernameStatus('available')
+      setUsernameFeedback(t('username.available'))
+      return
+    }
+
+    let ativo = true
+    setUsernameStatus('checking')
+    setUsernameFeedback(t('username.checking'))
+
+    const timer = setTimeout(async () => {
+      const [turistasResp, profissionaisResp, empresasResp] = await Promise.all([
+        supabase.from('turistas').select('id').eq('nome_usuario', usernameLimpo).limit(1),
+        supabase.from('profissionais').select('id').eq('nome_usuario', usernameLimpo).limit(1),
+        supabase.from('empresas').select('id').eq('nome_usuario', usernameLimpo).limit(1),
+      ])
+
+      if (!ativo) return
+
+      if (turistasResp.error || profissionaisResp.error || empresasResp.error) {
+        setUsernameStatus('unavailable')
+        setUsernameFeedback(t('username.validateError'))
+        return
+      }
+
+      const indisponivel =
+        (turistasResp.data?.length ?? 0) > 0 ||
+        (profissionaisResp.data?.length ?? 0) > 0 ||
+        (empresasResp.data?.length ?? 0) > 0
+
+      if (indisponivel) {
+        setUsernameStatus('unavailable')
+        setUsernameFeedback(t('username.unavailable'))
+      } else {
+        setUsernameStatus('available')
+        setUsernameFeedback(t('username.available'))
+      }
+    }, 400)
+
+    return () => {
+      ativo = false
+      clearTimeout(timer)
+    }
+  }, [usernameLimpo, modoLogado, locale, t])
+
   const validarFormulario = () => {
     if (!nomeSocial.trim()) return t('turista.valSocialName')
+    if (!usernameLimpo || usernameStatus !== 'available') return t('turista.valUsername')
+    if (!whatsApp.trim()) return t('turista.valWhatsapp')
     if (!emailValido) return t('turista.valEmail')
     if (!aceitePolitica || !aceiteTermos) return t('turista.valPolicies')
     if (!modoLogado) {
@@ -154,6 +187,8 @@ export default function CadastroTuristaPage() {
         fd.append('email', emailSessao.trim().toLowerCase())
         fd.append('password', senha)
         fd.append('nomeCompleto', nomeSocial.trim())
+        fd.append('nomeUsuario', usernameLimpo)
+        fd.append('whatsapp', whatsApp.trim())
         fd.append('aceitePolitica', String(aceitePolitica))
         fd.append('aceiteTermos', String(aceiteTermos))
 
@@ -206,17 +241,20 @@ export default function CadastroTuristaPage() {
       )
       if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
 
-      const usernameProvisorio = await gerarUsernameUnico(emailUser, userId)
-
       const payloadTurista: Record<string, string> = {
         usuario_id: userId,
         nome_completo: nomeSocial.trim(),
-        nome_usuario: usernameProvisorio,
+        nome_usuario: usernameLimpo,
+        whatsapp: whatsApp.trim(),
         status: 'pre_aprovado',
       }
       let insertTurista = await supabase.from('turistas').insert(payloadTurista)
       if (insertTurista.error && insertTurista.error.message.toLowerCase().includes('status')) {
         delete payloadTurista.status
+        insertTurista = await supabase.from('turistas').insert(payloadTurista)
+      }
+      if (insertTurista.error && insertTurista.error.message.toLowerCase().includes('whatsapp')) {
+        delete payloadTurista.whatsapp
         insertTurista = await supabase.from('turistas').insert(payloadTurista)
       }
       if (insertTurista.error) throw new Error(insertTurista.error.message)
@@ -238,6 +276,9 @@ export default function CadastroTuristaPage() {
     )
   }
 
+  const inputCls =
+    'w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none'
+
   return (
     <GuiaAuthShell largeHeaderLogo>
       <h1 className="mb-2 text-center text-xl font-bold text-[#0097b2] sm:text-2xl">{t('turista.pageTitle')}</h1>
@@ -255,7 +296,40 @@ export default function CadastroTuristaPage() {
               required
               value={nomeSocial}
               onChange={(e) => setNomeSocial(e.target.value)}
-              className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none"
+              className={inputCls}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="nomeUsuario" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+              {t('turista.username')}
+            </label>
+            <input
+              id="nomeUsuario"
+              type="text"
+              required
+              value={nomeUsuario}
+              onChange={(e) => setNomeUsuario(e.target.value)}
+              placeholder={t('turista.usernamePlaceholder')}
+              className={inputCls}
+            />
+            <p className="mt-1 text-xs not-italic text-[#001f3f]">{usernameFeedback}</p>
+          </div>
+
+          <div>
+            <label htmlFor="whatsAppTurista" className="mb-1 block text-xs font-medium italic text-[#001f3f]">
+              {t('turista.whatsapp')}
+            </label>
+            <input
+              id="whatsAppTurista"
+              type="tel"
+              required
+              value={whatsApp}
+              onChange={(e) => setWhatsApp(e.target.value)}
+              className={inputCls}
+              autoComplete="tel"
+              placeholder={t('turista.whatsappPlaceholder')}
+              inputMode="tel"
             />
           </div>
 
@@ -273,7 +347,7 @@ export default function CadastroTuristaPage() {
                 required
                 value={emailSessao}
                 onChange={(e) => setEmailSessao(e.target.value.trim().toLowerCase())}
-                className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none"
+                className={inputCls}
                 placeholder={t('email')}
               />
             )}
@@ -301,7 +375,7 @@ export default function CadastroTuristaPage() {
                   required
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
-                  className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none"
+                  className={inputCls}
                   placeholder={t('signUpPasswordHint')}
                 />
               </div>
@@ -316,7 +390,7 @@ export default function CadastroTuristaPage() {
                   required
                   value={senhaConfirma}
                   onChange={(e) => setSenhaConfirma(e.target.value)}
-                  className="w-full rounded-lg bg-[#0097b2] text-white placeholder:italic placeholder:text-white/80 px-4 py-3 text-sm outline-none"
+                  className={inputCls}
                   placeholder={t('signUpPasswordHint')}
                 />
               </div>
@@ -324,7 +398,7 @@ export default function CadastroTuristaPage() {
           ) : null}
 
           <div className="flex flex-wrap items-start gap-4 text-xs italic text-[#001f3f]">
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={aceitePolitica}
@@ -335,7 +409,7 @@ export default function CadastroTuristaPage() {
                 {t('turista.privacy')}
               </Link>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={aceiteTermos}

@@ -16,8 +16,8 @@ type CadastroProfissionalBody = {
   password?: unknown
   nomeCompleto?: unknown
   nomeUsuario?: unknown
+  whatsapp?: unknown
   categoria?: unknown
-  pais?: unknown
   cidadeAtuacao?: unknown
   aceitePoliticas?: unknown
 }
@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
     const password = String(body.password ?? '')
     const nomeCompleto = String(body.nomeCompleto ?? '').trim()
     const nomeUsuario = String(body.nomeUsuario ?? '').trim().toLowerCase().replace(/^@+/, '')
+    const whatsapp = String(body.whatsapp ?? '').trim()
     const categoria = String(body.categoria ?? '').trim()
-    const pais = String(body.pais ?? '').trim()
     const cidadeRaw = String(body.cidadeAtuacao ?? '').trim()
 
     if (!emailRegex.test(email)) {
@@ -47,11 +47,11 @@ export async function POST(req: NextRequest) {
     if (!usernameRegex.test(nomeUsuario)) {
       return NextResponse.json({ error: 'invalid_username' }, { status: 400 })
     }
+    if (!whatsapp) {
+      return NextResponse.json({ error: 'invalid_whatsapp' }, { status: 400 })
+    }
     if (!categoria) {
       return NextResponse.json({ error: 'invalid_category' }, { status: 400 })
-    }
-    if (!['Brasil', 'Paraguai', 'Argentina'].includes(pais)) {
-      return NextResponse.json({ error: 'invalid_country' }, { status: 400 })
     }
     if (!cidadeRaw) {
       return NextResponse.json({ error: 'invalid_city' }, { status: 400 })
@@ -114,23 +114,24 @@ export async function POST(req: NextRequest) {
       usuario_id: userId,
       nome_completo: nomeCompleto,
       nome_usuario: nomeUsuario,
+      telefone: whatsapp,
       categorias: [categoria],
       placa_vermelha: placaVermelha,
-      pais,
       cidade_atuacao: cidadeAtuacao,
       status: 'pendente',
     }
 
     let ins = await admin.from('profissionais').insert(payload)
-    if (ins.error && ins.error.message.toLowerCase().includes('pais')) {
-      const rest = { ...payload }
-      delete rest.pais
-      delete rest.cidade_atuacao
+    if (ins.error && ins.error.message.toLowerCase().includes('telefone')) {
+      const { telefone: _t, ...rest } = payload
+      ins = await admin.from('profissionais').insert(rest)
+    }
+    if (ins.error && ins.error.message.toLowerCase().includes('cidade_atuacao')) {
+      const { cidade_atuacao: _c, ...rest } = payload
       ins = await admin.from('profissionais').insert(rest)
     }
     if (ins.error && ins.error.message.toLowerCase().includes('status')) {
-      const rest = { ...payload }
-      delete rest.status
+      const { status: _s, ...rest } = payload
       ins = await admin.from('profissionais').insert(rest)
     }
 

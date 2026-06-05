@@ -5,7 +5,6 @@ import { ehCategoriaEmpresaPermitida } from '@/lib/segmentosEmpresaGuia'
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
 const usernameRegex = /^[a-z0-9._]{3,20}$/
-const maxDescricao = 170
 
 function errDetails(err: unknown) {
   if (err instanceof Error) {
@@ -28,25 +27,6 @@ function safeSupabaseError(e: any) {
   }
 }
 
-async function uploadFile(
-  admin: ReturnType<typeof createSupabaseAdmin>,
-  bucket: string,
-  folder: string,
-  userId: string,
-  file: File
-) {
-  const ext = file.name.split('.').pop() || 'bin'
-  const path = `${folder}/${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-  const buf = Buffer.from(await file.arrayBuffer())
-  const { error } = await admin.storage.from(bucket).upload(path, buf, {
-    contentType: file.type || 'application/octet-stream',
-    upsert: false,
-  })
-  if (error) throw new Error(error.message)
-  const { data } = admin.storage.from(bucket).getPublicUrl(path)
-  return data.publicUrl
-}
-
 export async function POST(req: NextRequest) {
   let step = 'init'
   let createdUserId: string | null = null
@@ -66,12 +46,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'invalid_category' }, { status: 400 })
     }
     const cidade = String(form.get('cidade') || '').trim()
-    const enderecoCompleto = String(form.get('enderecoCompleto') || '').trim()
-    const telefone = String(form.get('telefone') || '').trim()
+    const enderecoRua = String(form.get('enderecoRua') || '').trim()
+    const enderecoNumero = String(form.get('enderecoNumero') || '').trim()
+    const enderecoBairro = String(form.get('enderecoBairro') || '').trim()
     const whatsApp = String(form.get('whatsApp') || '').trim()
-    const descricaoCurta = String(form.get('descricaoCurta') || '').trim()
-    const website = String(form.get('website') || '').trim()
-    const horariosJson = String(form.get('horarios') || '[]')
+
+    const endereco = enderecoNumero ? `${enderecoRua}, ${enderecoNumero}` : enderecoRua
 
     if (!emailRegex.test(email)) {
       return NextResponse.json({ error: 'invalid_email' }, { status: 400 })
@@ -82,30 +62,14 @@ export async function POST(req: NextRequest) {
     if (!nomeFantasia || !usernameRegex.test(nomeUsuario)) {
       return NextResponse.json({ error: 'invalid_fields' }, { status: 400 })
     }
-    if (!categoria || !cidade || !enderecoCompleto) {
+    if (!categoria || !cidade || !enderecoRua || !enderecoNumero || !enderecoBairro) {
       return NextResponse.json({ error: 'invalid_location' }, { status: 400 })
     }
-    if (!telefone || !whatsApp) {
-      return NextResponse.json({ error: 'invalid_phone' }, { status: 400 })
-    }
-    if (!descricaoCurta || descricaoCurta.length > maxDescricao) {
-      return NextResponse.json({ error: 'invalid_description' }, { status: 400 })
+    if (!whatsApp) {
+      return NextResponse.json({ error: 'invalid_whatsapp' }, { status: 400 })
     }
     if (form.get('aceitePoliticas') !== 'true') {
       return NextResponse.json({ error: 'policies' }, { status: 400 })
-    }
-
-    let horariosSelecionados: string[] = []
-    try {
-      const parsed = JSON.parse(horariosJson)
-      if (Array.isArray(parsed)) horariosSelecionados = parsed.map(String)
-    } catch {
-      return NextResponse.json({ error: 'invalid_hours' }, { status: 400 })
-    }
-
-    const documentoComercial = form.get('documentoComercial')
-    if (!(documentoComercial instanceof File) || documentoComercial.size === 0) {
-      return NextResponse.json({ error: 'doc_required' }, { status: 400 })
     }
 
     step = 'usernameChecks'
@@ -140,22 +104,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'no_user', step, details: { created } }, { status: 500 })
     }
 
-    const logo = form.get('logo')
-    let logoUrl: string | null = null
-    if (logo instanceof File && logo.size > 0) {
-      step = 'uploadLogo'
-      logoUrl = await uploadFile(admin, 'empresas', 'logos', createdUserId, logo)
-    }
-
-    step = 'uploadDocumentoComercial'
-    const documentoComercialUrl = await uploadFile(
-      admin,
-      'documentos',
-      'empresa-documentos',
-      createdUserId,
-      documentoComercial
-    )
-
     const geo = { status: 'pendente', latitude: null as number | null, longitude: null as number | null }
 
     const payloadCompleto: Record<string, unknown> = {
@@ -164,20 +112,14 @@ export async function POST(req: NextRequest) {
       nome_usuario: nomeUsuario,
       categoria,
       cidade,
-      endereco: enderecoCompleto,
-      telefone,
+      endereco,
+      bairro: enderecoBairro,
       whatsapp: whatsApp,
-      descricao_curta: descricaoCurta,
-      horarios_funcionamento: horariosSelecionados,
-      documento_comercial_url: documentoComercialUrl,
-      documentos_enviados_em: new Date().toISOString(),
       geocoding_status: geo.status,
       latitude: geo.latitude,
       longitude: geo.longitude,
       status: 'aguardando_aprovacao',
     }
-    if (website) payloadCompleto.website = website
-    if (logoUrl) payloadCompleto.logo_url = logoUrl
 
     step = 'insertEmpresa'
     let insertEmpresa = await admin.from('empresas').insert(payloadCompleto)
@@ -192,8 +134,7 @@ export async function POST(req: NextRequest) {
         nome_usuario: nomeUsuario,
         categoria,
         cidade,
-        endereco: enderecoCompleto,
-        descricao_curta: descricaoCurta,
+        endereco,
         status: 'aguardando_aprovacao',
       }
       insertEmpresa = await admin.from('empresas').insert(payloadMinimo)
@@ -202,8 +143,8 @@ export async function POST(req: NextRequest) {
       const { status: _s, ...rest } = payloadCompleto
       insertEmpresa = await admin.from('empresas').insert(rest)
     }
-    if (insertEmpresa.error && insertEmpresa.error.message.toLowerCase().includes('website')) {
-      const { website: _w, ...rest } = payloadCompleto
+    if (insertEmpresa.error && insertEmpresa.error.message.toLowerCase().includes('bairro')) {
+      const { bairro: _b, ...rest } = payloadCompleto
       insertEmpresa = await admin.from('empresas').insert(rest)
     }
 

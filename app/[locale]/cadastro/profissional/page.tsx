@@ -27,10 +27,8 @@ const categoriasDisponiveis: CategoriaProfissional[] = [
 
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
 
-type PaisProfissional = 'Brasil' | 'Paraguai' | 'Argentina'
 type CidadeProfissional = 'Foz do Iguacu' | 'Ciudad del Este' | 'Puerto Iguazu'
 
-const paisesProfissional: PaisProfissional[] = ['Brasil', 'Paraguai', 'Argentina']
 const cidadesProfissional: CidadeProfissional[] = [
   'Foz do Iguacu',
   'Ciudad del Este',
@@ -53,6 +51,10 @@ function mapApiProfissionalError(code: string | undefined, t: (key: string) => s
       return t('apiErrorAuthDatabase')
     case 'invalid_username':
       return t('profissional.valUsername')
+    case 'invalid_whatsapp':
+      return t('profissional.valWhatsapp')
+    case 'invalid_category':
+      return t('profissional.valCategory')
     default:
       return t('apiErrorDefault')
   }
@@ -78,8 +80,8 @@ type CadastroProfissionalPayload = {
   password?: string
   nomeCompleto: string
   nomeUsuario: string
+  whatsapp: string
   categoria: string
-  pais: string
   cidadeAtuacao: string
   aceitePoliticas: boolean
 }
@@ -96,9 +98,9 @@ export default function CadastroProfissionalPage() {
   const [senha, setSenha] = useState('')
   const [senhaConfirma, setSenhaConfirma] = useState('')
   const [modoLogado, setModoLogado] = useState(false)
-  const [pais, setPais] = useState<PaisProfissional>('Brasil')
+  const [whatsApp, setWhatsApp] = useState('')
   const [cidadeAtuacao, setCidadeAtuacao] = useState<CidadeProfissional>('Foz do Iguacu')
-  const [categoria, setCategoria] = useState<CategoriaProfissional>('Guia')
+  const [categoria, setCategoria] = useState<CategoriaProfissional | ''>('')
   const [aceitePoliticas, setAceitePoliticas] = useState(false)
 
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle')
@@ -116,6 +118,7 @@ export default function CadastroProfissionalPage() {
     () => categoria === 'Guia' || categoria === 'Taxista' || categoria === 'Van',
     [categoria]
   )
+  const categoriaEscolhida = Boolean(categoria)
 
   useEffect(() => {
     let ativo = true
@@ -208,7 +211,9 @@ export default function CadastroProfissionalPage() {
   const validarFormulario = () => {
     if (!nomeCompleto.trim()) return t('profissional.valFullName')
     if (!usernameLimpo || usernameStatus !== 'available') return t('profissional.valUsername')
+    if (!whatsApp.trim()) return t('profissional.valWhatsapp')
     if (!emailValido) return t('profissional.valEmail')
+    if (!categoria) return t('profissional.valCategory')
     if (!aceitePoliticas) return t('profissional.valPolicies')
     if (!modoLogado) {
       if (!senhaRegex.test(senha)) return t('apiErrorInvalidPassword')
@@ -235,8 +240,8 @@ export default function CadastroProfissionalPage() {
           password: senha,
           nomeCompleto: nomeCompleto.trim(),
           nomeUsuario: usernameLimpo,
+          whatsapp: whatsApp.trim(),
           categoria,
-          pais,
           cidadeAtuacao,
           aceitePoliticas,
         }
@@ -299,17 +304,21 @@ export default function CadastroProfissionalPage() {
         usuario_id: userId,
         nome_completo: nomeCompleto.trim(),
         nome_usuario: usernameLimpo,
+        telefone: whatsApp.trim(),
         categorias: [categoria],
         placa_vermelha: placaVermelha,
-        pais,
         cidade_atuacao: [cidadeAtuacao],
         status: 'pendente',
       }
 
       let insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
 
-      if (insertProfissional.error && insertProfissional.error.message.toLowerCase().includes('pais')) {
-        delete payloadProfissional.pais
+      if (insertProfissional.error && insertProfissional.error.message.toLowerCase().includes('telefone')) {
+        delete payloadProfissional.telefone
+        insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
+      }
+
+      if (insertProfissional.error && insertProfissional.error.message.toLowerCase().includes('cidade_atuacao')) {
         delete payloadProfissional.cidade_atuacao
         insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
       }
@@ -349,7 +358,7 @@ export default function CadastroProfissionalPage() {
       <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="nomeCompleto" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('profissional.fullName')} {t('common.required')}
+              {t('profissional.socialName')} {t('common.required')}
             </label>
             <input
               id="nomeCompleto"
@@ -375,6 +384,23 @@ export default function CadastroProfissionalPage() {
               className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
             />
             <p className="mt-1 text-xs text-[#001f3f]">{usernameFeedback}</p>
+          </div>
+
+          <div>
+            <label htmlFor="whatsAppProf" className="mb-1 block text-sm font-medium text-[#001f3f]">
+              {t('profissional.whatsapp')} {t('common.required')}
+            </label>
+            <input
+              id="whatsAppProf"
+              type="tel"
+              required
+              value={whatsApp}
+              onChange={(e) => setWhatsApp(e.target.value)}
+              className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
+              autoComplete="tel"
+              placeholder={t('profissional.whatsappPlaceholder')}
+              inputMode="tel"
+            />
           </div>
 
           <div>
@@ -436,26 +462,8 @@ export default function CadastroProfissionalPage() {
           ) : null}
 
           <div>
-            <label htmlFor="paisProf" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('profissional.countryWork')} {t('common.required')}
-            </label>
-            <select
-              id="paisProf"
-              value={pais}
-              onChange={(e) => setPais(e.target.value as PaisProfissional)}
-              className="w-full rounded-lg bg-[#0097b2] text-white px-4 py-3 text-sm outline-none"
-            >
-              {paisesProfissional.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
             <label htmlFor="cidadeProf" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('profissional.cityWork')} {t('common.required')}
+              {t('profissional.cityOrigin')} {t('common.required')}
             </label>
             <select
               id="cidadeProf"
@@ -477,10 +485,14 @@ export default function CadastroProfissionalPage() {
             </label>
             <select
               id="categoria"
+              required
               value={categoria}
               onChange={(e) => setCategoria(e.target.value as CategoriaProfissional)}
               className="w-full rounded-lg bg-[#0097b2] text-white px-4 py-3 text-sm outline-none"
             >
+              <option value="" disabled>
+                {t('profissional.categoryPlaceholder')}
+              </option>
               {categoriasDisponiveis.map((item) => (
                 <option key={item} value={item}>
                   {labelCategoria(item, t)}
@@ -489,10 +501,14 @@ export default function CadastroProfissionalPage() {
             </select>
           </div>
 
-          <div className="rounded-lg bg-white border border-[#0097b2] px-3 py-2 text-sm text-[#001f3f]">
-            <span className="font-medium">{t('profissional.redPlate')}</span>{' '}
-            {placaVermelha ? t('profissional.redPlateYes') : t('profissional.redPlateNo')}
-          </div>
+          {categoriaEscolhida ? (
+            <div className="rounded-lg border border-[#0097b2] bg-white px-3 py-2 text-sm text-[#001f3f]">
+              <span className="font-medium">{t('profissional.redPlate')}</span>{' '}
+              <span className={placaVermelha ? 'font-semibold text-[#00D443]' : 'font-semibold text-[#0097b2]'}>
+                {placaVermelha ? t('profissional.redPlateYes') : t('profissional.redPlateNo')}
+              </span>
+            </div>
+          ) : null}
 
           <label className="flex items-start gap-2 text-sm text-[#001f3f]">
             <input
