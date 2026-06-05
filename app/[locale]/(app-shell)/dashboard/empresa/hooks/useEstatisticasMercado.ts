@@ -15,6 +15,11 @@ import type {
 } from '../types/dashboard.types'
 
 function getDataLimite(periodo: Periodo): string | null {
+  const now = new Date()
+  if (periodo === 'hoje') {
+    const inicio = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return inicio.toISOString()
+  }
   const base = new Date()
   const d =
     periodo === '7d'

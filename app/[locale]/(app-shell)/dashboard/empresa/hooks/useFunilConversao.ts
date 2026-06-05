@@ -6,6 +6,10 @@ import type { DadosFunil, PaxProfissional, Periodo, RecomendacaoProfissional } f
 
 function getDataLimite(periodo: Periodo): string | null {
   const now = new Date()
+  if (periodo === 'hoje') {
+    const inicio = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return inicio.toISOString()
+  }
   const base = new Date(now.getTime())
   const d =
     periodo === '7d'

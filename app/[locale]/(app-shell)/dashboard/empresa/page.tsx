@@ -5,15 +5,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
 
-import ResumoEmpresa from './components/shared/ResumoEmpresa'
-import SeletorPeriodo from './components/shared/SeletorPeriodo'
+import MenuPeriodoDashboard from './components/shared/MenuPeriodoDashboard'
 import FunilConversao from './components/funil-conversao/FunilConversao'
 import EstatisticasMercado from './components/estatisticas-mercado/EstatisticasMercado'
 import DrenaStok from './components/drena-stok/DrenaStok'
+import { useDashboardEmpresa } from './hooks/useDashboardEmpresa'
+import type { Periodo } from './types/dashboard.types'
 
 type Aba = 'funil' | 'mercado' | 'drena'
-type Periodo = '7d' | '30d' | '90d'
 
 type GateState =
   | { status: 'loading' }
@@ -22,12 +23,30 @@ type GateState =
   | { status: 'sim_sem_empresa' }
   | { status: 'allowed'; userId: string }
 
+function abaCls(ativo: boolean) {
+  return `flex min-w-0 flex-1 items-center justify-center border-b-[3px] px-2 py-3 text-center text-[10px] font-semibold uppercase leading-tight tracking-wide transition-colors sm:text-xs ${
+    ativo ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500 hover:text-gray-700'
+  }`
+}
+
 export default function DashboardEmpresaPage() {
   const router = useRouter()
   const [abaAtiva, setAbaAtiva] = useState<Aba>('funil')
   const [periodo, setPeriodo] = useState<Periodo>('30d')
   const [gate, setGate] = useState<GateState>({ status: 'loading' })
   const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
+  const { dados: empresa } = useDashboardEmpresa()
+
+  const mostrarDrenaStok = useMemo(
+    () => empresaEhSegmentoLojasParaguai(empresa?.categoria, empresa?.cidade),
+    [empresa?.categoria, empresa?.cidade],
+  )
+
+  useEffect(() => {
+    if (!mostrarDrenaStok && abaAtiva === 'drena') {
+      setAbaAtiva('funil')
+    }
+  }, [mostrarDrenaStok, abaAtiva])
 
   useEffect(() => {
     let ativo = true
@@ -133,58 +152,31 @@ export default function DashboardEmpresaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="sticky top-0 z-20 border-b bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-4">
-          <ResumoEmpresa />
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-7xl px-4 py-6">
-        <div className="mb-6 flex justify-end">
-          <SeletorPeriodo value={periodo} onChange={setPeriodo} />
+    <div className="flex min-h-screen flex-col bg-gray-50 pb-24">
+      <header className="sticky top-0 z-20 shrink-0 bg-[#0097b2] shadow-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
+          <h1 className="text-lg font-bold text-white sm:text-xl">Dashboard EMPRESA</h1>
+          <MenuPeriodoDashboard value={periodo} onChange={setPeriodo} />
         </div>
 
-        <div className="mb-6 border-b border-gray-200">
-          <div className="flex flex-wrap gap-6">
-            <button
-              type="button"
-              onClick={() => setAbaAtiva('funil')}
-              className={`pb-3 px-1 text-sm font-medium transition-colors ${
-                abaAtiva === 'funil'
-                  ? 'text-[#0097b2] border-b-2 border-[#0097b2]'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              📈 FUNIL DE CONVERSÃO
+        <div className="border-t border-white/20 bg-white">
+          <div className="mx-auto flex max-w-7xl">
+            <button type="button" onClick={() => setAbaAtiva('funil')} className={abaCls(abaAtiva === 'funil')}>
+              Funil de Conversão
             </button>
-            <button
-              type="button"
-              onClick={() => setAbaAtiva('mercado')}
-              className={`pb-3 px-1 text-sm font-medium transition-colors ${
-                abaAtiva === 'mercado'
-                  ? 'text-[#0097b2] border-b-2 border-[#0097b2]'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              📊 ESTATÍSTICAS DE MERCADO
+            <button type="button" onClick={() => setAbaAtiva('mercado')} className={abaCls(abaAtiva === 'mercado')}>
+              Estatísticas de Mercado
             </button>
-            <button
-              type="button"
-              onClick={() => setAbaAtiva('drena')}
-              className={`pb-3 px-1 text-sm font-medium transition-colors ${
-                abaAtiva === 'drena'
-                  ? 'text-[#0097b2] border-b-2 border-[#0097b2]'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              📦 DRENA-STOK
-            </button>
+            {mostrarDrenaStok ? (
+              <button type="button" onClick={() => setAbaAtiva('drena')} className={abaCls(abaAtiva === 'drena')}>
+                Drena-Stok
+              </button>
+            ) : null}
           </div>
         </div>
+      </header>
 
-        <div>{conteudo}</div>
-      </div>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">{conteudo}</main>
     </div>
   )
 }

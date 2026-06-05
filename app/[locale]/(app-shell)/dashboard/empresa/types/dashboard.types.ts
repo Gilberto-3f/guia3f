@@ -1,4 +1,4 @@
-export type Periodo = '7d' | '30d' | '90d'
+export type Periodo = 'hoje' | '7d' | '30d' | '90d'
 
 export interface DadosFunil {
   visualizacoes: number

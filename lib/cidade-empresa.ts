@@ -16,6 +16,17 @@ export function cidadeEhCiudadDelEste(cidade: string | null | undefined): boolea
   return n.includes('ciudad') && n.includes('este')
 }
 
+/** Segmento Lojas do Paraguai (Drena-Stok e aba extra no dashboard). */
+export function empresaEhSegmentoLojasParaguai(
+  categoria: string | null | undefined,
+  cidade: string | null | undefined,
+): boolean {
+  const cat = normalizarCidade(categoria).replace(/\s+/g, ' ')
+  const categoriaOk =
+    cat === 'lojas' || cat === 'compras paraguai' || cat.replace(/\s+/g, '') === 'comprasparaguai'
+  return categoriaOk && cidadeEhCiudadDelEste(cidade)
+}
+
 /** Loja em Foz do Iguaçu ou Puerto Iguazú → fluxo chamar corrida */
 export function cidadeEhFozOuPuertoIguazu(cidade: string | null | undefined): boolean {
   const n = normalizarCidade(cidade)
