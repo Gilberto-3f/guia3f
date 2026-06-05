@@ -117,7 +117,7 @@ export function useFunilConversao(empresaId: string | null, periodo: FunilPeriod
       let vendas = 0
       try {
         const { count, error } = await supabase
-          .from('comissoes')
+          .from('comissao')
           .select('*', { count: 'exact', head: true })
           .eq('empresa_id', empresaId)
           .eq('tipo', 'venda_direta')

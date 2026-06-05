@@ -149,7 +149,7 @@ export function useGraficosAdm(periodo: PeriodoAdm) {
 
   const fetchComissoesCategoria = useCallback(async () => {
     const since = getDataLimite(periodo)
-    const { data, error: e } = await supabase.from('comissoes').select('empresa_id, valor').gte('created_at', since)
+    const { data, error: e } = await supabase.from('comissao').select('empresa_id, valor').gte('created_at', since)
     if (e || !data || data.length === 0) {
       setComissoesCategoria([
         { categoria: 'Gastronomia', total: 0, percentual: 0 },
@@ -190,7 +190,7 @@ export function useGraficosAdm(periodo: PeriodoAdm) {
   const fetchReceita = useCallback(async () => {
     const since = getDataLimite(periodo)
     const [{ data: coms }, { data: plans }] = await Promise.all([
-      supabase.from('comissoes').select('valor').gte('created_at', since),
+      supabase.from('comissao').select('valor').gte('created_at', since),
       supabase.from('assinaturas').select('valor').gte('created_at', since),
     ])
     const totalCom = (coms ?? []).reduce((a, r) => a + Number((r as { valor?: number | null }).valor ?? 0), 0)

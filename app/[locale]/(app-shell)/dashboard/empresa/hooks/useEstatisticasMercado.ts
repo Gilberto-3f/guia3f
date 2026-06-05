@@ -63,6 +63,13 @@ function asStringArray(v: unknown) {
   return [] as string[]
 }
 
+function isTabelaInexistente(err: unknown): boolean {
+  const e = err as { code?: string; message?: string; status?: number }
+  if (e?.code === 'PGRST205') return true
+  const msg = String(e?.message ?? '').toLowerCase()
+  return msg.includes('could not find the table') || e?.status === 404
+}
+
 export function useEstatisticasMercado(empresaId: string | null, categoriaEmpresa: string, periodo: Periodo) {
   const [segmentosGuia, setSegmentosGuia] = useState<DadosSegmentosGuia[]>([])
   const [segmentosRecomendados, setSegmentosRecomendados] = useState<DadosSegmentosRecomendados[]>([])
@@ -87,20 +94,26 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
         let q = supabase.from('logs_cliques_guia').select('categoria, created_at')
         if (dataLimite) q = q.gte('created_at', dataLimite)
         const { data, error: e } = await q
-        if (e) throw e
-
-        const agg: Record<string, number> = {}
-        for (const row of (data ?? []) as unknown[]) {
-          const r = row as Record<string, unknown>
-          const cat = r.categoria != null ? String(r.categoria) : ''
-          if (!cat) continue
-          agg[cat] = (agg[cat] ?? 0) + 1
+        if (e) {
+          if (isTabelaInexistente(e)) {
+            setSegmentosGuia([])
+          } else {
+            throw e
+          }
+        } else {
+          const agg: Record<string, number> = {}
+          for (const row of (data ?? []) as unknown[]) {
+            const r = row as Record<string, unknown>
+            const cat = r.categoria != null ? String(r.categoria) : ''
+            if (!cat) continue
+            agg[cat] = (agg[cat] ?? 0) + 1
+          }
+          const total = Object.values(agg).reduce((a, b) => a + b, 0)
+          const arr: DadosSegmentosGuia[] = Object.entries(agg)
+            .map(([categoria, t]) => ({ categoria, total: t, percentual: total ? (t / total) * 100 : 0 }))
+            .sort((a, b) => b.total - a.total)
+          setSegmentosGuia(arr)
         }
-        const total = Object.values(agg).reduce((a, b) => a + b, 0)
-        const arr: DadosSegmentosGuia[] = Object.entries(agg)
-          .map(([categoria, t]) => ({ categoria, total: t, percentual: total ? (t / total) * 100 : 0 }))
-          .sort((a, b) => b.total - a.total)
-        setSegmentosGuia(arr)
       } catch {
         setSegmentosGuia([])
       }
@@ -110,20 +123,26 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
         let q = supabase.from('logs_recomendacoes_segmento').select('segmento, created_at')
         if (dataLimite) q = q.gte('created_at', dataLimite)
         const { data, error: e } = await q
-        if (e) throw e
-
-        const agg: Record<string, number> = {}
-        for (const row of (data ?? []) as unknown[]) {
-          const r = row as Record<string, unknown>
-          const seg = r.segmento != null ? String(r.segmento) : ''
-          if (!seg) continue
-          agg[seg] = (agg[seg] ?? 0) + 1
+        if (e) {
+          if (isTabelaInexistente(e)) {
+            setSegmentosRecomendados([])
+          } else {
+            throw e
+          }
+        } else {
+          const agg: Record<string, number> = {}
+          for (const row of (data ?? []) as unknown[]) {
+            const r = row as Record<string, unknown>
+            const seg = r.segmento != null ? String(r.segmento) : ''
+            if (!seg) continue
+            agg[seg] = (agg[seg] ?? 0) + 1
+          }
+          const total = Object.values(agg).reduce((a, b) => a + b, 0)
+          const arr: DadosSegmentosRecomendados[] = Object.entries(agg)
+            .map(([segmento, t]) => ({ segmento, total: t, percentual: total ? (t / total) * 100 : 0 }))
+            .sort((a, b) => b.total - a.total)
+          setSegmentosRecomendados(arr)
         }
-        const total = Object.values(agg).reduce((a, b) => a + b, 0)
-        const arr: DadosSegmentosRecomendados[] = Object.entries(agg)
-          .map(([segmento, t]) => ({ segmento, total: t, percentual: total ? (t / total) * 100 : 0 }))
-          .sort((a, b) => b.total - a.total)
-        setSegmentosRecomendados(arr)
       } catch {
         setSegmentosRecomendados([])
       }
@@ -140,22 +159,28 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
           )
         if (dataLimite) q = q.gte('created_at', dataLimite)
         const { data, error: e } = await q
-        if (e) throw e
-
-        const agg: Record<string, number> = {}
-        for (const row of (data ?? []) as unknown[]) {
-          const r = row as Record<string, unknown>
-          const p = r.profissionais
-          const prof = p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>) : null
-          const categoria =
-            (prof?.categoria != null ? String(prof.categoria) : '') || asStringArray(prof?.categorias)[0] || 'outros'
-          agg[categoria] = (agg[categoria] ?? 0) + 1
+        if (e) {
+          if (isTabelaInexistente(e)) {
+            setAtendimentosCategoria([])
+          } else {
+            throw e
+          }
+        } else {
+          const agg: Record<string, number> = {}
+          for (const row of (data ?? []) as unknown[]) {
+            const r = row as Record<string, unknown>
+            const p = r.profissionais
+            const prof = p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>) : null
+            const categoria =
+              (prof?.categoria != null ? String(prof.categoria) : '') || asStringArray(prof?.categorias)[0] || 'outros'
+            agg[categoria] = (agg[categoria] ?? 0) + 1
+          }
+          const total = Object.values(agg).reduce((a, b) => a + b, 0)
+          const arr: DadosAtendimentosCategoria[] = Object.entries(agg)
+            .map(([categoria, t]) => ({ categoria, total: t, percentual: total ? (t / total) * 100 : 0 }))
+            .sort((a, b) => b.total - a.total)
+          setAtendimentosCategoria(arr)
         }
-        const total = Object.values(agg).reduce((a, b) => a + b, 0)
-        const arr: DadosAtendimentosCategoria[] = Object.entries(agg)
-          .map(([categoria, t]) => ({ categoria, total: t, percentual: total ? (t / total) * 100 : 0 }))
-          .sort((a, b) => b.total - a.total)
-        setAtendimentosCategoria(arr)
       } catch {
         setAtendimentosCategoria([])
       }
@@ -189,18 +214,25 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
       // 5) Média de comissão por ramo (taxas_comissoes)
       try {
         const { data, error: e } = await supabase.from('taxas_comissoes').select('categoria, taxa_percentual')
-        if (e) throw e
-        const arr: DadosComissaoRamo[] = (data ?? []).map((row) => {
-          const r = row as Record<string, unknown>
-          const ramo = r.categoria != null ? String(r.categoria) : ''
-          const media = r.taxa_percentual != null ? Number(r.taxa_percentual) : 0
-          return {
-            ramo,
-            media: Number.isFinite(media) ? media : 0,
-            sua_comissao: ramo && ramo === categoriaEmpresa ? (Number.isFinite(media) ? media : 0) : 0,
+        if (e) {
+          if (isTabelaInexistente(e)) {
+            setComissaoRamo([])
+          } else {
+            throw e
           }
-        })
-        setComissaoRamo(arr)
+        } else {
+          const arr: DadosComissaoRamo[] = (data ?? []).map((row) => {
+            const r = row as Record<string, unknown>
+            const ramo = r.categoria != null ? String(r.categoria) : ''
+            const media = r.taxa_percentual != null ? Number(r.taxa_percentual) : 0
+            return {
+              ramo,
+              media: Number.isFinite(media) ? media : 0,
+              sua_comissao: ramo && ramo === categoriaEmpresa ? (Number.isFinite(media) ? media : 0) : 0,
+            }
+          })
+          setComissaoRamo(arr)
+        }
       } catch {
         setComissaoRamo([])
       }
@@ -236,23 +268,29 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
         try {
           const min = dataLimite ?? new Date(new Date().getFullYear() - 1, 0, 1).toISOString()
           const { data, error: e } = await supabase.from('reservas').select('data_checkin').gte('data_checkin', min)
-          if (e) throw e
-
-          const agg: Record<string, number> = {}
-          for (const row of (data ?? []) as unknown[]) {
-            const r = row as Record<string, unknown>
-            const dt = safeIso(r.data_checkin)
-            if (!dt) continue
-            const k = monthKeyPtBR(dt)
-            agg[k] = (agg[k] ?? 0) + 1
+          if (e) {
+            if (isTabelaInexistente(e)) {
+              setOcupacaoHoteleira([])
+            } else {
+              throw e
+            }
+          } else {
+            const agg: Record<string, number> = {}
+            for (const row of (data ?? []) as unknown[]) {
+              const r = row as Record<string, unknown>
+              const dt = safeIso(r.data_checkin)
+              if (!dt) continue
+              const k = monthKeyPtBR(dt)
+              agg[k] = (agg[k] ?? 0) + 1
+            }
+            const arr: DadosOcupacaoHoteleira[] = Object.keys(agg)
+              .sort()
+              .map((k) => {
+                const total = agg[k]
+                return { mes: monthLabelPtBR(k), ocupacao: Math.max(0, Math.min(Number(total) * 5, 100)) }
+              })
+            setOcupacaoHoteleira(arr)
           }
-          const arr: DadosOcupacaoHoteleira[] = Object.keys(agg)
-            .sort()
-            .map((k) => {
-              const total = agg[k]
-              return { mes: monthLabelPtBR(k), ocupacao: Math.max(0, Math.min(Number(total) * 5, 100)) }
-            })
-          setOcupacaoHoteleira(arr)
         } catch {
           setOcupacaoHoteleira([])
         }

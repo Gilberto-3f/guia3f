@@ -1,4 +1,5 @@
--- Funil de conversão (dashboard empresa): garante tabelas ausentes + RLS.
+-- Funil de conversão (dashboard empresa + ADM): tabelas, RLS e policy perfil_visitas.
+-- Substitui 20260611160000 / 20260611170000 (view comissoes removida; usar tabela comissao).
 
 -- ---------------------------------------------------------------------------
 -- log_visita (legado; visitas atuais usam perfil_visitas)
@@ -210,7 +211,7 @@ USING (
 );
 
 -- ---------------------------------------------------------------------------
--- comissao (vendas / comissões registradas)
+-- comissao (vendas / comissões registradas — empresa e ADM)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.comissao (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -268,16 +269,6 @@ USING (
       AND u.role = 'admin'
   )
 );
-
--- Alias usado no painel ADM
-DROP VIEW IF EXISTS public.comissoes;
-CREATE VIEW public.comissoes AS
-SELECT
-  *
-FROM
-  public.comissao;
-
-GRANT SELECT ON public.comissoes TO authenticated;
 
 -- perfil_visitas: gestor da empresa pode contar visitas à página
 DROP POLICY IF EXISTS "perfil_visitas select gestor empresa pagina" ON public.perfil_visitas;
