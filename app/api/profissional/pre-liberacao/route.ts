@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { expiraEm24h } from '@/lib/turistaPreLiberacao'
+import { atualizarCanalFinanceiroPreLiberacaoRespondido, expiraEm24h } from '@/lib/turistaPreLiberacao'
 import { profissionalRecursosLiberados } from '@/lib/verificacao-documentos'
 
 export async function POST(req: Request) {
@@ -70,20 +70,7 @@ export async function POST(req: Request) {
         .update({ status: 'recusada', respondido_em: now })
         .eq('id', solicitacaoId)
 
-      if (sol.canal_financeiro_id) {
-        await adminDb
-          .from('canal_financeiro')
-          .update({
-            mensagem: `Pré-liberação recusada para @${sol.turista_username ?? 'turista'}.`,
-            lida_por_profissional: true,
-            metadata: {
-              solicitacao_id: solicitacaoId,
-              turista_username: sol.turista_username,
-              respondido: 'recusada',
-            },
-          })
-          .eq('id', sol.canal_financeiro_id)
-      }
+      await atualizarCanalFinanceiroPreLiberacaoRespondido(adminDb, sol, 'recusar')
 
       return NextResponse.json({ ok: true, status: 'recusada' })
     }
@@ -104,21 +91,7 @@ export async function POST(req: Request) {
       })
       .eq('id', sol.turista_usuario_id)
 
-    if (sol.canal_financeiro_id) {
-      await adminDb
-        .from('canal_financeiro')
-        .update({
-          mensagem: `Pré-liberação aprovada para @${sol.turista_username ?? 'turista'} até ${new Date(expira).toLocaleString('pt-BR')}.`,
-          lida_por_profissional: true,
-          metadata: {
-            solicitacao_id: solicitacaoId,
-            turista_username: sol.turista_username,
-            respondido: 'aprovada',
-            expira_em: expira,
-          },
-        })
-        .eq('id', sol.canal_financeiro_id)
-    }
+    await atualizarCanalFinanceiroPreLiberacaoRespondido(adminDb, sol, 'aprovar', expira)
 
     return NextResponse.json({ ok: true, status: 'aprovada', expira_em: expira })
   } catch (e) {

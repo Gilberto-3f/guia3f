@@ -9,6 +9,7 @@ import { marcarFinanceiroLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { marcarFinanceiroLidoProfissional } from '@/lib/canaisProfissionalVisibilidade'
 import {
   itemCanalFinanceiroPreLiberacao,
+  listarPreLiberacoesHistoricoProfissional,
   listarPreLiberacoesPendentesProfissional,
 } from '@/lib/turistaPreLiberacao'
 import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
@@ -139,26 +140,46 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
 
       if (tipo === 'profissional') {
         const pendentes = await listarPreLiberacoesPendentesProfissional(supabase, usuarioId)
-        const idsNaLista = new Set(
+        const historico = await listarPreLiberacoesHistoricoProfissional(supabase, usuarioId)
+
+        const idsCanal = new Set(formatados.map((i) => String(i.id)))
+        const solicitacoesNaLista = new Set(
           formatados
             .filter((i) => i.tipo === 'pre_liberacao_turista')
             .map((i) => String(i.metadata?.solicitacao_id ?? ''))
             .filter(Boolean),
         )
-        const sinteticos = pendentes
-          .filter((p) => !idsNaLista.has(p.id))
+
+        const sinteticosPendentes = pendentes
+          .filter((p) => !solicitacoesNaLista.has(p.id) && !(p.canal_financeiro_id && idsCanal.has(p.canal_financeiro_id)))
           .map((p) => itemCanalFinanceiroPreLiberacao(p))
-        formatados = [...sinteticos, ...formatados]
+
+        const sinteticosHistorico = historico
+          .filter(
+            (h) =>
+              !solicitacoesNaLista.has(h.id) &&
+              !(h.canal_financeiro_id && idsCanal.has(h.canal_financeiro_id)),
+          )
+          .map((h) =>
+            itemCanalFinanceiroPreLiberacao({
+              id: h.id,
+              turista_usuario_id: h.turista_usuario_id,
+              turista_username: h.turista_username,
+              turista_nome: h.turista_nome,
+              solicitado_em: h.solicitado_em,
+              respondido_em: h.respondido_em,
+              status: h.status,
+              canal_financeiro_id: h.canal_financeiro_id,
+              expira_em: h.expira_em,
+            }),
+          )
+
+        formatados = [...sinteticosPendentes, ...sinteticosHistorico, ...formatados]
       }
 
-      formatados.sort((a, b) => {
-        const aPend =
-          a.tipo === 'pre_liberacao_turista' && !a.metadata?.respondido ? 1 : 0
-        const bPend =
-          b.tipo === 'pre_liberacao_turista' && !b.metadata?.respondido ? 1 : 0
-        if (aPend !== bPend) return bPend - aPend
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      })
+      formatados.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )
 
       setItens(formatados)
       setNaoLidas(

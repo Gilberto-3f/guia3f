@@ -79,12 +79,18 @@ export async function POST(req: Request) {
 
     const { data: tur } = await adminDb
       .from('turistas')
-      .select('nome_usuario, nome_completo')
+      .select('nome_usuario, nome_completo, foto_perfil_url, foto_url')
       .eq('usuario_id', session.userId)
       .maybeSingle()
 
     const turistaUsername = String(tur?.nome_usuario ?? '').trim()
     const turistaNome = String(tur?.nome_completo ?? 'Turista').trim()
+    const turistaFotoUrl =
+      tur?.foto_perfil_url != null && String(tur.foto_perfil_url).trim() !== ''
+        ? String(tur.foto_perfil_url)
+        : tur?.foto_url != null && String(tur.foto_url).trim() !== ''
+          ? String(tur.foto_url)
+          : null
 
     const { data: sol, error: insErr } = await adminDb
       .from('turista_pre_liberacoes')
@@ -111,6 +117,7 @@ export async function POST(req: Request) {
       turistaUsername: turistaUsername || session.userId.slice(0, 8),
       turistaNome,
       profUsername: prof.nomeUsuario,
+      turistaFotoUrl,
     })
 
     if (!aviso.ok) {

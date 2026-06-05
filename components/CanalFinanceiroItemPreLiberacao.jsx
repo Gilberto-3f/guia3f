@@ -2,7 +2,12 @@
 
 import { useState } from 'react'
 import { KeyRound } from 'lucide-react'
+import AvatarImage from '@/components/AvatarImage'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
+import {
+  TEXTO_PRE_LIBERACAO_CONFIRME,
+  textoPreLiberacaoIntro,
+} from '@/lib/turistaPreLiberacaoTexto'
 
 /**
  * @param {{
@@ -12,10 +17,20 @@ import { notificarBadgeCanais } from '@/lib/canais-badge-events'
  */
 export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) {
   const [loading, setLoading] = useState(false)
+  const [respondidoLocal, setRespondidoLocal] = useState('')
   const meta = item.metadata && typeof item.metadata === 'object' ? item.metadata : {}
   const solicitacaoId = String(meta.solicitacao_id ?? '').trim()
-  const respondido = String(meta.respondido ?? '').trim()
+  const respondido = respondidoLocal || String(meta.respondido ?? '').trim()
   const pendente = !respondido
+
+  const turistaUsername = String(meta.turista_username ?? '').trim() || 'turista'
+  const turistaNome = String(meta.turista_nome ?? '').trim() || 'Turista'
+  const turistaFotoUrl =
+    meta.turista_foto_url != null && String(meta.turista_foto_url).trim() !== ''
+      ? String(meta.turista_foto_url)
+      : null
+
+  const textoIntro = textoPreLiberacaoIntro(turistaUsername)
 
   const responder = async (acao) => {
     if (!solicitacaoId || loading) return
@@ -32,6 +47,7 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
         window.alert(json.error ?? 'Não foi possível responder.')
         return
       }
+      setRespondidoLocal(acao === 'aprovar' ? 'aprovada' : 'recusada')
       notificarBadgeCanais()
       window.dispatchEvent(new Event('turista-gate-refresh'))
       onRespondido()
@@ -55,32 +71,65 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
               Aguardando sua resposta
             </span>
           ) : null}
-          {item.mensagem ? <p className="mt-2 whitespace-pre-line text-sm text-gray-600">{item.mensagem}</p> : null}
+
+          <p className="mt-2 text-sm text-gray-600">{textoIntro}</p>
+
+          <div className="mt-3 flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2">
+            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full">
+              <AvatarImage
+                src={turistaFotoUrl}
+                alt=""
+                fill
+                sizes="44px"
+                className="object-cover"
+              />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-gray-800">{turistaNome}</p>
+              <p className="truncate text-xs text-gray-500">@{turistaUsername}</p>
+            </div>
+          </div>
+
+          {pendente ? (
+            <p className="mt-3 text-sm text-gray-600">{TEXTO_PRE_LIBERACAO_CONFIRME}</p>
+          ) : null}
+
           <p className="mt-2 text-xs text-gray-400">{new Date(item.created_at).toLocaleString('pt-BR')}</p>
 
           {pendente ? (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 disabled={loading}
                 onClick={() => void responder('aprovar')}
-                className="rounded-lg bg-[#00D443] px-4 py-2 text-sm font-bold text-white hover:opacity-95 disabled:opacity-50"
+                className="rounded-lg bg-[#00D443] px-3 py-2.5 text-sm font-bold text-white hover:opacity-95 disabled:opacity-50"
               >
-                Autorizar 24h
+                Liberar 24h
               </button>
               <button
                 type="button"
                 disabled={loading}
                 onClick={() => void responder('recusar')}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="rounded-lg bg-red-600 px-3 py-2.5 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
               >
                 Recusar
               </button>
             </div>
+          ) : respondido === 'aprovada' ? (
+            <div className="mt-3 rounded-lg border border-[#00D443]/30 bg-[#00D443]/5 px-3 py-2.5 text-sm text-gray-700">
+              <p className="font-semibold text-[#00A835]">Conta liberada provisoriamente por 24h</p>
+              <p className="mt-1 text-gray-600">
+                Você será avisado nesta aba sobre os benefícios (comissões) gerados por essa pré-liberação.
+              </p>
+            </div>
           ) : (
-            <p className="mt-2 text-xs font-medium text-gray-500">
-              Respondido: {respondido === 'aprovada' ? 'autorizado' : 'recusado'}
-            </p>
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-gray-700">
+              <p className="font-semibold text-red-700">Pré-liberação recusada</p>
+              <p className="mt-1 text-gray-600">
+                Você informou que não atendeu ou não conhece este turista. O pedido permanece registrado neste
+                histórico.
+              </p>
+            </div>
           )}
         </div>
       </div>
