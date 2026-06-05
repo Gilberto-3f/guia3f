@@ -18,7 +18,9 @@ import { Camera, FileText, Images, Ratio } from 'lucide-react'
 import CriarFotoDreamBackdrop from '@/components/feed/CriarFotoDreamBackdrop'
 import CriarPostRecorteMovel from '@/components/feed/CriarPostRecorteMovel'
 import LoadingOverlay from '@/components/LoadingOverlay'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { supabase } from '@/lib/supabase'
+import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
 
 type Aba = 'foto' | 'texto'
@@ -67,6 +69,23 @@ function CriarPublicacaoPageInner() {
   const nextRouter = useNextRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const {
+    podeInteragirFeedSocial,
+    avisarBloqueioFeed,
+    avisoFeedAberto,
+    fecharAvisoBloqueioFeed,
+    mensagemBloqueioFeed,
+    tituloBloqueioFeed,
+    loading: gateFeedLoading,
+  } = useGateFeedSocial()
+
+  useEffect(() => {
+    if (gateFeedLoading) return
+    if (!podeInteragirFeedSocial) {
+      avisarBloqueioFeed()
+      router.replace('/feed')
+    }
+  }, [gateFeedLoading, podeInteragirFeedSocial, avisarBloqueioFeed, router])
   const [aba, setAba] = useState<Aba>(() =>
     typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('aba') === 'texto'
       ? 'texto'
@@ -445,6 +464,10 @@ function CriarPublicacaoPageInner() {
 
   const handleSubmit = async (origem: 'foto' | 'texto') => {
     if (loading) return
+    if (!podeInteragirFeedSocial) {
+      avisarBloqueioFeed()
+      return
+    }
     if (origem === 'foto') {
       if (!fotoPreview || formatoFoto == null || !pixelCrop) return
     } else {
@@ -825,6 +848,12 @@ function CriarPublicacaoPageInner() {
           </div>
         ) : null}
       </div>
+      <PopupAvisoBloqueioConta
+        aberto={avisoFeedAberto}
+        onFechar={fecharAvisoBloqueioFeed}
+        titulo={tituloBloqueioFeed}
+        mensagem={mensagemBloqueioFeed}
+      />
     </div>
   )
 }

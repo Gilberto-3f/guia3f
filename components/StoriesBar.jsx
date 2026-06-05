@@ -23,6 +23,8 @@ import {
 } from '@/lib/story-open-order'
 import StoryCircle from '@/components/StoryCircle'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 
 const MAX_STORY_RINGS = 12
 
@@ -116,6 +118,15 @@ function labelStoryEmpresa(e) {
 export default function StoriesBar({ hidden = false, userEmail, onOpenStory, reloadSignal = 0 }) {
   const [barMounted, setBarMounted] = useState(false)
   const { podeInteragir, notificarSomenteLeitura, modoAtivo, perfilSimulado } = useModoApresentacao()
+  const {
+    podeInteragirFeedSocial,
+    avisarBloqueioFeed,
+    avisoFeedAberto,
+    fecharAvisoBloqueioFeed,
+    mensagemBloqueioFeed,
+    tituloBloqueioFeed,
+  } = useGateFeedSocial()
+  const podeCriarStory = podeInteragir && podeInteragirFeedSocial
 
   useEffect(() => {
     setBarMounted(true)
@@ -530,7 +541,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
                         priority
                       />
                     </button>
-                  ) : (
+                  ) : podeCriarStory ? (
                     <Link
                       href="/feed/story/criar"
                       className="relative block aspect-square w-full max-h-[68px] max-w-[68px] overflow-hidden rounded-full bg-gray-100"
@@ -546,13 +557,36 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
                         priority
                       />
                     </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!podeInteragir) {
+                          notificarSomenteLeitura()
+                          return
+                        }
+                        avisarBloqueioFeed()
+                      }}
+                      className="relative block aspect-square w-full max-h-[68px] max-w-[68px] overflow-hidden rounded-full bg-gray-100"
+                      aria-label="Criar seu story (bloqueado)"
+                    >
+                      <AvatarImage
+                        key={meuSlot.avatarUrl || 'def'}
+                        src={meuSlot.avatarUrl}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="76px"
+                        priority
+                      />
+                    </button>
                   )
                 ) : (
                   <div className="relative block aspect-square max-h-[68px] max-w-[68px] overflow-hidden rounded-full bg-gray-100" />
                 )}
               </div>
             </div>
-            {podeInteragir ? (
+            {podeCriarStory ? (
               <Link
                 href="/feed/story/criar"
                 onClick={(e) => e.stopPropagation()}
@@ -566,10 +600,14 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
-                  notificarSomenteLeitura()
+                  if (!podeInteragir) {
+                    notificarSomenteLeitura()
+                    return
+                  }
+                  avisarBloqueioFeed()
                 }}
                 className="absolute -bottom-0.5 -right-0.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-gray-400 text-white shadow-md ring-2 ring-white"
-                aria-label="Novo story (bloqueado no modo apresentação)"
+                aria-label="Novo story (bloqueado)"
               >
                 <Plus size={16} strokeWidth={2.5} />
               </button>
@@ -604,6 +642,12 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
               />
             ))}
       </div>
+      <PopupAvisoBloqueioConta
+        aberto={avisoFeedAberto}
+        onFechar={fecharAvisoBloqueioFeed}
+        titulo={tituloBloqueioFeed}
+        mensagem={mensagemBloqueioFeed}
+      />
     </div>
   )
 }

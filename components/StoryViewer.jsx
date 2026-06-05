@@ -14,6 +14,8 @@ import { getPerfilHref } from '@/lib/perfil-utils'
 import AvatarImage from '@/components/AvatarImage'
 import StoryCanvas from '@/components/StoryCanvas'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 
 const STORY_VIEW_MS = 15000
@@ -238,6 +240,14 @@ export default function StoryViewer({
   timerPlaybackKey = 0,
 }) {
   const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
+  const {
+    podeInteragirFeedSocial,
+    avisarBloqueioFeed,
+    avisoFeedAberto,
+    fecharAvisoBloqueioFeed,
+    mensagemBloqueioFeed,
+    tituloBloqueioFeed,
+  } = useGateFeedSocial()
   const videoRef = useRef(/** @type {HTMLVideoElement | null} */ (null))
   const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const swipeRef = useRef(/** @type {{ x0: number, y0: number, t0: number } | null} */ (null))
@@ -1004,6 +1014,10 @@ export default function StoryViewer({
 
   const repostarStory = async () => {
     if (!story?.id || !uid || !storyOriginalParaRepostId || repostando || !podeRepostarStory) return
+    if (!podeInteragirFeedSocial) {
+      avisarBloqueioFeed()
+      return
+    }
     setRepostando(true)
     try {
       const {
@@ -1858,6 +1872,12 @@ export default function StoryViewer({
           </div>
         </div>
       ) : null}
+      <PopupAvisoBloqueioConta
+        aberto={avisoFeedAberto}
+        onFechar={fecharAvisoBloqueioFeed}
+        titulo={tituloBloqueioFeed}
+        mensagem={mensagemBloqueioFeed}
+      />
     </div>
   )
 }

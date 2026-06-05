@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import EditorStory from '@/components/EditorStory'
 
@@ -13,6 +15,23 @@ import EditorStory from '@/components/EditorStory'
 export default function CriarStory({ autorTipo }) {
   const router = useRouter()
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
+  const {
+    podeInteragirFeedSocial,
+    avisarBloqueioFeed,
+    avisoFeedAberto,
+    fecharAvisoBloqueioFeed,
+    mensagemBloqueioFeed,
+    tituloBloqueioFeed,
+    loading: gateFeedLoading,
+  } = useGateFeedSocial()
+
+  useEffect(() => {
+    if (gateFeedLoading) return
+    if (!podeInteragirFeedSocial) {
+      avisarBloqueioFeed()
+      router.replace('/feed')
+    }
+  }, [gateFeedLoading, podeInteragirFeedSocial, router])
   const [passo, setPasso] = useState(/** @type {1 | 2} */ (1))
   const [file, setFile] = useState(/** @type {File | null} */ (null))
   const [previewBlob, setPreviewBlob] = useState(/** @type {string | null} */ (null))
@@ -117,6 +136,10 @@ export default function CriarStory({ autorTipo }) {
   const publicar = async () => {
     if (!podeInteragir) {
       notificarSomenteLeitura()
+      return
+    }
+    if (!podeInteragirFeedSocial) {
+      avisarBloqueioFeed()
       return
     }
     if (!file || !previewBlob) return
@@ -235,6 +258,12 @@ export default function CriarStory({ autorTipo }) {
           />
         ) : null}
       </div>
+      <PopupAvisoBloqueioConta
+        aberto={avisoFeedAberto}
+        onFechar={fecharAvisoBloqueioFeed}
+        titulo={tituloBloqueioFeed}
+        mensagem={mensagemBloqueioFeed}
+      />
     </div>
   )
 }

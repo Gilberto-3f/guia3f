@@ -40,6 +40,12 @@ export function turistaCadastroVerificadoPeloAdm(u: UsuarioTuristaGate | null | 
   return Boolean(u.documentacao_validada_adm)
 }
 
+/** Feed social (comentar, publicar, repostar, compartilhar, avaliar): só com liberação definitiva do ADM. */
+export function turistaFeedSocialLiberado(u: UsuarioTuristaGate | null | undefined): boolean {
+  if (!u || String(u.role ?? '') !== 'turista') return true
+  return turistaCadastroVerificadoPeloAdm(u)
+}
+
 export function turistaPreLiberacaoProvisoriaAtiva(
   u: UsuarioTuristaGate | null | undefined,
 ): boolean {

@@ -77,8 +77,8 @@ export default function ModalComentarios({
   const inline = variant === 'inline'
   /** Em linha: sempre ativo com `postId`; em modal: só quando `aberto`. */
   const ativo = inline || aberto
-  /** Post isolado no drawer: lista sem compositor nem respostas/exclusão. */
-  const leituraComentarios = inline && somenteLeitura
+  /** Sem envio de comentários (modo leitura ou post isolado). */
+  const leituraComentarios = Boolean(somenteLeitura)
   const mostrarRodape = !leituraComentarios && (!inline || mostrarCompositor)
   const [arvore, setArvore] = useState([])
   const [novoComentario, setNovoComentario] = useState('')
@@ -198,7 +198,7 @@ export default function ModalComentarios({
 
   const handleEnviarResposta = useCallback(
     async (parentId, texto) => {
-      if (!usuarioId || !postId) return
+      if (leituraComentarios || !usuarioId || !postId) return
       setEnviando(true)
       try {
         const { error } = await supabase.from('comentarios').insert({
@@ -218,7 +218,7 @@ export default function ModalComentarios({
         setEnviando(false)
       }
     },
-    [postId, usuarioId, carregar, scrollListaAoFim, onComentou]
+    [leituraComentarios, postId, usuarioId, carregar, scrollListaAoFim, onComentou]
   )
 
   useEffect(() => {
@@ -310,6 +310,7 @@ export default function ModalComentarios({
   }, [novoComentario, ativo])
 
   const handleEnviarComentario = async () => {
+    if (leituraComentarios) return
     const texto = novoComentario.trim()
     if (!texto || !usuarioId) return
     setEnviando(true)

@@ -1,5 +1,6 @@
 import { profissionalRecursosLiberados, type LinhaProfissionalGate } from '@/lib/verificacao-documentos'
 import {
+  turistaCadastroVerificadoPeloAdm,
   turistaRecursosLiberados,
   type TuristaDocsRow,
   type UsuarioTuristaGate,
@@ -30,6 +31,17 @@ export function faseVerificacaoTurista(
   return 'pendente_docs'
 }
 
+/** Fase do feed social: exige liberação definitiva do ADM (pré-liberação 24h não conta). */
+export function faseFeedSocialTurista(
+  u: UsuarioTuristaGate | null | undefined,
+  tur: TuristaDocsRow | null | undefined,
+): FaseVerificacaoConta {
+  if (!u || String(u.role ?? '') !== 'turista') return 'liberado'
+  if (turistaCadastroVerificadoPeloAdm(u)) return 'liberado'
+  if (turistaDocumentosEnviados(tur)) return 'aguardando_adm'
+  return 'pendente_docs'
+}
+
 export function faseVerificacaoProfissional(
   usuarioStatus: string | null | undefined,
   prof: LinhaProfissionalGate | null | undefined,
@@ -38,4 +50,12 @@ export function faseVerificacaoProfissional(
   if (profissionalRecursosLiberados(usuarioStatus, prof)) return 'liberado'
   if (profissionalDocumentosEnviados(prof)) return 'aguardando_adm'
   return 'pendente_docs'
+}
+
+/** Feed social do profissional: mesma regra de verificação definitiva. */
+export function faseFeedSocialProfissional(
+  usuarioStatus: string | null | undefined,
+  prof: LinhaProfissionalGate | null | undefined,
+): FaseVerificacaoConta {
+  return faseVerificacaoProfissional(usuarioStatus, prof)
 }

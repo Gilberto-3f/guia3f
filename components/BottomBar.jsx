@@ -23,6 +23,7 @@ import { GUIA_ATIVIDADES_BADGE_EVENT } from '@/lib/atividades-events'
 import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 import { contarMensagensNaoLidasCanais } from '@/lib/canalBadge'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 
 /**
@@ -458,6 +459,15 @@ export default function BottomBar() {
     tituloBloqueio,
     loading: gateComprasLoading,
   } = useGateComprasReservas()
+  const {
+    podeInteragirFeedSocial,
+    avisarBloqueioFeed,
+    avisoFeedAberto,
+    fecharAvisoBloqueioFeed,
+    mensagemBloqueioFeed,
+    tituloBloqueioFeed,
+    loading: gateFeedLoading,
+  } = useGateFeedSocial()
 
   const getTerceiroHref = () => {
     if (isFeedPage) return '/feed/criar'
@@ -564,6 +574,23 @@ export default function BottomBar() {
               aria-hidden
             />
           </Link>
+        ) : isFeedPage && !podeInteragirFeedSocial && !gateFeedLoading ? (
+          <button
+            type="button"
+            className="flex flex-col items-center p-0"
+            aria-label={t('newPost')}
+            onClick={() => {
+              if (!podeInteragir) {
+                notificarSomenteLeitura()
+                return
+              }
+              avisarBloqueioFeed()
+            }}
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0097b2] shadow-lg">
+              <Plus className="h-5 w-5 text-white" strokeWidth={2.5} aria-hidden />
+            </span>
+          </button>
         ) : (
           <Link
             href={getTerceiroHref()}
@@ -619,6 +646,12 @@ export default function BottomBar() {
           mensagem={mensagemBloqueio}
         />
       ) : null}
+      <PopupAvisoBloqueioConta
+        aberto={avisoFeedAberto}
+        onFechar={fecharAvisoBloqueioFeed}
+        titulo={tituloBloqueioFeed}
+        mensagem={mensagemBloqueioFeed}
+      />
     </div>
   )
 }

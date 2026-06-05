@@ -15,6 +15,8 @@ import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
 import { getPerfilHref } from '@/lib/perfil-utils'
@@ -148,6 +150,15 @@ export default function PostCard({
 
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const bloqueioApresentacao = !podeInteragir
+  const {
+    podeInteragirFeedSocial,
+    avisarBloqueioFeed,
+    avisoFeedAberto,
+    fecharAvisoBloqueioFeed,
+    mensagemBloqueioFeed,
+    tituloBloqueioFeed,
+  } = useGateFeedSocial()
+  const bloqueioFeedSocial = !podeInteragirFeedSocial
   const [comentAberto, setComentAberto] = useState(false)
   const [curtidasAberto, setCurtidasAberto] = useState(false)
   const [shareAberto, setShareAberto] = useState(false)
@@ -460,6 +471,10 @@ export default function PostCard({
       notificarSomenteLeitura()
       return
     }
+    if (bloqueioFeedSocial) {
+      avisarBloqueioFeed()
+      return
+    }
     if (!meuUsuarioId) return
     setTextoEditado(post.texto ?? '')
     setEditando(true)
@@ -468,6 +483,10 @@ export default function PostCard({
   const salvarEdicao = async () => {
     if (bloqueioApresentacao) {
       notificarSomenteLeitura()
+      return
+    }
+    if (bloqueioFeedSocial) {
+      avisarBloqueioFeed()
       return
     }
     if (!meuUsuarioId) return
@@ -592,6 +611,10 @@ export default function PostCard({
       notificarSomenteLeitura()
       return
     }
+    if (comentariosInline && compositorComentarioAteClique && bloqueioFeedSocial) {
+      avisarBloqueioFeed()
+      return
+    }
     if (comentariosInline) {
       if (compositorComentarioAteClique) {
         setCompositorAberto(true)
@@ -608,11 +631,21 @@ export default function PostCard({
     setComentAberto(true)
   }
 
-  const abrirModalCompartilhar = () => setShareAberto(true)
+  const abrirModalCompartilhar = () => {
+    if (bloqueioFeedSocial) {
+      avisarBloqueioFeed()
+      return
+    }
+    setShareAberto(true)
+  }
 
   const handleRepostar = async () => {
     if (bloqueioApresentacao) {
       notificarSomenteLeitura()
+      return
+    }
+    if (bloqueioFeedSocial) {
+      avisarBloqueioFeed()
       return
     }
     if (!meuUsuarioId) return
@@ -693,6 +726,10 @@ export default function PostCard({
       notificarSomenteLeitura()
       return
     }
+    if (bloqueioFeedSocial) {
+      avisarBloqueioFeed()
+      return
+    }
     if (!meuUsuarioId) return
     if (salvo) {
       await supabase.from('item_salvo').delete().eq('post_id', post.id).eq('usuario_id', meuUsuarioId)
@@ -723,7 +760,7 @@ export default function PostCard({
     onEditar: handleEditarPost,
     onSalvar: () => void handleSalvar(),
     onRepublicar: ehAvaliacao ? undefined : () => void handleRepostar(),
-    bloqueado: bloqueioApresentacao,
+    bloqueado: bloqueioApresentacao || bloqueioFeedSocial,
   }
 
   const repostEhFoto = tipoNorm === 'foto' || tipoNorm === 'misto'
@@ -1022,7 +1059,7 @@ export default function PostCard({
           }}
           destacarComentarioId={destacarComentarioId}
           totalComentariosVisual={nComent}
-          somenteLeitura={comentariosSomenteLeitura || bloqueioApresentacao}
+          somenteLeitura={comentariosSomenteLeitura || bloqueioApresentacao || bloqueioFeedSocial}
           mostrarCompositor={mostrarCompositorInline}
         />
         <ModalCurtidas
@@ -1197,7 +1234,7 @@ export default function PostCard({
           }}
           destacarComentarioId={destacarComentarioId}
           totalComentariosVisual={nComent}
-          somenteLeitura={comentariosSomenteLeitura || bloqueioApresentacao}
+          somenteLeitura={comentariosSomenteLeitura || bloqueioApresentacao || bloqueioFeedSocial}
           mostrarCompositor={mostrarCompositorInline}
         />
         <ModalCurtidas
@@ -1304,7 +1341,7 @@ export default function PostCard({
         }}
         destacarComentarioId={destacarComentarioId}
         totalComentariosVisual={nComent}
-        somenteLeitura={comentariosSomenteLeitura || bloqueioApresentacao}
+        somenteLeitura={comentariosSomenteLeitura || bloqueioApresentacao || bloqueioFeedSocial}
         mostrarCompositor={mostrarCompositorInline}
       />
       <ModalCurtidas
@@ -1315,6 +1352,12 @@ export default function PostCard({
       />
       {shareModal}
       {modalEditar}
+      <PopupAvisoBloqueioConta
+        aberto={avisoFeedAberto}
+        onFechar={fecharAvisoBloqueioFeed}
+        titulo={tituloBloqueioFeed}
+        mensagem={mensagemBloqueioFeed}
+      />
     </article>
   )
 }
