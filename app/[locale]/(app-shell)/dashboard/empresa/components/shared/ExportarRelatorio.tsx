@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { FileSpreadsheet, FileText, Sheet } from 'lucide-react'
 
 interface Props {
   dados: Record<string, unknown>
@@ -42,34 +43,39 @@ export default function ExportarRelatorio({ dados, tipo }: Props) {
     setExportando(false)
   }
 
+  const btnCls =
+    'inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-50 disabled:opacity-50'
+
   return (
     <div className="flex flex-wrap gap-2">
       <button
         type="button"
         onClick={() => void exportarPlaceholder()}
         disabled={exportando}
-        className="rounded-lg bg-gray-200 px-3 py-1.5 text-sm hover:bg-gray-300 disabled:opacity-50"
+        className={btnCls}
         title="Em desenvolvimento"
       >
-        📄 PDF
+        <FileText className="h-4 w-4" aria-hidden />
+        PDF
       </button>
       <button
         type="button"
         onClick={exportarCSV}
-        className="rounded-lg bg-gray-200 px-3 py-1.5 text-sm hover:bg-gray-300"
+        className={btnCls}
       >
-        📊 CSV
+        <Sheet className="h-4 w-4" aria-hidden />
+        CSV
       </button>
       <button
         type="button"
         onClick={() => void exportarPlaceholder()}
         disabled={exportando}
-        className="rounded-lg bg-gray-200 px-3 py-1.5 text-sm hover:bg-gray-300 disabled:opacity-50"
+        className={btnCls}
         title="Em desenvolvimento"
       >
-        📈 EXCEL
+        <FileSpreadsheet className="h-4 w-4" aria-hidden />
+        EXCEL
       </button>
     </div>
   )
 }
-

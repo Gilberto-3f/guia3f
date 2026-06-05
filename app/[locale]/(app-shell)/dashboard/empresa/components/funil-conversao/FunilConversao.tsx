@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { DollarSign, Eye, MapPin, UserPlus, Users } from 'lucide-react'
 import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useFunilConversao } from '../../hooks/useFunilConversao'
 import type { Periodo } from '../../types/dashboard.types'
@@ -8,11 +9,14 @@ import type { Periodo } from '../../types/dashboard.types'
 import EtapaFunil from './EtapaFunil'
 import CardRecomendacoes from './CardRecomendacoes'
 import TopPaxProfissionais from './TopPaxProfissionais'
+import CardVendas from './CardVendas'
 import ExportarRelatorio from '../shared/ExportarRelatorio'
 
 interface Props {
   periodo: Periodo
 }
+
+type DetalheEtapa = 'recomendacoes' | 'pax' | 'vendas' | null
 
 export default function FunilConversao({ periodo }: Props) {
   const { dados: empresa } = useDashboardEmpresa()
@@ -20,8 +24,11 @@ export default function FunilConversao({ periodo }: Props) {
 
   const { dados, recomendacoesPorProfissional, topPax, loading, error } = useFunilConversao(empresaId, periodo)
 
-  const [expandedRec, setExpandedRec] = useState(false)
-  const [expandedPax, setExpandedPax] = useState(false)
+  const [detalheAberto, setDetalheAberto] = useState<DetalheEtapa>(null)
+
+  const toggleDetalhe = (etapa: Exclude<DetalheEtapa, null>) => {
+    setDetalheAberto((atual) => (atual === etapa ? null : etapa))
+  }
 
   const exportDados = useMemo(
     () => ({
@@ -37,9 +44,13 @@ export default function FunilConversao({ periodo }: Props) {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="mx-auto max-w-lg space-y-1">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-24 rounded-lg bg-gray-100 animate-pulse" />
+          <div
+            key={i}
+            className="mx-auto h-20 animate-pulse rounded bg-gray-100"
+            style={{ width: `${100 - i * 8}%` }}
+          />
         ))}
       </div>
     )
@@ -61,40 +72,82 @@ export default function FunilConversao({ periodo }: Props) {
     )
   }
 
+  const etapas = [
+    {
+      id: 'visualizacoes' as const,
+      icon: Eye,
+      label: 'Visualizações',
+      valor: dados.visualizacoes,
+      widthPercent: 100,
+      expandable: false,
+    },
+    {
+      id: 'seguidores' as const,
+      icon: UserPlus,
+      label: 'Seguidores',
+      valor: dados.seguidores,
+      widthPercent: 88,
+      expandable: false,
+    },
+    {
+      id: 'recomendacoes' as const,
+      icon: Users,
+      label: 'Recomendações',
+      valor: dados.recomendacoes,
+      widthPercent: 76,
+      expandable: true,
+    },
+    {
+      id: 'pax' as const,
+      icon: MapPin,
+      label: 'PAX',
+      valor: dados.pax,
+      widthPercent: 64,
+      expandable: true,
+    },
+    {
+      id: 'vendas' as const,
+      icon: DollarSign,
+      label: 'Vendas',
+      valor: dados.vendas,
+      widthPercent: 52,
+      expandable: true,
+    },
+  ]
+
   return (
-    <div className="space-y-4">
-      <EtapaFunil icon="👁️" label="visualizações" valor={dados.visualizacoes} />
+    <div className="space-y-6">
+      <div className="mx-auto flex max-w-xl flex-col gap-0.5">
+        {etapas.map((etapa) => (
+          <EtapaFunil
+            key={etapa.id}
+            icon={etapa.icon}
+            label={etapa.label}
+            valor={etapa.valor}
+            widthPercent={etapa.widthPercent}
+            expandable={etapa.expandable}
+            selected={detalheAberto === etapa.id}
+            onToggle={etapa.expandable ? () => toggleDetalhe(etapa.id) : undefined}
+          />
+        ))}
+      </div>
 
-      <EtapaFunil icon="➕" label="novos seguidores" valor={dados.seguidores} offset="right" />
+      {detalheAberto ? (
+        <div className="mx-auto max-w-xl rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          {detalheAberto === 'recomendacoes' ? <CardRecomendacoes recomendacoes={recomendacoesPorProfissional} /> : null}
+          {detalheAberto === 'pax' ? <TopPaxProfissionais topPax={topPax} /> : null}
+          {detalheAberto === 'vendas' ? <CardVendas total={dados.vendas} /> : null}
+        </div>
+      ) : null}
 
-      <EtapaFunil
-        icon="👥"
-        label="recomendações"
-        valor={dados.recomendacoes}
-        offset="left"
-        expanded={expandedRec}
-        onToggle={() => setExpandedRec((v) => !v)}
-      >
-        <CardRecomendacoes recomendacoes={recomendacoesPorProfissional} />
-      </EtapaFunil>
+      <p className="mx-auto max-w-xl text-center text-sm leading-relaxed text-gray-600">
+        <strong className="text-[#001f3f]">NOTA:</strong> O Funil de Conversão mostra o desempenho geral do nosso
+        ecossistema com o seu negócio.
+      </p>
 
-      <EtapaFunil
-        icon="📍"
-        label="PAX (check-ins)"
-        valor={dados.pax}
-        offset="right"
-        expanded={expandedPax}
-        onToggle={() => setExpandedPax((v) => !v)}
-      >
-        <TopPaxProfissionais topPax={topPax} />
-      </EtapaFunil>
-
-      <EtapaFunil icon="💰" label="vendas" valor={dados.vendas} offset="left" />
-
-      <div className="mt-8 border-t border-gray-200 pt-4">
+      <div className="border-t border-gray-200 pt-4">
         <ExportarRelatorio dados={exportDados} tipo="funil" />
       </div>
     </div>
   )
 }
-

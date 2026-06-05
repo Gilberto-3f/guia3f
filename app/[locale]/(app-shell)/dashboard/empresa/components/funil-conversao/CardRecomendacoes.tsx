@@ -1,18 +1,26 @@
 'use client'
 
 import type { RecomendacaoProfissional } from '../../types/dashboard.types'
+import { Bus, Car, CircleUser, Hotel, Smartphone } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 interface Props {
   recomendacoes: RecomendacaoProfissional[]
 }
 
-const CATEGORIAS_LABELS: Record<string, string> = {
-  guias: '🚐 Guias de Turismo',
-  taxistas: '🚕 Taxistas',
-  vans: '🚌 Motoristas de Van',
-  apps: '📱 Motoristas de App',
-  anfitrioes: '🏨 Anfitriões',
-  outros: '👤 Outros',
+const CATEGORIAS_LABELS: Record<string, { label: string; Icon: LucideIcon }> = {
+  guias: { label: 'Guias de Turismo', Icon: Bus },
+  taxistas: { label: 'Taxistas', Icon: Car },
+  vans: { label: 'Motoristas de Van', Icon: Bus },
+  apps: { label: 'Motoristas de App', Icon: Smartphone },
+  anfitrioes: { label: 'Anfitriões', Icon: Hotel },
+  outros: { label: 'Outros', Icon: CircleUser },
+}
+
+function rotuloCategoria(categoria: string) {
+  const hit = CATEGORIAS_LABELS[categoria]
+  if (hit) return hit
+  return { label: categoria, Icon: CircleUser }
 }
 
 export default function CardRecomendacoes({ recomendacoes }: Props) {
@@ -38,15 +46,17 @@ export default function CardRecomendacoes({ recomendacoes }: Props) {
       <h4 className="font-bold text-[#001f3f]">RECOMENDAÇÕES POR PROFISSIONAL</h4>
       {categorias.map(([categoria, items]) => {
         const totalCategoria = items.reduce((sum, i) => sum + i.total, 0)
+        const { label, Icon } = rotuloCategoria(categoria)
         return (
           <div key={categoria}>
-            <p className="font-medium text-gray-700">
-              {CATEGORIAS_LABELS[categoria] || categoria} ({totalCategoria})
+            <p className="flex items-center gap-2 font-medium text-gray-700">
+              <Icon className="h-4 w-4 text-[#0097b2]" aria-hidden />
+              {label} ({totalCategoria})
             </p>
-            <div className="ml-4 space-y-1">
+            <div className="ml-6 space-y-1">
               {items.map((rec) => (
                 <div key={rec.profissional_id} className="text-sm text-gray-600">
-                  ├── @{rec.profissional_username} · {rec.total}
+                  @{rec.profissional_username} · {rec.total}
                 </div>
               ))}
             </div>
@@ -56,4 +66,3 @@ export default function CardRecomendacoes({ recomendacoes }: Props) {
     </div>
   )
 }
-
