@@ -58,7 +58,7 @@ export default function GuiaPage() {
   }, [mostrarAbaMobilidade, abaAtiva])
 
   const handleFiltroClick = (filtroId: string) => {
-    if (!podeComprarReservar) {
+    if (filtroId === 'compras' && !podeComprarReservar) {
       avisarBloqueio()
       return
     }

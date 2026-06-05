@@ -182,7 +182,11 @@ function secaoUsuario(itensPrincipais) {
 }
 
 
-function secoesTurista() {
+/**
+ * @param {{ mostrarPreLiberacao?: boolean }} [opts]
+ */
+function secoesTurista(opts = {}) {
+  const mostrarPreLiberacao = opts.mostrarPreLiberacao !== false
   const gEmergencia = [
     { Icon: Search, label: 'Item esquecido', subpagina: 'emergencia-item-esquecido' },
     { Icon: MapPin, label: 'Estou perdido(a)', subpagina: 'emergencia-perdido' },
@@ -192,7 +196,9 @@ function secoesTurista() {
   const gUsuario = [
     { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
     { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos-turista' },
-    { Icon: KeyRound, label: 'Pré-liberação de Cadastro', subpagina: 'emergencia-pre-liberacao' },
+    ...(mostrarPreLiberacao
+      ? [{ Icon: KeyRound, label: 'Pré-liberação de Cadastro', subpagina: 'emergencia-pre-liberacao' }]
+      : []),
   ]
   const gAplic = [
     itemHistoricoCompras,
@@ -409,7 +415,7 @@ export default function MenuLateral({
   bioText = '',
   recursosProfissionaisLiberados = true,
 }) {
-  const { loading: gateLoading } = useProfissionalGate()
+  const { loading: gateLoading, turistaGate } = useProfissionalGate()
   const router = useRouter()
   /** @type {[HistoricoEntry[], (h: HistoricoEntry[]) => void]} */
   const [historico, setHistorico] = useState(/** @type {HistoricoEntry[]} */ ([]))
@@ -532,7 +538,8 @@ export default function MenuLateral({
       empresaCategoria,
       empresaCidade,
     }
-    const t = secoesTurista()
+    const mostrarPreLiberacaoTurista = !Boolean(turistaGate?.documentacao_validada_adm)
+    const t = secoesTurista({ mostrarPreLiberacao: mostrarPreLiberacaoTurista })
     const p = secoesProfissional(c)
     const e = secoesEmpresa(c)
     const a = secoesAdmin(c, { omitirModoNaLista: omitirModoNaListaAdmin })
@@ -563,6 +570,7 @@ export default function MenuLateral({
     omitirModoNaListaAdmin,
     empresaCategoria,
     empresaCidade,
+    turistaGate,
   ])
 
   useEffect(() => {

@@ -296,7 +296,6 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
             jaAnexado={Boolean(urlVerso)}
           />
         </div>
-        <p className="mt-1 text-xs text-gray-500">JPG, PNG ou PDF — até 5 MB por arquivo.</p>
       </div>
 
       <button

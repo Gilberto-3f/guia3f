@@ -127,6 +127,11 @@ export default function AbaBotaoDinamico({
     if (!aviso.irDireto) {
       if (!window.confirm(aviso.mensagem)) return
     }
+    void registrarUsoPreLiberacao({
+      tipo: 'mobilidade_corrida',
+      descricao: `Mobilidade — destino ${empresaNome}`,
+      empresaId,
+    })
     router.push(`/mobilidade?destino_empresa=${encodeURIComponent(empresaId)}`)
   }
 

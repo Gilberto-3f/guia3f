@@ -64,6 +64,65 @@ export async function contarMensageiroFinanceiroNaoLidas(
   return n
 }
 
+/** IDs de conversas com mensagens do ADM ainda não visualizadas pelo alvo. */
+export async function conversasMensageiroComNaoLidas(
+  supabase: SupabaseClient,
+  usuarioId: string,
+): Promise<Set<string>> {
+  const ids = new Set<string>()
+  if (!usuarioId) return ids
+
+  const { data: conversas, error: convErr } = await supabase
+    .from('financeiro_conversas')
+    .select('id')
+    .eq('alvo_usuario_id', usuarioId)
+    .eq('iniciada_por_adm', true)
+
+  if (convErr) {
+    console.error('conversasMensageiroComNaoLidas conversas:', convErr)
+    return ids
+  }
+
+  const convIds = (conversas ?? []).map((c) => String(c.id)).filter(Boolean)
+  if (convIds.length === 0) return ids
+
+  const [{ data: leituras }, { data: mensagens, error: msgErr }] = await Promise.all([
+    supabase
+      .from('financeiro_conversa_leitura')
+      .select('conversa_id, visto_em')
+      .eq('usuario_id', usuarioId)
+      .in('conversa_id', convIds),
+    supabase
+      .from('financeiro_mensagens')
+      .select('conversa_id, remetente_id, created_at')
+      .in('conversa_id', convIds)
+      .neq('remetente_id', usuarioId),
+  ])
+
+  if (msgErr) {
+    console.error('conversasMensageiroComNaoLidas mensagens:', msgErr)
+    return ids
+  }
+
+  const vistoPorConversa = new Map<string, number>()
+  for (const row of leituras ?? []) {
+    const cid = String(row.conversa_id)
+    const t = new Date(String(row.visto_em ?? 0)).getTime()
+    if (!Number.isNaN(t)) vistoPorConversa.set(cid, t)
+  }
+
+  for (const row of mensagens ?? []) {
+    const cid = row.conversa_id != null ? String(row.conversa_id) : ''
+    if (!cid) continue
+    const created = new Date(String(row.created_at ?? 0)).getTime()
+    if (Number.isNaN(created)) continue
+    const visto = vistoPorConversa.get(cid) ?? 0
+    if (created > visto) ids.add(cid)
+  }
+
+  return ids
+}
+
 async function buscarUltimaMensagemConversa(
   supabase: SupabaseClient,
   conversaId: string,

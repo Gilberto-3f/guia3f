@@ -12,6 +12,8 @@ export async function POST(req: Request) {
     const tipo = String(body.tipo ?? '').trim()
     const descricao = String(body.descricao ?? '').trim()
     const empresaId = body.empresa_id != null ? String(body.empresa_id) : null
+    const profissionalUsuarioId =
+      body.profissional_usuario_id != null ? String(body.profissional_usuario_id) : null
 
     if (!tipo || !descricao) {
       return NextResponse.json({ error: 'params' }, { status: 400 })
@@ -28,6 +30,7 @@ export async function POST(req: Request) {
       tipo,
       descricao,
       empresa_id: empresaId,
+      profissional_usuario_id: profissionalUsuarioId,
     })
 
     return NextResponse.json({ ok: true })

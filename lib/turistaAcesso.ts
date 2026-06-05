@@ -33,3 +33,17 @@ export function perfilTuristaComRestricao(u: UsuarioTuristaGate | null | undefin
   if (!u || String(u.role ?? '') !== 'turista') return false
   return !turistaRecursosLiberados(u)
 }
+
+/** Cadastro liberado em definitivo pelo ADM (não só pré-liberação 24h). */
+export function turistaCadastroVerificadoPeloAdm(u: UsuarioTuristaGate | null | undefined): boolean {
+  if (!u || String(u.role ?? '') !== 'turista') return false
+  return Boolean(u.documentacao_validada_adm)
+}
+
+export function turistaPreLiberacaoProvisoriaAtiva(
+  u: UsuarioTuristaGate | null | undefined,
+): boolean {
+  if (!u || String(u.role ?? '') !== 'turista') return false
+  if (Boolean(u.documentacao_validada_adm)) return false
+  return turistaPreLiberacaoAtiva(u.turista_pre_liberado_ate)
+}

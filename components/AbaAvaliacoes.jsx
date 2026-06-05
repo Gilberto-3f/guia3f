@@ -11,6 +11,9 @@ import GraficoAvaliacoes from '@/components/GraficoAvaliacoes'
 import { MoreVertical, Trash2, Pencil, ShieldCheck, User } from 'lucide-react'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
 import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 
 /**
  * @param {{
@@ -60,6 +63,17 @@ export default function AbaAvaliacoes({
   const [empresaResposta, setEmpresaResposta] = useState(
     /** @type {{ foto_url: string | null, nome: string }} */ ({ foto_url: null, nome: 'Empresa' })
   )
+
+  const { perfilEhTurista } = useProfissionalGate()
+  const {
+    podeComprarReservar,
+    avisarBloqueio,
+    avisoAberto,
+    fecharAvisoBloqueio,
+    mensagemBloqueio,
+    tituloBloqueio,
+  } = useGateComprasReservas()
+  const bloquearAvaliacaoEmpresaTurista = perfilEhTurista && !podeComprarReservar
 
   useEffect(() => {
     const getUsuario = async () => {
@@ -274,6 +288,10 @@ export default function AbaAvaliacoes({
 
   const executarSalvarAvaliacao = async () => {
     if (!usuarioId || notaUsuario === 0 || jaAvaliou) return
+    if (bloquearAvaliacaoEmpresaTurista && usuarioTipo === 'turista') {
+      avisarBloqueio()
+      return
+    }
     setEnviando(true)
     setErroSalvarAvaliacao('')
     try {
@@ -305,6 +323,10 @@ export default function AbaAvaliacoes({
 
   const abrirConfirmacaoEnvio = () => {
     if (!usuarioId || notaUsuario === 0 || enviando || jaAvaliou) return
+    if (bloquearAvaliacaoEmpresaTurista && usuarioTipo === 'turista') {
+      avisarBloqueio()
+      return
+    }
     setModalConfirmar(true)
   }
 
@@ -531,6 +553,20 @@ export default function AbaAvaliacoes({
       </div>
 
       {usuarioId && usuarioTipo !== 'empresa' && usuarioTipo !== 'admin' ? (
+        bloquearAvaliacaoEmpresaTurista && usuarioTipo === 'turista' ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+            <p className="text-center text-sm text-amber-950">
+              A avaliação da empresa fica disponível após a verificação do seu cadastro ou pré-liberação de 24h.
+            </p>
+            <button
+              type="button"
+              onClick={() => avisarBloqueio()}
+              className="mt-3 w-full rounded-lg bg-[#0097b2] py-2.5 text-sm font-semibold text-white hover:opacity-95"
+            >
+              Saiba mais
+            </button>
+          </div>
+        ) : (
         <div className="rounded-xl bg-white p-4 shadow-sm">
           <h3 className="mb-4 text-center text-lg font-semibold text-gray-900">
             {jaAvaliou ? 'Sua avaliação' : 'Faça sua avaliação'}
@@ -574,6 +610,7 @@ export default function AbaAvaliacoes({
             </div>
           ) : null}
         </div>
+        )
       ) : null}
 
       <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
@@ -869,6 +906,13 @@ export default function AbaAvaliacoes({
           </div>
         </div>
       ) : null}
+
+      <PopupAvisoBloqueioConta
+        aberto={avisoAberto}
+        onFechar={fecharAvisoBloqueio}
+        titulo={tituloBloqueio}
+        mensagem={mensagemBloqueio}
+      />
     </div>
   )
 }

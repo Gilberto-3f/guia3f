@@ -167,6 +167,11 @@ export default function BotaoDinamico({
         router.push(`/compras-paraguai/${empresaId}`)
         break
       case 'corrida':
+        void registrarUsoPreLiberacao({
+          tipo: 'mobilidade_corrida',
+          descricao: `Mobilidade — destino ${empresaNome}`,
+          empresaId,
+        })
         router.push(`/mobilidade?destino=${encodeURIComponent(empresaId)}`)
         break
       case 'hospedagem':

@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
+import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
 import { profissionalRecursosLiberados } from '@/lib/verificacao-documentos'
 
 const HORAS_PRE_LIB = 24
@@ -177,24 +179,149 @@ export function itemCanalFinanceiroPreLiberacao(p: {
   }
 }
 
+const TIPOS_EMPRESA_PRE_LIB = new Set(['compra_ticket', 'reserva_hospedagem', 'reserva_mesa'])
+const TIPOS_MOBILIDADE_PRE_LIB = new Set(['mobilidade', 'mobilidade_corrida', 'contratacao_mobilidade', 'corrida'])
+
+export type EventoContratacaoPreLiberada = {
+  tipo: string
+  descricao: string
+  empresa_id?: string | null
+  profissional_usuario_id?: string | null
+}
+
+/**
+ * Regra 24h: negócio do turista prospectado gera avisos no canal financeiro do profissional
+ * que liberou o cadastro, da empresa contratada e do profissional regular contratado (mobilidade).
+ */
+async function notificarNegocioPreLiberacao24h(
+  supabase: SupabaseClient,
+  turistaUsuarioId: string,
+  evento: EventoContratacaoPreLiberada,
+  ctx: {
+    profProspectorUsuarioId: string
+    profUsername: string
+    turistaUsername: string
+    expiraEm: string
+    preLiberacaoId: string
+  },
+): Promise<void> {
+  const metaBase = {
+    origem: 'pre_liberacao_24h',
+    pre_liberacao_id: ctx.preLiberacaoId,
+    turista_usuario_id: turistaUsuarioId,
+    turista_username: ctx.turistaUsername,
+    prof_prospector_usuario_id: ctx.profProspectorUsuarioId,
+    prof_prospector_username: ctx.profUsername,
+    expira_em: ctx.expiraEm,
+    tipo_evento: evento.tipo,
+    descricao: evento.descricao,
+  }
+
+  const tipo = String(evento.tipo ?? '')
+
+  if (TIPOS_EMPRESA_PRE_LIB.has(tipo) && evento.empresa_id) {
+    const { data: emp } = await supabase
+      .from('empresas')
+      .select('id, usuario_id, nome_fantasia')
+      .eq('id', evento.empresa_id)
+      .maybeSingle()
+
+    const empNome = String(emp?.nome_fantasia ?? 'Empresa')
+    const empUsuarioId = emp?.usuario_id != null ? String(emp.usuario_id) : null
+
+    if (empUsuarioId) {
+      await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
+        empresaUsuarioId: empUsuarioId,
+        tipo: 'pagamento_pendente',
+        titulo: 'Comissão — turista prospectado (24h)',
+        mensagem:
+          `O turista @${ctx.turistaUsername} realizou ${rotuloTipoNegocio(tipo)} na sua empresa durante a pré-liberação de 24h vinculada ao profissional @${ctx.profUsername}.\n\n` +
+          `Mesmo sem indicação direta, o negócio foi gerado pela prospecção desse profissional. Prepare o repasse da comissão conforme as regras do app.\n\n` +
+          evento.descricao,
+        comprovanteDetalhes: { ...metaBase, empresa_id: evento.empresa_id },
+      })
+    }
+
+    await inserirNotificacaoCanalFinanceiroProfissional(supabase, {
+      profissionalUsuarioId: ctx.profProspectorUsuarioId,
+      tipo: 'extrato_comissao',
+      titulo: 'Comissão prospectada — empresa (24h)',
+      mensagem:
+        `Seu turista @${ctx.turistaUsername} gerou negócio em ${empNome}:\n${evento.descricao}\n\n` +
+        `Comissão a receber conforme regras do app (janela de 24h após sua pré-liberação).`,
+      empresaId: evento.empresa_id,
+      comprovanteDetalhes: metaBase,
+    })
+  }
+
+  if (TIPOS_MOBILIDADE_PRE_LIB.has(tipo) && evento.profissional_usuario_id) {
+    const contratadoId = String(evento.profissional_usuario_id)
+    const { data: profContratado } = await supabase
+      .from('profissionais')
+      .select('nome_usuario, nome_completo, placa_vermelha')
+      .eq('usuario_id', contratadoId)
+      .maybeSingle()
+
+    const contratadoNome = String(profContratado?.nome_usuario ?? profContratado?.nome_completo ?? 'Profissional')
+
+    await inserirNotificacaoCanalFinanceiroProfissional(supabase, {
+      profissionalUsuarioId: contratadoId,
+      tipo: 'extrato_parceria',
+      titulo: 'Parceria — turista prospectado (24h)',
+      mensagem:
+        `Você foi contratado pelo turista @${ctx.turistaUsername}, vinculado ao profissional @${ctx.profUsername} na janela de pré-liberação de 24h.\n\n` +
+        `Há parceria indireta com @${ctx.profUsername} e repasse de comissão da taxa de serviços tabelados conforme regras do app.\n\n` +
+        evento.descricao,
+      comprovanteDetalhes: { ...metaBase, profissional_contratado_usuario_id: contratadoId },
+    })
+
+    await inserirNotificacaoCanalFinanceiroProfissional(supabase, {
+      profissionalUsuarioId: ctx.profProspectorUsuarioId,
+      tipo: 'extrato_comissao',
+      titulo: 'Comissão prospectada — mobilidade (24h)',
+      mensagem:
+        `Seu turista @${ctx.turistaUsername} contratou @${contratadoNome} (mobilidade):\n${evento.descricao}\n\n` +
+        `Comissão da taxa de serviço a receber conforme regras do app.`,
+      comprovanteDetalhes: metaBase,
+    })
+  } else if (TIPOS_MOBILIDADE_PRE_LIB.has(tipo)) {
+    await inserirNotificacaoCanalFinanceiroProfissional(supabase, {
+      profissionalUsuarioId: ctx.profProspectorUsuarioId,
+      tipo: 'extrato_comissao',
+      titulo: 'Mobilidade prospectada (24h)',
+      mensagem:
+        `Seu turista @${ctx.turistaUsername} iniciou contratação de mobilidade:\n${evento.descricao}\n\n` +
+        `Comissões serão calculadas quando o serviço for concluído com profissional regular.`,
+      comprovanteDetalhes: metaBase,
+    })
+  }
+}
+
+function rotuloTipoNegocio(tipo: string): string {
+  if (tipo === 'compra_ticket') return 'compra de ticket'
+  if (tipo === 'reserva_hospedagem') return 'reserva de hospedagem'
+  if (tipo === 'reserva_mesa') return 'reserva de mesa'
+  return 'contratação'
+}
+
 export async function registrarContratacaoPreLiberada(
   supabase: SupabaseClient,
   turistaUsuarioId: string,
-  evento: { tipo: string; descricao: string; empresa_id?: string | null },
+  evento: EventoContratacaoPreLiberada,
 ): Promise<void> {
   const { data: u } = await supabase
     .from('usuarios')
-    .select('turista_pre_liberado_ate')
+    .select('turista_pre_liberado_ate, turista_pre_liberado_por, documentacao_validada_adm')
     .eq('id', turistaUsuarioId)
     .maybeSingle()
 
-  if (!u?.turista_pre_liberado_ate) return
+  if (!u?.turista_pre_liberado_ate || !u.turista_pre_liberado_por) return
   const ate = new Date(String(u.turista_pre_liberado_ate)).getTime()
   if (!Number.isFinite(ate) || ate <= Date.now()) return
 
   const { data: row } = await supabase
     .from('turista_pre_liberacoes')
-    .select('id, contratacoes')
+    .select('id, contratacoes, prof_username, turista_username, profissional_usuario_id')
     .eq('turista_usuario_id', turistaUsuarioId)
     .eq('status', 'aprovada')
     .order('respondido_em', { ascending: false })
@@ -213,4 +340,22 @@ export async function registrarContratacaoPreLiberada(
   ]
 
   await supabase.from('turista_pre_liberacoes').update({ contratacoes: novo }).eq('id', row.id)
+
+  let turistaUsername = String(row.turista_username ?? '').trim()
+  if (!turistaUsername) {
+    const { data: tur } = await supabase
+      .from('turistas')
+      .select('nome_usuario')
+      .eq('usuario_id', turistaUsuarioId)
+      .maybeSingle()
+    turistaUsername = String(tur?.nome_usuario ?? turistaUsuarioId.slice(0, 8))
+  }
+
+  await notificarNegocioPreLiberacao24h(supabase, turistaUsuarioId, evento, {
+    profProspectorUsuarioId: String(u.turista_pre_liberado_por),
+    profUsername: String(row.prof_username ?? 'profissional'),
+    turistaUsername,
+    expiraEm: String(u.turista_pre_liberado_ate),
+    preLiberacaoId: String(row.id),
+  })
 }

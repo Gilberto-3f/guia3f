@@ -19,7 +19,10 @@ import {
   listarConversasFinanceiroParaAlvo,
   listarMensagensConversa,
 } from '@/lib/financeiroConversas'
-import { marcarMensageiroFinanceiroLido } from '@/lib/financeiroMensageiroLeitura'
+import {
+  conversasMensageiroComNaoLidas,
+  marcarMensageiroFinanceiroLido,
+} from '@/lib/financeiroMensageiroLeitura'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 
 const AVATAR_QUADRADO = 'shrink-0 rounded-md object-cover'
@@ -63,6 +66,7 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
   const [anexoPreview, setAnexoPreview] = useState(/** @type {string | null} */ (null))
   const [gravandoAudio, setGravandoAudio] = useState(false)
   const [segundosGravacao, setSegundosGravacao] = useState(0)
+  const [conversasNaoLidas, setConversasNaoLidas] = useState(/** @type {Set<string>} */ (new Set()))
 
   const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
   const fileInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
@@ -122,8 +126,12 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
       setConversaVisualId(null)
 
       const admIds = [...new Set(todas.map((c) => c.adm_usuario_id))]
-      const perfis = await buscarPerfisAdmFinanceiro(supabase, admIds)
+      const [perfis, naoLidas] = await Promise.all([
+        buscarPerfisAdmFinanceiro(supabase, admIds),
+        conversasMensageiroComNaoLidas(supabase, usuarioId),
+      ])
       setPerfisAdm(perfis)
+      setConversasNaoLidas(naoLidas)
     } finally {
       setLoading(false)
     }
@@ -138,6 +146,11 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
       const msgs = await listarMensagensConversa(supabase, conversaId)
       setMensagens(msgs)
       await marcarMensageiroFinanceiroLido(supabase, usuarioId, conversaId)
+      setConversasNaoLidas((prev) => {
+        const next = new Set(prev)
+        next.delete(conversaId)
+        return next
+      })
       notificarBadgeCanais()
       requestAnimationFrame(() => scrollToBottom())
     },
@@ -437,19 +450,36 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
       )
     }
 
+    const ordenadas = [...todasConversas].sort((a, b) => {
+      const aN = conversasNaoLidas.has(a.id) ? 1 : 0
+      const bN = conversasNaoLidas.has(b.id) ? 1 : 0
+      if (aN !== bN) return bN - aN
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    })
+
     return (
       <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
-        {todasConversas.map((c) => {
+        {ordenadas.map((c) => {
           const adm = perfisAdm.get(c.adm_usuario_id)
           const dataRotulo = rotuloDataConversa(c)
           const statusRotulo = c.status === 'aberta' ? 'Em andamento' : 'Encerrada'
+          const temNaoLida = conversasNaoLidas.has(c.id)
           return (
             <li key={c.id}>
               <button
                 type="button"
                 onClick={() => setConversaVisualId(c.id)}
-                className="flex w-full items-center gap-3 rounded-xl bg-[#0097b2] px-3 py-2 text-left shadow-sm hover:bg-[#008099]"
+                className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left shadow-sm transition-colors ${
+                  temNaoLida
+                    ? 'border-2 border-[#00D443] bg-[#007a8f] ring-2 ring-[#00D443]/40 hover:bg-[#006b7d]'
+                    : 'bg-[#0097b2] hover:bg-[#008099]'
+                }`}
               >
+                {temNaoLida ? (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#00D443] px-1 text-[10px] font-bold text-white">
+                    !
+                  </span>
+                ) : null}
                 <AvatarImage
                   src={adm?.fotoUrl ?? null}
                   alt=""
@@ -458,8 +488,15 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
                   className={`${AVATAR_QUADRADO} ring-2 ring-white`}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium text-white">
-                    {adm?.nome ?? 'Administração'}
+                  <div className="flex items-center gap-2">
+                    <span className="truncate font-medium text-white">
+                      {adm?.nome ?? 'Administração'}
+                    </span>
+                    {temNaoLida ? (
+                      <span className="shrink-0 rounded-full bg-[#00D443] px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                        Nova mensagem
+                      </span>
+                    ) : null}
                   </div>
                   <div className="text-xs text-white/90">
                     {statusRotulo} · {dataRotulo}

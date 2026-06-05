@@ -5,8 +5,6 @@ import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
-import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 
 type EmpresaRow = { id: string; nome_fantasia: string; foto_url: string | null }
 
@@ -30,22 +28,6 @@ export default function CatalogoEmpresaPage() {
   const [produtos, setProdutos] = useState<ProdutoRow[]>([])
   const [loading, setLoading] = useState(true)
   const [termoBusca, setTermoBusca] = useState('')
-  const {
-    podeComprarReservar,
-    avisarBloqueio,
-    loading: gateLoading,
-    avisoAberto,
-    fecharAvisoBloqueio,
-    mensagemBloqueio,
-    tituloBloqueio,
-  } = useGateComprasReservas()
-
-  useEffect(() => {
-    if (gateLoading || podeComprarReservar) return
-    avisarBloqueio()
-    router.replace('/guia')
-  }, [gateLoading, podeComprarReservar, avisarBloqueio, router])
-
   const carregarDados = useCallback(async () => {
     if (!empresaId) return
     setLoading(true)
@@ -90,22 +72,8 @@ export default function CatalogoEmpresaPage() {
   }, [empresaId, termoBusca])
 
   useEffect(() => {
-    if (!gateLoading && podeComprarReservar) void carregarDados()
-  }, [carregarDados, gateLoading, podeComprarReservar])
-
-  if (!gateLoading && !podeComprarReservar) {
-    return (
-      <PopupAvisoBloqueioConta
-        aberto={avisoAberto || Boolean(mensagemBloqueio)}
-        onFechar={() => {
-          fecharAvisoBloqueio()
-          router.replace('/guia')
-        }}
-        titulo={tituloBloqueio}
-        mensagem={mensagemBloqueio}
-      />
-    )
-  }
+    void carregarDados()
+  }, [carregarDados])
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -183,13 +151,6 @@ export default function CatalogoEmpresaPage() {
           </div>
         )}
       </div>
-
-      <PopupAvisoBloqueioConta
-        aberto={avisoAberto}
-        onFechar={fecharAvisoBloqueio}
-        titulo={tituloBloqueio}
-        mensagem={mensagemBloqueio}
-      />
     </div>
   )
 }
