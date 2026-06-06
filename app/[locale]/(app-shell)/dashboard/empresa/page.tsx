@@ -25,7 +25,7 @@ type GateState =
   | { status: 'allowed'; userId: string }
 
 function abaCls(ativo: boolean) {
-  return `flex flex-none items-center justify-center gap-2 border-b-[3px] px-4 py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:px-5 sm:text-base ${
+  return `flex min-w-0 flex-1 items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
     ativo ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500 hover:text-gray-700'
   }`
 }
@@ -153,7 +153,7 @@ export default function DashboardEmpresaPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 pb-16">
+    <div className="min-h-screen bg-gray-50 pb-16">
       <header className="sticky top-0 z-20 shrink-0 bg-[#0097b2] shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <h1 className="flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
@@ -163,18 +163,18 @@ export default function DashboardEmpresaPage() {
           <MenuPeriodoDashboard value={periodo} onChange={setPeriodo} />
         </div>
 
-        <div className="border-t border-white/20 bg-white">
-          <div className="mx-auto flex max-w-7xl justify-center gap-6 sm:gap-10">
+        <div className="border-b border-gray-200 bg-white">
+          <div className="mx-auto flex w-full max-w-7xl">
             <button type="button" onClick={() => setAbaAtiva('funil')} className={abaCls(abaAtiva === 'funil')}>
               <Filter className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
-              <span className="flex flex-col items-start gap-0 leading-none">
+              <span className="flex flex-col items-center gap-0 leading-none">
                 <span>Funil de</span>
                 <span>conversão</span>
               </span>
             </button>
             <button type="button" onClick={() => setAbaAtiva('mercado')} className={abaCls(abaAtiva === 'mercado')}>
               <BarChart3 className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
-              <span className="flex flex-col items-start gap-0 leading-none">
+              <span className="flex flex-col items-center gap-0 leading-none">
                 <span>estatísticas</span>
                 <span>de mercado</span>
               </span>
@@ -188,7 +188,7 @@ export default function DashboardEmpresaPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-4 pb-2">{conteudo}</main>
+      <main className="mx-auto w-full max-w-7xl px-4 py-4 pb-0">{conteudo}</main>
     </div>
   )
 }

@@ -12,7 +12,7 @@ import TopPaxProfissionais from './TopPaxProfissionais'
 import CardVendas from './CardVendas'
 import RelatorioDetalhado from './RelatorioDetalhado'
 import ExportarRelatorio from '../shared/ExportarRelatorio'
-import NomeComVerificacao from '@/components/NomeComVerificacao'
+import CheckVerificado from '@/components/CheckVerificado'
 import { labelEtapaFunil } from './labelEtapaFunil'
 
 interface Props {
@@ -143,17 +143,13 @@ export default function FunilConversao({ periodo }: Props) {
   const usernameLabel = username ? `@${username}` : '@empresa'
 
   return (
-    <div className="space-y-4 pb-1">
-      <div className="mx-auto flex max-w-xl flex-col items-center gap-1">
-        <span className="text-lg font-normal text-gray-900 sm:text-xl">
-          <NomeComVerificacao
-            nome={usernameLabel}
-            verificado={empresa?.verificado}
-            className="inline-flex max-w-full items-center gap-1"
-            nomeClassName="truncate"
-          />
+    <div className="space-y-4 pb-0">
+      <div className="mx-auto flex max-w-xl flex-col items-center gap-0">
+        <span className="inline-flex max-w-full items-center gap-1.5 text-lg font-normal text-gray-900 sm:text-xl">
+          {empresa?.verificado ? <CheckVerificado className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" /> : null}
+          <span className="truncate">{usernameLabel}</span>
         </span>
-        <p className="text-center text-sm text-gray-500">Dados convertidos em resultados</p>
+        <p className="text-center text-sm leading-tight text-gray-500">Seus dados convertidos em resultados</p>
       </div>
 
       <div className="mx-auto max-w-xl overflow-hidden shadow-md" style={{ clipPath: CLIP_FUNIL }}>
@@ -194,14 +190,14 @@ export default function FunilConversao({ periodo }: Props) {
         </RelatorioDetalhado>
       ) : null}
 
-      <p className="mx-auto max-w-xl text-center text-sm leading-relaxed text-gray-600">
+      <div className="border-t border-gray-200 pt-3">
+        <ExportarRelatorio dados={exportDados} tipo="funil" />
+      </div>
+
+      <p className="mx-auto max-w-xl pt-2 text-center text-sm leading-relaxed text-gray-600">
         <strong className="text-[#001f3f]">NOTA:</strong> O Funil de Conversão mostra o desempenho geral do nosso
         ecossistema com o seu negócio.
       </p>
-
-      <div className="border-t border-gray-200 pt-3 pb-0">
-        <ExportarRelatorio dados={exportDados} tipo="funil" />
-      </div>
     </div>
   )
 }
