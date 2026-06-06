@@ -12,17 +12,17 @@ export function labelEtapaFunil(id: EtapaFunilId, valor: number): string {
 
   switch (id) {
     case 'visualizacoes':
-      if (compacto) return plural ? 'VISUALIZAÇÕES' : 'VISUALIZAÇÃO'
-      return plural ? 'VISUALIZAÇÕES DA PÁGINA' : 'VISUALIZAÇÃO DA PÁGINA'
+      if (compacto) return plural ? 'Visualizações' : 'Visualização'
+      return plural ? 'Visualizações da Página' : 'Visualização da Página'
     case 'interacoes':
-      if (compacto) return plural ? 'INTERAÇÕES' : 'INTERAÇÃO'
-      return plural ? 'INTERAÇÕES NA PÁGINA' : 'INTERAÇÃO NA PÁGINA'
+      if (compacto) return plural ? 'Interações' : 'Interação'
+      return plural ? 'Interações na Página' : 'Interação na Página'
     case 'recomendacoes':
-      return plural ? 'RECOMENDAÇÕES' : 'RECOMENDAÇÃO'
+      return plural ? 'Recomendações' : 'Recomendação'
     case 'pax':
       return 'PAX'
     case 'vendas':
-      return plural ? 'VENDAS' : 'VENDA'
+      return plural ? 'Vendas' : 'Venda'
     default:
       return ''
   }

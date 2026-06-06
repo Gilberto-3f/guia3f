@@ -1,4 +1,4 @@
-import { Bus, Car, Hotel, Smartphone, type LucideIcon } from 'lucide-react'
+import { Bus, Car, Compass, Hotel, Smartphone, type LucideIcon } from 'lucide-react'
 
 export const CATEGORIAS_ORDEM = ['apps', 'vans', 'guias', 'taxistas', 'anfitrioes'] as const
 
@@ -7,7 +7,7 @@ export type CategoriaProfissionalFunil = (typeof CATEGORIAS_ORDEM)[number]
 export const CATEGORIAS_CONFIG: Record<CategoriaProfissionalFunil, { label: string; Icon: LucideIcon }> = {
   apps: { label: 'Motorista de APP', Icon: Smartphone },
   vans: { label: 'Motorista de Van', Icon: Bus },
-  guias: { label: 'Guia de Turismo', Icon: Bus },
+  guias: { label: 'Guia de Turismo', Icon: Compass },
   taxistas: { label: 'Taxista', Icon: Car },
   anfitrioes: { label: 'Anfitrião', Icon: Hotel },
 }

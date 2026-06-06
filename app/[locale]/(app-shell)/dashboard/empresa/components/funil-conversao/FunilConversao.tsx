@@ -174,8 +174,8 @@ export default function FunilConversao({ periodo }: Props) {
             detalheAberto === 'recomendacoes'
               ? 'Recomendações feitas por profissionais do ecossistema.'
               : detalheAberto === 'pax'
-                ? 'PAX registrados por profissionais'
-                : 'Vendas diretas no período'
+                ? 'PAX - Passageiros no seu local'
+                : 'Vendas concluídas (comissões pagas ao profissional e vendas pelo app, sem bonificação por PAX)'
           }
         >
           {detalheAberto === 'recomendacoes' ? (

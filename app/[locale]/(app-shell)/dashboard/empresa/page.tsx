@@ -175,8 +175,8 @@ export default function DashboardEmpresaPage() {
             <button type="button" onClick={() => setAbaAtiva('mercado')} className={abaCls(abaAtiva === 'mercado')}>
               <BarChart3 className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
               <span className="flex flex-col items-center gap-0 leading-none">
-                <span>Estatísticas de</span>
-                <span>Mercado</span>
+                <span>Estatísticas</span>
+                <span>de Mercado</span>
               </span>
             </button>
             {mostrarDrenaStok ? (
