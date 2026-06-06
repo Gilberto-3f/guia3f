@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { DollarSign, Eye, Heart, MapPin, Users, type LucideIcon } from 'lucide-react'
-import { vistoEmEtapa } from '@/lib/dashboardFunilBadge'
-import { notificarBadgeFunil } from '@/lib/dashboard-funil-badge-events'
 import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useFunilConversao } from '../../hooks/useFunilConversao'
 import { useFunilNotificacoes } from '../../hooks/useFunilNotificacoes'
@@ -60,7 +58,7 @@ export default function FunilConversao({ periodo }: Props) {
   } = useFunilConversao(empresaId, empresa?.usuario_id ?? null, periodo)
 
   const usuarioId = empresa?.usuario_id ?? null
-  const { contagens, leitura, marcarEtapaLida } = useFunilNotificacoes(empresaId, usuarioId)
+  const { contagens, marcarEtapaLida } = useFunilNotificacoes(empresaId, usuarioId)
 
   const [detalheAberto, setDetalheAberto] = useState<DetalheEtapa>(null)
   const [referenciaVistoEm, setReferenciaVistoEm] = useState<string | null>(null)
@@ -68,11 +66,11 @@ export default function FunilConversao({ periodo }: Props) {
   const toggleDetalhe = (etapa: Exclude<DetalheEtapa, null>) => {
     setDetalheAberto((atual) => {
       if (atual === etapa) {
-        void marcarEtapaLida(etapa).then(() => notificarBadgeFunil())
         setReferenciaVistoEm(null)
         return null
       }
-      setReferenciaVistoEm(vistoEmEtapa(leitura, etapa))
+      setReferenciaVistoEm(new Date().toISOString())
+      void marcarEtapaLida(etapa)
       return etapa
     })
   }

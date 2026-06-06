@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { formatarWhatsappTuristaMascarado } from '@/lib/recomendarEmpresa'
 import type { RecomendacaoProfissional } from '../../types/dashboard.types'
-import { formatarData, formatarHora } from './formatarDataHora'
+import { formatarDataCurta, formatarHora } from './formatarDataHora'
 import LinhaProfissionalCabecalho from './LinhaProfissionalCabecalho'
 
 interface Props {
@@ -26,6 +26,7 @@ export default function LinhaProfissionalRecomendacao({ profissional, naoLidas =
       nome={profissional.profissional_nome}
       username={profissional.profissional_username}
       fotoUrl={profissional.profissional_foto_url}
+      verificado={profissional.profissional_verificado}
       naoLidas={naoLidas}
     >
       <div className="space-y-3">
@@ -43,8 +44,9 @@ export default function LinhaProfissionalRecomendacao({ profissional, naoLidas =
               <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
                 Recomendação {index + 1}
               </p>
-              <p className="mt-1 text-sm text-gray-800">{formatarData(detalhe.created_at)}</p>
-              <p className="text-sm text-gray-700">{formatarHora(detalhe.created_at)}</p>
+              <p className="mt-1 text-sm text-gray-800">
+                {formatarDataCurta(detalhe.created_at)} · {formatarHora(detalhe.created_at)}
+              </p>
               {whatsapp ? (
                 <p className="mt-0.5 text-sm tabular-nums text-gray-600">{whatsapp}</p>
               ) : (

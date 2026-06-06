@@ -16,6 +16,7 @@ export default function LinhaProfissionalPax({ profissional, naoLidas = 0 }: Pro
       nome={profissional.profissional_nome}
       username={profissional.profissional_username}
       fotoUrl={profissional.profissional_foto_url}
+      verificado={profissional.profissional_verificado}
       naoLidas={naoLidas}
     >
       {profissional.detalhes.map((detalhe) => (

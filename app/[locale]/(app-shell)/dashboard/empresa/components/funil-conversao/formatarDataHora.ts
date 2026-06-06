@@ -9,6 +9,17 @@ export function formatarData(iso: string) {
   })
 }
 
+/** Data curta para notificações do funil (sem ano). */
+export function formatarDataCurta(iso: string) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+  })
+}
+
 export function formatarHora(iso: string) {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'

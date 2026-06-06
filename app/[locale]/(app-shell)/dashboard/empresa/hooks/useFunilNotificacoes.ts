@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { GUIA_FUNIL_BADGE_EVENT } from '@/lib/dashboard-funil-badge-events'
+import { GUIA_FUNIL_BADGE_EVENT, notificarBadgeFunil } from '@/lib/dashboard-funil-badge-events'
 import {
   contarNaoLidasFunilEmpresa,
   marcarEtapaFunilLida,
@@ -45,8 +45,28 @@ export function useFunilNotificacoes(empresaId: string | null, usuarioId: string
   const marcarEtapaLida = useCallback(
     async (etapa: EtapaFunilNotif) => {
       if (!empresaId || !usuarioId) return
+
+      const agora = new Date().toISOString()
+
+      setLeitura((prev) => ({
+        ...prev,
+        ...(etapa === 'recomendacoes' ? { recomendacoes_visto_em: agora } : {}),
+        ...(etapa === 'pax' ? { pax_visto_em: agora } : {}),
+        ...(etapa === 'vendas' ? { vendas_visto_em: agora } : {}),
+      }))
+
+      setContagens((prev) => {
+        const next = {
+          recomendacoes: etapa === 'recomendacoes' ? 0 : prev.recomendacoes,
+          pax: etapa === 'pax' ? 0 : prev.pax,
+          vendas: etapa === 'vendas' ? 0 : prev.vendas,
+        }
+        const total = next.recomendacoes + next.pax + next.vendas
+        notificarBadgeFunil({ total })
+        return { ...next, total }
+      })
+
       await marcarEtapaFunilLida(supabase, empresaId, usuarioId, etapa)
-      await refresh()
     },
     [empresaId, refresh, usuarioId],
   )
@@ -58,7 +78,9 @@ export function useFunilNotificacoes(empresaId: string | null, usuarioId: string
   useEffect(() => {
     if (!empresaId || !usuarioId) return
 
-    const onBadge = () => {
+    const onBadge = (event: Event) => {
+      const total = (event as CustomEvent<{ total?: number }>).detail?.total
+      if (typeof total === 'number' && Number.isFinite(total)) return
       void refresh()
     }
     window.addEventListener(GUIA_FUNIL_BADGE_EVENT, onBadge)

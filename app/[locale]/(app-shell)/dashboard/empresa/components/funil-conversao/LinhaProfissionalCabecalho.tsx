@@ -4,12 +4,14 @@ import { useState, type ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
+import CheckVerificado from '@/components/CheckVerificado'
 
 interface Props {
   profissionalId: string
   nome: string
   username: string
   fotoUrl: string | null
+  verificado?: boolean
   naoLidas?: number
   children: ReactNode
 }
@@ -19,6 +21,7 @@ export default function LinhaProfissionalCabecalho({
   nome,
   username,
   fotoUrl,
+  verificado = false,
   naoLidas = 0,
   children,
 }: Props) {
@@ -39,7 +42,10 @@ export default function LinhaProfissionalCabecalho({
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-gray-900">{nome}</p>
-          <p className="truncate text-sm text-gray-500">@{handle}</p>
+          <p className="flex min-w-0 items-center gap-1 truncate text-sm text-gray-500">
+            {verificado ? <CheckVerificado className="h-3.5 w-3.5 shrink-0" /> : null}
+            <span className="truncate">@{handle}</span>
+          </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <CanalNaoLidasBadge count={naoLidas} />
@@ -51,7 +57,7 @@ export default function LinhaProfissionalCabecalho({
       </button>
 
       {aberto ? (
-        <div id={`detalhe-prof-${profissionalId}`} className="space-y-2 border-t border-gray-100 bg-white/80 px-3 py-3">
+        <div id={`detalhe-prof-${profissionalId}`} className="space-y-2 border-t border-gray-100 bg-white/80 py-2 pr-1">
           {children}
         </div>
       ) : null}

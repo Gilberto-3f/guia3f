@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { normalizarCategoriaProfissionalSlug } from '../components/funil-conversao/categoriasProfissionalFunil'
 import type {
   DadosFunil,
@@ -89,6 +90,19 @@ function pickFotoProfissional(prof: Record<string, unknown> | null): string | nu
   if (perfil) return perfil
   const legacy = prof.foto_url != null ? String(prof.foto_url).trim() : ''
   return legacy || null
+}
+
+const PROF_JOIN_FIELDS =
+  'nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, docs_verificado, status'
+
+function dadosCabecalhoProfissional(prof: Record<string, unknown> | null, pid: string) {
+  return {
+    profissional_id: pid,
+    profissional_nome: prof?.nome_completo != null ? String(prof.nome_completo) : 'Profissional',
+    profissional_username: prof?.nome_usuario != null ? String(prof.nome_usuario) : 'usuario',
+    profissional_foto_url: pickFotoProfissional(prof),
+    profissional_verificado: contaVerificadaDocumentacao('profissional', prof),
+  }
 }
 
 async function contarVisualizacoes(empresaId: string, dataLimite: string | null): Promise<number> {
@@ -228,7 +242,7 @@ async function buscarRecomendacoesPorProfissional(
       id,
       created_at,
       profissional_id,
-      profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
+      profissionais:profissional_id (${PROF_JOIN_FIELDS})
     `
   const selectComDdd = `
       id,
@@ -236,14 +250,14 @@ async function buscarRecomendacoesPorProfissional(
       turista_whatsapp_final,
       turista_whatsapp_ddd,
       profissional_id,
-      profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
+      profissionais:profissional_id (${PROF_JOIN_FIELDS})
     `
   const selectSoFinal = `
       id,
       created_at,
       turista_whatsapp_final,
       profissional_id,
-      profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
+      profissionais:profissional_id (${PROF_JOIN_FIELDS})
     `
 
   const queryRec = (select: string) => {
@@ -286,10 +300,7 @@ async function buscarRecomendacoesPorProfissional(
 
       if (!recAgrupadas[pid]) {
         recAgrupadas[pid] = {
-          profissional_id: pid,
-          profissional_nome: prof?.nome_completo != null ? String(prof.nome_completo) : 'Profissional',
-          profissional_username: prof?.nome_usuario != null ? String(prof.nome_usuario) : 'usuario',
-          profissional_foto_url: pickFotoProfissional(prof),
+          ...dadosCabecalhoProfissional(prof, pid),
           categoria,
           total: 0,
           detalhes: [],
@@ -312,7 +323,7 @@ async function buscarPaxPorProfissional(empresaId: string, dataLimite: string | 
       created_at,
       pax_qtd,
       profissional_id,
-      profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
+      profissionais:profissional_id (${PROF_JOIN_FIELDS})
     `,
     )
     .eq('empresa_destino_id', empresaId)
@@ -342,10 +353,7 @@ async function buscarPaxPorProfissional(empresaId: string, dataLimite: string | 
 
       if (!paxAgrupadas[pid]) {
         paxAgrupadas[pid] = {
-          profissional_id: pid,
-          profissional_nome: prof?.nome_completo != null ? String(prof.nome_completo) : 'Profissional',
-          profissional_username: prof?.nome_usuario != null ? String(prof.nome_usuario) : 'usuario',
-          profissional_foto_url: pickFotoProfissional(prof),
+          ...dadosCabecalhoProfissional(prof, pid),
           categoria,
           total: 0,
           detalhes: [],
@@ -371,7 +379,7 @@ async function buscarVendasPorProfissional(
       created_at,
       valor,
       profissional_id,
-      profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
+      profissionais:profissional_id (${PROF_JOIN_FIELDS})
     `,
     )
     .eq('empresa_id', empresaId)
@@ -412,10 +420,7 @@ async function buscarVendasPorProfissional(
 
       if (!vendasAgrupadas[pid]) {
         vendasAgrupadas[pid] = {
-          profissional_id: pid,
-          profissional_nome: prof?.nome_completo != null ? String(prof.nome_completo) : 'Profissional',
-          profissional_username: prof?.nome_usuario != null ? String(prof.nome_usuario) : 'usuario',
-          profissional_foto_url: pickFotoProfissional(prof),
+          ...dadosCabecalhoProfissional(prof, pid),
           categoria,
           total: 0,
           detalhes: [],

@@ -435,7 +435,12 @@ export default function BottomBar() {
       void refresh()
     }, BADGE_DEFER_MS)
 
-    const onFunil = () => {
+    const onFunil = (event) => {
+      const total = event?.detail?.total
+      if (typeof total === 'number' && Number.isFinite(total)) {
+        setNaoLidasFunil(total)
+        return
+      }
       void refresh()
     }
     window.addEventListener(GUIA_FUNIL_BADGE_EVENT, onFunil)

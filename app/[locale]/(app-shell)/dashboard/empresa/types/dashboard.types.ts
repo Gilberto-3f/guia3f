@@ -20,6 +20,7 @@ export interface RecomendacaoProfissional {
   profissional_nome: string
   profissional_username: string
   profissional_foto_url: string | null
+  profissional_verificado?: boolean
   categoria: string
   total: number
   detalhes: RecomendacaoDetalhe[]
@@ -36,6 +37,7 @@ export interface PaxProfissional {
   profissional_nome: string
   profissional_username: string
   profissional_foto_url: string | null
+  profissional_verificado?: boolean
   categoria: string
   total: number
   detalhes: PaxDetalhe[]
@@ -52,6 +54,7 @@ export interface VendaProfissional {
   profissional_nome: string
   profissional_username: string
   profissional_foto_url: string | null
+  profissional_verificado?: boolean
   categoria: string
   total: number
   detalhes: VendaDetalhe[]

@@ -63,7 +63,7 @@ export default function PastaRelatorioLista({
         </div>
       </button>
 
-      {aberto ? <div className="pb-2 pl-[52px] pt-1">{children}</div> : null}
+      {aberto ? <div className="pb-2 pl-10 pt-0.5">{children}</div> : null}
     </div>
   )
 }
