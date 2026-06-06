@@ -4,10 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type {
   DadosFunil,
+  PaxDetalhe,
   PaxProfissional,
   Periodo,
   RecomendacaoDetalhe,
   RecomendacaoProfissional,
+  VendaDetalhe,
+  VendaProfissional,
 } from '../types/dashboard.types'
 
 function getDataLimite(periodo: Periodo): string | null {
@@ -82,7 +85,9 @@ async function contar(
 export function useFunilConversao(empresaId: string | null, periodo: Periodo) {
   const [dados, setDados] = useState<DadosFunil | null>(null)
   const [recomendacoesPorProfissional, setRecomendacoesPorProfissional] = useState<RecomendacaoProfissional[]>([])
-  const [topPax, setTopPax] = useState<PaxProfissional[]>([])
+  const [paxPorProfissional, setPaxPorProfissional] = useState<PaxProfissional[]>([])
+  const [vendasPorProfissional, setVendasPorProfissional] = useState<VendaProfissional[]>([])
+  const [vendasSemProfissional, setVendasSemProfissional] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -93,7 +98,9 @@ export function useFunilConversao(empresaId: string | null, periodo: Periodo) {
       setLoading(false)
       setDados(null)
       setRecomendacoesPorProfissional([])
-      setTopPax([])
+      setPaxPorProfissional([])
+      setVendasPorProfissional([])
+      setVendasSemProfissional(0)
       return
     }
 
@@ -231,46 +238,133 @@ export function useFunilConversao(empresaId: string | null, periodo: Periodo) {
       }
       setRecomendacoesPorProfissional(Object.values(recAgrupadas).sort((a, b) => b.total - a.total))
 
-      // 7. Top 5 PAX por profissional
+      // 7. PAX por profissional (com detalhes individuais)
       let paxAgrupadas: Record<string, PaxProfissional> = {}
       {
-        let qTopPax = supabase
+        let qPaxProf = supabase
           .from('manifesto')
           .select(
             `
+            id,
+            created_at,
+            pax_qtd,
             profissional_id,
-            profissionais:profissional_id (nome_completo, nome_usuario)
+            profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
           `,
           )
           .eq('empresa_destino_id', empresaId)
           .eq('status', 'confirmado')
-        if (dataLimite) qTopPax = qTopPax.gte('created_at', dataLimite)
-        const { data: paxData, error: paxErr } = await qTopPax
+          .order('created_at', { ascending: false })
+        if (dataLimite) qPaxProf = qPaxProf.gte('created_at', dataLimite)
+        const { data: paxData, error: paxErr } = await qPaxProf
         if (paxErr && !isTabelaInexistente(paxErr)) throw paxErr
         if (!paxErr && paxData) {
           for (const item of paxData as unknown[]) {
             const row = item as Record<string, unknown>
             const pid = row.profissional_id != null ? String(row.profissional_id) : ''
             if (!pid) continue
+
             const prof = asProfRow(row.profissionais)
+            const categorias = prof ? asCategorias(prof.categorias) : []
+            const categoria = resolverCategoriaProfissional(categorias)
+            const paxQtd = typeof row.pax_qtd === 'number' ? row.pax_qtd : Number(row.pax_qtd) || 1
+
+            const detalhe: PaxDetalhe = {
+              id: row.id != null ? String(row.id) : `${pid}-${paxAgrupadas[pid]?.detalhes.length ?? 0}`,
+              created_at: row.created_at != null ? String(row.created_at) : new Date().toISOString(),
+              pax_qtd: paxQtd > 0 ? paxQtd : 1,
+            }
+
             if (!paxAgrupadas[pid]) {
               paxAgrupadas[pid] = {
                 profissional_id: pid,
                 profissional_nome: prof?.nome_completo != null ? String(prof.nome_completo) : 'Profissional',
                 profissional_username: prof?.nome_usuario != null ? String(prof.nome_usuario) : 'usuario',
+                profissional_foto_url: pickFotoProfissional(prof),
+                categoria,
                 total: 0,
+                detalhes: [],
               }
             }
-            paxAgrupadas[pid].total += 1
+            paxAgrupadas[pid].total += detalhe.pax_qtd
+            paxAgrupadas[pid].detalhes.push(detalhe)
           }
         }
       }
-      setTopPax(Object.values(paxAgrupadas).sort((a, b) => b.total - a.total).slice(0, 5))
+      setPaxPorProfissional(Object.values(paxAgrupadas).sort((a, b) => b.total - a.total))
+
+      // 8. Vendas por profissional (com detalhes individuais)
+      let vendasAgrupadas: Record<string, VendaProfissional> = {}
+      let semProfissional = 0
+      {
+        let qVendasProf = supabase
+          .from('comissao')
+          .select(
+            `
+            id,
+            created_at,
+            valor,
+            profissional_id,
+            profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
+          `,
+          )
+          .eq('empresa_id', empresaId)
+          .eq('tipo', 'venda_direta')
+          .order('created_at', { ascending: false })
+        if (dataLimite) qVendasProf = qVendasProf.gte('created_at', dataLimite)
+        const { data: vendasData, error: vendasErr } = await qVendasProf
+        if (vendasErr && !isTabelaInexistente(vendasErr)) throw vendasErr
+        if (!vendasErr && vendasData) {
+          for (const item of vendasData as unknown[]) {
+            const row = item as Record<string, unknown>
+            const pid = row.profissional_id != null ? String(row.profissional_id) : ''
+            if (!pid) {
+              semProfissional += 1
+              continue
+            }
+
+            const prof = asProfRow(row.profissionais)
+            const categorias = prof ? asCategorias(prof.categorias) : []
+            const categoria = resolverCategoriaProfissional(categorias)
+            const valorRaw = row.valor
+            const valor =
+              typeof valorRaw === 'number'
+                ? valorRaw
+                : valorRaw != null && Number.isFinite(Number(valorRaw))
+                  ? Number(valorRaw)
+                  : null
+
+            const detalhe: VendaDetalhe = {
+              id: row.id != null ? String(row.id) : `${pid}-${vendasAgrupadas[pid]?.detalhes.length ?? 0}`,
+              created_at: row.created_at != null ? String(row.created_at) : new Date().toISOString(),
+              valor,
+            }
+
+            if (!vendasAgrupadas[pid]) {
+              vendasAgrupadas[pid] = {
+                profissional_id: pid,
+                profissional_nome: prof?.nome_completo != null ? String(prof.nome_completo) : 'Profissional',
+                profissional_username: prof?.nome_usuario != null ? String(prof.nome_usuario) : 'usuario',
+                profissional_foto_url: pickFotoProfissional(prof),
+                categoria,
+                total: 0,
+                detalhes: [],
+              }
+            }
+            vendasAgrupadas[pid].total += 1
+            vendasAgrupadas[pid].detalhes.push(detalhe)
+          }
+        }
+      }
+      setVendasPorProfissional(Object.values(vendasAgrupadas).sort((a, b) => b.total - a.total))
+      setVendasSemProfissional(semProfissional)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Erro ao carregar funil'))
       setDados(null)
       setRecomendacoesPorProfissional([])
-      setTopPax([])
+      setPaxPorProfissional([])
+      setVendasPorProfissional([])
+      setVendasSemProfissional(0)
     } finally {
       setLoading(false)
     }
@@ -280,5 +374,14 @@ export function useFunilConversao(empresaId: string | null, periodo: Periodo) {
     void fetchDados()
   }, [fetchDados])
 
-  return { dados, recomendacoesPorProfissional, topPax, loading, error, refetch: fetchDados }
+  return {
+    dados,
+    recomendacoesPorProfissional,
+    paxPorProfissional,
+    vendasPorProfissional,
+    vendasSemProfissional,
+    loading,
+    error,
+    refetch: fetchDados,
+  }
 }

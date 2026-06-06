@@ -24,11 +24,36 @@ export interface RecomendacaoProfissional {
   detalhes: RecomendacaoDetalhe[]
 }
 
+export interface PaxDetalhe {
+  id: string
+  created_at: string
+  pax_qtd: number
+}
+
 export interface PaxProfissional {
   profissional_id: string
   profissional_nome: string
   profissional_username: string
+  profissional_foto_url: string | null
+  categoria: string
   total: number
+  detalhes: PaxDetalhe[]
+}
+
+export interface VendaDetalhe {
+  id: string
+  created_at: string
+  valor: number | null
+}
+
+export interface VendaProfissional {
+  profissional_id: string
+  profissional_nome: string
+  profissional_username: string
+  profissional_foto_url: string | null
+  categoria: string
+  total: number
+  detalhes: VendaDetalhe[]
 }
 
 export interface DadosSegmentosGuia {

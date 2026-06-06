@@ -43,7 +43,15 @@ export default function FunilConversao({ periodo }: Props) {
   const { dados: empresa } = useDashboardEmpresa()
   const empresaId = empresa?.id ?? null
 
-  const { dados, recomendacoesPorProfissional, topPax, loading, error } = useFunilConversao(empresaId, periodo)
+  const {
+    dados,
+    recomendacoesPorProfissional,
+    paxPorProfissional,
+    vendasPorProfissional,
+    vendasSemProfissional,
+    loading,
+    error,
+  } = useFunilConversao(empresaId, periodo)
 
   const [detalheAberto, setDetalheAberto] = useState<DetalheEtapa>(null)
 
@@ -170,8 +178,13 @@ export default function FunilConversao({ periodo }: Props) {
           {detalheAberto === 'recomendacoes' ? (
             <CardRecomendacoes recomendacoes={recomendacoesPorProfissional} />
           ) : null}
-          {detalheAberto === 'pax' ? <TopPaxProfissionais topPax={topPax} /> : null}
-          {detalheAberto === 'vendas' ? <CardVendas total={dados.vendas} /> : null}
+          {detalheAberto === 'pax' ? <TopPaxProfissionais paxPorProfissional={paxPorProfissional} /> : null}
+          {detalheAberto === 'vendas' ? (
+            <CardVendas
+              vendasPorProfissional={vendasPorProfissional}
+              vendasSemProfissional={vendasSemProfissional}
+            />
+          ) : null}
         </RelatorioDetalhado>
       ) : null}
 

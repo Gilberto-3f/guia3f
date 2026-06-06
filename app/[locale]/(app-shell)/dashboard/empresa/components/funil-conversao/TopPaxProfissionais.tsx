@@ -1,27 +1,20 @@
 'use client'
 
 import type { PaxProfissional } from '../../types/dashboard.types'
+import LinhaProfissionalPax from './LinhaProfissionalPax'
+import RelatorioPastasCategoria from './RelatorioPastasCategoria'
 
 interface Props {
-  topPax: PaxProfissional[]
+  paxPorProfissional: PaxProfissional[]
 }
 
-export default function TopPaxProfissionais({ topPax }: Props) {
-  if (topPax.length === 0) {
-    return <div className="py-2 text-center text-sm text-gray-500">Nenhum PAX registrado no período</div>
-  }
-
+export default function TopPaxProfissionais({ paxPorProfissional }: Props) {
   return (
-    <div className="space-y-2">
-      {topPax.map((prof, index) => (
-        <div key={prof.profissional_id} className="flex items-center justify-between border-b border-gray-100 py-1">
-          <span className="text-gray-600">
-            {index + 1}. @{prof.profissional_username}
-          </span>
-          <span className="font-medium text-[#001f3f]">{prof.total} PAX</span>
-        </div>
-      ))}
-    </div>
+    <RelatorioPastasCategoria
+      prefixoId="pax"
+      items={paxPorProfissional}
+      vazioCategoria="Nenhum PAX nesta categoria"
+      renderLinha={(prof) => <LinhaProfissionalPax key={prof.profissional_id} profissional={prof} />}
+    />
   )
 }
-

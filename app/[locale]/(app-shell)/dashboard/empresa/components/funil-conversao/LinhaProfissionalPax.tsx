@@ -1,14 +1,14 @@
 'use client'
 
-import type { RecomendacaoProfissional } from '../../types/dashboard.types'
+import type { PaxProfissional } from '../../types/dashboard.types'
 import { formatarDataHora } from './formatarDataHora'
 import LinhaProfissionalCabecalho from './LinhaProfissionalCabecalho'
 
 interface Props {
-  profissional: RecomendacaoProfissional
+  profissional: PaxProfissional
 }
 
-export default function LinhaProfissionalRecomendacao({ profissional }: Props) {
+export default function LinhaProfissionalPax({ profissional }: Props) {
   return (
     <LinhaProfissionalCabecalho
       profissionalId={profissional.profissional_id}
@@ -19,11 +19,9 @@ export default function LinhaProfissionalRecomendacao({ profissional }: Props) {
       {profissional.detalhes.map((detalhe) => (
         <div key={detalhe.id} className="text-sm leading-relaxed text-gray-600">
           <p>{formatarDataHora(detalhe.created_at)}</p>
-          {detalhe.turista_whatsapp_final ? (
-            <p className="text-gray-500">WhatsApp turista ····{detalhe.turista_whatsapp_final}</p>
-          ) : (
-            <p className="text-gray-400">WhatsApp turista não informado</p>
-          )}
+          <p className="text-gray-500">
+            {detalhe.pax_qtd === 1 ? '1 passageiro' : `${detalhe.pax_qtd} passageiros`}
+          </p>
         </div>
       ))}
     </LinhaProfissionalCabecalho>
