@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { ChevronDown, type LucideIcon } from 'lucide-react'
+import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
 const CLASSE_ICONE =
   'flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#0097b2] text-white'
@@ -14,6 +15,7 @@ interface Props {
   aberto?: boolean
   onToggle?: () => void
   controlado?: boolean
+  naoLidas?: number
 }
 
 export default function PastaRelatorioLista({
@@ -24,6 +26,7 @@ export default function PastaRelatorioLista({
   aberto: abertoProp,
   onToggle,
   controlado = false,
+  naoLidas = 0,
 }: Props) {
   const [abertoLocal, setAbertoLocal] = useState(false)
   const aberto = controlado ? Boolean(abertoProp) : abertoLocal
@@ -50,10 +53,13 @@ export default function PastaRelatorioLista({
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-between gap-2 border-b border-gray-200/80 py-3">
           <span className="min-w-0 text-[15px] font-normal text-gray-900">{titulo}</span>
-          <ChevronDown
+          <div className="flex shrink-0 items-center gap-1.5">
+            <CanalNaoLidasBadge count={naoLidas} />
+            <ChevronDown
             className={`h-5 w-5 shrink-0 text-gray-400 transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
             aria-hidden
           />
+          </div>
         </div>
       </button>
 

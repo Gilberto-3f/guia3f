@@ -6,15 +6,19 @@ import RelatorioPastasCategoria from './RelatorioPastasCategoria'
 
 interface Props {
   recomendacoes: RecomendacaoProfissional[]
+  referenciaVistoEm?: string | null
 }
 
-export default function CardRecomendacoes({ recomendacoes }: Props) {
+export default function CardRecomendacoes({ recomendacoes, referenciaVistoEm }: Props) {
   return (
     <RelatorioPastasCategoria
       prefixoId="rec"
       items={recomendacoes}
+      referenciaVistoEm={referenciaVistoEm}
       vazioCategoria="Nenhuma recomendação nesta categoria"
-      renderLinha={(prof) => <LinhaProfissionalRecomendacao key={prof.profissional_id} profissional={prof} />}
+      renderLinha={(prof, naoLidas) => (
+        <LinhaProfissionalRecomendacao key={prof.profissional_id} profissional={prof} naoLidas={naoLidas} />
+      )}
     />
   )
 }

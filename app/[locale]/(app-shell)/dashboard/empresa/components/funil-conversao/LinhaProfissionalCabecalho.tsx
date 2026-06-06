@@ -3,16 +3,25 @@
 import { useState, type ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
+import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
 interface Props {
   profissionalId: string
   nome: string
   username: string
   fotoUrl: string | null
+  naoLidas?: number
   children: ReactNode
 }
 
-export default function LinhaProfissionalCabecalho({ profissionalId, nome, username, fotoUrl, children }: Props) {
+export default function LinhaProfissionalCabecalho({
+  profissionalId,
+  nome,
+  username,
+  fotoUrl,
+  naoLidas = 0,
+  children,
+}: Props) {
   const [aberto, setAberto] = useState(false)
   const handle = username.replace(/^@+/, '')
 
@@ -32,10 +41,13 @@ export default function LinhaProfissionalCabecalho({ profissionalId, nome, usern
           <p className="truncate font-medium text-gray-900">{nome}</p>
           <p className="truncate text-sm text-gray-500">@{handle}</p>
         </div>
-        <ChevronDown
-          className={`h-4 w-4 shrink-0 text-[#0097b2] transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
-          aria-hidden
-        />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <CanalNaoLidasBadge count={naoLidas} />
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-[#0097b2] transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
+            aria-hidden
+          />
+        </div>
       </button>
 
       {aberto ? (

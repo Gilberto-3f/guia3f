@@ -240,7 +240,10 @@ export default function PublicidadeHome() {
     if (!n) return
     const id = anuncios[indice]?.id
     if (!id) return
-    void supabase.rpc('registrar_impressao_anuncio_home', { p_anuncio_id: id })
+    const t = setTimeout(() => {
+      void supabase.rpc('registrar_impressao_anuncio_home', { p_anuncio_id: id })
+    }, 3000)
+    return () => clearTimeout(t)
   }, [anuncios, indice, n])
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {

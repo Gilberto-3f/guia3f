@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { DollarSign, Eye, Heart, MapPin, Users, type LucideIcon } from 'lucide-react'
+import { vistoEmEtapa } from '@/lib/dashboardFunilBadge'
+import { notificarBadgeFunil } from '@/lib/dashboard-funil-badge-events'
 import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useFunilConversao } from '../../hooks/useFunilConversao'
+import { useFunilNotificacoes } from '../../hooks/useFunilNotificacoes'
 import type { Periodo } from '../../types/dashboard.types'
 
 import EtapaFunil from './EtapaFunil'
@@ -56,10 +59,28 @@ export default function FunilConversao({ periodo }: Props) {
     carregarDetalhes,
   } = useFunilConversao(empresaId, empresa?.usuario_id ?? null, periodo)
 
+  const usuarioId = empresa?.usuario_id ?? null
+  const { contagens, leitura, marcarEtapaLida } = useFunilNotificacoes(empresaId, usuarioId)
+
   const [detalheAberto, setDetalheAberto] = useState<DetalheEtapa>(null)
+  const [referenciaVistoEm, setReferenciaVistoEm] = useState<string | null>(null)
 
   const toggleDetalhe = (etapa: Exclude<DetalheEtapa, null>) => {
-    setDetalheAberto((atual) => (atual === etapa ? null : etapa))
+    setDetalheAberto((atual) => {
+      if (atual === etapa) {
+        void marcarEtapaLida(etapa).then(() => notificarBadgeFunil())
+        setReferenciaVistoEm(null)
+        return null
+      }
+      setReferenciaVistoEm(vistoEmEtapa(leitura, etapa))
+      return etapa
+    })
+  }
+
+  const naoLidasEtapa = (id: Exclude<DetalheEtapa, null>) => {
+    if (id === 'recomendacoes') return contagens.recomendacoes
+    if (id === 'pax') return contagens.pax
+    return contagens.vendas
   }
 
   useEffect(() => {
@@ -166,6 +187,7 @@ export default function FunilConversao({ periodo }: Props) {
             label={etapa.label}
             valor={etapa.valor}
             ocultarIcone={etapa.id === 'recomendacoes' && funilModoCompacto(etapa.valor)}
+            naoLidas={etapa.expandable ? naoLidasEtapa(etapa.id) : 0}
             expandable={etapa.expandable}
             selected={detalheAberto === etapa.id}
             onToggle={etapa.expandable ? () => toggleDetalhe(etapa.id) : undefined}
@@ -178,7 +200,7 @@ export default function FunilConversao({ periodo }: Props) {
         <RelatorioDetalhado
           subtitulo={
             detalheAberto === 'recomendacoes'
-              ? 'Recomendações Feitas por Profissionais do Ecossistema'
+              ? 'Recomendações feitas por Profissionais do Ecossistema.'
               : detalheAberto === 'pax'
                 ? 'PAX - Passageiros no Seu Local'
                 : 'Vendas Concluídas!'
@@ -192,15 +214,19 @@ export default function FunilConversao({ periodo }: Props) {
             </div>
           ) : null}
           {detalheAberto === 'recomendacoes' && detalhesLoading !== 'recomendacoes' ? (
-            <CardRecomendacoes recomendacoes={recomendacoesPorProfissional} />
+            <CardRecomendacoes
+              recomendacoes={recomendacoesPorProfissional}
+              referenciaVistoEm={referenciaVistoEm}
+            />
           ) : null}
           {detalheAberto === 'pax' && detalhesLoading !== 'pax' ? (
-            <TopPaxProfissionais paxPorProfissional={paxPorProfissional} />
+            <TopPaxProfissionais paxPorProfissional={paxPorProfissional} referenciaVistoEm={referenciaVistoEm} />
           ) : null}
           {detalheAberto === 'vendas' && detalhesLoading !== 'vendas' ? (
             <CardVendas
               vendasPorProfissional={vendasPorProfissional}
               vendasSemProfissional={vendasSemProfissional}
+              referenciaVistoEm={referenciaVistoEm}
             />
           ) : null}
         </RelatorioDetalhado>

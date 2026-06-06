@@ -430,10 +430,51 @@ export function useFunilConversao(
   const [error, setError] = useState<Error | null>(null)
 
   const detalhesCarregados = useRef(new Set<DetalheFunilEtapa>())
+  const prefetchEmAndamento = useRef(false)
   const dataLimite = useMemo(() => getDataLimite(periodo), [periodo])
+
+  const prefetchTodosDetalhes = useCallback(async () => {
+    if (!empresaId || prefetchEmAndamento.current) return
+    prefetchEmAndamento.current = true
+    try {
+      const faltam = (['recomendacoes', 'pax', 'vendas'] as const).filter((e) => !detalhesCarregados.current.has(e))
+      if (faltam.length === 0) return
+
+      const resultados = await Promise.all(
+        faltam.map(async (etapa) => {
+          if (etapa === 'recomendacoes') {
+            return { etapa, data: await buscarRecomendacoesPorProfissional(empresaId, dataLimite) }
+          }
+          if (etapa === 'pax') {
+            return { etapa, data: await buscarPaxPorProfissional(empresaId, dataLimite) }
+          }
+          const { vendas, semProfissional } = await buscarVendasPorProfissional(empresaId, dataLimite)
+          return { etapa, data: { vendas, semProfissional } }
+        }),
+      )
+
+      for (const res of resultados) {
+        if (res.etapa === 'recomendacoes') {
+          setRecomendacoesPorProfissional(res.data as RecomendacaoProfissional[])
+        } else if (res.etapa === 'pax') {
+          setPaxPorProfissional(res.data as PaxProfissional[])
+        } else {
+          const payload = res.data as { vendas: VendaProfissional[]; semProfissional: number }
+          setVendasPorProfissional(payload.vendas)
+          setVendasSemProfissional(payload.semProfissional)
+        }
+        detalhesCarregados.current.add(res.etapa)
+      }
+    } catch {
+      /* prefetch silencioso — abertura manual tenta de novo */
+    } finally {
+      prefetchEmAndamento.current = false
+    }
+  }, [dataLimite, empresaId])
 
   const resetDetalhes = useCallback(() => {
     detalhesCarregados.current.clear()
+    prefetchEmAndamento.current = false
     setRecomendacoesPorProfissional([])
     setPaxPorProfissional([])
     setVendasPorProfissional([])
@@ -463,17 +504,19 @@ export function useFunilConversao(
       ])
 
       setDados({ visualizacoes, interacoes, recomendacoes, pax, vendas })
+      void prefetchTodosDetalhes()
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Erro ao carregar funil'))
       setDados(null)
     } finally {
       setLoading(false)
     }
-  }, [dataLimite, empresaId, empresaUsuarioId, resetDetalhes])
+  }, [dataLimite, empresaId, empresaUsuarioId, prefetchTodosDetalhes, resetDetalhes])
 
   const carregarDetalhes = useCallback(
     async (etapa: DetalheFunilEtapa) => {
-      if (!empresaId || detalhesCarregados.current.has(etapa)) return
+      if (!empresaId) return
+      if (detalhesCarregados.current.has(etapa)) return
 
       setDetalhesLoading(etapa)
       try {

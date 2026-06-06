@@ -7,16 +7,20 @@ import RelatorioPastasCategoria from './RelatorioPastasCategoria'
 interface Props {
   vendasPorProfissional: VendaProfissional[]
   vendasSemProfissional: number
+  referenciaVistoEm?: string | null
 }
 
-export default function CardVendas({ vendasPorProfissional, vendasSemProfissional }: Props) {
+export default function CardVendas({ vendasPorProfissional, vendasSemProfissional, referenciaVistoEm }: Props) {
   return (
     <div className="space-y-3">
       <RelatorioPastasCategoria
         prefixoId="venda"
         items={vendasPorProfissional}
+        referenciaVistoEm={referenciaVistoEm}
         vazioCategoria="Nenhuma venda nesta categoria"
-        renderLinha={(prof) => <LinhaProfissionalVenda key={prof.profissional_id} profissional={prof} />}
+        renderLinha={(prof, naoLidas) => (
+          <LinhaProfissionalVenda key={prof.profissional_id} profissional={prof} naoLidas={naoLidas} />
+        )}
       />
       {vendasSemProfissional > 0 ? (
         <p className="text-center text-sm text-gray-500">

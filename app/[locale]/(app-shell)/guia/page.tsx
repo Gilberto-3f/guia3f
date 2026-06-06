@@ -74,12 +74,11 @@ export default function GuiaPage() {
         </div>
 
         {gateLoading ? (
-          <div
-            className="flex w-full items-center justify-center border-b border-gray-200 bg-white py-4"
-            aria-busy="true"
-            aria-label={tGuia('loadingHeader')}
-          >
-            <div className="h-5 w-36 animate-pulse rounded bg-gray-200" />
+          <div className="flex w-full border-b border-gray-200 bg-white">
+            <div className={abaGuiaCls(true, true)}>
+              <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
+              <span>{tGuia('tabGuia')}</span>
+            </div>
           </div>
         ) : mostrarTituloGuiaTuristico ? (
           <div className="flex w-full border-b border-gray-200 bg-white">

@@ -1,12 +1,14 @@
 'use client'
 
 import { ChevronDown, ChevronUp, type LucideIcon } from 'lucide-react'
+import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
 interface Props {
   icon: LucideIcon
   label: string
   valor: number
   ocultarIcone?: boolean
+  naoLidas?: number
   expandable?: boolean
   selected?: boolean
   onToggle?: () => void
@@ -18,6 +20,7 @@ export default function EtapaFunil({
   label,
   valor,
   ocultarIcone = false,
+  naoLidas = 0,
   expandable = false,
   selected = false,
   onToggle,
@@ -32,6 +35,7 @@ export default function EtapaFunil({
       )}
       <span className="text-lg font-bold tabular-nums sm:text-xl">{valor.toLocaleString('pt-BR')}</span>
       <span className="text-sm font-medium sm:text-base">{label}</span>
+      {naoLidas > 0 ? <CanalNaoLidasBadge count={naoLidas} className="!text-[10px]" /> : null}
       {expandable ? (
         selected ? (
           <ChevronUp className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />

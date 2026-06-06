@@ -21,7 +21,9 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { atividadeVisivelNaMinhaContaPessoal } from '@/lib/atividades-feed'
 import { GUIA_ATIVIDADES_BADGE_EVENT } from '@/lib/atividades-events'
 import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
+import { GUIA_FUNIL_BADGE_EVENT } from '@/lib/dashboard-funil-badge-events'
 import { contarMensagensNaoLidasCanais } from '@/lib/canalBadge'
+import { contarNaoLidasFunilEmpresa } from '@/lib/dashboardFunilBadge'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
@@ -74,6 +76,9 @@ function matchPath(path, pathname) {
   return false
 }
 
+/** Badges pesados não bloqueiam o primeiro paint da home. */
+const BADGE_DEFER_MS = 2000
+
 export default function BottomBar() {
   const t = useTranslations('BottomBar')
   const pathname = usePathname()
@@ -85,6 +90,7 @@ export default function BottomBar() {
   const [fotoPerfil, setFotoPerfil] = useState(/** @type {string | null} */ (null))
   const [naoLidasAtividades, setNaoLidasAtividades] = useState(0)
   const [naoLidasCanais, setNaoLidasCanais] = useState(0)
+  const [naoLidasFunil, setNaoLidasFunil] = useState(0)
   /** Primeira carga da sessão/role na barra; até lá o 5.º ícone não navega (evita `/perfil` → empresa). */
   const [barSessaoPronta, setBarSessaoPronta] = useState(false)
 
@@ -257,7 +263,9 @@ export default function BottomBar() {
     }
     window.addEventListener(GUIA_ATIVIDADES_BADGE_EVENT, onBadge)
 
-    void refreshBadgeAtividades()
+    const deferId = setTimeout(() => {
+      void refreshBadgeAtividades()
+    }, BADGE_DEFER_MS)
 
     const chAtividades = supabase
       .channel(`bottom-bar-atividades-${authUserId}`)
@@ -293,6 +301,7 @@ export default function BottomBar() {
 
     return () => {
       ativo = false
+      clearTimeout(deferId)
       window.removeEventListener(GUIA_ATIVIDADES_BADGE_EVENT, onBadge)
       void supabase.removeChannel(chAtividades)
     }
@@ -320,7 +329,9 @@ export default function BottomBar() {
       }, 400)
     }
 
-    void refreshCanais()
+    const deferId = setTimeout(() => {
+      void refreshCanais()
+    }, BADGE_DEFER_MS)
 
     const onCanaisBadge = () => {
       scheduleRefresh()
@@ -394,12 +405,72 @@ export default function BottomBar() {
 
     return () => {
       cancelled = true
+      clearTimeout(deferId)
       if (debounceId) clearTimeout(debounceId)
       window.removeEventListener(GUIA_CANAIS_BADGE_EVENT, onCanaisBadge)
       document.removeEventListener('visibilitychange', onVisible)
       void supabase.removeChannel(channel)
     }
   }, [authUserId])
+
+  /** Badge agregado do funil (recomendações + PAX + vendas) no dashboard empresa. */
+  useEffect(() => {
+    const ehEmpresa =
+      (modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId) || userRole === 'empresa'
+    const empId =
+      modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId ? contextoEmpresaId : empresaId
+
+    if (!ehEmpresa || !empId || !authUserId) {
+      setNaoLidasFunil(0)
+      return
+    }
+
+    let cancelled = false
+    const refresh = async () => {
+      const c = await contarNaoLidasFunilEmpresa(supabase, empId, authUserId)
+      if (!cancelled) setNaoLidasFunil(c.total)
+    }
+
+    const deferId = setTimeout(() => {
+      void refresh()
+    }, BADGE_DEFER_MS)
+
+    const onFunil = () => {
+      void refresh()
+    }
+    window.addEventListener(GUIA_FUNIL_BADGE_EVENT, onFunil)
+
+    const chFunil = supabase
+      .channel(`bottom-bar-funil-${empId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'recomendacoes', filter: `empresa_id=eq.${empId}` },
+        onFunil,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'manifesto',
+          filter: `empresa_destino_id=eq.${empId}`,
+        },
+        onFunil,
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'comissao', filter: `empresa_id=eq.${empId}` },
+        onFunil,
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      clearTimeout(deferId)
+      window.removeEventListener(GUIA_FUNIL_BADGE_EVENT, onFunil)
+      void supabase.removeChannel(chFunil)
+    }
+  }, [authUserId, userRole, empresaId, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
 
   /** Ao navegar entre telas, reconta (fallback se Realtime ainda não estiver na publication). */
   const prevPathnameRef = useRef(/** @type {string | null} */ (null))
@@ -580,7 +651,7 @@ export default function BottomBar() {
         {isEmpresaBar ? (
           <Link
             href="/dashboard/empresa"
-            className="flex flex-col items-center p-2"
+            className="relative flex flex-col items-center p-2"
             aria-label={t('dashboard')}
           >
             <LayoutDashboard
@@ -592,6 +663,11 @@ export default function BottomBar() {
               }
               aria-hidden
             />
+            {authUserId && naoLidasFunil > 0 ? (
+              <span className="absolute right-0 top-0 flex min-h-[14px] min-w-[14px] max-w-[2rem] translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
+                {naoLidasFunil > 99 ? '99+' : naoLidasFunil}
+              </span>
+            ) : null}
           </Link>
         ) : isFeedPage && !podeInteragirFeedSocial && !gateFeedLoading ? (
           <button
