@@ -4,15 +4,18 @@ interface Props {
   dados: { mes: string; valor: number }[]
   titulo: string
   cor?: string
+  semTitulo?: boolean
+  embed?: boolean
 }
 
-export default function GraficoLinha({ dados, titulo, cor = '#0097b2' }: Props) {
+export default function GraficoLinha({ dados, titulo, cor = '#0097b2', semTitulo = false, embed = false }: Props) {
   const maxValor = Math.max(...dados.map((d) => d.valor), 1)
+  const wrap = embed ? '' : 'rounded-lg border bg-white p-4'
 
   if (dados.length === 0 || dados.every((d) => d.valor === 0)) {
     return (
-      <div className="rounded-lg border bg-white p-4">
-        <h3 className="mb-4 font-bold text-[#001f3f]">{titulo}</h3>
+      <div className={wrap}>
+        {!semTitulo ? <h3 className="mb-4 font-bold text-[#001f3f]">{titulo}</h3> : null}
         <div className="flex h-48 items-center justify-center text-gray-500">Nenhum dado disponível no período</div>
       </div>
     )
@@ -28,8 +31,8 @@ export default function GraficoLinha({ dados, titulo, cor = '#0097b2' }: Props) 
     .join(' ')
 
   return (
-    <div className="rounded-lg border bg-white p-4">
-      <h3 className="mb-4 font-bold text-[#001f3f]">{titulo}</h3>
+    <div className={wrap}>
+      {!semTitulo ? <h3 className="mb-4 font-bold text-[#001f3f]">{titulo}</h3> : null}
       <div className="relative h-48">
         <svg className="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
           <polyline points={points} fill="none" stroke={cor} strokeWidth="2" />

@@ -3,6 +3,8 @@
 interface Props {
   dados: { label: string; valor: number; percentual: number }[]
   titulo: string
+  semTitulo?: boolean
+  embed?: boolean
 }
 
 const CORES = ['#0097b2', '#00D443', '#F1C40F', '#E74C3C', '#9B59B6', '#3498DB', '#E67E22', '#1ABC9C']
@@ -20,13 +22,14 @@ function arcPath(startAngle: number, endAngle: number) {
   return `M 50 50 L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y} Z`
 }
 
-export default function GraficoPizza({ dados, titulo }: Props) {
+export default function GraficoPizza({ dados, titulo, semTitulo = false, embed = false }: Props) {
   const total = dados.reduce((sum, item) => sum + item.valor, 0)
+  const wrap = embed ? '' : 'rounded-lg border bg-white p-4'
 
   if (dados.length === 0 || total === 0) {
     return (
-      <div className="rounded-lg border bg-white p-4">
-        <h3 className="mb-4 font-bold text-[#001f3f]">{titulo}</h3>
+      <div className={wrap}>
+        {!semTitulo ? <h3 className="mb-4 font-bold text-[#001f3f]">{titulo}</h3> : null}
         <div className="flex h-48 items-center justify-center text-gray-500">Nenhum dado disponível no período</div>
       </div>
     )
@@ -41,8 +44,8 @@ export default function GraficoPizza({ dados, titulo }: Props) {
   })
 
   return (
-    <div className="rounded-lg border bg-white p-4">
-      <h3 className="mb-4 font-bold text-[#001f3f]">{titulo}</h3>
+    <div className={wrap}>
+      {!semTitulo ? <h3 className="mb-4 font-bold text-[#001f3f]">{titulo}</h3> : null}
       <div className="flex flex-col items-center">
         <div className="relative mb-4 h-40 w-40 overflow-hidden rounded-full">
           <svg viewBox="0 0 100 100" className="h-full w-full">

@@ -5,23 +5,26 @@ interface Props {
   titulo: string
   destaque?: string
   destaqueLabel?: string
+  semTitulo?: boolean
+  embed?: boolean
 }
 
-export default function GraficoBarras({ dados, titulo, destaque, destaqueLabel }: Props) {
+export default function GraficoBarras({ dados, titulo, destaque, destaqueLabel, semTitulo = false, embed = false }: Props) {
   const maxValor = Math.max(...dados.map((d) => d.valor), 1)
+  const wrap = embed ? '' : 'rounded-lg border bg-white p-4'
 
   if (dados.length === 0 || dados.every((d) => d.valor === 0)) {
     return (
-      <div className="rounded-lg border bg-white p-4">
-        <h3 className="mb-4 font-bold text-[#001f3f]">{titulo}</h3>
+      <div className={wrap}>
+        {!semTitulo ? <h3 className="mb-4 font-bold text-[#001f3f]">{titulo}</h3> : null}
         <div className="flex h-48 items-center justify-center text-gray-500">Nenhum dado disponível no período</div>
       </div>
     )
   }
 
   return (
-    <div className="rounded-lg border bg-white p-4">
-      <h3 className="mb-4 font-bold text-[#001f3f]">{titulo}</h3>
+    <div className={wrap}>
+      {!semTitulo ? <h3 className="mb-4 font-bold text-[#001f3f]">{titulo}</h3> : null}
       <div className="space-y-3">
         {dados.map((item) => (
           <div key={item.label}>
@@ -41,7 +44,7 @@ export default function GraficoBarras({ dados, titulo, destaque, destaqueLabel }
           </div>
         ))}
       </div>
-      {destaqueLabel ? <p className="mt-3 text-xs text-gray-500">⚪ {destaqueLabel}</p> : null}
+      {destaqueLabel ? <p className="mt-3 text-xs text-gray-500">{destaqueLabel}</p> : null}
     </div>
   )
 }
