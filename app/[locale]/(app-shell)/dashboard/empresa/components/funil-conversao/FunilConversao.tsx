@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { DollarSign, Eye, MapPin, UserPlus, Users, type LucideIcon } from 'lucide-react'
+import { DollarSign, Eye, Heart, MapPin, Users, type LucideIcon } from 'lucide-react'
 import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useFunilConversao } from '../../hooks/useFunilConversao'
 import type { Periodo } from '../../types/dashboard.types'
@@ -23,7 +23,7 @@ type DetalheEtapa = 'recomendacoes' | 'pax' | 'vendas' | null
 
 type EtapaFunilConfig =
   | {
-      id: 'visualizacoes' | 'seguidores'
+      id: 'visualizacoes' | 'interacoes'
       expandable: false
       icon: LucideIcon
       label: string
@@ -64,7 +64,7 @@ export default function FunilConversao({ periodo }: Props) {
     () => ({
       periodo,
       visualizacoes: dados?.visualizacoes ?? 0,
-      seguidores: dados?.seguidores ?? 0,
+      interacoes: dados?.interacoes ?? 0,
       recomendacoes: dados?.recomendacoes ?? 0,
       pax: dados?.pax ?? 0,
       vendas: dados?.vendas ?? 0,
@@ -110,10 +110,10 @@ export default function FunilConversao({ periodo }: Props) {
       expandable: false,
     },
     {
-      id: 'seguidores' as const,
-      icon: UserPlus,
-      label: labelEtapaFunil('seguidores', dados.seguidores),
-      valor: dados.seguidores,
+      id: 'interacoes' as const,
+      icon: Heart,
+      label: labelEtapaFunil('interacoes', dados.interacoes),
+      valor: dados.interacoes,
       expandable: false,
     },
     {

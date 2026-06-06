@@ -10,9 +10,11 @@ interface Props {
 export default function RelatorioDetalhado({ subtitulo, children }: Props) {
   return (
     <div className="mx-auto max-w-xl rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-      <h3 className="text-center text-base font-bold text-[#001f3f] sm:text-lg">Relatório detalhado</h3>
-      <p className="mt-2 text-center text-sm text-gray-600">{subtitulo}</p>
-      <div className="mt-4">{children}</div>
+      <div className="flex flex-col items-center gap-0.5">
+        <h3 className="text-center text-base font-bold text-[#001f3f] sm:text-lg">Relatório detalhado</h3>
+        <p className="text-center text-sm leading-tight text-gray-600">{subtitulo}</p>
+      </div>
+      <div className="mt-3">{children}</div>
     </div>
   )
 }

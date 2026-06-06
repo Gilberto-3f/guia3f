@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import PastaEstatistica from '../estatisticas-mercado/PastaEstatistica'
+import PastaRelatorioLista from './PastaRelatorioLista'
 import {
   agruparPorCategoria,
   CATEGORIAS_CONFIG,
@@ -36,14 +36,14 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
   }
 
   return (
-    <div className="space-y-2">
+    <div>
       {CATEGORIAS_ORDEM.map((categoria: CategoriaProfissionalFunil) => {
         const lista = porCategoria[categoria] ?? []
         const totalCategoria = lista.reduce((sum, i) => sum + i.total, 0)
         const { label, Icon } = CATEGORIAS_CONFIG[categoria]
 
         return (
-          <PastaEstatistica
+          <PastaRelatorioLista
             key={categoria}
             id={`${prefixoId}-${categoria}`}
             titulo={`${label} (${totalCategoria})`}
@@ -53,13 +53,11 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
             onToggle={() => togglePasta(categoria)}
           >
             {lista.length === 0 ? (
-              <p className="py-2 text-center text-sm text-gray-500">{vazioCategoria}</p>
+              <p className="py-2 text-sm text-gray-500">{vazioCategoria}</p>
             ) : (
-              <div className="rounded-lg border border-gray-100 bg-white">
-                {lista.map((item) => renderLinha(item))}
-              </div>
+              <div>{lista.map((item) => renderLinha(item))}</div>
             )}
-          </PastaEstatistica>
+          </PastaRelatorioLista>
         )
       })}
     </div>

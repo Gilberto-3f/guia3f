@@ -2,7 +2,7 @@ export type Periodo = 'hoje' | '7d' | '30d' | '90d'
 
 export interface DadosFunil {
   visualizacoes: number
-  seguidores: number
+  interacoes: number
   recomendacoes: number
   pax: number
   vendas: number

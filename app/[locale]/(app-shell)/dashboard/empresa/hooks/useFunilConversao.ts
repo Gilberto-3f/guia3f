@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { normalizarCategoriaProfissionalSlug } from '../components/funil-conversao/categoriasProfissionalFunil'
 import type {
   DadosFunil,
   PaxDetalhe,
@@ -49,11 +50,83 @@ function asCategorias(v: unknown) {
   return [] as string[]
 }
 
-const CATEGORIAS_PROFISSIONAL = ['guias', 'taxistas', 'vans', 'apps', 'anfitrioes'] as const
-
 function resolverCategoriaProfissional(categorias: string[]): string {
-  const hit = categorias.find((c) => (CATEGORIAS_PROFISSIONAL as readonly string[]).includes(c))
-  return hit ?? 'outros'
+  for (const c of categorias) {
+    const hit = normalizarCategoriaProfissionalSlug(c)
+    if (hit) return hit
+  }
+  return 'guias'
+}
+
+function isColunaInexistente(err: unknown): boolean {
+  const msg = String((err as { message?: string })?.message ?? '').toLowerCase()
+  return msg.includes('column') && msg.includes('does not exist')
+}
+
+async function contarInteracoesPaginaEmpresa(
+  empresaId: string,
+  empresaUsuarioId: string | null,
+  dataLimite: string | null,
+): Promise<number> {
+  let total = 0
+
+  let qAval = supabase.from('avaliacoes').select('*', { count: 'exact', head: true }).eq('empresa_id', empresaId)
+  if (dataLimite) qAval = qAval.gte('created_at', dataLimite)
+  total += await contar(qAval)
+
+  if (!empresaUsuarioId) return total
+
+  const { data: postRows, error: postErr } = await supabase
+    .from('posts')
+    .select('id, total_compartilhamentos')
+    .eq('autor_id', empresaUsuarioId)
+    .is('deleted_at', null)
+  if (postErr && !isTabelaInexistente(postErr)) throw postErr
+
+  const postIds = (postRows ?? []).map((r) => String((r as { id: string }).id))
+  if (postIds.length === 0) return total
+
+  let qCurtPosts = supabase.from('curtidas').select('*', { count: 'exact', head: true }).in('post_id', postIds)
+  if (dataLimite) qCurtPosts = qCurtPosts.gte('created_at', dataLimite)
+  total += await contar(qCurtPosts)
+
+  let qCom = supabase.from('comentarios').select('*', { count: 'exact', head: true }).in('post_id', postIds)
+  if (dataLimite) qCom = qCom.gte('created_at', dataLimite)
+  total += await contar(qCom)
+
+  let qSalvo = supabase.from('item_salvo').select('*', { count: 'exact', head: true }).in('post_id', postIds)
+  if (dataLimite) qSalvo = qSalvo.gte('salvo_em', dataLimite)
+  total += await contar(qSalvo)
+
+  const { data: comentarioRows, error: comErr } = await supabase.from('comentarios').select('id').in('post_id', postIds)
+  if (comErr && !isTabelaInexistente(comErr)) throw comErr
+  const comentarioIds = (comentarioRows ?? []).map((r) => String((r as { id: string }).id))
+  if (comentarioIds.length > 0) {
+    let qCurtCom = supabase
+      .from('curtidas')
+      .select('*', { count: 'exact', head: true })
+      .in('comentario_id', comentarioIds)
+    if (dataLimite) qCurtCom = qCurtCom.gte('created_at', dataLimite)
+    total += await contar(qCurtCom)
+  }
+
+  let qRepost = supabase
+    .from('posts')
+    .select('*', { count: 'exact', head: true })
+    .in('post_original_id', postIds)
+    .is('deleted_at', null)
+  if (dataLimite) qRepost = qRepost.gte('created_at', dataLimite)
+  total += await contar(qRepost)
+
+  // Compartilhamentos: soma do contador acumulado nos posts (sem log por evento com data).
+  for (const row of postRows ?? []) {
+    const r = row as { total_compartilhamentos?: number | null }
+    const n =
+      typeof r.total_compartilhamentos === 'number' ? r.total_compartilhamentos : Number(r.total_compartilhamentos) || 0
+    if (n > 0) total += n
+  }
+
+  return total
 }
 
 function pickFotoProfissional(prof: Record<string, unknown> | null): string | null {
@@ -141,17 +214,8 @@ export function useFunilConversao(empresaId: string | null, periodo: Periodo) {
         }
       }
 
-      // 2. Seguidores (redecontatos → usuario_id da empresa, não empresas.id)
-      let seguidores = 0
-      if (empresaUsuarioId) {
-        let qSeg = supabase
-          .from('redecontatos')
-          .select('*', { count: 'exact', head: true })
-          .eq('seguido_id', empresaUsuarioId)
-          .eq('seguido_tipo', 'empresa')
-        if (dataLimite) qSeg = qSeg.gte('created_at', dataLimite)
-        seguidores = await contar(qSeg)
-      }
+      // 2. Interações na página (curtidas, comentários, reposts, avaliações, salvos, compartilhamentos)
+      const interacoes = await contarInteracoesPaginaEmpresa(empresaId, empresaUsuarioId, dataLimite)
 
       // 3. Recomendações
       let qRec = supabase.from('recomendacoes').select('*', { count: 'exact', head: true }).eq('empresa_id', empresaId)
@@ -178,7 +242,7 @@ export function useFunilConversao(empresaId: string | null, periodo: Periodo) {
 
       setDados({
         visualizacoes,
-        seguidores,
+        interacoes,
         recomendacoes,
         pax,
         vendas,
@@ -187,21 +251,40 @@ export function useFunilConversao(empresaId: string | null, periodo: Periodo) {
       // 6. Recomendações por profissional (com detalhes individuais)
       let recAgrupadas: Record<string, RecomendacaoProfissional> = {}
       {
-        let qRecProf = supabase
-          .from('recomendacoes')
-          .select(
-            `
+        const selectComWhatsapp = `
             id,
             created_at,
             turista_whatsapp_final,
             profissional_id,
             profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
-          `,
-          )
+          `
+        const selectSemWhatsapp = `
+            id,
+            created_at,
+            profissional_id,
+            profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
+          `
+
+        let qRecProf = supabase
+          .from('recomendacoes')
+          .select(selectComWhatsapp)
           .eq('empresa_id', empresaId)
           .order('created_at', { ascending: false })
         if (dataLimite) qRecProf = qRecProf.gte('created_at', dataLimite)
-        const { data: recData, error: recErr } = await qRecProf
+        let { data: recData, error: recErr } = await qRecProf
+
+        if (recErr && (isColunaInexistente(recErr) || String(recErr.message ?? '').includes('turista_whatsapp_final'))) {
+          let qFallback = supabase
+            .from('recomendacoes')
+            .select(selectSemWhatsapp)
+            .eq('empresa_id', empresaId)
+            .order('created_at', { ascending: false })
+          if (dataLimite) qFallback = qFallback.gte('created_at', dataLimite)
+          const res = await qFallback
+          recData = res.data
+          recErr = res.error
+        }
+
         if (recErr && !isTabelaInexistente(recErr)) throw recErr
         if (!recErr && recData) {
           for (const rec of recData as unknown[]) {
