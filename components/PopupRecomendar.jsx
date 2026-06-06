@@ -7,18 +7,18 @@ import {
   montarEnderecoEmpresa,
   registrarRecomendacaoEmpresa,
   urlEmpresaRecomendacao,
-  type EmpresaRecomendacaoInfo,
 } from '@/lib/recomendarEmpresa'
 import { digitsWhatsapp, mensagemWhatsappRecomendacao, openWhatsAppChat } from '@/lib/whatsapp-empresa'
 
-type Props = {
-  aberto: boolean
-  onFechar: () => void
-  empresa: EmpresaRecomendacaoInfo
-  segmentoGuiaSlug?: string | null
-}
-
-export default function PopupRecomendar({ aberto, onFechar, empresa, segmentoGuiaSlug }: Props) {
+/**
+ * @param {{
+ *   aberto: boolean
+ *   onFechar: () => void
+ *   empresa: import('@/lib/recomendarEmpresa').EmpresaRecomendacaoInfo
+ *   segmentoGuiaSlug?: string | null
+ * }} props
+ */
+export default function PopupRecomendar({ aberto, onFechar, empresa, segmentoGuiaSlug }) {
   const [whatsappTurista, setWhatsappTurista] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
