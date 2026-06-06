@@ -26,7 +26,6 @@ type EtapaFunilConfig =
       icon: LucideIcon
       label: string
       valor: number
-      widthPercent: number
     }
   | {
       id: Exclude<DetalheEtapa, null>
@@ -34,8 +33,10 @@ type EtapaFunilConfig =
       icon: LucideIcon
       label: string
       valor: number
-      widthPercent: number
     }
+
+/** Funil com laterais diagonais retas (topo largo → base estreita). */
+const CLIP_FUNIL = 'polygon(0% 0%, 100% 0%, 72% 100%, 28% 100%)'
 
 export default function FunilConversao({ periodo }: Props) {
   const { dados: empresa } = useDashboardEmpresa()
@@ -63,12 +64,11 @@ export default function FunilConversao({ periodo }: Props) {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-lg space-y-1">
+      <div className="mx-auto max-w-xl overflow-hidden shadow-md" style={{ clipPath: CLIP_FUNIL }}>
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="mx-auto h-20 animate-pulse rounded bg-gray-100"
-            style={{ width: `${100 - i * 8}%` }}
+            className={`h-16 animate-pulse bg-gray-100 sm:h-20 ${i < 4 ? 'border-b-[3px] border-white' : ''}`}
           />
         ))}
       </div>
@@ -95,25 +95,22 @@ export default function FunilConversao({ periodo }: Props) {
     {
       id: 'visualizacoes' as const,
       icon: Eye,
-      label: 'Visualizações',
+      label: 'visualizações',
       valor: dados.visualizacoes,
-      widthPercent: 100,
       expandable: false,
     },
     {
       id: 'seguidores' as const,
       icon: UserPlus,
-      label: 'Seguidores',
+      label: 'seguidores',
       valor: dados.seguidores,
-      widthPercent: 88,
       expandable: false,
     },
     {
       id: 'recomendacoes' as const,
       icon: Users,
-      label: 'Recomendações',
+      label: 'recomendações',
       valor: dados.recomendacoes,
-      widthPercent: 76,
       expandable: true,
     },
     {
@@ -121,15 +118,13 @@ export default function FunilConversao({ periodo }: Props) {
       icon: MapPin,
       label: 'PAX',
       valor: dados.pax,
-      widthPercent: 64,
       expandable: true,
     },
     {
       id: 'vendas' as const,
       icon: DollarSign,
-      label: 'Vendas',
+      label: 'vendas',
       valor: dados.vendas,
-      widthPercent: 52,
       expandable: true,
     },
   ]
@@ -139,22 +134,24 @@ export default function FunilConversao({ periodo }: Props) {
 
   return (
     <div className="space-y-4 pb-1">
-      <div className="mx-auto flex max-w-xl items-center justify-center gap-1.5">
-        {empresa?.verificado ? <CheckVerificado className="h-5 w-5 shrink-0" /> : null}
-        <p className="truncate text-lg font-extrabold text-[#0097b2] sm:text-xl">{usernameLabel}</p>
+      <div className="mx-auto flex max-w-xl justify-center">
+        <span className="inline-flex items-center gap-1.5 text-lg font-normal text-gray-900 sm:text-xl">
+          {empresa?.verificado ? <CheckVerificado className="h-5 w-5 shrink-0" /> : null}
+          <span className="truncate">{usernameLabel}</span>
+        </span>
       </div>
 
-      <div className="mx-auto flex max-w-xl flex-col gap-0">
-        {etapas.map((etapa) => (
+      <div className="mx-auto max-w-xl overflow-hidden shadow-md" style={{ clipPath: CLIP_FUNIL }}>
+        {etapas.map((etapa, index) => (
           <EtapaFunil
             key={etapa.id}
             icon={etapa.icon}
             label={etapa.label}
             valor={etapa.valor}
-            widthPercent={etapa.widthPercent}
             expandable={etapa.expandable}
             selected={detalheAberto === etapa.id}
             onToggle={etapa.expandable ? () => toggleDetalhe(etapa.id) : undefined}
+            isLast={index === etapas.length - 1}
           />
         ))}
       </div>

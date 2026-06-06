@@ -25,7 +25,7 @@ type GateState =
   | { status: 'allowed'; userId: string }
 
 function abaCls(ativo: boolean) {
-  return `flex min-w-0 flex-1 items-center justify-center border-b-[3px] px-2 py-3.5 text-center text-xs font-semibold uppercase leading-tight tracking-wide transition-colors sm:text-sm ${
+  return `flex min-w-0 flex-1 items-center justify-center border-b-[3px] px-3 py-4 text-center text-xs font-semibold leading-snug tracking-wide transition-colors sm:px-4 sm:text-sm ${
     ativo ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500 hover:text-gray-700'
   }`
 }
@@ -166,10 +166,16 @@ export default function DashboardEmpresaPage() {
         <div className="border-t border-white/20 bg-white">
           <div className="mx-auto flex max-w-7xl">
             <button type="button" onClick={() => setAbaAtiva('funil')} className={abaCls(abaAtiva === 'funil')}>
-              Funil de Conversão
+              <span className="flex flex-col items-center gap-1">
+                <span>Funil de</span>
+                <span>conversão</span>
+              </span>
             </button>
             <button type="button" onClick={() => setAbaAtiva('mercado')} className={abaCls(abaAtiva === 'mercado')}>
-              Estatísticas de Mercado
+              <span className="flex flex-col items-center gap-1">
+                <span>estatísticas</span>
+                <span>de mercado</span>
+              </span>
             </button>
             {mostrarDrenaStok ? (
               <button type="button" onClick={() => setAbaAtiva('drena')} className={abaCls(abaAtiva === 'drena')}>
