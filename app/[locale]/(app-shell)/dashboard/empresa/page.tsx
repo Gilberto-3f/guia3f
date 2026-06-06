@@ -153,7 +153,7 @@ export default function DashboardEmpresaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
+    <div className="bg-gray-50">
       <header className="sticky top-0 z-20 shrink-0 bg-[#0097b2] shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <h1 className="flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
@@ -169,14 +169,14 @@ export default function DashboardEmpresaPage() {
               <Filter className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
               <span className="flex flex-col items-center gap-0 leading-none">
                 <span>Funil de</span>
-                <span>conversão</span>
+                <span>Conversão</span>
               </span>
             </button>
             <button type="button" onClick={() => setAbaAtiva('mercado')} className={abaCls(abaAtiva === 'mercado')}>
               <BarChart3 className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
               <span className="flex flex-col items-center gap-0 leading-none">
-                <span>estatísticas</span>
-                <span>de mercado</span>
+                <span>Estatísticas de</span>
+                <span>Mercado</span>
               </span>
             </button>
             {mostrarDrenaStok ? (

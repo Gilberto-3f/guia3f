@@ -6,6 +6,7 @@ interface Props {
   icon: LucideIcon
   label: string
   valor: number
+  ocultarIcone?: boolean
   expandable?: boolean
   selected?: boolean
   onToggle?: () => void
@@ -16,6 +17,7 @@ export default function EtapaFunil({
   icon: Icon,
   label,
   valor,
+  ocultarIcone = false,
   expandable = false,
   selected = false,
   onToggle,
@@ -25,7 +27,9 @@ export default function EtapaFunil({
 
   const conteudo = (
     <div className="flex items-center justify-center gap-2 text-center">
-      <Icon className="h-5 w-5 shrink-0 sm:h-5 sm:w-5" strokeWidth={2} aria-hidden />
+      {ocultarIcone ? null : (
+        <Icon className="h-5 w-5 shrink-0 sm:h-5 sm:w-5" strokeWidth={2} aria-hidden />
+      )}
       <span className="text-lg font-bold tabular-nums sm:text-xl">{valor.toLocaleString('pt-BR')}</span>
       <span className="text-sm font-medium sm:text-base">{label}</span>
       {expandable ? (

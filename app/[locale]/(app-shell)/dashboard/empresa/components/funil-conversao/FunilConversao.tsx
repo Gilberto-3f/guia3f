@@ -13,7 +13,7 @@ import CardVendas from './CardVendas'
 import RelatorioDetalhado from './RelatorioDetalhado'
 import ExportarRelatorio from '../shared/ExportarRelatorio'
 import CheckVerificado from '@/components/CheckVerificado'
-import { labelEtapaFunil } from './labelEtapaFunil'
+import { funilModoCompacto, labelEtapaFunil } from './labelEtapaFunil'
 
 interface Props {
   periodo: Periodo
@@ -143,13 +143,13 @@ export default function FunilConversao({ periodo }: Props) {
   const usernameLabel = username ? `@${username}` : '@empresa'
 
   return (
-    <div className="space-y-4 pb-0">
+    <div className="space-y-4">
       <div className="mx-auto flex max-w-xl flex-col items-center gap-0">
         <span className="inline-flex max-w-full items-center gap-1.5 text-lg font-normal text-gray-900 sm:text-xl">
           {empresa?.verificado ? <CheckVerificado className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" /> : null}
           <span className="truncate">{usernameLabel}</span>
         </span>
-        <p className="text-center text-sm leading-tight text-gray-500">Seus dados convertidos em resultados</p>
+        <p className="text-center text-sm leading-tight text-gray-500">seus dados convertidos em resultados</p>
       </div>
 
       <div className="mx-auto max-w-xl overflow-hidden shadow-md" style={{ clipPath: CLIP_FUNIL }}>
@@ -159,6 +159,7 @@ export default function FunilConversao({ periodo }: Props) {
             icon={etapa.icon}
             label={etapa.label}
             valor={etapa.valor}
+            ocultarIcone={etapa.id === 'recomendacoes' && funilModoCompacto(etapa.valor)}
             expandable={etapa.expandable}
             selected={detalheAberto === etapa.id}
             onToggle={etapa.expandable ? () => toggleDetalhe(etapa.id) : undefined}
@@ -194,7 +195,7 @@ export default function FunilConversao({ periodo }: Props) {
         <ExportarRelatorio dados={exportDados} tipo="funil" />
       </div>
 
-      <p className="mx-auto max-w-xl pt-2 text-center text-sm leading-relaxed text-gray-600">
+      <p className="mx-auto max-w-xl pt-2 pb-0 text-center text-sm leading-relaxed text-gray-600">
         <strong className="text-[#001f3f]">NOTA:</strong> O Funil de Conversão mostra o desempenho geral do nosso
         ecossistema com o seu negócio.
       </p>
