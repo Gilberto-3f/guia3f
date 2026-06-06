@@ -234,6 +234,23 @@ function normalizarWhatsappDdd(v: unknown): string | null {
   return s.length >= 2 ? s.slice(0, 2) : null
 }
 
+function normalizarCanalRecomendacao(v: unknown): 'whatsapp' | 'email' | null {
+  const s = String(v ?? '').trim().toLowerCase()
+  if (s === 'email') return 'email'
+  if (s === 'whatsapp') return 'whatsapp'
+  return null
+}
+
+function normalizarEmailPrefix(v: unknown): string | null {
+  if (v == null) return null
+  const s = String(v)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 5)
+  return s || null
+}
+
 async function buscarRecomendacoesPorProfissional(
   empresaId: string,
   dataLimite: string | null,
@@ -241,6 +258,16 @@ async function buscarRecomendacoesPorProfissional(
   const selectBase = `
       id,
       created_at,
+      profissional_id,
+      profissionais:profissional_id (${PROF_JOIN_FIELDS})
+    `
+  const selectCompleto = `
+      id,
+      created_at,
+      turista_canal,
+      turista_email_prefix,
+      turista_whatsapp_final,
+      turista_whatsapp_ddd,
       profissional_id,
       profissionais:profissional_id (${PROF_JOIN_FIELDS})
     `
@@ -269,13 +296,20 @@ async function buscarRecomendacoesPorProfissional(
   let recData: unknown[] | null = null
   let recErr: unknown = null
 
-  for (const select of [selectComDdd, selectSoFinal, selectBase]) {
+  for (const select of [selectCompleto, selectComDdd, selectSoFinal, selectBase]) {
     const res = await queryRec(select)
     recData = res.data ?? null
     recErr = res.error
     if (!recErr) break
     const msg = String((recErr as { message?: string })?.message ?? '').toLowerCase()
-    if (!isColunaInexistente(recErr) && !msg.includes('turista_whatsapp')) break
+    if (
+      !isColunaInexistente(recErr) &&
+      !msg.includes('turista_whatsapp') &&
+      !msg.includes('turista_email') &&
+      !msg.includes('turista_canal')
+    ) {
+      break
+    }
   }
 
   if (recErr && !isTabelaInexistente(recErr)) throw recErr
@@ -291,9 +325,14 @@ async function buscarRecomendacoesPorProfissional(
       const categorias = prof ? asCategorias(prof.categorias) : []
       const categoria = resolverCategoriaProfissional(categorias)
 
+      const emailPrefix = normalizarEmailPrefix(row.turista_email_prefix)
+      const canal = normalizarCanalRecomendacao(row.turista_canal) ?? (emailPrefix ? 'email' : 'whatsapp')
+
       const detalhe: RecomendacaoDetalhe = {
         id: row.id != null ? String(row.id) : `${pid}-${recAgrupadas[pid]?.detalhes.length ?? 0}`,
         created_at: row.created_at != null ? String(row.created_at) : new Date().toISOString(),
+        turista_canal: canal,
+        turista_email_prefix: emailPrefix,
         turista_whatsapp_final: normalizarWhatsappFinal(row.turista_whatsapp_final),
         turista_whatsapp_ddd: normalizarWhatsappDdd(row.turista_whatsapp_ddd),
       }

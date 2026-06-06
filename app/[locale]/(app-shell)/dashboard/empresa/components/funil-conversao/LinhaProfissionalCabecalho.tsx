@@ -43,7 +43,7 @@ export default function LinhaProfissionalCabecalho({
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-gray-900">{nome}</p>
           <p className="flex min-w-0 items-center gap-1 truncate text-sm text-gray-500">
-            {verificado ? <CheckVerificado className="h-3.5 w-3.5 shrink-0" /> : null}
+            {verificado ? <CheckVerificado /> : null}
             <span className="truncate">@{handle}</span>
           </p>
         </div>

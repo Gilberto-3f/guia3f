@@ -171,7 +171,7 @@ export default function FunilConversao({ periodo }: Props) {
     <div className="space-y-4">
       <div className="mx-auto flex max-w-xl flex-col items-center gap-0">
         <span className="inline-flex max-w-full items-center gap-1.5 text-lg font-normal text-gray-900 sm:text-xl">
-          {empresa?.verificado ? <CheckVerificado className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" /> : null}
+          {empresa?.verificado ? <CheckVerificado /> : null}
           <span className="truncate">{usernameLabel}</span>
         </span>
         <p className="text-center text-sm leading-tight text-gray-500">seus dados convertidos em resultados</p>
@@ -200,7 +200,7 @@ export default function FunilConversao({ periodo }: Props) {
             detalheAberto === 'recomendacoes'
               ? 'Recomendações feitas por Profissionais do Ecossistema.'
               : detalheAberto === 'pax'
-                ? 'PAX - Passageiros no Seu Local'
+                ? 'PAX - Passageiros no seu local'
                 : 'Vendas Concluídas!'
           }
         >

@@ -20,6 +20,31 @@ export function parseWhatsappTuristaRecomendacao(raw: string | null | undefined)
   return { ddd: null, final4 }
 }
 
+/** Extrai as 5 primeiras letras/números do local-part do e-mail. */
+export function extrairEmailPrefix(email: string | null | undefined): string | null {
+  const local = String(email ?? '')
+    .trim()
+    .toLowerCase()
+    .split('@')[0]
+    ?.replace(/[^a-z0-9]/g, '')
+  if (!local || local.length < 1) return null
+  return local.slice(0, 5)
+}
+
+/** Ex.: abcde*******.com */
+export function formatarEmailTuristaMascarado(prefix: string | null | undefined): string | null {
+  const p =
+    prefix != null
+      ? String(prefix)
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '')
+          .slice(0, 5)
+      : ''
+  if (!p) return null
+  return `${p}*******.com`
+}
+
 /** Ex.: + 55 (45) * ****-1234 */
 export function formatarWhatsappTuristaMascarado(
   ddd: string | null | undefined,
@@ -57,6 +82,7 @@ export async function registrarRecomendacaoEmpresa(
     segmentoGuiaSlug?: string | null
     categoriaEmpresa?: string | null
     whatsappTurista?: string | null
+    emailTurista?: string | null
   },
 ): Promise<{ profissionalUsername: string | null; profissionalCategorias: string[] }> {
   const {
@@ -76,16 +102,33 @@ export async function registrarRecomendacaoEmpresa(
 
   const profissionalId = String(prof.id)
 
+  const emailPrefix = params.emailTurista ? extrairEmailPrefix(params.emailTurista) : null
   const { ddd, final4 } = parseWhatsappTuristaRecomendacao(params.whatsappTurista)
 
   const payloadCompleto: Record<string, string> = {
     profissional_id: profissionalId,
     empresa_id: params.empresaId,
   }
-  if (final4) payloadCompleto.turista_whatsapp_final = final4
-  if (ddd) payloadCompleto.turista_whatsapp_ddd = ddd
+
+  if (emailPrefix) {
+    payloadCompleto.turista_canal = 'email'
+    payloadCompleto.turista_email_prefix = emailPrefix
+  } else {
+    payloadCompleto.turista_canal = 'whatsapp'
+    if (final4) payloadCompleto.turista_whatsapp_final = final4
+    if (ddd) payloadCompleto.turista_whatsapp_ddd = ddd
+  }
 
   let recErr = (await supabase.from('recomendacoes').insert(payloadCompleto)).error
+
+  if (recErr && emailPrefix && String(recErr.message ?? '').toLowerCase().includes('turista_email')) {
+    recErr = (
+      await supabase.from('recomendacoes').insert({
+        profissional_id: profissionalId,
+        empresa_id: params.empresaId,
+      })
+    ).error
+  }
 
   if (recErr && String(recErr.message ?? '').toLowerCase().includes('turista_whatsapp_ddd')) {
     const semDdd = { ...payloadCompleto }
@@ -94,13 +137,27 @@ export async function registrarRecomendacaoEmpresa(
   }
 
   if (recErr && String(recErr.message ?? '').toLowerCase().includes('turista_whatsapp_final')) {
-    recErr = (
-      await supabase.from('recomendacoes').insert({
-        profissional_id: profissionalId,
-        empresa_id: params.empresaId,
-      })
-    ).error
+    const minimo: Record<string, string> = {
+      profissional_id: profissionalId,
+      empresa_id: params.empresaId,
+    }
+    if (emailPrefix) {
+      minimo.turista_canal = 'email'
+      minimo.turista_email_prefix = emailPrefix
+    }
+    recErr = (await supabase.from('recomendacoes').insert(minimo)).error
   }
+
+  if (recErr && String(recErr.message ?? '').toLowerCase().includes('turista_canal')) {
+    const legado: Record<string, string> = {
+      profissional_id: profissionalId,
+      empresa_id: params.empresaId,
+    }
+    if (final4) legado.turista_whatsapp_final = final4
+    if (ddd) legado.turista_whatsapp_ddd = ddd
+    recErr = (await supabase.from('recomendacoes').insert(legado)).error
+  }
+
   if (recErr) throw recErr
 
   const segmento =

@@ -35,7 +35,6 @@ export default function EtapaFunil({
       )}
       <span className="text-lg font-bold tabular-nums sm:text-xl">{valor.toLocaleString('pt-BR')}</span>
       <span className="text-sm font-medium sm:text-base">{label}</span>
-      {naoLidas > 0 ? <CanalNaoLidasBadge count={naoLidas} className="!text-[10px]" /> : null}
       {expandable ? (
         selected ? (
           <ChevronUp className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
@@ -46,9 +45,16 @@ export default function EtapaFunil({
     </div>
   )
 
-  const cls = `${bg} w-full px-4 py-4 text-white transition-colors duration-200 sm:px-5 sm:py-5 ${
+  const cls = `${bg} relative w-full px-4 py-4 text-white transition-colors duration-200 sm:px-5 sm:py-5 ${
     !isLast ? 'border-b-[3px] border-white' : ''
   }`
+
+  const badge =
+    naoLidas > 0 ? (
+      <span className="pointer-events-none absolute right-2 top-2 z-10 sm:right-3 sm:top-2.5">
+        <CanalNaoLidasBadge count={naoLidas} className="!text-[10px]" />
+      </span>
+    ) : null
 
   if (expandable) {
     return (
@@ -59,10 +65,16 @@ export default function EtapaFunil({
         aria-expanded={selected}
         aria-label={`${label}: ${valor.toLocaleString('pt-BR')}. ${selected ? 'Recolher' : 'Abrir'} Relatório Detalhado`}
       >
+        {badge}
         {conteudo}
       </button>
     )
   }
 
-  return <div className={cls}>{conteudo}</div>
+  return (
+    <div className={cls}>
+      {badge}
+      {conteudo}
+    </div>
+  )
 }

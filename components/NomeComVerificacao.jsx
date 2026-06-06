@@ -14,7 +14,7 @@ export default function NomeComVerificacao({
 }) {
   return (
     <span className={className}>
-      {verificado ? <CheckVerificado className="h-4 w-4" /> : null}
+      {verificado ? <CheckVerificado /> : null}
       <span className={nomeClassName}>{nome}</span>
     </span>
   )

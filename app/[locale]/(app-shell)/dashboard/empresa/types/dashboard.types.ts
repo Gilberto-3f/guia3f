@@ -11,8 +11,10 @@ export interface DadosFunil {
 export interface RecomendacaoDetalhe {
   id: string
   created_at: string
+  turista_canal: 'whatsapp' | 'email' | null
   turista_whatsapp_final: string | null
   turista_whatsapp_ddd: string | null
+  turista_email_prefix: string | null
 }
 
 export interface RecomendacaoProfissional {

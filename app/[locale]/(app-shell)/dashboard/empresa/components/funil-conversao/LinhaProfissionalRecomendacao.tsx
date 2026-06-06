@@ -1,7 +1,12 @@
 'use client'
 
 import { useMemo } from 'react'
-import { formatarWhatsappTuristaMascarado } from '@/lib/recomendarEmpresa'
+import { Mail } from 'lucide-react'
+import IconWhatsApp from '@/components/IconWhatsApp'
+import {
+  formatarEmailTuristaMascarado,
+  formatarWhatsappTuristaMascarado,
+} from '@/lib/recomendarEmpresa'
 import type { RecomendacaoProfissional } from '../../types/dashboard.types'
 import { formatarDataCurta, formatarHora } from './formatarDataHora'
 import LinhaProfissionalCabecalho from './LinhaProfissionalCabecalho'
@@ -31,10 +36,14 @@ export default function LinhaProfissionalRecomendacao({ profissional, naoLidas =
     >
       <div className="space-y-3">
         {recomendacoesOrdenadas.map((detalhe, index) => {
-          const whatsapp = formatarWhatsappTuristaMascarado(
-            detalhe.turista_whatsapp_ddd,
-            detalhe.turista_whatsapp_final,
-          )
+          const porEmail =
+            detalhe.turista_canal === 'email' || Boolean(detalhe.turista_email_prefix)
+          const contato = porEmail
+            ? formatarEmailTuristaMascarado(detalhe.turista_email_prefix)
+            : formatarWhatsappTuristaMascarado(
+                detalhe.turista_whatsapp_ddd,
+                detalhe.turista_whatsapp_final,
+              )
 
           return (
             <div
@@ -47,10 +56,17 @@ export default function LinhaProfissionalRecomendacao({ profissional, naoLidas =
               <p className="mt-1 text-sm text-gray-800">
                 {formatarDataCurta(detalhe.created_at)} · {formatarHora(detalhe.created_at)}
               </p>
-              {whatsapp ? (
-                <p className="mt-0.5 text-sm tabular-nums text-gray-600">{whatsapp}</p>
+              {contato ? (
+                <p className="mt-0.5 flex items-center gap-1.5 text-sm text-gray-600">
+                  {porEmail ? (
+                    <Mail className="h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
+                  ) : (
+                    <IconWhatsApp size={16} className="shrink-0 text-[#00D443]" />
+                  )}
+                  <span className={porEmail ? '' : 'tabular-nums'}>{contato}</span>
+                </p>
               ) : (
-                <p className="mt-0.5 text-sm text-gray-400">WhatsApp turista não informado</p>
+                <p className="mt-0.5 text-sm text-gray-400">Contato do turista não informado</p>
               )}
             </div>
           )

@@ -22,7 +22,7 @@ export default function UsuarioHandleVerificado({
   const handle = `@${String(username ?? '').replace(/^@+/, '') || 'usuario'}`
   const inner = (
     <>
-      {verificado ? <CheckVerificado className="h-3.5 w-3.5" /> : null}
+      {verificado ? <CheckVerificado /> : null}
       <span className="min-w-0 truncate">{handle}</span>
     </>
   )

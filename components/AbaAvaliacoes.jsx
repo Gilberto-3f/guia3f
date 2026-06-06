@@ -9,7 +9,7 @@ import Estrelas from '@/components/Estrelas'
 import EstrelasAvaliacao from '@/components/EstrelasAvaliacao'
 import GraficoAvaliacoes from '@/components/GraficoAvaliacoes'
 import { MoreVertical, Trash2, Pencil, ShieldCheck, User } from 'lucide-react'
-import NomeComVerificacao from '@/components/NomeComVerificacao'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
@@ -662,14 +662,13 @@ export default function AbaAvaliacoes({
             )
             const identidadeEl = (
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-gray-800">
-                  <NomeComVerificacao
-                    nome={av.avaliador.nome}
-                    verificado={Boolean(av.avaliador.verificado)}
-                    nomeClassName="truncate"
-                  />
-                </p>
-                <p className="truncate text-xs text-gray-500">@{av.avaliador.username}</p>
+                <p className="truncate font-medium text-gray-800">{av.avaliador.nome}</p>
+                <UsuarioHandleVerificado
+                  username={av.avaliador.username}
+                  verificado={Boolean(av.avaliador.verificado)}
+                  asButton={false}
+                  className="text-xs text-gray-500"
+                />
               </div>
             )
 
