@@ -1,15 +1,15 @@
 import { Bus, Car, Hotel, Smartphone, type LucideIcon } from 'lucide-react'
 
-export const CATEGORIAS_ORDEM = ['guias', 'taxistas', 'vans', 'apps', 'anfitrioes'] as const
+export const CATEGORIAS_ORDEM = ['apps', 'vans', 'guias', 'taxistas', 'anfitrioes'] as const
 
 export type CategoriaProfissionalFunil = (typeof CATEGORIAS_ORDEM)[number]
 
 export const CATEGORIAS_CONFIG: Record<CategoriaProfissionalFunil, { label: string; Icon: LucideIcon }> = {
-  guias: { label: 'Guias de Turismo', Icon: Bus },
-  taxistas: { label: 'Taxistas', Icon: Car },
-  vans: { label: 'Motoristas de Van', Icon: Bus },
-  apps: { label: 'Motoristas de App', Icon: Smartphone },
-  anfitrioes: { label: 'Anfitriões', Icon: Hotel },
+  apps: { label: 'Motorista de APP', Icon: Smartphone },
+  vans: { label: 'Motorista de Van', Icon: Bus },
+  guias: { label: 'Guia de Turismo', Icon: Bus },
+  taxistas: { label: 'Taxista', Icon: Car },
+  anfitrioes: { label: 'Anfitrião', Icon: Hotel },
 }
 
 export function normalizarCategoriaProfissionalSlug(raw: string): CategoriaProfissionalFunil | null {
@@ -28,7 +28,9 @@ export function normalizarCategoriaProfissionalSlug(raw: string): CategoriaProfi
   return null
 }
 
-export function agruparPorCategoria<T extends { categoria: string }>(items: T[]): Record<CategoriaProfissionalFunil, T[]> {
+export function agruparPorCategoria<T extends { categoria: string; total: number }>(
+  items: T[],
+): Record<CategoriaProfissionalFunil, T[]> {
   const porCategoria = Object.fromEntries(CATEGORIAS_ORDEM.map((cat) => [cat, [] as T[]])) as Record<
     CategoriaProfissionalFunil,
     T[]
@@ -39,6 +41,10 @@ export function agruparPorCategoria<T extends { categoria: string }>(items: T[])
     if (key) {
       porCategoria[key].push(item)
     }
+  }
+
+  for (const cat of CATEGORIAS_ORDEM) {
+    porCategoria[cat].sort((a, b) => b.total - a.total)
   }
 
   return porCategoria

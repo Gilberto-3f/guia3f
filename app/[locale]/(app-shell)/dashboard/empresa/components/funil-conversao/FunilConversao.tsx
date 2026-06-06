@@ -171,7 +171,7 @@ export default function FunilConversao({ periodo }: Props) {
         <RelatorioDetalhado
           subtitulo={
             detalheAberto === 'recomendacoes'
-              ? 'Recomendações feitas por profissionais'
+              ? 'Recomendações feitas por profissionais do ecossistema.'
               : detalheAberto === 'pax'
                 ? 'PAX registrados por profissionais'
                 : 'Vendas diretas no período'
