@@ -1,6 +1,6 @@
 'use client'
 
-import { Heart, User } from 'lucide-react'
+import { User, UserCheck } from 'lucide-react'
 
 /**
  * @param {{
@@ -11,8 +11,8 @@ import { Heart, User } from 'lucide-react'
  */
 export default function AbasAtividades({ aba, onAba, somenteMinhaConta = false }) {
   const tabCls = (ativo) =>
-    `flex flex-1 items-center justify-center gap-1.5 py-2 text-center text-xs font-semibold uppercase tracking-wide transition-colors sm:gap-2 sm:py-2.5 sm:text-sm ${
-      ativo ? 'border-b-[3px] border-[#0097b2] text-[#0097b2]' : 'border-b-[3px] border-transparent text-gray-500'
+    `flex min-w-0 flex-1 items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
+      ativo ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
     }`
 
   if (somenteMinhaConta) {
@@ -21,13 +21,13 @@ export default function AbasAtividades({ aba, onAba, somenteMinhaConta = false }
 
   return (
     <div className="border-b border-gray-200 bg-white">
-      <div className="flex">
+      <div className="flex w-full">
         <button type="button" className={tabCls(aba === 'amigos')} onClick={() => onAba('amigos')}>
-          <Heart className="h-4 w-4 shrink-0 opacity-90 sm:h-[18px] sm:w-[18px]" strokeWidth={2.25} aria-hidden />
-          AMIGOS
+          <UserCheck className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
+          SEGUINDO
         </button>
         <button type="button" className={tabCls(aba === 'minha')} onClick={() => onAba('minha')}>
-          <User className="h-4 w-4 shrink-0 opacity-90 sm:h-[18px] sm:w-[18px]" strokeWidth={2.25} aria-hidden />
+          <User className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
           MINHA CONTA
         </button>
       </div>

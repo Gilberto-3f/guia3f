@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Crown } from 'lucide-react'
+import { BarChart3, Crown, Filter } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
@@ -25,7 +25,7 @@ type GateState =
   | { status: 'allowed'; userId: string }
 
 function abaCls(ativo: boolean) {
-  return `flex min-w-0 flex-1 items-center justify-center border-b-[3px] px-3 py-4 text-center text-xs font-semibold leading-snug tracking-wide transition-colors sm:px-4 sm:text-sm ${
+  return `flex flex-none items-center justify-center gap-2 border-b-[3px] px-4 py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:px-5 sm:text-base ${
     ativo ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500 hover:text-gray-700'
   }`
 }
@@ -164,15 +164,17 @@ export default function DashboardEmpresaPage() {
         </div>
 
         <div className="border-t border-white/20 bg-white">
-          <div className="mx-auto flex max-w-7xl">
+          <div className="mx-auto flex max-w-7xl justify-center gap-6 sm:gap-10">
             <button type="button" onClick={() => setAbaAtiva('funil')} className={abaCls(abaAtiva === 'funil')}>
-              <span className="flex flex-col items-center gap-1">
+              <Filter className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
+              <span className="flex flex-col items-start gap-0 leading-none">
                 <span>Funil de</span>
                 <span>conversão</span>
               </span>
             </button>
             <button type="button" onClick={() => setAbaAtiva('mercado')} className={abaCls(abaAtiva === 'mercado')}>
-              <span className="flex flex-col items-center gap-1">
+              <BarChart3 className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
+              <span className="flex flex-col items-start gap-0 leading-none">
                 <span>estatísticas</span>
                 <span>de mercado</span>
               </span>

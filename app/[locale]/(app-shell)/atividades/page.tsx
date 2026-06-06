@@ -2056,14 +2056,8 @@ export default function AtividadesPage() {
 
       <AbasAtividades aba={aba} onAba={onAba} somenteMinhaConta={meuRole === 'empresa'} />
 
-      {erroAmigos ? (
-        <div className="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          Não foi possível carregar a aba Amigos: {erroAmigos}
-        </div>
-      ) : null}
-
       <div
-        className="px-4 py-3"
+        className="px-4 pb-3 pt-0"
         onTouchStart={onTouchStartAtividades}
         onTouchMove={onTouchMoveAtividades}
         onTouchEnd={onTouchEndAtividades}
@@ -2071,6 +2065,11 @@ export default function AtividadesPage() {
         onPointerMove={onPointerMoveAtividades}
         onPointerUp={onPointerUpAtividades}
       >
+        {erroAmigos ? (
+          <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+            Não foi possível carregar a aba Seguindo: {erroAmigos}
+          </div>
+        ) : null}
         {itensAgrupados.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-400">
             {aba === 'amigos' && qtdSeguindo === 0
