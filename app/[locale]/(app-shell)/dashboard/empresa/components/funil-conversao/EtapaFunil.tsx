@@ -12,6 +12,9 @@ interface Props {
   onToggle?: () => void
 }
 
+/** Pirâmide invertida: topo largo, base estreita. */
+const CLIP_FUNIL = 'polygon(0% 0%, 100% 0%, 92% 100%, 8% 100%)'
+
 export default function EtapaFunil({
   icon: Icon,
   label,
@@ -26,35 +29,33 @@ export default function EtapaFunil({
   return (
     <div className="mx-auto w-full transition-[max-width] duration-200" style={{ maxWidth: `${widthPercent}%` }}>
       <div
-        className={`relative ${bg} px-4 py-5 text-white shadow-md transition-colors duration-200`}
-        style={{
-          clipPath: 'polygon(6% 0%, 94% 0%, 100% 100%, 0% 100%)',
-        }}
+        className={`relative ${bg} px-3 py-2.5 text-white shadow-md transition-colors duration-200 sm:px-4 sm:py-3`}
+        style={{ clipPath: CLIP_FUNIL }}
       >
-        <div className="flex flex-col items-center justify-center gap-1 text-center">
-          <div className="flex items-center justify-center gap-2">
-            <Icon className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
-            <span className="text-sm font-semibold uppercase tracking-wide sm:text-base">{label}</span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Icon className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" strokeWidth={2} aria-hidden />
+            <span className="truncate text-xs font-semibold uppercase tracking-wide sm:text-sm">{label}</span>
           </div>
-          <p className="text-2xl font-bold sm:text-3xl">{valor.toLocaleString('pt-BR')}</p>
+          <span className="shrink-0 text-lg font-bold tabular-nums sm:text-xl">{valor.toLocaleString('pt-BR')}</span>
         </div>
 
         {expandable ? (
           <button
             type="button"
             onClick={onToggle}
-            className="mt-2 flex w-full items-center justify-center gap-1 text-xs font-medium text-white/90 transition-colors hover:text-white sm:text-sm"
+            className="mt-1.5 flex w-full items-center justify-center gap-1 text-[11px] font-medium text-white/90 transition-colors hover:text-white sm:text-xs"
             aria-expanded={selected}
             aria-label={selected ? 'Recolher detalhes' : 'Ver detalhes'}
           >
             {selected ? (
               <>
-                <ChevronUp className="h-4 w-4" aria-hidden />
+                <ChevronUp className="h-3.5 w-3.5" aria-hidden />
                 Ver menos
               </>
             ) : (
               <>
-                <ChevronDown className="h-4 w-4" aria-hidden />
+                <ChevronDown className="h-3.5 w-3.5" aria-hidden />
                 Ver detalhes
               </>
             )}

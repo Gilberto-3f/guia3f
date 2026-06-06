@@ -11,6 +11,7 @@ import CardRecomendacoes from './CardRecomendacoes'
 import TopPaxProfissionais from './TopPaxProfissionais'
 import CardVendas from './CardVendas'
 import ExportarRelatorio from '../shared/ExportarRelatorio'
+import CheckVerificado from '@/components/CheckVerificado'
 
 interface Props {
   periodo: Periodo
@@ -133,9 +134,17 @@ export default function FunilConversao({ periodo }: Props) {
     },
   ]
 
+  const username = empresa?.username?.trim().replace(/^@+/, '') ?? ''
+  const usernameLabel = username ? `@${username}` : '@empresa'
+
   return (
-    <div className="space-y-6">
-      <div className="mx-auto flex max-w-xl flex-col gap-0.5">
+    <div className="space-y-4 pb-1">
+      <div className="mx-auto flex max-w-xl items-center justify-center gap-1.5">
+        {empresa?.verificado ? <CheckVerificado className="h-5 w-5 shrink-0" /> : null}
+        <p className="truncate text-lg font-extrabold text-[#0097b2] sm:text-xl">{usernameLabel}</p>
+      </div>
+
+      <div className="mx-auto flex max-w-xl flex-col gap-0">
         {etapas.map((etapa) => (
           <EtapaFunil
             key={etapa.id}
@@ -163,7 +172,7 @@ export default function FunilConversao({ periodo }: Props) {
         ecossistema com o seu negócio.
       </p>
 
-      <div className="border-t border-gray-200 pt-4">
+      <div className="border-t border-gray-200 pt-3 pb-0">
         <ExportarRelatorio dados={exportDados} tipo="funil" />
       </div>
     </div>

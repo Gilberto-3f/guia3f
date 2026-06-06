@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Crown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
@@ -24,7 +25,7 @@ type GateState =
   | { status: 'allowed'; userId: string }
 
 function abaCls(ativo: boolean) {
-  return `flex min-w-0 flex-1 items-center justify-center border-b-[3px] px-2 py-3 text-center text-[10px] font-semibold uppercase leading-tight tracking-wide transition-colors sm:text-xs ${
+  return `flex min-w-0 flex-1 items-center justify-center border-b-[3px] px-2 py-3.5 text-center text-xs font-semibold uppercase leading-tight tracking-wide transition-colors sm:text-sm ${
     ativo ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500 hover:text-gray-700'
   }`
 }
@@ -152,10 +153,13 @@ export default function DashboardEmpresaPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 pb-24">
+    <div className="flex min-h-screen flex-col bg-gray-50 pb-16">
       <header className="sticky top-0 z-20 shrink-0 bg-[#0097b2] shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
-          <h1 className="text-lg font-bold text-white sm:text-xl">Dashboard EMPRESA</h1>
+          <h1 className="flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+            <Crown className="h-6 w-6 shrink-0 text-white" strokeWidth={2} aria-hidden />
+            Dashboard EMPRESA
+          </h1>
           <MenuPeriodoDashboard value={periodo} onChange={setPeriodo} />
         </div>
 
@@ -176,7 +180,7 @@ export default function DashboardEmpresaPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">{conteudo}</main>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-4 pb-2">{conteudo}</main>
     </div>
   )
 }
