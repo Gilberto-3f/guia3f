@@ -1,6 +1,8 @@
 'use client'
 
-export { useDashboardEmpresa } from '../context/DashboardEmpresaContext'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 export interface DadosEmpresa {
   id: string
@@ -17,6 +19,15 @@ export interface DadosEmpresa {
 
 export const EMPRESA_SELECT =
   'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, plano, nota_media, total_avaliacoes, docs_verificado, status'
+
+export type DashboardEmpresaCtx = {
+  dados: DadosEmpresa | null
+  loading: boolean
+  error: Error | null
+  refetch: () => Promise<void>
+}
+
+export const DashboardEmpresaContext = createContext<DashboardEmpresaCtx | null>(null)
 
 function asString(v: unknown, fallback = '') {
   return v != null ? String(v) : fallback
@@ -41,4 +52,65 @@ export function mapEmpresaRow(data: Record<string, unknown>): DadosEmpresa {
     total_avaliacoes: asNumber(data.total_avaliacoes, 0),
     verificado: Boolean(data.docs_verificado) || status === 'ativo',
   }
+}
+
+export function useEmpresaState(initialData?: DadosEmpresa | null, enabled = true): DashboardEmpresaCtx {
+  const [dados, setDados] = useState<DadosEmpresa | null>(enabled ? (initialData ?? null) : null)
+  const [loading, setLoading] = useState(enabled && !initialData)
+  const [error, setError] = useState<Error | null>(null)
+  const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
+
+  const fetchEmpresa = useCallback(async () => {
+    if (!enabled) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id ?? null
+      if (!uid) {
+        setDados(null)
+        return
+      }
+
+      const simEmpresa = modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId
+
+      const { data, error: fetchError } = simEmpresa
+        ? await supabase.from('empresas').select(EMPRESA_SELECT).eq('id', contextoEmpresaId).maybeSingle()
+        : await supabase.from('empresas').select(EMPRESA_SELECT).eq('usuario_id', uid).maybeSingle()
+      if (fetchError) throw fetchError
+      if (!data) {
+        setDados(null)
+        return
+      }
+
+      setDados(mapEmpresaRow(data as Record<string, unknown>))
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Erro ao carregar dados da empresa'))
+      setDados(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [contextoEmpresaId, enabled, modoAtivo, perfilSimulado?.tipo])
+
+  useEffect(() => {
+    if (!enabled) return
+    if (initialData) {
+      setDados(initialData)
+      setLoading(false)
+      return
+    }
+    void fetchEmpresa()
+  }, [enabled, fetchEmpresa, initialData])
+
+  return { dados, loading, error, refetch: fetchEmpresa }
+}
+
+export function useDashboardEmpresa(): DashboardEmpresaCtx {
+  const ctx = useContext(DashboardEmpresaContext)
+  const local = useEmpresaState(null, ctx === null)
+  return ctx ?? local
 }
