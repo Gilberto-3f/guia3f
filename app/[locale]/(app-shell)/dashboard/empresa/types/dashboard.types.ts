@@ -12,6 +12,7 @@ export interface RecomendacaoDetalhe {
   id: string
   created_at: string
   turista_whatsapp_final: string | null
+  turista_whatsapp_ddd: string | null
 }
 
 export interface RecomendacaoProfissional {

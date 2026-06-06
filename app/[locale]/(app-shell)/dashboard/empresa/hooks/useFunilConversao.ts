@@ -208,44 +208,60 @@ async function contarVendas(empresaId: string, dataLimite: string | null): Promi
   return contar(qVendas)
 }
 
+function normalizarWhatsappFinal(v: unknown): string | null {
+  if (v == null) return null
+  const s = String(v).replace(/\D/g, '').trim()
+  return s.length >= 4 ? s.slice(-4) : null
+}
+
+function normalizarWhatsappDdd(v: unknown): string | null {
+  if (v == null) return null
+  const s = String(v).replace(/\D/g, '').trim()
+  return s.length >= 2 ? s.slice(0, 2) : null
+}
+
 async function buscarRecomendacoesPorProfissional(
   empresaId: string,
   dataLimite: string | null,
 ): Promise<RecomendacaoProfissional[]> {
-  const selectComWhatsapp = `
+  const selectBase = `
+      id,
+      created_at,
+      profissional_id,
+      profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
+    `
+  const selectComDdd = `
+      id,
+      created_at,
+      turista_whatsapp_final,
+      turista_whatsapp_ddd,
+      profissional_id,
+      profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
+    `
+  const selectSoFinal = `
       id,
       created_at,
       turista_whatsapp_final,
       profissional_id,
       profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
     `
-  const selectSemWhatsapp = `
-      id,
-      created_at,
-      profissional_id,
-      profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
-    `
 
-  let qRecProf = supabase
-    .from('recomendacoes')
-    .select(selectComWhatsapp)
-    .eq('empresa_id', empresaId)
-    .order('created_at', { ascending: false })
-  if (dataLimite) qRecProf = qRecProf.gte('created_at', dataLimite)
-  const firstRes = await qRecProf
-  let recData: unknown[] | null = firstRes.data ?? null
-  let recErr = firstRes.error
+  const queryRec = (select: string) => {
+    let q = supabase.from('recomendacoes').select(select).eq('empresa_id', empresaId).order('created_at', { ascending: false })
+    if (dataLimite) q = q.gte('created_at', dataLimite)
+    return q
+  }
 
-  if (recErr && (isColunaInexistente(recErr) || String(recErr.message ?? '').includes('turista_whatsapp_final'))) {
-    let qFallback = supabase
-      .from('recomendacoes')
-      .select(selectSemWhatsapp)
-      .eq('empresa_id', empresaId)
-      .order('created_at', { ascending: false })
-    if (dataLimite) qFallback = qFallback.gte('created_at', dataLimite)
-    const res = await qFallback
+  let recData: unknown[] | null = null
+  let recErr: unknown = null
+
+  for (const select of [selectComDdd, selectSoFinal, selectBase]) {
+    const res = await queryRec(select)
     recData = res.data ?? null
     recErr = res.error
+    if (!recErr) break
+    const msg = String((recErr as { message?: string })?.message ?? '').toLowerCase()
+    if (!isColunaInexistente(recErr) && !msg.includes('turista_whatsapp')) break
   }
 
   if (recErr && !isTabelaInexistente(recErr)) throw recErr
@@ -264,7 +280,8 @@ async function buscarRecomendacoesPorProfissional(
       const detalhe: RecomendacaoDetalhe = {
         id: row.id != null ? String(row.id) : `${pid}-${recAgrupadas[pid]?.detalhes.length ?? 0}`,
         created_at: row.created_at != null ? String(row.created_at) : new Date().toISOString(),
-        turista_whatsapp_final: row.turista_whatsapp_final != null ? String(row.turista_whatsapp_final) : null,
+        turista_whatsapp_final: normalizarWhatsappFinal(row.turista_whatsapp_final),
+        turista_whatsapp_ddd: normalizarWhatsappDdd(row.turista_whatsapp_ddd),
       }
 
       if (!recAgrupadas[pid]) {

@@ -2,10 +2,37 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { categoriaDbParaSlug } from '@/lib/segmentosEmpresaGuia'
 import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
 
-function ultimosDigitosWhatsapp(raw: string | null | undefined): string | null {
-  const digits = digitsWhatsapp(raw)
-  if (digits.length < 4) return null
-  return digits.slice(-4)
+export function parseWhatsappTuristaRecomendacao(raw: string | null | undefined): {
+  ddd: string | null
+  final4: string | null
+} {
+  let digits = digitsWhatsapp(raw)
+  if (digits.length < 10) return { ddd: null, final4: null }
+
+  if (!digits.startsWith('55') && digits.length >= 10 && digits.length <= 11) {
+    digits = `55${digits}`
+  }
+
+  if (digits.length < 12) return { ddd: null, final4: null }
+
+  const final4 = digits.slice(-4)
+  const ddd = digits.slice(2, 4)
+
+  if (final4.length !== 4 || ddd.length !== 2) return { ddd: null, final4: null }
+  return { ddd, final4 }
+}
+
+/** Ex.: + 55 (45) * ****-1234 */
+export function formatarWhatsappTuristaMascarado(
+  ddd: string | null | undefined,
+  final4: string | null | undefined,
+): string | null {
+  const f = final4 != null ? String(final4).replace(/\D/g, '').trim().slice(-4) : ''
+  if (f.length !== 4) return null
+
+  const d = ddd != null ? String(ddd).replace(/\D/g, '').trim().slice(0, 2) : ''
+  const dddFmt = d.length === 2 ? d : '**'
+  return `+ 55 (${dddFmt}) * ****-${f}`
 }
 
 export type EmpresaRecomendacaoInfo = {
@@ -51,14 +78,22 @@ export async function registrarRecomendacaoEmpresa(
 
   const profissionalId = String(prof.id)
 
-  const whatsappFinal = ultimosDigitosWhatsapp(params.whatsappTurista)
-  let recErr = (
-    await supabase.from('recomendacoes').insert({
-      profissional_id: profissionalId,
-      empresa_id: params.empresaId,
-      turista_whatsapp_final: whatsappFinal,
-    })
-  ).error
+  const { ddd, final4 } = parseWhatsappTuristaRecomendacao(params.whatsappTurista)
+
+  const payloadCompleto: Record<string, string> = {
+    profissional_id: profissionalId,
+    empresa_id: params.empresaId,
+  }
+  if (final4) payloadCompleto.turista_whatsapp_final = final4
+  if (ddd) payloadCompleto.turista_whatsapp_ddd = ddd
+
+  let recErr = (await supabase.from('recomendacoes').insert(payloadCompleto)).error
+
+  if (recErr && String(recErr.message ?? '').toLowerCase().includes('turista_whatsapp_ddd')) {
+    const semDdd = { ...payloadCompleto }
+    delete semDdd.turista_whatsapp_ddd
+    recErr = (await supabase.from('recomendacoes').insert(semDdd)).error
+  }
 
   if (recErr && String(recErr.message ?? '').toLowerCase().includes('turista_whatsapp_final')) {
     recErr = (
