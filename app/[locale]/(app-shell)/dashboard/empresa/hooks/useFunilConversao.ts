@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { DadosFunil, PaxProfissional, Periodo, RecomendacaoProfissional } from '../types/dashboard.types'
+import type {
+  DadosFunil,
+  PaxProfissional,
+  Periodo,
+  RecomendacaoDetalhe,
+  RecomendacaoProfissional,
+} from '../types/dashboard.types'
 
 function getDataLimite(periodo: Periodo): string | null {
   const now = new Date()
@@ -38,6 +44,21 @@ function asCategorias(v: unknown) {
     }
   }
   return [] as string[]
+}
+
+const CATEGORIAS_PROFISSIONAL = ['guias', 'taxistas', 'vans', 'apps', 'anfitrioes'] as const
+
+function resolverCategoriaProfissional(categorias: string[]): string {
+  const hit = categorias.find((c) => (CATEGORIAS_PROFISSIONAL as readonly string[]).includes(c))
+  return hit ?? 'outros'
+}
+
+function pickFotoProfissional(prof: Record<string, unknown> | null): string | null {
+  if (!prof) return null
+  const perfil = prof.foto_perfil_url != null ? String(prof.foto_perfil_url).trim() : ''
+  if (perfil) return perfil
+  const legacy = prof.foto_url != null ? String(prof.foto_url).trim() : ''
+  return legacy || null
 }
 
 function isTabelaInexistente(err: unknown): boolean {
@@ -156,18 +177,22 @@ export function useFunilConversao(empresaId: string | null, periodo: Periodo) {
         vendas,
       })
 
-      // 6. Recomendações por profissional
+      // 6. Recomendações por profissional (com detalhes individuais)
       let recAgrupadas: Record<string, RecomendacaoProfissional> = {}
       {
         let qRecProf = supabase
           .from('recomendacoes')
           .select(
             `
+            id,
+            created_at,
+            turista_whatsapp_final,
             profissional_id,
-            profissionais:profissional_id (nome_completo, nome_usuario, categorias)
+            profissionais:profissional_id (nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias)
           `,
           )
           .eq('empresa_id', empresaId)
+          .order('created_at', { ascending: false })
         if (dataLimite) qRecProf = qRecProf.gte('created_at', dataLimite)
         const { data: recData, error: recErr } = await qRecProf
         if (recErr && !isTabelaInexistente(recErr)) throw recErr
@@ -179,18 +204,28 @@ export function useFunilConversao(empresaId: string | null, periodo: Periodo) {
 
             const prof = asProfRow(row.profissionais)
             const categorias = prof ? asCategorias(prof.categorias) : []
-            const categoria = categorias[0] ?? 'outros'
+            const categoria = resolverCategoriaProfissional(categorias)
+
+            const detalhe: RecomendacaoDetalhe = {
+              id: row.id != null ? String(row.id) : `${pid}-${recAgrupadas[pid]?.detalhes.length ?? 0}`,
+              created_at: row.created_at != null ? String(row.created_at) : new Date().toISOString(),
+              turista_whatsapp_final:
+                row.turista_whatsapp_final != null ? String(row.turista_whatsapp_final) : null,
+            }
 
             if (!recAgrupadas[pid]) {
               recAgrupadas[pid] = {
                 profissional_id: pid,
                 profissional_nome: prof?.nome_completo != null ? String(prof.nome_completo) : 'Profissional',
                 profissional_username: prof?.nome_usuario != null ? String(prof.nome_usuario) : 'usuario',
+                profissional_foto_url: pickFotoProfissional(prof),
                 categoria,
                 total: 0,
+                detalhes: [],
               }
             }
             recAgrupadas[pid].total += 1
+            recAgrupadas[pid].detalhes.push(detalhe)
           }
         }
       }

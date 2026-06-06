@@ -8,12 +8,20 @@ export interface DadosFunil {
   vendas: number
 }
 
+export interface RecomendacaoDetalhe {
+  id: string
+  created_at: string
+  turista_whatsapp_final: string | null
+}
+
 export interface RecomendacaoProfissional {
   profissional_id: string
   profissional_nome: string
   profissional_username: string
+  profissional_foto_url: string | null
   categoria: string
   total: number
+  detalhes: RecomendacaoDetalhe[]
 }
 
 export interface PaxProfissional {

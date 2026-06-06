@@ -47,6 +47,7 @@ export default function PopupRecomendar({ aberto, onFechar, empresa, segmentoGui
         empresaId: empresa.id,
         segmentoGuiaSlug,
         categoriaEmpresa: empresa.categoria,
+        whatsappTurista: phone,
       })
 
       const empresaUrl = urlEmpresaRecomendacao(empresa.id)

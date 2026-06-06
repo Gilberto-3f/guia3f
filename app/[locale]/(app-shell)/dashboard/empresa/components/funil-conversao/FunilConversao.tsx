@@ -10,6 +10,7 @@ import EtapaFunil from './EtapaFunil'
 import CardRecomendacoes from './CardRecomendacoes'
 import TopPaxProfissionais from './TopPaxProfissionais'
 import CardVendas from './CardVendas'
+import RelatorioDetalhado from './RelatorioDetalhado'
 import ExportarRelatorio from '../shared/ExportarRelatorio'
 import CheckVerificado from '@/components/CheckVerificado'
 
@@ -157,11 +158,21 @@ export default function FunilConversao({ periodo }: Props) {
       </div>
 
       {detalheAberto ? (
-        <div className="mx-auto max-w-xl rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-          {detalheAberto === 'recomendacoes' ? <CardRecomendacoes recomendacoes={recomendacoesPorProfissional} /> : null}
+        <RelatorioDetalhado
+          subtitulo={
+            detalheAberto === 'recomendacoes'
+              ? 'Recomendações feitas por profissionais'
+              : detalheAberto === 'pax'
+                ? 'PAX registrados por profissionais'
+                : 'Vendas diretas no período'
+          }
+        >
+          {detalheAberto === 'recomendacoes' ? (
+            <CardRecomendacoes recomendacoes={recomendacoesPorProfissional} />
+          ) : null}
           {detalheAberto === 'pax' ? <TopPaxProfissionais topPax={topPax} /> : null}
           {detalheAberto === 'vendas' ? <CardVendas total={dados.vendas} /> : null}
-        </div>
+        </RelatorioDetalhado>
       ) : null}
 
       <p className="mx-auto max-w-xl text-center text-sm leading-relaxed text-gray-600">

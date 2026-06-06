@@ -1,5 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { categoriaDbParaSlug } from '@/lib/segmentosEmpresaGuia'
+import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
+
+function ultimosDigitosWhatsapp(raw: string | null | undefined): string | null {
+  const digits = digitsWhatsapp(raw)
+  if (digits.length < 4) return null
+  return digits.slice(-4)
+}
 
 export type EmpresaRecomendacaoInfo = {
   id: string
@@ -24,6 +31,7 @@ export async function registrarRecomendacaoEmpresa(
     empresaId: string
     segmentoGuiaSlug?: string | null
     categoriaEmpresa?: string | null
+    whatsappTurista?: string | null
   },
 ): Promise<{ profissionalUsername: string | null }> {
   const {
@@ -43,10 +51,23 @@ export async function registrarRecomendacaoEmpresa(
 
   const profissionalId = String(prof.id)
 
-  const { error: recErr } = await supabase.from('recomendacoes').insert({
-    profissional_id: profissionalId,
-    empresa_id: params.empresaId,
-  })
+  const whatsappFinal = ultimosDigitosWhatsapp(params.whatsappTurista)
+  let recErr = (
+    await supabase.from('recomendacoes').insert({
+      profissional_id: profissionalId,
+      empresa_id: params.empresaId,
+      turista_whatsapp_final: whatsappFinal,
+    })
+  ).error
+
+  if (recErr && String(recErr.message ?? '').toLowerCase().includes('turista_whatsapp_final')) {
+    recErr = (
+      await supabase.from('recomendacoes').insert({
+        profissional_id: profissionalId,
+        empresa_id: params.empresaId,
+      })
+    ).error
+  }
   if (recErr) throw recErr
 
   const segmento =
