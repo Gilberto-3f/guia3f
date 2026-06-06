@@ -1,13 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { KeyRound } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
+import { supabase } from '@/lib/supabase'
+import { pickFotoTurista } from '@/lib/turistaPreLiberacao'
 import {
   TEXTO_PRE_LIBERACAO_CONFIRME,
   textoPreLiberacaoIntro,
 } from '@/lib/turistaPreLiberacaoTexto'
+
+const AVATAR_QUADRADO = 'shrink-0 rounded-md object-cover'
 
 /**
  * @param {{
@@ -25,10 +29,57 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
 
   const turistaUsername = String(meta.turista_username ?? '').trim() || 'turista'
   const turistaNome = String(meta.turista_nome ?? '').trim() || 'Turista'
-  const turistaFotoUrl =
+  const turistaUsuarioId = String(meta.turista_usuario_id ?? '').trim()
+  const fotoMetadata =
     meta.turista_foto_url != null && String(meta.turista_foto_url).trim() !== ''
       ? String(meta.turista_foto_url)
       : null
+  const [turistaFotoUrl, setTuristaFotoUrl] = useState(fotoMetadata)
+
+  useEffect(() => {
+    setTuristaFotoUrl(fotoMetadata)
+  }, [fotoMetadata])
+
+  useEffect(() => {
+    if (!turistaUsuarioId) return
+
+    let cancelled = false
+
+    const carregarFoto = async () => {
+      const { data } = await supabase
+        .from('turistas')
+        .select('foto_perfil_url, foto_url')
+        .eq('usuario_id', turistaUsuarioId)
+        .maybeSingle()
+
+      if (cancelled) return
+      const atual = pickFotoTurista(data)
+      if (atual) setTuristaFotoUrl(atual)
+    }
+
+    void carregarFoto()
+
+    const ch = supabase
+      .channel(`pre-lib-turista-foto-${turistaUsuarioId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'turistas',
+          filter: `usuario_id=eq.${turistaUsuarioId}`,
+        },
+        () => {
+          void carregarFoto()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      void supabase.removeChannel(ch)
+    }
+  }, [turistaUsuarioId])
 
   const textoIntro = textoPreLiberacaoIntro(turistaUsername)
 
@@ -75,15 +126,13 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
           <p className="mt-2 text-sm text-gray-600">{textoIntro}</p>
 
           <div className="mt-3 flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2">
-            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full">
-              <AvatarImage
-                src={turistaFotoUrl}
-                alt=""
-                fill
-                sizes="44px"
-                className="object-cover"
-              />
-            </div>
+            <AvatarImage
+              src={turistaFotoUrl}
+              alt=""
+              width={44}
+              height={44}
+              className={AVATAR_QUADRADO}
+            />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-gray-800">{turistaNome}</p>
               <p className="truncate text-xs text-gray-500">@{turistaUsername}</p>

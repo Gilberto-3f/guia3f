@@ -8,7 +8,7 @@ const HORAS_PRE_LIB = 24
 
 export { TEXTO_PRE_LIBERACAO_CONFIRME, mensagemPreLiberacaoPendente, textoPreLiberacaoIntro } from '@/lib/turistaPreLiberacaoTexto'
 
-function pickFotoTurista(row: { foto_perfil_url?: string | null; foto_url?: string | null } | null): string | null {
+export function pickFotoTurista(row: { foto_perfil_url?: string | null; foto_url?: string | null } | null): string | null {
   if (!row) return null
   const a = row.foto_perfil_url != null && String(row.foto_perfil_url).trim() !== '' ? String(row.foto_perfil_url) : null
   const b = row.foto_url != null && String(row.foto_url).trim() !== '' ? String(row.foto_url) : null
@@ -256,6 +256,7 @@ export async function listarPreLiberacoesPendentesProfissional(
 ): Promise<
   {
     id: string
+    turista_usuario_id: string
     turista_username: string | null
     turista_nome: string | null
     solicitado_em: string
@@ -265,7 +266,7 @@ export async function listarPreLiberacoesPendentesProfissional(
   if (!profissionalUsuarioId) return []
   const { data, error } = await supabase
     .from('turista_pre_liberacoes')
-    .select('id, turista_username, turista_nome, solicitado_em, canal_financeiro_id')
+    .select('id, turista_usuario_id, turista_username, turista_nome, solicitado_em, canal_financeiro_id')
     .eq('profissional_usuario_id', profissionalUsuarioId)
     .eq('status', 'pendente')
     .order('solicitado_em', { ascending: false })
@@ -276,6 +277,7 @@ export async function listarPreLiberacoesPendentesProfissional(
   }
   return (data ?? []).map((r) => ({
     id: String(r.id),
+    turista_usuario_id: String(r.turista_usuario_id ?? ''),
     turista_username: r.turista_username != null ? String(r.turista_username) : null,
     turista_nome: r.turista_nome != null ? String(r.turista_nome) : null,
     solicitado_em: String(r.solicitado_em ?? ''),

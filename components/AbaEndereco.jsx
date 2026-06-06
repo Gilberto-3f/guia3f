@@ -1,6 +1,7 @@
 'use client'
 
 import { MapPin, Phone, User, Globe, Clock, Facebook, Instagram, Music2 } from 'lucide-react'
+import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
 import { whatsappWebSendUrl, digitsWhatsapp } from '@/lib/whatsapp-empresa'
 import HorariosFuncionamento from '@/components/HorariosFuncionamento'
 
