@@ -68,7 +68,7 @@ export function useDashboardEmpresa() {
         plano: asString(row.plano, 'Básico'),
         nota_media: asNumber(row.nota_media, 0),
         total_avaliacoes: asNumber(row.total_avaliacoes, 0),
-        verificado: status === 'ativo',
+        verificado: Boolean(row.docs_verificado) || status === 'ativo',
       })
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Erro ao carregar dados da empresa'))

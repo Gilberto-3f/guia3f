@@ -12,7 +12,8 @@ import TopPaxProfissionais from './TopPaxProfissionais'
 import CardVendas from './CardVendas'
 import RelatorioDetalhado from './RelatorioDetalhado'
 import ExportarRelatorio from '../shared/ExportarRelatorio'
-import CheckVerificado from '@/components/CheckVerificado'
+import NomeComVerificacao from '@/components/NomeComVerificacao'
+import { labelEtapaFunil } from './labelEtapaFunil'
 
 interface Props {
   periodo: Periodo
@@ -104,35 +105,35 @@ export default function FunilConversao({ periodo }: Props) {
     {
       id: 'visualizacoes' as const,
       icon: Eye,
-      label: 'visualizações',
+      label: labelEtapaFunil('visualizacoes', dados.visualizacoes),
       valor: dados.visualizacoes,
       expandable: false,
     },
     {
       id: 'seguidores' as const,
       icon: UserPlus,
-      label: 'seguidores',
+      label: labelEtapaFunil('seguidores', dados.seguidores),
       valor: dados.seguidores,
       expandable: false,
     },
     {
       id: 'recomendacoes' as const,
       icon: Users,
-      label: 'recomendações',
+      label: labelEtapaFunil('recomendacoes', dados.recomendacoes),
       valor: dados.recomendacoes,
       expandable: true,
     },
     {
       id: 'pax' as const,
       icon: MapPin,
-      label: 'PAX',
+      label: labelEtapaFunil('pax', dados.pax),
       valor: dados.pax,
       expandable: true,
     },
     {
       id: 'vendas' as const,
       icon: DollarSign,
-      label: 'vendas',
+      label: labelEtapaFunil('vendas', dados.vendas),
       valor: dados.vendas,
       expandable: true,
     },
@@ -143,11 +144,16 @@ export default function FunilConversao({ periodo }: Props) {
 
   return (
     <div className="space-y-4 pb-1">
-      <div className="mx-auto flex max-w-xl justify-center">
-        <span className="inline-flex items-center gap-1.5 text-lg font-normal text-gray-900 sm:text-xl">
-          {empresa?.verificado ? <CheckVerificado className="h-5 w-5 shrink-0" /> : null}
-          <span className="truncate">{usernameLabel}</span>
+      <div className="mx-auto flex max-w-xl flex-col items-center gap-1">
+        <span className="text-lg font-normal text-gray-900 sm:text-xl">
+          <NomeComVerificacao
+            nome={usernameLabel}
+            verificado={empresa?.verificado}
+            className="inline-flex max-w-full items-center gap-1"
+            nomeClassName="truncate"
+          />
         </span>
+        <p className="text-center text-sm text-gray-500">Dados convertidos em resultados</p>
       </div>
 
       <div className="mx-auto max-w-xl overflow-hidden shadow-md" style={{ clipPath: CLIP_FUNIL }}>

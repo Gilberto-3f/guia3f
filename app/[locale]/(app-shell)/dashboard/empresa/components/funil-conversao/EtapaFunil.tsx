@@ -27,7 +27,7 @@ export default function EtapaFunil({
     <div className="flex items-center justify-center gap-2 text-center">
       <Icon className="h-5 w-5 shrink-0 sm:h-5 sm:w-5" strokeWidth={2} aria-hidden />
       <span className="text-lg font-bold tabular-nums sm:text-xl">{valor.toLocaleString('pt-BR')}</span>
-      <span className="text-sm font-medium lowercase sm:text-base">{label}</span>
+      <span className="text-sm font-medium sm:text-base">{label}</span>
       {expandable ? (
         selected ? (
           <ChevronUp className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
