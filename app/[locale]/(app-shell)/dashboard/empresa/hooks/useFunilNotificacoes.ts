@@ -68,7 +68,7 @@ export function useFunilNotificacoes(empresaId: string | null, usuarioId: string
 
       await marcarEtapaFunilLida(supabase, empresaId, usuarioId, etapa)
     },
-    [empresaId, refresh, usuarioId],
+    [empresaId, usuarioId],
   )
 
   useEffect(() => {
@@ -78,19 +78,22 @@ export function useFunilNotificacoes(empresaId: string | null, usuarioId: string
   useEffect(() => {
     if (!empresaId || !usuarioId) return
 
-    const onBadge = (event: Event) => {
+    const onBadgeEvento = (event: Event) => {
       const total = (event as CustomEvent<{ total?: number }>).detail?.total
       if (typeof total === 'number' && Number.isFinite(total)) return
       void refresh()
     }
-    window.addEventListener(GUIA_FUNIL_BADGE_EVENT, onBadge)
+    const onBadgeRealtime = () => {
+      void refresh()
+    }
+    window.addEventListener(GUIA_FUNIL_BADGE_EVENT, onBadgeEvento)
 
     const ch = supabase
       .channel(`funil-badge-${empresaId}-${usuarioId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'recomendacoes', filter: `empresa_id=eq.${empresaId}` },
-        onBadge,
+        onBadgeRealtime,
       )
       .on(
         'postgres_changes',
@@ -100,17 +103,17 @@ export function useFunilNotificacoes(empresaId: string | null, usuarioId: string
           table: 'manifesto',
           filter: `empresa_destino_id=eq.${empresaId}`,
         },
-        onBadge,
+        onBadgeRealtime,
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'comissao', filter: `empresa_id=eq.${empresaId}` },
-        onBadge,
+        onBadgeRealtime,
       )
       .subscribe()
 
     return () => {
-      window.removeEventListener(GUIA_FUNIL_BADGE_EVENT, onBadge)
+      window.removeEventListener(GUIA_FUNIL_BADGE_EVENT, onBadgeEvento)
       void supabase.removeChannel(ch)
     }
   }, [empresaId, refresh, usuarioId])
