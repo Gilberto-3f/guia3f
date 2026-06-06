@@ -1,11 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+export { useDashboardEmpresa } from '../context/DashboardEmpresaContext'
 
 export interface DadosEmpresa {
   id: string
+  usuario_id: string | null
   nome: string
   username: string
   categoria: string
@@ -16,6 +15,9 @@ export interface DadosEmpresa {
   verificado: boolean
 }
 
+export const EMPRESA_SELECT =
+  'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, plano, nota_media, total_avaliacoes, docs_verificado, status'
+
 function asString(v: unknown, fallback = '') {
   return v != null ? String(v) : fallback
 }
@@ -25,63 +27,18 @@ function asNumber(v: unknown, fallback = 0) {
   return Number.isFinite(n) ? n : fallback
 }
 
-export function useDashboardEmpresa() {
-  const [dados, setDados] = useState<DadosEmpresa | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-  const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
-
-  const fetchEmpresa = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      const uid = session?.user?.id ?? null
-      if (!uid) {
-        setDados(null)
-        return
-      }
-
-      const simEmpresa = modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId
-
-      const { data, error: fetchError } = simEmpresa
-        ? await supabase.from('empresas').select('*').eq('id', contextoEmpresaId).maybeSingle()
-        : await supabase.from('empresas').select('*').eq('usuario_id', uid).maybeSingle()
-      if (fetchError) throw fetchError
-      if (!data) {
-        setDados(null)
-        return
-      }
-
-      const row = data as Record<string, unknown>
-      const status = asString(row.status, '')
-
-      setDados({
-        id: asString(row.id),
-        nome: asString(row.nome_fantasia, 'Empresa'),
-        username: asString(row.nome_usuario, ''),
-        categoria: asString(row.categoria, ''),
-        cidade: asString(row.cidade, ''),
-        plano: asString(row.plano, 'Básico'),
-        nota_media: asNumber(row.nota_media, 0),
-        total_avaliacoes: asNumber(row.total_avaliacoes, 0),
-        verificado: Boolean(row.docs_verificado) || status === 'ativo',
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Erro ao carregar dados da empresa'))
-      setDados(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [contextoEmpresaId, modoAtivo, perfilSimulado?.tipo])
-
-  useEffect(() => {
-    void fetchEmpresa()
-  }, [fetchEmpresa])
-
-  return { dados, loading, error, refetch: fetchEmpresa }
+export function mapEmpresaRow(data: Record<string, unknown>): DadosEmpresa {
+  const status = asString(data.status, '')
+  return {
+    id: asString(data.id),
+    usuario_id: data.usuario_id != null ? asString(data.usuario_id) : null,
+    nome: asString(data.nome_fantasia, 'Empresa'),
+    username: asString(data.nome_usuario, ''),
+    categoria: asString(data.categoria, ''),
+    cidade: asString(data.cidade, ''),
+    plano: asString(data.plano, 'Básico'),
+    nota_media: asNumber(data.nota_media, 0),
+    total_avaliacoes: asNumber(data.total_avaliacoes, 0),
+    verificado: Boolean(data.docs_verificado) || status === 'ativo',
+  }
 }
-

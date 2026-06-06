@@ -53,7 +53,7 @@ export default function EtapaFunil({
         onClick={onToggle}
         className={`${cls} hover:brightness-105`}
         aria-expanded={selected}
-        aria-label={`${label}: ${valor.toLocaleString('pt-BR')}. ${selected ? 'Recolher' : 'Abrir'} relatório detalhado`}
+        aria-label={`${label}: ${valor.toLocaleString('pt-BR')}. ${selected ? 'Recolher' : 'Abrir'} Relatório Detalhado`}
       >
         {conteudo}
       </button>

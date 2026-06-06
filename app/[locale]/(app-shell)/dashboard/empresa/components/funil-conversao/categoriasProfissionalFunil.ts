@@ -5,11 +5,11 @@ export const CATEGORIAS_ORDEM = ['apps', 'vans', 'guias', 'taxistas', 'anfitrioe
 export type CategoriaProfissionalFunil = (typeof CATEGORIAS_ORDEM)[number]
 
 export const CATEGORIAS_CONFIG: Record<CategoriaProfissionalFunil, { label: string; Icon: LucideIcon }> = {
-  apps: { label: 'Motorista de APP', Icon: Smartphone },
-  vans: { label: 'Motorista de Van', Icon: Bus },
-  guias: { label: 'Guia de Turismo', Icon: Compass },
-  taxistas: { label: 'Taxista', Icon: Car },
-  anfitrioes: { label: 'Anfitrião', Icon: Hotel },
+  apps: { label: 'Motoristas de App', Icon: Smartphone },
+  vans: { label: 'Motoristas de Van', Icon: Bus },
+  guias: { label: 'Guias de Turismo', Icon: Compass },
+  taxistas: { label: 'Taxistas', Icon: Car },
+  anfitrioes: { label: 'Anfitriões', Icon: Hotel },
 }
 
 export function normalizarCategoriaProfissionalSlug(raw: string): CategoriaProfissionalFunil | null {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { DollarSign, Eye, Heart, MapPin, Users, type LucideIcon } from 'lucide-react'
 import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useFunilConversao } from '../../hooks/useFunilConversao'
@@ -41,7 +41,7 @@ type EtapaFunilConfig =
 const CLIP_FUNIL = 'polygon(0% 0%, 100% 0%, 72% 100%, 28% 100%)'
 
 export default function FunilConversao({ periodo }: Props) {
-  const { dados: empresa } = useDashboardEmpresa()
+  const { dados: empresa, loading: empresaLoading } = useDashboardEmpresa()
   const empresaId = empresa?.id ?? null
 
   const {
@@ -51,14 +51,20 @@ export default function FunilConversao({ periodo }: Props) {
     vendasPorProfissional,
     vendasSemProfissional,
     loading,
+    detalhesLoading,
     error,
-  } = useFunilConversao(empresaId, periodo)
+    carregarDetalhes,
+  } = useFunilConversao(empresaId, empresa?.usuario_id ?? null, periodo)
 
   const [detalheAberto, setDetalheAberto] = useState<DetalheEtapa>(null)
 
   const toggleDetalhe = (etapa: Exclude<DetalheEtapa, null>) => {
     setDetalheAberto((atual) => (atual === etapa ? null : etapa))
   }
+
+  useEffect(() => {
+    if (detalheAberto) void carregarDetalhes(detalheAberto)
+  }, [carregarDetalhes, detalheAberto])
 
   const exportDados = useMemo(
     () => ({
@@ -72,7 +78,7 @@ export default function FunilConversao({ periodo }: Props) {
     [dados, periodo]
   )
 
-  if (loading) {
+  if (empresaLoading || loading) {
     return (
       <div className="mx-auto max-w-xl overflow-hidden shadow-md" style={{ clipPath: CLIP_FUNIL }}>
         {Array.from({ length: 5 }).map((_, i) => (
@@ -172,17 +178,26 @@ export default function FunilConversao({ periodo }: Props) {
         <RelatorioDetalhado
           subtitulo={
             detalheAberto === 'recomendacoes'
-              ? 'Recomendações feitas por profissionais do ecossistema.'
+              ? 'Recomendações Feitas por Profissionais do Ecossistema'
               : detalheAberto === 'pax'
-                ? 'PAX - Passageiros no seu local'
-                : 'Vendas concluídas (comissões pagas ao profissional e vendas pelo app, sem bonificação por PAX)'
+                ? 'PAX - Passageiros no Seu Local'
+                : 'Vendas Concluídas!'
           }
         >
-          {detalheAberto === 'recomendacoes' ? (
+          {detalhesLoading === detalheAberto ? (
+            <div className="space-y-2 py-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-12 animate-pulse rounded-lg bg-gray-100" />
+              ))}
+            </div>
+          ) : null}
+          {detalheAberto === 'recomendacoes' && detalhesLoading !== 'recomendacoes' ? (
             <CardRecomendacoes recomendacoes={recomendacoesPorProfissional} />
           ) : null}
-          {detalheAberto === 'pax' ? <TopPaxProfissionais paxPorProfissional={paxPorProfissional} /> : null}
-          {detalheAberto === 'vendas' ? (
+          {detalheAberto === 'pax' && detalhesLoading !== 'pax' ? (
+            <TopPaxProfissionais paxPorProfissional={paxPorProfissional} />
+          ) : null}
+          {detalheAberto === 'vendas' && detalhesLoading !== 'vendas' ? (
             <CardVendas
               vendasPorProfissional={vendasPorProfissional}
               vendasSemProfissional={vendasSemProfissional}

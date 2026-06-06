@@ -12,7 +12,8 @@ import MenuPeriodoDashboard from './components/shared/MenuPeriodoDashboard'
 import FunilConversao from './components/funil-conversao/FunilConversao'
 import EstatisticasMercado from './components/estatisticas-mercado/EstatisticasMercado'
 import DrenaStok from './components/drena-stok/DrenaStok'
-import { useDashboardEmpresa } from './hooks/useDashboardEmpresa'
+import { DashboardEmpresaProvider } from './context/DashboardEmpresaContext'
+import { EMPRESA_SELECT, mapEmpresaRow, useDashboardEmpresa, type DadosEmpresa } from './hooks/useDashboardEmpresa'
 import type { Periodo } from './types/dashboard.types'
 
 type Aba = 'funil' | 'mercado' | 'drena'
@@ -22,7 +23,7 @@ type GateState =
   | { status: 'forbidden' }
   | { status: 'pending' }
   | { status: 'sim_sem_empresa' }
-  | { status: 'allowed'; userId: string }
+  | { status: 'allowed'; userId: string; empresaInicial: DadosEmpresa | null }
 
 function abaCls(ativo: boolean) {
   return `flex min-w-0 flex-1 items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
@@ -36,19 +37,6 @@ export default function DashboardEmpresaPage() {
   const [periodo, setPeriodo] = useState<Periodo>('30d')
   const [gate, setGate] = useState<GateState>({ status: 'loading' })
   const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
-  const { dados: empresa } = useDashboardEmpresa()
-
-  const mostrarDrenaStok = useMemo(
-    () => empresaEhSegmentoLojasParaguai(empresa?.categoria, empresa?.cidade),
-    [empresa?.categoria, empresa?.cidade],
-  )
-
-  useEffect(() => {
-    if (!mostrarDrenaStok && abaAtiva === 'drena') {
-      setAbaAtiva('funil')
-    }
-  }, [mostrarDrenaStok, abaAtiva])
-
   useEffect(() => {
     let ativo = true
 
@@ -63,16 +51,25 @@ export default function DashboardEmpresaPage() {
         return
       }
 
-      const { data: urow } = await supabase.from('usuarios').select('role, status').eq('id', uid).maybeSingle()
+      const simEmpresa = modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId
+
+      const [{ data: urow }, { data: empRow }] = await Promise.all([
+        supabase.from('usuarios').select('role, status').eq('id', uid).maybeSingle(),
+        simEmpresa
+          ? supabase.from('empresas').select(EMPRESA_SELECT).eq('id', contextoEmpresaId).maybeSingle()
+          : supabase.from('empresas').select(EMPRESA_SELECT).eq('usuario_id', uid).maybeSingle(),
+      ])
+
       const role = urow?.role != null ? String(urow.role) : null
       const uStatus =
         urow && typeof urow === 'object' && 'status' in urow && urow.status != null
           ? String(urow.status)
           : 'ativo'
+      const empresaInicial = empRow ? mapEmpresaRow(empRow as Record<string, unknown>) : null
 
       if (role === 'admin' && modoAtivo && perfilSimulado?.tipo === 'empresa') {
         if (contextoEmpresaId) {
-          if (ativo) setGate({ status: 'allowed', userId: uid })
+          if (ativo) setGate({ status: 'allowed', userId: uid, empresaInicial })
         } else if (ativo) {
           setGate({ status: 'sim_sem_empresa' })
         }
@@ -89,7 +86,7 @@ export default function DashboardEmpresaPage() {
         return
       }
 
-      if (ativo) setGate({ status: 'allowed', userId: uid })
+      if (ativo) setGate({ status: 'allowed', userId: uid, empresaInicial })
     }
 
     void boot()
@@ -101,12 +98,6 @@ export default function DashboardEmpresaPage() {
   useEffect(() => {
     if (gate.status === 'forbidden') router.push('/login')
   }, [gate.status, router])
-
-  const conteudo = useMemo(() => {
-    if (abaAtiva === 'funil') return <FunilConversao periodo={periodo} />
-    if (abaAtiva === 'mercado') return <EstatisticasMercado periodo={periodo} />
-    return <DrenaStok />
-  }, [abaAtiva, periodo])
 
   if (gate.status === 'pending') {
     return (
@@ -153,6 +144,48 @@ export default function DashboardEmpresaPage() {
   }
 
   return (
+    <DashboardEmpresaProvider initialData={gate.empresaInicial}>
+      <DashboardEmpresaConteudo
+        abaAtiva={abaAtiva}
+        setAbaAtiva={setAbaAtiva}
+        periodo={periodo}
+        setPeriodo={setPeriodo}
+      />
+    </DashboardEmpresaProvider>
+  )
+}
+
+function DashboardEmpresaConteudo({
+  abaAtiva,
+  setAbaAtiva,
+  periodo,
+  setPeriodo,
+}: {
+  abaAtiva: Aba
+  setAbaAtiva: (aba: Aba) => void
+  periodo: Periodo
+  setPeriodo: (p: Periodo) => void
+}) {
+  const { dados: empresa } = useDashboardEmpresa()
+
+  const mostrarDrenaStok = useMemo(
+    () => empresaEhSegmentoLojasParaguai(empresa?.categoria, empresa?.cidade),
+    [empresa?.categoria, empresa?.cidade],
+  )
+
+  useEffect(() => {
+    if (!mostrarDrenaStok && abaAtiva === 'drena') {
+      setAbaAtiva('funil')
+    }
+  }, [mostrarDrenaStok, abaAtiva, setAbaAtiva])
+
+  const conteudo = useMemo(() => {
+    if (abaAtiva === 'funil') return <FunilConversao periodo={periodo} />
+    if (abaAtiva === 'mercado') return <EstatisticasMercado periodo={periodo} />
+    return <DrenaStok />
+  }, [abaAtiva, periodo])
+
+  return (
     <div className="bg-gray-50">
       <header className="sticky top-0 z-20 shrink-0 bg-[#0097b2] shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
@@ -192,3 +225,4 @@ export default function DashboardEmpresaPage() {
     </div>
   )
 }
+
