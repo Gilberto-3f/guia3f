@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Camera, ChevronDown, ChevronUp, FileText, Globe2, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import BotaoVoltar from '@/components/BotaoVoltar'
@@ -64,6 +64,7 @@ function asJsonArray(v: unknown) {
 export default function EmpresaPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const empresaId = typeof params.id === 'string' ? params.id : params.id?.[0] ?? ''
 
   const [empresa, setEmpresa] = useState<Record<string, unknown> | null>(null)
@@ -97,6 +98,18 @@ export default function EmpresaPage() {
     }
     getUsuario()
   }, [])
+
+  useEffect(() => {
+    if (searchParams.get('ref') !== 'recomendacao') return
+
+    void (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (session?.user?.id) return
+      router.replace(`/login?next=${encodeURIComponent('/cadastro/turista')}`)
+    })()
+  }, [router, searchParams])
 
   const carregarEmpresa = useCallback(async (opts?: { silent?: boolean }) => {
     if (!empresaId) return

@@ -103,7 +103,7 @@ export default function ListagemCategoriaPage() {
         .from('empresas')
         // FIX: seleciona só o necessário (melhor para tsc/typing e rede)
         .select(
-          'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, status, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
+          'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
         )
         .eq('categoria', categoriaDb)
         .eq('cidade', cidadeDb)
@@ -296,7 +296,7 @@ export default function ListagemCategoriaPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {empresasOrdenadas.map((empresa) => (
-              <CardAtrativo key={empresa.id} empresa={empresa} />
+              <CardAtrativo key={empresa.id} empresa={empresa} segmentoGuiaSlug={slug} />
             ))}
           </div>
         )}

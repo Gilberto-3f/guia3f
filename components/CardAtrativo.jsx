@@ -4,7 +4,9 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Heart } from 'lucide-react'
 import BotaoDinamico from '@/components/BotaoDinamico'
+import BotaoRecomendar from '@/components/BotaoRecomendar'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 
 const BANDEIRA_POR_CIDADE = {
@@ -33,13 +35,18 @@ function bandeiraPorCidade(cidade) {
  *     preco_ticket_inteira?: number | null
  *     preco_ticket_meia?: number | null
  *     preco_diaria?: number | null
+ *     endereco?: string | null
+ *     bairro?: string | null
+ *     total_avaliacoes?: number | null
  *     is_seguindo?: boolean
  *   },
+ *   segmentoGuiaSlug?: string | null
  *   onSeguirToggle?: () => void
  * }} props
  */
-export default function CardAtrativo({ empresa }) {
+export default function CardAtrativo({ empresa, segmentoGuiaSlug = null }) {
   const router = useRouter()
+  const { perfilEhProfissional, loading: gateLoading } = useProfissionalGate()
 
   const desc =
     empresa.descricao_curta && empresa.descricao_curta.length > 170
@@ -105,17 +112,23 @@ export default function CardAtrativo({ empresa }) {
             <Heart size={20} className="shrink-0 text-white" aria-hidden />
             <span>VISITAR PÁGINA</span>
           </button>
-          <BotaoDinamico
-            categoria={empresa.categoria}
-            cidade={empresa.cidade}
-            empresaId={empresa.id}
-            empresaNome={empresa.nome_fantasia}
-            empresaUsername={empresa.nome_usuario ?? null}
-            whatsapp={empresa.whatsapp ?? null}
-            precoTicketInteira={Number(empresa.preco_ticket_inteira) || 0}
-            precoTicketMeia={Number(empresa.preco_ticket_meia) || 0}
-            precoDiaria={Number(empresa.preco_diaria) || 0}
-          />
+          {gateLoading ? (
+            <div className="min-h-[3.25rem] flex-1 animate-pulse rounded-lg bg-gray-100" aria-hidden />
+          ) : perfilEhProfissional ? (
+            <BotaoRecomendar empresa={empresa} segmentoGuiaSlug={segmentoGuiaSlug} />
+          ) : (
+            <BotaoDinamico
+              categoria={empresa.categoria}
+              cidade={empresa.cidade}
+              empresaId={empresa.id}
+              empresaNome={empresa.nome_fantasia}
+              empresaUsername={empresa.nome_usuario ?? null}
+              whatsapp={empresa.whatsapp ?? null}
+              precoTicketInteira={Number(empresa.preco_ticket_inteira) || 0}
+              precoTicketMeia={Number(empresa.preco_ticket_meia) || 0}
+              precoDiaria={Number(empresa.preco_diaria) || 0}
+            />
+          )}
         </div>
       </div>
     </div>
