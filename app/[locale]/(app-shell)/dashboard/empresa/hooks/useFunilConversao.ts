@@ -271,7 +271,9 @@ export function useFunilConversao(empresaId: string | null, periodo: Periodo) {
           .eq('empresa_id', empresaId)
           .order('created_at', { ascending: false })
         if (dataLimite) qRecProf = qRecProf.gte('created_at', dataLimite)
-        let { data: recData, error: recErr } = await qRecProf
+        const firstRes = await qRecProf
+        let recData: unknown[] | null = firstRes.data ?? null
+        let recErr = firstRes.error
 
         if (recErr && (isColunaInexistente(recErr) || String(recErr.message ?? '').includes('turista_whatsapp_final'))) {
           let qFallback = supabase
@@ -281,7 +283,7 @@ export function useFunilConversao(empresaId: string | null, periodo: Periodo) {
             .order('created_at', { ascending: false })
           if (dataLimite) qFallback = qFallback.gte('created_at', dataLimite)
           const res = await qFallback
-          recData = res.data
+          recData = res.data ?? null
           recErr = res.error
         }
 
