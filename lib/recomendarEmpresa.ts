@@ -6,20 +6,18 @@ export function parseWhatsappTuristaRecomendacao(raw: string | null | undefined)
   ddd: string | null
   final4: string | null
 } {
-  let digits = digitsWhatsapp(raw)
-  if (digits.length < 10) return { ddd: null, final4: null }
-
-  if (!digits.startsWith('55') && digits.length >= 10 && digits.length <= 11) {
-    digits = `55${digits}`
-  }
-
-  if (digits.length < 12) return { ddd: null, final4: null }
+  const digits = digitsWhatsapp(raw)
+  if (digits.length < 8) return { ddd: null, final4: null }
 
   const final4 = digits.slice(-4)
-  const ddd = digits.slice(2, 4)
+  if (final4.length !== 4) return { ddd: null, final4: null }
 
-  if (final4.length !== 4 || ddd.length !== 2) return { ddd: null, final4: null }
-  return { ddd, final4 }
+  if (digits.startsWith('55') && digits.length >= 12) {
+    const ddd = digits.slice(2, 4)
+    if (ddd.length === 2) return { ddd, final4 }
+  }
+
+  return { ddd: null, final4 }
 }
 
 /** Ex.: + 55 (45) * ****-1234 */
@@ -60,7 +58,7 @@ export async function registrarRecomendacaoEmpresa(
     categoriaEmpresa?: string | null
     whatsappTurista?: string | null
   },
-): Promise<{ profissionalUsername: string | null }> {
+): Promise<{ profissionalUsername: string | null; profissionalCategorias: string[] }> {
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -69,7 +67,7 @@ export async function registrarRecomendacaoEmpresa(
 
   const { data: prof, error: profErr } = await supabase
     .from('profissionais')
-    .select('id, nome_usuario')
+    .select('id, nome_usuario, categorias')
     .eq('usuario_id', uid)
     .maybeSingle()
 
@@ -118,7 +116,10 @@ export async function registrarRecomendacaoEmpresa(
   if (logErr) throw logErr
 
   const username = prof.nome_usuario != null ? String(prof.nome_usuario).replace(/^@+/, '').trim() : null
-  return { profissionalUsername: username }
+  const categorias = Array.isArray(prof.categorias)
+    ? prof.categorias.map((c) => String(c).trim()).filter(Boolean)
+    : []
+  return { profissionalUsername: username, profissionalCategorias: categorias }
 }
 
 export function montarEnderecoEmpresa(empresa: EmpresaRecomendacaoInfo): string {

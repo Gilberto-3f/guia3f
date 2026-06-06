@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { diasAteRevisaoDocumentos, empresaRecursosLiberados, profissionalRecursosLiberados } from '@/lib/verificacao-documentos'
 import { turistaRecursosLiberados } from '@/lib/turistaAcesso'
@@ -45,9 +45,10 @@ export function ProfissionalGateProvider({ children }) {
   const [empRow, setEmpRow] = useState(null)
   const [turistaGate, setTuristaGate] = useState(null)
   const [turistaDocsRow, setTuristaDocsRow] = useState(null)
+  const gateCarregadoUmaVez = useRef(false)
 
   const refreshGate = useCallback(async () => {
-    setLoading(true)
+    if (!gateCarregadoUmaVez.current) setLoading(true)
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -148,6 +149,7 @@ export function ProfissionalGateProvider({ children }) {
       setTuristaGate(null)
       setTuristaDocsRow(null)
     }
+    gateCarregadoUmaVez.current = true
     setLoading(false)
   }, [])
 
