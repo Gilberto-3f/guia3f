@@ -18,7 +18,8 @@ const LEITURA_VAZIA = {
   vendas_visto_em: '1970-01-01T00:00:00.000Z',
 } satisfies LeituraFunilEmpresa
 
-export function useFunilNotificacoes(empresaId: string | null, usuarioId: string | null) {
+export function useFunilNotificacoes(empresaId: string | null) {
+  const [authUserId, setAuthUserId] = useState<string | null>(null)
   const [contagens, setContagens] = useState<ContagemNaoLidasFunil>({
     total: 0,
     recomendacoes: 0,
@@ -27,24 +28,43 @@ export function useFunilNotificacoes(empresaId: string | null, usuarioId: string
   })
   const [leitura, setLeitura] = useState<LeituraFunilEmpresa>(LEITURA_VAZIA)
 
+  useEffect(() => {
+    let cancelled = false
+
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!cancelled) setAuthUserId(session?.user?.id ?? null)
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUserId(session?.user?.id ?? null)
+    })
+
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
+  }, [])
+
   const refresh = useCallback(async () => {
-    if (!empresaId || !usuarioId) {
+    if (!empresaId || !authUserId) {
       setContagens({ total: 0, recomendacoes: 0, pax: 0, vendas: 0 })
       setLeitura(LEITURA_VAZIA)
       return
     }
 
     const [c, l] = await Promise.all([
-      contarNaoLidasFunilEmpresa(supabase, empresaId, usuarioId),
-      obterLeituraFunilEmpresa(supabase, empresaId, usuarioId),
+      contarNaoLidasFunilEmpresa(supabase, empresaId, authUserId),
+      obterLeituraFunilEmpresa(supabase, empresaId, authUserId),
     ])
     setContagens(c)
     setLeitura(l)
-  }, [empresaId, usuarioId])
+  }, [authUserId, empresaId])
 
   const marcarEtapaLida = useCallback(
     async (etapa: EtapaFunilNotif) => {
-      if (!empresaId || !usuarioId) return
+      if (!empresaId || !authUserId) return
 
       const agora = new Date().toISOString()
 
@@ -62,13 +82,13 @@ export function useFunilNotificacoes(empresaId: string | null, usuarioId: string
           vendas: etapa === 'vendas' ? 0 : prev.vendas,
         }
         const total = next.recomendacoes + next.pax + next.vendas
-        notificarBadgeFunil({ total })
+        notificarBadgeFunil({ total, etapa })
         return { ...next, total }
       })
 
-      await marcarEtapaFunilLida(supabase, empresaId, usuarioId, etapa)
+      await marcarEtapaFunilLida(supabase, empresaId, authUserId, etapa)
     },
-    [empresaId, usuarioId],
+    [authUserId, empresaId],
   )
 
   useEffect(() => {
@@ -76,11 +96,22 @@ export function useFunilNotificacoes(empresaId: string | null, usuarioId: string
   }, [refresh])
 
   useEffect(() => {
-    if (!empresaId || !usuarioId) return
+    if (!empresaId || !authUserId) return
 
     const onBadgeEvento = (event: Event) => {
-      const total = (event as CustomEvent<{ total?: number }>).detail?.total
-      if (typeof total === 'number' && Number.isFinite(total)) return
+      const detail = (event as CustomEvent<{ total?: number; etapa?: EtapaFunilNotif }>).detail
+      if (detail?.etapa) {
+        setContagens((prev) => {
+          const next = {
+            recomendacoes: detail.etapa === 'recomendacoes' ? 0 : prev.recomendacoes,
+            pax: detail.etapa === 'pax' ? 0 : prev.pax,
+            vendas: detail.etapa === 'vendas' ? 0 : prev.vendas,
+          }
+          return { ...next, total: next.recomendacoes + next.pax + next.vendas }
+        })
+        return
+      }
+      if (typeof detail?.total === 'number' && Number.isFinite(detail.total)) return
       void refresh()
     }
     const onBadgeRealtime = () => {
@@ -89,7 +120,7 @@ export function useFunilNotificacoes(empresaId: string | null, usuarioId: string
     window.addEventListener(GUIA_FUNIL_BADGE_EVENT, onBadgeEvento)
 
     const ch = supabase
-      .channel(`funil-badge-${empresaId}-${usuarioId}`)
+      .channel(`funil-badge-${empresaId}-${authUserId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'recomendacoes', filter: `empresa_id=eq.${empresaId}` },
@@ -116,7 +147,7 @@ export function useFunilNotificacoes(empresaId: string | null, usuarioId: string
       window.removeEventListener(GUIA_FUNIL_BADGE_EVENT, onBadgeEvento)
       void supabase.removeChannel(ch)
     }
-  }, [empresaId, refresh, usuarioId])
+  }, [authUserId, empresaId, refresh])
 
   return { contagens, leitura, refresh, marcarEtapaLida }
 }

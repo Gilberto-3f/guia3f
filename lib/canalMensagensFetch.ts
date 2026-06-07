@@ -4,7 +4,7 @@ import { aplicarFiltroPaisMensagensCanal, type ModoFiltroPaisCanal } from '@/lib
 export const LIMITE_MENSAGENS_CANAL_PADRAO = 80
 
 const COLUNAS_MENSAGEM =
-  'id, texto, anexo_url, anexo_tipo, reacoes, created_at, remetente_id, pais, canal_id'
+  'id, texto, anexo_url, anexo_tipo, reacoes, created_at, editado_em, remetente_id, pais, canal_id'
 
 /**
  * Últimas N mensagens do canal, em ordem cronológica (antigas → recentes) para exibição no chat.

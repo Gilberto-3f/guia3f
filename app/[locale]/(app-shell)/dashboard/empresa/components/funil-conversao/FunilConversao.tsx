@@ -5,6 +5,7 @@ import { DollarSign, Eye, Heart, MapPin, Users, type LucideIcon } from 'lucide-r
 import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useFunilConversao } from '../../hooks/useFunilConversao'
 import { useFunilNotificacoes } from '../../hooks/useFunilNotificacoes'
+import { vistoEmEtapa } from '@/lib/dashboardFunilBadge'
 import type { Periodo } from '../../types/dashboard.types'
 
 import EtapaFunil from './EtapaFunil'
@@ -58,7 +59,7 @@ export default function FunilConversao({ periodo }: Props) {
   } = useFunilConversao(empresaId, empresa?.usuario_id ?? null, periodo)
 
   const usuarioId = empresa?.usuario_id ?? null
-  const { contagens, marcarEtapaLida } = useFunilNotificacoes(empresaId, usuarioId)
+  const { contagens, leitura, marcarEtapaLida } = useFunilNotificacoes(empresaId)
 
   const [detalheAberto, setDetalheAberto] = useState<DetalheEtapa>(null)
   const [referenciaVistoEm, setReferenciaVistoEm] = useState<string | null>(null)
@@ -69,7 +70,7 @@ export default function FunilConversao({ periodo }: Props) {
         setReferenciaVistoEm(null)
         return null
       }
-      setReferenciaVistoEm(new Date().toISOString())
+      setReferenciaVistoEm(vistoEmEtapa(leitura, etapa))
       void marcarEtapaLida(etapa)
       return etapa
     })

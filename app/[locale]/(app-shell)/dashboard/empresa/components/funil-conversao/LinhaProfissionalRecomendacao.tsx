@@ -34,8 +34,13 @@ export default function LinhaProfissionalRecomendacao({ profissional, naoLidas =
       verificado={profissional.profissional_verificado}
       naoLidas={naoLidas}
     >
-      <div className="space-y-3">
-        {recomendacoesOrdenadas.map((detalhe, index) => {
+      <div className="space-y-3 px-3">
+        <p className="text-sm font-medium text-gray-700">
+          {recomendacoesOrdenadas.length === 1
+            ? '1 recomendação feita'
+            : `${recomendacoesOrdenadas.length} recomendações feitas`}
+        </p>
+        {recomendacoesOrdenadas.map((detalhe) => {
           const porEmail =
             detalhe.turista_canal === 'email' || Boolean(detalhe.turista_email_prefix)
           const contato = porEmail
@@ -50,10 +55,7 @@ export default function LinhaProfissionalRecomendacao({ profissional, naoLidas =
               key={detalhe.id}
               className="border-b border-gray-100 pb-3 last:border-b-0 last:pb-0"
             >
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                Recomendação {index + 1}
-              </p>
-              <p className="mt-1 text-sm text-gray-800">
+              <p className="text-sm text-gray-800">
                 {formatarDataCurta(detalhe.created_at)} · {formatarHora(detalhe.created_at)}
               </p>
               {contato ? (

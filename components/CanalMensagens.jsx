@@ -594,7 +594,17 @@ export default function CanalMensagens({
           if (!novo?.id) return
           const id = String(novo.id)
           const reacoes = parseReacoesCanal(novo.reacoes)
-          setMensagens((prev) => prev.map((m) => (m.id === id ? { ...m, reacoes } : m)))
+          setMensagens((prev) =>
+            prev.map((m) => {
+              if (m.id !== id) return m
+              return {
+                ...m,
+                reacoes,
+                ...(novo.texto !== undefined ? { texto: novo.texto } : {}),
+                ...(novo.editado_em !== undefined ? { editado_em: novo.editado_em } : {}),
+              }
+            }),
+          )
         },
       )
     }
@@ -896,16 +906,19 @@ export default function CanalMensagens({
     if (!editandoId || !editTexto.trim() || !uid) return
     setSalvandoEdicao(true)
     try {
+      const agora = new Date().toISOString()
       const { error } = await supabase
         .from('mensagens_canal')
-        .update({ texto: editTexto.trim() })
+        .update({ texto: editTexto.trim(), editado_em: agora })
         .eq('id', editandoId)
         .eq('remetente_id', uid)
 
       if (error) throw error
 
       setMensagens((prev) =>
-        prev.map((m) => (m.id === editandoId ? { ...m, texto: editTexto.trim() } : m)),
+        prev.map((m) =>
+          m.id === editandoId ? { ...m, texto: editTexto.trim(), editado_em: agora } : m,
+        ),
       )
       setEditandoId(null)
       setEditTexto('')
@@ -1206,6 +1219,14 @@ export default function CanalMensagens({
                     ) : null}
                     </div>
                   </div>
+
+                  {msg.editado_em ? (
+                    <p
+                      className={`mt-0.5 text-[10px] text-gray-400 ${isOwn ? 'mr-0 text-right' : 'pl-10'}`}
+                    >
+                      editado
+                    </p>
+                  ) : null}
 
                   {temReacoes ? (
                     <div
