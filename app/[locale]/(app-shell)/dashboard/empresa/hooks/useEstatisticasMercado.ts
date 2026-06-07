@@ -8,6 +8,7 @@ import type {
   DadosComissaoRamo,
   DadosDistribuicaoProfissionais,
   DadosHorariosPico,
+  DadosHistoricoAtendimentos,
   DadosOcupacaoHoteleira,
   DadosSegmentosGuia,
   DadosSegmentosRecomendados,
@@ -78,6 +79,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
   const [comissaoRamo, setComissaoRamo] = useState<DadosComissaoRamo[]>([])
   const [crescimentoUsuarios, setCrescimentoUsuarios] = useState<DadosCrescimentoUsuarios[]>([])
   const [ocupacaoHoteleira, setOcupacaoHoteleira] = useState<DadosOcupacaoHoteleira[]>([])
+  const [historicoAtendimentos, setHistoricoAtendimentos] = useState<DadosHistoricoAtendimentos[]>([])
   const [horariosPico, setHorariosPico] = useState<DadosHorariosPico[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -263,42 +265,67 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
         setCrescimentoUsuarios([])
       }
 
-      // 7) Ocupação hoteleira (reservas) - apenas para hospedagem
-      if (categoriaEmpresa === 'Hospedagem') {
-        try {
-          const min = dataLimite ?? new Date(new Date().getFullYear() - 1, 0, 1).toISOString()
-          const { data, error: e } = await supabase.from('reservas').select('data_checkin').gte('data_checkin', min)
-          if (e) {
-            if (isTabelaInexistente(e)) {
-              setOcupacaoHoteleira([])
-            } else {
-              throw e
-            }
+      // 7) Ocupação hoteleira agregada (reservas)
+      try {
+        const min = dataLimite ?? new Date(new Date().getFullYear() - 1, 0, 1).toISOString()
+        const { data, error: e } = await supabase.from('reservas').select('data_checkin').gte('data_checkin', min)
+        if (e) {
+          if (isTabelaInexistente(e)) {
+            setOcupacaoHoteleira([])
           } else {
-            const agg: Record<string, number> = {}
-            for (const row of (data ?? []) as unknown[]) {
-              const r = row as Record<string, unknown>
-              const dt = safeIso(r.data_checkin)
-              if (!dt) continue
-              const k = monthKeyPtBR(dt)
-              agg[k] = (agg[k] ?? 0) + 1
-            }
-            const arr: DadosOcupacaoHoteleira[] = Object.keys(agg)
-              .sort()
-              .map((k) => {
-                const total = agg[k]
-                return { mes: monthLabelPtBR(k), ocupacao: Math.max(0, Math.min(Number(total) * 5, 100)) }
-              })
-            setOcupacaoHoteleira(arr)
+            throw e
           }
-        } catch {
-          setOcupacaoHoteleira([])
+        } else {
+          const agg: Record<string, number> = {}
+          for (const row of (data ?? []) as unknown[]) {
+            const r = row as Record<string, unknown>
+            const dt = safeIso(r.data_checkin)
+            if (!dt) continue
+            const k = monthKeyPtBR(dt)
+            agg[k] = (agg[k] ?? 0) + 1
+          }
+          const arr: DadosOcupacaoHoteleira[] = Object.keys(agg)
+            .sort()
+            .map((k) => {
+              const total = agg[k]
+              return { mes: monthLabelPtBR(k), ocupacao: Math.max(0, Math.min(Number(total) * 5, 100)) }
+            })
+          setOcupacaoHoteleira(arr)
         }
-      } else {
+      } catch {
         setOcupacaoHoteleira([])
       }
 
-      // 8) Horários de pico (placeholder, por enquanto)
+      // 8) Histórico de atendimentos (solicitacao_mobilidade por mês)
+      try {
+        const min = dataLimite ?? new Date(new Date().getFullYear() - 1, 0, 1).toISOString()
+        let q = supabase.from('solicitacao_mobilidade').select('created_at').gte('created_at', min)
+        const { data, error: e } = await q
+        if (e) {
+          if (isTabelaInexistente(e)) {
+            setHistoricoAtendimentos([])
+          } else {
+            throw e
+          }
+        } else {
+          const agg: Record<string, number> = {}
+          for (const row of (data ?? []) as unknown[]) {
+            const r = row as Record<string, unknown>
+            const dt = safeIso(r.created_at)
+            if (!dt) continue
+            const k = monthKeyPtBR(dt)
+            agg[k] = (agg[k] ?? 0) + 1
+          }
+          const arr: DadosHistoricoAtendimentos[] = Object.keys(agg)
+            .sort()
+            .map((k) => ({ mes: monthLabelPtBR(k), valor: agg[k] }))
+          setHistoricoAtendimentos(arr)
+        }
+      } catch {
+        setHistoricoAtendimentos([])
+      }
+
+      // 9) Horários de pico (placeholder, por enquanto)
       setHorariosPico([
         { hora: 8, total: 15 },
         { hora: 10, total: 25 },
@@ -331,6 +358,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
     comissaoRamo,
     crescimentoUsuarios,
     ocupacaoHoteleira,
+    historicoAtendimentos,
     horariosPico,
     loading,
     error,

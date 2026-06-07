@@ -3,15 +3,10 @@
 import { useMemo, useState } from 'react'
 import {
   BarChart3,
-  Building2,
-  Clock,
-  DollarSign,
+  Filter,
   Info,
-  Map,
-  PieChart,
+  MapPin,
   TrendingUp,
-  Users,
-  UserSquare2,
 } from 'lucide-react'
 import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useEstatisticasMercado } from '../../hooks/useEstatisticasMercado'
@@ -20,10 +15,11 @@ import type { Periodo } from '../../types/dashboard.types'
 import GraficoBarras from './GraficoBarras'
 import GraficoPizza from './GraficoPizza'
 import GraficoLinha from './GraficoLinha'
-import CardsResumo from './CardsResumo'
 import MapaCalor from './MapaCalor'
 import HorariosPico from './HorariosPico'
 import PastaEstatistica from './PastaEstatistica'
+import SubsecaoMercado from './SubsecaoMercado'
+import FunilEcossistemaMercado from './FunilEcossistemaMercado'
 import ExportarRelatorio from '../shared/ExportarRelatorio'
 
 interface Props {
@@ -53,8 +49,8 @@ export default function EstatisticasMercado({ periodo }: Props) {
     atendimentosCategoria,
     distribuicaoProfissionais,
     comissaoRamo,
-    crescimentoUsuarios,
     ocupacaoHoteleira,
+    historicoAtendimentos,
     horariosPico,
     loading,
     error,
@@ -66,15 +62,15 @@ export default function EstatisticasMercado({ periodo }: Props) {
 
   const segmentosGuiaFormatados = useMemo(
     () => segmentosGuia.map((s) => ({ label: s.categoria, valor: s.total, percentual: s.percentual })),
-    [segmentosGuia]
+    [segmentosGuia],
   )
   const segmentosRecomendadosFormatados = useMemo(
     () => segmentosRecomendados.map((s) => ({ label: s.segmento, valor: s.total, percentual: s.percentual })),
-    [segmentosRecomendados]
+    [segmentosRecomendados],
   )
   const atendimentosFormatados = useMemo(
     () => atendimentosCategoria.map((a) => ({ label: a.categoria, valor: a.total, percentual: a.percentual })),
-    [atendimentosCategoria]
+    [atendimentosCategoria],
   )
 
   const profissionaisPorTipoFormatados = useMemo(() => {
@@ -89,22 +85,21 @@ export default function EstatisticasMercado({ periodo }: Props) {
       .sort((a, b) => b.valor - a.valor)
   }, [distribuicaoProfissionais])
 
-  const crescimentoTuristas = useMemo(
-    () => crescimentoUsuarios.map((c) => ({ mes: c.mes, valor: c.turistas })),
-    [crescimentoUsuarios]
-  )
-  const crescimentoProfissionais = useMemo(
-    () => crescimentoUsuarios.map((c) => ({ mes: c.mes, valor: c.profissionais })),
-    [crescimentoUsuarios]
-  )
-  const crescimentoEmpresas = useMemo(
-    () => crescimentoUsuarios.map((c) => ({ mes: c.mes, valor: c.empresas })),
-    [crescimentoUsuarios]
-  )
+  const profissionaisPorCidadeFormatados = useMemo(() => {
+    const porCidade: Record<string, number> = {}
+    for (const p of distribuicaoProfissionais) {
+      const cidade = p.cidade?.trim() || 'Não informada'
+      porCidade[cidade] = (porCidade[cidade] ?? 0) + (p.total ?? 0)
+    }
+    const total = Object.values(porCidade).reduce((a, b) => a + b, 0)
+    return Object.entries(porCidade)
+      .map(([label, valor]) => ({ label, valor, percentual: total ? (valor / total) * 100 : 0 }))
+      .sort((a, b) => b.valor - a.valor)
+  }, [distribuicaoProfissionais])
 
   const comissaoFormatada = useMemo(
     () => comissaoRamo.map((c) => ({ label: c.ramo, valor: c.media })),
-    [comissaoRamo]
+    [comissaoRamo],
   )
   const suaComissao = useMemo(() => {
     const hit = comissaoRamo.find((c) => c.ramo === categoriaEmpresa)
@@ -113,14 +108,8 @@ export default function EstatisticasMercado({ periodo }: Props) {
 
   const totalAtendimentosPeriodo = useMemo(
     () => atendimentosCategoria.reduce((sum, a) => sum + a.total, 0),
-    [atendimentosCategoria]
+    [atendimentosCategoria],
   )
-
-  const ocupacaoMediaPeriodo = useMemo(() => {
-    if (ocupacaoHoteleira.length === 0) return null
-    const last = ocupacaoHoteleira[ocupacaoHoteleira.length - 1]
-    return last?.ocupacao ?? null
-  }, [ocupacaoHoteleira])
 
   const exportDados = useMemo(
     () => ({
@@ -129,7 +118,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
       media_comissao_setor: suaComissao,
       atendimentos_periodo: totalAtendimentosPeriodo,
     }),
-    [categoriaEmpresa, periodo, suaComissao, totalAtendimentosPeriodo]
+    [categoriaEmpresa, periodo, suaComissao, totalAtendimentosPeriodo],
   )
 
   if (loading) {
@@ -152,144 +141,121 @@ export default function EstatisticasMercado({ periodo }: Props) {
 
   return (
     <div className="space-y-4 pb-1">
-      <CardsResumo
-        mediaComissao={suaComissao}
-        atendimentos={totalAtendimentosPeriodo}
-        ocupacaoHoteleira={ocupacaoMediaPeriodo}
-        categoriaEmpresa={categoriaEmpresa}
-      />
-
       <div className="space-y-3">
         <PastaEstatistica
-          id="segmentos-guia"
-          titulo="Segmentos mais usados no guia"
+          id="funil-ecossistema"
+          titulo="Funil do Ecossistema"
+          icon={Filter}
+          controlado
+          aberto={pastaAberta === 'funil-ecossistema'}
+          onToggle={() => togglePasta('funil-ecossistema')}
+        >
+          <FunilEcossistemaMercado periodo={periodo} />
+        </PastaEstatistica>
+
+        <PastaEstatistica
+          id="analise-mercado"
+          titulo="Análise de Mercado"
           icon={BarChart3}
           controlado
-          aberto={pastaAberta === 'segmentos-guia'}
-          onToggle={() => togglePasta('segmentos-guia')}
+          aberto={pastaAberta === 'analise-mercado'}
+          onToggle={() => togglePasta('analise-mercado')}
         >
-          <GraficoBarras
-            dados={segmentosGuiaFormatados}
-            titulo=""
-            semTitulo
-            embed
-          />
-        </PastaEstatistica>
+          <div className="space-y-5">
+            <SubsecaoMercado titulo="Segmentos mais usados no guia (palavras-chave mais buscadas)">
+              <GraficoBarras dados={segmentosGuiaFormatados} titulo="" semTitulo embed />
+            </SubsecaoMercado>
 
-        <PastaEstatistica
-          id="segmentos-recomendados"
-          titulo="Segmentos mais recomendados"
-          icon={TrendingUp}
-          controlado
-          aberto={pastaAberta === 'segmentos-recomendados'}
-          onToggle={() => togglePasta('segmentos-recomendados')}
-        >
-          <GraficoBarras dados={segmentosRecomendadosFormatados} titulo="" semTitulo embed />
-        </PastaEstatistica>
+            <SubsecaoMercado titulo="Segmentos mais recomendados por profissionais">
+              <GraficoBarras dados={segmentosRecomendadosFormatados} titulo="" semTitulo embed />
+            </SubsecaoMercado>
 
-        <PastaEstatistica
-          id="atendimentos-categoria"
-          titulo="Atendimentos por categoria"
-          icon={PieChart}
-          controlado
-          aberto={pastaAberta === 'atendimentos-categoria'}
-          onToggle={() => togglePasta('atendimentos-categoria')}
-        >
-          <GraficoPizza dados={atendimentosFormatados} titulo="" semTitulo embed />
-        </PastaEstatistica>
-
-        <PastaEstatistica
-          id="distribuicao-profissionais"
-          titulo="Distribuição de profissionais"
-          icon={Users}
-          controlado
-          aberto={pastaAberta === 'distribuicao-profissionais'}
-          onToggle={() => togglePasta('distribuicao-profissionais')}
-        >
-          <GraficoPizza dados={profissionaisPorTipoFormatados} titulo="" semTitulo embed />
-        </PastaEstatistica>
-
-        <PastaEstatistica
-          id="comissao-ramo"
-          titulo="Média de comissão por ramo"
-          icon={DollarSign}
-          controlado
-          aberto={pastaAberta === 'comissao-ramo'}
-          onToggle={() => togglePasta('comissao-ramo')}
-        >
-          <GraficoBarras
-            dados={comissaoFormatada}
-            titulo=""
-            semTitulo
-            embed
-            destaque={categoriaEmpresa}
-            destaqueLabel={`Sua comissão: ${suaComissao}%`}
-          />
-        </PastaEstatistica>
-
-        <PastaEstatistica
-          id="crescimento-usuarios"
-          titulo="Crescimento de usuários"
-          icon={UserSquare2}
-          controlado
-          aberto={pastaAberta === 'crescimento-usuarios'}
-          onToggle={() => togglePasta('crescimento-usuarios')}
-        >
-          <div className="space-y-6">
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Turistas</p>
-              <GraficoLinha dados={crescimentoTuristas} titulo="" cor="#0097b2" semTitulo embed />
-            </div>
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Profissionais</p>
-              <GraficoLinha dados={crescimentoProfissionais} titulo="" cor="#00D443" semTitulo embed />
-            </div>
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Empresas</p>
-              <GraficoLinha dados={crescimentoEmpresas} titulo="" cor="#F1C40F" semTitulo embed />
-            </div>
+            <SubsecaoMercado titulo="Média de comissão por segmento">
+              <GraficoBarras
+                dados={comissaoFormatada}
+                titulo=""
+                semTitulo
+                embed
+                destaque={categoriaEmpresa}
+                destaqueLabel={`Sua comissão: ${suaComissao}%`}
+              />
+            </SubsecaoMercado>
           </div>
         </PastaEstatistica>
 
-        {categoriaEmpresa === 'Hospedagem' ? (
-          <PastaEstatistica
-            id="ocupacao-hoteleira"
-            titulo="Ocupação hoteleira"
-            icon={Building2}
-            controlado
-            aberto={pastaAberta === 'ocupacao-hoteleira'}
-            onToggle={() => togglePasta('ocupacao-hoteleira')}
-          >
-            <GraficoLinha
-              dados={ocupacaoHoteleira.map((o) => ({ mes: o.mes, valor: o.ocupacao }))}
-              titulo=""
-              cor="#E74C3C"
-              semTitulo
-              embed
-            />
-          </PastaEstatistica>
-        ) : null}
-
         <PastaEstatistica
-          id="mapa-calor"
-          titulo="Mapa de calor — mobilidade"
-          icon={Map}
+          id="mobilidade-regional"
+          titulo="Mobilidade Regional"
+          icon={MapPin}
           controlado
-          aberto={pastaAberta === 'mapa-calor'}
-          onToggle={() => togglePasta('mapa-calor')}
+          aberto={pastaAberta === 'mobilidade-regional'}
+          onToggle={() => togglePasta('mobilidade-regional')}
         >
-          <MapaCalor semTitulo embed />
+          <div className="space-y-5">
+            <SubsecaoMercado titulo="Distribuição de profissionais (por tipo e cidade)">
+              <div className="space-y-6">
+                <div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Por tipo</p>
+                  <GraficoPizza dados={profissionaisPorTipoFormatados} titulo="" semTitulo embed />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Por cidade</p>
+                  <GraficoBarras dados={profissionaisPorCidadeFormatados} titulo="" semTitulo embed />
+                </div>
+              </div>
+            </SubsecaoMercado>
+
+            <SubsecaoMercado titulo="Atendimento por categoria">
+              <GraficoPizza dados={atendimentosFormatados} titulo="" semTitulo embed />
+            </SubsecaoMercado>
+
+            <SubsecaoMercado titulo="Horário de pico (solicitações de atendimento)">
+              <HorariosPico dados={horariosPico} semTitulo embed />
+            </SubsecaoMercado>
+          </div>
         </PastaEstatistica>
 
         <PastaEstatistica
-          id="horarios-pico"
-          titulo="Horários de pico"
-          icon={Clock}
+          id="projecao-demanda"
+          titulo="Projeção de Demanda"
+          icon={TrendingUp}
           controlado
-          aberto={pastaAberta === 'horarios-pico'}
-          onToggle={() => togglePasta('horarios-pico')}
+          aberto={pastaAberta === 'projecao-demanda'}
+          onToggle={() => togglePasta('projecao-demanda')}
         >
-          <HorariosPico dados={horariosPico} semTitulo embed />
+          <div className="space-y-5">
+            <SubsecaoMercado titulo="Ocupação de hospedagem">
+              {ocupacaoHoteleira.length > 0 ? (
+                <GraficoLinha
+                  dados={ocupacaoHoteleira.map((o) => ({ mes: o.mes, valor: o.ocupacao }))}
+                  titulo=""
+                  cor="#E74C3C"
+                  semTitulo
+                  embed
+                />
+              ) : (
+                <p className="text-sm text-gray-500">Sem dados de ocupação no período selecionado.</p>
+              )}
+            </SubsecaoMercado>
+
+            <SubsecaoMercado titulo="Mapa de calor na região">
+              <MapaCalor semTitulo embed />
+            </SubsecaoMercado>
+
+            <SubsecaoMercado titulo="Histórico de atendimentos">
+              {historicoAtendimentos.length > 0 ? (
+                <GraficoLinha
+                  dados={historicoAtendimentos}
+                  titulo=""
+                  cor="#0097b2"
+                  semTitulo
+                  embed
+                />
+              ) : (
+                <p className="text-sm text-gray-500">Sem histórico de atendimentos no período selecionado.</p>
+              )}
+            </SubsecaoMercado>
+          </div>
         </PastaEstatistica>
       </div>
 

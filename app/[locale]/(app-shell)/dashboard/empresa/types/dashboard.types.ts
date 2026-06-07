@@ -109,6 +109,22 @@ export interface DadosHorariosPico {
   total: number
 }
 
+export interface DadosFunilEcossistema {
+  recomendacoes: number
+  pax: number
+  vendas: number
+}
+
+export interface RecomendacaoCategoriaAgregada {
+  categoria: string
+  total: number
+}
+
+export interface DadosHistoricoAtendimentos {
+  mes: string
+  valor: number
+}
+
 export interface Produto {
   id: string
   nome: string
