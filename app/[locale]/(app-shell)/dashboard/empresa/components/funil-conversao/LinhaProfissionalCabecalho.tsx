@@ -14,6 +14,7 @@ interface Props {
   verificado?: boolean
   naoLidas?: number
   onAberto?: () => void
+  posicao?: number
   children: ReactNode
 }
 
@@ -25,6 +26,7 @@ export default function LinhaProfissionalCabecalho({
   verificado = false,
   naoLidas = 0,
   onAberto,
+  posicao,
   children,
 }: Props) {
   const [aberto, setAberto] = useState(false)
@@ -48,6 +50,11 @@ export default function LinhaProfissionalCabecalho({
       >
         <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-100">
           <AvatarImage src={fotoUrl} alt={nome} width={40} height={40} className="h-full w-full object-cover" />
+          {posicao != null ? (
+            <span className="absolute -left-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[#0097b2] px-0.5 text-[9px] font-bold tabular-nums text-white">
+              {posicao}
+            </span>
+          ) : null}
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-gray-900">{nome}</p>

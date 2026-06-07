@@ -34,12 +34,13 @@ export default function CardVendas({
         onPastaVista={onPastaVista}
         onProfissionalVisto={onProfissionalVisto}
         vazioCategoria="Nenhuma venda nesta categoria"
-        renderLinha={(prof, naoLidas, onVisto) => (
+        renderLinha={(prof, naoLidas, onVisto, posicao) => (
           <LinhaProfissionalVenda
             key={prof.profissional_id}
             profissional={prof}
             naoLidas={naoLidas}
             onAberto={onVisto}
+            posicao={posicao}
           />
         )}
       />

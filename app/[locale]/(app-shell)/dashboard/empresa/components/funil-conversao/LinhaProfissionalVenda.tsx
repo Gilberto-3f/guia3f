@@ -13,9 +13,10 @@ interface Props {
   profissional: VendaProfissional
   naoLidas?: number
   onAberto?: () => void
+  posicao?: number
 }
 
-export default function LinhaProfissionalVenda({ profissional, naoLidas = 0, onAberto }: Props) {
+export default function LinhaProfissionalVenda({ profissional, naoLidas = 0, onAberto, posicao }: Props) {
   return (
     <LinhaProfissionalCabecalho
       profissionalId={profissional.profissional_id}
@@ -25,6 +26,7 @@ export default function LinhaProfissionalVenda({ profissional, naoLidas = 0, onA
       verificado={profissional.profissional_verificado}
       naoLidas={naoLidas}
       onAberto={onAberto}
+      posicao={posicao}
     >
       {profissional.detalhes.map((detalhe) => (
         <div key={detalhe.id} className="text-sm leading-relaxed text-gray-600">

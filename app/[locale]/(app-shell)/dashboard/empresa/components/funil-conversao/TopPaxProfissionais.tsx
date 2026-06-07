@@ -32,12 +32,13 @@ export default function TopPaxProfissionais({
       onProfissionalVisto={onProfissionalVisto}
       modoContagem="pax"
       vazioCategoria="Nenhum PAX nesta categoria"
-      renderLinha={(prof, naoLidas, onVisto) => (
+      renderLinha={(prof, naoLidas, onVisto, posicao) => (
         <LinhaProfissionalPax
           key={prof.profissional_id}
           profissional={prof}
           naoLidas={naoLidas}
           onAberto={onVisto}
+          posicao={posicao}
         />
       )}
     />

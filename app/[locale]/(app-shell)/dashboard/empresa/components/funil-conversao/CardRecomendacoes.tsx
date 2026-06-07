@@ -31,12 +31,13 @@ export default function CardRecomendacoes({
       onPastaVista={onPastaVista}
       onProfissionalVisto={onProfissionalVisto}
       vazioCategoria="Nenhuma recomendação nesta categoria"
-      renderLinha={(prof, naoLidas, onVisto) => (
+      renderLinha={(prof, naoLidas, onVisto, posicao) => (
         <LinhaProfissionalRecomendacao
           key={prof.profissional_id}
           profissional={prof}
           naoLidas={naoLidas}
           onAberto={onVisto}
+          posicao={posicao}
         />
       )}
     />

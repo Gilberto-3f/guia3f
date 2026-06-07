@@ -6,6 +6,7 @@ import {
   agruparPorCategoria,
   CATEGORIAS_CONFIG,
   CATEGORIAS_ORDEM,
+  ordenarCategoriasRanking,
   type CategoriaProfissionalFunil,
 } from './categoriasProfissionalFunil'
 import { contarNovosEventos, contarNovosPax } from './contarNovosFunil'
@@ -33,7 +34,7 @@ interface Props<T extends ProfissionalComCategoria> {
   onPastaVista?: (categoria: string) => void
   onProfissionalVisto?: (profissionalId: string) => void
   modoContagem?: ModoContagem
-  renderLinha: (item: T, naoLidas: number, onProfissionalVisto?: () => void) => ReactNode
+  renderLinha: (item: T, naoLidas: number, onProfissionalVisto?: () => void, posicao?: number) => ReactNode
 }
 
 function contarNovosProfissional(item: ProfissionalComCategoria, vistoEm: string, modo: ModoContagem): number {
@@ -59,6 +60,12 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
   const porCategoria = agruparPorCategoria(items)
   const vistoEm = referenciaVistoEm ?? ''
 
+  const totaisPorCategoria = Object.fromEntries(
+    CATEGORIAS_ORDEM.map((cat) => [cat, (porCategoria[cat] ?? []).reduce((sum, i) => sum + i.total, 0)]),
+  ) as Record<CategoriaProfissionalFunil, number>
+
+  const categoriasRanking = ordenarCategoriasRanking(totaisPorCategoria)
+
   const togglePasta = (categoria: string) => {
     setPastaAberta((atual) => {
       if (atual === categoria) return null
@@ -69,9 +76,9 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
 
   return (
     <div>
-      {CATEGORIAS_ORDEM.map((categoria: CategoriaProfissionalFunil) => {
+      {categoriasRanking.map(({ categoria, total: totalCategoria }, indiceRanking) => {
         const lista = porCategoria[categoria] ?? []
-        const totalCategoria = lista.reduce((sum, i) => sum + i.total, 0)
+        const posicao = indiceRanking + 1
         const naoLidasPasta =
           vistoEm && !pastasVistas?.has(categoria)
             ? lista.reduce((s, item) => s + contarNovosProfissional(item, vistoEm, modoContagem), 0)
@@ -82,6 +89,7 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
           <PastaRelatorioLista
             key={categoria}
             id={`${prefixoId}-${categoria}`}
+            posicao={posicao}
             titulo={`${label} (${totalCategoria})`}
             icon={Icon}
             naoLidas={naoLidasPasta}
@@ -93,12 +101,17 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
               <p className="py-2 text-sm text-gray-500">{vazioCategoria}</p>
             ) : (
               <div>
-                {lista.map((item) => {
+                {lista.map((item, indiceProf) => {
                   const naoLidas =
                     vistoEm && !profissionaisVistos?.has(item.profissional_id)
                       ? contarNovosProfissional(item, vistoEm, modoContagem)
                       : 0
-                  return renderLinha(item, naoLidas, () => onProfissionalVisto?.(item.profissional_id))
+                  return renderLinha(
+                    item,
+                    naoLidas,
+                    () => onProfissionalVisto?.(item.profissional_id),
+                    indiceProf + 1,
+                  )
                 })}
               </div>
             )}

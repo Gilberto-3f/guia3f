@@ -15,9 +15,10 @@ interface Props {
   profissional: RecomendacaoProfissional
   naoLidas?: number
   onAberto?: () => void
+  posicao?: number
 }
 
-export default function LinhaProfissionalRecomendacao({ profissional, naoLidas = 0, onAberto }: Props) {
+export default function LinhaProfissionalRecomendacao({ profissional, naoLidas = 0, onAberto, posicao }: Props) {
   const recomendacoesOrdenadas = useMemo(
     () =>
       [...profissional.detalhes].sort(
@@ -35,6 +36,7 @@ export default function LinhaProfissionalRecomendacao({ profissional, naoLidas =
       verificado={profissional.profissional_verificado}
       naoLidas={naoLidas}
       onAberto={onAberto}
+      posicao={posicao}
     >
       <div className="space-y-3 px-3">
         <p className="text-sm font-bold text-gray-700">

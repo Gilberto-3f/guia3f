@@ -2,7 +2,7 @@
 
 import {
   CATEGORIAS_CONFIG,
-  CATEGORIAS_ORDEM,
+  ordenarCategoriasRanking,
   type CategoriaProfissionalFunil,
 } from '../funil-conversao/categoriasProfissionalFunil'
 import type { RecomendacaoCategoriaAgregada } from '../../types/dashboard.types'
@@ -12,32 +12,20 @@ interface Props {
 }
 
 export default function RecomendacoesCategoriaResumo({ items }: Props) {
-  const porCategoria = Object.fromEntries(CATEGORIAS_ORDEM.map((cat) => [cat, 0])) as Record<
-    CategoriaProfissionalFunil,
-    number
-  >
+  const totais = Object.fromEntries(
+    items.map((item) => [item.categoria as CategoriaProfissionalFunil, item.total]),
+  ) as Partial<Record<CategoriaProfissionalFunil, number>>
 
-  for (const item of items) {
-    const key = item.categoria as CategoriaProfissionalFunil
-    if (key in porCategoria) {
-      porCategoria[key] += item.total
-    }
-  }
-
-  const totalGeral = Object.values(porCategoria).reduce((s, n) => s + n, 0)
-
-  if (totalGeral === 0) {
-    return <p className="py-2 text-sm text-gray-500">Nenhuma recomendação no período selecionado.</p>
-  }
+  const ranking = ordenarCategoriasRanking(totais)
 
   return (
     <div className="divide-y divide-gray-100">
-      {CATEGORIAS_ORDEM.map((cat) => {
-        const total = porCategoria[cat]
-        if (total <= 0) return null
-        const { label, Icon } = CATEGORIAS_CONFIG[cat]
+      {ranking.map(({ categoria, total }, indice) => {
+        const posicao = indice + 1
+        const { label, Icon } = CATEGORIAS_CONFIG[categoria]
         return (
-          <div key={cat} className="flex items-center gap-3 py-3">
+          <div key={categoria} className="flex items-center gap-3 py-3">
+            <span className="w-7 shrink-0 tabular-nums text-sm font-bold text-[#0097b2]">{posicao}º</span>
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#0097b2] text-white">
               <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
             </span>

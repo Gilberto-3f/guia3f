@@ -1149,10 +1149,6 @@ export default function CanalMensagens({
                             </p>
                           ) : null}
 
-                          {!emEdicao && msg.editado_em ? (
-                            <p className="mt-0.5 text-[10px] text-gray-400">editado</p>
-                          ) : null}
-
                           {ehAnexoImagemCanal(msg.anexo_url, msg.anexo_tipo) ? (
                             <div
                               className={msg.texto ? 'mt-1.5' : ''}
@@ -1184,9 +1180,14 @@ export default function CanalMensagens({
                             </a>
                           ) : null}
 
-                          <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-gray-500">
-                            <span>{formatarHora(msg.created_at)}</span>
-                            {isOwn ? <span aria-hidden>✓</span> : null}
+                          <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-gray-500">
+                            <span className="text-gray-400">
+                              {!emEdicao && msg.editado_em ? 'editado' : ''}
+                            </span>
+                            <div className="flex shrink-0 items-center gap-1">
+                              <span>{formatarHora(msg.created_at)}</span>
+                              {isOwn ? <span aria-hidden>✓</span> : null}
+                            </div>
                           </div>
                         </>
                       )}

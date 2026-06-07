@@ -16,6 +16,7 @@ interface Props {
   onToggle?: () => void
   controlado?: boolean
   naoLidas?: number
+  posicao?: number
 }
 
 export default function PastaRelatorioLista({
@@ -27,6 +28,7 @@ export default function PastaRelatorioLista({
   onToggle,
   controlado = false,
   naoLidas = 0,
+  posicao,
 }: Props) {
   const [abertoLocal, setAbertoLocal] = useState(false)
   const aberto = controlado ? Boolean(abertoProp) : abertoLocal
@@ -52,7 +54,12 @@ export default function PastaRelatorioLista({
           <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-between gap-2 border-b border-gray-200/80 py-3">
-          <span className="min-w-0 text-[15px] font-normal text-gray-900">{titulo}</span>
+          <span className="flex min-w-0 items-center gap-2 text-[15px] font-normal text-gray-900">
+            {posicao != null ? (
+              <span className="shrink-0 tabular-nums text-sm font-bold text-[#0097b2]">{posicao}º</span>
+            ) : null}
+            <span className="min-w-0 truncate">{titulo}</span>
+          </span>
           <div className="flex shrink-0 items-center gap-1.5">
             <CanalNaoLidasBadge count={naoLidas} />
             <ChevronDown

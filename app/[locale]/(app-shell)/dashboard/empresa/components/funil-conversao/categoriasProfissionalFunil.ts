@@ -49,3 +49,16 @@ export function agruparPorCategoria<T extends { categoria: string; total: number
 
   return porCategoria
 }
+
+/** Ordena comunidades por total (ranking); empate mantém ordem padrão. */
+export function ordenarCategoriasRanking(
+  totais: Partial<Record<CategoriaProfissionalFunil, number>>,
+): { categoria: CategoriaProfissionalFunil; total: number }[] {
+  return CATEGORIAS_ORDEM.map((categoria) => ({
+    categoria,
+    total: totais[categoria] ?? 0,
+  })).sort((a, b) => {
+    if (b.total !== a.total) return b.total - a.total
+    return CATEGORIAS_ORDEM.indexOf(a.categoria) - CATEGORIAS_ORDEM.indexOf(b.categoria)
+  })
+}
