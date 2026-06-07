@@ -37,7 +37,7 @@ export default function LinhaProfissionalRecomendacao({ profissional, naoLidas =
       onAberto={onAberto}
     >
       <div className="space-y-3 px-3">
-        <p className="text-sm font-medium text-gray-700">
+        <p className="text-sm font-bold text-gray-700">
           {recomendacoesOrdenadas.length === 1
             ? '1 recomendação feita'
             : `${recomendacoesOrdenadas.length} recomendações feitas`}

@@ -1149,6 +1149,10 @@ export default function CanalMensagens({
                             </p>
                           ) : null}
 
+                          {!emEdicao && msg.editado_em ? (
+                            <p className="mt-0.5 text-[10px] text-gray-400">editado</p>
+                          ) : null}
+
                           {ehAnexoImagemCanal(msg.anexo_url, msg.anexo_tipo) ? (
                             <div
                               className={msg.texto ? 'mt-1.5' : ''}
@@ -1219,14 +1223,6 @@ export default function CanalMensagens({
                     ) : null}
                     </div>
                   </div>
-
-                  {msg.editado_em ? (
-                    <p
-                      className={`mt-0.5 text-[10px] text-gray-400 ${isOwn ? 'mr-0 text-right' : 'pl-10'}`}
-                    >
-                      editado
-                    </p>
-                  ) : null}
 
                   {temReacoes ? (
                     <div

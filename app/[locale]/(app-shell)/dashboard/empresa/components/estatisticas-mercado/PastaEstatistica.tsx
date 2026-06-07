@@ -47,7 +47,7 @@ export default function PastaEstatistica({
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0097b2]/10">
             <Icon className="h-5 w-5 text-[#0097b2]" strokeWidth={2} aria-hidden />
           </span>
-          <span className="text-sm font-bold uppercase tracking-wide text-[#0097b2] sm:text-base">{titulo}</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-[#0097b2] sm:text-sm">{titulo}</span>
         </div>
         <ChevronDown
           className={`h-5 w-5 shrink-0 text-[#0097b2] transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
