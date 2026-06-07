@@ -14,9 +14,10 @@ import LinhaProfissionalCabecalho from './LinhaProfissionalCabecalho'
 interface Props {
   profissional: RecomendacaoProfissional
   naoLidas?: number
+  onAberto?: () => void
 }
 
-export default function LinhaProfissionalRecomendacao({ profissional, naoLidas = 0 }: Props) {
+export default function LinhaProfissionalRecomendacao({ profissional, naoLidas = 0, onAberto }: Props) {
   const recomendacoesOrdenadas = useMemo(
     () =>
       [...profissional.detalhes].sort(
@@ -33,6 +34,7 @@ export default function LinhaProfissionalRecomendacao({ profissional, naoLidas =
       fotoUrl={profissional.profissional_foto_url}
       verificado={profissional.profissional_verificado}
       naoLidas={naoLidas}
+      onAberto={onAberto}
     >
       <div className="space-y-3 px-3">
         <p className="text-sm font-medium text-gray-700">

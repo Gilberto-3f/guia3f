@@ -28,8 +28,12 @@ interface Props<T extends ProfissionalComCategoria> {
   items: T[]
   vazioCategoria: string
   referenciaVistoEm?: string | null
+  pastasVistas?: Set<string>
+  profissionaisVistos?: Set<string>
+  onPastaVista?: (categoria: string) => void
+  onProfissionalVisto?: (profissionalId: string) => void
   modoContagem?: ModoContagem
-  renderLinha: (item: T, naoLidas: number) => ReactNode
+  renderLinha: (item: T, naoLidas: number, onProfissionalVisto?: () => void) => ReactNode
 }
 
 function contarNovosProfissional(item: ProfissionalComCategoria, vistoEm: string, modo: ModoContagem): number {
@@ -44,6 +48,10 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
   items,
   vazioCategoria,
   referenciaVistoEm = null,
+  pastasVistas,
+  profissionaisVistos,
+  onPastaVista,
+  onProfissionalVisto,
   modoContagem = 'eventos',
   renderLinha,
 }: Props<T>) {
@@ -51,8 +59,12 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
   const porCategoria = agruparPorCategoria(items)
   const vistoEm = referenciaVistoEm ?? ''
 
-  const togglePasta = (id: string) => {
-    setPastaAberta((atual) => (atual === id ? null : id))
+  const togglePasta = (categoria: string) => {
+    setPastaAberta((atual) => {
+      if (atual === categoria) return null
+      onPastaVista?.(categoria)
+      return categoria
+    })
   }
 
   return (
@@ -60,9 +72,10 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
       {CATEGORIAS_ORDEM.map((categoria: CategoriaProfissionalFunil) => {
         const lista = porCategoria[categoria] ?? []
         const totalCategoria = lista.reduce((sum, i) => sum + i.total, 0)
-        const naoLidasPasta = vistoEm
-          ? lista.reduce((s, item) => s + contarNovosProfissional(item, vistoEm, modoContagem), 0)
-          : 0
+        const naoLidasPasta =
+          vistoEm && !pastasVistas?.has(categoria)
+            ? lista.reduce((s, item) => s + contarNovosProfissional(item, vistoEm, modoContagem), 0)
+            : 0
         const { label, Icon } = CATEGORIAS_CONFIG[categoria]
 
         return (
@@ -81,8 +94,11 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
             ) : (
               <div>
                 {lista.map((item) => {
-                  const naoLidas = vistoEm ? contarNovosProfissional(item, vistoEm, modoContagem) : 0
-                  return renderLinha(item, naoLidas)
+                  const naoLidas =
+                    vistoEm && !profissionaisVistos?.has(item.profissional_id)
+                      ? contarNovosProfissional(item, vistoEm, modoContagem)
+                      : 0
+                  return renderLinha(item, naoLidas, () => onProfissionalVisto?.(item.profissional_id))
                 })}
               </div>
             )}

@@ -7,9 +7,10 @@ import LinhaProfissionalCabecalho from './LinhaProfissionalCabecalho'
 interface Props {
   profissional: PaxProfissional
   naoLidas?: number
+  onAberto?: () => void
 }
 
-export default function LinhaProfissionalPax({ profissional, naoLidas = 0 }: Props) {
+export default function LinhaProfissionalPax({ profissional, naoLidas = 0, onAberto }: Props) {
   return (
     <LinhaProfissionalCabecalho
       profissionalId={profissional.profissional_id}
@@ -18,6 +19,7 @@ export default function LinhaProfissionalPax({ profissional, naoLidas = 0 }: Pro
       fotoUrl={profissional.profissional_foto_url}
       verificado={profissional.profissional_verificado}
       naoLidas={naoLidas}
+      onAberto={onAberto}
     >
       {profissional.detalhes.map((detalhe) => (
         <div key={detalhe.id} className="text-sm leading-relaxed text-gray-600">

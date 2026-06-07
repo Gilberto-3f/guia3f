@@ -144,7 +144,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
       <div className="space-y-3">
         <PastaEstatistica
           id="funil-ecossistema"
-          titulo="Funil do Ecossistema"
+          titulo="Funil de conversão do Ecossistema"
           icon={Filter}
           controlado
           aberto={pastaAberta === 'funil-ecossistema'}
@@ -217,7 +217,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
 
         <PastaEstatistica
           id="projecao-demanda"
-          titulo="Projeção de Demanda"
+          titulo="Expectativa e Projeção de Demanda"
           icon={TrendingUp}
           controlado
           aberto={pastaAberta === 'projecao-demanda'}

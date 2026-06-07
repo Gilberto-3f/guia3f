@@ -63,16 +63,40 @@ export default function FunilConversao({ periodo }: Props) {
 
   const [detalheAberto, setDetalheAberto] = useState<DetalheEtapa>(null)
   const [referenciaVistoEm, setReferenciaVistoEm] = useState<string | null>(null)
+  const [pastasVistas, setPastasVistas] = useState<Set<string>>(new Set())
+  const [profissionaisVistos, setProfissionaisVistos] = useState<Set<string>>(new Set())
 
   const toggleDetalhe = (etapa: Exclude<DetalheEtapa, null>) => {
     setDetalheAberto((atual) => {
       if (atual === etapa) {
         setReferenciaVistoEm(null)
+        setPastasVistas(new Set())
+        setProfissionaisVistos(new Set())
         return null
       }
       setReferenciaVistoEm(vistoEmEtapa(leitura, etapa))
+      setPastasVistas(new Set())
+      setProfissionaisVistos(new Set())
       void marcarEtapaLida(etapa)
       return etapa
+    })
+  }
+
+  const marcarPastaVista = (categoria: string) => {
+    setPastasVistas((prev) => {
+      if (prev.has(categoria)) return prev
+      const next = new Set(prev)
+      next.add(categoria)
+      return next
+    })
+  }
+
+  const marcarProfissionalVisto = (profissionalId: string) => {
+    setProfissionaisVistos((prev) => {
+      if (prev.has(profissionalId)) return prev
+      const next = new Set(prev)
+      next.add(profissionalId)
+      return next
     })
   }
 
@@ -187,6 +211,8 @@ export default function FunilConversao({ periodo }: Props) {
             valor={etapa.valor}
             ocultarIcone={etapa.id === 'recomendacoes' && funilModoCompacto(etapa.valor)}
             naoLidas={etapa.expandable ? naoLidasEtapa(etapa.id) : 0}
+            indiceEtapa={index}
+            totalEtapas={etapas.length}
             expandable={etapa.expandable}
             selected={detalheAberto === etapa.id}
             onToggle={etapa.expandable ? () => toggleDetalhe(etapa.id) : undefined}
@@ -216,16 +242,31 @@ export default function FunilConversao({ periodo }: Props) {
             <CardRecomendacoes
               recomendacoes={recomendacoesPorProfissional}
               referenciaVistoEm={referenciaVistoEm}
+              pastasVistas={pastasVistas}
+              profissionaisVistos={profissionaisVistos}
+              onPastaVista={marcarPastaVista}
+              onProfissionalVisto={marcarProfissionalVisto}
             />
           ) : null}
           {detalheAberto === 'pax' && detalhesLoading !== 'pax' ? (
-            <TopPaxProfissionais paxPorProfissional={paxPorProfissional} referenciaVistoEm={referenciaVistoEm} />
+            <TopPaxProfissionais
+              paxPorProfissional={paxPorProfissional}
+              referenciaVistoEm={referenciaVistoEm}
+              pastasVistas={pastasVistas}
+              profissionaisVistos={profissionaisVistos}
+              onPastaVista={marcarPastaVista}
+              onProfissionalVisto={marcarProfissionalVisto}
+            />
           ) : null}
           {detalheAberto === 'vendas' && detalhesLoading !== 'vendas' ? (
             <CardVendas
               vendasPorProfissional={vendasPorProfissional}
               vendasSemProfissional={vendasSemProfissional}
               referenciaVistoEm={referenciaVistoEm}
+              pastasVistas={pastasVistas}
+              profissionaisVistos={profissionaisVistos}
+              onPastaVista={marcarPastaVista}
+              onProfissionalVisto={marcarProfissionalVisto}
             />
           ) : null}
         </RelatorioDetalhado>

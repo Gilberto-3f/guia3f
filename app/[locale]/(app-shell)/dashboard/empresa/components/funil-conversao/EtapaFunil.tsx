@@ -3,12 +3,22 @@
 import { ChevronDown, ChevronUp, type LucideIcon } from 'lucide-react'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
+/** Distância segura da borda direita para o badge ficar dentro do clip-path do funil. */
+function calcBadgeRightPct(indiceEtapa: number, totalEtapas: number): number {
+  if (totalEtapas <= 0) return 3
+  const topoY = indiceEtapa / totalEtapas
+  const bordaDireitaPct = 100 - 28 * topoY
+  return Math.max(3, 100 - bordaDireitaPct + 3)
+}
+
 interface Props {
   icon: LucideIcon
   label: string
   valor: number
   ocultarIcone?: boolean
   naoLidas?: number
+  indiceEtapa?: number
+  totalEtapas?: number
   expandable?: boolean
   selected?: boolean
   onToggle?: () => void
@@ -21,6 +31,8 @@ export default function EtapaFunil({
   valor,
   ocultarIcone = false,
   naoLidas = 0,
+  indiceEtapa = 0,
+  totalEtapas = 1,
   expandable = false,
   selected = false,
   onToggle,
@@ -49,9 +61,13 @@ export default function EtapaFunil({
     !isLast ? 'border-b-[3px] border-white' : ''
   }`
 
+  const badgeRightPct = calcBadgeRightPct(indiceEtapa, totalEtapas)
   const badge =
     naoLidas > 0 ? (
-      <span className="pointer-events-none absolute right-2 top-2 z-10 sm:right-3 sm:top-2.5">
+      <span
+        className="pointer-events-none absolute top-2 z-10 sm:top-2.5"
+        style={{ right: `${badgeRightPct}%` }}
+      >
         <CanalNaoLidasBadge count={naoLidas} className="!text-[10px]" />
       </span>
     ) : null

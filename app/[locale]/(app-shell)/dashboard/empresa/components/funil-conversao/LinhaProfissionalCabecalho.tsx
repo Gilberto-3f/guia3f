@@ -13,6 +13,7 @@ interface Props {
   fotoUrl: string | null
   verificado?: boolean
   naoLidas?: number
+  onAberto?: () => void
   children: ReactNode
 }
 
@@ -23,16 +24,24 @@ export default function LinhaProfissionalCabecalho({
   fotoUrl,
   verificado = false,
   naoLidas = 0,
+  onAberto,
   children,
 }: Props) {
   const [aberto, setAberto] = useState(false)
   const handle = username.replace(/^@+/, '')
 
+  const toggle = () => {
+    setAberto((v) => {
+      if (!v) onAberto?.()
+      return !v
+    })
+  }
+
   return (
     <div className="border-b border-gray-100 last:border-b-0">
       <button
         type="button"
-        onClick={() => setAberto((v) => !v)}
+        onClick={toggle}
         className="flex w-full items-center gap-3 py-3 text-left transition-colors hover:bg-white/60"
         aria-expanded={aberto}
         aria-controls={`detalhe-prof-${profissionalId}`}

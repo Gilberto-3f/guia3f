@@ -8,18 +8,39 @@ interface Props {
   vendasPorProfissional: VendaProfissional[]
   vendasSemProfissional: number
   referenciaVistoEm?: string | null
+  pastasVistas?: Set<string>
+  profissionaisVistos?: Set<string>
+  onPastaVista?: (categoria: string) => void
+  onProfissionalVisto?: (profissionalId: string) => void
 }
 
-export default function CardVendas({ vendasPorProfissional, vendasSemProfissional, referenciaVistoEm }: Props) {
+export default function CardVendas({
+  vendasPorProfissional,
+  vendasSemProfissional,
+  referenciaVistoEm,
+  pastasVistas,
+  profissionaisVistos,
+  onPastaVista,
+  onProfissionalVisto,
+}: Props) {
   return (
     <div className="space-y-3">
       <RelatorioPastasCategoria
         prefixoId="venda"
         items={vendasPorProfissional}
         referenciaVistoEm={referenciaVistoEm}
+        pastasVistas={pastasVistas}
+        profissionaisVistos={profissionaisVistos}
+        onPastaVista={onPastaVista}
+        onProfissionalVisto={onProfissionalVisto}
         vazioCategoria="Nenhuma venda nesta categoria"
-        renderLinha={(prof, naoLidas) => (
-          <LinhaProfissionalVenda key={prof.profissional_id} profissional={prof} naoLidas={naoLidas} />
+        renderLinha={(prof, naoLidas, onVisto) => (
+          <LinhaProfissionalVenda
+            key={prof.profissional_id}
+            profissional={prof}
+            naoLidas={naoLidas}
+            onAberto={onVisto}
+          />
         )}
       />
       {vendasSemProfissional > 0 ? (

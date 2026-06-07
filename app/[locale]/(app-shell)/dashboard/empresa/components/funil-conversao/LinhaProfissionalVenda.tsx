@@ -12,9 +12,10 @@ function formatarValor(valor: number | null) {
 interface Props {
   profissional: VendaProfissional
   naoLidas?: number
+  onAberto?: () => void
 }
 
-export default function LinhaProfissionalVenda({ profissional, naoLidas = 0 }: Props) {
+export default function LinhaProfissionalVenda({ profissional, naoLidas = 0, onAberto }: Props) {
   return (
     <LinhaProfissionalCabecalho
       profissionalId={profissional.profissional_id}
@@ -23,6 +24,7 @@ export default function LinhaProfissionalVenda({ profissional, naoLidas = 0 }: P
       fotoUrl={profissional.profissional_foto_url}
       verificado={profissional.profissional_verificado}
       naoLidas={naoLidas}
+      onAberto={onAberto}
     >
       {profissional.detalhes.map((detalhe) => (
         <div key={detalhe.id} className="text-sm leading-relaxed text-gray-600">
