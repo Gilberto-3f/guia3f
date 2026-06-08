@@ -121,8 +121,9 @@ export default function MobilidadeRegionalPainel({
   ]
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <SubsecaoMercado
+        id="distribuicao-profissionais"
         titulo="Distribuição de profissionais"
         subtitulo="Concentração de profissionais na Tríplice Fronteira."
       >
@@ -166,6 +167,7 @@ export default function MobilidadeRegionalPainel({
       </SubsecaoMercado>
 
       <SubsecaoMercado
+        id="atendimentos-categoria"
         titulo="Atendimentos por categoria"
         subtitulo="Quantidade de atendimentos realizados por categoria profissional"
       >
@@ -187,6 +189,7 @@ export default function MobilidadeRegionalPainel({
       </SubsecaoMercado>
 
       <SubsecaoMercado
+        id="horario-pico"
         titulo="Horário de pico dos atendimentos particulares"
         subtitulo="Horários de maior demanda por serviços de mobilidade (atendimentos concluídos)"
       >

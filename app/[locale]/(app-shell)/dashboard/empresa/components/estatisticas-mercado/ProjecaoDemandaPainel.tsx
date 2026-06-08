@@ -58,8 +58,9 @@ export default function ProjecaoDemandaPainel({ reservasHospedagem, atendimentos
   )
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <SubsecaoMercado
+        id="reservas-hospedagem"
         titulo="Reservas de Hospedagem"
         subtitulo="Reservas mapeadas para os próximos meses"
       >
@@ -76,6 +77,7 @@ export default function ProjecaoDemandaPainel({ reservasHospedagem, atendimentos
       </SubsecaoMercado>
 
       <SubsecaoMercado
+        id="atendimentos-agendados"
         titulo="Atendimentos Agendados"
         subtitulo="Atendimento de profissionais reservados com antecedência"
       >
@@ -92,7 +94,8 @@ export default function ProjecaoDemandaPainel({ reservasHospedagem, atendimentos
       </SubsecaoMercado>
 
       <SubsecaoMercado
-        titulo="Histórico de Reservas e Agendamentos"
+        id="historico-reservas"
+        titulo="Histórico de Reservas"
         subtitulo="Comparativo de sazonalidade dos dois últimos anos"
       >
         <div className="mb-4 flex justify-center">

@@ -48,8 +48,9 @@ export default function AnaliseMercadoPainel({ analise, categoriaEmpresa }: Prop
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <SubsecaoMercado
+        id="mais-procurados"
         titulo="Mais Procurados"
         subtitulo="Segmentos de maior procura pelo público"
       >
@@ -73,6 +74,7 @@ export default function AnaliseMercadoPainel({ analise, categoriaEmpresa }: Prop
       </SubsecaoMercado>
 
       <SubsecaoMercado
+        id="mais-recomendados"
         titulo="Mais Recomendados"
         subtitulo="Segmentos mais recomendados por profissionais"
       >
@@ -80,6 +82,7 @@ export default function AnaliseMercadoPainel({ analise, categoriaEmpresa }: Prop
       </SubsecaoMercado>
 
       <SubsecaoMercado
+        id="media-comissao"
         titulo="Média de Comissão"
         subtitulo="Estimativa de mercado com base nas ofertas cadastradas pelas empresas (PAX, porcentagem e indicação)"
       >

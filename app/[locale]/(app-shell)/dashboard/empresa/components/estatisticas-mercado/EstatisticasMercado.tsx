@@ -206,13 +206,13 @@ export default function EstatisticasMercado({ periodo }: Props) {
 
         <PastaEstatistica
           id="otimizacao-busca"
-          titulo="Otimização do Motor de Busca (Palavras-chave)"
+          titulo="SEO - Otimização do Motor de Busca"
           icon={Search}
           controlado
           aberto={pastaAberta === 'otimizacao-busca'}
           onToggle={() => togglePasta('otimizacao-busca')}
         >
-          <OtimizacaoMotorBuscaPainel topTermos={topTermosBuscaGuia} categoriaEmpresa={categoriaEmpresa} />
+          <OtimizacaoMotorBuscaPainel topTermos={topTermosBuscaGuia} />
         </PastaEstatistica>
       </div>
 
