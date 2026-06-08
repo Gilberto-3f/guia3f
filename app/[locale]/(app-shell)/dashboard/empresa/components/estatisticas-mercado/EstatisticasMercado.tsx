@@ -19,6 +19,7 @@ import MapaCalor from './MapaCalor'
 import HorariosPico from './HorariosPico'
 import PastaEstatistica from './PastaEstatistica'
 import SubsecaoMercado from './SubsecaoMercado'
+import AnaliseMercadoPainel from './AnaliseMercadoPainel'
 import FunilEcossistemaMercado from './FunilEcossistemaMercado'
 import ExportarRelatorio from '../shared/ExportarRelatorio'
 
@@ -44,11 +45,9 @@ export default function EstatisticasMercado({ periodo }: Props) {
   const empresaId = empresa?.id ?? null
 
   const {
-    segmentosGuia,
-    segmentosRecomendados,
     atendimentosCategoria,
     distribuicaoProfissionais,
-    comissaoRamo,
+    analiseMercado,
     ocupacaoHoteleira,
     historicoAtendimentos,
     horariosPico,
@@ -60,14 +59,6 @@ export default function EstatisticasMercado({ periodo }: Props) {
     setPastaAberta((atual) => (atual === id ? null : id))
   }
 
-  const segmentosGuiaFormatados = useMemo(
-    () => segmentosGuia.map((s) => ({ label: s.categoria, valor: s.total, percentual: s.percentual })),
-    [segmentosGuia],
-  )
-  const segmentosRecomendadosFormatados = useMemo(
-    () => segmentosRecomendados.map((s) => ({ label: s.segmento, valor: s.total, percentual: s.percentual })),
-    [segmentosRecomendados],
-  )
   const atendimentosFormatados = useMemo(
     () => atendimentosCategoria.map((a) => ({ label: a.categoria, valor: a.total, percentual: a.percentual })),
     [atendimentosCategoria],
@@ -97,14 +88,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
       .sort((a, b) => b.valor - a.valor)
   }, [distribuicaoProfissionais])
 
-  const comissaoFormatada = useMemo(
-    () => comissaoRamo.map((c) => ({ label: c.ramo, valor: c.media })),
-    [comissaoRamo],
-  )
-  const suaComissao = useMemo(() => {
-    const hit = comissaoRamo.find((c) => c.ramo === categoriaEmpresa)
-    return hit?.media ?? 0
-  }, [categoriaEmpresa, comissaoRamo])
+  const suaComissao = analiseMercado.comissaoEmpresa.media
 
   const totalAtendimentosPeriodo = useMemo(
     () => atendimentosCategoria.reduce((sum, a) => sum + a.total, 0),
@@ -161,26 +145,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
           aberto={pastaAberta === 'analise-mercado'}
           onToggle={() => togglePasta('analise-mercado')}
         >
-          <div className="space-y-5">
-            <SubsecaoMercado titulo="Segmentos mais usados no guia (palavras-chave mais buscadas)">
-              <GraficoBarras dados={segmentosGuiaFormatados} titulo="" semTitulo embed />
-            </SubsecaoMercado>
-
-            <SubsecaoMercado titulo="Segmentos mais recomendados por profissionais">
-              <GraficoBarras dados={segmentosRecomendadosFormatados} titulo="" semTitulo embed />
-            </SubsecaoMercado>
-
-            <SubsecaoMercado titulo="Média de comissão por segmento">
-              <GraficoBarras
-                dados={comissaoFormatada}
-                titulo=""
-                semTitulo
-                embed
-                destaque={categoriaEmpresa}
-                destaqueLabel={`Sua comissão: ${suaComissao}%`}
-              />
-            </SubsecaoMercado>
-          </div>
+          <AnaliseMercadoPainel analise={analiseMercado} categoriaEmpresa={categoriaEmpresa} />
         </PastaEstatistica>
 
         <PastaEstatistica

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { buscarAnaliseMercado, type AnaliseMercadoDados } from '@/lib/estatisticasMercadoAnalise'
+import { preencherContagensSegmento, preencherComissaoSegmento } from '@/lib/segmentosMercado'
 import type {
   DadosAtendimentosCategoria,
   DadosCrescimentoUsuarios,
@@ -81,6 +83,13 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
   const [ocupacaoHoteleira, setOcupacaoHoteleira] = useState<DadosOcupacaoHoteleira[]>([])
   const [historicoAtendimentos, setHistoricoAtendimentos] = useState<DadosHistoricoAtendimentos[]>([])
   const [horariosPico, setHorariosPico] = useState<DadosHorariosPico[]>([])
+  const [analiseMercado, setAnaliseMercado] = useState<AnaliseMercadoDados>(() => ({
+    visibilidade: preencherContagensSegmento({}),
+    engajamento: preencherContagensSegmento({}),
+    recomendados: preencherContagensSegmento({}),
+    comissao: preencherComissaoSegmento({}),
+    comissaoEmpresa: { media: 0, quantidade: 0 },
+  }))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -336,9 +345,18 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
         { hora: 20, total: 32 },
       ])
 
-      // Nota: empresaId ainda é útil para futuras métricas específicas,
-      // mas nesta fase os dados são agregados/anônimos.
-      void empresaId
+      try {
+        const analise = await buscarAnaliseMercado(dataLimite, empresaId)
+        setAnaliseMercado(analise)
+      } catch {
+        setAnaliseMercado({
+          visibilidade: preencherContagensSegmento({}),
+          engajamento: preencherContagensSegmento({}),
+          recomendados: preencherContagensSegmento({}),
+          comissao: preencherComissaoSegmento({}),
+          comissaoEmpresa: { media: 0, quantidade: 0 },
+        })
+      }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Erro ao carregar estatísticas'))
     } finally {
@@ -360,6 +378,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
     ocupacaoHoteleira,
     historicoAtendimentos,
     horariosPico,
+    analiseMercado,
     loading,
     error,
     refetch: fetchDados,

@@ -92,6 +92,28 @@ export interface DadosComissaoRamo {
   sua_comissao: number
 }
 
+export interface ComissaoSegmentoMercado {
+  segmento: string
+  label: string
+  media: number
+  quantidade: number
+}
+
+export interface ContagemSegmentoMercado {
+  segmento: string
+  label: string
+  total: number
+  percentual: number
+}
+
+export interface AnaliseMercadoPainel {
+  visibilidade: ContagemSegmentoMercado[]
+  engajamento: ContagemSegmentoMercado[]
+  recomendados: ContagemSegmentoMercado[]
+  comissao: ComissaoSegmentoMercado[]
+  comissaoEmpresa: { media: number; quantidade: number }
+}
+
 export interface DadosCrescimentoUsuarios {
   mes: string
   turistas: number
