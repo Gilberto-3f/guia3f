@@ -88,7 +88,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
         exportado_em: new Date().toISOString(),
         periodo,
         categoria_empresa: categoriaEmpresa,
-        empresa: empresa?.nome_fantasia ?? '',
+        empresa: empresa?.nome ?? '',
       },
       resumo: {
         atendimentos_periodo: totalAtendimentosPeriodo,
@@ -121,7 +121,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
     categoriaEmpresa,
     comissaoEmpresa,
     distribuicaoProfissionais,
-    empresa?.nome_fantasia,
+    empresa?.nome,
     funilEco.dados,
     funilEco.recomendacoesPorCategoria,
     periodo,

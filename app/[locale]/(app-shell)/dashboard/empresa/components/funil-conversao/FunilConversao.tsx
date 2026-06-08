@@ -116,7 +116,7 @@ export default function FunilConversao({ periodo }: Props) {
       metadados: {
         exportado_em: new Date().toISOString(),
         periodo,
-        empresa: empresa?.nome_fantasia ?? '',
+        empresa: empresa?.nome ?? '',
         username: empresa?.username ?? '',
       },
       resumo: {
