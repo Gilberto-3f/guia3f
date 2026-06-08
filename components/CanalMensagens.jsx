@@ -61,6 +61,7 @@ function mensagemCanalFromRow(m, remetentesMap) {
     anexo_tipo: m.anexo_tipo != null ? String(m.anexo_tipo) : null,
     reacoes: parseReacoesCanal(m.reacoes),
     created_at: String(m.created_at ?? ''),
+    editado_em: m.editado_em != null ? String(m.editado_em) : null,
     remetente,
   }
 }

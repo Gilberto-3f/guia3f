@@ -6,6 +6,8 @@ import {
   agruparPorCategoria,
   CATEGORIAS_CONFIG,
   CATEGORIAS_ORDEM,
+  categoriaFunilTextoCompacto,
+  labelCategoriaFunilExibicao,
   ordenarCategoriasRanking,
   type CategoriaProfissionalFunil,
 } from './categoriasProfissionalFunil'
@@ -83,16 +85,18 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
           vistoEm && !pastasVistas?.has(categoria)
             ? lista.reduce((s, item) => s + contarNovosProfissional(item, vistoEm, modoContagem), 0)
             : 0
-        const { label, Icon } = CATEGORIAS_CONFIG[categoria]
+        const { Icon } = CATEGORIAS_CONFIG[categoria]
+        const label = labelCategoriaFunilExibicao(categoria, totalCategoria)
 
         return (
           <PastaRelatorioLista
             key={categoria}
             id={`${prefixoId}-${categoria}`}
             posicao={posicao}
-            titulo={`${label} (${totalCategoria})`}
+            titulo={`${label} (${totalCategoria.toLocaleString('pt-BR')})`}
             icon={Icon}
             naoLidas={naoLidasPasta}
+            textoCompacto={categoriaFunilTextoCompacto(totalCategoria)}
             controlado
             aberto={pastaAberta === categoria}
             onToggle={() => togglePasta(categoria)}

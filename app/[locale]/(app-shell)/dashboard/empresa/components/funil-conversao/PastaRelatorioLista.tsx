@@ -11,12 +11,16 @@ interface Props {
   id: string
   titulo: string
   icon: LucideIcon
-  children: ReactNode
+  children?: ReactNode
   aberto?: boolean
   onToggle?: () => void
   controlado?: boolean
   naoLidas?: number
   posicao?: number
+  /** false = linha de ranking sem expandir (relatório agregado). */
+  expandivel?: boolean
+  /** Fonte reduzida quando o total tem muitos dígitos. */
+  textoCompacto?: boolean
 }
 
 export default function PastaRelatorioLista({
@@ -29,11 +33,14 @@ export default function PastaRelatorioLista({
   controlado = false,
   naoLidas = 0,
   posicao,
+  expandivel = true,
+  textoCompacto = false,
 }: Props) {
   const [abertoLocal, setAbertoLocal] = useState(false)
   const aberto = controlado ? Boolean(abertoProp) : abertoLocal
 
   const toggle = () => {
+    if (!expandivel) return
     if (controlado) {
       onToggle?.()
     } else {
@@ -41,36 +48,51 @@ export default function PastaRelatorioLista({
     }
   }
 
-  return (
-    <div>
-      <button
-        type="button"
-        id={`pasta-${id}`}
-        onClick={toggle}
-        className="flex w-full items-center gap-3 text-left transition-colors hover:bg-gray-50/60"
-        aria-expanded={aberto}
-      >
-        <div className={CLASSE_ICONE}>
-          <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
-        </div>
-        <div className="flex min-w-0 flex-1 items-center justify-between gap-2 border-b border-gray-200/80 py-3">
-          <span className="flex min-w-0 items-center gap-2 text-[15px] font-normal text-gray-900">
-            {posicao != null ? (
-              <span className="shrink-0 tabular-nums text-sm font-bold text-[#0097b2]">{posicao}º</span>
-            ) : null}
-            <span className="min-w-0 truncate">{titulo}</span>
-          </span>
+  const tituloCls = textoCompacto ? 'text-[13px]' : 'text-[15px]'
+  const conteudoLinha = (
+    <>
+      <div className={CLASSE_ICONE}>
+        <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
+      </div>
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-2 border-b border-gray-200/80 py-3">
+        <span className={`flex min-w-0 items-center gap-2 font-normal text-gray-900 ${tituloCls}`}>
+          {posicao != null ? (
+            <span className="shrink-0 tabular-nums text-sm font-bold text-[#0097b2]">{posicao}º</span>
+          ) : null}
+          <span className="min-w-0 truncate">{titulo}</span>
+        </span>
+        {expandivel ? (
           <div className="flex shrink-0 items-center gap-1.5">
             <CanalNaoLidasBadge count={naoLidas} />
             <ChevronDown
-            className={`h-5 w-5 shrink-0 text-gray-400 transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
-            aria-hidden
-          />
+              className={`h-5 w-5 shrink-0 text-gray-400 transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
+              aria-hidden
+            />
           </div>
-        </div>
-      </button>
+        ) : null}
+      </div>
+    </>
+  )
 
-      {aberto ? <div className="pb-2 pl-10 pt-0.5">{children}</div> : null}
+  return (
+    <div>
+      {expandivel ? (
+        <button
+          type="button"
+          id={`pasta-${id}`}
+          onClick={toggle}
+          className="flex w-full items-center gap-3 text-left transition-colors hover:bg-gray-50/60"
+          aria-expanded={aberto}
+        >
+          {conteudoLinha}
+        </button>
+      ) : (
+        <div id={`pasta-${id}`} className="flex w-full items-center gap-3 text-left">
+          {conteudoLinha}
+        </div>
+      )}
+
+      {expandivel && aberto ? <div className="pb-2 pl-10 pt-0.5">{children}</div> : null}
     </div>
   )
 }
