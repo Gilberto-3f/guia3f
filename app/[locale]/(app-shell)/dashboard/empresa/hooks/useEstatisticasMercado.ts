@@ -131,6 +131,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
   const [atendimentosMobilidade, setAtendimentosMobilidade] = useState<AtendimentoMobilidadeRow[]>([])
   const [reservasHospedagem, setReservasHospedagem] = useState<ReservaHospedagemRow[]>([])
   const [atendimentosProjecao, setAtendimentosProjecao] = useState<AtendimentoProjecaoRow[]>([])
+  const [profissionaisCategorias, setProfissionaisCategorias] = useState<{ categorias: unknown }[]>([])
   const [analiseMercado, setAnaliseMercado] = useState<AnaliseMercadoDados>(() => ({
     visibilidade: preencherContagensSegmento({}),
     engajamento: preencherContagensSegmento({}),
@@ -143,127 +144,122 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
 
   const dataLimite = useMemo(() => getDataLimite(periodo), [periodo])
 
+  const fetchSolicitacaoMobilidade = useCallback(async () => {
+    const selectCompleto = `
+      created_at,
+      status,
+      data_agendada,
+      tipo_servico,
+      lat_origem,
+      lng_origem,
+      lat_destino,
+      lng_destino,
+      regiao,
+      profissionais:profissional_id (categoria, categorias, cidade_atuacao)
+    `
+    const selectBasico = `
+      created_at,
+      status,
+      profissionais:profissional_id (categoria, categorias, cidade_atuacao)
+    `
+    let q = supabase.from('solicitacao_mobilidade').select(selectCompleto)
+    if (dataLimite) q = q.gte('created_at', dataLimite)
+    const primeira = await q
+    let dataRows: unknown[] | null = (primeira.data as unknown[] | null) ?? null
+    let e = primeira.error
+    if (e && isColunaInexistente(e)) {
+      let qb = supabase.from('solicitacao_mobilidade').select(selectBasico)
+      if (dataLimite) qb = qb.gte('created_at', dataLimite)
+      const retry = await qb
+      dataRows = (retry.data as unknown[] | null) ?? null
+      e = retry.error
+    }
+    if (e) {
+      if (isTabelaInexistente(e)) return null
+      throw e
+    }
+    return dataRows
+  }, [dataLimite])
+
+  const fetchReservasHospedagem = useCallback(async () => {
+    const min = new Date(new Date().getFullYear() - 1, 0, 1).toISOString().slice(0, 10)
+    const { data: dataHosp, error: eHosp } = await supabase
+      .from('reservas_hospedagem')
+      .select('data_checkin, data_checkout, status')
+      .gte('data_checkin', min)
+
+    if (!eHosp && dataHosp && dataHosp.length > 0) {
+      return (dataHosp as Record<string, unknown>[]).map((r) => ({
+        dataCheckin: String(r.data_checkin ?? ''),
+        dataCheckout: String(r.data_checkout ?? ''),
+        status: String(r.status ?? 'confirmada'),
+      }))
+    }
+
+    const minIso = dataLimite ?? new Date(new Date().getFullYear() - 1, 0, 1).toISOString()
+    const { data, error: e } = await supabase.from('reservas').select('data_checkin').gte('data_checkin', minIso)
+    if (e) {
+      if (isTabelaInexistente(e) || (eHosp && isTabelaInexistente(eHosp))) return []
+      if (eHosp) throw eHosp
+      throw e
+    }
+
+    const rows: ReservaHospedagemRow[] = []
+    for (const row of (data ?? []) as unknown[]) {
+      const r = row as Record<string, unknown>
+      const dt = safeIso(r.data_checkin)
+      if (!dt) continue
+      rows.push(reservaLegadaParaHospedagem(dt.toISOString()))
+    }
+    return rows
+  }, [dataLimite])
+
   const fetchDados = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      // 1) Segmentos mais usados no guia (logs_cliques_guia)
-      try {
-        let q = supabase.from('logs_cliques_guia').select('categoria, created_at')
-        if (dataLimite) q = q.gte('created_at', dataLimite)
-        const { data, error: e } = await q
-        if (e) {
-          if (isTabelaInexistente(e)) {
-            setSegmentosGuia([])
-          } else {
-            throw e
-          }
-        } else {
-          const agg: Record<string, number> = {}
-          for (const row of (data ?? []) as unknown[]) {
-            const r = row as Record<string, unknown>
-            const cat = r.categoria != null ? String(r.categoria) : ''
-            if (!cat) continue
-            agg[cat] = (agg[cat] ?? 0) + 1
-          }
-          const total = Object.values(agg).reduce((a, b) => a + b, 0)
-          const arr: DadosSegmentosGuia[] = Object.entries(agg)
-            .map(([categoria, t]) => ({ categoria, total: t, percentual: total ? (t / total) * 100 : 0 }))
-            .sort((a, b) => b.total - a.total)
-          setSegmentosGuia(arr)
-        }
-      } catch {
-        setSegmentosGuia([])
-      }
+      const [mobilidadeRows, profissionaisRes, comissaoRes, reservasRows, analiseRes] = await Promise.allSettled([
+        fetchSolicitacaoMobilidade(),
+        supabase.from('profissionais').select('categorias, cidade_atuacao'),
+        supabase.from('taxas_comissoes').select('categoria, taxa_percentual'),
+        fetchReservasHospedagem(),
+        buscarAnaliseMercado(dataLimite, empresaId),
+      ])
 
-      // 2) Segmentos recomendados (logs_recomendacoes_segmento)
-      try {
-        let q = supabase.from('logs_recomendacoes_segmento').select('segmento, created_at')
-        if (dataLimite) q = q.gte('created_at', dataLimite)
-        const { data, error: e } = await q
-        if (e) {
-          if (isTabelaInexistente(e)) {
-            setSegmentosRecomendados([])
-          } else {
-            throw e
-          }
-        } else {
-          const agg: Record<string, number> = {}
-          for (const row of (data ?? []) as unknown[]) {
-            const r = row as Record<string, unknown>
-            const seg = r.segmento != null ? String(r.segmento) : ''
-            if (!seg) continue
-            agg[seg] = (agg[seg] ?? 0) + 1
-          }
-          const total = Object.values(agg).reduce((a, b) => a + b, 0)
-          const arr: DadosSegmentosRecomendados[] = Object.entries(agg)
-            .map(([segmento, t]) => ({ segmento, total: t, percentual: total ? (t / total) * 100 : 0 }))
-            .sort((a, b) => b.total - a.total)
-          setSegmentosRecomendados(arr)
-        }
-      } catch {
-        setSegmentosRecomendados([])
-      }
+      if (mobilidadeRows.status === 'fulfilled' && mobilidadeRows.value) {
+        const { arr, rowsMobilidade, rowsProjecao } = processarSolicitacaoMobilidade(mobilidadeRows.value)
+        setAtendimentosCategoria(arr)
+        setAtendimentosMobilidade(rowsMobilidade)
+        setAtendimentosProjecao(rowsProjecao)
 
-      // 3) Atendimentos por categoria (solicitacao_mobilidade + profissionais)
-      try {
-        const selectCompleto = `
-            created_at,
-            status,
-            data_agendada,
-            tipo_servico,
-            lat_origem,
-            lng_origem,
-            lat_destino,
-            lng_destino,
-            regiao,
-            profissionais:profissional_id (categoria, categorias, cidade_atuacao)
-          `
-        const selectBasico = `
-            created_at,
-            status,
-            profissionais:profissional_id (categoria, categorias, cidade_atuacao)
-          `
-        let q = supabase.from('solicitacao_mobilidade').select(selectCompleto)
-        if (dataLimite) q = q.gte('created_at', dataLimite)
-        const primeira = await q
-        let dataRows: unknown[] | null = (primeira.data as unknown[] | null) ?? null
-        let e = primeira.error
-        if (e && isColunaInexistente(e)) {
-          let qb = supabase.from('solicitacao_mobilidade').select(selectBasico)
-          if (dataLimite) qb = qb.gte('created_at', dataLimite)
-          const retry = await qb
-          dataRows = (retry.data as unknown[] | null) ?? null
-          e = retry.error
+        const minDt = dataLimite ? new Date(dataLimite) : new Date(new Date().getFullYear() - 1, 0, 1)
+        const aggHist: Record<string, number> = {}
+        for (const row of mobilidadeRows.value) {
+          const r = row as Record<string, unknown>
+          const dt = safeIso(r.created_at)
+          if (!dt || dt < minDt) continue
+          const k = monthKeyPtBR(dt)
+          aggHist[k] = (aggHist[k] ?? 0) + 1
         }
-        if (e) {
-          if (isTabelaInexistente(e)) {
-            setAtendimentosCategoria([])
-            setAtendimentosMobilidade([])
-            setAtendimentosProjecao([])
-          } else {
-            throw e
-          }
-        } else {
-          const { arr, rowsMobilidade, rowsProjecao } = processarSolicitacaoMobilidade(dataRows)
-          setAtendimentosCategoria(arr)
-          setAtendimentosMobilidade(rowsMobilidade)
-          setAtendimentosProjecao(rowsProjecao)
-        }
-      } catch {
+        setHistoricoAtendimentos(
+          Object.keys(aggHist)
+            .sort()
+            .map((k) => ({ mes: monthLabelPtBR(k), valor: aggHist[k] })),
+        )
+      } else {
         setAtendimentosCategoria([])
         setAtendimentosMobilidade([])
         setAtendimentosProjecao([])
+        setHistoricoAtendimentos([])
       }
 
-      // 4) Distribuição de profissionais por tipo e cidade (agregado)
-      try {
-        const { data, error: e } = await supabase.from('profissionais').select('categorias, cidade_atuacao')
-        if (e) throw e
+      if (profissionaisRes.status === 'fulfilled' && !profissionaisRes.value.error) {
+        const data = profissionaisRes.value.data ?? []
+        setProfissionaisCategorias(data.map((r) => ({ categorias: (r as Record<string, unknown>).categorias })))
 
         const agg: Record<string, number> = {}
-        for (const row of (data ?? []) as unknown[]) {
+        for (const row of data as unknown[]) {
           const r = row as Record<string, unknown>
           const cats = asStringArray(r.categorias)
           const cidades = asStringArray(r.cidade_atuacao)
@@ -274,26 +270,20 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
             }
           }
         }
-        const arr: DadosDistribuicaoProfissionais[] = Object.entries(agg).map(([k, total]) => {
-          const [tipo, cidade] = k.split('||')
-          return { tipo, cidade, total }
-        })
-        setDistribuicaoProfissionais(arr)
-      } catch {
+        setDistribuicaoProfissionais(
+          Object.entries(agg).map(([k, total]) => {
+            const [tipo, cidade] = k.split('||')
+            return { tipo, cidade, total }
+          }),
+        )
+      } else {
+        setProfissionaisCategorias([])
         setDistribuicaoProfissionais([])
       }
 
-      // 5) Média de comissão por ramo (taxas_comissoes)
-      try {
-        const { data, error: e } = await supabase.from('taxas_comissoes').select('categoria, taxa_percentual')
-        if (e) {
-          if (isTabelaInexistente(e)) {
-            setComissaoRamo([])
-          } else {
-            throw e
-          }
-        } else {
-          const arr: DadosComissaoRamo[] = (data ?? []).map((row) => {
+      if (comissaoRes.status === 'fulfilled' && !comissaoRes.value.error) {
+        setComissaoRamo(
+          (comissaoRes.value.data ?? []).map((row) => {
             const r = row as Record<string, unknown>
             const ramo = r.categoria != null ? String(r.categoria) : ''
             const media = r.taxa_percentual != null ? Number(r.taxa_percentual) : 0
@@ -302,120 +292,28 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
               media: Number.isFinite(media) ? media : 0,
               sua_comissao: ramo && ramo === categoriaEmpresa ? (Number.isFinite(media) ? media : 0) : 0,
             }
-          })
-          setComissaoRamo(arr)
-        }
-      } catch {
+          }),
+        )
+      } else {
         setComissaoRamo([])
       }
 
-      // 6) Crescimento de usuários por mês (usuarios.created_at)
-      try {
-        const min = dataLimite ?? new Date(new Date().getFullYear() - 1, 0, 1).toISOString()
-        const { data, error: e } = await supabase.from('usuarios').select('role, created_at').gte('created_at', min)
-        if (e) throw e
+      setSegmentosGuia([])
+      setSegmentosRecomendados([])
+      setCrescimentoUsuarios([])
+      setOcupacaoHoteleira([])
 
-        const agg: Record<string, { turistas: number; profissionais: number; empresas: number }> = {}
-        for (const row of (data ?? []) as unknown[]) {
-          const r = row as Record<string, unknown>
-          const dt = safeIso(r.created_at)
-          if (!dt) continue
-          const key = monthKeyPtBR(dt)
-          const role = r.role != null ? String(r.role) : ''
-          if (!agg[key]) agg[key] = { turistas: 0, profissionais: 0, empresas: 0 }
-          if (role === 'turista') agg[key].turistas += 1
-          else if (role === 'profissional') agg[key].profissionais += 1
-          else if (role === 'empresa') agg[key].empresas += 1
-        }
-        const arr: DadosCrescimentoUsuarios[] = Object.keys(agg)
-          .sort()
-          .map((k) => ({ mes: monthLabelPtBR(k), ...agg[k] }))
-        setCrescimentoUsuarios(arr)
-      } catch {
-        setCrescimentoUsuarios([])
-      }
-
-      // 7) Ocupação hoteleira (reservas_hospedagem, fallback reservas legado)
-      try {
-        const min = new Date(new Date().getFullYear() - 1, 0, 1).toISOString().slice(0, 10)
-        const { data: dataHosp, error: eHosp } = await supabase
-          .from('reservas_hospedagem')
-          .select('data_checkin, data_checkout, status')
-          .gte('data_checkin', min)
-
-        if (!eHosp && dataHosp && dataHosp.length > 0) {
-          const rows: ReservaHospedagemRow[] = (dataHosp as Record<string, unknown>[]).map((r) => ({
-            dataCheckin: String(r.data_checkin ?? ''),
-            dataCheckout: String(r.data_checkout ?? ''),
-            status: String(r.status ?? 'confirmada'),
-          }))
-          setReservasHospedagem(rows)
-          setOcupacaoHoteleira([])
-        } else {
-          const minIso = dataLimite ?? new Date(new Date().getFullYear() - 1, 0, 1).toISOString()
-          const { data, error: e } = await supabase.from('reservas').select('data_checkin').gte('data_checkin', minIso)
-          if (e) {
-            if (isTabelaInexistente(e) || (eHosp && isTabelaInexistente(eHosp))) {
-              setReservasHospedagem([])
-              setOcupacaoHoteleira([])
-            } else if (eHosp) {
-              throw eHosp
-            } else {
-              throw e
-            }
-          } else {
-            const rows: ReservaHospedagemRow[] = []
-            for (const row of (data ?? []) as unknown[]) {
-              const r = row as Record<string, unknown>
-              const dt = safeIso(r.data_checkin)
-              if (!dt) continue
-              rows.push(reservaLegadaParaHospedagem(dt.toISOString()))
-            }
-            setReservasHospedagem(rows)
-            setOcupacaoHoteleira([])
-          }
-        }
-      } catch {
+      if (reservasRows.status === 'fulfilled') {
+        setReservasHospedagem(reservasRows.value)
+      } else {
         setReservasHospedagem([])
-        setOcupacaoHoteleira([])
       }
 
-      // 8) Histórico de atendimentos (solicitacao_mobilidade por mês)
-      try {
-        const min = dataLimite ?? new Date(new Date().getFullYear() - 1, 0, 1).toISOString()
-        let q = supabase.from('solicitacao_mobilidade').select('created_at').gte('created_at', min)
-        const { data, error: e } = await q
-        if (e) {
-          if (isTabelaInexistente(e)) {
-            setHistoricoAtendimentos([])
-          } else {
-            throw e
-          }
-        } else {
-          const agg: Record<string, number> = {}
-          for (const row of (data ?? []) as unknown[]) {
-            const r = row as Record<string, unknown>
-            const dt = safeIso(r.created_at)
-            if (!dt) continue
-            const k = monthKeyPtBR(dt)
-            agg[k] = (agg[k] ?? 0) + 1
-          }
-          const arr: DadosHistoricoAtendimentos[] = Object.keys(agg)
-            .sort()
-            .map((k) => ({ mes: monthLabelPtBR(k), valor: agg[k] }))
-          setHistoricoAtendimentos(arr)
-        }
-      } catch {
-        setHistoricoAtendimentos([])
-      }
-
-      // 9) Horários de pico (legado — agregação feita em MobilidadeRegionalPainel)
       setHorariosPico(Array.from({ length: 24 }, (_, h) => ({ hora: h, total: 0 })))
 
-      try {
-        const analise = await buscarAnaliseMercado(dataLimite, empresaId)
-        setAnaliseMercado(analise)
-      } catch {
+      if (analiseRes.status === 'fulfilled') {
+        setAnaliseMercado(analiseRes.value)
+      } else {
         setAnaliseMercado({
           visibilidade: preencherContagensSegmento({}),
           engajamento: preencherContagensSegmento({}),
@@ -429,7 +327,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
     } finally {
       setLoading(false)
     }
-  }, [categoriaEmpresa, dataLimite, empresaId])
+  }, [categoriaEmpresa, dataLimite, empresaId, fetchReservasHospedagem, fetchSolicitacaoMobilidade])
 
   useEffect(() => {
     void fetchDados()
@@ -448,6 +346,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
     atendimentosMobilidade,
     reservasHospedagem,
     atendimentosProjecao,
+    profissionaisCategorias,
     analiseMercado,
     loading,
     error,

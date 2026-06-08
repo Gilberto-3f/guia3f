@@ -67,6 +67,39 @@ export interface DistribuicaoProfissionalItem {
   total: number
 }
 
+export function agregarProfissionaisPorCategoria(
+  rows: { categorias: unknown }[],
+): { label: CategoriaMobilidade; valor: number; percentual: number; cor: string }[] {
+  const porCat: Record<CategoriaMobilidade, number> = {
+    'Motoristas de App': 0,
+    'Motoristas de Van': 0,
+    Taxistas: 0,
+    'Guias de Turismo': 0,
+    Anfitriões: 0,
+  }
+
+  for (const row of rows) {
+    const cats = Array.isArray(row.categorias)
+      ? (row.categorias as unknown[]).filter((x) => typeof x === 'string') as string[]
+      : []
+    const vistos = new Set<CategoriaMobilidade>()
+    for (const raw of cats.length ? cats : ['outros']) {
+      const cat = normalizarCategoriaMobilidade(raw)
+      if (!cat || vistos.has(cat)) continue
+      vistos.add(cat)
+      porCat[cat] += 1
+    }
+  }
+
+  const total = Object.values(porCat).reduce((a, b) => a + b, 0)
+  return CATEGORIAS_MOBILIDADE_ORDEM.map((label) => ({
+    label,
+    valor: porCat[label],
+    percentual: total > 0 ? (porCat[label] / total) * 100 : 0,
+    cor: CORES_CATEGORIA_MOBILIDADE[label],
+  }))
+}
+
 export function agregarProfissionaisPorCidade(
   itens: DistribuicaoProfissionalItem[],
 ): { label: CidadeTriplice; valor: number; percentual: number; cor: string }[] {

@@ -34,6 +34,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
     atendimentosCategoria,
     distribuicaoProfissionais,
     atendimentosMobilidade,
+    profissionaisCategorias,
     analiseMercado,
     reservasHospedagem,
     atendimentosProjecao,
@@ -115,6 +116,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
         >
           <MobilidadeRegionalPainel
             distribuicaoProfissionais={distribuicaoProfissionais}
+            profissionaisCategorias={profissionaisCategorias}
             atendimentosMobilidade={atendimentosMobilidade}
           />
         </PastaEstatistica>

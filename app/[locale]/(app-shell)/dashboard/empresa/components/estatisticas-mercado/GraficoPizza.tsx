@@ -111,11 +111,32 @@ export default function GraficoPizza({
         <div className="relative mb-4 h-36 w-36 sm:h-40 sm:w-40">
           {temFatias ? (
             <svg viewBox="0 0 100 100" className="h-full w-full" role="img" aria-label={titulo || 'Gráfico de pizza'}>
-              {segmentos.map((seg, i) =>
-                seg.exibirFatia ? (
+              {segmentos.map((seg, i) => {
+                if (!seg.exibirFatia) return null
+                const startDeg = (seg.start / 100) * 360
+                const endDeg = (seg.end / 100) * 360
+                const fatiaCheia = seg.percentual >= 99.5
+
+                if (fatiaCheia) {
+                  return (
+                    <g
+                      key={`${seg.label}-${i}`}
+                      className={onSegmentoClick ? 'cursor-pointer' : undefined}
+                      onClick={onSegmentoClick ? () => onSegmentoClick(seg.label) : undefined}
+                    >
+                      <circle cx="50" cy="50" r="40" fill={seg.cor} />
+                      {innerR > 0 ? <circle cx="50" cy="50" r={innerR} fill="white" /> : null}
+                      <title>
+                        {seg.label}: {seg.valor.toLocaleString('pt-BR')} ({seg.percentual.toFixed(0)}%)
+                      </title>
+                    </g>
+                  )
+                }
+
+                return (
                   <path
                     key={`${seg.label}-${i}`}
-                    d={arcPath((seg.start / 100) * 360, (seg.end / 100) * 360, innerR, 40)}
+                    d={arcPath(startDeg, endDeg, innerR, 40)}
                     fill={seg.cor}
                     stroke={selecionado === seg.label ? '#001f3f' : 'white'}
                     strokeWidth={selecionado === seg.label ? 2 : 1}
@@ -126,8 +147,8 @@ export default function GraficoPizza({
                       {seg.label}: {seg.valor.toLocaleString('pt-BR')} ({seg.percentual.toFixed(0)}%)
                     </title>
                   </path>
-                ) : null,
-              )}
+                )
+              })}
               {rosca ? (
                 <text x="50" y="52" textAnchor="middle" fill="#001f3f" fontSize="9" fontWeight="700">
                   {total.toLocaleString('pt-BR')}

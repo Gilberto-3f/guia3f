@@ -8,6 +8,7 @@ import {
   CATEGORIAS_MOBILIDADE_ORDEM,
   agregarAtendimentosPorCategoria,
   agregarHorariosPico,
+  agregarProfissionaisPorCategoria,
   agregarProfissionaisPorCidade,
   dataLimiteMobilidade,
   detalheCategoriasPorCidade,
@@ -23,6 +24,7 @@ import GraficoHorarioPico from './GraficoHorarioPico'
 
 interface Props {
   distribuicaoProfissionais: DadosDistribuicaoProfissionais[]
+  profissionaisCategorias: { categorias: unknown }[]
   atendimentosMobilidade: AtendimentoMobilidadeRow[]
 }
 
@@ -63,6 +65,7 @@ function FiltroSelect<T extends string>({
 
 export default function MobilidadeRegionalPainel({
   distribuicaoProfissionais,
+  profissionaisCategorias,
   atendimentosMobilidade,
 }: Props) {
   const [cidadeSelecionada, setCidadeSelecionada] = useState<CidadeTriplice | null>(null)
@@ -75,6 +78,11 @@ export default function MobilidadeRegionalPainel({
   const pizzaCidades = useMemo(
     () => agregarProfissionaisPorCidade(distribuicaoProfissionais),
     [distribuicaoProfissionais],
+  )
+
+  const pizzaCategorias = useMemo(
+    () => agregarProfissionaisPorCategoria(profissionaisCategorias),
+    [profissionaisCategorias],
   )
 
   const detalheCidade = useMemo(() => {
@@ -116,19 +124,35 @@ export default function MobilidadeRegionalPainel({
     <div className="space-y-5">
       <SubsecaoMercado
         titulo="Distribuição de profissionais"
-        subtitulo="Concentração de profissionais por cidade de atuação na Tríplice Fronteira"
+        subtitulo="Concentração de profissionais na Tríplice Fronteira — por cidade e por categoria"
       >
-        <GraficoPizza
-          dados={pizzaCidades}
-          titulo="Por cidade"
-          rosca
-          embed
-          mostrarComZero
-          selecionado={cidadeSelecionada}
-          onSegmentoClick={(label) =>
-            setCidadeSelecionada((atual) => (atual === label ? null : (label as CidadeTriplice)))
-          }
-        />
+        <div className="space-y-6">
+          <div>
+            <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Por cidade</p>
+            <GraficoPizza
+              dados={pizzaCidades}
+              titulo=""
+              semTitulo
+              rosca
+              embed
+              mostrarComZero
+              selecionado={cidadeSelecionada}
+              onSegmentoClick={(label) =>
+                setCidadeSelecionada((atual) => (atual === label ? null : (label as CidadeTriplice)))
+              }
+            />
+          </div>
+          <div>
+            <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Por categoria</p>
+            <GraficoPizza
+              dados={pizzaCategorias}
+              titulo=""
+              semTitulo
+              embed
+              mostrarComZero
+            />
+          </div>
+        </div>
         {cidadeSelecionada && detalheCidade ? (
           <div className="mt-4 rounded-lg border border-[#0097b2]/20 bg-[#0097b2]/5 p-3">
             <p className="mb-2 text-sm font-semibold text-[#001f3f]">

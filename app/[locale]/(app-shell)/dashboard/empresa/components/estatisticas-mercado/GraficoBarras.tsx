@@ -39,8 +39,8 @@ export default function GraficoBarras({
       <div className="space-y-3">
         {dados.map((item) => (
           <div key={item.label} title={`${item.label}: ${item.valor.toLocaleString('pt-BR')}${item.percentual !== undefined ? ` (${item.percentual.toFixed(0)}%)` : ''}`}>
-            <div className="mb-1 flex justify-between text-sm">
-              <span className="truncate pr-2">{item.label}</span>
+            <div className="mb-1 flex justify-between text-sm text-gray-900">
+              <span className="truncate pr-2 font-medium text-gray-900">{item.label}</span>
               <span className="font-medium tabular-nums text-[#001f3f]">
                 {item.valor.toLocaleString('pt-BR')}
                 {item.percentual !== undefined ? ` (${item.percentual.toFixed(0)}%)` : ''}

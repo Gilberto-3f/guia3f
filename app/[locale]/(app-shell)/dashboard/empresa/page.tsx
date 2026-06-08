@@ -179,12 +179,6 @@ function DashboardEmpresaConteudo({
     }
   }, [mostrarDrenaStok, abaAtiva, setAbaAtiva])
 
-  const conteudo = useMemo(() => {
-    if (abaAtiva === 'funil') return <FunilConversao periodo={periodo} />
-    if (abaAtiva === 'mercado') return <EstatisticasMercado periodo={periodo} />
-    return <DrenaStok />
-  }, [abaAtiva, periodo])
-
   return (
     <div className="bg-gray-50">
       <header className="sticky top-0 z-20 shrink-0 bg-[#0097b2] shadow-sm">
@@ -221,7 +215,19 @@ function DashboardEmpresaConteudo({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-4 py-4 pb-0">{conteudo}</main>
+      <main className="mx-auto w-full max-w-7xl px-4 py-4 pb-0">
+        <div className={abaAtiva === 'funil' ? undefined : 'hidden'}>
+          <FunilConversao periodo={periodo} />
+        </div>
+        <div className={abaAtiva === 'mercado' ? undefined : 'hidden'}>
+          <EstatisticasMercado periodo={periodo} />
+        </div>
+        {mostrarDrenaStok ? (
+          <div className={abaAtiva === 'drena' ? undefined : 'hidden'}>
+            <DrenaStok />
+          </div>
+        ) : null}
+      </main>
     </div>
   )
 }

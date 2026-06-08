@@ -122,7 +122,7 @@ export default function FunilConversao({ periodo }: Props) {
     [dados, periodo]
   )
 
-  if (empresaLoading || loading) {
+  if ((empresaLoading && !empresaId) || (loading && !dados)) {
     return (
       <div className="mx-auto max-w-xl overflow-hidden shadow-md" style={{ clipPath: CLIP_FUNIL }}>
         {Array.from({ length: 5 }).map((_, i) => (
