@@ -9,7 +9,6 @@ import GraficoBarrasVertical from './GraficoBarrasVertical'
 
 interface Props {
   topTermos: TopTermosSegmentoGuia[]
-  categoriaEmpresa: string
 }
 
 const SEGMENTOS_SEO = [
