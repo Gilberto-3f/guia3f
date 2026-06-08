@@ -5,7 +5,9 @@ import { supabase } from '@/lib/supabase'
 import { buscarAnaliseMercado, type AnaliseMercadoDados } from '@/lib/estatisticasMercadoAnalise'
 import { preencherContagensSegmento, preencherComissaoSegmento } from '@/lib/segmentosMercado'
 import type { AtendimentoMobilidadeRow } from '@/lib/mobilidadeRegional'
+import { reservaLegadaParaHospedagem } from '@/lib/projecaoDemanda'
 import type {
+  AtendimentoProjecaoRow,
   DadosAtendimentosCategoria,
   DadosCrescimentoUsuarios,
   DadosComissaoRamo,
@@ -16,6 +18,7 @@ import type {
   DadosSegmentosGuia,
   DadosSegmentosRecomendados,
   Periodo,
+  ReservaHospedagemRow,
 } from '../types/dashboard.types'
 
 function getDataLimite(periodo: Periodo): string | null {
@@ -74,6 +77,47 @@ function isTabelaInexistente(err: unknown): boolean {
   return msg.includes('could not find the table') || e?.status === 404
 }
 
+function isColunaInexistente(err: unknown): boolean {
+  const msg = String((err as { message?: string })?.message ?? '').toLowerCase()
+  return msg.includes('column') || msg.includes('does not exist') || msg.includes('could not find')
+}
+
+function processarSolicitacaoMobilidade(data: unknown[] | null) {
+  const agg: Record<string, number> = {}
+  const rowsMobilidade: AtendimentoMobilidadeRow[] = []
+  const rowsProjecao: AtendimentoProjecaoRow[] = []
+  for (const row of data ?? []) {
+    const r = row as Record<string, unknown>
+    const p = r.profissionais
+    const prof = p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>) : null
+    const categoria =
+      (prof?.categoria != null ? String(prof.categoria) : '') || asStringArray(prof?.categorias)[0] || 'outros'
+    const cidades = asStringArray(prof?.cidade_atuacao)
+    const createdAt = r.created_at != null ? String(r.created_at) : ''
+    const status = r.status != null ? String(r.status) : ''
+    agg[categoria] = (agg[categoria] ?? 0) + 1
+    rowsMobilidade.push({ categoria, cidades, createdAt, status })
+    rowsProjecao.push({
+      categoria,
+      cidades,
+      createdAt,
+      status,
+      tipoServico: r.tipo_servico != null ? String(r.tipo_servico) : 'mobilidade',
+      dataAgendada: r.data_agendada != null ? String(r.data_agendada) : null,
+      latOrigem: r.lat_origem != null ? Number(r.lat_origem) : null,
+      lngOrigem: r.lng_origem != null ? Number(r.lng_origem) : null,
+      latDestino: r.lat_destino != null ? Number(r.lat_destino) : null,
+      lngDestino: r.lng_destino != null ? Number(r.lng_destino) : null,
+      regiao: r.regiao != null ? String(r.regiao) : null,
+    })
+  }
+  const total = Object.values(agg).reduce((a, b) => a + b, 0)
+  const arr: DadosAtendimentosCategoria[] = Object.entries(agg)
+    .map(([categoria, t]) => ({ categoria, total: t, percentual: total ? (t / total) * 100 : 0 }))
+    .sort((a, b) => b.total - a.total)
+  return { arr, rowsMobilidade, rowsProjecao }
+}
+
 export function useEstatisticasMercado(empresaId: string | null, categoriaEmpresa: string, periodo: Periodo) {
   const [segmentosGuia, setSegmentosGuia] = useState<DadosSegmentosGuia[]>([])
   const [segmentosRecomendados, setSegmentosRecomendados] = useState<DadosSegmentosRecomendados[]>([])
@@ -85,6 +129,8 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
   const [historicoAtendimentos, setHistoricoAtendimentos] = useState<DadosHistoricoAtendimentos[]>([])
   const [horariosPico, setHorariosPico] = useState<DadosHorariosPico[]>([])
   const [atendimentosMobilidade, setAtendimentosMobilidade] = useState<AtendimentoMobilidadeRow[]>([])
+  const [reservasHospedagem, setReservasHospedagem] = useState<ReservaHospedagemRow[]>([])
+  const [atendimentosProjecao, setAtendimentosProjecao] = useState<AtendimentoProjecaoRow[]>([])
   const [analiseMercado, setAnaliseMercado] = useState<AnaliseMercadoDados>(() => ({
     visibilidade: preencherContagensSegmento({}),
     engajamento: preencherContagensSegmento({}),
@@ -162,49 +208,51 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
 
       // 3) Atendimentos por categoria (solicitacao_mobilidade + profissionais)
       try {
-        let q = supabase
-          .from('solicitacao_mobilidade')
-          .select(
-            `
+        const selectCompleto = `
+            created_at,
+            status,
+            data_agendada,
+            tipo_servico,
+            lat_origem,
+            lng_origem,
+            lat_destino,
+            lng_destino,
+            regiao,
+            profissionais:profissional_id (categoria, categorias, cidade_atuacao)
+          `
+        const selectBasico = `
             created_at,
             status,
             profissionais:profissional_id (categoria, categorias, cidade_atuacao)
           `
-          )
+        let q = supabase.from('solicitacao_mobilidade').select(selectCompleto)
         if (dataLimite) q = q.gte('created_at', dataLimite)
-        const { data, error: e } = await q
+        let { data, error: e } = await q
+        if (e && isColunaInexistente(e)) {
+          let qb = supabase.from('solicitacao_mobilidade').select(selectBasico)
+          if (dataLimite) qb = qb.gte('created_at', dataLimite)
+          const retry = await qb
+          data = retry.data
+          e = retry.error
+        }
         if (e) {
           if (isTabelaInexistente(e)) {
             setAtendimentosCategoria([])
             setAtendimentosMobilidade([])
+            setAtendimentosProjecao([])
           } else {
             throw e
           }
         } else {
-          const agg: Record<string, number> = {}
-          const rowsMobilidade: AtendimentoMobilidadeRow[] = []
-          for (const row of (data ?? []) as unknown[]) {
-            const r = row as Record<string, unknown>
-            const p = r.profissionais
-            const prof = p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>) : null
-            const categoria =
-              (prof?.categoria != null ? String(prof.categoria) : '') || asStringArray(prof?.categorias)[0] || 'outros'
-            const cidades = asStringArray(prof?.cidade_atuacao)
-            const createdAt = r.created_at != null ? String(r.created_at) : ''
-            const status = r.status != null ? String(r.status) : ''
-            agg[categoria] = (agg[categoria] ?? 0) + 1
-            rowsMobilidade.push({ categoria, cidades, createdAt, status })
-          }
-          const total = Object.values(agg).reduce((a, b) => a + b, 0)
-          const arr: DadosAtendimentosCategoria[] = Object.entries(agg)
-            .map(([categoria, t]) => ({ categoria, total: t, percentual: total ? (t / total) * 100 : 0 }))
-            .sort((a, b) => b.total - a.total)
+          const { arr, rowsMobilidade, rowsProjecao } = processarSolicitacaoMobilidade(data as unknown[] | null)
           setAtendimentosCategoria(arr)
           setAtendimentosMobilidade(rowsMobilidade)
+          setAtendimentosProjecao(rowsProjecao)
         }
       } catch {
         setAtendimentosCategoria([])
         setAtendimentosMobilidade([])
+        setAtendimentosProjecao([])
       }
 
       // 4) Distribuição de profissionais por tipo e cidade (agregado)
@@ -285,34 +333,48 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
         setCrescimentoUsuarios([])
       }
 
-      // 7) Ocupação hoteleira agregada (reservas)
+      // 7) Ocupação hoteleira (reservas_hospedagem, fallback reservas legado)
       try {
-        const min = dataLimite ?? new Date(new Date().getFullYear() - 1, 0, 1).toISOString()
-        const { data, error: e } = await supabase.from('reservas').select('data_checkin').gte('data_checkin', min)
-        if (e) {
-          if (isTabelaInexistente(e)) {
-            setOcupacaoHoteleira([])
-          } else {
-            throw e
-          }
+        const min = new Date(new Date().getFullYear() - 1, 0, 1).toISOString().slice(0, 10)
+        const { data: dataHosp, error: eHosp } = await supabase
+          .from('reservas_hospedagem')
+          .select('data_checkin, data_checkout, status')
+          .gte('data_checkin', min)
+
+        if (!eHosp && dataHosp && dataHosp.length > 0) {
+          const rows: ReservaHospedagemRow[] = (dataHosp as Record<string, unknown>[]).map((r) => ({
+            dataCheckin: String(r.data_checkin ?? ''),
+            dataCheckout: String(r.data_checkout ?? ''),
+            status: String(r.status ?? 'confirmada'),
+          }))
+          setReservasHospedagem(rows)
+          setOcupacaoHoteleira([])
         } else {
-          const agg: Record<string, number> = {}
-          for (const row of (data ?? []) as unknown[]) {
-            const r = row as Record<string, unknown>
-            const dt = safeIso(r.data_checkin)
-            if (!dt) continue
-            const k = monthKeyPtBR(dt)
-            agg[k] = (agg[k] ?? 0) + 1
+          const minIso = dataLimite ?? new Date(new Date().getFullYear() - 1, 0, 1).toISOString()
+          const { data, error: e } = await supabase.from('reservas').select('data_checkin').gte('data_checkin', minIso)
+          if (e) {
+            if (isTabelaInexistente(e) || (eHosp && isTabelaInexistente(eHosp))) {
+              setReservasHospedagem([])
+              setOcupacaoHoteleira([])
+            } else if (eHosp) {
+              throw eHosp
+            } else {
+              throw e
+            }
+          } else {
+            const rows: ReservaHospedagemRow[] = []
+            for (const row of (data ?? []) as unknown[]) {
+              const r = row as Record<string, unknown>
+              const dt = safeIso(r.data_checkin)
+              if (!dt) continue
+              rows.push(reservaLegadaParaHospedagem(dt.toISOString()))
+            }
+            setReservasHospedagem(rows)
+            setOcupacaoHoteleira([])
           }
-          const arr: DadosOcupacaoHoteleira[] = Object.keys(agg)
-            .sort()
-            .map((k) => {
-              const total = agg[k]
-              return { mes: monthLabelPtBR(k), ocupacao: Math.max(0, Math.min(Number(total) * 5, 100)) }
-            })
-          setOcupacaoHoteleira(arr)
         }
       } catch {
+        setReservasHospedagem([])
         setOcupacaoHoteleira([])
       }
 
@@ -382,6 +444,8 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
     historicoAtendimentos,
     horariosPico,
     atendimentosMobilidade,
+    reservasHospedagem,
+    atendimentosProjecao,
     analiseMercado,
     loading,
     error,

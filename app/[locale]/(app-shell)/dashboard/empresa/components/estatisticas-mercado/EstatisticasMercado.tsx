@@ -12,13 +12,11 @@ import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useEstatisticasMercado } from '../../hooks/useEstatisticasMercado'
 import type { Periodo } from '../../types/dashboard.types'
 
-import GraficoLinha from './GraficoLinha'
-import MapaCalor from './MapaCalor'
 import PastaEstatistica from './PastaEstatistica'
-import SubsecaoMercado from './SubsecaoMercado'
 import AnaliseMercadoPainel from './AnaliseMercadoPainel'
 import FunilEcossistemaMercado from './FunilEcossistemaMercado'
 import MobilidadeRegionalPainel from './MobilidadeRegionalPainel'
+import ProjecaoDemandaPainel from './ProjecaoDemandaPainel'
 import ExportarRelatorio from '../shared/ExportarRelatorio'
 
 interface Props {
@@ -37,8 +35,8 @@ export default function EstatisticasMercado({ periodo }: Props) {
     distribuicaoProfissionais,
     atendimentosMobilidade,
     analiseMercado,
-    ocupacaoHoteleira,
-    historicoAtendimentos,
+    reservasHospedagem,
+    atendimentosProjecao,
     loading,
     error,
   } = useEstatisticasMercado(empresaId, categoriaEmpresa, periodo)
@@ -129,39 +127,10 @@ export default function EstatisticasMercado({ periodo }: Props) {
           aberto={pastaAberta === 'projecao-demanda'}
           onToggle={() => togglePasta('projecao-demanda')}
         >
-          <div className="space-y-5">
-            <SubsecaoMercado titulo="Ocupação de hospedagem">
-              {ocupacaoHoteleira.length > 0 ? (
-                <GraficoLinha
-                  dados={ocupacaoHoteleira.map((o) => ({ mes: o.mes, valor: o.ocupacao }))}
-                  titulo=""
-                  cor="#E74C3C"
-                  semTitulo
-                  embed
-                />
-              ) : (
-                <p className="text-sm text-gray-500">Sem dados de ocupação no período selecionado.</p>
-              )}
-            </SubsecaoMercado>
-
-            <SubsecaoMercado titulo="Mapa de calor na região">
-              <MapaCalor semTitulo embed />
-            </SubsecaoMercado>
-
-            <SubsecaoMercado titulo="Histórico de atendimentos">
-              {historicoAtendimentos.length > 0 ? (
-                <GraficoLinha
-                  dados={historicoAtendimentos}
-                  titulo=""
-                  cor="#0097b2"
-                  semTitulo
-                  embed
-                />
-              ) : (
-                <p className="text-sm text-gray-500">Sem histórico de atendimentos no período selecionado.</p>
-              )}
-            </SubsecaoMercado>
-          </div>
+          <ProjecaoDemandaPainel
+            reservasHospedagem={reservasHospedagem}
+            atendimentosProjecao={atendimentosProjecao}
+          />
         </PastaEstatistica>
       </div>
 

@@ -126,6 +126,26 @@ export interface DadosOcupacaoHoteleira {
   ocupacao: number
 }
 
+export interface ReservaHospedagemRow {
+  dataCheckin: string
+  dataCheckout: string
+  status: string
+}
+
+export interface AtendimentoProjecaoRow {
+  categoria: string
+  cidades: string[]
+  createdAt: string
+  status: string
+  tipoServico: string
+  dataAgendada: string | null
+  latOrigem: number | null
+  lngOrigem: number | null
+  latDestino: number | null
+  lngDestino: number | null
+  regiao: string | null
+}
+
 export interface DadosHorariosPico {
   hora: number
   total: number
