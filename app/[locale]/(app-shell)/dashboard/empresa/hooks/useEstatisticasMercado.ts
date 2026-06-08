@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buscarAnaliseMercado, type AnaliseMercadoDados } from '@/lib/estatisticasMercadoAnalise'
 import { preencherContagensSegmento, preencherComissaoSegmento } from '@/lib/segmentosMercado'
+import type { AtendimentoMobilidadeRow } from '@/lib/mobilidadeRegional'
 import type {
   DadosAtendimentosCategoria,
   DadosCrescimentoUsuarios,
@@ -83,6 +84,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
   const [ocupacaoHoteleira, setOcupacaoHoteleira] = useState<DadosOcupacaoHoteleira[]>([])
   const [historicoAtendimentos, setHistoricoAtendimentos] = useState<DadosHistoricoAtendimentos[]>([])
   const [horariosPico, setHorariosPico] = useState<DadosHorariosPico[]>([])
+  const [atendimentosMobilidade, setAtendimentosMobilidade] = useState<AtendimentoMobilidadeRow[]>([])
   const [analiseMercado, setAnaliseMercado] = useState<AnaliseMercadoDados>(() => ({
     visibilidade: preencherContagensSegmento({}),
     engajamento: preencherContagensSegmento({}),
@@ -158,14 +160,15 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
         setSegmentosRecomendados([])
       }
 
-      // 3) Atendimentos por categoria (solicitacao_mobilidade + profissionais.categoria/categorias)
+      // 3) Atendimentos por categoria (solicitacao_mobilidade + profissionais)
       try {
         let q = supabase
           .from('solicitacao_mobilidade')
           .select(
             `
             created_at,
-            profissionais:profissional_id (categoria, categorias)
+            status,
+            profissionais:profissional_id (categoria, categorias, cidade_atuacao)
           `
           )
         if (dataLimite) q = q.gte('created_at', dataLimite)
@@ -173,27 +176,35 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
         if (e) {
           if (isTabelaInexistente(e)) {
             setAtendimentosCategoria([])
+            setAtendimentosMobilidade([])
           } else {
             throw e
           }
         } else {
           const agg: Record<string, number> = {}
+          const rowsMobilidade: AtendimentoMobilidadeRow[] = []
           for (const row of (data ?? []) as unknown[]) {
             const r = row as Record<string, unknown>
             const p = r.profissionais
             const prof = p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>) : null
             const categoria =
               (prof?.categoria != null ? String(prof.categoria) : '') || asStringArray(prof?.categorias)[0] || 'outros'
+            const cidades = asStringArray(prof?.cidade_atuacao)
+            const createdAt = r.created_at != null ? String(r.created_at) : ''
+            const status = r.status != null ? String(r.status) : ''
             agg[categoria] = (agg[categoria] ?? 0) + 1
+            rowsMobilidade.push({ categoria, cidades, createdAt, status })
           }
           const total = Object.values(agg).reduce((a, b) => a + b, 0)
           const arr: DadosAtendimentosCategoria[] = Object.entries(agg)
             .map(([categoria, t]) => ({ categoria, total: t, percentual: total ? (t / total) * 100 : 0 }))
             .sort((a, b) => b.total - a.total)
           setAtendimentosCategoria(arr)
+          setAtendimentosMobilidade(rowsMobilidade)
         }
       } catch {
         setAtendimentosCategoria([])
+        setAtendimentosMobilidade([])
       }
 
       // 4) Distribuição de profissionais por tipo e cidade (agregado)
@@ -334,16 +345,8 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
         setHistoricoAtendimentos([])
       }
 
-      // 9) Horários de pico (placeholder, por enquanto)
-      setHorariosPico([
-        { hora: 8, total: 15 },
-        { hora: 10, total: 25 },
-        { hora: 12, total: 35 },
-        { hora: 14, total: 30 },
-        { hora: 16, total: 40 },
-        { hora: 18, total: 45 },
-        { hora: 20, total: 32 },
-      ])
+      // 9) Horários de pico (legado — agregação feita em MobilidadeRegionalPainel)
+      setHorariosPico(Array.from({ length: 24 }, (_, h) => ({ hora: h, total: 0 })))
 
       try {
         const analise = await buscarAnaliseMercado(dataLimite, empresaId)
@@ -378,6 +381,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
     ocupacaoHoteleira,
     historicoAtendimentos,
     horariosPico,
+    atendimentosMobilidade,
     analiseMercado,
     loading,
     error,

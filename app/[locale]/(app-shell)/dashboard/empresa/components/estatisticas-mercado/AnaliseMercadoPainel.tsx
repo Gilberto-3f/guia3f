@@ -56,12 +56,14 @@ export default function AnaliseMercadoPainel({ analise, categoriaEmpresa }: Prop
             dados={pizzaVisibilidade}
             titulo="Visibilidade"
             embed
+            rosca
             mostrarComZero
           />
           <GraficoPizza
             dados={pizzaEngajamento}
             titulo="Engajamento"
             embed
+            rosca
             mostrarComZero
           />
         </div>

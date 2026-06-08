@@ -63,8 +63,7 @@ export default function PastaRelatorioLista({
       >
         {rotuloBloco ? (
           <>
-            {rotuloBloco}{' '}
-            <span className="text-[#001f3f]">{total.toLocaleString('pt-BR')}</span>
+            <span className="text-[#001f3f]">{total.toLocaleString('pt-BR')}</span> {rotuloBloco}
           </>
         ) : (
           total.toLocaleString('pt-BR')

@@ -12,29 +12,17 @@ import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useEstatisticasMercado } from '../../hooks/useEstatisticasMercado'
 import type { Periodo } from '../../types/dashboard.types'
 
-import GraficoBarras from './GraficoBarras'
-import GraficoPizza from './GraficoPizza'
 import GraficoLinha from './GraficoLinha'
 import MapaCalor from './MapaCalor'
-import HorariosPico from './HorariosPico'
 import PastaEstatistica from './PastaEstatistica'
 import SubsecaoMercado from './SubsecaoMercado'
 import AnaliseMercadoPainel from './AnaliseMercadoPainel'
 import FunilEcossistemaMercado from './FunilEcossistemaMercado'
+import MobilidadeRegionalPainel from './MobilidadeRegionalPainel'
 import ExportarRelatorio from '../shared/ExportarRelatorio'
 
 interface Props {
   periodo: Periodo
-}
-
-function normalizeTipoLabel(tipo: string) {
-  const t = tipo.toLowerCase()
-  if (t.includes('guia')) return 'Guias de Turismo'
-  if (t.includes('taxi')) return 'Taxistas'
-  if (t.includes('van')) return 'Motoristas de Van'
-  if (t.includes('app')) return 'Motoristas de App'
-  if (t.includes('anfit')) return 'Anfitriões'
-  return tipo
 }
 
 export default function EstatisticasMercado({ periodo }: Props) {
@@ -47,10 +35,10 @@ export default function EstatisticasMercado({ periodo }: Props) {
   const {
     atendimentosCategoria,
     distribuicaoProfissionais,
+    atendimentosMobilidade,
     analiseMercado,
     ocupacaoHoteleira,
     historicoAtendimentos,
-    horariosPico,
     loading,
     error,
   } = useEstatisticasMercado(empresaId, categoriaEmpresa, periodo)
@@ -58,35 +46,6 @@ export default function EstatisticasMercado({ periodo }: Props) {
   const togglePasta = (id: string) => {
     setPastaAberta((atual) => (atual === id ? null : id))
   }
-
-  const atendimentosFormatados = useMemo(
-    () => atendimentosCategoria.map((a) => ({ label: a.categoria, valor: a.total, percentual: a.percentual })),
-    [atendimentosCategoria],
-  )
-
-  const profissionaisPorTipoFormatados = useMemo(() => {
-    const porTipo: Record<string, number> = {}
-    for (const p of distribuicaoProfissionais) {
-      const k = normalizeTipoLabel(p.tipo)
-      porTipo[k] = (porTipo[k] ?? 0) + (p.total ?? 0)
-    }
-    const total = Object.values(porTipo).reduce((a, b) => a + b, 0)
-    return Object.entries(porTipo)
-      .map(([label, valor]) => ({ label, valor, percentual: total ? (valor / total) * 100 : 0 }))
-      .sort((a, b) => b.valor - a.valor)
-  }, [distribuicaoProfissionais])
-
-  const profissionaisPorCidadeFormatados = useMemo(() => {
-    const porCidade: Record<string, number> = {}
-    for (const p of distribuicaoProfissionais) {
-      const cidade = p.cidade?.trim() || 'Não informada'
-      porCidade[cidade] = (porCidade[cidade] ?? 0) + (p.total ?? 0)
-    }
-    const total = Object.values(porCidade).reduce((a, b) => a + b, 0)
-    return Object.entries(porCidade)
-      .map(([label, valor]) => ({ label, valor, percentual: total ? (valor / total) * 100 : 0 }))
-      .sort((a, b) => b.valor - a.valor)
-  }, [distribuicaoProfissionais])
 
   const suaComissao = analiseMercado.comissaoEmpresa.media
 
@@ -156,28 +115,10 @@ export default function EstatisticasMercado({ periodo }: Props) {
           aberto={pastaAberta === 'mobilidade-regional'}
           onToggle={() => togglePasta('mobilidade-regional')}
         >
-          <div className="space-y-5">
-            <SubsecaoMercado titulo="Distribuição de profissionais (por tipo e cidade)">
-              <div className="space-y-6">
-                <div>
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Por tipo</p>
-                  <GraficoPizza dados={profissionaisPorTipoFormatados} titulo="" semTitulo embed />
-                </div>
-                <div>
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Por cidade</p>
-                  <GraficoBarras dados={profissionaisPorCidadeFormatados} titulo="" semTitulo embed />
-                </div>
-              </div>
-            </SubsecaoMercado>
-
-            <SubsecaoMercado titulo="Atendimento por categoria">
-              <GraficoPizza dados={atendimentosFormatados} titulo="" semTitulo embed />
-            </SubsecaoMercado>
-
-            <SubsecaoMercado titulo="Horário de pico (solicitações de atendimento)">
-              <HorariosPico dados={horariosPico} semTitulo embed />
-            </SubsecaoMercado>
-          </div>
+          <MobilidadeRegionalPainel
+            distribuicaoProfissionais={distribuicaoProfissionais}
+            atendimentosMobilidade={atendimentosMobilidade}
+          />
         </PastaEstatistica>
 
         <PastaEstatistica
