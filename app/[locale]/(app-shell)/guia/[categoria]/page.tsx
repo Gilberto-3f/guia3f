@@ -241,7 +241,6 @@ export default function ListagemCategoriaPage() {
             <BuscadorGuiaSegmento
               placeholder={`Buscar em ${titulo}…`}
               onBuscar={(t) => void handleBuscar(t)}
-              onLimpar={() => setTermoBusca('')}
               buscando={buscando}
             />
           </div>
