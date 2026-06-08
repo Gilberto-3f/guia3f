@@ -3,21 +3,15 @@
 import { useMemo, useState } from 'react'
 import type { ReservaHospedagemRow, AtendimentoProjecaoRow } from '@/lib/projecaoDemanda'
 import {
-  agregarAgendamentosAntecipados,
-  agregarHistoricoSazonalidade,
-  agregarOcupacaoHospedagem,
-  type TipoServicoProjecao,
+  agregarCalendarioAtendimentos,
+  agregarCalendarioHospedagem,
+  agregarTaxaAtendimentoAnual,
+  agregarTaxaOcupacaoAnual,
 } from '@/lib/projecaoDemanda'
-import {
-  CIDADES_TRIPLICE_ORDEM,
-  CATEGORIAS_MOBILIDADE_ORDEM,
-  type CategoriaMobilidade,
-  type CidadeTriplice,
-} from '@/lib/mobilidadeRegional'
 
 import SubsecaoMercado from './SubsecaoMercado'
-import GraficoLinhaComparativa from './GraficoLinhaComparativa'
-import GraficoAgendamentosAntecipados from './GraficoAgendamentosAntecipados'
+import GraficoCalendarioProjecao from './GraficoCalendarioProjecao'
+import GraficoLinha from './GraficoLinha'
 import FiltroSelectMercado from './FiltroSelectMercado'
 
 interface Props {
@@ -25,124 +19,122 @@ interface Props {
   atendimentosProjecao: AtendimentoProjecaoRow[]
 }
 
+type AnoHistorico = 'atual' | 'anterior'
+
 export default function ProjecaoDemandaPainel({ reservasHospedagem, atendimentosProjecao }: Props) {
-  const [cidadeHistorico, setCidadeHistorico] = useState<CidadeTriplice | 'todas'>('todas')
-  const [categoriaHistorico, setCategoriaHistorico] = useState<CategoriaMobilidade | 'todas'>('todas')
-  const [tipoHistorico, setTipoHistorico] = useState<TipoServicoProjecao>('todos')
+  const [anoHistorico, setAnoHistorico] = useState<AnoHistorico>('atual')
 
-  const [cidadeAgendamento, setCidadeAgendamento] = useState<CidadeTriplice | 'todas'>('todas')
-  const [categoriaAgendamento, setCategoriaAgendamento] = useState<CategoriaMobilidade | 'todas'>('todas')
+  const anoReferencia = useMemo(() => {
+    const hoje = new Date().getFullYear()
+    return anoHistorico === 'atual' ? hoje : hoje - 1
+  }, [anoHistorico])
 
-  const ocupacao = useMemo(() => agregarOcupacaoHospedagem(reservasHospedagem), [reservasHospedagem])
-
-  const historico = useMemo(
-    () =>
-      agregarHistoricoSazonalidade(atendimentosProjecao, {
-        cidade: cidadeHistorico === 'todas' ? null : cidadeHistorico,
-        categoria: categoriaHistorico === 'todas' ? null : categoriaHistorico,
-        tipoServico: tipoHistorico,
-      }),
-    [atendimentosProjecao, cidadeHistorico, categoriaHistorico, tipoHistorico],
+  const calendarioHospedagem = useMemo(
+    () => agregarCalendarioHospedagem(reservasHospedagem),
+    [reservasHospedagem],
   )
 
-  const agendamentos = useMemo(
-    () =>
-      agregarAgendamentosAntecipados(atendimentosProjecao, {
-        cidade: cidadeAgendamento === 'todas' ? null : cidadeAgendamento,
-        categoria: categoriaAgendamento === 'todas' ? null : categoriaAgendamento,
-      }),
-    [atendimentosProjecao, cidadeAgendamento, categoriaAgendamento],
+  const calendarioAtendimentos = useMemo(
+    () => agregarCalendarioAtendimentos(atendimentosProjecao),
+    [atendimentosProjecao],
   )
 
-  const opcoesCidade = [
-    { valor: 'todas' as const, rotulo: 'Todas as cidades' },
-    ...CIDADES_TRIPLICE_ORDEM.map((c) => ({ valor: c, rotulo: c })),
-  ]
-  const opcoesCategoria = [
-    { valor: 'todas' as const, rotulo: 'Todas as categorias' },
-    ...CATEGORIAS_MOBILIDADE_ORDEM.map((c) => ({ valor: c, rotulo: c })),
-  ]
+  const taxaOcupacaoAnual = useMemo(
+    () =>
+      agregarTaxaOcupacaoAnual(reservasHospedagem, anoReferencia).map((p) => ({
+        mes: p.mesLabel,
+        valor: p.valor,
+      })),
+    [reservasHospedagem, anoReferencia],
+  )
 
-  const anoAtual = new Date().getFullYear()
+  const taxaAtendimentoAnual = useMemo(
+    () =>
+      agregarTaxaAtendimentoAnual(atendimentosProjecao, anoReferencia).map((p) => ({
+        mes: p.mesLabel,
+        valor: p.valor,
+      })),
+    [atendimentosProjecao, anoReferencia],
+  )
 
   return (
     <div className="space-y-5">
       <SubsecaoMercado
-        titulo="Ocupação de hospedagem"
-        subtitulo="Taxa de ocupação mensal — (diárias reservadas ÷ diárias disponíveis) × 100"
+        titulo="Reservas de Hospedagem"
+        subtitulo="Reservas mapeadas para os próximos meses"
       >
-        <GraficoLinhaComparativa
-          dados={ocupacao}
+        <GraficoCalendarioProjecao
+          meses={calendarioHospedagem}
           unidade="%"
           semTitulo
           embed
           mostrarComZero
-          rotuloAtual={String(anoAtual)}
-          rotuloAnterior={String(anoAtual - 1)}
         />
-        <p className="mt-2 text-center text-[11px] text-gray-400">
-          Últimos 12 meses · Fonte: reservas_hospedagem
+        <p className="mt-1 text-center text-[11px] text-gray-400">
+          Projeção de ocupação dos próximos 6 meses com base nas reservas feitas pelo app
         </p>
       </SubsecaoMercado>
 
       <SubsecaoMercado
-        titulo="Histórico de atendimentos"
-        subtitulo="Comparativo de sazonalidade — dois anos consecutivos"
+        titulo="Atendimentos Agendados"
+        subtitulo="Atendimento de profissionais reservados com antecedência"
       >
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <FiltroSelectMercado
-            rotulo="Cidade"
-            valor={cidadeHistorico}
-            opcoes={opcoesCidade}
-            onChange={setCidadeHistorico}
-          />
-          <FiltroSelectMercado
-            rotulo="Categoria"
-            valor={categoriaHistorico}
-            opcoes={opcoesCategoria}
-            onChange={setCategoriaHistorico}
-          />
-          <FiltroSelectMercado
-            rotulo="Tipo de serviço"
-            valor={tipoHistorico}
-            opcoes={[
-              { valor: 'todos', rotulo: 'Todos' },
-              { valor: 'mobilidade', rotulo: 'Mobilidade' },
-              { valor: 'hospedagem', rotulo: 'Hospedagem' },
-            ]}
-            onChange={setTipoHistorico}
-          />
-        </div>
-        <GraficoLinhaComparativa
-          dados={historico}
-          unidade="qtd"
+        <GraficoCalendarioProjecao
+          meses={calendarioAtendimentos}
+          unidade="%"
           semTitulo
           embed
           mostrarComZero
-          rotuloAtual={String(anoAtual)}
-          rotuloAnterior={String(anoAtual - 1)}
         />
+        <p className="mt-1 text-center text-[11px] text-gray-400">
+          Projeção de atendimento dos próximos 6 meses com base nos agendamentos feitos pelo app
+        </p>
       </SubsecaoMercado>
 
       <SubsecaoMercado
-        titulo="Agendamentos antecipados"
-        subtitulo="Reservas com 7+ dias de antecedência por mês do ano"
+        titulo="Histórico de Reservas e Agendamentos"
+        subtitulo="Comparativo de sazonalidade dos dois últimos anos"
       >
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:max-w-md">
+        <div className="mb-4 flex justify-center">
           <FiltroSelectMercado
-            rotulo="Cidade"
-            valor={cidadeAgendamento}
-            opcoes={opcoesCidade}
-            onChange={setCidadeAgendamento}
-          />
-          <FiltroSelectMercado
-            rotulo="Categoria"
-            valor={categoriaAgendamento}
-            opcoes={opcoesCategoria}
-            onChange={setCategoriaAgendamento}
+            rotulo="Ano"
+            valor={anoHistorico}
+            opcoes={[
+              { valor: 'atual' as const, rotulo: 'Ano atual' },
+              { valor: 'anterior' as const, rotulo: 'Ano anterior' },
+            ]}
+            onChange={setAnoHistorico}
           />
         </div>
-        <GraficoAgendamentosAntecipados dados={agendamentos} semTitulo embed mostrarComZero />
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div>
+            <p className="mb-2 text-center text-xs font-medium text-gray-600">
+              Taxa de ocupação mensal — {anoReferencia}
+            </p>
+            <GraficoLinha
+              dados={taxaOcupacaoAnual}
+              titulo=""
+              cor="#001f3f"
+              semTitulo
+              embed
+              unidade="%"
+            />
+          </div>
+          <div>
+            <p className="mb-2 text-center text-xs font-medium text-gray-600">
+              Taxa de atendimento mensal — {anoReferencia}
+            </p>
+            <GraficoLinha
+              dados={taxaAtendimentoAnual}
+              titulo=""
+              cor="#0097b2"
+              semTitulo
+              embed
+              unidade="%"
+            />
+          </div>
+        </div>
       </SubsecaoMercado>
     </div>
   )

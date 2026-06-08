@@ -6,11 +6,20 @@ interface Props {
   cor?: string
   semTitulo?: boolean
   embed?: boolean
+  unidade?: '%' | 'qtd'
 }
 
-export default function GraficoLinha({ dados, titulo, cor = '#0097b2', semTitulo = false, embed = false }: Props) {
-  const maxValor = Math.max(...dados.map((d) => d.valor), 1)
+export default function GraficoLinha({
+  dados,
+  titulo,
+  cor = '#0097b2',
+  semTitulo = false,
+  embed = false,
+  unidade = 'qtd',
+}: Props) {
+  const maxValor = Math.max(...dados.map((d) => d.valor), unidade === '%' ? 100 : 1)
   const wrap = embed ? '' : 'rounded-lg border bg-white p-4'
+  const fmt = (v: number) => (unidade === '%' ? `${v.toFixed(1)}%` : v.toLocaleString('pt-BR'))
 
   if (dados.length === 0 || dados.every((d) => d.valor === 0)) {
     return (
@@ -48,7 +57,7 @@ export default function GraficoLinha({ dados, titulo, cor = '#0097b2', semTitulo
             <span key={i}>{d.mes}</span>
           ))}
         </div>
-        <div className="absolute left-0 top-0 text-xs text-gray-500">{maxValor}</div>
+        <div className="absolute left-0 top-0 text-xs text-gray-500">{fmt(maxValor)}</div>
       </div>
     </div>
   )

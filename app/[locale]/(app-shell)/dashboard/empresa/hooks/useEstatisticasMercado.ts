@@ -145,6 +145,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
   const dataLimite = useMemo(() => getDataLimite(periodo), [periodo])
 
   const fetchSolicitacaoMobilidade = useCallback(async () => {
+    const minHistorico = new Date(new Date().getFullYear() - 2, 0, 1).toISOString()
     const selectCompleto = `
       created_at,
       status,
@@ -162,14 +163,12 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
       status,
       profissionais:profissional_id (categoria, categorias, cidade_atuacao)
     `
-    let q = supabase.from('solicitacao_mobilidade').select(selectCompleto)
-    if (dataLimite) q = q.gte('created_at', dataLimite)
+    let q = supabase.from('solicitacao_mobilidade').select(selectCompleto).gte('created_at', minHistorico)
     const primeira = await q
     let dataRows: unknown[] | null = (primeira.data as unknown[] | null) ?? null
     let e = primeira.error
     if (e && isColunaInexistente(e)) {
-      let qb = supabase.from('solicitacao_mobilidade').select(selectBasico)
-      if (dataLimite) qb = qb.gte('created_at', dataLimite)
+      let qb = supabase.from('solicitacao_mobilidade').select(selectBasico).gte('created_at', minHistorico)
       const retry = await qb
       dataRows = (retry.data as unknown[] | null) ?? null
       e = retry.error
@@ -179,10 +178,10 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
       throw e
     }
     return dataRows
-  }, [dataLimite])
+  }, [])
 
   const fetchReservasHospedagem = useCallback(async () => {
-    const min = new Date(new Date().getFullYear() - 1, 0, 1).toISOString().slice(0, 10)
+    const min = new Date(new Date().getFullYear() - 2, 0, 1).toISOString().slice(0, 10)
     const { data: dataHosp, error: eHosp } = await supabase
       .from('reservas_hospedagem')
       .select('data_checkin, data_checkout, status')
@@ -196,7 +195,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
       }))
     }
 
-    const minIso = dataLimite ?? new Date(new Date().getFullYear() - 1, 0, 1).toISOString()
+    const minIso = new Date(new Date().getFullYear() - 2, 0, 1).toISOString()
     const { data, error: e } = await supabase.from('reservas').select('data_checkin').gte('data_checkin', minIso)
     if (e) {
       if (isTabelaInexistente(e) || (eHosp && isTabelaInexistente(eHosp))) return []
@@ -212,7 +211,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
       rows.push(reservaLegadaParaHospedagem(dt.toISOString()))
     }
     return rows
-  }, [dataLimite])
+  }, [])
 
   const fetchDados = useCallback(async () => {
     setLoading(true)
