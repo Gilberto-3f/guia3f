@@ -9,7 +9,8 @@ const CLASSE_ICONE =
 
 interface Props {
   id: string
-  titulo: string
+  rotulo: string
+  total: number
   icon: LucideIcon
   children?: ReactNode
   aberto?: boolean
@@ -19,13 +20,12 @@ interface Props {
   posicao?: number
   /** false = linha de ranking sem expandir (relatório agregado). */
   expandivel?: boolean
-  /** Fonte reduzida quando o total tem muitos dígitos. */
-  textoCompacto?: boolean
 }
 
 export default function PastaRelatorioLista({
   id,
-  titulo,
+  rotulo,
+  total,
   icon: Icon,
   children,
   aberto: abertoProp,
@@ -34,7 +34,6 @@ export default function PastaRelatorioLista({
   naoLidas = 0,
   posicao,
   expandivel = true,
-  textoCompacto = false,
 }: Props) {
   const [abertoLocal, setAbertoLocal] = useState(false)
   const aberto = controlado ? Boolean(abertoProp) : abertoLocal
@@ -48,26 +47,36 @@ export default function PastaRelatorioLista({
     }
   }
 
-  const tituloCls = textoCompacto ? 'text-[13px]' : 'text-[15px]'
+  const textoBloco = (
+    <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 items-center gap-2 text-[15px] font-normal text-gray-900">
+        {posicao != null ? (
+          <span className="shrink-0 tabular-nums text-sm font-bold text-[#0097b2]">{posicao}º</span>
+        ) : null}
+        <span className="min-w-0 leading-snug">{rotulo}</span>
+      </div>
+      <p
+        className={`mt-0.5 text-sm font-semibold tabular-nums text-[#001f3f] ${posicao != null ? 'pl-7' : ''}`}
+      >
+        {total.toLocaleString('pt-BR')}
+      </p>
+    </div>
+  )
+
   const conteudoLinha = (
     <>
       <div className={CLASSE_ICONE}>
         <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
       </div>
       <div className="flex min-w-0 flex-1 items-center justify-between gap-2 border-b border-gray-200/80 py-3">
-        <span className={`flex min-w-0 items-center gap-2 font-normal text-gray-900 ${tituloCls}`}>
-          {posicao != null ? (
-            <span className="shrink-0 tabular-nums text-sm font-bold text-[#0097b2]">{posicao}º</span>
-          ) : null}
-          <span className="min-w-0 truncate">{titulo}</span>
-        </span>
+        {textoBloco}
         {expandivel ? (
-          <div className="flex shrink-0 items-center gap-1.5">
-            <CanalNaoLidasBadge count={naoLidas} />
+          <div className="flex shrink-0 flex-col items-center gap-0.5 self-center">
             <ChevronDown
               className={`h-5 w-5 shrink-0 text-gray-400 transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
               aria-hidden
             />
+            <CanalNaoLidasBadge count={naoLidas} />
           </div>
         ) : null}
       </div>

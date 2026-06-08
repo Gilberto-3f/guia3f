@@ -63,12 +63,12 @@ export default function LinhaProfissionalCabecalho({
             <span className="truncate">@{handle}</span>
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          <CanalNaoLidasBadge count={naoLidas} />
+        <div className="flex shrink-0 flex-col items-center gap-0.5 self-center">
           <ChevronDown
             className={`h-4 w-4 shrink-0 text-[#0097b2] transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
             aria-hidden
           />
+          <CanalNaoLidasBadge count={naoLidas} />
         </div>
       </button>
 

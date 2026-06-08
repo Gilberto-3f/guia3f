@@ -211,8 +211,6 @@ export default function FunilConversao({ periodo }: Props) {
             valor={etapa.valor}
             ocultarIcone={etapa.id === 'recomendacoes' && funilModoCompacto(etapa.valor)}
             naoLidas={etapa.expandable ? naoLidasEtapa(etapa.id) : 0}
-            indiceEtapa={index}
-            totalEtapas={etapas.length}
             expandable={etapa.expandable}
             selected={detalheAberto === etapa.id}
             onToggle={etapa.expandable ? () => toggleDetalhe(etapa.id) : undefined}

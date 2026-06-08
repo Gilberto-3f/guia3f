@@ -50,25 +50,6 @@ export function agruparPorCategoria<T extends { categoria: string; total: number
   return porCategoria
 }
 
-/** Total ≥ 100 (mais de 2 dígitos) → rótulos abreviados no ranking. */
-export function labelCategoriaFunilExibicao(
-  categoria: CategoriaProfissionalFunil,
-  totalCategoria: number,
-): string {
-  const base = CATEGORIAS_CONFIG[categoria].label
-  if (totalCategoria < 100) return base
-
-  if (categoria === 'apps') return 'Mot. de App'
-  if (categoria === 'vans') return 'Mot. de Van'
-  if (categoria === 'guias') return 'Guia de Tur.'
-  return base
-}
-
-/** Total ≥ 10.000 (mais de 4 dígitos) → fonte menor para não comprimir a linha. */
-export function categoriaFunilTextoCompacto(totalCategoria: number): boolean {
-  return totalCategoria >= 10_000
-}
-
 /** Ordena comunidades por total (ranking); empate mantém ordem padrão. */
 export function ordenarCategoriasRanking(
   totais: Partial<Record<CategoriaProfissionalFunil, number>>,

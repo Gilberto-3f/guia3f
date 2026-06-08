@@ -3,8 +3,6 @@
 import PastaRelatorioLista from '../funil-conversao/PastaRelatorioLista'
 import {
   CATEGORIAS_CONFIG,
-  categoriaFunilTextoCompacto,
-  labelCategoriaFunilExibicao,
   ordenarCategoriasRanking,
   type CategoriaProfissionalFunil,
 } from '../funil-conversao/categoriasProfissionalFunil'
@@ -25,18 +23,17 @@ export default function RecomendacoesCategoriaResumo({ items }: Props) {
     <div>
       {ranking.map(({ categoria, total }, indice) => {
         const posicao = indice + 1
-        const { Icon } = CATEGORIAS_CONFIG[categoria]
-        const label = labelCategoriaFunilExibicao(categoria, total)
+        const { label, Icon } = CATEGORIAS_CONFIG[categoria]
 
         return (
           <PastaRelatorioLista
             key={categoria}
             id={`eco-${categoria}`}
             posicao={posicao}
-            titulo={`${label} (${total.toLocaleString('pt-BR')})`}
+            rotulo={label}
+            total={total}
             icon={Icon}
             expandivel={false}
-            textoCompacto={categoriaFunilTextoCompacto(total)}
           />
         )
       })}

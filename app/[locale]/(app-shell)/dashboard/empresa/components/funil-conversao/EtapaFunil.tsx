@@ -3,22 +3,12 @@
 import { ChevronDown, ChevronUp, type LucideIcon } from 'lucide-react'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
-/** Distância segura da borda direita para o badge ficar dentro do clip-path do funil. */
-function calcBadgeRightPct(indiceEtapa: number, totalEtapas: number): number {
-  if (totalEtapas <= 0) return 3
-  const topoY = indiceEtapa / totalEtapas
-  const bordaDireitaPct = 100 - 28 * topoY
-  return Math.max(3, 100 - bordaDireitaPct + 3)
-}
-
 interface Props {
   icon: LucideIcon
   label: string
   valor: number
   ocultarIcone?: boolean
   naoLidas?: number
-  indiceEtapa?: number
-  totalEtapas?: number
   expandable?: boolean
   selected?: boolean
   onToggle?: () => void
@@ -31,8 +21,6 @@ export default function EtapaFunil({
   valor,
   ocultarIcone = false,
   naoLidas = 0,
-  indiceEtapa = 0,
-  totalEtapas = 1,
   expandable = false,
   selected = false,
   onToggle,
@@ -48,11 +36,14 @@ export default function EtapaFunil({
       <span className="text-lg font-bold tabular-nums sm:text-xl">{valor.toLocaleString('pt-BR')}</span>
       <span className="text-sm font-medium sm:text-base">{label}</span>
       {expandable ? (
-        selected ? (
-          <ChevronUp className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
-        ) : (
-          <ChevronDown className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
-        )
+        <div className="flex shrink-0 flex-col items-center gap-0.5">
+          {selected ? (
+            <ChevronUp className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
+          ) : (
+            <ChevronDown className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden />
+          )}
+          <CanalNaoLidasBadge count={naoLidas} className="!text-[10px]" />
+        </div>
       ) : null}
     </div>
   )
@@ -60,17 +51,6 @@ export default function EtapaFunil({
   const cls = `${bg} relative w-full px-4 py-4 text-white transition-colors duration-200 sm:px-5 sm:py-5 ${
     !isLast ? 'border-b-[3px] border-white' : ''
   }`
-
-  const badgeRightPct = calcBadgeRightPct(indiceEtapa, totalEtapas)
-  const badge =
-    naoLidas > 0 ? (
-      <span
-        className="pointer-events-none absolute top-2 z-10 sm:top-2.5"
-        style={{ right: `${badgeRightPct}%` }}
-      >
-        <CanalNaoLidasBadge count={naoLidas} className="!text-[10px]" />
-      </span>
-    ) : null
 
   if (expandable) {
     return (
@@ -81,7 +61,6 @@ export default function EtapaFunil({
         aria-expanded={selected}
         aria-label={`${label}: ${valor.toLocaleString('pt-BR')}. ${selected ? 'Recolher' : 'Abrir'} Relatório Detalhado`}
       >
-        {badge}
         {conteudo}
       </button>
     )
@@ -89,7 +68,6 @@ export default function EtapaFunil({
 
   return (
     <div className={cls}>
-      {badge}
       {conteudo}
     </div>
   )
