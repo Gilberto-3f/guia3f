@@ -32,6 +32,7 @@ export default function RecomendacoesCategoriaResumo({ items }: Props) {
             posicao={posicao}
             rotulo={label}
             total={total}
+            rotuloBloco="recomendações"
             icon={Icon}
             expandivel={false}
           />

@@ -31,6 +31,7 @@ export default function TopPaxProfissionais({
       onPastaVista={onPastaVista}
       onProfissionalVisto={onProfissionalVisto}
       modoContagem="pax"
+      rotuloBloco="PAX"
       vazioCategoria="Nenhum PAX nesta categoria"
       renderLinha={(prof, naoLidas, onVisto, posicao) => (
         <LinhaProfissionalPax

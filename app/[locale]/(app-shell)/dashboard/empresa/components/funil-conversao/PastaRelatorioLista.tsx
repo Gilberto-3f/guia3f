@@ -18,6 +18,8 @@ interface Props {
   controlado?: boolean
   naoLidas?: number
   posicao?: number
+  /** Texto do bloco exibido antes do total (ex.: recomendações, PAX, vendas). */
+  rotuloBloco?: string
   /** false = linha de ranking sem expandir (relatório agregado). */
   expandivel?: boolean
 }
@@ -33,6 +35,7 @@ export default function PastaRelatorioLista({
   controlado = false,
   naoLidas = 0,
   posicao,
+  rotuloBloco,
   expandivel = true,
 }: Props) {
   const [abertoLocal, setAbertoLocal] = useState(false)
@@ -49,16 +52,23 @@ export default function PastaRelatorioLista({
 
   const textoBloco = (
     <div className="min-w-0 flex-1">
-      <div className="flex min-w-0 items-center gap-2 text-[15px] font-normal text-gray-900">
+      <div className="flex min-w-0 items-center gap-2 text-[15px] text-gray-900">
         {posicao != null ? (
           <span className="shrink-0 tabular-nums text-sm font-bold text-[#0097b2]">{posicao}º</span>
         ) : null}
-        <span className="min-w-0 leading-snug">{rotulo}</span>
+        <span className="min-w-0 font-semibold leading-snug">{rotulo}</span>
       </div>
       <p
-        className={`mt-0.5 text-sm font-semibold tabular-nums text-[#001f3f] ${posicao != null ? 'pl-7' : ''}`}
+        className={`mt-0.5 text-sm font-normal tabular-nums text-gray-600 ${posicao != null ? 'pl-7' : ''}`}
       >
-        {total.toLocaleString('pt-BR')}
+        {rotuloBloco ? (
+          <>
+            {rotuloBloco}{' '}
+            <span className="text-[#001f3f]">{total.toLocaleString('pt-BR')}</span>
+          </>
+        ) : (
+          total.toLocaleString('pt-BR')
+        )}
       </p>
     </div>
   )

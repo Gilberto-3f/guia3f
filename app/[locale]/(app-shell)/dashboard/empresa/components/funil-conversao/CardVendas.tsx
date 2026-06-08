@@ -33,6 +33,7 @@ export default function CardVendas({
         profissionaisVistos={profissionaisVistos}
         onPastaVista={onPastaVista}
         onProfissionalVisto={onProfissionalVisto}
+        rotuloBloco="vendas"
         vazioCategoria="Nenhuma venda nesta categoria"
         renderLinha={(prof, naoLidas, onVisto, posicao) => (
           <LinhaProfissionalVenda

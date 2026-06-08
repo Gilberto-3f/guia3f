@@ -34,6 +34,7 @@ interface Props<T extends ProfissionalComCategoria> {
   onPastaVista?: (categoria: string) => void
   onProfissionalVisto?: (profissionalId: string) => void
   modoContagem?: ModoContagem
+  rotuloBloco: string
   renderLinha: (item: T, naoLidas: number, onProfissionalVisto?: () => void, posicao?: number) => ReactNode
 }
 
@@ -54,6 +55,7 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
   onPastaVista,
   onProfissionalVisto,
   modoContagem = 'eventos',
+  rotuloBloco,
   renderLinha,
 }: Props<T>) {
   const [pastaAberta, setPastaAberta] = useState<string | null>(null)
@@ -92,6 +94,7 @@ export default function RelatorioPastasCategoria<T extends ProfissionalComCatego
             posicao={posicao}
             rotulo={label}
             total={totalCategoria}
+            rotuloBloco={rotuloBloco}
             icon={Icon}
             naoLidas={naoLidasPasta}
             controlado
