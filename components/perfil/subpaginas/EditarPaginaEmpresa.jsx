@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, MessageCircle, Phone } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
+import { sanitizarPalavrasChave, MAX_PALAVRAS_CHAVE } from '@/lib/palavrasChaveGuia'
 
 const CIDADES = ['Foz do Iguaçu', 'Ciudad del Este', 'Puerto Iguazú']
 
@@ -160,6 +161,17 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
 
   const horariosInicial = useMemo(() => parseHorariosFromEmpresa(empresa.horarios), [empresa.horarios])
   const [horariosEdit, setHorariosEdit] = useState(horariosInicial)
+
+  const palavrasInicial = useMemo(() => {
+    const base = sanitizarPalavrasChave(empresa.palavras_chave)
+    while (base.length < MAX_PALAVRAS_CHAVE) base.push('')
+    return base.slice(0, MAX_PALAVRAS_CHAVE)
+  }, [empresa.palavras_chave])
+  const [palavrasChave, setPalavrasChave] = useState(palavrasInicial)
+
+  useEffect(() => {
+    setPalavrasChave(palavrasInicial)
+  }, [palavrasInicial])
 
   useEffect(() => {
     setHorariosEdit(horariosInicial)
@@ -330,6 +342,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
         descricao_curta: formData.descricaoCurta.trim() || null,
         descricao_longa: formData.descricaoLonga.trim() || null,
         redes_sociais: formData.redes,
+        palavras_chave: sanitizarPalavrasChave(palavrasChave),
       }
 
       if (publicUrlPerfil) {
@@ -556,6 +569,33 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
               </div>
             )
           })}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-lg font-bold text-gray-900">Adicionar Palavras-chave</h3>
+        <p className="text-xs leading-relaxed text-gray-500">
+          Até {MAX_PALAVRAS_CHAVE} termos relacionados ao seu segmento. Eles não aparecem na página pública, mas
+          ajudam turistas e profissionais a encontrar sua empresa no motor de busca do guia.
+        </p>
+        <div className="space-y-2">
+          {palavrasChave.map((valor, idx) => (
+            <input
+              key={`palavra-chave-${idx}`}
+              type="text"
+              placeholder={`Palavra-chave ${idx + 1}`}
+              value={valor}
+              onChange={(e) =>
+                setPalavrasChave((prev) => {
+                  const next = [...prev]
+                  next[idx] = e.target.value
+                  return next
+                })
+              }
+              className="w-full rounded-lg border border-gray-200 p-2 text-sm text-gray-900"
+              maxLength={60}
+            />
+          ))}
         </div>
       </section>
 

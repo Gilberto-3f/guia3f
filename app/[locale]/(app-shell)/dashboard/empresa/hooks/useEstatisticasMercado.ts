@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buscarAnaliseMercado, type AnaliseMercadoDados } from '@/lib/estatisticasMercadoAnalise'
+import { buscarTopTermosGuia, type TopTermosSegmentoGuia } from '@/lib/buscasGuia'
 import { preencherContagensSegmento, preencherComissaoSegmento } from '@/lib/segmentosMercado'
 import type { AtendimentoMobilidadeRow } from '@/lib/mobilidadeRegional'
 import { reservaLegadaParaHospedagem } from '@/lib/projecaoDemanda'
@@ -139,6 +140,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
     comissao: preencherComissaoSegmento({}),
     comissaoEmpresa: { mediaPax: 0, mediaPercentual: 0, mediaIndicacao: 0, quantidade: 0 },
   }))
+  const [topTermosBuscaGuia, setTopTermosBuscaGuia] = useState<TopTermosSegmentoGuia[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -218,12 +220,14 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
     setError(null)
 
     try {
-      const [mobilidadeRows, profissionaisRes, comissaoRes, reservasRows, analiseRes] = await Promise.allSettled([
+      const [mobilidadeRows, profissionaisRes, comissaoRes, reservasRows, analiseRes, buscasGuiaRes] =
+        await Promise.allSettled([
         fetchSolicitacaoMobilidade(),
         supabase.from('profissionais').select('categorias, cidade_atuacao'),
         supabase.from('taxas_comissoes').select('categoria, taxa_percentual'),
         fetchReservasHospedagem(),
         buscarAnaliseMercado(dataLimite, empresaId),
+        buscarTopTermosGuia(dataLimite, 10),
       ])
 
       if (mobilidadeRows.status === 'fulfilled' && mobilidadeRows.value) {
@@ -321,6 +325,12 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
           comissaoEmpresa: { mediaPax: 0, mediaPercentual: 0, mediaIndicacao: 0, quantidade: 0 },
         })
       }
+
+      if (buscasGuiaRes.status === 'fulfilled') {
+        setTopTermosBuscaGuia(buscasGuiaRes.value)
+      } else {
+        setTopTermosBuscaGuia([])
+      }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Erro ao carregar estatísticas'))
     } finally {
@@ -347,6 +357,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
     atendimentosProjecao,
     profissionaisCategorias,
     analiseMercado,
+    topTermosBuscaGuia,
     loading,
     error,
     refetch: fetchDados,

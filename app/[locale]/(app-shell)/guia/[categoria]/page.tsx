@@ -5,6 +5,9 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import CardAtrativo from '@/components/CardAtrativo'
+import BuscadorGuiaSegmento from '@/components/guia/BuscadorGuiaSegmento'
+import { empresaCorrespondeBusca } from '@/lib/palavrasChaveGuia'
+import { registrarBuscaGuia } from '@/lib/buscasGuia'
 
 import { slugGuiaParaCategoriaDb } from '@/lib/segmentosEmpresaGuia'
 
@@ -59,6 +62,7 @@ type Empresa = {
   preco_ticket_inteira?: number | null
   preco_ticket_meia?: number | null
   preco_diaria?: number | null
+  palavras_chave?: unknown
 }
 
 type OrdenacaoModo = 'avaliacao' | 'localizacao'
@@ -85,6 +89,8 @@ export default function ListagemCategoriaPage() {
   const [ordenacao, setOrdenacao] = useState<OrdenacaoModo>('avaliacao')
   const [geoCarregando, setGeoCarregando] = useState(false)
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null)
+  const [termoBusca, setTermoBusca] = useState('')
+  const [buscando, setBuscando] = useState(false)
 
   const categoriaDb = SLUG_PARA_CATEGORIA_DB[slug] ?? slugGuiaParaCategoriaDb(slug) ?? slug
   const cidadeDb = useMemo(() => CIDADE_POR_PAIS[pais], [pais])
@@ -103,7 +109,7 @@ export default function ListagemCategoriaPage() {
         .from('empresas')
         // FIX: seleciona só o necessário (melhor para tsc/typing e rede)
         .select(
-          'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
+          'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave'
         )
         .eq('categoria', categoriaDb)
         .eq('cidade', cidadeDb)
@@ -116,6 +122,24 @@ export default function ListagemCategoriaPage() {
         .order('total_avaliacoes', { ascending: false })
 
       if (error) {
+        const msg = String(error.message ?? '').toLowerCase()
+        if (msg.includes('palavras_chave') && (msg.includes('column') || msg.includes('does not exist'))) {
+          const retry = await supabase
+            .from('empresas')
+            .select(
+              'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
+            )
+            .eq('categoria', categoriaDb)
+            .eq('cidade', cidadeDb)
+            .eq('status', 'aprovado')
+            .not('foto_url', 'is', null)
+            .order('nota_media', { ascending: false })
+            .order('total_avaliacoes', { ascending: false })
+          if (!retry.error) {
+            setEmpresas((retry.data ?? []) as Empresa[])
+            return
+          }
+        }
         setErroLista(error.message)
         setEmpresas([])
         return
@@ -153,8 +177,13 @@ export default function ListagemCategoriaPage() {
     void (cacheFound ? carregarEmpresas({ silent: true }) : carregarEmpresas())
   }, [carregarEmpresas, cacheKey])
 
+  const empresasFiltradas = useMemo(() => {
+    if (!termoBusca.trim()) return empresas
+    return empresas.filter((e) => empresaCorrespondeBusca(e.palavras_chave, termoBusca))
+  }, [empresas, termoBusca])
+
   const empresasOrdenadas = useMemo(() => {
-    const base = [...empresas]
+    const base = [...empresasFiltradas]
     if (ordenacao === 'avaliacao') {
       base.sort((a, b) => {
         const na = Number(a.nota_media) || 0
@@ -178,7 +207,22 @@ export default function ListagemCategoriaPage() {
       return ad - bd
     })
     return base
-  }, [empresas, ordenacao, userPos])
+  }, [empresasFiltradas, ordenacao, userPos])
+
+  const handleBuscar = useCallback(
+    async (termo: string) => {
+      setBuscando(true)
+      try {
+        if (termo) {
+          await registrarBuscaGuia(slug, termo)
+        }
+        setTermoBusca(termo)
+      } finally {
+        setBuscando(false)
+      }
+    },
+    [slug],
+  )
 
   const titulo = TITULO_CATEGORIA[slug] ?? slug
 
@@ -191,6 +235,15 @@ export default function ListagemCategoriaPage() {
               <ArrowLeft size={22} className="text-white" />
             </button>
             <h1 className="truncate text-lg font-bold text-white">{titulo}</h1>
+          </div>
+
+          <div className="w-full sm:max-w-xl">
+            <BuscadorGuiaSegmento
+              placeholder={`Buscar em ${titulo}…`}
+              onBuscar={(t) => void handleBuscar(t)}
+              onLimpar={() => setTermoBusca('')}
+              buscando={buscando}
+            />
           </div>
 
           <div className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-2 sm:flex-1">
@@ -289,9 +342,13 @@ export default function ListagemCategoriaPage() {
           <div className="flex justify-center py-8">
             <div className="animate-pulse text-gray-500">Carregando...</div>
           </div>
-        ) : empresas.length === 0 ? (
+        ) : empresasFiltradas.length === 0 ? (
           <div className="py-8 text-center">
-            <p className="text-gray-400">Nenhuma empresa encontrada nesta região</p>
+            <p className="text-gray-400">
+              {termoBusca.trim()
+                ? 'Nenhuma empresa encontrada para este termo neste segmento'
+                : 'Nenhuma empresa encontrada nesta região'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

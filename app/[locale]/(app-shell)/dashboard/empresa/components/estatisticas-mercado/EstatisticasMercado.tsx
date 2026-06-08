@@ -6,6 +6,7 @@ import {
   Filter,
   Info,
   MapPin,
+  Search,
   TrendingUp,
 } from 'lucide-react'
 import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
@@ -24,6 +25,7 @@ import AnaliseMercadoPainel from './AnaliseMercadoPainel'
 import FunilEcossistemaMercado from './FunilEcossistemaMercado'
 import MobilidadeRegionalPainel from './MobilidadeRegionalPainel'
 import ProjecaoDemandaPainel from './ProjecaoDemandaPainel'
+import OtimizacaoMotorBuscaPainel from './OtimizacaoMotorBuscaPainel'
 import ExportarRelatorio from '../shared/ExportarRelatorio'
 
 interface Props {
@@ -58,6 +60,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
     atendimentosMobilidade,
     profissionaisCategorias,
     analiseMercado,
+    topTermosBuscaGuia,
     reservasHospedagem,
     atendimentosProjecao,
     loading,
@@ -109,6 +112,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
       historico_atendimento_ano_anterior: agregarTaxaAtendimentoAnual(atendimentosProjecao, ano - 1),
       reservas_hospedagem: reservasHospedagem,
       atendimentos_projecao: atendimentosProjecao,
+      busca_guia_top_termos: topTermosBuscaGuia,
     }
   }, [
     analiseMercado,
@@ -122,6 +126,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
     funilEco.recomendacoesPorCategoria,
     periodo,
     reservasHospedagem,
+    topTermosBuscaGuia,
     totalAtendimentosPeriodo,
   ])
 
@@ -130,7 +135,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
   if (loading) {
     return (
       <div className="space-y-3">
-        {Array.from({ length: 4 }).map((_, i) => (
+        {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="h-14 animate-pulse rounded-lg bg-gray-100" />
         ))}
       </div>
@@ -197,6 +202,17 @@ export default function EstatisticasMercado({ periodo }: Props) {
             reservasHospedagem={reservasHospedagem}
             atendimentosProjecao={atendimentosProjecao}
           />
+        </PastaEstatistica>
+
+        <PastaEstatistica
+          id="otimizacao-busca"
+          titulo="Otimização do Motor de Busca (Palavras-chave)"
+          icon={Search}
+          controlado
+          aberto={pastaAberta === 'otimizacao-busca'}
+          onToggle={() => togglePasta('otimizacao-busca')}
+        >
+          <OtimizacaoMotorBuscaPainel topTermos={topTermosBuscaGuia} categoriaEmpresa={categoriaEmpresa} />
         </PastaEstatistica>
       </div>
 
