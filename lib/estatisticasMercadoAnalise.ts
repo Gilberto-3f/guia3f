@@ -7,15 +7,36 @@ import {
   type SegmentoMercado,
 } from '@/lib/segmentosMercado'
 
+export interface ComissaoEmpresaResumo {
+  mediaPax: number
+  mediaPercentual: number
+  mediaIndicacao: number
+  quantidade: number
+}
+
 export interface AnaliseMercadoDados {
   visibilidade: ContagemSegmento[]
   engajamento: ContagemSegmento[]
   recomendados: ContagemSegmento[]
   comissao: ComissaoSegmento[]
-  comissaoEmpresa: { media: number; quantidade: number }
+  comissaoEmpresa: ComissaoEmpresaResumo
 }
 
-type RpcRow = { segmento: string; total?: number; media?: number; quantidade?: number }
+type RpcRow = {
+  segmento: string
+  total?: number
+  media_pax?: number
+  media_percentual?: number
+  media_indicacao?: number
+  quantidade?: number
+}
+
+const COMISSAO_EMPRESA_VAZIA: ComissaoEmpresaResumo = {
+  mediaPax: 0,
+  mediaPercentual: 0,
+  mediaIndicacao: 0,
+  quantidade: 0,
+}
 
 function mapContagens(rows: RpcRow[] | null | undefined): ContagemSegmento[] {
   const parcial: Partial<Record<SegmentoMercado, number>> = {}
@@ -27,17 +48,34 @@ function mapContagens(rows: RpcRow[] | null | undefined): ContagemSegmento[] {
 }
 
 function mapComissao(rows: RpcRow[] | null | undefined): ComissaoSegmento[] {
-  const parcial: Partial<Record<SegmentoMercado, { media: number; quantidade: number }>> = {}
+  const parcial: Partial<
+    Record<
+      SegmentoMercado,
+      { mediaPax: number; mediaPercentual: number; mediaIndicacao: number; quantidade: number }
+    >
+  > = {}
   for (const row of rows ?? []) {
     const seg = row.segmento as SegmentoMercado
     if (seg) {
       parcial[seg] = {
-        media: Number(row.media ?? 0),
+        mediaPax: Number(row.media_pax ?? 0),
+        mediaPercentual: Number(row.media_percentual ?? 0),
+        mediaIndicacao: Number(row.media_indicacao ?? 0),
         quantidade: Number(row.quantidade ?? 0),
       }
     }
   }
   return preencherComissaoSegmento(parcial)
+}
+
+function mapComissaoEmpresa(raw: Record<string, unknown> | null | undefined): ComissaoEmpresaResumo {
+  if (!raw) return COMISSAO_EMPRESA_VAZIA
+  return {
+    mediaPax: Number(raw.media_pax ?? 0),
+    mediaPercentual: Number(raw.media_percentual ?? 0),
+    mediaIndicacao: Number(raw.media_indicacao ?? 0),
+    quantidade: Number(raw.quantidade ?? 0),
+  }
 }
 
 export async function buscarAnaliseMercado(
@@ -49,7 +87,7 @@ export async function buscarAnaliseMercado(
     engajamento: preencherContagensSegmento({}),
     recomendados: preencherContagensSegmento({}),
     comissao: preencherComissaoSegmento({}),
-    comissaoEmpresa: { media: 0, quantidade: 0 },
+    comissaoEmpresa: COMISSAO_EMPRESA_VAZIA,
   }
 
   const { data, error } = await supabase.rpc('rpc_analise_mercado', {
@@ -69,16 +107,12 @@ export async function buscarAnaliseMercado(
   }
 
   const payload = (data ?? {}) as Record<string, unknown>
-  const comissaoEmp = payload.comissao_empresa as { media?: number; quantidade?: number } | null
 
   return {
     visibilidade: mapContagens(payload.visibilidade as RpcRow[]),
     engajamento: mapContagens(payload.engajamento as RpcRow[]),
     recomendados: mapContagens(payload.recomendados as RpcRow[]),
     comissao: mapComissao(payload.comissao as RpcRow[]),
-    comissaoEmpresa: {
-      media: Number(comissaoEmp?.media ?? 0),
-      quantidade: Number(comissaoEmp?.quantidade ?? 0),
-    },
+    comissaoEmpresa: mapComissaoEmpresa(payload.comissao_empresa as Record<string, unknown>),
   }
 }

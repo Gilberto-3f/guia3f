@@ -37,7 +37,9 @@ export default function AnaliseMercadoPainel({ analise, categoriaEmpresa }: Prop
     () =>
       analise.comissao.map((item) => ({
         label: item.label,
-        valor: item.media,
+        mediaPax: item.mediaPax,
+        mediaPercentual: item.mediaPercentual,
+        mediaIndicacao: item.mediaIndicacao,
         quantidade: item.quantidade,
         segmento: item.segmento,
         cor: corSegmentoMercado(item.segmento),
@@ -56,14 +58,12 @@ export default function AnaliseMercadoPainel({ analise, categoriaEmpresa }: Prop
             dados={pizzaVisibilidade}
             titulo="Visibilidade"
             embed
-            rosca
             mostrarComZero
           />
           <GraficoPizza
             dados={pizzaEngajamento}
             titulo="Engajamento"
             embed
-            rosca
             mostrarComZero
           />
         </div>
@@ -81,11 +81,11 @@ export default function AnaliseMercadoPainel({ analise, categoriaEmpresa }: Prop
 
       <SubsecaoMercado
         titulo="Média de Comissão"
-        subtitulo="Média de comissão por segmento"
+        subtitulo="Estimativa de mercado com base nas ofertas cadastradas pelas empresas (PAX, porcentagem e indicação)"
       >
         <GraficoComissaoSegmento
           dados={barrasComissao}
-          mediaEmpresa={analise.comissaoEmpresa.media}
+          comissaoEmpresa={analise.comissaoEmpresa}
           segmentoEmpresa={segmentoEmpresa}
           embed
         />

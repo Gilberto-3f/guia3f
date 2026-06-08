@@ -95,7 +95,9 @@ export interface DadosComissaoRamo {
 export interface ComissaoSegmentoMercado {
   segmento: string
   label: string
-  media: number
+  mediaPax: number
+  mediaPercentual: number
+  mediaIndicacao: number
   quantidade: number
 }
 
@@ -111,7 +113,12 @@ export interface AnaliseMercadoPainel {
   engajamento: ContagemSegmentoMercado[]
   recomendados: ContagemSegmentoMercado[]
   comissao: ComissaoSegmentoMercado[]
-  comissaoEmpresa: { media: number; quantidade: number }
+  comissaoEmpresa: {
+    mediaPax: number
+    mediaPercentual: number
+    mediaIndicacao: number
+    quantidade: number
+  }
 }
 
 export interface DadosCrescimentoUsuarios {

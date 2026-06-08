@@ -137,7 +137,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
     engajamento: preencherContagensSegmento({}),
     recomendados: preencherContagensSegmento({}),
     comissao: preencherComissaoSegmento({}),
-    comissaoEmpresa: { media: 0, quantidade: 0 },
+    comissaoEmpresa: { mediaPax: 0, mediaPercentual: 0, mediaIndicacao: 0, quantidade: 0 },
   }))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -319,7 +319,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
           engajamento: preencherContagensSegmento({}),
           recomendados: preencherContagensSegmento({}),
           comissao: preencherComissaoSegmento({}),
-          comissaoEmpresa: { media: 0, quantidade: 0 },
+          comissaoEmpresa: { mediaPax: 0, mediaPercentual: 0, mediaIndicacao: 0, quantidade: 0 },
         })
       }
     } catch (err) {

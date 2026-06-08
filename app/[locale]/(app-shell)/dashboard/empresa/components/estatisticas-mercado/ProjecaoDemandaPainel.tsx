@@ -5,11 +5,7 @@ import type { ReservaHospedagemRow, AtendimentoProjecaoRow } from '@/lib/projeca
 import {
   agregarAgendamentosAntecipados,
   agregarHistoricoSazonalidade,
-  agregarMapaCalor,
   agregarOcupacaoHospedagem,
-  dataLimiteProjecao,
-  type ModoMapaCalor,
-  type PeriodoProjecao,
   type TipoServicoProjecao,
 } from '@/lib/projecaoDemanda'
 import {
@@ -21,7 +17,6 @@ import {
 
 import SubsecaoMercado from './SubsecaoMercado'
 import GraficoLinhaComparativa from './GraficoLinhaComparativa'
-import MapaCalor from './MapaCalor'
 import GraficoAgendamentosAntecipados from './GraficoAgendamentosAntecipados'
 import FiltroSelectMercado from './FiltroSelectMercado'
 
@@ -31,11 +26,6 @@ interface Props {
 }
 
 export default function ProjecaoDemandaPainel({ reservasHospedagem, atendimentosProjecao }: Props) {
-  const [periodoMapa, setPeriodoMapa] = useState<PeriodoProjecao>('30d')
-  const [cidadeMapa, setCidadeMapa] = useState<CidadeTriplice | 'todas'>('todas')
-  const [categoriaMapa, setCategoriaMapa] = useState<CategoriaMobilidade | 'todas'>('todas')
-  const [modoMapa, setModoMapa] = useState<ModoMapaCalor>('regiao')
-
   const [cidadeHistorico, setCidadeHistorico] = useState<CidadeTriplice | 'todas'>('todas')
   const [categoriaHistorico, setCategoriaHistorico] = useState<CategoriaMobilidade | 'todas'>('todas')
   const [tipoHistorico, setTipoHistorico] = useState<TipoServicoProjecao>('todos')
@@ -53,17 +43,6 @@ export default function ProjecaoDemandaPainel({ reservasHospedagem, atendimentos
         tipoServico: tipoHistorico,
       }),
     [atendimentosProjecao, cidadeHistorico, categoriaHistorico, tipoHistorico],
-  )
-
-  const pontosCalor = useMemo(
-    () =>
-      agregarMapaCalor(atendimentosProjecao, {
-        desde: dataLimiteProjecao(periodoMapa),
-        cidade: cidadeMapa === 'todas' ? null : cidadeMapa,
-        categoria: categoriaMapa === 'todas' ? null : categoriaMapa,
-        modo: modoMapa,
-      }),
-    [atendimentosProjecao, periodoMapa, cidadeMapa, categoriaMapa, modoMapa],
   )
 
   const agendamentos = useMemo(
@@ -104,25 +83,6 @@ export default function ProjecaoDemandaPainel({ reservasHospedagem, atendimentos
         <p className="mt-2 text-center text-[11px] text-gray-400">
           Últimos 12 meses · Fonte: reservas_hospedagem
         </p>
-      </SubsecaoMercado>
-
-      <SubsecaoMercado
-        titulo="Mapa de calor na região"
-        subtitulo="Concentração de atendimentos concluídos na Tríplice Fronteira"
-      >
-        <MapaCalor
-          pontos={pontosCalor}
-          semTitulo
-          embed
-          periodo={periodoMapa}
-          cidade={cidadeMapa}
-          categoria={categoriaMapa}
-          modo={modoMapa}
-          onPeriodoChange={setPeriodoMapa}
-          onCidadeChange={setCidadeMapa}
-          onCategoriaChange={setCategoriaMapa}
-          onModoChange={setModoMapa}
-        />
       </SubsecaoMercado>
 
       <SubsecaoMercado

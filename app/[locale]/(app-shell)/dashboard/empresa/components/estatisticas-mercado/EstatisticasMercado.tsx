@@ -46,7 +46,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
     setPastaAberta((atual) => (atual === id ? null : id))
   }
 
-  const suaComissao = analiseMercado.comissaoEmpresa.media
+  const comissaoEmpresa = analiseMercado.comissaoEmpresa
 
   const totalAtendimentosPeriodo = useMemo(
     () => atendimentosCategoria.reduce((sum, a) => sum + a.total, 0),
@@ -57,10 +57,12 @@ export default function EstatisticasMercado({ periodo }: Props) {
     () => ({
       periodo,
       categoria_empresa: categoriaEmpresa,
-      media_comissao_setor: suaComissao,
+      comissao_empresa_pax: comissaoEmpresa.mediaPax,
+      comissao_empresa_percentual: comissaoEmpresa.mediaPercentual,
+      comissao_empresa_indicacao: comissaoEmpresa.mediaIndicacao,
       atendimentos_periodo: totalAtendimentosPeriodo,
     }),
-    [categoriaEmpresa, periodo, suaComissao, totalAtendimentosPeriodo],
+    [categoriaEmpresa, comissaoEmpresa, periodo, totalAtendimentosPeriodo],
   )
 
   if (loading) {

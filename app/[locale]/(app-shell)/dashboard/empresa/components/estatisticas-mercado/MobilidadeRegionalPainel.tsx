@@ -124,7 +124,7 @@ export default function MobilidadeRegionalPainel({
     <div className="space-y-5">
       <SubsecaoMercado
         titulo="Distribuição de profissionais"
-        subtitulo="Concentração de profissionais na Tríplice Fronteira — por cidade e por categoria"
+        subtitulo="Concentração de profissionais na Tríplice Fronteira."
       >
         <div className="space-y-6">
           <div>

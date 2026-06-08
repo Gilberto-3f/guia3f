@@ -91,7 +91,7 @@ export default function FunilEcossistemaMercado({ periodo }: Props) {
       ) : null}
 
       <p className="mx-auto max-w-xl text-center text-xs leading-relaxed text-gray-500">
-        Resultados agregados de todas as empresas do ecossistema no período selecionado.
+        Resultado da somatória dos funis de todas as empresas do ecossistema.
       </p>
     </div>
   )

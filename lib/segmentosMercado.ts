@@ -59,7 +59,9 @@ export interface ContagemSegmento {
 export interface ComissaoSegmento {
   segmento: SegmentoMercado
   label: string
-  media: number
+  mediaPax: number
+  mediaPercentual: number
+  mediaIndicacao: number
   quantidade: number
 }
 
@@ -81,18 +83,25 @@ export function preencherContagensSegmento(
 }
 
 export function preencherComissaoSegmento(
-  parcial: Partial<Record<SegmentoMercado, { media: number; quantidade: number }>>,
+  parcial: Partial<
+    Record<
+      SegmentoMercado,
+      { mediaPax: number; mediaPercentual: number; mediaIndicacao: number; quantidade: number }
+    >
+  >,
 ): ComissaoSegmento[] {
   return SEGMENTOS_MERCADO_ORDEM.map((segmento) => {
     const hit = parcial[segmento]
     return {
       segmento,
       label: ROTULO_SEGMENTO_MERCADO[segmento],
-      media: hit?.media ?? 0,
+      mediaPax: hit?.mediaPax ?? 0,
+      mediaPercentual: hit?.mediaPercentual ?? 0,
+      mediaIndicacao: hit?.mediaIndicacao ?? 0,
       quantidade: hit?.quantidade ?? 0,
     }
   }).sort((a, b) => {
-    if (b.media !== a.media) return b.media - a.media
+    if (b.quantidade !== a.quantidade) return b.quantidade - a.quantidade
     return SEGMENTOS_MERCADO_ORDEM.indexOf(a.segmento) - SEGMENTOS_MERCADO_ORDEM.indexOf(b.segmento)
   })
 }
