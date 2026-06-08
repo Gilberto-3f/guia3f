@@ -227,12 +227,14 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
           `
         let q = supabase.from('solicitacao_mobilidade').select(selectCompleto)
         if (dataLimite) q = q.gte('created_at', dataLimite)
-        let { data, error: e } = await q
+        const primeira = await q
+        let dataRows: unknown[] | null = (primeira.data as unknown[] | null) ?? null
+        let e = primeira.error
         if (e && isColunaInexistente(e)) {
           let qb = supabase.from('solicitacao_mobilidade').select(selectBasico)
           if (dataLimite) qb = qb.gte('created_at', dataLimite)
           const retry = await qb
-          data = retry.data
+          dataRows = (retry.data as unknown[] | null) ?? null
           e = retry.error
         }
         if (e) {
@@ -244,7 +246,7 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
             throw e
           }
         } else {
-          const { arr, rowsMobilidade, rowsProjecao } = processarSolicitacaoMobilidade(data as unknown[] | null)
+          const { arr, rowsMobilidade, rowsProjecao } = processarSolicitacaoMobilidade(dataRows)
           setAtendimentosCategoria(arr)
           setAtendimentosMobilidade(rowsMobilidade)
           setAtendimentosProjecao(rowsProjecao)
