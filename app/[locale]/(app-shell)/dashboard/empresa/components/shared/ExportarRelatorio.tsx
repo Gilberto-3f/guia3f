@@ -1,80 +1,92 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { FileSpreadsheet, FileText, Sheet } from 'lucide-react'
+import {
+  estruturarSecoesExportacao,
+  exportarRelatorioCsv,
+  exportarRelatorioExcel,
+  exportarRelatorioPdf,
+  nomeArquivoExportacao,
+  tituloPlanilha,
+  tituloRelatorio,
+} from '@/lib/exportarRelatorioDashboard'
 
 interface Props {
   dados: Record<string, unknown>
   tipo: 'funil' | 'mercado' | 'drena'
+  /** Carrega dados adicionais antes de exportar (ex.: detalhes do funil). */
+  preparar?: () => Promise<Record<string, unknown>>
 }
 
-function toCsvValue(v: unknown) {
-  if (v == null) return ''
-  const s = String(v)
-  if (s.includes('"') || s.includes(',') || s.includes('\n')) return `"${s.replaceAll('"', '""')}"`
-  return s
-}
+export default function ExportarRelatorio({ dados, tipo, preparar }: Props) {
+  const [exportando, setExportando] = useState<'pdf' | 'csv' | 'excel' | null>(null)
 
-export default function ExportarRelatorio({ dados, tipo }: Props) {
-  const [exportando, setExportando] = useState(false)
+  const obterDadosCompletos = useCallback(async () => {
+    const extra = preparar ? await preparar() : {}
+    return { ...dados, ...extra }
+  }, [dados, preparar])
 
-  const filename = useMemo(() => `${tipo}_${new Date().toISOString().slice(0, 10)}.csv`, [tipo])
+  const exportar = useCallback(
+    async (formato: 'pdf' | 'csv' | 'excel') => {
+      setExportando(formato)
+      try {
+        const payload = await obterDadosCompletos()
+        const secoes = estruturarSecoesExportacao(payload)
+        if (secoes.length === 0) {
+          secoes.push({
+            titulo: 'Relatorio',
+            colunas: ['info'],
+            linhas: [['Nenhum dado disponivel para exportacao']],
+          })
+        }
 
-  const exportarCSV = () => {
-    const entries = Object.entries(dados ?? {})
-    const headers = entries.map(([k]) => toCsvValue(k)).join(',')
-    const values = entries.map(([, v]) => toCsvValue(v)).join(',')
-    const csv = `${headers}\n${values}\n`
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
-  }
-
-  const exportarPlaceholder = async () => {
-    setExportando(true)
-    await new Promise((r) => setTimeout(r, 350))
-    setExportando(false)
-  }
+        const titulo = tituloRelatorio(tipo)
+        if (formato === 'csv') {
+          exportarRelatorioCsv(secoes, nomeArquivoExportacao(tipo, 'csv'))
+        } else if (formato === 'excel') {
+          exportarRelatorioExcel(secoes, nomeArquivoExportacao(tipo, 'xls'), tituloPlanilha(tipo))
+        } else {
+          exportarRelatorioPdf(secoes, nomeArquivoExportacao(tipo, 'pdf'), titulo)
+        }
+      } finally {
+        setExportando(null)
+      }
+    },
+    [obterDadosCompletos, tipo],
+  )
 
   const btnCls =
-    'inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-50 disabled:opacity-50'
+    'inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50'
 
   return (
     <div className="flex flex-wrap gap-2">
       <button
         type="button"
-        onClick={() => void exportarPlaceholder()}
-        disabled={exportando}
+        onClick={() => void exportar('pdf')}
+        disabled={exportando !== null}
         className={btnCls}
-        title="Em desenvolvimento"
       >
         <FileText className="h-4 w-4" aria-hidden />
-        PDF
+        {exportando === 'pdf' ? 'Gerando…' : 'PDF'}
       </button>
       <button
         type="button"
-        onClick={exportarCSV}
+        onClick={() => void exportar('csv')}
+        disabled={exportando !== null}
         className={btnCls}
       >
         <Sheet className="h-4 w-4" aria-hidden />
-        CSV
+        {exportando === 'csv' ? 'Gerando…' : 'CSV'}
       </button>
       <button
         type="button"
-        onClick={() => void exportarPlaceholder()}
-        disabled={exportando}
+        onClick={() => void exportar('excel')}
+        disabled={exportando !== null}
         className={btnCls}
-        title="Em desenvolvimento"
       >
         <FileSpreadsheet className="h-4 w-4" aria-hidden />
-        EXCEL
+        {exportando === 'excel' ? 'Gerando…' : 'EXCEL'}
       </button>
     </div>
   )

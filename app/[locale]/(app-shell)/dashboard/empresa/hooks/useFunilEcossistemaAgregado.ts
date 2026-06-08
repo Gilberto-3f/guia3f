@@ -176,6 +176,13 @@ export function useFunilEcossistemaAgregado(periodo: Periodo) {
     }
   }, [dataLimite])
 
+  const obterDadosExportacao = useCallback(async () => {
+    const cats = await buscarRecomendacoesPorCategoria(dataLimite).catch(() => [])
+    return {
+      funil_ecossistema_recomendacoes_categoria: cats,
+    }
+  }, [dataLimite])
+
   useEffect(() => {
     void fetchMetricas()
   }, [fetchMetricas])
@@ -187,5 +194,6 @@ export function useFunilEcossistemaAgregado(periodo: Periodo) {
     detalhesLoading,
     error,
     carregarDetalheRecomendacoes,
+    obterDadosExportacao,
   }
 }

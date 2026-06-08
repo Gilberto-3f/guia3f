@@ -2,21 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { DollarSign, MapPin, Users } from 'lucide-react'
-import { useFunilEcossistemaAgregado } from '../../hooks/useFunilEcossistemaAgregado'
-import type { Periodo } from '../../types/dashboard.types'
+import type { useFunilEcossistemaAgregado } from '../../hooks/useFunilEcossistemaAgregado'
 import EtapaFunil from '../funil-conversao/EtapaFunil'
 import RelatorioDetalhado from '../funil-conversao/RelatorioDetalhado'
 import RecomendacoesCategoriaResumo from './RecomendacoesCategoriaResumo'
 
 interface Props {
-  periodo: Periodo
+  eco: ReturnType<typeof useFunilEcossistemaAgregado>
 }
 
 const CLIP_FUNIL = 'polygon(0% 0%, 100% 0%, 72% 100%, 28% 100%)'
 
-export default function FunilEcossistemaMercado({ periodo }: Props) {
-  const { dados, recomendacoesPorCategoria, loading, detalhesLoading, error, carregarDetalheRecomendacoes } =
-    useFunilEcossistemaAgregado(periodo)
+export default function FunilEcossistemaMercado({ eco }: Props) {
+  const { dados, recomendacoesPorCategoria, loading, detalhesLoading, error, carregarDetalheRecomendacoes } = eco
 
   const [detalheAberto, setDetalheAberto] = useState(false)
 

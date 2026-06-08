@@ -56,6 +56,7 @@ export default function FunilConversao({ periodo }: Props) {
     detalhesLoading,
     error,
     carregarDetalhes,
+    obterDadosExportacao,
   } = useFunilConversao(empresaId, empresa?.usuario_id ?? null, periodo)
 
   const usuarioId = empresa?.usuario_id ?? null
@@ -112,14 +113,25 @@ export default function FunilConversao({ periodo }: Props) {
 
   const exportDados = useMemo(
     () => ({
-      periodo,
-      visualizacoes: dados?.visualizacoes ?? 0,
-      interacoes: dados?.interacoes ?? 0,
-      recomendacoes: dados?.recomendacoes ?? 0,
-      pax: dados?.pax ?? 0,
-      vendas: dados?.vendas ?? 0,
+      metadados: {
+        exportado_em: new Date().toISOString(),
+        periodo,
+        empresa: empresa?.nome_fantasia ?? '',
+        username: empresa?.username ?? '',
+      },
+      resumo: {
+        visualizacoes: dados?.visualizacoes ?? 0,
+        interacoes: dados?.interacoes ?? 0,
+        recomendacoes: dados?.recomendacoes ?? 0,
+        pax: dados?.pax ?? 0,
+        vendas: dados?.vendas ?? 0,
+      },
+      recomendacoes_detalhe: recomendacoesPorProfissional,
+      pax_detalhe: paxPorProfissional,
+      vendas_detalhe: vendasPorProfissional,
+      vendas_sem_profissional: vendasSemProfissional,
     }),
-    [dados, periodo]
+    [dados, empresa, periodo, recomendacoesPorProfissional, paxPorProfissional, vendasPorProfissional, vendasSemProfissional],
   )
 
   if ((empresaLoading && !empresaId) || (loading && !dados)) {
@@ -271,7 +283,7 @@ export default function FunilConversao({ periodo }: Props) {
       ) : null}
 
       <div className="border-t border-gray-200 pt-3">
-        <ExportarRelatorio dados={exportDados} tipo="funil" />
+        <ExportarRelatorio dados={exportDados} tipo="funil" preparar={obterDadosExportacao} />
       </div>
 
       <p className="mx-auto max-w-xl pt-2 pb-0 text-center text-sm leading-relaxed text-gray-600">

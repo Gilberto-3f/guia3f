@@ -602,6 +602,21 @@ export function useFunilConversao(
     [dataLimite, empresaId],
   )
 
+  const obterDadosExportacao = useCallback(async () => {
+    if (!empresaId) return {}
+    const [recomendacoes, pax, vendasRes] = await Promise.all([
+      buscarRecomendacoesPorProfissional(empresaId, dataLimite),
+      buscarPaxPorProfissional(empresaId, dataLimite),
+      buscarVendasPorProfissional(empresaId, dataLimite),
+    ])
+    return {
+      recomendacoes_detalhe: recomendacoes,
+      pax_detalhe: pax,
+      vendas_detalhe: vendasRes.vendas,
+      vendas_sem_profissional: vendasRes.semProfissional,
+    }
+  }, [dataLimite, empresaId])
+
   useEffect(() => {
     void fetchMetricas()
   }, [fetchMetricas])
@@ -616,6 +631,7 @@ export function useFunilConversao(
     detalhesLoading,
     error,
     carregarDetalhes,
+    obterDadosExportacao,
     refetch: fetchMetricas,
   }
 }
