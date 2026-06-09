@@ -69,7 +69,7 @@ export function PreviewDocumento({
       alt={label}
       className={className}
       style={{ objectFit }}
-      loading="eager"
+      loading="lazy"
       decoding="async"
       draggable={false}
       onError={() => setErro(true)}

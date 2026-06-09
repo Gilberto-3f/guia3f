@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
 import { resolverUrlsDocumentosStorageAdmin } from '@/lib/documentosStorageUrl'
 import { ModalDocumentoAmpliado } from './ModalDocumentoAmpliado'
 import { PreviewDocumento, isPdfUrl } from './PreviewDocumento'
@@ -78,6 +78,67 @@ function collectDocThumbs(tipo: 'turistas' | 'profissionais' | 'empresas', raw: 
   return []
 }
 
+function BotaoDocThumb({
+  thumb,
+  resolvedUrl,
+  onAbrir,
+}: {
+  thumb: DocThumb
+  resolvedUrl?: string
+  onAbrir: (t: DocThumb) => void
+}) {
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
+
+  const abrir = (e: SyntheticEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    onAbrir(thumb)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={abrir}
+      onTouchStart={(e) => {
+        const touch = e.touches[0]
+        if (touch) touchStart.current = { x: touch.clientX, y: touch.clientY }
+      }}
+      onTouchEnd={(e) => {
+        const touch = e.changedTouches[0]
+        const start = touchStart.current
+        touchStart.current = null
+        if (!touch || !start) return
+        const dx = Math.abs(touch.clientX - start.x)
+        const dy = Math.abs(touch.clientY - start.y)
+        if (dx < 10 && dy < 10) abrir(e)
+      }}
+      aria-label={`Ampliar ${thumb.label}`}
+      className="group flex cursor-zoom-in select-none touch-manipulation flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 text-left shadow-sm transition hover:border-[#0097b2]/50 hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0097b2]"
+    >
+      <div className="relative aspect-square w-full bg-gray-100">
+        {isPdfUrl(thumb.url) ? (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center">
+            <span className="text-[10px] font-bold text-gray-700">PDF</span>
+            <span className="line-clamp-2 text-[10px] text-gray-500">{thumb.label}</span>
+            <span className="text-[9px] font-semibold text-[#0097b2]">Toque para abrir</span>
+          </div>
+        ) : (
+          <PreviewDocumento
+            url={thumb.url}
+            label={thumb.label}
+            className="pointer-events-none h-full w-full"
+            objectFit="cover"
+            resolvedUrl={resolvedUrl}
+          />
+        )}
+      </div>
+      <span className="border-t border-gray-100 bg-white px-1.5 py-1 text-center text-[10px] font-semibold leading-tight text-gray-700">
+        {thumb.label}
+      </span>
+    </button>
+  )
+}
+
 function AvatarQuadrado({ url, nome }: { url?: string | null; nome: string }) {
   const inicial = String(nome ?? '').trim().charAt(0).toUpperCase() || '?'
   if (url) {
@@ -145,7 +206,7 @@ export function CardPendente({
 
   return (
     <>
-      <div className="max-h-[85vh] overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="p-4">
           <div className="flex gap-3">
             <AvatarQuadrado url={item.avatarUrl} nome={item.nome} />
@@ -261,36 +322,12 @@ export function CardPendente({
             ) : (
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {thumbs.map((t) => (
-                  <button
+                  <BotaoDocThumb
                     key={t.key}
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setDocAmpliado(t)
-                    }}
-                    aria-label={`Ampliar ${t.label}`}
-                    className="group flex cursor-zoom-in touch-manipulation flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 text-left shadow-sm transition hover:border-[#0097b2]/50 hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0097b2]"
-                  >
-                    <div className="relative aspect-square w-full bg-gray-100">
-                      {isPdfUrl(t.url) ? (
-                        <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center">
-                          <span className="text-[10px] font-bold text-gray-700">PDF</span>
-                          <span className="line-clamp-2 text-[10px] text-gray-500">{t.label}</span>
-                          <span className="text-[9px] font-semibold text-[#0097b2]">Toque para abrir</span>
-                        </div>
-                      ) : (
-                        <PreviewDocumento
-                          url={t.url}
-                          label={t.label}
-                          className="pointer-events-none h-full w-full"
-                          objectFit="cover"
-                          resolvedUrl={urlsResolvidas.get(t.url)}
-                        />
-                      )}
-                    </div>
-                    <span className="border-t border-gray-100 bg-white px-1.5 py-1 text-center text-[10px] font-semibold leading-tight text-gray-700">{t.label}</span>
-                  </button>
+                    thumb={t}
+                    resolvedUrl={urlsResolvidas.get(t.url)}
+                    onAbrir={setDocAmpliado}
+                  />
                 ))}
               </div>
             )}
