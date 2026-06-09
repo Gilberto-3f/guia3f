@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { resolverUrlsDocumentosStorageAdmin } from '@/lib/documentosStorageUrl'
-import { isPdfUrl, PreviewDocumento } from './PreviewDocumento'
+import { isPdfUrl } from './PreviewDocumento'
 import { useBodyScrollLock } from './useBodyScrollLock'
 
 export type DocAmpliado = {
@@ -25,8 +25,13 @@ export function ModalDocumentoAmpliado({
   const aberto = Boolean(doc?.url)
   useBodyScrollLock(aberto)
 
+  const [montado, setMontado] = useState(false)
   const [urlExibir, setUrlExibir] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(false)
+
+  useEffect(() => {
+    setMontado(true)
+  }, [])
 
   useEffect(() => {
     if (!doc?.url) {
@@ -64,27 +69,27 @@ export function ModalDocumentoAmpliado({
     return () => window.removeEventListener('keydown', onKey)
   }, [aberto, fechar])
 
-  if (!aberto || !doc) return null
+  if (!montado || !aberto || !doc) return null
 
   const href = urlExibir ?? doc.url
   const pdf = isPdfUrl(doc.url)
 
   const conteudo = (
     <div
-      className="fixed inset-0 z-[250] flex flex-col bg-black/85 p-3 sm:p-6"
+      className="fixed inset-0 z-[9999] flex flex-col bg-black/90 p-3 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-label={doc.label}
       onClick={fechar}
     >
       <div
-        className="mx-auto flex w-full max-w-4xl flex-1 flex-col min-h-0"
+        className="mx-auto flex h-full w-full max-w-5xl flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex shrink-0 items-center justify-between gap-3 text-white">
           <div className="min-w-0">
             <p className="truncate text-sm font-bold">{doc.label}</p>
-            <p className="text-xs text-white/70">Clique fora ou pressione Esc para fechar</p>
+            <p className="text-xs text-white/70">Toque fora ou pressione Esc para fechar</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <a
@@ -106,22 +111,31 @@ export function ModalDocumentoAmpliado({
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-black/40">
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-xl bg-black/50 p-2">
           {carregando ? (
             <div className="h-48 w-full max-w-lg animate-pulse rounded-lg bg-white/10" aria-hidden />
           ) : pdf ? (
             <iframe
               src={href}
               title={doc.label}
-              className="h-full min-h-[60vh] w-full rounded-lg border border-white/20 bg-white"
+              className="h-[min(85dvh,900px)] w-full rounded-lg border border-white/20 bg-white"
             />
           ) : (
-            <PreviewDocumento
-              url={doc.url}
-              label={doc.label}
-              className="max-h-[75vh] max-w-full object-contain"
-              objectFit="contain"
-              resolvedUrl={urlExibir ?? resolvedUrl}
+            // eslint-disable-next-line @next/next/no-img-element -- documento do storage (URL assinada dinâmica)
+            <img
+              src={href}
+              alt={doc.label}
+              className="mx-auto h-auto max-h-[85dvh] w-auto max-w-full object-contain"
+              loading="eager"
+              decoding="async"
+              draggable={false}
+              onError={() => {
+                if (href !== doc.url) return
+                void resolverUrlsDocumentosStorageAdmin([doc.url]).then((map) => {
+                  const retry = map.get(doc.url)
+                  if (retry && retry !== href) setUrlExibir(retry)
+                })
+              }}
             />
           )}
         </div>
@@ -129,6 +143,5 @@ export function ModalDocumentoAmpliado({
     </div>
   )
 
-  if (typeof document === 'undefined') return conteudo
   return createPortal(conteudo, document.body)
 }

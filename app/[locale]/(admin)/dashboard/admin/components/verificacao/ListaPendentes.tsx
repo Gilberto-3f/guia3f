@@ -4,7 +4,12 @@ import { useMemo, useState } from 'react'
 import { CardPendente, type CadastroPendente } from './CardPendente'
 import { useVerificacao } from '../../hooks/useVerificacao'
 import type { PendenteEmpresa, PendenteProfissional, PendenteTurista } from '../../types/admin.types'
-import { formatContatoExibicao, formatProfissionalCategorias, pickDocumentoFiscalEmpresa } from './verificacaoFormatters'
+import {
+  formatContatoExibicao,
+  formatLocalizacaoVerificacao,
+  formatProfissionalCategorias,
+  pickDocumentoFiscalEmpresa,
+} from './verificacaoFormatters'
 
 export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 'empresas' }) {
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -48,6 +53,11 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
           whatsappLine: formatContatoExibicao(contato),
           avatarUrl: p.foto_url,
           categoriaDisplay: formatProfissionalCategorias(categorias),
+          localizacaoDisplay:
+            formatLocalizacaoVerificacao({
+              cidadesAtuacao: p.cidade_atuacao,
+              pais: p.pais,
+            }) ?? undefined,
           empresaFiscal: undefined,
           documentoIdentidade: p.documento_identidade?.trim() || undefined,
           alerta: null,
@@ -71,6 +81,8 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
         whatsappLine: formatContatoExibicao(p.whatsapp || p.telefone),
         avatarUrl: p.fotos_url?.[0] ?? null,
         categoriaDisplay: categoria || '—',
+        localizacaoDisplay:
+          formatLocalizacaoVerificacao({ cidade: p.cidade }) ?? undefined,
         empresaFiscal: pickDocumentoFiscalEmpresa(raw),
         alerta: null,
         docsVerificado: p.docs_verificado,

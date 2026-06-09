@@ -5,11 +5,17 @@ const TTL_SIGNED_MS = 50 * 60 * 1000
 
 const cacheSignedUrl = new Map<string, { url: string; expira: number }>()
 
-/** Extrai o path interno do bucket `documentos` a partir da URL pública/assinada. */
+/** Extrai o path interno do bucket `documentos` a partir da URL pública/assinada ou path bruto. */
 export function extrairPathBucketDocumentos(anexoUrl: string): string | null {
   if (!anexoUrl) return null
+  const bruto = anexoUrl.trim()
+  if (!bruto.startsWith('http://') && !bruto.startsWith('https://')) {
+    const path = bruto.replace(/^\/+/, '')
+    if (path.startsWith(`${BUCKET}/`)) return decodeURIComponent(path)
+    return null
+  }
   try {
-    const u = new URL(anexoUrl)
+    const u = new URL(bruto)
     const marker = `/storage/v1/object/`
     const idx = u.pathname.indexOf(marker)
     if (idx === -1) return null

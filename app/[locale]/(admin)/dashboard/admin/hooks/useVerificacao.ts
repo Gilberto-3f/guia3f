@@ -223,6 +223,12 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
         email: emailMap.get(uid) || null,
         whatsapp: w,
         telefone: tel,
+        pais: r.pais != null && String(r.pais).trim() ? String(r.pais).trim() : null,
+        cidade_atuacao: Array.isArray(r.cidade_atuacao)
+          ? r.cidade_atuacao.map((v) => String(v))
+          : r.cidade_atuacao != null && String(r.cidade_atuacao).trim()
+            ? [String(r.cidade_atuacao).trim()]
+            : null,
       }
     })
 

@@ -123,6 +123,8 @@ export type PendenteProfissional = {
   email?: string | null
   whatsapp?: string | null
   telefone?: string | null
+  pais?: string | null
+  cidade_atuacao?: string[] | null
 }
 
 export type PendenteEmpresa = {

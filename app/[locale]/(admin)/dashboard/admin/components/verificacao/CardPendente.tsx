@@ -16,6 +16,7 @@ export type CadastroPendente = {
   whatsappLine: string
   avatarUrl?: string | null
   categoriaDisplay?: string
+  localizacaoDisplay?: string
   empresaFiscal?: string
   documentoIdentidade?: string
   alerta: string | null
@@ -171,6 +172,11 @@ export function CardPendente({
             <div>
               <span className="font-medium text-gray-600">Cadastro:</span> {item.dataCadastro}
             </div>
+            {item.localizacaoDisplay ? (
+              <div>
+                <span className="font-medium text-gray-600">Localização:</span> {item.localizacaoDisplay}
+              </div>
+            ) : null}
             {tipo === 'profissionais' && item.categoriaDisplay && item.categoriaDisplay !== '—' ? (
               <div>
                 <span className="font-medium text-gray-600">Categoria:</span> {item.categoriaDisplay}
@@ -258,9 +264,13 @@ export function CardPendente({
                   <button
                     key={t.key}
                     type="button"
-                    onClick={() => setDocAmpliado(t)}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setDocAmpliado(t)
+                    }}
                     aria-label={`Ampliar ${t.label}`}
-                    className="group flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 text-left shadow-sm transition hover:border-[#0097b2]/50 hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0097b2]"
+                    className="group flex cursor-zoom-in touch-manipulation flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 text-left shadow-sm transition hover:border-[#0097b2]/50 hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0097b2]"
                   >
                     <div className="relative aspect-square w-full bg-gray-100">
                       {isPdfUrl(t.url) ? (

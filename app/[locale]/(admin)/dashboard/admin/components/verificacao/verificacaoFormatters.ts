@@ -1,3 +1,51 @@
+import { normalizarCidadeTriplice, type CidadeTriplice } from '@/lib/mobilidadeRegional'
+
+const ROTULO_LOCALIZACAO_TRIPLICE: Record<CidadeTriplice, string> = {
+  'Foz do Iguaçu': 'FOZ - Brasil',
+  'Ciudad del Este': 'CDE - Paraguai',
+  'Puerto Iguazu': 'P. Iguazú - Argentina',
+}
+
+function rotuloPaisPorTexto(pais: string): string | null {
+  const p = pais
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+  if (!p) return null
+  if (p.includes('brasil') || p === 'br') return 'Brasil'
+  if (p.includes('paraguai') || p.includes('paraguay') || p === 'py') return 'Paraguai'
+  if (p.includes('argentina') || p === 'ar') return 'Argentina'
+  return null
+}
+
+/** Ex.: FOZ - Brasil, CDE - Paraguai, P. Iguazú - Argentina (card de verificação ADM). */
+export function formatLocalizacaoVerificacao(params: {
+  cidade?: string | null
+  cidadesAtuacao?: unknown
+  pais?: string | null
+}): string | null {
+  const candidatos: string[] = []
+  const c = String(params.cidade ?? '').trim()
+  if (c) candidatos.push(c)
+  const raw = params.cidadesAtuacao
+  if (Array.isArray(raw)) candidatos.push(...raw.map((v) => String(v)))
+  else if (raw != null && String(raw).trim()) candidatos.push(String(raw))
+
+  for (const item of candidatos) {
+    const norm = normalizarCidadeTriplice(item)
+    if (norm) return ROTULO_LOCALIZACAO_TRIPLICE[norm]
+  }
+
+  const pais = rotuloPaisPorTexto(String(params.pais ?? ''))
+  if (pais && candidatos[0]) {
+    const abrev = candidatos[0].slice(0, 3).toUpperCase()
+    return `${abrev} - ${pais}`
+  }
+  if (pais) return pais
+  return null
+}
+
 const CATEGORIA_LABEL: Record<string, string> = {
   guias: 'Guia de Turismo',
   guia: 'Guia de Turismo',
