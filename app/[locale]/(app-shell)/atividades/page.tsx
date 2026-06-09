@@ -24,6 +24,7 @@ import AvatarImage from '@/components/AvatarImage'
 import {
   atividadeVisivelNaMinhaContaEmpresa,
   atividadeVisivelNaMinhaContaPessoal,
+  chaveAtividadeSeguidor,
   atividadeRepostStoryVisivel,
   storyIdDeAtividadeRepost,
   agruparAtividadesCurtidasPost,
@@ -1400,8 +1401,16 @@ export default function AtividadesPage() {
   const listaAtividadesFiltrada = useMemo(() => {
     const raw = aba === 'amigos' ? listaAmigos : listaMinha
     const comentariosVistos = new Set<string>()
+    const seguidoresVistos = new Set<string>()
     return raw.filter((r) => {
       if (r.tipo === 'avaliou') return false
+      if (r.tipo === 'seguiu' || r.tipo === 'seguiu_empresa') {
+        const chave = chaveAtividadeSeguidor(r)
+        if (chave) {
+          if (seguidoresVistos.has(chave)) return false
+          seguidoresVistos.add(chave)
+        }
+      }
       if (r.tipo === 'repostou_story') {
         if (!atividadeRepostStoryVisivel(r)) return false
         const storyId = storyIdDeAtividadeRepost(r)

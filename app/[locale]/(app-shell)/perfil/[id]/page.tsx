@@ -23,6 +23,7 @@ import ModalFoto from '@/components/perfil/ModalFoto'
 import BotaoSeguir from '@/components/BotaoSeguir'
 import PopupCartaoVisitaProfissional from '@/components/perfil/PopupCartaoVisitaProfissional'
 import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
+import { bandeiraProfissionalRegistro } from '@/lib/bandeiraProfissional'
 import { POST_DELETED_EVENT } from '@/components/MenuPost'
 import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
@@ -91,6 +92,7 @@ export default function PerfilSocialPage() {
     /** `profissionais.status` — `aprovado` = cartão “VERIFICADO”; caso contrário “EM ANÁLISE”. */
     statusProfissional: string | null
     docsVerificado: boolean
+    paisBandeira: string | null
   }>({
     categorias: null,
     placaVermelha: false,
@@ -98,6 +100,7 @@ export default function PerfilSocialPage() {
     cadastradoEm: null,
     statusProfissional: null,
     docsVerificado: false,
+    paisBandeira: null,
   })
 
   const patchFotoPost = useCallback((postId: string, updates: { total_curtidas?: number; total_comentarios?: number }) => {
@@ -241,7 +244,7 @@ export default function PerfilSocialPage() {
           supabase
             .from('profissionais')
             .select(
-              'nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status'
+              'nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, pais, cidade_atuacao'
             )
             .eq('usuario_id', profileId)
             .maybeSingle(),
@@ -264,6 +267,8 @@ export default function PerfilSocialPage() {
             docs_verificado_em?: string | null
             created_at?: string | null
             status?: string | null
+            pais?: string | null
+            cidade_atuacao?: string[] | null
           }
           setProfMeta({
             categorias: Array.isArray(rr.categorias) ? rr.categorias.map((x) => String(x)) : null,
@@ -272,6 +277,10 @@ export default function PerfilSocialPage() {
             cadastradoEm: rr.created_at ?? null,
             statusProfissional: rr.status != null ? String(rr.status) : null,
             docsVerificado: Boolean(rr.docs_verificado),
+            paisBandeira: bandeiraProfissionalRegistro({
+              pais: rr.pais,
+              cidadeAtuacao: rr.cidade_atuacao,
+            }),
           })
         } else if (!turRes.error && tur && typeof tur === 'object' && !Array.isArray(tur)) {
           perfilRow = tur as Record<string, unknown>
@@ -282,13 +291,14 @@ export default function PerfilSocialPage() {
             cadastradoEm: null,
             statusProfissional: null,
             docsVerificado: false,
+            paisBandeira: null,
           })
         }
       } else if (role === 'profissional') {
         const { data: prof, error: ep } = await supabase
           .from('profissionais')
           .select(
-            'nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status'
+            'nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, pais, cidade_atuacao'
           )
           .eq('usuario_id', profileId)
           .maybeSingle()
@@ -302,6 +312,8 @@ export default function PerfilSocialPage() {
             docs_verificado_em?: string | null
             created_at?: string | null
             status?: string | null
+            pais?: string | null
+            cidade_atuacao?: string[] | null
           }
           setProfMeta({
             categorias: Array.isArray(rr.categorias) ? rr.categorias.map((x) => String(x)) : null,
@@ -310,6 +322,10 @@ export default function PerfilSocialPage() {
             cadastradoEm: rr.created_at ?? null,
             statusProfissional: rr.status != null ? String(rr.status) : null,
             docsVerificado: Boolean(rr.docs_verificado),
+            paisBandeira: bandeiraProfissionalRegistro({
+              pais: rr.pais,
+              cidadeAtuacao: rr.cidade_atuacao,
+            }),
           })
         }
       } else if (role === 'turista') {
@@ -329,6 +345,7 @@ export default function PerfilSocialPage() {
           cadastradoEm: null,
           statusProfissional: null,
           docsVerificado: false,
+          paisBandeira: null,
         })
       }
 
@@ -801,6 +818,7 @@ export default function PerfilSocialPage() {
         categorias={profMeta.categorias}
         placaVermelha={profMeta.placaVermelha}
         profissionalVerificado={profMeta.statusProfissional === 'aprovado'}
+        paisBandeira={profMeta.paisBandeira}
         onContratar={() => router.push('/canal')}
       />
 

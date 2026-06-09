@@ -51,6 +51,7 @@ function deveMostrarContratar({ placaVermelha, categorias }) {
  *  categorias?: string[] | null
  *  placaVermelha?: boolean
  *  profissionalVerificado?: boolean
+ *  paisBandeira?: string | null
  *  onContratar?: () => void
  * }} props
  */
@@ -65,6 +66,7 @@ export default function PopupCartaoVisitaProfissional({
   categorias = null,
   placaVermelha = false,
   profissionalVerificado = false,
+  paisBandeira = null,
   onContratar,
 }) {
   useModalScrollLock(aberto)
@@ -140,8 +142,13 @@ export default function PopupCartaoVisitaProfissional({
                       <p className="line-clamp-2 max-w-[min(100%,18rem)] text-lg font-bold text-gray-900 sm:text-xl">
                         {nome || 'Profissional'}
                       </p>
-                      <p className="max-w-[min(100%,18rem)] truncate text-sm font-normal text-gray-600 sm:text-base">
-                        @{uShown || 'usuario'}
+                      <p className="flex max-w-[min(100%,18rem)] items-center gap-1.5 truncate text-sm font-normal text-gray-600 sm:text-base">
+                        {paisBandeira ? (
+                          <span className="shrink-0 text-base leading-none" aria-hidden>
+                            {paisBandeira}
+                          </span>
+                        ) : null}
+                        <span className="truncate">@{uShown || 'usuario'}</span>
                       </p>
                     </div>
                   </div>
@@ -169,7 +176,14 @@ export default function PopupCartaoVisitaProfissional({
               </div>
               <div className="flex min-w-0 flex-col items-center gap-0.5">
                 <p className="line-clamp-2 max-w-md text-lg font-bold text-gray-900 sm:text-xl">{nome || 'Profissional'}</p>
-                <p className="truncate text-sm font-normal text-gray-600 sm:text-base">@{uShown || 'usuario'}</p>
+                <p className="flex items-center justify-center gap-1.5 truncate text-sm font-normal text-gray-600 sm:text-base">
+                  {paisBandeira ? (
+                    <span className="shrink-0 text-base leading-none" aria-hidden>
+                      {paisBandeira}
+                    </span>
+                  ) : null}
+                  <span className="truncate">@{uShown || 'usuario'}</span>
+                </p>
               </div>
               <p className="max-w-md px-1 text-sm leading-relaxed text-gray-600">
                 Novo perfil profissional cadastrado. Usuário aguarda verificação da plataforma.
