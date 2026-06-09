@@ -9,7 +9,7 @@ import { COMUNIDADES_PROFISSIONAIS_SLUG } from '@/lib/canaisProfissionaisListaUi
 import {
   buscarContextoEmpresaUsuario,
   enviarPostFeedNoCanalEmpresa,
-  PAISES_CANAL_COMPARTILHAR,
+  PAISES_COMUNIDADE_COMPARTILHAR,
   ROTULO_COMUNIDADE_CANAL,
   ROTULO_PAIS_CANAL,
 } from '@/lib/compartilharPostCanal'
@@ -39,7 +39,7 @@ export default function ModalCompartilhar({
   const [ehEmpresa, setEhEmpresa] = useState(false)
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [usuarioId, setUsuarioId] = useState(/** @type {string | null} */ (null))
-  const [paisCanal, setPaisCanal] = useState('geral')
+  const [paisCanal, setPaisCanal] = useState('BR')
   const [comunidade, setComunidade] = useState('guia')
   const [enviando, setEnviando] = useState(false)
   const [erroCanal, setErroCanal] = useState('')
@@ -216,22 +216,22 @@ export default function ModalCompartilhar({
 
       <div className="flex min-h-[220px] flex-col gap-4 p-4">
         <p className="text-xs leading-relaxed text-white/85">
-          Envie esta publicação do feed para o canal de qualquer comunidade, em qualquer país.
+          Envie esta publicação do feed para o canal da comunidade profissional escolhida.
         </p>
 
         <div>
-          <label htmlFor="compartilhar-pais-canal" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/80">
+          <label htmlFor="compartilhar-canal" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/80">
             Qual canal?
           </label>
           <select
-            id="compartilhar-pais-canal"
-            value={paisCanal}
-            onChange={(e) => setPaisCanal(e.target.value)}
+            id="compartilhar-canal"
+            value={comunidade}
+            onChange={(e) => setComunidade(e.target.value)}
             className="w-full rounded-xl border border-white/25 bg-white/10 px-3 py-2.5 text-sm font-medium text-white outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20"
           >
-            {PAISES_CANAL_COMPARTILHAR.map((p) => (
-              <option key={p} value={p} className="text-gray-900">
-                {ROTULO_PAIS_CANAL[p] ?? p}
+            {COMUNIDADES_PROFISSIONAIS_SLUG.map((slug) => (
+              <option key={slug} value={slug} className="text-gray-900">
+                {ROTULO_COMUNIDADE_CANAL[slug] ?? slug}
               </option>
             ))}
           </select>
@@ -243,13 +243,13 @@ export default function ModalCompartilhar({
           </label>
           <select
             id="compartilhar-comunidade"
-            value={comunidade}
-            onChange={(e) => setComunidade(e.target.value)}
+            value={paisCanal}
+            onChange={(e) => setPaisCanal(e.target.value)}
             className="w-full rounded-xl border border-white/25 bg-white/10 px-3 py-2.5 text-sm font-medium text-white outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20"
           >
-            {COMUNIDADES_PROFISSIONAIS_SLUG.map((slug) => (
-              <option key={slug} value={slug} className="text-gray-900">
-                {ROTULO_COMUNIDADE_CANAL[slug] ?? slug}
+            {PAISES_COMUNIDADE_COMPARTILHAR.map((p) => (
+              <option key={p} value={p} className="text-gray-900">
+                {ROTULO_PAIS_CANAL[p] ?? p}
               </option>
             ))}
           </select>

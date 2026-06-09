@@ -32,6 +32,7 @@ import CanalMensagemImagem from '@/components/CanalMensagemImagem'
 import CanalMensagemAudio from '@/components/CanalMensagemAudio'
 import ModalDenunciaCanal from '@/components/canal/ModalDenunciaCanal'
 import AvatarImage from '@/components/AvatarImage'
+import { textoExibicaoMensagemCanal } from '@/lib/compartilharPostCanal'
 
 /** @typedef {'info' | 'midia' | 'buscar' | 'salvos' | 'mais'} AbaDrawerCanal */
 
@@ -384,7 +385,9 @@ export default function CanalDrawer({
                             minute: '2-digit',
                           })}
                         </p>
-                        <p className="mt-0.5 line-clamp-3 text-sm text-white/90">{m.texto || '(sem texto)'}</p>
+                        <p className="mt-0.5 line-clamp-3 text-sm text-white/90">
+                          {textoExibicaoMensagemCanal(m.texto) || '(sem texto)'}
+                        </p>
                       </button>
                     </li>
                   ))}
@@ -445,7 +448,9 @@ export default function CanalDrawer({
                         >
                           <p className="text-[10px] text-white/45">{m.remetente}</p>
                           {m.texto ? (
-                            <p className="mt-0.5 line-clamp-2 text-sm text-white/90">{m.texto}</p>
+                            <p className="mt-0.5 line-clamp-2 text-sm text-white/90">
+                              {textoExibicaoMensagemCanal(m.texto)}
+                            </p>
                           ) : null}
                           {ehAnexoImagemCanal(m.anexo_url, m.anexo_tipo) ? (
                             <div className="relative mt-2 h-20 w-20 overflow-hidden rounded-lg">

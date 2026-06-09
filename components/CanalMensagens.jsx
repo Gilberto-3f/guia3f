@@ -38,6 +38,7 @@ import {
   mimeTypeGravacaoCanal,
 } from '@/lib/canalAudioGravacao'
 import { mensagemCanalVisivelNoFiltroPais } from '@/lib/canalAbasPaisColetivo'
+import { textoExibicaoMensagemCanal } from '@/lib/compartilharPostCanal'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 const LONG_PRESS_REACAO_MS = 500
@@ -1146,7 +1147,7 @@ export default function CanalMensagens({
                         <>
                           {msg.texto ? (
                             <p className="whitespace-pre-wrap break-words text-sm text-gray-900">
-                              {msg.texto}
+                              {textoExibicaoMensagemCanal(msg.texto)}
                             </p>
                           ) : null}
 
