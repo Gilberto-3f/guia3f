@@ -244,6 +244,7 @@ export default function CadastroTuristaPage() {
             onChange={setNomeUsuario}
             placeholder={t('turista.usernamePlaceholder')}
             feedback={usernameFeedback}
+            status={usernameStatus}
             inputClassName={inputCls}
           />
 

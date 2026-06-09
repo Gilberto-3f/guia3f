@@ -219,50 +219,52 @@ export default function PopupSeguidores({ isOpen, onClose, empresaId }) {
           ) : (
             <div className="space-y-1">
               {seguidores.map((seguidor) => (
-                <Link
+                <div
                   key={seguidor.id}
-                  href={getPerfilHref({
-                    usuario_id: seguidor.id,
-                    tipo: seguidor.tipo,
-                    role: seguidor.tipo,
-                    empresa_id: seguidor.empresa_id,
-                  })}
-                  className="flex items-center gap-3 rounded-lg border-b border-gray-100 py-2 last:border-0 hover:bg-gray-50"
+                  className="flex items-center gap-3 rounded-lg border-b border-gray-100 py-2 last:border-0"
                 >
-                  {seguidor.foto_url ? (
-                    <Image
-                      src={seguidor.foto_url}
-                      alt={seguidor.nome}
-                      width={40}
-                      height={40}
-                      className="h-10 w-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200">
-                      <User size={20} className="text-gray-500" aria-hidden />
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-gray-800">{seguidor.nome}</p>
-                    <p className="truncate text-sm text-gray-500">@{seguidor.username}</p>
-                  </div>
-                  {meuId && seguidor.id !== meuId ? (
-                    <div className="shrink-0" onClick={(e) => e.preventDefault()}>
-                      <BotaoSeguir
-                        alvoId={seguidor.id}
-                        alvoTipo="usuario"
-                        isFollowing={seguindoSet.has(String(seguidor.id))}
-                        layout="inline"
-                        size="compact"
-                        leadingIcon="none"
-                        showInlineError={false}
-                        onToggle={(novo) => {
-                          setSeguindoMap((prev) => ({ ...prev, [String(seguidor.id)]: Boolean(novo) }))
-                        }}
+                  <Link
+                    href={getPerfilHref({
+                      usuario_id: seguidor.id,
+                      tipo: seguidor.tipo,
+                      role: seguidor.tipo,
+                      empresa_id: seguidor.empresa_id,
+                    })}
+                    className="flex min-w-0 flex-1 items-center gap-3 rounded-lg hover:bg-gray-50"
+                  >
+                    {seguidor.foto_url ? (
+                      <Image
+                        src={seguidor.foto_url}
+                        alt={seguidor.nome}
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded-full object-cover"
                       />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200">
+                        <User size={20} className="text-gray-500" aria-hidden />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-gray-800">{seguidor.nome}</p>
+                      <p className="truncate text-sm text-gray-500">@{seguidor.username}</p>
                     </div>
+                  </Link>
+                  {meuId && seguidor.id !== meuId ? (
+                    <BotaoSeguir
+                      alvoId={seguidor.id}
+                      alvoTipo="usuario"
+                      isFollowing={seguindoSet.has(String(seguidor.id))}
+                      layout="inline"
+                      size="compact"
+                      leadingIcon="none"
+                      showInlineError={false}
+                      onToggle={(novo) => {
+                        setSeguindoMap((prev) => ({ ...prev, [String(seguidor.id)]: Boolean(novo) }))
+                      }}
+                    />
                   ) : null}
-                </Link>
+                </div>
               ))}
             </div>
           )}

@@ -1478,7 +1478,7 @@ export default function AtividadesPage() {
       })
       return (
         <AtividadeCurtidas
-          key={`cf-${item.autor_id}-${item.usuario_dono_id}-${item.created_at}-${idx}`}
+          key={`cf-${item.autor_id}-${item.usuario_dono_id}-${item.rows.map((r: AtividadeRow) => r.alvo_id).join('-')}`}
           interactorUsername={inter?.username ?? 'usuario'}
           interactorFoto={inter?.foto_perfil_url ?? null}
           donorUsername={donor?.username ?? 'usuario'}
@@ -1502,7 +1502,7 @@ export default function AtividadesPage() {
       })
       return (
         <AtividadeCurtidas
-          key={`cfm-${item.autor_id}-${item.created_at}-${idx}`}
+          key={`cfm-${item.autor_id}-${item.rows.map((r: AtividadeRow) => r.alvo_id).join('-')}`}
           interactorUsername={inter?.username ?? 'usuario'}
           interactorFoto={inter?.foto_perfil_url ?? null}
           hrefInteractor={hrefUsuario(item.autor_id)}

@@ -457,6 +457,7 @@ export default function ModalVisualizacao({
                 abrirComentariosInicial={false}
                 destacarComentarioId={destacar}
                 ocultarCabecalhoCard
+                suprimirNotificacaoAtividades
               />
             )}
           </div>

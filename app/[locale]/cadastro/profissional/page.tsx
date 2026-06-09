@@ -319,6 +319,7 @@ export default function CadastroProfissionalPage() {
             onChange={setNomeUsuario}
             placeholder={t('profissional.usernamePlaceholder')}
             feedback={usernameFeedback}
+            status={usernameStatus}
             inputClassName="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
           />
 

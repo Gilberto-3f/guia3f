@@ -1,5 +1,7 @@
 'use client'
 
+import type { UsernameStatus } from '@/hooks/useUsernameDisponivel'
+
 type CampoUsernameCadastroProps = {
   id: string
   label: React.ReactNode
@@ -7,6 +9,7 @@ type CampoUsernameCadastroProps = {
   onChange: (value: string) => void
   placeholder?: string
   feedback: string
+  status: UsernameStatus
   inputClassName: string
   required?: boolean
 }
@@ -18,6 +21,7 @@ export default function CampoUsernameCadastro({
   onChange,
   placeholder,
   feedback,
+  status,
   inputClassName,
   required = true,
 }: CampoUsernameCadastroProps) {
@@ -29,6 +33,15 @@ export default function CampoUsernameCadastro({
       .slice(0, 20)
     onChange(limpo)
   }
+
+  const feedbackCls =
+    status === 'available'
+      ? 'font-bold text-[#4ade80]'
+      : status === 'unavailable'
+        ? 'font-bold text-[#0097b2]'
+        : status === 'checking'
+          ? 'text-gray-500'
+          : 'text-[#001f3f]/80'
 
   return (
     <div>
@@ -54,7 +67,21 @@ export default function CampoUsernameCadastro({
           spellCheck={false}
         />
       </div>
-      <p className="mt-1 text-xs text-[#001f3f]">{feedback}</p>
+      {feedback ? (
+        <p className={`mt-1 flex items-center gap-1.5 text-xs ${feedbackCls}`}>
+          {status === 'available' ? (
+            <span className="text-base leading-none text-[#4ade80]" aria-hidden>
+              ✅
+            </span>
+          ) : null}
+          {status === 'unavailable' && feedback !== '' ? (
+            <span className="text-sm font-bold leading-none text-red-600" aria-hidden>
+              ✕
+            </span>
+          ) : null}
+          <span>{feedback}</span>
+        </p>
+      ) : null}
     </div>
   )
 }

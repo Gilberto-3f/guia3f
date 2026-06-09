@@ -30,14 +30,6 @@ import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
 
-type PostLinha = {
-  id: string
-  texto: string | null
-  created_at: string
-  total_curtidas: number
-  total_comentarios: number
-}
-
 type FotoPostItem = {
   id: string
   url: string
@@ -79,7 +71,7 @@ export default function PerfilSocialPage() {
 
   const [aba, setAba] = useState<'fotos' | 'posts' | 'republicados'>('fotos')
   const [postsFotos, setPostsFotos] = useState<FotoPostItem[]>([])
-  const [postsTexto, setPostsTexto] = useState<PostLinha[]>([])
+  const [postsTexto, setPostsTexto] = useState<PostRepostFeed[]>([])
   const [repostadosPosts, setRepostadosPosts] = useState<PostRepostFeed[]>([])
   const [meuEmail, setMeuEmail] = useState<string | null>(null)
 
@@ -121,6 +113,33 @@ export default function PerfilSocialPage() {
       )
     )
   }, [])
+
+  const patchTextoPost = useCallback(
+    (
+      postId: string,
+      patch: Partial<{ texto: string | null; total_curtidas?: number; total_comentarios?: number }>
+    ) => {
+      setPostsTexto((prev) => prev.map((p) => (p.id === postId ? { ...p, ...patch } : p)))
+    },
+    []
+  )
+
+  const onEngagementTexto = useCallback(
+    (postId: string, patch: { total_curtidas?: number; total_comentarios?: number }) => {
+      setPostsTexto((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                total_curtidas: patch.total_curtidas ?? p.total_curtidas,
+                total_comentarios: patch.total_comentarios ?? p.total_comentarios,
+              }
+            : p
+        )
+      )
+    },
+    []
+  )
 
   const patchRepostadoPost = useCallback(
     (
@@ -401,15 +420,33 @@ export default function PerfilSocialPage() {
           return true
         }) ?? []
 
-      setPostsTexto(
-        textoRows.map((p) => ({
-          id: String(p.id),
-          texto: p.texto != null ? String(p.texto) : null,
-          created_at: String(p.created_at ?? ''),
-          total_curtidas: Number(p.total_curtidas) || 0,
-          total_comentarios: Number(p.total_comentarios) || 0,
-        }))
-      )
+      const textoIds = textoRows.map((p) => String(p.id)).filter(Boolean)
+      if (textoIds.length === 0) {
+        setPostsTexto([])
+      } else {
+        const { data: viewTxt, error: txtViewErr } = await supabase
+          .from('posts_com_autores')
+          .select('*')
+          .in('id', textoIds)
+          .is('deleted_at', null)
+        if (txtViewErr) console.warn('Perfil posts texto posts_com_autores:', txtViewErr.message)
+
+        const byTxtId = new Map<string, Record<string, unknown>>()
+        for (const row of viewTxt ?? []) {
+          const raw = row as Record<string, unknown>
+          const tid = String(raw.id ?? '')
+          if (tid) byTxtId.set(tid, raw)
+        }
+
+        const textoOrdenados: PostRepostFeed[] = []
+        for (const row of textoRows) {
+          const tid = String(row.id)
+          const raw = byTxtId.get(tid)
+          if (!raw) continue
+          textoOrdenados.push(mapPostComAutoresRow(raw))
+        }
+        setPostsTexto(textoOrdenados)
+      }
 
       const { data: reps } = await supabase
         .from('posts')
@@ -695,7 +732,16 @@ export default function PerfilSocialPage() {
         <AbasPerfil ativa={aba} onChange={setAba} counts={counts} />
         <div className="bg-gray-50 pt-2 pb-0">
           {aba === 'fotos' ? <AbaFotos posts={postsFotos} onOpen={(i) => setModalFoto({ aberto: true, i })} /> : null}
-          {aba === 'posts' ? <AbaPosts posts={postsTexto} /> : null}
+          {aba === 'posts' ? (
+            <AbaPosts
+              posts={postsTexto}
+              meuUsuarioId={meuId}
+              userEmail={meuEmail}
+              onPostLocalPatch={patchTextoPost}
+              onEngagementChange={onEngagementTexto}
+              onRemovePost={(postId) => setPostsTexto((prev) => prev.filter((p) => p.id !== postId))}
+            />
+          ) : null}
           {aba === 'republicados' ? (
             <AbaRepublicados
               posts={repostadosPosts}

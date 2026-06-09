@@ -306,6 +306,7 @@ export default function CadastroEmpresaPage() {
           onChange={setNomeUsuario}
           placeholder={t('empresa.usernamePlaceholder')}
           feedback={usernameFeedback}
+          status={usernameStatus}
           inputClassName={inputCls}
         />
 

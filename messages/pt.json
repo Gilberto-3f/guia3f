@@ -83,8 +83,8 @@
       "rulesHint": "Use 3-20 caracteres: letras minúsculas, números, ponto e _",
       "checking": "Verificando disponibilidade...",
       "validateError": "Não foi possível validar agora. Tente novamente.",
-      "unavailable": "Indisponível — este nome de usuário já está em uso.",
-      "available": "🟢 Disponível"
+      "unavailable": "INDISPONÍVEL",
+      "available": "DISPONÍVEL"
     },
     "turista": {
       "pageTitle": "Cadastro de Turista",

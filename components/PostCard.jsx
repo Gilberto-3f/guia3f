@@ -122,6 +122,7 @@ function PostTextoColapsivel({ texto, postId, maxLines, className = '' }) {
  *   onRepostRemovido?: (repostPostId: string) => void
  *   onEngagementChange?: (postId: string, patch: { total_curtidas?: number; total_comentarios?: number }) => void
  *   ocultarCabecalhoCard?: boolean
+ *   suprimirNotificacaoAtividades?: boolean
  * }} props
  */
 export default function PostCard({
@@ -142,6 +143,7 @@ export default function PostCard({
   onRepostRemovido,
   onEngagementChange,
   ocultarCabecalhoCard = false,
+  suprimirNotificacaoAtividades = false,
 }) {
   if (!post || !post.id || !post.autor) {
     console.warn('[PostCard] post inválido:', post)
@@ -584,10 +586,12 @@ export default function PostCard({
         return
       }
       await limparAtividadesAposDescurtir(supabase, { postId: pid, usuarioId: uid })
-      notificarEngajamentoAtividades({
-        sincronizarLista: true,
-        remover: { autorId: uid, postId: pid },
-      })
+      if (!suprimirNotificacaoAtividades) {
+        notificarEngajamentoAtividades({
+          sincronizarLista: true,
+          remover: { autorId: uid, postId: pid },
+        })
+      }
     } else {
       const { error } = await supabase.from('curtidas').insert({ post_id: pid, usuario_id: uid })
       if (error) {
@@ -600,7 +604,9 @@ export default function PostCard({
         onEngagementChange?.(post.id, { total_curtidas: n })
         return n
       })
-      notificarEngajamentoAtividades()
+      if (!suprimirNotificacaoAtividades) {
+        notificarEngajamentoAtividades()
+      }
     }
   }
 

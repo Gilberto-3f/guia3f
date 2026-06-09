@@ -1,15 +1,48 @@
 'use client'
 
 import { Heart, MessageCircle } from 'lucide-react'
+import PostCard from '@/components/PostCard'
 
 /**
  * @param {{
- *   posts: { id: string; texto: string | null; created_at: string; total_curtidas: number; total_comentarios: number }[]
+ *   posts: Record<string, unknown>[]
+ *   meuUsuarioId?: string | null
+ *   userEmail?: string | null
+ *   onPostLocalPatch?: (postId: string, patch: Partial<{ texto: string | null }>) => void
+ *   onEngagementChange?: (postId: string, patch: { total_curtidas?: number; total_comentarios?: number }) => void
+ *   onRemovePost?: (postId: string) => void
  * }} props
  */
-export default function AbaPosts({ posts }) {
+export default function AbaPosts({
+  posts,
+  meuUsuarioId = null,
+  userEmail = null,
+  onPostLocalPatch,
+  onEngagementChange,
+  onRemovePost,
+}) {
   if (posts.length === 0) {
     return <p className="py-12 text-center text-sm text-gray-400">Nenhum post de texto</p>
+  }
+
+  const interativo = Boolean(meuUsuarioId && posts[0]?.autor)
+
+  if (interativo) {
+    return (
+      <div className="space-y-4 px-2 pb-2">
+        {posts.map((post) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            meuUsuarioId={meuUsuarioId}
+            userEmail={userEmail}
+            onRemove={onRemovePost}
+            onPostLocalPatch={onPostLocalPatch}
+            onEngagementChange={onEngagementChange}
+          />
+        ))}
+      </div>
+    )
   }
 
   return (
@@ -27,7 +60,12 @@ export default function AbaPosts({ posts }) {
               {p.total_comentarios ?? 0}
             </span>
             <time className="ml-auto">
-              {new Date(p.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              {new Date(p.created_at).toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
             </time>
           </div>
         </li>
