@@ -553,7 +553,13 @@ export default function PostCard({
     ) : null
 
   const shareModal = (
-    <ModalCompartilhar aberto={shareAberto} onFechar={() => setShareAberto(false)} postUrl={postUrl} tituloResumo={resumo} />
+    <ModalCompartilhar
+      aberto={shareAberto}
+      onFechar={() => setShareAberto(false)}
+      postUrl={postUrl}
+      tituloResumo={resumo}
+      imagemUrl={post.foto_url || post.conteudo_url || null}
+    />
   )
 
   const handleCurtir = async () => {
