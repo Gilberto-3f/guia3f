@@ -5,9 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
-import { AbasNavegacao, type AbaPrincipalId, ABAS_PRINCIPAIS } from './components/shared/AbasNavegacao'
+import { type AbaPrincipalId, ABAS_PRINCIPAIS } from './components/shared/AbasNavegacao'
+import { AdminPastaNav, tituloPastaAdmin } from './components/shared/AdminPastaNav'
 import { AdminSubabasRail } from './components/shared/AdminSubabasRail'
-import { TopoCards } from './components/shared/TopoCards'
 import { AdminPermissaoProvider, useSharedAdminGate } from './context/AdminPermissaoContext'
 import { DenunciasToolbarProvider } from './context/DenunciasToolbarContext'
 import { VisaoGeralContainer } from './components/visao-geral/VisaoGeralContainer'
@@ -16,13 +16,12 @@ import { DenunciasContainer } from './components/denuncias/DenunciasContainer'
 import { EspacoAdmContainer } from './components/espaco-adm/EspacoAdmContainer'
 import { ConfiguracoesContainer } from './components/configuracoes/ConfiguracoesContainer'
 
-function coerceAba(tab: string | null): AbaPrincipalId {
-  if (!tab) return 'visao-geral'
+function coerceAba(tab: string | null): AbaPrincipalId | null {
+  if (!tab) return null
   if ((ABAS_PRINCIPAIS as readonly string[]).includes(tab)) return tab as AbaPrincipalId
-  return 'visao-geral'
+  return null
 }
 
-// Componente que usa useSearchParams (precisa estar dentro do Suspense)
 function DashboardAdminContent() {
   const router = useRouter()
   const sp = useSearchParams()
@@ -37,6 +36,14 @@ function DashboardAdminContent() {
     params.set('tab', next)
     params.delete('sub')
     router.replace(`?${params.toString()}`)
+  }
+
+  const voltarPastas = () => {
+    const params = new URLSearchParams(sp.toString())
+    params.delete('tab')
+    params.delete('sub')
+    const qs = params.toString()
+    router.replace(qs ? `?${qs}` : '?')
   }
 
   if (gate.status === 'loading') {
@@ -72,9 +79,21 @@ function DashboardAdminContent() {
         <div className="z-20 -mx-3 overflow-hidden shadow-sm sm:-mx-4">
           <div className="bg-[#0097b2] px-3 pb-3 pt-2 text-white sm:px-4 sm:pb-3 sm:pt-2.5">
             <div className="flex items-center justify-between gap-3">
-              <div className="w-8 sm:w-10" aria-hidden />
+              {tab ? (
+                <button
+                  type="button"
+                  onClick={voltarPastas}
+                  aria-label="Voltar às pastas"
+                  title="Voltar às pastas"
+                  className="inline-flex rounded-full p-2 text-white transition hover:bg-white/15 active:bg-white/25"
+                >
+                  <ArrowLeft className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
+                </button>
+              ) : (
+                <div className="w-8 sm:w-10" aria-hidden />
+              )}
               <span className="flex-1 text-center text-base font-bold uppercase tracking-wide sm:text-lg">
-                Painel Dashboard
+                {tab ? tituloPastaAdmin(tab) : 'Painel Dashboard'}
               </span>
               <Link
                 href="/guia"
@@ -86,39 +105,38 @@ function DashboardAdminContent() {
               </Link>
             </div>
           </div>
+        </div>
 
-          <div className="bg-white px-3 pb-2 pt-2 sm:px-4">
-            <div className="border-t border-gray-100 pt-2">
-              <TopoCards />
-            </div>
-
-            <div className="mt-2 border-t border-gray-100 pt-2">
-              <AbasNavegacao value={tab} onChange={setTab} />
-            </div>
-
-            <AdminSubabasRail tab={tab} sub={sub} />
+        {!tab ? (
+          <div className="mt-4">
+            <AdminPastaNav onSelect={setTab} />
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="-mx-3 bg-white px-3 sm:-mx-4 sm:px-4">
+              <AdminSubabasRail tab={tab} sub={sub} />
+            </div>
 
-        <div className="mt-6">
-          {tab === 'visao-geral' ? (
-            <VisaoGeralContainer sub={sub} />
-          ) : tab === 'cadastros' ? (
-            <VerificacaoContainer sub={sub} />
-          ) : tab === 'denuncias' ? (
-            <DenunciasContainer sub={sub} />
-          ) : tab === 'espaco-adm' ? (
-            <EspacoAdmContainer sub={sub} />
-          ) : (
-            <ConfiguracoesContainer sub={sub} />
-          )}
-        </div>
+            <div className="mt-6">
+              {tab === 'visao-geral' ? (
+                <VisaoGeralContainer sub={sub} />
+              ) : tab === 'cadastros' ? (
+                <VerificacaoContainer sub={sub} />
+              ) : tab === 'denuncias' ? (
+                <DenunciasContainer sub={sub} />
+              ) : tab === 'espaco-adm' ? (
+                <EspacoAdmContainer sub={sub} />
+              ) : (
+                <ConfiguracoesContainer sub={sub} />
+              )}
+            </div>
+          </>
+        )}
       </div>
     </DenunciasToolbarProvider>
   )
 }
 
-// Página principal com Suspense
 export default function DashboardAdminPage() {
   return (
     <Suspense fallback={<div className="p-8 text-center">Carregando...</div>}>

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { FiltrosPeriodo, type PeriodoId } from '../shared/FiltrosPeriodo'
+import { TopoCards } from '../shared/TopoCards'
 import type { VisaoSubabaId } from './SubabasVisaoNav'
 import { VisaoGeralGraficos } from './VisaoGeralGraficos'
 
@@ -17,6 +18,8 @@ export function VisaoGeralContainer({ sub }: { sub: string }) {
 
   return (
     <div className="space-y-4">
+      <TopoCards />
+
       <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-3 shadow-sm sm:p-4">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Período dos gráficos</p>
         <FiltrosPeriodo value={periodo} onChange={setPeriodo} />

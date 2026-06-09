@@ -126,6 +126,16 @@ export default function MobilidadeRegionalPainel({
       >
         <div className="space-y-6">
           <div>
+            <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Por categoria</p>
+            <GraficoPizza
+              dados={pizzaCategorias}
+              titulo=""
+              semTitulo
+              embed
+              mostrarComZero
+            />
+          </div>
+          <div>
             <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Por cidade</p>
             <GraficoPizza
               dados={pizzaCidades}
@@ -138,16 +148,6 @@ export default function MobilidadeRegionalPainel({
               onSegmentoClick={(label) =>
                 setCidadeSelecionada((atual) => (atual === label ? null : (label as CidadeTriplice)))
               }
-            />
-          </div>
-          <div>
-            <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Por categoria</p>
-            <GraficoPizza
-              dados={pizzaCategorias}
-              titulo=""
-              semTitulo
-              embed
-              mostrarComZero
             />
           </div>
         </div>
