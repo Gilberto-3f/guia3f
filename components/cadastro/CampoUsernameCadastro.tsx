@@ -1,5 +1,6 @@
 'use client'
 
+import { CheckCircle2, XCircle } from 'lucide-react'
 import type { UsernameStatus } from '@/hooks/useUsernameDisponivel'
 
 type CampoUsernameCadastroProps = {
@@ -70,14 +71,10 @@ export default function CampoUsernameCadastro({
       {feedback ? (
         <p className={`mt-1 flex items-center gap-1.5 text-xs ${feedbackCls}`}>
           {status === 'available' ? (
-            <span className="text-base leading-none text-[#4ade80]" aria-hidden>
-              ✅
-            </span>
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-[#4ade80]" strokeWidth={2.5} aria-hidden />
           ) : null}
           {status === 'unavailable' && feedback !== '' ? (
-            <span className="text-sm font-bold leading-none text-red-600" aria-hidden>
-              ✕
-            </span>
+            <XCircle className="h-4 w-4 shrink-0 text-red-600" strokeWidth={2.5} aria-hidden />
           ) : null}
           <span>{feedback}</span>
         </p>

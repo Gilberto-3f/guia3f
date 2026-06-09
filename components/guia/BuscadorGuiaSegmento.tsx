@@ -34,7 +34,7 @@ export default function BuscadorGuiaSegmento({
         }}
         placeholder={placeholder}
         className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-black placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0097b2]/30"
-        aria-label="Buscar empresas por palavra-chave"
+        aria-label="Buscar empresas por nome, username ou palavra-chave"
       />
       <button
         type="button"

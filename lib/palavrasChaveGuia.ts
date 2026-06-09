@@ -23,17 +23,30 @@ export function sanitizarPalavrasChave(raw: unknown): string[] {
   return out
 }
 
-/** Verifica se o termo de busca corresponde a alguma palavra-chave da empresa. */
-export function empresaCorrespondeBusca(palavrasChave: unknown, termoBusca: string): boolean {
+export type EmpresaBuscaGuia = {
+  palavras_chave?: unknown
+  nome_fantasia?: string | null
+  nome_usuario?: string | null
+}
+
+function textoCorrespondeTermo(texto: string | null | undefined, termo: string): boolean {
+  const alvo = normalizarTermoBusca(texto)
+  if (!alvo) return false
+  return alvo.includes(termo) || termo.includes(alvo)
+}
+
+/** Verifica se o termo corresponde a palavras-chave, nome fantasia ou username da empresa. */
+export function empresaCorrespondeBusca(empresa: EmpresaBuscaGuia, termoBusca: string): boolean {
   const termo = normalizarTermoBusca(termoBusca)
   if (!termo) return true
 
-  const chaves = sanitizarPalavrasChave(palavrasChave)
-  if (chaves.length === 0) return false
+  if (textoCorrespondeTermo(empresa.nome_fantasia, termo)) return true
 
-  return chaves.some((chave) => {
-    const k = normalizarTermoBusca(chave)
-    if (!k) return false
-    return k.includes(termo) || termo.includes(k)
-  })
+  const username = String(empresa.nome_usuario ?? '')
+    .trim()
+    .replace(/^@+/, '')
+  if (textoCorrespondeTermo(username, termo)) return true
+
+  const chaves = sanitizarPalavrasChave(empresa.palavras_chave)
+  return chaves.some((chave) => textoCorrespondeTermo(chave, termo))
 }

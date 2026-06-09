@@ -179,7 +179,7 @@ export default function ListagemCategoriaPage() {
 
   const empresasFiltradas = useMemo(() => {
     if (!termoBusca.trim()) return empresas
-    return empresas.filter((e) => empresaCorrespondeBusca(e.palavras_chave, termoBusca))
+    return empresas.filter((e) => empresaCorrespondeBusca(e, termoBusca))
   }, [empresas, termoBusca])
 
   const empresasOrdenadas = useMemo(() => {

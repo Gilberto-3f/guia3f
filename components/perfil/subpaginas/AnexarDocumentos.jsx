@@ -12,6 +12,9 @@ const ACCEPT = 'image/jpeg,image/png,application/pdf'
 const textInputCls =
   'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-2 focus:ring-[#0097b2]/30'
 
+const MSG_VERIFICACAO_PENDENTE =
+  'Verificação solicitada com sucesso! Seus documentos foram enviados e em breve um administrador fará a análise para liberação total da sua conta.'
+
 /**
  * @param {File} file
  */
@@ -60,7 +63,7 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
   const [urlProfissao, setUrlProfissao] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
-  const [okMsg, setOkMsg] = useState('')
+  const [mensagemVerificacao, setMensagemVerificacao] = useState('')
 
   const { documentoLimpo, status: documentoStatus, feedback: documentoFeedback } =
     useDocumentoDisponivel(numeroDocumento, usuarioId)
@@ -73,7 +76,7 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       const res1 = await supabase
         .from('profissionais')
         .select(
-          'nome_completo, whatsapp, telefone, documento_identidade, documento_frente_url, comprovante_residencia_url, comprovante_profissao_url',
+          'nome_completo, whatsapp, telefone, documento_identidade, documento_frente_url, comprovante_residencia_url, comprovante_profissao_url, status, documentos_enviados_em, docs_verificado',
         )
         .eq('usuario_id', usuarioId)
         .maybeSingle()
@@ -84,7 +87,7 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
               await supabase
                 .from('profissionais')
                 .select(
-                  'nome_completo, whatsapp, documento_identidade, documento_frente_url, comprovante_residencia_url, comprovante_profissao_url',
+                  'nome_completo, whatsapp, documento_identidade, documento_frente_url, comprovante_residencia_url, comprovante_profissao_url, status, documentos_enviados_em, docs_verificado',
                 )
                 .eq('usuario_id', usuarioId)
                 .maybeSingle()
@@ -98,6 +101,13 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       setUrlIdentidade(String(data.documento_frente_url ?? '').trim())
       setUrlEndereco(String(data.comprovante_residencia_url ?? '').trim())
       setUrlProfissao(String(data.comprovante_profissao_url ?? '').trim())
+
+      const docsEnviados = Boolean(String(data.documentos_enviados_em ?? '').trim())
+      const docsVerificado = Boolean(data.docs_verificado)
+      const status = String(data.status ?? '').toLowerCase()
+      if (docsEnviados && !docsVerificado && status !== 'aprovado') {
+        setMensagemVerificacao(MSG_VERIFICACAO_PENDENTE)
+      }
     })()
     return () => {
       ativo = false
@@ -109,7 +119,6 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
     /** @param {File | null} f */
     (f) => {
       setErro('')
-      setOkMsg('')
       if (!f) {
         setter(null)
         return
@@ -125,7 +134,6 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
 
   const enviar = useCallback(async () => {
     setErro('')
-    setOkMsg('')
     if (!usuarioId) {
       setErro('Sessão inválida.')
       return
@@ -210,9 +218,7 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       setEndereco(null)
       setProfissao(null)
 
-      setOkMsg(
-        'Verificação solicitada com sucesso! Seus documentos foram enviados e em breve um administrador fará a análise para liberação total da sua conta.',
-      )
+      setMensagemVerificacao(MSG_VERIFICACAO_PENDENTE)
       try {
         window.dispatchEvent(new CustomEvent('profissional-gate-refresh'))
         window.dispatchEvent(new CustomEvent('perfil-atualizado'))
@@ -283,7 +289,6 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       <h2 className="text-lg font-bold text-[#001f3f]">Anexar documentos</h2>
 
       {erro ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{erro}</div> : null}
-      {okMsg ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{okMsg}</div> : null}
 
       <div className="space-y-3">
         <label className="block text-sm font-semibold text-gray-800">
@@ -293,7 +298,6 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
             value={nomeCompleto}
             onChange={(e) => {
               setErro('')
-              setOkMsg('')
               setNomeCompleto(e.target.value)
             }}
             className={textInputCls}
@@ -308,7 +312,6 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
             value={whatsapp}
             onChange={(e) => {
               setErro('')
-              setOkMsg('')
               setWhatsapp(e.target.value)
             }}
             className={textInputCls}
@@ -327,7 +330,6 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
             value={numeroDocumento}
             onChange={(e) => {
               setErro('')
-              setOkMsg('')
               setNumeroDocumento(e.target.value)
             }}
             className={textInputCls}
@@ -385,6 +387,12 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       >
         {enviando ? 'Enviando…' : 'ENVIAR PARA ANÁLISE'}
       </button>
+
+      {mensagemVerificacao ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm leading-relaxed text-emerald-800">
+          {mensagemVerificacao}
+        </div>
+      ) : null}
     </div>
   )
 }
