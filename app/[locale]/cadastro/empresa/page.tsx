@@ -1,20 +1,21 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
+import CampoUsernameCadastro from '@/components/cadastro/CampoUsernameCadastro'
+import CampoWhatsappCadastro from '@/components/cadastro/CampoWhatsappCadastro'
+import { useUsernameDisponivel } from '@/hooks/useUsernameDisponivel'
+import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
 import { CATEGORIAS_EMPRESA_DB } from '@/lib/segmentosEmpresaGuia'
 
 type CategoriaEmpresa = (typeof CATEGORIAS_EMPRESA_DB)[number]
 
-type UsernameStatus = 'idle' | 'checking' | 'available' | 'unavailable'
-
 type CidadeEmpresa = 'Foz do Iguacu' | 'Ciudad del Este' | 'Puerto Iguazu'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const usernameRegex = /^[a-z0-9._]{3,20}$/
 
 const categorias: CategoriaEmpresa[] = [...CATEGORIAS_EMPRESA_DB]
 const cidades: CidadeEmpresa[] = ['Foz do Iguacu', 'Ciudad del Este', 'Puerto Iguazu']
@@ -68,7 +69,6 @@ function cidadeLabel(cidade: CidadeEmpresa, t: (k: string) => string) {
 
 export default function CadastroEmpresaPage() {
   const router = useRouter()
-  const locale = useLocale()
   const t = useTranslations('Cadastro')
   const tCommon = useTranslations('Common')
 
@@ -86,16 +86,11 @@ export default function CadastroEmpresaPage() {
   const [enderecoBairro, setEnderecoBairro] = useState('')
   const [aceitePoliticas, setAceitePoliticas] = useState(false)
 
-  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle')
-  const [usernameFeedback, setUsernameFeedback] = useState('')
   const [erroEnvio, setErroEnvio] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [bootOk, setBootOk] = useState(false)
 
-  const usernameLimpo = useMemo(
-    () => nomeUsuario.trim().toLowerCase().replace(/^@+/, ''),
-    [nomeUsuario]
-  )
+  const { usernameLimpo, usernameStatus, usernameFeedback } = useUsernameDisponivel(nomeUsuario, t)
   const emailValido = useMemo(() => emailRegex.test(emailSessao), [emailSessao])
 
   useEffect(() => {
@@ -124,68 +119,10 @@ export default function CadastroEmpresaPage() {
     }
   }, [router])
 
-  useEffect(() => {
-    if (!usernameLimpo) {
-      setUsernameStatus('idle')
-      setUsernameFeedback('')
-      return
-    }
-
-    if (!usernameRegex.test(usernameLimpo)) {
-      setUsernameStatus('unavailable')
-      setUsernameFeedback(t('username.rulesHint'))
-      return
-    }
-
-    if (!modoLogado) {
-      setUsernameStatus('available')
-      setUsernameFeedback(t('username.available'))
-      return
-    }
-
-    let ativo = true
-    setUsernameStatus('checking')
-    setUsernameFeedback(t('username.checking'))
-
-    const timer = setTimeout(async () => {
-      const [turistasResp, profissionaisResp, empresasResp] = await Promise.all([
-        supabase.from('turistas').select('id').eq('nome_usuario', usernameLimpo).limit(1),
-        supabase.from('profissionais').select('id').eq('nome_usuario', usernameLimpo).limit(1),
-        supabase.from('empresas').select('id').eq('nome_usuario', usernameLimpo).limit(1),
-      ])
-
-      if (!ativo) return
-
-      if (turistasResp.error || profissionaisResp.error || empresasResp.error) {
-        setUsernameStatus('unavailable')
-        setUsernameFeedback(t('username.validateError'))
-        return
-      }
-
-      const indisponivel =
-        (turistasResp.data?.length ?? 0) > 0 ||
-        (profissionaisResp.data?.length ?? 0) > 0 ||
-        (empresasResp.data?.length ?? 0) > 0
-
-      if (indisponivel) {
-        setUsernameStatus('unavailable')
-        setUsernameFeedback(t('username.unavailable'))
-      } else {
-        setUsernameStatus('available')
-        setUsernameFeedback(t('username.available'))
-      }
-    }, 400)
-
-    return () => {
-      ativo = false
-      clearTimeout(timer)
-    }
-  }, [usernameLimpo, modoLogado, locale, t])
-
   const validarFormulario = () => {
     if (!nomeFantasia.trim()) return t('empresa.valTradeName')
     if (!usernameLimpo || usernameStatus !== 'available') return t('empresa.valUsername')
-    if (!whatsApp.trim()) return t('empresa.valWhatsapp')
+    if (digitsWhatsapp(whatsApp).length < 10) return t('empresa.valWhatsapp')
     if (!emailValido) return t('empresa.valEmail')
     if (!enderecoRua.trim()) return t('empresa.valStreet')
     if (!enderecoNumero.trim()) return t('empresa.valNumber')
@@ -358,38 +295,29 @@ export default function CadastroEmpresaPage() {
           />
         </div>
 
-        <div>
-          <label htmlFor="nomeUsuario" className="mb-1 block text-sm font-medium text-[#001f3f]">
-            {t('empresa.username')} {t('common.required')}
-          </label>
-          <input
-            id="nomeUsuario"
-            type="text"
-            required
-            value={nomeUsuario}
-            onChange={(e) => setNomeUsuario(e.target.value)}
-            placeholder={t('empresa.usernamePlaceholder')}
-            className={inputCls}
-          />
-          <p className="mt-1 text-xs text-[#001f3f]">{usernameFeedback}</p>
-        </div>
+        <CampoUsernameCadastro
+          id="nomeUsuario"
+          label={
+            <>
+              {t('empresa.username')} {t('common.required')}
+            </>
+          }
+          value={nomeUsuario}
+          onChange={setNomeUsuario}
+          placeholder={t('empresa.usernamePlaceholder')}
+          feedback={usernameFeedback}
+          inputClassName={inputCls}
+        />
 
-        <div>
-          <label htmlFor="whatsAppEmpresa" className="mb-1 block text-sm font-medium text-[#001f3f]">
-            {t('empresa.whatsapp')} {t('common.required')}
-          </label>
-          <input
-            id="whatsAppEmpresa"
-            type="tel"
-            required
-            value={whatsApp}
-            onChange={(e) => setWhatsApp(e.target.value)}
-            className={inputCls}
-            autoComplete="tel"
-            placeholder={t('empresa.whatsappPlaceholder')}
-            inputMode="tel"
-          />
-        </div>
+        <CampoWhatsappCadastro
+          id="whatsAppEmpresa"
+          label={
+            <>
+              {t('empresa.whatsapp')} {t('common.required')}
+            </>
+          }
+          onChange={setWhatsApp}
+        />
 
         <div>
           <label htmlFor="emailEmpresa" className="mb-1 block text-sm font-medium text-[#001f3f]">

@@ -1,12 +1,16 @@
 'use client'
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
+import CampoUsernameCadastro from '@/components/cadastro/CampoUsernameCadastro'
+import CampoWhatsappCadastro from '@/components/cadastro/CampoWhatsappCadastro'
+import { useUsernameDisponivel } from '@/hooks/useUsernameDisponivel'
+import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
 
-type UsernameStatus = 'idle' | 'checking' | 'available' | 'unavailable'
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type CategoriaProfissional =
   | 'Guia'
@@ -15,8 +19,6 @@ type CategoriaProfissional =
   | 'Motorista de App'
   | 'Anfitriao'
 
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const usernameRegex = /^[a-z0-9._]{3,20}$/
 const categoriasDisponiveis: CategoriaProfissional[] = [
   'Guia',
   'Taxista',
@@ -88,7 +90,6 @@ type CadastroProfissionalPayload = {
 
 export default function CadastroProfissionalPage() {
   const router = useRouter()
-  const locale = useLocale()
   const t = useTranslations('Cadastro')
   const tCommon = useTranslations('Common')
 
@@ -103,17 +104,12 @@ export default function CadastroProfissionalPage() {
   const [categoria, setCategoria] = useState<CategoriaProfissional | ''>('')
   const [aceitePoliticas, setAceitePoliticas] = useState(false)
 
-  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle')
-  const [usernameFeedback, setUsernameFeedback] = useState('')
   const [erroEnvio, setErroEnvio] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [bootOk, setBootOk] = useState(false)
 
   const emailValido = useMemo(() => emailRegex.test(emailSessao), [emailSessao])
-  const usernameLimpo = useMemo(
-    () => nomeUsuario.trim().toLowerCase().replace(/^@+/, ''),
-    [nomeUsuario]
-  )
+  const { usernameLimpo, usernameStatus, usernameFeedback } = useUsernameDisponivel(nomeUsuario, t)
   const placaVermelha = useMemo(
     () => categoria === 'Guia' || categoria === 'Taxista' || categoria === 'Van',
     [categoria]
@@ -150,68 +146,10 @@ export default function CadastroProfissionalPage() {
     }
   }, [router])
 
-  useEffect(() => {
-    if (!usernameLimpo) {
-      setUsernameStatus('idle')
-      setUsernameFeedback('')
-      return
-    }
-
-    if (!usernameRegex.test(usernameLimpo)) {
-      setUsernameStatus('unavailable')
-      setUsernameFeedback(t('username.rulesHint'))
-      return
-    }
-
-    if (!modoLogado) {
-      setUsernameStatus('available')
-      setUsernameFeedback(t('username.available'))
-      return
-    }
-
-    let ativo = true
-    setUsernameStatus('checking')
-    setUsernameFeedback(t('username.checking'))
-
-    const timer = setTimeout(async () => {
-      const [turistasResp, profissionaisResp, empresasResp] = await Promise.all([
-        supabase.from('turistas').select('id').eq('nome_usuario', usernameLimpo).limit(1),
-        supabase.from('profissionais').select('id').eq('nome_usuario', usernameLimpo).limit(1),
-        supabase.from('empresas').select('id').eq('nome_usuario', usernameLimpo).limit(1),
-      ])
-
-      if (!ativo) return
-
-      if (turistasResp.error || profissionaisResp.error || empresasResp.error) {
-        setUsernameStatus('unavailable')
-        setUsernameFeedback(t('username.validateError'))
-        return
-      }
-
-      const indisponivel =
-        (turistasResp.data?.length ?? 0) > 0 ||
-        (profissionaisResp.data?.length ?? 0) > 0 ||
-        (empresasResp.data?.length ?? 0) > 0
-
-      if (indisponivel) {
-        setUsernameStatus('unavailable')
-        setUsernameFeedback(t('username.unavailable'))
-      } else {
-        setUsernameStatus('available')
-        setUsernameFeedback(t('username.available'))
-      }
-    }, 400)
-
-    return () => {
-      ativo = false
-      clearTimeout(timer)
-    }
-  }, [usernameLimpo, modoLogado, locale, t])
-
   const validarFormulario = () => {
     if (!nomeCompleto.trim()) return t('profissional.valFullName')
     if (!usernameLimpo || usernameStatus !== 'available') return t('profissional.valUsername')
-    if (!whatsApp.trim()) return t('profissional.valWhatsapp')
+    if (digitsWhatsapp(whatsApp).length < 10) return t('profissional.valWhatsapp')
     if (!emailValido) return t('profissional.valEmail')
     if (!categoria) return t('profissional.valCategory')
     if (!aceitePoliticas) return t('profissional.valPolicies')
@@ -370,38 +308,29 @@ export default function CadastroProfissionalPage() {
             />
           </div>
 
-          <div>
-            <label htmlFor="nomeUsuario" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('profissional.username')} {t('common.required')}
-            </label>
-            <input
-              id="nomeUsuario"
-              type="text"
-              required
-              value={nomeUsuario}
-              onChange={(e) => setNomeUsuario(e.target.value)}
-              placeholder={t('profissional.usernamePlaceholder')}
-              className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
-            />
-            <p className="mt-1 text-xs text-[#001f3f]">{usernameFeedback}</p>
-          </div>
+          <CampoUsernameCadastro
+            id="nomeUsuario"
+            label={
+              <>
+                {t('profissional.username')} {t('common.required')}
+              </>
+            }
+            value={nomeUsuario}
+            onChange={setNomeUsuario}
+            placeholder={t('profissional.usernamePlaceholder')}
+            feedback={usernameFeedback}
+            inputClassName="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
+          />
 
-          <div>
-            <label htmlFor="whatsAppProf" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('profissional.whatsapp')} {t('common.required')}
-            </label>
-            <input
-              id="whatsAppProf"
-              type="tel"
-              required
-              value={whatsApp}
-              onChange={(e) => setWhatsApp(e.target.value)}
-              className="w-full rounded-lg bg-[#0097b2] text-white placeholder-white/70 px-4 py-3 text-sm outline-none"
-              autoComplete="tel"
-              placeholder={t('profissional.whatsappPlaceholder')}
-              inputMode="tel"
-            />
-          </div>
+          <CampoWhatsappCadastro
+            id="whatsAppProf"
+            label={
+              <>
+                {t('profissional.whatsapp')} {t('common.required')}
+              </>
+            }
+            onChange={setWhatsApp}
+          />
 
           <div>
             <label htmlFor="emailProf" className="mb-1 block text-sm font-medium text-[#001f3f]">

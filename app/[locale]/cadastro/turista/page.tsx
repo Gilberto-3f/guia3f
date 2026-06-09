@@ -3,15 +3,16 @@
 import Link from 'next/link'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
-
-type UsernameStatus = 'idle' | 'checking' | 'available' | 'unavailable'
+import CampoUsernameCadastro from '@/components/cadastro/CampoUsernameCadastro'
+import CampoWhatsappCadastro from '@/components/cadastro/CampoWhatsappCadastro'
+import { useUsernameDisponivel } from '@/hooks/useUsernameDisponivel'
+import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
-const usernameRegex = /^[a-z0-9._]{3,20}$/
 
 function mapApiTuristaError(
   code: string | undefined,
@@ -44,7 +45,6 @@ function mapApiTuristaError(
 
 export default function CadastroTuristaPage() {
   const router = useRouter()
-  const locale = useLocale()
   const t = useTranslations('Cadastro')
   const tCommon = useTranslations('Common')
 
@@ -57,17 +57,12 @@ export default function CadastroTuristaPage() {
   const [modoLogado, setModoLogado] = useState(false)
   const [aceitePoliticas, setAceitePoliticas] = useState(false)
 
-  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle')
-  const [usernameFeedback, setUsernameFeedback] = useState('')
   const [erroEnvio, setErroEnvio] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [bootOk, setBootOk] = useState(false)
 
   const emailValido = useMemo(() => emailRegex.test(emailSessao), [emailSessao])
-  const usernameLimpo = useMemo(
-    () => nomeUsuario.trim().toLowerCase().replace(/^@+/, ''),
-    [nomeUsuario]
-  )
+  const { usernameLimpo, usernameStatus, usernameFeedback } = useUsernameDisponivel(nomeUsuario, t)
 
   useEffect(() => {
     let ativo = true
@@ -99,68 +94,10 @@ export default function CadastroTuristaPage() {
     }
   }, [router])
 
-  useEffect(() => {
-    if (!usernameLimpo) {
-      setUsernameStatus('idle')
-      setUsernameFeedback('')
-      return
-    }
-
-    if (!usernameRegex.test(usernameLimpo)) {
-      setUsernameStatus('unavailable')
-      setUsernameFeedback(t('username.rulesHint'))
-      return
-    }
-
-    if (!modoLogado) {
-      setUsernameStatus('available')
-      setUsernameFeedback(t('username.available'))
-      return
-    }
-
-    let ativo = true
-    setUsernameStatus('checking')
-    setUsernameFeedback(t('username.checking'))
-
-    const timer = setTimeout(async () => {
-      const [turistasResp, profissionaisResp, empresasResp] = await Promise.all([
-        supabase.from('turistas').select('id').eq('nome_usuario', usernameLimpo).limit(1),
-        supabase.from('profissionais').select('id').eq('nome_usuario', usernameLimpo).limit(1),
-        supabase.from('empresas').select('id').eq('nome_usuario', usernameLimpo).limit(1),
-      ])
-
-      if (!ativo) return
-
-      if (turistasResp.error || profissionaisResp.error || empresasResp.error) {
-        setUsernameStatus('unavailable')
-        setUsernameFeedback(t('username.validateError'))
-        return
-      }
-
-      const indisponivel =
-        (turistasResp.data?.length ?? 0) > 0 ||
-        (profissionaisResp.data?.length ?? 0) > 0 ||
-        (empresasResp.data?.length ?? 0) > 0
-
-      if (indisponivel) {
-        setUsernameStatus('unavailable')
-        setUsernameFeedback(t('username.unavailable'))
-      } else {
-        setUsernameStatus('available')
-        setUsernameFeedback(t('username.available'))
-      }
-    }, 400)
-
-    return () => {
-      ativo = false
-      clearTimeout(timer)
-    }
-  }, [usernameLimpo, modoLogado, locale, t])
-
   const validarFormulario = () => {
     if (!nomeSocial.trim()) return t('turista.valSocialName')
     if (!usernameLimpo || usernameStatus !== 'available') return t('turista.valUsername')
-    if (!whatsApp.trim()) return t('turista.valWhatsapp')
+    if (digitsWhatsapp(whatsApp).length < 10) return t('turista.valWhatsapp')
     if (!emailValido) return t('turista.valEmail')
     if (!aceitePoliticas) return t('turista.valPolicies')
     if (!modoLogado) {
@@ -300,38 +237,21 @@ export default function CadastroTuristaPage() {
             />
           </div>
 
-          <div>
-            <label htmlFor="nomeUsuario" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('turista.username')}
-            </label>
-            <input
-              id="nomeUsuario"
-              type="text"
-              required
-              value={nomeUsuario}
-              onChange={(e) => setNomeUsuario(e.target.value)}
-              placeholder={t('turista.usernamePlaceholder')}
-              className={inputCls}
-            />
-            <p className="mt-1 text-xs text-[#001f3f]">{usernameFeedback}</p>
-          </div>
+          <CampoUsernameCadastro
+            id="nomeUsuario"
+            label={t('turista.username')}
+            value={nomeUsuario}
+            onChange={setNomeUsuario}
+            placeholder={t('turista.usernamePlaceholder')}
+            feedback={usernameFeedback}
+            inputClassName={inputCls}
+          />
 
-          <div>
-            <label htmlFor="whatsAppTurista" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('turista.whatsapp')}
-            </label>
-            <input
-              id="whatsAppTurista"
-              type="tel"
-              required
-              value={whatsApp}
-              onChange={(e) => setWhatsApp(e.target.value)}
-              className={inputCls}
-              autoComplete="tel"
-              placeholder={t('turista.whatsappPlaceholder')}
-              inputMode="tel"
-            />
-          </div>
+          <CampoWhatsappCadastro
+            id="whatsAppTurista"
+            label={t('turista.whatsapp')}
+            onChange={setWhatsApp}
+          />
 
           <div>
             <label htmlFor="emailCadastro" className="mb-1 block text-sm font-medium text-[#001f3f]">
