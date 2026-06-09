@@ -70,6 +70,7 @@ export function ProfissionalGateProvider({ children }) {
     setUserRole(ur && 'role' in ur && ur.role != null ? String(ur.role) : null)
 
     const role = ur && 'role' in ur && ur.role != null ? String(ur.role) : null
+
     if (role === 'profissional') {
       const { data: p } = await supabase
         .from('profissionais')
@@ -95,14 +96,14 @@ export function ProfissionalGateProvider({ children }) {
       setTuristaGate(null)
       setTuristaDocsRow(null)
     } else if (role === 'empresa') {
-      setProfRow(null)
-      setTuristaGate(null)
-      setTuristaDocsRow(null)
       const { data: e } = await supabase
         .from('empresas')
         .select('status, docs_verificado, aprovado_em, verificado_em')
         .eq('usuario_id', uid)
         .maybeSingle()
+      setProfRow(null)
+      setTuristaGate(null)
+      setTuristaDocsRow(null)
       setEmpRow(
         e && typeof e === 'object'
           ? {

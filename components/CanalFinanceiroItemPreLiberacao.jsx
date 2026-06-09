@@ -11,7 +11,7 @@ import {
   textoPreLiberacaoIntro,
 } from '@/lib/turistaPreLiberacaoTexto'
 
-const AVATAR_QUADRADO = 'shrink-0 rounded-md object-cover'
+const AVATAR_QUADRADO = 'h-full w-full object-cover'
 
 /**
  * @param {{
@@ -34,14 +34,13 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
     meta.turista_foto_url != null && String(meta.turista_foto_url).trim() !== ''
       ? String(meta.turista_foto_url)
       : null
-  const [turistaFotoUrl, setTuristaFotoUrl] = useState(fotoMetadata)
+  const [turistaFotoUrl, setTuristaFotoUrl] = useState(/** @type {string | null} */ (fotoMetadata))
 
   useEffect(() => {
-    setTuristaFotoUrl(fotoMetadata)
-  }, [fotoMetadata])
-
-  useEffect(() => {
-    if (!turistaUsuarioId) return
+    if (!turistaUsuarioId) {
+      setTuristaFotoUrl(fotoMetadata)
+      return
+    }
 
     let cancelled = false
 
@@ -53,11 +52,15 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
         .maybeSingle()
 
       if (cancelled) return
-      const atual = pickFotoTurista(data)
-      if (atual) setTuristaFotoUrl(atual)
+      setTuristaFotoUrl(pickFotoTurista(data) ?? fotoMetadata)
     }
 
     void carregarFoto()
+
+    const onVisivel = () => {
+      if (document.visibilityState === 'visible') void carregarFoto()
+    }
+    document.addEventListener('visibilitychange', onVisivel)
 
     const ch = supabase
       .channel(`pre-lib-turista-foto-${turistaUsuarioId}`)
@@ -77,9 +80,10 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
 
     return () => {
       cancelled = true
+      document.removeEventListener('visibilitychange', onVisivel)
       void supabase.removeChannel(ch)
     }
-  }, [turistaUsuarioId])
+  }, [turistaUsuarioId, fotoMetadata])
 
   const textoIntro = textoPreLiberacaoIntro(turistaUsername)
 
@@ -126,13 +130,9 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
           <p className="mt-2 text-sm text-gray-600">{textoIntro}</p>
 
           <div className="mt-3 flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2">
-            <AvatarImage
-              src={turistaFotoUrl}
-              alt=""
-              width={44}
-              height={44}
-              className={AVATAR_QUADRADO}
-            />
+            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-200">
+              <AvatarImage src={turistaFotoUrl} alt="" fill className={AVATAR_QUADRADO} sizes="44px" />
+            </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-gray-800">{turistaNome}</p>
               <p className="truncate text-xs text-gray-500">@{turistaUsername}</p>

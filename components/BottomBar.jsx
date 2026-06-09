@@ -26,6 +26,7 @@ import { contarMensagensNaoLidasCanais } from '@/lib/canalBadge'
 import { contarNaoLidasFunilEmpresa } from '@/lib/dashboardFunilBadge'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 
 /**
@@ -76,159 +77,173 @@ function matchPath(path, pathname) {
   return false
 }
 
-/** Badges pesados não bloqueiam o primeiro paint da home. */
-const BADGE_DEFER_MS = 2000
+/** Badges pesados não bloqueiam a liberação da barra. */
+const BADGE_DEFER_MS = 600
+
+/**
+ * @param {{ Icon: import('lucide-react').LucideIcon, label: string, className?: string, children?: import('react').ReactNode }} props
+ */
+function BarraIconeCarregando({ Icon, label, className = '', children = null }) {
+  return (
+    <div className="relative flex flex-col items-center p-2 opacity-50" aria-busy="true" aria-label={label}>
+      <Icon size={24} className={`text-gray-300 ${className}`} aria-hidden />
+      {children}
+    </div>
+  )
+}
 
 export default function BottomBar() {
   const t = useTranslations('BottomBar')
   const pathname = usePathname()
   const { modoAtivo, perfilSimulado, contextoEmpresaId, podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
-  const [userRole, setUserRole] = useState(/** @type {string | null} */ (null))
+  const { loading: gateLoading, userRole } = useProfissionalGate()
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [authUserId, setAuthUserId] = useState(/** @type {string | null} */ (null))
+  const [authPronto, setAuthPronto] = useState(false)
   const [fotoPerfil, setFotoPerfil] = useState(/** @type {string | null} */ (null))
   const [naoLidasAtividades, setNaoLidasAtividades] = useState(0)
   const [naoLidasCanais, setNaoLidasCanais] = useState(0)
   const [naoLidasFunil, setNaoLidasFunil] = useState(0)
-  /** Primeira carga da sessão/role na barra; até lá o 5.º ícone não navega (evita `/perfil` → empresa). */
-  const [barSessaoPronta, setBarSessaoPronta] = useState(false)
 
+  /** Sessão Auth (leve) — role/condicionais vêm do ProfissionalGateContext. */
   useEffect(() => {
     let ativo = true
 
-    const getUserData = async () => {
-      if (ativo) setBarSessaoPronta(false)
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-        if (!session?.user?.id) {
-          if (ativo) {
-            setUserRole(null)
-            setEmpresaId(null)
-            setAuthUserId(null)
-            setFotoPerfil(null)
-            setNaoLidasAtividades(0)
-            setNaoLidasCanais(0)
-          }
-          return
-        }
-
-        const uid = session.user.id
-
-        const { data: userData } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
-        const role = userData?.role ?? null
-        /** Mesma regra que `roleParaBarra`: modo apresentação pode mostrar barra “empresa” com role BD diferente. */
-        const roleContagem =
-          modoAtivo && perfilSimulado ? perfilSimulado.tipo : role === 'admin' ? 'admin' : role
-        /** `authUserId` só depois do `role` — evita um frame em que o 5.º ícone aponta para `/perfil` e redireciona empresa para mensagem errada. */
-        if (ativo) {
-          setUserRole(role)
-          setAuthUserId(uid)
-        }
-
-        /** Destinatário das notificações na bolinha: gestor da empresa em modo simulação. */
-        let usuarioIdContagemAtividades = uid
-        if (roleContagem === 'empresa' && modoAtivo && contextoEmpresaId) {
-          const { data: empGestor } = await supabase
-            .from('empresas')
-            .select('usuario_id')
-            .eq('id', contextoEmpresaId)
-            .maybeSingle()
-          const g = empGestor?.usuario_id
-          if (g != null && String(g).trim() !== '') usuarioIdContagemAtividades = String(g)
-        }
-
-        if (role === 'empresa') {
-          const { data: empresa } = await supabase
-            .from('empresas')
-            .select('id, foto_url')
-            .eq('usuario_id', uid)
-            .maybeSingle()
-
-          if (ativo) {
-            setEmpresaId(empresa?.id ?? null)
-            setFotoPerfil(empresa?.foto_url != null ? String(empresa.foto_url) : null)
-          }
-        } else {
-          if (ativo) setEmpresaId(null)
-          if (role === 'turista') {
-            const { data: perfil } = await supabase
-              .from('turistas')
-              .select('foto_perfil_url, foto_url')
-              .eq('usuario_id', uid)
-              .maybeSingle()
-            if (ativo)
-              setFotoPerfil(
-                perfil?.foto_perfil_url != null
-                  ? String(perfil.foto_perfil_url)
-                  : perfil?.foto_url != null
-                    ? String(perfil.foto_url)
-                    : null
-              )
-          } else if (role === 'profissional') {
-            const { data: perfil } = await supabase
-              .from('profissionais')
-              .select('foto_perfil_url, foto_url')
-              .eq('usuario_id', uid)
-              .maybeSingle()
-            if (ativo)
-              setFotoPerfil(
-                perfil?.foto_perfil_url != null
-                  ? String(perfil.foto_perfil_url)
-                  : perfil?.foto_url != null
-                    ? String(perfil.foto_url)
-                    : null
-              )
-          } else if (role === 'admin') {
-            const [profRes, turRes] = await Promise.all([
-              supabase.from('profissionais').select('foto_perfil_url, foto_url').eq('usuario_id', uid).maybeSingle(),
-              supabase.from('turistas').select('foto_perfil_url, foto_url').eq('usuario_id', uid).maybeSingle(),
-            ])
-            const prof = profRes.data
-            const tur = turRes.data
-            const url =
-              prof?.foto_perfil_url != null
-                ? String(prof.foto_perfil_url)
-                : prof?.foto_url != null
-                  ? String(prof.foto_url)
-                  : tur?.foto_perfil_url != null
-                    ? String(tur.foto_perfil_url)
-                    : tur?.foto_url != null
-                      ? String(tur.foto_url)
-                      : null
-            if (ativo) setFotoPerfil(url)
-          } else if (ativo) {
-            setFotoPerfil(null)
-          }
-        }
-
-      } finally {
-        if (ativo) setBarSessaoPronta(true)
+    const syncAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!ativo) return
+      const uid = session?.user?.id ?? null
+      setAuthUserId(uid)
+      if (!uid) {
+        setEmpresaId(null)
+        setFotoPerfil(null)
+        setNaoLidasAtividades(0)
+        setNaoLidasCanais(0)
       }
+      setAuthPronto(true)
     }
 
-    void getUserData()
-    const onPerfilAtualizado = () => {
-      void getUserData()
-    }
-    window.addEventListener('perfil-atualizado', onPerfilAtualizado)
+    void syncAuth()
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
-        void getUserData()
+        void syncAuth()
       }
     })
 
     return () => {
       ativo = false
-      window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
       subscription.unsubscribe()
     }
-  }, [modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
+  }, [])
+
+  /** Avatar e empresa_id não bloqueiam a barra — carregam após o gate. */
+  useEffect(() => {
+    if (gateLoading) return
+    let ativo = true
+
+    const carregarPerfilBarra = async () => {
+      if (!authUserId) {
+        if (ativo) {
+          setEmpresaId(null)
+          setFotoPerfil(null)
+        }
+        return
+      }
+
+      const role = userRole
+      if (role === 'empresa') {
+        const { data: empresa } = await supabase
+          .from('empresas')
+          .select('id, foto_url')
+          .eq('usuario_id', authUserId)
+          .maybeSingle()
+        if (ativo) {
+          setEmpresaId(empresa?.id ?? null)
+          setFotoPerfil(empresa?.foto_url != null ? String(empresa.foto_url) : null)
+        }
+        return
+      }
+
+      if (ativo) setEmpresaId(null)
+
+      if (role === 'turista') {
+        const { data: perfil } = await supabase
+          .from('turistas')
+          .select('foto_perfil_url, foto_url')
+          .eq('usuario_id', authUserId)
+          .maybeSingle()
+        if (ativo) {
+          setFotoPerfil(
+            perfil?.foto_perfil_url != null
+              ? String(perfil.foto_perfil_url)
+              : perfil?.foto_url != null
+                ? String(perfil.foto_url)
+                : null,
+          )
+        }
+        return
+      }
+
+      if (role === 'profissional') {
+        const { data: perfil } = await supabase
+          .from('profissionais')
+          .select('foto_perfil_url, foto_url')
+          .eq('usuario_id', authUserId)
+          .maybeSingle()
+        if (ativo) {
+          setFotoPerfil(
+            perfil?.foto_perfil_url != null
+              ? String(perfil.foto_perfil_url)
+              : perfil?.foto_url != null
+                ? String(perfil.foto_url)
+                : null,
+          )
+        }
+        return
+      }
+
+      if (role === 'admin') {
+        const [profRes, turRes] = await Promise.all([
+          supabase.from('profissionais').select('foto_perfil_url, foto_url').eq('usuario_id', authUserId).maybeSingle(),
+          supabase.from('turistas').select('foto_perfil_url, foto_url').eq('usuario_id', authUserId).maybeSingle(),
+        ])
+        const prof = profRes.data
+        const tur = turRes.data
+        const url =
+          prof?.foto_perfil_url != null
+            ? String(prof.foto_perfil_url)
+            : prof?.foto_url != null
+              ? String(prof.foto_url)
+              : tur?.foto_perfil_url != null
+                ? String(tur.foto_perfil_url)
+                : tur?.foto_url != null
+                  ? String(tur.foto_url)
+                  : null
+        if (ativo) setFotoPerfil(url)
+        return
+      }
+
+      if (ativo) setFotoPerfil(null)
+    }
+
+    void carregarPerfilBarra()
+
+    const onPerfilAtualizado = () => {
+      void carregarPerfilBarra()
+    }
+    window.addEventListener('perfil-atualizado', onPerfilAtualizado)
+
+    return () => {
+      ativo = false
+      window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
+    }
+  }, [gateLoading, authUserId, userRole])
 
   /** Feed social (`atividades`): badge do coração — nunca mistura com `mensagens_canal`. */
   useEffect(() => {
@@ -581,6 +596,8 @@ export default function BottomBar() {
     return pathname === '/perfil' || (pathname != null && pathname.startsWith('/perfil/'))
   }
 
+  const barPronta = authPronto && !gateLoading
+
   const getQuintoIcone = () => {
     const active = isQuintoActive()
 
@@ -607,18 +624,19 @@ export default function BottomBar() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="flex items-center justify-around py-2">
-        <Link href="/guia" className="flex flex-col items-center p-2" aria-label={t('home')}>
-          <Home size={24} className={matchPath('/guia', pathname) ? 'text-[#0097b2]' : 'text-gray-400'} />
-        </Link>
+        {!barPronta ? (
+          <BarraIconeCarregando Icon={Home} label={t('loadingBar')} />
+        ) : (
+          <Link href="/guia" className="flex flex-col items-center p-2" aria-label={t('home')}>
+            <Home size={24} className={matchPath('/guia', pathname) ? 'text-[#0097b2]' : 'text-gray-400'} />
+          </Link>
+        )}
 
-        {!barSessaoPronta ? (
-          <div
-            className="flex flex-col items-center p-2 opacity-50"
-            aria-busy="true"
-            aria-label={t('loadingBar')}
-          >
-            <MessageCircle size={24} className="text-gray-300" aria-hidden />
-          </div>
+        {!barPronta ? (
+          <BarraIconeCarregando
+            Icon={segundoEhMobilidadeNaBarra ? Car : MessageCircle}
+            label={t('loadingBar')}
+          />
         ) : segundoEhMobilidadeNaBarra ? (
           podeComprarReservar || gateComprasLoading ? (
             <Link href="/mobilidade" className="flex flex-col items-center p-2" aria-label={t('mobility')}>
@@ -653,7 +671,18 @@ export default function BottomBar() {
           </Link>
         )}
 
-        {isEmpresaBar ? (
+        {!barPronta ? (
+          isFeedPage && roleParaBarra !== 'empresa' ? (
+            <div className="flex flex-col items-center p-0 opacity-50" aria-busy="true" aria-label={t('loadingBar')}>
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200" aria-hidden />
+            </div>
+          ) : (
+            <BarraIconeCarregando
+              Icon={roleParaBarra === 'empresa' ? LayoutDashboard : Menu}
+              label={t('loadingBar')}
+            />
+          )
+        ) : isEmpresaBar ? (
           <Link
             href="/dashboard/empresa"
             className="relative flex flex-col items-center p-2"
@@ -715,27 +744,31 @@ export default function BottomBar() {
           </Link>
         )}
 
-        <Link href="/atividades" className="relative flex flex-col items-center p-2" aria-label={t('activities')}>
-          <Heart size={24} className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
-          {naoLidasAtividades > 0 ? (
-            <span className="absolute right-0 top-0 flex min-h-[14px] min-w-[14px] max-w-[2rem] translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
-              {naoLidasAtividades > 99 ? '99+' : naoLidasAtividades}
-            </span>
-          ) : null}
-        </Link>
+        {!barPronta ? (
+          <BarraIconeCarregando Icon={Heart} label={t('loadingBar')} />
+        ) : (
+          <Link href="/atividades" className="relative flex flex-col items-center p-2" aria-label={t('activities')}>
+            <Heart size={24} className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
+            {naoLidasAtividades > 0 ? (
+              <span className="absolute right-0 top-0 flex min-h-[14px] min-w-[14px] max-w-[2rem] translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
+                {naoLidasAtividades > 99 ? '99+' : naoLidasAtividades}
+              </span>
+            ) : null}
+          </Link>
+        )}
 
-        <Link
-          href={getQuintoHref()}
-          prefetch={false}
-          onClick={(e) => {
-            if (!barSessaoPronta) e.preventDefault()
-          }}
-          className={`flex flex-col items-center p-2 ${!barSessaoPronta ? 'cursor-wait opacity-60' : ''}`}
-          aria-busy={!barSessaoPronta}
-          aria-label={isEmpresaBar ? t('companyGuia') : t('profile')}
-        >
-          {getQuintoIcone()}
-        </Link>
+        {!barPronta ? (
+          <BarraIconeCarregando Icon={User} label={t('loadingBar')} />
+        ) : (
+          <Link
+            href={getQuintoHref()}
+            prefetch={false}
+            className="flex flex-col items-center p-2"
+            aria-label={isEmpresaBar ? t('companyGuia') : t('profile')}
+          >
+            {getQuintoIcone()}
+          </Link>
+        )}
       </div>
 
       {segundoEhMobilidadeNaBarra ? (
