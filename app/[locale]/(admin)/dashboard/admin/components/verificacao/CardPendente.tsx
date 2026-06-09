@@ -17,6 +17,7 @@ export type CadastroPendente = {
   avatarUrl?: string | null
   categoriaDisplay?: string
   empresaFiscal?: string
+  documentoIdentidade?: string
   alerta: string | null
   docsVerificado: boolean
   docsVerificadoEm?: string | null
@@ -160,6 +161,11 @@ export function CardPendente({
             {tipo !== 'turistas' && item.whatsappLine !== '—' ? (
               <div>
                 <span className="font-medium text-gray-600">Telefone:</span> {item.whatsappLine}
+              </div>
+            ) : null}
+            {item.documentoIdentidade && item.documentoIdentidade !== '—' ? (
+              <div>
+                <span className="font-medium text-gray-600">Nº documento:</span> {item.documentoIdentidade}
               </div>
             ) : null}
             <div>

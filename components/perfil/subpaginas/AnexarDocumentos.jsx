@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useId, useState } from 'react'
 import { Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useDocumentoDisponivel } from '@/hooks/useDocumentoDisponivel'
+import { documentoIdentidadeValido } from '@/lib/documentoIdentidade'
 
 const MAX_BYTES = 5 * 1024 * 1024
 const ACCEPT = 'image/jpeg,image/png,application/pdf'
@@ -49,6 +51,7 @@ async function uploadProfDoc(file, userId, rotulo) {
 export default function AnexarDocumentos({ usuarioId, onConcluido }) {
   const [nomeCompleto, setNomeCompleto] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
+  const [numeroDocumento, setNumeroDocumento] = useState('')
   const [identidade, setIdentidade] = useState(/** @type {File | null} */ (null))
   const [endereco, setEndereco] = useState(/** @type {File | null} */ (null))
   const [profissao, setProfissao] = useState(/** @type {File | null} */ (null))
@@ -59,6 +62,9 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
   const [erro, setErro] = useState('')
   const [okMsg, setOkMsg] = useState('')
 
+  const { documentoLimpo, status: documentoStatus, feedback: documentoFeedback } =
+    useDocumentoDisponivel(numeroDocumento, usuarioId)
+
   useEffect(() => {
     if (!usuarioId) return
     let ativo = true
@@ -67,7 +73,7 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       const res1 = await supabase
         .from('profissionais')
         .select(
-          'nome_completo, whatsapp, telefone, documento_frente_url, comprovante_residencia_url, comprovante_profissao_url',
+          'nome_completo, whatsapp, telefone, documento_identidade, documento_frente_url, comprovante_residencia_url, comprovante_profissao_url',
         )
         .eq('usuario_id', usuarioId)
         .maybeSingle()
@@ -78,7 +84,7 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
               await supabase
                 .from('profissionais')
                 .select(
-                  'nome_completo, whatsapp, documento_frente_url, comprovante_residencia_url, comprovante_profissao_url',
+                  'nome_completo, whatsapp, documento_identidade, documento_frente_url, comprovante_residencia_url, comprovante_profissao_url',
                 )
                 .eq('usuario_id', usuarioId)
                 .maybeSingle()
@@ -88,6 +94,7 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       setNomeCompleto(String(data.nome_completo ?? '').trim())
       const contato = String(data.whatsapp ?? data.telefone ?? '').trim()
       if (contato) setWhatsapp(contato)
+      setNumeroDocumento(String(data.documento_identidade ?? '').trim())
       setUrlIdentidade(String(data.documento_frente_url ?? '').trim())
       setUrlEndereco(String(data.comprovante_residencia_url ?? '').trim())
       setUrlProfissao(String(data.comprovante_profissao_url ?? '').trim())
@@ -133,6 +140,18 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       setErro('Informe o WhatsApp.')
       return
     }
+    if (!documentoIdentidadeValido(documentoLimpo)) {
+      setErro('Informe o número do documento de identidade (mesmo da foto anexada).')
+      return
+    }
+    if (documentoStatus !== 'available') {
+      setErro(
+        documentoStatus === 'checking'
+          ? 'Aguarde a verificação do número do documento.'
+          : documentoFeedback || 'Este documento já está vinculado a outra conta.',
+      )
+      return
+    }
     if (!identidade || !endereco || !profissao) {
       setErro('Envie os três documentos obrigatórios.')
       return
@@ -163,6 +182,7 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
         .update({
           nome_completo: nome,
           whatsapp: wa,
+          documento_identidade: documentoLimpo,
           documento_frente_url: uId,
           documento_verso_url: null,
           comprovante_residencia_url: uEnd,
@@ -175,7 +195,13 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
         })
         .eq('usuario_id', usuarioId)
 
-      if (upErr) throw new Error(upErr.message)
+      if (upErr) {
+        const msg = upErr.message.toLowerCase()
+        if (msg.includes('documento_identidade') || msg.includes('unique')) {
+          throw new Error('Este documento já está vinculado a outra conta.')
+        }
+        throw new Error(upErr.message)
+      }
 
       setUrlIdentidade(uId)
       setUrlEndereco(uEnd)
@@ -184,7 +210,9 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       setEndereco(null)
       setProfissao(null)
 
-      setOkMsg('Documentos enviados com sucesso! Aguarde a análise do administrador.')
+      setOkMsg(
+        'Verificação solicitada com sucesso! Seus documentos foram enviados e em breve um administrador fará a análise para liberação total da sua conta.',
+      )
       try {
         window.dispatchEvent(new CustomEvent('profissional-gate-refresh'))
         window.dispatchEvent(new CustomEvent('perfil-atualizado'))
@@ -197,7 +225,18 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
     } finally {
       setEnviando(false)
     }
-  }, [usuarioId, nomeCompleto, whatsapp, identidade, endereco, profissao, onConcluido])
+  }, [
+    usuarioId,
+    nomeCompleto,
+    whatsapp,
+    documentoLimpo,
+    documentoStatus,
+    documentoFeedback,
+    identidade,
+    endereco,
+    profissao,
+    onConcluido,
+  ])
 
   /**
    * @param {{ label: string, file: File | null, onChange: (f: File | null) => void, jaAnexado?: boolean }} props
@@ -281,6 +320,42 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       </div>
 
       <div className="space-y-3">
+        <label className="block text-sm font-semibold text-gray-800">
+          Número do documento de identidade
+          <input
+            type="text"
+            value={numeroDocumento}
+            onChange={(e) => {
+              setErro('')
+              setOkMsg('')
+              setNumeroDocumento(e.target.value)
+            }}
+            className={textInputCls}
+            autoComplete="off"
+            placeholder="CPF, RG ou CI (mesmo número da foto)"
+            inputMode="text"
+          />
+          {documentoFeedback ? (
+            <p
+              className={`mt-1 text-xs ${
+                documentoStatus === 'available'
+                  ? 'text-emerald-700'
+                  : documentoStatus === 'checking'
+                    ? 'text-gray-600'
+                    : documentoStatus === 'unavailable'
+                      ? 'text-rose-700'
+                      : 'text-gray-600'
+              }`}
+            >
+              {documentoFeedback}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500">
+              Digite o número exatamente como aparece no documento anexado. Cada documento pode ser
+              vinculado a apenas uma conta.
+            </p>
+          )}
+        </label>
         <CampoArquivo
           label="Documento de identificação"
           file={identidade}

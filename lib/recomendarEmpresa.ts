@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { categoriaDbParaSlug } from '@/lib/segmentosEmpresaGuia'
+import { profissionalRecursosLiberados } from '@/lib/verificacao-documentos'
 import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
 
 export function parseWhatsappTuristaRecomendacao(raw: string | null | undefined): {
@@ -91,14 +92,23 @@ export async function registrarRecomendacaoEmpresa(
   const uid = session?.user?.id
   if (!uid) throw new Error('Faça login como profissional para recomendar.')
 
-  const { data: prof, error: profErr } = await supabase
-    .from('profissionais')
-    .select('id, nome_usuario, categorias')
-    .eq('usuario_id', uid)
-    .maybeSingle()
+  const [{ data: usuario }, { data: prof, error: profErr }] = await Promise.all([
+    supabase.from('usuarios').select('status').eq('id', uid).maybeSingle(),
+    supabase
+      .from('profissionais')
+      .select('id, nome_usuario, categorias, status, docs_verificado, proxima_revisao_docs_em')
+      .eq('usuario_id', uid)
+      .maybeSingle(),
+  ])
 
   if (profErr) throw profErr
   if (!prof?.id) throw new Error('Perfil profissional não encontrado.')
+
+  if (!profissionalRecursosLiberados(usuario?.status, prof)) {
+    throw new Error(
+      'Sua conta profissional ainda não foi verificada. Anexe seus documentos e aguarde aprovação do administrador.',
+    )
+  }
 
   const profissionalId = String(prof.id)
 

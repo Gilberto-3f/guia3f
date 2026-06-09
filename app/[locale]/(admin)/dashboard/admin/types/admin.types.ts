@@ -88,6 +88,7 @@ export type PendenteTurista = {
   foto_url: string | null
   documento_frente_url: string | null
   documento_verso_url: string | null
+  documento_identidade?: string | null
   docs_verificado: boolean
   docs_verificado_por: string | null
   docs_verificado_em: string | null
@@ -108,6 +109,7 @@ export type PendenteProfissional = {
   placa_vermelha: boolean
   /** Coluna direta (novo fluxo); compatível com `documentos.identidade_url`. */
   documento_frente_url?: string | null
+  documento_identidade?: string | null
   documentos: {
     identidade_url: string
     documento_verso_url: string

@@ -46,7 +46,8 @@ function bandeiraPorCidade(cidade) {
  */
 export default function CardAtrativo({ empresa, segmentoGuiaSlug = null }) {
   const router = useRouter()
-  const { perfilEhProfissional, loading: gateLoading } = useProfissionalGate()
+  const { perfilEhProfissional, recursosProfissionaisLiberados, loading: gateLoading } =
+    useProfissionalGate()
 
   const desc =
     empresa.descricao_curta && empresa.descricao_curta.length > 170
@@ -112,7 +113,7 @@ export default function CardAtrativo({ empresa, segmentoGuiaSlug = null }) {
             <Heart size={20} className="shrink-0 text-white" aria-hidden />
             <span>VISITAR PÁGINA</span>
           </button>
-          {perfilEhProfissional ? (
+          {perfilEhProfissional && recursosProfissionaisLiberados ? (
             <BotaoRecomendar empresa={empresa} segmentoGuiaSlug={segmentoGuiaSlug} />
           ) : gateLoading ? (
             <div className="min-h-[3.25rem] flex-1 animate-pulse rounded-lg bg-gray-100" aria-hidden />

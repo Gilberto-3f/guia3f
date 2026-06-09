@@ -17,10 +17,11 @@ const COR_RECOMENDAR = '#00D443'
  */
 export default function BotaoRecomendar({ empresa, segmentoGuiaSlug }) {
   const router = useRouter()
-  const { perfilEhProfissional, loading: gateLoading } = useProfissionalGate()
+  const { perfilEhProfissional, recursosProfissionaisLiberados, loading: gateLoading } =
+    useProfissionalGate()
   const [popupAberto, setPopupAberto] = useState(false)
 
-  if (!gateLoading && !perfilEhProfissional) return null
+  if (!gateLoading && (!perfilEhProfissional || !recursosProfissionaisLiberados)) return null
 
   const abrirPopup = async () => {
     const {

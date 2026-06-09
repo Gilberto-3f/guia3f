@@ -165,6 +165,10 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       foto_url: r.foto_perfil_url ? String(r.foto_perfil_url) : null,
       documento_frente_url: r.documento_frente_url ? String(r.documento_frente_url) : null,
       documento_verso_url: r.documento_verso_url ? String(r.documento_verso_url) : null,
+      documento_identidade:
+        r.documento_identidade != null && String(r.documento_identidade).trim()
+          ? String(r.documento_identidade).trim()
+          : null,
       docs_verificado: Boolean(r.docs_verificado),
       docs_verificado_por: r.docs_verificado_por ? String(r.docs_verificado_por) : null,
       docs_verificado_em: r.docs_verificado_em ? String(r.docs_verificado_em) : null,
@@ -202,6 +206,10 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
         categorias,
         placa_vermelha: Boolean(r.placa_vermelha),
         documento_frente_url: r.documento_frente_url != null ? String(r.documento_frente_url) : null,
+        documento_identidade:
+          r.documento_identidade != null && String(r.documento_identidade).trim()
+            ? String(r.documento_identidade).trim()
+            : null,
         documentos: {
           identidade_url: String(r.documento_frente_url ?? r.identidade_url ?? ''),
           documento_verso_url: String(r.documento_verso_url ?? ''),
