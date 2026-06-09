@@ -1,5 +1,5 @@
 /** Normaliza termo para comparação (busca e palavras-chave). */
-export function normalizarTermoBusca(raw: string): string {
+export function normalizarTermoBusca(raw: string | null | undefined): string {
   return String(raw ?? '')
     .trim()
     .normalize('NFD')
