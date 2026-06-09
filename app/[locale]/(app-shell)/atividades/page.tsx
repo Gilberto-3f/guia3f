@@ -256,10 +256,17 @@ export default function AtividadesPage() {
   const carregarStoriesRepostAtivos = useCallback(async (rows: AtividadeRow[]) => {
     const ids = [
       ...new Set(
-        rows
-          .filter((r) => r.tipo === 'repostou_story')
-          .map((r) => storyIdDeAtividadeRepost(r))
-          .filter((id): id is string => Boolean(id)),
+        rows.flatMap((r) => {
+          if (r.tipo === 'repostou_story') {
+            const id = storyIdDeAtividadeRepost(r)
+            return id ? [id] : []
+          }
+          if (r.tipo === 'curtiu_story') {
+            const id = String(r.alvo_id ?? '').trim()
+            return id ? [id] : []
+          }
+          return []
+        }),
       ),
     ]
     if (ids.length === 0) {
@@ -1013,8 +1020,6 @@ export default function AtividadesPage() {
         .from('atividades')
         .select('*')
         .eq('usuario_id', uid)
-        /* Empresa deve ver novos seguidores da página; só avaliações ficam fora daqui. */
-        .not('tipo', 'in', '(avaliou)')
         .order('created_at', { ascending: false })
         .range(0, limEmp - 1)
 
@@ -1049,7 +1054,9 @@ export default function AtividadesPage() {
 
     setMinhaEmpresaAtividades(null)
 
-    const seguindo = await fetchAutorIdsSeguidosAmigos(supabase, uid)
+    const seguindo = await fetchAutorIdsSeguidosAmigos(supabase, uid, {
+      incluirModoApresentacao: modoAtivo,
+    })
     seguindoRef.current = seguindo
     setQtdSeguindo(seguindo.length)
 
@@ -1124,7 +1131,7 @@ export default function AtividadesPage() {
     await carregarStoriesRepostAtivos(todos)
 
     setCarregando(false)
-  }, [carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesRepostAtivos])
+  }, [carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesRepostAtivos, modoAtivo])
 
   const carregarMaisAtividades = useCallback(async () => {
     if (carregandoMais) return
@@ -1403,8 +1410,13 @@ export default function AtividadesPage() {
     const comentariosVistos = new Set<string>()
     const seguidoresVistos = new Set<string>()
     return raw.filter((r) => {
-      if (r.tipo === 'avaliou') return false
-      if (r.tipo === 'seguiu' || r.tipo === 'seguiu_empresa') {
+      if (aba === 'amigos' && r.tipo === 'avaliou') return false
+      if (r.tipo === 'seguiu_empresa') return false
+      if (r.tipo === 'seguiu') {
+        const ex = r.dados_extras ?? {}
+        const seguidoTipo =
+          typeof ex.seguido_tipo === 'string' ? ex.seguido_tipo.trim().toLowerCase() : ''
+        if (seguidoTipo === 'empresa') return false
         const chave = chaveAtividadeSeguidor(r)
         if (chave) {
           if (seguidoresVistos.has(chave)) return false
@@ -1414,6 +1426,10 @@ export default function AtividadesPage() {
       if (r.tipo === 'repostou_story') {
         if (!atividadeRepostStoryVisivel(r)) return false
         const storyId = storyIdDeAtividadeRepost(r)
+        if (storyId && storiesRepostAtivosPronto && !storiesRepostAtivos.has(storyId)) return false
+      }
+      if (r.tipo === 'curtiu_story') {
+        const storyId = String(r.alvo_id ?? '').trim()
         if (storyId && storiesRepostAtivosPronto && !storiesRepostAtivos.has(storyId)) return false
       }
       if (r.tipo === 'comentou' || r.tipo === 'curtiu_comentario') {

@@ -178,18 +178,13 @@ export default function PerfilSocialPage() {
 
   const atualizarMetricasPerfil = useCallback(async () => {
     if (!profileId) return
-    const [{ count: cFav }, { count: cSegU }, { count: cSegMe }, { count: cAval }] = await Promise.all([
-      supabase
-        .from('favoritos')
-        .select('id', { count: 'exact', head: true })
-        .eq('usuario_id', profileId)
-        .eq('alvo_tipo', 'empresa'),
+    const [{ count: cSegU }, { count: cSegMe }, { count: cAval }] = await Promise.all([
       supabase.from('redecontatos').select('id', { count: 'exact', head: true }).eq('seguidor_id', profileId),
       supabase.from('redecontatos').select('id', { count: 'exact', head: true }).eq('seguido_id', profileId),
       supabase.from('avaliacoes').select('id', { count: 'exact', head: true }).eq('usuario_id', profileId),
     ])
 
-    setNFavEmp(cFav ?? 0)
+    setNFavEmp(0)
     setNFavUsers(cSegU ?? 0)
     setNSeguidores(cSegMe ?? 0)
     setNAval(cAval ?? 0)
@@ -586,8 +581,8 @@ export default function PerfilSocialPage() {
     [postsFotos.length, postsTexto.length, repostadosPosts.length]
   )
 
-  /** Contador do coração: empresas favoritadas + perfis seguidos (igual ao popup FAVORITOS). */
-  const favoritosTotal = nFavEmp + nFavUsers
+  /** Contador do coração: perfis seguidos (popup SEGUINDO). */
+  const favoritosTotal = nFavUsers
 
   const abrirFavoritos = useCallback(() => {
     setPopSeg(false)

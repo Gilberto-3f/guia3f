@@ -6,8 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay, sanearAutoresPostsEmpresaPreview } from '@/lib/feed-autor'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { isPostOcultoDoFeed } from '@/lib/feedFiltroSeguidos'
-import { fetchEmpresaFeedPromoAutorIds, intercalarPostsEmpresa } from '@/lib/intercalarFeedEmpresa'
-import { fetchUsuarioIdsEmpresasFavoritas } from '@/lib/feedSeguidosEmpresasFavoritas'
+import { fetchUsuarioIdsTodasEmpresasGuia } from '@/lib/feedSeguidosEmpresasFavoritas'
 import {
   escolherIdStoryInicialPorEmail,
   ordenarStoriesPorCreatedAsc,
@@ -295,12 +294,13 @@ function FeedPageInner() {
       return
     }
     try {
-      const [{ data: segRows }, autoresEmpresasFavoritas] = await Promise.all([
-        supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId),
-        fetchUsuarioIdsEmpresasFavoritas(supabase, meuId),
-      ])
-      const seguidosRede = (segRows ?? []).map((r) => String((r as { seguido_id: string }).seguido_id)).filter(Boolean)
-      const seguidos = [...new Set([...seguidosRede, ...autoresEmpresasFavoritas])].filter(Boolean)
+      const { data: segRows } = await supabase
+        .from('redecontatos')
+        .select('seguido_id')
+        .eq('seguidor_id', meuId)
+      const seguidos = (segRows ?? [])
+        .map((r) => String((r as { seguido_id: string }).seguido_id))
+        .filter(Boolean)
       setFeedRede({
         seguidos,
         patrocinioAutores: [],
@@ -365,42 +365,27 @@ function FeedPageInner() {
       if (!ready) return []
 
       const meu = uidRef ?? meuId
-      const organicAllowed = [...new Set([...(meu ? [meu] : []), ...seguidos])].filter(Boolean)
-
-      const promoIds = await fetchEmpresaFeedPromoAutorIds(supabase, {
-        seguidosSet: new Set(seguidos),
-        meuId: meu ?? undefined,
+      const autoresEmpresas = await fetchUsuarioIdsTodasEmpresasGuia(supabase, {
+        incluirModoApresentacao: modoAtivo,
       })
+      const allowedAutorIds = [
+        ...new Set([...(meu ? [meu] : []), ...seguidos, ...autoresEmpresas]),
+      ].filter(Boolean)
 
-      const organicLimit = 40 + generation * 45
-      const promoLimit = 60
+      const limit = 40 + generation * 45
 
-      const [{ data: dOrg }, { data: dPromo }] = await Promise.all([
-        organicAllowed.length > 0
-          ? supabase
+      const { data: dFeed } =
+        allowedAutorIds.length > 0
+          ? await supabase
               .from(POSTS_FEED_VIEW)
               .select('*')
-              .in('autor_id', organicAllowed)
+              .in('autor_id', allowedAutorIds)
               .order('created_at', { ascending: false })
-              .limit(organicLimit)
-          : Promise.resolve({ data: [] as unknown[] }),
-        promoIds.length > 0
-          ? supabase
-              .from(POSTS_FEED_VIEW)
-              .select('*')
-              .in('autor_id', promoIds)
-              .order('created_at', { ascending: false })
-              .limit(promoLimit)
-          : Promise.resolve({ data: [] as unknown[] }),
-      ])
+              .limit(limit)
+          : { data: [] as unknown[] }
 
-      const orgRows = (dOrg ?? []).filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
-      const proRows = (dPromo ?? []).filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
-
-      const orgMapped = orgRows.map(mapRow).filter((row) => !isPostOcultoDoFeed(row.tipo))
-      const proMapped = proRows.map(mapRow).filter((row) => !isPostOcultoDoFeed(row.tipo))
-
-      const merged = intercalarPostsEmpresa(orgMapped, proMapped, (r) => r.autor?.usuario_id ?? '', 20)
+      const rows = (dFeed ?? []).filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
+      const merged = rows.map(mapRow).filter((row) => !isPostOcultoDoFeed(row.tipo))
       const saneados = await sanearAutoresPostsEmpresaPreview(
         supabase,
         merged,
@@ -460,11 +445,10 @@ function FeedPageInner() {
         return
       }
       const { seguidos, meuId: uidRef } = feedRedeRef.current
-      const promoIds = await fetchEmpresaFeedPromoAutorIds(supabase, {
-        seguidosSet: new Set(seguidos),
-        meuId: uidRef ?? undefined,
+      const autoresEmpresas = await fetchUsuarioIdsTodasEmpresasGuia(supabase, {
+        incluirModoApresentacao: modoAtivo,
       })
-      const allowed = new Set([...seguidos, ...promoIds, ...(uidRef ? [uidRef] : [])])
+      const allowed = new Set([...seguidos, ...autoresEmpresas, ...(uidRef ? [uidRef] : [])])
       const aid = row.autor?.usuario_id ?? ''
       if (uidRef && aid && aid !== uidRef && !allowed.has(aid)) {
         fetchPostAttempted.current = null

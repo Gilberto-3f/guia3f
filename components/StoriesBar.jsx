@@ -14,8 +14,6 @@ import {
 } from '@/lib/feed-autor'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
-import { intercalarStoryAutores } from '@/lib/intercalarFeedEmpresa'
-import { fetchUsuarioIdsEmpresasFavoritas } from '@/lib/feedSeguidosEmpresasFavoritas'
 import {
   escolherIdStoryInicialPorEmail,
   ordenarStoriesPorCreatedAsc,
@@ -183,22 +181,14 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       return meuAvatarUrl
     }
 
-    const [
-      { data: seguidosRows },
-      autoresEmpresasFavoritas,
-      { data: storiesRows, error: storiesErr },
-      { data: destaque },
-      meuAvatarUrl,
-    ] = await Promise.all([
+    const [{ data: seguidosRows }, { data: storiesRows, error: storiesErr }, meuAvatarUrl] = await Promise.all([
       supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid),
-      fetchUsuarioIdsEmpresasFavoritas(supabase, uid),
       supabase
         .from('stories')
         .select('id, autor_id, conteudo_url, visualizado_por, created_at, tipo, autor_tipo')
         .gt('expira_em', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(120),
-      supabase.from('empresas').select('usuario_id, nome_fantasia, nome_usuario, foto_url').eq('is_publicidade', true).limit(1).maybeSingle(),
       carregarMeuAvatar(uid),
     ])
 
@@ -215,10 +205,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       return ok
     })
 
-    const seguidosIds = new Set([
-      ...(seguidosRows ?? []).map((r) => String(r.seguido_id)),
-      ...autoresEmpresasFavoritas,
-    ].filter(Boolean))
+    const seguidosIds = new Set((seguidosRows ?? []).map((r) => String(r.seguido_id)).filter(Boolean))
 
     const storyAutorIds = [...new Set(storiesValidas.map((s) => String(s.autor_id)).filter(Boolean))]
     let empresasRows = /** @type {{ usuario_id: string, nome_fantasia: string | null, nome_usuario: string | null, foto_url: string | null }[]} */ (
@@ -276,8 +263,6 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       visualizado_por: visualizadoPorConsolidadoParaAnel(meuArr, userEmail),
     })
 
-    const obrAutor = destaque?.usuario_id != null ? String(destaque.usuario_id) : null
-
     /** @type {string[]} */
     const ordered = []
     const seen = new Set()
@@ -292,60 +277,18 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
 
     seen.add(uid)
 
-    // 1) Seguidos turista/profissional (não empresa)
-    const seguidosNaoEmpresa = [...storiesPorAutorArr.entries()]
-      .filter(([aid, arr]) => {
-        if (aid === uid || !seguidosIds.has(aid) || empresaAutorSet.has(aid)) return false
-        const s0 = arr[0]
-        return s0 && !isAutorEmpresa(s0.autor_tipo)
-      })
-      .sort((a, b) => {
-        const aa = a[1]
-        const bb = b[1]
-        const ta = aa.length ? new Date(String(aa[aa.length - 1].created_at ?? 0)).getTime() : 0
-        const tb = bb.length ? new Date(String(bb[bb.length - 1].created_at ?? 0)).getTime() : 0
-        return tb - ta
-      })
-    const empresaComStory = [...storiesPorAutorArr.keys()].filter((aid) => empresaAutorSet.has(aid))
-    const arrObr = obrAutor ? storiesPorAutorArr.get(obrAutor) : null
-    const sObr = arrObr?.length ? arrObr[arrObr.length - 1] : null
-    const obrEmpresaValido =
-      obrAutor && sObr && (isAutorEmpresa(sObr.autor_tipo) || empresaAutorSet.has(obrAutor)) ? obrAutor : null
-    const obrFinal = obrEmpresaValido ?? empresaComStory.find((a) => storiesPorAutorArr.has(a)) ?? null
-
-    /** Seguidos que são empresa (story): entram no lado “orgânico”. */
-    const seguidosEmpresaStory = [...storiesPorAutorArr.entries()]
-      .filter(([aid, arr]) => {
-        if (aid === uid || !seguidosIds.has(aid) || !empresaAutorSet.has(aid)) return false
-        const s0 = arr[0]
-        return Boolean(s0)
-      })
-      .sort((a, b) => {
-        const aa = a[1]
-        const bb = b[1]
-        const ta = aa.length ? new Date(String(aa[aa.length - 1].created_at ?? 0)).getTime() : 0
-        const tb = bb.length ? new Date(String(bb[bb.length - 1].created_at ?? 0)).getTime() : 0
-        return tb - ta
-      })
-
-    const organicAuthorIds = [
-      ...seguidosNaoEmpresa.map(([aid]) => aid),
-      ...seguidosEmpresaStory.map(([aid]) => aid),
-    ]
-
-    /** Empresas com story que o utilizador não segue — slots promocionais a cada 20 orgânicos. */
-    let promoEmpresaIds = empresaComStory.filter((aid) => aid !== uid && !seguidosIds.has(aid))
-    if (obrFinal && !seguidosIds.has(obrFinal) && !promoEmpresaIds.includes(obrFinal)) {
-      promoEmpresaIds = [obrFinal, ...promoEmpresaIds.filter((x) => x !== obrFinal)]
+    const latestStoryMs = (aid) => {
+      const arr = storiesPorAutorArr.get(aid)
+      if (!arr?.length) return 0
+      const last = arr[arr.length - 1]
+      return new Date(String(last.created_at ?? 0)).getTime()
     }
 
-    const mergedStoryAuthors = intercalarStoryAutores(
-      organicAuthorIds,
-      promoEmpresaIds,
-      20,
-      MAX_STORY_RINGS
-    )
-    for (const aid of mergedStoryAuthors) {
+    const autoresOrdenados = [...storiesPorAutorArr.keys()]
+      .filter((aid) => aid !== uid)
+      .sort((a, b) => latestStoryMs(b) - latestStoryMs(a))
+
+    for (const aid of autoresOrdenados) {
       if (ordered.length >= MAX_STORY_RINGS) break
       pushAid(aid)
     }
@@ -360,12 +303,6 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
         previews[uid] = e.foto_url != null ? String(e.foto_url) : null
       }
     }
-    if (destaque?.usuario_id) {
-      const uid = String(destaque.usuario_id)
-      labels[uid] = labelStoryEmpresa(destaque)
-      previews[uid] = destaque.foto_url != null ? String(destaque.foto_url) : null
-    }
-
     const precisaPerfil = ordered.filter((aid) => labels[aid] == null)
     const usuariosPromise =
       precisaPerfil.length > 0

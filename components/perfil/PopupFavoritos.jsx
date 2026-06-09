@@ -7,10 +7,6 @@ import { Heart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import BotaoSeguir from '@/components/BotaoSeguir'
 import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
-import {
-  filtrarEmpresaIdsSeguidasPorUsuario,
-  listarEmpresaIdsFavoritasPorUsuario,
-} from '@/lib/favoritosEmpresa'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 /**
@@ -24,89 +20,15 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
  */
 export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onMetricasAlteradas }) {
   useModalScrollLock(aberto)
-  const [aba, setAba] = useState(/** @type {'empresas' | 'usuarios'} */ ('empresas'))
-  const [emps, setEmps] = useState(
-    /** @type {{ usuario_id: string; empresa_id: string | null; nome: string; username: string; foto_url: string | null }[]} */ ([])
-  )
   const [users, setUsers] = useState(
     /** @type {{ usuario_id: string; empresa_id: string | null; tipo: string; nome: string; username: string; foto_url: string | null; jaSigo: boolean }[]} */ (
       []
     )
   )
   const [confirmUser, setConfirmUser] = useState(/** @type {string | null} */ (null))
-  const [meuFavEmpresaIds, setMeuFavEmpresaIds] = useState(/** @type {Set<string>} */ (new Set()))
-  const [countEmpresasFavoritas, setCountEmpresasFavoritas] = useState(0)
-  const [carregandoEmpresas, setCarregandoEmpresas] = useState(false)
   const [carregandoUsuarios, setCarregandoUsuarios] = useState(false)
 
   const souEu = meuId != null && meuId === profileId
-
-  const carregarEmpresas = useCallback(async () => {
-    setCarregandoEmpresas(true)
-    try {
-      let empresaIds = []
-      try {
-        empresaIds = await listarEmpresaIdsFavoritasPorUsuario(supabase, profileId)
-      } catch (errFav) {
-        console.error('Favoritos (empresas):', errFav)
-      }
-
-      setCountEmpresasFavoritas(empresaIds.length)
-      if (empresaIds.length === 0) {
-        setEmps([])
-        setMeuFavEmpresaIds(new Set())
-        return
-      }
-
-      const [perfisEmpRes, favSet] = await Promise.all([
-        supabase
-          .from('perfis_para_busca')
-          .select('usuario_id, empresa_id, username, nome, foto_url, tipo')
-          .eq('tipo', 'empresa')
-          .in('empresa_id', empresaIds),
-        meuId
-          ? filtrarEmpresaIdsSeguidasPorUsuario(supabase, meuId, empresaIds)
-          : Promise.resolve(new Set()),
-      ])
-
-      if (perfisEmpRes.error) console.error('perfis_para_busca (favoritos empresas):', perfisEmpRes.error)
-
-      /** @type {Map<string, object>} */
-      const porEmpresa = new Map()
-      for (const r of perfisEmpRes.data ?? []) {
-        const eid = r.empresa_id != null ? String(r.empresa_id) : ''
-        if (!eid) continue
-        const cur = porEmpresa.get(eid)
-        if (!cur) porEmpresa.set(eid, r)
-        else if (String(r.username ?? '') < String(cur.username ?? '')) porEmpresa.set(eid, r)
-      }
-
-      setEmps(
-        empresaIds.map((eid) => {
-          const p = porEmpresa.get(eid)
-          if (p) {
-            return {
-              usuario_id: String(p.usuario_id ?? ''),
-              empresa_id: p.empresa_id != null ? String(p.empresa_id) : null,
-              nome: String(p.nome ?? 'Empresa'),
-              username: String(p.username ?? 'empresa'),
-              foto_url: p.foto_url != null ? String(p.foto_url) : null,
-            }
-          }
-          return {
-            usuario_id: '',
-            empresa_id: eid,
-            nome: 'Empresa',
-            username: 'empresa',
-            foto_url: null,
-          }
-        })
-      )
-      setMeuFavEmpresaIds(favSet)
-    } finally {
-      setCarregandoEmpresas(false)
-    }
-  }, [profileId, meuId])
 
   const carregarUsuarios = useCallback(async () => {
     setCarregandoUsuarios(true)
@@ -151,11 +73,11 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
   }, [profileId, meuId])
 
   const carregar = useCallback(async () => {
-    await Promise.all([carregarEmpresas(), carregarUsuarios()])
+    await carregarUsuarios()
     if (meuId != null && meuId === profileId) {
       onMetricasAlteradas?.()
     }
-  }, [carregarEmpresas, carregarUsuarios, meuId, profileId, onMetricasAlteradas])
+  }, [carregarUsuarios, meuId, profileId, onMetricasAlteradas])
 
   useEffect(() => {
     if (aberto) void carregar()
@@ -170,9 +92,6 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
 
   if (!aberto) return null
 
-  const lista = aba === 'empresas' ? emps : users
-  const carregandoAba = aba === 'empresas' ? carregandoEmpresas : carregandoUsuarios
-
   return (
     <div className="fixed inset-0 z-[230] flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onClick={onFechar} role="presentation">
       <div
@@ -185,100 +104,55 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
         <div className="relative shrink-0 border-b border-gray-100 bg-white pt-4 pb-2">
           <div className="flex items-center justify-center gap-2">
             <Heart className="h-5 w-5 text-[#0097b2]" />
-            <h2 className="text-xl font-bold text-[#0097b2]">FAVORITOS</h2>
+            <h2 className="text-xl font-bold text-[#0097b2]">SEGUINDO</h2>
           </div>
           <button type="button" onClick={onFechar} className="absolute right-3 top-3 rounded-full p-1 hover:bg-gray-100" aria-label="Fechar">
             <X size={22} />
           </button>
         </div>
 
-        <div className="flex shrink-0 justify-center gap-4 border-b px-4 pb-2">
-          <button
-            type="button"
-            onClick={() => setAba('empresas')}
-            className={`flex-1 py-2 text-center text-sm ${aba === 'empresas' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'}`}
-          >
-            EMPRESAS ({carregandoEmpresas ? '…' : countEmpresasFavoritas})
-          </button>
-          <button
-            type="button"
-            onClick={() => setAba('usuarios')}
-            className={`flex-1 py-2 text-center text-sm ${aba === 'usuarios' ? 'border-b-2 border-[#0097b2] font-semibold text-[#0097b2]' : 'text-gray-500'}`}
-          >
+        <div className="flex shrink-0 justify-center border-b px-4 pb-2">
+          <p className="py-2 text-center text-sm font-semibold text-[#0097b2]">
             USUÁRIOS ({carregandoUsuarios ? '…' : users.length})
-          </button>
+          </p>
         </div>
 
         <div className="scrollbar-perfil min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-2">
-          {carregandoAba ? (
+          {carregandoUsuarios ? (
             <p className="py-8 text-center text-sm text-gray-500">Carregando…</p>
-          ) : lista.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p>
-          ) : null}
-          {!carregandoAba && aba === 'empresas'
-            ? emps.map((row) => {
-                const href = getPerfilHref({ ...row, tipo: 'empresa' })
-                const eid = row.empresa_id ? String(row.empresa_id) : ''
-                const perfilSegueEmpresa = true
-                const visitanteSegue = eid ? meuFavEmpresaIds.has(eid) : false
-                const mostrarSeguindo = souEu ? perfilSegueEmpresa : visitanteSegue
-                return (
-                  <div key={eid || row.usuario_id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
-                    <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50">
-                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
-                        {row.foto_url ? <Image src={row.foto_url} alt="" fill className="object-cover" sizes="40px" /> : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-gray-800">{row.nome}</p>
-                        <p className="truncate text-xs text-gray-500">@{row.username}</p>
-                      </div>
-                    </Link>
-                    {meuId && eid ? (
-                      <BotaoSeguir
-                        empresaId={eid}
-                        isFollowing={mostrarSeguindo}
-                        layout="inline"
-                        size="compact"
-                        leadingIcon="none"
-                        showInlineError={false}
-                        onToggle={() => void carregarEmpresas()}
-                      />
-                    ) : null}
-                  </div>
-                )
-              })
-            : null}
-          {!carregandoAba && aba === 'usuarios'
-            ? users.map((row) => {
-                const href = getPerfilHref(row)
-                return (
-                  <div key={row.usuario_id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
-                    <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50">
-                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
-                        {row.foto_url ? <Image src={row.foto_url} alt="" fill className="object-cover" sizes="40px" /> : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-gray-800">{row.nome}</p>
-                        <p className="truncate text-xs text-gray-500">@{row.username}</p>
-                      </div>
-                    </Link>
-                    {meuId && row.usuario_id !== meuId ? (
-                      <BotaoSeguir
-                        alvoId={row.usuario_id}
-                        alvoTipo="usuario"
-                        seguidoTipo={row.tipo}
-                        isFollowing={Boolean(row.jaSigo)}
-                        layout="inline"
-                        size="compact"
-                        leadingIcon="none"
-                        showInlineError={false}
-                        onToggle={() => void carregarUsuarios()}
-                      />
-                    ) : null}
-                  </div>
-                )
-              })
-            : null}
+          ) : users.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-500">Nenhum usuário seguido</p>
+          ) : (
+            users.map((row) => {
+              const href = getPerfilHref(row)
+              return (
+                <div key={row.usuario_id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
+                  <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50">
+                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
+                      {row.foto_url ? <Image src={row.foto_url} alt="" fill className="object-cover" sizes="40px" /> : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-gray-800">{row.nome}</p>
+                      <p className="truncate text-xs text-gray-500">@{row.username}</p>
+                    </div>
+                  </Link>
+                  {meuId && row.usuario_id !== meuId ? (
+                    <BotaoSeguir
+                      alvoId={row.usuario_id}
+                      alvoTipo="usuario"
+                      seguidoTipo={row.tipo}
+                      isFollowing={Boolean(row.jaSigo)}
+                      layout="inline"
+                      size="compact"
+                      leadingIcon="none"
+                      showInlineError={false}
+                      onToggle={() => void carregarUsuarios()}
+                    />
+                  ) : null}
+                </div>
+              )
+            })
+          )}
         </div>
       </div>
 

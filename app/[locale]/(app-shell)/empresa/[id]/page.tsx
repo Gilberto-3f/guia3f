@@ -10,8 +10,6 @@ import FotoHero from '@/components/FotoHero'
 import MenuLateral from '@/components/perfil/MenuLateral'
 import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
 import NomeEmpresa from '@/components/NomeEmpresa'
-import BotaoSeguir from '@/components/BotaoSeguir'
-import ContadorSeguidores from '@/components/ContadorSeguidores'
 import NotaMedia from '@/components/NotaMedia'
 import StatusAtendimento from '@/components/StatusAtendimento'
 import DescricaoLonga from '@/components/DescricaoLonga'
@@ -25,7 +23,6 @@ import { parseTourConfig, sincronizarTourComFotos } from '@/lib/pannellumTour'
 import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
-import { contarSeguidoresEmpresa, usuarioSegueEmpresa } from '@/lib/favoritosEmpresa'
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 
 function debugEmpresa(...args: unknown[]) {
@@ -76,7 +73,6 @@ export default function EmpresaPage() {
   const [adminLevel, setAdminLevel] = useState(0)
   const [meuEmail, setMeuEmail] = useState<string | null>(null)
   const [menuAberto, setMenuAberto] = useState(false)
-  const [totalSeguidores, setTotalSeguidores] = useState<number | null>(null)
   const { modoAtivo } = useModoApresentacao()
 
   useEffect(() => {
@@ -144,38 +140,13 @@ export default function EmpresaPage() {
         return
       }
 
-      /** Usar sempre o utilizador da sessão aqui evita flash "Seguir" antes de `usuarioId` no estado hidratar. */
-      let isSeguindo = false
-      if (viewerUid) {
-        debugEmpresa('[Empresa] carregarEmpresa — buscando favorito', {
-          empresaId,
-          viewerUid,
-        })
-        isSeguindo = await usuarioSegueEmpresa(supabase, viewerUid, empresaId)
-        debugEmpresa('[Empresa] carregarEmpresa — resultado favoritos', {
-          is_seguindo: isSeguindo,
-        })
-      } else {
-        debugEmpresa('[Empresa] carregarEmpresa — visitante anónimo, is_seguindo false', { empresaId })
-      }
-
-      let totalSeg = 0
-      try {
-        totalSeg = await contarSeguidoresEmpresa(supabase, empresaId)
-      } catch (errCntSeg) {
-        debugEmpresa('[Empresa] contagem seguidores (favoritos) falhou', errCntSeg)
-        totalSeg = Number(empresaData.total_seguidores) || 0
-      }
-
       setEmpresa({
         ...empresaData,
-        is_seguindo: isSeguindo,
         horarios: asHorarios(empresaData.horarios),
         fotos_url: asJsonArray(empresaData.fotos_url),
         fotos_360_url: asJsonArray(empresaData.fotos_360_url),
         tour_config: parseTourConfig(empresaData.tour_config),
       })
-      setTotalSeguidores(totalSeg)
     } finally {
       if (!silent) setLoading(false)
     }
@@ -240,7 +211,6 @@ export default function EmpresaPage() {
   const descLonga = descLongaRaw.trim() !== '' ? descLongaRaw : null
   const notaMedia = Number(empresa.nota_media) || 0
   const totalAval = Number(empresa.total_avaliacoes) || 0
-  const totalSeg = totalSeguidores != null ? totalSeguidores : Number(empresa.total_seguidores) || 0
   const categoria = String(empresa.categoria ?? '')
   const rotuloServico = getRotuloAbaServico(categoria)
   const IconeAbaServico = getIconeAbaServico(categoria)
@@ -303,25 +273,7 @@ export default function EmpresaPage() {
             </div>
           </div>
           <div className="flex shrink-0 justify-end">
-            {podeAbrirMenu ? (
-              <BotaoAbrirMenuLateral onClick={() => setMenuAberto(true)} />
-            ) : !donoEmpresa ? (
-              <BotaoSeguir
-                empresaId={empresaId}
-                isFollowing={Boolean(empresa.is_seguindo)}
-                layout="inline"
-                size="compact"
-                showInlineError={false}
-                onToggle={(seguindoNovo) => {
-                  debugEmpresa('[Empresa] onToggle BotaoSeguir', { seguindoNovo, empresaId })
-                  setEmpresa((prev) => (prev ? { ...prev, is_seguindo: seguindoNovo } : prev))
-                  setTotalSeguidores((prev) => {
-                    const base = prev ?? totalSeg
-                    return seguindoNovo ? base + 1 : Math.max(0, base - 1)
-                  })
-                }}
-              />
-            ) : null}
+            {podeAbrirMenu ? <BotaoAbrirMenuLateral onClick={() => setMenuAberto(true)} /> : null}
           </div>
         </div>
       </div>
@@ -337,7 +289,6 @@ export default function EmpresaPage() {
         </div>
 
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-          <ContadorSeguidores empresaId={empresaId} total={totalSeg} />
           <NotaMedia nota={notaMedia} total={totalAval} />
           <StatusAtendimento horarios={empresaEndereco.horarios} />
         </div>

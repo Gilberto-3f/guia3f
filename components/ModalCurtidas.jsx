@@ -210,7 +210,7 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
                       <p className="truncate text-xs text-gray-500">@{u.username}</p>
                     </div>
                   </Link>
-                  {!ehEu && meuUsuarioId ? (
+                  {!ehEu && meuUsuarioId && u.role !== 'empresa' ? (
                     <button
                       type="button"
                       onClick={() => void toggleSeguir(u)}

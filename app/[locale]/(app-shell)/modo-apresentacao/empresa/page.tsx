@@ -14,8 +14,6 @@ import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
 import Username from '@/components/Username'
 import FotoHero from '@/components/FotoHero'
 import NomeEmpresa from '@/components/NomeEmpresa'
-import BotaoSeguir from '@/components/BotaoSeguir'
-import ContadorSeguidores from '@/components/ContadorSeguidores'
 import NotaMedia from '@/components/NotaMedia'
 import StatusAtendimento from '@/components/StatusAtendimento'
 import DescricaoLonga from '@/components/DescricaoLonga'
@@ -209,7 +207,6 @@ export default function EmpresaPreviewModoApresentacaoPage() {
   const descLonga = empresaMerged.descricao_longa != null ? String(empresaMerged.descricao_longa) : null
   const notaMedia = Number(empresaMerged.nota_media) || 0
   const totalAval = Number(empresaMerged.total_avaliacoes) || 0
-  const totalSeg = Number(empresaMerged.total_seguidores) || 0
   const categoria = String(empresaMerged.categoria ?? '')
   const rotuloServico = getRotuloAbaServico(categoria)
   const IconeAbaServico = getIconeAbaServico(categoria)
@@ -271,11 +268,9 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               Boolean(empresaMerged.docs_verificado) || String(empresaMerged.status ?? '') === 'ativo'
             }
           />
-          <BotaoSeguir empresaId={empresaId} isFollowing={false} onToggle={() => {}} />
         </div>
 
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-          <ContadorSeguidores empresaId={empresaId} total={totalSeg} />
           <NotaMedia nota={notaMedia} total={totalAval} />
           <StatusAtendimento horarios={empresaEndereco.horarios} />
         </div>
