@@ -184,8 +184,7 @@ export default function EstatisticasMercado({ periodo }: Props) {
           onToggle={() => togglePasta('mobilidade-regional')}
         >
           <MobilidadeRegionalPainel
-            distribuicaoProfissionais={distribuicaoProfissionais}
-            profissionaisCategorias={profissionaisCategorias}
+            profissionaisMobilidade={profissionaisCategorias}
             atendimentosMobilidade={atendimentosMobilidade}
           />
         </PastaEstatistica>

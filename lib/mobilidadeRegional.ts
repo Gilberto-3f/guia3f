@@ -25,7 +25,7 @@ export const CATEGORIAS_MOBILIDADE_ORDEM = [
 export type CategoriaMobilidade = (typeof CATEGORIAS_MOBILIDADE_ORDEM)[number]
 
 export const CORES_CATEGORIA_MOBILIDADE: Record<CategoriaMobilidade, string> = {
-  'Motoristas de App': '#0097b2',
+  'Motoristas de App': '#E74C3C',
   'Motoristas de Van': '#3498DB',
   Taxistas: '#F1C40F',
   'Guias de Turismo': '#00D443',
@@ -67,8 +67,26 @@ export interface DistribuicaoProfissionalItem {
   total: number
 }
 
+export interface ProfissionalMobilidadeRow {
+  categorias: unknown
+  cidade_atuacao?: unknown
+}
+
+function asStringArray(v: unknown): string[] {
+  if (Array.isArray(v)) return v.filter((x) => typeof x === 'string') as string[]
+  if (typeof v === 'string') {
+    try {
+      const p = JSON.parse(v)
+      if (Array.isArray(p)) return p.filter((x) => typeof x === 'string') as string[]
+    } catch {
+      // ignore
+    }
+  }
+  return []
+}
+
 export function agregarProfissionaisPorCategoria(
-  rows: { categorias: unknown }[],
+  rows: ProfissionalMobilidadeRow[],
 ): { label: CategoriaMobilidade; valor: number; percentual: number; cor: string }[] {
   const porCat: Record<CategoriaMobilidade, number> = {
     'Motoristas de App': 0,
@@ -79,11 +97,9 @@ export function agregarProfissionaisPorCategoria(
   }
 
   for (const row of rows) {
-    const cats = Array.isArray(row.categorias)
-      ? (row.categorias as unknown[]).filter((x) => typeof x === 'string') as string[]
-      : []
+    const cats = asStringArray(row.categorias)
     const vistos = new Set<CategoriaMobilidade>()
-    for (const raw of cats.length ? cats : ['outros']) {
+    for (const raw of cats) {
       const cat = normalizarCategoriaMobilidade(raw)
       if (!cat || vistos.has(cat)) continue
       vistos.add(cat)
@@ -101,7 +117,7 @@ export function agregarProfissionaisPorCategoria(
 }
 
 export function agregarProfissionaisPorCidade(
-  itens: DistribuicaoProfissionalItem[],
+  rows: ProfissionalMobilidadeRow[],
 ): { label: CidadeTriplice; valor: number; percentual: number; cor: string }[] {
   const porCidade: Record<CidadeTriplice, number> = {
     'Foz do Iguaçu': 0,
@@ -109,10 +125,15 @@ export function agregarProfissionaisPorCidade(
     'Puerto Iguazu': 0,
   }
 
-  for (const item of itens) {
-    const cidade = normalizarCidadeTriplice(item.cidade)
-    if (!cidade) continue
-    porCidade[cidade] += item.total ?? 0
+  for (const row of rows) {
+    const cidades = asStringArray(row.cidade_atuacao)
+    const vistos = new Set<CidadeTriplice>()
+    for (const raw of cidades) {
+      const cidade = normalizarCidadeTriplice(raw)
+      if (!cidade || vistos.has(cidade)) continue
+      vistos.add(cidade)
+      porCidade[cidade] += 1
+    }
   }
 
   const total = Object.values(porCidade).reduce((a, b) => a + b, 0)
@@ -125,7 +146,7 @@ export function agregarProfissionaisPorCidade(
 }
 
 export function detalheCategoriasPorCidade(
-  itens: DistribuicaoProfissionalItem[],
+  rows: ProfissionalMobilidadeRow[],
   cidadeAlvo: CidadeTriplice,
 ): { label: CategoriaMobilidade; valor: number; percentual: number; cor: string }[] {
   const porCat: Record<CategoriaMobilidade, number> = {
@@ -136,12 +157,19 @@ export function detalheCategoriasPorCidade(
     Anfitriões: 0,
   }
 
-  for (const item of itens) {
-    const cidade = normalizarCidadeTriplice(item.cidade)
-    if (cidade !== cidadeAlvo) continue
-    const cat = normalizarCategoriaMobilidade(item.tipo)
-    if (!cat) continue
-    porCat[cat] += item.total ?? 0
+  for (const row of rows) {
+    const cidades = asStringArray(row.cidade_atuacao)
+    const atuaNaCidade = cidades.some((c) => normalizarCidadeTriplice(c) === cidadeAlvo)
+    if (!atuaNaCidade) continue
+
+    const cats = asStringArray(row.categorias)
+    const vistos = new Set<CategoriaMobilidade>()
+    for (const raw of cats) {
+      const cat = normalizarCategoriaMobilidade(raw)
+      if (!cat || vistos.has(cat)) continue
+      vistos.add(cat)
+      porCat[cat] += 1
+    }
   }
 
   const total = Object.values(porCat).reduce((a, b) => a + b, 0)

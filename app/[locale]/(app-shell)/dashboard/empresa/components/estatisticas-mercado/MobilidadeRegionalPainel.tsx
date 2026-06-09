@@ -1,8 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import type { DadosDistribuicaoProfissionais } from '../../types/dashboard.types'
-import type { AtendimentoMobilidadeRow } from '@/lib/mobilidadeRegional'
+import type { AtendimentoMobilidadeRow, ProfissionalMobilidadeRow } from '@/lib/mobilidadeRegional'
 import {
   CIDADES_TRIPLICE_ORDEM,
   CATEGORIAS_MOBILIDADE_ORDEM,
@@ -23,8 +22,7 @@ import GraficoBarras from './GraficoBarras'
 import GraficoHorarioPico from './GraficoHorarioPico'
 
 interface Props {
-  distribuicaoProfissionais: DadosDistribuicaoProfissionais[]
-  profissionaisCategorias: { categorias: unknown }[]
+  profissionaisMobilidade: ProfissionalMobilidadeRow[]
   atendimentosMobilidade: AtendimentoMobilidadeRow[]
 }
 
@@ -64,8 +62,7 @@ function FiltroSelect<T extends string>({
 }
 
 export default function MobilidadeRegionalPainel({
-  distribuicaoProfissionais,
-  profissionaisCategorias,
+  profissionaisMobilidade,
   atendimentosMobilidade,
 }: Props) {
   const [cidadeSelecionada, setCidadeSelecionada] = useState<CidadeTriplice | null>(null)
@@ -76,19 +73,19 @@ export default function MobilidadeRegionalPainel({
   const [categoriaHorario, setCategoriaHorario] = useState<CategoriaMobilidade | 'todas'>('todas')
 
   const pizzaCidades = useMemo(
-    () => agregarProfissionaisPorCidade(distribuicaoProfissionais),
-    [distribuicaoProfissionais],
+    () => agregarProfissionaisPorCidade(profissionaisMobilidade),
+    [profissionaisMobilidade],
   )
 
   const pizzaCategorias = useMemo(
-    () => agregarProfissionaisPorCategoria(profissionaisCategorias),
-    [profissionaisCategorias],
+    () => agregarProfissionaisPorCategoria(profissionaisMobilidade),
+    [profissionaisMobilidade],
   )
 
   const detalheCidade = useMemo(() => {
     if (!cidadeSelecionada) return null
-    return detalheCategoriasPorCidade(distribuicaoProfissionais, cidadeSelecionada)
-  }, [cidadeSelecionada, distribuicaoProfissionais])
+    return detalheCategoriasPorCidade(profissionaisMobilidade, cidadeSelecionada)
+  }, [cidadeSelecionada, profissionaisMobilidade])
 
   const atendimentosRanking = useMemo(
     () =>

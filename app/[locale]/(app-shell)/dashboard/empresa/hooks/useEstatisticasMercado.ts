@@ -132,7 +132,9 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
   const [atendimentosMobilidade, setAtendimentosMobilidade] = useState<AtendimentoMobilidadeRow[]>([])
   const [reservasHospedagem, setReservasHospedagem] = useState<ReservaHospedagemRow[]>([])
   const [atendimentosProjecao, setAtendimentosProjecao] = useState<AtendimentoProjecaoRow[]>([])
-  const [profissionaisCategorias, setProfissionaisCategorias] = useState<{ categorias: unknown }[]>([])
+  const [profissionaisCategorias, setProfissionaisCategorias] = useState<
+    { categorias: unknown; cidade_atuacao?: unknown }[]
+  >([])
   const [analiseMercado, setAnaliseMercado] = useState<AnaliseMercadoDados>(() => ({
     visibilidade: preencherContagensSegmento({}),
     engajamento: preencherContagensSegmento({}),
@@ -223,7 +225,10 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
       const [mobilidadeRows, profissionaisRes, comissaoRes, reservasRows, analiseRes, buscasGuiaRes] =
         await Promise.allSettled([
         fetchSolicitacaoMobilidade(),
-        supabase.from('profissionais').select('categorias, cidade_atuacao'),
+        supabase
+          .from('profissionais')
+          .select('categorias, cidade_atuacao, usuarios!profissionais_usuario_id_fkey(role)')
+          .eq('usuarios.role', 'profissional'),
         supabase.from('taxas_comissoes').select('categoria, taxa_percentual'),
         fetchReservasHospedagem(),
         buscarAnaliseMercado(dataLimite, empresaId),
@@ -259,15 +264,33 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
 
       if (profissionaisRes.status === 'fulfilled' && !profissionaisRes.value.error) {
         const data = profissionaisRes.value.data ?? []
-        setProfissionaisCategorias(data.map((r) => ({ categorias: (r as Record<string, unknown>).categorias })))
+        setProfissionaisCategorias(
+          data.map((r) => {
+            const row = r as Record<string, unknown>
+            return {
+              categorias: row.categorias,
+              cidade_atuacao: row.cidade_atuacao,
+            }
+          }),
+        )
 
         const agg: Record<string, number> = {}
         for (const row of data as unknown[]) {
           const r = row as Record<string, unknown>
           const cats = asStringArray(r.categorias)
           const cidades = asStringArray(r.cidade_atuacao)
-          for (const c of cats.length ? cats : ['outros']) {
-            for (const cidade of cidades.length ? cidades : ['-']) {
+          const catsUnicas = new Set<string>()
+          for (const c of cats) {
+            const norm = c.trim()
+            if (norm) catsUnicas.add(norm)
+          }
+          const cidadesUnicas = new Set<string>()
+          for (const cidade of cidades) {
+            const norm = cidade.trim()
+            if (norm) cidadesUnicas.add(norm)
+          }
+          for (const c of catsUnicas) {
+            for (const cidade of cidadesUnicas) {
               const k = `${c}||${cidade}`
               agg[k] = (agg[k] ?? 0) + 1
             }

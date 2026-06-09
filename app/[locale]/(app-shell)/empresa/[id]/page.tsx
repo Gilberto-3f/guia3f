@@ -267,7 +267,7 @@ export default function EmpresaPage() {
       <div className="border-b border-gray-100 bg-white">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5 sm:px-4">
           <div className="flex min-w-0 items-center gap-1.5">
-            {!modoEmpresaLayout ? <BotaoVoltar /> : <span className="inline-block w-9 shrink-0" aria-hidden />}
+            {!modoEmpresaLayout ? <BotaoVoltar /> : null}
             <div className="min-w-0 flex-1 overflow-hidden">
               <Username username={nomeUsuario} />
             </div>
