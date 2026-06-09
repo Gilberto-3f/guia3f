@@ -1,20 +1,91 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+type EmpresasGuiaOpts = {
+  /** Inclui páginas só de modo apresentação (preview ADM). */
+  incluirModoApresentacao?: boolean
+  /** Colunas do select Supabase (padrão: `usuario_id`). */
+  select?: string
+}
+
 /**
- * `usuario_id` de todas as empresas públicas do guia (conteúdo visível no feed/stories para todos).
- * Exclui páginas só de modo apresentação, salvo quando `incluirModoApresentacao` é true.
+ * Empresas elegíveis no guia: verificadas pelo ADM e com página pública.
+ * Mesmo critério base do guia turístico (`status = aprovado` + `docs_verificado`).
+ */
+function queryEmpresasGuiaAprovadas(
+  supabase: SupabaseClient,
+  opts?: EmpresasGuiaOpts,
+) {
+  let q = supabase
+    .from('empresas')
+    .select(opts?.select ?? 'usuario_id')
+    .eq('status', 'aprovado')
+    .eq('docs_verificado', true)
+
+  if (!opts?.incluirModoApresentacao) {
+    q = q.eq('somente_modo_apresentacao', false)
+  }
+
+  return q
+}
+
+/**
+ * `usuario_id` das empresas do guia cujo conteúdo entra no feed/stories/atividades para todos.
  */
 export async function fetchUsuarioIdsTodasEmpresasGuia(
   supabase: SupabaseClient,
   opts?: { incluirModoApresentacao?: boolean },
 ): Promise<string[]> {
-  let q = supabase.from('empresas').select('usuario_id')
-  if (!opts?.incluirModoApresentacao) {
-    q = q.eq('somente_modo_apresentacao', false)
+  if (opts?.incluirModoApresentacao) {
+    const [aprovadasRes, previewRes] = await Promise.all([
+      queryEmpresasGuiaAprovadas(supabase, { incluirModoApresentacao: false }),
+      supabase.from('empresas').select('usuario_id').eq('somente_modo_apresentacao', true),
+    ])
+    const ids = [
+      ...(aprovadasRes.data ?? []),
+      ...(previewRes.data ?? []),
+    ].map((e) => String((e as { usuario_id: unknown }).usuario_id)).filter(Boolean)
+    return [...new Set(ids)]
+  }
+
+  const { data, error } = await queryEmpresasGuiaAprovadas(supabase)
+  if (error || !data?.length) return []
+  return [...new Set(data.map((e) => String((e as { usuario_id: unknown }).usuario_id)).filter(Boolean))]
+}
+
+/**
+ * Linhas de empresas do guia (ex.: StoriesBar), opcionalmente filtradas por `usuario_id`.
+ */
+export async function fetchEmpresasGuiaRows<T extends Record<string, unknown> = { usuario_id: string }>(
+  supabase: SupabaseClient,
+  opts?: EmpresasGuiaOpts & { usuarioIds?: string[] },
+): Promise<T[]> {
+  const select = opts?.select ?? 'usuario_id'
+  const ids = (opts?.usuarioIds ?? []).map((id) => String(id).trim()).filter(Boolean)
+
+  if (opts?.incluirModoApresentacao) {
+    const aprovadasQ = queryEmpresasGuiaAprovadas(supabase, { select, incluirModoApresentacao: false })
+    const previewQ = supabase.from('empresas').select(select).eq('somente_modo_apresentacao', true)
+    const [aprovadasRes, previewRes] = await Promise.all([
+      ids.length > 0 ? aprovadasQ.in('usuario_id', ids) : aprovadasQ,
+      ids.length > 0 ? previewQ.in('usuario_id', ids) : previewQ,
+    ])
+    const merged = [...(aprovadasRes.data ?? []), ...(previewRes.data ?? [])] as T[]
+    const seen = new Set<string>()
+    return merged.filter((row) => {
+      const uid = String((row as { usuario_id?: unknown }).usuario_id ?? '')
+      if (!uid || seen.has(uid)) return false
+      seen.add(uid)
+      return true
+    })
+  }
+
+  let q = queryEmpresasGuiaAprovadas(supabase, { select })
+  if (ids.length > 0) {
+    q = q.in('usuario_id', ids)
   }
   const { data, error } = await q
   if (error || !data?.length) return []
-  return [...new Set(data.map((e) => String((e as { usuario_id: unknown }).usuario_id)).filter(Boolean))]
+  return data as T[]
 }
 
 /**
@@ -40,7 +111,7 @@ export async function fetchUsuarioIdsEmpresasFavoritas(
 
 /**
  * IDs de autores cujas interações aparecem na aba Amigos de `/atividades`:
- * perfis seguidos em `redecontatos` + gestores de todas as empresas do guia.
+ * perfis seguidos em `redecontatos` + gestores de empresas aprovadas no guia.
  */
 export async function fetchAutorIdsSeguidosAmigos(
   supabase: SupabaseClient,

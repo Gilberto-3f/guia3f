@@ -14,6 +14,7 @@ import {
 } from '@/lib/feed-autor'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
+import { fetchEmpresasGuiaRows } from '@/lib/feedSeguidosEmpresasFavoritas'
 import {
   escolherIdStoryInicialPorEmail,
   ordenarStoriesPorCreatedAsc,
@@ -212,15 +213,11 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       []
     )
     if (storyAutorIds.length > 0) {
-      let q = supabase
-        .from('empresas')
-        .select('usuario_id, nome_fantasia, nome_usuario, foto_url, somente_modo_apresentacao')
-        .in('usuario_id', storyAutorIds)
-      if (!simulandoEmpresa) {
-        q = q.eq('somente_modo_apresentacao', false)
-      }
-      const { data: empData } = await q
-      empresasRows = empData ?? []
+      empresasRows = await fetchEmpresasGuiaRows(supabase, {
+        select: 'usuario_id, nome_fantasia, nome_usuario, foto_url, somente_modo_apresentacao',
+        usuarioIds: storyAutorIds,
+        incluirModoApresentacao: simulandoEmpresa,
+      })
     }
 
     const emps = empresasRows
