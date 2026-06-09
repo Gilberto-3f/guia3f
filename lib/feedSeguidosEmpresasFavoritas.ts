@@ -1,5 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+function usuarioIdDeRow(row: unknown): string {
+  if (row == null || typeof row !== 'object') return ''
+  const uid = (row as { usuario_id?: unknown }).usuario_id
+  return uid != null ? String(uid) : ''
+}
+
 type EmpresasGuiaOpts = {
   /** Inclui páginas só de modo apresentação (preview ADM). */
   incluirModoApresentacao?: boolean
@@ -43,13 +49,13 @@ export async function fetchUsuarioIdsTodasEmpresasGuia(
     const ids = [
       ...(aprovadasRes.data ?? []),
       ...(previewRes.data ?? []),
-    ].map((e) => String((e as { usuario_id: unknown }).usuario_id)).filter(Boolean)
+    ].map(usuarioIdDeRow).filter(Boolean)
     return [...new Set(ids)]
   }
 
   const { data, error } = await queryEmpresasGuiaAprovadas(supabase)
   if (error || !data?.length) return []
-  return [...new Set(data.map((e) => String((e as { usuario_id: unknown }).usuario_id)).filter(Boolean))]
+  return [...new Set(data.map(usuarioIdDeRow).filter(Boolean))]
 }
 
 /**
@@ -69,10 +75,10 @@ export async function fetchEmpresasGuiaRows<T extends Record<string, unknown> = 
       ids.length > 0 ? aprovadasQ.in('usuario_id', ids) : aprovadasQ,
       ids.length > 0 ? previewQ.in('usuario_id', ids) : previewQ,
     ])
-    const merged = [...(aprovadasRes.data ?? []), ...(previewRes.data ?? [])] as T[]
+    const merged = [...(aprovadasRes.data ?? []), ...(previewRes.data ?? [])] as unknown as T[]
     const seen = new Set<string>()
     return merged.filter((row) => {
-      const uid = String((row as { usuario_id?: unknown }).usuario_id ?? '')
+      const uid = usuarioIdDeRow(row)
       if (!uid || seen.has(uid)) return false
       seen.add(uid)
       return true
@@ -85,7 +91,7 @@ export async function fetchEmpresasGuiaRows<T extends Record<string, unknown> = 
   }
   const { data, error } = await q
   if (error || !data?.length) return []
-  return data as T[]
+  return data as unknown as T[]
 }
 
 /**
@@ -106,7 +112,7 @@ export async function fetchUsuarioIdsEmpresasFavoritas(
   if (empIds.length === 0) return []
   const { data: emps, error: errE } = await supabase.from('empresas').select('usuario_id').in('id', empIds)
   if (errE || !emps?.length) return []
-  return [...new Set(emps.map((e) => String((e as { usuario_id: unknown }).usuario_id)).filter(Boolean))]
+  return [...new Set(emps.map(usuarioIdDeRow).filter(Boolean))]
 }
 
 /**
