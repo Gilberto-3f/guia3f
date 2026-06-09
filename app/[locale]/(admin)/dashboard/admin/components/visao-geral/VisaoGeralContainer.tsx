@@ -1,31 +1,63 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { FiltrosPeriodo, type PeriodoId } from '../shared/FiltrosPeriodo'
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import type { PeriodoId } from '../shared/FiltrosPeriodo'
+import { FiltroPeriodoCompacto } from '../shared/FiltroPeriodoCompacto'
 import { TopoCards } from '../shared/TopoCards'
-import type { VisaoSubabaId } from './SubabasVisaoNav'
+import type { PerfilVisaoGeral } from '../../types/admin.types'
 import { VisaoGeralGraficos } from './VisaoGeralGraficos'
 
-function coerceSub(sub: string): VisaoSubabaId {
-  if (sub === 'profissionais' || sub === 'empresas') return sub
-  return 'turistas'
+type VisaoGeralCtx = {
+  perfil: PerfilVisaoGeral
+  setPerfil: (p: PerfilVisaoGeral) => void
+  periodo: PeriodoId
+  setPeriodo: (p: PeriodoId) => void
 }
 
-export function VisaoGeralContainer({ sub }: { sub: string }) {
-  const activeSub = useMemo(() => coerceSub(sub), [sub])
-  const [periodo, setPeriodo] = useState<PeriodoId>('7d')
-  const filtrosVisao = useMemo(() => ({ periodo }), [periodo])
+const Ctx = createContext<VisaoGeralCtx | null>(null)
 
+function useVisaoGeralCtx() {
+  const ctx = useContext(Ctx)
+  if (!ctx) throw new Error('useVisaoGeralCtx deve ser usado dentro de VisaoGeralProvider')
+  return ctx
+}
+
+export function VisaoGeralProvider({ children }: { children: ReactNode }) {
+  const [perfil, setPerfil] = useState<PerfilVisaoGeral>('turistas')
+  const [periodo, setPeriodo] = useState<PeriodoId>('30d')
+  const value = useMemo(() => ({ perfil, setPerfil, periodo, setPeriodo }), [perfil, periodo])
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
+}
+
+/** Barra fixa abaixo do cabeçalho azul: cards de navegação + filtro de período. */
+export function VisaoGeralBarraFixa() {
+  const { perfil, setPerfil, periodo, setPeriodo } = useVisaoGeralCtx()
   return (
-    <div className="space-y-4">
-      <TopoCards />
-
-      <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-3 shadow-sm sm:p-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Período dos gráficos</p>
-        <FiltrosPeriodo value={periodo} onChange={setPeriodo} />
+    <div className="space-y-2 border-t border-gray-100 bg-white px-3 py-2.5 sm:px-4">
+      <TopoCards active={perfil} onSelect={setPerfil} />
+      <div className="flex justify-end">
+        <FiltroPeriodoCompacto value={periodo} onChange={setPeriodo} />
       </div>
-
-      <VisaoGeralGraficos value={activeSub} filtros={filtrosVisao} />
     </div>
+  )
+}
+
+export function VisaoGeralConteudo() {
+  const { perfil, periodo } = useVisaoGeralCtx()
+  const filtrosVisao = useMemo(() => ({ periodo }), [periodo])
+  return (
+    <div className="mt-4">
+      <VisaoGeralGraficos perfil={perfil} filtros={filtrosVisao} />
+    </div>
+  )
+}
+
+/** @deprecated Use VisaoGeralProvider + BarraFixa + Conteudo */
+export function VisaoGeralContainer() {
+  return (
+    <VisaoGeralProvider>
+      <VisaoGeralBarraFixa />
+      <VisaoGeralConteudo />
+    </VisaoGeralProvider>
   )
 }

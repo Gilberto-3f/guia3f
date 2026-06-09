@@ -10,7 +10,11 @@ import { AdminPastaNav, tituloPastaAdmin } from './components/shared/AdminPastaN
 import { AdminSubabasRail } from './components/shared/AdminSubabasRail'
 import { AdminPermissaoProvider, useSharedAdminGate } from './context/AdminPermissaoContext'
 import { DenunciasToolbarProvider } from './context/DenunciasToolbarContext'
-import { VisaoGeralContainer } from './components/visao-geral/VisaoGeralContainer'
+import {
+  VisaoGeralBarraFixa,
+  VisaoGeralConteudo,
+  VisaoGeralProvider,
+} from './components/visao-geral/VisaoGeralContainer'
 import { VerificacaoContainer } from './components/verificacao/VerificacaoContainer'
 import { DenunciasContainer } from './components/denuncias/DenunciasContainer'
 import { EspacoAdmContainer } from './components/espaco-adm/EspacoAdmContainer'
@@ -73,10 +77,10 @@ function DashboardAdminContent() {
     )
   }
 
-  return (
+  const shell = (
     <DenunciasToolbarProvider>
       <div className="mx-0 max-w-full px-3 pb-10 sm:mx-auto sm:max-w-6xl sm:px-4">
-        <div className="z-20 -mx-3 overflow-hidden shadow-sm sm:-mx-4">
+        <div className="sticky top-0 z-20 -mx-3 overflow-hidden shadow-sm sm:-mx-4">
           <div className="bg-[#0097b2] px-3 pb-3 pt-2 text-white sm:px-4 sm:pb-3 sm:pt-2.5">
             <div className="flex items-center justify-between gap-3">
               {tab ? (
@@ -105,6 +109,14 @@ function DashboardAdminContent() {
               </Link>
             </div>
           </div>
+
+          {tab === 'visao-geral' ? <VisaoGeralBarraFixa /> : null}
+
+          {tab && tab !== 'visao-geral' ? (
+            <div className="border-t border-gray-100 bg-white px-3 sm:px-4">
+              <AdminSubabasRail tab={tab} sub={sub} />
+            </div>
+          ) : null}
         </div>
 
         {!tab ? (
@@ -112,29 +124,29 @@ function DashboardAdminContent() {
             <AdminPastaNav onSelect={setTab} />
           </div>
         ) : (
-          <>
-            <div className="-mx-3 bg-white px-3 sm:-mx-4 sm:px-4">
-              <AdminSubabasRail tab={tab} sub={sub} />
-            </div>
-
-            <div className="mt-6">
-              {tab === 'visao-geral' ? (
-                <VisaoGeralContainer sub={sub} />
-              ) : tab === 'cadastros' ? (
-                <VerificacaoContainer sub={sub} />
-              ) : tab === 'denuncias' ? (
-                <DenunciasContainer sub={sub} />
-              ) : tab === 'espaco-adm' ? (
-                <EspacoAdmContainer sub={sub} />
-              ) : (
-                <ConfiguracoesContainer sub={sub} />
-              )}
-            </div>
-          </>
+          <div className="mt-4">
+            {tab === 'visao-geral' ? (
+              <VisaoGeralConteudo />
+            ) : tab === 'cadastros' ? (
+              <VerificacaoContainer sub={sub} />
+            ) : tab === 'denuncias' ? (
+              <DenunciasContainer sub={sub} />
+            ) : tab === 'espaco-adm' ? (
+              <EspacoAdmContainer sub={sub} />
+            ) : (
+              <ConfiguracoesContainer sub={sub} />
+            )}
+          </div>
         )}
       </div>
     </DenunciasToolbarProvider>
   )
+
+  if (tab === 'visao-geral') {
+    return <VisaoGeralProvider>{shell}</VisaoGeralProvider>
+  }
+
+  return shell
 }
 
 export default function DashboardAdminPage() {

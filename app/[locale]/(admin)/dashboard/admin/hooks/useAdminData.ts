@@ -2,10 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import {
+  agregarAtendimentosPorCategoria,
+  agregarProfissionaisPorCategoria,
+  agregarProfissionaisPorCidade,
+  type AtendimentoMobilidadeRow,
+} from '@/lib/mobilidadeRegional'
 import type {
-  DadoAtivo,
   DadoBarras,
   DadoCrescimento,
+  DadoPizzaSegmento,
   DadoRosca,
   DadosTopoCards,
   FiltrosVisaoGeral,
@@ -16,14 +22,14 @@ import { calcVariacaoPercentual, getMesLabel, getPeriodoDate, topN } from '../ut
 type UseAdminDataReturn = {
   topoCards: DadosTopoCards | null
   crescimento: DadoCrescimento[] | null
-  ativos: DadoAtivo[] | null
+  ativos: DadoPizzaSegmento[] | null
   novosCadastros: DadoRosca | null
-  servicosMaisUsados: DadoBarras[] | null
-  maisUsadosGuia: DadoBarras[] | null
-  profissionaisCidade: DadoBarras[] | null
-  profissionaisCategoria: DadoBarras[] | null
-  empresasCidade: DadoBarras[] | null
-  empresasSegmento: DadoBarras[] | null
+  seguimentosGuia: DadoBarras[] | null
+  mobilidadeCategorias: DadoBarras[] | null
+  profissionaisPorCategoria: DadoPizzaSegmento[] | null
+  profissionaisPorCidade: DadoPizzaSegmento[] | null
+  empresasCidade: DadoPizzaSegmento[] | null
+  empresasSegmento: DadoPizzaSegmento[] | null
   loading: boolean
   error: Error | null
   refetch: () => void
@@ -36,20 +42,20 @@ const emptyData: DataState = {
   crescimento: null,
   ativos: null,
   novosCadastros: null,
-  servicosMaisUsados: null,
-  maisUsadosGuia: null,
-  profissionaisCidade: null,
-  profissionaisCategoria: null,
+  seguimentosGuia: null,
+  mobilidadeCategorias: null,
+  profissionaisPorCategoria: null,
+  profissionaisPorCidade: null,
   empresasCidade: null,
   empresasSegmento: null,
 }
 
+const CORES_PIZZA_PADRAO = ['#0097b2', '#00D443', '#F1C40F', '#E74C3C', '#9B59B6', '#3498DB', '#E67E22', '#1ABC9C']
+const CORES_ATIVOS_FAIXA = ['#0097b2', '#00D443', '#F1C40F']
+
 type CreatedAtRow = { created_at: string | null }
 type CategoriaRow = { categoria: string | null }
 type CidadeRow = { cidade: string | null }
-type ProfCategoriasRow = { categorias: string[] | null }
-type ProfCidadeAtuacaoRow = { cidade_atuacao: string[] | null }
-type LogServicoRow = { servico: string | null }
 type LogCategoriaRow = { categoria: string | null }
 
 /** Quando `loadTopoCards` é false (padrão), não busca totais — em `TopoCards` passe `{ loadTopoCards: true }` para evitar pedidos duplicados ao trocar subabas na Visão Geral. */
@@ -84,23 +90,23 @@ export function useAdminData(
         crescimento,
         ativos,
         novosCadastros,
-        servicosMaisUsados,
-        maisUsadosGuia,
-        profissionaisCidade,
-        profissionaisCategoria,
+        seguimentosGuia,
+        mobilidadeCategorias,
+        profissionaisPorCategoria,
+        profissionaisPorCidade,
         empresasCidade,
         empresasSegmento,
       ] = await Promise.all([
         loadTopoCards ? fetchTopoCards() : Promise.resolve(null),
         fetchCrescimento(perfil, f),
-        fetchAtivos(perfil),
+        fetchAtivosFaixas(perfil),
         fetchNovosCadastros(perfil),
-        perfil === 'turistas' ? fetchServicosMaisUsados(f) : Promise.resolve(null),
-        perfil === 'turistas' ? fetchMaisUsadosGuia(f) : Promise.resolve(null),
-        perfil === 'profissionais' ? fetchProfissionaisCidade() : Promise.resolve(null),
-        perfil === 'profissionais' ? fetchProfissionaisCategoria() : Promise.resolve(null),
-        perfil === 'empresas' ? fetchEmpresasCidade() : Promise.resolve(null),
-        perfil === 'empresas' ? fetchEmpresasSegmento() : Promise.resolve(null),
+        perfil === 'turistas' ? fetchSeguimentosGuia(f) : Promise.resolve(null),
+        perfil === 'turistas' ? fetchMobilidadeCategorias(f) : Promise.resolve(null),
+        perfil === 'profissionais' ? fetchProfissionaisDistribuicaoCategoria() : Promise.resolve(null),
+        perfil === 'profissionais' ? fetchProfissionaisDistribuicaoCidade() : Promise.resolve(null),
+        perfil === 'empresas' ? fetchEmpresasDistribuicaoCidade() : Promise.resolve(null),
+        perfil === 'empresas' ? fetchEmpresasDistribuicaoSegmento() : Promise.resolve(null),
       ])
 
       if (myGen !== fetchGenerationRef.current) return
@@ -110,10 +116,10 @@ export function useAdminData(
         crescimento,
         ativos,
         novosCadastros,
-        servicosMaisUsados,
-        maisUsadosGuia,
-        profissionaisCidade,
-        profissionaisCategoria,
+        seguimentosGuia,
+        mobilidadeCategorias,
+        profissionaisPorCategoria,
+        profissionaisPorCidade,
         empresasCidade,
         empresasSegmento,
       })
@@ -192,28 +198,53 @@ async function fetchCrescimento(perfil: PerfilVisaoGeral, filtros: FiltrosVisaoG
   return groupByMonth(((data ?? []) as CreatedAtRow[]).map((r) => r.created_at).filter((v): v is string => Boolean(v)))
 }
 
-async function fetchAtivos(perfil: PerfilVisaoGeral): Promise<DadoAtivo[]> {
-  // Proxy temporario: sem last_active_at no schema atual, usamos recencia de created_at.
-  const limite = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+function contarFaixasAtividade(rows: CreatedAtRow[]): DadoPizzaSegmento[] {
+  const now = Date.now()
+  const ms24 = 24 * 60 * 60 * 1000
+  const ms48 = 48 * 60 * 60 * 1000
+  const ms72 = 72 * 60 * 60 * 1000
+
+  let faixa24 = 0
+  let faixa48 = 0
+  let faixa72 = 0
+
+  for (const row of rows) {
+    const iso = row.created_at
+    if (!iso) continue
+    const t = new Date(iso).getTime()
+    if (Number.isNaN(t)) continue
+    const diff = now - t
+    if (diff <= ms24) faixa24 += 1
+    else if (diff <= ms48) faixa48 += 1
+    else if (diff <= ms72) faixa72 += 1
+  }
+
+  const faixas = [
+    { label: '24 horas', valor: faixa24 },
+    { label: '48 horas', valor: faixa48 },
+    { label: '72 horas', valor: faixa72 },
+  ]
+  const total = faixas.reduce((s, f) => s + f.valor, 0)
+
+  return faixas.map((f, i) => ({
+    ...f,
+    percentual: total > 0 ? (f.valor / total) * 100 : 0,
+    cor: CORES_ATIVOS_FAIXA[i],
+  }))
+}
+
+async function fetchAtivosFaixas(perfil: PerfilVisaoGeral): Promise<DadoPizzaSegmento[]> {
+  // Proxy: sem last_active_at no schema atual, usamos recência de created_at em faixas exclusivas.
   if (perfil === 'empresas') {
     const { data, error } = await supabase.from('empresas').select('created_at')
     if (error) throw error
-    const base = (data ?? []) as CreatedAtRow[]
-    const ativos = base.filter((r) => (r.created_at ?? '') >= limite).length
-    return [
-      { status: 'ativo', total: ativos },
-      { status: 'offline', total: Math.max(base.length - ativos, 0) },
-    ]
+    return contarFaixasAtividade((data ?? []) as CreatedAtRow[])
   }
+
   const role = perfil === 'turistas' ? 'turista' : 'profissional'
   const { data, error } = await supabase.from('usuarios').select('created_at').eq('role', role)
   if (error) throw error
-  const base = (data ?? []) as CreatedAtRow[]
-  const ativos = base.filter((r) => (r.created_at ?? '') >= limite).length
-  return [
-    { status: 'ativo', total: ativos },
-    { status: 'offline', total: Math.max(base.length - ativos, 0) },
-  ]
+  return contarFaixasAtividade((data ?? []) as CreatedAtRow[])
 }
 
 async function fetchNovosCadastros(perfil: PerfilVisaoGeral): Promise<DadoRosca> {
@@ -238,39 +269,51 @@ async function fetchNovosCadastros(perfil: PerfilVisaoGeral): Promise<DadoRosca>
   return { atual, anterior, variacao: calcVariacaoPercentual(atual, anterior) }
 }
 
-async function fetchServicosMaisUsados(filtros: FiltrosVisaoGeral): Promise<DadoBarras[]> {
-  // TODO: substituir fallback quando logs_acessos estiver populada em produção.
+async function fetchMobilidadeCategorias(filtros: FiltrosVisaoGeral): Promise<DadoBarras[]> {
   const since = getPeriodoDate(filtros.periodo)
-  const { data: logs, error } = await supabase
-    .from('logs_acessos')
-    .select('servico')
+  const selectCompleto = `
+    created_at,
+    status,
+    profissionais:profissional_id (categoria, categorias)
+  `
+  const { data, error } = await supabase
+    .from('solicitacao_mobilidade')
+    .select(selectCompleto)
     .gte('created_at', since.toISOString())
 
-  if (!error && logs && logs.length > 0) {
-    const map = new Map<string, number>()
-    for (const row of logs as LogServicoRow[]) {
-      const servico = String(row.servico ?? '')
-      if (!servico) continue
-      map.set(servico, (map.get(servico) ?? 0) + 1)
+  if (!error && data && data.length > 0) {
+    const rows: AtendimentoMobilidadeRow[] = []
+    for (const row of data as Record<string, unknown>[]) {
+      const prof = row.profissionais
+      const profObj = prof && typeof prof === 'object' && !Array.isArray(prof) ? (prof as Record<string, unknown>) : null
+      const categoria =
+        (profObj?.categoria != null ? String(profObj.categoria) : '') ||
+        (Array.isArray(profObj?.categorias) ? String((profObj.categorias as unknown[])[0] ?? '') : '') ||
+        'outros'
+      rows.push({
+        categoria,
+        cidades: [],
+        createdAt: row.created_at != null ? String(row.created_at) : '',
+        status: row.status != null ? String(row.status) : '',
+      })
     }
+    const agg = agregarAtendimentosPorCategoria(rows)
     return topN(
-      Array.from(map.entries()).map(([key, total]) => ({
-        label: getLabelServico(key),
-        total,
-      })),
-      8
+      agg.map((item) => ({ label: item.label, total: item.valor })),
+      8,
     )
   }
 
   return [
-    { label: 'Mobilidade', total: 0 },
-    { label: 'Rede Social', total: 0 },
-    { label: 'Guia', total: 0 },
-    { label: 'Compras', total: 0 },
+    { label: 'Motoristas de App', total: 0 },
+    { label: 'Motoristas de Van', total: 0 },
+    { label: 'Taxistas', total: 0 },
+    { label: 'Guias de Turismo', total: 0 },
+    { label: 'Anfitriões', total: 0 },
   ]
 }
 
-async function fetchMaisUsadosGuia(filtros: FiltrosVisaoGeral): Promise<DadoBarras[]> {
+async function fetchSeguimentosGuia(filtros: FiltrosVisaoGeral): Promise<DadoBarras[]> {
   // TODO: substituir fallback quando logs_cliques_categoria estiver populada em produção.
   const since = getPeriodoDate(filtros.periodo)
   const { data: logs, error } = await supabase
@@ -302,69 +345,60 @@ async function fetchMaisUsadosGuia(filtros: FiltrosVisaoGeral): Promise<DadoBarr
   ]
 }
 
-async function fetchProfissionaisCidade(): Promise<DadoBarras[]> {
-  // TODO: quando cidade_atuacao estiver em todos os registros, remover fallback zerado.
-  const { data, error } = await supabase.from('profissionais').select('cidade_atuacao')
-  if (!error && data && data.length > 0) {
-    const map = new Map<string, number>()
-    let hasCidadeAtuacao = false
-
-    for (const row of data as ProfCidadeAtuacaoRow[]) {
-      const cidades = row.cidade_atuacao
-      if (Array.isArray(cidades) && cidades.length > 0) {
-        hasCidadeAtuacao = true
-        for (const cidade of cidades) {
-          const label = String(cidade)
-          if (!label) continue
-          map.set(label, (map.get(label) ?? 0) + 1)
-        }
-      }
-    }
-
-    if (hasCidadeAtuacao && map.size > 0) {
-      return topN(Array.from(map.entries()).map(([label, total]) => ({ label, total })), 8)
-    }
-  }
-
-  return [
-    { label: 'Foz do Iguacu', total: 0 },
-    { label: 'Ciudad del Este', total: 0 },
-    { label: 'Puerto Iguazu', total: 0 },
-  ]
+function barrasParaPizza(dados: DadoBarras[]): DadoPizzaSegmento[] {
+  const total = dados.reduce((s, d) => s + d.total, 0)
+  return dados.map((d, i) => ({
+    label: d.label,
+    valor: d.total,
+    percentual: total > 0 ? (d.total / total) * 100 : 0,
+    cor: CORES_PIZZA_PADRAO[i % CORES_PIZZA_PADRAO.length],
+  }))
 }
 
-async function fetchProfissionaisCategoria(): Promise<DadoBarras[]> {
-  const { data, error } = await supabase.from('profissionais').select('categorias')
+async function fetchProfissionaisMobilidadeRows() {
+  const { data, error } = await supabase
+    .from('profissionais')
+    .select('categorias, cidade_atuacao, usuarios!profissionais_usuario_id_fkey(role)')
+    .eq('usuarios.role', 'profissional')
+  if (error) throw error
+  return (data ?? []).map((r) => {
+    const row = r as Record<string, unknown>
+    return { categorias: row.categorias, cidade_atuacao: row.cidade_atuacao }
+  })
+}
+
+async function fetchProfissionaisDistribuicaoCategoria(): Promise<DadoPizzaSegmento[]> {
+  const rows = await fetchProfissionaisMobilidadeRows()
+  return agregarProfissionaisPorCategoria(rows).map((item) => ({
+    label: item.label,
+    valor: item.valor,
+    percentual: item.percentual,
+    cor: item.cor,
+  }))
+}
+
+async function fetchProfissionaisDistribuicaoCidade(): Promise<DadoPizzaSegmento[]> {
+  const rows = await fetchProfissionaisMobilidadeRows()
+  return agregarProfissionaisPorCidade(rows).map((item) => ({
+    label: item.label,
+    valor: item.valor,
+    percentual: item.percentual,
+    cor: item.cor,
+  }))
+}
+
+async function fetchEmpresasDistribuicaoCidade(): Promise<DadoPizzaSegmento[]> {
+  const { data, error } = await supabase.from('empresas').select('cidade')
   if (error) throw error
   const map = new Map<string, number>()
-  for (const row of (data ?? []) as ProfCategoriasRow[]) {
-    const categorias = Array.isArray(row.categorias) ? row.categorias : []
-    for (const c of categorias) {
-      const key = String(c)
-      map.set(key, (map.get(key) ?? 0) + 1)
-    }
-  }
-  return topN(Array.from(map.entries()).map(([label, total]) => ({ label, total })), 8)
-}
-
-async function fetchEmpresasCidade(): Promise<DadoBarras[]> {
-  const { data, error } = await supabase.from('empresas').select('cidade')
-  if (error || !data || data.length === 0) {
-    return [
-      { label: 'Foz do Iguacu', total: 0 },
-      { label: 'Ciudad del Este', total: 0 },
-      { label: 'Puerto Iguazu', total: 0 },
-    ]
-  }
-  const map = new Map<string, number>()
-  for (const row of data as CidadeRow[]) {
+  for (const row of (data ?? []) as CidadeRow[]) {
     const key = String(row.cidade ?? 'Sem cidade')
     map.set(key, (map.get(key) ?? 0) + 1)
   }
-  return topN(Array.from(map.entries()).map(([label, total]) => ({ label, total })), 8)
+  return barrasParaPizza(topN(Array.from(map.entries()).map(([label, total]) => ({ label, total })), 8))
 }
 
-async function fetchEmpresasSegmento(): Promise<DadoBarras[]> {
+async function fetchEmpresasDistribuicaoSegmento(): Promise<DadoPizzaSegmento[]> {
   const { data, error } = await supabase.from('empresas').select('categoria')
   if (error) throw error
   const map = new Map<string, number>()
@@ -372,7 +406,7 @@ async function fetchEmpresasSegmento(): Promise<DadoBarras[]> {
     const key = String(row.categoria ?? 'Sem categoria')
     map.set(key, (map.get(key) ?? 0) + 1)
   }
-  return topN(Array.from(map.entries()).map(([label, total]) => ({ label, total })), 8)
+  return barrasParaPizza(topN(Array.from(map.entries()).map(([label, total]) => ({ label, total })), 8))
 }
 
 async function countEmpresas(fromDate?: Date, toDate?: Date): Promise<number> {
@@ -408,16 +442,6 @@ function groupByMonth(createdAts: string[]): DadoCrescimento[] {
       mes: getMesLabel(`${key}-01T00:00:00.000Z`),
       total,
     }))
-}
-
-function getLabelServico(servico: string): string {
-  const labels: Record<string, string> = {
-    mobilidade: 'Mobilidade',
-    rede_social: 'Rede Social',
-    guia: 'Guia',
-    compras: 'Compras',
-  }
-  return labels[servico] ?? servico
 }
 
 function getLabelCategoriaGuia(categoria: string): string {

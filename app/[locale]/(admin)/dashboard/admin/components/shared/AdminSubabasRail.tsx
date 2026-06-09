@@ -3,7 +3,6 @@
 import { useMemo, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { AbaPrincipalId } from './AbasNavegacao'
-import { SubabasVisaoNav, type VisaoSubabaId } from '../visao-geral/SubabasVisaoNav'
 import { SubabasVerificacao, type VerificacaoSubabaId } from '../verificacao/SubabasVerificacao'
 import SubabasDenuncias from '../denuncias/SubabasDenuncias'
 import { SubabasEspaco, type EspacoSubabaId } from '../espaco-adm/SubabasEspaco'
@@ -13,11 +12,6 @@ import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { isAdmGeral } from '../../utils/permissoes'
 import { useDenunciasToolbar } from '../../context/DenunciasToolbarContext'
 import { usePermissao } from '../../hooks/usePermissao'
-
-function coerceVisaoSub(sub: string): VisaoSubabaId {
-  if (sub === 'profissionais' || sub === 'empresas') return sub
-  return 'turistas'
-}
 
 function coerceVerificacaoSub(sub: string): VerificacaoSubabaId {
   if (sub === 'profissionais' || sub === 'empresas') return sub
@@ -101,8 +95,7 @@ export function AdminSubabasRail({ tab, sub }: { tab: AbaPrincipalId; sub: strin
 
   switch (tab) {
     case 'visao-geral':
-      inner = <SubabasVisaoNav value={coerceVisaoSub(sub)} />
-      break
+      return null
     case 'cadastros':
       inner = <CadastrosSubNav sub={sub} />
       meta = metaCadastros

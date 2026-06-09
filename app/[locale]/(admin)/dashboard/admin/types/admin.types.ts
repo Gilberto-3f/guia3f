@@ -54,6 +54,13 @@ export type DadoAtivo = {
   total: number
 }
 
+export type DadoPizzaSegmento = {
+  label: string
+  valor: number
+  percentual: number
+  cor?: string
+}
+
 export type DadoRosca = {
   atual: number
   anterior: number
