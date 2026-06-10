@@ -54,3 +54,30 @@ export function collectBotoesDocumentos(
 export function urlsDeBotoes(botoes: DocBotao[]): string[] {
   return botoes.flatMap((b) => b.paginas.map((p) => p.url)).filter((u) => u.trim())
 }
+
+export type DocPaginaExibicao = { key: string; titulo: string; url: string }
+
+/** Lista plana de anexos com título para exibição inline no card. */
+export function collectPaginasDocumentos(
+  tipo: 'turistas' | 'profissionais' | 'empresas',
+  raw: Record<string, unknown>,
+): DocPaginaExibicao[] {
+  const botoes = collectBotoesDocumentos(tipo, raw)
+  const out: DocPaginaExibicao[] = []
+  for (const botao of botoes) {
+    for (const pagina of botao.paginas) {
+      const titulo =
+        botao.paginas.length > 1 ? `${botao.label} — ${pagina.label}` : botao.label
+      out.push({
+        key: `${botao.key}-${pagina.url}`,
+        titulo,
+        url: pagina.url,
+      })
+    }
+  }
+  return out
+}
+
+export function urlsDePaginas(paginas: DocPaginaExibicao[]): string[] {
+  return paginas.map((p) => p.url).filter((u) => u.trim())
+}
