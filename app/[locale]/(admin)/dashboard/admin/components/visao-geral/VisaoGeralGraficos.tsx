@@ -9,12 +9,6 @@ import { GraficoBarras } from './GraficoBarras'
 import GraficoPizzaMercado from '@/app/[locale]/(app-shell)/dashboard/empresa/components/estatisticas-mercado/GraficoPizza'
 import OtimizacaoMotorBuscaPainel from '@/app/[locale]/(app-shell)/dashboard/empresa/components/estatisticas-mercado/OtimizacaoMotorBuscaPainel'
 
-const TITULOS_PERFIL: Record<PerfilVisaoGeral, string> = {
-  turistas: 'Turistas',
-  profissionais: 'Profissionais',
-  empresas: 'Empresas',
-}
-
 type SecaoId =
   | 'crescimento'
   | 'ativos'
@@ -27,12 +21,12 @@ type SecaoId =
 
 function secoesPorPerfil(perfil: PerfilVisaoGeral): SecaoId[] {
   if (perfil === 'turistas') {
-    return ['crescimento', 'ativos', 'seguimentos', 'mobilidade']
+    return ['ativos', 'seguimentos', 'mobilidade', 'crescimento']
   }
   if (perfil === 'profissionais') {
-    return ['crescimento', 'ativos', 'prof-categoria', 'prof-cidade']
+    return ['ativos', 'prof-categoria', 'prof-cidade', 'crescimento']
   }
-  return ['crescimento', 'ativos', 'emp-segmento', 'emp-cidade']
+  return ['ativos', 'emp-segmento', 'emp-cidade', 'crescimento']
 }
 
 const TITULOS_SECAO: Record<SecaoId, string> = {
@@ -56,11 +50,11 @@ export function VisaoGeralGraficos({
   const ids = useMemo(() => secoesPorPerfil(perfil), [perfil])
 
   const [abertos, setAbertos] = useState<Record<SecaoId, boolean>>(() =>
-    Object.fromEntries(ids.map((id) => [id, true])) as Record<SecaoId, boolean>,
+    Object.fromEntries(ids.map((id) => [id, false])) as Record<SecaoId, boolean>,
   )
 
   useEffect(() => {
-    setAbertos(Object.fromEntries(ids.map((id) => [id, true])) as Record<SecaoId, boolean>)
+    setAbertos(Object.fromEntries(ids.map((id) => [id, false])) as Record<SecaoId, boolean>)
   }, [ids])
 
   const toggle = useCallback((id: SecaoId) => {
@@ -79,8 +73,6 @@ export function VisaoGeralGraficos({
     loading,
     error,
   } = useAdminData(perfil, filtros)
-
-  const tituloPerfil = TITULOS_PERFIL[perfil]
 
   function renderConteudo(id: SecaoId) {
     switch (id) {
@@ -164,10 +156,6 @@ export function VisaoGeralGraficos({
           Não foi possível carregar os dados da Visão Geral. Tente novamente em instantes.
         </div>
       ) : null}
-
-      <h2 className="text-center text-lg font-bold uppercase tracking-wide text-[#0097b2] sm:text-xl">
-        {tituloPerfil}
-      </h2>
 
       <div className="space-y-3">
         {ids.map((id) => (
