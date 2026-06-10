@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useId, useState } from 'react'
 import { Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useDocumentoDisponivel } from '@/hooks/useDocumentoDisponivel'
+import { documentoIdentidadeValido } from '@/lib/documentoIdentidade'
+import { MSG_VERIFICACAO_PENDENTE } from '@/lib/mensagemVerificacaoDocumentos'
 
 const MAX_BYTES = 5 * 1024 * 1024
 const ACCEPT = 'image/jpeg,image/png,application/pdf'
@@ -107,7 +110,10 @@ export default function AnexarDocumentosEmpresa({
   const [urlComercial, setUrlComercial] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
-  const [okMsg, setOkMsg] = useState('')
+  const [mensagemVerificacao, setMensagemVerificacao] = useState('')
+
+  const { documentoLimpo, status: documentoStatus, feedback: documentoFeedback } =
+    useDocumentoDisponivel(documentoFiscal, usuarioId, { tipo: 'fiscal', empresaId })
 
   useEffect(() => {
     if (!empresaId) return
@@ -115,7 +121,9 @@ export default function AnexarDocumentosEmpresa({
     void (async () => {
       const { data } = await supabase
         .from('empresas')
-        .select('nome_fantasia, documento_fiscal, comprovante_residencia_url, documento_comercial_url')
+        .select(
+          'nome_fantasia, documento_fiscal, comprovante_residencia_url, documento_comercial_url, documentos_enviados_em, docs_verificado, status',
+        )
         .eq('id', empresaId)
         .maybeSingle()
       if (!ativo || !data) return
@@ -127,6 +135,13 @@ export default function AnexarDocumentosEmpresa({
       if (fiscal) setDocumentoFiscal(fiscal)
       setUrlEndereco(String(data.comprovante_residencia_url ?? '').trim())
       setUrlComercial(String(data.documento_comercial_url ?? '').trim())
+
+      const docsEnviados = Boolean(String(data.documentos_enviados_em ?? '').trim())
+      const docsVerificado = Boolean(data.docs_verificado)
+      const status = String(data.status ?? '').toLowerCase()
+      if (docsEnviados && !docsVerificado && status !== 'aprovado' && status !== 'ativo') {
+        setMensagemVerificacao(MSG_VERIFICACAO_PENDENTE)
+      }
     })()
     return () => {
       ativo = false
@@ -137,7 +152,6 @@ export default function AnexarDocumentosEmpresa({
     (setter) =>
     /** @param {File | null} f */ (f) => {
       setErro('')
-      setOkMsg('')
       if (!f) {
         setter(null)
         return
@@ -153,7 +167,6 @@ export default function AnexarDocumentosEmpresa({
 
   const enviar = useCallback(async () => {
     setErro('')
-    setOkMsg('')
     if (!usuarioId || !empresaId) {
       setErro('Sessão inválida.')
       return
@@ -162,8 +175,16 @@ export default function AnexarDocumentosEmpresa({
       setErro('Informe o nome fantasia.')
       return
     }
-    if (!documentoFiscal.trim()) {
-      setErro('Informe o CNPJ, RUC ou CUIT.')
+    if (!documentoIdentidadeValido(documentoLimpo)) {
+      setErro('Informe o CNPJ, RUC ou CUIT (documento fiscal da empresa).')
+      return
+    }
+    if (documentoStatus !== 'available') {
+      setErro(
+        documentoStatus === 'checking'
+          ? 'Aguarde a verificação do documento fiscal.'
+          : documentoFeedback || 'Este documento fiscal já está vinculado a outra empresa.',
+      )
       return
     }
     if (!endereco || !comercial) {
@@ -190,7 +211,7 @@ export default function AnexarDocumentosEmpresa({
         .from('empresas')
         .update({
           nome_fantasia: nomeFantasia.trim(),
-          documento_fiscal: documentoFiscal.trim(),
+          documento_fiscal: documentoLimpo,
           comprovante_residencia_url: uEndereco,
           documento_comercial_url: uComercial,
           documentos_enviados_em: agora,
@@ -213,7 +234,7 @@ export default function AnexarDocumentosEmpresa({
       setEndereco(null)
       setComercial(null)
 
-      setOkMsg('Documentos enviados com sucesso! Aguarde a análise do administrador.')
+      setMensagemVerificacao(MSG_VERIFICACAO_PENDENTE)
       try {
         window.dispatchEvent(new Event('perfil-atualizado'))
         window.dispatchEvent(new Event('empresa-gate-refresh'))
@@ -226,7 +247,17 @@ export default function AnexarDocumentosEmpresa({
     } finally {
       setEnviando(false)
     }
-  }, [usuarioId, empresaId, nomeFantasia, documentoFiscal, endereco, comercial, onConcluido])
+  }, [
+    usuarioId,
+    empresaId,
+    nomeFantasia,
+    documentoLimpo,
+    documentoStatus,
+    documentoFeedback,
+    endereco,
+    comercial,
+    onConcluido,
+  ])
 
   const inputTextoCls =
     'mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none focus:border-[#0097b2] focus:ring-1 focus:ring-[#0097b2]'
@@ -236,9 +267,6 @@ export default function AnexarDocumentosEmpresa({
       <h2 className="text-lg font-bold text-[#001f3f]">Anexar documentos</h2>
 
       {erro ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{erro}</div> : null}
-      {okMsg ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{okMsg}</div>
-      ) : null}
 
       <div className="space-y-4">
         <label className="block">
@@ -257,10 +285,32 @@ export default function AnexarDocumentosEmpresa({
           <input
             type="text"
             value={documentoFiscal}
-            onChange={(e) => setDocumentoFiscal(e.target.value)}
+            onChange={(e) => {
+              setErro('')
+              setDocumentoFiscal(e.target.value)
+            }}
             placeholder="Documento fiscal da empresa"
             className={inputTextoCls}
           />
+          {documentoFeedback ? (
+            <p
+              className={`mt-1 text-xs ${
+                documentoStatus === 'available'
+                  ? 'text-emerald-700'
+                  : documentoStatus === 'checking'
+                    ? 'text-gray-600'
+                    : documentoStatus === 'unavailable'
+                      ? 'text-rose-700'
+                      : 'text-gray-600'
+              }`}
+            >
+              {documentoFeedback}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500">
+              Cada documento fiscal pode ser vinculado a apenas uma empresa no sistema.
+            </p>
+          )}
         </label>
 
         <CampoArquivo
@@ -286,6 +336,12 @@ export default function AnexarDocumentosEmpresa({
       >
         {enviando ? 'Enviando…' : 'ENVIAR PARA ANÁLISE'}
       </button>
+
+      {mensagemVerificacao ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm leading-relaxed text-emerald-800">
+          {mensagemVerificacao}
+        </div>
+      ) : null}
     </div>
   )
 }

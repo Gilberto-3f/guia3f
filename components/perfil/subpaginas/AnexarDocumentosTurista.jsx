@@ -4,6 +4,9 @@ import { useCallback, useEffect, useId, useState } from 'react'
 import { Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
+import { useDocumentoDisponivel } from '@/hooks/useDocumentoDisponivel'
+import { documentoIdentidadeValido } from '@/lib/documentoIdentidade'
+import { MSG_VERIFICACAO_PENDENTE } from '@/lib/mensagemVerificacaoDocumentos'
 
 const MAX_BYTES = 5 * 1024 * 1024
 const ACCEPT = 'image/jpeg,image/png,application/pdf'
@@ -51,14 +54,18 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
   const t = useTranslations('Cadastro.turista')
   const [nomeCompleto, setNomeCompleto] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
+  const [numeroDocumento, setNumeroDocumento] = useState('')
   const [documentoFrente, setDocumentoFrente] = useState(/** @type {File | null} */ (null))
   const [documentoVerso, setDocumentoVerso] = useState(/** @type {File | null} */ (null))
   const [urlFrente, setUrlFrente] = useState('')
   const [urlVerso, setUrlVerso] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
-  const [okMsg, setOkMsg] = useState('')
+  const [mensagemVerificacao, setMensagemVerificacao] = useState('')
   const [modalDocumentoAberto, setModalDocumentoAberto] = useState(false)
+
+  const { documentoLimpo, status: documentoStatus, feedback: documentoFeedback } =
+    useDocumentoDisponivel(numeroDocumento, usuarioId)
 
   useEffect(() => {
     if (!usuarioId) return
@@ -66,21 +73,32 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
     void (async () => {
       const res = await supabase
         .from('turistas')
-        .select('nome_completo, whatsapp, documento_frente_url, documento_verso_url')
+        .select(
+          'nome_completo, whatsapp, documento_identidade, documento_frente_url, documento_verso_url, status, docs_verificado, documentos_enviados_em',
+        )
         .eq('usuario_id', usuarioId)
         .maybeSingle()
 
       if (res.error) {
         const fallback = await supabase
           .from('turistas')
-          .select('nome_completo, documento_frente_url, documento_verso_url')
+          .select(
+            'nome_completo, documento_identidade, documento_frente_url, documento_verso_url, status, docs_verificado',
+          )
           .eq('usuario_id', usuarioId)
           .maybeSingle()
         if (!ativo || !fallback.data) return
         const data = fallback.data
         setNomeCompleto(String(data.nome_completo ?? '').trim())
+        setNumeroDocumento(String(data.documento_identidade ?? '').trim())
         setUrlFrente(String(data.documento_frente_url ?? '').trim())
         setUrlVerso(String(data.documento_verso_url ?? '').trim())
+        const temDocs = Boolean(data.documento_frente_url && data.documento_verso_url)
+        const docsVerificado = Boolean(data.docs_verificado)
+        const status = String(data.status ?? '').toLowerCase()
+        if (temDocs && !docsVerificado && status !== 'aprovado' && status !== 'ativo') {
+          setMensagemVerificacao(MSG_VERIFICACAO_PENDENTE)
+        }
         return
       }
 
@@ -88,8 +106,17 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
       const data = res.data
       setNomeCompleto(String(data.nome_completo ?? '').trim())
       setWhatsapp(String(data.whatsapp ?? '').trim())
+      setNumeroDocumento(String(data.documento_identidade ?? '').trim())
       setUrlFrente(String(data.documento_frente_url ?? '').trim())
       setUrlVerso(String(data.documento_verso_url ?? '').trim())
+
+      const docsEnviados = Boolean(String(data.documentos_enviados_em ?? '').trim())
+      const temDocs = Boolean(data.documento_frente_url && data.documento_verso_url)
+      const docsVerificado = Boolean(data.docs_verificado)
+      const status = String(data.status ?? '').toLowerCase()
+      if ((docsEnviados || temDocs) && !docsVerificado && status !== 'aprovado' && status !== 'ativo') {
+        setMensagemVerificacao(MSG_VERIFICACAO_PENDENTE)
+      }
     })()
     return () => {
       ativo = false
@@ -101,7 +128,6 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
     /** @param {File | null} f */
     (f) => {
       setErro('')
-      setOkMsg('')
       if (!f) {
         setter(null)
         return
@@ -117,7 +143,6 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
 
   const enviar = useCallback(async () => {
     setErro('')
-    setOkMsg('')
     if (!usuarioId) {
       setErro('Sessão inválida.')
       return
@@ -130,6 +155,18 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
     }
     if (!wa) {
       setErro('Informe o WhatsApp.')
+      return
+    }
+    if (!documentoIdentidadeValido(documentoLimpo)) {
+      setErro('Informe o número do documento de identidade (mesmo da foto anexada).')
+      return
+    }
+    if (documentoStatus !== 'available') {
+      setErro(
+        documentoStatus === 'checking'
+          ? 'Aguarde a verificação do número do documento.'
+          : documentoFeedback || 'Este documento já está vinculado a outra conta.',
+      )
       return
     }
     if (!documentoFrente || !documentoVerso) {
@@ -154,12 +191,16 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
         uploadTuristaDoc(documentoVerso, usuarioId, 'verso'),
       ])
 
+      const agora = new Date().toISOString()
       const payload = {
         nome_completo: nome,
         whatsapp: wa,
+        documento_identidade: documentoLimpo,
         documento_frente_url: uFrente,
         documento_verso_url: uVerso,
-        status: 'pre_aprovado',
+        documentos_enviados_em: agora,
+        status: 'aguardando_analise',
+        docs_verificado: false,
       }
 
       let up = await supabase.from('turistas').update(payload).eq('usuario_id', usuarioId)
@@ -168,9 +209,16 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
         const { whatsapp: _w, ...rest } = payload
         up = await supabase.from('turistas').update(rest).eq('usuario_id', usuarioId)
       }
+      if (up.error && up.error.message.toLowerCase().includes('documentos_enviados_em')) {
+        const { documentos_enviados_em: _d, ...rest } = payload
+        up = await supabase.from('turistas').update(rest).eq('usuario_id', usuarioId)
+      }
       if (up.error && up.error.message.toLowerCase().includes('status')) {
         const { status: _s, ...rest } = payload
         up = await supabase.from('turistas').update(rest).eq('usuario_id', usuarioId)
+      }
+      if (up.error && up.error.message.toLowerCase().includes('documento_identidade')) {
+        throw new Error('Este documento já está vinculado a outra conta.')
       }
 
       if (up.error) throw new Error(up.error.message)
@@ -179,7 +227,7 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
       setUrlVerso(uVerso)
       setDocumentoFrente(null)
       setDocumentoVerso(null)
-      setOkMsg('Documentos enviados com sucesso! Aguarde a análise do administrador.')
+      setMensagemVerificacao(MSG_VERIFICACAO_PENDENTE)
       try {
         window.dispatchEvent(new CustomEvent('turista-gate-refresh'))
         window.dispatchEvent(new CustomEvent('perfil-atualizado'))
@@ -192,7 +240,17 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
     } finally {
       setEnviando(false)
     }
-  }, [usuarioId, nomeCompleto, whatsapp, documentoFrente, documentoVerso, onConcluido])
+  }, [
+    usuarioId,
+    nomeCompleto,
+    whatsapp,
+    documentoLimpo,
+    documentoStatus,
+    documentoFeedback,
+    documentoFrente,
+    documentoVerso,
+    onConcluido,
+  ])
 
   /**
    * @param {{ label: string, file: File | null, onChange: (f: File | null) => void, jaAnexado?: boolean }} props
@@ -234,7 +292,6 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
       <h2 className="text-lg font-bold text-[#001f3f]">Anexar documentos</h2>
 
       {erro ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{erro}</div> : null}
-      {okMsg ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{okMsg}</div> : null}
 
       <div className="space-y-3">
         <label className="block text-sm font-semibold text-gray-800">
@@ -244,7 +301,6 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
             value={nomeCompleto}
             onChange={(e) => {
               setErro('')
-              setOkMsg('')
               setNomeCompleto(e.target.value)
             }}
             className={textInputCls}
@@ -259,7 +315,6 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
             value={whatsapp}
             onChange={(e) => {
               setErro('')
-              setOkMsg('')
               setWhatsapp(e.target.value)
             }}
             className={textInputCls}
@@ -283,6 +338,41 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
           </button>
         </div>
         <div className="space-y-3">
+          <label className="block text-sm font-semibold text-gray-800">
+            Número do documento de identidade
+            <input
+              type="text"
+              value={numeroDocumento}
+              onChange={(e) => {
+                setErro('')
+                setNumeroDocumento(e.target.value)
+              }}
+              className={textInputCls}
+              autoComplete="off"
+              placeholder="CPF, RG ou CI (mesmo número da foto)"
+              inputMode="text"
+            />
+            {documentoFeedback ? (
+              <p
+                className={`mt-1 text-xs ${
+                  documentoStatus === 'available'
+                    ? 'text-emerald-700'
+                    : documentoStatus === 'checking'
+                      ? 'text-gray-600'
+                      : documentoStatus === 'unavailable'
+                        ? 'text-rose-700'
+                        : 'text-gray-600'
+                }`}
+              >
+                {documentoFeedback}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-gray-500">
+                Digite o número exatamente como aparece no documento anexado. Cada documento pode ser
+                vinculado a apenas uma conta.
+              </p>
+            )}
+          </label>
           <CampoArquivo
             label="Frente"
             file={documentoFrente}
@@ -307,6 +397,12 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
       >
         {enviando ? 'Enviando…' : 'ENVIAR PARA ANÁLISE'}
       </button>
+
+      {mensagemVerificacao ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm leading-relaxed text-emerald-800">
+          {mensagemVerificacao}
+        </div>
+      ) : null}
 
       {modalDocumentoAberto ? (
         <div

@@ -5,15 +5,13 @@ import { Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useDocumentoDisponivel } from '@/hooks/useDocumentoDisponivel'
 import { documentoIdentidadeValido } from '@/lib/documentoIdentidade'
+import { MSG_VERIFICACAO_PENDENTE } from '@/lib/mensagemVerificacaoDocumentos'
 
 const MAX_BYTES = 5 * 1024 * 1024
 const ACCEPT = 'image/jpeg,image/png,application/pdf'
 
 const textInputCls =
   'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-2 focus:ring-[#0097b2]/30'
-
-const MSG_VERIFICACAO_PENDENTE =
-  'Verificação solicitada com sucesso! Seus documentos foram enviados e em breve um administrador fará a análise para liberação total da sua conta.'
 
 /**
  * @param {File} file

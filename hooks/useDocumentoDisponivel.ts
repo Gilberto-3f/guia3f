@@ -17,10 +17,19 @@ const MSG = {
   validateError: 'Não foi possível validar o documento. Tente novamente.',
 } as const
 
+export type UseDocumentoDisponivelOpts = {
+  /** `identidade` = CPF/RG/CI; `fiscal` = CNPJ/RUC/CUIT (empresas). */
+  tipo?: 'identidade' | 'fiscal'
+  empresaId?: string | null
+}
+
 export function useDocumentoDisponivel(
   documento: string,
-  usuarioId: string | null | undefined
+  usuarioId: string | null | undefined,
+  options?: UseDocumentoDisponivelOpts,
 ) {
+  const tipo = options?.tipo ?? 'identidade'
+  const empresaId = options?.empresaId ?? null
   const [status, setStatus] = useState<DocumentoStatus>('idle')
   const [feedback, setFeedback] = useState('')
 
@@ -49,8 +58,9 @@ export function useDocumentoDisponivel(
 
     const timer = setTimeout(async () => {
       try {
-        const params = new URLSearchParams({ documento: documentoLimpo })
+        const params = new URLSearchParams({ documento: documentoLimpo, tipo })
         if (usuarioId) params.set('usuarioId', usuarioId)
+        if (empresaId) params.set('empresaId', empresaId)
 
         const res = await fetch(`/api/cadastro/documento-disponivel?${params.toString()}`)
         const json = (await res.json().catch(() => ({}))) as {
@@ -84,7 +94,7 @@ export function useDocumentoDisponivel(
       ativo = false
       clearTimeout(timer)
     }
-  }, [documentoLimpo, documentoNorm, usuarioId])
+  }, [documentoLimpo, documentoNorm, usuarioId, tipo, empresaId])
 
   return { documentoLimpo, documentoNorm, status, feedback }
 }
