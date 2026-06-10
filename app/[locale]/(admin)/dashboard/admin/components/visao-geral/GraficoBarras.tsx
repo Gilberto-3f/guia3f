@@ -6,17 +6,19 @@ export function GraficoBarras({
   dados,
   loading,
   title,
+  semTitulo = false,
   emptyMessage = 'Aguardando dados. Em breve estarao disponiveis.',
 }: {
   dados: DadoBarras[] | null
   loading: boolean
   title: string
+  semTitulo?: boolean
   emptyMessage?: string
 }) {
-  if (loading) return <div className="h-64 animate-pulse rounded-2xl bg-gray-200" />
+  if (loading) return <div className="h-64 animate-pulse rounded-xl bg-gray-100" />
   if (!dados || dados.length === 0 || dados.every((d) => d.total === 0)) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center">
+      <div className="rounded-xl bg-gray-50 p-8 text-center">
         <p className="text-sm text-gray-400">{emptyMessage}</p>
         <p className="mt-2 text-xs text-gray-300">Os dados aparecerao automaticamente quando disponiveis.</p>
       </div>
@@ -26,8 +28,8 @@ export function GraficoBarras({
   const max = Math.max(...dados.map((d) => d.total), 1)
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h3 className="mb-4 text-sm font-bold text-gray-900">{title}</h3>
+    <div className={semTitulo ? '' : 'rounded-2xl border border-gray-200 bg-white p-4 shadow-sm'}>
+      {!semTitulo ? <h3 className="mb-4 text-sm font-bold text-gray-900">{title}</h3> : null}
       <div className="space-y-2">
         {dados.map((item, idx) => (
           <div key={`${item.label}-${idx}`} className="flex items-center gap-3">

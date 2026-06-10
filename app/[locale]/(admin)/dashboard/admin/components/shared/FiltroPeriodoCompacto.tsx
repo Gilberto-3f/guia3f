@@ -19,13 +19,13 @@ export function FiltroPeriodoCompacto({
   const rotuloAtual = opcoes.find((o) => o.id === value)?.label ?? 'Período'
 
   return (
-    <label className="inline-flex min-w-0 items-center gap-1.5 text-xs text-gray-500">
-      <span className="shrink-0 font-medium">Período:</span>
+    <label className="inline-flex min-w-0 items-center justify-center gap-2 text-sm text-black">
+      <span className="shrink-0 font-semibold text-black">Período:</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as PeriodoId)}
         aria-label={`Período dos gráficos: ${rotuloAtual}`}
-        className="max-w-[7.5rem] truncate rounded-md border border-gray-200 bg-white px-2 py-1 text-sm font-medium text-[#001f3f] shadow-sm"
+        className="min-w-[8.5rem] rounded-md border border-gray-200 bg-white px-3 py-1.5 text-base font-semibold text-black shadow-sm"
       >
         {opcoes.map((o) => (
           <option key={o.id} value={o.id}>

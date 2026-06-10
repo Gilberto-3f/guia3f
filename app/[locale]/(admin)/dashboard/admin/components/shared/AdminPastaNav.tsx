@@ -33,12 +33,12 @@ export function AdminPastaNav({ onSelect }: { onSelect: (id: AbaPrincipalId) => 
             type="button"
             id={`admin-pasta-${id}`}
             onClick={() => onSelect(id)}
-            className="flex w-full items-center gap-2.5 px-4 py-3.5 text-left transition-colors hover:bg-gray-50/80"
+            className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-gray-50/80 sm:py-5"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0097b2]">
-              <Icon className="h-5 w-5 text-white" strokeWidth={2} aria-hidden />
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#0097b2] sm:h-12 sm:w-12">
+              <Icon className="h-6 w-6 text-white sm:h-7 sm:w-7" strokeWidth={2} aria-hidden />
             </span>
-            <span className="text-xs font-bold uppercase tracking-wide text-[#0097b2] sm:text-sm">{label}</span>
+            <span className="text-base font-bold uppercase tracking-wide text-[#0097b2] sm:text-lg">{label}</span>
           </button>
         </section>
       ))}

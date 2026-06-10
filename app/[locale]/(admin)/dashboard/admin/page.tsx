@@ -83,30 +83,30 @@ function DashboardAdminContent() {
         <div className="sticky top-0 z-20 -mx-3 overflow-hidden shadow-sm sm:-mx-4">
           <div className="bg-[#0097b2] px-3 pb-3 pt-2 text-white sm:px-4 sm:pb-3 sm:pt-2.5">
             <div className="flex items-center justify-between gap-3">
+              <div className="w-8 sm:w-10" aria-hidden />
+              <span className="flex-1 text-center text-base font-bold uppercase tracking-wide sm:text-lg">
+                {tab ? tituloPastaAdmin(tab) : 'Painel Dashboard'}
+              </span>
               {tab ? (
                 <button
                   type="button"
                   onClick={voltarPastas}
-                  aria-label="Voltar às pastas"
-                  title="Voltar às pastas"
+                  aria-label="Voltar ao painel"
+                  title="Voltar ao painel"
                   className="inline-flex rounded-full p-2 text-white transition hover:bg-white/15 active:bg-white/25"
                 >
                   <ArrowLeft className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
                 </button>
               ) : (
-                <div className="w-8 sm:w-10" aria-hidden />
+                <Link
+                  href="/guia"
+                  aria-label="Voltar ao app"
+                  title="Voltar ao app"
+                  className="inline-flex rounded-full p-2 text-white transition hover:bg-white/15 active:bg-white/25"
+                >
+                  <ArrowLeft className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
+                </Link>
               )}
-              <span className="flex-1 text-center text-base font-bold uppercase tracking-wide sm:text-lg">
-                {tab ? tituloPastaAdmin(tab) : 'Painel Dashboard'}
-              </span>
-              <Link
-                href="/guia"
-                aria-label="Voltar ao app"
-                title="Voltar ao app"
-                className="inline-flex rounded-full p-2 text-white transition hover:bg-white/15 active:bg-white/25"
-              >
-                <ArrowLeft className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
-              </Link>
             </div>
           </div>
 

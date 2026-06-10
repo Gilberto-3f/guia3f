@@ -1,7 +1,9 @@
 'use client'
 
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FiltrosVisaoGeral, PerfilVisaoGeral } from '../../types/admin.types'
 import { useAdminData } from '../../hooks/useAdminData'
+import { AdminSecaoChevron } from '../shared/AdminSecaoChevron'
 import { GraficoLinha } from './GraficoLinha'
 import { GraficoBarras } from './GraficoBarras'
 import GraficoPizzaMercado from '@/app/[locale]/(app-shell)/dashboard/empresa/components/estatisticas-mercado/GraficoPizza'
@@ -12,6 +14,37 @@ const TITULOS_PERFIL: Record<PerfilVisaoGeral, string> = {
   empresas: 'Empresas',
 }
 
+type SecaoId =
+  | 'crescimento'
+  | 'ativos'
+  | 'seguimentos'
+  | 'mobilidade'
+  | 'prof-categoria'
+  | 'prof-cidade'
+  | 'emp-segmento'
+  | 'emp-cidade'
+
+function secoesPorPerfil(perfil: PerfilVisaoGeral): SecaoId[] {
+  if (perfil === 'turistas') {
+    return ['crescimento', 'ativos', 'seguimentos', 'mobilidade']
+  }
+  if (perfil === 'profissionais') {
+    return ['crescimento', 'ativos', 'prof-categoria', 'prof-cidade']
+  }
+  return ['crescimento', 'ativos', 'emp-segmento', 'emp-cidade']
+}
+
+const TITULOS_SECAO: Record<SecaoId, string> = {
+  crescimento: 'Crescimento de usuários',
+  ativos: 'Ativos no app',
+  seguimentos: 'Segmentos mais usados no guia turístico',
+  mobilidade: 'Categorias mais usadas na mobilidade',
+  'prof-categoria': 'Distribuição por categoria',
+  'prof-cidade': 'Distribuição por cidade',
+  'emp-segmento': 'Distribuição por segmento',
+  'emp-cidade': 'Distribuição por cidade',
+}
+
 export function VisaoGeralGraficos({
   perfil,
   filtros,
@@ -19,6 +52,20 @@ export function VisaoGeralGraficos({
   perfil: PerfilVisaoGeral
   filtros: FiltrosVisaoGeral
 }) {
+  const ids = useMemo(() => secoesPorPerfil(perfil), [perfil])
+
+  const [abertos, setAbertos] = useState<Record<SecaoId, boolean>>(() =>
+    Object.fromEntries(ids.map((id) => [id, true])) as Record<SecaoId, boolean>,
+  )
+
+  useEffect(() => {
+    setAbertos(Object.fromEntries(ids.map((id) => [id, true])) as Record<SecaoId, boolean>)
+  }, [ids])
+
+  const toggle = useCallback((id: SecaoId) => {
+    setAbertos((atual) => ({ ...atual, [id]: !atual[id] }))
+  }, [])
+
   const {
     crescimento,
     ativos,
@@ -34,6 +81,85 @@ export function VisaoGeralGraficos({
 
   const tituloPerfil = TITULOS_PERFIL[perfil]
 
+  function renderConteudo(id: SecaoId) {
+    switch (id) {
+      case 'crescimento':
+        return <GraficoLinha dados={crescimento} loading={loading} title={TITULOS_SECAO.crescimento} semTitulo />
+      case 'ativos':
+        return loading ? (
+          <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
+        ) : (
+          <GraficoPizzaMercado dados={ativos ?? []} titulo="" semTitulo embed mostrarComZero />
+        )
+      case 'seguimentos':
+        return (
+          <GraficoBarras
+            dados={seguimentosGuia}
+            loading={loading}
+            title={TITULOS_SECAO.seguimentos}
+            semTitulo
+            emptyMessage="Aguardando dados de cliques no guia turístico."
+          />
+        )
+      case 'mobilidade':
+        return (
+          <GraficoBarras
+            dados={mobilidadeCategorias}
+            loading={loading}
+            title={TITULOS_SECAO.mobilidade}
+            semTitulo
+            emptyMessage="Aguardando dados de solicitações de mobilidade."
+          />
+        )
+      case 'prof-categoria':
+        return loading ? (
+          <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
+        ) : (
+          <GraficoPizzaMercado
+            dados={profissionaisPorCategoria ?? []}
+            titulo=""
+            semTitulo
+            embed
+            mostrarComZero
+          />
+        )
+      case 'prof-cidade':
+        return loading ? (
+          <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
+        ) : (
+          <GraficoPizzaMercado
+            dados={profissionaisPorCidade ?? []}
+            titulo=""
+            semTitulo
+            rosca
+            embed
+            mostrarComZero
+          />
+        )
+      case 'emp-segmento':
+        return loading ? (
+          <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
+        ) : (
+          <GraficoPizzaMercado dados={empresasSegmento ?? []} titulo="" semTitulo embed mostrarComZero />
+        )
+      case 'emp-cidade':
+        return loading ? (
+          <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
+        ) : (
+          <GraficoPizzaMercado
+            dados={empresasCidade ?? []}
+            titulo=""
+            semTitulo
+            rosca
+            embed
+            mostrarComZero
+          />
+        )
+      default:
+        return null
+    }
+  }
+
   return (
     <div className="min-w-0 space-y-4">
       {error ? (
@@ -42,110 +168,22 @@ export function VisaoGeralGraficos({
         </div>
       ) : null}
 
-      <h2 className="text-sm font-bold uppercase tracking-wide text-[#0097b2] sm:text-base">{tituloPerfil}</h2>
+      <h2 className="text-center text-lg font-bold uppercase tracking-wide text-[#0097b2] sm:text-xl">
+        {tituloPerfil}
+      </h2>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <GraficoLinha dados={crescimento} loading={loading} title="Crescimento de usuários" />
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h3 className="mb-2 text-sm font-bold text-gray-900">Ativos no app</h3>
-          {loading ? (
-            <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
-          ) : (
-            <GraficoPizzaMercado
-              dados={ativos ?? []}
-              titulo=""
-              semTitulo
-              embed
-              mostrarComZero
-            />
-          )}
-        </div>
-
-        {perfil === 'turistas' ? (
-          <>
-            <GraficoBarras
-              dados={seguimentosGuia}
-              loading={loading}
-              title="Segmentos mais usados no guia turístico"
-              emptyMessage="Aguardando dados de cliques no guia turístico."
-            />
-            <GraficoBarras
-              dados={mobilidadeCategorias}
-              loading={loading}
-              title="Categorias mais usadas na mobilidade"
-              emptyMessage="Aguardando dados de solicitações de mobilidade."
-            />
-          </>
-        ) : null}
-
-        {perfil === 'profissionais' ? (
-          <>
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-2 text-sm font-bold text-gray-900">Distribuição por categoria</h3>
-              {loading ? (
-                <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
-              ) : (
-                <GraficoPizzaMercado
-                  dados={profissionaisPorCategoria ?? []}
-                  titulo=""
-                  semTitulo
-                  embed
-                  mostrarComZero
-                />
-              )}
-            </div>
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-2 text-sm font-bold text-gray-900">Distribuição por cidade</h3>
-              {loading ? (
-                <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
-              ) : (
-                <GraficoPizzaMercado
-                  dados={profissionaisPorCidade ?? []}
-                  titulo=""
-                  semTitulo
-                  rosca
-                  embed
-                  mostrarComZero
-                />
-              )}
-            </div>
-          </>
-        ) : null}
-
-        {perfil === 'empresas' ? (
-          <>
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-2 text-sm font-bold text-gray-900">Distribuição por segmento</h3>
-              {loading ? (
-                <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
-              ) : (
-                <GraficoPizzaMercado
-                  dados={empresasSegmento ?? []}
-                  titulo=""
-                  semTitulo
-                  embed
-                  mostrarComZero
-                />
-              )}
-            </div>
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-2 text-sm font-bold text-gray-900">Distribuição por cidade</h3>
-              {loading ? (
-                <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
-              ) : (
-                <GraficoPizzaMercado
-                  dados={empresasCidade ?? []}
-                  titulo=""
-                  semTitulo
-                  rosca
-                  embed
-                  mostrarComZero
-                />
-              )}
-            </div>
-          </>
-        ) : null}
+      <div className="space-y-3">
+        {ids.map((id) => (
+          <AdminSecaoChevron
+            key={`${perfil}-${id}`}
+            titulo={TITULOS_SECAO[id]}
+            tituloGrande
+            aberta={Boolean(abertos[id])}
+            onToggle={() => toggle(id)}
+          >
+            {renderConteudo(id)}
+          </AdminSecaoChevron>
+        ))}
       </div>
     </div>
   )

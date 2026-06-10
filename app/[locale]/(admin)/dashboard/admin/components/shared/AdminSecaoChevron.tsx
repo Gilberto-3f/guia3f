@@ -8,24 +8,31 @@ export function AdminSecaoChevron({
   aberta,
   onToggle,
   badge,
+  tituloGrande = false,
   children,
 }: {
   titulo: string
   aberta: boolean
   onToggle: () => void
   badge?: number
+  /** Títulos maiores (ex.: gráficos da Visão Geral). */
+  tituloGrande?: boolean
   children: ReactNode
 }) {
+  const tituloCls = tituloGrande
+    ? 'text-base font-bold text-gray-900 sm:text-lg'
+    : 'text-sm font-bold text-gray-900'
+
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left hover:bg-gray-50"
+        className={`flex w-full items-center justify-between gap-2 px-4 text-left hover:bg-gray-50 ${tituloGrande ? 'py-4' : 'py-3.5'}`}
         aria-expanded={aberta}
       >
         <span className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="text-sm font-bold text-gray-900">{titulo}</span>
+          <span className={tituloCls}>{titulo}</span>
           {badge != null && badge > 0 ? (
             <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">{badge}</span>
           ) : null}

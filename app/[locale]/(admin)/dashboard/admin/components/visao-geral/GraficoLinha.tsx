@@ -2,15 +2,27 @@
 
 import type { DadoCrescimento } from '../../types/admin.types'
 
-export function GraficoLinha({ dados, loading, title }: { dados: DadoCrescimento[] | null; loading: boolean; title: string }) {
-  if (loading) return <div className="h-64 animate-pulse rounded-2xl bg-gray-200" />
-  if (!dados || dados.length === 0) return <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-500">Sem dados disponíveis</div>
+export function GraficoLinha({
+  dados,
+  loading,
+  title,
+  semTitulo = false,
+}: {
+  dados: DadoCrescimento[] | null
+  loading: boolean
+  title: string
+  semTitulo?: boolean
+}) {
+  if (loading) return <div className="h-64 animate-pulse rounded-xl bg-gray-100" />
+  if (!dados || dados.length === 0) {
+    return <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-500">Sem dados disponíveis</div>
+  }
 
   const maxTotal = Math.max(...dados.map((d) => d.total), 1)
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h3 className="mb-4 text-sm font-bold text-gray-900">{title}</h3>
+    <div className={semTitulo ? '' : 'rounded-2xl border border-gray-200 bg-white p-4 shadow-sm'}>
+      {!semTitulo ? <h3 className="mb-4 text-sm font-bold text-gray-900">{title}</h3> : null}
       <div className="flex h-44 items-end gap-2">
         {dados.map((item, i) => (
           <div key={`${item.mes}-${i}`} className="flex flex-1 flex-col items-center">
