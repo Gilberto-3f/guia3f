@@ -3,12 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { buscarTopTermosGuia, type TopTermosSegmentoGuia } from '@/lib/buscasGuia'
-import {
-  agregarAtendimentosPorCategoria,
-  agregarProfissionaisPorCategoria,
-  agregarProfissionaisPorCidade,
-  type AtendimentoMobilidadeRow,
-} from '@/lib/mobilidadeRegional'
+import { agregarProfissionaisPorCategoria, agregarProfissionaisPorCidade } from '@/lib/mobilidadeRegional'
 import type {
   DadoBarras,
   DadoCrescimento,
@@ -53,6 +48,23 @@ const emptyData: DataState = {
 
 const CORES_PIZZA_PADRAO = ['#0097b2', '#00D443', '#F1C40F', '#E74C3C', '#9B59B6', '#3498DB', '#E67E22', '#1ABC9C']
 const CORES_ATIVOS_FAIXA = ['#0097b2', '#00D443', '#F1C40F']
+
+/** Mobilidade ainda não conectada — estrutura fixa com totais zerados. */
+const MOBILIDADE_PLACEHOLDER: DadoBarras[] = [
+  { label: 'Motoristas de App', total: 0 },
+  { label: 'Motoristas de Van', total: 0 },
+  { label: 'Taxistas', total: 0 },
+  { label: 'Guias de Turismo', total: 0 },
+  { label: 'Anfitriões', total: 0 },
+]
+
+function faixasAtivosVazias(): DadoPizzaSegmento[] {
+  return [
+    { label: '24 horas', valor: 0, percentual: 0, cor: CORES_ATIVOS_FAIXA[0] },
+    { label: '48 horas', valor: 0, percentual: 0, cor: CORES_ATIVOS_FAIXA[1] },
+    { label: '72 horas', valor: 0, percentual: 0, cor: CORES_ATIVOS_FAIXA[2] },
+  ]
+}
 
 type CreatedAtRow = { created_at: string | null }
 type CategoriaRow = { categoria: string | null }
@@ -116,7 +128,7 @@ export function useAdminData(
         fetchAtivosFaixas(perfil),
         fetchNovosCadastros(perfil),
         perfil === 'turistas' ? fetchTopTermosGuia(f) : Promise.resolve(null),
-        perfil === 'turistas' ? fetchMobilidadeCategorias(f) : Promise.resolve(null),
+        perfil === 'turistas' ? fetchMobilidadeCategorias() : Promise.resolve(null),
         perfil === 'profissionais' ? fetchProfissionaisDistribuicaoCategoria() : Promise.resolve(null),
         perfil === 'profissionais' ? fetchProfissionaisDistribuicaoCidade() : Promise.resolve(null),
         perfil === 'empresas' ? fetchEmpresasDistribuicaoCidade() : Promise.resolve(null),
@@ -210,7 +222,7 @@ async function fetchCrescimento(perfil: PerfilVisaoGeral, filtros: FiltrosVisaoG
     return groupByMonth(((data ?? []) as CreatedAtRow[]).map((r) => r.created_at).filter((v): v is string => Boolean(v)))
   }
   const tabela: TabelaPerfilCadastro = perfil === 'turistas' ? 'turistas' : 'profissionais'
-  const { data, error } = await supabase.from(tabela).select('created_at, usuarios(created_at)')
+  const { data, error } = await supabase.from(tabela).select('created_at')
   if (error) throw error
   const datas = (data ?? [])
     .map((r) => createdAtPerfilRow(r as Record<string, unknown>))
@@ -265,12 +277,14 @@ async function fetchAtivosFaixas(perfil: PerfilVisaoGeral): Promise<DadoPizzaSeg
   }
 
   const perfilParam = perfil === 'turistas' ? 'turistas' : 'profissionais'
-  const res = await fetch(`/api/admin/visao-geral/ativos?perfil=${perfilParam}`, { credentials: 'include' })
-  if (!res.ok) {
-    throw new Error('Falha ao carregar ativos no app')
+  try {
+    const res = await fetch(`/api/admin/visao-geral/ativos?perfil=${perfilParam}`, { credentials: 'include' })
+    if (!res.ok) return faixasAtivosVazias()
+    const body = (await res.json()) as { faixas?: DadoPizzaSegmento[] }
+    return body.faixas?.length ? body.faixas : faixasAtivosVazias()
+  } catch {
+    return faixasAtivosVazias()
   }
-  const body = (await res.json()) as { faixas?: DadoPizzaSegmento[] }
-  return body.faixas ?? []
 }
 
 async function fetchNovosCadastros(perfil: PerfilVisaoGeral): Promise<DadoRosca> {
@@ -295,53 +309,17 @@ async function fetchNovosCadastros(perfil: PerfilVisaoGeral): Promise<DadoRosca>
   return { atual, anterior, variacao: calcVariacaoPercentual(atual, anterior) }
 }
 
-async function fetchMobilidadeCategorias(filtros: FiltrosVisaoGeral): Promise<DadoBarras[]> {
-  const since = getPeriodoDate(filtros.periodo)
-  const selectCompleto = `
-    created_at,
-    status,
-    profissionais:profissional_id (categoria, categorias)
-  `
-  const { data, error } = await supabase
-    .from('solicitacao_mobilidade')
-    .select(selectCompleto)
-    .gte('created_at', since.toISOString())
-
-  if (!error && data && data.length > 0) {
-    const rows: AtendimentoMobilidadeRow[] = []
-    for (const row of data as Record<string, unknown>[]) {
-      const prof = row.profissionais
-      const profObj = prof && typeof prof === 'object' && !Array.isArray(prof) ? (prof as Record<string, unknown>) : null
-      const categoria =
-        (profObj?.categoria != null ? String(profObj.categoria) : '') ||
-        (Array.isArray(profObj?.categorias) ? String((profObj.categorias as unknown[])[0] ?? '') : '') ||
-        'outros'
-      rows.push({
-        categoria,
-        cidades: [],
-        createdAt: row.created_at != null ? String(row.created_at) : '',
-        status: row.status != null ? String(row.status) : '',
-      })
-    }
-    const agg = agregarAtendimentosPorCategoria(rows)
-    return topN(
-      agg.map((item) => ({ label: item.label, total: item.valor })),
-      8,
-    )
-  }
-
-  return [
-    { label: 'Motoristas de App', total: 0 },
-    { label: 'Motoristas de Van', total: 0 },
-    { label: 'Taxistas', total: 0 },
-    { label: 'Guias de Turismo', total: 0 },
-    { label: 'Anfitriões', total: 0 },
-  ]
+async function fetchMobilidadeCategorias(): Promise<DadoBarras[]> {
+  return MOBILIDADE_PLACEHOLDER
 }
 
 async function fetchTopTermosGuia(filtros: FiltrosVisaoGeral): Promise<TopTermosSegmentoGuia[]> {
   const since = getPeriodoDate(filtros.periodo)
-  return buscarTopTermosGuia(since.toISOString(), 10)
+  try {
+    return await buscarTopTermosGuia(since.toISOString(), 10)
+  } catch {
+    return []
+  }
 }
 
 function barrasParaPizza(dados: DadoBarras[]): DadoPizzaSegmento[] {
@@ -355,10 +333,7 @@ function barrasParaPizza(dados: DadoBarras[]): DadoPizzaSegmento[] {
 }
 
 async function fetchProfissionaisMobilidadeRows() {
-  const { data, error } = await supabase
-    .from('profissionais')
-    .select('categorias, cidade_atuacao, usuarios!profissionais_usuario_id_fkey(role)')
-    .eq('usuarios.role', 'profissional')
+  const { data, error } = await supabase.from('profissionais').select('categorias, cidade_atuacao')
   if (error) throw error
   return (data ?? []).map((r) => {
     const row = r as Record<string, unknown>
