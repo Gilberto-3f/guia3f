@@ -102,6 +102,8 @@ export type PendenteTurista = {
   created_at: string
   /** E-mail do `usuarios` (enriquecido na listagem admin). */
   email?: string | null
+  whatsapp?: string | null
+  telefone?: string | null
   /** Histórico de pré-liberação para análise do ADM. */
   pre_liberacoes?: Record<string, unknown>[]
 }

@@ -174,6 +174,8 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       docs_verificado_em: r.docs_verificado_em ? String(r.docs_verificado_em) : null,
       created_at: String(r.created_at ?? new Date().toISOString()),
       email: emailMap.get(String(r.usuario_id)) || null,
+      whatsapp: r.whatsapp != null && String(r.whatsapp).trim() ? String(r.whatsapp).trim() : null,
+      telefone: r.telefone != null && String(r.telefone).trim() ? String(r.telefone).trim() : null,
       pre_liberacoes: prePorTurista.get(String(r.usuario_id ?? '')) ?? [],
     }))
     setPendentes(mapped)
@@ -353,5 +355,22 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     [fetchData]
   )
 
-  return { pendentes, contadores, loading, error, aprovar, reprovar, refetch: fetchData }
+  const solicitarExclusao = useCallback(
+    async (id: string, tipo: PerfilVerificacao) => {
+      const res = await fetch('/api/admin/verificacao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ acao: 'solicitar_exclusao', tipo, id }),
+      })
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? 'Não foi possível solicitar exclusão.')
+      }
+      await fetchData()
+    },
+    [fetchData],
+  )
+
+  return { pendentes, contadores, loading, error, aprovar, reprovar, solicitarExclusao, refetch: fetchData }
 }

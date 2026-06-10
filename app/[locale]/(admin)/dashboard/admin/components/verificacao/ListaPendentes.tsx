@@ -7,13 +7,12 @@ import type { PendenteEmpresa, PendenteProfissional, PendenteTurista } from '../
 import {
   formatContatoExibicao,
   formatLocalizacaoVerificacao,
-  formatProfissionalCategorias,
   pickDocumentoFiscalEmpresa,
 } from './verificacaoFormatters'
 
 export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 'empresas' }) {
   const [feedback, setFeedback] = useState<string | null>(null)
-  const { pendentes, loading, error, aprovar, reprovar } = useVerificacao({
+  const { pendentes, loading, error, aprovar, reprovar, solicitarExclusao } = useVerificacao({
     perfil: tipo,
   })
 
@@ -22,15 +21,14 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
     if (tipo === 'turistas') {
       return (pendentes as PendenteTurista[]).map((p) => ({
         id: p.id,
+        usuarioId: p.usuario_id,
         nome: p.nome_completo,
         username: `@${p.nome_usuario}`,
         label: 'Turista',
         dataCadastro: new Date(p.created_at).toLocaleDateString('pt-BR'),
         email: p.email?.trim() || '—',
-        whatsappLine: '—',
+        whatsappLine: formatContatoExibicao(p.whatsapp || p.telefone),
         avatarUrl: p.foto_url,
-        categoriaDisplay: undefined,
-        empresaFiscal: undefined,
         documentoIdentidade: p.documento_identidade?.trim() || undefined,
         alerta: null,
         docsVerificado: p.docs_verificado,
@@ -42,9 +40,9 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
     if (tipo === 'profissionais') {
       return (pendentes as PendenteProfissional[]).map((p) => {
         const contato = p.whatsapp || p.telefone
-        const categorias = Array.isArray(p.categorias) ? p.categorias : []
         return {
           id: p.id,
+          usuarioId: p.usuario_id,
           nome: p.nome_completo,
           username: `@${p.nome_usuario}`,
           label: 'Profissional',
@@ -52,14 +50,12 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
           email: p.email?.trim() || '—',
           whatsappLine: formatContatoExibicao(contato),
           avatarUrl: p.foto_url,
-          categoriaDisplay: formatProfissionalCategorias(categorias),
-          localizacaoDisplay:
+          documentoIdentidade: p.documento_identidade?.trim() || undefined,
+          cidadeDisplay:
             formatLocalizacaoVerificacao({
               cidadesAtuacao: p.cidade_atuacao,
               pais: p.pais,
             }) ?? undefined,
-          empresaFiscal: undefined,
-          documentoIdentidade: p.documento_identidade?.trim() || undefined,
           alerta: null,
           docsVerificado: p.docs_verificado,
           docsVerificadoEm: p.docs_verificado_em ? new Date(p.docs_verificado_em).toLocaleDateString('pt-BR') : null,
@@ -70,9 +66,9 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
     }
     return (pendentes as PendenteEmpresa[]).map((p) => {
       const raw = { ...p } as Record<string, unknown>
-      const categoria = String(p.categoria ?? '').trim()
       return {
         id: p.id,
+        usuarioId: p.usuario_id,
         nome: String(p.nome_fantasia ?? ''),
         username: `@${String(p.nome_usuario ?? '')}`,
         label: 'Empresa',
@@ -80,10 +76,8 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
         email: p.email?.trim() || '—',
         whatsappLine: formatContatoExibicao(p.whatsapp || p.telefone),
         avatarUrl: p.fotos_url?.[0] ?? null,
-        categoriaDisplay: categoria || '—',
-        localizacaoDisplay:
-          formatLocalizacaoVerificacao({ cidade: p.cidade }) ?? undefined,
         empresaFiscal: pickDocumentoFiscalEmpresa(raw),
+        cidadeDisplay: formatLocalizacaoVerificacao({ cidade: p.cidade }) ?? undefined,
         alerta: null,
         docsVerificado: p.docs_verificado,
         docsVerificadoEm: p.docs_verificado_em ? new Date(p.docs_verificado_em).toLocaleDateString('pt-BR') : null,
@@ -114,15 +108,26 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
               void aprovar(i.id, tipo)
                 .then(() => setFeedback('Cadastro aprovado com sucesso.'))
                 .catch((err: unknown) =>
-                  setFeedback(err instanceof Error ? err.message : 'Não foi possível aprovar. Verifique permissões e tente de novo.')
+                  setFeedback(err instanceof Error ? err.message : 'Não foi possível aprovar. Verifique permissões e tente de novo.'),
                 )
             }}
-            onReprovar={(motivo) => {
-              void reprovar(i.id, tipo, motivo)
-                .then(() => setFeedback('Cadastro reprovado e prazo de 7 dias aplicado.'))
-                .catch((err: unknown) =>
-                  setFeedback(err instanceof Error ? err.message : 'Não foi possível reprovar. Tente de novo.'),
-                )
+            onReprovar={async (motivo) => {
+              try {
+                await reprovar(i.id, tipo, motivo)
+                setFeedback('Cadastro reprovado. O usuário foi notificado do motivo.')
+              } catch (err: unknown) {
+                setFeedback(err instanceof Error ? err.message : 'Não foi possível reprovar. Tente de novo.')
+                throw err
+              }
+            }}
+            onSolicitarExclusao={async () => {
+              try {
+                await solicitarExclusao(i.id, tipo)
+                setFeedback('Solicitação de exclusão enviada ao ADM GERAL para conclusão.')
+              } catch (err: unknown) {
+                setFeedback(err instanceof Error ? err.message : 'Não foi possível solicitar exclusão.')
+                throw err
+              }
             }}
           />
         ))}

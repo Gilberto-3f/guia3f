@@ -72,8 +72,13 @@ export async function POST(req: Request) {
         return jsonAdminError(403, 'permission', 'Sem permissão para reprovar (admin_permissoes.recursos).')
       }
     }
-    if (acao !== 'aprovar' && acao !== 'reprovar') {
-      return jsonAdminError(400, 'params', 'Ação inválida. Use aprovar ou reprovar.')
+    if (acao === 'solicitar_exclusao') {
+      if (!adminPodeRecurso(adminRow.admin_permissoes, nivel, role, 'reprovar')) {
+        return jsonAdminError(403, 'permission', 'Sem permissão para solicitar exclusão.')
+      }
+    }
+    if (acao !== 'aprovar' && acao !== 'reprovar' && acao !== 'solicitar_exclusao') {
+      return jsonAdminError(400, 'params', 'Ação inválida. Use aprovar, reprovar ou solicitar_exclusao.')
     }
 
     const table = getTableByTipo(tipo)
@@ -86,6 +91,54 @@ export async function POST(req: Request) {
 
     const nowIso = new Date().toISOString()
     const adminEmail = String(adminRow.email ?? authEmail ?? 'admin')
+
+    if (acao === 'solicitar_exclusao') {
+      if (!perfil?.usuario_id) {
+        return jsonAdminError(400, 'load_perfil', 'Usuário do cadastro não encontrado.')
+      }
+
+      const { data: pendenteExistente } = await adminDb
+        .from('solicitacoes_exclusao_cadastro')
+        .select('id')
+        .eq('tipo', tipo)
+        .eq('perfil_id', id)
+        .eq('status', 'pendente')
+        .maybeSingle()
+
+      if (pendenteExistente?.id) {
+        return jsonAdminError(409, 'duplicate', 'Já existe uma solicitação de exclusão pendente para este cadastro.')
+      }
+
+      const { error: solErr } = await adminDb.from('solicitacoes_exclusao_cadastro').insert({
+        tipo,
+        perfil_id: id,
+        usuario_id: perfil.usuario_id,
+        solicitado_por: actorId,
+        status: 'pendente',
+      })
+      if (solErr) {
+        console.error('[api/admin/verificacao] solicitar_exclusao', solErr.message)
+        return jsonAdminError(400, 'insert_solicitacao', solErr.message)
+      }
+
+      await adminDb.from('logs_verificacao').insert({
+        tipo,
+        perfil_id: id,
+        acao: 'solicitacao_exclusao_cadastro',
+        admin_id: actorId,
+        admin_email: adminEmail,
+        admin_nivel: nivel,
+        alvo_id: perfil.usuario_id,
+        detalhes: {
+          modulo: 'verificacao_cadastros',
+          status_final: 'pendente_adm_geral',
+          usuario_id: perfil.usuario_id,
+          auth_user_id: authUserId,
+        },
+      })
+
+      return NextResponse.json({ ok: true })
+    }
 
     if (acao === 'aprovar') {
       const extraProf =
