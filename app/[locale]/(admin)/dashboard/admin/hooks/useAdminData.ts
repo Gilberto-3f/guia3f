@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { buscarTopTermosGuia, type TopTermosSegmentoGuia } from '@/lib/buscasGuia'
+import type { MaisProcuradosTuristasDados } from '@/lib/adminMaisProcuradosTuristas'
 import { agregarProfissionaisPorCategoria, agregarProfissionaisPorCidade } from '@/lib/mobilidadeRegional'
 import type {
   DadoBarras,
@@ -20,7 +20,7 @@ type UseAdminDataReturn = {
   crescimento: DadoCrescimento[] | null
   ativos: DadoPizzaSegmento[] | null
   novosCadastros: DadoRosca | null
-  topTermosGuia: TopTermosSegmentoGuia[] | null
+  maisProcuradosTuristas: MaisProcuradosTuristasDados | null
   mobilidadeCategorias: DadoBarras[] | null
   profissionaisPorCategoria: DadoPizzaSegmento[] | null
   profissionaisPorCidade: DadoPizzaSegmento[] | null
@@ -38,7 +38,7 @@ const emptyData: DataState = {
   crescimento: null,
   ativos: null,
   novosCadastros: null,
-  topTermosGuia: null,
+  maisProcuradosTuristas: null,
   mobilidadeCategorias: null,
   profissionaisPorCategoria: null,
   profissionaisPorCidade: null,
@@ -116,7 +116,7 @@ export function useAdminData(
         crescimento,
         ativos,
         novosCadastros,
-        topTermosGuia,
+        maisProcuradosTuristas,
         mobilidadeCategorias,
         profissionaisPorCategoria,
         profissionaisPorCidade,
@@ -127,7 +127,7 @@ export function useAdminData(
         fetchCrescimento(perfil, f),
         fetchAtivosFaixas(perfil),
         fetchNovosCadastros(perfil),
-        perfil === 'turistas' ? fetchTopTermosGuia(f) : Promise.resolve(null),
+        perfil === 'turistas' ? fetchMaisProcuradosTuristas(f) : Promise.resolve(null),
         perfil === 'turistas' ? fetchMobilidadeCategorias() : Promise.resolve(null),
         perfil === 'profissionais' ? fetchProfissionaisDistribuicaoCategoria() : Promise.resolve(null),
         perfil === 'profissionais' ? fetchProfissionaisDistribuicaoCidade() : Promise.resolve(null),
@@ -142,7 +142,7 @@ export function useAdminData(
         crescimento,
         ativos,
         novosCadastros,
-        topTermosGuia,
+        maisProcuradosTuristas,
         mobilidadeCategorias,
         profissionaisPorCategoria,
         profissionaisPorCidade,
@@ -313,12 +313,20 @@ async function fetchMobilidadeCategorias(): Promise<DadoBarras[]> {
   return MOBILIDADE_PLACEHOLDER
 }
 
-async function fetchTopTermosGuia(filtros: FiltrosVisaoGeral): Promise<TopTermosSegmentoGuia[]> {
-  const since = getPeriodoDate(filtros.periodo)
+const MAIS_PROCURADOS_VAZIO: MaisProcuradosTuristasDados = {
+  visibilidade: [],
+  engajamento: [],
+}
+
+async function fetchMaisProcuradosTuristas(filtros: FiltrosVisaoGeral): Promise<MaisProcuradosTuristasDados> {
   try {
-    return await buscarTopTermosGuia(since.toISOString(), 10)
+    const res = await fetch(`/api/admin/visao-geral/mais-procurados?periodo=${filtros.periodo}`, {
+      credentials: 'include',
+    })
+    if (!res.ok) return MAIS_PROCURADOS_VAZIO
+    return (await res.json()) as MaisProcuradosTuristasDados
   } catch {
-    return []
+    return MAIS_PROCURADOS_VAZIO
   }
 }
 

@@ -1,7 +1,9 @@
 'use client'
 
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
+
+const COR_LOGO = '#0097b2'
 
 export function AdminSecaoChevron({
   titulo,
@@ -9,6 +11,9 @@ export function AdminSecaoChevron({
   onToggle,
   badge,
   tituloGrande = false,
+  icone: Icone,
+  corTitulo,
+  descricao,
   children,
 }: {
   titulo: string
@@ -17,11 +22,19 @@ export function AdminSecaoChevron({
   badge?: number
   /** Títulos maiores (ex.: gráficos da Visão Geral). */
   tituloGrande?: boolean
+  /** Ícone à esquerda do título (sem fundo). */
+  icone?: LucideIcon
+  /** Cor do título e do ícone (padrão cinza escuro). */
+  corTitulo?: string
+  /** Texto curto exibido acima do conteúdo ao expandir. */
+  descricao?: string
   children: ReactNode
 }) {
-  const tituloCls = tituloGrande
-    ? 'text-base font-bold text-gray-900 sm:text-lg'
-    : 'text-sm font-bold text-gray-900'
+  const cor = corTitulo ?? undefined
+  const tituloCls = [
+    tituloGrande ? 'text-base font-bold sm:text-lg' : 'text-sm font-bold',
+    cor ? '' : 'text-gray-900',
+  ].join(' ')
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -32,7 +45,17 @@ export function AdminSecaoChevron({
         aria-expanded={aberta}
       >
         <span className="flex min-w-0 flex-1 items-center gap-2">
-          <span className={tituloCls}>{titulo}</span>
+          {Icone ? (
+            <Icone
+              className="h-5 w-5 shrink-0"
+              style={{ color: cor ?? COR_LOGO }}
+              strokeWidth={2.25}
+              aria-hidden
+            />
+          ) : null}
+          <span className={tituloCls} style={cor ? { color: cor } : undefined}>
+            {titulo}
+          </span>
           {badge != null && badge > 0 ? (
             <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">{badge}</span>
           ) : null}
@@ -42,7 +65,14 @@ export function AdminSecaoChevron({
           aria-hidden
         />
       </button>
-      {aberta ? <div className="border-t border-gray-100 px-4 py-3">{children}</div> : null}
+      {aberta ? (
+        <div className="space-y-3 border-t border-gray-100 px-4 py-3">
+          {descricao ? (
+            <p className="text-center text-xs text-gray-500 sm:text-sm">{descricao}</p>
+          ) : null}
+          {children}
+        </div>
+      ) : null}
     </div>
   )
 }
