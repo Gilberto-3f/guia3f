@@ -52,13 +52,23 @@ export async function buscarProfissionalVerificadoPorUsername(
   const un = normalizarUsername(username)
   if (!un) return { ok: false, error: 'username_vazio' }
 
-  const { data: prof, error } = await supabase
+  const { data: profRows, error } = await supabase
     .from('profissionais')
     .select('id, usuario_id, nome_usuario, nome_completo, status, docs_verificado, proxima_revisao_docs_em')
-    .ilike('nome_usuario', un)
-    .maybeSingle()
+    .or(`nome_usuario.ilike.${un},nome_usuario.ilike.@${un}`)
+    .limit(5)
 
-  if (error || !prof?.usuario_id) return { ok: false, error: 'profissional_nao_encontrado' }
+  if (error) return { ok: false, error: 'profissional_nao_encontrado' }
+
+  const prof =
+    (profRows ?? []).find((row) => {
+      const stored = normalizarUsername(
+        row.nome_usuario != null ? String(row.nome_usuario) : '',
+      )
+      return stored === un
+    }) ?? null
+
+  if (!prof?.usuario_id) return { ok: false, error: 'profissional_nao_encontrado' }
 
   const { data: u } = await supabase.from('usuarios').select('status').eq('id', prof.usuario_id).maybeSingle()
 

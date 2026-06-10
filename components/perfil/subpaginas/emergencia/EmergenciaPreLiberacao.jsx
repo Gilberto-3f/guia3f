@@ -5,6 +5,7 @@ import { KeyRound } from 'lucide-react'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { turistaDocumentosEnviados } from '@/lib/faseVerificacaoConta'
 import { MSG_PRE_LIBERACAO_REQUER_DOCS } from '@/lib/avisoVerificacaoContaTexto'
+import { normalizarUsername } from '@/lib/turistaPreLiberacao'
 
 const MSG_EXPLICATIVA =
   'Enquanto seu cadastro não é verificado pelo ADM, um profissional verificado pode liberar compras, reservas e mobilidade no app por 24 horas, para vincular às suas compras de serviços pelo app.'
@@ -27,9 +28,9 @@ export default function EmergenciaPreLiberacao() {
       setFeedback({ tipo: 'erro', texto: MSG_PRE_LIBERACAO_REQUER_DOCS })
       return
     }
-    const c = codigo.trim().replace(/^@+/, '')
+    const c = normalizarUsername(codigo)
     if (!c) {
-      setFeedback({ tipo: 'erro', texto: 'Informe um username.' })
+      setFeedback({ tipo: 'erro', texto: 'Informe um username (@username ou username).' })
       return
     }
     setEnviando(true)
@@ -82,7 +83,7 @@ export default function EmergenciaPreLiberacao() {
               setCodigo(e.target.value)
               setFeedback(null)
             }}
-            placeholder="Username do profissional (ex: joao_guia)"
+            placeholder="@username ou username (ex: @joao_guia)"
             disabled={!podeSolicitar}
             className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 disabled:bg-gray-100"
             autoCapitalize="off"

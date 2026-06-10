@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       const msg =
         prof.error === 'profissional_nao_verificado'
           ? 'Este profissional ainda não está verificado no app.'
-          : 'Profissional não encontrado. Use o username exato (sem @).'
+          : 'Profissional não encontrado. Verifique o username (@username ou username).'
       return NextResponse.json({ error: msg }, { status: 400 })
     }
 
@@ -122,14 +122,12 @@ export async function POST(req: Request) {
 
     if (!aviso.ok) {
       await adminDb.from('turista_pre_liberacoes').delete().eq('id', sol.id)
-      return NextResponse.json(
-        {
-          error:
-            aviso.error ??
-            'Não foi possível notificar o profissional no canal financeiro. Tente novamente.',
-        },
-        { status: 500 },
-      )
+      const raw = String(aviso.error ?? '')
+      const erroUsuario = raw.includes('canal_financeiro_tipo_check')
+        ? 'Não foi possível enviar a solicitação ao profissional. Tente novamente em instantes.'
+        : (aviso.error ??
+          'Não foi possível notificar o profissional no canal financeiro. Tente novamente.')
+      return NextResponse.json({ error: erroUsuario }, { status: 500 })
     }
 
     if (aviso.canalFinanceiroId) {
