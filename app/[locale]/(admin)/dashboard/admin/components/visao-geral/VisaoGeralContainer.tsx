@@ -3,7 +3,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 import type { PeriodoId } from '../shared/FiltrosPeriodo'
 import { FiltroPeriodoCompacto } from '../shared/FiltroPeriodoCompacto'
-import { TopoCards } from '../shared/TopoCards'
+import { EcossistemaPerfilTabs } from './EcossistemaPerfilTabs'
 import type { PerfilVisaoGeral } from '../../types/admin.types'
 import { VisaoGeralGraficos } from './VisaoGeralGraficos'
 
@@ -33,8 +33,8 @@ export function VisaoGeralProvider({ children }: { children: ReactNode }) {
 export function VisaoGeralBarraFixa() {
   const { perfil, setPerfil, periodo, setPeriodo } = useVisaoGeralCtx()
   return (
-    <div className="space-y-2 border-t border-gray-100 bg-white px-3 py-2.5 sm:px-4">
-      <TopoCards active={perfil} onSelect={setPerfil} />
+    <div className="space-y-2.5 border-t border-gray-100 bg-white px-3 py-2.5 sm:px-4">
+      <EcossistemaPerfilTabs value={perfil} onChange={setPerfil} />
       <div className="flex justify-center">
         <FiltroPeriodoCompacto value={periodo} onChange={setPeriodo} />
       </div>

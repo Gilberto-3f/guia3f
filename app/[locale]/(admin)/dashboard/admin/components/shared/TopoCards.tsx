@@ -82,6 +82,57 @@ function Card({
   )
 }
 
+function useTopoCardsDados() {
+  const { topoCards, loading } = useAdminData('turistas', FILTROS_TOPO_CARDS, { loadTopoCards: true })
+  return {
+    loading,
+    dados: {
+      turistas: topoCards?.turistas,
+      profissionais: topoCards?.profissionais,
+      empresas: topoCards?.empresas,
+    },
+  }
+}
+
+/** Resumo fixo no painel principal (sem navegação). */
+export function TopoCardsResumo() {
+  const { loading, dados } = useTopoCardsDados()
+
+  return (
+    <div className="mx-auto grid w-full max-w-6xl grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
+      {PERFIS.map(({ id, label, icon: Icon }) => {
+        const resumo = dados[id]
+        const iconClass = 'h-[1.125rem] w-[1.125rem] shrink-0 text-[#0097b2] sm:h-6 sm:w-6'
+
+        return (
+          <div
+            key={id}
+            className="flex aspect-square min-h-0 w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border border-[#0097b2]/25 bg-white p-1.5 text-center shadow-sm sm:gap-1 sm:p-2.5 lg:p-3"
+          >
+            <Icon className={iconClass} strokeWidth={2} aria-hidden />
+            <span className="max-w-full truncate text-[0.6rem] font-semibold uppercase tracking-wide text-[#0097b2] sm:text-xs">
+              {label}
+            </span>
+            <span className="max-w-full truncate text-base font-bold tabular-nums text-gray-900 sm:text-xl lg:text-2xl">
+              {loading ? '…' : resumo ? resumo.total.toLocaleString('pt-BR') : '-'}
+            </span>
+            {!loading && typeof resumo?.variacao === 'number' ? (
+              <span
+                className={[
+                  'text-[0.65rem] font-semibold sm:text-xs',
+                  resumo.variacao >= 0 ? 'text-emerald-700' : 'text-rose-700',
+                ].join(' ')}
+              >
+                {resumo.variacao >= 0 ? '↑' : '↓'} {Math.abs(resumo.variacao).toFixed(1)}%
+              </span>
+            ) : null}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export function TopoCards({
   active,
   onSelect,
@@ -89,13 +140,7 @@ export function TopoCards({
   active: PerfilVisaoGeral
   onSelect: (perfil: PerfilVisaoGeral) => void
 }) {
-  const { topoCards, loading } = useAdminData('turistas', FILTROS_TOPO_CARDS, { loadTopoCards: true })
-
-  const dados = {
-    turistas: topoCards?.turistas,
-    profissionais: topoCards?.profissionais,
-    empresas: topoCards?.empresas,
-  }
+  const { loading, dados } = useTopoCardsDados()
 
   return (
     <div className="mx-auto grid w-full max-w-6xl grid-cols-3 gap-2 sm:gap-3 lg:gap-4">

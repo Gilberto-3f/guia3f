@@ -7,7 +7,7 @@ export const ABAS_PRINCIPAIS = ['visao-geral', 'cadastros', 'denuncias', 'espaco
 export type AbaPrincipalId = (typeof ABAS_PRINCIPAIS)[number]
 
 const abas: { id: AbaPrincipalId; label: string; Icon: LucideIcon }[] = [
-  { id: 'visao-geral', label: 'Visão Geral', Icon: BarChart3 },
+  { id: 'visao-geral', label: 'Ecossistema', Icon: BarChart3 },
   { id: 'cadastros', label: 'Cadastros', Icon: ClipboardCheck },
   { id: 'denuncias', label: 'Denúncias', Icon: ShieldAlert },
   { id: 'espaco-adm', label: 'Espaço ADM', Icon: Crown },

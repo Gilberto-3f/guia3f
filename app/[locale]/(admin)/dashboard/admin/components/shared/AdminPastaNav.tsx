@@ -5,7 +5,7 @@ import { BarChart3, ClipboardCheck, ShieldAlert, Crown, Settings } from 'lucide-
 import { ABAS_PRINCIPAIS, type AbaPrincipalId } from './AbasNavegacao'
 
 export const ADMIN_PASTAS: { id: AbaPrincipalId; label: string; Icon: LucideIcon }[] = [
-  { id: 'visao-geral', label: 'Visão geral', Icon: BarChart3 },
+  { id: 'visao-geral', label: 'Ecossistema', Icon: BarChart3 },
   { id: 'cadastros', label: 'Cadastros', Icon: ClipboardCheck },
   { id: 'denuncias', label: 'Denúncias', Icon: ShieldAlert },
   { id: 'espaco-adm', label: 'Espaço ADM', Icon: Crown },
@@ -18,6 +18,10 @@ const PASTA_LABEL: Record<AbaPrincipalId, string> = Object.fromEntries(
 
 export function tituloPastaAdmin(tab: AbaPrincipalId): string {
   return PASTA_LABEL[tab] ?? 'Painel Dashboard'
+}
+
+export function pastaAdminPorId(tab: AbaPrincipalId) {
+  return ADMIN_PASTAS.find((p) => p.id === tab)
 }
 
 export function AdminPastaNav({ onSelect }: { onSelect: (id: AbaPrincipalId) => void }) {

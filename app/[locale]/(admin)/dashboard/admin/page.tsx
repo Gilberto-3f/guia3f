@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
 import { type AbaPrincipalId, ABAS_PRINCIPAIS } from './components/shared/AbasNavegacao'
-import { AdminPastaNav, tituloPastaAdmin } from './components/shared/AdminPastaNav'
+import { AdminPastaNav, pastaAdminPorId, tituloPastaAdmin } from './components/shared/AdminPastaNav'
+import { TopoCardsResumo } from './components/shared/TopoCards'
 import { AdminSubabasRail } from './components/shared/AdminSubabasRail'
 import { AdminPermissaoProvider, useSharedAdminGate } from './context/AdminPermissaoContext'
 import { DenunciasToolbarProvider } from './context/DenunciasToolbarContext'
@@ -77,6 +78,8 @@ function DashboardAdminContent() {
     )
   }
 
+  const pastaAtiva = tab ? pastaAdminPorId(tab) : null
+
   const shell = (
     <DenunciasToolbarProvider>
       <div className="mx-0 max-w-full px-3 pb-10 sm:mx-auto sm:max-w-6xl sm:px-4">
@@ -84,8 +87,15 @@ function DashboardAdminContent() {
           <div className="bg-[#0097b2] px-3 pb-3 pt-2 text-white sm:px-4 sm:pb-3 sm:pt-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="w-8 sm:w-10" aria-hidden />
-              <span className="flex-1 text-center text-base font-bold uppercase tracking-wide sm:text-lg">
-                {tab ? tituloPastaAdmin(tab) : 'Painel Dashboard'}
+              <span className="flex flex-1 items-center justify-center gap-2 text-center text-base font-bold uppercase tracking-wide sm:text-lg">
+                {pastaAtiva ? (
+                  <>
+                    <pastaAtiva.Icon className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" strokeWidth={2.25} aria-hidden />
+                    <span>{tituloPastaAdmin(tab!)}</span>
+                  </>
+                ) : (
+                  'Painel Dashboard'
+                )}
               </span>
               {tab ? (
                 <button
@@ -109,6 +119,12 @@ function DashboardAdminContent() {
               )}
             </div>
           </div>
+
+          {!tab ? (
+            <div className="border-t border-gray-100 bg-white px-3 py-3 sm:px-4 sm:py-4">
+              <TopoCardsResumo />
+            </div>
+          ) : null}
 
           {tab === 'visao-geral' ? <VisaoGeralBarraFixa /> : null}
 
