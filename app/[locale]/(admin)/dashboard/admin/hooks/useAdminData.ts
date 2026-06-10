@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { buscarTopTermosGuia, type TopTermosSegmentoGuia } from '@/lib/buscasGuia'
 import {
   agregarAtendimentosPorCategoria,
   agregarProfissionaisPorCategoria,
@@ -24,7 +25,7 @@ type UseAdminDataReturn = {
   crescimento: DadoCrescimento[] | null
   ativos: DadoPizzaSegmento[] | null
   novosCadastros: DadoRosca | null
-  seguimentosGuia: DadoBarras[] | null
+  topTermosGuia: TopTermosSegmentoGuia[] | null
   mobilidadeCategorias: DadoBarras[] | null
   profissionaisPorCategoria: DadoPizzaSegmento[] | null
   profissionaisPorCidade: DadoPizzaSegmento[] | null
@@ -42,7 +43,7 @@ const emptyData: DataState = {
   crescimento: null,
   ativos: null,
   novosCadastros: null,
-  seguimentosGuia: null,
+  topTermosGuia: null,
   mobilidadeCategorias: null,
   profissionaisPorCategoria: null,
   profissionaisPorCidade: null,
@@ -56,7 +57,20 @@ const CORES_ATIVOS_FAIXA = ['#0097b2', '#00D443', '#F1C40F']
 type CreatedAtRow = { created_at: string | null }
 type CategoriaRow = { categoria: string | null }
 type CidadeRow = { cidade: string | null }
-type LogCategoriaRow = { categoria: string | null }
+function createdAtPerfilRow(row: Record<string, unknown>): string | null {
+  const direto = row.created_at
+  if (typeof direto === 'string' && direto) return direto
+  const usuarios = row.usuarios
+  if (usuarios && typeof usuarios === 'object' && !Array.isArray(usuarios)) {
+    const nested = (usuarios as { created_at?: unknown }).created_at
+    if (typeof nested === 'string' && nested) return nested
+  }
+  if (Array.isArray(usuarios) && usuarios[0] && typeof usuarios[0] === 'object') {
+    const nested = (usuarios[0] as { created_at?: unknown }).created_at
+    if (typeof nested === 'string' && nested) return nested
+  }
+  return null
+}
 
 /** Quando `loadTopoCards` é false (padrão), não busca totais — em `TopoCards` passe `{ loadTopoCards: true }` para evitar pedidos duplicados ao trocar subabas na Visão Geral. */
 export type UseAdminDataOptions = {
@@ -90,7 +104,7 @@ export function useAdminData(
         crescimento,
         ativos,
         novosCadastros,
-        seguimentosGuia,
+        topTermosGuia,
         mobilidadeCategorias,
         profissionaisPorCategoria,
         profissionaisPorCidade,
@@ -101,7 +115,7 @@ export function useAdminData(
         fetchCrescimento(perfil, f),
         fetchAtivosFaixas(perfil),
         fetchNovosCadastros(perfil),
-        perfil === 'turistas' ? fetchSeguimentosGuia(f) : Promise.resolve(null),
+        perfil === 'turistas' ? fetchTopTermosGuia(f) : Promise.resolve(null),
         perfil === 'turistas' ? fetchMobilidadeCategorias(f) : Promise.resolve(null),
         perfil === 'profissionais' ? fetchProfissionaisDistribuicaoCategoria() : Promise.resolve(null),
         perfil === 'profissionais' ? fetchProfissionaisDistribuicaoCidade() : Promise.resolve(null),
@@ -116,7 +130,7 @@ export function useAdminData(
         crescimento,
         ativos,
         novosCadastros,
-        seguimentosGuia,
+        topTermosGuia,
         mobilidadeCategorias,
         profissionaisPorCategoria,
         profissionaisPorCidade,
@@ -138,9 +152,16 @@ export function useAdminData(
   return { ...data, loading, error, refetch: fetchData }
 }
 
-async function countUsuariosByRole(role: 'turista' | 'profissional', fromDate?: Date): Promise<number> {
-  let q = supabase.from('usuarios').select('*', { count: 'exact', head: true }).eq('role', role)
+type TabelaPerfilCadastro = 'turistas' | 'profissionais'
+
+async function countPerfisCadastro(
+  tabela: TabelaPerfilCadastro,
+  fromDate?: Date,
+  toDate?: Date,
+): Promise<number> {
+  let q = supabase.from(tabela).select('*', { count: 'exact', head: true })
   if (fromDate) q = q.gte('created_at', fromDate.toISOString())
+  if (toDate) q = q.lte('created_at', toDate.toISOString())
   const { count, error } = await q
   if (error) throw error
   return count ?? 0
@@ -154,13 +175,13 @@ async function fetchTopoCards(): Promise<DadosTopoCards> {
 
   const [turistasTotal, profissionaisTotal, empresasTotal, turistasAtual, turistasAnterior, profissionaisAtual, profissionaisAnterior, empresasAtual, empresasAnterior] =
     await Promise.all([
-      countUsuariosByRole('turista'),
-      countUsuariosByRole('profissional'),
+      countPerfisCadastro('turistas'),
+      countPerfisCadastro('profissionais'),
       countEmpresas(),
-      countUsuariosByRole('turista', startCurrent),
-      countUsuariosByRoleBetween('turista', startPrev, endPrev),
-      countUsuariosByRole('profissional', startCurrent),
-      countUsuariosByRoleBetween('profissional', startPrev, endPrev),
+      countPerfisCadastro('turistas', startCurrent),
+      countPerfisCadastro('turistas', startPrev, endPrev),
+      countPerfisCadastro('profissionais', startCurrent),
+      countPerfisCadastro('profissionais', startPrev, endPrev),
       countEmpresas(startCurrent),
       countEmpresas(startPrev, endPrev),
     ])
@@ -188,14 +209,17 @@ async function fetchCrescimento(perfil: PerfilVisaoGeral, filtros: FiltrosVisaoG
     if (error) throw error
     return groupByMonth(((data ?? []) as CreatedAtRow[]).map((r) => r.created_at).filter((v): v is string => Boolean(v)))
   }
-  const role = perfil === 'turistas' ? 'turista' : 'profissional'
-  const { data, error } = await supabase
-    .from('usuarios')
-    .select('created_at')
-    .eq('role', role)
-    .gte('created_at', since.toISOString())
+  const tabela: TabelaPerfilCadastro = perfil === 'turistas' ? 'turistas' : 'profissionais'
+  const { data, error } = await supabase.from(tabela).select('created_at, usuarios(created_at)')
   if (error) throw error
-  return groupByMonth(((data ?? []) as CreatedAtRow[]).map((r) => r.created_at).filter((v): v is string => Boolean(v)))
+  const datas = (data ?? [])
+    .map((r) => createdAtPerfilRow(r as Record<string, unknown>))
+    .filter((v): v is string => {
+      if (!v) return false
+      const t = new Date(v).getTime()
+      return !Number.isNaN(t) && t >= since.getTime()
+    })
+  return groupByMonth(datas)
 }
 
 function contarFaixasAtividade(rows: CreatedAtRow[]): DadoPizzaSegmento[] {
@@ -234,17 +258,19 @@ function contarFaixasAtividade(rows: CreatedAtRow[]): DadoPizzaSegmento[] {
 }
 
 async function fetchAtivosFaixas(perfil: PerfilVisaoGeral): Promise<DadoPizzaSegmento[]> {
-  // Proxy: sem last_active_at no schema atual, usamos recência de created_at em faixas exclusivas.
   if (perfil === 'empresas') {
     const { data, error } = await supabase.from('empresas').select('created_at')
     if (error) throw error
     return contarFaixasAtividade((data ?? []) as CreatedAtRow[])
   }
 
-  const role = perfil === 'turistas' ? 'turista' : 'profissional'
-  const { data, error } = await supabase.from('usuarios').select('created_at').eq('role', role)
-  if (error) throw error
-  return contarFaixasAtividade((data ?? []) as CreatedAtRow[])
+  const perfilParam = perfil === 'turistas' ? 'turistas' : 'profissionais'
+  const res = await fetch(`/api/admin/visao-geral/ativos?perfil=${perfilParam}`, { credentials: 'include' })
+  if (!res.ok) {
+    throw new Error('Falha ao carregar ativos no app')
+  }
+  const body = (await res.json()) as { faixas?: DadoPizzaSegmento[] }
+  return body.faixas ?? []
 }
 
 async function fetchNovosCadastros(perfil: PerfilVisaoGeral): Promise<DadoRosca> {
@@ -261,10 +287,10 @@ async function fetchNovosCadastros(perfil: PerfilVisaoGeral): Promise<DadoRosca>
     return { atual, anterior, variacao: calcVariacaoPercentual(atual, anterior) }
   }
 
-  const role = perfil === 'turistas' ? 'turista' : 'profissional'
+  const tabela: TabelaPerfilCadastro = perfil === 'turistas' ? 'turistas' : 'profissionais'
   const [atual, anterior] = await Promise.all([
-    countUsuariosByRole(role, startCurrent),
-    countUsuariosByRoleBetween(role, startPrev, endPrev),
+    countPerfisCadastro(tabela, startCurrent),
+    countPerfisCadastro(tabela, startPrev, endPrev),
   ])
   return { atual, anterior, variacao: calcVariacaoPercentual(atual, anterior) }
 }
@@ -313,36 +339,9 @@ async function fetchMobilidadeCategorias(filtros: FiltrosVisaoGeral): Promise<Da
   ]
 }
 
-async function fetchSeguimentosGuia(filtros: FiltrosVisaoGeral): Promise<DadoBarras[]> {
-  // TODO: substituir fallback quando logs_cliques_categoria estiver populada em produção.
+async function fetchTopTermosGuia(filtros: FiltrosVisaoGeral): Promise<TopTermosSegmentoGuia[]> {
   const since = getPeriodoDate(filtros.periodo)
-  const { data: logs, error } = await supabase
-    .from('logs_cliques_categoria')
-    .select('categoria')
-    .gte('created_at', since.toISOString())
-
-  if (!error && logs && logs.length > 0) {
-    const map = new Map<string, number>()
-    for (const row of logs as LogCategoriaRow[]) {
-      const categoria = String(row.categoria ?? '')
-      if (!categoria) continue
-      map.set(categoria, (map.get(categoria) ?? 0) + 1)
-    }
-    return topN(
-      Array.from(map.entries()).map(([key, total]) => ({
-        label: getLabelCategoriaGuia(key),
-        total,
-      })),
-      8
-    )
-  }
-
-  return [
-    { label: 'Gastronomia', total: 0 },
-    { label: 'Lojas', total: 0 },
-    { label: 'Hotelaria', total: 0 },
-    { label: 'Passeios', total: 0 },
-  ]
+  return buscarTopTermosGuia(since.toISOString(), 10)
 }
 
 function barrasParaPizza(dados: DadoBarras[]): DadoPizzaSegmento[] {
@@ -418,17 +417,6 @@ async function countEmpresas(fromDate?: Date, toDate?: Date): Promise<number> {
   return count ?? 0
 }
 
-async function countUsuariosByRoleBetween(role: 'turista' | 'profissional', fromDate: Date, toDate: Date): Promise<number> {
-  const { count, error } = await supabase
-    .from('usuarios')
-    .select('*', { count: 'exact', head: true })
-    .eq('role', role)
-    .gte('created_at', fromDate.toISOString())
-    .lte('created_at', toDate.toISOString())
-  if (error) throw error
-  return count ?? 0
-}
-
 function groupByMonth(createdAts: string[]): DadoCrescimento[] {
   const map = new Map<string, number>()
   for (const iso of createdAts) {
@@ -442,17 +430,5 @@ function groupByMonth(createdAts: string[]): DadoCrescimento[] {
       mes: getMesLabel(`${key}-01T00:00:00.000Z`),
       total,
     }))
-}
-
-function getLabelCategoriaGuia(categoria: string): string {
-  const labels: Record<string, string> = {
-    gastronomia: 'Gastronomia',
-    lojas: 'Lojas',
-    hotelaria: 'Hotelaria',
-    passeios: 'Passeios',
-    hospedagem: 'Hospedagem',
-    servicos_locais: 'Serviços Locais',
-  }
-  return labels[categoria] ?? categoria
 }
 

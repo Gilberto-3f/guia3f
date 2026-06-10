@@ -7,6 +7,7 @@ import { AdminSecaoChevron } from '../shared/AdminSecaoChevron'
 import { GraficoLinha } from './GraficoLinha'
 import { GraficoBarras } from './GraficoBarras'
 import GraficoPizzaMercado from '@/app/[locale]/(app-shell)/dashboard/empresa/components/estatisticas-mercado/GraficoPizza'
+import OtimizacaoMotorBuscaPainel from '@/app/[locale]/(app-shell)/dashboard/empresa/components/estatisticas-mercado/OtimizacaoMotorBuscaPainel'
 
 const TITULOS_PERFIL: Record<PerfilVisaoGeral, string> = {
   turistas: 'Turistas',
@@ -37,8 +38,8 @@ function secoesPorPerfil(perfil: PerfilVisaoGeral): SecaoId[] {
 const TITULOS_SECAO: Record<SecaoId, string> = {
   crescimento: 'Crescimento de usuários',
   ativos: 'Ativos no app',
-  seguimentos: 'Segmentos mais usados no guia turístico',
-  mobilidade: 'Categorias mais usadas na mobilidade',
+  seguimentos: 'Mais procurados (no guia)',
+  mobilidade: 'Mais solicitados (na mobilidade)',
   'prof-categoria': 'Distribuição por categoria',
   'prof-cidade': 'Distribuição por cidade',
   'emp-segmento': 'Distribuição por segmento',
@@ -69,7 +70,7 @@ export function VisaoGeralGraficos({
   const {
     crescimento,
     ativos,
-    seguimentosGuia,
+    topTermosGuia,
     mobilidadeCategorias,
     profissionaisPorCategoria,
     profissionaisPorCidade,
@@ -92,14 +93,10 @@ export function VisaoGeralGraficos({
           <GraficoPizzaMercado dados={ativos ?? []} titulo="" semTitulo embed mostrarComZero />
         )
       case 'seguimentos':
-        return (
-          <GraficoBarras
-            dados={seguimentosGuia}
-            loading={loading}
-            title={TITULOS_SECAO.seguimentos}
-            semTitulo
-            emptyMessage="Aguardando dados de cliques no guia turístico."
-          />
+        return loading ? (
+          <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
+        ) : (
+          <OtimizacaoMotorBuscaPainel topTermos={topTermosGuia ?? []} />
         )
       case 'mobilidade':
         return (

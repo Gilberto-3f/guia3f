@@ -127,12 +127,11 @@ export function agregarProfissionaisPorCidade(
 
   for (const row of rows) {
     const cidades = asStringArray(row.cidade_atuacao)
-    const vistos = new Set<CidadeTriplice>()
     for (const raw of cidades) {
       const cidade = normalizarCidadeTriplice(raw)
-      if (!cidade || vistos.has(cidade)) continue
-      vistos.add(cidade)
+      if (!cidade) continue
       porCidade[cidade] += 1
+      break
     }
   }
 
