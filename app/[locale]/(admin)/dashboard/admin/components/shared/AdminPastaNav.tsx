@@ -26,7 +26,7 @@ export function pastaAdminPorId(tab: AbaPrincipalId) {
 
 export function AdminPastaNav({ onSelect }: { onSelect: (id: AbaPrincipalId) => void }) {
   return (
-    <nav className="space-y-3" aria-label="Seções do painel administrativo">
+    <nav className="space-y-2" aria-label="Seções do painel administrativo">
       {ADMIN_PASTAS.map(({ id, label, Icon }) => (
         <section
           key={id}
@@ -37,12 +37,12 @@ export function AdminPastaNav({ onSelect }: { onSelect: (id: AbaPrincipalId) => 
             type="button"
             id={`admin-pasta-${id}`}
             onClick={() => onSelect(id)}
-            className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-gray-50/80 sm:py-5"
+            className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-gray-50/80 sm:py-3"
           >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#0097b2] sm:h-12 sm:w-12">
-              <Icon className="h-6 w-6 text-white sm:h-7 sm:w-7" strokeWidth={2} aria-hidden />
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0097b2] sm:h-10 sm:w-10">
+              <Icon className="h-5 w-5 text-white sm:h-6 sm:w-6" strokeWidth={2} aria-hidden />
             </span>
-            <span className="text-base font-bold uppercase tracking-wide text-[#0097b2] sm:text-lg">{label}</span>
+            <span className="text-sm font-bold uppercase tracking-wide text-[#0097b2] sm:text-base">{label}</span>
           </button>
         </section>
       ))}

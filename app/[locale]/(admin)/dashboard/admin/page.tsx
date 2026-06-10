@@ -87,16 +87,19 @@ function DashboardAdminContent() {
           <div className="bg-[#0097b2] px-3 pb-3 pt-2 text-white sm:px-4 sm:pb-3 sm:pt-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="w-8 sm:w-10" aria-hidden />
-              <span className="flex flex-1 items-center justify-center gap-2 text-center text-base font-bold uppercase tracking-wide sm:text-lg">
-                {pastaAtiva ? (
-                  <>
-                    <pastaAtiva.Icon className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" strokeWidth={2.25} aria-hidden />
-                    <span>{tituloPastaAdmin(tab!)}</span>
-                  </>
-                ) : (
-                  'Painel Dashboard'
-                )}
-              </span>
+              {pastaAtiva ? (
+                <span className="flex flex-1 items-center justify-center gap-2 text-center text-base font-bold uppercase tracking-wide sm:text-lg">
+                  <pastaAtiva.Icon className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" strokeWidth={2.25} aria-hidden />
+                  <span>{tituloPastaAdmin(tab!)}</span>
+                </span>
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center text-center leading-tight">
+                  <span className="text-base font-bold uppercase tracking-wide sm:text-lg">Dashboard ADM</span>
+                  <span className="mt-0.5 text-[11px] font-normal normal-case text-white/90 sm:text-xs">
+                    Painel Administrativo
+                  </span>
+                </div>
+              )}
               {tab ? (
                 <button
                   type="button"
@@ -123,6 +126,7 @@ function DashboardAdminContent() {
           {!tab ? (
             <div className="border-t border-gray-100 bg-white px-3 py-3 sm:px-4 sm:py-4">
               <TopoCardsResumo />
+              <p className="mt-2 text-center text-xs font-medium text-[#0097b2]">Visão Geral</p>
             </div>
           ) : null}
 
