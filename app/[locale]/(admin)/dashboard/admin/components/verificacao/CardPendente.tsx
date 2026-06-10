@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { resolverUrlsDocumentosStorageAdmin } from '@/lib/documentosStorageUrl'
-import { ModalDocumentoAmpliado } from './ModalDocumentoAmpliado'
-import { PreviewDocumento, isPdfUrl } from './PreviewDocumento'
+import { ModalDocumentoAmpliado, type DocAmpliado } from './ModalDocumentoAmpliado'
 import { usePermissao } from '../../hooks/usePermissao'
 
 export type CadastroPendente = {
@@ -26,7 +25,8 @@ export type CadastroPendente = {
   raw: Record<string, unknown>
 }
 
-type DocThumb = { key: string; label: string; url: string }
+type DocPagina = { label: string; url: string }
+type DocBotao = { key: string; label: string; paginas: DocPagina[] }
 
 const BADGE_EMPRESA_CATEGORIA: Record<string, string> = {
   Restaurantes: 'border-orange-200 bg-orange-50 text-orange-900',
@@ -41,100 +41,65 @@ function badgeEmpresaCategoriaClass(cat: string | undefined | null): string {
   return BADGE_EMPRESA_CATEGORIA[k] ?? 'border-gray-200 bg-gray-100 text-gray-800'
 }
 
-function collectDocThumbs(tipo: 'turistas' | 'profissionais' | 'empresas', raw: Record<string, unknown>): DocThumb[] {
+function collectBotoesDocumentos(
+  tipo: 'turistas' | 'profissionais' | 'empresas',
+  raw: Record<string, unknown>,
+): DocBotao[] {
+  const push = (out: DocBotao[], key: string, label: string, paginas: DocPagina[]) => {
+    const validas = paginas.filter((p) => p.url.trim())
+    if (validas.length) out.push({ key, label, paginas: validas })
+  }
+
   if (tipo === 'turistas') {
-    const out: DocThumb[] = []
+    const out: DocBotao[] = []
     const frente = String(raw.documento_frente_url ?? '').trim()
     const verso = String(raw.documento_verso_url ?? '').trim()
-    if (frente) out.push({ key: 'frente', label: 'Doc. frente', url: frente })
-    if (verso) out.push({ key: 'verso', label: 'Doc. verso', url: verso })
+    push(out, 'identidade', 'Identidade', [
+      ...(frente ? [{ label: 'Frente', url: frente }] : []),
+      ...(verso ? [{ label: 'Verso', url: verso }] : []),
+    ])
     return out
   }
+
   if (tipo === 'profissionais') {
     const d = (raw.documentos ?? {}) as Record<string, string>
     const idF = String(raw.documento_frente_url ?? d.identidade_url ?? raw.identidade_url ?? '').trim()
     const idV = String(d.documento_verso_url ?? raw.documento_verso_url ?? '').trim()
     const res = String(d.comprovante_residencia_url ?? raw.comprovante_residencia_url ?? '').trim()
     const prof = String(d.comprovante_profissao_url ?? raw.comprovante_profissao_url ?? '').trim()
-    const out: DocThumb[] = []
-    if (idF) out.push({ key: 'idf', label: 'ID frente', url: idF })
-    if (idV) out.push({ key: 'idv', label: 'ID verso', url: idV })
-    if (res) out.push({ key: 'res', label: 'Resid.', url: res })
-    if (prof) out.push({ key: 'prof', label: 'Profissão', url: prof })
+    const out: DocBotao[] = []
+    push(out, 'identidade', 'Identidade', [
+      ...(idF ? [{ label: 'Frente', url: idF }] : []),
+      ...(idV ? [{ label: 'Verso', url: idV }] : []),
+    ])
+    push(out, 'endereco', 'Endereço', res ? [{ label: 'Comprovante', url: res }] : [])
+    push(out, 'profissao', 'Profissão', prof ? [{ label: 'Comprovante', url: prof }] : [])
     return out
   }
-  const outEmp: DocThumb[] = []
+
   const ef = String(raw.documento_frente_url ?? '').trim()
   const ev = String(raw.documento_verso_url ?? '').trim()
   const er = String(raw.comprovante_residencia_url ?? '').trim()
   const ec = String(raw.documento_comercial_url ?? raw.documento_url ?? '').trim()
-  if (ef) outEmp.push({ key: 'ef', label: 'Rep. ID frente', url: ef })
-  if (ev) outEmp.push({ key: 'ev', label: 'Rep. ID verso', url: ev })
-  if (er) outEmp.push({ key: 'er', label: 'Residência', url: er })
-  if (ec) outEmp.push({ key: 'ec', label: 'Comercial / categoria', url: ec })
-  if (outEmp.length > 0) return outEmp
-  const u = String(raw.documento_url ?? raw.documento_comercial_url ?? '').trim()
-  if (u) return [{ key: 'com', label: 'Comercial', url: u }]
-  return []
+  const out: DocBotao[] = []
+  push(out, 'identidade', 'Identidade', [
+    ...(ef ? [{ label: 'Representante — frente', url: ef }] : []),
+    ...(ev ? [{ label: 'Representante — verso', url: ev }] : []),
+  ])
+  push(out, 'endereco', 'Endereço', er ? [{ label: 'Comprovante', url: er }] : [])
+  push(out, 'comercial', 'Comercial', ec ? [{ label: 'Documento', url: ec }] : [])
+  return out
 }
 
-function BotaoDocThumb({
-  thumb,
-  resolvedUrl,
-  onAbrir,
-}: {
-  thumb: DocThumb
-  resolvedUrl?: string
-  onAbrir: (t: DocThumb) => void
-}) {
-  const touchStart = useRef<{ x: number; y: number } | null>(null)
-
-  const abrir = (e: SyntheticEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    onAbrir(thumb)
-  }
-
+function BotaoDocumento({ botao, onAbrir }: { botao: DocBotao; onAbrir: (doc: DocAmpliado) => void }) {
   return (
     <button
       type="button"
-      onClick={abrir}
-      onTouchStart={(e) => {
-        const touch = e.touches[0]
-        if (touch) touchStart.current = { x: touch.clientX, y: touch.clientY }
-      }}
-      onTouchEnd={(e) => {
-        const touch = e.changedTouches[0]
-        const start = touchStart.current
-        touchStart.current = null
-        if (!touch || !start) return
-        const dx = Math.abs(touch.clientX - start.x)
-        const dy = Math.abs(touch.clientY - start.y)
-        if (dx < 10 && dy < 10) abrir(e)
-      }}
-      aria-label={`Ampliar ${thumb.label}`}
-      className="group flex cursor-zoom-in select-none touch-manipulation flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 text-left shadow-sm transition hover:border-[#0097b2]/50 hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0097b2]"
+      onClick={() => onAbrir({ titulo: botao.label, paginas: botao.paginas })}
+      className="min-h-[44px] flex-1 rounded-xl border border-[#0097b2]/35 bg-[#0097b2]/5 px-4 py-2.5 text-sm font-bold text-[#0097b2] shadow-sm transition hover:border-[#0097b2] hover:bg-[#0097b2]/10 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0097b2]"
+      aria-label={`Abrir ${botao.label}`}
     >
-      <div className="relative aspect-square w-full bg-gray-100">
-        {isPdfUrl(thumb.url) ? (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center">
-            <span className="text-[10px] font-bold text-gray-700">PDF</span>
-            <span className="line-clamp-2 text-[10px] text-gray-500">{thumb.label}</span>
-            <span className="text-[9px] font-semibold text-[#0097b2]">Toque para abrir</span>
-          </div>
-        ) : (
-          <PreviewDocumento
-            url={thumb.url}
-            label={thumb.label}
-            className="pointer-events-none h-full w-full"
-            objectFit="cover"
-            resolvedUrl={resolvedUrl}
-          />
-        )}
-      </div>
-      <span className="border-t border-gray-100 bg-white px-1.5 py-1 text-center text-[10px] font-semibold leading-tight text-gray-700">
-        {thumb.label}
-      </span>
+      {botao.label}
     </button>
   )
 }
@@ -169,14 +134,20 @@ export function CardPendente({
   onAprovar: () => void
   onReprovar: (motivo: string) => void
 }) {
-  const [docAmpliado, setDocAmpliado] = useState<DocThumb | null>(null)
+  const [docAmpliado, setDocAmpliado] = useState<DocAmpliado | null>(null)
   const [reprovarAberto, setReprovarAberto] = useState(false)
   const [motivoReprova, setMotivoReprova] = useState('')
   const [urlsResolvidas, setUrlsResolvidas] = useState<Map<string, string>>(new Map())
   const { podeExecutarRecurso } = usePermissao()
 
-  const thumbs = collectDocThumbs(tipo, item.raw)
-  const urlsDocs = useMemo(() => thumbs.map((t) => t.url).filter((u): u is string => Boolean(u?.trim())), [thumbs])
+  const botoesDocs = collectBotoesDocumentos(tipo, item.raw)
+  const urlsDocs = useMemo(
+    () =>
+      botoesDocs
+        .flatMap((b) => b.paginas.map((p) => p.url))
+        .filter((u): u is string => Boolean(u?.trim())),
+    [botoesDocs],
+  )
   const podeAprovar = podeExecutarRecurso('aprovar')
   const podeReprovar = podeExecutarRecurso('reprovar')
 
@@ -317,17 +288,12 @@ export function CardPendente({
 
           <div className="mt-3 border-t border-gray-100 pt-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Documentos</div>
-            {thumbs.length === 0 ? (
+            {botoesDocs.length === 0 ? (
               <div className="mt-2 rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 text-center text-xs text-gray-500">Nenhum anexo</div>
             ) : (
-              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {thumbs.map((t) => (
-                  <BotaoDocThumb
-                    key={t.key}
-                    thumb={t}
-                    resolvedUrl={urlsResolvidas.get(t.url)}
-                    onAbrir={setDocAmpliado}
-                  />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {botoesDocs.map((b) => (
+                  <BotaoDocumento key={b.key} botao={b} onAbrir={setDocAmpliado} />
                 ))}
               </div>
             )}
@@ -386,9 +352,9 @@ export function CardPendente({
       </div>
 
       <ModalDocumentoAmpliado
-        doc={docAmpliado ? { label: docAmpliado.label, url: docAmpliado.url } : null}
+        doc={docAmpliado}
         onClose={() => setDocAmpliado(null)}
-        resolvedUrl={docAmpliado ? urlsResolvidas.get(docAmpliado.url) : undefined}
+        urlsResolvidas={urlsResolvidas}
       />
     </>
   )
