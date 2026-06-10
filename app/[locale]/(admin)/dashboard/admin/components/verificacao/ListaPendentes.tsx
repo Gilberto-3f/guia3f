@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { CardPendente, type CadastroPendente } from './CardPendente'
+import { ModalDocumentoAmpliado, type DocAmpliado } from './ModalDocumentoAmpliado'
 import { useVerificacao } from '../../hooks/useVerificacao'
 import type { PendenteEmpresa, PendenteProfissional, PendenteTurista } from '../../types/admin.types'
 import {
@@ -13,6 +14,17 @@ import {
 
 export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 'empresas' }) {
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [docAmpliado, setDocAmpliado] = useState<DocAmpliado | null>(null)
+  const [urlsModal, setUrlsModal] = useState<Map<string, string>>(new Map())
+
+  const abrirDocumento = useCallback((doc: DocAmpliado, urlsResolvidas: Map<string, string>) => {
+    setUrlsModal(urlsResolvidas)
+    setDocAmpliado(doc)
+  }, [])
+
+  const fecharDocumento = useCallback(() => {
+    setDocAmpliado(null)
+  }, [])
   const { pendentes, loading, error, aprovar, reprovar } = useVerificacao({
     perfil: tipo,
   })
@@ -110,6 +122,7 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
             key={i.id}
             item={i}
             tipo={tipo}
+            onAbrirDocumento={abrirDocumento}
             onAprovar={() => {
               void aprovar(i.id, tipo)
                 .then(() => setFeedback('Cadastro aprovado com sucesso.'))
@@ -127,6 +140,8 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
           />
         ))}
       </div>
+
+      <ModalDocumentoAmpliado doc={docAmpliado} onClose={fecharDocumento} urlsResolvidas={urlsModal} />
     </div>
   )
 }

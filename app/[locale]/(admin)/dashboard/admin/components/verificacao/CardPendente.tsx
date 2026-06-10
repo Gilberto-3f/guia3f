@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { resolverUrlsDocumentosStorageAdmin } from '@/lib/documentosStorageUrl'
-import { ModalDocumentoAmpliado, type DocAmpliado } from './ModalDocumentoAmpliado'
+import type { DocAmpliado } from './ModalDocumentoAmpliado'
+import { collectBotoesDocumentos, urlsDeBotoes, type DocBotao } from './docBotoes'
 import { usePermissao } from '../../hooks/usePermissao'
 
 export type CadastroPendente = {
@@ -25,9 +26,6 @@ export type CadastroPendente = {
   raw: Record<string, unknown>
 }
 
-type DocPagina = { label: string; url: string }
-type DocBotao = { key: string; label: string; paginas: DocPagina[] }
-
 const BADGE_EMPRESA_CATEGORIA: Record<string, string> = {
   Restaurantes: 'border-orange-200 bg-orange-50 text-orange-900',
   Atrativos: 'border-amber-200 bg-amber-50 text-amber-900',
@@ -41,57 +39,13 @@ function badgeEmpresaCategoriaClass(cat: string | undefined | null): string {
   return BADGE_EMPRESA_CATEGORIA[k] ?? 'border-gray-200 bg-gray-100 text-gray-800'
 }
 
-function collectBotoesDocumentos(
-  tipo: 'turistas' | 'profissionais' | 'empresas',
-  raw: Record<string, unknown>,
-): DocBotao[] {
-  const push = (out: DocBotao[], key: string, label: string, paginas: DocPagina[]) => {
-    const validas = paginas.filter((p) => p.url.trim())
-    if (validas.length) out.push({ key, label, paginas: validas })
-  }
-
-  if (tipo === 'turistas') {
-    const out: DocBotao[] = []
-    const frente = String(raw.documento_frente_url ?? '').trim()
-    const verso = String(raw.documento_verso_url ?? '').trim()
-    push(out, 'identidade', 'Identidade', [
-      ...(frente ? [{ label: 'Frente', url: frente }] : []),
-      ...(verso ? [{ label: 'Verso', url: verso }] : []),
-    ])
-    return out
-  }
-
-  if (tipo === 'profissionais') {
-    const d = (raw.documentos ?? {}) as Record<string, string>
-    const idF = String(raw.documento_frente_url ?? d.identidade_url ?? raw.identidade_url ?? '').trim()
-    const idV = String(d.documento_verso_url ?? raw.documento_verso_url ?? '').trim()
-    const res = String(d.comprovante_residencia_url ?? raw.comprovante_residencia_url ?? '').trim()
-    const prof = String(d.comprovante_profissao_url ?? raw.comprovante_profissao_url ?? '').trim()
-    const out: DocBotao[] = []
-    push(out, 'identidade', 'Identidade', [
-      ...(idF ? [{ label: 'Frente', url: idF }] : []),
-      ...(idV ? [{ label: 'Verso', url: idV }] : []),
-    ])
-    push(out, 'endereco', 'Endereço', res ? [{ label: 'Comprovante', url: res }] : [])
-    push(out, 'profissao', 'Profissão', prof ? [{ label: 'Comprovante', url: prof }] : [])
-    return out
-  }
-
-  const ef = String(raw.documento_frente_url ?? '').trim()
-  const ev = String(raw.documento_verso_url ?? '').trim()
-  const er = String(raw.comprovante_residencia_url ?? '').trim()
-  const ec = String(raw.documento_comercial_url ?? raw.documento_url ?? '').trim()
-  const out: DocBotao[] = []
-  push(out, 'identidade', 'Identidade', [
-    ...(ef ? [{ label: 'Representante — frente', url: ef }] : []),
-    ...(ev ? [{ label: 'Representante — verso', url: ev }] : []),
-  ])
-  push(out, 'endereco', 'Endereço', er ? [{ label: 'Comprovante', url: er }] : [])
-  push(out, 'comercial', 'Comercial', ec ? [{ label: 'Documento', url: ec }] : [])
-  return out
-}
-
-function BotaoDocumento({ botao, onAbrir }: { botao: DocBotao; onAbrir: (doc: DocAmpliado) => void }) {
+function BotaoDocumento({
+  botao,
+  onAbrir,
+}: {
+  botao: DocBotao
+  onAbrir: (doc: DocAmpliado) => void
+}) {
   return (
     <button
       type="button"
@@ -128,26 +82,21 @@ export function CardPendente({
   tipo,
   onAprovar,
   onReprovar,
+  onAbrirDocumento,
 }: {
   item: CadastroPendente
   tipo: 'turistas' | 'profissionais' | 'empresas'
   onAprovar: () => void
   onReprovar: (motivo: string) => void
+  onAbrirDocumento: (doc: DocAmpliado, urlsResolvidas: Map<string, string>) => void
 }) {
-  const [docAmpliado, setDocAmpliado] = useState<DocAmpliado | null>(null)
   const [reprovarAberto, setReprovarAberto] = useState(false)
   const [motivoReprova, setMotivoReprova] = useState('')
   const [urlsResolvidas, setUrlsResolvidas] = useState<Map<string, string>>(new Map())
   const { podeExecutarRecurso } = usePermissao()
 
   const botoesDocs = collectBotoesDocumentos(tipo, item.raw)
-  const urlsDocs = useMemo(
-    () =>
-      botoesDocs
-        .flatMap((b) => b.paginas.map((p) => p.url))
-        .filter((u): u is string => Boolean(u?.trim())),
-    [botoesDocs],
-  )
+  const urlsDocs = useMemo(() => urlsDeBotoes(botoesDocs), [botoesDocs])
   const podeAprovar = podeExecutarRecurso('aprovar')
   const podeReprovar = podeExecutarRecurso('reprovar')
 
@@ -293,7 +242,11 @@ export function CardPendente({
             ) : (
               <div className="mt-2 flex flex-wrap gap-2">
                 {botoesDocs.map((b) => (
-                  <BotaoDocumento key={b.key} botao={b} onAbrir={setDocAmpliado} />
+                  <BotaoDocumento
+                    key={b.key}
+                    botao={b}
+                    onAbrir={(doc) => onAbrirDocumento(doc, urlsResolvidas)}
+                  />
                 ))}
               </div>
             )}
@@ -350,12 +303,6 @@ export function CardPendente({
           ) : null}
         </div>
       </div>
-
-      <ModalDocumentoAmpliado
-        doc={docAmpliado}
-        onClose={() => setDocAmpliado(null)}
-        urlsResolvidas={urlsResolvidas}
-      />
     </>
   )
 }
