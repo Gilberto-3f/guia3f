@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { Smartphone, Eye, Car, LineChart, MapPin } from 'lucide-react'
+import { Smartphone, Eye, Car, LineChart, MapPin, PieChart } from 'lucide-react'
 import type { FiltrosVisaoGeral, PerfilVisaoGeral } from '../../types/admin.types'
 import { useAdminData } from '../../hooks/useAdminData'
 import { AdminSecaoChevron } from '../shared/AdminSecaoChevron'
@@ -74,6 +74,29 @@ const SECOES_TURISTAS: Partial<Record<SecaoId, SecaoMeta>> = {
   },
 }
 
+const SECOES_EMPRESAS: Partial<Record<SecaoId, SecaoMeta>> = {
+  ativos: {
+    titulo: 'Ativos no APP',
+    Icon: Smartphone,
+    descricao: 'Empresas ativas no app nos últimos 3 dias',
+  },
+  'emp-segmento': {
+    titulo: 'Distribuição por Seguimento',
+    Icon: PieChart,
+    descricao: 'Porcentagem de empresas por seguimento',
+  },
+  'emp-cidade': {
+    titulo: 'Distribuição por Cidade',
+    Icon: MapPin,
+    descricao: 'Porcentagem de empresas por cidade',
+  },
+  crescimento: {
+    titulo: 'Crescimento de Usuários',
+    Icon: LineChart,
+    descricao: 'Novos cadastros de empresas',
+  },
+}
+
 const SECOES_PROFISSIONAIS: Partial<Record<SecaoId, SecaoMeta>> = {
   ativos: {
     titulo: 'Ativos no APP',
@@ -105,6 +128,7 @@ const MAIS_PROCURADOS_VAZIO = {
 function metaSecao(perfil: PerfilVisaoGeral, id: SecaoId): SecaoMeta | undefined {
   if (perfil === 'turistas') return SECOES_TURISTAS[id]
   if (perfil === 'profissionais') return SECOES_PROFISSIONAIS[id]
+  if (perfil === 'empresas') return SECOES_EMPRESAS[id]
   return undefined
 }
 
@@ -116,7 +140,7 @@ export function VisaoGeralGraficos({
   filtros: FiltrosVisaoGeral
 }) {
   const ids = useMemo(() => secoesPorPerfil(perfil), [perfil])
-  const usaEstiloPerfil = perfil === 'turistas' || perfil === 'profissionais'
+  const usaEstiloPerfil = perfil === 'turistas' || perfil === 'profissionais' || perfil === 'empresas'
 
   const [abertos, setAbertos] = useState<Record<SecaoId, boolean>>(() =>
     Object.fromEntries(ids.map((id) => [id, false])) as Record<SecaoId, boolean>,
