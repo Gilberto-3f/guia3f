@@ -48,21 +48,22 @@ export function AdminPastaNav({
             type="button"
             id={`admin-pasta-${id}`}
             onClick={() => onSelect(id)}
-            className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-gray-50/80 sm:py-3"
+            className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50/80 sm:py-3.5"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0097b2] sm:h-10 sm:w-10">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0097b2] sm:h-11 sm:w-11">
               <Icon className="h-5 w-5 text-white sm:h-6 sm:w-6" strokeWidth={2} aria-hidden />
             </span>
-            <span className="inline-flex min-w-0 flex-1 items-center gap-2">
-              <span className="text-sm font-bold uppercase tracking-wide text-[#0097b2] sm:text-base">{label}</span>
-              {id === 'cadastros' ? (
-                <CadastroBadgesPar
-                  verificacoes={cadastrosVerificacoes}
-                  exclusoes={cadastrosExclusoes}
-                  mostrarExclusao={mostrarBadgeExclusaoCadastros}
-                />
-              ) : null}
+            <span className="min-w-0 flex-1 text-base font-bold uppercase tracking-wide text-[#0097b2] sm:text-lg">
+              {label}
             </span>
+            {id === 'cadastros' ? (
+              <CadastroBadgesPar
+                verificacoes={cadastrosVerificacoes}
+                exclusoes={cadastrosExclusoes}
+                mostrarExclusao={mostrarBadgeExclusaoCadastros}
+                className="shrink-0"
+              />
+            ) : null}
           </button>
         </section>
       ))}

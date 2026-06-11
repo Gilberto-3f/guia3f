@@ -4,7 +4,6 @@ import { Trash2 } from 'lucide-react'
 
 export function ModalSolicitarExclusao({
   aberto,
-  nome,
   motivo,
   onMotivoChange,
   onConfirmar,
@@ -12,7 +11,6 @@ export function ModalSolicitarExclusao({
   enviando,
 }: {
   aberto: boolean
-  nome: string
   motivo: string
   onMotivoChange: (v: string) => void
   onConfirmar: () => void
@@ -35,11 +33,6 @@ export function ModalSolicitarExclusao({
             Solicitar exclusão
           </h3>
         </div>
-        <p className="mt-2 text-sm text-gray-600">
-          Informe o motivo da solicitação de exclusão definitiva de{' '}
-          <span className="font-semibold text-gray-800">{nome}</span>. O ADM GERAL será notificado para
-          concluir a remoção.
-        </p>
 
         <label className="mt-4 block text-xs font-semibold text-gray-700" htmlFor="motivo-exclusao">
           Motivo da solicitação
@@ -50,7 +43,7 @@ export function ModalSolicitarExclusao({
           onChange={(e) => onMotivoChange(e.target.value)}
           rows={4}
           className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-900 outline-none ring-[#0097b2]/30 focus:border-[#0097b2] focus:ring-2"
-          placeholder="Descreva por que este cadastro deve ser excluído em definitivo..."
+          placeholder="Descreva o motivo..."
           autoFocus
         />
 
