@@ -261,23 +261,23 @@ export function CardPendente({
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
+          <div className="mt-4 flex flex-nowrap items-center gap-2 border-t border-gray-100 pt-4">
             {podeAprovar ? (
               <button
                 type="button"
                 onClick={confirmarLiberar}
-                className="min-h-[44px] min-w-[120px] shrink-0 rounded-xl px-5 text-sm font-bold text-white shadow-sm transition hover:brightness-95 active:brightness-90"
+                className="min-h-[40px] min-w-[96px] shrink-0 rounded-xl px-3.5 text-xs font-bold text-white shadow-sm transition hover:brightness-95 active:brightness-90"
                 style={{ backgroundColor: '#00D443' }}
               >
                 LIBERAR
               </button>
             ) : null}
             {podeReprovar ? (
-              <div className="inline-flex shrink-0 items-center gap-2">
+              <div className="inline-flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setReprovarAberto(true)}
-                  className="min-h-[44px] min-w-[120px] rounded-xl bg-red-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 active:bg-red-800"
+                  className="min-h-[40px] min-w-[96px] rounded-xl bg-red-600 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 active:bg-red-800"
                 >
                   REPROVAR
                 </button>
@@ -285,7 +285,7 @@ export function CardPendente({
                   <button
                     type="button"
                     onClick={() => setMenuAberto((v) => !v)}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
                     aria-label="Mais opções"
                     aria-expanded={menuAberto}
                     aria-haspopup="menu"

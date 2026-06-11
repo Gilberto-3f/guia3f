@@ -2,13 +2,13 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
-import { Users, Briefcase, Building2 } from 'lucide-react'
+import { Users, Car, Building2 } from 'lucide-react'
 
 export type VerificacaoSubabaId = 'turistas' | 'profissionais' | 'empresas'
 
 const opts: { id: VerificacaoSubabaId; label: string; Icon: LucideIcon }[] = [
   { id: 'turistas', label: 'Turistas', Icon: Users },
-  { id: 'profissionais', label: 'Profissionais', Icon: Briefcase },
+  { id: 'profissionais', label: 'Profissionais', Icon: Car },
   { id: 'empresas', label: 'Empresas', Icon: Building2 },
 ]
 

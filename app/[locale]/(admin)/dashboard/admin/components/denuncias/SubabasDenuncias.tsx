@@ -1,13 +1,13 @@
 'use client'
 
 import type { LucideIcon } from 'lucide-react'
-import { Users, Briefcase, Building2, Clapperboard } from 'lucide-react'
+import { Users, Car, Building2, Clapperboard } from 'lucide-react'
 
 export type DenunciaSubabaId = 'turistas' | 'profissionais' | 'empresas' | 'stories'
 
 const base: { id: DenunciaSubabaId; label: string; Icon: LucideIcon }[] = [
   { id: 'turistas', label: 'Turistas', Icon: Users },
-  { id: 'profissionais', label: 'Profissionais', Icon: Briefcase },
+  { id: 'profissionais', label: 'Profissionais', Icon: Car },
   { id: 'empresas', label: 'Empresas', Icon: Building2 },
   { id: 'stories', label: 'Stories', Icon: Clapperboard },
 ]

@@ -1,12 +1,12 @@
 'use client'
 
 import type { LucideIcon } from 'lucide-react'
-import { Users, Briefcase, Building2 } from 'lucide-react'
+import { Users, Car, Building2 } from 'lucide-react'
 import type { PerfilVisaoGeral } from '../../types/admin.types'
 
 const PERFIS: { id: PerfilVisaoGeral; label: string; Icon: LucideIcon }[] = [
   { id: 'turistas', label: 'Turistas', Icon: Users },
-  { id: 'profissionais', label: 'Profissionais', Icon: Briefcase },
+  { id: 'profissionais', label: 'Profissionais', Icon: Car },
   { id: 'empresas', label: 'Empresas', Icon: Building2 },
 ]
 
