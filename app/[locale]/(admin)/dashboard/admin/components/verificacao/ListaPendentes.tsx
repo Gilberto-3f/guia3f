@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { CardPendente, type CadastroPendente } from './CardPendente'
 import { useVerificacao } from '../../hooks/useVerificacao'
 import type { PendenteEmpresa, PendenteProfissional, PendenteTurista } from '../../types/admin.types'
-import { normalizarSegmentoMercado, ROTULO_SEGMENTO_MERCADO } from '@/lib/segmentosMercado'
+import { normalizarCategoriaEmpresaGuia, ROTULO_SEGUIMENTO_GUIA } from '@/lib/segmentosEmpresaGuia'
 import {
   formatContatoExibicao,
   formatLocalizacaoVerificacao,
@@ -13,10 +13,9 @@ import {
 } from './verificacaoFormatters'
 
 function rotuloSegmentoEmpresa(categoria: string): string | undefined {
-  const segmento = normalizarSegmentoMercado(categoria)
-  if (segmento) return ROTULO_SEGMENTO_MERCADO[segmento]
-  const cat = categoria.trim()
-  return cat || undefined
+  const cat = normalizarCategoriaEmpresaGuia(categoria)
+  if (cat) return ROTULO_SEGUIMENTO_GUIA[cat]
+  return undefined
 }
 
 export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 'empresas' }) {
@@ -134,9 +133,9 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
                 throw err
               }
             }}
-            onSolicitarExclusao={async () => {
+            onSolicitarExclusao={async (motivo) => {
               try {
-                await solicitarExclusao(i.id, tipo)
+                await solicitarExclusao(i.id, tipo, motivo)
                 setFeedback('Solicitação de exclusão enviada ao ADM GERAL para conclusão.')
               } catch (err: unknown) {
                 setFeedback(err instanceof Error ? err.message : 'Não foi possível solicitar exclusão.')

@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, MoreVertical } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ChevronDown, Trash2 } from 'lucide-react'
 import { resolverUrlsDocumentosStorageAdmin } from '@/lib/documentosStorageUrl'
 import { collectPaginasDocumentos, urlsDePaginas } from './docBotoes'
 import { DocumentoAnexoInline } from './DocumentoAnexoInline'
 import { ModalReprovarCadastro } from './ModalReprovarCadastro'
+import { ModalSolicitarExclusao } from './ModalSolicitarExclusao'
 import { usePermissao } from '../../hooks/usePermissao'
 
 const COR_LOGO = '#0097b2'
@@ -77,15 +78,16 @@ export function CardPendente({
   tipo: 'turistas' | 'profissionais' | 'empresas'
   onAprovar: () => void
   onReprovar: (motivo: string) => void | Promise<void>
-  onSolicitarExclusao: () => void | Promise<void>
+  onSolicitarExclusao: (motivo: string) => void | Promise<void>
 }) {
   const [docsAbertos, setDocsAbertos] = useState(false)
   const [reprovarAberto, setReprovarAberto] = useState(false)
   const [motivoReprova, setMotivoReprova] = useState('')
   const [reprovarEnviando, setReprovarEnviando] = useState(false)
-  const [menuAberto, setMenuAberto] = useState(false)
+  const [exclusaoAberta, setExclusaoAberta] = useState(false)
+  const [motivoExclusao, setMotivoExclusao] = useState('')
+  const [exclusaoEnviando, setExclusaoEnviando] = useState(false)
   const [urlsResolvidas, setUrlsResolvidas] = useState<Map<string, string>>(new Map())
-  const menuRef = useRef<HTMLDivElement>(null)
   const { podeExecutarRecurso } = usePermissao()
 
   const paginasDocs = useMemo(() => collectPaginasDocumentos(tipo, item.raw), [tipo, item.raw])
@@ -103,15 +105,6 @@ export function CardPendente({
       ativo = false
     }
   }, [urlsDocs])
-
-  useEffect(() => {
-    if (!menuAberto) return
-    const fechar = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuAberto(false)
-    }
-    document.addEventListener('mousedown', fechar)
-    return () => document.removeEventListener('mousedown', fechar)
-  }, [menuAberto])
 
   const confirmarLiberar = () => {
     if (!window.confirm('Confirmar liberação (aprovação) deste cadastro?')) return
@@ -131,16 +124,17 @@ export function CardPendente({
     }
   }
 
-  const confirmarSolicitarExclusao = () => {
-    setMenuAberto(false)
-    if (
-      !window.confirm(
-        'Solicitar exclusão definitiva deste cadastro? O ADM GERAL será notificado para concluir a remoção da conta.',
-      )
-    ) {
-      return
+  const confirmarSolicitarExclusao = async () => {
+    const m = motivoExclusao.trim()
+    if (!m) return
+    setExclusaoEnviando(true)
+    try {
+      await onSolicitarExclusao(m)
+      setExclusaoAberta(false)
+      setMotivoExclusao('')
+    } finally {
+      setExclusaoEnviando(false)
     }
-    onSolicitarExclusao()
   }
 
   const nomeRotulo = tipo === 'empresas' ? 'Nome fantasia' : 'Nome social'
@@ -281,33 +275,14 @@ export function CardPendente({
                 >
                   REPROVAR
                 </button>
-                <div className="relative" ref={menuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setMenuAberto((v) => !v)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
-                    aria-label="Mais opções"
-                    aria-expanded={menuAberto}
-                    aria-haspopup="menu"
-                  >
-                    <MoreVertical className="h-5 w-5" aria-hidden />
-                  </button>
-                  {menuAberto ? (
-                    <div
-                      role="menu"
-                      className="absolute bottom-full right-0 z-20 mb-1 min-w-[220px] overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
-                    >
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={confirmarSolicitarExclusao}
-                        className="w-full px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-rose-700 hover:bg-rose-50"
-                      >
-                        Solicitar exclusão
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setExclusaoAberta(true)}
+                  className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-xl bg-[#0097b2] px-3 text-xs font-bold text-white shadow-sm transition hover:brightness-95 active:brightness-90"
+                >
+                  <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="whitespace-nowrap">Solicitar exclusão</span>
+                </button>
               </div>
             ) : null}
           </div>
@@ -326,6 +301,20 @@ export function CardPendente({
           setMotivoReprova('')
         }}
         enviando={reprovarEnviando}
+      />
+
+      <ModalSolicitarExclusao
+        aberto={exclusaoAberta}
+        nome={item.nome}
+        motivo={motivoExclusao}
+        onMotivoChange={setMotivoExclusao}
+        onConfirmar={confirmarSolicitarExclusao}
+        onFechar={() => {
+          if (exclusaoEnviando) return
+          setExclusaoAberta(false)
+          setMotivoExclusao('')
+        }}
+        enviando={exclusaoEnviando}
       />
     </>
   )

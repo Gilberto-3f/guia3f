@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { MaisProcuradosTuristasDados } from '@/lib/adminMaisProcuradosTuristas'
+import { agregarEmpresasPorSeguimentoGuia } from '@/lib/segmentosEmpresaGuia'
 import { agregarProfissionaisPorCategoria, agregarProfissionaisPorCidade } from '@/lib/mobilidadeRegional'
 import type {
   DadoBarras,
@@ -400,14 +401,17 @@ async function fetchEmpresasDistribuicaoCidade(): Promise<DadoPizzaSegmento[]> {
 }
 
 async function fetchEmpresasDistribuicaoSegmento(): Promise<DadoPizzaSegmento[]> {
-  const { data, error } = await supabase.from('empresas').select('categoria')
+  const { data, error } = await supabase.from('empresas').select('categoria, somente_modo_apresentacao')
   if (error) throw error
-  const map = new Map<string, number>()
-  for (const row of (data ?? []) as CategoriaRow[]) {
-    const key = String(row.categoria ?? 'Sem categoria')
-    map.set(key, (map.get(key) ?? 0) + 1)
-  }
-  return barrasParaPizza(topN(Array.from(map.entries()).map(([label, total]) => ({ label, total })), 8))
+  return agregarEmpresasPorSeguimentoGuia(
+    (data ?? []).map((row) => {
+      const r = row as Record<string, unknown>
+      return {
+        categoria: r.categoria != null ? String(r.categoria) : null,
+        somente_modo_apresentacao: Boolean(r.somente_modo_apresentacao),
+      }
+    }),
+  )
 }
 
 async function countEmpresas(fromDate?: Date, toDate?: Date): Promise<number> {

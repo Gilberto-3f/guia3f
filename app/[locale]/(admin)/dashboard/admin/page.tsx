@@ -10,6 +10,8 @@ import { AdminPastaNav, pastaAdminPorId, tituloPastaAdmin } from './components/s
 import { TopoCardsResumo } from './components/shared/TopoCards'
 import { AdminSubabasRail } from './components/shared/AdminSubabasRail'
 import { AdminPermissaoProvider, useSharedAdminGate } from './context/AdminPermissaoContext'
+import { useCadastrosContadores } from './hooks/useCadastrosContadores'
+import { isAdmGeral } from './utils/permissoes'
 import { DenunciasToolbarProvider } from './context/DenunciasToolbarContext'
 import {
   VisaoGeralBarraFixa,
@@ -35,6 +37,9 @@ function DashboardAdminContent() {
   const sub = sp.get('sub') ?? ''
 
   const gate = useSharedAdminGate()
+  const cadastrosContadores = useCadastrosContadores(!tab || tab === 'cadastros')
+  const mostrarBadgeExclusao =
+    gate.status === 'ok' && isAdmGeral(gate.admin)
 
   const setTab = (next: AbaPrincipalId) => {
     const params = new URLSearchParams(sp.toString())
@@ -141,7 +146,12 @@ function DashboardAdminContent() {
 
         {!tab ? (
           <div className="mt-4">
-            <AdminPastaNav onSelect={setTab} />
+            <AdminPastaNav
+              onSelect={setTab}
+              cadastrosVerificacoes={cadastrosContadores.totalVerificacoes}
+              cadastrosExclusoes={cadastrosContadores.totalExclusoes}
+              mostrarBadgeExclusaoCadastros={mostrarBadgeExclusao}
+            />
           </div>
         ) : (
           <div className="mt-4">

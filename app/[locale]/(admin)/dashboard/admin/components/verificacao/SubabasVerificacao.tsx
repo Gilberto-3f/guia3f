@@ -3,6 +3,8 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
 import { Users, Car, Building2 } from 'lucide-react'
+import type { ContadoresExclusaoCadastro, ContadoresVerificacao } from '../../types/admin.types'
+import { CadastroBadgesPar } from './CadastroBadges'
 
 export type VerificacaoSubabaId = 'turistas' | 'profissionais' | 'empresas'
 
@@ -15,9 +17,14 @@ const opts: { id: VerificacaoSubabaId; label: string; Icon: LucideIcon }[] = [
 export function SubabasVerificacao({
   value,
   badges,
+  badgesExclusao,
+  mostrarBadgeExclusao = false,
 }: {
   value: VerificacaoSubabaId
-  badges?: Record<VerificacaoSubabaId, number>
+  badges?: ContadoresVerificacao
+  badgesExclusao?: ContadoresExclusaoCadastro
+  /** Exibe bolinha preta de exclusão (somente ADM GERAL). */
+  mostrarBadgeExclusao?: boolean
 }) {
   const router = useRouter()
   const sp = useSearchParams()
@@ -34,8 +41,9 @@ export function SubabasVerificacao({
       {opts.map((o) => {
         const active = o.id === value
         const Icon = o.Icon
-        const count = badges?.[o.id] ?? 0
-        const showBadge = typeof badges !== 'undefined' && count > 0
+        const countVerificacao = badges?.[o.id] ?? 0
+        const countExclusao = badgesExclusao?.[o.id] ?? 0
+        const temBadge = countVerificacao > 0 || (mostrarBadgeExclusao && countExclusao > 0)
 
         return (
           <button
@@ -43,13 +51,21 @@ export function SubabasVerificacao({
             type="button"
             role="tab"
             aria-selected={active}
-            aria-label={badges ? `${o.label}, ${count} pendente(s)` : o.label}
+            aria-label={
+              badges
+                ? `${o.label}, ${countVerificacao} verificação(ões) pendente(s)${
+                    mostrarBadgeExclusao && countExclusao > 0
+                      ? `, ${countExclusao} exclusão(ões) solicitada(s)`
+                      : ''
+                  }`
+                : o.label
+            }
             title={o.label}
             onClick={() => set(o.id)}
             className={[
               'relative flex min-h-[44px] items-center justify-center rounded-lg py-2.5 text-sm font-bold uppercase tracking-wide transition',
               active
-                ? 'min-w-0 flex-1 gap-2 bg-[#0097b2] px-3 text-white shadow-sm'
+                ? 'min-w-0 flex-1 gap-1.5 bg-[#0097b2] px-3 text-white shadow-sm'
                 : 'w-11 shrink-0 bg-white px-2 text-[#0097b2] hover:bg-gray-50',
             ].join(' ')}
           >
@@ -59,13 +75,21 @@ export function SubabasVerificacao({
               aria-hidden
             />
             {active ? (
-              <span className="whitespace-nowrap">
+              <span className="inline-flex items-center gap-1 whitespace-nowrap">
                 {o.label}
-                {typeof badges !== 'undefined' ? ` (${count})` : ''}
+                <CadastroBadgesPar
+                  verificacoes={countVerificacao}
+                  exclusoes={countExclusao}
+                  mostrarExclusao={mostrarBadgeExclusao}
+                />
               </span>
-            ) : showBadge ? (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[9px] font-bold leading-none text-white">
-                {count > 99 ? '99+' : count}
+            ) : temBadge ? (
+              <span className="absolute -right-0.5 -top-0.5">
+                <CadastroBadgesPar
+                  verificacoes={countVerificacao}
+                  exclusoes={countExclusao}
+                  mostrarExclusao={mostrarBadgeExclusao}
+                />
               </span>
             ) : null}
           </button>

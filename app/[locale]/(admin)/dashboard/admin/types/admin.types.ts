@@ -171,6 +171,12 @@ export type ContadoresVerificacao = {
   empresas: number
 }
 
+export type ContadoresExclusaoCadastro = {
+  turistas: number
+  profissionais: number
+  empresas: number
+}
+
 export type SolicitacaoPerfilTipo = 'turista' | 'profissional' | 'empresa'
 export type SolicitacaoStatus = 'pendente' | 'aprovado' | 'recusado' | 'revogado' | 'expirado'
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { resolverUrlsDocumentosStorageAdmin } from '@/lib/documentosStorageUrl'
 import type {
+  ContadoresExclusaoCadastro,
   ContadoresVerificacao,
   PendenteEmpresa,
   PendenteProfissional,
@@ -106,6 +107,40 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     profissionais: 0,
     empresas: 0,
   })
+  const [contadoresExclusao, setContadoresExclusao] = useState<ContadoresExclusaoCadastro>({
+    turistas: 0,
+    profissionais: 0,
+    empresas: 0,
+  })
+
+  const fetchContadoresExclusao = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('solicitacoes_exclusao_cadastro')
+        .select('tipo')
+        .eq('status', 'pendente')
+      if (error) {
+        if (
+          error.code === 'PGRST205' ||
+          error.code === '42P01' ||
+          error.message?.includes('does not exist') ||
+          error.message?.includes('schema cache')
+        ) {
+          setContadoresExclusao({ turistas: 0, profissionais: 0, empresas: 0 })
+          return
+        }
+        throw error
+      }
+      const counts: ContadoresExclusaoCadastro = { turistas: 0, profissionais: 0, empresas: 0 }
+      for (const row of data ?? []) {
+        const tipo = String((row as { tipo?: string }).tipo ?? '') as keyof ContadoresExclusaoCadastro
+        if (tipo in counts) counts[tipo] += 1
+      }
+      setContadoresExclusao(counts)
+    } catch {
+      setContadoresExclusao({ turistas: 0, profissionais: 0, empresas: 0 })
+    }
+  }, [])
 
   const fetchContadores = useCallback(async () => {
     const [t, p, e] = await Promise.all([
@@ -130,7 +165,8 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
       profissionais: p.count ?? 0,
       empresas: e.count ?? 0,
     })
-  }, [])
+    await fetchContadoresExclusao()
+  }, [fetchContadoresExclusao])
 
   const fetchTuristasPendentes = useCallback(async () => {
     const { data, error } = await supabase
@@ -356,12 +392,12 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
   )
 
   const solicitarExclusao = useCallback(
-    async (id: string, tipo: PerfilVerificacao) => {
+    async (id: string, tipo: PerfilVerificacao, motivo: string) => {
       const res = await fetch('/api/admin/verificacao', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ acao: 'solicitar_exclusao', tipo, id }),
+        body: JSON.stringify({ acao: 'solicitar_exclusao', tipo, id, motivo }),
       })
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
       if (!res.ok || !json.ok) {
@@ -372,5 +408,15 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     [fetchData],
   )
 
-  return { pendentes, contadores, loading, error, aprovar, reprovar, solicitarExclusao, refetch: fetchData }
+  return {
+    pendentes,
+    contadores,
+    contadoresExclusao,
+    loading,
+    error,
+    aprovar,
+    reprovar,
+    solicitarExclusao,
+    refetch: fetchData,
+  }
 }

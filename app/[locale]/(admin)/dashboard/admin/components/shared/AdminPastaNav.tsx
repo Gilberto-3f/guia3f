@@ -3,6 +3,7 @@
 import type { LucideIcon } from 'lucide-react'
 import { BarChart3, ClipboardCheck, ShieldAlert, Crown, Settings } from 'lucide-react'
 import { ABAS_PRINCIPAIS, type AbaPrincipalId } from './AbasNavegacao'
+import { CadastroBadgesPar } from '../verificacao/CadastroBadges'
 
 export const ADMIN_PASTAS: { id: AbaPrincipalId; label: string; Icon: LucideIcon }[] = [
   { id: 'visao-geral', label: 'Ecossistema', Icon: BarChart3 },
@@ -24,7 +25,17 @@ export function pastaAdminPorId(tab: AbaPrincipalId) {
   return ADMIN_PASTAS.find((p) => p.id === tab)
 }
 
-export function AdminPastaNav({ onSelect }: { onSelect: (id: AbaPrincipalId) => void }) {
+export function AdminPastaNav({
+  onSelect,
+  cadastrosVerificacoes = 0,
+  cadastrosExclusoes = 0,
+  mostrarBadgeExclusaoCadastros = false,
+}: {
+  onSelect: (id: AbaPrincipalId) => void
+  cadastrosVerificacoes?: number
+  cadastrosExclusoes?: number
+  mostrarBadgeExclusaoCadastros?: boolean
+}) {
   return (
     <nav className="space-y-2" aria-label="Seções do painel administrativo">
       {ADMIN_PASTAS.map(({ id, label, Icon }) => (
@@ -42,7 +53,16 @@ export function AdminPastaNav({ onSelect }: { onSelect: (id: AbaPrincipalId) => 
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0097b2] sm:h-10 sm:w-10">
               <Icon className="h-5 w-5 text-white sm:h-6 sm:w-6" strokeWidth={2} aria-hidden />
             </span>
-            <span className="text-sm font-bold uppercase tracking-wide text-[#0097b2] sm:text-base">{label}</span>
+            <span className="inline-flex min-w-0 flex-1 items-center gap-2">
+              <span className="text-sm font-bold uppercase tracking-wide text-[#0097b2] sm:text-base">{label}</span>
+              {id === 'cadastros' ? (
+                <CadastroBadgesPar
+                  verificacoes={cadastrosVerificacoes}
+                  exclusoes={cadastrosExclusoes}
+                  mostrarExclusao={mostrarBadgeExclusaoCadastros}
+                />
+              ) : null}
+            </span>
           </button>
         </section>
       ))}

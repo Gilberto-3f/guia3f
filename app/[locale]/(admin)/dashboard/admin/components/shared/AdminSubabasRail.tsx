@@ -34,11 +34,20 @@ function coerceConfigSub(sub: string): ConfigSubabaId {
 }
 
 function CadastrosSubNav({ sub }: { sub: string }) {
+  const gate = useSharedAdminGate()
   const activeSub = useMemo(() => coerceVerificacaoSub(sub), [sub])
-  const { contadores } = useVerificacao({
+  const { contadores, contadoresExclusao } = useVerificacao({
     perfil: activeSub,
   })
-  return <SubabasVerificacao value={activeSub} badges={contadores} />
+  const mostrarBadgeExclusao = gate.status === 'ok' && isAdmGeral(gate.admin)
+  return (
+    <SubabasVerificacao
+      value={activeSub}
+      badges={contadores}
+      badgesExclusao={contadoresExclusao}
+      mostrarBadgeExclusao={mostrarBadgeExclusao}
+    />
+  )
 }
 
 function DenunciasSubNav({ sub }: { sub: string }) {

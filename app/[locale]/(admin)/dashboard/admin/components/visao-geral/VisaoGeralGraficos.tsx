@@ -81,7 +81,7 @@ const SECOES_EMPRESAS: Partial<Record<SecaoId, SecaoMeta>> = {
     descricao: 'Empresas ativas no app nos últimos 3 dias',
   },
   'emp-segmento': {
-    titulo: 'Distribuição por Seguimento',
+    titulo: 'Distribuição (Seguimento)',
     Icon: PieChart,
     descricao: 'Porcentagem de empresas por seguimento',
   },

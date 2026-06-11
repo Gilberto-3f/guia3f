@@ -72,3 +72,58 @@ export function slugGuiaParaCategoriaDb(slug: string | null | undefined): string
 export function ehCategoriaEmpresaPermitida(valor: string | null | undefined): boolean {
   return (CATEGORIAS_EMPRESA_DB as readonly string[]).includes(String(valor ?? '').trim() as CategoriaEmpresaDb)
 }
+
+/** Rótulos exibidos no guia turístico (canais / filtros). */
+export const ROTULO_SEGUIMENTO_GUIA: Record<CategoriaEmpresaDb, string> = {
+  Restaurantes: 'Gastronomia',
+  Atrativos: 'Atrativos',
+  Lojas: 'Lojas',
+  Hospedagem: 'Hospedagem',
+  'Serviços Locais': 'Serviços Locais',
+}
+
+const CORES_SEGUIMENTO_GUIA: Record<CategoriaEmpresaDb, string> = {
+  Restaurantes: '#E74C3C',
+  Atrativos: '#F1C40F',
+  Lojas: '#9B59B6',
+  Hospedagem: '#3498DB',
+  'Serviços Locais': '#1ABC9C',
+}
+
+/** Mapeia valor legado ou slug para categoria atual do guia (ex.: gastronomia → Restaurantes). */
+export function normalizarCategoriaEmpresaGuia(valor: string | null | undefined): CategoriaEmpresaDb | null {
+  const raw = String(valor ?? '').trim()
+  if (!raw) return null
+  if (ehCategoriaEmpresaPermitida(raw)) return raw as CategoriaEmpresaDb
+  const slug = categoriaDbParaSlug(raw)
+  if (slug && SLUG_PARA_CATEGORIA_DB[slug]) return SLUG_PARA_CATEGORIA_DB[slug]
+  return null
+}
+
+export function agregarEmpresasPorSeguimentoGuia(
+  rows: { categoria: string | null; somente_modo_apresentacao?: boolean | null }[],
+): { label: string; valor: number; percentual: number; cor: string }[] {
+  const porCategoria: Record<CategoriaEmpresaDb, number> = {
+    Restaurantes: 0,
+    Atrativos: 0,
+    Lojas: 0,
+    Hospedagem: 0,
+    'Serviços Locais': 0,
+  }
+
+  for (const row of rows) {
+    if (row.somente_modo_apresentacao) continue
+    const cat = normalizarCategoriaEmpresaGuia(row.categoria)
+    if (!cat) continue
+    porCategoria[cat] += 1
+  }
+
+  const total = Object.values(porCategoria).reduce((a, b) => a + b, 0) || 1
+
+  return CATEGORIAS_EMPRESA_DB.map((cat) => ({
+    label: ROTULO_SEGUIMENTO_GUIA[cat],
+    valor: porCategoria[cat],
+    percentual: total > 0 ? (porCategoria[cat] / total) * 100 : 0,
+    cor: CORES_SEGUIMENTO_GUIA[cat],
+  }))
+}

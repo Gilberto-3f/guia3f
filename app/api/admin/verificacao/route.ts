@@ -73,6 +73,7 @@ export async function POST(req: Request) {
       }
     }
     if (acao === 'solicitar_exclusao') {
+      if (!motivo) return jsonAdminError(400, 'params', 'Motivo da solicitação de exclusão é obrigatório.')
       if (!adminPodeRecurso(adminRow.admin_permissoes, nivel, role, 'reprovar')) {
         return jsonAdminError(403, 'permission', 'Sem permissão para solicitar exclusão.')
       }
@@ -115,6 +116,7 @@ export async function POST(req: Request) {
         usuario_id: perfil.usuario_id,
         solicitado_por: actorId,
         status: 'pendente',
+        motivo,
       })
       if (solErr) {
         console.error('[api/admin/verificacao] solicitar_exclusao', solErr.message)
@@ -133,6 +135,7 @@ export async function POST(req: Request) {
           modulo: 'verificacao_cadastros',
           status_final: 'pendente_adm_geral',
           usuario_id: perfil.usuario_id,
+          motivo,
           auth_user_id: authUserId,
         },
       })
