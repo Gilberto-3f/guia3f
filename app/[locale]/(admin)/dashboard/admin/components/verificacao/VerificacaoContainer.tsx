@@ -3,11 +3,12 @@
 import { Component, type ReactNode, useMemo } from 'react'
 import type { VerificacaoSubabaId } from './SubabasVerificacao'
 import { ListaPendentes } from './ListaPendentes'
+import { CadastrosAuditoria } from './CadastrosAuditoria'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { isAdmGeral } from '../../utils/permissoes'
 
 function coerceSub(sub: string): VerificacaoSubabaId {
-  if (sub === 'profissionais' || sub === 'empresas') return sub
+  if (sub === 'profissionais' || sub === 'empresas' || sub === 'auditoria') return sub
   return 'turistas'
 }
 
@@ -63,6 +64,7 @@ function VerificacaoContainerInner({ sub }: { sub: string }) {
   const cargo = String(perms?.cargo ?? '').toUpperCase()
 
   const allowed =
+    activeSub === 'auditoria' ||
     isAdmGeral(admin) ||
     ((cargo === 'FINANCEIRO' ? activeSub !== 'profissionais' : true) && (cargo === 'SUPORTE' ? activeSub === 'turistas' : true))
 
@@ -72,6 +74,8 @@ function VerificacaoContainerInner({ sub }: { sub: string }) {
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           Você não tem permissão para acessar esta subaba.
         </div>
+      ) : activeSub === 'auditoria' ? (
+        <CadastrosAuditoria />
       ) : (
         <ListaPendentes tipo={activeSub} />
       )}

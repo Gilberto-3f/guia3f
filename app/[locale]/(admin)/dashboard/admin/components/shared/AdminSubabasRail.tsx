@@ -15,7 +15,7 @@ import { usePermissao } from '../../hooks/usePermissao'
 import { adminHref } from '../../utils/adminUrl'
 
 function coerceVerificacaoSub(sub: string): VerificacaoSubabaId {
-  if (sub === 'profissionais' || sub === 'empresas') return sub
+  if (sub === 'profissionais' || sub === 'empresas' || sub === 'auditoria') return sub
   return 'turistas'
 }
 

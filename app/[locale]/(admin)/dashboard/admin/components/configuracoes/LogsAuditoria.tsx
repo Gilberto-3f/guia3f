@@ -88,7 +88,12 @@ export function LogsAuditoria() {
   const fetchLogs = useCallback(async () => {
     setLoading(true)
     try {
-      let query = supabase.from('logs_verificacao').select('*').order('created_at', { ascending: false }).limit(200)
+      let query = supabase
+        .from('logs_verificacao')
+        .select('*')
+        .not('tipo', 'in', '(turistas,profissionais,empresas)')
+        .order('created_at', { ascending: false })
+        .limit(200)
 
       const limite = getDataLimite(filtros.periodo)
       if (limite) query = query.gte('created_at', limite)
@@ -157,6 +162,10 @@ export function LogsAuditoria() {
 
   return (
     <div className="space-y-4">
+      <p className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+        Logs de denúncias, financeiro, comissões e demais módulos. Verificações de cadastros estão em{' '}
+        <strong>Cadastros → Auditoria</strong>.
+      </p>
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <label className="text-sm font-semibold text-gray-700">
@@ -213,7 +222,7 @@ export function LogsAuditoria() {
           <div className="p-8 text-center text-sm text-gray-500">Carregando auditoria…</div>
         ) : logs.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">
-            Nenhum registro de auditoria no período. As verificações feitas pelo ADM aparecem aqui.
+            Nenhum registro de auditoria no período. Verificações de cadastros estão em Cadastros → Auditoria.
           </div>
         ) : (
           <div className="overflow-x-auto">

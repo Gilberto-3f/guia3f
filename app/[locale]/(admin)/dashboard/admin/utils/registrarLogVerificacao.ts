@@ -75,6 +75,8 @@ export function formatarStatusFinal(raw: string): string {
     denuncia_banir: 'Denúncia — banimento',
     denuncia_em_investigacao: 'Denúncia — em investigação',
     denuncia_arquivada: 'Denúncia — arquivada',
+    solicitacao_exclusao_cadastro: 'Exclusão solicitada',
+    pendente_adm_geral: 'Exclusão pendente ADM GERAL',
     comissao_aprovada: 'Comissão — aprovada',
     comissao_reprovada: 'Comissão — reprovada',
   }
