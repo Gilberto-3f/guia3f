@@ -4,11 +4,20 @@ import { useMemo, useState } from 'react'
 import { CardPendente, type CadastroPendente } from './CardPendente'
 import { useVerificacao } from '../../hooks/useVerificacao'
 import type { PendenteEmpresa, PendenteProfissional, PendenteTurista } from '../../types/admin.types'
+import { normalizarSegmentoMercado, ROTULO_SEGMENTO_MERCADO } from '@/lib/segmentosMercado'
 import {
   formatContatoExibicao,
   formatLocalizacaoVerificacao,
+  formatProfissionalCategorias,
   pickDocumentoFiscalEmpresa,
 } from './verificacaoFormatters'
+
+function rotuloSegmentoEmpresa(categoria: string): string | undefined {
+  const segmento = normalizarSegmentoMercado(categoria)
+  if (segmento) return ROTULO_SEGMENTO_MERCADO[segmento]
+  const cat = categoria.trim()
+  return cat || undefined
+}
 
 export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 'empresas' }) {
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -51,6 +60,10 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
           whatsappLine: formatContatoExibicao(contato),
           avatarUrl: p.foto_url,
           documentoIdentidade: p.documento_identidade?.trim() || undefined,
+          categoriaProfissional: (() => {
+            const fmt = formatProfissionalCategorias(p.categorias)
+            return fmt !== '—' ? fmt : undefined
+          })(),
           cidadeDisplay:
             formatLocalizacaoVerificacao({
               cidadesAtuacao: p.cidade_atuacao,
@@ -77,6 +90,7 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
         whatsappLine: formatContatoExibicao(p.whatsapp || p.telefone),
         avatarUrl: p.fotos_url?.[0] ?? null,
         empresaFiscal: pickDocumentoFiscalEmpresa(raw),
+        segmentoEmpresa: rotuloSegmentoEmpresa(String(p.categoria ?? '')),
         cidadeDisplay: formatLocalizacaoVerificacao({ cidade: p.cidade }) ?? undefined,
         alerta: null,
         docsVerificado: p.docs_verificado,

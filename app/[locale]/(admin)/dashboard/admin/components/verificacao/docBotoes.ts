@@ -14,7 +14,7 @@ export function collectBotoesDocumentos(
     const out: DocBotao[] = []
     const frente = String(raw.documento_frente_url ?? '').trim()
     const verso = String(raw.documento_verso_url ?? '').trim()
-    push(out, 'identidade', 'Identidade', [
+    push(out, 'identidade', 'Documento de Identificação', [
       ...(frente ? [{ label: 'Frente', url: frente }] : []),
       ...(verso ? [{ label: 'Verso', url: verso }] : []),
     ])
@@ -28,12 +28,12 @@ export function collectBotoesDocumentos(
     const res = String(d.comprovante_residencia_url ?? raw.comprovante_residencia_url ?? '').trim()
     const prof = String(d.comprovante_profissao_url ?? raw.comprovante_profissao_url ?? '').trim()
     const out: DocBotao[] = []
-    push(out, 'identidade', 'Identidade', [
+    push(out, 'identidade', 'Documento de Identificação', [
       ...(idF ? [{ label: 'Frente', url: idF }] : []),
       ...(idV ? [{ label: 'Verso', url: idV }] : []),
     ])
-    push(out, 'endereco', 'Endereço', res ? [{ label: 'Comprovante', url: res }] : [])
-    push(out, 'profissao', 'Profissão', prof ? [{ label: 'Comprovante', url: prof }] : [])
+    push(out, 'endereco', 'Comprovante de Endereço', res ? [{ label: 'Comprovante', url: res }] : [])
+    push(out, 'profissao', 'Comprovante de Ofício (profissão)', prof ? [{ label: 'Comprovante', url: prof }] : [])
     return out
   }
 
@@ -42,12 +42,12 @@ export function collectBotoesDocumentos(
   const er = String(raw.comprovante_residencia_url ?? '').trim()
   const ec = String(raw.documento_comercial_url ?? raw.documento_url ?? '').trim()
   const out: DocBotao[] = []
-  push(out, 'identidade', 'Identidade', [
+  push(out, 'identidade', 'Documento de Identificação', [
     ...(ef ? [{ label: 'Representante — frente', url: ef }] : []),
     ...(ev ? [{ label: 'Representante — verso', url: ev }] : []),
   ])
-  push(out, 'endereco', 'Endereço', er ? [{ label: 'Comprovante', url: er }] : [])
-  push(out, 'comercial', 'Comercial', ec ? [{ label: 'Documento', url: ec }] : [])
+  push(out, 'endereco', 'Comprovante de Endereço', er ? [{ label: 'Comprovante', url: er }] : [])
+  push(out, 'comercial', 'Documento Comercial', ec ? [{ label: 'Documento', url: ec }] : [])
   return out
 }
 
@@ -67,7 +67,9 @@ export function collectPaginasDocumentos(
   for (const botao of botoes) {
     for (const pagina of botao.paginas) {
       const titulo =
-        botao.paginas.length > 1 ? `${botao.label} — ${pagina.label}` : botao.label
+        botao.paginas.length > 1 && pagina.label !== 'Comprovante' && pagina.label !== 'Documento'
+          ? `${botao.label} — ${pagina.label}`
+          : botao.label
       out.push({
         key: `${botao.key}-${pagina.url}`,
         titulo,

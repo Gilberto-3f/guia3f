@@ -29,6 +29,8 @@ export type CadastroPendente = {
   documentoIdentidade?: string
   cidadeDisplay?: string
   empresaFiscal?: string
+  categoriaProfissional?: string
+  segmentoEmpresa?: string
   alerta: string | null
   docsVerificado: boolean
   docsVerificadoEm?: string | null
@@ -57,8 +59,9 @@ function AvatarCentralizado({ url, nome }: { url?: string | null; nome: string }
 
 function LinhaInfo({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
-    <div className="text-sm text-gray-800">
-      <span className="font-medium text-gray-600">{rotulo}:</span> {valor}
+    <div className="text-sm text-gray-600">
+      <span>{rotulo}:</span>{' '}
+      <span className="font-bold text-gray-900">{valor}</span>
     </div>
   )
 }
@@ -162,6 +165,12 @@ export function CardPendente({
             <LinhaInfo rotulo="WhatsApp" valor={item.whatsappLine} />
             <LinhaInfo rotulo="E-mail" valor={item.email} />
             <LinhaInfo rotulo="Cadastro" valor={item.dataCadastro} />
+            {tipo === 'profissionais' && item.categoriaProfissional ? (
+              <LinhaInfo rotulo="Categoria" valor={item.categoriaProfissional} />
+            ) : null}
+            {tipo === 'empresas' && item.segmentoEmpresa ? (
+              <LinhaInfo rotulo="Seguimento" valor={item.segmentoEmpresa} />
+            ) : null}
             {tipo !== 'turistas' && item.cidadeDisplay ? (
               <LinhaInfo rotulo="Cidade" valor={item.cidadeDisplay} />
             ) : null}
@@ -257,48 +266,48 @@ export function CardPendente({
               <button
                 type="button"
                 onClick={confirmarLiberar}
-                className="min-h-[44px] min-w-[120px] rounded-xl px-5 text-sm font-bold text-white shadow-sm transition hover:brightness-95 active:brightness-90"
+                className="min-h-[44px] min-w-[120px] shrink-0 rounded-xl px-5 text-sm font-bold text-white shadow-sm transition hover:brightness-95 active:brightness-90"
                 style={{ backgroundColor: '#00D443' }}
               >
                 LIBERAR
               </button>
             ) : null}
             {podeReprovar ? (
-              <button
-                type="button"
-                onClick={() => setReprovarAberto(true)}
-                className="min-h-[44px] min-w-[120px] rounded-xl bg-red-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 active:bg-red-800"
-              >
-                REPROVAR
-              </button>
-            ) : null}
-            {podeReprovar ? (
-              <div className="relative" ref={menuRef}>
+              <div className="inline-flex shrink-0 items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setMenuAberto((v) => !v)}
-                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
-                  aria-label="Mais opções"
-                  aria-expanded={menuAberto}
-                  aria-haspopup="menu"
+                  onClick={() => setReprovarAberto(true)}
+                  className="min-h-[44px] min-w-[120px] rounded-xl bg-red-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 active:bg-red-800"
                 >
-                  <MoreVertical className="h-5 w-5" aria-hidden />
+                  REPROVAR
                 </button>
-                {menuAberto ? (
-                  <div
-                    role="menu"
-                    className="absolute right-0 top-full z-10 mt-1 min-w-[220px] overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+                <div className="relative" ref={menuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setMenuAberto((v) => !v)}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
+                    aria-label="Mais opções"
+                    aria-expanded={menuAberto}
+                    aria-haspopup="menu"
                   >
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={confirmarSolicitarExclusao}
-                      className="w-full px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-rose-700 hover:bg-rose-50"
+                    <MoreVertical className="h-5 w-5" aria-hidden />
+                  </button>
+                  {menuAberto ? (
+                    <div
+                      role="menu"
+                      className="absolute bottom-full right-0 z-20 mb-1 min-w-[220px] overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
                     >
-                      Solicitar exclusão
-                    </button>
-                  </div>
-                ) : null}
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={confirmarSolicitarExclusao}
+                        className="w-full px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-rose-700 hover:bg-rose-50"
+                      >
+                        Solicitar exclusão
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </div>
