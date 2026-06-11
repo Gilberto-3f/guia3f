@@ -1,7 +1,7 @@
 'use client'
 
-import { Suspense, useMemo } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
@@ -12,6 +12,7 @@ import { AdminSubabasRail } from './components/shared/AdminSubabasRail'
 import { AdminPermissaoProvider, useSharedAdminGate } from './context/AdminPermissaoContext'
 import { useCadastrosContadores } from './hooks/useCadastrosContadores'
 import { isAdmGeral } from './utils/permissoes'
+import { adminHref } from './utils/adminUrl'
 import { DenunciasToolbarProvider } from './context/DenunciasToolbarContext'
 import {
   VisaoGeralBarraFixa,
@@ -31,9 +32,10 @@ function coerceAba(tab: string | null): AbaPrincipalId | null {
 
 function DashboardAdminContent() {
   const router = useRouter()
+  const pathname = usePathname()
   const sp = useSearchParams()
 
-  const tab = useMemo(() => coerceAba(sp.get('tab')), [sp])
+  const tab = coerceAba(sp.get('tab'))
   const sub = sp.get('sub') ?? ''
 
   const gate = useSharedAdminGate()
@@ -45,15 +47,14 @@ function DashboardAdminContent() {
     const params = new URLSearchParams(sp.toString())
     params.set('tab', next)
     params.delete('sub')
-    router.replace(`?${params.toString()}`)
+    router.replace(adminHref(pathname, params), { scroll: false })
   }
 
   const voltarPastas = () => {
     const params = new URLSearchParams(sp.toString())
     params.delete('tab')
     params.delete('sub')
-    const qs = params.toString()
-    router.replace(qs ? `?${qs}` : '?')
+    router.replace(adminHref(pathname, params), { scroll: false })
   }
 
   if (gate.status === 'loading') {

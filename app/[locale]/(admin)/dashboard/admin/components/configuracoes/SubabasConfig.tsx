@@ -1,8 +1,9 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
 import { Plug, ScrollText, Settings, Lock } from 'lucide-react'
+import { adminHref } from '../../utils/adminUrl'
 
 export type ConfigSubabaId = 'apis' | 'logs' | 'geral' | 'seguranca'
 
@@ -15,13 +16,14 @@ const opts: { id: ConfigSubabaId; label: string; Icon: LucideIcon }[] = [
 
 export function SubabasConfig({ value }: { value: ConfigSubabaId }) {
   const router = useRouter()
+  const pathname = usePathname()
   const sp = useSearchParams()
 
   const set = (next: ConfigSubabaId) => {
     const params = new URLSearchParams(sp.toString())
     params.set('tab', 'configuracoes')
     params.set('sub', next)
-    router.replace(`?${params.toString()}`)
+    router.replace(adminHref(pathname, params), { scroll: false })
   }
 
   return (

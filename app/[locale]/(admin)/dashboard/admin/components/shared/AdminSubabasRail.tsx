@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, type ReactNode } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { AbaPrincipalId } from './AbasNavegacao'
 import { SubabasVerificacao, type VerificacaoSubabaId } from '../verificacao/SubabasVerificacao'
 import SubabasDenuncias from '../denuncias/SubabasDenuncias'
@@ -12,6 +12,7 @@ import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { isAdmGeral } from '../../utils/permissoes'
 import { useDenunciasToolbar } from '../../context/DenunciasToolbarContext'
 import { usePermissao } from '../../hooks/usePermissao'
+import { adminHref } from '../../utils/adminUrl'
 
 function coerceVerificacaoSub(sub: string): VerificacaoSubabaId {
   if (sub === 'profissionais' || sub === 'empresas') return sub
@@ -52,6 +53,7 @@ function CadastrosSubNav({ sub }: { sub: string }) {
 
 function DenunciasSubNav({ sub }: { sub: string }) {
   const router = useRouter()
+  const pathname = usePathname()
   const sp = useSearchParams()
   const { nivel } = usePermissao()
   const { badges } = useDenunciasToolbar()
@@ -67,7 +69,7 @@ function DenunciasSubNav({ sub }: { sub: string }) {
     const params = new URLSearchParams(sp.toString())
     params.set('tab', 'denuncias')
     params.set('sub', p)
-    router.replace(`?${params.toString()}`)
+    router.replace(adminHref(pathname, params), { scroll: false })
   }
 
   return (

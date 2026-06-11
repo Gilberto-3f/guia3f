@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { usePermissao } from '../../hooks/usePermissao'
 import { useDenunciasToolbar } from '../../context/DenunciasToolbarContext'
+import { adminHref } from '../../utils/adminUrl'
 import type { DenunciaPerfil } from '../../types/admin.types'
 import StatusDenuncia from './StatusDenuncia'
 import ListaDenuncias from './ListaDenuncias'
@@ -16,6 +17,7 @@ function coerceSub(sub: string): DenunciaPerfil {
 
 export function DenunciasContainer({ sub }: { sub: string }) {
   const router = useRouter()
+  const pathname = usePathname()
   const sp = useSearchParams()
   const { nivel, getComunidade } = usePermissao()
   const { setBadges } = useDenunciasToolbar()
@@ -38,21 +40,21 @@ export function DenunciasContainer({ sub }: { sub: string }) {
       const p = new URLSearchParams(sp.toString())
       p.set('tab', 'denuncias')
       p.set('sub', 'turistas')
-      router.replace(`?${p.toString()}`)
+      router.replace(adminHref(pathname, p), { scroll: false })
     }
     if (perfilAtivo === 'empresas' && !podeVerEmpresas) {
       const p = new URLSearchParams(sp.toString())
       p.set('tab', 'denuncias')
       p.set('sub', 'turistas')
-      router.replace(`?${p.toString()}`)
+      router.replace(adminHref(pathname, p), { scroll: false })
     }
     if (perfilAtivo === 'stories' && !podeVerStories) {
       const p = new URLSearchParams(sp.toString())
       p.set('tab', 'denuncias')
       p.set('sub', 'turistas')
-      router.replace(`?${p.toString()}`)
+      router.replace(adminHref(pathname, p), { scroll: false })
     }
-  }, [perfilAtivo, podeVerEmpresas, podeVerProfissionais, podeVerStories, router, sp])
+  }, [pathname, perfilAtivo, podeVerEmpresas, podeVerProfissionais, podeVerStories, router, sp])
 
   useEffect(() => {
     const run = async () => {

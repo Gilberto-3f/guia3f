@@ -1,9 +1,10 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
 import { Users, Car, Building2 } from 'lucide-react'
 import type { ContadoresExclusaoCadastro, ContadoresVerificacao } from '../../types/admin.types'
+import { adminHref } from '../../utils/adminUrl'
 import { CadastroBadgesPar } from './CadastroBadges'
 
 export type VerificacaoSubabaId = 'turistas' | 'profissionais' | 'empresas'
@@ -27,13 +28,14 @@ export function SubabasVerificacao({
   mostrarBadgeExclusao?: boolean
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const sp = useSearchParams()
 
   const set = (next: VerificacaoSubabaId) => {
     const params = new URLSearchParams(sp.toString())
     params.set('tab', 'cadastros')
     params.set('sub', next)
-    router.replace(`?${params.toString()}`)
+    router.replace(adminHref(pathname, params), { scroll: false })
   }
 
   return (
