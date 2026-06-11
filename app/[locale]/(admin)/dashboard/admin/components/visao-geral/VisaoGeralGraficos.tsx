@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { Smartphone, Eye, Car, LineChart } from 'lucide-react'
+import { Smartphone, Eye, Car, LineChart, MapPin } from 'lucide-react'
 import type { FiltrosVisaoGeral, PerfilVisaoGeral } from '../../types/admin.types'
 import { useAdminData } from '../../hooks/useAdminData'
 import { AdminSecaoChevron } from '../shared/AdminSecaoChevron'
@@ -10,6 +10,7 @@ import { GraficoLinha } from './GraficoLinha'
 import { GraficoBarras } from './GraficoBarras'
 import GraficoPizzaMercado from '@/app/[locale]/(app-shell)/dashboard/empresa/components/estatisticas-mercado/GraficoPizza'
 import { MaisProcuradosEcossistemaPainel } from './MaisProcuradosEcossistemaPainel'
+import { AtivosProfissionaisPainel } from './AtivosProfissionaisPainel'
 
 const COR_LOGO = '#0097b2'
 
@@ -44,13 +45,13 @@ const TITULOS_SECAO: Record<SecaoId, string> = {
   'emp-cidade': 'Distribuição por cidade',
 }
 
-type SecaoTuristasMeta = {
+type SecaoMeta = {
   titulo: string
   Icon: LucideIcon
   descricao: string
 }
 
-const SECOES_TURISTAS: Partial<Record<SecaoId, SecaoTuristasMeta>> = {
+const SECOES_TURISTAS: Partial<Record<SecaoId, SecaoMeta>> = {
   ativos: {
     titulo: 'Ativos no APP',
     Icon: Smartphone,
@@ -73,9 +74,38 @@ const SECOES_TURISTAS: Partial<Record<SecaoId, SecaoTuristasMeta>> = {
   },
 }
 
+const SECOES_PROFISSIONAIS: Partial<Record<SecaoId, SecaoMeta>> = {
+  ativos: {
+    titulo: 'Ativos no APP',
+    Icon: Smartphone,
+    descricao: 'Profissionais ativos no app nos últimos 3 dias',
+  },
+  'prof-categoria': {
+    titulo: 'Distribuição por Categoria',
+    Icon: Car,
+    descricao: 'Porcentagem de profissionais por categoria',
+  },
+  'prof-cidade': {
+    titulo: 'Distribuição por Cidade',
+    Icon: MapPin,
+    descricao: 'Porcentagem de profissionais por cidade',
+  },
+  crescimento: {
+    titulo: 'Crescimento de Usuários',
+    Icon: LineChart,
+    descricao: 'Novos cadastros de profissionais',
+  },
+}
+
 const MAIS_PROCURADOS_VAZIO = {
   visibilidade: [],
   engajamento: [],
+}
+
+function metaSecao(perfil: PerfilVisaoGeral, id: SecaoId): SecaoMeta | undefined {
+  if (perfil === 'turistas') return SECOES_TURISTAS[id]
+  if (perfil === 'profissionais') return SECOES_PROFISSIONAIS[id]
+  return undefined
 }
 
 export function VisaoGeralGraficos({
@@ -86,7 +116,7 @@ export function VisaoGeralGraficos({
   filtros: FiltrosVisaoGeral
 }) {
   const ids = useMemo(() => secoesPorPerfil(perfil), [perfil])
-  const isTuristas = perfil === 'turistas'
+  const usaEstiloPerfil = perfil === 'turistas' || perfil === 'profissionais'
 
   const [abertos, setAbertos] = useState<Record<SecaoId, boolean>>(() =>
     Object.fromEntries(ids.map((id) => [id, false])) as Record<SecaoId, boolean>,
@@ -103,6 +133,7 @@ export function VisaoGeralGraficos({
   const {
     crescimento,
     ativos,
+    ativosComunidadeProfissionais,
     maisProcuradosTuristas,
     mobilidadeCategorias,
     profissionaisPorCategoria,
@@ -118,6 +149,15 @@ export function VisaoGeralGraficos({
       case 'crescimento':
         return <GraficoLinha dados={crescimento} loading={loading} title={TITULOS_SECAO.crescimento} semTitulo />
       case 'ativos':
+        if (perfil === 'profissionais') {
+          return (
+            <AtivosProfissionaisPainel
+              faixas={ativos ?? []}
+              comunidades={ativosComunidadeProfissionais}
+              loading={loading}
+            />
+          )
+        }
         return loading ? (
           <div className="h-48 animate-pulse rounded-xl bg-gray-100" />
         ) : (
@@ -198,18 +238,18 @@ export function VisaoGeralGraficos({
 
       <div className="space-y-3">
         {ids.map((id) => {
-          const turistaMeta = SECOES_TURISTAS[id]
+          const secaoMeta = metaSecao(perfil, id)
 
           return (
             <AdminSecaoChevron
               key={`${perfil}-${id}`}
-              titulo={isTuristas && turistaMeta ? turistaMeta.titulo : TITULOS_SECAO[id]}
+              titulo={secaoMeta?.titulo ?? TITULOS_SECAO[id]}
               tituloGrande
               aberta={Boolean(abertos[id])}
               onToggle={() => toggle(id)}
-              icone={isTuristas ? turistaMeta?.Icon : undefined}
-              corTitulo={isTuristas ? COR_LOGO : undefined}
-              descricao={isTuristas ? turistaMeta?.descricao : undefined}
+              icone={secaoMeta?.Icon}
+              corTitulo={usaEstiloPerfil && secaoMeta ? COR_LOGO : undefined}
+              descricao={secaoMeta?.descricao}
             >
               {renderConteudo(id)}
             </AdminSecaoChevron>

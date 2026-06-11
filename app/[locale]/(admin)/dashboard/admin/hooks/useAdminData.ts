@@ -19,6 +19,7 @@ type UseAdminDataReturn = {
   topoCards: DadosTopoCards | null
   crescimento: DadoCrescimento[] | null
   ativos: DadoPizzaSegmento[] | null
+  ativosComunidadeProfissionais: DadoBarras[] | null
   novosCadastros: DadoRosca | null
   maisProcuradosTuristas: MaisProcuradosTuristasDados | null
   mobilidadeCategorias: DadoBarras[] | null
@@ -37,6 +38,7 @@ const emptyData: DataState = {
   topoCards: null,
   crescimento: null,
   ativos: null,
+  ativosComunidadeProfissionais: null,
   novosCadastros: null,
   maisProcuradosTuristas: null,
   mobilidadeCategorias: null,
@@ -114,7 +116,7 @@ export function useAdminData(
       const [
         topoCards,
         crescimento,
-        ativos,
+        ativosResult,
         novosCadastros,
         maisProcuradosTuristas,
         mobilidadeCategorias,
@@ -140,7 +142,8 @@ export function useAdminData(
       setData({
         topoCards,
         crescimento,
-        ativos,
+        ativos: ativosResult.faixas,
+        ativosComunidadeProfissionais: ativosResult.comunidades,
         novosCadastros,
         maisProcuradosTuristas,
         mobilidadeCategorias,
@@ -269,21 +272,37 @@ function contarFaixasAtividade(rows: CreatedAtRow[]): DadoPizzaSegmento[] {
   }))
 }
 
-async function fetchAtivosFaixas(perfil: PerfilVisaoGeral): Promise<DadoPizzaSegmento[]> {
+type AtivosFetchResult = {
+  faixas: DadoPizzaSegmento[]
+  comunidades: DadoBarras[] | null
+}
+
+async function fetchAtivosFaixas(perfil: PerfilVisaoGeral): Promise<AtivosFetchResult> {
   if (perfil === 'empresas') {
     const { data, error } = await supabase.from('empresas').select('created_at')
     if (error) throw error
-    return contarFaixasAtividade((data ?? []) as CreatedAtRow[])
+    return { faixas: contarFaixasAtividade((data ?? []) as CreatedAtRow[]), comunidades: null }
   }
 
   const perfilParam = perfil === 'turistas' ? 'turistas' : 'profissionais'
   try {
     const res = await fetch(`/api/admin/visao-geral/ativos?perfil=${perfilParam}`, { credentials: 'include' })
-    if (!res.ok) return faixasAtivosVazias()
-    const body = (await res.json()) as { faixas?: DadoPizzaSegmento[] }
-    return body.faixas?.length ? body.faixas : faixasAtivosVazias()
+    if (!res.ok) return { faixas: faixasAtivosVazias(), comunidades: null }
+    const body = (await res.json()) as {
+      faixas?: DadoPizzaSegmento[]
+      comunidades?: { label: string; percentual: number }[]
+    }
+    const faixas = body.faixas?.length ? body.faixas : faixasAtivosVazias()
+    const comunidades =
+      perfil === 'profissionais' && Array.isArray(body.comunidades)
+        ? body.comunidades.map((c) => ({
+            label: c.label,
+            total: Math.round(Number(c.percentual ?? 0)),
+          }))
+        : null
+    return { faixas, comunidades }
   } catch {
-    return faixasAtivosVazias()
+    return { faixas: faixasAtivosVazias(), comunidades: null }
   }
 }
 
