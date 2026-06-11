@@ -266,58 +266,55 @@ export function CardPendente({
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 border-t border-gray-100 pt-4">
-            {podeAprovar ? (
-              <button
-                type="button"
-                onClick={confirmarLiberar}
-                className="min-h-[40px] min-w-[96px] shrink-0 rounded-xl px-3.5 text-xs font-bold text-white shadow-sm transition hover:brightness-95 active:brightness-90"
-                style={{ backgroundColor: '#00D443' }}
-              >
-                LIBERAR
-              </button>
-            ) : null}
-            {podeReprovar ? (
-              <>
+          <div className="mt-4 border-t border-gray-100 pt-4" ref={menuRef}>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {podeAprovar ? (
                 <button
                   type="button"
-                  onClick={() => setReprovarAberto(true)}
-                  className="min-h-[40px] min-w-[96px] shrink-0 rounded-xl bg-red-600 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 active:bg-red-800"
+                  onClick={confirmarLiberar}
+                  className="min-h-[40px] min-w-[96px] shrink-0 rounded-xl px-3.5 text-xs font-bold text-white shadow-sm transition hover:brightness-95 active:brightness-90"
+                  style={{ backgroundColor: '#00D443' }}
                 >
-                  REPROVAR
+                  LIBERAR
                 </button>
-                <div className="relative shrink-0" ref={menuRef}>
+              ) : null}
+              {podeReprovar ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setReprovarAberto(true)}
+                    className="min-h-[40px] min-w-[96px] shrink-0 rounded-xl bg-red-600 px-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-red-700 active:bg-red-800"
+                  >
+                    REPROVAR
+                  </button>
                   <button
                     type="button"
                     onClick={() => setMenuAberto((v) => !v)}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-700"
                     aria-label="Mais opções"
                     aria-expanded={menuAberto}
                     aria-haspopup="menu"
                   >
                     <MoreVertical className="h-5 w-5" aria-hidden />
                   </button>
-                  {menuAberto ? (
-                    <div
-                      role="menu"
-                      className="absolute bottom-full left-1/2 z-20 mb-1 min-w-[200px] -translate-x-1/2 overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-lg"
-                    >
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setMenuAberto(false)
-                          setExclusaoAberta(true)
-                        }}
-                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#0097b2] px-3 py-2.5 text-xs font-bold text-white hover:brightness-95"
-                      >
-                        <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
-                        Solicitar exclusão
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              </>
+                </>
+              ) : null}
+            </div>
+            {menuAberto && podeReprovar ? (
+              <div className="mt-2 flex justify-center" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuAberto(false)
+                    setExclusaoAberta(true)
+                  }}
+                  className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-[#0097b2] px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:brightness-95"
+                >
+                  <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+                  Solicitar exclusão
+                </button>
+              </div>
             ) : null}
           </div>
         </div>
