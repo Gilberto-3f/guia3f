@@ -38,3 +38,37 @@ export function classeStatusDenunciaCard(status: string): string {
   if (status === 'em_investigacao') return 'text-[#0097b2]'
   return 'text-gray-500'
 }
+
+const LABEL_MEDIDA: Record<string, string> = {
+  mensagem: 'Mensagem enviada ao usuário',
+  bloqueio: 'Bloqueio temporário de acesso',
+  excluir_conteudo: 'Publicação denunciada excluída',
+  excluir_cadastro: 'Exclusão de cadastro solicitada',
+  advertencia: 'Advertência',
+  suspensao: 'Suspensão temporária',
+  banimento: 'Banimento permanente',
+}
+
+export function labelMedidaDenuncia(tipo: string | null | undefined): string {
+  if (!tipo) return '—'
+  return LABEL_MEDIDA[tipo] ?? tipo.replace(/_/g, ' ')
+}
+
+export function resumoMedidaDenuncia(params: {
+  medida_tipo?: string | null
+  penalidade_aplicada?: string | null
+  penalidade_detalhes?: { texto?: string | null; motivo?: string | null; medida?: string | null; dias?: number } | null
+}): string {
+  const partes: string[] = []
+  const tipo = params.medida_tipo ?? params.penalidade_aplicada
+  if (tipo) partes.push(labelMedidaDenuncia(tipo))
+
+  const det = params.penalidade_detalhes
+  if (det?.texto?.trim()) partes.push(det.texto.trim())
+  else if (det?.motivo?.trim()) partes.push(det.motivo.trim())
+
+  if (det?.dias) partes.push(`Duração: ${det.dias} dia(s)`)
+
+  return partes.length ? partes.join(' · ') : 'Nenhuma medida registrada.'
+}
+
