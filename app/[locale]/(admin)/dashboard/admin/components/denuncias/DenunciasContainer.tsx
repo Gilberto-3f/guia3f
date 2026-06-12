@@ -1,11 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { usePermissao } from '../../hooks/usePermissao'
 import { useDenunciasToolbar } from '../../context/DenunciasToolbarContext'
-import { adminHref } from '../../utils/adminUrl'
+import { useAdminNav } from '../../context/AdminNavContext'
 import type { DenunciaPerfil } from '../../types/admin.types'
 import StatusDenuncia from './StatusDenuncia'
 import ListaDenuncias from './ListaDenuncias'
@@ -16,9 +15,7 @@ function coerceSub(sub: string): DenunciaPerfil {
 }
 
 export function DenunciasContainer({ sub }: { sub: string }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const sp = useSearchParams()
+  const { selectSub } = useAdminNav()
   const { nivel, getComunidade } = usePermissao()
   const { setBadges } = useDenunciasToolbar()
 
@@ -37,24 +34,15 @@ export function DenunciasContainer({ sub }: { sub: string }) {
 
   useEffect(() => {
     if (perfilAtivo === 'profissionais' && !podeVerProfissionais) {
-      const p = new URLSearchParams(sp.toString())
-      p.set('tab', 'denuncias')
-      p.set('sub', 'turistas')
-      router.replace(adminHref(pathname, p), { scroll: false })
+      selectSub('denuncias', 'turistas')
     }
     if (perfilAtivo === 'empresas' && !podeVerEmpresas) {
-      const p = new URLSearchParams(sp.toString())
-      p.set('tab', 'denuncias')
-      p.set('sub', 'turistas')
-      router.replace(adminHref(pathname, p), { scroll: false })
+      selectSub('denuncias', 'turistas')
     }
     if (perfilAtivo === 'stories' && !podeVerStories) {
-      const p = new URLSearchParams(sp.toString())
-      p.set('tab', 'denuncias')
-      p.set('sub', 'turistas')
-      router.replace(adminHref(pathname, p), { scroll: false })
+      selectSub('denuncias', 'turistas')
     }
-  }, [pathname, perfilAtivo, podeVerEmpresas, podeVerProfissionais, podeVerStories, router, sp])
+  }, [perfilAtivo, podeVerEmpresas, podeVerProfissionais, podeVerStories, selectSub])
 
   useEffect(() => {
     const run = async () => {

@@ -1,18 +1,14 @@
 'use client'
 
 import { Suspense } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
-import { type AbaPrincipalId, ABAS_PRINCIPAIS } from './components/shared/AbasNavegacao'
 import { AdminPastaNav, pastaAdminPorId, tituloPastaAdmin } from './components/shared/AdminPastaNav'
 import { TopoCardsResumo } from './components/shared/TopoCards'
 import { AdminSubabasRail } from './components/shared/AdminSubabasRail'
 import { AdminPermissaoProvider, useSharedAdminGate } from './context/AdminPermissaoContext'
-import { useCadastrosContadores } from './hooks/useCadastrosContadores'
-import { isAdmGeral } from './utils/permissoes'
-import { adminHref } from './utils/adminUrl'
+import { AdminNavProvider, useAdminNav } from './context/AdminNavContext'
 import { DenunciasToolbarProvider } from './context/DenunciasToolbarContext'
 import {
   VisaoGeralBarraFixa,
@@ -23,39 +19,16 @@ import { VerificacaoContainer } from './components/verificacao/VerificacaoContai
 import { DenunciasContainer } from './components/denuncias/DenunciasContainer'
 import { EspacoAdmContainer } from './components/espaco-adm/EspacoAdmContainer'
 import { ConfiguracoesContainer } from './components/configuracoes/ConfiguracoesContainer'
-
-function coerceAba(tab: string | null): AbaPrincipalId | null {
-  if (!tab) return null
-  if ((ABAS_PRINCIPAIS as readonly string[]).includes(tab)) return tab as AbaPrincipalId
-  return null
-}
+import { useCadastrosContadores } from './hooks/useCadastrosContadores'
+import { isAdmGeral } from './utils/permissoes'
 
 function DashboardAdminContent() {
-  const router = useRouter()
-  const pathname = usePathname()
-  const sp = useSearchParams()
-
-  const tab = coerceAba(sp.get('tab'))
-  const sub = sp.get('sub') ?? ''
+  const { tab, sub, selectPasta, voltarPainel } = useAdminNav()
 
   const gate = useSharedAdminGate()
   const cadastrosContadores = useCadastrosContadores(!tab || tab === 'cadastros')
   const mostrarBadgeExclusao =
     gate.status === 'ok' && isAdmGeral(gate.admin)
-
-  const setTab = (next: AbaPrincipalId) => {
-    const params = new URLSearchParams(sp.toString())
-    params.set('tab', next)
-    params.delete('sub')
-    router.replace(adminHref(pathname, params), { scroll: false })
-  }
-
-  const voltarPastas = () => {
-    const params = new URLSearchParams(sp.toString())
-    params.delete('tab')
-    params.delete('sub')
-    router.replace(adminHref(pathname, params), { scroll: false })
-  }
 
   if (gate.status === 'loading') {
     return (
@@ -109,7 +82,7 @@ function DashboardAdminContent() {
               {tab ? (
                 <button
                   type="button"
-                  onClick={voltarPastas}
+                  onClick={voltarPainel}
                   aria-label="Voltar ao painel"
                   title="Voltar ao painel"
                   className="inline-flex rounded-full p-2 text-white transition hover:bg-white/15 active:bg-white/25"
@@ -148,7 +121,7 @@ function DashboardAdminContent() {
         {!tab ? (
           <div className="mt-4">
             <AdminPastaNav
-              onSelect={setTab}
+              onSelect={selectPasta}
               cadastrosVerificacoes={cadastrosContadores.totalVerificacoes}
               cadastrosExclusoes={cadastrosContadores.totalExclusoes}
               mostrarBadgeExclusaoCadastros={mostrarBadgeExclusao}
@@ -184,7 +157,9 @@ export default function DashboardAdminPage() {
   return (
     <Suspense fallback={<div className="p-8 text-center">Carregando...</div>}>
       <AdminPermissaoProvider>
-        <DashboardAdminContent />
+        <AdminNavProvider>
+          <DashboardAdminContent />
+        </AdminNavProvider>
       </AdminPermissaoProvider>
     </Suspense>
   )

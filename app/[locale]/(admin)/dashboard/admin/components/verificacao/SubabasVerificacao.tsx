@@ -1,10 +1,9 @@
 'use client'
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
 import { Users, Car, Building2, ScrollText } from 'lucide-react'
 import type { ContadoresExclusaoCadastro, ContadoresVerificacao } from '../../types/admin.types'
-import { adminHref } from '../../utils/adminUrl'
+import { useAdminNav } from '../../context/AdminNavContext'
 import { CadastroBadgesPar } from './CadastroBadges'
 
 export type VerificacaoSubabaId = 'turistas' | 'profissionais' | 'empresas' | 'auditoria'
@@ -31,15 +30,10 @@ export function SubabasVerificacao({
   /** Exibe bolinha preta de exclusão (somente ADM GERAL). */
   mostrarBadgeExclusao?: boolean
 }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const sp = useSearchParams()
+  const { selectSub } = useAdminNav()
 
   const set = (next: VerificacaoSubabaId) => {
-    const params = new URLSearchParams(sp.toString())
-    params.set('tab', 'cadastros')
-    params.set('sub', next)
-    router.replace(adminHref(pathname, params), { scroll: false })
+    selectSub('cadastros', next)
   }
 
   return (

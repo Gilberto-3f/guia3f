@@ -1,9 +1,8 @@
 'use client'
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
 import { LayoutDashboard, Building2, Wallet, Users } from 'lucide-react'
-import { adminHref } from '../../utils/adminUrl'
+import { useAdminNav } from '../../context/AdminNavContext'
 
 export type EspacoSubabaId = 'graficos' | 'empresas' | 'financeiro' | 'gerencia'
 
@@ -15,15 +14,10 @@ const opts: { id: EspacoSubabaId; label: string; Icon: LucideIcon }[] = [
 ]
 
 export function SubabasEspaco({ value }: { value: EspacoSubabaId }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const sp = useSearchParams()
+  const { selectSub } = useAdminNav()
 
   const set = (next: EspacoSubabaId) => {
-    const params = new URLSearchParams(sp.toString())
-    params.set('tab', 'espaco-adm')
-    params.set('sub', next)
-    router.replace(adminHref(pathname, params), { scroll: false })
+    selectSub('espaco-adm', next)
   }
 
   return (

@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, type ReactNode } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { AbaPrincipalId } from './AbasNavegacao'
 import { SubabasVerificacao, type VerificacaoSubabaId } from '../verificacao/SubabasVerificacao'
 import SubabasDenuncias from '../denuncias/SubabasDenuncias'
@@ -13,7 +12,7 @@ import { isAdmGeral } from '../../utils/permissoes'
 import type { PerfilVerificacao } from '../../types/admin.types'
 import { useDenunciasToolbar } from '../../context/DenunciasToolbarContext'
 import { usePermissao } from '../../hooks/usePermissao'
-import { adminHref } from '../../utils/adminUrl'
+import { useAdminNav } from '../../context/AdminNavContext'
 
 function coerceVerificacaoSub(sub: string): VerificacaoSubabaId {
   if (sub === 'profissionais' || sub === 'empresas' || sub === 'auditoria') return sub
@@ -55,9 +54,7 @@ function CadastrosSubNav({ sub }: { sub: string }) {
 }
 
 function DenunciasSubNav({ sub }: { sub: string }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const sp = useSearchParams()
+  const { selectSub } = useAdminNav()
   const { nivel } = usePermissao()
   const { badges } = useDenunciasToolbar()
 
@@ -69,10 +66,7 @@ function DenunciasSubNav({ sub }: { sub: string }) {
   const perfilAtivo = useMemo(() => coerceDenunciasSub(sub), [sub])
 
   const onPerfilChange = (p: 'turistas' | 'profissionais' | 'empresas' | 'stories') => {
-    const params = new URLSearchParams(sp.toString())
-    params.set('tab', 'denuncias')
-    params.set('sub', p)
-    router.replace(adminHref(pathname, params), { scroll: false })
+    selectSub('denuncias', p)
   }
 
   return (

@@ -1,9 +1,8 @@
 'use client'
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
 import { Users, Briefcase, Building2 } from 'lucide-react'
-import { adminHref } from '../../utils/adminUrl'
+import { useAdminNav } from '../../context/AdminNavContext'
 
 export type VisaoSubabaId = 'turistas' | 'profissionais' | 'empresas'
 
@@ -14,15 +13,10 @@ const opts: { id: VisaoSubabaId; label: string; Icon: LucideIcon }[] = [
 ]
 
 export function SubabasVisaoNav({ value }: { value: VisaoSubabaId }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const sp = useSearchParams()
+  const { selectSub } = useAdminNav()
 
   const set = (next: VisaoSubabaId) => {
-    const params = new URLSearchParams(sp.toString())
-    params.set('tab', 'visao-geral')
-    params.set('sub', next)
-    router.replace(adminHref(pathname, params), { scroll: false })
+    selectSub('visao-geral', next)
   }
 
   return (
