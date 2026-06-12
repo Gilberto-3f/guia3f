@@ -120,9 +120,8 @@ const itemConfig = /** @type {const} */ {
 
 const itemSair = /** @type {const} */ { label: 'Sair', acao: 'logout' }
 
-/** Ícones dos subgrupos dentro de Aplicativo e Usuário. */
+/** Ícones dos subgrupos dentro de Aplicativo. */
 const ICONE_SUBGRUPO = {
-  'usuario-minha-conta': User,
   'aplic-pessoal': User,
   'aplic-prof-hist': Star,
 }
@@ -163,8 +162,8 @@ function itensMinhaConta() {
   ]
 }
 
-function subgrupoMinhaConta() {
-  return { key: 'usuario-minha-conta', label: 'Minha Conta', items: itensMinhaConta() }
+function secaoMinhaConta() {
+  return { tipo: 'grupo', key: 'minha-conta', label: 'Minha Conta', items: itensMinhaConta() }
 }
 
 /**
@@ -175,8 +174,6 @@ function secaoUsuario(itensPrincipais) {
     tipo: 'grupo',
     key: 'usuario',
     label: 'Usuário',
-    subgrupos: [subgrupoMinhaConta()],
-    subgruposDepois: true,
     items: itensPrincipais,
   }
 }
@@ -207,6 +204,7 @@ function secoesTurista(opts = {}) {
   ]
   return [
     secaoUsuario(gUsuario),
+    secaoMinhaConta(),
     { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic },
     /** @type {const} */ { tipo: 'grupo', key: 'emergencia', label: 'Emergência', items: gEmergencia },
     { tipo: 'sair' },
@@ -278,6 +276,7 @@ function secoesProfissional(ctx) {
   ]
   return [
     secaoUsuario(gUsuario),
+    secaoMinhaConta(),
     /** @type {const} */ { tipo: 'grupo', key: 'profissional', label: 'Profissional', items: gPro },
     {
       tipo: 'grupo',
@@ -309,6 +308,7 @@ function secoesProfissionalAguardandoDocs(ctx) {
         ctx
       )
     ),
+    secaoMinhaConta(),
     { tipo: 'grupo', key: 'profissional', label: 'Profissional', items: [] },
     {
       tipo: 'grupo',
@@ -349,7 +349,13 @@ function secoesEmpresa(ctx) {
     { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
     itemConfig,
   ]
-  return [secaoUsuario(gUsuario), { tipo: 'grupo', key: 'empresa', label: 'Empresa', items: gEmp }, { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic }, { tipo: 'sair' }]
+  return [
+    secaoUsuario(gUsuario),
+    secaoMinhaConta(),
+    { tipo: 'grupo', key: 'empresa', label: 'Empresa', items: gEmp },
+    { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic },
+    { tipo: 'sair' },
+  ]
 }
 
 /**
@@ -378,7 +384,13 @@ function secoesAdmin(ctx, { omitirModoNaLista }) {
     ],
     ctx
   )
-  return [{ tipo: 'grupo', key: 'admin', label: 'Admin', items: gAdmin }, secaoUsuario(gUsuario), { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic }, { tipo: 'sair' }]
+  return [
+    { tipo: 'grupo', key: 'admin', label: 'Admin', items: gAdmin },
+    secaoUsuario(gUsuario),
+    secaoMinhaConta(),
+    { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic },
+    { tipo: 'sair' },
+  ]
 }
 
 /**
@@ -459,6 +471,7 @@ export default function MenuLateral({
   const [gruposAbertos, setGruposAbertos] = useState(() => ({
     emergencia: false,
     usuario: false,
+    'minha-conta': false,
     aplicativo: false,
     profissional: false,
     empresa: false,
@@ -602,11 +615,11 @@ export default function MenuLateral({
     setGruposAbertos({
       emergencia: false,
       usuario: false,
+      'minha-conta': false,
       aplicativo: false,
       profissional: false,
       empresa: false,
       admin: false,
-      'usuario-minha-conta': false,
       'aplic-pessoal': false,
       'aplic-prof-hist': false,
     })
