@@ -172,6 +172,10 @@ export function useComissaoOfertaAdm(statusFiltro: StatusFiltroOfertaAdm = 'pend
         } else {
           void fetchOfertas()
         }
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('comissao-oferta-updated'))
+        }
       } finally {
         setAcaoId(null)
       }

@@ -3,7 +3,7 @@
 import type { LucideIcon } from 'lucide-react'
 import { BarChart3, ClipboardCheck, ShieldAlert, Crown, Settings } from 'lucide-react'
 import { ABAS_PRINCIPAIS, type AbaPrincipalId } from './AbasNavegacao'
-import { CadastroBadgesPar } from '../verificacao/CadastroBadges'
+import { CadastroBadgesPar, CadastroVerificacaoBadge } from '../verificacao/CadastroBadges'
 
 export const ADMIN_PASTAS: { id: AbaPrincipalId; label: string; Icon: LucideIcon }[] = [
   { id: 'visao-geral', label: 'Ecossistema', Icon: BarChart3 },
@@ -33,6 +33,7 @@ export function AdminPastaNav({
   denunciasPendentes = 0,
   denunciasExclusoes = 0,
   mostrarBadgeExclusaoDenuncias = false,
+  espacoAdmBeneficios = 0,
 }: {
   onSelect: (id: AbaPrincipalId) => void
   cadastrosVerificacoes?: number
@@ -41,6 +42,8 @@ export function AdminPastaNav({
   denunciasPendentes?: number
   denunciasExclusoes?: number
   mostrarBadgeExclusaoDenuncias?: boolean
+  /** Ofertas de comissão pendentes (Análise de Benefícios). */
+  espacoAdmBeneficios?: number
 }) {
   return (
     <nav className="space-y-2" aria-label="Seções do painel administrativo">
@@ -77,6 +80,9 @@ export function AdminPastaNav({
                 mostrarExclusao={mostrarBadgeExclusaoDenuncias}
                 className="shrink-0"
               />
+            ) : null}
+            {id === 'espaco-adm' ? (
+              <CadastroVerificacaoBadge count={espacoAdmBeneficios} className="shrink-0" />
             ) : null}
           </button>
         </section>

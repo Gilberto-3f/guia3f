@@ -19,9 +19,11 @@ import { CadastrosBarraFixa } from './components/verificacao/CadastrosBarraFixa'
 import { VerificacaoContainer } from './components/verificacao/VerificacaoContainer'
 import { DenunciasContainer } from './components/denuncias/DenunciasContainer'
 import { EspacoAdmContainer } from './components/espaco-adm/EspacoAdmContainer'
+import { EspacoAdmBarraFixa } from './components/espaco-adm/EspacoAdmBarraFixa'
 import { ConfiguracoesContainer } from './components/configuracoes/ConfiguracoesContainer'
 import { useCadastrosContadores } from './hooks/useCadastrosContadores'
 import { useDenunciasContadores } from './hooks/useDenunciasContadores'
+import { useComissaoOfertaContadores } from './hooks/useComissaoOfertaContadores'
 import { isAdmGeral } from './utils/permissoes'
 
 function DashboardAdminContent() {
@@ -30,6 +32,7 @@ function DashboardAdminContent() {
   const gate = useSharedAdminGate()
   const cadastrosContadores = useCadastrosContadores(!tab || tab === 'cadastros')
   const denunciasContadores = useDenunciasContadores(!tab || tab === 'denuncias')
+  const comissaoContadores = useComissaoOfertaContadores(!tab || tab === 'espaco-adm')
   const mostrarBadgeExclusao =
     gate.status === 'ok' && isAdmGeral(gate.admin)
 
@@ -116,7 +119,11 @@ function DashboardAdminContent() {
 
           {tab === 'cadastros' ? <CadastrosBarraFixa sub={sub} /> : null}
 
-          {tab && tab !== 'visao-geral' && tab !== 'cadastros' ? (
+          {tab === 'espaco-adm' ? (
+            <EspacoAdmBarraFixa sub={sub} beneficiosPendentes={comissaoContadores.pendentes} />
+          ) : null}
+
+          {tab && tab !== 'visao-geral' && tab !== 'cadastros' && tab !== 'espaco-adm' ? (
             <div className="border-t border-gray-100 bg-white px-3 sm:px-4">
               <AdminSubabasRail tab={tab} sub={sub} />
             </div>
@@ -133,6 +140,7 @@ function DashboardAdminContent() {
               denunciasPendentes={denunciasContadores.totalPendentes}
               denunciasExclusoes={denunciasContadores.totalExclusoes}
               mostrarBadgeExclusaoDenuncias={mostrarBadgeExclusao}
+              espacoAdmBeneficios={comissaoContadores.pendentes}
             />
           </div>
         ) : (

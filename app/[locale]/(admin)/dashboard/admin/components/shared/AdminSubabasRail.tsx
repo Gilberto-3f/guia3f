@@ -3,7 +3,6 @@
 import { useMemo, type ReactNode } from 'react'
 import type { AbaPrincipalId } from './AbasNavegacao'
 import SubabasDenuncias from '../denuncias/SubabasDenuncias'
-import { SubabasEspaco, type EspacoSubabaId } from '../espaco-adm/SubabasEspaco'
 import { SubabasConfig, type ConfigSubabaId } from '../configuracoes/SubabasConfig'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { isAdmGeral } from '../../utils/permissoes'
@@ -14,11 +13,6 @@ import { useAdminNav } from '../../context/AdminNavContext'
 function coerceDenunciasSub(sub: string): 'turistas' | 'profissionais' | 'empresas' | 'auditoria' {
   if (sub === 'profissionais' || sub === 'empresas' || sub === 'auditoria') return sub
   return 'turistas'
-}
-
-function coerceEspacoSub(sub: string): EspacoSubabaId {
-  if (sub === 'empresas' || sub === 'financeiro' || sub === 'gerencia') return sub
-  return 'graficos'
 }
 
 function coerceConfigSub(sub: string): ConfigSubabaId {
@@ -56,15 +50,6 @@ function DenunciasSubNav({ sub }: { sub: string }) {
 }
 
 export function AdminSubabasRail({ tab, sub }: { tab: AbaPrincipalId; sub: string }) {
-  const gate = useSharedAdminGate()
-
-  const metaEspaco =
-    gate.status === 'ok' ? (
-      <span className="hidden text-xs font-semibold text-gray-500 sm:inline">
-        {isAdmGeral(gate.admin) ? 'ADM GERAL' : 'ADMIN'}
-      </span>
-    ) : null
-
   let inner: ReactNode = null
   let meta: ReactNode = null
 
@@ -73,12 +58,10 @@ export function AdminSubabasRail({ tab, sub }: { tab: AbaPrincipalId; sub: strin
       return null
     case 'cadastros':
       return null
+    case 'espaco-adm':
+      return null
     case 'denuncias':
       inner = <DenunciasSubNav sub={sub} />
-      break
-    case 'espaco-adm':
-      inner = <SubabasEspaco value={coerceEspacoSub(sub)} />
-      meta = metaEspaco
       break
     case 'configuracoes':
       inner = <SubabasConfig value={coerceConfigSub(sub)} />
