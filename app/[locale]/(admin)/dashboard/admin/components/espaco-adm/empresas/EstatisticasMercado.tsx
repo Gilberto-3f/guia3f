@@ -79,10 +79,11 @@ export function EstatisticasMercado() {
         <FiltroPeriodoCompacto value={periodo} onChange={setPeriodo} />
       </div>
 
-      <p className="text-center text-xs text-gray-500">
-        Dados agregados de toda a plataforma — mesma visão geral disponível para empresários.
-        {periodo === '12m' ? ' Período de 12 meses exibido com base nos últimos 90 dias disponíveis.' : null}
-      </p>
+      {periodo === '12m' ? (
+        <p className="text-center text-xs text-gray-500">
+          Período de 12 meses exibido com base nos últimos 90 dias disponíveis.
+        </p>
+      ) : null}
 
       <div className="space-y-3">
         <PastaEstatistica

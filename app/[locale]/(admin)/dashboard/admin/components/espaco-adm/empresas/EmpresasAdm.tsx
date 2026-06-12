@@ -8,11 +8,9 @@ import { FunilConversaoGeral } from './FunilConversaoGeral'
 import { EstatisticasMercado } from './EstatisticasMercado'
 import { useEmpresasAdm } from '../../../hooks/useEmpresasAdm'
 import { useComissaoOfertaAdm } from '../../../hooks/useComissaoOfertaAdm'
-import type { EmpresaAdm } from '../../../hooks/useEmpresasAdm'
 
 export function EmpresasAdm() {
   const [busca, setBusca] = useState('')
-  const [selecionada, setSelecionada] = useState<EmpresaAdm | null>(null)
   const [secoes, setSecoes] = useState({
     analise: true,
     estatisticas: false,
@@ -37,7 +35,6 @@ export function EmpresasAdm() {
         aberta={secoes.analise}
         onToggle={() => toggle('analise')}
         badge={comissaoPendentes.ofertas.length}
-        descricao="Revise ofertas de comissão enviadas pelas empresas e consulte o histórico arquivado."
       >
         <AnaliseBeneficios comissaoPendentes={comissaoPendentes} comissaoArquivados={comissaoArquivados} />
       </AdminSecaoChevron>
@@ -49,7 +46,6 @@ export function EmpresasAdm() {
         corTitulo="#0097b2"
         aberta={secoes.estatisticas}
         onToggle={() => toggle('estatisticas')}
-        descricao="Mesmos gráficos e indicadores agregados da plataforma disponíveis no dashboard das empresas."
       >
         <EstatisticasMercado />
       </AdminSecaoChevron>
@@ -61,15 +57,12 @@ export function EmpresasAdm() {
         corTitulo="#0097b2"
         aberta={secoes.funil}
         onToggle={() => toggle('funil')}
-        descricao="Localize empresas e analise o funil de conversão de cada uma."
       >
         <FunilConversaoGeral
           busca={busca}
           onBuscaChange={setBusca}
           empresas={empresas}
           loading={loading}
-          selecionada={selecionada}
-          onSelect={setSelecionada}
         />
         {error ? <div className="mt-2 text-xs text-rose-600">{error.message}</div> : null}
       </AdminSecaoChevron>

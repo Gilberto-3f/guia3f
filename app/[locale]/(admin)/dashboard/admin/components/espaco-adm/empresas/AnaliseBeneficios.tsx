@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Check, X } from 'lucide-react'
+import { Archive, Check, Clock, X, type LucideIcon } from 'lucide-react'
 import type { useComissaoOfertaAdm } from '../../../hooks/useComissaoOfertaAdm'
 import { listarBeneficiosAtivos, textoValidadeOferta } from '../../../hooks/useComissaoOfertaAdm'
 
@@ -17,15 +17,16 @@ function AbasBeneficios({
   onChange: (v: AbaBeneficios) => void
   pendentesCount: number
 }) {
-  const opcoes: { id: AbaBeneficios; label: string }[] = [
-    { id: 'pendentes', label: 'Pendentes' },
-    { id: 'arquivados', label: 'Arquivados' },
+  const opcoes: { id: AbaBeneficios; label: string; Icon: LucideIcon }[] = [
+    { id: 'pendentes', label: 'Pendentes', Icon: Clock },
+    { id: 'arquivados', label: 'Arquivados', Icon: Archive },
   ]
 
   return (
-    <div className="mb-4 flex gap-1 rounded-lg bg-gray-100 p-1" role="tablist" aria-label="Análise de benefícios">
+    <div className="mb-4 flex gap-2" role="tablist" aria-label="Análise de benefícios">
       {opcoes.map((o) => {
         const active = value === o.id
+        const Icon = o.Icon
         return (
           <button
             key={o.id}
@@ -34,13 +35,16 @@ function AbasBeneficios({
             aria-selected={active}
             onClick={() => onChange(o.id)}
             className={[
-              'relative flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-sm font-bold transition',
-              active ? 'bg-white text-[#0097b2] shadow-sm' : 'text-gray-600 hover:text-gray-900',
+              'relative flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 transition',
+              active
+                ? 'text-base font-bold text-[#0097b2]'
+                : 'text-sm font-normal text-gray-500 hover:text-gray-700',
             ].join(' ')}
           >
-            {o.label}
+            <Icon className={['shrink-0', active ? 'h-5 w-5' : 'h-4 w-4'].join(' ')} strokeWidth={2.25} aria-hidden />
+            <span>{o.label}</span>
             {o.id === 'pendentes' && pendentesCount > 0 ? (
-              <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              <span className="rounded-full bg-[#F44336] px-1.5 py-0.5 text-[10px] font-bold text-white">
                 {pendentesCount}
               </span>
             ) : null}

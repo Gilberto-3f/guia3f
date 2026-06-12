@@ -1,31 +1,107 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
-import { Building2, MapPin, Search, Star } from 'lucide-react'
+import { Building2, ChevronDown, Search } from 'lucide-react'
 import type { EmpresaAdm } from '../../../hooks/useEmpresasAdm'
-import { FunilConversaoLista } from './FunilConversaoLista'
+import type { PeriodoId } from '../../shared/FiltrosPeriodo'
+import { FiltroPeriodoCompacto } from '../../shared/FiltroPeriodoCompacto'
+import type { Periodo } from '@/app/[locale]/(app-shell)/dashboard/empresa/types/dashboard.types'
+import { FunilConversaoAdmEmpresa } from './FunilConversaoAdmEmpresa'
+import { ROTULO_SEGUIMENTO_GUIA, normalizarCategoriaEmpresaGuia } from '@/lib/segmentosEmpresaGuia'
+
+function periodoAdmParaFunil(periodo: PeriodoId): Periodo {
+  if (periodo === '12m') return '90d'
+  return periodo
+}
+
+function rotuloCategoria(categoria: string) {
+  const norm = normalizarCategoriaEmpresaGuia(categoria)
+  if (norm && ROTULO_SEGUIMENTO_GUIA[norm]) return ROTULO_SEGUIMENTO_GUIA[norm]
+  return categoria
+}
+
+function CardEmpresaFunil({
+  emp,
+  expandida,
+  onToggleFunil,
+  periodo,
+}: {
+  emp: EmpresaAdm
+  expandida: boolean
+  onToggleFunil: () => void
+  periodo: Periodo
+}) {
+  return (
+    <article className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="flex items-start gap-3 p-3">
+        <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+          {emp.fotoUrl ? (
+            <Image src={emp.fotoUrl} alt="" fill className="object-cover" sizes="44px" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-gray-400">
+              <Building2 className="h-5 w-5" aria-hidden />
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-gray-900">{emp.nome}</p>
+          <p className="truncate text-xs font-medium text-[#0097b2]">@{emp.username}</p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onToggleFunil}
+        aria-expanded={expandida}
+        className="flex w-full items-center justify-between gap-2 border-t border-gray-100 px-3 py-2.5 text-left transition hover:bg-gray-50/80"
+      >
+        <span className="min-w-0 truncate text-sm text-gray-600">
+          {rotuloCategoria(emp.categoria)} · {emp.cidade}
+        </span>
+        <ChevronDown
+          className={['h-5 w-5 shrink-0 text-gray-500 transition-transform', expandida ? 'rotate-180' : ''].join(' ')}
+          aria-hidden
+        />
+      </button>
+
+      {expandida ? (
+        <div className="border-t border-gray-100 bg-gray-50/40 px-3 pb-4 pt-2">
+          <FunilConversaoAdmEmpresa
+            empresaId={emp.id}
+            empresaUsuarioId={emp.usuarioId}
+            username={emp.username}
+            verificado={emp.verificado}
+            periodo={periodo}
+          />
+        </div>
+      ) : null}
+    </article>
+  )
+}
 
 export function FunilConversaoGeral({
   busca,
   onBuscaChange,
   empresas,
   loading,
-  selecionada,
-  onSelect,
 }: {
   busca: string
   onBuscaChange: (v: string) => void
   empresas: EmpresaAdm[]
   loading: boolean
-  selecionada: EmpresaAdm | null
-  onSelect: (e: EmpresaAdm | null) => void
+  selecionada?: EmpresaAdm | null
+  onSelect?: (e: EmpresaAdm | null) => void
 }) {
+  const [periodo, setPeriodo] = useState<PeriodoId>('30d')
+  const [expandidaId, setExpandidaId] = useState<string | null>(null)
+  const periodoFunil = periodoAdmParaFunil(periodo)
+
   return (
     <div className="space-y-4">
-      <p className="text-xs text-gray-600">
-        Busque e selecione uma empresa para visualizar o funil de conversão individual. Os dados refletem o mesmo
-        funil disponível no dashboard da empresa.
-      </p>
+      <div className="flex justify-center">
+        <FiltroPeriodoCompacto value={periodo} onChange={setPeriodo} />
+      </div>
 
       <div className="relative">
         <Search
@@ -42,9 +118,9 @@ export function FunilConversaoGeral({
       </div>
 
       {loading ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-28 animate-pulse rounded-xl bg-gray-100" />
+            <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100" />
           ))}
         </div>
       ) : empresas.length === 0 ? (
@@ -54,93 +130,16 @@ export function FunilConversaoGeral({
             : 'Nenhuma empresa cadastrada na plataforma.'}
         </div>
       ) : (
-        <div className="grid max-h-[min(24rem,50vh)] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
-          {empresas.map((emp) => {
-            const ativa = selecionada?.id === emp.id
-            return (
-              <button
-                key={emp.id}
-                type="button"
-                onClick={() => onSelect(ativa ? null : emp)}
-                className={[
-                  'rounded-xl border p-3 text-left transition',
-                  ativa
-                    ? 'border-[#0097b2] bg-[#0097b2]/5 shadow-sm ring-2 ring-[#0097b2]/25'
-                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm',
-                ].join(' ')}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                    {emp.fotoUrl ? (
-                      <Image src={emp.fotoUrl} alt="" fill className="object-cover" sizes="44px" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-gray-400">
-                        <Building2 className="h-5 w-5" aria-hidden />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-gray-900">{emp.nome}</p>
-                    <p className="truncate text-xs font-medium text-[#0097b2]">@{emp.username}</p>
-                  </div>
-                </div>
-
-                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                  <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-700">
-                    <Building2 className="h-3 w-3" aria-hidden />
-                    {emp.categoria}
-                  </span>
-                  <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-700">
-                    <MapPin className="h-3 w-3" aria-hidden />
-                    {emp.cidade}
-                  </span>
-                  <span
-                    className={[
-                      'rounded-full px-2 py-0.5 text-[10px] font-bold',
-                      emp.plano === 'Premium' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-700',
-                    ].join(' ')}
-                  >
-                    {emp.plano}
-                  </span>
-                  <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-700">
-                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" aria-hidden />
-                    {emp.nota.toFixed(1)}
-                  </span>
-                  <span
-                    className={[
-                      'rounded-full px-2 py-0.5 text-[10px] font-bold capitalize',
-                      emp.status === 'ativo' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600',
-                    ].join(' ')}
-                  >
-                    {emp.status}
-                  </span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      {selecionada ? (
-        <div className="rounded-xl border border-[#0097b2]/20 bg-gradient-to-b from-[#0097b2]/5 to-white p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-[#0097b2]">Funil selecionado</p>
-              <p className="text-base font-bold text-gray-900">{selecionada.nome}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onSelect(null)}
-              className="shrink-0 text-xs font-semibold text-gray-500 hover:text-gray-800"
-            >
-              Limpar
-            </button>
-          </div>
-          <FunilConversaoLista empresaId={selecionada.id} empresaNome={selecionada.nome} />
-        </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
-          Selecione uma empresa na grade acima para ver o funil de conversão.
+        <div className="max-h-[min(32rem,60vh)] space-y-3 overflow-y-auto pr-1">
+          {empresas.map((emp) => (
+            <CardEmpresaFunil
+              key={emp.id}
+              emp={emp}
+              expandida={expandidaId === emp.id}
+              onToggleFunil={() => setExpandidaId((atual) => (atual === emp.id ? null : emp.id))}
+              periodo={periodoFunil}
+            />
+          ))}
         </div>
       )}
     </div>

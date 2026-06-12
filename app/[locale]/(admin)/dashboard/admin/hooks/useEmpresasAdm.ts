@@ -13,6 +13,8 @@ export type EmpresaAdm = {
   plano: string
   nota: number
   status: string
+  usuarioId: string | null
+  verificado: boolean
 }
 
 export function useEmpresasAdm(busca: string) {
@@ -24,9 +26,12 @@ export function useEmpresasAdm(busca: string) {
     setLoading(true)
     setError(null)
     try {
-      let query = supabase.from('empresas').select('id, nome_fantasia, nome_usuario, foto_url, categoria, cidade, plano, nota_media, status').order('nome_fantasia', {
-        ascending: true,
-      })
+      let query = supabase
+        .from('empresas')
+        .select('id, nome_fantasia, nome_usuario, foto_url, categoria, cidade, plano, nota_media, status, usuario_id, docs_verificado')
+        .order('nome_fantasia', {
+          ascending: true,
+        })
       if (busca.trim().length >= 2) {
         const term = busca.trim()
         query = query.or(`nome_fantasia.ilike.%${term}%,nome_usuario.ilike.%${term}%`)
@@ -45,6 +50,8 @@ export function useEmpresasAdm(busca: string) {
             plano?: string | null
             nota_media?: number | null
             status?: string | null
+            usuario_id?: string | null
+            docs_verificado?: boolean | null
           }
           return {
             id: row.id,
@@ -56,6 +63,8 @@ export function useEmpresasAdm(busca: string) {
             plano: row.plano ?? 'Básico',
             nota: Number(row.nota_media ?? 0),
             status: row.status ?? 'ativo',
+            usuarioId: row.usuario_id != null ? String(row.usuario_id) : null,
+            verificado: row.docs_verificado === true,
           }
         })
       )
