@@ -1,12 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { carregarConteudoDenuncia, tituloDenunciaConteudo, type ConteudoDenunciaPreview } from '@/lib/carregarConteudoDenuncia'
-import type { Denuncia, MedidaDenunciaTipo } from '../../types/admin.types'
+import type { Denuncia, DenunciaGravidade, MedidaDenunciaTipo } from '../../types/admin.types'
+import {
+  NIVEIS_GRAVIDADE_DENUNCIA,
+  LABEL_GRAVIDADE,
+  formatarMotivoDenuncia,
+  labelStatusDenunciaCard,
+  classeStatusDenunciaCard,
+} from '../../utils/denunciaUi'
 import ModalAplicarMedidaDenuncia from './ModalAplicarMedidaDenuncia'
+import ModalExpandirPublicacaoDenuncia from './ModalExpandirPublicacaoDenuncia'
+
+const COR_ARQUIVAR = '#00D443'
 
 function formatarDataHora(iso: string) {
   return new Date(iso).toLocaleString('pt-BR', {
@@ -43,20 +53,30 @@ export default function CardDenuncia({
   onAssumir,
   onAplicarMedida,
   onArquivar,
+  onGravidadeChange,
 }: {
   denuncia: Denuncia
   onAssumir: () => Promise<void>
   onAplicarMedida: (medida: MedidaDenunciaTipo, texto?: string) => Promise<void>
   onArquivar: () => Promise<void>
+  onGravidadeChange: (gravidade: DenunciaGravidade) => Promise<void>
 }) {
   const [expandido, setExpandido] = useState(false)
   const [conteudo, setConteudo] = useState<ConteudoDenunciaPreview | null>(null)
   const [carregando, setCarregando] = useState(false)
   const [modalMedida, setModalMedida] = useState(false)
+  const [modalPublicacao, setModalPublicacao] = useState(false)
   const [processando, setProcessando] = useState(false)
+  const [gravidadeLocal, setGravidadeLocal] = useState<DenunciaGravidade | null>(denuncia.gravidade)
+
+  useEffect(() => {
+    setGravidadeLocal(denuncia.gravidade)
+  }, [denuncia.gravidade, denuncia.id])
 
   const titulo = tituloDenunciaConteudo(denuncia.conteudo_tipo, denuncia.denunciado_tipo)
   const podeArquivar = Boolean(denuncia.medida_aplicada)
+  const motivoExibicao = formatarMotivoDenuncia(denuncia.motivo, denuncia.descricao)
+  const postId = denuncia.conteudo_tipo === 'post' && denuncia.conteudo_id ? denuncia.conteudo_id : null
 
   const toggleVerificar = async () => {
     if (expandido) {
@@ -85,11 +105,41 @@ export default function CardDenuncia({
     }
   }
 
+  const selecionarGravidade = async (g: DenunciaGravidade) => {
+    setGravidadeLocal(g)
+    setProcessando(true)
+    try {
+      await onGravidadeChange(g)
+    } finally {
+      setProcessando(false)
+    }
+  }
+
   return (
     <>
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="p-4">
-          <h3 className="text-base font-bold text-[#0097b2]">{titulo}</h3>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h3 className="text-base font-bold text-[#0097b2]">{titulo}</h3>
+                <span className={`text-xs font-bold uppercase ${classeStatusDenunciaCard(denuncia.status)}`}>
+                  {labelStatusDenunciaCard(denuncia.status)}
+                </span>
+              </div>
+              {denuncia.denunciado_tipo === 'profissional' && denuncia.denunciado_categoria ? (
+                <p className="mt-1 text-xs font-bold uppercase tracking-wide text-[#001f3f]">
+                  {denuncia.denunciado_categoria}
+                </p>
+              ) : null}
+            </div>
+            {gravidadeLocal ? (
+              <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold uppercase text-amber-900">
+                {LABEL_GRAVIDADE[gravidadeLocal]}
+              </span>
+            ) : null}
+          </div>
+
           <div className="mt-2 space-y-1 text-sm text-gray-700">
             <p>
               <span className="font-semibold">Denunciante:</span> @{denuncia.denunciante_nome || denuncia.denunciante_email.split('@')[0]}
@@ -101,13 +151,22 @@ export default function CardDenuncia({
               <span className="font-semibold">Data:</span> {formatarDataHora(denuncia.created_at)}
             </p>
             <p>
-              <span className="font-semibold">Motivo:</span> {denuncia.motivo}
-              {denuncia.descricao ? ` — ${denuncia.descricao}` : ''}
+              <span className="font-semibold">Motivo:</span> {motivoExibicao}
             </p>
             {denuncia.responsavel_email ? (
               <p className="text-xs text-gray-500">Responsável: {denuncia.responsavel_email}</p>
             ) : null}
           </div>
+
+          {postId ? (
+            <button
+              type="button"
+              onClick={() => setModalPublicacao(true)}
+              className="mt-3 text-sm font-semibold text-[#0097b2] hover:underline"
+            >
+              Expandir Publicação
+            </button>
+          ) : null}
 
           <button
             type="button"
@@ -128,6 +187,31 @@ export default function CardDenuncia({
             ) : (
               <p className="text-sm text-gray-500">Conteúdo não disponível para visualização.</p>
             )}
+
+            <div className="mt-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Nível da denúncia</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {NIVEIS_GRAVIDADE_DENUNCIA.map((n) => {
+                  const active = gravidadeLocal === n.id
+                  return (
+                    <button
+                      key={n.id}
+                      type="button"
+                      disabled={processando}
+                      onClick={() => void selecionarGravidade(n.id)}
+                      className={[
+                        'rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition',
+                        active
+                          ? 'bg-[#0097b2] text-white shadow-sm'
+                          : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50',
+                      ].join(' ')}
+                    >
+                      {n.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               <button
@@ -151,11 +235,10 @@ export default function CardDenuncia({
                   }
                 }}
                 className={[
-                  'flex-1 rounded-xl py-3 text-sm font-bold',
-                  podeArquivar
-                    ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                    : 'cursor-not-allowed bg-gray-200 text-gray-400',
+                  'flex-1 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50',
+                  podeArquivar ? '' : 'cursor-not-allowed opacity-40',
                 ].join(' ')}
+                style={{ backgroundColor: podeArquivar ? COR_ARQUIVAR : '#d1d5db' }}
               >
                 Arquivar
               </button>
@@ -178,6 +261,12 @@ export default function CardDenuncia({
             setProcessando(false)
           }
         }}
+      />
+
+      <ModalExpandirPublicacaoDenuncia
+        aberto={modalPublicacao}
+        postId={postId}
+        onClose={() => setModalPublicacao(false)}
       />
     </>
   )

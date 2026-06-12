@@ -1,24 +1,50 @@
 'use client'
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import type { ContadoresExclusaoCadastro, ContadoresVerificacao } from '../types/admin.types'
 
-export type DenunciasBadgeMap = Partial<Record<'turistas' | 'profissionais' | 'empresas' | 'stories', number>>
+export type DenunciasBadgeMap = Partial<Record<'turistas' | 'profissionais' | 'empresas' | 'auditoria', number>>
 
 type Ctx = {
+  badgesPendentes: DenunciasBadgeMap
+  badgesExclusao: ContadoresExclusaoCadastro
+  setBadgesPendentes: (next: DenunciasBadgeMap) => void
+  setBadgesExclusao: (next: ContadoresExclusaoCadastro) => void
+  /** @deprecated use badgesPendentes */
   badges: DenunciasBadgeMap
+  /** @deprecated use setBadgesPendentes */
   setBadges: (next: DenunciasBadgeMap) => void
 }
 
 const DenunciasToolbarContext = createContext<Ctx | null>(null)
 
 export function DenunciasToolbarProvider({ children }: { children: ReactNode }) {
-  const [badges, setBadgesState] = useState<DenunciasBadgeMap>({})
+  const [badgesPendentes, setBadgesPendentesState] = useState<DenunciasBadgeMap>({})
+  const [badgesExclusao, setBadgesExclusaoState] = useState<ContadoresExclusaoCadastro>({
+    turistas: 0,
+    profissionais: 0,
+    empresas: 0,
+  })
 
-  const setBadges = useCallback((next: DenunciasBadgeMap) => {
-    setBadgesState(next)
+  const setBadgesPendentes = useCallback((next: DenunciasBadgeMap) => {
+    setBadgesPendentesState(next)
   }, [])
 
-  const value = useMemo(() => ({ badges, setBadges }), [badges, setBadges])
+  const setBadgesExclusao = useCallback((next: ContadoresExclusaoCadastro) => {
+    setBadgesExclusaoState(next)
+  }, [])
+
+  const value = useMemo(
+    () => ({
+      badgesPendentes,
+      badgesExclusao,
+      setBadgesPendentes,
+      setBadgesExclusao,
+      badges: badgesPendentes,
+      setBadges: setBadgesPendentes,
+    }),
+    [badgesExclusao, badgesPendentes, setBadgesExclusao, setBadgesPendentes],
+  )
 
   return <DenunciasToolbarContext.Provider value={value}>{children}</DenunciasToolbarContext.Provider>
 }
@@ -30,3 +56,5 @@ export function useDenunciasToolbar() {
   }
   return ctx
 }
+
+export type { ContadoresVerificacao }

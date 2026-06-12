@@ -64,7 +64,7 @@ export async function enviarDenunciaConteudo(
 
   const motivoLabel = labelMotivoDenuncia(params.motivoId, params.detalheOutro)
   const descricao =
-    params.motivoId === 'outro' ? params.detalheOutro?.trim().slice(0, 350) ?? null : null
+    params.motivoId === 'outro' ? null : params.detalheOutro?.trim().slice(0, 350) ?? null
 
   const { error } = await supabase.from('denuncias').insert({
     denunciante_id: params.denuncianteId,

@@ -1,12 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePermissao } from '../../hooks/usePermissao'
 import { useDenunciasToolbar } from '../../context/DenunciasToolbarContext'
 import { useAdminNav } from '../../context/AdminNavContext'
 import type { DenunciaPerfil } from '../../types/admin.types'
-import StatusDenuncia from './StatusDenuncia'
 import ListaDenuncias from './ListaDenuncias'
 import { DenunciasAuditoria } from './DenunciasAuditoria'
 
@@ -18,18 +17,12 @@ function coerceSub(sub: string): DenunciaPerfil {
 export function DenunciasContainer({ sub }: { sub: string }) {
   const { selectSub } = useAdminNav()
   const { nivel, getComunidade } = usePermissao()
-  const { setBadges } = useDenunciasToolbar()
+  const { setBadgesPendentes, setBadgesExclusao } = useDenunciasToolbar()
 
   const perfilAtivo = coerceSub(sub)
-
   const nivelNum = typeof nivel === 'string' ? parseInt(nivel, 10) : nivel
-
   const podeVerProfissionais = nivelNum === 1 || nivelNum === 2
   const podeVerEmpresas = nivelNum === 1 || nivelNum === 3
-
-  const [statusAtivo, setStatusAtivo] = useState<'pendente' | 'em_investigacao' | 'encerrada' | 'arquivada' | 'todas'>('pendente')
-  const [busca, setBusca] = useState('')
-  const [categoria, setCategoria] = useState('')
 
   useEffect(() => {
     if (perfilAtivo === 'profissionais' && !podeVerProfissionais) {
@@ -42,26 +35,73 @@ export function DenunciasContainer({ sub }: { sub: string }) {
 
   useEffect(() => {
     const run = async () => {
-      const base: Partial<Record<'turistas' | 'profissionais' | 'empresas' | 'auditoria', number>> = {}
-      const [{ count: t }, { count: p }, { count: e }, { count: arq }] = await Promise.all([
-        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'turista').neq('status', 'arquivada'),
-        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'profissional').neq('status', 'arquivada'),
-        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'empresa').neq('status', 'arquivada'),
-        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('status', 'arquivada'),
-      ])
-      base.turistas = t ?? 0
-      base.profissionais = p ?? 0
-      base.empresas = e ?? 0
-      base.auditoria = arq ?? 0
+      const pendentes: Partial<Record<'turistas' | 'profissionais' | 'empresas' | 'auditoria', number>> = {}
+      const exclusoes = { turistas: 0, profissionais: 0, empresas: 0 }
 
-      if (nivelNum === 2) base.empresas = 0
+      const [{ count: t }, { count: p }, { count: e }, { count: arq }] = await Promise.all([
+        supabase
+          .from('denuncias')
+          .select('*', { count: 'exact', head: true })
+          .eq('denunciado_tipo', 'turista')
+          .eq('status', 'pendente'),
+        supabase
+          .from('denuncias')
+          .select('*', { count: 'exact', head: true })
+          .eq('denunciado_tipo', 'profissional')
+          .eq('status', 'pendente'),
+        supabase
+          .from('denuncias')
+          .select('*', { count: 'exact', head: true })
+          .eq('denunciado_tipo', 'empresa')
+          .eq('status', 'pendente'),
+        supabase.from('denuncias').select('*', { count: 'exact', head: true }).eq('status', 'arquivada'),
+      ])
+
+      pendentes.turistas = t ?? 0
+      pendentes.profissionais = p ?? 0
+      pendentes.empresas = e ?? 0
+      pendentes.auditoria = arq ?? 0
+
+      const [{ count: exT }, { count: exP }, { count: exE }] = await Promise.all([
+        supabase
+          .from('denuncias')
+          .select('*', { count: 'exact', head: true })
+          .eq('denunciado_tipo', 'turista')
+          .eq('medida_tipo', 'excluir_cadastro')
+          .neq('status', 'arquivada'),
+        supabase
+          .from('denuncias')
+          .select('*', { count: 'exact', head: true })
+          .eq('denunciado_tipo', 'profissional')
+          .eq('medida_tipo', 'excluir_cadastro')
+          .neq('status', 'arquivada'),
+        supabase
+          .from('denuncias')
+          .select('*', { count: 'exact', head: true })
+          .eq('denunciado_tipo', 'empresa')
+          .eq('medida_tipo', 'excluir_cadastro')
+          .neq('status', 'arquivada'),
+      ])
+
+      exclusoes.turistas = exT ?? 0
+      exclusoes.profissionais = exP ?? 0
+      exclusoes.empresas = exE ?? 0
+
+      if (nivelNum === 2) {
+        exclusoes.empresas = 0
+        pendentes.empresas = 0
+      }
       if (nivelNum === 3) {
-        base.turistas = 0
-        base.profissionais = 0
+        pendentes.turistas = 0
+        pendentes.profissionais = 0
+        exclusoes.turistas = 0
+        exclusoes.profissionais = 0
       }
       if (nivelNum === 4) {
-        base.profissionais = 0
-        base.empresas = 0
+        pendentes.profissionais = 0
+        pendentes.empresas = 0
+        exclusoes.profissionais = 0
+        exclusoes.empresas = 0
       }
 
       const comunidade = String(getComunidade() ?? '').toLowerCase()
@@ -69,20 +109,39 @@ export function DenunciasContainer({ sub }: { sub: string }) {
         const { data: profs } = await supabase.from('profissionais').select('id, categorias')
         const allowed = new Set(
           (profs ?? [])
-            .filter((pRow: { categorias?: unknown[] }) => Array.isArray(pRow.categorias) && pRow.categorias.map((c) => String(c).toLowerCase()).includes(comunidade))
+            .filter(
+              (pRow: { categorias?: unknown[] }) =>
+                Array.isArray(pRow.categorias) &&
+                pRow.categorias.map((c) => String(c).toLowerCase()).includes(comunidade),
+            )
             .map((pRow: { id: string }) => pRow.id),
         )
-        const { data: ds } = await supabase
-          .from('denuncias')
-          .select('denunciado_id')
-          .eq('denunciado_tipo', 'profissional')
-          .neq('status', 'arquivada')
-        base.profissionais = (ds ?? []).filter((d: { denunciado_id: string }) => allowed.has(d.denunciado_id)).length
+        const [{ data: dsPend }, { data: dsEx }] = await Promise.all([
+          supabase
+            .from('denuncias')
+            .select('denunciado_id')
+            .eq('denunciado_tipo', 'profissional')
+            .eq('status', 'pendente'),
+          supabase
+            .from('denuncias')
+            .select('denunciado_id')
+            .eq('denunciado_tipo', 'profissional')
+            .eq('medida_tipo', 'excluir_cadastro')
+            .neq('status', 'arquivada'),
+        ])
+        pendentes.profissionais = (dsPend ?? []).filter((d: { denunciado_id: string }) =>
+          allowed.has(d.denunciado_id),
+        ).length
+        exclusoes.profissionais = (dsEx ?? []).filter((d: { denunciado_id: string }) =>
+          allowed.has(d.denunciado_id),
+        ).length
       }
-      setBadges(base)
+
+      setBadgesPendentes(pendentes)
+      setBadgesExclusao(exclusoes)
     }
     void run()
-  }, [getComunidade, nivelNum, setBadges])
+  }, [getComunidade, nivelNum, setBadgesExclusao, setBadgesPendentes])
 
   if (perfilAtivo === 'auditoria') {
     return (
@@ -94,18 +153,7 @@ export function DenunciasContainer({ sub }: { sub: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <StatusDenuncia
-          statusAtivo={statusAtivo}
-          onStatusChange={setStatusAtivo}
-          busca={busca}
-          onBuscaChange={setBusca}
-          categoria={categoria}
-          onCategoriaChange={setCategoria}
-          perfil={perfilAtivo}
-        />
-      </div>
-      <ListaDenuncias perfil={perfilAtivo} status={statusAtivo} busca={busca} categoria={categoria} />
+      <ListaDenuncias perfil={perfilAtivo} status="todas" busca="" />
     </div>
   )
 }

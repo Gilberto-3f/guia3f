@@ -21,6 +21,7 @@ import { DenunciasContainer } from './components/denuncias/DenunciasContainer'
 import { EspacoAdmContainer } from './components/espaco-adm/EspacoAdmContainer'
 import { ConfiguracoesContainer } from './components/configuracoes/ConfiguracoesContainer'
 import { useCadastrosContadores } from './hooks/useCadastrosContadores'
+import { useDenunciasContadores } from './hooks/useDenunciasContadores'
 import { isAdmGeral } from './utils/permissoes'
 
 function DashboardAdminContent() {
@@ -28,6 +29,7 @@ function DashboardAdminContent() {
 
   const gate = useSharedAdminGate()
   const cadastrosContadores = useCadastrosContadores(!tab || tab === 'cadastros')
+  const denunciasContadores = useDenunciasContadores(!tab || tab === 'denuncias')
   const mostrarBadgeExclusao =
     gate.status === 'ok' && isAdmGeral(gate.admin)
 
@@ -128,6 +130,9 @@ function DashboardAdminContent() {
               cadastrosVerificacoes={cadastrosContadores.totalVerificacoes}
               cadastrosExclusoes={cadastrosContadores.totalExclusoes}
               mostrarBadgeExclusaoCadastros={mostrarBadgeExclusao}
+              denunciasPendentes={denunciasContadores.totalPendentes}
+              denunciasExclusoes={denunciasContadores.totalExclusoes}
+              mostrarBadgeExclusaoDenuncias={mostrarBadgeExclusao}
             />
           </div>
         ) : (

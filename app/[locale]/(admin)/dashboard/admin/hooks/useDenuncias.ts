@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { usePermissao } from './usePermissao'
 import { notificarDecisaoDenuncia } from '@/lib/notificarDecisaoDenuncia'
 import { adminContextFromGate, registrarLogVerificacao } from '../utils/registrarLogVerificacao'
-import type { AplicarMedidaDenunciaParams, AplicarPenalidadeParams, Denuncia, DenunciasFiltros } from '../types/admin.types'
+import type { AplicarMedidaDenunciaParams, AplicarPenalidadeParams, Denuncia, DenunciaGravidade, DenunciasFiltros } from '../types/admin.types'
+import { formatProfissionalCategorias } from '../components/verificacao/verificacaoFormatters'
 
 type DenunciaRow = {
   id: string
@@ -16,7 +17,7 @@ type DenunciaRow = {
   descricao: string | null
   evidencias: unknown
   status: 'pendente' | 'em_investigacao' | 'encerrada' | 'arquivada'
-  gravidade: 'leve' | 'media' | 'grave' | null
+  gravidade: 'leve' | 'media' | 'grave' | 'gravissima' | null
   responsavel_id: string | null
   analisado_em: string | null
   analisado_por: string | null
@@ -94,7 +95,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
         username: String(row?.nome_usuario ?? ''),
         email: String(user?.email ?? ''),
         categorias: Array.isArray((row as { categorias?: unknown[] } | null)?.categorias)
-          ? ((row as { categorias?: unknown[] }).categorias ?? []).map((c) => String(c).toLowerCase())
+          ? ((row as { categorias?: unknown[] }).categorias ?? []).map((c) => String(c))
           : [],
       }
     }
@@ -189,7 +190,16 @@ export function useDenuncias(filtros: DenunciasFiltros) {
             email: string
             story_conteudo_url?: string | null
             story_autor_usuario_id?: string | null
+            categorias?: string[]
           }
+
+          const categoriaProf =
+            r.denunciado_tipo === 'profissional'
+              ? (() => {
+                  const fmt = formatProfissionalCategorias(alvoStory.categorias ?? [])
+                  return fmt !== '—' ? fmt : null
+                })()
+              : null
 
           return {
             id: r.id,
@@ -201,6 +211,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
             denunciado_email: alvoStory.email,
             denunciado_nome: alvoStory.nome,
             denunciado_username: alvoStory.username,
+            denunciado_categoria: categoriaProf,
             story_conteudo_url: alvoStory.story_conteudo_url ?? null,
             story_autor_usuario_id: alvoStory.story_autor_usuario_id ?? null,
             motivo: r.motivo,
@@ -409,6 +420,16 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     [admin, applyAudit, fetchDenuncias],
   )
 
+  const definirGravidade = useCallback(
+    async (denuncia_id: string, gravidade: DenunciaGravidade) => {
+      if (!admin) throw new Error('Admin não autenticado')
+      const { error: updateErr } = await supabase.from('denuncias').update({ gravidade }).eq('id', denuncia_id)
+      if (updateErr) throw updateErr
+      await fetchDenuncias({ skeleton: false })
+    },
+    [admin, fetchDenuncias],
+  )
+
   useEffect(() => {
     void fetchDenuncias()
   }, [fetchDenuncias])
@@ -422,6 +443,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     aplicarMedida,
     marcarEmInvestigacao,
     arquivar,
+    definirGravidade,
     refetch: () => {
       void fetchDenuncias({ skeleton: true })
     },

@@ -7,18 +7,14 @@ import CardDenuncia from './CardDenuncia'
 
 export default function ListaDenuncias(filtros: DenunciasFiltros) {
   const [feedback, setFeedback] = useState<string | null>(null)
-  const { denuncias, contadores, loading, error, aplicarMedida, marcarEmInvestigacao, arquivar, refetch } =
+  const { denuncias, contadores, loading, error, aplicarMedida, marcarEmInvestigacao, arquivar, definirGravidade, refetch } =
     useDenuncias(filtros)
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 text-xs text-gray-600 shadow-sm">
-        <div className="font-semibold text-gray-900">Resumo por status</div>
-        <div className="mt-1 flex flex-wrap gap-3">
-          <span>Pendentes: {contadores.pendente}</span>
-          <span>Em investigação: {contadores.em_investigacao}</span>
-          <span>Encerradas: {contadores.encerrada}</span>
-        </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <span className="font-bold text-red-600">Pendentes: {contadores.pendente}</span>
+        <span className="font-bold text-[#0097b2]">Em investigação: {contadores.em_investigacao}</span>
       </div>
 
       {feedback ? (
@@ -44,7 +40,7 @@ export default function ListaDenuncias(filtros: DenunciasFiltros) {
         </div>
       ) : denuncias.length === 0 ? (
         <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-500">
-          Nenhuma denúncia encontrada com os filtros atuais.
+          Nenhuma denúncia encontrada.
         </div>
       ) : (
         denuncias.map((denuncia) => (
@@ -63,6 +59,9 @@ export default function ListaDenuncias(filtros: DenunciasFiltros) {
             onArquivar={async () => {
               await arquivar(denuncia.id)
               setFeedback('Denúncia arquivada na auditoria.')
+            }}
+            onGravidadeChange={async (gravidade) => {
+              await definirGravidade(denuncia.id, gravidade)
             }}
           />
         ))

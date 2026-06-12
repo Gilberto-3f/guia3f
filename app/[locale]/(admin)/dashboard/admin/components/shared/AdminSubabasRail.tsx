@@ -28,12 +28,14 @@ function coerceConfigSub(sub: string): ConfigSubabaId {
 
 function DenunciasSubNav({ sub }: { sub: string }) {
   const { selectSub } = useAdminNav()
+  const gate = useSharedAdminGate()
   const { nivel } = usePermissao()
-  const { badges } = useDenunciasToolbar()
+  const { badgesPendentes, badgesExclusao } = useDenunciasToolbar()
 
   const nivelNum = typeof nivel === 'string' ? parseInt(nivel, 10) : nivel
   const podeVerProfissionais = nivelNum === 1 || nivelNum === 2
   const podeVerEmpresas = nivelNum === 1 || nivelNum === 3
+  const mostrarBadgeExclusao = gate.status === 'ok' && isAdmGeral(gate.admin)
   const perfilAtivo = useMemo(() => coerceDenunciasSub(sub), [sub])
 
   const onPerfilChange = (p: 'turistas' | 'profissionais' | 'empresas' | 'auditoria') => {
@@ -46,7 +48,9 @@ function DenunciasSubNav({ sub }: { sub: string }) {
       onPerfilChange={onPerfilChange}
       podeVerProfissionais={podeVerProfissionais}
       podeVerEmpresas={podeVerEmpresas}
-      badges={badges}
+      badgesPendentes={badgesPendentes}
+      badgesExclusao={badgesExclusao}
+      mostrarBadgeExclusao={mostrarBadgeExclusao}
     />
   )
 }

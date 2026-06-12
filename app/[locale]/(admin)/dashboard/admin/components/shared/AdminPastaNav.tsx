@@ -30,11 +30,17 @@ export function AdminPastaNav({
   cadastrosVerificacoes = 0,
   cadastrosExclusoes = 0,
   mostrarBadgeExclusaoCadastros = false,
+  denunciasPendentes = 0,
+  denunciasExclusoes = 0,
+  mostrarBadgeExclusaoDenuncias = false,
 }: {
   onSelect: (id: AbaPrincipalId) => void
   cadastrosVerificacoes?: number
   cadastrosExclusoes?: number
   mostrarBadgeExclusaoCadastros?: boolean
+  denunciasPendentes?: number
+  denunciasExclusoes?: number
+  mostrarBadgeExclusaoDenuncias?: boolean
 }) {
   return (
     <nav className="space-y-2" aria-label="Seções do painel administrativo">
@@ -61,6 +67,14 @@ export function AdminPastaNav({
                 verificacoes={cadastrosVerificacoes}
                 exclusoes={cadastrosExclusoes}
                 mostrarExclusao={mostrarBadgeExclusaoCadastros}
+                className="shrink-0"
+              />
+            ) : null}
+            {id === 'denuncias' ? (
+              <CadastroBadgesPar
+                verificacoes={denunciasPendentes}
+                exclusoes={denunciasExclusoes}
+                mostrarExclusao={mostrarBadgeExclusaoDenuncias}
                 className="shrink-0"
               />
             ) : null}

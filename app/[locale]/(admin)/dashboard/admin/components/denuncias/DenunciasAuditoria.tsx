@@ -5,12 +5,15 @@ import Image from 'next/image'
 import { ChevronDown, ChevronUp, Eye, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { tituloDenunciaConteudo, type ConteudoDenunciaPreview } from '@/lib/carregarConteudoDenuncia'
+import { LABEL_GRAVIDADE } from '../../utils/denunciaUi'
+import type { DenunciaGravidade } from '../../types/admin.types'
 
 type DenunciaArquivada = {
   id: string
   created_at: string
   motivo: string
   descricao: string | null
+  gravidade: DenunciaGravidade | null
   denunciante_email: string
   denunciante_nome: string
   denunciado_username: string
@@ -50,7 +53,7 @@ export function DenunciasAuditoria() {
       const { data, error } = await supabase
         .from('denuncias')
         .select(
-          'id, created_at, motivo, descricao, denunciante_id, denunciado_id, denunciado_tipo, conteudo_tipo, conteudo_id, medida_tipo, responsavel_id',
+          'id, created_at, motivo, descricao, gravidade, denunciante_id, denunciado_id, denunciado_tipo, conteudo_tipo, conteudo_id, medida_tipo, responsavel_id',
         )
         .eq('status', 'arquivada')
         .order('created_at', { ascending: false })
@@ -73,6 +76,7 @@ export function DenunciasAuditoria() {
             created_at: String(r.created_at),
             motivo: String(r.motivo),
             descricao: r.descricao != null ? String(r.descricao) : null,
+            gravidade: r.gravidade != null ? (String(r.gravidade) as DenunciaGravidade) : null,
             denunciante_email: String(denunciante.data?.email ?? ''),
             denunciante_nome: String(denunciante.data?.username ?? ''),
             denunciado_username: denunciado.username,
@@ -156,7 +160,14 @@ export function DenunciasAuditoria() {
                 >
                   <Eye className="h-4 w-4 shrink-0 text-gray-400" />
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-[#0097b2]">{titulo}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-[#0097b2]">{titulo}</p>
+                      {log.gravidade ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-900">
+                          {LABEL_GRAVIDADE[log.gravidade]}
+                        </span>
+                      ) : null}
+                    </div>
                     <p className="text-xs text-gray-500">
                       {formatarDataHora(log.created_at)} · @{log.denunciante_nome || log.denunciante_email.split('@')[0]}{' '}
                       → @{log.denunciado_username}
