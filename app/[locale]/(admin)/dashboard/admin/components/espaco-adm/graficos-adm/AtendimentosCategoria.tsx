@@ -19,7 +19,7 @@ function formatNumber(value: unknown) {
 
 export default function AtendimentosCategoria({ dados }: { dados: DadosAtendimentosCategoria[] }) {
   return (
-    <div className="mt-3 h-56 w-full">
+    <div className="mx-auto mt-3 h-56 w-full max-w-lg">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={dados} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" />

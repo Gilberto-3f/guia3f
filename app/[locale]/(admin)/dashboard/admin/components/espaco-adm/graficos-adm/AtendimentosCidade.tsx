@@ -13,7 +13,7 @@ function formatNumber(value: unknown) {
 
 export default function AtendimentosCidade({ dados }: { dados: DadosAtendimentosCidade[] }) {
   return (
-    <div className="mt-3 h-56 w-full">
+    <div className="mx-auto mt-3 h-56 w-full max-w-lg">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie data={dados} dataKey="total" nameKey="cidade" outerRadius={78} innerRadius={40} paddingAngle={2}>
