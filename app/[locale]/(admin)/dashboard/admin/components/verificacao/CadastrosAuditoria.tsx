@@ -1,11 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronUp, Eye, X } from 'lucide-react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { statusFinalDoLog, formatarStatusFinal } from '../../utils/registrarLogVerificacao'
 import { TIPOS_LOG_CADASTRO, type TipoLogCadastro } from '@/lib/cadastroAuditoriaLeitura'
+import { CardPendente, type CadastroPendente } from './CardPendente'
+import { mapRowToCadastroPendente } from './mapCadastroPendente'
 
 type Filtros = {
   periodo: '7d' | '30d' | '90d' | 'todos'
@@ -29,20 +31,12 @@ type LeituraRow = {
   acessado_em: string
 }
 
-type PerfilResumo = {
-  id: string
-  nome: string
-  username: string
-  status: string | null
-  motivo_reprovacao: string | null
-}
-
 const COR_LOGO = '#0097b2'
 
-const LABEL_PERFIL: Record<TipoLogCadastro, string> = {
-  turistas: 'Turista',
-  profissionais: 'Profissional',
-  empresas: 'Empresa',
+const LABEL_PERFIL_TITULO: Record<TipoLogCadastro, string> = {
+  turistas: 'TURISTA',
+  profissionais: 'PROFISSIONAL',
+  empresas: 'EMPRESA',
 }
 
 function getDataLimite(periodo: Filtros['periodo']): string | null {
@@ -61,15 +55,6 @@ function formatarDataHora(iso: string) {
   })
 }
 
-function getStatusIcon(acao: string) {
-  const a = acao.toLowerCase()
-  if (a.includes('aprov')) return '✅'
-  if (a.includes('reprov')) return '❌'
-  if (a.includes('exclus')) return '🗑️'
-  if (a.includes('doc')) return '📄'
-  return '📋'
-}
-
 function motivoDoLog(log: LogRow): string | null {
   const det = log.detalhes
   if (!det || typeof det !== 'object' || Array.isArray(det)) return null
@@ -79,6 +64,62 @@ function motivoDoLog(log: LogRow): string | null {
 
 function nomePerfilCacheKey(tipo: string, perfilId: string) {
   return `${tipo}:${perfilId}`
+}
+
+function statusAuditoriaUpper(log: LogRow): string {
+  const acao = (log.acao ?? '').toLowerCase()
+  const status = statusFinalDoLog(log).toLowerCase()
+  if (acao.includes('exclus') || status.includes('exclus')) return 'EXCLUIDO'
+  if (acao.includes('reprov') || status.includes('reprov')) return 'REPROVADO'
+  if (acao.includes('aprov') || status.includes('aprov')) return 'APROVADO'
+  return statusFinalDoLog(log).toUpperCase()
+}
+
+function tituloCardAuditoria(tipo: TipoLogCadastro, statusUpper: string): string {
+  const perfil = LABEL_PERFIL_TITULO[tipo]
+  const statusLabel =
+    statusUpper === 'APROVADO'
+      ? tipo === 'empresas'
+        ? 'Aprovada'
+        : 'Aprovado'
+      : statusUpper === 'REPROVADO'
+        ? tipo === 'empresas'
+          ? 'Reprovada'
+          : 'Reprovado'
+        : statusUpper === 'EXCLUIDO'
+          ? tipo === 'empresas'
+            ? 'Excluída'
+            : 'Excluído'
+          : formatarStatusFinal(statusUpper)
+  return `${perfil} ${statusLabel}`
+}
+
+async function carregarCadastroCompleto(
+  tipo: TipoLogCadastro,
+  perfilId: string,
+): Promise<CadastroPendente | null> {
+  const { data, error } = await supabase.from(tipo).select('*').eq('id', perfilId).maybeSingle()
+  if (error || !data) return null
+
+  const row = data as Record<string, unknown>
+  const usuarioId = String(row.usuario_id ?? '')
+  let email: string | null = null
+  if (usuarioId) {
+    const { data: usuario } = await supabase.from('usuarios').select('email').eq('id', usuarioId).maybeSingle()
+    email = usuario?.email != null ? String(usuario.email).trim() : null
+  }
+
+  let preLiberacoes: Record<string, unknown>[] | undefined
+  if (tipo === 'turistas' && usuarioId) {
+    const { data: preRows } = await supabase
+      .from('turista_pre_liberacoes')
+      .select('*')
+      .eq('turista_usuario_id', usuarioId)
+      .order('solicitado_em', { ascending: false })
+    preLiberacoes = (preRows ?? []) as Record<string, unknown>[]
+  }
+
+  return mapRowToCadastroPendente(tipo, row, email, preLiberacoes)
 }
 
 export function CadastrosAuditoria() {
@@ -96,8 +137,9 @@ export function CadastrosAuditoria() {
   const [detalheCarregando, setDetalheCarregando] = useState(false)
   const [detalheErro, setDetalheErro] = useState<string | null>(null)
   const [detalheLog, setDetalheLog] = useState<LogRow | null>(null)
-  const [detalhePerfil, setDetalhePerfil] = useState<PerfilResumo | null>(null)
   const [leituras, setLeituras] = useState<LeituraRow[]>([])
+  const [cadastroCompleto, setCadastroCompleto] = useState<CadastroPendente | null>(null)
+  const [resumoAberto, setResumoAberto] = useState(false)
 
   const carregarNomesPerfis = useCallback(async (rows: LogRow[]) => {
     const map: Record<string, string> = {}
@@ -163,8 +205,9 @@ export function CadastrosAuditoria() {
   const fecharDetalhe = () => {
     setDetalheId(null)
     setDetalheLog(null)
-    setDetalhePerfil(null)
     setLeituras([])
+    setCadastroCompleto(null)
+    setResumoAberto(false)
     setDetalheErro(null)
   }
 
@@ -177,8 +220,9 @@ export function CadastrosAuditoria() {
     setDetalheCarregando(true)
     setDetalheErro(null)
     setDetalheLog(null)
-    setDetalhePerfil(null)
     setLeituras([])
+    setCadastroCompleto(null)
+    setResumoAberto(false)
 
     try {
       await fetch(`/api/admin/cadastros-auditoria/${logId}`, {
@@ -193,7 +237,6 @@ export function CadastrosAuditoria() {
         error?: string
         log?: LogRow
         leituras?: LeituraRow[]
-        perfil?: PerfilResumo | null
       }
 
       if (!res.ok || json.ok === false) {
@@ -201,9 +244,14 @@ export function CadastrosAuditoria() {
         return
       }
 
-      setDetalheLog(json.log ?? null)
-      setDetalhePerfil(json.perfil ?? null)
+      const log = json.log ?? null
+      setDetalheLog(log)
       setLeituras(json.leituras ?? [])
+
+      if (log?.tipo && log.perfil_id && TIPOS_LOG_CADASTRO.includes(log.tipo as TipoLogCadastro)) {
+        const cadastro = await carregarCadastroCompleto(log.tipo as TipoLogCadastro, log.perfil_id)
+        setCadastroCompleto(cadastro)
+      }
     } catch {
       setDetalheErro('Erro de rede ao carregar o registro.')
     } finally {
@@ -224,7 +272,7 @@ export function CadastrosAuditoria() {
         formatarDataHora(log.created_at),
         log.admin_email ?? 'Sistema',
         statusFinalDoLog(log),
-        LABEL_PERFIL[tipo as TipoLogCadastro] ?? tipo,
+        LABEL_PERFIL_TITULO[tipo as TipoLogCadastro] ?? tipo,
         nome,
         motivoDoLog(log) ?? '',
       ]
@@ -245,11 +293,6 @@ export function CadastrosAuditoria() {
 
   return (
     <div className="space-y-4">
-      <p className="rounded-xl border border-[#0097b2]/20 bg-[#0097b2]/5 px-4 py-3 text-sm text-gray-700">
-        Histórico arquivado de aprovações, reprovações e solicitações de exclusão de cadastros. Ao abrir um
-        registro, seu acesso fica registrado com usuário e data/hora.
-      </p>
-
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <label className="text-sm font-semibold text-gray-700">
@@ -295,142 +338,153 @@ export function CadastrosAuditoria() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        {loading ? (
-          <div className="p-8 text-center text-sm text-gray-500">Carregando auditoria…</div>
-        ) : logs.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-500">
-            Nenhuma verificação arquivada no período selecionado.
-          </div>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {logs.map((log) => {
-              const expandido = detalheId === log.id
-              const tipo = log.tipo as TipoLogCadastro | null
-              const nomeCadastro =
-                tipo && log.perfil_id ? nomesPerfil[nomePerfilCacheKey(tipo, log.perfil_id)] ?? '—' : '—'
-              const status = statusFinalDoLog(log)
+      {loading ? (
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 shadow-sm">
+          Carregando auditoria…
+        </div>
+      ) : logs.length === 0 ? (
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 shadow-sm">
+          Nenhuma verificação arquivada no período selecionado.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {logs.map((log) => {
+            const expandido = detalheId === log.id
+            const tipo = log.tipo as TipoLogCadastro | null
+            const nomeCadastro =
+              tipo && log.perfil_id ? nomesPerfil[nomePerfilCacheKey(tipo, log.perfil_id)] ?? '—' : '—'
+            const statusUpper = statusAuditoriaUpper(log)
+            const titulo = tipo ? tituloCardAuditoria(tipo, statusUpper) : statusFinalDoLog(log)
 
-              return (
-                <li key={log.id}>
-                  <button
-                    type="button"
-                    onClick={() => void abrirDetalhe(log.id)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-gray-50"
-                  >
-                    <span className="text-lg" aria-hidden>
-                      {getStatusIcon(log.acao)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        <span className="font-semibold text-gray-900">{status}</span>
-                        {tipo ? (
-                          <span className="text-xs font-medium uppercase text-[#0097b2]">
-                            {LABEL_PERFIL[tipo]}
-                          </span>
-                        ) : null}
-                        <span className="truncate text-sm text-gray-600">{nomeCadastro}</span>
-                      </div>
-                      <div className="mt-0.5 text-xs text-gray-500">
-                        {formatarDataHora(log.created_at)} · {log.admin_email ?? 'Sistema'}
-                      </div>
+            return (
+              <article
+                key={log.id}
+                className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
+              >
+                <button
+                  type="button"
+                  onClick={() => void abrirDetalhe(log.id)}
+                  className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-gray-50"
+                  aria-expanded={expandido}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <span className="text-base font-bold uppercase tracking-wide" style={{ color: COR_LOGO }}>
+                        {titulo}
+                      </span>
                     </div>
-                    <Eye className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
-                    {expandido ? (
-                      <ChevronUp className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
-                    )}
-                  </button>
-
+                    <p className="mt-0.5 truncate text-sm font-medium text-gray-800">{nomeCadastro}</p>
+                    <p className="mt-0.5 text-xs text-gray-500">{formatarDataHora(log.created_at)}</p>
+                  </div>
                   {expandido ? (
-                    <div className="border-t border-gray-100 bg-gray-50/80 px-4 py-4">
-                      {detalheCarregando ? (
-                        <p className="text-sm text-gray-500">Carregando análise arquivada…</p>
-                      ) : detalheErro ? (
-                        <p className="text-sm text-rose-700">{detalheErro}</p>
-                      ) : logExpandido ? (
-                        <div className="space-y-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-2 text-sm">
-                              <p>
-                                <span className="font-semibold text-gray-700">Verificado por:</span>{' '}
-                                {logExpandido.admin_email ?? 'Sistema'}
-                              </p>
-                              <p>
-                                <span className="font-semibold text-gray-700">Data/hora:</span>{' '}
-                                {formatarDataHora(logExpandido.created_at)}
-                              </p>
-                              <p>
-                                <span className="font-semibold text-gray-700">Resultado:</span>{' '}
-                                {formatarStatusFinal(logExpandido.acao)}
-                              </p>
-                              {detalhePerfil ? (
-                                <>
-                                  <p>
-                                    <span className="font-semibold text-gray-700">Cadastro:</span>{' '}
-                                    {detalhePerfil.nome}{' '}
-                                    <span className="text-gray-500">{detalhePerfil.username}</span>
-                                  </p>
-                                  {detalhePerfil.status ? (
-                                    <p>
-                                      <span className="font-semibold text-gray-700">Status atual:</span>{' '}
-                                      {detalhePerfil.status}
-                                    </p>
-                                  ) : null}
-                                </>
-                              ) : null}
-                              {motivoDoLog(logExpandido) ? (
-                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                                  <p className="text-xs font-bold uppercase text-amber-800">Motivo registrado</p>
-                                  <p className="mt-1 whitespace-pre-wrap text-amber-900">
-                                    {motivoDoLog(logExpandido)}
-                                  </p>
-                                </div>
-                              ) : null}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={fecharDetalhe}
-                              className="rounded-full p-1.5 text-gray-500 hover:bg-gray-200"
-                              aria-label="Fechar detalhe"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
+                    <ChevronUp className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
+                  )}
+                </button>
 
-                          <div className="rounded-xl border border-gray-200 bg-white p-3">
-                            <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                              Log de acesso (leitores)
-                            </p>
-                            {leituras.length === 0 ? (
-                              <p className="mt-2 text-sm text-gray-500">Nenhum acesso registrado ainda.</p>
+                {expandido ? (
+                  <div className="border-t border-gray-100 bg-gray-50/80 px-4 py-4">
+                    {detalheCarregando ? (
+                      <p className="text-sm text-gray-500">Carregando análise arquivada…</p>
+                    ) : detalheErro ? (
+                      <p className="text-sm text-rose-700">{detalheErro}</p>
+                    ) : logExpandido ? (
+                      <div className="space-y-4">
+                        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                          <button
+                            type="button"
+                            onClick={() => setResumoAberto((v) => !v)}
+                            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50"
+                            aria-expanded={resumoAberto}
+                          >
+                            <span className="text-sm font-bold uppercase tracking-wide text-gray-800">
+                              Resumo do cadastro
+                            </span>
+                            {resumoAberto ? (
+                              <ChevronUp className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
                             ) : (
-                              <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto">
-                                {leituras.map((l) => (
-                                  <li
-                                    key={l.id}
-                                    className="flex flex-wrap items-baseline justify-between gap-2 text-sm"
-                                  >
-                                    <span className="font-medium text-gray-800">{l.admin_handle}</span>
-                                    <span className="text-xs text-gray-500">
-                                      {formatarDataHora(l.acessado_em)}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
+                              <ChevronDown className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
                             )}
+                          </button>
+
+                          {resumoAberto ? (
+                            <div className="border-t border-gray-100 p-3">
+                              {cadastroCompleto && tipo ? (
+                                <CardPendente
+                                  item={cadastroCompleto}
+                                  tipo={tipo}
+                                  somenteLeitura
+                                  ocultarTitulo
+                                />
+                              ) : (
+                                <p className="py-4 text-center text-sm text-gray-500">
+                                  Cadastro não encontrado ou indisponível.
+                                </p>
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                            ADM que verificou
+                          </p>
+                          <div className="mt-2 space-y-1.5 text-sm text-gray-800">
+                            <p>
+                              <span className="font-semibold text-gray-700">Administrador:</span>{' '}
+                              {logExpandido.admin_email ?? 'Sistema'}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-gray-700">Data/hora:</span>{' '}
+                              {formatarDataHora(logExpandido.created_at)}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-gray-700">Resultado:</span>{' '}
+                              {formatarStatusFinal(logExpandido.acao)}
+                            </p>
+                            {motivoDoLog(logExpandido) ? (
+                              <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                                <p className="text-xs font-bold uppercase text-amber-800">Motivo registrado</p>
+                                <p className="mt-1 whitespace-pre-wrap text-amber-900">
+                                  {motivoDoLog(logExpandido)}
+                                </p>
+                              </div>
+                            ) : null}
                           </div>
                         </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </div>
+
+                        <div className="rounded-xl border border-gray-200 bg-white p-4">
+                          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                            Logs de Acesso
+                          </p>
+                          {leituras.length === 0 ? (
+                            <p className="mt-2 text-sm text-gray-500">Nenhum acesso registrado ainda.</p>
+                          ) : (
+                            <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto">
+                              {leituras.map((l) => (
+                                <li
+                                  key={l.id}
+                                  className="flex flex-wrap items-baseline justify-between gap-2 text-sm"
+                                >
+                                  <span className="font-medium text-gray-800">{l.admin_handle}</span>
+                                  <span className="text-xs text-gray-500">
+                                    {formatarDataHora(l.acessado_em)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </article>
+            )
+          })}
+        </div>
+      )}
 
       {podeExportar ? (
         <div className="flex justify-end">

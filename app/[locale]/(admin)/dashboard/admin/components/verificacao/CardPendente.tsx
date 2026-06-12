@@ -73,12 +73,18 @@ export function CardPendente({
   onAprovar,
   onReprovar,
   onSolicitarExclusao,
+  somenteLeitura = false,
+  ocultarTitulo = false,
 }: {
   item: CadastroPendente
   tipo: 'turistas' | 'profissionais' | 'empresas'
-  onAprovar: () => void
-  onReprovar: (motivo: string) => void | Promise<void>
-  onSolicitarExclusao: (motivo: string) => void | Promise<void>
+  onAprovar?: () => void
+  onReprovar?: (motivo: string) => void | Promise<void>
+  onSolicitarExclusao?: (motivo: string) => void | Promise<void>
+  /** Modo auditoria: exibe o card sem ações de aprovação/reprovação. */
+  somenteLeitura?: boolean
+  /** Oculta o título TURISTA/PROFISSIONAL/EMPRESA no topo do card. */
+  ocultarTitulo?: boolean
 }) {
   const [docsAbertos, setDocsAbertos] = useState(false)
   const [reprovarAberto, setReprovarAberto] = useState(false)
@@ -118,11 +124,13 @@ export function CardPendente({
   }, [menuAberto])
 
   const confirmarLiberar = () => {
+    if (!onAprovar) return
     if (!window.confirm('Confirmar liberação (aprovação) deste cadastro?')) return
     onAprovar()
   }
 
   const confirmarReprovar = async () => {
+    if (!onReprovar) return
     const m = motivoReprova.trim()
     if (!m) return
     setReprovarEnviando(true)
@@ -136,6 +144,7 @@ export function CardPendente({
   }
 
   const confirmarSolicitarExclusao = async () => {
+    if (!onSolicitarExclusao) return
     const m = motivoExclusao.trim()
     if (!m) return
     setExclusaoEnviando(true)
@@ -155,11 +164,13 @@ export function CardPendente({
     <>
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="p-4">
-          <h3 className="text-center text-base font-bold uppercase tracking-wide sm:text-lg" style={{ color: COR_LOGO }}>
-            {TITULO_CATEGORIA[tipo]}
-          </h3>
+          {ocultarTitulo ? null : (
+            <h3 className="text-center text-base font-bold uppercase tracking-wide sm:text-lg" style={{ color: COR_LOGO }}>
+              {TITULO_CATEGORIA[tipo]}
+            </h3>
+          )}
 
-          <div className="mt-4">
+          <div className={ocultarTitulo ? 'mt-0' : 'mt-4'}>
             <AvatarCentralizado url={item.avatarUrl} nome={item.nome} />
           </div>
 
@@ -266,6 +277,7 @@ export function CardPendente({
             )}
           </div>
 
+          {somenteLeitura ? null : (
           <div className="mt-4 border-t border-gray-100 pt-4" ref={menuRef}>
             <div className="flex flex-wrap items-center justify-center gap-2">
               {podeAprovar ? (
@@ -317,9 +329,12 @@ export function CardPendente({
               </div>
             ) : null}
           </div>
+          )}
         </div>
       </div>
 
+      {!somenteLeitura ? (
+      <>
       <ModalReprovarCadastro
         aberto={reprovarAberto}
         nome={item.nome}
@@ -346,6 +361,8 @@ export function CardPendente({
         }}
         enviando={exclusaoEnviando}
       />
+      </>
+      ) : null}
     </>
   )
 }

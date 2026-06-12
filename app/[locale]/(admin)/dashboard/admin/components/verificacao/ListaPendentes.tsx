@@ -4,19 +4,11 @@ import { useMemo, useState } from 'react'
 import { CardPendente, type CadastroPendente } from './CardPendente'
 import { useVerificacao } from '../../hooks/useVerificacao'
 import type { PendenteEmpresa, PendenteProfissional, PendenteTurista } from '../../types/admin.types'
-import { normalizarCategoriaEmpresaGuia, ROTULO_SEGUIMENTO_GUIA } from '@/lib/segmentosEmpresaGuia'
 import {
-  formatContatoExibicao,
-  formatLocalizacaoVerificacao,
-  formatProfissionalCategorias,
-  pickDocumentoFiscalEmpresa,
-} from './verificacaoFormatters'
-
-function rotuloSegmentoEmpresa(categoria: string): string | undefined {
-  const cat = normalizarCategoriaEmpresaGuia(categoria)
-  if (cat) return ROTULO_SEGUIMENTO_GUIA[cat]
-  return undefined
-}
+  mapEmpresaToCadastroPendente,
+  mapProfissionalToCadastroPendente,
+  mapTuristaToCadastroPendente,
+} from './mapCadastroPendente'
 
 export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 'empresas' }) {
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -27,77 +19,12 @@ export function ListaPendentes({ tipo }: { tipo: 'turistas' | 'profissionais' | 
   const itens = useMemo<CadastroPendente[]>(() => {
     if (loading) return []
     if (tipo === 'turistas') {
-      return (pendentes as PendenteTurista[]).map((p) => ({
-        id: p.id,
-        usuarioId: p.usuario_id,
-        nome: p.nome_completo,
-        username: `@${p.nome_usuario}`,
-        label: 'Turista',
-        dataCadastro: new Date(p.created_at).toLocaleDateString('pt-BR'),
-        email: p.email?.trim() || '—',
-        whatsappLine: formatContatoExibicao(p.whatsapp || p.telefone),
-        avatarUrl: p.foto_url,
-        documentoIdentidade: p.documento_identidade?.trim() || undefined,
-        alerta: null,
-        docsVerificado: p.docs_verificado,
-        docsVerificadoEm: p.docs_verificado_em ? new Date(p.docs_verificado_em).toLocaleDateString('pt-BR') : null,
-        placaVermelha: false,
-        raw: { ...p } as Record<string, unknown>,
-      }))
+      return (pendentes as PendenteTurista[]).map((p) => mapTuristaToCadastroPendente(p))
     }
     if (tipo === 'profissionais') {
-      return (pendentes as PendenteProfissional[]).map((p) => {
-        const contato = p.whatsapp || p.telefone
-        return {
-          id: p.id,
-          usuarioId: p.usuario_id,
-          nome: p.nome_completo,
-          username: `@${p.nome_usuario}`,
-          label: 'Profissional',
-          dataCadastro: new Date(p.created_at).toLocaleDateString('pt-BR'),
-          email: p.email?.trim() || '—',
-          whatsappLine: formatContatoExibicao(contato),
-          avatarUrl: p.foto_url,
-          documentoIdentidade: p.documento_identidade?.trim() || undefined,
-          categoriaProfissional: (() => {
-            const fmt = formatProfissionalCategorias(p.categorias)
-            return fmt !== '—' ? fmt : undefined
-          })(),
-          cidadeDisplay:
-            formatLocalizacaoVerificacao({
-              cidadesAtuacao: p.cidade_atuacao,
-              pais: p.pais,
-            }) ?? undefined,
-          alerta: null,
-          docsVerificado: p.docs_verificado,
-          docsVerificadoEm: p.docs_verificado_em ? new Date(p.docs_verificado_em).toLocaleDateString('pt-BR') : null,
-          placaVermelha: p.placa_vermelha,
-          raw: { ...p } as Record<string, unknown>,
-        }
-      })
+      return (pendentes as PendenteProfissional[]).map((p) => mapProfissionalToCadastroPendente(p))
     }
-    return (pendentes as PendenteEmpresa[]).map((p) => {
-      const raw = { ...p } as Record<string, unknown>
-      return {
-        id: p.id,
-        usuarioId: p.usuario_id,
-        nome: String(p.nome_fantasia ?? ''),
-        username: `@${String(p.nome_usuario ?? '')}`,
-        label: 'Empresa',
-        dataCadastro: new Date(p.created_at).toLocaleDateString('pt-BR'),
-        email: p.email?.trim() || '—',
-        whatsappLine: formatContatoExibicao(p.whatsapp || p.telefone),
-        avatarUrl: p.fotos_url?.[0] ?? null,
-        empresaFiscal: pickDocumentoFiscalEmpresa(raw),
-        segmentoEmpresa: rotuloSegmentoEmpresa(String(p.categoria ?? '')),
-        cidadeDisplay: formatLocalizacaoVerificacao({ cidade: p.cidade }) ?? undefined,
-        alerta: null,
-        docsVerificado: p.docs_verificado,
-        docsVerificadoEm: p.docs_verificado_em ? new Date(p.docs_verificado_em).toLocaleDateString('pt-BR') : null,
-        placaVermelha: false,
-        raw,
-      }
-    })
+    return (pendentes as PendenteEmpresa[]).map((p) => mapEmpresaToCadastroPendente(p))
   }, [pendentes, tipo, loading])
 
   return (
