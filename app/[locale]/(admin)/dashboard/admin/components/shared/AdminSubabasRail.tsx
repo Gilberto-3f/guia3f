@@ -10,6 +10,7 @@ import { SubabasConfig, type ConfigSubabaId } from '../configuracoes/SubabasConf
 import { useVerificacao } from '../../hooks/useVerificacao'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { isAdmGeral } from '../../utils/permissoes'
+import type { PerfilVerificacao } from '../../types/admin.types'
 import { useDenunciasToolbar } from '../../context/DenunciasToolbarContext'
 import { usePermissao } from '../../hooks/usePermissao'
 import { adminHref } from '../../utils/adminUrl'
@@ -37,8 +38,10 @@ function coerceConfigSub(sub: string): ConfigSubabaId {
 function CadastrosSubNav({ sub }: { sub: string }) {
   const gate = useSharedAdminGate()
   const activeSub = useMemo(() => coerceVerificacaoSub(sub), [sub])
+  const perfilContadores: PerfilVerificacao =
+    activeSub === 'auditoria' ? 'turistas' : activeSub
   const { contadores, contadoresExclusao } = useVerificacao({
-    perfil: activeSub,
+    perfil: perfilContadores,
   })
   const mostrarBadgeExclusao = gate.status === 'ok' && isAdmGeral(gate.admin)
   return (
