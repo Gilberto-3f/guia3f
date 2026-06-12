@@ -1,17 +1,22 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Flag, Scale } from 'lucide-react'
 import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
 import { supabase } from '@/lib/supabase'
 
 type Aba = 'denuncias' | 'decisoes'
 
-type DenunciaUsuario = {
+type DenunciaEnviada = {
   id: string
   motivo: string
   descricao: string | null
   status: string
   created_at: string
+  analisado_em: string | null
+  conteudo_tipo: string | null
+  medida_tipo: string | null
+  penalidade_aplicada: string | null
 }
 
 type HistoricoDecisoesProps = {
@@ -27,11 +32,17 @@ const STATUS_DENUNCIA: Record<string, string> = {
   arquivada: 'Arquivada',
 }
 
-export default function HistoricoDecisoes({ usuarioId, empresaId, denunciadoTipo }: HistoricoDecisoesProps) {
+const LABEL_CONTEUDO: Record<string, string> = {
+  post: 'Publicação',
+  comentario: 'Comentário',
+  story: 'Story',
+  avaliacao: 'Avaliação',
+}
+
+export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps) {
   const { historico, loading, error, fetchHistoricoUsuario, marcarHistoricoComoVisualizado } = useInfracoes()
   const [aba, setAba] = useState<Aba>('denuncias')
-  const [filtro, setFiltro] = useState<'todos' | 'ativo' | 'expirado'>('todos')
-  const [denuncias, setDenuncias] = useState<DenunciaUsuario[]>([])
+  const [denuncias, setDenuncias] = useState<DenunciaEnviada[]>([])
   const [loadingDenuncias, setLoadingDenuncias] = useState(false)
   const [erroDenuncias, setErroDenuncias] = useState<string | null>(null)
 
@@ -39,23 +50,8 @@ export default function HistoricoDecisoes({ usuarioId, empresaId, denunciadoTipo
     void fetchHistoricoUsuario()
   }, [fetchHistoricoUsuario])
 
-  const resolverDenunciadoId = useCallback(async (): Promise<string | null> => {
-    if (denunciadoTipo === 'empresa') return empresaId
-    if (!usuarioId) return null
-    if (denunciadoTipo === 'turista') {
-      const { data } = await supabase.from('turistas').select('id').eq('usuario_id', usuarioId).maybeSingle()
-      return data?.id != null ? String(data.id) : null
-    }
-    if (denunciadoTipo === 'profissional') {
-      const { data } = await supabase.from('profissionais').select('id').eq('usuario_id', usuarioId).maybeSingle()
-      return data?.id != null ? String(data.id) : null
-    }
-    return null
-  }, [denunciadoTipo, empresaId, usuarioId])
-
-  const carregarDenuncias = useCallback(async () => {
-    const denunciadoId = await resolverDenunciadoId()
-    if (!denunciadoId) {
+  const carregarDenunciasEnviadas = useCallback(async () => {
+    if (!usuarioId) {
       setDenuncias([])
       return
     }
@@ -64,30 +60,33 @@ export default function HistoricoDecisoes({ usuarioId, empresaId, denunciadoTipo
     try {
       const { data, error: e } = await supabase
         .from('denuncias')
-        .select('id, motivo, descricao, status, created_at')
-        .eq('denunciado_id', denunciadoId)
-        .eq('denunciado_tipo', denunciadoTipo)
+        .select(
+          'id, motivo, descricao, status, created_at, analisado_em, conteudo_tipo, medida_tipo, penalidade_aplicada',
+        )
+        .eq('denunciante_id', usuarioId)
         .order('created_at', { ascending: false })
         .limit(100)
       if (e) throw e
-      setDenuncias((data ?? []) as DenunciaUsuario[])
+      setDenuncias((data ?? []) as DenunciaEnviada[])
     } catch {
       setDenuncias([])
-      setErroDenuncias('Não foi possível carregar as denúncias.')
+      setErroDenuncias('Não foi possível carregar suas denúncias.')
     } finally {
       setLoadingDenuncias(false)
     }
-  }, [denunciadoTipo, resolverDenunciadoId])
+  }, [usuarioId])
 
   useEffect(() => {
-    if (aba === 'denuncias') void carregarDenuncias()
-  }, [aba, carregarDenuncias])
+    if (aba === 'denuncias') void carregarDenunciasEnviadas()
+  }, [aba, carregarDenunciasEnviadas])
 
   const items = useMemo(() => {
-    if (filtro === 'todos') return historico
-    if (filtro === 'ativo') return historico.filter((h) => h.status === 'ativo')
-    return historico.filter((h) => h.status !== 'ativo')
-  }, [filtro, historico])
+    return [...historico].sort((a, b) => {
+      const da = a.data_conclusao ?? a.data_aplicacao
+      const db = b.data_conclusao ?? b.data_aplicacao
+      return new Date(db).getTime() - new Date(da).getTime()
+    })
+  }, [historico])
 
   if (loading && aba === 'decisoes') {
     return <div className="p-4 text-center text-sm text-gray-500">Carregando...</div>
@@ -99,18 +98,21 @@ export default function HistoricoDecisoes({ usuarioId, empresaId, denunciadoTipo
   return (
     <div className="mx-auto max-w-3xl p-4">
       <h1 className="text-xl font-bold text-[#001f3f]">Denúncias e Decisões</h1>
-      <p className="mt-1 text-sm text-gray-600">Denúncias recebidas e penalidades aplicadas à sua conta.</p>
 
-      <div className="mt-4 flex gap-1 border-b border-gray-200" role="tablist" aria-label="Denúncias e decisões">
+      <div className="mt-5 flex gap-2 px-1" role="tablist" aria-label="Denúncias e decisões">
         <button
           type="button"
           role="tab"
           aria-selected={aba === 'denuncias'}
           onClick={() => setAba('denuncias')}
-          className={`px-4 py-2 text-sm font-semibold transition ${
-            aba === 'denuncias' ? 'border-b-2 border-[#0097b2] text-[#007d94]' : 'text-gray-500 hover:text-gray-700'
-          }`}
+          className={[
+            'flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-wide transition',
+            aba === 'denuncias'
+              ? 'bg-[#0097b2] text-white shadow-sm'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+          ].join(' ')}
         >
+          <Flag className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
           Denúncias
         </button>
         <button
@@ -118,70 +120,64 @@ export default function HistoricoDecisoes({ usuarioId, empresaId, denunciadoTipo
           role="tab"
           aria-selected={aba === 'decisoes'}
           onClick={() => setAba('decisoes')}
-          className={`px-4 py-2 text-sm font-semibold transition ${
-            aba === 'decisoes' ? 'border-b-2 border-[#0097b2] text-[#007d94]' : 'text-gray-500 hover:text-gray-700'
-          }`}
+          className={[
+            'flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-wide transition',
+            aba === 'decisoes'
+              ? 'bg-[#0097b2] text-white shadow-sm'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+          ].join(' ')}
         >
+          <Scale className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
           Decisões
         </button>
       </div>
 
       {aba === 'denuncias' ? (
-        <div className="mt-4 space-y-3">
+        <div className="mt-5 space-y-3">
           {loadingDenuncias ? (
             <p className="text-center text-sm text-gray-500">Carregando denúncias...</p>
           ) : erroDenuncias ? (
             <p className="text-center text-sm text-rose-600">{erroDenuncias}</p>
           ) : denuncias.length === 0 ? (
-            <div className="rounded-lg bg-gray-50 p-6 text-center text-sm text-gray-500">Nenhuma denúncia registrada.</div>
+            <div className="rounded-lg bg-gray-50 p-6 text-center text-sm text-gray-500">
+              Você ainda não enviou denúncias.
+            </div>
           ) : (
-            denuncias.map((item) => (
-              <div key={item.id} className="rounded-lg border border-gray-200 p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-bold text-[#001f3f]">{item.motivo}</div>
-                  <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                    {STATUS_DENUNCIA[item.status] ?? item.status}
-                  </span>
+            denuncias.map((item) => {
+              const tipoConteudo = item.conteudo_tipo ? LABEL_CONTEUDO[item.conteudo_tipo] : null
+              return (
+                <div key={item.id} className="rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-sm font-bold text-[#001f3f]">{item.motivo}</div>
+                      {tipoConteudo ? (
+                        <p className="mt-0.5 text-xs font-medium uppercase text-[#0097b2]">{tipoConteudo}</p>
+                      ) : null}
+                    </div>
+                    <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                      {STATUS_DENUNCIA[item.status] ?? item.status}
+                    </span>
+                  </div>
+                  {item.descricao ? <p className="mt-1 text-sm text-gray-600">{item.descricao}</p> : null}
+                  <p className="mt-2 text-xs text-gray-500">
+                    Enviada em {new Date(item.created_at).toLocaleDateString('pt-BR')}
+                    {item.analisado_em
+                      ? ` · Atualizada em ${new Date(item.analisado_em).toLocaleDateString('pt-BR')}`
+                      : ''}
+                  </p>
                 </div>
-                {item.descricao ? <p className="mt-1 text-sm text-gray-600">{item.descricao}</p> : null}
-                <p className="mt-2 text-xs text-gray-500">
-                  Recebida em {new Date(item.created_at).toLocaleDateString('pt-BR')}
-                </p>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       ) : (
-        <>
-          <div className="mt-4 flex flex-wrap gap-2 border-b border-gray-200 pb-2">
-            <button
-              type="button"
-              onClick={() => setFiltro('todos')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${filtro === 'todos' ? 'bg-[#e6f7fa] text-[#007d94]' : 'bg-gray-100 text-gray-600'}`}
-            >
-              Todos ({historico.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFiltro('ativo')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${filtro === 'ativo' ? 'bg-[#e6f7fa] text-[#007d94]' : 'bg-gray-100 text-gray-600'}`}
-            >
-              Em vigor ({historico.filter((h) => h.status === 'ativo').length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFiltro('expirado')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${filtro === 'expirado' ? 'bg-[#e6f7fa] text-[#007d94]' : 'bg-gray-100 text-gray-600'}`}
-            >
-              Finalizados ({historico.filter((h) => h.status !== 'ativo').length})
-            </button>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {items.length === 0 ? (
-              <div className="rounded-lg bg-gray-50 p-6 text-center text-sm text-gray-500">Nenhum registro encontrado.</div>
-            ) : (
-              items.map((item) => (
+        <div className="mt-5 space-y-3">
+          {items.length === 0 ? (
+            <div className="rounded-lg bg-gray-50 p-6 text-center text-sm text-gray-500">Nenhum registro encontrado.</div>
+          ) : (
+            items.map((item) => {
+              const dataConclusao = item.data_conclusao ?? item.data_aplicacao
+              return (
                 <button
                   key={item.id}
                   type="button"
@@ -196,14 +192,16 @@ export default function HistoricoDecisoes({ usuarioId, empresaId, denunciadoTipo
                   </div>
                   <div className="mt-1 text-sm text-gray-600">{item.descricao}</div>
                   <div className="mt-2 text-xs text-gray-500">
-                    Aplicado em {new Date(item.data_aplicacao).toLocaleDateString('pt-BR')}
-                    {item.data_expiracao ? ` · Expira em ${new Date(item.data_expiracao).toLocaleDateString('pt-BR')}` : ''}
+                    Concluída em {new Date(dataConclusao).toLocaleDateString('pt-BR')}
+                    {item.data_expiracao && item.status === 'ativo'
+                      ? ` · Expira em ${new Date(item.data_expiracao).toLocaleDateString('pt-BR')}`
+                      : ''}
                   </div>
                 </button>
-              ))
-            )}
-          </div>
-        </>
+              )
+            })
+          )}
+        </div>
       )}
     </div>
   )

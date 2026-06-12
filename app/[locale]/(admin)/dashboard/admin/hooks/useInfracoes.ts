@@ -18,12 +18,13 @@ export type Infracao = {
 
 export type HistoricoDecisao = {
   id: string
-  tipo: 'advertencia' | 'suspensao' | 'banimento' | 'alerta_preventivo'
+  tipo: 'advertencia' | 'suspensao' | 'banimento' | 'alerta_preventivo' | 'decisao_denuncia'
   titulo: string
   descricao: string
   penalidade_aplicada: string
   duracao_dias: number | null
   data_aplicacao: string
+  data_conclusao?: string | null
   data_expiracao: string | null
   status: 'ativo' | 'expirado' | 'cumprido'
   justificativa: string
@@ -74,6 +75,7 @@ export function useInfracoes() {
           .from('historico_decisoes')
           .select('*')
           .eq('usuario_id', targetId)
+          .order('data_conclusao', { ascending: false, nullsFirst: false })
           .order('data_aplicacao', { ascending: false })
         if (e) {
           console.warn('Histórico de decisões não disponível:', e.message)

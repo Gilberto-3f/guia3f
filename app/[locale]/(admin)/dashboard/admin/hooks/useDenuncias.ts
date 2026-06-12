@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePermissao } from './usePermissao'
+import { notificarDecisaoDenuncia } from '@/lib/notificarDecisaoDenuncia'
 import { adminContextFromGate, registrarLogVerificacao } from '../utils/registrarLogVerificacao'
 import type { AplicarMedidaDenunciaParams, AplicarPenalidadeParams, Denuncia, DenunciasFiltros } from '../types/admin.types'
 
@@ -273,6 +274,20 @@ export function useDenuncias(filtros: DenunciasFiltros) {
         })
         .eq('id', denuncia_id)
       if (updateErr) throw updateErr
+
+      const { data: denRow } = await supabase
+        .from('denuncias')
+        .select('id, denunciante_id, denunciado_usuario_id, conteudo_tipo, motivo')
+        .eq('id', denuncia_id)
+        .maybeSingle()
+      if (denRow) {
+        const acaoNotif = acao === 'advertir' ? 'advertencia' : acao === 'suspender' ? 'suspensao' : 'banimento'
+        await notificarDecisaoDenuncia(supabase, denRow, acaoNotif, {
+          texto: motivo.trim(),
+          dias: acao === 'suspender' ? suspensao_dias ?? 7 : undefined,
+        })
+      }
+
       const statusMap: Record<string, string> = {
         advertir: 'denuncia_advertencia',
         suspender: 'denuncia_suspensao',
@@ -325,6 +340,10 @@ export function useDenuncias(filtros: DenunciasFiltros) {
         }
       }
 
+      if (medida === 'excluir_cadastro' && usuarioId) {
+        await supabase.from('usuarios').update({ status: 'suspenso' }).eq('id', usuarioId)
+      }
+
       const detalhes = { medida, texto: texto?.trim() ?? null }
       const { error: updateErr } = await supabase
         .from('denuncias')
@@ -340,6 +359,19 @@ export function useDenuncias(filtros: DenunciasFiltros) {
         .eq('id', denuncia_id)
       if (updateErr) throw updateErr
 
+      await notificarDecisaoDenuncia(
+        supabase,
+        {
+          id: denuncia_id,
+          denunciante_id: String(row.denunciante_id ?? ''),
+          denunciado_usuario_id: usuarioId,
+          conteudo_tipo: conteudoTipo,
+          motivo: row.motivo != null ? String(row.motivo) : null,
+        },
+        medida,
+        { texto: texto?.trim() ?? null },
+      )
+
       await applyAudit(denuncia_id, `denuncia_medida_${medida}`, medida, detalhes)
       await fetchDenuncias({ skeleton: false })
     },
@@ -347,8 +379,15 @@ export function useDenuncias(filtros: DenunciasFiltros) {
   )
 
   const arquivar = useCallback(
-    async (denuncia_id: string) => {
+    async (denuncia_id: string, motivoArquivo?: string) => {
       if (!admin) throw new Error('Admin não autenticado')
+
+      const { data: denRow } = await supabase
+        .from('denuncias')
+        .select('id, denunciante_id, denunciado_usuario_id, conteudo_tipo, motivo, medida_aplicada')
+        .eq('id', denuncia_id)
+        .maybeSingle()
+
       const payload = {
         status: 'arquivada',
         responsavel_id: admin.id,
@@ -357,6 +396,13 @@ export function useDenuncias(filtros: DenunciasFiltros) {
       }
       const { error: updateErr } = await supabase.from('denuncias').update(payload).eq('id', denuncia_id)
       if (updateErr) throw updateErr
+
+      if (denRow && !denRow.medida_aplicada) {
+        await notificarDecisaoDenuncia(supabase, denRow, 'arquivada', {
+          texto: motivoArquivo?.trim() || null,
+        })
+      }
+
       await applyAudit(denuncia_id, 'denuncia_arquivada', 'arquivada', { admin_email: admin.email })
       await fetchDenuncias({ skeleton: false })
     },
