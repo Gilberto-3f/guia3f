@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePermissao } from './usePermissao'
 import { adminContextFromGate, registrarLogVerificacao } from '../utils/registrarLogVerificacao'
-import type { AplicarPenalidadeParams, Denuncia, DenunciasFiltros } from '../types/admin.types'
+import type { AplicarMedidaDenunciaParams, AplicarPenalidadeParams, Denuncia, DenunciasFiltros } from '../types/admin.types'
 
 type DenunciaRow = {
   id: string
@@ -20,19 +20,14 @@ type DenunciaRow = {
   analisado_em: string | null
   analisado_por: string | null
   penalidade_aplicada: 'advertencia' | 'suspensao' | 'banimento' | null
-  penalidade_detalhes: { dias?: number; motivo?: string; prazo_reenvio?: number } | null
+  penalidade_detalhes: { dias?: number; motivo?: string; prazo_reenvio?: number; medida?: string; texto?: string } | null
+  conteudo_tipo?: string | null
+  conteudo_id?: string | null
+  denunciado_usuario_id?: string | null
+  medida_aplicada?: boolean | null
+  medida_tipo?: string | null
   created_at: string
   updated_at: string
-}
-
-function getDataLimite(periodo: 'hoje' | '7d' | '30d'): string {
-  const now = new Date()
-  if (periodo === 'hoje') {
-    now.setHours(0, 0, 0, 0)
-    return now.toISOString()
-  }
-  if (periodo === '7d') return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 }
 
 function addBusinessDays(start: string, days: number): string {
@@ -47,7 +42,7 @@ function addBusinessDays(start: string, days: number): string {
 }
 
 function filtrosKey(f: DenunciasFiltros) {
-  return `${f.perfil}|${f.periodo}|${f.status}|${f.busca.trim()}`
+  return `${f.perfil}|${f.status}|${f.busca.trim()}`
 }
 
 export function useDenuncias(filtros: DenunciasFiltros) {
@@ -56,7 +51,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
   filtrosRef.current = filtros
   const filtrosStableKey = useMemo(
     () => filtrosKey(filtros),
-    [filtros.perfil, filtros.periodo, filtros.status, filtros.busca]
+    [filtros.perfil, filtros.status, filtros.busca]
   )
   const [denuncias, setDenuncias] = useState<Denuncia[]>([])
   const [contadores, setContadores] = useState({
@@ -109,9 +104,14 @@ export function useDenuncias(filtros: DenunciasFiltros) {
 
   const fetchContadores = useCallback(async () => {
     const f = filtrosRef.current
-    const tipo =
-      f.perfil === 'turistas' ? 'turista' : f.perfil === 'profissionais' ? 'profissional' : f.perfil === 'stories' ? 'story' : 'empresa'
-    const { data, error: e } = await supabase.from('denuncias').select('status').eq('denunciado_tipo', tipo)
+    if (f.perfil === 'auditoria') {
+      const { data, error: e } = await supabase.from('denuncias').select('status').eq('status', 'arquivada')
+      if (e) throw e
+      setContadores({ pendente: 0, em_investigacao: 0, encerrada: 0, arquivada: (data ?? []).length })
+      return
+    }
+    const tipo = f.perfil === 'turistas' ? 'turista' : f.perfil === 'profissionais' ? 'profissional' : 'empresa'
+    const { data, error: e } = await supabase.from('denuncias').select('status').eq('denunciado_tipo', tipo).neq('status', 'arquivada')
     if (e) throw e
     const base = { pendente: 0, em_investigacao: 0, encerrada: 0, arquivada: 0 }
     for (const row of (data ?? []) as Array<{ status?: keyof typeof base }>) {
@@ -133,13 +133,20 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     try {
       const nivelNum = typeof nivel === 'string' ? parseInt(nivel, 10) : nivel
 
-      const tipo =
-        f.perfil === 'turistas' ? 'turista' : f.perfil === 'profissionais' ? 'profissional' : f.perfil === 'stories' ? 'story' : 'empresa'
+      if (f.perfil === 'auditoria') {
+        setDenuncias([])
+        setLoading(false)
+        return
+      }
+
+      const tipo = f.perfil === 'turistas' ? 'turista' : f.perfil === 'profissionais' ? 'profissional' : 'empresa'
       let query = supabase
         .from('denuncias')
-        .select('id, denunciante_id, denunciado_id, denunciado_tipo, motivo, descricao, evidencias, status, gravidade, responsavel_id, analisado_em, analisado_por, penalidade_aplicada, penalidade_detalhes, created_at, updated_at')
+        .select(
+          'id, denunciante_id, denunciado_id, denunciado_tipo, denunciado_usuario_id, conteudo_tipo, conteudo_id, motivo, descricao, evidencias, status, gravidade, responsavel_id, analisado_em, analisado_por, penalidade_aplicada, penalidade_detalhes, medida_aplicada, medida_tipo, created_at, updated_at',
+        )
         .eq('denunciado_tipo', tipo)
-        .gte('created_at', getDataLimite(f.periodo))
+        .neq('status', 'arquivada')
         .order('created_at', { ascending: false })
 
       if (f.status !== 'todas') query = query.eq('status', f.status)
@@ -206,6 +213,11 @@ export function useDenuncias(filtros: DenunciasFiltros) {
             analisado_por: r.analisado_por,
             penalidade_aplicada: r.penalidade_aplicada,
             penalidade_detalhes: r.penalidade_detalhes,
+            denunciado_usuario_id: r.denunciado_usuario_id ?? null,
+            conteudo_tipo: (r.conteudo_tipo as Denuncia['conteudo_tipo']) ?? null,
+            conteudo_id: r.conteudo_id ?? null,
+            medida_aplicada: Boolean(r.medida_aplicada),
+            medida_tipo: r.medida_tipo ?? null,
             prazo_analise_ate: prazo,
             prazo_estourado: prazoEstourado,
             created_at: r.created_at,
@@ -283,23 +295,72 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     [admin, applyAudit, fetchDenuncias]
   )
 
-  const arquivar = useCallback(
-    async (denuncia_id: string, motivo: string) => {
+  const aplicarMedida = useCallback(
+    async ({ denuncia_id, medida, texto }: AplicarMedidaDenunciaParams) => {
       if (!admin) throw new Error('Admin não autenticado')
-      if (!motivo.trim()) throw new Error('Motivo obrigatório')
+
+      const { data: den, error: loadErr } = await supabase.from('denuncias').select('*').eq('id', denuncia_id).single()
+      if (loadErr || !den) throw loadErr ?? new Error('Denúncia não encontrada')
+
+      const row = den as Record<string, unknown>
+      const usuarioId = row.denunciado_usuario_id != null ? String(row.denunciado_usuario_id) : null
+      const conteudoTipo = row.conteudo_tipo != null ? String(row.conteudo_tipo) : null
+      const conteudoId = row.conteudo_id != null ? String(row.conteudo_id) : null
+
+      if (medida === 'bloqueio' && usuarioId) {
+        await supabase.from('usuarios').update({ status: 'suspenso' }).eq('id', usuarioId)
+      }
+
+      if (medida === 'excluir_conteudo') {
+        const alvoId = conteudoId ?? (row.denunciado_tipo === 'story' ? String(row.denunciado_id) : null)
+        const tipo = conteudoTipo ?? (row.denunciado_tipo === 'story' ? 'story' : null)
+        if (alvoId && tipo === 'post') {
+          await supabase.from('posts').update({ deleted_at: new Date().toISOString() }).eq('id', alvoId)
+        } else if (alvoId && tipo === 'comentario') {
+          await supabase.from('comentarios').update({ deleted_at: new Date().toISOString() }).eq('id', alvoId)
+        } else if (alvoId && tipo === 'story') {
+          await supabase.from('stories').delete().eq('id', alvoId)
+        } else if (alvoId && tipo === 'avaliacao') {
+          await supabase.from('avaliacoes').delete().eq('id', alvoId)
+        }
+      }
+
+      const detalhes = { medida, texto: texto?.trim() ?? null }
+      const { error: updateErr } = await supabase
+        .from('denuncias')
+        .update({
+          medida_aplicada: true,
+          medida_tipo: medida,
+          status: 'em_investigacao',
+          penalidade_detalhes: detalhes,
+          responsavel_id: admin.id,
+          analisado_por: admin.id,
+          analisado_em: new Date().toISOString(),
+        })
+        .eq('id', denuncia_id)
+      if (updateErr) throw updateErr
+
+      await applyAudit(denuncia_id, `denuncia_medida_${medida}`, medida, detalhes)
+      await fetchDenuncias({ skeleton: false })
+    },
+    [admin, applyAudit, fetchDenuncias],
+  )
+
+  const arquivar = useCallback(
+    async (denuncia_id: string) => {
+      if (!admin) throw new Error('Admin não autenticado')
       const payload = {
         status: 'arquivada',
-        penalidade_detalhes: { motivo: motivo.trim() },
         responsavel_id: admin.id,
         analisado_por: admin.id,
         analisado_em: new Date().toISOString(),
       }
       const { error: updateErr } = await supabase.from('denuncias').update(payload).eq('id', denuncia_id)
       if (updateErr) throw updateErr
-      await applyAudit(denuncia_id, 'denuncia_arquivada', 'arquivada', { motivo: motivo.trim() })
+      await applyAudit(denuncia_id, 'denuncia_arquivada', 'arquivada', { admin_email: admin.email })
       await fetchDenuncias({ skeleton: false })
     },
-    [admin, applyAudit, fetchDenuncias]
+    [admin, applyAudit, fetchDenuncias],
   )
 
   useEffect(() => {
@@ -312,6 +373,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
     loading,
     error,
     aplicarPenalidade,
+    aplicarMedida,
     marcarEmInvestigacao,
     arquivar,
     refetch: () => {

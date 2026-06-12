@@ -7,14 +7,11 @@ const opts: { id: DenunciaStatus | 'todas'; label: string }[] = [
   { id: 'pendente', label: 'Pendente' },
   { id: 'em_investigacao', label: 'Em investigação' },
   { id: 'encerrada', label: 'Encerrada' },
-  { id: 'arquivada', label: 'Arquivada' },
 ]
 
 export default function StatusDenuncia({
   statusAtivo,
   onStatusChange,
-  periodo,
-  onPeriodoChange,
   busca,
   onBuscaChange,
   categoria,
@@ -24,15 +21,15 @@ export default function StatusDenuncia({
 }: {
   statusAtivo: DenunciaStatus | 'todas'
   onStatusChange: (v: DenunciaStatus | 'todas') => void
-  periodo: 'hoje' | '7d' | '30d'
-  onPeriodoChange: (v: 'hoje' | '7d' | '30d') => void
   busca: string
   onBuscaChange: (v: string) => void
   categoria: string
   onCategoriaChange: (v: string) => void
-  perfil: 'turistas' | 'profissionais' | 'empresas' | 'stories'
+  perfil: 'turistas' | 'profissionais' | 'empresas' | 'auditoria'
   badges?: Partial<Record<DenunciaStatus, number>>
 }) {
+  if (perfil === 'auditoria') return null
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
@@ -49,18 +46,15 @@ export default function StatusDenuncia({
               ].join(' ')}
             >
               {o.label}{' '}
-              {o.id !== 'todas' && typeof badges?.[o.id] === 'number' ? <span className="ml-1 text-[11px]">({badges?.[o.id]})</span> : null}
+              {o.id !== 'todas' && typeof badges?.[o.id] === 'number' ? (
+                <span className="ml-1 text-[11px]">({badges?.[o.id]})</span>
+              ) : null}
             </button>
           )
         })}
       </div>
 
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
-        <select value={periodo} onChange={(e) => onPeriodoChange(e.target.value as 'hoje' | '7d' | '30d')} className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
-          <option value="hoje">Hoje</option>
-          <option value="7d">Últimos 7 dias</option>
-          <option value="30d">Últimos 30 dias</option>
-        </select>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         <input
           value={busca}
           onChange={(e) => onBuscaChange(e.target.value)}
@@ -74,11 +68,7 @@ export default function StatusDenuncia({
             className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
             placeholder="Categoria (opcional)"
           />
-        ) : perfil === 'stories' ? (
-          <div className="hidden md:block" aria-hidden />
-        ) : (
-          <div />
-        )}
+        ) : null}
       </div>
     </div>
   )

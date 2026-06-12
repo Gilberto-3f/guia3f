@@ -224,7 +224,9 @@ export type RevogarAcessoParams = {
 export type DenunciaStatus = 'pendente' | 'em_investigacao' | 'encerrada' | 'arquivada'
 export type DenunciaGravidade = 'leve' | 'media' | 'grave'
 export type DenunciaPenalidade = 'advertencia' | 'suspensao' | 'banimento'
-export type DenunciaPerfil = 'turistas' | 'profissionais' | 'empresas' | 'stories'
+export type DenunciaPerfil = 'turistas' | 'profissionais' | 'empresas' | 'auditoria'
+export type ConteudoDenunciaTipo = 'post' | 'comentario' | 'story' | 'avaliacao'
+export type MedidaDenunciaTipo = 'mensagem' | 'bloqueio' | 'excluir_conteudo' | 'excluir_cadastro'
 
 export type Denuncia = {
   id: string
@@ -233,6 +235,11 @@ export type Denuncia = {
   denunciante_nome: string
   denunciado_id: string
   denunciado_tipo: 'turista' | 'profissional' | 'empresa' | 'story'
+  denunciado_usuario_id?: string | null
+  conteudo_tipo?: ConteudoDenunciaTipo | null
+  conteudo_id?: string | null
+  medida_aplicada?: boolean
+  medida_tipo?: MedidaDenunciaTipo | string | null
   denunciado_email: string
   denunciado_nome: string
   denunciado_username: string
@@ -271,9 +278,14 @@ export type AplicarPenalidadeParams = {
 export type DenunciasFiltros = {
   perfil: DenunciaPerfil
   status: DenunciaStatus | 'todas'
-  periodo: 'hoje' | '7d' | '30d'
   busca: string
   categoria?: string
+}
+
+export type AplicarMedidaDenunciaParams = {
+  denuncia_id: string
+  medida: MedidaDenunciaTipo
+  texto?: string
 }
 
 // ================================

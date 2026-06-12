@@ -2,97 +2,182 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import type { Denuncia } from '../../types/admin.types'
-import AcoesDenuncia from './AcoesDenuncia'
-import HistoricoUsuario from './HistoricoUsuario'
-import ModalVerDenuncia from './ModalVerDenuncia'
+import { ChevronDown, ChevronUp } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { carregarConteudoDenuncia, tituloDenunciaConteudo, type ConteudoDenunciaPreview } from '@/lib/carregarConteudoDenuncia'
+import type { Denuncia, MedidaDenunciaTipo } from '../../types/admin.types'
+import ModalAplicarMedidaDenuncia from './ModalAplicarMedidaDenuncia'
+
+function formatarDataHora(iso: string) {
+  return new Date(iso).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function PreviewConteudo({ conteudo }: { conteudo: ConteudoDenunciaPreview }) {
+  return (
+    <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+      {conteudo.texto ? <p className="whitespace-pre-wrap text-sm text-gray-800">{conteudo.texto}</p> : null}
+      {conteudo.nota != null ? (
+        <p className="mt-2 text-sm font-semibold text-amber-700">Nota: {conteudo.nota}/5</p>
+      ) : null}
+      {conteudo.meta ? <p className="mt-1 text-xs text-gray-500">{conteudo.meta}</p> : null}
+      {conteudo.imagemUrl ? (
+        <div className="relative mt-3 aspect-video max-h-64 w-full overflow-hidden rounded-lg">
+          <Image src={conteudo.imagemUrl} alt="" fill className="object-contain" unoptimized />
+        </div>
+      ) : null}
+      {conteudo.videoUrl ? (
+        <video src={conteudo.videoUrl} controls className="mt-3 max-h-64 w-full rounded-lg" />
+      ) : null}
+    </div>
+  )
+}
 
 export default function CardDenuncia({
   denuncia,
-  onMarcarInvestigacao,
-  onAplicarPenalidade,
+  onAssumir,
+  onAplicarMedida,
   onArquivar,
 }: {
   denuncia: Denuncia
-  onMarcarInvestigacao: () => Promise<void>
-  onAplicarPenalidade: (payload: { acao: 'advertir' | 'suspender' | 'banir'; suspensao_dias?: number; motivo: string }) => Promise<void>
-  onArquivar: (motivo: string) => Promise<void>
+  onAssumir: () => Promise<void>
+  onAplicarMedida: (medida: MedidaDenunciaTipo, texto?: string) => Promise<void>
+  onArquivar: () => Promise<void>
 }) {
-  const [verOpen, setVerOpen] = useState(false)
-  const [acoesOpen, setAcoesOpen] = useState(false)
+  const [expandido, setExpandido] = useState(false)
+  const [conteudo, setConteudo] = useState<ConteudoDenunciaPreview | null>(null)
+  const [carregando, setCarregando] = useState(false)
+  const [modalMedida, setModalMedida] = useState(false)
+  const [processando, setProcessando] = useState(false)
 
-  const statusClass =
-    denuncia.status === 'pendente'
-      ? 'bg-red-100 text-red-800'
-      : denuncia.status === 'em_investigacao'
-        ? 'bg-yellow-100 text-yellow-800'
-        : denuncia.status === 'encerrada'
-          ? 'bg-emerald-100 text-emerald-800'
-          : 'bg-gray-100 text-gray-800'
+  const titulo = tituloDenunciaConteudo(denuncia.conteudo_tipo, denuncia.denunciado_tipo)
+  const podeArquivar = Boolean(denuncia.medida_aplicada)
 
-  const gravidadeClass =
-    denuncia.gravidade === 'grave' ? 'text-red-700' : denuncia.gravidade === 'media' ? 'text-yellow-700' : 'text-emerald-700'
+  const toggleVerificar = async () => {
+    if (expandido) {
+      setExpandido(false)
+      return
+    }
+    setExpandido(true)
+    if (!conteudo) {
+      setCarregando(true)
+      try {
+        if (denuncia.status === 'pendente') {
+          await onAssumir()
+        }
+        const preview = await carregarConteudoDenuncia(supabase, {
+          conteudoTipo: denuncia.conteudo_tipo ?? null,
+          conteudoId: denuncia.conteudo_id ?? null,
+          denunciadoTipo: denuncia.denunciado_tipo,
+          denunciadoId: denuncia.denunciado_id,
+        })
+        setConteudo(preview)
+      } finally {
+        setCarregando(false)
+      }
+    } else if (denuncia.status === 'pendente') {
+      await onAssumir()
+    }
+  }
 
   return (
     <>
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="text-xs font-semibold text-gray-500">
-              <span className={`rounded-full px-2 py-0.5 ${statusClass}`}>{denuncia.status.replace('_', ' ')}</span> ·{' '}
-              {new Date(denuncia.created_at).toLocaleString('pt-BR')}
-            </div>
-            <div className="mt-1 text-sm font-bold text-gray-900">
-              👤 {denuncia.denunciante_nome || denuncia.denunciante_email} →{' '}
-              {denuncia.denunciado_tipo === 'story' ? (
-                <>🎯 Story · autor @{denuncia.denunciado_username}</>
-              ) : (
-                <>
-                  🎯 {denuncia.denunciado_nome} (@{denuncia.denunciado_username})
-                </>
-              )}
-            </div>
-            {denuncia.denunciado_tipo === 'story' && denuncia.story_conteudo_url ? (
-              <div className="relative mt-3 aspect-[9/16] w-24 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
-                <Image src={denuncia.story_conteudo_url} alt="Pré-visualização do story" fill className="object-cover" sizes="96px" unoptimized />
-              </div>
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="p-4">
+          <h3 className="text-base font-bold text-[#0097b2]">{titulo}</h3>
+          <div className="mt-2 space-y-1 text-sm text-gray-700">
+            <p>
+              <span className="font-semibold">Denunciante:</span> @{denuncia.denunciante_nome || denuncia.denunciante_email.split('@')[0]}
+            </p>
+            <p>
+              <span className="font-semibold">Denunciado:</span> @{denuncia.denunciado_username || denuncia.denunciado_nome}
+            </p>
+            <p>
+              <span className="font-semibold">Data:</span> {formatarDataHora(denuncia.created_at)}
+            </p>
+            <p>
+              <span className="font-semibold">Motivo:</span> {denuncia.motivo}
+              {denuncia.descricao ? ` — ${denuncia.descricao}` : ''}
+            </p>
+            {denuncia.responsavel_email ? (
+              <p className="text-xs text-gray-500">Responsável: {denuncia.responsavel_email}</p>
             ) : null}
-            <div className="mt-2 text-sm text-gray-700">{denuncia.motivo}</div>
-            {denuncia.descricao ? <div className="mt-1 line-clamp-2 text-sm text-gray-600">{denuncia.descricao}</div> : null}
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
-              <span className={gravidadeClass}>Gravidade: {denuncia.gravidade || 'não definida'}</span>
-              <span className="text-gray-600">Evidências: {denuncia.evidencias.length}</span>
-              {denuncia.responsavel_email ? <span className="text-gray-600">Responsável: @{denuncia.responsavel_email.split('@')[0]}</span> : null}
-              {denuncia.prazo_analise_ate ? (
-                <span className={denuncia.prazo_estourado ? 'font-semibold text-red-700' : 'text-gray-600'}>
-                  Prazo análise: {new Date(denuncia.prazo_analise_ate).toLocaleDateString('pt-BR')}
-                </span>
-              ) : null}
-            </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
-            <button type="button" onClick={() => setVerOpen(true)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
-              Ver
-            </button>
-            <button type="button" onClick={() => setAcoesOpen(true)} className="rounded-lg bg-[#0097b2] px-3 py-2 text-xs font-semibold text-white hover:bg-[#007a91]">
-              Ações
-            </button>
+          <button
+            type="button"
+            onClick={() => void toggleVerificar()}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-[#0097b2]/30 bg-[#0097b2]/5 py-2.5 text-sm font-bold uppercase tracking-wide text-[#0097b2]"
+          >
+            Verificar denúncia
+            {expandido ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        </div>
+
+        {expandido ? (
+          <div className="border-t border-gray-100 bg-gray-50/50 px-4 py-4">
+            {carregando ? (
+              <p className="text-sm text-gray-500">Carregando conteúdo…</p>
+            ) : conteudo ? (
+              <PreviewConteudo conteudo={conteudo} />
+            ) : (
+              <p className="text-sm text-gray-500">Conteúdo não disponível para visualização.</p>
+            )}
+
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                disabled={processando}
+                onClick={() => setModalMedida(true)}
+                className="flex-1 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50"
+                style={{ backgroundColor: '#0097b2' }}
+              >
+                Aplicar medida
+              </button>
+              <button
+                type="button"
+                disabled={!podeArquivar || processando}
+                onClick={async () => {
+                  setProcessando(true)
+                  try {
+                    await onArquivar()
+                  } finally {
+                    setProcessando(false)
+                  }
+                }}
+                className={[
+                  'flex-1 rounded-xl py-3 text-sm font-bold',
+                  podeArquivar
+                    ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                    : 'cursor-not-allowed bg-gray-200 text-gray-400',
+                ].join(' ')}
+              >
+                Arquivar
+              </button>
+            </div>
+            {!podeArquivar ? (
+              <p className="mt-2 text-center text-xs text-gray-500">Arquivar disponível após aplicar uma medida.</p>
+            ) : null}
           </div>
-        </div>
-        <div className="mt-3">
-          <HistoricoUsuario totalAnteriores={denuncia.total_denuncias_anteriores ?? 0} />
-        </div>
+        ) : null}
       </div>
 
-      <ModalVerDenuncia aberto={verOpen} onClose={() => setVerOpen(false)} denuncia={denuncia} />
-      <AcoesDenuncia
-        aberto={acoesOpen}
-        onClose={() => setAcoesOpen(false)}
-        denuncia={denuncia}
-        onMarcarInvestigacao={onMarcarInvestigacao}
-        onAplicarPenalidade={onAplicarPenalidade}
-        onArquivar={onArquivar}
+      <ModalAplicarMedidaDenuncia
+        aberto={modalMedida}
+        onClose={() => setModalMedida(false)}
+        onConfirmar={async (medida, texto) => {
+          setProcessando(true)
+          try {
+            await onAplicarMedida(medida, texto)
+          } finally {
+            setProcessando(false)
+          }
+        }}
       />
     </>
   )

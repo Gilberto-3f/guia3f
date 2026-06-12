@@ -17,6 +17,7 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
+import ModalDenunciarConteudo from '@/components/ModalDenunciarConteudo'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 
 const STORY_VIEW_MS = 15000
@@ -41,13 +42,6 @@ function extrairCaminhoStorageStory(conteudoUrl) {
   if (/^https?:\/\//i.test(raw)) return null
   return raw.replace(/^\/+/, '')
 }
-
-const CATEGORIAS_DENUNCIA_STORY = [
-  { id: 'Conteúdo impróprio', label: 'Conteúdo impróprio' },
-  { id: 'Spam', label: 'Spam' },
-  { id: 'Discurso de ódio', label: 'Discurso de ódio' },
-  { id: 'Outro', label: 'Outro' },
-]
 
 /** @param {number} min @param {number} v @param {number} max */
 function clampNumber(min, v, max) {
@@ -283,9 +277,6 @@ export default function StoryViewer({
   const [carregandoInsights, setCarregandoInsights] = useState(false)
   const [menuMaisOpcoes, setMenuMaisOpcoes] = useState(false)
   const [modalDenunciar, setModalDenunciar] = useState(false)
-  const [denCategoria, setDenCategoria] = useState('Conteúdo impróprio')
-  const [denTexto, setDenTexto] = useState('')
-  const [denBusy, setDenBusy] = useState(false)
   const [toastMsg, setToastMsg] = useState(/** @type {string | null} */ (null))
   const [seguindoAutor, setSeguindoAutor] = useState(/** @type {boolean | null} */ (null))
   const [repostando, setRepostando] = useState(false)
@@ -779,8 +770,6 @@ export default function StoryViewer({
   useEffect(() => {
     setMenuMaisOpcoes(false)
     setModalDenunciar(false)
-    setDenTexto('')
-    setDenCategoria('Conteúdo impróprio')
     setRepostando(false)
     setRepostExistenteId(null)
     setCardMarcacao(null)
@@ -1133,43 +1122,6 @@ export default function StoryViewer({
       setExcluindoStory(false)
     }
   }, [confirmExcluirStoryEtapa, story?.id, story?.conteudo_url, uid, onFechar])
-
-  const enviarDenunciaStory = async () => {
-    const motivoTrim = denCategoria.trim().slice(0, 100)
-    const descTrim = denTexto.trim().slice(0, 300)
-    if (!motivoTrim || !descTrim) {
-      setToastMsg('Preencha o motivo e a descrição.')
-      return
-    }
-    setDenBusy(true)
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session?.user?.id) {
-        setToastMsg('Inicie sessão para denunciar.')
-        return
-      }
-      const { error } = await supabase.from('denuncias').insert({
-        denunciante_id: session.user.id,
-        denunciado_id: story.id,
-        denunciado_tipo: 'story',
-        motivo: motivoTrim,
-        descricao: descTrim,
-        status: 'pendente',
-      })
-      if (error) throw error
-      setModalDenunciar(false)
-      setMenuMaisOpcoes(false)
-      setDenTexto('')
-      setToastMsg('Denúncia enviada. Nossa equipe irá analisar.')
-    } catch (e) {
-      console.error(e)
-      setToastMsg('Não foi possível enviar a denúncia. Tente novamente.')
-    } finally {
-      setDenBusy(false)
-    }
-  }
 
   /**
    * @param {{ usuario_id: string | null, rotulo: string, foto: string | null, tipo?: string | null, empresa_id?: string | null }} row
@@ -1768,55 +1720,17 @@ export default function StoryViewer({
         </div>
       ) : null}
 
-      {modalDenunciar ? (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" role="dialog" aria-modal="true">
-          <button type="button" className="absolute inset-0" aria-label="Fechar" onClick={() => !denBusy && setModalDenunciar(false)} />
-          <div className="relative z-[1] w-full max-w-md rounded-t-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl sm:rounded-2xl">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <h2 className="text-base font-semibold text-white">Denunciar story</h2>
-              <button
-                type="button"
-                disabled={denBusy}
-                onClick={() => setModalDenunciar(false)}
-                className="rounded-full p-2 text-white/80 hover:bg-white/10 disabled:opacity-50"
-                aria-label="Fechar"
-              >
-                <X size={22} />
-              </button>
-            </div>
-            <label className="mb-1 block text-xs font-medium text-white/70">Categoria</label>
-            <select
-              value={denCategoria}
-              onChange={(e) => setDenCategoria(e.target.value)}
-              className="mb-4 w-full rounded-xl border border-white/20 bg-black/30 px-3 py-2.5 text-sm text-white"
-            >
-              {CATEGORIAS_DENUNCIA_STORY.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-            <label className="mb-1 block text-xs font-medium text-white/70">Descreva o problema (obrigatório, máx. 300 caracteres)</label>
-            <textarea
-              value={denTexto}
-              maxLength={300}
-              rows={4}
-              onChange={(e) => setDenTexto(e.target.value)}
-              className="mb-2 w-full resize-none rounded-xl border border-white/20 bg-black/30 p-3 text-sm text-white placeholder:text-white/40"
-              placeholder="Explique o que está incorreto nesta publicação…"
-            />
-            <p className="mb-4 text-right text-[11px] text-white/50">{denTexto.length}/300</p>
-            <button
-              type="button"
-              disabled={denBusy || !denTexto.trim()}
-              onClick={() => void enviarDenunciaStory()}
-              className="w-full rounded-xl bg-amber-600 py-3 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {denBusy ? 'A enviar…' : 'Enviar denúncia'}
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <ModalDenunciarConteudo
+        aberto={modalDenunciar}
+        onClose={() => setModalDenunciar(false)}
+        conteudoTipo="story"
+        conteudoId={story?.id ? String(story.id) : ''}
+        denunciadoUsuarioId={autorId ?? ''}
+        onSucesso={() => {
+          setMenuMaisOpcoes(false)
+          setToastMsg('Denúncia enviada. Nossa equipe irá analisar.')
+        }}
+      />
 
       {toastMsg ? (
         <div className="pointer-events-none fixed bottom-24 left-1/2 z-[130] max-w-[min(calc(100vw-2rem),360px)] -translate-x-1/2 rounded-xl border border-white/20 bg-zinc-900/95 px-4 py-3 text-center text-sm text-white shadow-lg">

@@ -8,9 +8,10 @@ import { useAdminNav } from '../../context/AdminNavContext'
 import type { DenunciaPerfil } from '../../types/admin.types'
 import StatusDenuncia from './StatusDenuncia'
 import ListaDenuncias from './ListaDenuncias'
+import { DenunciasAuditoria } from './DenunciasAuditoria'
 
 function coerceSub(sub: string): DenunciaPerfil {
-  if (sub === 'profissionais' || sub === 'empresas' || sub === 'stories') return sub
+  if (sub === 'profissionais' || sub === 'empresas' || sub === 'auditoria') return sub
   return 'turistas'
 }
 
@@ -25,10 +26,8 @@ export function DenunciasContainer({ sub }: { sub: string }) {
 
   const podeVerProfissionais = nivelNum === 1 || nivelNum === 2
   const podeVerEmpresas = nivelNum === 1 || nivelNum === 3
-  const podeVerStories = nivelNum === 1 || nivelNum === 2
 
   const [statusAtivo, setStatusAtivo] = useState<'pendente' | 'em_investigacao' | 'encerrada' | 'arquivada' | 'todas'>('pendente')
-  const [periodo, setPeriodo] = useState<'hoje' | '7d' | '30d'>('7d')
   const [busca, setBusca] = useState('')
   const [categoria, setCategoria] = useState('')
 
@@ -39,37 +38,30 @@ export function DenunciasContainer({ sub }: { sub: string }) {
     if (perfilAtivo === 'empresas' && !podeVerEmpresas) {
       selectSub('denuncias', 'turistas')
     }
-    if (perfilAtivo === 'stories' && !podeVerStories) {
-      selectSub('denuncias', 'turistas')
-    }
-  }, [perfilAtivo, podeVerEmpresas, podeVerProfissionais, podeVerStories, selectSub])
+  }, [perfilAtivo, podeVerEmpresas, podeVerProfissionais, selectSub])
 
   useEffect(() => {
     const run = async () => {
-      const base: Partial<Record<'turistas' | 'profissionais' | 'empresas' | 'stories', number>> = {}
-      const [{ count: t }, { count: p }, { count: e }, { count: st }] = await Promise.all([
-        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'turista'),
-        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'profissional'),
-        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'empresa'),
-        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'story'),
+      const base: Partial<Record<'turistas' | 'profissionais' | 'empresas' | 'auditoria', number>> = {}
+      const [{ count: t }, { count: p }, { count: e }, { count: arq }] = await Promise.all([
+        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'turista').neq('status', 'arquivada'),
+        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'profissional').neq('status', 'arquivada'),
+        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('denunciado_tipo', 'empresa').neq('status', 'arquivada'),
+        supabase.from('denuncias').select('*', { head: true, count: 'exact' }).eq('status', 'arquivada'),
       ])
       base.turistas = t ?? 0
       base.profissionais = p ?? 0
       base.empresas = e ?? 0
-      base.stories = nivelNum === 1 || nivelNum === 2 ? st ?? 0 : 0
+      base.auditoria = arq ?? 0
 
-      if (nivelNum === 2) {
-        base.empresas = 0
-      }
+      if (nivelNum === 2) base.empresas = 0
       if (nivelNum === 3) {
         base.turistas = 0
         base.profissionais = 0
-        base.stories = 0
       }
       if (nivelNum === 4) {
         base.profissionais = 0
         base.empresas = 0
-        base.stories = 0
       }
 
       const comunidade = String(getComunidade() ?? '').toLowerCase()
@@ -78,9 +70,13 @@ export function DenunciasContainer({ sub }: { sub: string }) {
         const allowed = new Set(
           (profs ?? [])
             .filter((pRow: { categorias?: unknown[] }) => Array.isArray(pRow.categorias) && pRow.categorias.map((c) => String(c).toLowerCase()).includes(comunidade))
-            .map((pRow: { id: string }) => pRow.id)
+            .map((pRow: { id: string }) => pRow.id),
         )
-        const { data: ds } = await supabase.from('denuncias').select('denunciado_id').eq('denunciado_tipo', 'profissional')
+        const { data: ds } = await supabase
+          .from('denuncias')
+          .select('denunciado_id')
+          .eq('denunciado_tipo', 'profissional')
+          .neq('status', 'arquivada')
         base.profissionais = (ds ?? []).filter((d: { denunciado_id: string }) => allowed.has(d.denunciado_id)).length
       }
       setBadges(base)
@@ -88,14 +84,20 @@ export function DenunciasContainer({ sub }: { sub: string }) {
     void run()
   }, [getComunidade, nivelNum, setBadges])
 
+  if (perfilAtivo === 'auditoria') {
+    return (
+      <div className="space-y-4">
+        <DenunciasAuditoria />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <StatusDenuncia
           statusAtivo={statusAtivo}
           onStatusChange={setStatusAtivo}
-          periodo={periodo}
-          onPeriodoChange={setPeriodo}
           busca={busca}
           onBuscaChange={setBusca}
           categoria={categoria}
@@ -103,7 +105,7 @@ export function DenunciasContainer({ sub }: { sub: string }) {
           perfil={perfilAtivo}
         />
       </div>
-      <ListaDenuncias perfil={perfilAtivo} status={statusAtivo} periodo={periodo} busca={busca} categoria={categoria} />
+      <ListaDenuncias perfil={perfilAtivo} status={statusAtivo} busca={busca} categoria={categoria} />
     </div>
   )
 }

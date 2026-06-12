@@ -8,7 +8,8 @@ import { getPerfilHref } from '@/lib/perfil-utils'
 import Estrelas from '@/components/Estrelas'
 import EstrelasAvaliacao from '@/components/EstrelasAvaliacao'
 import GraficoAvaliacoes from '@/components/GraficoAvaliacoes'
-import { MoreVertical, Trash2, Pencil, ShieldCheck, User } from 'lucide-react'
+import { MoreVertical, Trash2, Pencil, ShieldCheck, User, Flag } from 'lucide-react'
+import ModalDenunciarConteudo from '@/components/ModalDenunciarConteudo'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
@@ -54,6 +55,8 @@ export default function AbaAvaliacoes({
   const [editNota, setEditNota] = useState(0)
   const [editFeedback, setEditFeedback] = useState('')
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
+  const [denunciarAvaliacaoId, setDenunciarAvaliacaoId] = useState(/** @type {string | null} */ (null))
+  const [denunciarAvaliacaoUsuarioId, setDenunciarAvaliacaoUsuarioId] = useState(/** @type {string | null} */ (null))
   const [confirmExcluirId, setConfirmExcluirId] = useState(/** @type {string | null} */ (null))
   const [excluindo, setExcluindo] = useState(false)
   const [editingReplyAvaliacaoId, setEditingReplyAvaliacaoId] = useState(/** @type {string | null} */ (null))
@@ -727,6 +730,33 @@ export default function AbaAvaliacoes({
                       </div>
                     ) : null}
                   </div>
+                ) : podeResponder && av.usuario_id !== usuarioId ? (
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      className="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                      aria-label="Denunciar avaliação"
+                      onClick={() => setMenuAbertoId((cur) => (cur === av.id ? null : av.id))}
+                    >
+                      <MoreVertical size={18} aria-hidden />
+                    </button>
+                    {menuAbertoId === av.id ? (
+                      <div className="absolute right-0 top-9 z-[120] min-w-[9rem] overflow-hidden rounded-lg bg-[#0097b2] py-1 shadow-lg">
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-white hover:bg-[#007a8f]"
+                          onClick={() => {
+                            setMenuAbertoId(null)
+                            setDenunciarAvaliacaoId(av.id)
+                            setDenunciarAvaliacaoUsuarioId(av.usuario_id)
+                          }}
+                        >
+                          <Flag size={14} aria-hidden />
+                          Denunciar
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
 
@@ -904,6 +934,17 @@ export default function AbaAvaliacoes({
           </div>
         </div>
       ) : null}
+
+      <ModalDenunciarConteudo
+        aberto={Boolean(denunciarAvaliacaoId && denunciarAvaliacaoUsuarioId)}
+        onClose={() => {
+          setDenunciarAvaliacaoId(null)
+          setDenunciarAvaliacaoUsuarioId(null)
+        }}
+        conteudoTipo="avaliacao"
+        conteudoId={denunciarAvaliacaoId ?? ''}
+        denunciadoUsuarioId={denunciarAvaliacaoUsuarioId ?? ''}
+      />
 
       <PopupAvisoBloqueioConta
         aberto={avisoFeedAberto}

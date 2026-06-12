@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Ban, Flag, MoreHorizontal, Pencil, Repeat2, Trash2, UserMinus, UserPlus, Bookmark } from 'lucide-react'
+import { Flag, MoreHorizontal, Pencil, Repeat2, Trash2, UserMinus, UserPlus, Bookmark } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import ModalDenunciarConteudo from '@/components/ModalDenunciarConteudo'
 
 /** Nome do evento global após soft delete bem-sucedido (cascata no estado do feed/perfil). */
 export const POST_DELETED_EVENT = 'post-deleted'
@@ -46,6 +47,7 @@ export default function MenuPost({
   bloqueado = false,
 }) {
   const [aberto, setAberto] = useState(false)
+  const [modalDenunciar, setModalDenunciar] = useState(false)
   const [passoExcluir, setPassoExcluir] = useState(0)
   const ref = useRef(/** @type {HTMLDivElement | null} */ (null))
 
@@ -59,9 +61,9 @@ export default function MenuPost({
     return () => document.removeEventListener('click', fechar)
   }, [])
 
-  const denunciar = () => {
-    alert('Denúncia registrada (fluxo em configuração).')
+  const abrirDenunciar = () => {
     setAberto(false)
+    setModalDenunciar(true)
   }
 
   const excluir = async () => {
@@ -214,7 +216,7 @@ export default function MenuPost({
                   <span>Repostar</span>
                 </button>
               ) : null}
-              <button type="button" onClick={denunciar} className={itemClass}>
+              <button type="button" onClick={abrirDenunciar} className={itemClass}>
                 <Flag size={16} className="text-white" aria-hidden />
                 <span>Denunciar</span>
               </button>
@@ -222,6 +224,13 @@ export default function MenuPost({
           )}
         </div>
       ) : null}
+      <ModalDenunciarConteudo
+        aberto={modalDenunciar}
+        onClose={() => setModalDenunciar(false)}
+        conteudoTipo="post"
+        conteudoId={postId}
+        denunciadoUsuarioId={autorUsuarioId}
+      />
     </div>
   )
 }

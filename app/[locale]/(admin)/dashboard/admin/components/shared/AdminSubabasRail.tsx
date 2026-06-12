@@ -19,8 +19,8 @@ function coerceVerificacaoSub(sub: string): VerificacaoSubabaId {
   return 'turistas'
 }
 
-function coerceDenunciasSub(sub: string): 'turistas' | 'profissionais' | 'empresas' | 'stories' {
-  if (sub === 'profissionais' || sub === 'empresas' || sub === 'stories') return sub
+function coerceDenunciasSub(sub: string): 'turistas' | 'profissionais' | 'empresas' | 'auditoria' {
+  if (sub === 'profissionais' || sub === 'empresas' || sub === 'auditoria') return sub
   return 'turistas'
 }
 
@@ -61,11 +61,9 @@ function DenunciasSubNav({ sub }: { sub: string }) {
   const nivelNum = typeof nivel === 'string' ? parseInt(nivel, 10) : nivel
   const podeVerProfissionais = nivelNum === 1 || nivelNum === 2
   const podeVerEmpresas = nivelNum === 1 || nivelNum === 3
-  const podeVerStories = nivelNum === 1 || nivelNum === 2
-
   const perfilAtivo = useMemo(() => coerceDenunciasSub(sub), [sub])
 
-  const onPerfilChange = (p: 'turistas' | 'profissionais' | 'empresas' | 'stories') => {
+  const onPerfilChange = (p: 'turistas' | 'profissionais' | 'empresas' | 'auditoria') => {
     selectSub('denuncias', p)
   }
 
@@ -75,7 +73,6 @@ function DenunciasSubNav({ sub }: { sub: string }) {
       onPerfilChange={onPerfilChange}
       podeVerProfissionais={podeVerProfissionais}
       podeVerEmpresas={podeVerEmpresas}
-      podeVerStories={podeVerStories}
       badges={badges}
     />
   )

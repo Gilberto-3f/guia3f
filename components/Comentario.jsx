@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Heart, Trash2 } from 'lucide-react'
+import { Flag, Heart, MoreHorizontal, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import ModalDenunciarConteudo from '@/components/ModalDenunciarConteudo'
 import { formatarDataComentarioCurta } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
@@ -49,6 +50,8 @@ export default function Comentario({
   const [textoResposta, setTextoResposta] = useState('')
   const [mostrarRespostas, setMostrarRespostas] = useState(true)
   const [removendo, setRemovendo] = useState(false)
+  const [menuAberto, setMenuAberto] = useState(false)
+  const [modalDenunciar, setModalDenunciar] = useState(false)
 
   const respostas = node.replies ?? []
   const destacado = Boolean(destacarComentarioId && node.id === destacarComentarioId)
@@ -235,16 +238,53 @@ export default function Comentario({
             </div>
           ) : null}
         </div>
-        <button
-          type="button"
-          onClick={() => void toggle()}
-          className="flex shrink-0 flex-col items-center gap-0.5 self-start text-xs text-gray-500"
-          disabled={!usuarioId}
-        >
-          <Heart size={18} className={curtiu ? 'fill-red-500 text-red-500' : ''} aria-hidden />
-          {total}
-        </button>
+        <div className="flex shrink-0 flex-col items-center gap-1 self-start">
+          <button
+            type="button"
+            onClick={() => void toggle()}
+            className="flex flex-col items-center gap-0.5 text-xs text-gray-500"
+            disabled={!usuarioId}
+          >
+            <Heart size={18} className={curtiu ? 'fill-red-500 text-red-500' : ''} aria-hidden />
+            {total}
+          </button>
+          {!ehMeuComentario && usuarioId && node.autor?.usuario_id ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuAberto((v) => !v)}
+                className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                aria-label="Mais opções"
+              >
+                <MoreHorizontal size={16} aria-hidden />
+              </button>
+              {menuAberto ? (
+                <div className="absolute right-0 top-full z-50 mt-1 min-w-[9rem] overflow-hidden rounded-lg bg-[#0097b2] py-1 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuAberto(false)
+                      setModalDenunciar(true)
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-white hover:bg-[#007a8f]"
+                  >
+                    <Flag size={14} aria-hidden />
+                    Denunciar
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
+
+      <ModalDenunciarConteudo
+        aberto={modalDenunciar}
+        onClose={() => setModalDenunciar(false)}
+        conteudoTipo="comentario"
+        conteudoId={node.id}
+        denunciadoUsuarioId={String(node.autor?.usuario_id ?? '')}
+      />
 
       {mostrarRespostas && respostas.length > 0 ? (
         <div className={ehRaiz ? 'mt-2 pl-0' : 'mt-1'}>
