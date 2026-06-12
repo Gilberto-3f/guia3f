@@ -4,7 +4,13 @@ import { useState } from 'react'
 import { useFunilConversao } from '../../../hooks/useFunilConversao'
 import { FunilConversaoCard } from './FunilConversaoCard'
 
-export function FunilConversaoLista({ empresaId }: { empresaId: string | null }) {
+export function FunilConversaoLista({
+  empresaId,
+  empresaNome,
+}: {
+  empresaId: string | null
+  empresaNome?: string
+}) {
   const [periodo, setPeriodo] = useState<'7d' | '30d' | '90d'>('30d')
   const { dados, loading, error } = useFunilConversao(empresaId, periodo)
 
@@ -58,7 +64,7 @@ export function FunilConversaoLista({ empresaId }: { empresaId: string | null })
         </div>
       </div>
 
-      <FunilConversaoCard dados={dados} />
+      <FunilConversaoCard dados={{ ...dados, empresa_nome: empresaNome ?? dados.empresa_nome }} />
     </div>
   )
 }

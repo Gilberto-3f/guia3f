@@ -15,6 +15,7 @@ import {
   VisaoGeralConteudo,
   VisaoGeralProvider,
 } from './components/visao-geral/VisaoGeralContainer'
+import { CadastrosBarraFixa } from './components/verificacao/CadastrosBarraFixa'
 import { VerificacaoContainer } from './components/verificacao/VerificacaoContainer'
 import { DenunciasContainer } from './components/denuncias/DenunciasContainer'
 import { EspacoAdmContainer } from './components/espaco-adm/EspacoAdmContainer'
@@ -111,7 +112,9 @@ function DashboardAdminContent() {
 
           {tab === 'visao-geral' ? <VisaoGeralBarraFixa /> : null}
 
-          {tab && tab !== 'visao-geral' ? (
+          {tab === 'cadastros' ? <CadastrosBarraFixa sub={sub} /> : null}
+
+          {tab && tab !== 'visao-geral' && tab !== 'cadastros' ? (
             <div className="border-t border-gray-100 bg-white px-3 sm:px-4">
               <AdminSubabasRail tab={tab} sub={sub} />
             </div>

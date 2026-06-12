@@ -2,22 +2,14 @@
 
 import { useMemo, type ReactNode } from 'react'
 import type { AbaPrincipalId } from './AbasNavegacao'
-import { SubabasVerificacao, type VerificacaoSubabaId } from '../verificacao/SubabasVerificacao'
 import SubabasDenuncias from '../denuncias/SubabasDenuncias'
 import { SubabasEspaco, type EspacoSubabaId } from '../espaco-adm/SubabasEspaco'
 import { SubabasConfig, type ConfigSubabaId } from '../configuracoes/SubabasConfig'
-import { useVerificacao } from '../../hooks/useVerificacao'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { isAdmGeral } from '../../utils/permissoes'
-import type { PerfilVerificacao } from '../../types/admin.types'
 import { useDenunciasToolbar } from '../../context/DenunciasToolbarContext'
 import { usePermissao } from '../../hooks/usePermissao'
 import { useAdminNav } from '../../context/AdminNavContext'
-
-function coerceVerificacaoSub(sub: string): VerificacaoSubabaId {
-  if (sub === 'profissionais' || sub === 'empresas' || sub === 'auditoria') return sub
-  return 'turistas'
-}
 
 function coerceDenunciasSub(sub: string): 'turistas' | 'profissionais' | 'empresas' | 'auditoria' {
   if (sub === 'profissionais' || sub === 'empresas' || sub === 'auditoria') return sub
@@ -32,25 +24,6 @@ function coerceEspacoSub(sub: string): EspacoSubabaId {
 function coerceConfigSub(sub: string): ConfigSubabaId {
   if (sub === 'logs' || sub === 'geral' || sub === 'seguranca') return sub
   return 'apis'
-}
-
-function CadastrosSubNav({ sub }: { sub: string }) {
-  const gate = useSharedAdminGate()
-  const activeSub = useMemo(() => coerceVerificacaoSub(sub), [sub])
-  const perfilContadores: PerfilVerificacao =
-    activeSub === 'auditoria' ? 'turistas' : activeSub
-  const { contadores, contadoresExclusao } = useVerificacao({
-    perfil: perfilContadores,
-  })
-  const mostrarBadgeExclusao = gate.status === 'ok' && isAdmGeral(gate.admin)
-  return (
-    <SubabasVerificacao
-      value={activeSub}
-      badges={contadores}
-      badgesExclusao={contadoresExclusao}
-      mostrarBadgeExclusao={mostrarBadgeExclusao}
-    />
-  )
 }
 
 function DenunciasSubNav({ sub }: { sub: string }) {
@@ -81,13 +54,6 @@ function DenunciasSubNav({ sub }: { sub: string }) {
 export function AdminSubabasRail({ tab, sub }: { tab: AbaPrincipalId; sub: string }) {
   const gate = useSharedAdminGate()
 
-  const metaCadastros =
-    gate.status === 'ok' ? (
-      <span className="hidden text-xs font-semibold text-gray-500 sm:inline">
-        {isAdmGeral(gate.admin) ? 'ADM GERAL' : 'ADMIN'} · permissões por subaba
-      </span>
-    ) : null
-
   const metaEspaco =
     gate.status === 'ok' ? (
       <span className="hidden text-xs font-semibold text-gray-500 sm:inline">
@@ -102,9 +68,7 @@ export function AdminSubabasRail({ tab, sub }: { tab: AbaPrincipalId; sub: strin
     case 'visao-geral':
       return null
     case 'cadastros':
-      inner = <CadastrosSubNav sub={sub} />
-      meta = metaCadastros
-      break
+      return null
     case 'denuncias':
       inner = <DenunciasSubNav sub={sub} />
       break

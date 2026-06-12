@@ -78,7 +78,9 @@ export function textoValidadeOferta(oferta: OfertaComissaoAdm) {
   return `Por tempo limitado até ${new Date(data + 'T12:00:00').toLocaleDateString('pt-BR')}`
 }
 
-export function useComissaoOfertaAdm(statusFiltro: 'pendente' | 'todos' = 'pendente') {
+export type StatusFiltroOfertaAdm = 'pendente' | 'arquivados'
+
+export function useComissaoOfertaAdm(statusFiltro: StatusFiltroOfertaAdm = 'pendente') {
   const gate = useSharedAdminGate()
   const admin = gate.status === 'ok' ? gate.admin : null
 
@@ -116,6 +118,8 @@ export function useComissaoOfertaAdm(statusFiltro: 'pendente' | 'todos' = 'pende
 
       if (statusFiltro === 'pendente') {
         query = query.eq('status', 'pendente')
+      } else if (statusFiltro === 'arquivados') {
+        query = query.in('status', ['aprovada', 'reprovada'])
       }
 
       const { data, error: e } = await query
@@ -163,12 +167,16 @@ export function useComissaoOfertaAdm(statusFiltro: 'pendente' | 'todos' = 'pende
           })
         }
 
-        setOfertas((prev) => prev.filter((o) => o.id !== id))
+        if (statusFiltro === 'pendente') {
+          setOfertas((prev) => prev.filter((o) => o.id !== id))
+        } else {
+          void fetchOfertas()
+        }
       } finally {
         setAcaoId(null)
       }
     },
-    [admin, ofertas]
+    [admin, fetchOfertas, ofertas, statusFiltro]
   )
 
   return {

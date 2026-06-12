@@ -1,26 +1,27 @@
 'use client'
 
 import { useState } from 'react'
+import { BarChart3, Filter, Gift } from 'lucide-react'
 import { AdminSecaoChevron } from '../../shared/AdminSecaoChevron'
 import { AnaliseBeneficios } from './AnaliseBeneficios'
-import { BuscadorEmpresas } from './BuscadorEmpresas'
-import { FunilConversaoLista } from './FunilConversaoLista'
+import { FunilConversaoGeral } from './FunilConversaoGeral'
 import { EstatisticasMercado } from './EstatisticasMercado'
-import { PlaceholderCard } from '../../shared/PlaceholderCard'
 import { useEmpresasAdm } from '../../../hooks/useEmpresasAdm'
 import { useComissaoOfertaAdm } from '../../../hooks/useComissaoOfertaAdm'
+import type { EmpresaAdm } from '../../../hooks/useEmpresasAdm'
 
 export function EmpresasAdm() {
   const [busca, setBusca] = useState('')
-  const [selecionada, setSelecionada] = useState<{ id: string; nome: string } | null>(null)
+  const [selecionada, setSelecionada] = useState<EmpresaAdm | null>(null)
   const [secoes, setSecoes] = useState({
     analise: true,
     estatisticas: false,
-    busca: false,
+    funil: false,
   })
 
   const { empresas, loading, error } = useEmpresasAdm(busca)
-  const comissaoAdm = useComissaoOfertaAdm('pendente')
+  const comissaoPendentes = useComissaoOfertaAdm('pendente')
+  const comissaoArquivados = useComissaoOfertaAdm('arquivados')
 
   const toggle = (key: keyof typeof secoes) => {
     setSecoes((p) => ({ ...p, [key]: !p[key] }))
@@ -30,44 +31,47 @@ export function EmpresasAdm() {
     <div className="space-y-2">
       <AdminSecaoChevron
         titulo="Análise de benefícios"
+        tituloGrande
+        icone={Gift}
+        corTitulo="#0097b2"
         aberta={secoes.analise}
         onToggle={() => toggle('analise')}
-        badge={comissaoAdm.ofertas.length}
+        badge={comissaoPendentes.ofertas.length}
+        descricao="Revise ofertas de comissão enviadas pelas empresas e consulte o histórico arquivado."
       >
-        <p className="mb-3 text-xs text-gray-600">
-          Revise as ofertas de comissão cadastradas pelas empresas. Após aprovação, ficam visíveis para os
-          profissionais da comunidade indicada.
-        </p>
-        <AnaliseBeneficios comissao={comissaoAdm} />
+        <AnaliseBeneficios comissaoPendentes={comissaoPendentes} comissaoArquivados={comissaoArquivados} />
       </AdminSecaoChevron>
 
       <AdminSecaoChevron
         titulo="Estatísticas de mercado"
+        tituloGrande
+        icone={BarChart3}
+        corTitulo="#0097b2"
         aberta={secoes.estatisticas}
         onToggle={() => toggle('estatisticas')}
+        descricao="Mesmos gráficos e indicadores agregados da plataforma disponíveis no dashboard das empresas."
       >
         <EstatisticasMercado />
       </AdminSecaoChevron>
 
-      <AdminSecaoChevron titulo="Buscar empresa" aberta={secoes.busca} onToggle={() => toggle('busca')}>
-        <BuscadorEmpresas
+      <AdminSecaoChevron
+        titulo="Funil de Conversão (geral)"
+        tituloGrande
+        icone={Filter}
+        corTitulo="#0097b2"
+        aberta={secoes.funil}
+        onToggle={() => toggle('funil')}
+        descricao="Localize empresas e analise o funil de conversão de cada uma."
+      >
+        <FunilConversaoGeral
           busca={busca}
           onBuscaChange={setBusca}
           empresas={empresas}
           loading={loading}
-          onSelect={(emp) => setSelecionada({ id: emp.id, nome: emp.nome })}
+          selecionada={selecionada}
+          onSelect={setSelecionada}
         />
         {error ? <div className="mt-2 text-xs text-rose-600">{error.message}</div> : null}
-        {selecionada ? (
-          <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
-            <div className="mb-2 text-sm font-bold text-gray-900">Funil de conversão — {selecionada.nome}</div>
-            <FunilConversaoLista empresaId={selecionada.id} />
-          </div>
-        ) : (
-          <div className="mt-4">
-            <PlaceholderCard title="Selecione uma empresa na lista para ver o funil de conversão" />
-          </div>
-        )}
       </AdminSecaoChevron>
     </div>
   )

@@ -7,6 +7,7 @@ export type EmpresaAdm = {
   id: string
   nome: string
   username: string
+  fotoUrl: string | null
   categoria: string
   cidade: string
   plano: string
@@ -23,7 +24,7 @@ export function useEmpresasAdm(busca: string) {
     setLoading(true)
     setError(null)
     try {
-      let query = supabase.from('empresas').select('id, nome_fantasia, nome_usuario, categoria, cidade, plano, nota_media, status').order('nome_fantasia', {
+      let query = supabase.from('empresas').select('id, nome_fantasia, nome_usuario, foto_url, categoria, cidade, plano, nota_media, status').order('nome_fantasia', {
         ascending: true,
       })
       if (busca.trim().length >= 2) {
@@ -38,6 +39,7 @@ export function useEmpresasAdm(busca: string) {
             id: string
             nome_fantasia?: string | null
             nome_usuario?: string | null
+            foto_url?: string | null
             categoria?: string | null
             cidade?: string | null
             plano?: string | null
@@ -47,7 +49,8 @@ export function useEmpresasAdm(busca: string) {
           return {
             id: row.id,
             nome: row.nome_fantasia ?? '-',
-            username: row.nome_usuario ?? '',
+            username: (row.nome_usuario ?? '').replace(/^@+/, ''),
+            fotoUrl: row.foto_url != null ? String(row.foto_url) : null,
             categoria: row.categoria ?? '-',
             cidade: row.cidade ?? '-',
             plano: row.plano ?? 'Básico',
