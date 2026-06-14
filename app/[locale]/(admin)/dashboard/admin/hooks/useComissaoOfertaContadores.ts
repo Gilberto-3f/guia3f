@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-/** Contador leve para badge da pasta Espaço ADM (ofertas de comissão pendentes). */
+/** Contador leve para badge da pasta Espaço ADM / aba Empresas (ofertas de comissão pendentes). */
 export function useComissaoOfertaContadores(enabled = true) {
   const [pendentes, setPendentes] = useState(0)
 
@@ -25,7 +25,20 @@ export function useComissaoOfertaContadores(enabled = true) {
     void refetch()
     const onUpdate = () => void refetch()
     window.addEventListener('comissao-oferta-updated', onUpdate)
-    return () => window.removeEventListener('comissao-oferta-updated', onUpdate)
+
+    const channel = supabase
+      .channel('comissao-oferta-contadores-adm')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'comissao_oferta' },
+        () => void refetch(),
+      )
+      .subscribe()
+
+    return () => {
+      window.removeEventListener('comissao-oferta-updated', onUpdate)
+      void supabase.removeChannel(channel)
+    }
   }, [refetch])
 
   return { pendentes, refetch }

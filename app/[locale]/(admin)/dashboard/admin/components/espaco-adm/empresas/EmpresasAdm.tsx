@@ -35,6 +35,7 @@ export function EmpresasAdm() {
         aberta={secoes.analise}
         onToggle={() => toggle('analise')}
         badge={comissaoPendentes.ofertas.length}
+        badgeVermelho
       >
         <AnaliseBeneficios comissaoPendentes={comissaoPendentes} comissaoArquivados={comissaoArquivados} />
       </AdminSecaoChevron>

@@ -6,16 +6,16 @@ import { Archive, Check, Clock, X, type LucideIcon } from 'lucide-react'
 import type { useComissaoOfertaAdm } from '../../../hooks/useComissaoOfertaAdm'
 import { listarBeneficiosAtivos, textoValidadeOferta } from '../../../hooks/useComissaoOfertaAdm'
 
+const COR_ABA_ATIVA = '#00D443'
+
 type AbaBeneficios = 'pendentes' | 'arquivados'
 
 function AbasBeneficios({
   value,
   onChange,
-  pendentesCount,
 }: {
   value: AbaBeneficios
   onChange: (v: AbaBeneficios) => void
-  pendentesCount: number
 }) {
   const opcoes: { id: AbaBeneficios; label: string; Icon: LucideIcon }[] = [
     { id: 'pendentes', label: 'Pendentes', Icon: Clock },
@@ -35,19 +35,19 @@ function AbasBeneficios({
             aria-selected={active}
             onClick={() => onChange(o.id)}
             className={[
-              'relative flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 transition',
+              'flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 transition',
               active
-                ? 'text-base font-bold text-[#0097b2]'
-                : 'text-sm font-normal text-gray-500 hover:text-gray-700',
+                ? 'text-base font-bold text-white shadow-sm'
+                : 'border border-gray-300 bg-white text-sm font-normal text-gray-500 hover:bg-gray-50',
             ].join(' ')}
+            style={active ? { backgroundColor: COR_ABA_ATIVA } : undefined}
           >
-            <Icon className={['shrink-0', active ? 'h-5 w-5' : 'h-4 w-4'].join(' ')} strokeWidth={2.25} aria-hidden />
+            <Icon
+              className={['shrink-0', active ? 'h-5 w-5 text-white' : 'h-4 w-4 text-gray-500'].join(' ')}
+              strokeWidth={2.25}
+              aria-hidden
+            />
             <span>{o.label}</span>
-            {o.id === 'pendentes' && pendentesCount > 0 ? (
-              <span className="rounded-full bg-[#F44336] px-1.5 py-0.5 text-[10px] font-bold text-white">
-                {pendentesCount}
-              </span>
-            ) : null}
           </button>
         )
       })}
@@ -181,11 +181,7 @@ export function AnaliseBeneficios({
 
   return (
     <>
-      <AbasBeneficios
-        value={aba}
-        onChange={setAba}
-        pendentesCount={comissaoPendentes.ofertas.length}
-      />
+      <AbasBeneficios value={aba} onChange={setAba} />
 
       {loading ? (
         <p className="py-6 text-center text-sm text-gray-500">

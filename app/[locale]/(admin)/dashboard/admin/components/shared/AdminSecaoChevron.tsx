@@ -2,6 +2,7 @@
 
 import { ChevronDown, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { CadastroVerificacaoBadge } from '../verificacao/CadastroBadges'
 
 const COR_LOGO = '#0097b2'
 
@@ -10,6 +11,7 @@ export function AdminSecaoChevron({
   aberta,
   onToggle,
   badge,
+  badgeVermelho = false,
   tituloGrande = false,
   icone: Icone,
   corTitulo,
@@ -20,6 +22,8 @@ export function AdminSecaoChevron({
   aberta: boolean
   onToggle: () => void
   badge?: number
+  /** Badge vermelho (contador de pendências); padrão âmbar. */
+  badgeVermelho?: boolean
   /** Títulos maiores (ex.: gráficos da Visão Geral). */
   tituloGrande?: boolean
   /** Ícone à esquerda do título (sem fundo). */
@@ -57,7 +61,11 @@ export function AdminSecaoChevron({
             {titulo}
           </span>
           {badge != null && badge > 0 ? (
-            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">{badge}</span>
+            badgeVermelho ? (
+              <CadastroVerificacaoBadge count={badge} />
+            ) : (
+              <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">{badge}</span>
+            )
           ) : null}
         </span>
         <ChevronDown

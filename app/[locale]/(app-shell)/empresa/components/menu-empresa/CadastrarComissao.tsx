@@ -203,6 +203,7 @@ export default function CadastrarComissao() {
         ? `Oferta substituída para ${categoria}. A anterior foi marcada como removida.`
         : `Oferta cadastrada para ${categoria}.`
     )
+    window.dispatchEvent(new Event('comissao-oferta-updated'))
     void carregar()
   }
 
