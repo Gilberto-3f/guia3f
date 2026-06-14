@@ -16,6 +16,7 @@ type DenunciaEnviada = {
   analisado_em: string | null
   conteudo_tipo: string | null
   medida_tipo: string | null
+  medida_aplicada: boolean | null
   penalidade_aplicada: string | null
 }
 
@@ -37,6 +38,37 @@ const LABEL_CONTEUDO: Record<string, string> = {
   comentario: 'Comentário',
   story: 'Story',
   avaliacao: 'Avaliação',
+}
+
+const LABEL_MEDIDA: Record<string, string> = {
+  mensagem: 'Mensagem da moderação',
+  bloqueio: 'Bloqueio temporário',
+  excluir_conteudo: 'Conteúdo removido',
+  excluir_cadastro: 'Exclusão de cadastro',
+}
+
+const LABEL_PENALIDADE: Record<string, string> = {
+  advertencia: 'Advertência',
+  suspensao: 'Suspensão',
+  banimento: 'Banimento',
+}
+
+function denunciaEmInvestigacao(d: DenunciaEnviada): boolean {
+  return (d.status === 'pendente' || d.status === 'em_investigacao') && !d.medida_aplicada
+}
+
+function denunciaDecidida(d: DenunciaEnviada): boolean {
+  return d.status === 'encerrada' || d.status === 'arquivada' || Boolean(d.medida_aplicada)
+}
+
+function resultadoDenuncia(d: DenunciaEnviada): string {
+  if (d.penalidade_aplicada) {
+    return LABEL_PENALIDADE[d.penalidade_aplicada] ?? d.penalidade_aplicada
+  }
+  if (d.medida_tipo) {
+    return LABEL_MEDIDA[d.medida_tipo] ?? d.medida_tipo
+  }
+  return STATUS_DENUNCIA[d.status] ?? d.status
 }
 
 export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps) {
@@ -61,7 +93,7 @@ export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps)
       const { data, error: e } = await supabase
         .from('denuncias')
         .select(
-          'id, motivo, descricao, status, created_at, analisado_em, conteudo_tipo, medida_tipo, penalidade_aplicada',
+          'id, motivo, descricao, status, created_at, analisado_em, conteudo_tipo, medida_tipo, medida_aplicada, penalidade_aplicada',
         )
         .eq('denunciante_id', usuarioId)
         .order('created_at', { ascending: false })
@@ -77,10 +109,14 @@ export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps)
   }, [usuarioId])
 
   useEffect(() => {
-    if (aba === 'denuncias') void carregarDenunciasEnviadas()
+    if (aba === 'denuncias' || aba === 'decisoes') void carregarDenunciasEnviadas()
   }, [aba, carregarDenunciasEnviadas])
 
-  const items = useMemo(() => {
+  const denunciasInvestigacao = useMemo(() => denuncias.filter(denunciaEmInvestigacao), [denuncias])
+
+  const denunciasDecididas = useMemo(() => denuncias.filter(denunciaDecidida), [denuncias])
+
+  const historicoOrdenado = useMemo(() => {
     return [...historico].sort((a, b) => {
       const da = a.data_conclusao ?? a.data_aplicacao
       const db = b.data_conclusao ?? b.data_aplicacao
@@ -88,10 +124,19 @@ export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps)
     })
   }, [historico])
 
-  if (loading && aba === 'decisoes') {
+  const denunciasDecididasSemHistorico = useMemo(() => {
+    const idsComHistorico = new Set(
+      historicoOrdenado.map((h) => h.denuncia_id).filter((id): id is string => Boolean(id)),
+    )
+    return denunciasDecididas.filter((d) => !idsComHistorico.has(d.id))
+  }, [denunciasDecididas, historicoOrdenado])
+
+  const totalDecisoes = historicoOrdenado.length + denunciasDecididasSemHistorico.length
+
+  if (loading && aba === 'decisoes' && historicoOrdenado.length === 0) {
     return <div className="p-4 text-center text-sm text-gray-500">Carregando...</div>
   }
-  if (error && aba === 'decisoes') {
+  if (error && aba === 'decisoes' && historicoOrdenado.length === 0) {
     return <div className="p-4 text-center text-sm text-rose-600">Erro ao carregar decisões</div>
   }
 
@@ -138,12 +183,12 @@ export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps)
             <p className="text-center text-sm text-gray-500">Carregando denúncias...</p>
           ) : erroDenuncias ? (
             <p className="text-center text-sm text-rose-600">{erroDenuncias}</p>
-          ) : denuncias.length === 0 ? (
+          ) : denunciasInvestigacao.length === 0 ? (
             <div className="rounded-lg bg-gray-50 p-6 text-center text-sm text-gray-500">
-              Você ainda não enviou denúncias.
+              Nenhuma denúncia em investigação no momento.
             </div>
           ) : (
-            denuncias.map((item) => {
+            denunciasInvestigacao.map((item) => {
               const tipoConteudo = item.conteudo_tipo ? LABEL_CONTEUDO[item.conteudo_tipo] : null
               return (
                 <div key={item.id} className="rounded-lg border border-gray-200 p-4">
@@ -161,9 +206,6 @@ export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps)
                   {item.descricao ? <p className="mt-1 text-sm text-gray-600">{item.descricao}</p> : null}
                   <p className="mt-2 text-xs text-gray-500">
                     Enviada em {new Date(item.created_at).toLocaleDateString('pt-BR')}
-                    {item.analisado_em
-                      ? ` · Atualizada em ${new Date(item.analisado_em).toLocaleDateString('pt-BR')}`
-                      : ''}
                   </p>
                 </div>
               )
@@ -172,34 +214,61 @@ export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps)
         </div>
       ) : (
         <div className="mt-5 space-y-3">
-          {items.length === 0 ? (
+          {loading && historicoOrdenado.length === 0 && loadingDenuncias ? (
+            <p className="text-center text-sm text-gray-500">Carregando decisões...</p>
+          ) : totalDecisoes === 0 ? (
             <div className="rounded-lg bg-gray-50 p-6 text-center text-sm text-gray-500">Nenhum registro encontrado.</div>
           ) : (
-            items.map((item) => {
-              const dataConclusao = item.data_conclusao ?? item.data_aplicacao
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    if (!item.visualizado) void marcarHistoricoComoVisualizado(item.id)
-                  }}
-                  className={`w-full rounded-lg border p-4 text-left hover:bg-gray-50 ${!item.visualizado ? 'border-l-4 border-l-[#0097b2]' : 'border-gray-200'}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="text-sm font-bold text-[#001f3f]">{item.titulo}</div>
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{item.status}</span>
+            <>
+              {historicoOrdenado.map((item) => {
+                const dataConclusao = item.data_conclusao ?? item.data_aplicacao
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      if (!item.visualizado) void marcarHistoricoComoVisualizado(item.id)
+                    }}
+                    className={`w-full rounded-lg border p-4 text-left hover:bg-gray-50 ${!item.visualizado ? 'border-l-4 border-l-[#0097b2]' : 'border-gray-200'}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-bold text-[#001f3f]">{item.titulo}</div>
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{item.status}</span>
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">{item.descricao}</div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Concluída em {new Date(dataConclusao).toLocaleDateString('pt-BR')}
+                      {item.data_expiracao && item.status === 'ativo'
+                        ? ` · Expira em ${new Date(item.data_expiracao).toLocaleDateString('pt-BR')}`
+                        : ''}
+                    </div>
+                  </button>
+                )
+              })}
+              {denunciasDecididasSemHistorico.map((item) => {
+                const tipoConteudo = item.conteudo_tipo ? LABEL_CONTEUDO[item.conteudo_tipo] : null
+                const dataRef = item.analisado_em ?? item.created_at
+                return (
+                  <div key={`den-${item.id}`} className="rounded-lg border border-gray-200 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-sm font-bold text-[#001f3f]">{item.motivo}</div>
+                        {tipoConteudo ? (
+                          <p className="mt-0.5 text-xs font-medium uppercase text-[#0097b2]">{tipoConteudo}</p>
+                        ) : null}
+                      </div>
+                      <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                        {resultadoDenuncia(item)}
+                      </span>
+                    </div>
+                    {item.descricao ? <p className="mt-1 text-sm text-gray-600">{item.descricao}</p> : null}
+                    <p className="mt-2 text-xs text-gray-500">
+                      Decisão em {new Date(dataRef).toLocaleDateString('pt-BR')}
+                    </p>
                   </div>
-                  <div className="mt-1 text-sm text-gray-600">{item.descricao}</div>
-                  <div className="mt-2 text-xs text-gray-500">
-                    Concluída em {new Date(dataConclusao).toLocaleDateString('pt-BR')}
-                    {item.data_expiracao && item.status === 'ativo'
-                      ? ` · Expira em ${new Date(item.data_expiracao).toLocaleDateString('pt-BR')}`
-                      : ''}
-                  </div>
-                </button>
-              )
-            })
+                )
+              })}
+            </>
           )}
         </div>
       )}

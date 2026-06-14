@@ -140,6 +140,7 @@ export function CadastrosAuditoria() {
   const [leituras, setLeituras] = useState<LeituraRow[]>([])
   const [cadastroCompleto, setCadastroCompleto] = useState<CadastroPendente | null>(null)
   const [resumoAberto, setResumoAberto] = useState(false)
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false)
 
   const carregarNomesPerfis = useCallback(async (rows: LogRow[]) => {
     const map: Record<string, string> = {}
@@ -293,49 +294,67 @@ export function CadastrosAuditoria() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <label className="text-sm font-semibold text-gray-700">
-            Período
-            <select
-              value={filtros.periodo}
-              onChange={(e) => setFiltros({ ...filtros, periodo: e.target.value as Filtros['periodo'] })}
-              className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-sm"
-            >
-              <option value="7d">Últimos 7 dias</option>
-              <option value="30d">Últimos 30 dias</option>
-              <option value="90d">Últimos 90 dias</option>
-              <option value="todos">Todos</option>
-            </select>
-          </label>
-          <label className="text-sm font-semibold text-gray-700">
-            Perfil
-            <select
-              value={filtros.perfil}
-              onChange={(e) => setFiltros({ ...filtros, perfil: e.target.value as Filtros['perfil'] })}
-              className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-sm"
-            >
-              <option value="todos">Todos</option>
-              <option value="turistas">Turistas</option>
-              <option value="profissionais">Profissionais</option>
-              <option value="empresas">Empresas</option>
-            </select>
-          </label>
-          <label className="text-sm font-semibold text-gray-700">
-            Ação
-            <select
-              value={filtros.acao}
-              onChange={(e) => setFiltros({ ...filtros, acao: e.target.value as Filtros['acao'] })}
-              className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-sm"
-            >
-              <option value="todas">Todas</option>
-              <option value="aprov">Aprovações</option>
-              <option value="reprov">Reprovações</option>
-              <option value="exclusao">Exclusões solicitadas</option>
-              <option value="docs">Documentos verificados</option>
-            </select>
-          </label>
-        </div>
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <button
+          type="button"
+          onClick={() => setFiltrosAbertos((v) => !v)}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-gray-50"
+          aria-expanded={filtrosAbertos}
+        >
+          <span className="text-sm font-bold uppercase tracking-wide text-gray-800">Filtros</span>
+          {filtrosAbertos ? (
+            <ChevronUp className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+          ) : (
+            <ChevronDown className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+          )}
+        </button>
+
+        {filtrosAbertos ? (
+          <div className="border-t border-gray-100 p-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <label className="text-sm font-semibold text-gray-700">
+                Período
+                <select
+                  value={filtros.periodo}
+                  onChange={(e) => setFiltros({ ...filtros, periodo: e.target.value as Filtros['periodo'] })}
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-sm"
+                >
+                  <option value="7d">Últimos 7 dias</option>
+                  <option value="30d">Últimos 30 dias</option>
+                  <option value="90d">Últimos 90 dias</option>
+                  <option value="todos">Todos</option>
+                </select>
+              </label>
+              <label className="text-sm font-semibold text-gray-700">
+                Perfil
+                <select
+                  value={filtros.perfil}
+                  onChange={(e) => setFiltros({ ...filtros, perfil: e.target.value as Filtros['perfil'] })}
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-sm"
+                >
+                  <option value="todos">Todos</option>
+                  <option value="turistas">Turistas</option>
+                  <option value="profissionais">Profissionais</option>
+                  <option value="empresas">Empresas</option>
+                </select>
+              </label>
+              <label className="text-sm font-semibold text-gray-700">
+                Ação
+                <select
+                  value={filtros.acao}
+                  onChange={(e) => setFiltros({ ...filtros, acao: e.target.value as Filtros['acao'] })}
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-sm"
+                >
+                  <option value="todas">Todas</option>
+                  <option value="aprov">Aprovações</option>
+                  <option value="reprov">Reprovações</option>
+                  <option value="exclusao">Exclusões solicitadas</option>
+                  <option value="docs">Documentos verificados</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {loading ? (

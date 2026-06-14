@@ -408,7 +408,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
       const { error: updateErr } = await supabase.from('denuncias').update(payload).eq('id', denuncia_id)
       if (updateErr) throw updateErr
 
-      if (denRow && !denRow.medida_aplicada) {
+      if (denRow) {
         await notificarDecisaoDenuncia(supabase, denRow, 'arquivada', {
           texto: motivoArquivo?.trim() || null,
         })
