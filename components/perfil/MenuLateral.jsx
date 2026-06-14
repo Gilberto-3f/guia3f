@@ -513,7 +513,12 @@ export default function MenuLateral({
   const empresaCategoria = empresa?.categoria != null ? String(empresa.categoria) : ''
   const empresaCidade = empresa?.cidade != null ? String(empresa.cidade) : ''
   const empresaPlano = empresa?.plano != null ? String(empresa.plano) : 'gratuito'
-  const { servicos: empresaServicos } = useEmpresaServicosPlano(menuVariantEfetivo === 'empresa' ? empresaPlano : null)
+  const empresaIdCtx =
+    empresaId ?? (empresa?.id != null ? String(empresa.id) : null)
+  const { servicos: empresaServicos } = useEmpresaServicosPlano(
+    menuVariantEfetivo === 'empresa' ? empresaPlano : null,
+    menuVariantEfetivo === 'empresa' ? empresaIdCtx : null,
+  )
 
   const atualizarIndicadoresMenu = useCallback(async () => {
     if (!usuarioIdEfetivo) return

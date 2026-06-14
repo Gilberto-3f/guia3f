@@ -43,6 +43,7 @@ const TIPOS_VALIDOS: TipoNotificacaoFinanceiroEmpresa[] = [
   'extrato_comissao_paga',
   'pagamento_pendente',
   'plano_assinatura',
+  'degustacao_plano',
 ]
 
 /** ADM envia notificação ao canal financeiro privado de uma empresa. */

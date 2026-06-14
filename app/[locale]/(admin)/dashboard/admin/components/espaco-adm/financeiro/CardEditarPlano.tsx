@@ -1,6 +1,7 @@
 'use client'
 
-import { DollarSign } from 'lucide-react'
+import { useState } from 'react'
+import { DollarSign, MoreVertical } from 'lucide-react'
 import {
   CORES_PLANO,
   SERVICOS_PLANO_EMPRESA,
@@ -9,6 +10,7 @@ import {
   type ServicoPlanoId,
 } from '@/lib/planosEmpresaCatalogo'
 import type { PlanoFormInput } from '../../../hooks/useFinanceiroAdm'
+import { ModalDegustacao } from './ModalDegustacao'
 
 const COR_CONFIRMAR = '#00D443'
 const MAX_DESCRICAO = 750
@@ -41,6 +43,7 @@ export function CardEditarPlano({
   modo: 'novo' | 'editar'
 }) {
   const corHex = corPlanoHex(form.cor)
+  const [degustacaoAberta, setDegustacaoAberta] = useState(false)
 
   const toggleServico = (id: ServicoPlanoId) => {
     const set = new Set(form.servicos)
@@ -163,25 +166,36 @@ export function CardEditarPlano({
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+      <div className="mt-5 flex items-center justify-center gap-2">
         <button
           type="button"
           disabled={salvando}
           onClick={onCancelar}
-          className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold uppercase tracking-wide text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="min-w-[7.5rem] flex-1 max-w-[10rem] rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold uppercase tracking-wide text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
           Cancelar
         </button>
         <button
           type="button"
+          onClick={() => setDegustacaoAberta(true)}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+          aria-label="Degustação"
+          title="Degustação"
+        >
+          <MoreVertical className="h-5 w-5" aria-hidden />
+        </button>
+        <button
+          type="button"
           disabled={salvando || !form.titulo.trim()}
           onClick={onConfirmar}
-          className="flex-1 rounded-xl py-3 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-50"
+          className="min-w-[7.5rem] flex-1 max-w-[10rem] rounded-xl py-3 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-50"
           style={{ backgroundColor: COR_CONFIRMAR }}
         >
-          {salvando ? 'Salvando…' : modo === 'novo' ? 'Confirmar' : 'Confirmar'}
+          {salvando ? 'Salvando…' : 'Confirmar'}
         </button>
       </div>
+
+      <ModalDegustacao aberto={degustacaoAberta} onFechar={() => setDegustacaoAberta(false)} />
     </article>
   )
 }

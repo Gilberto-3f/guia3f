@@ -168,7 +168,7 @@ function DashboardEmpresaConteudo({
   setPeriodo: (p: Periodo) => void
 }) {
   const { dados: empresa } = useDashboardEmpresa()
-  const { abaLiberada } = useEmpresaServicosPlano(empresa?.plano)
+  const { abaLiberada } = useEmpresaServicosPlano(empresa?.plano, empresa?.id)
 
   const mostrarDrenaStok = useMemo(
     () => empresaEhSegmentoLojasParaguai(empresa?.categoria, empresa?.cidade) && abaLiberada('drena'),

@@ -17,7 +17,7 @@ import TendenciasTempoReal from './TendenciasTempoReal'
 export default function DrenaStok() {
   const router = useRouter()
   const { dados: empresa } = useDashboardEmpresa()
-  const { temServico } = useEmpresaServicosPlano(empresa?.plano)
+  const { temServico } = useEmpresaServicosPlano(empresa?.plano, empresa?.id)
 
   const isCDE = useMemo(() => {
     const cidadeOk = empresaEhSegmentoLojasParaguai(empresa?.categoria, empresa?.cidade)

@@ -6,14 +6,18 @@ import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import {
   abaDashboardLiberada,
   menuEmpresaLiberado,
-  resolverServicosDoPlano,
+  resolverServicosEmpresa,
   type AbaDashboardEmpresa,
   type MenuEmpresaId,
   type PlanoResumoServicos,
 } from '@/lib/planosEmpresaServicosGate'
 
-export function useEmpresaServicosPlano(planoEmpresa: string | null | undefined) {
+export function useEmpresaServicosPlano(
+  planoEmpresa: string | null | undefined,
+  empresaId?: string | null,
+) {
   const [planos, setPlanos] = useState<PlanoResumoServicos[]>([])
+  const [degustacaoAtiva, setDegustacaoAtiva] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const carregar = useCallback(async () => {
@@ -38,20 +42,36 @@ export function useEmpresaServicosPlano(planoEmpresa: string | null | undefined)
         }
       })
       setPlanos(mapped)
+
+      if (empresaId) {
+        const agora = new Date().toISOString()
+        const { data: deg } = await supabase
+          .from('empresa_degustacoes')
+          .select('id')
+          .eq('empresa_id', empresaId)
+          .eq('status', 'ativa')
+          .gt('expira_em', agora)
+          .limit(1)
+          .maybeSingle()
+        setDegustacaoAtiva(Boolean(deg?.id))
+      } else {
+        setDegustacaoAtiva(false)
+      }
     } catch {
       setPlanos([])
+      setDegustacaoAtiva(false)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [empresaId])
 
   useEffect(() => {
     void carregar()
   }, [carregar])
 
   const servicos = useMemo(
-    () => resolverServicosDoPlano(planoEmpresa, planos),
-    [planoEmpresa, planos],
+    () => resolverServicosEmpresa(planoEmpresa, planos, degustacaoAtiva),
+    [degustacaoAtiva, planoEmpresa, planos],
   )
 
   const temServico = useCallback(
@@ -70,7 +90,7 @@ export function useEmpresaServicosPlano(planoEmpresa: string | null | undefined)
   )
 
   return useMemo(
-    () => ({ servicos, loading, temServico, menuLiberado, abaLiberada, refetch: carregar }),
-    [abaLiberada, carregar, loading, menuLiberado, servicos, temServico],
+    () => ({ servicos, loading, degustacaoAtiva, temServico, menuLiberado, abaLiberada, refetch: carregar }),
+    [abaLiberada, carregar, degustacaoAtiva, loading, menuLiberado, servicos, temServico],
   )
 }

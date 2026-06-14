@@ -44,6 +44,7 @@ export default function CanalFinanceiroItem({ item, userTipo }) {
       case 'extrato_comissao_paga':
       case 'pagamento_pendente':
       case 'plano_assinatura':
+      case 'degustacao_plano':
       case 'relatorio_pax':
       case 'relatorio_parceria':
       case 'comprovante_pagamento':

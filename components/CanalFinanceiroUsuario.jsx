@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import CanalFinanceiroItem from '@/components/CanalFinanceiroItem'
 import CanalFinanceiroItemPlanos from '@/components/CanalFinanceiroItemPlanos'
+import CanalFinanceiroItemDegustacao from '@/components/CanalFinanceiroItemDegustacao'
 import CanalFinanceiroItemPreLiberacao from '@/components/CanalFinanceiroItemPreLiberacao'
 import CanalFinanceiroMensageiro from '@/components/CanalFinanceiroMensageiro'
 import { marcarFinanceiroLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
@@ -362,6 +363,13 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
                 />
               ) : item.tipo === 'plano_assinatura' && tipo === 'empresa' ? (
                 <CanalFinanceiroItemPlanos key={item.id} item={item} userTipo={tipo} />
+              ) : item.tipo === 'degustacao_plano' && tipo === 'empresa' ? (
+                <CanalFinanceiroItemDegustacao
+                  key={item.id}
+                  item={item}
+                  userTipo={tipo}
+                  onAceito={() => void carregar({ silencioso: true })}
+                />
               ) : (
                 <CanalFinanceiroItem key={item.id} item={item} userTipo={tipo} />
               ),

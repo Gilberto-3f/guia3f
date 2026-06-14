@@ -63,3 +63,21 @@ export function resolverServicosDoPlano(
   )
   return match?.servicos ?? []
 }
+
+export function servicosPlanoBasico(planos: PlanoResumoServicos[]): ServicoPlanoId[] {
+  const basico = planos.find((item) => {
+    const nome = normalizarPlanoSlug(item.nome)
+    const titulo = normalizarPlanoSlug(item.titulo)
+    return nome === 'basico' || titulo === 'basico'
+  })
+  return basico?.servicos?.length ? basico.servicos : ['pagina_rede_social']
+}
+
+export function resolverServicosEmpresa(
+  planoEmpresa: string | null | undefined,
+  planos: PlanoResumoServicos[],
+  degustacaoAtiva: boolean,
+): ServicoPlanoId[] {
+  if (degustacaoAtiva) return servicosPlanoBasico(planos)
+  return resolverServicosDoPlano(planoEmpresa, planos)
+}

@@ -25,7 +25,7 @@ const MENU_ITEMS: MenuItem[] = [
 export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolean; onClose: () => void }) {
   const pathname = usePathname()
   const { dados } = useDashboardEmpresa()
-  const { menuLiberado } = useEmpresaServicosPlano(dados?.plano)
+  const { menuLiberado } = useEmpresaServicosPlano(dados?.plano, dados?.id)
 
   const itensVisiveis = MENU_ITEMS.filter((item) => menuLiberado(item.id))
 

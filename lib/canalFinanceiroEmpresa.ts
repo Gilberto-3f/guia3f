@@ -8,6 +8,7 @@ export type TipoNotificacaoFinanceiroEmpresa =
   | 'extrato_comissao_paga'
   | 'pagamento_pendente'
   | 'plano_assinatura'
+  | 'degustacao_plano'
 
 export type InserirNotificacaoFinanceiroEmpresaParams = {
   empresaUsuarioId: string
