@@ -14,7 +14,7 @@ export default function ListaDenuncias(filtros: DenunciasFiltros) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span className="font-bold text-red-600">Pendentes: {contadores.pendente}</span>
-        <span className="font-bold text-[#0097b2]">Em investigação: {contadores.em_investigacao}</span>
+        <span className="font-bold text-[#00D443]">Em investigação: {contadores.em_investigacao}</span>
       </div>
 
       {feedback ? (
@@ -54,7 +54,11 @@ export default function ListaDenuncias(filtros: DenunciasFiltros) {
             }}
             onAplicarMedida={async (medida: MedidaDenunciaTipo, texto?: string) => {
               await aplicarMedida({ denuncia_id: denuncia.id, medida, texto })
-              setFeedback('Medida aplicada com sucesso.')
+              setFeedback(
+                medida === 'improcedente'
+                  ? 'Denúncia classificada como improcedente e arquivada.'
+                  : 'Medida aplicada com sucesso.',
+              )
             }}
             onArquivar={async () => {
               await arquivar(denuncia.id)

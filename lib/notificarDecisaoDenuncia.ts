@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 const CONTEUDO_SOCIAL = new Set(['post', 'comentario', 'story', 'avaliacao'])
 
 export type AcaoDecisaoDenuncia =
+  | 'improcedente'
   | 'mensagem'
   | 'bloqueio'
   | 'excluir_conteudo'
@@ -64,6 +65,8 @@ function resultadoAcao(acao: AcaoDecisaoDenuncia, texto?: string | null, dias?: 
       return texto?.trim()
         ? `Denúncia arquivada após análise. ${texto.trim()}`
         : 'Denúncia arquivada após análise — nenhuma penalidade adicional.'
+    case 'improcedente':
+      return 'Investigação concluída: denúncia improcedente — nenhuma infração constatada.'
     default:
       return 'Decisão registrada pela moderação.'
   }
@@ -77,11 +80,13 @@ function tituloDenunciado(acao: AcaoDecisaoDenuncia): string {
   if (acao === 'advertencia') return 'Advertência'
   if (acao === 'suspensao') return 'Suspensão'
   if (acao === 'banimento') return 'Banimento'
+  if (acao === 'improcedente') return 'Denúncia improcedente'
   return 'Decisão de moderação'
 }
 
 function tituloDenunciante(acao: AcaoDecisaoDenuncia): string {
   if (acao === 'arquivada') return 'Denúncia concluída'
+  if (acao === 'improcedente') return 'Denúncia improcedente'
   return 'Decisão sobre sua denúncia'
 }
 

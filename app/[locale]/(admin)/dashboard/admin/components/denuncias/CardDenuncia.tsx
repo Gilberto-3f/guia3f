@@ -107,8 +107,8 @@ export default function CardDenuncia({
                   {labelStatusDenunciaCard(denuncia.status)}
                 </span>
               </div>
-              {denuncia.denunciado_tipo === 'profissional' && denuncia.denunciado_categoria ? (
-                <p className="mt-1 text-xs font-bold uppercase tracking-wide text-[#001f3f]">
+              {denuncia.denunciado_categoria ? (
+                <p className="mt-1 text-xs font-bold uppercase tracking-wide text-red-600">
                   {denuncia.denunciado_categoria}
                 </p>
               ) : null}

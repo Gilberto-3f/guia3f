@@ -226,7 +226,12 @@ export type DenunciaGravidade = 'leve' | 'media' | 'grave' | 'gravissima'
 export type DenunciaPenalidade = 'advertencia' | 'suspensao' | 'banimento'
 export type DenunciaPerfil = 'turistas' | 'profissionais' | 'empresas' | 'auditoria'
 export type ConteudoDenunciaTipo = 'post' | 'comentario' | 'story' | 'avaliacao'
-export type MedidaDenunciaTipo = 'mensagem' | 'bloqueio' | 'excluir_conteudo' | 'excluir_cadastro'
+export type MedidaDenunciaTipo =
+  | 'improcedente'
+  | 'mensagem'
+  | 'bloqueio'
+  | 'excluir_conteudo'
+  | 'excluir_cadastro'
 
 export type Denuncia = {
   id: string

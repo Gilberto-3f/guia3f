@@ -41,6 +41,7 @@ const LABEL_CONTEUDO: Record<string, string> = {
 }
 
 const LABEL_MEDIDA: Record<string, string> = {
+  improcedente: 'Denúncia improcedente',
   mensagem: 'Mensagem da moderação',
   bloqueio: 'Bloqueio temporário',
   excluir_conteudo: 'Conteúdo removido',

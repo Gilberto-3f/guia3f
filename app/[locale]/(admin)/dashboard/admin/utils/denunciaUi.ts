@@ -35,11 +35,12 @@ export function labelStatusDenunciaCard(status: string): string {
 
 export function classeStatusDenunciaCard(status: string): string {
   if (status === 'pendente') return 'text-red-600'
-  if (status === 'em_investigacao') return 'text-[#0097b2]'
+  if (status === 'em_investigacao') return 'text-[#00D443]'
   return 'text-gray-500'
 }
 
 const LABEL_MEDIDA: Record<string, string> = {
+  improcedente: 'Denúncia improcedente',
   mensagem: 'Mensagem enviada ao usuário',
   bloqueio: 'Bloqueio temporário de acesso',
   excluir_conteudo: 'Publicação denunciada excluída',

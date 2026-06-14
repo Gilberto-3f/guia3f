@@ -74,12 +74,20 @@ export function useDenuncias(filtros: DenunciasFiltros) {
       const { data: uRow } = autorUid
         ? await supabase.from('usuarios').select('email, username').eq('id', autorUid).maybeSingle()
         : { data: null }
+      let categorias: string[] = []
+      if (autorUid) {
+        const { data: profRow } = await supabase.from('profissionais').select('categorias').eq('usuario_id', autorUid).maybeSingle()
+        categorias = Array.isArray((profRow as { categorias?: unknown[] } | null)?.categorias)
+          ? ((profRow as { categorias?: unknown[] }).categorias ?? []).map((c) => String(c))
+          : []
+      }
       return {
         nome: 'Story',
         username: String(uRow?.username ?? uRow?.email ?? 'autor'),
         email: String(uRow?.email ?? ''),
         story_conteudo_url: sRow?.conteudo_url != null ? String(sRow.conteudo_url) : null,
         story_autor_usuario_id: autorUid || null,
+        categorias,
       }
     }
     if (tipo === 'turista') {
@@ -194,7 +202,7 @@ export function useDenuncias(filtros: DenunciasFiltros) {
           }
 
           const categoriaProf =
-            r.denunciado_tipo === 'profissional'
+            r.denunciado_tipo === 'profissional' || r.denunciado_tipo === 'story'
               ? (() => {
                   const fmt = formatProfissionalCategorias(alvoStory.categorias ?? [])
                   return fmt !== '—' ? fmt : null
@@ -332,6 +340,39 @@ export function useDenuncias(filtros: DenunciasFiltros) {
       const usuarioId = row.denunciado_usuario_id != null ? String(row.denunciado_usuario_id) : null
       const conteudoTipo = row.conteudo_tipo != null ? String(row.conteudo_tipo) : null
       const conteudoId = row.conteudo_id != null ? String(row.conteudo_id) : null
+
+      if (medida === 'improcedente') {
+        const detalhes = { medida: 'improcedente', texto: null }
+        const { error: updateErr } = await supabase
+          .from('denuncias')
+          .update({
+            medida_aplicada: true,
+            medida_tipo: 'improcedente',
+            status: 'arquivada',
+            penalidade_detalhes: detalhes,
+            responsavel_id: admin.id,
+            analisado_por: admin.id,
+            analisado_em: new Date().toISOString(),
+          })
+          .eq('id', denuncia_id)
+        if (updateErr) throw updateErr
+
+        await notificarDecisaoDenuncia(
+          supabase,
+          {
+            id: denuncia_id,
+            denunciante_id: String(row.denunciante_id ?? ''),
+            denunciado_usuario_id: usuarioId,
+            conteudo_tipo: conteudoTipo,
+            motivo: row.motivo != null ? String(row.motivo) : null,
+          },
+          'improcedente',
+        )
+
+        await applyAudit(denuncia_id, 'denuncia_improcedente', 'improcedente', detalhes)
+        await fetchDenuncias({ skeleton: false })
+        return
+      }
 
       if (medida === 'bloqueio' && usuarioId) {
         await supabase.from('usuarios').update({ status: 'suspenso' }).eq('id', usuarioId)

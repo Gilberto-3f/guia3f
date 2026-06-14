@@ -10,6 +10,7 @@ import { ModalSolicitarExclusao } from './ModalSolicitarExclusao'
 import { usePermissao } from '../../hooks/usePermissao'
 
 const COR_LOGO = '#0097b2'
+const COR_ARQUIVAR = '#00D443'
 
 const TITULO_CATEGORIA: Record<'turistas' | 'profissionais' | 'empresas', string> = {
   turistas: 'TURISTA',
@@ -165,9 +166,16 @@ export function CardPendente({
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="p-4">
           {ocultarTitulo ? null : (
-            <h3 className="text-center text-base font-bold uppercase tracking-wide sm:text-lg" style={{ color: COR_LOGO }}>
-              {TITULO_CATEGORIA[tipo]}
-            </h3>
+            <>
+              <h3 className="text-center text-base font-bold uppercase tracking-wide sm:text-lg" style={{ color: COR_LOGO }}>
+                {TITULO_CATEGORIA[tipo]}
+              </h3>
+              {tipo === 'profissionais' && item.categoriaProfissional ? (
+                <p className="mt-1 text-center text-xs font-bold uppercase tracking-wide" style={{ color: COR_ARQUIVAR }}>
+                  {item.categoriaProfissional}
+                </p>
+              ) : null}
+            </>
           )}
 
           <div className={ocultarTitulo ? 'mt-0' : 'mt-4'}>
@@ -181,9 +189,6 @@ export function CardPendente({
             <LinhaInfo rotulo="WhatsApp" valor={item.whatsappLine} />
             <LinhaInfo rotulo="E-mail" valor={item.email} />
             <LinhaInfo rotulo="Cadastro" valor={item.dataCadastro} />
-            {tipo === 'profissionais' && item.categoriaProfissional ? (
-              <LinhaInfo rotulo="Categoria" valor={item.categoriaProfissional} />
-            ) : null}
             {tipo === 'empresas' && item.segmentoEmpresa ? (
               <LinhaInfo rotulo="Seguimento" valor={item.segmentoEmpresa} />
             ) : null}
