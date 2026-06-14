@@ -2,16 +2,15 @@
 
 import { useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { CreditCard, Handshake, Percent, Tag } from 'lucide-react'
+import { CreditCard, Handshake, Percent } from 'lucide-react'
 import { AdminSecaoChevron } from '../../shared/AdminSecaoChevron'
 import { ConfigPlanos } from './ConfigPlanos'
 import { ConfigComissoes } from './ConfigComissoes'
-import { ConfigServicosTabelados } from './ConfigServicosTabelados'
 import { CadastroEmpresasParceiras } from './CadastroEmpresasParceiras'
 
 const COR_LOGO = '#0097b2'
 
-type SecaoId = 'planos' | 'comissoes' | 'preco-net' | 'parceiras'
+type SecaoId = 'planos' | 'comissoes' | 'parceiras'
 
 type SecaoMeta = {
   titulo: string
@@ -30,11 +29,6 @@ const SECOES: Record<SecaoId, SecaoMeta> = {
     Icon: Percent,
     descricao: 'Regras de divisão de comissões por tipo de serviço e modelo de indicação.',
   },
-  'preco-net': {
-    titulo: 'Configurações de Preço NET',
-    Icon: Tag,
-    descricao: 'Tabela de preços NET para tickets, reservas e serviços tabelados.',
-  },
   parceiras: {
     titulo: 'Cadastro de Empresas Parceiras',
     Icon: Handshake,
@@ -42,7 +36,7 @@ const SECOES: Record<SecaoId, SecaoMeta> = {
   },
 }
 
-const ORDEM_SECOES: SecaoId[] = ['planos', 'comissoes', 'preco-net', 'parceiras']
+const ORDEM_SECOES: SecaoId[] = ['planos', 'comissoes', 'parceiras']
 
 export function FinanceiroAdm() {
   const [secoes, setSecoes] = useState<Record<SecaoId, boolean>>(() =>
@@ -59,8 +53,6 @@ export function FinanceiroAdm() {
         return <ConfigPlanos />
       case 'comissoes':
         return <ConfigComissoes />
-      case 'preco-net':
-        return <ConfigServicosTabelados />
       case 'parceiras':
         return <CadastroEmpresasParceiras />
       default:

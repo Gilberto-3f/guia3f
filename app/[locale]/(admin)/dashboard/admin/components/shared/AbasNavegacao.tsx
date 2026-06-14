@@ -3,7 +3,14 @@
 import type { LucideIcon } from 'lucide-react'
 import { BarChart3, ClipboardCheck, ShieldAlert, Crown, Settings } from 'lucide-react'
 
-export const ABAS_PRINCIPAIS = ['visao-geral', 'cadastros', 'denuncias', 'espaco-adm', 'configuracoes'] as const
+export const ABAS_PRINCIPAIS = [
+  'visao-geral',
+  'cadastros',
+  'denuncias',
+  'espaco-adm',
+  'servicos-tabelados',
+  'configuracoes',
+] as const
 export type AbaPrincipalId = (typeof ABAS_PRINCIPAIS)[number]
 
 const abas: { id: AbaPrincipalId; label: string; Icon: LucideIcon }[] = [

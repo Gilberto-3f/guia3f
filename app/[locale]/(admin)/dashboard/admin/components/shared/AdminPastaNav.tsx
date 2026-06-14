@@ -1,7 +1,7 @@
 'use client'
 
 import type { LucideIcon } from 'lucide-react'
-import { BarChart3, ClipboardCheck, ShieldAlert, Crown, Settings } from 'lucide-react'
+import { BarChart3, ClipboardCheck, ShieldAlert, Crown, Settings, Table2 } from 'lucide-react'
 import { ABAS_PRINCIPAIS, type AbaPrincipalId } from './AbasNavegacao'
 import { CadastroBadgesPar, CadastroVerificacaoBadge } from '../verificacao/CadastroBadges'
 
@@ -10,6 +10,7 @@ export const ADMIN_PASTAS: { id: AbaPrincipalId; label: string; Icon: LucideIcon
   { id: 'cadastros', label: 'Cadastros', Icon: ClipboardCheck },
   { id: 'denuncias', label: 'Denúncias', Icon: ShieldAlert },
   { id: 'espaco-adm', label: 'Espaço ADM', Icon: Crown },
+  { id: 'servicos-tabelados', label: 'Serviços Tabelados', Icon: Table2 },
   { id: 'configuracoes', label: 'Configurações', Icon: Settings },
 ]
 

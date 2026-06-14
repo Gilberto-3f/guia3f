@@ -241,7 +241,7 @@ function secoesProfissional(ctx) {
       },
       {
         Icon: Table,
-        label: 'Tabela de Valores',
+        label: 'Serviços Tabelados',
         subpagina: 'tabela',
         condicional: (c) => c.placaVermelha === true,
       },
@@ -703,7 +703,7 @@ export default function MenuLateral({
         'regras-ecossistema': 'Regras do ecossistema',
         comissoes: 'Comissões',
         agendamento: 'Agendamento Automático',
-        tabela: 'Tabela de Valores',
+        tabela: 'Serviços Tabelados',
         manifestos: 'Manifesto',
         'historico-manifestos': 'Manifestos Concluídos',
         'parcerias-prof': 'Parcerias',
@@ -844,7 +844,7 @@ export default function MenuLateral({
     if (id === 'docs-prof-bloqueado') return <AvisoDocsProfissionalBloqueado />
     if (id === 'comissoes') return <Comissoes usuarioId={usuarioIdEfetivo} />
     if (id === 'agendamento') return <AgendamentoAutomatico />
-    if (id === 'tabela') return <TabelaValores />
+    if (id === 'tabela') return <TabelaValores usuarioId={usuarioIdEfetivo} placaVermelha={placaVermelha} />
     if (id === 'manifestos') return <MeusManifestos />
     if (id === 'historico-manifestos') return <HistoricoManifestos />
     if (id === 'parcerias-prof') return <ParceriasProfissional />

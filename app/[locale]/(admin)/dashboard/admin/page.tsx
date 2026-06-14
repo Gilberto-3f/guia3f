@@ -21,6 +21,11 @@ import { DenunciasContainer } from './components/denuncias/DenunciasContainer'
 import { EspacoAdmContainer } from './components/espaco-adm/EspacoAdmContainer'
 import { EspacoAdmBarraFixa } from './components/espaco-adm/EspacoAdmBarraFixa'
 import { ConfiguracoesContainer } from './components/configuracoes/ConfiguracoesContainer'
+import {
+  ServicosTabeladosBarraFixa,
+  ServicosTabeladosConteudo,
+  ServicosTabeladosProvider,
+} from './components/servicos-tabelados/ServicosTabeladosContainer'
 import { useCadastrosContadores } from './hooks/useCadastrosContadores'
 import { useDenunciasContadores } from './hooks/useDenunciasContadores'
 import { useComissaoOfertaContadores } from './hooks/useComissaoOfertaContadores'
@@ -123,7 +128,9 @@ function DashboardAdminContent() {
             <EspacoAdmBarraFixa sub={sub} beneficiosPendentes={comissaoContadores.pendentes} />
           ) : null}
 
-          {tab && tab !== 'visao-geral' && tab !== 'cadastros' && tab !== 'espaco-adm' ? (
+          {tab === 'servicos-tabelados' ? <ServicosTabeladosBarraFixa /> : null}
+
+          {tab && tab !== 'visao-geral' && tab !== 'cadastros' && tab !== 'espaco-adm' && tab !== 'servicos-tabelados' ? (
             <div className="border-t border-gray-100 bg-white px-3 sm:px-4">
               <AdminSubabasRail tab={tab} sub={sub} />
             </div>
@@ -153,6 +160,8 @@ function DashboardAdminContent() {
               <DenunciasContainer sub={sub} />
             ) : tab === 'espaco-adm' ? (
               <EspacoAdmContainer sub={sub} />
+            ) : tab === 'servicos-tabelados' ? (
+              <ServicosTabeladosConteudo />
             ) : (
               <ConfiguracoesContainer sub={sub} />
             )}
@@ -164,6 +173,10 @@ function DashboardAdminContent() {
 
   if (tab === 'visao-geral') {
     return <VisaoGeralProvider>{shell}</VisaoGeralProvider>
+  }
+
+  if (tab === 'servicos-tabelados') {
+    return <ServicosTabeladosProvider>{shell}</ServicosTabeladosProvider>
   }
 
   return shell
