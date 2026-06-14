@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import {
+  type PlanoCorId,
+  type ServicoPlanoId,
+  slugPlanoNome,
+} from '@/lib/planosEmpresaCatalogo'
 import { usePermissao } from './usePermissao'
 
 export type ConfiguracoesComissoes = {
@@ -26,12 +31,25 @@ export type ConfiguracoesComissoes = {
   mobilidade_urbana: { taxa: number }
 }
 
-export type Plano = {
+export type PlanoEmpresaAdm = {
   id: string
-  nome: 'BASICO' | 'PREMIUM' | 'ENTERPRISE'
+  nome: string
+  titulo: string
+  cor: PlanoCorId
+  descricao: string
+  servicos: ServicoPlanoId[]
+  precoMensal: number
+  precoTrimestral: number
+  precoAnual: number
   valor: number
   recursos: Record<string, unknown>
   ativo: boolean
+  ordem: number
+}
+
+export type PlanoFormInput = Omit<PlanoEmpresaAdm, 'id' | 'nome' | 'valor' | 'recursos' | 'ativo' | 'ordem'> & {
+  id?: string
+  nome?: string
 }
 
 const DEFAULT_CONFIG: ConfiguracoesComissoes = {
@@ -56,14 +74,42 @@ const DEFAULT_CONFIG: ConfiguracoesComissoes = {
   mobilidade_urbana: { taxa: 0 },
 }
 
+function mapPlanoRow(row: Record<string, unknown>): PlanoEmpresaAdm {
+  const servicosRaw = row.servicos
+  const servicos = Array.isArray(servicosRaw)
+    ? servicosRaw.filter((s): s is ServicoPlanoId => typeof s === 'string')
+    : []
+
+  const precoMensal = Number(row.preco_mensal ?? row.valor ?? 0)
+
+  return {
+    id: String(row.id ?? ''),
+    nome: String(row.nome ?? ''),
+    titulo: String(row.titulo ?? row.nome ?? 'Plano'),
+    cor: (String(row.cor ?? 'azul') as PlanoCorId) || 'azul',
+    descricao: String(row.descricao ?? ''),
+    servicos,
+    precoMensal,
+    precoTrimestral: Number(row.preco_trimestral ?? 0),
+    precoAnual: Number(row.preco_anual ?? 0),
+    valor: precoMensal,
+    recursos: (row.recursos as Record<string, unknown>) ?? {},
+    ativo: row.ativo !== false,
+    ordem: Number(row.ordem ?? 0),
+  }
+}
+
 export function useFinanceiroAdm() {
   const { admin } = usePermissao()
   const [config, setConfig] = useState<ConfiguracoesComissoes | null>(null)
-  const [planos, setPlanos] = useState<Plano[]>([])
+  const [planos, setPlanos] = useState<PlanoEmpresaAdm[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingPlanos, setLoadingPlanos] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  const isAdminFinanceiro = Boolean(admin && (admin.admin_level === 1 || (admin.admin_permissoes as any)?.cargo === 'FINANCEIRO'))
+  const isAdminFinanceiro = Boolean(
+    admin && (admin.admin_level === 1 || (admin.admin_permissoes as { cargo?: string })?.cargo === 'FINANCEIRO'),
+  )
 
   const fetchConfiguracoes = useCallback(async () => {
     if (!isAdminFinanceiro) return
@@ -94,23 +140,20 @@ export function useFinanceiroAdm() {
 
   const fetchPlanos = useCallback(async () => {
     if (!isAdminFinanceiro) return
+    setLoadingPlanos(true)
     try {
-      const { data, error: e } = await supabase.from('planos').select('*').eq('ativo', true).order('valor', { ascending: true })
+      const { data, error: e } = await supabase
+        .from('planos')
+        .select('*')
+        .eq('ativo', true)
+        .order('ordem', { ascending: true })
+        .order('preco_mensal', { ascending: true })
       if (e) throw e
-      setPlanos(
-        (data ?? []).map((p) => {
-          const row = p as { id: string; nome: string; valor: number; recursos: Record<string, unknown>; ativo: boolean }
-          return {
-            id: row.id,
-            nome: row.nome as Plano['nome'],
-            valor: Number(row.valor ?? 0),
-            recursos: row.recursos ?? {},
-            ativo: row.ativo,
-          }
-        })
-      )
+      setPlanos((data ?? []).map((p) => mapPlanoRow(p as Record<string, unknown>)))
     } catch (err) {
       console.error(err)
+    } finally {
+      setLoadingPlanos(false)
     }
   }, [isAdminFinanceiro])
 
@@ -168,33 +211,64 @@ export function useFinanceiroAdm() {
         setLoading(false)
       }
     },
-    [admin, isAdminFinanceiro]
+    [admin, isAdminFinanceiro],
   )
 
   const salvarPlano = useCallback(
-    async (plano: Plano) => {
+    async (input: PlanoFormInput) => {
       if (!isAdminFinanceiro || !admin) return { success: false, error: new Error('Sem permissão') }
-      setLoading(true)
+      if (!input.titulo.trim()) return { success: false, error: new Error('Título obrigatório') }
+
+      setLoadingPlanos(true)
       try {
-        const { error: upErr } = await supabase
-          .from('planos')
-          .update({
-            valor: plano.valor,
-            recursos: plano.recursos,
-            atualizado_por: admin.id,
-            atualizado_em: new Date().toISOString(),
+        const recursos = {
+          servicos: input.servicos,
+          cor: input.cor,
+          descricao: input.descricao.trim(),
+          precos: {
+            mensal: input.precoMensal,
+            trimestral: input.precoTrimestral,
+            anual: input.precoAnual,
+          },
+        }
+
+        const payload = {
+          titulo: input.titulo.trim(),
+          cor: input.cor,
+          descricao: input.descricao.trim().slice(0, 750),
+          servicos: input.servicos,
+          preco_mensal: input.precoMensal,
+          preco_trimestral: input.precoTrimestral,
+          preco_anual: input.precoAnual,
+          valor: input.precoMensal,
+          recursos,
+          atualizado_por: admin.id,
+          atualizado_em: new Date().toISOString(),
+        }
+
+        if (input.id) {
+          const { error: upErr } = await supabase.from('planos').update(payload).eq('id', input.id)
+          if (upErr) throw upErr
+        } else {
+          const nome = slugPlanoNome(input.titulo)
+          const ordem = planos.length
+          const { error: insErr } = await supabase.from('planos').insert({
+            ...payload,
+            nome,
+            ordem,
+            ativo: true,
           })
-          .eq('id', plano.id)
-        if (upErr) throw upErr
+          if (insErr) throw insErr
+        }
 
         await supabase.from('logs_verificacao').insert({
           tipo: 'financeiro',
           perfil_id: admin.id,
-          acao: 'atualizou_plano',
+          acao: input.id ? 'atualizou_plano' : 'criou_plano',
           admin_id: admin.id,
           admin_email: admin.email ?? admin.username ?? 'admin',
           admin_nivel: admin.admin_level,
-          detalhes: { plano: plano.nome, novo_valor: plano.valor },
+          detalhes: { plano: input.titulo.trim(), preco_mensal: input.precoMensal },
         })
 
         await fetchPlanos()
@@ -202,10 +276,10 @@ export function useFinanceiroAdm() {
       } catch (err) {
         return { success: false, error: err }
       } finally {
-        setLoading(false)
+        setLoadingPlanos(false)
       }
     },
-    [admin, fetchPlanos, isAdminFinanceiro]
+    [admin, fetchPlanos, isAdminFinanceiro, planos.length],
   )
 
   useEffect(() => {
@@ -215,6 +289,19 @@ export function useFinanceiroAdm() {
     }
   }, [fetchConfiguracoes, fetchPlanos, isAdminFinanceiro])
 
-  return { config, planos, loading, error, salvarConfiguracoes, salvarPlano, isAdminFinanceiro, refetch: fetchConfiguracoes }
+  return {
+    config,
+    planos,
+    loading,
+    loadingPlanos,
+    error,
+    salvarConfiguracoes,
+    salvarPlano,
+    isAdminFinanceiro,
+    refetch: fetchConfiguracoes,
+    refetchPlanos: fetchPlanos,
+  }
 }
 
+/** @deprecated Use PlanoEmpresaAdm */
+export type Plano = PlanoEmpresaAdm
