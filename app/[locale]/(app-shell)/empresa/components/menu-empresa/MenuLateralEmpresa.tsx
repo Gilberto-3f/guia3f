@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOutCurrentDevice } from '@/lib/authCookieSync'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
+import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
+import type { MenuEmpresaId } from '@/lib/planosEmpresaServicosGate'
 
 interface MenuItem {
-  id: string
+  id: MenuEmpresaId
   icon: string
   label: string
   href: string
@@ -18,12 +20,14 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'chat-adm', icon: '💬', label: 'Chat ADM', href: '/empresa/menu/chat-adm' },
   { id: 'denuncias', icon: '⚠️', label: 'Denúncias', href: '/empresa/menu/denuncias' },
   { id: 'compras-paraguai', icon: '🛍️', label: 'Compras Paraguai', href: '/empresa/menu/compras-paraguai' },
-  { id: 'planos', icon: '💎', label: 'Planos', href: '/empresa/menu/planos' },
 ]
 
 export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolean; onClose: () => void }) {
   const pathname = usePathname()
   const { dados } = useDashboardEmpresa()
+  const { menuLiberado } = useEmpresaServicosPlano(dados?.plano)
+
+  const itensVisiveis = MENU_ITEMS.filter((item) => menuLiberado(item.id))
 
   const handleLogout = async () => {
     await signOutCurrentDevice()
@@ -57,7 +61,7 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
         </div>
 
         <div className="max-h-[calc(100vh-190px)] overflow-y-auto px-2 py-4">
-          {MENU_ITEMS.map((item) => {
+          {itensVisiveis.map((item) => {
             const active = pathname === item.href
             return (
               <Link

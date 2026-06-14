@@ -47,7 +47,7 @@ export function mapEmpresaRow(data: Record<string, unknown>): DadosEmpresa {
     username: asString(data.nome_usuario, ''),
     categoria: asString(data.categoria, ''),
     cidade: asString(data.cidade, ''),
-    plano: asString(data.plano, 'Básico'),
+    plano: asString(data.plano, 'gratuito'),
     nota_media: asNumber(data.nota_media, 0),
     total_avaliacoes: asNumber(data.total_avaliacoes, 0),
     verificado: Boolean(data.docs_verificado) || status === 'ativo',

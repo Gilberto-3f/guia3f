@@ -14,7 +14,6 @@ import {
   ChevronUp,
   ClipboardList,
   DollarSign,
-  Gem,
   Handshake,
   History,
   KeyRound,
@@ -44,6 +43,8 @@ import { supabase } from '@/lib/supabase'
 import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
+import { menuEmpresaLiberado } from '@/lib/planosEmpresaServicosGate'
 
 import EmergenciaItemEsquecido from '@/components/perfil/subpaginas/emergencia/EmergenciaItemEsquecido'
 import EmergenciaPerdido from '@/components/perfil/subpaginas/emergencia/EmergenciaPerdido'
@@ -109,6 +110,7 @@ import {
  *   recursosProfissionaisLiberados: boolean
  *   empresaCategoria?: string
  *   empresaCidade?: string
+ *   empresaServicos?: string[]
  * }} MenuContext
  */
 
@@ -132,7 +134,12 @@ function empresaComprasParaguaiVisivel(ctx) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-  return cat === 'lojas' && cidade.includes('ciudad del este')
+  const segmentoOk = cat === 'lojas' && cidade.includes('ciudad del este')
+  return segmentoOk && menuEmpresaLiberado('compras-paraguai', ctx.empresaServicos ?? [])
+}
+
+function empresaMenuServico(id) {
+  return (ctx) => menuEmpresaLiberado(id, ctx.empresaServicos ?? [])
 }
 
 /**
@@ -331,8 +338,8 @@ function secoesEmpresa(ctx) {
   ]
   const gEmp = filtrarMenu(
     [
-      { Icon: Images, label: 'Feed e Storys', href: '/empresa/menu/feed-stories' },
-      { Icon: Megaphone, label: 'Publicidade', href: '/empresa/menu/publicidade' },
+      { Icon: Images, label: 'Feed e Storys', href: '/empresa/menu/feed-stories', condicional: empresaMenuServico('feed-stories') },
+      { Icon: Megaphone, label: 'Publicidade', href: '/empresa/menu/publicidade', condicional: empresaMenuServico('publicidade') },
       { Icon: DollarSign, label: 'Cadastrar Comissão', href: '/empresa/menu/cadastrar-comissao' },
       {
         Icon: ShoppingCart,
@@ -340,8 +347,7 @@ function secoesEmpresa(ctx) {
         href: '/empresa/menu/compras-paraguai',
         condicional: empresaComprasParaguaiVisivel,
       },
-      { Icon: Gem, label: 'Planos', href: '/empresa/menu/planos' },
-      { Icon: MessageSquare, label: 'Chat ADM', href: '/empresa/menu/chat-adm' },
+      { Icon: MessageSquare, label: 'Chat ADM', href: '/empresa/menu/chat-adm', condicional: empresaMenuServico('chat-adm') },
     ],
     ctx
   )
@@ -506,6 +512,8 @@ export default function MenuLateral({
 
   const empresaCategoria = empresa?.categoria != null ? String(empresa.categoria) : ''
   const empresaCidade = empresa?.cidade != null ? String(empresa.cidade) : ''
+  const empresaPlano = empresa?.plano != null ? String(empresa.plano) : 'gratuito'
+  const { servicos: empresaServicos } = useEmpresaServicosPlano(menuVariantEfetivo === 'empresa' ? empresaPlano : null)
 
   const atualizarIndicadoresMenu = useCallback(async () => {
     if (!usuarioIdEfetivo) return
@@ -539,6 +547,7 @@ export default function MenuLateral({
     recursosProfissionaisLiberados: recursosProfLiberadosEfetivo,
     empresaCategoria,
     empresaCidade,
+    empresaServicos,
   }
 
   const secoes = useMemo(() => {
@@ -550,6 +559,7 @@ export default function MenuLateral({
       recursosProfissionaisLiberados: recursosProfLiberadosEfetivo,
       empresaCategoria,
       empresaCidade,
+      empresaServicos,
     }
     const mostrarPreLiberacaoTurista = !Boolean(turistaGate?.documentacao_validada_adm)
     const t = secoesTurista({ mostrarPreLiberacao: mostrarPreLiberacaoTurista })
@@ -583,6 +593,7 @@ export default function MenuLateral({
     omitirModoNaListaAdmin,
     empresaCategoria,
     empresaCidade,
+    empresaServicos,
     turistaGate,
   ])
 

@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
+import { empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
 import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useDrenaStok } from '../../hooks/useDrenaStok'
 
@@ -15,16 +17,12 @@ import TendenciasTempoReal from './TendenciasTempoReal'
 export default function DrenaStok() {
   const router = useRouter()
   const { dados: empresa } = useDashboardEmpresa()
+  const { temServico } = useEmpresaServicosPlano(empresa?.plano)
 
   const isCDE = useMemo(() => {
-    const cidade = (empresa?.cidade ?? '').toLowerCase()
-    const categoria = (empresa?.categoria ?? '').toLowerCase()
-    const plano = (empresa?.plano ?? '').toLowerCase()
-    const cidadeOk = cidade === 'ciudad del este' || cidade === 'cde'
-    const categoriaOk = categoria === 'lojas' || categoria === 'compras paraguai' || categoria === 'comprasparaguai'
-    const planoOk = plano === 'premium' || plano === 'enterprise'
-    return Boolean(cidadeOk && categoriaOk && planoOk)
-  }, [empresa?.categoria, empresa?.cidade, empresa?.plano])
+    const cidadeOk = empresaEhSegmentoLojasParaguai(empresa?.categoria, empresa?.cidade)
+    return Boolean(cidadeOk && temServico('compras_paraguai_drena'))
+  }, [empresa?.categoria, empresa?.cidade, temServico])
 
   const {
     totalProdutos,
@@ -42,7 +40,7 @@ export default function DrenaStok() {
     return (
       <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-8 text-center">
         <p className="text-yellow-800">
-          📦 Drena-Stok é exclusivo para empresas de Ciudad del Este com plano Premium ou Enterprise.
+          📦 Drena-Stok é exclusivo para empresas de Ciudad del Este com o serviço Compras Paraguai no plano contratado.
         </p>
         <p className="mt-2 text-sm text-yellow-700">Faça um upgrade do seu plano para acessar esta funcionalidade.</p>
       </div>

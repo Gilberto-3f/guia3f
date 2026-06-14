@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { DollarSign, Pencil, Plus } from 'lucide-react'
+import { DollarSign, Pencil, Plus, Trash2 } from 'lucide-react'
 import { corPlanoHex, labelServicoPlano } from '@/lib/planosEmpresaCatalogo'
 import { useFinanceiroAdm, type PlanoEmpresaAdm, type PlanoFormInput } from '../../../hooks/useFinanceiroAdm'
 import { CardEditarPlano, planoFormVazio } from './CardEditarPlano'
@@ -20,7 +20,17 @@ function planoParaForm(p: PlanoEmpresaAdm): PlanoFormInput {
   }
 }
 
-function ResumoPlanoCard({ plano, onEditar }: { plano: PlanoEmpresaAdm; onEditar: () => void }) {
+function ResumoPlanoCard({
+  plano,
+  onEditar,
+  onExcluir,
+  excluindo,
+}: {
+  plano: PlanoEmpresaAdm
+  onEditar: () => void
+  onExcluir: () => void
+  excluindo: boolean
+}) {
   const cor = corPlanoHex(plano.cor)
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
@@ -45,24 +55,38 @@ function ResumoPlanoCard({ plano, onEditar }: { plano: PlanoEmpresaAdm; onEditar
             </p>
           ) : null}
         </div>
-        <button
-          type="button"
-          onClick={onEditar}
-          className="shrink-0 rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50"
-          aria-label={`Editar ${plano.titulo}`}
-        >
-          <Pencil className="h-4 w-4" aria-hidden />
-        </button>
+        <div className="flex shrink-0 gap-1">
+          <button
+            type="button"
+            onClick={onEditar}
+            className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50"
+            aria-label={`Editar ${plano.titulo}`}
+            title="Editar plano"
+          >
+            <Pencil className="h-4 w-4" aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={onExcluir}
+            disabled={excluindo}
+            className="rounded-lg border border-rose-200 p-2 text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+            aria-label={`Excluir ${plano.titulo}`}
+            title="Excluir plano"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
       </div>
     </div>
   )
 }
 
 export function ConfigPlanos() {
-  const { planos, salvarPlano, isAdminFinanceiro, loadingPlanos } = useFinanceiroAdm()
+  const { planos, salvarPlano, excluirPlano, isAdminFinanceiro, loadingPlanos } = useFinanceiroAdm()
   const [form, setForm] = useState<PlanoFormInput | null>(null)
   const [modo, setModo] = useState<'novo' | 'editar'>('novo')
   const [salvando, setSalvando] = useState(false)
+  const [excluindoId, setExcluindoId] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
   const planosVisiveis = useMemo(
@@ -108,6 +132,20 @@ export function ConfigPlanos() {
     }
   }
 
+  const excluir = async (plano: PlanoEmpresaAdm) => {
+    const ok = window.confirm(`Excluir definitivamente o plano "${plano.titulo}"?`)
+    if (!ok) return
+    setExcluindoId(plano.id)
+    setErro(null)
+    const res = await excluirPlano(plano.id)
+    setExcluindoId(null)
+    if (!res.success) {
+      setErro(res.error instanceof Error ? res.error.message : 'Não foi possível excluir o plano.')
+      return
+    }
+    if (form?.id === plano.id) setForm(null)
+  }
+
   return (
     <div className="relative space-y-4">
       <button
@@ -142,7 +180,13 @@ export function ConfigPlanos() {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {planosVisiveis.map((p) => (
-            <ResumoPlanoCard key={p.id} plano={p} onEditar={() => abrirEditar(p)} />
+            <ResumoPlanoCard
+              key={p.id}
+              plano={p}
+              onEditar={() => abrirEditar(p)}
+              onExcluir={() => void excluir(p)}
+              excluindo={excluindoId === p.id}
+            />
           ))}
         </div>
       )}

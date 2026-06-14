@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import CanalFinanceiroItem from '@/components/CanalFinanceiroItem'
+import CanalFinanceiroItemPlanos from '@/components/CanalFinanceiroItemPlanos'
 import CanalFinanceiroItemPreLiberacao from '@/components/CanalFinanceiroItemPreLiberacao'
 import CanalFinanceiroMensageiro from '@/components/CanalFinanceiroMensageiro'
 import { marcarFinanceiroLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
@@ -87,6 +88,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
           lida_por_profissional,
           lida_por_empresa,
           metadata,
+          comprovante_detalhes,
           created_at,
           profissional_id,
           empresa_id,
@@ -131,6 +133,12 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
             metadata:
               r.metadata && typeof r.metadata === 'object' && !Array.isArray(r.metadata)
                 ? /** @type {Record<string, unknown>} */ (r.metadata)
+                : {},
+            comprovante_detalhes:
+              r.comprovante_detalhes &&
+              typeof r.comprovante_detalhes === 'object' &&
+              !Array.isArray(r.comprovante_detalhes)
+                ? /** @type {Record<string, unknown>} */ (r.comprovante_detalhes)
                 : {},
             created_at: String(r.created_at ?? ''),
             profissional_nome: pn,
@@ -352,6 +360,8 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
                   item={item}
                   onRespondido={() => void carregar({ silencioso: true })}
                 />
+              ) : item.tipo === 'plano_assinatura' && tipo === 'empresa' ? (
+                <CanalFinanceiroItemPlanos key={item.id} item={item} userTipo={tipo} />
               ) : (
                 <CanalFinanceiroItem key={item.id} item={item} userTipo={tipo} />
               ),

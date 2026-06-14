@@ -7,6 +7,7 @@ import { BarChart3, Crown, Filter } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
+import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 
 import MenuPeriodoDashboard from './components/shared/MenuPeriodoDashboard'
 import FunilConversao from './components/funil-conversao/FunilConversao'
@@ -167,17 +168,29 @@ function DashboardEmpresaConteudo({
   setPeriodo: (p: Periodo) => void
 }) {
   const { dados: empresa } = useDashboardEmpresa()
+  const { abaLiberada } = useEmpresaServicosPlano(empresa?.plano)
 
   const mostrarDrenaStok = useMemo(
-    () => empresaEhSegmentoLojasParaguai(empresa?.categoria, empresa?.cidade),
-    [empresa?.categoria, empresa?.cidade],
+    () => empresaEhSegmentoLojasParaguai(empresa?.categoria, empresa?.cidade) && abaLiberada('drena'),
+    [abaLiberada, empresa?.categoria, empresa?.cidade],
   )
+
+  const mostrarFunil = abaLiberada('funil')
+  const mostrarMercado = abaLiberada('mercado')
 
   useEffect(() => {
     if (!mostrarDrenaStok && abaAtiva === 'drena') {
       setAbaAtiva('funil')
     }
   }, [mostrarDrenaStok, abaAtiva, setAbaAtiva])
+
+  useEffect(() => {
+    if (!mostrarFunil && abaAtiva === 'funil') {
+      setAbaAtiva(mostrarMercado ? 'mercado' : mostrarDrenaStok ? 'drena' : 'funil')
+    } else if (!mostrarMercado && abaAtiva === 'mercado') {
+      setAbaAtiva(mostrarFunil ? 'funil' : mostrarDrenaStok ? 'drena' : 'mercado')
+    }
+  }, [abaAtiva, mostrarDrenaStok, mostrarFunil, mostrarMercado, setAbaAtiva])
 
   return (
     <div className="bg-gray-50">
@@ -192,20 +205,24 @@ function DashboardEmpresaConteudo({
 
         <div className="border-b border-gray-200 bg-white">
           <div className="mx-auto flex w-full max-w-7xl">
-            <button type="button" onClick={() => setAbaAtiva('funil')} className={abaCls(abaAtiva === 'funil')}>
-              <Filter className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
-              <span className="flex flex-col items-center gap-0 leading-none">
-                <span>Funil de</span>
-                <span>Conversão</span>
-              </span>
-            </button>
-            <button type="button" onClick={() => setAbaAtiva('mercado')} className={abaCls(abaAtiva === 'mercado')}>
-              <BarChart3 className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
-              <span className="flex flex-col items-center gap-0 leading-none">
-                <span>Estatísticas</span>
-                <span>de Mercado</span>
-              </span>
-            </button>
+            {mostrarFunil ? (
+              <button type="button" onClick={() => setAbaAtiva('funil')} className={abaCls(abaAtiva === 'funil')}>
+                <Filter className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
+                <span className="flex flex-col items-center gap-0 leading-none">
+                  <span>Funil de</span>
+                  <span>Conversão</span>
+                </span>
+              </button>
+            ) : null}
+            {mostrarMercado ? (
+              <button type="button" onClick={() => setAbaAtiva('mercado')} className={abaCls(abaAtiva === 'mercado')}>
+                <BarChart3 className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
+                <span className="flex flex-col items-center gap-0 leading-none">
+                  <span>Estatísticas</span>
+                  <span>de Mercado</span>
+                </span>
+              </button>
+            ) : null}
             {mostrarDrenaStok ? (
               <button type="button" onClick={() => setAbaAtiva('drena')} className={abaCls(abaAtiva === 'drena')}>
                 Drena-Stok
@@ -216,12 +233,23 @@ function DashboardEmpresaConteudo({
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 py-4 pb-0">
-        <div className={abaAtiva === 'funil' ? undefined : 'hidden'}>
-          <FunilConversao periodo={periodo} />
-        </div>
-        <div className={abaAtiva === 'mercado' ? undefined : 'hidden'}>
-          <EstatisticasMercado periodo={periodo} />
-        </div>
+        {!mostrarFunil && !mostrarMercado && !mostrarDrenaStok ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center">
+            <p className="text-amber-900">
+              Os recursos do dashboard dependem do plano contratado. Confira os planos disponíveis no canal Financeiro.
+            </p>
+          </div>
+        ) : null}
+        {mostrarFunil ? (
+          <div className={abaAtiva === 'funil' ? undefined : 'hidden'}>
+            <FunilConversao periodo={periodo} />
+          </div>
+        ) : null}
+        {mostrarMercado ? (
+          <div className={abaAtiva === 'mercado' ? undefined : 'hidden'}>
+            <EstatisticasMercado periodo={periodo} />
+          </div>
+        ) : null}
         {mostrarDrenaStok ? (
           <div className={abaAtiva === 'drena' ? undefined : 'hidden'}>
             <DrenaStok />

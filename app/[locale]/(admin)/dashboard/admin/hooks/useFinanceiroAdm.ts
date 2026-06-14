@@ -282,6 +282,38 @@ export function useFinanceiroAdm() {
     [admin, fetchPlanos, isAdminFinanceiro, planos.length],
   )
 
+  const excluirPlano = useCallback(
+    async (planoId: string) => {
+      if (!isAdminFinanceiro || !admin) return { success: false, error: new Error('Sem permissão') }
+      if (!planoId.trim()) return { success: false, error: new Error('Plano inválido') }
+
+      setLoadingPlanos(true)
+      try {
+        const alvo = planos.find((p) => p.id === planoId)
+        const { error: delErr } = await supabase.from('planos').delete().eq('id', planoId)
+        if (delErr) throw delErr
+
+        await supabase.from('logs_verificacao').insert({
+          tipo: 'financeiro',
+          perfil_id: admin.id,
+          acao: 'excluiu_plano',
+          admin_id: admin.id,
+          admin_email: admin.email ?? admin.username ?? 'admin',
+          admin_nivel: admin.admin_level,
+          detalhes: { plano: alvo?.titulo ?? planoId },
+        })
+
+        await fetchPlanos()
+        return { success: true }
+      } catch (err) {
+        return { success: false, error: err }
+      } finally {
+        setLoadingPlanos(false)
+      }
+    },
+    [admin, fetchPlanos, isAdminFinanceiro, planos],
+  )
+
   useEffect(() => {
     if (isAdminFinanceiro) {
       void fetchConfiguracoes()
@@ -297,6 +329,7 @@ export function useFinanceiroAdm() {
     error,
     salvarConfiguracoes,
     salvarPlano,
+    excluirPlano,
     isAdminFinanceiro,
     refetch: fetchConfiguracoes,
     refetchPlanos: fetchPlanos,

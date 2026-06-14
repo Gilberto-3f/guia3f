@@ -17,6 +17,7 @@ export type InserirNotificacaoFinanceiroEmpresaParams = {
   valor?: number | null
   anexoUrl?: string | null
   comprovanteDetalhes?: Record<string, unknown>
+  metadata?: Record<string, unknown>
 }
 
 /**
@@ -47,6 +48,7 @@ export async function inserirNotificacaoCanalFinanceiroEmpresa(
     lida_por_profissional: false,
     lida_por_empresa: false,
     comprovante_detalhes: params.comprovanteDetalhes ?? {},
+    metadata: params.metadata ?? params.comprovanteDetalhes ?? {},
   }
 
   const { data, error } = await supabase.from('canal_financeiro').insert(row).select('id').maybeSingle()
