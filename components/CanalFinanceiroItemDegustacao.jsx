@@ -46,7 +46,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, onAceito
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ degustacao_id: degustacaoId }),
       })
-      const json = (await res.json()) as { ok?: boolean; error?: string }
+      const json = await res.json()
       if (!res.ok || !json.ok) {
         setErro(json.error ?? 'Não foi possível aceitar a degustação.')
         return
