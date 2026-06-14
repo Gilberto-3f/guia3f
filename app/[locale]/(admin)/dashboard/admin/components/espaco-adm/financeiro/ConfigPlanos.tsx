@@ -14,9 +14,7 @@ export function ConfigPlanos() {
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="text-sm font-bold text-gray-900">Configuração de Planos</div>
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {planos.map((p) => {
           const isThis = editando?.id === p.id
           return (
@@ -75,7 +73,6 @@ export function ConfigPlanos() {
             </div>
           )
         })}
-      </div>
     </div>
   )
 }

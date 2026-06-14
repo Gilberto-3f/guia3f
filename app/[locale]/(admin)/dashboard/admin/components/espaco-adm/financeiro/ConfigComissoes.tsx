@@ -54,8 +54,7 @@ export function ConfigComissoes() {
   }
 
   return (
-    <div className="space-y-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="text-sm font-bold text-gray-900">Configuração de Comissões</div>
+    <div className="space-y-6">
       {feedback ? (
         <div
           className={`rounded-lg p-2 text-sm ${
