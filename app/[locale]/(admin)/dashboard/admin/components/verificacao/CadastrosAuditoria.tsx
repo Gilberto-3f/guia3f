@@ -162,23 +162,33 @@ export function CadastrosAuditoria() {
       [...porTipo.entries()].map(async ([tipo, ids]) => {
         const unique = [...new Set(ids.filter(Boolean))]
         if (!unique.length) return
-        const select =
-          tipo === 'profissionais'
-            ? 'id, nome_completo, nome_fantasia, nome_usuario, categorias'
-            : 'id, nome_completo, nome_fantasia, nome_usuario'
-        const { data } = await supabase.from(tipo).select(select).in('id', unique)
-        for (const row of data ?? []) {
-          const r = row as Record<string, unknown>
-          const id = String(r.id ?? '')
-          const nome =
-            tipo === 'empresas'
-              ? String(r.nome_fantasia ?? r.nome_completo ?? r.nome_usuario ?? '').trim() || '—'
-              : String(r.nome_completo ?? r.nome_usuario ?? '').trim() || '—'
-          map[nomePerfilCacheKey(tipo, id)] = nome
-          if (tipo === 'profissionais') {
-            const fmt = formatProfissionalCategorias(r.categorias)
+
+        if (tipo === 'profissionais') {
+          const { data } = await supabase
+            .from('profissionais')
+            .select('id, nome_completo, nome_fantasia, nome_usuario, categorias')
+            .in('id', unique)
+          for (const row of data ?? []) {
+            const id = String(row.id ?? '')
+            const nome = String(row.nome_completo ?? row.nome_usuario ?? '').trim() || '—'
+            map[nomePerfilCacheKey(tipo, id)] = nome
+            const fmt = formatProfissionalCategorias(row.categorias)
             if (fmt !== '—') catMap[nomePerfilCacheKey(tipo, id)] = fmt
           }
+          return
+        }
+
+        const { data } = await supabase
+          .from(tipo)
+          .select('id, nome_completo, nome_fantasia, nome_usuario')
+          .in('id', unique)
+        for (const row of data ?? []) {
+          const id = String(row.id ?? '')
+          const nome =
+            tipo === 'empresas'
+              ? String(row.nome_fantasia ?? row.nome_completo ?? row.nome_usuario ?? '').trim() || '—'
+              : String(row.nome_completo ?? row.nome_usuario ?? '').trim() || '—'
+          map[nomePerfilCacheKey(tipo, id)] = nome
         }
       }),
     )
