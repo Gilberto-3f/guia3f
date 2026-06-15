@@ -74,6 +74,12 @@ const DEFAULT_CONFIG: ConfiguracoesComissoes = {
   mobilidade_urbana: { taxa: 0 },
 }
 
+function isErroSchemaAusente(err: { code?: string; message?: string } | null | undefined): boolean {
+  if (!err) return false
+  if (err.code === 'PGRST205' || err.code === 'PGRST204' || err.code === '42P01') return true
+  return /could not find the table|could not find the '.+' column/i.test(String(err.message ?? ''))
+}
+
 function mapPlanoRow(row: Record<string, unknown>): PlanoEmpresaAdm {
   const servicosRaw = row.servicos
   const servicos = Array.isArray(servicosRaw)
@@ -124,7 +130,7 @@ export function useFinanceiroAdm() {
         .limit(1)
         .maybeSingle()
 
-      if (e && e.code !== 'PGRST116') throw e
+      if (e && e.code !== 'PGRST116' && !isErroSchemaAusente(e)) throw e
       if (data?.dados) {
         setConfig(data.dados as ConfiguracoesComissoes)
       } else {
@@ -169,7 +175,15 @@ export function useFinanceiroAdm() {
           .eq('ativo', true)
           .order('versao', { ascending: false })
           .limit(1)
-        if (curErr) throw curErr
+        if (curErr && !isErroSchemaAusente(curErr)) throw curErr
+        if (isErroSchemaAusente(curErr)) {
+          return {
+            success: false,
+            error: new Error(
+              'Tabela config_comissoes não encontrada no banco. Aplique a migration financeiro_planos_comissoes_fixup no Supabase.',
+            ),
+          }
+        }
         const atual = atualArr?.[0] as { id: string; versao: number; dados: unknown } | undefined
         const novaVersao = (atual?.versao ?? 0) + 1
 
@@ -190,6 +204,8 @@ export function useFinanceiroAdm() {
           config_anterior: atual?.dados ?? null,
           config_nova: novaConfig,
           alterado_por: admin.id,
+        }).then(({ error: histErr }) => {
+          if (histErr && !isErroSchemaAusente(histErr)) console.warn('historico_comissoes:', histErr.message)
         })
 
         await supabase.from('logs_verificacao').insert({
@@ -242,8 +258,6 @@ export function useFinanceiroAdm() {
           preco_anual: input.precoAnual,
           valor: input.precoMensal,
           recursos,
-          atualizado_por: admin.id,
-          atualizado_em: new Date().toISOString(),
         }
 
         if (input.id) {
