@@ -147,18 +147,20 @@ export function ConfigPlanos() {
   }
 
   return (
-    <div className="relative space-y-4">
-      <button
-        type="button"
-        onClick={abrirNovo}
-        className="absolute right-0 top-0 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#0097b2] text-white shadow-md transition hover:bg-[#007a91]"
-        aria-label="Criar novo plano"
-        title="Novo plano"
-      >
-        <Plus className="h-5 w-5" strokeWidth={2.5} aria-hidden />
-      </button>
+    <div className="space-y-4">
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={abrirNovo}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0097b2] text-white shadow-md transition hover:bg-[#007a91]"
+          aria-label="Criar novo plano"
+          title="Novo plano"
+        >
+          <Plus className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+        </button>
+      </div>
 
-      {erro ? <p className="pr-12 text-sm text-rose-600">{erro}</p> : null}
+      {erro ? <p className="text-center text-sm text-rose-600">{erro}</p> : null}
 
       {form ? (
         <CardEditarPlano

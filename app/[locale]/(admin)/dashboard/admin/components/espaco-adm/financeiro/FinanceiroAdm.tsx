@@ -22,7 +22,7 @@ const SECOES: Record<SecaoId, SecaoMeta> = {
   planos: {
     titulo: 'Configuração de Planos',
     Icon: CreditCard,
-    descricao: 'Valores e condições dos planos contratados pelas empresas na plataforma.',
+    descricao: '',
   },
   comissoes: {
     titulo: 'Configuração de Comissões',

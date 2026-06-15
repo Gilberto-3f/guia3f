@@ -74,7 +74,7 @@ export function FunilConversaoAdmEmpresa({
 
   if (loading && !dados) {
     return (
-      <div className="mx-auto max-w-xl overflow-hidden shadow-md" style={{ clipPath: CLIP_FUNIL }}>
+      <div className="w-full overflow-hidden shadow-md" style={{ clipPath: CLIP_FUNIL }}>
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
@@ -141,7 +141,7 @@ export function FunilConversaoAdmEmpresa({
 
   return (
     <div className="space-y-4 py-2">
-      <div className="mx-auto flex max-w-xl flex-col items-center gap-0">
+      <div className="flex w-full flex-col items-center gap-0">
         <span className="inline-flex max-w-full items-center gap-1.5 text-lg font-normal text-gray-900 sm:text-xl">
           {verificado ? <CheckVerificado /> : null}
           <span className="truncate">{usernameLabel}</span>
@@ -149,7 +149,7 @@ export function FunilConversaoAdmEmpresa({
         <p className="text-center text-sm leading-tight text-gray-500">dados convertidos em resultados</p>
       </div>
 
-      <div className="mx-auto max-w-xl overflow-hidden shadow-md" style={{ clipPath: CLIP_FUNIL }}>
+      <div className="w-full overflow-hidden shadow-md" style={{ clipPath: CLIP_FUNIL }}>
         {etapas.map((etapa, index) => (
           <EtapaFunil
             key={etapa.id}

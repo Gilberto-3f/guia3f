@@ -66,7 +66,7 @@ function CardEmpresaFunil({
       </button>
 
       {expandida ? (
-        <div className="border-t border-gray-100 bg-gray-50/40 px-3 pb-4 pt-2">
+        <div className="border-t border-gray-100 bg-gray-50/40 pb-2">
           <FunilConversaoAdmEmpresa
             empresaId={emp.id}
             empresaUsuarioId={emp.usuarioId}
@@ -130,7 +130,7 @@ export function FunilConversaoGeral({
             : 'Nenhuma empresa cadastrada na plataforma.'}
         </div>
       ) : (
-        <div className="max-h-[min(32rem,60vh)] space-y-3 overflow-y-auto pr-1">
+        <div className="space-y-3">
           {empresas.map((emp) => (
             <CardEmpresaFunil
               key={emp.id}

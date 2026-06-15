@@ -169,6 +169,15 @@ export function CardEditarPlano({
       <div className="mt-5 flex items-center justify-center gap-2">
         <button
           type="button"
+          disabled={salvando || !form.titulo.trim()}
+          onClick={onConfirmar}
+          className="min-w-[7.5rem] flex-1 max-w-[10rem] rounded-xl py-3 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-50"
+          style={{ backgroundColor: COR_CONFIRMAR }}
+        >
+          {salvando ? 'Salvando…' : 'Confirmar'}
+        </button>
+        <button
+          type="button"
           disabled={salvando}
           onClick={onCancelar}
           className="min-w-[7.5rem] flex-1 max-w-[10rem] rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold uppercase tracking-wide text-gray-700 hover:bg-gray-50 disabled:opacity-50"
@@ -183,15 +192,6 @@ export function CardEditarPlano({
           title="Degustação"
         >
           <MoreVertical className="h-5 w-5" aria-hidden />
-        </button>
-        <button
-          type="button"
-          disabled={salvando || !form.titulo.trim()}
-          onClick={onConfirmar}
-          className="min-w-[7.5rem] flex-1 max-w-[10rem] rounded-xl py-3 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-50"
-          style={{ backgroundColor: COR_CONFIRMAR }}
-        >
-          {salvando ? 'Salvando…' : 'Confirmar'}
         </button>
       </div>
 
