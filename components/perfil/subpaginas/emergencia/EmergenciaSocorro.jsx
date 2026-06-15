@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import EmergenciaMensageiroAdm from './EmergenciaMensageiroAdm'
 
 /** Números de emergência policial — tríplice fronteira (ajustáveis conforme operação local). */
@@ -33,14 +33,14 @@ export default function EmergenciaSocorro() {
   if (modo === 'adm') {
     return (
       <div>
-        <div className="mb-2 flex justify-end">
+        <div className="mb-2">
           <button
             type="button"
             onClick={() => setModo('menu')}
-            className="flex h-9 w-9 items-center justify-center rounded-md bg-red-600 text-white shadow-sm transition hover:bg-red-700 active:bg-red-800"
-            aria-label="Fechar"
+            className="flex h-7 w-7 items-center justify-center rounded-md bg-[#0097b2] text-white shadow-sm transition hover:bg-[#007a91] active:brightness-95"
+            aria-label="Voltar"
           >
-            <X className="h-[18px] w-[18px]" strokeWidth={2.5} aria-hidden />
+            <ArrowLeft className="h-4 w-4" strokeWidth={2.5} aria-hidden />
           </button>
         </div>
         <EmergenciaMensageiroAdm

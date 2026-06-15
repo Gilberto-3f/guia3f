@@ -35,6 +35,7 @@ import {
   User,
   Users,
   X,
+  ArrowLeft,
 } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { signOutCurrentDevice } from '@/lib/authCookieSync'
@@ -1048,14 +1049,28 @@ export default function MenuLateral({
         aria-modal="true"
         aria-label="Menu lateral"
       >
-        <div className="flex shrink-0 justify-end p-2 pb-0">
+        <div className="flex shrink-0 items-center gap-3 px-3 py-2">
+          {topo?.titulo ? (
+            <h2 className="min-w-0 flex-1 truncate text-lg font-bold leading-tight text-[#001f3f]">{topo.titulo}</h2>
+          ) : (
+            <div className="min-w-0 flex-1" aria-hidden />
+          )}
           <button
             type="button"
             onClick={mostrarVoltar ? voltarUmNivel : onFechar}
-            className="flex h-9 w-9 items-center justify-center rounded-md bg-red-600 text-white shadow-sm transition hover:bg-red-700 active:bg-red-800"
-            aria-label="Fechar"
+            className={[
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white shadow-sm transition',
+              mostrarVoltar
+                ? 'bg-[#0097b2] hover:bg-[#007a91] active:brightness-95'
+                : 'bg-red-600 hover:bg-red-700 active:bg-red-800',
+            ].join(' ')}
+            aria-label={mostrarVoltar ? 'Voltar' : 'Fechar'}
           >
-            <X size={18} strokeWidth={2.5} aria-hidden />
+            {mostrarVoltar ? (
+              <ArrowLeft size={16} strokeWidth={2.5} aria-hidden />
+            ) : (
+              <X size={16} strokeWidth={2.5} aria-hidden />
+            )}
           </button>
         </div>
 
