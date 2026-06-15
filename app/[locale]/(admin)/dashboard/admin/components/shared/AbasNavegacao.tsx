@@ -1,14 +1,14 @@
 'use client'
 
 import type { LucideIcon } from 'lucide-react'
-import { BarChart3, ClipboardCheck, ShieldAlert, Crown, Settings } from 'lucide-react'
+import { BarChart3, ClipboardCheck, ShieldAlert, Crown, Settings, Table2 } from 'lucide-react'
 
 export const ABAS_PRINCIPAIS = [
   'visao-geral',
   'cadastros',
   'denuncias',
-  'espaco-adm',
   'servicos-tabelados',
+  'espaco-adm',
   'configuracoes',
 ] as const
 export type AbaPrincipalId = (typeof ABAS_PRINCIPAIS)[number]
@@ -17,6 +17,7 @@ const abas: { id: AbaPrincipalId; label: string; Icon: LucideIcon }[] = [
   { id: 'visao-geral', label: 'Ecossistema', Icon: BarChart3 },
   { id: 'cadastros', label: 'Cadastros', Icon: ClipboardCheck },
   { id: 'denuncias', label: 'Denúncias', Icon: ShieldAlert },
+  { id: 'servicos-tabelados', label: 'Serviços Tabelados', Icon: Table2 },
   { id: 'espaco-adm', label: 'Espaço ADM', Icon: Crown },
   { id: 'configuracoes', label: 'Configurações', Icon: Settings },
 ]

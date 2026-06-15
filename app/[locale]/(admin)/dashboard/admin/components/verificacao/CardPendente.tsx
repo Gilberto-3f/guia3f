@@ -165,7 +165,13 @@ export function CardPendente({
     <>
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="p-4">
-          {ocultarTitulo ? null : (
+          {ocultarTitulo ? (
+            tipo === 'profissionais' && item.categoriaProfissional ? (
+              <p className="text-center text-xs font-bold uppercase tracking-wide" style={{ color: COR_ARQUIVAR }}>
+                {item.categoriaProfissional}
+              </p>
+            ) : null
+          ) : (
             <>
               <h3 className="text-center text-base font-bold uppercase tracking-wide sm:text-lg" style={{ color: COR_LOGO }}>
                 {TITULO_CATEGORIA[tipo]}

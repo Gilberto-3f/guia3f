@@ -9,8 +9,8 @@ export const ADMIN_PASTAS: { id: AbaPrincipalId; label: string; Icon: LucideIcon
   { id: 'visao-geral', label: 'Ecossistema', Icon: BarChart3 },
   { id: 'cadastros', label: 'Cadastros', Icon: ClipboardCheck },
   { id: 'denuncias', label: 'Denúncias', Icon: ShieldAlert },
-  { id: 'espaco-adm', label: 'Espaço ADM', Icon: Crown },
   { id: 'servicos-tabelados', label: 'Serviços Tabelados', Icon: Table2 },
+  { id: 'espaco-adm', label: 'Espaço ADM', Icon: Crown },
   { id: 'configuracoes', label: 'Configurações', Icon: Settings },
 ]
 

@@ -8,6 +8,7 @@ import { statusFinalDoLog, formatarStatusFinal } from '../../utils/registrarLogV
 import { TIPOS_LOG_CADASTRO, type TipoLogCadastro } from '@/lib/cadastroAuditoriaLeitura'
 import { CardPendente, type CadastroPendente } from './CardPendente'
 import { mapRowToCadastroPendente } from './mapCadastroPendente'
+import { formatProfissionalCategorias } from './verificacaoFormatters'
 
 type Filtros = {
   periodo: '7d' | '30d' | '90d' | 'todos'
@@ -32,6 +33,7 @@ type LeituraRow = {
 }
 
 const COR_LOGO = '#0097b2'
+const COR_ARQUIVAR = '#00D443'
 
 const LABEL_PERFIL_TITULO: Record<TipoLogCadastro, string> = {
   turistas: 'TURISTA',
@@ -131,6 +133,7 @@ export function CadastrosAuditoria() {
 
   const [logs, setLogs] = useState<LogRow[]>([])
   const [nomesPerfil, setNomesPerfil] = useState<Record<string, string>>({})
+  const [categoriasPerfil, setCategoriasPerfil] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [filtros, setFiltros] = useState<Filtros>({ periodo: '30d', perfil: 'todos', acao: 'todas' })
   const [detalheId, setDetalheId] = useState<string | null>(null)
@@ -144,6 +147,7 @@ export function CadastrosAuditoria() {
 
   const carregarNomesPerfis = useCallback(async (rows: LogRow[]) => {
     const map: Record<string, string> = {}
+    const catMap: Record<string, string> = {}
     const porTipo = new Map<TipoLogCadastro, string[]>()
     for (const log of rows) {
       const tipo = log.tipo
@@ -158,17 +162,28 @@ export function CadastrosAuditoria() {
       [...porTipo.entries()].map(async ([tipo, ids]) => {
         const unique = [...new Set(ids.filter(Boolean))]
         if (!unique.length) return
-        const { data } = await supabase.from(tipo).select('id, nome_completo, nome_fantasia, nome_usuario').in('id', unique)
+        const select =
+          tipo === 'profissionais'
+            ? 'id, nome_completo, nome_fantasia, nome_usuario, categorias'
+            : 'id, nome_completo, nome_fantasia, nome_usuario'
+        const { data } = await supabase.from(tipo).select(select).in('id', unique)
         for (const row of data ?? []) {
           const r = row as Record<string, unknown>
           const id = String(r.id ?? '')
           const nome =
-            String(r.nome_fantasia ?? r.nome_completo ?? r.nome_usuario ?? '').trim() || '—'
+            tipo === 'empresas'
+              ? String(r.nome_fantasia ?? r.nome_completo ?? r.nome_usuario ?? '').trim() || '—'
+              : String(r.nome_completo ?? r.nome_usuario ?? '').trim() || '—'
           map[nomePerfilCacheKey(tipo, id)] = nome
+          if (tipo === 'profissionais') {
+            const fmt = formatProfissionalCategorias(r.categorias)
+            if (fmt !== '—') catMap[nomePerfilCacheKey(tipo, id)] = fmt
+          }
         }
       }),
     )
     setNomesPerfil(map)
+    setCategoriasPerfil(catMap)
   }, [])
 
   const fetchLogs = useCallback(async () => {
@@ -372,6 +387,10 @@ export function CadastrosAuditoria() {
             const tipo = log.tipo as TipoLogCadastro | null
             const nomeCadastro =
               tipo && log.perfil_id ? nomesPerfil[nomePerfilCacheKey(tipo, log.perfil_id)] ?? '—' : '—'
+            const categoriaCadastro =
+              tipo === 'profissionais' && log.perfil_id
+                ? categoriasPerfil[nomePerfilCacheKey(tipo, log.perfil_id)]
+                : undefined
             const statusUpper = statusAuditoriaUpper(log)
             const titulo = tipo ? tituloCardAuditoria(tipo, statusUpper) : statusFinalDoLog(log)
 
@@ -392,7 +411,12 @@ export function CadastrosAuditoria() {
                         {titulo}
                       </span>
                     </div>
-                    <p className="mt-0.5 truncate text-sm font-medium text-gray-800">{nomeCadastro}</p>
+                    <p className="mt-1 truncate text-sm font-semibold text-gray-900">{nomeCadastro}</p>
+                    {categoriaCadastro ? (
+                      <p className="mt-0.5 text-xs font-bold uppercase tracking-wide" style={{ color: COR_ARQUIVAR }}>
+                        {categoriaCadastro}
+                      </p>
+                    ) : null}
                     <p className="mt-0.5 text-xs text-gray-500">{formatarDataHora(log.created_at)}</p>
                   </div>
                   {expandido ? (

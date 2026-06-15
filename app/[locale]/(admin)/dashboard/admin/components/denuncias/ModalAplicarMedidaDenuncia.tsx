@@ -5,36 +5,32 @@ import { Ban, CircleOff, MessageSquare, Trash2, UserX, X } from 'lucide-react'
 import type { MedidaDenunciaTipo } from '../../types/admin.types'
 
 const COR_LOGO = '#0097b2'
+const COR_ARQUIVAR = '#00D443'
 
-const OPCOES: { id: MedidaDenunciaTipo; label: string; desc: string; Icon: typeof MessageSquare }[] = [
+const OPCOES: { id: MedidaDenunciaTipo; label: string; Icon: typeof MessageSquare }[] = [
   {
     id: 'improcedente',
     label: 'Denúncia Improcedente',
-    desc: 'Investigação não encontrou nenhuma infração',
     Icon: CircleOff,
   },
   {
     id: 'mensagem',
     label: 'Enviar Mensagem',
-    desc: 'Diálogo particular para investigar a denúncia.',
     Icon: MessageSquare,
   },
   {
     id: 'excluir_conteudo',
     label: 'Excluir Publicação',
-    desc: 'Remove o conteúdo denunciado e notifica o usuário.',
     Icon: Trash2,
   },
   {
     id: 'bloqueio',
     label: 'Bloquear Conta do Usuário',
-    desc: 'Suspende funções da conta até conclusão da investigação.',
     Icon: Ban,
   },
   {
     id: 'excluir_cadastro',
     label: 'Excluir Cadastro',
-    desc: 'Solicita exclusão do cadastro por gravidade da denúncia.',
     Icon: UserX,
   },
 ]
@@ -89,26 +85,22 @@ export default function ModalAplicarMedidaDenuncia({
             const Icon = o.Icon
             const active = medida === o.id
             return (
-              <div key={o.id}>
-                <p className="mb-1.5 text-xs font-semibold" style={{ color: COR_LOGO }}>
-                  {o.desc}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setMedida(o.id)}
-                  className={[
-                    'flex w-full items-center gap-3 rounded-xl p-3 text-left text-white transition',
-                    active ? 'ring-2 ring-offset-2' : 'opacity-95 hover:opacity-100',
-                  ].join(' ')}
-                  style={{
-                    backgroundColor: COR_LOGO,
-                    ...(active ? { boxShadow: `0 0 0 2px white, 0 0 0 4px ${COR_LOGO}` } : {}),
-                  }}
-                >
-                  <Icon className="h-5 w-5 shrink-0 text-white" aria-hidden />
-                  <span className="text-sm font-bold">{o.label}</span>
-                </button>
-              </div>
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => setMedida(o.id)}
+                className={[
+                  'flex w-full items-center gap-3 rounded-xl p-3 text-left text-white transition',
+                  active ? 'ring-2 ring-offset-2' : 'opacity-95 hover:opacity-100',
+                ].join(' ')}
+                style={{
+                  backgroundColor: COR_LOGO,
+                  ...(active ? { boxShadow: `0 0 0 2px white, 0 0 0 4px ${COR_LOGO}` } : {}),
+                }}
+              >
+                <Icon className="h-5 w-5 shrink-0 text-white" aria-hidden />
+                <span className="text-sm font-bold">{o.label}</span>
+              </button>
             )
           })}
         </div>
@@ -133,7 +125,7 @@ export default function ModalAplicarMedidaDenuncia({
           disabled={!medida || enviando || (precisaTexto && !texto.trim())}
           onClick={() => void confirmar()}
           className="mt-4 w-full rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50"
-          style={{ backgroundColor: COR_LOGO }}
+          style={{ backgroundColor: COR_ARQUIVAR }}
         >
           {enviando ? 'Aplicando…' : medida === 'improcedente' ? 'Classificar e arquivar' : 'Confirmar medida'}
         </button>
