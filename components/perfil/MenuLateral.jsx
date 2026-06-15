@@ -5,7 +5,6 @@ import Image from 'next/image'
 import {
   Activity,
   AlertTriangle,
-  ArrowLeft,
   Bookmark,
   Building2,
   Calendar,
@@ -160,17 +159,31 @@ const histComprasSubitensGeral = () => [
   { Icon: ShoppingBag, label: 'Compras', subpagina: 'compras' },
 ]
 
-function itensMinhaConta() {
-  return [
+function itensMinhaConta(ctx) {
+  const redeSocial =
+    ctx?.variant === 'empresa'
+      ? [
+          {
+            Icon: Images,
+            label: 'Rede Social',
+            href: '/empresa/menu/feed-stories',
+            condicional: empresaMenuServico('feed-stories'),
+          },
+        ]
+      : []
+
+  const base = [
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
     { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
     { Icon: Eye, label: 'Visitantes do meu Perfil', subpagina: 'visitantes-perfil' },
     { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
   ]
+
+  return ctx ? filtrarMenu([...redeSocial, ...base], ctx) : [...redeSocial, ...base]
 }
 
-function secaoMinhaConta() {
-  return { tipo: 'grupo', key: 'minha-conta', label: 'Minha Conta', items: itensMinhaConta() }
+function secaoMinhaConta(ctx) {
+  return { tipo: 'grupo', key: 'minha-conta', label: 'Minha Conta', items: itensMinhaConta(ctx) }
 }
 
 /**
@@ -211,7 +224,7 @@ function secoesTurista(opts = {}) {
   ]
   return [
     secaoUsuario(gUsuario),
-    secaoMinhaConta(),
+    secaoMinhaConta({ variant: 'turista', placaVermelha: false, adminLevel: 0, recursosProfissionaisLiberados: false }),
     { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic },
     /** @type {const} */ { tipo: 'grupo', key: 'emergencia', label: 'Emergência', items: gEmergencia },
     { tipo: 'sair' },
@@ -283,7 +296,7 @@ function secoesProfissional(ctx) {
   ]
   return [
     secaoUsuario(gUsuario),
-    secaoMinhaConta(),
+    secaoMinhaConta(ctx),
     /** @type {const} */ { tipo: 'grupo', key: 'profissional', label: 'Profissional', items: gPro },
     {
       tipo: 'grupo',
@@ -315,7 +328,7 @@ function secoesProfissionalAguardandoDocs(ctx) {
         ctx
       )
     ),
-    secaoMinhaConta(),
+    secaoMinhaConta(ctx),
     { tipo: 'grupo', key: 'profissional', label: 'Profissional', items: [] },
     {
       tipo: 'grupo',
@@ -338,16 +351,15 @@ function secoesEmpresa(ctx) {
   ]
   const gEmp = filtrarMenu(
     [
-      { Icon: Images, label: 'Feed e Storys', href: '/empresa/menu/feed-stories', condicional: empresaMenuServico('feed-stories') },
-      { Icon: Megaphone, label: 'Publicidade', href: '/empresa/menu/publicidade', condicional: empresaMenuServico('publicidade') },
       { Icon: DollarSign, label: 'Cadastrar Comissão', href: '/empresa/menu/cadastrar-comissao' },
+      { Icon: Megaphone, label: 'Publicidade', href: '/empresa/menu/publicidade' },
       {
         Icon: ShoppingCart,
         label: 'Compras Paraguai',
         href: '/empresa/menu/compras-paraguai',
         condicional: empresaComprasParaguaiVisivel,
       },
-      { Icon: MessageSquare, label: 'Chat ADM', href: '/empresa/menu/chat-adm', condicional: empresaMenuServico('chat-adm') },
+      { Icon: MessageSquare, label: 'Chat ADM', href: '/empresa/menu/chat-adm' },
     ],
     ctx
   )
@@ -357,7 +369,7 @@ function secoesEmpresa(ctx) {
   ]
   return [
     secaoUsuario(gUsuario),
-    secaoMinhaConta(),
+    secaoMinhaConta(ctx),
     { tipo: 'grupo', key: 'empresa', label: 'Empresa', items: gEmp },
     { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic },
     { tipo: 'sair' },
@@ -393,7 +405,7 @@ function secoesAdmin(ctx, { omitirModoNaLista }) {
   return [
     { tipo: 'grupo', key: 'admin', label: 'Admin', items: gAdmin },
     secaoUsuario(gUsuario),
-    secaoMinhaConta(),
+    secaoMinhaConta(ctx),
     { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic },
     { tipo: 'sair' },
   ]
@@ -1036,27 +1048,15 @@ export default function MenuLateral({
         aria-modal="true"
         aria-label="Menu lateral"
       >
-        <div className={`flex shrink-0 justify-end ${mostrarVoltar ? 'p-2 pb-0' : 'px-2 pt-0 pb-0'}`}>
-          {mostrarVoltar ? (
-            <button
-              type="button"
-              onClick={voltarUmNivel}
-              className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
-              aria-label="Voltar"
-            >
-              <ArrowLeft size={20} className="shrink-0" />
-              Voltar
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onFechar}
-              className="rounded-full p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-              aria-label="Fechar"
-            >
-              <X size={22} />
-            </button>
-          )}
+        <div className="flex shrink-0 justify-end p-2 pb-0">
+          <button
+            type="button"
+            onClick={mostrarVoltar ? voltarUmNivel : onFechar}
+            className="flex h-9 w-9 items-center justify-center rounded-md bg-red-600 text-white shadow-sm transition hover:bg-red-700 active:bg-red-800"
+            aria-label="Fechar"
+          >
+            <X size={18} strokeWidth={2.5} aria-hidden />
+          </button>
         </div>
 
         {!topo ? (

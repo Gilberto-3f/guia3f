@@ -145,21 +145,21 @@ export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps)
     <div className="mx-auto max-w-3xl p-4">
       <h1 className="text-xl font-bold text-[#001f3f]">Denúncias e Decisões</h1>
 
-      <div className="mt-5 flex gap-2 px-1" role="tablist" aria-label="Denúncias e decisões">
+      <div className="mt-5 grid grid-cols-2 gap-2" role="tablist" aria-label="Denúncias e decisões">
         <button
           type="button"
           role="tab"
           aria-selected={aba === 'denuncias'}
           onClick={() => setAba('denuncias')}
           className={[
-            'flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-wide transition',
+            'flex min-h-[44px] min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-bold uppercase tracking-wide transition sm:gap-2 sm:px-4 sm:py-3 sm:text-sm',
             aba === 'denuncias'
               ? 'bg-[#0097b2] text-white shadow-sm'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
           ].join(' ')}
         >
-          <Flag className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
-          Denúncias
+          <Flag className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" strokeWidth={2.25} aria-hidden />
+          <span className="truncate">Denúncias</span>
         </button>
         <button
           type="button"
@@ -167,14 +167,14 @@ export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps)
           aria-selected={aba === 'decisoes'}
           onClick={() => setAba('decisoes')}
           className={[
-            'flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-wide transition',
+            'flex min-h-[44px] min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-bold uppercase tracking-wide transition sm:gap-2 sm:px-4 sm:py-3 sm:text-sm',
             aba === 'decisoes'
               ? 'bg-[#0097b2] text-white shadow-sm'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
           ].join(' ')}
         >
-          <Scale className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
-          Decisões
+          <Scale className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" strokeWidth={2.25} aria-hidden />
+          <span className="truncate">Decisões</span>
         </button>
       </div>
 
@@ -232,11 +232,17 @@ export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps)
                     }}
                     className={`w-full rounded-lg border p-4 text-left hover:bg-gray-50 ${!item.visualizado ? 'border-l-4 border-l-[#0097b2]' : 'border-gray-200'}`}
                   >
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm font-bold text-[#001f3f]">{item.titulo}</div>
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{item.status}</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="break-words text-sm font-bold text-[#001f3f]">{item.titulo}</div>
+                        {item.descricao ? (
+                          <p className="mt-1 break-words text-sm text-gray-600">{item.descricao}</p>
+                        ) : null}
+                      </div>
+                      <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                        {item.status}
+                      </span>
                     </div>
-                    <div className="mt-1 text-sm text-gray-600">{item.descricao}</div>
                     <div className="mt-2 text-xs text-gray-500">
                       Concluída em {new Date(dataConclusao).toLocaleDateString('pt-BR')}
                       {item.data_expiracao && item.status === 'ativo'

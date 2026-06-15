@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ChevronRight, FileText, ScrollText, Shield } from 'lucide-react'
+import { ChevronRight, FileText, ScrollText, Shield, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 const APP_VERSION = '1.0.0'
@@ -50,14 +50,16 @@ export default function RegrasEcossistema() {
     const texto = config[secao.campo] ?? 'Conteúdo em atualização.'
     return (
       <div className="px-1 pb-4">
-        <button
-          type="button"
-          onClick={() => setSecaoAtiva(null)}
-          className="mb-3 flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
-        >
-          <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-          Voltar
-        </button>
+        <div className="mb-3 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setSecaoAtiva(null)}
+            className="flex h-9 w-9 items-center justify-center rounded-md bg-red-600 text-white shadow-sm transition hover:bg-red-700 active:bg-red-800"
+            aria-label="Fechar"
+          >
+            <X className="h-[18px] w-[18px]" strokeWidth={2.5} aria-hidden />
+          </button>
+        </div>
         <h2 className="text-lg font-bold text-gray-900">{secao.titulo}</h2>
         <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{texto}</div>
       </div>

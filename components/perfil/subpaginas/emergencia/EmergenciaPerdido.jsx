@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import EmergenciaMensageiroAdm from './EmergenciaMensageiroAdm'
 
 export default function EmergenciaPerdido() {
@@ -9,13 +10,16 @@ export default function EmergenciaPerdido() {
   if (modo === 'adm') {
     return (
       <div>
-        <button
-          type="button"
-          onClick={() => setModo('menu')}
-          className="mb-2 text-sm font-medium text-[#0097b2] hover:underline"
-        >
-          ← Voltar
-        </button>
+        <div className="mb-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setModo('menu')}
+            className="flex h-9 w-9 items-center justify-center rounded-md bg-red-600 text-white shadow-sm transition hover:bg-red-700 active:bg-red-800"
+            aria-label="Fechar"
+          >
+            <X className="h-[18px] w-[18px]" strokeWidth={2.5} aria-hidden />
+          </button>
+        </div>
         <EmergenciaMensageiroAdm
           titulo="Estou perdido(a)"
           subtitulo="Envie uma mensagem à equipe ADM com sua situação e localização para orientação."
