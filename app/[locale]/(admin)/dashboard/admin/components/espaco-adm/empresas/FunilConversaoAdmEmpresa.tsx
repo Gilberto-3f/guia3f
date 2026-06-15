@@ -10,7 +10,12 @@ import TopPaxProfissionais from '@/app/[locale]/(app-shell)/dashboard/empresa/co
 import CardVendas from '@/app/[locale]/(app-shell)/dashboard/empresa/components/funil-conversao/CardVendas'
 import RelatorioDetalhado from '@/app/[locale]/(app-shell)/dashboard/empresa/components/funil-conversao/RelatorioDetalhado'
 import CheckVerificado from '@/components/CheckVerificado'
-import { funilModoCompacto, labelEtapaFunil } from '@/app/[locale]/(app-shell)/dashboard/empresa/components/funil-conversao/labelEtapaFunil'
+import { labelEtapaFunil } from '@/app/[locale]/(app-shell)/dashboard/empresa/components/funil-conversao/labelEtapaFunil'
+
+/** Números com 3+ dígitos (≥ 100) ocultam o ícone no funil ADM mobile. */
+function funilAdmOcultarIcone(valor: number): boolean {
+  return valor >= 100
+}
 
 type DetalheEtapa = 'recomendacoes' | 'pax' | 'vendas' | null
 
@@ -156,12 +161,13 @@ export function FunilConversaoAdmEmpresa({
             icon={etapa.icon}
             label={etapa.label}
             valor={etapa.valor}
-            ocultarIcone={etapa.id === 'recomendacoes' && funilModoCompacto(etapa.valor)}
+            ocultarIcone={funilAdmOcultarIcone(etapa.valor)}
             naoLidas={0}
             expandable={etapa.expandable}
             selected={detalheAberto === etapa.id}
             onToggle={etapa.expandable ? () => toggleDetalhe(etapa.id) : undefined}
             isLast={index === etapas.length - 1}
+            variant="adm"
           />
         ))}
       </div>

@@ -9,6 +9,7 @@ import { TIPOS_LOG_CADASTRO, type TipoLogCadastro } from '@/lib/cadastroAuditori
 import { CardPendente, type CadastroPendente } from './CardPendente'
 import { mapRowToCadastroPendente } from './mapCadastroPendente'
 import { formatProfissionalCategorias } from './verificacaoFormatters'
+import { ROTULO_SEGUIMENTO_GUIA, normalizarCategoriaEmpresaGuia } from '@/lib/segmentosEmpresaGuia'
 
 type Filtros = {
   periodo: '7d' | '30d' | '90d' | 'todos'
@@ -66,6 +67,13 @@ function motivoDoLog(log: LogRow): string | null {
 
 function nomePerfilCacheKey(tipo: string, perfilId: string) {
   return `${tipo}:${perfilId}`
+}
+
+function rotuloSegmentoEmpresa(categoria: string): string | undefined {
+  const cat = normalizarCategoriaEmpresaGuia(categoria)
+  if (cat) return ROTULO_SEGUIMENTO_GUIA[cat]
+  const trimmed = categoria.trim()
+  return trimmed || undefined
 }
 
 function statusAuditoriaUpper(log: LogRow): string {
@@ -134,6 +142,7 @@ export function CadastrosAuditoria() {
   const [logs, setLogs] = useState<LogRow[]>([])
   const [nomesPerfil, setNomesPerfil] = useState<Record<string, string>>({})
   const [categoriasPerfil, setCategoriasPerfil] = useState<Record<string, string>>({})
+  const [seguimentosPerfil, setSeguimentosPerfil] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [filtros, setFiltros] = useState<Filtros>({ periodo: '30d', perfil: 'todos', acao: 'todas' })
   const [detalheId, setDetalheId] = useState<string | null>(null)
@@ -148,6 +157,7 @@ export function CadastrosAuditoria() {
   const carregarNomesPerfis = useCallback(async (rows: LogRow[]) => {
     const map: Record<string, string> = {}
     const catMap: Record<string, string> = {}
+    const segMap: Record<string, string> = {}
     const porTipo = new Map<TipoLogCadastro, string[]>()
     for (const log of rows) {
       const tipo = log.tipo
@@ -166,7 +176,7 @@ export function CadastrosAuditoria() {
         if (tipo === 'profissionais') {
           const { data } = await supabase
             .from('profissionais')
-            .select('id, nome_completo, nome_fantasia, nome_usuario, categorias')
+            .select('id, nome_completo, nome_usuario, categorias')
             .in('id', unique)
           for (const row of data ?? []) {
             const id = String(row.id ?? '')
@@ -178,22 +188,37 @@ export function CadastrosAuditoria() {
           return
         }
 
-        const { data } = await supabase
-          .from(tipo)
-          .select('id, nome_completo, nome_fantasia, nome_usuario')
-          .in('id', unique)
-        for (const row of data ?? []) {
-          const id = String(row.id ?? '')
-          const nome =
-            tipo === 'empresas'
-              ? String(row.nome_fantasia ?? row.nome_completo ?? row.nome_usuario ?? '').trim() || '—'
-              : String(row.nome_completo ?? row.nome_usuario ?? '').trim() || '—'
-          map[nomePerfilCacheKey(tipo, id)] = nome
+        if (tipo === 'turistas') {
+          const { data } = await supabase
+            .from('turistas')
+            .select('id, nome_completo, nome_usuario')
+            .in('id', unique)
+          for (const row of data ?? []) {
+            const id = String(row.id ?? '')
+            const nome = String(row.nome_completo ?? row.nome_usuario ?? '').trim() || '—'
+            map[nomePerfilCacheKey(tipo, id)] = nome
+          }
+          return
+        }
+
+        if (tipo === 'empresas') {
+          const { data } = await supabase
+            .from('empresas')
+            .select('id, nome_fantasia, nome_usuario, categoria')
+            .in('id', unique)
+          for (const row of data ?? []) {
+            const id = String(row.id ?? '')
+            const nome = String(row.nome_fantasia ?? row.nome_usuario ?? '').trim() || '—'
+            map[nomePerfilCacheKey(tipo, id)] = nome
+            const seg = rotuloSegmentoEmpresa(String(row.categoria ?? ''))
+            if (seg) segMap[nomePerfilCacheKey(tipo, id)] = seg
+          }
         }
       }),
     )
     setNomesPerfil(map)
     setCategoriasPerfil(catMap)
+    setSeguimentosPerfil(segMap)
   }, [])
 
   const fetchLogs = useCallback(async () => {
@@ -397,10 +422,11 @@ export function CadastrosAuditoria() {
             const tipo = log.tipo as TipoLogCadastro | null
             const nomeCadastro =
               tipo && log.perfil_id ? nomesPerfil[nomePerfilCacheKey(tipo, log.perfil_id)] ?? '—' : '—'
+            const cacheKey = tipo && log.perfil_id ? nomePerfilCacheKey(tipo, log.perfil_id) : null
             const categoriaCadastro =
-              tipo === 'profissionais' && log.perfil_id
-                ? categoriasPerfil[nomePerfilCacheKey(tipo, log.perfil_id)]
-                : undefined
+              tipo === 'profissionais' && cacheKey ? categoriasPerfil[cacheKey] : undefined
+            const seguimentoCadastro =
+              tipo === 'empresas' && cacheKey ? seguimentosPerfil[cacheKey] : undefined
             const statusUpper = statusAuditoriaUpper(log)
             const titulo = tipo ? tituloCardAuditoria(tipo, statusUpper) : statusFinalDoLog(log)
 
@@ -421,10 +447,17 @@ export function CadastrosAuditoria() {
                         {titulo}
                       </span>
                     </div>
-                    <p className="mt-1 truncate text-sm font-semibold text-gray-900">{nomeCadastro}</p>
+                    {nomeCadastro !== '—' ? (
+                      <p className="mt-1 truncate text-sm font-semibold text-gray-900">{nomeCadastro}</p>
+                    ) : null}
                     {categoriaCadastro ? (
                       <p className="mt-0.5 text-xs font-bold uppercase tracking-wide" style={{ color: COR_ARQUIVAR }}>
                         {categoriaCadastro}
+                      </p>
+                    ) : null}
+                    {seguimentoCadastro ? (
+                      <p className="mt-0.5 text-xs font-bold uppercase tracking-wide" style={{ color: COR_ARQUIVAR }}>
+                        {seguimentoCadastro}
                       </p>
                     ) : null}
                     <p className="mt-0.5 text-xs text-gray-500">{formatarDataHora(log.created_at)}</p>
