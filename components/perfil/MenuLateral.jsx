@@ -75,6 +75,7 @@ import AnexarDocumentos from '@/components/perfil/subpaginas/AnexarDocumentos'
 import AnexarDocumentosTurista from '@/components/perfil/subpaginas/AnexarDocumentosTurista'
 import AnexarDocumentosEmpresa from '@/components/perfil/subpaginas/AnexarDocumentosEmpresa'
 import HistoricoManifestos from '@/components/perfil/subpaginas/HistoricoManifestos'
+import RecomendacoesFeitas from '@/components/perfil/subpaginas/RecomendacoesFeitas'
 import ParceriasProfissional from '@/components/perfil/subpaginas/ParceriasProfissional'
 import VisitantesPerfil from '@/components/perfil/subpaginas/VisitantesPerfil'
 import { contarVisitasPerfilPendentes } from '@/lib/perfilVisitas'
@@ -757,7 +758,11 @@ export default function MenuLateral({
         }
       }
       if (['contratacoes', 'compras', 'parcerias', 'recomendacoes'].includes(item.subpagina)) {
-        abrirPagina(t, 'meu-historico', item.subpagina)
+        if (menuVariantEfetivo === 'profissional' && item.subpagina === 'recomendacoes') {
+          abrirPagina(t, 'recomendacoes-feitas')
+        } else {
+          abrirPagina(t, 'meu-historico', item.subpagina)
+        }
       } else {
         abrirPagina(t, item.subpagina)
       }
@@ -866,6 +871,7 @@ export default function MenuLateral({
     if (id === 'manifestos') return <MeusManifestos />
     if (id === 'historico-manifestos') return <HistoricoManifestos />
     if (id === 'parcerias-prof') return <ParceriasProfissional />
+    if (id === 'recomendacoes-feitas') return <RecomendacoesFeitas usuarioId={usuarioIdEfetivo} />
     if (id === 'meu-historico') return <MeuHistorico tipo={histTipo} />
     if (id === 'historico-decisoes') {
       const denunciadoTipo =
