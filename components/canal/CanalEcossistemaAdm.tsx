@@ -39,6 +39,7 @@ export default function CanalEcossistemaAdm({ embedded = false }: { embedded?: b
   const [carregando, setCarregando] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
+  const carregarLista = useCallback(async () => {
     setCarregando(true)
     try {
       const status = aba === 'historico' ? 'encerrada' : 'aberta'
