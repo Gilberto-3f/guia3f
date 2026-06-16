@@ -8,6 +8,7 @@ import { ProfissionalGateProvider } from '@/context/ProfissionalGateContext'
 import ModoApresentacaoChrome from '@/components/ModoApresentacaoChrome'
 import ProfissionalGateBanner from '@/components/ProfissionalGateBanner'
 import BottomBar from '@/components/BottomBar'
+import AdminEcossistemaAlertaGate from '@/components/canal/AdminEcossistemaAlertaGate'
 
 /** `feed/criar` emite quando o teclado está visível para esconder a barra (aba TEXTO ou legenda na FOTO). */
 const CRIAR_KEYBOARD_EVENT = 'guia-criar-keyboard'
@@ -19,11 +20,13 @@ const CRIAR_KEYBOARD_EVENT = 'guia-criar-keyboard'
 function shellClasses(pathname: string, tecladoOcultaBarra: boolean) {
   const isStoryCriar = pathname.includes('/feed/story/criar')
   const isCanal = pathname.includes('/canal')
+  const isChatAdm = pathname.includes('/chat-adm')
+  const telaMensageiro = isCanal || isChatAdm
   const hideBottomBar =
-    isStoryCriar || ((pathname.includes('/feed/criar') || isCanal) && tecladoOcultaBarra)
+    isStoryCriar || ((pathname.includes('/feed/criar') || telaMensageiro) && tecladoOcultaBarra)
   const paddingInferior = hideBottomBar
     ? ''
-    : isCanal
+    : telaMensageiro
       ? 'pb-14'
       : pathname.includes('/feed/criar')
         ? 'pb-14'
@@ -49,17 +52,18 @@ function AppShellLayoutFrame({
   children: ReactNode
 }) {
   const { hideBottomBar, paddingInferior, fundoShell } = shellClasses(pathname, tecladoOcultaBarra)
-  const isCanal = pathname.includes('/canal')
+  const telaMensageiro = pathname.includes('/canal') || pathname.includes('/chat-adm')
 
   return (
     <div
       className={`flex flex-col ${fundoShell} ${paddingInferior} ${
-        isCanal ? 'h-dvh max-h-dvh overflow-hidden' : 'min-h-screen min-h-dvh'
+        telaMensageiro ? 'h-dvh max-h-dvh overflow-hidden' : 'min-h-screen min-h-dvh'
       }`}
     >
       {modoAtivo ? null : <ModoApresentacaoChrome />}
       <ProfissionalGateBanner />
-      <div className={`flex min-h-0 flex-1 flex-col ${isCanal ? 'overflow-hidden' : ''}`}>{children}</div>
+      <AdminEcossistemaAlertaGate />
+      <div className={`flex min-h-0 flex-1 flex-col ${telaMensageiro ? 'overflow-hidden' : ''}`}>{children}</div>
       {!hideBottomBar ? <BottomBar /> : null}
     </div>
   )
@@ -89,7 +93,9 @@ function AppShellInner({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (!pathname.includes('/feed/criar') && !pathname.includes('/canal')) setTecladoOcultaBarra(false)
+    if (!pathname.includes('/feed/criar') && !pathname.includes('/canal') && !pathname.includes('/chat-adm')) {
+      setTecladoOcultaBarra(false)
+    }
   }, [pathname])
 
   return (

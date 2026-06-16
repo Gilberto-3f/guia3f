@@ -27,7 +27,9 @@ export function canalMensageiroAdmSemAbasPais(nome: string | null | undefined) {
     n === 'FINANCEIRO' ||
     n === 'MENSAGEIRO' ||
     n === 'MENSAGEIRO ADM' ||
-    raw === 'Mensageiro ADM'
+    n === 'MENSAGEIRO ECOSSISTEMA' ||
+    raw === 'Mensageiro ADM' ||
+    raw === 'Mensageiro ECOSSISTEMA'
   )
 }
 
@@ -36,12 +38,19 @@ export function isCanalFinanceiroHubAdm(canal: { nome?: string | null }) {
   return nomeNormCanal(canal.nome) === 'FINANCEIRO'
 }
 
+/** Mensageiro ECOSSISTEMA — hub ADM (membros iniciam o chat). */
+export function isCanalEcossistemaHubAdm(canal: { nome?: string | null }) {
+  const n = nomeNormCanal(canal.nome)
+  return n === 'MENSAGEIRO ECOSSISTEMA' || (canal.nome ?? '').trim() === 'Mensageiro ECOSSISTEMA'
+}
+
 /** Lista Administração + título na página do canal (quando for ADM/Financeiro). */
 export function rotuloNomeCanalAdministracao(nome: string | null | undefined) {
   const raw = (nome ?? '').trim()
   if (!raw) return 'Canal'
   const n = nomeNormCanal(raw)
   if (n === 'FINANCEIRO') return 'Canal Financeiro'
+  if (n === 'MENSAGEIRO ECOSSISTEMA' || raw === 'Mensageiro ECOSSISTEMA') return 'Mensageiro ECOSSISTEMA'
   if (n === 'ADM' || n === 'MENSAGEIRO' || n === 'MENSAGEIRO ADM' || raw === 'Mensageiro ADM') return 'Mensageiro ADM'
   return raw
 }

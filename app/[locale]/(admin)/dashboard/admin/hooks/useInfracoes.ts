@@ -19,7 +19,7 @@ export type Infracao = {
 export type HistoricoDecisao = {
   id: string
   denuncia_id?: string | null
-  tipo: 'advertencia' | 'suspensao' | 'banimento' | 'alerta_preventivo' | 'decisao_denuncia'
+  tipo: 'advertencia' | 'suspensao' | 'banimento' | 'alerta_preventivo' | 'decisao_denuncia' | 'chat_ecossistema'
   titulo: string
   descricao: string
   penalidade_aplicada: string

@@ -31,6 +31,7 @@ import {
   profissionalPaisParaAba,
 } from '@/lib/canalAbasPaisColetivo'
 import {
+  isCanalEcossistemaHubAdm,
   isCanalFinanceiroHubAdm,
   rotuloNomeCanalAdministracao,
 } from '@/lib/rotulosCanaisAdministracao'
@@ -63,6 +64,15 @@ const CanalMensagens = dynamic(() => import('@/components/CanalMensagens'), {
   loading: () => (
     <div className="flex flex-1 items-center justify-center">
       <div className="animate-pulse text-sm text-gray-400">Carregando mensagens...</div>
+    </div>
+  ),
+})
+
+const CanalEcossistemaAdm = dynamic(() => import('@/components/canal/CanalEcossistemaAdm'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-1 items-center justify-center">
+      <div className="animate-pulse text-sm text-gray-400">Carregando mensageiro ecossistema...</div>
     </div>
   ),
 })
@@ -785,6 +795,8 @@ export default function CanalDetalhePage() {
 
   if (userTipoEfetivo === 'admin') {
     const hubFinanceiroAdm = canal != null && isCanalFinanceiroHubAdm(canal)
+    const hubEcossistemaAdm = canal != null && isCanalEcossistemaHubAdm(canal)
+    const hubAdmSemDrawer = hubFinanceiroAdm || hubEcossistemaAdm
     const mostrarAbasPais = mostrarAbasPaisColetivo
     return (
       <>
@@ -798,10 +810,10 @@ export default function CanalDetalhePage() {
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal} disabled={hubFinanceiroAdm}>
+          <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal} disabled={hubAdmSemDrawer}>
             <span className="truncate text-lg font-semibold">{tituloCanal}</span>
           </CanalHeaderTitulo>
-          {hubFinanceiroAdm ? (
+          {hubAdmSemDrawer ? (
             <div className="h-10 w-10 shrink-0" aria-hidden />
           ) : (
             <button
@@ -817,6 +829,8 @@ export default function CanalDetalhePage() {
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {hubFinanceiroAdm ? (
             <CanalFinanceiroAdm embedded />
+          ) : hubEcossistemaAdm ? (
+            <CanalEcossistemaAdm embedded />
           ) : (
             <>
               {mostrarAbasPais ? (

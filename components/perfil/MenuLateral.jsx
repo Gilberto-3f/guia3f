@@ -120,6 +120,8 @@ const itemConfig = /** @type {const} */ {
   subpagina: 'configuracoes',
 }
 
+const itemChatAdm = /** @type {const} */ { Icon: MessageSquare, label: 'Chat ADM', href: '/chat-adm' }
+
 const itemSair = /** @type {const} */ { label: 'Sair', acao: 'logout' }
 
 /** Ícones dos subgrupos dentro de Aplicativo. */
@@ -209,7 +211,7 @@ function secoesTurista(opts = {}) {
     { Icon: Search, label: 'Item esquecido', subpagina: 'emergencia-item-esquecido' },
     { Icon: MapPin, label: 'Estou perdido(a)', subpagina: 'emergencia-perdido' },
     { Icon: AlertTriangle, label: 'SOCORRO', subpagina: 'emergencia-socorro' },
-    { Icon: Phone, label: 'Contatar ADM', subpagina: 'emergencia-adm' },
+    { Icon: Phone, label: 'Contatar ADM', href: '/chat-adm' },
   ]
   const gUsuario = [
     { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
@@ -221,6 +223,7 @@ function secoesTurista(opts = {}) {
   const gAplic = [
     itemHistoricoCompras,
     { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
+    itemChatAdm,
     itemConfig,
   ]
   return [
@@ -275,6 +278,7 @@ function secoesProfissional(ctx) {
       items: [
         { Icon: History, label: 'Minhas Compras', subpagina: 'historico-compras' },
         { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
+        itemChatAdm,
       ],
     },
     {
@@ -360,12 +364,13 @@ function secoesEmpresa(ctx) {
         href: '/empresa/menu/compras-paraguai',
         condicional: empresaComprasParaguaiVisivel,
       },
-      { Icon: MessageSquare, label: 'Chat ADM', href: '/empresa/menu/chat-adm' },
+      { Icon: MessageSquare, label: 'Chat ADM', href: '/chat-adm' },
     ],
     ctx
   )
   const gAplic = [
     { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
+    itemChatAdm,
     itemConfig,
   ]
   return [

@@ -106,11 +106,11 @@ export default function Configuracoes({ variant = 'turista', onAbrirRegras }) {
       </div>
 
       {mostrarFalarComAdm ? (
-        <Link href="/canal" className="flex items-center gap-3 px-3 py-3 transition hover:bg-gray-50">
+        <Link href="/chat-adm" className="flex items-center gap-3 px-3 py-3 transition hover:bg-gray-50">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
             <MessageSquare className="h-5 w-5" strokeWidth={1.75} aria-hidden />
           </span>
-          <span className="flex-1 text-sm font-medium text-gray-800">Falar com ADM</span>
+          <span className="flex-1 text-sm font-medium text-gray-800">Chat ADM</span>
         </Link>
       ) : null}
 
