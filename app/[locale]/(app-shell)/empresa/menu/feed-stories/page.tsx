@@ -76,8 +76,8 @@ export default function FeedStoriesPage() {
             <ArrowLeft className="h-5 w-5" aria-hidden />
           </button>
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold text-white">Feed e Storys</h1>
-            <p className="truncate text-xs text-white/80">Menu Empresa</p>
+            <h1 className="truncate text-lg font-bold text-white">Rede Social</h1>
+            <p className="truncate text-xs text-white/80">Feed, stories e agendamentos</p>
           </div>
         </div>
       </header>
