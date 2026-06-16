@@ -80,6 +80,29 @@ function isErroSchemaAusente(err: { code?: string; message?: string } | null | u
   return /could not find the table|could not find the '.+' column/i.test(String(err.message ?? ''))
 }
 
+function buildRecursosFromRow(row: Record<string, unknown>): Record<string, unknown> {
+  const raw = row.recursos
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>
+  }
+
+  const servicosRaw = row.servicos
+  const servicos = Array.isArray(servicosRaw)
+    ? servicosRaw.filter((s): s is ServicoPlanoId => typeof s === 'string')
+    : []
+
+  return {
+    servicos,
+    cor: row.cor ?? 'azul',
+    descricao: row.descricao ?? '',
+    precos: {
+      mensal: Number(row.preco_mensal ?? row.valor ?? 0),
+      trimestral: Number(row.preco_trimestral ?? 0),
+      anual: Number(row.preco_anual ?? 0),
+    },
+  }
+}
+
 function mapPlanoRow(row: Record<string, unknown>): PlanoEmpresaAdm {
   const servicosRaw = row.servicos
   const servicos = Array.isArray(servicosRaw)
@@ -99,7 +122,7 @@ function mapPlanoRow(row: Record<string, unknown>): PlanoEmpresaAdm {
     precoTrimestral: Number(row.preco_trimestral ?? 0),
     precoAnual: Number(row.preco_anual ?? 0),
     valor: precoMensal,
-    recursos: (row.recursos as Record<string, unknown>) ?? {},
+    recursos: buildRecursosFromRow(row),
     ativo: row.ativo !== false,
     ordem: Number(row.ordem ?? 0),
   }
@@ -237,17 +260,6 @@ export function useFinanceiroAdm() {
 
       setLoadingPlanos(true)
       try {
-        const recursos = {
-          servicos: input.servicos,
-          cor: input.cor,
-          descricao: input.descricao.trim(),
-          precos: {
-            mensal: input.precoMensal,
-            trimestral: input.precoTrimestral,
-            anual: input.precoAnual,
-          },
-        }
-
         const payload = {
           titulo: input.titulo.trim(),
           cor: input.cor,
@@ -257,7 +269,6 @@ export function useFinanceiroAdm() {
           preco_trimestral: input.precoTrimestral,
           preco_anual: input.precoAnual,
           valor: input.precoMensal,
-          recursos,
         }
 
         if (input.id) {
