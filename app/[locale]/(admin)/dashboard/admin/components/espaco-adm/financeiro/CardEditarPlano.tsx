@@ -13,7 +13,7 @@ import type { PlanoFormInput } from '../../../hooks/useFinanceiroAdm'
 import { ModalDegustacao } from './ModalDegustacao'
 
 const COR_CONFIRMAR = '#00D443'
-const MAX_DESCRICAO = 750
+const MAX_DESCRICAO = 1500
 
 export function planoFormVazio(): PlanoFormInput {
   return {

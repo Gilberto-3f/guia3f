@@ -11,8 +11,9 @@ import { Car, MapPin } from 'lucide-react'
 import PublicidadeHome from '@/components/PublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
 
-function abaGuiaCls(ativo: boolean, unica: boolean) {
-  return `flex min-w-0 ${unica ? 'w-full flex-none' : 'flex-1'} items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
+function abaGuiaCls(ativo: boolean, unica: boolean, tituloMaior = false) {
+  const tamanho = tituloMaior ? 'text-lg sm:text-xl' : 'text-sm sm:text-base'
+  return `flex min-w-0 ${unica ? 'w-full flex-none' : 'flex-1'} items-center justify-center gap-2 border-b-[3px] py-3 text-center ${tamanho} font-semibold tracking-wide transition-colors ${
     ativo
       ? 'border-[#0097b2] text-[#0097b2]'
       : 'border-transparent text-gray-500'
@@ -82,8 +83,8 @@ export default function GuiaPage() {
           </div>
         ) : mostrarTituloGuiaTuristico ? (
           <div className="flex w-full border-b border-gray-200 bg-white">
-            <div className={abaGuiaCls(true, true)}>
-              <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
+            <div className={abaGuiaCls(true, true, true)}>
+              <MapPin className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" aria-hidden strokeWidth={2} />
               <span>{tGuia('title')}</span>
             </div>
           </div>

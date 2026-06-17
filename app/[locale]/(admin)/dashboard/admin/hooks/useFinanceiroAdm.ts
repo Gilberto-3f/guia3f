@@ -263,7 +263,7 @@ export function useFinanceiroAdm() {
         const payload = {
           titulo: input.titulo.trim(),
           cor: input.cor,
-          descricao: input.descricao.trim().slice(0, 750),
+          descricao: input.descricao.trim().slice(0, 1500),
           servicos: input.servicos,
           preco_mensal: input.precoMensal,
           preco_trimestral: input.precoTrimestral,

@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
 import { Mic, Paperclip, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
@@ -469,41 +468,35 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
               <button
                 type="button"
                 onClick={() => setConversaVisualId(c.id)}
-                className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left shadow-sm transition-colors ${
-                  temNaoLida
-                    ? 'border-2 border-[#00D443] bg-[#007a8f] ring-2 ring-[#00D443]/40 hover:bg-[#006b7d]'
-                    : 'bg-[#0097b2] hover:bg-[#008099]'
+                className={`relative flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition hover:bg-gray-50 ${
+                  temNaoLida ? 'border-[#00D443] bg-green-50/40 ring-1 ring-[#00D443]/30' : 'border-gray-200 bg-white'
                 }`}
               >
                 {temNaoLida ? (
-                  <span className="absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#00D443] px-1 text-[10px] font-bold text-white">
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                     !
                   </span>
                 ) : null}
                 <AvatarImage
                   src={adm?.fotoUrl ?? null}
                   alt=""
-                  width={40}
-                  height={40}
-                  className={`${AVATAR_QUADRADO} ring-2 ring-white`}
+                  width={44}
+                  height={44}
+                  className={`${AVATAR_QUADRADO} h-11 w-11`}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate font-medium text-white">
-                      {adm?.nome ?? 'Administração'}
-                    </span>
+                    <span className="truncate font-semibold text-gray-900">{adm?.nome ?? 'Administração'}</span>
                     {temNaoLida ? (
-                      <span className="shrink-0 rounded-full bg-[#00D443] px-2 py-0.5 text-[10px] font-bold uppercase text-white">
-                        Nova mensagem
+                      <span className="shrink-0 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                        Nova
                       </span>
                     ) : null}
                   </div>
-                  <div className="text-xs text-white/90">
+                  <div className="text-xs text-gray-500">
                     {statusRotulo} · {dataRotulo}
                   </div>
-                  {c.assunto ? (
-                    <div className="truncate text-xs text-white/80">{c.assunto}</div>
-                  ) : null}
+                  {c.assunto ? <div className="truncate text-xs text-gray-500">{c.assunto}</div> : null}
                 </div>
               </button>
             </li>
@@ -526,135 +519,112 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
         assunto={conversaAtual?.assunto}
         onFechar={() => setConversaVisualId(null)}
         messagesEndRef={messagesEndRef}
-        cabecalhoHistorico
         cabecalhoNome={admDialogo?.nome ?? 'Administração'}
-        cabecalhoFotoUrl={admDialogo?.fotoUrl ?? null}
         cabecalhoMeta={metaDialogo}
       />
 
       {podeResponder ? (
         <div
-          className="sticky bottom-0 z-20 shrink-0 border-t border-gray-200 bg-white px-2 py-2"
+          className="relative flex shrink-0 items-end gap-2 border-t border-gray-200 bg-white px-3 py-2"
           style={{ paddingBottom: paddingTeclado > 0 ? paddingTeclado : undefined }}
         >
           {gravandoAudio ? (
-            <div className="mb-2 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="absolute bottom-full left-0 right-0 mb-1 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
               <span className="font-medium">Gravando…</span>
               <span className="tabular-nums">
                 {Math.floor(segundosGravacao / 60)}:{String(segundosGravacao % 60).padStart(2, '0')}
               </span>
-              <span className="text-xs">Solte para enviar</span>
             </div>
           ) : null}
 
           {anexoPreview ? (
-            <div className="relative mb-2 inline-block">
-              <div className="relative h-20 w-20 overflow-hidden rounded-lg">
-                <Image src={anexoPreview} alt="" width={80} height={80} className="object-cover" unoptimized />
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setAnexo(null)
-                  setAnexoPreview(null)
-                }}
-                className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white"
-                aria-label="Remover anexo"
-              >
-                ×
-              </button>
+            <div className="absolute bottom-full left-3 mb-1">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={anexoPreview} alt="" className="h-16 w-16 rounded-lg object-cover" />
             </div>
           ) : null}
 
-          <form
-            className="flex min-w-0 items-end gap-2"
-            onSubmit={(e) => {
-              e.preventDefault()
-              void handleEnviar()
-            }}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,.pdf,.doc,.docx"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                e.target.value = ''
-                if (!f) return
-                setAnexo(f)
-                if (f.type.startsWith('image/')) {
-                  const reader = new FileReader()
-                  reader.onloadend = () => {
-                    setAnexoPreview(typeof reader.result === 'string' ? reader.result : null)
-                  }
-                  reader.readAsDataURL(f)
-                } else {
-                  setAnexoPreview(null)
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              e.target.value = ''
+              if (!f) return
+              setAnexo(f)
+              if (f.type.startsWith('image/')) {
+                const reader = new FileReader()
+                reader.onloadend = () => {
+                  setAnexoPreview(typeof reader.result === 'string' ? reader.result : null)
                 }
-              }}
-            />
+                reader.readAsDataURL(f)
+              } else {
+                setAnexoPreview(null)
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={gravandoAudio}
+            className="flex h-10 w-10 shrink-0 items-center justify-center text-gray-500 hover:text-[#0097b2] disabled:opacity-40"
+            aria-label="Anexo"
+          >
+            <Paperclip className="h-5 w-5" aria-hidden />
+          </button>
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={novaMensagem}
+            disabled={enviando || gravandoAudio}
+            onChange={(e) => setNovaMensagem(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                void handleEnviar()
+              }
+            }}
+            placeholder="Digite sua mensagem..."
+            className="max-h-28 min-h-[40px] flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#0097b2]"
+          />
+          {novaMensagem.trim() || anexo ? (
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={gravandoAudio}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end text-gray-500 hover:text-[#0097b2] disabled:opacity-40"
-              aria-label="Anexo"
-            >
-              <Paperclip className="h-5 w-5" aria-hidden />
-            </button>
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={novaMensagem}
               disabled={enviando || gravandoAudio}
-              enterKeyHint="send"
-              onChange={(e) => setNovaMensagem(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  void handleEnviar()
+              onClick={() => void handleEnviar()}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#00D443] text-white disabled:opacity-50"
+              aria-label="Enviar"
+            >
+              <Send className="h-5 w-5" aria-hidden />
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={enviando}
+              onPointerDown={(e) => {
+                e.preventDefault()
+                try {
+                  e.currentTarget.setPointerCapture(e.pointerId)
+                } catch {
+                  /* ignore */
                 }
+                void iniciarGravacaoAudio()
               }}
-              placeholder="Responder à administração…"
-              className="max-h-24 min-h-10 min-w-0 flex-1 resize-none rounded-full border border-gray-200 bg-gray-100 px-4 py-2 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2] disabled:opacity-60"
-            />
-            {novaMensagem.trim() || anexo ? (
-              <button
-                type="submit"
-                disabled={enviando || gravandoAudio}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-full bg-[#00D443] text-white disabled:opacity-50"
-                aria-label="Enviar"
-              >
-                <Send className="h-5 w-5" aria-hidden />
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={enviando}
-                onPointerDown={(e) => {
-                  e.preventDefault()
-                  try {
-                    e.currentTarget.setPointerCapture(e.pointerId)
-                  } catch {
-                    /* ignore */
-                  }
-                  void iniciarGravacaoAudio()
-                }}
-                onPointerUp={(e) => {
-                  e.preventDefault()
-                  void finalizarGravacaoAudioRef.current(enviarAoPararGravacaoRef.current)
-                }}
-                onPointerCancel={() => {
-                  void finalizarGravacaoAudioRef.current(false)
-                }}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-full bg-[#00D443] text-white disabled:opacity-50"
-                aria-label="Gravar áudio"
-              >
-                <Mic className="h-5 w-5" aria-hidden />
-              </button>
-            )}
-          </form>
+              onPointerUp={(e) => {
+                e.preventDefault()
+                void finalizarGravacaoAudioRef.current(enviarAoPararGravacaoRef.current)
+              }}
+              onPointerCancel={() => {
+                void finalizarGravacaoAudioRef.current(false)
+              }}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#00D443] text-white disabled:opacity-50"
+              aria-label="Gravar áudio"
+            >
+              <Mic className="h-5 w-5" aria-hidden />
+            </button>
+          )}
         </div>
       ) : null}
     </div>
