@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
+import { calcularVistoEmAposLeitura } from '@/lib/canalBadge'
 
 export type MembroTipoEcossistema = 'turista' | 'profissional' | 'empresa'
 export type StatusConversaEcossistema = 'aberta' | 'encerrada'
@@ -365,6 +366,65 @@ export async function buscarPerfisMembroEcossistema(
   }
 
   return map
+}
+
+export function mapMensagemEcossistemaPayload(row: Record<string, unknown>): EcossistemaMensagemRow {
+  return mapMensagem(row)
+}
+
+export async function marcarConversaEcossistemaLida(
+  supabase: SupabaseClient,
+  usuarioId: string,
+  conversaId: string,
+  ultimaMensagemIso?: string | null,
+): Promise<void> {
+  if (!usuarioId || !conversaId) return
+  const visto_em = calcularVistoEmAposLeitura(ultimaMensagemIso)
+  await supabase.from('ecossistema_conversa_leitura').upsert(
+    {
+      usuario_id: usuarioId,
+      conversa_id: conversaId,
+      visto_em,
+    },
+    { onConflict: 'usuario_id,conversa_id' },
+  )
+}
+
+/** Mensagens de ADM não lidas na conversa aberta do membro. */
+export async function contarNaoLidasChatAdmMembro(
+  supabase: SupabaseClient,
+  membroUserId: string,
+): Promise<number> {
+  const conversa = await buscarConversaAbertaMembro(supabase, membroUserId)
+  if (!conversa) return 0
+
+  const { data: leitura } = await supabase
+    .from('ecossistema_conversa_leitura')
+    .select('visto_em')
+    .eq('usuario_id', membroUserId)
+    .eq('conversa_id', conversa.id)
+    .maybeSingle()
+
+  const visto = new Date(String(leitura?.visto_em ?? 0)).getTime()
+  const vistoMs = Number.isNaN(visto) ? 0 : visto
+  const desdeIso = vistoMs > 0 ? new Date(vistoMs).toISOString() : new Date(0).toISOString()
+
+  const { data: mensagens, error } = await supabase
+    .from('ecossistema_mensagens')
+    .select('remetente_id, created_at')
+    .eq('conversa_id', conversa.id)
+    .gt('created_at', desdeIso)
+    .neq('remetente_id', membroUserId)
+
+  if (error || !mensagens?.length) return 0
+
+  const remetenteIds = [...new Set(mensagens.map((m) => String(m.remetente_id)).filter(Boolean))]
+  const { data: usuarios } = await supabase.from('usuarios').select('id, role').in('id', remetenteIds)
+  const admins = new Set(
+    (usuarios ?? []).filter((u) => String(u.role ?? '') === 'admin').map((u) => String(u.id)),
+  )
+
+  return mensagens.filter((m) => admins.has(String(m.remetente_id ?? ''))).length
 }
 
 export function roleParaMembroTipo(role: string | null | undefined): MembroTipoEcossistema | null {

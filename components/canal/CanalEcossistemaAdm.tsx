@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
 import { AlertTriangle, ChevronUp, Send } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
-import type { EcossistemaConversaRow, EcossistemaMensagemRow } from '@/lib/ecossistemaConversas'
+import { mapMensagemEcossistemaPayload, type EcossistemaConversaRow, type EcossistemaMensagemRow } from '@/lib/ecossistemaConversas'
+import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 
 type AbaEcossistema = 'turista' | 'profissional' | 'empresa' | 'historico'
 
@@ -98,8 +100,34 @@ export default function CanalEcossistemaAdm({
   useEffect(() => {
     if (!selecionada?.id || !painelAberto) return
     void carregarMensagens(selecionada.id)
-    const ch = setInterval(() => void carregarMensagens(selecionada.id), 8000)
-    return () => clearInterval(ch)
+
+    const ch = supabase
+      .channel(`eco-adm-${selecionada.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'ecossistema_mensagens',
+          filter: `conversa_id=eq.${selecionada.id}`,
+        },
+        (payload) => {
+          const row = payload.new as Record<string, unknown>
+          if (!row?.id) return
+          const nova = mapMensagemEcossistemaPayload(row)
+          setMensagens((prev) => {
+            if (prev.some((m) => m.id === nova.id)) return prev
+            return [...prev, nova]
+          })
+          messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })
+          notificarBadgeCanais()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(ch)
+    }
   }, [selecionada?.id, painelAberto, carregarMensagens])
 
   const abrirConversa = (c: ConversaComMembro) => {
@@ -126,9 +154,12 @@ export default function CanalEcossistemaAdm({
         window.alert(json.error ?? 'Falha ao enviar.')
         return
       }
-      setMensagens((prev) => [...prev, json.mensagem!])
+      setMensagens((prev) => {
+        if (prev.some((m) => m.id === json.mensagem!.id)) return prev
+        return [...prev, json.mensagem!]
+      })
       setTextoMsg('')
-      void carregarLista()
+      notificarBadgeCanais()
     } finally {
       setEnviando(false)
     }

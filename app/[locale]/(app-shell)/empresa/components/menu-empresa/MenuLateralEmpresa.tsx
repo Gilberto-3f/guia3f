@@ -1,11 +1,15 @@
 'use client'
 
 import Link from 'next/link'
+import { useCallback, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { signOutCurrentDevice } from '@/lib/authCookieSync'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import type { MenuEmpresaId } from '@/lib/planosEmpresaServicosGate'
+import { supabase } from '@/lib/supabase'
+import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
+import { GUIA_CHAT_ADM_BADGE_EVENT } from '@/lib/chat-adm-badge-events'
 
 interface MenuItem {
   id: MenuEmpresaId
@@ -26,6 +30,54 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
   const pathname = usePathname()
   const { dados } = useDashboardEmpresa()
   const { menuLiberado } = useEmpresaServicosPlano(dados?.plano, dados?.id)
+  const [chatAdmNaoLido, setChatAdmNaoLido] = useState(0)
+
+  const usuarioId = dados?.usuario_id ?? null
+
+  const refreshChatAdmBadge = useCallback(async () => {
+    if (!usuarioId) {
+      setChatAdmNaoLido(0)
+      return
+    }
+    try {
+      const n = await contarNaoLidasChatAdmMembro(supabase, usuarioId)
+      setChatAdmNaoLido(n)
+    } catch {
+      setChatAdmNaoLido(0)
+    }
+  }, [usuarioId])
+
+  useEffect(() => {
+    if (!usuarioId) {
+      setChatAdmNaoLido(0)
+      return
+    }
+    void refreshChatAdmBadge()
+    const onBadge = () => {
+      void refreshChatAdmBadge()
+    }
+    window.addEventListener(GUIA_CHAT_ADM_BADGE_EVENT, onBadge)
+    const ch = supabase
+      .channel(`menu-empresa-chat-adm-${usuarioId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ecossistema_mensagens' },
+        (payload) => {
+          const remetente = payload.new?.remetente_id != null ? String(payload.new.remetente_id) : ''
+          if (remetente === usuarioId) return
+          onBadge()
+        },
+      )
+      .subscribe()
+    return () => {
+      window.removeEventListener(GUIA_CHAT_ADM_BADGE_EVENT, onBadge)
+      void supabase.removeChannel(ch)
+    }
+  }, [usuarioId, refreshChatAdmBadge])
+
+  useEffect(() => {
+    if (aberto) void refreshChatAdmBadge()
+  }, [aberto, refreshChatAdmBadge])
 
   const itensVisiveis = MENU_ITEMS.filter((item) => menuLiberado(item.id))
 
@@ -76,6 +128,9 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
                   {item.icon}
                 </span>
                 <span className="flex-1">{item.label}</span>
+                {item.id === 'chat-adm' && chatAdmNaoLido > 0 ? (
+                  <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">{chatAdmNaoLido}</span>
+                ) : null}
               </Link>
             )
           })}

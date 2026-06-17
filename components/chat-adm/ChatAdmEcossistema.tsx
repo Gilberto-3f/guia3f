@@ -1,15 +1,26 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronLeft, Send } from 'lucide-react'
-import AvatarImage from '@/components/AvatarImage'
-import type { EcossistemaConversaRow, EcossistemaMensagemRow } from '@/lib/ecossistemaConversas'
+import { Send } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import {
+  mapMensagemEcossistemaPayload,
+  marcarConversaEcossistemaLida,
+  type EcossistemaConversaRow,
+  type EcossistemaMensagemRow,
+} from '@/lib/ecossistemaConversas'
+import { notificarBadgeChatAdm } from '@/lib/chat-adm-badge-events'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 
 type Props = {
   usuarioId: string
   urgenteInicial?: boolean
+}
+
+function ultimaMensagemIso(lista: EcossistemaMensagemRow[]): string | null {
+  if (!lista.length) return null
+  return lista[lista.length - 1]?.created_at ?? null
 }
 
 export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }: Props) {
@@ -24,12 +35,18 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
   const [iniciando, setIniciando] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const urgenteAplicadoRef = useRef(false)
+  const mensagensRef = useRef<EcossistemaMensagemRow[]>([])
+
+  useEffect(() => {
+    mensagensRef.current = mensagens
+  }, [mensagens])
 
   const conversaAtual =
     conversaAberta?.id === conversaVisualId
       ? conversaAberta
       : arquivadas.find((c) => c.id === conversaVisualId) ?? null
 
+  const conversaAbertaId = conversaAberta?.status === 'aberta' ? conversaAberta.id : null
   const emLista = !conversaVisualId
   const podeResponder = conversaAtual?.status === 'aberta' && conversaAtual.id === conversaAberta?.id
 
@@ -37,8 +54,17 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })
   }, [])
 
-  const carregarConversas = useCallback(async () => {
-    setLoading(true)
+  const marcarLida = useCallback(
+    async (conversaId: string, lista?: EcossistemaMensagemRow[]) => {
+      const msgs = lista ?? mensagensRef.current
+      await marcarConversaEcossistemaLida(supabase, usuarioId, conversaId, ultimaMensagemIso(msgs))
+      notificarBadgeChatAdm()
+    },
+    [usuarioId],
+  )
+
+  const carregarConversas = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true)
     setErro(null)
     try {
       const res = await fetch('/api/ecossistema-conversas')
@@ -54,51 +80,80 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
       }
       setConversaAberta(json.conversaAberta ?? null)
       setArquivadas(json.arquivadas ?? [])
-      if (json.conversaAberta) setConversaVisualId(json.conversaAberta.id)
+      if (json.conversaAberta) {
+        setConversaVisualId((atual) => atual ?? json.conversaAberta!.id)
+      }
     } catch {
       setErro('Falha de conexão.')
     } finally {
-      setLoading(false)
+      if (!silencioso) setLoading(false)
     }
   }, [])
 
-  const abrirChat = useCallback(
-    async (urgente: boolean) => {
-      setIniciando(true)
-      setErro(null)
-      try {
-        const res = await fetch('/api/ecossistema-conversas', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            urgente,
-            assunto: urgente ? 'Solicitação emergencial' : 'Contato com administração',
-          }),
-        })
-        const json = (await res.json()) as { ok?: boolean; conversa?: EcossistemaConversaRow; error?: string }
-        if (!json.ok || !json.conversa) {
-          setErro(json.error ?? 'Não foi possível iniciar o chat.')
-          return
-        }
-        setConversaAberta(json.conversa)
-        setConversaVisualId(json.conversa.id)
-      } catch {
-        setErro('Falha de conexão.')
-      } finally {
-        setIniciando(false)
+  const abrirChat = useCallback(async (urgente: boolean) => {
+    setIniciando(true)
+    setErro(null)
+    try {
+      const res = await fetch('/api/ecossistema-conversas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          urgente,
+          assunto: urgente ? 'Solicitação emergencial' : 'Contato com administração',
+        }),
+      })
+      const json = (await res.json()) as { ok?: boolean; conversa?: EcossistemaConversaRow; error?: string }
+      if (!json.ok || !json.conversa) {
+        setErro(json.error ?? 'Não foi possível iniciar o chat.')
+        return
       }
-    },
-    [],
-  )
+      setConversaAberta(json.conversa)
+      setConversaVisualId(json.conversa.id)
+      notificarBadgeChatAdm()
+    } catch {
+      setErro('Falha de conexão.')
+    } finally {
+      setIniciando(false)
+    }
+  }, [])
 
   const carregarMensagens = useCallback(
-    async (conversaId: string) => {
+    async (conversaId: string, opts?: { silencioso?: boolean; marcarLida?: boolean }) => {
       const res = await fetch(`/api/ecossistema-conversas/${conversaId}/mensagens`)
       const json = (await res.json()) as { mensagens?: EcossistemaMensagemRow[] }
-      setMensagens(json.mensagens ?? [])
-      requestAnimationFrame(() => scrollToBottom())
+      const lista = json.mensagens ?? []
+      setMensagens((prev) => {
+        if (
+          opts?.silencioso &&
+          prev.length === lista.length &&
+          prev.every((m, i) => m.id === lista[i]?.id)
+        ) {
+          return prev
+        }
+        return lista
+      })
+      if (!opts?.silencioso || lista.length !== mensagensRef.current.length) {
+        requestAnimationFrame(() => scrollToBottom())
+      }
+      if (opts?.marcarLida !== false && lista.length > 0) {
+        void marcarLida(conversaId, lista)
+      }
     },
-    [scrollToBottom],
+    [marcarLida, scrollToBottom],
+  )
+
+  const appendMensagem = useCallback(
+    (nova: EcossistemaMensagemRow, conversaId: string) => {
+      setMensagens((prev) => {
+        if (prev.some((m) => m.id === nova.id)) return prev
+        return [...prev, nova]
+      })
+      requestAnimationFrame(() => scrollToBottom())
+      if (nova.remetente_id !== usuarioId) {
+        void marcarLida(conversaId, [...mensagensRef.current.filter((m) => m.id !== nova.id), nova])
+      }
+    },
+    [marcarLida, usuarioId],
   )
 
   useEffect(() => {
@@ -112,18 +167,55 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
   }, [urgenteInicial, loading, conversaAberta, abrirChat])
 
   useEffect(() => {
-    if (conversaVisualId) void carregarMensagens(conversaVisualId)
-    else setMensagens([])
+    if (!conversaVisualId) {
+      setMensagens([])
+      return
+    }
+    void carregarMensagens(conversaVisualId, { marcarLida: true })
   }, [conversaVisualId, carregarMensagens])
 
   useEffect(() => {
-    if (!conversaVisualId || !podeResponder) return
+    if (!conversaAbertaId || conversaVisualId !== conversaAbertaId) return
+
+    const ch = supabase
+      .channel(`eco-membro-${conversaAbertaId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'ecossistema_mensagens',
+          filter: `conversa_id=eq.${conversaAbertaId}`,
+        },
+        (payload) => {
+          const row = payload.new as Record<string, unknown>
+          if (!row?.id) return
+          appendMensagem(mapMensagemEcossistemaPayload(row), conversaAbertaId)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(ch)
+    }
+  }, [conversaAbertaId, conversaVisualId, appendMensagem])
+
+  useEffect(() => {
+    if (!conversaAbertaId || conversaVisualId !== conversaAbertaId) return
     const emit = (hide: boolean) => {
       window.dispatchEvent(new CustomEvent(TECLADO_BOTTOM_BAR_EVENT, { detail: { hide } }))
     }
     emit(true)
     return () => emit(false)
-  }, [conversaVisualId, podeResponder])
+  }, [conversaAbertaId, conversaVisualId])
+
+  useEffect(() => {
+    return () => {
+      if (conversaVisualId && mensagensRef.current.length > 0) {
+        void marcarLida(conversaVisualId, mensagensRef.current)
+      }
+    }
+  }, [conversaVisualId, marcarLida])
 
   const enviarMensagem = async () => {
     const msg = texto.trim()
@@ -140,9 +232,9 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
         setErro(json.error ?? 'Falha ao enviar.')
         return
       }
-      setMensagens((prev) => [...prev, json.mensagem!])
+      appendMensagem(json.mensagem, conversaAberta.id)
       setTexto('')
-      scrollToBottom()
+      notificarBadgeChatAdm()
     } finally {
       setEnviando(false)
     }
@@ -158,8 +250,7 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
         {erro ? <p className="mb-3 text-center text-sm text-rose-600">{erro}</p> : null}
         <div className="mx-auto max-w-md flex-1 rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#e6f7fa] text-2xl">💬</div>
-          <h2 className="mt-4 text-lg font-bold text-[#001f3f]">Chat ADM</h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-4 text-sm text-gray-600">
             Converse com a equipe de administração do app. Descreva sua dúvida ou situação e aguarde o retorno de um ADM.
           </p>
           <button
@@ -200,40 +291,8 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
 
   if (!conversaAtual) return null
 
-  const titulo = conversaAtual.urgente ? 'Socorro — Chat ADM' : 'Chat ADM'
-  const subtitulo =
-    conversaAtual.status === 'encerrada'
-      ? 'Conversa encerrada pela administração'
-      : 'Aguardando ou em atendimento com a equipe ADM'
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="relative shrink-0 bg-[#0097b2] px-3 py-3">
-        <button
-          type="button"
-          onClick={() => {
-            if (conversaAtual.status === 'encerrada') setConversaVisualId(null)
-            else if (arquivadas.length > 0) setConversaVisualId(null)
-          }}
-          className={`absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-white hover:bg-white/15 ${
-            conversaAtual.status === 'aberta' && arquivadas.length === 0 ? 'invisible' : ''
-          }`}
-          aria-label="Voltar"
-        >
-          <ChevronLeft className="h-7 w-7" strokeWidth={2.5} aria-hidden />
-        </button>
-        <div className="flex items-center gap-3 pl-11 pr-2">
-          <AvatarImage src={null} alt="" width={44} height={44} className="h-11 w-11 shrink-0 rounded-md object-cover ring-2 ring-white" />
-          <div className="min-w-0 flex-1">
-            <div className="truncate font-semibold text-white">{titulo}</div>
-            <div className="truncate text-xs text-white/90">{subtitulo}</div>
-            {conversaAtual.urgente && conversaAtual.status === 'aberta' ? (
-              <div className="mt-0.5 text-xs font-bold uppercase text-amber-200">Urgente</div>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
       <div className="min-h-0 flex-1 overflow-y-auto bg-[#e5ddd5] px-3 py-4">
         {mensagens.length === 0 ? (
           <p className="text-center text-sm text-gray-600">

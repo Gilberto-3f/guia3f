@@ -47,6 +47,8 @@ import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import { menuEmpresaLiberado } from '@/lib/planosEmpresaServicosGate'
 import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
 import { textoInfoDrawer } from '@/lib/drawerInfoTextos'
+import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
+import { GUIA_CHAT_ADM_BADGE_EVENT } from '@/lib/chat-adm-badge-events'
 
 import EmergenciaItemEsquecido from '@/components/perfil/subpaginas/emergencia/EmergenciaItemEsquecido'
 import EmergenciaPerdido from '@/components/perfil/subpaginas/emergencia/EmergenciaPerdido'
@@ -124,6 +126,20 @@ const itemConfig = /** @type {const} */ {
 }
 
 const itemChatAdm = /** @type {const} */ { Icon: MessageSquare, label: 'Chat ADM', href: '/chat-adm' }
+
+/** @param {MenuItem} item */
+function itemEhChatAdm(item) {
+  return item.href === '/chat-adm'
+}
+
+/**
+ * @param {{ items?: MenuItem[], subgrupos?: Array<{ items?: MenuItem[] }> }} sec
+ */
+function secaoTemChatAdm(sec) {
+  const base = sec.items ?? []
+  const sub = (sec.subgrupos ?? []).flatMap((s) => s.items ?? [])
+  return [...base, ...sub].some(itemEhChatAdm)
+}
 
 const itemSair = /** @type {const} */ { label: 'Sair', acao: 'logout' }
 
@@ -460,6 +476,7 @@ export default function MenuLateral({
   const [historico, setHistorico] = useState(/** @type {HistoricoEntry[]} */ ([]))
   const [modalLogout, setModalLogout] = useState(false)
   const [historicoNaoLido, setHistoricoNaoLido] = useState(0)
+  const [chatAdmNaoLido, setChatAdmNaoLido] = useState(0)
   const [drawerEntered, setDrawerEntered] = useState(false)
   const { historico: historicoDecisoes, fetchHistoricoUsuario } = useInfracoes()
   const { modoAtivo, perfilSimulado } = useModoApresentacao()
@@ -677,6 +694,51 @@ export default function MenuLateral({
   useEffect(() => {
     setHistoricoNaoLido((historicoDecisoes ?? []).filter((h) => !h.visualizado).length)
   }, [historicoDecisoes])
+
+  const refreshChatAdmBadge = useCallback(async () => {
+    if (!usuarioIdEfetivo || variant === 'admin') {
+      setChatAdmNaoLido(0)
+      return
+    }
+    try {
+      const n = await contarNaoLidasChatAdmMembro(supabase, usuarioIdEfetivo)
+      setChatAdmNaoLido(n)
+    } catch {
+      setChatAdmNaoLido(0)
+    }
+  }, [usuarioIdEfetivo, variant])
+
+  useEffect(() => {
+    if (!usuarioIdEfetivo || variant === 'admin') {
+      setChatAdmNaoLido(0)
+      return
+    }
+    void refreshChatAdmBadge()
+    const onBadge = () => {
+      void refreshChatAdmBadge()
+    }
+    window.addEventListener(GUIA_CHAT_ADM_BADGE_EVENT, onBadge)
+    const ch = supabase
+      .channel(`menu-chat-adm-${usuarioIdEfetivo}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ecossistema_mensagens' },
+        (payload) => {
+          const remetente = payload.new?.remetente_id != null ? String(payload.new.remetente_id) : ''
+          if (remetente && remetente === usuarioIdEfetivo) return
+          onBadge()
+        },
+      )
+      .subscribe()
+    return () => {
+      window.removeEventListener(GUIA_CHAT_ADM_BADGE_EVENT, onBadge)
+      void supabase.removeChannel(ch)
+    }
+  }, [usuarioIdEfetivo, variant, refreshChatAdmBadge])
+
+  useEffect(() => {
+    if (aberto) void refreshChatAdmBadge()
+  }, [aberto, refreshChatAdmBadge])
 
   const voltarUmNivel = useCallback(() => {
     setHistorico((h) => h.slice(0, -1))
@@ -919,11 +981,13 @@ export default function MenuLateral({
         const Ico = item.Icon
         const badgeItem =
           item.badge ??
-          (item.subpagina === 'historico-decisoes'
-            ? historicoNaoLido
-            : item.subpagina === 'visitantes-perfil'
-              ? visitasPendentes
-              : 0)
+          (item.href === '/chat-adm'
+            ? chatAdmNaoLido
+            : item.subpagina === 'historico-decisoes'
+              ? historicoNaoLido
+              : item.subpagina === 'visitantes-perfil'
+                ? visitasPendentes
+                : 0)
         return (
           <li key={`${item.label}-${idx}`}>
             <button
@@ -973,6 +1037,7 @@ export default function MenuLateral({
       const subgrupoBloqueado = profDocsBloqueado && SUBGRUPOS_MENU_PROF_BLOQUEADOS_DOCS.has(sg.key)
       const itensSub = filtrarMenu(sg.items, ctx)
       if (!subgrupoBloqueado && itensSub.length === 0) return null
+      const badgeSub = itensSub.some(itemEhChatAdm) ? chatAdmNaoLido : 0
       return (
         <div key={sg.key} className="mb-1 border-b border-gray-50 last:border-0">
           <button
@@ -989,11 +1054,16 @@ export default function MenuLateral({
               </span>
               <span className="text-sm font-bold tracking-wide text-gray-900">{sg.label}</span>
             </span>
-            {abSub ? (
-              <ChevronUp className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
-            ) : (
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
-            )}
+            <span className="flex shrink-0 items-center gap-2">
+              {badgeSub > 0 ? (
+                <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">{badgeSub}</span>
+              ) : null}
+              {abSub ? (
+                <ChevronUp className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
+              )}
+            </span>
           </button>
           {abSub ? (
             <div className="pb-1">
@@ -1035,7 +1105,9 @@ export default function MenuLateral({
           </span>
         ) : null}
         <span className="flex-1">{item.label}</span>
-        {(item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)) > 0 ||
+        {(item.href === '/chat-adm'
+          ? chatAdmNaoLido
+          : item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)) > 0 ||
         (item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo) ? (
           <span
             className={`rounded-full px-2 py-0.5 text-[11px] font-bold text-white ${
@@ -1044,7 +1116,9 @@ export default function MenuLateral({
           >
             {item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo
               ? 'ON'
-              : item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)}
+              : item.href === '/chat-adm'
+                ? chatAdmNaoLido
+                : item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)}
           </span>
         ) : null}
       </button>
@@ -1130,6 +1204,7 @@ export default function MenuLateral({
                 if (sec.tipo === 'grupo') {
                   const ab = gruposAbertos[sec.key] ?? false
                   const grupoBloqueado = profDocsBloqueado && GRUPOS_MENU_PROF_BLOQUEADOS_DOCS.has(sec.key)
+                  const badgeGrupo = secaoTemChatAdm(sec) ? chatAdmNaoLido : 0
                   return (
                     <div key={`g-${sec.key}`} className="border-b border-gray-100">
                       <button
@@ -1143,7 +1218,18 @@ export default function MenuLateral({
                           </span>
                           <span className="text-base font-bold tracking-wide text-gray-900">{sec.label}</span>
                         </span>
-                        {ab ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />}
+                        <span className="flex shrink-0 items-center gap-2">
+                          {badgeGrupo > 0 ? (
+                            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                              {badgeGrupo}
+                            </span>
+                          ) : null}
+                          {ab ? (
+                            <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
+                          )}
+                        </span>
                       </button>
                       {ab ? (
                         <div className="px-3 pb-2">
