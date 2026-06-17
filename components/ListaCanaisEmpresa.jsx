@@ -130,8 +130,6 @@ function ordenarCanaisAdministracaoEmpresa(lista) {
  */
 export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }) {
   const { recursosEmpresaLiberados, loading: gateLoading, refreshGate } = useProfissionalGate()
-  const { featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(empresaPlano, empresaId)
-  const temCanaisComunidade = featureLiberada('canais')
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
@@ -144,6 +142,8 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
   const [meuUsername, setMeuUsername] = useState(/** @type {string | null} */ (null))
   const [financeiroCanalIdGlobal, setFinanceiroCanalIdGlobal] = useState(/** @type {string | null} */ (null))
+  const { featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(empresaPlano, empresaId)
+  const temCanaisComunidade = featureLiberada('canais')
 
   /**
    * Canal de segmento da empresa + Financeiro (sem expor o canal ADM / Mensageiro).
