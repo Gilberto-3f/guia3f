@@ -150,14 +150,14 @@ export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps)
           aria-selected={aba === 'denuncias'}
           onClick={() => setAba('denuncias')}
           className={[
-            'flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold uppercase tracking-wide transition',
+            'flex min-h-[44px] w-full min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-bold transition',
             aba === 'denuncias'
               ? 'bg-[#0097b2] text-white shadow-sm'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
           ].join(' ')}
         >
-          <Flag className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
-          <span className="truncate">Denúncias</span>
+          <Flag className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+          <span>Denúncias</span>
         </button>
         <button
           type="button"
@@ -165,14 +165,14 @@ export default function HistoricoDecisoes({ usuarioId }: HistoricoDecisoesProps)
           aria-selected={aba === 'decisoes'}
           onClick={() => setAba('decisoes')}
           className={[
-            'flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold uppercase tracking-wide transition',
+            'flex min-h-[44px] w-full min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-bold transition',
             aba === 'decisoes'
               ? 'bg-[#0097b2] text-white shadow-sm'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
           ].join(' ')}
         >
-          <Scale className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
-          <span className="truncate">Decisões</span>
+          <Scale className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+          <span>Decisões</span>
         </button>
       </div>
 

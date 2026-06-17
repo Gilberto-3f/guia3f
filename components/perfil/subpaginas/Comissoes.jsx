@@ -273,7 +273,6 @@ export default function Comissoes({ usuarioId = null }) {
 
   return (
     <div className="space-y-4 px-1 pb-2">
-      <h1 className="text-xl font-bold text-[#001f3f]">Comissões</h1>
 
       <div ref={filtrosRef} className="space-y-2">
         {pesquisaAberta ? (

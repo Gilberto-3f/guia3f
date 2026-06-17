@@ -7,8 +7,7 @@ export default function EmergenciaPerdido() {
 
   return (
     <div className="px-1 pb-4">
-      <h1 className="text-lg font-bold text-gray-900">Estou perdido(a)</h1>
-      <p className="mt-1 text-sm text-gray-600">Escolha como deseja receber ajuda:</p>
+      <p className="text-sm text-gray-600">Escolha como deseja receber ajuda:</p>
 
       <div className="mt-4 flex flex-col gap-2">
         <button

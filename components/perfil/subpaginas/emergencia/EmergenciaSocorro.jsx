@@ -7,8 +7,7 @@ export default function EmergenciaSocorro() {
 
   return (
     <div className="px-1 pb-4">
-      <h1 className="text-lg font-bold text-gray-900">SOCORRO</h1>
-      <p className="mt-1 text-sm text-gray-600">Situação de risco — acione a administração ou serviços de emergência.</p>
+      <p className="text-sm text-gray-600">Situação de risco — acione a administração ou serviços de emergência.</p>
 
       <div className="mt-4 flex flex-col gap-2">
         <button

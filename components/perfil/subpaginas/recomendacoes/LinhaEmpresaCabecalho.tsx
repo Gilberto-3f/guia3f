@@ -21,7 +21,7 @@ export default function LinhaEmpresaCabecalho({ empresa, posicao, children }: Pr
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
-        className="flex w-full items-center gap-3 py-3 text-left transition-colors hover:bg-gray-50"
+        className="relative flex w-full items-start gap-3 px-3 py-3 text-left transition-colors hover:bg-gray-50"
         aria-expanded={aberto}
         aria-controls={`detalhe-emp-${empresa.empresa_id}`}
       >
@@ -39,7 +39,7 @@ export default function LinhaEmpresaCabecalho({ empresa, posicao, children }: Pr
             </span>
           ) : null}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pb-5">
           <p className="truncate font-medium text-gray-900">{empresa.empresa_nome}</p>
           <p className="flex min-w-0 items-center gap-1 truncate text-sm text-gray-500">
             {empresa.empresa_verificado ? <CheckVerificado /> : null}
@@ -52,7 +52,7 @@ export default function LinhaEmpresaCabecalho({ empresa, posicao, children }: Pr
           ) : null}
         </div>
         <ChevronDown
-          className={`h-4 w-4 shrink-0 text-[#0097b2] transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
+          className={`absolute bottom-3 right-3 h-4 w-4 shrink-0 text-[#0097b2] transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
           aria-hidden
         />
       </button>

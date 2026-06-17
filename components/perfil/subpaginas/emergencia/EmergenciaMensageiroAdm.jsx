@@ -102,8 +102,7 @@ export default function EmergenciaMensageiroAdm({
 
   return (
     <div className="px-1 pb-4">
-      <h1 className="text-lg font-bold text-gray-900">{titulo}</h1>
-      <p className="mt-1 text-sm text-gray-600">{subtitulo}</p>
+      <p className="text-sm text-gray-600">{subtitulo}</p>
 
       {incluirLocalizacao ? (
         <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50/80 p-3">

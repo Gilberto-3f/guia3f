@@ -45,7 +45,6 @@ export default function VisitantesPerfil({ usuarioId }) {
 
   return (
     <div className="space-y-4 text-gray-900">
-      <h2 className="text-lg font-bold text-[#001f3f]">Visitantes do perfil</h2>
 
       {loading ? (
         <ul className="space-y-2" aria-busy="true" aria-label="Carregando visitantes">

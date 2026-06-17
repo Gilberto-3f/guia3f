@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { KeyRound } from 'lucide-react'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { turistaDocumentosEnviados } from '@/lib/faseVerificacaoConta'
 import { MSG_PRE_LIBERACAO_REQUER_DOCS } from '@/lib/avisoVerificacaoContaTexto'
@@ -60,12 +59,6 @@ export default function EmergenciaPreLiberacao() {
 
   return (
     <div className="space-y-4 p-4 text-gray-900">
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0097b2]/10 text-[#0097b2]">
-          <KeyRound size={22} aria-hidden />
-        </span>
-        <h2 className="text-lg font-bold text-gray-900">Pré-liberação de Cadastro</h2>
-      </div>
 
       {!gateLoading && !docsEnviados ? (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">{MSG_PRE_LIBERACAO_REQUER_DOCS}</p>

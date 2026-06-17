@@ -289,7 +289,6 @@ export default function AnexarDocumentosTurista({ usuarioId, onConcluido }) {
 
   return (
     <div className="space-y-5 text-gray-900">
-      <h2 className="text-lg font-bold text-[#001f3f]">Anexar documentos</h2>
 
       {erro ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{erro}</div> : null}
 

@@ -7,8 +7,6 @@ export default function EmergenciaItemEsquecido() {
 
   return (
     <div className="px-1 pb-4">
-      <h1 className="text-lg font-bold text-gray-900">Esqueceu um item?</h1>
-
       <textarea
         value={descricao}
         onChange={(e) => setDescricao(e.target.value)}

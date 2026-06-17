@@ -35,7 +35,7 @@ import {
   User,
   Users,
   X,
-  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { signOutCurrentDevice } from '@/lib/authCookieSync'
@@ -1076,7 +1076,9 @@ export default function MenuLateral({
               </h2>
             </div>
           ) : (
-            <div className="min-w-0 flex-1" aria-hidden />
+            <h2 className="min-w-0 flex-1 truncate text-lg font-bold leading-tight text-[#0097b2]">
+              Ecossistema 3F
+            </h2>
           )}
           <button
             type="button"
@@ -1090,7 +1092,7 @@ export default function MenuLateral({
             aria-label={mostrarVoltar ? 'Voltar' : 'Fechar'}
           >
             {mostrarVoltar ? (
-              <ArrowLeft size={16} strokeWidth={2.5} aria-hidden />
+              <ArrowRight size={16} strokeWidth={2.5} aria-hidden />
             ) : (
               <X size={16} strokeWidth={2.5} aria-hidden />
             )}
