@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { nomeNormCanal } from '@/lib/rotulosCanaisAdministracao'
+import { contarNaoLidasEcossistemaAdm } from '@/lib/ecossistemaConversas'
 
 /** Remetentes que geram notificação para o perfil admin (inbox Mensageiro ADM). */
 export const ROLES_REMETENTE_NOTIFICAM_ADMIN = ['turista', 'profissional', 'empresa'] as const
@@ -10,13 +11,22 @@ export type CanalInboxAdm = {
   tipo_publico?: string | null
 }
 
-/** Canal BD `Mensageiro ADM` — inbox turista/profissional/empresa → equipe ADM. */
+/** Canal BD `Mensageiro ECOSSISTEMA` (ou legado `Mensageiro ADM`) — inbox membro → equipe ADM. */
 export function ehCanalInboxMensageiroAdm(c: {
   nome?: string | null
   tipo_publico?: string | null
 }): boolean {
   if (c.tipo_publico !== 'admin') return false
-  return nomeNormCanal(c.nome) === 'MENSAGEIRO ADM'
+  const n = nomeNormCanal(c.nome)
+  return n === 'MENSAGEIRO ECOSSISTEMA' || n === 'MENSAGEIRO ADM'
+}
+
+export function ehCanalInboxEcossistemaAdm(c: {
+  nome?: string | null
+  tipo_publico?: string | null
+}): boolean {
+  if (c.tipo_publico !== 'admin') return false
+  return nomeNormCanal(c.nome) === 'MENSAGEIRO ECOSSISTEMA'
 }
 
 /**
@@ -34,7 +44,9 @@ export async function obterIdCanalInboxMensageiroAdm(supabase: SupabaseClient): 
     return null
   }
 
-  const canal = (data ?? []).find((c) => ehCanalInboxMensageiroAdm(c))
+  const canal =
+    (data ?? []).find((c) => nomeNormCanal(c.nome) === 'MENSAGEIRO ECOSSISTEMA') ??
+    (data ?? []).find((c) => nomeNormCanal(c.nome) === 'MENSAGEIRO ADM')
   return canal?.id != null ? String(canal.id) : null
 }
 
@@ -57,31 +69,36 @@ export async function contarMensagensNaoLidasInboxAdmin(
   const inboxId = await obterIdCanalInboxMensageiroAdm(supabase)
   if (!inboxId || !adminUserId) return 0
 
-  const desde = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString()
+  const { data: canalRow } = await supabase.from('canais').select('nome').eq('id', inboxId).maybeSingle()
+  const ecossistema = nomeNormCanal(canalRow?.nome ?? '') === 'MENSAGEIRO ECOSSISTEMA'
 
-  const [{ data: leitura }, { data: mensagens, error: msgErr }] = await Promise.all([
-    supabase
-      .from('canal_leitura_profissional')
-      .select('visto_em')
-      .eq('usuario_id', adminUserId)
-      .eq('canal_id', inboxId)
-      .maybeSingle(),
-    supabase
-      .from('mensagens_canal')
-      .select('remetente_id, created_at')
-      .eq('canal_id', inboxId)
-      .neq('remetente_id', adminUserId)
-      .gte('created_at', desde)
-      .limit(500),
-  ])
+  const { data: leitura } = await supabase
+    .from('canal_leitura_profissional')
+    .select('visto_em')
+    .eq('usuario_id', adminUserId)
+    .eq('canal_id', inboxId)
+    .maybeSingle()
+
+  const visto = new Date(String(leitura?.visto_em ?? 0)).getTime()
+  const vistoMs = Number.isNaN(visto) ? 0 : visto
+
+  if (ecossistema) {
+    return contarNaoLidasEcossistemaAdm(supabase, adminUserId, vistoMs)
+  }
+
+  const desde = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString()
+  const { data: mensagens, error: msgErr } = await supabase
+    .from('mensagens_canal')
+    .select('remetente_id, created_at')
+    .eq('canal_id', inboxId)
+    .neq('remetente_id', adminUserId)
+    .gte('created_at', desde)
+    .limit(500)
 
   if (msgErr) {
     console.error('contarMensagensNaoLidasInboxAdmin:', msgErr)
     return 0
   }
-
-  const visto = new Date(String(leitura?.visto_em ?? 0)).getTime()
-  const vistoMs = Number.isNaN(visto) ? 0 : visto
 
   const rows = mensagens ?? []
   if (rows.length === 0) return 0

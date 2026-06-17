@@ -371,6 +371,18 @@ export default function BottomBar() {
       )
       .on(
         'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ecossistema_mensagens' },
+        (payload) => {
+          const autor = payload.new?.remetente_id != null ? String(payload.new.remetente_id) : ''
+          if (autor && autor === authUserId) return
+          scheduleRefresh()
+        },
+      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ecossistema_conversas' }, () => {
+        scheduleRefresh()
+      })
+      .on(
+        'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',

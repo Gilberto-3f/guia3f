@@ -30,6 +30,7 @@ import {
   PAISES_ABAS_CANAL_COLETIVO,
   profissionalPaisParaAba,
 } from '@/lib/canalAbasPaisColetivo'
+import { buscarUltimaMensagemEcossistema } from '@/lib/ecossistemaConversas'
 import {
   isCanalEcossistemaHubAdm,
   isCanalFinanceiroHubAdm,
@@ -139,6 +140,7 @@ export default function CanalDetalhePage() {
 
   const financeUid = useMemo(() => usuarioId, [usuarioId])
   const accessTokenRef = useRef<string | null>(null)
+  const fecharEcossistemaPainelRef = useRef<(() => boolean) | null>(null)
 
   useEffect(() => {
     if (userTipoEfetivo === 'empresa' || userTipoEfetivo === 'profissional') {
@@ -396,16 +398,25 @@ export default function CanalDetalhePage() {
       return
     }
 
-    if (
-      userTipoEfetivo === 'empresa' &&
-      inboxCanalAdm != null &&
-      'canaisBroadcastIds' in inboxCanalAdm
-    ) {
-      const ids = [inboxCanalAdm.canalAdmId, ...inboxCanalAdm.canaisBroadcastIds].filter(Boolean)
-      marcarCanaisLidosKeepalive(token, usuarioId, ids)
-    } else {
+    const marcarEcossistema = async () => {
+      if (userTipoEfetivo === 'admin' && isCanalEcossistemaHubAdm(canal)) {
+        const ultima = await buscarUltimaMensagemEcossistema(supabase)
+        enviarMarcacaoLeituraKeepalive(token, usuarioId, canalId, ultima)
+        return
+      }
+      if (
+        userTipoEfetivo === 'empresa' &&
+        inboxCanalAdm != null &&
+        'canaisBroadcastIds' in inboxCanalAdm
+      ) {
+        const ids = [inboxCanalAdm.canalAdmId, ...inboxCanalAdm.canaisBroadcastIds].filter(Boolean)
+        marcarCanaisLidosKeepalive(token, usuarioId, ids)
+        return
+      }
       enviarMarcacaoLeituraKeepalive(token, usuarioId, canalId, null)
     }
+
+    void marcarEcossistema()
     notificarBadgeCanais()
   }, [usuarioId, canalId, canal, userTipoEfetivo, inboxCanalAdm])
 
@@ -416,6 +427,13 @@ export default function CanalDetalhePage() {
       return
     }
     if (userTipoEfetivo === 'empresa' && canal.nome && isCanalFinanceiroEmpresa(canal.nome)) {
+      return
+    }
+
+    if (userTipoEfetivo === 'admin' && isCanalEcossistemaHubAdm(canal)) {
+      const ultima = await buscarUltimaMensagemEcossistema(supabase)
+      await marcarCanalComoLido(supabase, usuarioId, canalId, ultima)
+      notificarBadgeCanais()
       return
     }
 
@@ -582,6 +600,7 @@ export default function CanalDetalhePage() {
     ) : null
 
   const voltarCanais = useCallback(() => {
+    if (fecharEcossistemaPainelRef.current?.()) return
     marcarLeituraCanalAtualRapida()
     router.push('/canal')
     void marcarLeituraCanalAtual()
@@ -830,7 +849,7 @@ export default function CanalDetalhePage() {
           {hubFinanceiroAdm ? (
             <CanalFinanceiroAdm embedded />
           ) : hubEcossistemaAdm ? (
-            <CanalEcossistemaAdm embedded />
+            <CanalEcossistemaAdm embedded fecharPainelRef={fecharEcossistemaPainelRef} />
           ) : (
             <>
               {mostrarAbasPais ? (

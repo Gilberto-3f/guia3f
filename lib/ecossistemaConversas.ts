@@ -374,6 +374,94 @@ export function roleParaMembroTipo(role: string | null | undefined): MembroTipoE
   return null
 }
 
+const ROLES_MEMBRO_ECOSSISTEMA = new Set(['turista', 'profissional', 'empresa'])
+
+export async function buscarUltimaMensagemEcossistema(
+  supabase: SupabaseClient,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from('ecossistema_mensagens')
+    .select('created_at')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return data?.created_at != null ? String(data.created_at) : null
+}
+
+/**
+ * Contagem de não lidas no Mensageiro ECOSSISTEMA (mensagens de membros + chats iniciados).
+ */
+export async function contarNaoLidasEcossistemaAdm(
+  supabase: SupabaseClient,
+  adminUserId: string,
+  vistoMs: number,
+): Promise<number> {
+  const { data: conversas, error: convErr } = await supabase
+    .from('ecossistema_conversas')
+    .select('id, created_at, membro_usuario_id')
+    .eq('status', 'aberta')
+
+  if (convErr) {
+    console.error('contarNaoLidasEcossistemaAdm conversas:', convErr)
+    return 0
+  }
+
+  const abertas = conversas ?? []
+  if (abertas.length === 0) return 0
+
+  const conversaIds = abertas.map((c) => String(c.id))
+  const desdeIso = vistoMs > 0 ? new Date(vistoMs).toISOString() : new Date(0).toISOString()
+
+  const { data: mensagens, error: msgErr } = await supabase
+    .from('ecossistema_mensagens')
+    .select('conversa_id, remetente_id, created_at')
+    .in('conversa_id', conversaIds)
+    .gt('created_at', desdeIso)
+    .neq('remetente_id', adminUserId)
+
+  if (msgErr) {
+    console.error('contarNaoLidasEcossistemaAdm mensagens:', msgErr)
+    return 0
+  }
+
+  const msgs = mensagens ?? []
+  const remetenteIds = [...new Set(msgs.map((m) => String(m.remetente_id)).filter(Boolean))]
+  const membroIds = [...new Set(abertas.map((c) => String(c.membro_usuario_id)).filter(Boolean))]
+  const idsRoles = [...new Set([...remetenteIds, ...membroIds])]
+
+  const { data: usuarios } =
+    idsRoles.length > 0
+      ? await supabase.from('usuarios').select('id, role').in('id', idsRoles)
+      : { data: [] }
+
+  const membroPorId = new Set(
+    (usuarios ?? [])
+      .filter((u) => ROLES_MEMBRO_ECOSSISTEMA.has(String(u.role ?? '')))
+      .map((u) => String(u.id)),
+  )
+
+  let n = 0
+  for (const m of msgs) {
+    const rid = m.remetente_id != null ? String(m.remetente_id) : ''
+    if (!rid || !membroPorId.has(rid)) continue
+    n += 1
+  }
+
+  for (const c of abertas) {
+    const created = new Date(String(c.created_at ?? 0)).getTime()
+    if (Number.isNaN(created) || created <= vistoMs) continue
+    const temMsgMembro = msgs.some(
+      (m) =>
+        String(m.conversa_id) === String(c.id) &&
+        membroPorId.has(String(m.remetente_id ?? '')),
+    )
+    if (!temMsgMembro) n += 1
+  }
+
+  return n
+}
+
 function perfilMembroFallback(usuarioId: string, tipo: MembroTipoEcossistema): PerfilMembroEcossistema {
   return {
     usuarioId,

@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertTriangle, ChevronUp, Send, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
+import { AlertTriangle, ChevronUp, Send } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import type { EcossistemaConversaRow, EcossistemaMensagemRow } from '@/lib/ecossistemaConversas'
 
@@ -28,7 +28,13 @@ const abaCls = (ativo: boolean) =>
 /**
  * Hub Mensageiro ECOSSISTEMA — ADM atende chats iniciados pelos membros.
  */
-export default function CanalEcossistemaAdm({ embedded = false }: { embedded?: boolean }) {
+export default function CanalEcossistemaAdm({
+  embedded = false,
+  fecharPainelRef,
+}: {
+  embedded?: boolean
+  fecharPainelRef?: MutableRefObject<(() => boolean) | null>
+}) {
   const [aba, setAba] = useState<AbaEcossistema>('turista')
   const [conversas, setConversas] = useState<ConversaComMembro[]>([])
   const [selecionada, setSelecionada] = useState<ConversaComMembro | null>(null)
@@ -38,6 +44,23 @@ export default function CanalEcossistemaAdm({ embedded = false }: { embedded?: b
   const [painelAberto, setPainelAberto] = useState(false)
   const [carregando, setCarregando] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const painelAbertoRef = useRef(false)
+
+  useEffect(() => {
+    painelAbertoRef.current = painelAberto
+  }, [painelAberto])
+
+  useEffect(() => {
+    if (!fecharPainelRef) return
+    fecharPainelRef.current = () => {
+      if (!painelAbertoRef.current) return false
+      setPainelAberto(false)
+      return true
+    }
+    return () => {
+      fecharPainelRef.current = null
+    }
+  }, [fecharPainelRef])
 
   const carregarLista = useCallback(async () => {
     setCarregando(true)
@@ -136,10 +159,7 @@ export default function CanalEcossistemaAdm({ embedded = false }: { embedded?: b
   return (
     <div className={wrapperCls}>
       <div className="shrink-0 border-b border-gray-100 bg-white p-3">
-        <p className="text-center text-xs font-medium text-gray-500">
-          Mensageiro ECOSSISTEMA — atendimentos iniciados pelos membros
-        </p>
-        <div className="mt-2 flex gap-1">
+        <div className="flex gap-1">
           {(['turista', 'profissional', 'empresa', 'historico'] as AbaEcossistema[]).map((t) => (
             <button key={t} type="button" onClick={() => setAba(t)} className={abaCls(aba === t)}>
               {t === 'historico' ? 'Histórico' : t === 'turista' ? 'Turistas' : t === 'profissional' ? 'Profissionais' : 'Empresas'}
@@ -196,13 +216,6 @@ export default function CanalEcossistemaAdm({ embedded = false }: { embedded?: b
       {painelAberto && selecionada ? (
         <div className="absolute inset-0 z-20 flex flex-col bg-white sm:relative sm:inset-auto sm:shrink-0 sm:border-t sm:border-gray-200">
           <div className="flex shrink-0 items-center gap-2 bg-[#0097b2] px-3 py-2 text-white">
-            <button
-              type="button"
-              onClick={() => setPainelAberto(false)}
-              className="rounded-lg px-2 py-1 text-sm hover:bg-white/10"
-            >
-              Voltar
-            </button>
             <div className="min-w-0 flex-1 truncate font-semibold">
               {selecionada.membro.nome} · {selecionada.membro.username}
             </div>
@@ -210,19 +223,11 @@ export default function CanalEcossistemaAdm({ embedded = false }: { embedded?: b
               <button
                 type="button"
                 onClick={() => void encerrarConversa()}
-                className="rounded-lg bg-white/15 px-2 py-1 text-xs font-semibold hover:bg-white/25"
+                className="shrink-0 rounded-lg bg-white/15 px-2 py-1 text-xs font-semibold hover:bg-white/25"
               >
                 Encerrar
               </button>
             ) : null}
-            <button
-              type="button"
-              onClick={() => setPainelAberto(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/15"
-              aria-label="Fechar"
-            >
-              <X className="h-4 w-4" aria-hidden />
-            </button>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto bg-[#e5ddd5] px-3 py-3" style={{ maxHeight: embedded ? undefined : '280px' }}>
@@ -231,7 +236,7 @@ export default function CanalEcossistemaAdm({ embedded = false }: { embedded?: b
               return (
                 <div key={m.id} className={`mb-2 flex ${adm ? 'justify-end' : 'justify-start'}`}>
                   <div
-                    className={`max-w-[85%] rounded-lg px-3 py-2 text-sm shadow-sm ${
+                    className={`max-w-[85%] rounded-lg px-3 py-2 text-sm text-gray-900 shadow-sm ${
                       adm ? 'bg-[#dcf8c6]' : 'bg-white'
                     }`}
                   >
