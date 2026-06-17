@@ -152,6 +152,7 @@ export function CadastrosAuditoria() {
   const [leituras, setLeituras] = useState<LeituraRow[]>([])
   const [cadastroCompleto, setCadastroCompleto] = useState<CadastroPendente | null>(null)
   const [resumoAberto, setResumoAberto] = useState(false)
+  const [logsAcessoAberto, setLogsAcessoAberto] = useState(false)
   const [filtrosAbertos, setFiltrosAbertos] = useState(false)
 
   const carregarNomesPerfis = useCallback(async (rows: LogRow[]) => {
@@ -259,6 +260,7 @@ export function CadastrosAuditoria() {
     setLeituras([])
     setCadastroCompleto(null)
     setResumoAberto(false)
+    setLogsAcessoAberto(false)
     setDetalheErro(null)
   }
 
@@ -274,6 +276,7 @@ export function CadastrosAuditoria() {
     setLeituras([])
     setCadastroCompleto(null)
     setResumoAberto(false)
+    setLogsAcessoAberto(false)
 
     try {
       await fetch(`/api/admin/cadastros-auditoria/${logId}`, {
@@ -540,27 +543,44 @@ export function CadastrosAuditoria() {
                           </div>
                         </div>
 
-                        <div className="rounded-xl border border-gray-200 bg-white p-4">
-                          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                            Logs de Acesso
-                          </p>
-                          {leituras.length === 0 ? (
-                            <p className="mt-2 text-sm text-gray-500">Nenhum acesso registrado ainda.</p>
-                          ) : (
-                            <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto">
-                              {leituras.map((l) => (
-                                <li
-                                  key={l.id}
-                                  className="flex flex-wrap items-baseline justify-between gap-2 text-sm"
-                                >
-                                  <span className="font-medium text-gray-800">{l.admin_handle}</span>
-                                  <span className="text-xs text-gray-500">
-                                    {formatarDataHora(l.acessado_em)}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
+                        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                          <button
+                            type="button"
+                            onClick={() => setLogsAcessoAberto((v) => !v)}
+                            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50"
+                            aria-expanded={logsAcessoAberto}
+                          >
+                            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                              Logs de Acesso
+                            </span>
+                            {logsAcessoAberto ? (
+                              <ChevronUp className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+                            ) : (
+                              <ChevronDown className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
+                            )}
+                          </button>
+
+                          {logsAcessoAberto ? (
+                            <div className="border-t border-gray-100 px-4 pb-4 pt-2">
+                              {leituras.length === 0 ? (
+                                <p className="text-sm text-gray-500">Nenhum acesso registrado ainda.</p>
+                              ) : (
+                                <ul className="max-h-40 space-y-1.5 overflow-y-auto">
+                                  {leituras.map((l) => (
+                                    <li
+                                      key={l.id}
+                                      className="flex flex-wrap items-baseline justify-between gap-2 text-sm"
+                                    >
+                                      <span className="font-medium text-gray-800">{l.admin_handle}</span>
+                                      <span className="text-xs text-gray-500">
+                                        {formatarDataHora(l.acessado_em)}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     ) : null}

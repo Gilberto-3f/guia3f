@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import { Car, MapPin, Smartphone, Users } from 'lucide-react'
+import { normalizarCidadeTriplice, type CidadeTriplice } from '@/lib/mobilidadeRegional'
 
 export type CategoriaTabeladoId = 'guia' | 'van' | 'taxista' | 'motorista_app'
 
@@ -55,6 +56,35 @@ export const CIDADES_ORIGEM_TABELADO: Record<
   cde: { label: 'Rotas de CDE', pontoPartida: 'Ciudad del Este' },
   foz: { label: 'Rotas de Foz do Iguaçu', pontoPartida: 'Foz do Iguaçu' },
   puerto_iguazu: { label: 'Rotas de Puerto Iguazú', pontoPartida: 'Puerto Iguazú' },
+}
+
+const TRIPLICE_PARA_TABELADO: Record<CidadeTriplice, CidadeOrigemTabeladoId> = {
+  'Foz do Iguaçu': 'foz',
+  'Ciudad del Este': 'cde',
+  'Puerto Iguazu': 'puerto_iguazu',
+}
+
+export const ORDEM_CIDADES_TABELADO: CidadeOrigemTabeladoId[] = ['cde', 'foz', 'puerto_iguazu']
+
+export function mapCidadeAtuacaoParaTabelado(
+  raw: string | null | undefined,
+): CidadeOrigemTabeladoId | null {
+  const triplice = normalizarCidadeTriplice(raw)
+  return triplice ? TRIPLICE_PARA_TABELADO[triplice] : null
+}
+
+export function ordenarCidadesTabeladas(
+  ids: CidadeOrigemTabeladoId[],
+  cidadeCadastro: CidadeOrigemTabeladoId | null,
+): CidadeOrigemTabeladoId[] {
+  const set = new Set(ids)
+  const regionais = ORDEM_CIDADES_TABELADO.filter((id) => set.has(id))
+  if (!cidadeCadastro || !set.has(cidadeCadastro)) return regionais
+  return [cidadeCadastro, ...regionais.filter((id) => id !== cidadeCadastro)]
+}
+
+export function labelCategoriaTabelado(id: CategoriaTabeladoId): string {
+  return CATEGORIAS_TABELADOS.find((c) => c.id === id)?.label ?? id
 }
 
 export function mapCategoriaProfissionalParaTabelado(

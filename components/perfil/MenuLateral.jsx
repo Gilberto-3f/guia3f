@@ -45,6 +45,8 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import { menuEmpresaLiberado } from '@/lib/planosEmpresaServicosGate'
+import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
+import { textoInfoDrawer } from '@/lib/drawerInfoTextos'
 
 import EmergenciaItemEsquecido from '@/components/perfil/subpaginas/emergencia/EmergenciaItemEsquecido'
 import EmergenciaPerdido from '@/components/perfil/subpaginas/emergencia/EmergenciaPerdido'
@@ -1062,7 +1064,17 @@ export default function MenuLateral({
       >
         <div className="flex shrink-0 items-center gap-3 px-3 py-2">
           {topo?.titulo ? (
-            <h2 className="min-w-0 flex-1 truncate text-lg font-bold leading-tight text-[#001f3f]">{topo.titulo}</h2>
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              {topo.tipo === 'pagina' && textoInfoDrawer(topo.id) ? (
+                <BotaoInfoPopup
+                  texto={textoInfoDrawer(topo.id)}
+                  ariaLabel={`Informações sobre ${topo.titulo}`}
+                />
+              ) : null}
+              <h2 className="min-w-0 flex-1 truncate text-lg font-bold leading-tight text-[#001f3f]">
+                {topo.titulo}
+              </h2>
+            </div>
           ) : (
             <div className="min-w-0 flex-1" aria-hidden />
           )}

@@ -1,0 +1,12 @@
+/** Textos de ajuda exibidos no ícone (i) antes do título dos drawers do menu lateral. */
+export const DRAWER_INFO_TEXTO: Record<string, string> = {
+  tabela:
+    'Valores de referência para deslocamento (rotas) da sua categoria (tickets e ingressos de atrativos são negociados à parte).',
+  'recomendacoes-feitas':
+    'Histórico das empresas que você recomendou no app. Os dados são os mesmos do funil de conversão da empresa — contatos dos turistas aparecem mascarados por privacidade.',
+}
+
+export function textoInfoDrawer(paginaId: string | undefined): string | null {
+  if (!paginaId) return null
+  return DRAWER_INFO_TEXTO[paginaId] ?? null
+}
