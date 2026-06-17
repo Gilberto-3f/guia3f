@@ -29,6 +29,7 @@ import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badg
 import { buscarIdCanalFinanceiroEmpresaGlobal } from '@/lib/canaisEmpresaAdm'
 import { isCanalFinanceiroEmpresa } from '@/lib/canaisEmpresaSlugs'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
 import CanalListaRow from '@/components/CanalListaRow'
 import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
@@ -129,9 +130,12 @@ function ordenarCanaisAdministracaoEmpresa(lista) {
  */
 export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }) {
   const { recursosEmpresaLiberados, loading: gateLoading, refreshGate } = useProfissionalGate()
+  const { featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(empresaPlano, empresaId)
+  const temCanaisComunidade = featureLiberada('canais')
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
+  const [empresaPlano, setEmpresaPlano] = useState(/** @type {string | null} */ (null))
   const [empresaCategoria, setEmpresaCategoria] = useState(/** @type {string | null} */ (null))
   const [admCanalIdGlobal, setAdmCanalIdGlobal] = useState(/** @type {string | null} */ (null))
   /** @type {Record<string, { preview: string, created_at: string }>} */
@@ -253,6 +257,16 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     }
   }, [canais, empresaId, empresaCategoria, financeiroCanalIdGlobal])
 
+  const administracaoExibicao = useMemo(() => {
+    if (temCanaisComunidade) return part.administracao
+    return part.administracao.filter((c) => isCanalFinanceiroEmpresa(c.nome))
+  }, [part.administracao, temCanaisComunidade])
+
+  const profissionaisExibicao = useMemo(() => {
+    if (!temCanaisComunidade) return []
+    return ordenarCanais(part.profissionais)
+  }, [part.profissionais, temCanaisComunidade])
+
   const canaisParaMembros = useMemo(
     () => [...part.administracao, ...part.profissionais],
     [part],
@@ -334,10 +348,12 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         setCanais([])
         return
       }
-      const { data: emp } = await supabase.from('empresas').select('id, categoria').eq('usuario_id', uid).maybeSingle()
+      const { data: emp } = await supabase.from('empresas').select('id, categoria, plano').eq('usuario_id', uid).maybeSingle()
       const empId = emp?.id != null ? String(emp.id) : null
       const catEmp = emp?.categoria != null ? String(emp.categoria) : null
+      const planoEmp = emp?.plano != null ? String(emp.plano) : 'gratuito'
       setEmpresaId(empId)
+      setEmpresaPlano(planoEmp)
       setEmpresaCategoria(catEmp)
       const chaveEmp = chaveSegmentoPorCategoriaEmpresa(catEmp)
 
@@ -394,6 +410,23 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   useEffect(() => {
     void refreshGate()
   }, [refreshGate])
+
+  useEffect(() => {
+    const onRef = () => void carregar()
+    window.addEventListener('empresa-gate-refresh', onRef)
+    window.addEventListener('perfil-atualizado', onRef)
+    return () => {
+      window.removeEventListener('empresa-gate-refresh', onRef)
+      window.removeEventListener('perfil-atualizado', onRef)
+    }
+  }, [carregar])
+
+  useEffect(() => {
+    if (planoLoading || gateLoading) return
+    if (!recursosEmpresaLiberados) return
+    if (temCanaisComunidade) return
+    setGruposAbertos((prev) => ({ ...prev, administracao: true }))
+  }, [gateLoading, planoLoading, recursosEmpresaLiberados, temCanaisComunidade])
 
   useEffect(() => {
     void carregar()
@@ -658,19 +691,21 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     )
   }
 
-  if (loading) {
+  if (loading || planoLoading) {
     return <div className="p-4 text-center text-gray-400">Carregando canais...</div>
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <div className="min-h-0 flex-1 overflow-y-auto bg-white">
-        {renderGrupo({ id: 'administracao', titulo: 'ADMINISTRAÇÃO', itens: part.administracao })}
-        {renderGrupo({
-          id: 'profissionais',
-          titulo: 'PROFISSIONAIS',
-          itens: ordenarCanais(part.profissionais),
-        })}
+        {renderGrupo({ id: 'administracao', titulo: 'ADMINISTRAÇÃO', itens: administracaoExibicao })}
+        {temCanaisComunidade
+          ? renderGrupo({
+              id: 'profissionais',
+              titulo: 'PROFISSIONAIS',
+              itens: profissionaisExibicao,
+            })
+          : null}
       </div>
     </div>
   )

@@ -7,7 +7,9 @@ import { ChevronLeft, MoreVertical } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
+import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 import BandeiraPais from '@/components/BandeiraPais'
 import CanalHeaderTitulo from '@/components/canal/CanalHeaderTitulo'
 import CanalAbasPais from '@/components/CanalAbasPais'
@@ -121,6 +123,8 @@ export default function CanalDetalhePage() {
   const [abaPais, setAbaPais] = useState('geral')
   const [inboxCanalAdm, setInboxCanalAdm] = useState<CanalAdmInboxConfig | CanalAdmEmpresaInboxConfig | null>(null)
   const [empresaCategoria, setEmpresaCategoria] = useState<string | null>(null)
+  const [empresaContaId, setEmpresaContaId] = useState<string | null>(null)
+  const [empresaContaPlano, setEmpresaContaPlano] = useState<string | null>(null)
   const [meuUsername, setMeuUsername] = useState<string | null>(null)
   const [drawerCanalAberto, setDrawerCanalAberto] = useState(false)
   const [destaqueMensagemId, setDestaqueMensagemId] = useState<string | null>(null)
@@ -137,6 +141,11 @@ export default function CanalDetalhePage() {
     }
     return userTipo
   }, [modoAtivo, perfilSimulado, userTipo])
+
+  const { featureLiberada: empresaFeatureLiberada, loading: empresaPlanoLoading } = useEmpresaServicosPlano(
+    userTipoEfetivo === 'empresa' ? empresaContaPlano : null,
+    userTipoEfetivo === 'empresa' ? empresaContaId : null,
+  )
 
   const financeUid = useMemo(() => usuarioId, [usuarioId])
   const accessTokenRef = useRef<string | null>(null)
@@ -277,12 +286,20 @@ export default function CanalDetalhePage() {
       const [slugs, empCatRes] = await Promise.all([
         tipoLocal === 'profissional' ? buscarSlugsCategoriasProfissional(supabase, uid) : Promise.resolve([]),
         tipoLocal === 'empresa'
-          ? supabase.from('empresas').select('categoria').eq('usuario_id', uid).maybeSingle()
+          ? supabase.from('empresas').select('id, categoria, plano').eq('usuario_id', uid).maybeSingle()
           : Promise.resolve({ data: null }),
       ])
       if (cancelado) return
 
       setEmpresaCategoria(empCatRes.data?.categoria != null ? String(empCatRes.data.categoria) : null)
+      if (tipoLocal === 'empresa' && empCatRes.data) {
+        const row = empCatRes.data as { id?: string; plano?: string | null }
+        setEmpresaContaId(row.id != null ? String(row.id) : null)
+        setEmpresaContaPlano(row.plano != null ? String(row.plano) : 'gratuito')
+      } else {
+        setEmpresaContaId(null)
+        setEmpresaContaPlano(null)
+      }
 
       const { data, error } = canalRes
       if (error || !data) {
@@ -784,6 +801,12 @@ export default function CanalDetalhePage() {
             )
           ) : (
             <>
+              {!empresaFeatureLiberada('canais') ? (
+                <div className="flex flex-1 flex-col overflow-y-auto px-4 py-6">
+                  <AvisoPlanoEmpresaBloqueado compact />
+                </div>
+              ) : (
+                <>
               {mostrarAbasPaisColetivo ? (
                 <div className="sticky top-0 z-[9] shrink-0 border-b border-gray-100 bg-white shadow-sm">
                   <CanalAbasPais paises={paisesAbasColetivo} abaAtiva={abaPais} onAbaChange={setAbaPais} />
@@ -803,6 +826,8 @@ export default function CanalDetalhePage() {
                 destaqueMensagemId={destaqueMensagemId}
               />
               </div>
+                </>
+              )}
             </>
           )}
         </div>
