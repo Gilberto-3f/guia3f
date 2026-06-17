@@ -12,6 +12,8 @@ export type DegustacaoEmpresaRow = {
   dias: number
   status: 'aguardando_aceite' | 'ativa' | 'expirada' | 'cancelada'
   canal_financeiro_id: string | null
+  plano_id: string | null
+  plano_titulo: string | null
   aceito_em: string | null
   inicio_em: string | null
   expira_em: string | null
@@ -48,22 +50,86 @@ export function resolverEstadoDegustacaoUi(row: {
   return 'aguardando_aceite'
 }
 
-export function mensagemDegustacaoAtiva(expiraEm: string | null | undefined): string {
+export function mensagemDegustacaoAtiva(
+  expiraEm: string | null | undefined,
+  planoTitulo?: string | null,
+): string {
   const data = formatarDataDegustacaoPtBr(expiraEm)
+  const plano = planoTitulo?.trim()
+  if (plano) {
+    return `Degustação do plano ${plano} ativa! Aproveite o período bonificado até ${data}.`
+  }
   return `Degustação ativa! Aproveite o período bonificado até ${data}.`
 }
 
-export function mensagemDegustacaoExpirada(expiraEm: string | null | undefined): string {
+export function mensagemDegustacaoExpirada(
+  expiraEm: string | null | undefined,
+  planoTitulo?: string | null,
+): string {
   const data = formatarDataDegustacaoPtBr(expiraEm)
-  return `O período de degustação encerrou${data !== '—' ? ` em ${data}` : ''}. Escolha um plano para continuar utilizando os serviços do aplicativo.`
+  const plano = planoTitulo?.trim()
+  const sufixoPlano = plano ? ` do plano ${plano}` : ''
+  return `O período de degustação${sufixoPlano} encerrou${data !== '—' ? ` em ${data}` : ''}. Escolha um plano para continuar utilizando os serviços do aplicativo.`
 }
 
-export function montarMensagemDegustacao(username: string, dias: number): string {
+export function montarMensagemDegustacao(
+  username: string,
+  dias: number,
+  planoTitulo: string,
+): string {
   const handle = username.trim().replace(/^@+/, '')
   const user = handle ? `@${handle}` : '@usuario'
-  return `Parabéns ${user}, você foi bonificado com ${dias} dias de degustação do nosso aplicativo. Bem-vindo ao nosso ecossistema e torcemos para que faça bons negócios.
+  const plano = planoTitulo.trim() || 'plano bonificado'
+  return `Parabéns ${user}, você foi bonificado com ${dias} dias de degustação do plano ${plano}. Bem-vindo ao nosso ecossistema e torcemos para que faça bons negócios.
 
 OBS: Após o período de degustação sua conta será bloqueada e voltará funcionar após a escolha de um novo plano.`
+}
+
+function servicosDePlanoRow(row: Record<string, unknown> | null | undefined): ServicoPlanoId[] {
+  const servicosRaw = row?.servicos
+  if (!Array.isArray(servicosRaw)) return []
+  return servicosRaw.filter((s): s is ServicoPlanoId => typeof s === 'string')
+}
+
+export function metadataDegustacaoCanal(params: {
+  degustacaoId: string
+  dias: number
+  planoId: string
+  planoTitulo: string
+  planoNome: string
+  aceito?: boolean
+  aceitoEm?: string | null
+  expiraEm?: string | null
+}): Record<string, unknown> {
+  return {
+    variant: 'degustacao',
+    degustacao_id: params.degustacaoId,
+    dias: params.dias,
+    plano_id: params.planoId,
+    plano_titulo: params.planoTitulo,
+    plano_nome: params.planoNome,
+    aceito: params.aceito ?? false,
+    ...(params.aceitoEm ? { aceito_em: params.aceitoEm } : {}),
+    ...(params.expiraEm ? { expira_em: params.expiraEm } : {}),
+  }
+}
+
+export async function buscarServicosPlanoDegustacao(
+  supabase: SupabaseClient,
+  planoId: string | null | undefined,
+): Promise<ServicoPlanoId[]> {
+  if (!planoId) return buscarServicosPlanoBasico(supabase)
+
+  const { data } = await supabase
+    .from('planos')
+    .select('servicos')
+    .eq('id', planoId)
+    .eq('ativo', true)
+    .maybeSingle()
+
+  const servicos = servicosDePlanoRow(data as Record<string, unknown> | null)
+  if (servicos.length > 0) return servicos
+  return buscarServicosPlanoBasico(supabase)
 }
 
 export async function buscarServicosPlanoBasico(supabase: SupabaseClient): Promise<ServicoPlanoId[]> {
@@ -95,7 +161,7 @@ export async function empresaDegustacaoAtiva(
   const agora = new Date().toISOString()
   const { data } = await supabase
     .from('empresa_degustacoes')
-    .select('id, empresa_id, dias, status, canal_financeiro_id, aceito_em, inicio_em, expira_em')
+    .select('id, empresa_id, dias, status, canal_financeiro_id, plano_id, aceito_em, inicio_em, expira_em, planos ( titulo )')
     .eq('empresa_id', empresaId)
     .eq('status', 'ativa')
     .gt('expira_em', agora)
@@ -104,12 +170,20 @@ export async function empresaDegustacaoAtiva(
     .maybeSingle()
 
   if (!data?.id) return null
+
+  const planosJoin = data.planos as { titulo?: string } | { titulo?: string }[] | null
+  const planoTitulo = Array.isArray(planosJoin)
+    ? planosJoin[0]?.titulo
+    : planosJoin?.titulo
+
   return {
     id: String(data.id),
     empresa_id: String(data.empresa_id),
     dias: Number(data.dias),
     status: 'ativa',
     canal_financeiro_id: data.canal_financeiro_id != null ? String(data.canal_financeiro_id) : null,
+    plano_id: data.plano_id != null ? String(data.plano_id) : null,
+    plano_titulo: planoTitulo != null ? String(planoTitulo) : null,
     aceito_em: data.aceito_em != null ? String(data.aceito_em) : null,
     inicio_em: data.inicio_em != null ? String(data.inicio_em) : null,
     expira_em: data.expira_em != null ? String(data.expira_em) : null,
@@ -123,6 +197,7 @@ export async function concederDegustacaoEmpresa(
     empresaUsuarioId: string
     username: string
     dias: number
+    planoId: string
     admUsuarioId: string
   },
 ): Promise<{ ok: boolean; error?: string; degustacaoId?: string }> {
@@ -130,6 +205,23 @@ export async function concederDegustacaoEmpresa(
   if (!Number.isFinite(dias) || dias < 1 || dias > 365) {
     return { ok: false, error: 'Período inválido (1 a 365 dias).' }
   }
+
+  const planoId = params.planoId?.trim()
+  if (!planoId) return { ok: false, error: 'Plano obrigatório para degustação.' }
+
+  const { data: planoRow, error: planoErr } = await supabase
+    .from('planos')
+    .select('id, nome, titulo, ativo')
+    .eq('id', planoId)
+    .eq('ativo', true)
+    .maybeSingle()
+
+  if (planoErr || !planoRow?.id) {
+    return { ok: false, error: 'Plano indisponível para degustação.' }
+  }
+
+  const planoTitulo = String(planoRow.titulo ?? planoRow.nome ?? 'Plano')
+  const planoNome = String(planoRow.nome ?? planoTitulo)
 
   const { data: emp, error: empErr } = await supabase
     .from('empresas')
@@ -170,12 +262,13 @@ export async function concederDegustacaoEmpresa(
   }
 
   const username = String(params.username || emp.nome_usuario || '').trim()
-  const mensagem = montarMensagemDegustacao(username, dias)
+  const mensagem = montarMensagemDegustacao(username, dias, planoTitulo)
 
   const { data: degRow, error: degErr } = await supabase
     .from('empresa_degustacoes')
     .insert({
       empresa_id: params.empresaId,
+      plano_id: planoId,
       dias,
       status: 'aguardando_aceite',
       concedido_por: params.admUsuarioId,
@@ -187,23 +280,23 @@ export async function concederDegustacaoEmpresa(
     return { ok: false, error: degErr?.message ?? 'Falha ao registrar degustação.' }
   }
 
+  const degustacaoId = String(degRow.id)
+  const detalhesConvite = metadataDegustacaoCanal({
+    degustacaoId,
+    dias,
+    planoId,
+    planoTitulo,
+    planoNome,
+    aceito: false,
+  })
+
   const canal = await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
     empresaUsuarioId: params.empresaUsuarioId,
     tipo: 'degustacao_plano',
-    titulo: TITULO_DEGUSTACAO_CANAL,
+    titulo: `Degustação — ${planoTitulo}`,
     mensagem,
-    metadata: {
-      variant: 'degustacao',
-      degustacao_id: String(degRow.id),
-      dias,
-      aceito: false,
-    },
-    comprovanteDetalhes: {
-      variant: 'degustacao',
-      degustacao_id: String(degRow.id),
-      dias,
-      aceito: false,
-    },
+    metadata: detalhesConvite,
+    comprovanteDetalhes: detalhesConvite,
   })
 
   if (!canal.ok || !canal.id) {
@@ -253,26 +346,34 @@ export async function aceitarDegustacaoEmpresa(
 
   const { data: deg, error: degErr } = await supabase
     .from('empresa_degustacoes')
-    .select('id, empresa_id, dias, status, canal_financeiro_id, aceito_em, expira_em')
+    .select('id, empresa_id, dias, status, canal_financeiro_id, plano_id, aceito_em, expira_em, planos ( nome, titulo )')
     .eq('id', params.degustacaoId)
     .eq('empresa_id', emp.id)
     .maybeSingle()
 
   if (degErr || !deg?.id) return { ok: false, error: 'Degustação não encontrada.' }
 
+  const planosJoin = deg.planos as { nome?: string; titulo?: string } | { nome?: string; titulo?: string }[] | null
+  const planoInfo = Array.isArray(planosJoin) ? planosJoin[0] : planosJoin
+  const planoTitulo = String(planoInfo?.titulo ?? planoInfo?.nome ?? 'Plano')
+  const planoNome = String(planoInfo?.nome ?? planoTitulo)
+  const planoId = deg.plano_id != null ? String(deg.plano_id) : ''
+
   const sincronizarCanalDegustacao = async (
     aceitoEm: string,
     expiraEm: string,
   ) => {
     if (!deg.canal_financeiro_id) return
-    const detalhesAtualizados = {
-      variant: 'degustacao',
-      degustacao_id: String(deg.id),
+    const detalhesAtualizados = metadataDegustacaoCanal({
+      degustacaoId: String(deg.id),
       dias: Number(deg.dias),
+      planoId,
+      planoTitulo,
+      planoNome,
       aceito: true,
-      aceito_em: aceitoEm,
-      expira_em: expiraEm,
-    }
+      aceitoEm,
+      expiraEm,
+    })
     await supabase
       .from('canal_financeiro')
       .update({

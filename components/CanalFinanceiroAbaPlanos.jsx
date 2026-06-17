@@ -9,7 +9,7 @@ import {
   listarPlanosAtivosEmpresa,
   precoModalidadePlano,
 } from '@/lib/contratarPlanoEmpresa'
-import { normalizarPlanoSlug } from '@/lib/planosEmpresaServicosGate'
+import { normalizarPlanoSlug, planoEmpresaReconhecidoNoCatalogo } from '@/lib/planosEmpresaServicosGate'
 
 /** @typedef {'mensal' | 'trimestral' | 'anual'} ModalidadePlanoEmpresa */
 
@@ -32,6 +32,7 @@ function planoEhAtual(plano, planoEmpresa) {
 export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
   const [planos, setPlanos] = useState(/** @type {import('@/lib/contratarPlanoEmpresa').PlanoEmpresaCatalogo[]} */ ([]))
   const [planoEmpresa, setPlanoEmpresa] = useState(/** @type {string | null} */ (null))
+  const [degustacaoPlanoTitulo, setDegustacaoPlanoTitulo] = useState(/** @type {string | null} */ (null))
   const [loading, setLoading] = useState(true)
   const [expandidoId, setExpandidoId] = useState(/** @type {string | null} */ (null))
   const [servicosAbertosId, setServicosAbertosId] = useState(/** @type {string | null} */ (null))
@@ -48,11 +49,32 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
     setErro(null)
     try {
       const [{ data: emp }, lista] = await Promise.all([
-        supabase.from('empresas').select('plano').eq('usuario_id', usuarioId).maybeSingle(),
+        supabase.from('empresas').select('id, plano').eq('usuario_id', usuarioId).maybeSingle(),
         listarPlanosAtivosEmpresa(supabase),
       ])
       setPlanoEmpresa(emp?.plano != null ? String(emp.plano) : null)
       setPlanos(lista)
+
+      if (emp?.id) {
+        const agora = new Date().toISOString()
+        const { data: deg } = await supabase
+          .from('empresa_degustacoes')
+          .select('id, planos ( titulo )')
+          .eq('empresa_id', String(emp.id))
+          .eq('status', 'ativa')
+          .gt('expira_em', agora)
+          .limit(1)
+          .maybeSingle()
+        if (deg?.id) {
+          const planosJoin = deg.planos
+          const titulo = Array.isArray(planosJoin) ? planosJoin[0]?.titulo : planosJoin?.titulo
+          setDegustacaoPlanoTitulo(titulo != null ? String(titulo) : null)
+        } else {
+          setDegustacaoPlanoTitulo(null)
+        }
+      } else {
+        setDegustacaoPlanoTitulo(null)
+      }
     } catch {
       setErro('Não foi possível carregar os planos.')
       setPlanos([])
@@ -72,15 +94,18 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'planos' }, () => {
         void carregar()
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'empresa_degustacoes' }, () => {
+        void carregar()
+      })
       .subscribe()
     return () => {
       void supabase.removeChannel(ch)
     }
   }, [usuarioId, carregar])
 
-  const planoAtualTitulo = useMemo(() => {
-    const match = planos.find((p) => planoEhAtual(p, planoEmpresa))
-    return match?.titulo ?? (planoEmpresa && planoEmpresa !== 'gratuito' ? planoEmpresa : null)
+  const planoContratadoTitulo = useMemo(() => {
+    const match = planoEmpresaReconhecidoNoCatalogo(planoEmpresa, planos)
+    return match?.titulo ?? null
   }, [planos, planoEmpresa])
 
   const toggleExpandido = (id) => {
@@ -139,8 +164,12 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-4">
-      {planoAtualTitulo ? (
-        <p className="mb-4 text-xs font-semibold text-[#0097b2]">Plano atual: {planoAtualTitulo}</p>
+      {degustacaoPlanoTitulo ? (
+        <p className="mb-2 text-xs font-semibold text-[#00D443]">Degustação ativa: {degustacaoPlanoTitulo}</p>
+      ) : null}
+
+      {planoContratadoTitulo ? (
+        <p className="mb-4 text-xs font-semibold text-[#0097b2]">Plano atual: {planoContratadoTitulo}</p>
       ) : null}
 
       {feedback ? (

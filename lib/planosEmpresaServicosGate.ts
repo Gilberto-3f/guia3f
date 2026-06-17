@@ -22,6 +22,7 @@ export const AVISO_PLANO_EMPRESA_PADRAO =
   'Este recurso depende do plano contratado. Confira os planos disponíveis no canal Financeiro.'
 
 export type PlanoResumoServicos = {
+  id?: string
   nome: string
   titulo: string
   servicos: ServicoPlanoId[]
@@ -99,11 +100,36 @@ export function servicosPlanoBasico(planos: PlanoResumoServicos[]): ServicoPlano
   return basico?.servicos?.length ? basico.servicos : ['pagina_rede_social']
 }
 
+export type DegustacaoServicosOpts = {
+  ativa: boolean
+  servicos?: ServicoPlanoId[] | null
+}
+
 export function resolverServicosEmpresa(
   planoEmpresa: string | null | undefined,
   planos: PlanoResumoServicos[],
-  degustacaoAtiva: boolean,
+  degustacao: boolean | DegustacaoServicosOpts,
 ): ServicoPlanoId[] {
-  if (degustacaoAtiva) return servicosPlanoBasico(planos)
+  const opts: DegustacaoServicosOpts =
+    typeof degustacao === 'boolean' ? { ativa: degustacao } : degustacao
+
+  if (opts.ativa) {
+    if (opts.servicos?.length) return [...opts.servicos]
+    return servicosPlanoBasico(planos)
+  }
   return resolverServicosDoPlano(planoEmpresa, planos)
+}
+
+/** Plano contratado reconhecido no catálogo ativo (evita exibir slug órfão legado). */
+export function planoEmpresaReconhecidoNoCatalogo(
+  planoEmpresa: string | null | undefined,
+  planos: PlanoResumoServicos[],
+): PlanoResumoServicos | null {
+  const p = normalizarPlanoSlug(planoEmpresa ?? '')
+  if (!p || p === 'gratuito') return null
+  return (
+    planos.find(
+      (item) => normalizarPlanoSlug(item.nome) === p || normalizarPlanoSlug(item.titulo) === p,
+    ) ?? null
+  )
 }

@@ -13,6 +13,7 @@ import {
   type MenuEmpresaId,
   type PlanoResumoServicos,
 } from '@/lib/planosEmpresaServicosGate'
+import { buscarServicosPlanoDegustacao } from '@/lib/degustacaoEmpresa'
 
 export function useEmpresaServicosPlano(
   planoEmpresa: string | null | undefined,
@@ -20,6 +21,9 @@ export function useEmpresaServicosPlano(
 ) {
   const [planos, setPlanos] = useState<PlanoResumoServicos[]>([])
   const [degustacaoAtiva, setDegustacaoAtiva] = useState(false)
+  const [degustacaoPlanoId, setDegustacaoPlanoId] = useState<string | null>(null)
+  const [degustacaoPlanoTitulo, setDegustacaoPlanoTitulo] = useState<string | null>(null)
+  const [degustacaoServicos, setDegustacaoServicos] = useState<ServicoPlanoId[] | null>(null)
   const [loading, setLoading] = useState(true)
 
   const carregar = useCallback(async () => {
@@ -27,7 +31,7 @@ export function useEmpresaServicosPlano(
     try {
       const { data, error } = await supabase
         .from('planos')
-        .select('nome, titulo, servicos')
+        .select('id, nome, titulo, servicos')
         .eq('ativo', true)
       if (error) throw error
 
@@ -38,6 +42,7 @@ export function useEmpresaServicosPlano(
           ? servicosRaw.filter((s): s is ServicoPlanoId => typeof s === 'string')
           : []
         return {
+          id: r.id != null ? String(r.id) : undefined,
           nome: String(r.nome ?? ''),
           titulo: String(r.titulo ?? r.nome ?? ''),
           servicos,
@@ -49,19 +54,43 @@ export function useEmpresaServicosPlano(
         const agora = new Date().toISOString()
         const { data: deg } = await supabase
           .from('empresa_degustacoes')
-          .select('id')
+          .select('id, plano_id, planos ( titulo )')
           .eq('empresa_id', empresaId)
           .eq('status', 'ativa')
           .gt('expira_em', agora)
           .limit(1)
           .maybeSingle()
-        setDegustacaoAtiva(Boolean(deg?.id))
+
+        const ativa = Boolean(deg?.id)
+        setDegustacaoAtiva(ativa)
+
+        if (ativa) {
+          const pid = deg?.plano_id != null ? String(deg.plano_id) : null
+          setDegustacaoPlanoId(pid)
+          const planosJoin = deg?.planos as { titulo?: string } | { titulo?: string }[] | null
+          const titulo = Array.isArray(planosJoin)
+            ? planosJoin[0]?.titulo
+            : planosJoin?.titulo
+          setDegustacaoPlanoTitulo(titulo != null ? String(titulo) : null)
+          const servicos = await buscarServicosPlanoDegustacao(supabase, pid)
+          setDegustacaoServicos(servicos)
+        } else {
+          setDegustacaoPlanoId(null)
+          setDegustacaoPlanoTitulo(null)
+          setDegustacaoServicos(null)
+        }
       } else {
         setDegustacaoAtiva(false)
+        setDegustacaoPlanoId(null)
+        setDegustacaoPlanoTitulo(null)
+        setDegustacaoServicos(null)
       }
     } catch {
       setPlanos([])
       setDegustacaoAtiva(false)
+      setDegustacaoPlanoId(null)
+      setDegustacaoPlanoTitulo(null)
+      setDegustacaoServicos(null)
     } finally {
       setLoading(false)
     }
@@ -82,8 +111,12 @@ export function useEmpresaServicosPlano(
   }, [carregar])
 
   const servicos = useMemo(
-    () => resolverServicosEmpresa(planoEmpresa, planos, degustacaoAtiva),
-    [degustacaoAtiva, planoEmpresa, planos],
+    () =>
+      resolverServicosEmpresa(planoEmpresa, planos, {
+        ativa: degustacaoAtiva,
+        servicos: degustacaoServicos,
+      }),
+    [degustacaoAtiva, degustacaoServicos, planoEmpresa, planos],
   )
 
   const temServico = useCallback(
@@ -111,12 +144,25 @@ export function useEmpresaServicosPlano(
       servicos,
       loading,
       degustacaoAtiva,
+      degustacaoPlanoId,
+      degustacaoPlanoTitulo,
       temServico,
       menuLiberado,
       abaLiberada,
       featureLiberada,
       refetch: carregar,
     }),
-    [abaLiberada, carregar, degustacaoAtiva, featureLiberada, loading, menuLiberado, servicos, temServico],
+    [
+      abaLiberada,
+      carregar,
+      degustacaoAtiva,
+      degustacaoPlanoId,
+      degustacaoPlanoTitulo,
+      featureLiberada,
+      loading,
+      menuLiberado,
+      servicos,
+      temServico,
+    ],
   )
 }

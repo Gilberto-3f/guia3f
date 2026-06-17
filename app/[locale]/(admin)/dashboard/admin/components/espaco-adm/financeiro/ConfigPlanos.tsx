@@ -101,6 +101,7 @@ export function ConfigPlanos() {
   const [excluindoId, setExcluindoId] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [degustacaoAberta, setDegustacaoAberta] = useState(false)
+  const [planoDegustacao, setPlanoDegustacao] = useState<PlanoEmpresaAdm | null>(null)
 
   const planosVisiveis = useMemo(
     () => planos.filter((p) => !form?.id || p.id !== form.id),
@@ -200,14 +201,28 @@ export function ConfigPlanos() {
               plano={p}
               onEditar={() => abrirEditar(p)}
               onExcluir={() => void excluir(p)}
-              onDegustacao={() => setDegustacaoAberta(true)}
+              onDegustacao={() => {
+                setPlanoDegustacao(p)
+                setDegustacaoAberta(true)
+              }}
               excluindo={excluindoId === p.id}
             />
           ))}
         </div>
       )}
 
-      <ModalDegustacao aberto={degustacaoAberta} onFechar={() => setDegustacaoAberta(false)} />
+      <ModalDegustacao
+        aberto={degustacaoAberta}
+        plano={
+          planoDegustacao
+            ? { id: planoDegustacao.id, titulo: planoDegustacao.titulo, cor: planoDegustacao.cor }
+            : null
+        }
+        onFechar={() => {
+          setDegustacaoAberta(false)
+          setPlanoDegustacao(null)
+        }}
+      />
     </div>
   )
 }

@@ -5,6 +5,13 @@ import Image from 'next/image'
 import { Check, Search, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { labelStatusEmpresaDegustacao } from '@/lib/degustacaoEmpresa'
+import { corPlanoHex } from '@/lib/planosEmpresaCatalogo'
+
+export type PlanoDegustacaoResumo = {
+  id: string
+  titulo: string
+  cor: string
+}
 
 export type EmpresaDegustacaoBusca = {
   id: string
@@ -79,7 +86,15 @@ async function pesquisarEmpresasDegustacao(termo: string): Promise<EmpresaDegust
   return resultados
 }
 
-export function ModalDegustacao({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
+export function ModalDegustacao({
+  aberto,
+  plano,
+  onFechar,
+}: {
+  aberto: boolean
+  plano: PlanoDegustacaoResumo | null
+  onFechar: () => void
+}) {
   const [busca, setBusca] = useState('')
   const [pesquisando, setPesquisando] = useState(false)
   const [resultados, setResultados] = useState<EmpresaDegustacaoBusca[]>([])
@@ -121,6 +136,10 @@ export function ModalDegustacao({ aberto, onFechar }: { aberto: boolean; onFecha
   }
 
   const conceder = async () => {
+    if (!plano?.id) {
+      setErro('Plano não identificado. Feche e abra a degustação pelo card do plano desejado.')
+      return
+    }
     if (!selecionada) {
       setErro('Selecione uma empresa.')
       return
@@ -142,6 +161,7 @@ export function ModalDegustacao({ aberto, onFechar }: { aberto: boolean; onFecha
           empresa_id: selecionada.id,
           empresa_usuario_id: selecionada.usuarioId,
           username: selecionada.username,
+          plano_id: plano.id,
           dias: diasNum,
         }),
       })
@@ -150,7 +170,7 @@ export function ModalDegustacao({ aberto, onFechar }: { aberto: boolean; onFecha
         setErro(json.error ?? 'Não foi possível conceder a degustação.')
         return
       }
-      setSucesso(`Degustação de ${diasNum} dias enviada para ${selecionada.nome}.`)
+      setSucesso(`Degustação de ${diasNum} dias do plano ${plano.titulo} enviada para ${selecionada.nome}.`)
       setDias('')
     } catch {
       setErro('Erro de rede ao conceder degustação.')
@@ -180,9 +200,24 @@ export function ModalDegustacao({ aberto, onFechar }: { aberto: boolean; onFecha
         className="relative z-10 w-full max-w-lg rounded-2xl bg-[#0097b2] p-4 shadow-2xl sm:p-5"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 id="degustacao-titulo" className="text-lg font-bold text-white">
-            Degustação
-          </h2>
+          <div>
+            <h2 id="degustacao-titulo" className="text-lg font-bold text-white">
+              Degustação
+            </h2>
+            {plano ? (
+              <p className="mt-0.5 text-sm text-white/90">
+                Plano:{' '}
+                <span
+                  className="inline-flex rounded-md px-1.5 py-0.5 font-semibold text-white"
+                  style={{ backgroundColor: corPlanoHex(plano.cor) }}
+                >
+                  {plano.titulo}
+                </span>
+              </p>
+            ) : (
+              <p className="mt-0.5 text-sm text-amber-100">Selecione um plano no card antes de conceder.</p>
+            )}
+          </div>
           <button
             type="button"
             onClick={onFechar}
@@ -277,7 +312,7 @@ export function ModalDegustacao({ aberto, onFechar }: { aberto: boolean; onFecha
             <button
               type="button"
               onClick={() => void conceder()}
-              disabled={concedendo}
+              disabled={concedendo || !plano?.id}
               className="mt-3 w-full rounded-xl bg-[#0097b2] py-3 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-50"
             >
               {concedendo ? 'Enviando…' : 'CONCEDER!'}

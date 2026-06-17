@@ -33,7 +33,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
   const [erro, setErro] = useState(/** @type {string | null} */ (null))
   const [degustacaoIdResolvido, setDegustacaoIdResolvido] = useState('')
   const [degustacao, setDegustacao] = useState(
-    /** @type {{ id: string, status: string, expira_em: string | null, aceito_em: string | null } | null} */ (null),
+    /** @type {{ id: string, status: string, expira_em: string | null, aceito_em: string | null, plano_titulo: string | null } | null} */ (null),
   )
   const [marcadaLida, setMarcadaLida] = useState(item.lida_por_empresa)
 
@@ -45,7 +45,9 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
         : {}
 
   const degustacaoIdMeta = String(detalhes.degustacao_id ?? '')
+  const planoTituloMeta = String(detalhes.plano_titulo ?? '').trim()
   const degustacaoId = degustacaoIdResolvido || degustacaoIdMeta
+  const planoTitulo = degustacao?.plano_titulo || planoTituloMeta || null
   const estadoUi = resolverEstadoDegustacaoUi(degustacao)
   const estaLida = userTipo === 'empresa' ? marcadaLida || item.lida_por_empresa || estadoUi !== 'aguardando_aceite' : false
 
@@ -54,7 +56,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
     const carregarDegustacao = async () => {
       let query = supabase
         .from('empresa_degustacoes')
-        .select('id, status, expira_em, aceito_em')
+        .select('id, status, expira_em, aceito_em, planos ( titulo )')
         .limit(1)
 
       if (degustacaoIdMeta) {
@@ -66,12 +68,18 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
       const { data } = await query.maybeSingle()
       if (!ativo) return
       if (data?.id) {
+        const planosJoin = data.planos
+        const tituloPlano = Array.isArray(planosJoin)
+          ? planosJoin[0]?.titulo
+          : planosJoin?.titulo
         setDegustacaoIdResolvido(String(data.id))
         setDegustacao({
           id: String(data.id),
           status: String(data.status ?? ''),
           expira_em: data.expira_em != null ? String(data.expira_em) : null,
           aceito_em: data.aceito_em != null ? String(data.aceito_em) : null,
+          plano_titulo:
+            tituloPlano != null ? String(tituloPlano) : planoTituloMeta || null,
         })
       }
     }
@@ -79,7 +87,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
     return () => {
       ativo = false
     }
-  }, [degustacaoIdMeta, item.id])
+  }, [degustacaoIdMeta, item.id, planoTituloMeta])
 
   useEffect(() => {
     if (userTipo !== 'empresa' || !usuarioId || marcadaLida || item.lida_por_empresa) return
@@ -114,16 +122,22 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
 
       const { data: atualizada } = await supabase
         .from('empresa_degustacoes')
-        .select('id, status, expira_em, aceito_em')
+        .select('id, status, expira_em, aceito_em, planos ( titulo )')
         .eq('id', degustacaoId)
         .maybeSingle()
 
       if (atualizada?.id) {
+        const planosJoin = atualizada.planos
+        const tituloPlano = Array.isArray(planosJoin)
+          ? planosJoin[0]?.titulo
+          : planosJoin?.titulo
         setDegustacao({
           id: String(atualizada.id),
           status: String(atualizada.status ?? 'ativa'),
           expira_em: atualizada.expira_em != null ? String(atualizada.expira_em) : null,
           aceito_em: atualizada.aceito_em != null ? String(atualizada.aceito_em) : null,
+          plano_titulo:
+            tituloPlano != null ? String(tituloPlano) : planoTituloMeta || null,
         })
       } else {
         setDegustacao((prev) => ({
@@ -131,6 +145,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
           status: 'ativa',
           expira_em: prev?.expira_em ?? null,
           aceito_em: new Date().toISOString(),
+          plano_titulo: (prev?.plano_titulo ?? planoTituloMeta) || null,
         }))
       }
 
@@ -160,6 +175,12 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
             ) : null}
           </div>
 
+          {planoTitulo ? (
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#0097b2]">
+              Plano ofertado: {planoTitulo}
+            </p>
+          ) : null}
+
           {item.mensagem ? (
             <p className="mb-3 whitespace-pre-line text-sm text-gray-600">{item.mensagem}</p>
           ) : null}
@@ -178,11 +199,11 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
             </button>
           ) : estadoUi === 'ativa' ? (
             <p className="text-sm font-semibold text-[#00D443]">
-              {mensagemDegustacaoAtiva(degustacao?.expira_em)}
+              {mensagemDegustacaoAtiva(degustacao?.expira_em, planoTitulo)}
             </p>
           ) : estadoUi === 'expirada' ? (
             <p className="text-sm font-semibold text-amber-700">
-              {mensagemDegustacaoExpirada(degustacao?.expira_em)}
+              {mensagemDegustacaoExpirada(degustacao?.expira_em, planoTitulo)}
             </p>
           ) : null}
 

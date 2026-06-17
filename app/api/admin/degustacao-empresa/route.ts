@@ -13,10 +13,14 @@ export async function POST(req: Request) {
     const empresaId = String(body.empresa_id ?? '').trim()
     const empresaUsuarioId = String(body.empresa_usuario_id ?? '').trim()
     const username = String(body.username ?? '').trim()
+    const planoId = String(body.plano_id ?? '').trim()
     const dias = Number(body.dias)
 
     if (!empresaId || !empresaUsuarioId) {
       return NextResponse.json({ error: 'empresa_id e empresa_usuario_id são obrigatórios.' }, { status: 400 })
+    }
+    if (!planoId) {
+      return NextResponse.json({ error: 'plano_id é obrigatório.' }, { status: 400 })
     }
 
     const { row: adminRow, actorId } = await loadAdminUsuarioRow(auth.userId, auth.email)
@@ -40,6 +44,7 @@ export async function POST(req: Request) {
       empresaUsuarioId,
       username,
       dias,
+      planoId,
       admUsuarioId: actorId,
     })
 
