@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import CanalFinanceiroItem from '@/components/CanalFinanceiroItem'
-import CanalFinanceiroItemPlanos from '@/components/CanalFinanceiroItemPlanos'
 import CanalFinanceiroItemDegustacao from '@/components/CanalFinanceiroItemDegustacao'
 import CanalFinanceiroItemPreLiberacao from '@/components/CanalFinanceiroItemPreLiberacao'
 import CanalFinanceiroMensageiro from '@/components/CanalFinanceiroMensageiro'
+import CanalFinanceiroAbaPlanos from '@/components/CanalFinanceiroAbaPlanos'
 import { marcarFinanceiroLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { marcarFinanceiroLidoProfissional } from '@/lib/canaisProfissionalVisibilidade'
 import {
@@ -27,7 +27,7 @@ const abaCls = (ativo) =>
  * @param {{ usuarioId: string, tipo: 'profissional' | 'empresa' }} props
  */
 export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
-  const [aba, setAba] = useState(/** @type {'relatorios' | 'mensageiro'} */ ('relatorios'))
+  const [aba, setAba] = useState(/** @type {'relatorios' | 'mensageiro' | 'planos'} */ ('relatorios'))
   const [itens, setItens] = useState([])
   const [loading, setLoading] = useState(true)
   const [naoLidas, setNaoLidas] = useState(0)
@@ -325,7 +325,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
             className={`${abaCls(aba === 'relatorios')} relative`}
             onClick={() => setAba('relatorios')}
           >
-            Relatórios do APP
+            Relatórios
             {naoLidas > 0 ? (
               <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                 {naoLidas > 9 ? '9+' : naoLidas}
@@ -339,43 +339,56 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
             className={`${abaCls(aba === 'mensageiro')} relative`}
             onClick={() => setAba('mensageiro')}
           >
-            Mensageiro ADM
+            Mensageiro
             {naoLidasMensageiro > 0 ? (
               <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                 {naoLidasMensageiro > 9 ? '9+' : naoLidasMensageiro}
               </span>
             ) : null}
           </button>
+          {tipo === 'empresa' ? (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={aba === 'planos'}
+              className={abaCls(aba === 'planos')}
+              onClick={() => setAba('planos')}
+            >
+              Planos
+            </button>
+          ) : null}
         </div>
       </div>
 
       {aba === 'relatorios' ? (
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-          {itens.length === 0 ? (
+          {itens.filter((item) => !(tipo === 'empresa' && item.tipo === 'plano_assinatura')).length === 0 ? (
             <div className="py-8 text-center text-gray-400">Nenhuma movimentação financeira ainda</div>
           ) : (
-            itens.map((item) =>
-              item.tipo === 'pre_liberacao_turista' && tipo === 'profissional' ? (
-                <CanalFinanceiroItemPreLiberacao
-                  key={item.id}
-                  item={item}
-                  onRespondido={() => void carregar({ silencioso: true })}
-                />
-              ) : item.tipo === 'plano_assinatura' && tipo === 'empresa' ? (
-                <CanalFinanceiroItemPlanos key={item.id} item={item} userTipo={tipo} />
-              ) : item.tipo === 'degustacao_plano' && tipo === 'empresa' ? (
-                <CanalFinanceiroItemDegustacao
-                  key={item.id}
-                  item={item}
-                  userTipo={tipo}
-                  onAceito={() => void carregar({ silencioso: true })}
-                />
-              ) : (
-                <CanalFinanceiroItem key={item.id} item={item} userTipo={tipo} />
-              ),
-            )
+            itens
+              .filter((item) => !(tipo === 'empresa' && item.tipo === 'plano_assinatura'))
+              .map((item) =>
+                item.tipo === 'pre_liberacao_turista' && tipo === 'profissional' ? (
+                  <CanalFinanceiroItemPreLiberacao
+                    key={item.id}
+                    item={item}
+                    onRespondido={() => void carregar({ silencioso: true })}
+                  />
+                ) : item.tipo === 'degustacao_plano' && tipo === 'empresa' ? (
+                  <CanalFinanceiroItemDegustacao
+                    key={item.id}
+                    item={item}
+                    userTipo={tipo}
+                    onAceito={() => void carregar({ silencioso: true })}
+                  />
+                ) : (
+                  <CanalFinanceiroItem key={item.id} item={item} userTipo={tipo} />
+                ),
+              )
           )}
         </div>
+      ) : aba === 'planos' && tipo === 'empresa' ? (
+        <CanalFinanceiroAbaPlanos usuarioId={usuarioId} />
       ) : (
         <CanalFinanceiroMensageiro usuarioId={usuarioId} />
       )}

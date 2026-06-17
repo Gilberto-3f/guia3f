@@ -7,7 +7,6 @@ import {
 } from '@/lib/adminApiAuth'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { enviarMensagemAprovacaoCanalFinanceiro } from '@/lib/canalFinanceiroAprovacaoCadastro'
-import { enviarPlanosDisponiveisCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroPlanosEmpresa'
 import { proximaRevisaoDepoisDeAprovacao } from '@/lib/verificacao-documentos'
 
 type PerfilVerificacao = 'turistas' | 'profissionais' | 'empresas'
@@ -252,11 +251,6 @@ export async function POST(req: Request) {
             })
             if (!msgFin.ok) {
               console.error('[api/admin/verificacao] canal financeiro empresa:', msgFin.error)
-            }
-
-            const planosFin = await enviarPlanosDisponiveisCanalFinanceiroEmpresa(adminDb, String(emp.usuario_id))
-            if (!planosFin.ok) {
-              console.error('[api/admin/verificacao] planos canal financeiro empresa:', planosFin.error)
             }
           }
         } catch (e) {
