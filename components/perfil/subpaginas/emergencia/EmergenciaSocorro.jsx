@@ -13,9 +13,9 @@ export default function EmergenciaSocorro() {
         <button
           type="button"
           onClick={() => router.push('/chat-adm?urgente=1')}
-          className="w-full rounded-xl bg-[#86efac] py-3.5 text-sm font-bold uppercase tracking-wide text-green-900 transition hover:bg-[#4ade80]"
+          className="w-full rounded-xl bg-red-600 py-3.5 text-sm font-bold uppercase tracking-wide text-white transition hover:bg-red-700"
         >
-          Chamar ADM
+          CHAMAR ADM
         </button>
         <button
           type="button"

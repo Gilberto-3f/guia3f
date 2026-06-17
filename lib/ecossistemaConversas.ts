@@ -159,6 +159,7 @@ export async function listarAlertasUrgentesAdm(
     .eq('status', 'aberta')
     .eq('urgente', true)
     .eq('alerta_urgente_visto', false)
+    .eq('membro_tipo', 'turista')
     .order('created_at', { ascending: false })
 
   const conversas = (data ?? []).map(mapConversa)

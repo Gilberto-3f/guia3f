@@ -23,7 +23,6 @@ import {
   MessageSquare,
   Eye,
   Paperclip,
-  Phone,
   Scale,
   Search,
   Settings,
@@ -230,7 +229,7 @@ function secoesTurista(opts = {}) {
     { Icon: Search, label: 'Item esquecido', subpagina: 'emergencia-item-esquecido' },
     { Icon: MapPin, label: 'Estou perdido(a)', subpagina: 'emergencia-perdido' },
     { Icon: AlertTriangle, label: 'SOCORRO', subpagina: 'emergencia-socorro' },
-    { Icon: Phone, label: 'Contatar ADM', href: '/chat-adm' },
+    { Icon: MessageSquare, label: 'Chat ADM', href: '/chat-adm' },
   ]
   const gUsuario = [
     { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
@@ -242,7 +241,6 @@ function secoesTurista(opts = {}) {
   const gAplic = [
     itemHistoricoCompras,
     { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
-    itemChatAdm,
     itemConfig,
   ]
   return [
@@ -297,7 +295,6 @@ function secoesProfissional(ctx) {
       items: [
         { Icon: History, label: 'Minhas Compras', subpagina: 'historico-compras' },
         { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
-        itemChatAdm,
       ],
     },
     {
@@ -389,7 +386,6 @@ function secoesEmpresa(ctx) {
   )
   const gAplic = [
     { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
-    itemChatAdm,
     itemConfig,
   ]
   return [
@@ -778,7 +774,7 @@ export default function MenuLateral({
         'emergencia-item-esquecido': 'Item esquecido',
         'emergencia-perdido': 'Estou perdido(a)',
         'emergencia-socorro': 'SOCORRO',
-        'emergencia-adm': 'Contatar ADM',
+        'emergencia-adm': 'Chat ADM',
         'emergencia-pre-liberacao': 'Pré-liberação de Cadastro',
         'editar-perfil': 'Editar Perfil',
         'minhas-atividades': 'Minhas Atividades',
@@ -875,7 +871,7 @@ export default function MenuLateral({
     if (id === 'emergencia-adm')
       return (
         <EmergenciaMensageiroAdm
-          titulo="Contatar ADM"
+          titulo="Chat ADM"
           subtitulo="Troque informações com um administrador pelo canal oficial."
           placeholder="Escreva sua mensagem…"
         />
