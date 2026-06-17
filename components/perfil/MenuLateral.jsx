@@ -372,15 +372,30 @@ function secoesEmpresa(ctx) {
   ]
   const gEmp = filtrarMenu(
     [
-      { Icon: DollarSign, label: 'Cadastrar Comissão', href: '/empresa/menu/cadastrar-comissao' },
-      { Icon: Megaphone, label: 'Publicidade', href: '/empresa/menu/publicidade' },
+      {
+        Icon: DollarSign,
+        label: 'Cadastrar Comissão',
+        href: '/empresa/menu/cadastrar-comissao',
+        condicional: empresaMenuServico('cadastrar-comissao'),
+      },
+      {
+        Icon: Megaphone,
+        label: 'Publicidade',
+        href: '/empresa/menu/publicidade',
+        condicional: empresaMenuServico('publicidade'),
+      },
       {
         Icon: ShoppingCart,
         label: 'Compras Paraguai',
         href: '/empresa/menu/compras-paraguai',
         condicional: empresaComprasParaguaiVisivel,
       },
-      { Icon: MessageSquare, label: 'Chat ADM', href: '/chat-adm' },
+      {
+        Icon: MessageSquare,
+        label: 'Chat ADM',
+        href: '/chat-adm',
+        condicional: empresaMenuServico('chat-adm'),
+      },
     ],
     ctx
   )

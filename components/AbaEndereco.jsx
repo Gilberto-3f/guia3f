@@ -119,9 +119,11 @@ function montarQueryMapaEndereco(e) {
  *   redes_sociais?: unknown
  *   horarios: Record<string, { abre: string, fecha: string, fechado: boolean }>
  *   nome_fantasia?: string
- * }}} props
+ * }
+ * mostrarChamarCorrida?: boolean
+ * }} props
  */
-export default function AbaEndereco({ empresa }) {
+export default function AbaEndereco({ empresa, mostrarChamarCorrida = false }) {
   const nomeDestino = empresa.nome_fantasia || ''
   const redes = parseRedesSociais(empresa.redes_sociais)
 
@@ -143,6 +145,7 @@ export default function AbaEndereco({ empresa }) {
 
   return (
     <div className="space-y-6 pb-0 text-gray-900 [&>section:last-child]:mb-0">
+      {mostrarChamarCorrida ? (
       <section className="space-y-3">
         <BotaoChamarCorrida
           variant="empresa"
@@ -153,6 +156,7 @@ export default function AbaEndereco({ empresa }) {
           nomeDestino={nomeDestino}
         />
       </section>
+      ) : null}
 
       <section className="space-y-2 border-t border-gray-100 pt-5">
         <TituloSecao Icon={MapPin} titulo="Endereço" />

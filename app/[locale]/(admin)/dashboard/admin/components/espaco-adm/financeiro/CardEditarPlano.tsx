@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { DollarSign, MoreVertical } from 'lucide-react'
+import { DollarSign, Pencil } from 'lucide-react'
 import {
   CORES_PLANO,
   SERVICOS_PLANO_EMPRESA,
@@ -10,7 +9,6 @@ import {
   type ServicoPlanoId,
 } from '@/lib/planosEmpresaCatalogo'
 import type { PlanoFormInput } from '../../../hooks/useFinanceiroAdm'
-import { ModalDegustacao } from './ModalDegustacao'
 
 const COR_CONFIRMAR = '#00D443'
 const MAX_DESCRICAO = 1500
@@ -43,7 +41,6 @@ export function CardEditarPlano({
   modo: 'novo' | 'editar'
 }) {
   const corHex = corPlanoHex(form.cor)
-  const [degustacaoAberta, setDegustacaoAberta] = useState(false)
 
   const toggleServico = (id: ServicoPlanoId) => {
     const set = new Set(form.servicos)
@@ -184,18 +181,7 @@ export function CardEditarPlano({
         >
           Cancelar
         </button>
-        <button
-          type="button"
-          onClick={() => setDegustacaoAberta(true)}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
-          aria-label="Degustação"
-          title="Degustação"
-        >
-          <MoreVertical className="h-5 w-5" aria-hidden />
-        </button>
       </div>
-
-      <ModalDegustacao aberto={degustacaoAberta} onFechar={() => setDegustacaoAberta(false)} />
     </article>
   )
 }

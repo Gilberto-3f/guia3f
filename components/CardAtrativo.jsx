@@ -42,9 +42,10 @@ function bandeiraPorCidade(cidade) {
  *   },
  *   segmentoGuiaSlug?: string | null
  *   onSeguirToggle?: () => void
+ *   temBotaoDinamico?: boolean
  * }} props
  */
-export default function CardAtrativo({ empresa, segmentoGuiaSlug = null }) {
+export default function CardAtrativo({ empresa, segmentoGuiaSlug = null, temBotaoDinamico = true }) {
   const router = useRouter()
   const { perfilEhProfissional, recursosProfissionaisLiberados, loading: gateLoading } =
     useProfissionalGate()
@@ -117,7 +118,7 @@ export default function CardAtrativo({ empresa, segmentoGuiaSlug = null }) {
             <BotaoRecomendar empresa={empresa} segmentoGuiaSlug={segmentoGuiaSlug} />
           ) : gateLoading ? (
             <div className="min-h-[3.25rem] flex-1 animate-pulse rounded-lg bg-gray-100" aria-hidden />
-          ) : (
+          ) : temBotaoDinamico ? (
             <BotaoDinamico
               categoria={empresa.categoria}
               cidade={empresa.cidade}
@@ -129,7 +130,7 @@ export default function CardAtrativo({ empresa, segmentoGuiaSlug = null }) {
               precoTicketMeia={Number(empresa.preco_ticket_meia) || 0}
               precoDiaria={Number(empresa.preco_diaria) || 0}
             />
-          )}
+          ) : null}
         </div>
       </div>
     </div>

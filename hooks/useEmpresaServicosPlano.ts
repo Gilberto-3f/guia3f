@@ -5,9 +5,11 @@ import { supabase } from '@/lib/supabase'
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import {
   abaDashboardLiberada,
+  featureEmpresaLiberada,
   menuEmpresaLiberado,
   resolverServicosEmpresa,
   type AbaDashboardEmpresa,
+  type FeatureEmpresaId,
   type MenuEmpresaId,
   type PlanoResumoServicos,
 } from '@/lib/planosEmpresaServicosGate'
@@ -69,6 +71,16 @@ export function useEmpresaServicosPlano(
     void carregar()
   }, [carregar])
 
+  useEffect(() => {
+    const onRef = () => void carregar()
+    window.addEventListener('empresa-gate-refresh', onRef)
+    window.addEventListener('perfil-atualizado', onRef)
+    return () => {
+      window.removeEventListener('empresa-gate-refresh', onRef)
+      window.removeEventListener('perfil-atualizado', onRef)
+    }
+  }, [carregar])
+
   const servicos = useMemo(
     () => resolverServicosEmpresa(planoEmpresa, planos, degustacaoAtiva),
     [degustacaoAtiva, planoEmpresa, planos],
@@ -89,8 +101,22 @@ export function useEmpresaServicosPlano(
     [servicos],
   )
 
+  const featureLiberada = useCallback(
+    (feature: FeatureEmpresaId) => featureEmpresaLiberada(feature, servicos),
+    [servicos],
+  )
+
   return useMemo(
-    () => ({ servicos, loading, degustacaoAtiva, temServico, menuLiberado, abaLiberada, refetch: carregar }),
-    [abaLiberada, carregar, degustacaoAtiva, loading, menuLiberado, servicos, temServico],
+    () => ({
+      servicos,
+      loading,
+      degustacaoAtiva,
+      temServico,
+      menuLiberado,
+      abaLiberada,
+      featureLiberada,
+      refetch: carregar,
+    }),
+    [abaLiberada, carregar, degustacaoAtiva, featureLiberada, loading, menuLiberado, servicos, temServico],
   )
 }

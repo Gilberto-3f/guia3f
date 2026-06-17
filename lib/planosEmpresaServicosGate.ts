@@ -2,12 +2,24 @@ import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 
 export type MenuEmpresaId =
   | 'feed-stories'
+  | 'cadastrar-comissao'
   | 'publicidade'
   | 'chat-adm'
   | 'denuncias'
   | 'compras-paraguai'
 
 export type AbaDashboardEmpresa = 'funil' | 'mercado' | 'drena'
+
+export type FeatureEmpresaId =
+  | 'pagina_rede_social'
+  | 'botao_dinamico'
+  | 'botao_chamar_corrida'
+  | 'canais'
+  | 'planejador_publicacoes'
+  | 'publicidade'
+
+export const AVISO_PLANO_EMPRESA_PADRAO =
+  'Este recurso depende do plano contratado. Confira os planos disponíveis no canal Financeiro.'
 
 export type PlanoResumoServicos = {
   nome: string
@@ -17,10 +29,20 @@ export type PlanoResumoServicos = {
 
 const MENU_SERVICO: Record<MenuEmpresaId, ServicoPlanoId | null> = {
   'feed-stories': 'pagina_rede_social',
+  'cadastrar-comissao': 'pagina_rede_social',
   publicidade: 'publicidade',
-  'chat-adm': 'auxiliar_adm',
+  'chat-adm': 'pagina_rede_social',
   denuncias: null,
   'compras-paraguai': 'compras_paraguai_drena',
+}
+
+const FEATURE_SERVICO: Record<FeatureEmpresaId, ServicoPlanoId> = {
+  pagina_rede_social: 'pagina_rede_social',
+  botao_dinamico: 'botao_dinamico',
+  botao_chamar_corrida: 'botao_chamar_corrida',
+  canais: 'canais',
+  planejador_publicacoes: 'planejador_publicacoes',
+  publicidade: 'publicidade',
 }
 
 const ABA_SERVICO: Record<AbaDashboardEmpresa, ServicoPlanoId> = {
@@ -49,6 +71,10 @@ export function menuEmpresaLiberado(menuId: MenuEmpresaId, servicos: readonly st
 
 export function abaDashboardLiberada(aba: AbaDashboardEmpresa, servicos: readonly string[]): boolean {
   return empresaTemServico(servicos, ABA_SERVICO[aba])
+}
+
+export function featureEmpresaLiberada(feature: FeatureEmpresaId, servicos: readonly string[]): boolean {
+  return empresaTemServico(servicos, FEATURE_SERVICO[feature])
 }
 
 export function resolverServicosDoPlano(

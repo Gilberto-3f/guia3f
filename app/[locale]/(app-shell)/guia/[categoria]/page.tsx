@@ -8,6 +8,12 @@ import CardAtrativo from '@/components/CardAtrativo'
 import BuscadorGuiaSegmento from '@/components/guia/BuscadorGuiaSegmento'
 import { empresaCorrespondeBusca } from '@/lib/palavrasChaveGuia'
 import { registrarBuscaGuia } from '@/lib/buscasGuia'
+import {
+  empresaTemServico,
+  resolverServicosDoPlano,
+  type PlanoResumoServicos,
+} from '@/lib/planosEmpresaServicosGate'
+import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 
 import { slugGuiaParaCategoriaDb } from '@/lib/segmentosEmpresaGuia'
 
@@ -62,6 +68,7 @@ type Empresa = {
   preco_ticket_inteira?: number | null
   preco_ticket_meia?: number | null
   preco_diaria?: number | null
+  plano?: string | null
   palavras_chave?: unknown
 }
 
@@ -83,6 +90,7 @@ export default function ListagemCategoriaPage() {
   const slug = typeof params.categoria === 'string' ? params.categoria : params.categoria?.[0] ?? ''
 
   const [empresas, setEmpresas] = useState<Empresa[]>([])
+  const [planosResumo, setPlanosResumo] = useState<PlanoResumoServicos[]>([])
   const [loading, setLoading] = useState(true)
   const [erroLista, setErroLista] = useState('')
   const [pais, setPais] = useState<PaisFiltro>('br')
@@ -109,7 +117,7 @@ export default function ListagemCategoriaPage() {
         .from('empresas')
         // FIX: seleciona só o necessário (melhor para tsc/typing e rede)
         .select(
-          'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave'
+          'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave, plano'
         )
         .eq('categoria', categoriaDb)
         .eq('cidade', cidadeDb)
@@ -155,6 +163,39 @@ export default function ListagemCategoriaPage() {
       if (!silent) setLoading(false)
     }
   }, [categoriaDb, cidadeDb])
+
+  useEffect(() => {
+    let ativo = true
+    const carregarPlanos = async () => {
+      const { data } = await supabase.from('planos').select('nome, titulo, servicos').eq('ativo', true)
+      if (!ativo) return
+      const mapped = (data ?? []).map((row) => {
+        const r = row as Record<string, unknown>
+        const servicosRaw = r.servicos
+        const servicos = Array.isArray(servicosRaw)
+          ? servicosRaw.filter((s): s is ServicoPlanoId => typeof s === 'string')
+          : []
+        return {
+          nome: String(r.nome ?? ''),
+          titulo: String(r.titulo ?? r.nome ?? ''),
+          servicos,
+        }
+      })
+      setPlanosResumo(mapped)
+    }
+    void carregarPlanos()
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  const empresaTemBotaoDinamico = useCallback(
+    (plano?: string | null) => {
+      const servicos = resolverServicosDoPlano(plano, planosResumo)
+      return empresaTemServico(servicos, 'botao_dinamico')
+    },
+    [planosResumo],
+  )
 
   useEffect(() => {
     // FIX: cache rápido para volta instantânea
@@ -352,7 +393,12 @@ export default function ListagemCategoriaPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {empresasOrdenadas.map((empresa) => (
-              <CardAtrativo key={empresa.id} empresa={empresa} segmentoGuiaSlug={slug} />
+              <CardAtrativo
+                key={empresa.id}
+                empresa={empresa}
+                segmentoGuiaSlug={slug}
+                temBotaoDinamico={empresaTemBotaoDinamico(empresa.plano)}
+              />
             ))}
           </div>
         )}

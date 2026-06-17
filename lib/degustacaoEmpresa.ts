@@ -164,6 +164,12 @@ export async function concederDegustacaoEmpresa(
       dias,
       aceito: false,
     },
+    comprovanteDetalhes: {
+      variant: 'degustacao',
+      degustacao_id: String(degRow.id),
+      dias,
+      aceito: false,
+    },
   })
 
   if (!canal.ok || !canal.id) {

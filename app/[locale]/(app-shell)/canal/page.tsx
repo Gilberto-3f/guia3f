@@ -10,8 +10,41 @@ import ListaCanais from '@/components/ListaCanais'
 import ListaCanaisEmpresa from '@/components/ListaCanaisEmpresa'
 import ListaCanaisProfissional from '@/components/ListaCanaisProfissional'
 import CanalMensagens from '@/components/CanalMensagens'
+import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
+import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
+import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 
 type TipoUsuario = 'turista' | 'profissional' | 'empresa' | 'admin' | null
+
+function EmpresaCanaisComPlano({
+  onSelectCanal,
+}: {
+  onSelectCanal: (c: { id?: string }) => void
+}) {
+  const { dados } = useDashboardEmpresa()
+  const { featureLiberada, loading } = useEmpresaServicosPlano(dados?.plano, dados?.id)
+
+  if (loading) {
+    return <div className="p-4 text-center text-gray-400">Carregando canais...</div>
+  }
+
+  if (!featureLiberada('canais')) {
+    return (
+      <div className="p-4">
+        <AvisoPlanoEmpresaBloqueado />
+      </div>
+    )
+  }
+
+  return (
+    <ListaCanaisEmpresa
+      onSelectCanal={(c) => {
+        if (!c?.id) return
+        onSelectCanal(c)
+      }}
+    />
+  )
+}
 
 export default function CanalPage() {
   const router = useRouter()
@@ -148,7 +181,7 @@ export default function CanalPage() {
           <h1 className="text-xl font-bold">Empresa</h1>
         </div>
         <div className="flex min-h-0 min-h-[calc(100dvh-7rem)] flex-1 flex-col overflow-hidden">
-          <ListaCanaisEmpresa
+          <EmpresaCanaisComPlano
             onSelectCanal={(c) => {
               if (!c?.id) return
               router.prefetch(`/canal/${c.id}`)

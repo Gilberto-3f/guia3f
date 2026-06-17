@@ -112,4 +112,23 @@ export async function marcarFinanceiroLidoEmpresa(
   if (error) console.error('marcarFinanceiroLidoEmpresa:', error)
 }
 
+export async function marcarFinanceiroItemLidoEmpresa(
+  supabase: SupabaseClient,
+  usuarioId: string,
+  itemId: string,
+): Promise<void> {
+  if (!usuarioId || !itemId) return
+  const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', usuarioId).maybeSingle()
+  const empresaId = emp?.id != null ? String(emp.id) : ''
+  if (!empresaId) return
+
+  const { error } = await supabase
+    .from('canal_financeiro')
+    .update({ lida_por_empresa: true })
+    .eq('id', itemId)
+    .eq('empresa_id', empresaId)
+
+  if (error) console.error('marcarFinanceiroItemLidoEmpresa:', error)
+}
+
 export { isCanalFinanceiroEmpresa }

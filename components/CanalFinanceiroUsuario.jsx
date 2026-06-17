@@ -379,6 +379,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
                     key={item.id}
                     item={item}
                     userTipo={tipo}
+                    usuarioId={usuarioId}
                     onAceito={() => void carregar({ silencioso: true })}
                   />
                 ) : (

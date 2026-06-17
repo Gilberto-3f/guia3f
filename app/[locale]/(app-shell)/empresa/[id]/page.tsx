@@ -24,6 +24,8 @@ import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
+import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
+import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 
 function debugEmpresa(...args: unknown[]) {
   if (process.env.NODE_ENV === 'development') {
@@ -74,6 +76,18 @@ export default function EmpresaPage() {
   const [meuEmail, setMeuEmail] = useState<string | null>(null)
   const [menuAberto, setMenuAberto] = useState(false)
   const { modoAtivo } = useModoApresentacao()
+  const planoEmpresa =
+    empresa && empresa.plano != null ? String(empresa.plano) : null
+  const { featureLiberada } = useEmpresaServicosPlano(planoEmpresa, empresaId || null)
+  const mostrarBotaoDinamico = featureLiberada('botao_dinamico')
+  const mostrarChamarCorrida = featureLiberada('botao_chamar_corrida')
+  const mostrarConteudoRede = featureLiberada('pagina_rede_social')
+
+  useEffect(() => {
+    if (!mostrarBotaoDinamico && abaExpandida === 'dinamico') {
+      setAbaExpandida(null)
+    }
+  }, [abaExpandida, mostrarBotaoDinamico])
 
   useEffect(() => {
     const getUsuario = async () => {
@@ -326,6 +340,7 @@ export default function EmpresaPage() {
             <MapPin className="h-4 w-4 shrink-0 text-current" aria-hidden />
             {abaExpandida === 'endereco' ? <ChevronUp className="h-4 w-4 shrink-0 text-current" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-current" aria-hidden />}
           </button>
+          {mostrarBotaoDinamico ? (
           <button
             type="button"
             onClick={() => toggleAba('dinamico')}
@@ -340,6 +355,7 @@ export default function EmpresaPage() {
             <IconeAbaServico className="h-4 w-4 shrink-0 text-current" aria-hidden />
             {abaExpandida === 'dinamico' ? <ChevronUp className="h-4 w-4 shrink-0 text-current" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0 text-current" aria-hidden />}
           </button>
+          ) : null}
         </div>
       </div>
 
@@ -355,8 +371,10 @@ export default function EmpresaPage() {
               }
             />
           ) : null}
-          {abaExpandida === 'endereco' ? <AbaEndereco empresa={empresaEndereco} /> : null}
-          {abaExpandida === 'dinamico' ? (
+          {abaExpandida === 'endereco' ? (
+            <AbaEndereco empresa={empresaEndereco} mostrarChamarCorrida={mostrarChamarCorrida} />
+          ) : null}
+          {abaExpandida === 'dinamico' && mostrarBotaoDinamico ? (
             <AbaBotaoDinamico
               categoria={categoria}
               empresaId={empresaId}
@@ -374,6 +392,7 @@ export default function EmpresaPage() {
       ) : null}
 
       {abaExpandida == null ? (
+        mostrarConteudoRede ? (
         <div className="border-b border-gray-100 bg-white pt-4 px-4 pb-0">
           <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
             <button
@@ -435,6 +454,11 @@ export default function EmpresaPage() {
             ) : null}
           </div>
         </div>
+        ) : donoEmpresa ? (
+          <div className="border-b border-gray-100 bg-white px-4 py-6">
+            <AvisoPlanoEmpresaBloqueado />
+          </div>
+        ) : null
       ) : null}
 
       {podeAbrirMenu && usuarioId ? (

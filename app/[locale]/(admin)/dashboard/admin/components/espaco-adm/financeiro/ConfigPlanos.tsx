@@ -1,10 +1,11 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { DollarSign, Pencil, Plus, Trash2 } from 'lucide-react'
+import { DollarSign, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react'
 import { corPlanoHex, labelServicoPlano } from '@/lib/planosEmpresaCatalogo'
 import { useFinanceiroAdm, type PlanoEmpresaAdm, type PlanoFormInput } from '../../../hooks/useFinanceiroAdm'
 import { CardEditarPlano, planoFormVazio } from './CardEditarPlano'
+import { ModalDegustacao } from './ModalDegustacao'
 
 function planoParaForm(p: PlanoEmpresaAdm): PlanoFormInput {
   return {
@@ -24,11 +25,13 @@ function ResumoPlanoCard({
   plano,
   onEditar,
   onExcluir,
+  onDegustacao,
   excluindo,
 }: {
   plano: PlanoEmpresaAdm
   onEditar: () => void
   onExcluir: () => void
+  onDegustacao: () => void
   excluindo: boolean
 }) {
   const cor = corPlanoHex(plano.cor)
@@ -56,6 +59,15 @@ function ResumoPlanoCard({
           ) : null}
         </div>
         <div className="flex shrink-0 gap-1">
+          <button
+            type="button"
+            onClick={onDegustacao}
+            className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50"
+            aria-label={`Degustação para plano ${plano.titulo}`}
+            title="Degustação"
+          >
+            <MoreVertical className="h-4 w-4" aria-hidden />
+          </button>
           <button
             type="button"
             onClick={onEditar}
@@ -88,6 +100,7 @@ export function ConfigPlanos() {
   const [salvando, setSalvando] = useState(false)
   const [excluindoId, setExcluindoId] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [degustacaoAberta, setDegustacaoAberta] = useState(false)
 
   const planosVisiveis = useMemo(
     () => planos.filter((p) => !form?.id || p.id !== form.id),
@@ -187,11 +200,14 @@ export function ConfigPlanos() {
               plano={p}
               onEditar={() => abrirEditar(p)}
               onExcluir={() => void excluir(p)}
+              onDegustacao={() => setDegustacaoAberta(true)}
               excluindo={excluindoId === p.id}
             />
           ))}
         </div>
       )}
+
+      <ModalDegustacao aberto={degustacaoAberta} onFechar={() => setDegustacaoAberta(false)} />
     </div>
   )
 }

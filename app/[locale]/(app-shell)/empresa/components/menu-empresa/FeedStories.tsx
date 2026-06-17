@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { Link } from '@/i18n/navigation'
 import { CalendarClock, FileText, Image as ImageIcon, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
+import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import AgendarPublicacoes from './AgendarPublicacoes'
 
 function BotaoAcao({
@@ -36,6 +38,9 @@ function BotaoAcao({
 export default function FeedStories() {
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [empresaId, setEmpresaId] = useState<string | null>(null)
+  const { dados } = useDashboardEmpresa()
+  const { featureLiberada } = useEmpresaServicosPlano(dados?.plano, dados?.id)
+  const mostrarPlanejador = featureLiberada('planejador_publicacoes')
 
   useEffect(() => {
     let ativo = true
@@ -85,7 +90,7 @@ export default function FeedStories() {
         />
       </div>
 
-      <AgendarPublicacoes usuarioId={usuarioId} empresaId={empresaId} />
+      {mostrarPlanejador ? <AgendarPublicacoes usuarioId={usuarioId} empresaId={empresaId} /> : null}
 
       <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-3 text-xs text-gray-500">
         <p className="flex items-start gap-2">

@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
+import { AVISO_PLANO_EMPRESA_PADRAO } from '@/lib/planosEmpresaServicosGate'
 
 import MenuPeriodoDashboard from './components/shared/MenuPeriodoDashboard'
 import FunilConversao from './components/funil-conversao/FunilConversao'
@@ -235,9 +236,7 @@ function DashboardEmpresaConteudo({
       <main className="mx-auto w-full max-w-7xl px-4 py-4 pb-0">
         {!mostrarFunil && !mostrarMercado && !mostrarDrenaStok ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center">
-            <p className="text-amber-900">
-              Os recursos do dashboard dependem do plano contratado. Confira os planos disponíveis no canal Financeiro.
-            </p>
+            <p className="text-amber-900">{AVISO_PLANO_EMPRESA_PADRAO}</p>
           </div>
         ) : null}
         {mostrarFunil ? (
