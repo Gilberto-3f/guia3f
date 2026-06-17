@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 
 import { AlertTriangle, ChevronUp, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
+import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 import { mapMensagemEcossistemaPayload, type EcossistemaConversaRow, type EcossistemaMensagemRow } from '@/lib/ecossistemaConversas'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 
@@ -18,12 +19,16 @@ type MembroCard = {
   tipo: 'turista' | 'profissional' | 'empresa'
 }
 
-type ConversaComMembro = EcossistemaConversaRow & { membro: MembroCard }
+type ConversaComMembro = EcossistemaConversaRow & { membro: MembroCard; nao_lidas?: number }
+
+type NaoLidasPorAba = Record<'turista' | 'profissional' | 'empresa', number>
+
+const naoLidasPorAbaVazio = (): NaoLidasPorAba => ({ turista: 0, profissional: 0, empresa: 0 })
 
 const COR_LOGO = '#0097b2'
 
 const abaCls = (ativo: boolean) =>
-  `flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition-colors sm:text-sm ${
+  `flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold transition-colors sm:text-sm ${
     ativo ? 'bg-[#00D443] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
   }`
 
@@ -39,6 +44,7 @@ export default function CanalEcossistemaAdm({
 }) {
   const [aba, setAba] = useState<AbaEcossistema>('turista')
   const [conversas, setConversas] = useState<ConversaComMembro[]>([])
+  const [naoLidasPorAba, setNaoLidasPorAba] = useState<NaoLidasPorAba>(naoLidasPorAbaVazio)
   const [selecionada, setSelecionada] = useState<ConversaComMembro | null>(null)
   const [mensagens, setMensagens] = useState<EcossistemaMensagemRow[]>([])
   const [textoMsg, setTextoMsg] = useState('')
@@ -64,8 +70,8 @@ export default function CanalEcossistemaAdm({
     }
   }, [fecharPainelRef])
 
-  const carregarLista = useCallback(async () => {
-    setCarregando(true)
+  const carregarLista = useCallback(async (silencioso = false) => {
+    if (!silencioso) setCarregando(true)
     try {
       const status = aba === 'historico' ? 'encerrada' : 'aberta'
       const qs =
@@ -75,12 +81,17 @@ export default function CanalEcossistemaAdm({
       const res = await fetch(
         `/api/admin/ecossistema-conversas?status=${status === 'aberta' ? 'aberta' : 'encerrada'}${qs}`,
       )
-      const json = (await res.json()) as { ok?: boolean; conversas?: ConversaComMembro[] }
+      const json = (await res.json()) as {
+        ok?: boolean
+        conversas?: ConversaComMembro[]
+        nao_lidas_por_aba?: NaoLidasPorAba
+      }
       setConversas(json.conversas ?? [])
+      if (json.nao_lidas_por_aba) setNaoLidasPorAba(json.nao_lidas_por_aba)
     } catch {
-      setConversas([])
+      if (!silencioso) setConversas([])
     } finally {
-      setCarregando(false)
+      if (!silencioso) setCarregando(false)
     }
   }, [aba])
 
@@ -98,8 +109,38 @@ export default function CanalEcossistemaAdm({
   }, [carregarLista])
 
   useEffect(() => {
+    const ch = supabase
+      .channel('eco-adm-hub-lista')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ecossistema_mensagens' },
+        () => {
+          void carregarLista(true)
+          notificarBadgeCanais()
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ecossistema_conversas' },
+        () => {
+          void carregarLista(true)
+          notificarBadgeCanais()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(ch)
+    }
+  }, [carregarLista])
+
+  useEffect(() => {
     if (!selecionada?.id || !painelAberto) return
-    void carregarMensagens(selecionada.id)
+    void (async () => {
+      await carregarMensagens(selecionada.id)
+      await carregarLista(true)
+      notificarBadgeCanais()
+    })()
 
     const ch = supabase
       .channel(`eco-adm-${selecionada.id}`)
@@ -128,7 +169,7 @@ export default function CanalEcossistemaAdm({
     return () => {
       void supabase.removeChannel(ch)
     }
-  }, [selecionada?.id, painelAberto, carregarMensagens])
+  }, [selecionada?.id, painelAberto, carregarMensagens, carregarLista])
 
   const abrirConversa = (c: ConversaComMembro) => {
     setSelecionada(c)
@@ -193,7 +234,10 @@ export default function CanalEcossistemaAdm({
         <div className="flex gap-1">
           {(['turista', 'profissional', 'empresa', 'historico'] as AbaEcossistema[]).map((t) => (
             <button key={t} type="button" onClick={() => setAba(t)} className={abaCls(aba === t)}>
-              {t === 'historico' ? 'Histórico' : t === 'turista' ? 'Turistas' : t === 'profissional' ? 'Profissionais' : 'Empresas'}
+              <span>
+                {t === 'historico' ? 'Histórico' : t === 'turista' ? 'Turistas' : t === 'profissional' ? 'Profissionais' : 'Empresas'}
+              </span>
+              {t !== 'historico' ? <CanalNaoLidasBadge count={naoLidasPorAba[t]} /> : null}
             </button>
           ))}
         </div>
@@ -230,6 +274,7 @@ export default function CanalEcossistemaAdm({
                       {c.urgente && c.status === 'aberta' ? (
                         <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" aria-hidden />
                       ) : null}
+                      {(c.nao_lidas ?? 0) > 0 ? <CanalNaoLidasBadge count={c.nao_lidas ?? 0} /> : null}
                     </div>
                     <div className="truncate text-xs text-[#0097b2]">{c.membro.username}</div>
                     {c.membro.subtitulo ? (

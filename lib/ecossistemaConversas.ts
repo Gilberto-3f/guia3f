@@ -451,6 +451,101 @@ export async function buscarUltimaMensagemEcossistema(
 }
 
 /**
+ * Não lidas por conversa para o ADM (mensagens de membros após última leitura da conversa).
+ */
+export async function contarNaoLidasEcossistemaAdmPorConversas(
+  supabase: SupabaseClient,
+  adminUserId: string,
+  conversas: EcossistemaConversaRow[],
+): Promise<Record<string, number>> {
+  const out: Record<string, number> = {}
+  if (!adminUserId || conversas.length === 0) return out
+
+  const abertas = conversas.filter((c) => c.status === 'aberta')
+  if (abertas.length === 0) return out
+
+  const conversaIds = abertas.map((c) => c.id)
+
+  const { data: leituras } = await supabase
+    .from('ecossistema_conversa_leitura')
+    .select('conversa_id, visto_em')
+    .eq('usuario_id', adminUserId)
+    .in('conversa_id', conversaIds)
+
+  const vistoPorConversa = new Map<string, number>()
+  for (const l of leituras ?? []) {
+    const t = new Date(String(l.visto_em ?? 0)).getTime()
+    vistoPorConversa.set(String(l.conversa_id), Number.isNaN(t) ? 0 : t)
+  }
+
+  const { data: mensagens, error: msgErr } = await supabase
+    .from('ecossistema_mensagens')
+    .select('conversa_id, remetente_id, created_at')
+    .in('conversa_id', conversaIds)
+    .neq('remetente_id', adminUserId)
+
+  if (msgErr) {
+    console.error('contarNaoLidasEcossistemaAdmPorConversas:', msgErr)
+    return out
+  }
+
+  const msgs = mensagens ?? []
+  const remetenteIds = [...new Set(msgs.map((m) => String(m.remetente_id)).filter(Boolean))]
+  const membroUsuarioIds = [...new Set(abertas.map((c) => c.membro_usuario_id).filter(Boolean))]
+  const idsRoles = [...new Set([...remetenteIds, ...membroUsuarioIds])]
+
+  const { data: usuarios } =
+    idsRoles.length > 0
+      ? await supabase.from('usuarios').select('id, role').in('id', idsRoles)
+      : { data: [] }
+
+  const membroPorId = new Set(
+    (usuarios ?? [])
+      .filter((u) => ROLES_MEMBRO_ECOSSISTEMA.has(String(u.role ?? '')))
+      .map((u) => String(u.id)),
+  )
+
+  for (const c of abertas) {
+    const vistoMs = vistoPorConversa.get(c.id) ?? 0
+    const msgsConversa = msgs.filter((m) => String(m.conversa_id) === c.id)
+
+    let n = 0
+    for (const m of msgsConversa) {
+      const rid = m.remetente_id != null ? String(m.remetente_id) : ''
+      if (!rid || !membroPorId.has(rid)) continue
+      const created = new Date(String(m.created_at ?? 0)).getTime()
+      if (!Number.isNaN(created) && created > vistoMs) n += 1
+    }
+
+    if (n === 0) {
+      const created = new Date(String(c.created_at ?? 0)).getTime()
+      const temMsgMembro = msgsConversa.some((m) => membroPorId.has(String(m.remetente_id ?? '')))
+      if (!Number.isNaN(created) && created > vistoMs && !temMsgMembro) n = 1
+    }
+
+    out[c.id] = n
+  }
+
+  return out
+}
+
+export function somarNaoLidasEcossistemaPorAba(
+  conversas: EcossistemaConversaRow[],
+  naoLidasMap: Record<string, number>,
+): Record<MembroTipoEcossistema, number> {
+  const out: Record<MembroTipoEcossistema, number> = {
+    turista: 0,
+    profissional: 0,
+    empresa: 0,
+  }
+  for (const c of conversas) {
+    if (c.status !== 'aberta') continue
+    out[c.membro_tipo] += naoLidasMap[c.id] ?? 0
+  }
+  return out
+}
+
+/**
  * Contagem de não lidas no Mensageiro ECOSSISTEMA (mensagens de membros + chats iniciados).
  */
 export async function contarNaoLidasEcossistemaAdm(

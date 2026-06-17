@@ -16,10 +16,9 @@ import LinhaEmpresaCabecalho from './LinhaEmpresaCabecalho'
 
 type Props = {
   empresa: RecomendacaoEmpresaHistorico
-  posicao?: number
 }
 
-export default function LinhaEmpresaRecomendacao({ empresa, posicao }: Props) {
+export default function LinhaEmpresaRecomendacao({ empresa }: Props) {
   const recomendacoesOrdenadas = useMemo(
     () =>
       [...empresa.detalhes].sort(
@@ -29,7 +28,7 @@ export default function LinhaEmpresaRecomendacao({ empresa, posicao }: Props) {
   )
 
   return (
-    <LinhaEmpresaCabecalho empresa={empresa} posicao={posicao}>
+    <LinhaEmpresaCabecalho empresa={empresa}>
       <div className="space-y-3 px-3">
         <p className="text-sm font-bold text-gray-700">
           {recomendacoesOrdenadas.length === 1

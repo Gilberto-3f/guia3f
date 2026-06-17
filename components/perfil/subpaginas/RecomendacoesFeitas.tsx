@@ -108,8 +108,8 @@ export default function RecomendacoesFeitas({ usuarioId }: Props) {
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-            {empresas.map((emp, idx) => (
-              <LinhaEmpresaRecomendacao key={emp.empresa_id} empresa={emp} posicao={idx + 1} />
+            {empresas.map((emp) => (
+              <LinhaEmpresaRecomendacao key={emp.empresa_id} empresa={emp} />
             ))}
           </div>
         )}

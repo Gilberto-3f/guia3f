@@ -1,12 +1,22 @@
 import { NextResponse } from 'next/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { assertAdminSession } from '@/lib/adminApiAuth'
 import {
   atribuirAdmResponsavel,
   buscarPerfisMembroEcossistema,
+  contarNaoLidasEcossistemaAdmPorConversas,
   listarConversasAbertasAdmEcossistema,
   listarHistoricoConversasAdmEcossistema,
+  somarNaoLidasEcossistemaPorAba,
   type MembroTipoEcossistema,
 } from '@/lib/ecossistemaConversas'
+
+async function enriquecerRespostaEcossistemaAdm(supabase: SupabaseClient, adminUserId: string) {
+  const todasAbertas = await listarConversasAbertasAdmEcossistema(supabase)
+  const naoLidasMap = await contarNaoLidasEcossistemaAdmPorConversas(supabase, adminUserId, todasAbertas)
+  const nao_lidas_por_aba = somarNaoLidasEcossistemaPorAba(todasAbertas, naoLidasMap)
+  return { naoLidasMap, nao_lidas_por_aba }
+}
 
 function parseMembroTipo(raw: string | null): MembroTipoEcossistema | undefined {
   if (raw === 'turista' || raw === 'profissional' || raw === 'empresa') return raw
@@ -27,13 +37,19 @@ export async function GET(req: Request) {
       auth.supabase,
       conversas.map((c) => c.membro_usuario_id),
     )
+    const { naoLidasMap, nao_lidas_por_aba } = await enriquecerRespostaEcossistemaAdm(
+      auth.supabase,
+      auth.userId,
+    )
 
     return NextResponse.json({
       ok: true,
+      nao_lidas_por_aba,
       conversas: conversas.map((c) => {
         const membro = perfis.get(c.membro_usuario_id)
         return {
           ...c,
+          nao_lidas: naoLidasMap[c.id] ?? 0,
           membro: membro ?? {
             usuarioId: c.membro_usuario_id,
             nome: 'Usuário',
@@ -52,9 +68,11 @@ export async function GET(req: Request) {
     auth.supabase,
     conversas.map((c) => c.membro_usuario_id),
   )
+  const { nao_lidas_por_aba } = await enriquecerRespostaEcossistemaAdm(auth.supabase, auth.userId)
 
   return NextResponse.json({
     ok: true,
+    nao_lidas_por_aba,
     conversas: conversas.map((c) => {
       const membro = perfis.get(c.membro_usuario_id)
       return {

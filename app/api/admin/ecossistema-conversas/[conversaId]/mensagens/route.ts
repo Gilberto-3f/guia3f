@@ -4,6 +4,7 @@ import {
   atribuirAdmResponsavel,
   enviarMensagemEcossistema,
   listarMensagensEcossistema,
+  marcarConversaEcossistemaLida,
 } from '@/lib/ecossistemaConversas'
 
 type RouteCtx = { params: Promise<{ conversaId: string }> }
@@ -14,6 +15,8 @@ export async function GET(_req: Request, ctx: RouteCtx) {
 
   const { conversaId } = await ctx.params
   const mensagens = await listarMensagensEcossistema(auth.supabase, conversaId)
+  const ultimaIso = mensagens.length > 0 ? mensagens[mensagens.length - 1]?.created_at ?? null : null
+  await marcarConversaEcossistemaLida(auth.supabase, auth.userId, conversaId, ultimaIso)
   return NextResponse.json({ ok: true, mensagens })
 }
 
