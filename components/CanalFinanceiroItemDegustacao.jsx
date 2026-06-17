@@ -3,6 +3,11 @@
 import { useEffect, useState } from 'react'
 import { Check, DollarSign } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import {
+  mensagemDegustacaoAtiva,
+  mensagemDegustacaoExpirada,
+  resolverEstadoDegustacaoUi,
+} from '@/lib/degustacaoEmpresa'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { marcarFinanceiroItemLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 
@@ -26,8 +31,10 @@ import { marcarFinanceiroItemLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade
 export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioId, onAceito }) {
   const [aceitando, setAceitando] = useState(false)
   const [erro, setErro] = useState(/** @type {string | null} */ (null))
-  const [aceito, setAceito] = useState(false)
   const [degustacaoIdResolvido, setDegustacaoIdResolvido] = useState('')
+  const [degustacao, setDegustacao] = useState(
+    /** @type {{ id: string, status: string, expira_em: string | null, aceito_em: string | null } | null} */ (null),
+  )
   const [marcadaLida, setMarcadaLida] = useState(item.lida_por_empresa)
 
   const detalhes =
@@ -39,25 +46,36 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
 
   const degustacaoIdMeta = String(detalhes.degustacao_id ?? '')
   const degustacaoId = degustacaoIdResolvido || degustacaoIdMeta
-  const jaAceito = Boolean(detalhes.aceito) || aceito
-  const estaLida = userTipo === 'empresa' ? marcadaLida || item.lida_por_empresa || jaAceito : false
+  const estadoUi = resolverEstadoDegustacaoUi(degustacao)
+  const estaLida = userTipo === 'empresa' ? marcadaLida || item.lida_por_empresa || estadoUi !== 'aguardando_aceite' : false
 
   useEffect(() => {
     let ativo = true
-    const resolverDegustacaoId = async () => {
-      if (degustacaoIdMeta) {
-        if (ativo) setDegustacaoIdResolvido(degustacaoIdMeta)
-        return
-      }
-      const { data } = await supabase
+    const carregarDegustacao = async () => {
+      let query = supabase
         .from('empresa_degustacoes')
-        .select('id')
-        .eq('canal_financeiro_id', item.id)
-        .maybeSingle()
+        .select('id, status, expira_em, aceito_em')
+        .limit(1)
+
+      if (degustacaoIdMeta) {
+        query = query.eq('id', degustacaoIdMeta)
+      } else {
+        query = query.eq('canal_financeiro_id', item.id)
+      }
+
+      const { data } = await query.maybeSingle()
       if (!ativo) return
-      if (data?.id) setDegustacaoIdResolvido(String(data.id))
+      if (data?.id) {
+        setDegustacaoIdResolvido(String(data.id))
+        setDegustacao({
+          id: String(data.id),
+          status: String(data.status ?? ''),
+          expira_em: data.expira_em != null ? String(data.expira_em) : null,
+          aceito_em: data.aceito_em != null ? String(data.aceito_em) : null,
+        })
+      }
     }
-    void resolverDegustacaoId()
+    void carregarDegustacao()
     return () => {
       ativo = false
     }
@@ -79,7 +97,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
   }, [item.id, item.lida_por_empresa, marcadaLida, userTipo, usuarioId])
 
   const aceitar = async () => {
-    if (userTipo !== 'empresa' || !degustacaoId || aceitando || jaAceito) return
+    if (userTipo !== 'empresa' || !degustacaoId || aceitando || estadoUi !== 'aguardando_aceite') return
     setAceitando(true)
     setErro(null)
     try {
@@ -93,7 +111,29 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
         setErro(json.error ?? 'Não foi possível aceitar a degustação.')
         return
       }
-      setAceito(true)
+
+      const { data: atualizada } = await supabase
+        .from('empresa_degustacoes')
+        .select('id, status, expira_em, aceito_em')
+        .eq('id', degustacaoId)
+        .maybeSingle()
+
+      if (atualizada?.id) {
+        setDegustacao({
+          id: String(atualizada.id),
+          status: String(atualizada.status ?? 'ativa'),
+          expira_em: atualizada.expira_em != null ? String(atualizada.expira_em) : null,
+          aceito_em: atualizada.aceito_em != null ? String(atualizada.aceito_em) : null,
+        })
+      } else {
+        setDegustacao((prev) => ({
+          id: degustacaoId,
+          status: 'ativa',
+          expira_em: prev?.expira_em ?? null,
+          aceito_em: new Date().toISOString(),
+        }))
+      }
+
       setMarcadaLida(true)
       notificarBadgeCanais()
       window.dispatchEvent(new Event('empresa-gate-refresh'))
@@ -126,7 +166,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
 
           {erro ? <p className="mb-2 text-sm text-rose-600">{erro}</p> : null}
 
-          {userTipo === 'empresa' && !jaAceito ? (
+          {userTipo === 'empresa' && estadoUi === 'aguardando_aceite' ? (
             <button
               type="button"
               onClick={() => void aceitar()}
@@ -136,8 +176,14 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
               <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
               {aceitando ? 'Aceitando…' : degustacaoId ? 'ACEITAR' : 'Carregando…'}
             </button>
-          ) : jaAceito ? (
-            <p className="text-sm font-semibold text-[#00D443]">Degustação aceita. Aproveite o período bonificado!</p>
+          ) : estadoUi === 'ativa' ? (
+            <p className="text-sm font-semibold text-[#00D443]">
+              {mensagemDegustacaoAtiva(degustacao?.expira_em)}
+            </p>
+          ) : estadoUi === 'expirada' ? (
+            <p className="text-sm font-semibold text-amber-700">
+              {mensagemDegustacaoExpirada(degustacao?.expira_em)}
+            </p>
           ) : null}
 
           <p className="mt-3 text-xs text-gray-400">{new Date(item.created_at).toLocaleString('pt-BR')}</p>

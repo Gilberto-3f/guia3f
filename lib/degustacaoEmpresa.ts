@@ -24,6 +24,40 @@ export function labelStatusEmpresaDegustacao(status: string, docsVerificado: boo
   return 'Pendente'
 }
 
+export function formatarDataDegustacaoPtBr(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('pt-BR')
+}
+
+export type EstadoDegustacaoUi = 'aguardando_aceite' | 'ativa' | 'expirada' | 'cancelada'
+
+export function resolverEstadoDegustacaoUi(row: {
+  status?: string | null
+  expira_em?: string | null
+} | null | undefined): EstadoDegustacaoUi {
+  const status = String(row?.status ?? '').toLowerCase()
+  if (status === 'cancelada') return 'cancelada'
+  if (status === 'expirada') return 'expirada'
+  if (status === 'ativa') {
+    const expira = row?.expira_em ? new Date(String(row.expira_em)).getTime() : 0
+    if (expira > 0 && expira <= Date.now()) return 'expirada'
+    return 'ativa'
+  }
+  return 'aguardando_aceite'
+}
+
+export function mensagemDegustacaoAtiva(expiraEm: string | null | undefined): string {
+  const data = formatarDataDegustacaoPtBr(expiraEm)
+  return `Degustação ativa! Aproveite o período bonificado até ${data}.`
+}
+
+export function mensagemDegustacaoExpirada(expiraEm: string | null | undefined): string {
+  const data = formatarDataDegustacaoPtBr(expiraEm)
+  return `O período de degustação encerrou${data !== '—' ? ` em ${data}` : ''}. Escolha um plano para continuar utilizando os serviços do aplicativo.`
+}
+
 export function montarMensagemDegustacao(username: string, dias: number): string {
   const handle = username.trim().replace(/^@+/, '')
   const user = handle ? `@${handle}` : '@usuario'
@@ -219,12 +253,43 @@ export async function aceitarDegustacaoEmpresa(
 
   const { data: deg, error: degErr } = await supabase
     .from('empresa_degustacoes')
-    .select('id, empresa_id, dias, status, canal_financeiro_id')
+    .select('id, empresa_id, dias, status, canal_financeiro_id, aceito_em, expira_em')
     .eq('id', params.degustacaoId)
     .eq('empresa_id', emp.id)
     .maybeSingle()
 
   if (degErr || !deg?.id) return { ok: false, error: 'Degustação não encontrada.' }
+
+  const sincronizarCanalDegustacao = async (
+    aceitoEm: string,
+    expiraEm: string,
+  ) => {
+    if (!deg.canal_financeiro_id) return
+    const detalhesAtualizados = {
+      variant: 'degustacao',
+      degustacao_id: String(deg.id),
+      dias: Number(deg.dias),
+      aceito: true,
+      aceito_em: aceitoEm,
+      expira_em: expiraEm,
+    }
+    await supabase
+      .from('canal_financeiro')
+      .update({
+        metadata: detalhesAtualizados,
+        comprovante_detalhes: detalhesAtualizados,
+        lida_por_empresa: true,
+      })
+      .eq('id', deg.canal_financeiro_id)
+  }
+
+  if (String(deg.status) === 'ativa') {
+    await sincronizarCanalDegustacao(
+      deg.aceito_em != null ? String(deg.aceito_em) : new Date().toISOString(),
+      deg.expira_em != null ? String(deg.expira_em) : new Date().toISOString(),
+    )
+    return { ok: true }
+  }
   if (String(deg.status) !== 'aguardando_aceite') {
     return { ok: false, error: 'Esta degustação já foi respondida.' }
   }
@@ -247,22 +312,7 @@ export async function aceitarDegustacaoEmpresa(
 
   if (upErr) return { ok: false, error: upErr.message }
 
-  if (deg.canal_financeiro_id) {
-    await supabase
-      .from('canal_financeiro')
-      .update({
-        metadata: {
-          variant: 'degustacao',
-          degustacao_id: String(deg.id),
-          dias: Number(deg.dias),
-          aceito: true,
-          aceito_em: agora.toISOString(),
-          expira_em: expira.toISOString(),
-        },
-        lida_por_empresa: true,
-      })
-      .eq('id', deg.canal_financeiro_id)
-  }
+  await sincronizarCanalDegustacao(agora.toISOString(), expira.toISOString())
 
   return { ok: true }
 }
