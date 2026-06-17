@@ -83,6 +83,7 @@ import ParceriasProfissional from '@/components/perfil/subpaginas/ParceriasProfi
 import VisitantesPerfil from '@/components/perfil/subpaginas/VisitantesPerfil'
 import { contarVisitasPerfilPendentes } from '@/lib/perfilVisitas'
 import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
+import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 import {
   GRUPOS_MENU_PROF_BLOQUEADOS_DOCS,
   SUBGRUPOS_MENU_PROF_BLOQUEADOS_DOCS,
@@ -370,8 +371,7 @@ function secoesEmpresa(ctx) {
     { Icon: Building2, label: 'Editar Página', subpagina: 'editar-pagina' },
     { Icon: Paperclip, label: 'Anexar documentos', subpagina: 'anexar-documentos-empresa' },
   ]
-  const gEmp = filtrarMenu(
-    [
+  const gEmpItems = [
       {
         Icon: DollarSign,
         label: 'Cadastrar Comissão',
@@ -396,9 +396,7 @@ function secoesEmpresa(ctx) {
         href: '/chat-adm',
         condicional: empresaMenuServico('chat-adm'),
       },
-    ],
-    ctx
-  )
+    ]
   const gAplic = [
     { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
     itemConfig,
@@ -406,7 +404,7 @@ function secoesEmpresa(ctx) {
   return [
     secaoUsuario(gUsuario),
     secaoMinhaConta(ctx),
-    { tipo: 'grupo', key: 'empresa', label: 'Empresa', items: gEmp },
+    { tipo: 'grupo', key: 'empresa', label: 'Empresa', items: gEmpItems },
     { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic },
     { tipo: 'sair' },
   ]
@@ -564,7 +562,7 @@ export default function MenuLateral({
   const empresaPlano = empresa?.plano != null ? String(empresa.plano) : 'gratuito'
   const empresaIdCtx =
     empresaId ?? (empresa?.id != null ? String(empresa.id) : null)
-  const { servicos: empresaServicos } = useEmpresaServicosPlano(
+  const { servicos: empresaServicos, loading: empresaServicosLoading } = useEmpresaServicosPlano(
     menuVariantEfetivo === 'empresa' ? empresaPlano : null,
     menuVariantEfetivo === 'empresa' ? empresaIdCtx : null,
   )
@@ -1034,6 +1032,19 @@ export default function MenuLateral({
     )
   }
 
+  const renderItensSecaoGrupo = (sec, opts = { compact: true }) => {
+    const itens = filtrarMenu(sec.items ?? [], ctx)
+    if (sec.key === 'empresa' && menuVariantEfetivo === 'empresa') {
+      if (empresaServicosLoading) {
+        return <p className="py-3 text-center text-xs text-gray-400">Carregando…</p>
+      }
+      if (itens.length === 0 && (sec.items?.length ?? 0) > 0) {
+        return <AvisoPlanoEmpresaBloqueado compact className="py-1" />
+      }
+    }
+    return renderListaItens(itens, opts)
+  }
+
   const toggleGrupo = (g) => {
     setGruposAbertos((p) => ({ ...p, [g]: !p[g] }))
   }
@@ -1248,7 +1259,7 @@ export default function MenuLateral({
                             <AvisoDocsProfissionalBloqueado className="py-4" />
                           ) : sec.subgruposDepois ? (
                             <>
-                              {renderListaItens(filtrarMenu(sec.items ?? [], ctx), { compact: true })}
+                              {renderItensSecaoGrupo(sec, { compact: true })}
                               {sec.subgrupos?.length ? (
                                 <div className={(sec.items?.length ?? 0) > 0 ? 'mt-1 border-t border-gray-100 pt-1' : ''}>
                                   {renderSubgrupos(sec.subgrupos)}
@@ -1261,10 +1272,10 @@ export default function MenuLateral({
                               {sec.subgrupos?.length
                                 ? (sec.items?.length ?? 0) > 0 ? (
                                     <div className="mt-1 border-t border-gray-100 pt-1">
-                                      {renderListaItens(filtrarMenu(sec.items, ctx), { compact: true })}
+                                      {renderItensSecaoGrupo(sec, { compact: true })}
                                     </div>
                                   ) : null
-                                : renderListaItens(filtrarMenu(sec.items ?? [], ctx), { compact: true })}
+                                : renderItensSecaoGrupo(sec, { compact: true })}
                             </>
                           )}
                         </div>
