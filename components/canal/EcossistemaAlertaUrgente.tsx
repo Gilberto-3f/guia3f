@@ -38,11 +38,20 @@ export default function EcossistemaAlertaUrgente() {
   useEffect(() => {
     void carregar()
 
+    let debounceId: ReturnType<typeof setTimeout> | null = null
+    const agendarCarregar = () => {
+      if (debounceId) clearTimeout(debounceId)
+      debounceId = setTimeout(() => {
+        debounceId = null
+        void carregar()
+      }, 400)
+    }
+
     const ch = supabase
       .channel('eco-alertas-urgentes-adm')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'ecossistema_conversas' },
+        { event: 'UPDATE', schema: 'public', table: 'ecossistema_conversas' },
         (payload) => {
           const row = payload.new as Record<string, unknown> | undefined
           if (!row) return
@@ -51,13 +60,21 @@ export default function EcossistemaAlertaUrgente() {
           const aberta = String(row.status ?? '') === 'aberta'
           const turista = String(row.membro_tipo ?? '') === 'turista'
           if (urgente && !visto && aberta && turista) {
-            void carregar()
+            agendarCarregar()
           }
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ecossistema_mensagens' },
+        () => {
+          agendarCarregar()
         },
       )
       .subscribe()
 
     return () => {
+      if (debounceId) clearTimeout(debounceId)
       void supabase.removeChannel(ch)
     }
   }, [carregar])

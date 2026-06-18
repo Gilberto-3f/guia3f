@@ -437,14 +437,6 @@ export default function ListaCanais({
           agendarRecarregarContagens()
         },
       )
-      ch.on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'ecossistema_conversas' },
-        () => {
-          notificarBadgeCanais()
-          agendarRecarregarContagens()
-        },
-      )
     }
 
     void ch.subscribe()

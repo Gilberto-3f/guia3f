@@ -123,7 +123,6 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
       }
       setConversaAberta(json.conversa)
       setConversaVisualId(json.conversa.id)
-      notificarBadgeChatAdm()
     } catch {
       setErro('Falha de conexão.')
     } finally {

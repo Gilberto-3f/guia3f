@@ -378,9 +378,6 @@ export default function BottomBar() {
           scheduleRefresh()
         },
       )
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ecossistema_conversas' }, () => {
-        scheduleRefresh()
-      })
       .on(
         'postgres_changes',
         {

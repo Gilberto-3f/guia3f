@@ -85,9 +85,6 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
           scheduleRefresh()
         },
       )
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ecossistema_conversas' }, () => {
-        scheduleRefresh()
-      })
       .on(
         'postgres_changes',
         {

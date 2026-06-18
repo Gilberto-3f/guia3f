@@ -582,12 +582,6 @@ export async function contarNaoLidasEcossistemaAdmPorConversas(
       if (!Number.isNaN(created) && created > vistoMs) n += 1
     }
 
-    if (n === 0) {
-      const created = new Date(String(c.created_at ?? 0)).getTime()
-      const temMsgMembro = msgsConversa.some((m) => membroPorId.has(String(m.remetente_id ?? '')))
-      if (!Number.isNaN(created) && created > vistoMs && !temMsgMembro) n = 1
-    }
-
     out[c.id] = n
   }
 
@@ -611,7 +605,7 @@ export function somarNaoLidasEcossistemaPorAba(
 }
 
 /**
- * Contagem de não lidas no Mensageiro ECOSSISTEMA (mensagens de membros + chats iniciados).
+ * Contagem de não lidas no Mensageiro ECOSSISTEMA (somente mensagens enviadas por membros).
  */
 export async function contarNaoLidasEcossistemaAdm(
   supabase: SupabaseClient,
@@ -667,17 +661,6 @@ export async function contarNaoLidasEcossistemaAdm(
     const rid = m.remetente_id != null ? String(m.remetente_id) : ''
     if (!rid || !membroPorId.has(rid)) continue
     n += 1
-  }
-
-  for (const c of abertas) {
-    const created = new Date(String(c.created_at ?? 0)).getTime()
-    if (Number.isNaN(created) || created <= vistoMs) continue
-    const temMsgMembro = msgs.some(
-      (m) =>
-        String(m.conversa_id) === String(c.id) &&
-        membroPorId.has(String(m.remetente_id ?? '')),
-    )
-    if (!temMsgMembro) n += 1
   }
 
   return n

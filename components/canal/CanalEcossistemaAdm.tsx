@@ -144,10 +144,9 @@ export default function CanalEcossistemaAdm({
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'ecossistema_conversas' },
+        { event: 'UPDATE', schema: 'public', table: 'ecossistema_conversas' },
         () => {
           void carregarLista(true)
-          notificarBadgeCanais()
         },
       )
       .subscribe()
