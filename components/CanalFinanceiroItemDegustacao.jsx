@@ -48,11 +48,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
     const inicial = mapDegustacaoUiDeDetalhesCanal(detalhes)
     return inicial?.id || degustacaoIdMeta
   })
-  const [degustacao, setDegustacao] = useState(
-    /** @type {{ id: string, status: string, expira_em: string | null, aceito_em: string | null, plano_titulo: string | null } | null} */ (
-      () => mapDegustacaoUiDeDetalhesCanal(detalhes),
-    ),
-  )
+  const [degustacao, setDegustacao] = useState(() => mapDegustacaoUiDeDetalhesCanal(detalhes))
   const [carregando, setCarregando] = useState(() => mapDegustacaoUiDeDetalhesCanal(detalhes) == null)
   const [marcadaLida, setMarcadaLida] = useState(item.lida_por_empresa)
 
