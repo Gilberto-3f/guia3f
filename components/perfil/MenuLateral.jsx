@@ -48,6 +48,7 @@ import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
 import { textoInfoDrawer } from '@/lib/drawerInfoTextos'
 import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
 import { GUIA_CHAT_ADM_BADGE_EVENT } from '@/lib/chat-adm-badge-events'
+import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
 import EmergenciaItemEsquecido from '@/components/perfil/subpaginas/emergencia/EmergenciaItemEsquecido'
 import EmergenciaPerdido from '@/components/perfil/subpaginas/emergencia/EmergenciaPerdido'
@@ -130,15 +131,6 @@ const itemChatAdm = /** @type {const} */ { Icon: MessageSquare, label: 'Chat ADM
 /** @param {MenuItem} item */
 function itemEhChatAdm(item) {
   return item.href === '/chat-adm'
-}
-
-/**
- * @param {{ items?: MenuItem[], subgrupos?: Array<{ items?: MenuItem[] }> }} sec
- */
-function secaoTemChatAdm(sec) {
-  const base = sec.items ?? []
-  const sub = (sec.subgrupos ?? []).flatMap((s) => s.items ?? [])
-  return [...base, ...sub].some(itemEhChatAdm)
 }
 
 const itemSair = /** @type {const} */ { label: 'Sair', acao: 'logout' }
@@ -722,11 +714,29 @@ export default function MenuLateral({
       setChatAdmNaoLido(0)
       return
     }
+    let cancelled = false
+    /** @type {ReturnType<typeof setTimeout> | null} */
+    let debounceId = null
+
+    const scheduleRefresh = () => {
+      if (debounceId) clearTimeout(debounceId)
+      debounceId = setTimeout(() => {
+        debounceId = null
+        void refreshChatAdmBadge()
+      }, 400)
+    }
+
     void refreshChatAdmBadge()
     const onBadge = () => {
-      void refreshChatAdmBadge()
+      scheduleRefresh()
     }
     window.addEventListener(GUIA_CHAT_ADM_BADGE_EVENT, onBadge)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refreshChatAdmBadge()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     const ch = supabase
       .channel(`menu-chat-adm-${usuarioIdEfetivo}`)
       .on(
@@ -735,12 +745,32 @@ export default function MenuLateral({
         (payload) => {
           const remetente = payload.new?.remetente_id != null ? String(payload.new.remetente_id) : ''
           if (remetente && remetente === usuarioIdEfetivo) return
-          onBadge()
+          scheduleRefresh()
         },
       )
-      .subscribe()
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ecossistema_conversas' }, () => {
+        scheduleRefresh()
+      })
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ecossistema_conversa_leitura',
+          filter: `usuario_id=eq.${usuarioIdEfetivo}`,
+        },
+        () => {
+          scheduleRefresh()
+        },
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED' && !cancelled) void refreshChatAdmBadge()
+      })
     return () => {
+      cancelled = true
+      if (debounceId) clearTimeout(debounceId)
       window.removeEventListener(GUIA_CHAT_ADM_BADGE_EVENT, onBadge)
+      document.removeEventListener('visibilitychange', onVisible)
       void supabase.removeChannel(ch)
     }
   }, [usuarioIdEfetivo, variant, refreshChatAdmBadge])
@@ -990,13 +1020,11 @@ export default function MenuLateral({
         const Ico = item.Icon
         const badgeItem =
           item.badge ??
-          (item.href === '/chat-adm'
-            ? chatAdmNaoLido
-            : item.subpagina === 'historico-decisoes'
-              ? historicoNaoLido
-              : item.subpagina === 'visitantes-perfil'
-                ? visitasPendentes
-                : 0)
+          (item.subpagina === 'historico-decisoes'
+            ? historicoNaoLido
+            : item.subpagina === 'visitantes-perfil'
+              ? visitasPendentes
+              : 0)
         return (
           <li key={`${item.label}-${idx}`}>
             <button
@@ -1014,7 +1042,10 @@ export default function MenuLateral({
               >
                 <Ico size={compact ? 16 : 20} strokeWidth={1.75} />
               </span>
-              <span className="flex-1">{item.label}</span>
+              <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                {itemEhChatAdm(item) ? <CanalNaoLidasBadge count={chatAdmNaoLido} /> : null}
+                <span>{item.label}</span>
+              </span>
               {badgeItem > 0 || (item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo) ? (
                 <span
                   className={`rounded-full px-2 py-0.5 text-[11px] font-bold text-white ${
@@ -1059,7 +1090,6 @@ export default function MenuLateral({
       const subgrupoBloqueado = profDocsBloqueado && SUBGRUPOS_MENU_PROF_BLOQUEADOS_DOCS.has(sg.key)
       const itensSub = filtrarMenu(sg.items, ctx)
       if (!subgrupoBloqueado && itensSub.length === 0) return null
-      const badgeSub = itensSub.some(itemEhChatAdm) ? chatAdmNaoLido : 0
       return (
         <div key={sg.key} className="mb-1 border-b border-gray-50 last:border-0">
           <button
@@ -1077,9 +1107,6 @@ export default function MenuLateral({
               <span className="text-sm font-bold tracking-wide text-gray-900">{sg.label}</span>
             </span>
             <span className="flex shrink-0 items-center gap-2">
-              {badgeSub > 0 ? (
-                <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">{badgeSub}</span>
-              ) : null}
               {abSub ? (
                 <ChevronUp className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
               ) : (
@@ -1126,10 +1153,11 @@ export default function MenuLateral({
             <Ico size={20} strokeWidth={1.75} />
           </span>
         ) : null}
-        <span className="flex-1">{item.label}</span>
-        {(item.href === '/chat-adm'
-          ? chatAdmNaoLido
-          : item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)) > 0 ||
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          {itemEhChatAdm(item) ? <CanalNaoLidasBadge count={chatAdmNaoLido} /> : null}
+          <span>{item.label}</span>
+        </span>
+        {(item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)) > 0 ||
         (item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo) ? (
           <span
             className={`rounded-full px-2 py-0.5 text-[11px] font-bold text-white ${
@@ -1138,9 +1166,7 @@ export default function MenuLateral({
           >
             {item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo
               ? 'ON'
-              : item.href === '/chat-adm'
-                ? chatAdmNaoLido
-                : item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)}
+              : item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)}
           </span>
         ) : null}
       </button>
@@ -1226,7 +1252,6 @@ export default function MenuLateral({
                 if (sec.tipo === 'grupo') {
                   const ab = gruposAbertos[sec.key] ?? false
                   const grupoBloqueado = profDocsBloqueado && GRUPOS_MENU_PROF_BLOQUEADOS_DOCS.has(sec.key)
-                  const badgeGrupo = secaoTemChatAdm(sec) ? chatAdmNaoLido : 0
                   return (
                     <div key={`g-${sec.key}`} className="border-b border-gray-100">
                       <button
@@ -1241,11 +1266,6 @@ export default function MenuLateral({
                           <span className="text-base font-bold tracking-wide text-gray-900">{sec.label}</span>
                         </span>
                         <span className="flex shrink-0 items-center gap-2">
-                          {badgeGrupo > 0 ? (
-                            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">
-                              {badgeGrupo}
-                            </span>
-                          ) : null}
                           {ab ? (
                             <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
                           ) : (

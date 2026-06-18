@@ -10,6 +10,7 @@ import type { MenuEmpresaId } from '@/lib/planosEmpresaServicosGate'
 import { supabase } from '@/lib/supabase'
 import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
 import { GUIA_CHAT_ADM_BADGE_EVENT } from '@/lib/chat-adm-badge-events'
+import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
 interface MenuItem {
   id: MenuEmpresaId
@@ -52,11 +53,28 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
       setChatAdmNaoLido(0)
       return
     }
+    let cancelled = false
+    let debounceId: ReturnType<typeof setTimeout> | null = null
+
+    const scheduleRefresh = () => {
+      if (debounceId) clearTimeout(debounceId)
+      debounceId = setTimeout(() => {
+        debounceId = null
+        void refreshChatAdmBadge()
+      }, 400)
+    }
+
     void refreshChatAdmBadge()
     const onBadge = () => {
-      void refreshChatAdmBadge()
+      scheduleRefresh()
     }
     window.addEventListener(GUIA_CHAT_ADM_BADGE_EVENT, onBadge)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refreshChatAdmBadge()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     const ch = supabase
       .channel(`menu-empresa-chat-adm-${usuarioId}`)
       .on(
@@ -65,12 +83,32 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
         (payload) => {
           const remetente = payload.new?.remetente_id != null ? String(payload.new.remetente_id) : ''
           if (remetente === usuarioId) return
-          onBadge()
+          scheduleRefresh()
         },
       )
-      .subscribe()
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ecossistema_conversas' }, () => {
+        scheduleRefresh()
+      })
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ecossistema_conversa_leitura',
+          filter: `usuario_id=eq.${usuarioId}`,
+        },
+        () => {
+          scheduleRefresh()
+        },
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED' && !cancelled) void refreshChatAdmBadge()
+      })
     return () => {
+      cancelled = true
+      if (debounceId) clearTimeout(debounceId)
       window.removeEventListener(GUIA_CHAT_ADM_BADGE_EVENT, onBadge)
+      document.removeEventListener('visibilitychange', onVisible)
       void supabase.removeChannel(ch)
     }
   }, [usuarioId, refreshChatAdmBadge])
@@ -127,10 +165,10 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
                 <span className="mr-3 text-xl" aria-hidden>
                   {item.icon}
                 </span>
-                <span className="flex-1">{item.label}</span>
-                {item.id === 'chat-adm' && chatAdmNaoLido > 0 ? (
-                  <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">{chatAdmNaoLido}</span>
-                ) : null}
+                <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                  {item.id === 'chat-adm' ? <CanalNaoLidasBadge count={chatAdmNaoLido} /> : null}
+                  {item.label}
+                </span>
               </Link>
             )
           })}
