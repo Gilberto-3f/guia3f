@@ -27,6 +27,19 @@ function safeSupabaseError(e: any) {
   }
 }
 
+function isMissingColumnError(e: { message?: string; code?: string } | null | undefined): boolean {
+  if (!e) return false
+  if (e.code === 'PGRST204') return true
+  const msg = String(e.message ?? '').toLowerCase()
+  return msg.includes('column') && (msg.includes('does not exist') || msg.includes('schema cache'))
+}
+
+function missingColumnFromError(e: { message?: string } | null | undefined): string | null {
+  const msg = String(e?.message ?? '')
+  const quoted = msg.match(/'([^']+)'\s+column/i) ?? msg.match(/column\s+'([^']+)'/i)
+  return quoted?.[1] ?? null
+}
+
 export async function POST(req: NextRequest) {
   let step = 'init'
   let createdUserId: string | null = null
@@ -104,8 +117,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'no_user', step, details: { created } }, { status: 500 })
     }
 
-    const geo = { status: 'pendente', latitude: null as number | null, longitude: null as number | null }
-
     const payloadCompleto: Record<string, unknown> = {
       usuario_id: createdUserId,
       nome_fantasia: nomeFantasia,
@@ -115,37 +126,36 @@ export async function POST(req: NextRequest) {
       endereco,
       bairro: enderecoBairro,
       whatsapp: whatsApp,
-      geocoding_status: geo.status,
-      latitude: geo.latitude,
-      longitude: geo.longitude,
+      latitude: null,
+      longitude: null,
       status: 'aguardando_aprovacao',
     }
 
     step = 'insertEmpresa'
-    let insertEmpresa = await admin.from('empresas').insert(payloadCompleto)
-    if (
-      insertEmpresa.error &&
-      insertEmpresa.error.message.toLowerCase().includes('column') &&
-      insertEmpresa.error.message.toLowerCase().includes('does not exist')
-    ) {
-      const payloadMinimo = {
-        usuario_id: createdUserId,
-        nome_fantasia: nomeFantasia,
-        nome_usuario: nomeUsuario,
-        categoria,
-        cidade,
-        endereco,
-        status: 'aguardando_aprovacao',
+    let payloadInsert: Record<string, unknown> = { ...payloadCompleto }
+    let insertEmpresa = await admin.from('empresas').insert(payloadInsert)
+
+    for (let tentativa = 0; tentativa < 6 && insertEmpresa.error && isMissingColumnError(insertEmpresa.error); tentativa++) {
+      const col = missingColumnFromError(insertEmpresa.error)
+      if (col && col in payloadInsert) {
+        const { [col]: _omit, ...rest } = payloadInsert
+        payloadInsert = rest
+      } else if (tentativa === 0) {
+        payloadInsert = {
+          usuario_id: createdUserId,
+          nome_fantasia: nomeFantasia,
+          nome_usuario: nomeUsuario,
+          categoria,
+          cidade,
+          endereco,
+          bairro: enderecoBairro,
+          whatsapp: whatsApp,
+          status: 'aguardando_aprovacao',
+        }
+      } else {
+        break
       }
-      insertEmpresa = await admin.from('empresas').insert(payloadMinimo)
-    }
-    if (insertEmpresa.error && insertEmpresa.error.message.toLowerCase().includes('status')) {
-      const { status: _s, ...rest } = payloadCompleto
-      insertEmpresa = await admin.from('empresas').insert(rest)
-    }
-    if (insertEmpresa.error && insertEmpresa.error.message.toLowerCase().includes('bairro')) {
-      const { bairro: _b, ...rest } = payloadCompleto
-      insertEmpresa = await admin.from('empresas').insert(rest)
+      insertEmpresa = await admin.from('empresas').insert(payloadInsert)
     }
 
     if (insertEmpresa.error) {
