@@ -50,6 +50,44 @@ export function resolverEstadoDegustacaoUi(row: {
   return 'aguardando_aceite'
 }
 
+export type DegustacaoUiResumo = {
+  id: string
+  status: string
+  expira_em: string | null
+  aceito_em: string | null
+  plano_titulo: string | null
+}
+
+/** Estado já conhecido no card (metadata/comprovante) após aceite ou encerramento — evita flash do botão ACEITAR. */
+export function mapDegustacaoUiDeDetalhesCanal(
+  detalhes: Record<string, unknown> | null | undefined,
+): DegustacaoUiResumo | null {
+  if (!detalhes || typeof detalhes !== 'object') return null
+
+  const id = String(detalhes.degustacao_id ?? '').trim()
+  const aceito = detalhes.aceito === true
+  const statusRaw = detalhes.status != null ? String(detalhes.status).toLowerCase().trim() : ''
+
+  if (!aceito && statusRaw !== 'ativa' && statusRaw !== 'expirada' && statusRaw !== 'cancelada') {
+    return null
+  }
+
+  const status =
+    statusRaw === 'ativa' || statusRaw === 'expirada' || statusRaw === 'cancelada'
+      ? statusRaw
+      : aceito
+        ? 'ativa'
+        : 'aguardando_aceite'
+
+  return {
+    id,
+    status,
+    expira_em: detalhes.expira_em != null ? String(detalhes.expira_em) : null,
+    aceito_em: detalhes.aceito_em != null ? String(detalhes.aceito_em) : null,
+    plano_titulo: String(detalhes.plano_titulo ?? '').trim() || null,
+  }
+}
+
 export function mensagemDegustacaoAtiva(
   expiraEm: string | null | undefined,
   planoTitulo?: string | null,

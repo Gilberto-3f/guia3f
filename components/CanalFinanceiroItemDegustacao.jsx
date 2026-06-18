@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import {
   mensagemDegustacaoAtiva,
   mensagemDegustacaoExpirada,
+  mapDegustacaoUiDeDetalhesCanal,
   resolverEstadoDegustacaoUi,
 } from '@/lib/degustacaoEmpresa'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
@@ -31,11 +32,6 @@ import { marcarFinanceiroItemLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade
 export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioId, onAceito }) {
   const [aceitando, setAceitando] = useState(false)
   const [erro, setErro] = useState(/** @type {string | null} */ (null))
-  const [degustacaoIdResolvido, setDegustacaoIdResolvido] = useState('')
-  const [degustacao, setDegustacao] = useState(
-    /** @type {{ id: string, status: string, expira_em: string | null, aceito_em: string | null, plano_titulo: string | null } | null} */ (null),
-  )
-  const [marcadaLida, setMarcadaLida] = useState(item.lida_por_empresa)
 
   const detalhes =
     item.comprovante_detalhes && typeof item.comprovante_detalhes === 'object'
@@ -46,12 +42,30 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
 
   const degustacaoIdMeta = String(detalhes.degustacao_id ?? '')
   const planoTituloMeta = String(detalhes.plano_titulo ?? '').trim()
+
+  const [degustacaoIdResolvido, setDegustacaoIdResolvido] = useState(() => {
+    const inicial = mapDegustacaoUiDeDetalhesCanal(detalhes)
+    return inicial?.id || degustacaoIdMeta
+  })
+  const [degustacao, setDegustacao] = useState(
+    /** @type {{ id: string, status: string, expira_em: string | null, aceito_em: string | null, plano_titulo: string | null } | null} */ (
+      () => mapDegustacaoUiDeDetalhesCanal(detalhes),
+    ),
+  )
+  const [carregando, setCarregando] = useState(() => mapDegustacaoUiDeDetalhesCanal(detalhes) == null)
+  const [marcadaLida, setMarcadaLida] = useState(item.lida_por_empresa)
+
   const degustacaoId = degustacaoIdResolvido || degustacaoIdMeta
   const planoTitulo = degustacao?.plano_titulo || planoTituloMeta || null
   const estadoUi = resolverEstadoDegustacaoUi(degustacao)
   const estaLida = userTipo === 'empresa' ? marcadaLida || item.lida_por_empresa || estadoUi !== 'aguardando_aceite' : false
 
   useEffect(() => {
+    const inicial = mapDegustacaoUiDeDetalhesCanal(detalhes)
+    setDegustacao(inicial)
+    setDegustacaoIdResolvido(inicial?.id || degustacaoIdMeta)
+    setCarregando(inicial == null)
+
     let ativo = true
     const carregarDegustacao = async () => {
       let query = supabase
@@ -82,6 +96,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
             tituloPlano != null ? String(tituloPlano) : planoTituloMeta || null,
         })
       }
+      setCarregando(false)
     }
     void carregarDegustacao()
     return () => {
@@ -150,6 +165,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
       }
 
       setMarcadaLida(true)
+      setCarregando(false)
       notificarBadgeCanais()
       window.dispatchEvent(new Event('empresa-gate-refresh'))
       window.dispatchEvent(new Event('perfil-atualizado'))
@@ -187,7 +203,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
 
           {erro ? <p className="mb-2 text-sm text-rose-600">{erro}</p> : null}
 
-          {userTipo === 'empresa' && estadoUi === 'aguardando_aceite' ? (
+          {userTipo === 'empresa' && estadoUi === 'aguardando_aceite' && !carregando ? (
             <button
               type="button"
               onClick={() => void aceitar()}
