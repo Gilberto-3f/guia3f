@@ -63,8 +63,8 @@ export default function GuiaPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-      <header className="shrink-0">
-        <div className="flex justify-center bg-[#0097b2] py-4">
+      <header className="shrink-0 bg-[#0097b2] pt-[env(safe-area-inset-top,0px)]">
+        <div className="flex justify-center py-4">
           <Image
             src="/logo.png"
             alt="Guia 3F"

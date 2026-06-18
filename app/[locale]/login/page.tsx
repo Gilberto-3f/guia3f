@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { syncSessionCookiesToServer } from "@/lib/authCookieSync";
@@ -26,6 +27,7 @@ export default function LoginPage() {
   const [erroSenha, setErroSenha] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [bootSessao, setBootSessao] = useState(true);
+  const [cadastroAberto, setCadastroAberto] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -168,54 +170,70 @@ export default function LoginPage() {
 
       <div className="my-8 h-px w-full max-w-80 bg-gray-300" aria-hidden="true" />
 
-      <div className="mx-auto max-w-80 space-y-4 text-center text-sm leading-relaxed text-[#001f3f]">
-        <h2 className="text-lg font-bold text-[#0097b2]">{t("marketingHeadline")}</h2>
-        <p>{t("marketingBody1")}</p>
-        <p>{t("marketingBody2")}</p>
-        <div className="mx-auto mt-2 grid max-w-sm grid-cols-2 gap-x-8 gap-y-1 text-left text-sm">
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 font-bold text-[#0097b2]">→</span>
-            {t("benefitMobility")}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 font-bold text-[#0097b2]">→</span>
-            {t("benefitGuide")}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 font-bold text-[#0097b2]">→</span>
-            {t("benefitDiscounts")}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 font-bold text-[#0097b2]">→</span>
-            {t("benefitSecurity")}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 font-bold text-[#0097b2]">→</span>
-            {t("benefitPracticality")}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 font-bold text-[#0097b2]">→</span>
-            {t("benefitPartnerships")}
-          </div>
-        </div>
-      </div>
-
       <button
         type="button"
-        onClick={() => {
-          const nextCadastro = getSafeCadastroNext(searchParams.get("next"));
-          router.push(nextCadastro ?? "/escolha-perfil");
-        }}
-        className="mx-auto mt-8 block w-full max-w-[4cm] rounded-full bg-[#00D443] py-2.5 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
+        onClick={() => setCadastroAberto((aberto) => !aberto)}
+        className="mx-auto flex w-full max-w-80 items-center justify-center gap-2 text-lg font-bold text-[#0097b2]"
+        aria-expanded={cadastroAberto}
       >
-        {t("createAccount")}
+        <span>{t("marketingHeadline")}</span>
+        <ChevronDown
+          className={`h-5 w-5 shrink-0 transition-transform duration-200 ${cadastroAberto ? "rotate-180" : ""}`}
+          aria-hidden
+        />
       </button>
 
-      <div className="mt-8 flex justify-center gap-2 text-2xl leading-none" aria-hidden="true">
-        <span title="Brasil">🇧🇷</span>
-        <span title="Paraguai">🇵🇾</span>
-        <span title="Argentina">🇦🇷</span>
-      </div>
+      {cadastroAberto ? (
+        <>
+          <div className="mx-auto mt-6 max-w-80 space-y-4 text-center text-sm leading-relaxed text-[#001f3f]">
+            <p>{t("marketingBody1")}</p>
+            <p>{t("marketingBody2")}</p>
+            <div className="mx-auto mt-2 grid max-w-sm grid-cols-2 gap-x-8 gap-y-1 text-left text-sm">
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 font-bold text-[#0097b2]">→</span>
+                {t("benefitMobility")}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 font-bold text-[#0097b2]">→</span>
+                {t("benefitGuide")}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 font-bold text-[#0097b2]">→</span>
+                {t("benefitDiscounts")}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 font-bold text-[#0097b2]">→</span>
+                {t("benefitSecurity")}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 font-bold text-[#0097b2]">→</span>
+                {t("benefitPracticality")}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 font-bold text-[#0097b2]">→</span>
+                {t("benefitPartnerships")}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              const nextCadastro = getSafeCadastroNext(searchParams.get("next"));
+              router.push(nextCadastro ?? "/escolha-perfil");
+            }}
+            className="mx-auto mt-8 block w-full max-w-[4cm] rounded-full bg-[#00D443] py-2.5 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#00b838]"
+          >
+            {t("createAccount")}
+          </button>
+
+          <div className="mt-8 flex justify-center gap-2 text-2xl leading-none" aria-hidden="true">
+            <span title="Brasil">🇧🇷</span>
+            <span title="Paraguai">🇵🇾</span>
+            <span title="Argentina">🇦🇷</span>
+          </div>
+        </>
+      ) : null}
     </GuiaAuthShell>
   );
 }

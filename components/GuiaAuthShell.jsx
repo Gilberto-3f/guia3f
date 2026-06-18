@@ -8,7 +8,7 @@ import Logo from '@/components/Logo'
  */
 export default function GuiaAuthShell({ children, footer = null, largeHeaderLogo = false }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-[#0097b2]">
+    <div className="flex min-h-dvh flex-col bg-[#0097b2] pt-[env(safe-area-inset-top,0px)]">
       <header className="shrink-0 bg-[#0097b2]">
         <Logo variant="header" largeHeader={largeHeaderLogo} />
       </header>
