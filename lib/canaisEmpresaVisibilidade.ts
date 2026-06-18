@@ -97,11 +97,11 @@ export async function contarFinanceiroNaoLidasEmpresa(
 export async function marcarFinanceiroLidoEmpresa(
   supabase: SupabaseClient,
   usuarioId: string,
-): Promise<void> {
-  if (!usuarioId) return
+): Promise<boolean> {
+  if (!usuarioId) return false
   const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', usuarioId).maybeSingle()
   const empresaId = emp?.id != null ? String(emp.id) : ''
-  if (!empresaId) return
+  if (!empresaId) return false
 
   const { error } = await supabase
     .from('canal_financeiro')
@@ -109,26 +109,46 @@ export async function marcarFinanceiroLidoEmpresa(
     .eq('empresa_id', empresaId)
     .eq('lida_por_empresa', false)
 
-  if (error) console.error('marcarFinanceiroLidoEmpresa:', error)
+  if (error) {
+    console.error('marcarFinanceiroLidoEmpresa:', error)
+    return false
+  }
+  return true
 }
 
 export async function marcarFinanceiroItemLidoEmpresa(
   supabase: SupabaseClient,
   usuarioId: string,
   itemId: string,
-): Promise<void> {
-  if (!usuarioId || !itemId) return
+): Promise<boolean> {
+  if (!usuarioId || !itemId) return false
   const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', usuarioId).maybeSingle()
   const empresaId = emp?.id != null ? String(emp.id) : ''
-  if (!empresaId) return
+  if (!empresaId) return false
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('canal_financeiro')
     .update({ lida_por_empresa: true })
     .eq('id', itemId)
     .eq('empresa_id', empresaId)
+    .select('id')
+    .maybeSingle()
 
-  if (error) console.error('marcarFinanceiroItemLidoEmpresa:', error)
+  if (error) {
+    console.error('marcarFinanceiroItemLidoEmpresa:', error)
+    return false
+  }
+  if (data?.id) return true
+
+  const { data: jaLida } = await supabase
+    .from('canal_financeiro')
+    .select('id')
+    .eq('id', itemId)
+    .eq('empresa_id', empresaId)
+    .eq('lida_por_empresa', true)
+    .maybeSingle()
+
+  return Boolean(jaLida?.id)
 }
 
 export { isCanalFinanceiroEmpresa }

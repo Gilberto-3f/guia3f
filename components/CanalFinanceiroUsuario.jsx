@@ -7,7 +7,10 @@ import CanalFinanceiroItemDegustacao from '@/components/CanalFinanceiroItemDegus
 import CanalFinanceiroItemPreLiberacao from '@/components/CanalFinanceiroItemPreLiberacao'
 import CanalFinanceiroMensageiro from '@/components/CanalFinanceiroMensageiro'
 import CanalFinanceiroAbaPlanos from '@/components/CanalFinanceiroAbaPlanos'
-import { marcarFinanceiroLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
+import {
+  marcarFinanceiroItemLidoEmpresa,
+  marcarFinanceiroLidoEmpresa,
+} from '@/lib/canaisEmpresaVisibilidade'
 import { marcarFinanceiroLidoProfissional } from '@/lib/canaisProfissionalVisibilidade'
 import {
   itemCanalFinanceiroPreLiberacao,
@@ -15,7 +18,7 @@ import {
   listarPreLiberacoesPendentesProfissional,
 } from '@/lib/turistaPreLiberacao'
 import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
-import { notificarBadgeCanais } from '@/lib/canais-badge-events'
+import { notificarBadgeCanais, notificarBadgeCanaisAposLeitura } from '@/lib/canais-badge-events'
 
 const abaCls = (ativo) =>
   `flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition-colors sm:text-sm ${
@@ -34,7 +37,33 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
   const [naoLidasMensageiro, setNaoLidasMensageiro] = useState(0)
 
   const marcarItemRelatorioLido = useCallback(
-    (itemId) => {
+    async (itemId) => {
+      if (!usuarioId || !itemId) return
+
+      let persistiu = false
+      if (tipo === 'empresa') {
+        persistiu = await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, itemId)
+      } else {
+        const { data: prof } = await supabase
+          .from('profissionais')
+          .select('id')
+          .eq('usuario_id', usuarioId)
+          .maybeSingle()
+        const profissionalId = prof?.id != null ? String(prof.id) : ''
+        if (profissionalId) {
+          const { data, error } = await supabase
+            .from('canal_financeiro')
+            .update({ lida_por_profissional: true })
+            .eq('id', itemId)
+            .eq('profissional_id', profissionalId)
+            .select('id')
+            .maybeSingle()
+          persistiu = !error && Boolean(data?.id)
+        }
+      }
+
+      if (!persistiu) return
+
       setItens((prev) => {
         const next = prev.map((item) =>
           item.id === itemId
@@ -53,9 +82,9 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
         )
         return next
       })
-      notificarBadgeCanais()
+      notificarBadgeCanaisAposLeitura()
     },
-    [tipo],
+    [tipo, usuarioId],
   )
 
   const marcarRelatoriosComoLidos = useCallback(async () => {
@@ -73,7 +102,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
         lida_por_empresa: tipo === 'empresa' ? true : item.lida_por_empresa,
       })),
     )
-    notificarBadgeCanais()
+    notificarBadgeCanaisAposLeitura()
   }, [usuarioId, tipo])
 
   useEffect(() => {

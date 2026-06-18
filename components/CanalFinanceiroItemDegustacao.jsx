@@ -9,7 +9,7 @@ import {
   mapDegustacaoUiDeDetalhesCanal,
   resolverEstadoDegustacaoUi,
 } from '@/lib/degustacaoEmpresa'
-import { notificarBadgeCanais } from '@/lib/canais-badge-events'
+import { notificarBadgeCanaisAposLeitura } from '@/lib/canais-badge-events'
 import { marcarFinanceiroItemLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 
 /**
@@ -103,15 +103,30 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
 
   const registrarLeitura = useCallback(async () => {
     if (userTipo !== 'empresa' || !usuarioId || marcadaLida || item.lida_por_empresa) return
-    await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, item.id)
+    const ok = await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, item.id)
+    if (!ok) return
     setMarcadaLida(true)
     onItemLido?.(item.id)
-    notificarBadgeCanais()
+    notificarBadgeCanaisAposLeitura()
   }, [item.id, item.lida_por_empresa, marcadaLida, onItemLido, userTipo, usuarioId])
 
   useEffect(() => {
     void registrarLeitura()
   }, [registrarLeitura])
+
+  useEffect(() => {
+    if (userTipo !== 'empresa' || !usuarioId || marcadaLida || item.lida_por_empresa || carregando) return
+    if (estadoUi === 'aguardando_aceite') return
+    void registrarLeitura()
+  }, [
+    carregando,
+    estadoUi,
+    item.lida_por_empresa,
+    marcadaLida,
+    registrarLeitura,
+    userTipo,
+    usuarioId,
+  ])
 
   const aceitar = async () => {
     if (userTipo !== 'empresa' || !degustacaoId || aceitando || estadoUi !== 'aguardando_aceite') return
@@ -160,9 +175,9 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
 
       setMarcadaLida(true)
       setCarregando(false)
-      await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, item.id)
-      onItemLido?.(item.id)
-      notificarBadgeCanais()
+      const leituraOk = await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, item.id)
+      if (leituraOk) onItemLido?.(item.id)
+      notificarBadgeCanaisAposLeitura()
       window.dispatchEvent(new Event('empresa-gate-refresh'))
       window.dispatchEvent(new Event('perfil-atualizado'))
       onAceito?.()
