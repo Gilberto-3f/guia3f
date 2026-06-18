@@ -10,7 +10,6 @@ import type { MenuEmpresaId } from '@/lib/planosEmpresaServicosGate'
 import { supabase } from '@/lib/supabase'
 import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
 import { GUIA_CHAT_ADM_BADGE_EVENT } from '@/lib/chat-adm-badge-events'
-import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
 interface MenuItem {
   id: MenuEmpresaId
@@ -165,10 +164,12 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
                 <span className="mr-3 text-xl" aria-hidden>
                   {item.icon}
                 </span>
-                <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                  {item.id === 'chat-adm' ? <CanalNaoLidasBadge count={chatAdmNaoLido} /> : null}
-                  {item.label}
-                </span>
+                <span className="min-w-0 flex-1">{item.label}</span>
+                {item.id === 'chat-adm' && chatAdmNaoLido > 0 ? (
+                  <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                    {chatAdmNaoLido}
+                  </span>
+                ) : null}
               </Link>
             )
           })}

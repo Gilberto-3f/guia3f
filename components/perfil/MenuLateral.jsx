@@ -48,7 +48,6 @@ import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
 import { textoInfoDrawer } from '@/lib/drawerInfoTextos'
 import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
 import { GUIA_CHAT_ADM_BADGE_EVENT } from '@/lib/chat-adm-badge-events'
-import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
 import EmergenciaItemEsquecido from '@/components/perfil/subpaginas/emergencia/EmergenciaItemEsquecido'
 import EmergenciaPerdido from '@/components/perfil/subpaginas/emergencia/EmergenciaPerdido'
@@ -1011,6 +1010,17 @@ export default function MenuLateral({
 
   const modItem = { Icon: Users, label: 'Modo Apresentação', subpagina: 'modo-apresentacao' }
 
+  /** @param {MenuItem} item */
+  const badgeCountItem = (item) =>
+    item.badge ??
+    (item.subpagina === 'historico-decisoes'
+      ? historicoNaoLido
+      : item.subpagina === 'visitantes-perfil'
+        ? visitasPendentes
+        : itemEhChatAdm(item)
+          ? chatAdmNaoLido
+          : 0)
+
   /** @param {MenuItem[]} lista @param {{ compact?: boolean }} [opts] */
   const renderListaItens = (lista, opts = {}) => {
     const { compact = false } = opts
@@ -1018,13 +1028,7 @@ export default function MenuLateral({
     <ul className={compact ? 'space-y-0.5' : 'space-y-1'}>
       {lista.map((item, idx) => {
         const Ico = item.Icon
-        const badgeItem =
-          item.badge ??
-          (item.subpagina === 'historico-decisoes'
-            ? historicoNaoLido
-            : item.subpagina === 'visitantes-perfil'
-              ? visitasPendentes
-              : 0)
+        const badgeItem = badgeCountItem(item)
         return (
           <li key={`${item.label}-${idx}`}>
             <button
@@ -1042,10 +1046,7 @@ export default function MenuLateral({
               >
                 <Ico size={compact ? 16 : 20} strokeWidth={1.75} />
               </span>
-              <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                {itemEhChatAdm(item) ? <CanalNaoLidasBadge count={chatAdmNaoLido} /> : null}
-                <span>{item.label}</span>
-              </span>
+              <span className="min-w-0 flex-1">{item.label}</span>
               {badgeItem > 0 || (item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo) ? (
                 <span
                   className={`rounded-full px-2 py-0.5 text-[11px] font-bold text-white ${
@@ -1131,6 +1132,7 @@ export default function MenuLateral({
     const { emergencia, semIconBg } = opts
     const Ico = item.Icon
     const isEm = emergencia
+    const badgeItem = badgeCountItem(item)
     return (
       <button
         type="button"
@@ -1153,20 +1155,14 @@ export default function MenuLateral({
             <Ico size={20} strokeWidth={1.75} />
           </span>
         ) : null}
-        <span className="flex min-w-0 flex-1 items-center gap-1.5">
-          {itemEhChatAdm(item) ? <CanalNaoLidasBadge count={chatAdmNaoLido} /> : null}
-          <span>{item.label}</span>
-        </span>
-        {(item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)) > 0 ||
-        (item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo) ? (
+        <span className="min-w-0 flex-1">{item.label}</span>
+        {badgeItem > 0 || (item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo) ? (
           <span
             className={`rounded-full px-2 py-0.5 text-[11px] font-bold text-white ${
               item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo ? 'bg-amber-500' : 'bg-red-500'
             }`}
           >
-            {item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo
-              ? 'ON'
-              : item.badge ?? (item.subpagina === 'historico-decisoes' ? historicoNaoLido : 0)}
+            {item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo ? 'ON' : badgeItem}
           </span>
         ) : null}
       </button>
