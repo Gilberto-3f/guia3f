@@ -41,13 +41,11 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json()) as Record<string, unknown>
-  const urgente = body.urgente === true
   const assunto = body.assunto != null ? String(body.assunto) : null
 
   const res = await abrirConversaEcossistemaMembro(auth.supabase, {
     membroUsuarioId: auth.userId,
     membroTipo,
-    urgente,
     assunto,
   })
 

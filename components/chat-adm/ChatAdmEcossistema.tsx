@@ -38,7 +38,8 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
   const [iniciando, setIniciando] = useState(false)
   const [vistoEmOutroMs, setVistoEmOutroMs] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
-  const urgenteAplicadoRef = useRef(false)
+  const socorroInicialAplicadoRef = useRef(false)
+  const socorroPendenteRef = useRef(false)
   const mensagensRef = useRef<EcossistemaMensagemRow[]>([])
 
   useEffect(() => {
@@ -102,7 +103,9 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
     }
   }, [])
 
-  const abrirChat = useCallback(async (urgente: boolean) => {
+  const abrirChat = useCallback(async (opts?: { socorro?: boolean }) => {
+    const socorro = opts?.socorro === true
+    if (socorro) socorroPendenteRef.current = true
     setIniciando(true)
     setErro(null)
     try {
@@ -110,8 +113,7 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          urgente,
-          assunto: urgente ? 'Solicitação emergencial' : 'Contato com administração',
+          assunto: socorro ? 'Solicitação emergencial' : 'Contato com administração',
         }),
       })
       const json = (await res.json()) as { ok?: boolean; conversa?: EcossistemaConversaRow; error?: string }
@@ -174,9 +176,10 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
   }, [carregarConversas])
 
   useEffect(() => {
-    if (!urgenteInicial || urgenteAplicadoRef.current || loading) return
-    urgenteAplicadoRef.current = true
-    if (!conversaAberta) void abrirChat(true)
+    if (!urgenteInicial || socorroInicialAplicadoRef.current || loading) return
+    socorroInicialAplicadoRef.current = true
+    socorroPendenteRef.current = true
+    if (!conversaAberta) void abrirChat({ socorro: true })
   }, [urgenteInicial, loading, conversaAberta, abrirChat])
 
   useEffect(() => {
@@ -261,17 +264,25 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
   const enviarMensagem = async () => {
     const msg = texto.trim()
     if (!msg || !conversaAberta || enviando) return
+    const enviarSocorro = socorroPendenteRef.current
     setEnviando(true)
     try {
       const res = await fetch(`/api/ecossistema-conversas/${conversaAberta.id}/mensagens`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texto: msg }),
+        body: JSON.stringify({
+          texto: msg,
+          ...(enviarSocorro ? { socorro: true } : {}),
+        }),
       })
       const json = (await res.json()) as { ok?: boolean; mensagem?: EcossistemaMensagemRow; error?: string }
       if (!json.ok || !json.mensagem) {
         setErro(json.error ?? 'Falha ao enviar.')
         return
+      }
+      if (enviarSocorro) {
+        socorroPendenteRef.current = false
+        setConversaAberta((prev) => (prev ? { ...prev, urgente: true } : prev))
       }
       appendMensagem(json.mensagem, conversaAberta.id)
       setTexto('')
@@ -297,7 +308,7 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
           <button
             type="button"
             disabled={iniciando}
-            onClick={() => void abrirChat(false)}
+            onClick={() => void abrirChat()}
             className="mt-6 w-full rounded-xl bg-[#00D443] py-3.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-[#00b83b] disabled:opacity-60"
           >
             {iniciando ? 'Abrindo...' : 'Iniciar conversa'}

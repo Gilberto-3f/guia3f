@@ -84,16 +84,6 @@ export async function abrirConversaEcossistemaMembro(
 ): Promise<{ ok: boolean; conversa?: EcossistemaConversaRow; criada?: boolean; error?: string }> {
   const aberta = await buscarConversaAbertaMembro(supabase, params.membroUsuarioId)
   if (aberta) {
-    if (params.urgente && !aberta.urgente) {
-      const { data, error } = await supabase
-        .from('ecossistema_conversas')
-        .update({ urgente: true, alerta_urgente_visto: false })
-        .eq('id', aberta.id)
-        .select('*')
-        .maybeSingle()
-      if (error) return { ok: false, error: error.message }
-      return { ok: true, conversa: data ? mapConversa(data) : aberta, criada: false }
-    }
     return { ok: true, conversa: aberta, criada: false }
   }
 
@@ -104,7 +94,7 @@ export async function abrirConversaEcossistemaMembro(
       membro_usuario_id: params.membroUsuarioId,
       membro_tipo: params.membroTipo,
       status: 'aberta',
-      urgente: Boolean(params.urgente),
+      urgente: false,
       alerta_urgente_visto: false,
       assunto,
     })
@@ -164,15 +154,62 @@ export async function listarAlertasUrgentesAdm(
     .order('created_at', { ascending: false })
 
   const conversas = (data ?? []).map(mapConversa)
-  const perfis = await buscarPerfisMembroEcossistema(
-    supabase,
-    conversas.map((c) => c.membro_usuario_id),
+  if (conversas.length === 0) return []
+
+  const conversaIds = conversas.map((c) => c.id)
+  const { data: mensagensMembro } = await supabase
+    .from('ecossistema_mensagens')
+    .select('conversa_id, remetente_id')
+    .in('conversa_id', conversaIds)
+
+  const conversasComMensagem = conversas.filter((c) =>
+    (mensagensMembro ?? []).some(
+      (m) => String(m.conversa_id) === c.id && String(m.remetente_id) === c.membro_usuario_id,
+    ),
   )
 
-  return conversas.map((c) => ({
+  const perfis = await buscarPerfisMembroEcossistema(
+    supabase,
+    conversasComMensagem.map((c) => c.membro_usuario_id),
+  )
+
+  return conversasComMensagem.map((c) => ({
     ...c,
     membro: perfis.get(c.membro_usuario_id) ?? perfilMembroFallback(c.membro_usuario_id, c.membro_tipo),
   }))
+}
+
+/** Dispara popup de socorro no ADM — somente após o turista enviar mensagem. */
+export async function ativarSocorroUrgenteConversa(
+  supabase: SupabaseClient,
+  conversaId: string,
+  membroUsuarioId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { data: conv } = await supabase
+    .from('ecossistema_conversas')
+    .select('id, membro_usuario_id, membro_tipo, status, assunto')
+    .eq('id', conversaId)
+    .maybeSingle()
+
+  if (!conv || String(conv.status) !== 'aberta') {
+    return { ok: false, error: 'Conversa encerrada ou inexistente.' }
+  }
+  if (String(conv.membro_tipo) !== 'turista' || String(conv.membro_usuario_id) !== membroUsuarioId) {
+    return { ok: false, error: 'Socorro urgente só para turista.' }
+  }
+
+  const { error } = await supabase
+    .from('ecossistema_conversas')
+    .update({
+      urgente: true,
+      alerta_urgente_visto: false,
+      assunto: conv.assunto != null && String(conv.assunto).trim() ? String(conv.assunto) : 'Solicitação emergencial',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', conversaId)
+
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
 }
 
 export async function marcarAlertaUrgenteVisto(

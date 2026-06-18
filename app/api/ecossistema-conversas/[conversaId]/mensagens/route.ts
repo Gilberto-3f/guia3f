@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import {
+  ativarSocorroUrgenteConversa,
   enviarMensagemEcossistema,
   listarMensagensEcossistema,
 } from '@/lib/ecossistemaConversas'
@@ -42,7 +43,7 @@ export async function POST(req: Request, ctx: RouteCtx) {
 
   const { data: conversa } = await auth.supabase
     .from('ecossistema_conversas')
-    .select('id, membro_usuario_id, status')
+    .select('id, membro_usuario_id, membro_tipo, status')
     .eq('id', conversaId)
     .maybeSingle()
 
@@ -60,6 +61,11 @@ export async function POST(req: Request, ctx: RouteCtx) {
 
   if (!res.ok) {
     return NextResponse.json({ error: res.error ?? 'Falha ao enviar.' }, { status: 500 })
+  }
+
+  const socorro = body.socorro === true || body.urgente === true
+  if (socorro && String(conversa.membro_tipo) === 'turista') {
+    await ativarSocorroUrgenteConversa(auth.supabase, conversaId, auth.userId)
   }
 
   return NextResponse.json({ ok: true, mensagem: res.mensagem })
