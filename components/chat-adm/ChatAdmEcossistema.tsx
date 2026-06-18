@@ -4,12 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
+  buscarVistoEmOutroEcossistema,
   mapMensagemEcossistemaPayload,
   marcarConversaEcossistemaLida,
   type EcossistemaConversaRow,
   type EcossistemaMensagemRow,
 } from '@/lib/ecossistemaConversas'
 import { notificarBadgeChatAdm } from '@/lib/chat-adm-badge-events'
+import { idUltimaMensagemPropriaVistaPeloOutro } from '@/lib/chatVisto'
+import ChatReciboVisto from '@/components/chat/ChatReciboVisto'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 
@@ -33,6 +36,7 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [iniciando, setIniciando] = useState(false)
+  const [vistoEmOutroMs, setVistoEmOutroMs] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const urgenteAplicadoRef = useRef(false)
   const mensagensRef = useRef<EcossistemaMensagemRow[]>([])
@@ -59,6 +63,14 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
       const msgs = lista ?? mensagensRef.current
       await marcarConversaEcossistemaLida(supabase, usuarioId, conversaId, ultimaMensagemIso(msgs))
       notificarBadgeChatAdm()
+    },
+    [usuarioId],
+  )
+
+  const atualizarVistoOutro = useCallback(
+    async (conversaId: string, membroUsuarioId: string) => {
+      const ms = await buscarVistoEmOutroEcossistema(supabase, conversaId, usuarioId, membroUsuarioId)
+      setVistoEmOutroMs(ms)
     },
     [usuarioId],
   )
@@ -138,8 +150,9 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
       if (opts?.marcarLida !== false && lista.length > 0) {
         void marcarLida(conversaId, lista)
       }
+      void atualizarVistoOutro(conversaId, usuarioId)
     },
-    [marcarLida, scrollToBottom],
+    [atualizarVistoOutro, marcarLida, scrollToBottom, usuarioId],
   )
 
   const appendMensagem = useCallback(
@@ -199,6 +212,34 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
       void supabase.removeChannel(ch)
     }
   }, [conversaAbertaId, conversaVisualId, appendMensagem])
+
+  useEffect(() => {
+    if (!conversaVisualId) {
+      setVistoEmOutroMs(0)
+      return
+    }
+    void atualizarVistoOutro(conversaVisualId, usuarioId)
+
+    const ch = supabase
+      .channel(`eco-visto-membro-${conversaVisualId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ecossistema_conversa_leitura',
+          filter: `conversa_id=eq.${conversaVisualId}`,
+        },
+        () => {
+          void atualizarVistoOutro(conversaVisualId, usuarioId)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(ch)
+    }
+  }, [conversaVisualId, atualizarVistoOutro, usuarioId])
 
   useEffect(() => {
     if (!conversaAbertaId || conversaVisualId !== conversaAbertaId) return
@@ -291,6 +332,8 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
 
   if (!conversaAtual) return null
 
+  const mensagemVistoId = idUltimaMensagemPropriaVistaPeloOutro(mensagens, usuarioId, vistoEmOutroMs)
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto bg-[#e5ddd5] px-3 py-4">
@@ -314,6 +357,7 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
                   <div className="mt-0.5 text-right text-[10px] text-gray-500">
                     {new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                   </div>
+                  {minha ? <ChatReciboVisto visivel={m.id === mensagemVistoId} /> : null}
                 </div>
               </div>
             )

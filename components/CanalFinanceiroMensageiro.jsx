@@ -19,6 +19,7 @@ import {
   listarMensagensConversa,
 } from '@/lib/financeiroConversas'
 import {
+  buscarVistoEmOutroFinanceiro,
   conversasMensageiroComNaoLidas,
   marcarMensageiroFinanceiroLido,
 } from '@/lib/financeiroMensageiroLeitura'
@@ -66,6 +67,7 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
   const [gravandoAudio, setGravandoAudio] = useState(false)
   const [segundosGravacao, setSegundosGravacao] = useState(0)
   const [conversasNaoLidas, setConversasNaoLidas] = useState(/** @type {Set<string>} */ (new Set()))
+  const [vistoEmOutroMs, setVistoEmOutroMs] = useState(0)
 
   const textareaRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
   const fileInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
@@ -140,8 +142,10 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
     async (conversaId) => {
       if (!conversaId) {
         setMensagens([])
+        setVistoEmOutroMs(0)
         return
       }
+      const conv = todasConversas.find((c) => c.id === conversaId)
       const msgs = await listarMensagensConversa(supabase, conversaId)
       setMensagens(msgs)
       await marcarMensageiroFinanceiroLido(supabase, usuarioId, conversaId)
@@ -150,10 +154,20 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
         next.delete(conversaId)
         return next
       })
+      if (conv) {
+        const ms = await buscarVistoEmOutroFinanceiro(
+          supabase,
+          conversaId,
+          usuarioId,
+          conv.alvo_usuario_id,
+          conv.adm_usuario_id,
+        )
+        setVistoEmOutroMs(ms)
+      }
       notificarBadgeCanais()
       requestAnimationFrame(() => scrollToBottom())
     },
-    [scrollToBottom, usuarioId],
+    [scrollToBottom, usuarioId, todasConversas],
   )
 
   useEffect(() => {
@@ -182,11 +196,31 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
           notificarBadgeCanais()
         },
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'financeiro_conversa_leitura',
+          filter: `conversa_id=eq.${idAtivo}`,
+        },
+        () => {
+          const conv = todasConversas.find((c) => c.id === idAtivo)
+          if (!conv) return
+          void buscarVistoEmOutroFinanceiro(
+            supabase,
+            idAtivo,
+            usuarioId,
+            conv.alvo_usuario_id,
+            conv.adm_usuario_id,
+          ).then(setVistoEmOutroMs)
+        },
+      )
       .subscribe()
     return () => {
       void supabase.removeChannel(ch)
     }
-  }, [idAtivo, carregarMensagens])
+  }, [idAtivo, carregarMensagens, todasConversas, usuarioId])
 
   useEffect(() => {
     if (!podeResponder) return
@@ -516,6 +550,7 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
       <FinanceiroDialogoVisual
         mensagens={mensagens}
         viewerUserId={usuarioId}
+        vistoEmOutroMs={vistoEmOutroMs}
         assunto={conversaAtual?.assunto}
         onFechar={() => setConversaVisualId(null)}
         messagesEndRef={messagesEndRef}

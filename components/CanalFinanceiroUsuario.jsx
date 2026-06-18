@@ -33,6 +33,31 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
   const [naoLidas, setNaoLidas] = useState(0)
   const [naoLidasMensageiro, setNaoLidasMensageiro] = useState(0)
 
+  const marcarItemRelatorioLido = useCallback(
+    (itemId) => {
+      setItens((prev) => {
+        const next = prev.map((item) =>
+          item.id === itemId
+            ? {
+                ...item,
+                lida_por_profissional: tipo === 'profissional' ? true : item.lida_por_profissional,
+                lida_por_empresa: tipo === 'empresa' ? true : item.lida_por_empresa,
+              }
+            : item,
+        )
+        setNaoLidas(
+          next.filter((item) => {
+            if (item.tipo === 'pre_liberacao_turista' && !item.metadata?.respondido) return true
+            return tipo === 'profissional' ? !item.lida_por_profissional : !item.lida_por_empresa
+          }).length,
+        )
+        return next
+      })
+      notificarBadgeCanais()
+    },
+    [tipo],
+  )
+
   const marcarRelatoriosComoLidos = useCallback(async () => {
     if (!usuarioId) return
     if (tipo === 'profissional') {
@@ -381,6 +406,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
                     userTipo={tipo}
                     usuarioId={usuarioId}
                     onAceito={() => void carregar({ silencioso: true })}
+                    onItemLido={marcarItemRelatorioLido}
                   />
                 ) : (
                   <CanalFinanceiroItem key={item.id} item={item} userTipo={tipo} />

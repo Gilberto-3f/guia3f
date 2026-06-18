@@ -6,10 +6,13 @@ import CanalMensagemAudio from '@/components/CanalMensagemAudio'
 import CanalMensagemImagem from '@/components/CanalMensagemImagem'
 import { ehAnexoAudioCanal, ehAnexoImagemCanal } from '@/lib/canalAnexoUrl'
 import type { FinanceiroMensagemRow } from '@/lib/financeiroConversas'
+import ChatReciboVisto from '@/components/chat/ChatReciboVisto'
+import { idUltimaMensagemPropriaVistaPeloOutro } from '@/lib/chatVisto'
 
 type FinanceiroDialogoVisualProps = {
   mensagens: FinanceiroMensagemRow[]
   viewerUserId: string
+  vistoEmOutroMs?: number
   assunto?: string | null
   carregando?: boolean
   erro?: string | null
@@ -23,6 +26,7 @@ type FinanceiroDialogoVisualProps = {
 export default function FinanceiroDialogoVisual({
   mensagens,
   viewerUserId,
+  vistoEmOutroMs = 0,
   assunto,
   carregando = false,
   erro = null,
@@ -55,6 +59,7 @@ export default function FinanceiroDialogoVisual({
       <ListaMensagensCorpo
         mensagens={mensagens}
         viewerUserId={viewerUserId}
+        vistoEmOutroMs={vistoEmOutroMs}
         carregando={carregando}
         erro={erro}
         messagesEndRef={messagesEndRef}
@@ -67,6 +72,7 @@ export default function FinanceiroDialogoVisual({
 function ListaMensagensCorpo({
   mensagens,
   viewerUserId,
+  vistoEmOutroMs,
   carregando,
   erro,
   messagesEndRef,
@@ -74,11 +80,14 @@ function ListaMensagensCorpo({
 }: {
   mensagens: FinanceiroMensagemRow[]
   viewerUserId: string
+  vistoEmOutroMs: number
   carregando: boolean
   erro: string | null
   messagesEndRef?: RefObject<HTMLDivElement | null>
   className?: string
 }) {
+  const mensagemVistoId = idUltimaMensagemPropriaVistaPeloOutro(mensagens, viewerUserId, vistoEmOutroMs)
+
   return (
     <div className={`overflow-y-auto bg-[#e5ddd5] px-3 py-4 ${className}`}>
       {carregando ? (
@@ -121,6 +130,7 @@ function ListaMensagensCorpo({
                 <div className="mt-0.5 text-right text-[10px] text-gray-500">
                   {new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </div>
+                {own ? <ChatReciboVisto visivel={m.id === mensagemVistoId} /> : null}
               </div>
             </div>
           )

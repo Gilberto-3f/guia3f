@@ -5,8 +5,10 @@ import { AlertTriangle, ChevronUp, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
-import { mapMensagemEcossistemaPayload, type EcossistemaConversaRow, type EcossistemaMensagemRow } from '@/lib/ecossistemaConversas'
+import { buscarVistoEmOutroEcossistema, mapMensagemEcossistemaPayload, type EcossistemaConversaRow, type EcossistemaMensagemRow } from '@/lib/ecossistemaConversas'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
+import { idUltimaMensagemPropriaVistaPeloOutro } from '@/lib/chatVisto'
+import ChatReciboVisto from '@/components/chat/ChatReciboVisto'
 
 type AbaEcossistema = 'turista' | 'profissional' | 'empresa' | 'historico'
 
@@ -51,6 +53,8 @@ export default function CanalEcossistemaAdm({
   const [enviando, setEnviando] = useState(false)
   const [painelAberto, setPainelAberto] = useState(false)
   const [carregando, setCarregando] = useState(true)
+  const [adminUserId, setAdminUserId] = useState('')
+  const [vistoEmOutroMs, setVistoEmOutroMs] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const painelAbertoRef = useRef(false)
 
@@ -69,6 +73,21 @@ export default function CanalEcossistemaAdm({
       fecharPainelRef.current = null
     }
   }, [fecharPainelRef])
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => {
+      setAdminUserId(data.session?.user?.id ?? '')
+    })
+  }, [])
+
+  const atualizarVistoOutro = useCallback(
+    async (conversaId: string, membroUsuarioId: string) => {
+      if (!adminUserId) return
+      const ms = await buscarVistoEmOutroEcossistema(supabase, conversaId, adminUserId, membroUsuarioId)
+      setVistoEmOutroMs(ms)
+    },
+    [adminUserId],
+  )
 
   const carregarLista = useCallback(async (silencioso = false) => {
     if (!silencioso) setCarregando(true)
@@ -95,12 +114,16 @@ export default function CanalEcossistemaAdm({
     }
   }, [aba])
 
-  const carregarMensagens = useCallback(async (conversaId: string) => {
-    const res = await fetch(`/api/admin/ecossistema-conversas/${conversaId}/mensagens`)
-    const json = (await res.json()) as { mensagens?: EcossistemaMensagemRow[] }
-    setMensagens(json.mensagens ?? [])
-    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })
-  }, [])
+  const carregarMensagens = useCallback(
+    async (conversaId: string, membroUsuarioId: string) => {
+      const res = await fetch(`/api/admin/ecossistema-conversas/${conversaId}/mensagens`)
+      const json = (await res.json()) as { mensagens?: EcossistemaMensagemRow[] }
+      setMensagens(json.mensagens ?? [])
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })
+      void atualizarVistoOutro(conversaId, membroUsuarioId)
+    },
+    [atualizarVistoOutro],
+  )
 
   useEffect(() => {
     void carregarLista()
@@ -137,7 +160,7 @@ export default function CanalEcossistemaAdm({
   useEffect(() => {
     if (!selecionada?.id || !painelAberto) return
     void (async () => {
-      await carregarMensagens(selecionada.id)
+      await carregarMensagens(selecionada.id, selecionada.membro_usuario_id)
       await carregarLista(true)
       notificarBadgeCanais()
     })()
@@ -164,12 +187,24 @@ export default function CanalEcossistemaAdm({
           notificarBadgeCanais()
         },
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ecossistema_conversa_leitura',
+          filter: `conversa_id=eq.${selecionada.id}`,
+        },
+        () => {
+          void atualizarVistoOutro(selecionada.id, selecionada.membro_usuario_id)
+        },
+      )
       .subscribe()
 
     return () => {
       void supabase.removeChannel(ch)
     }
-  }, [selecionada?.id, painelAberto, carregarMensagens, carregarLista])
+  }, [selecionada?.id, selecionada?.membro_usuario_id, painelAberto, carregarMensagens, carregarLista, atualizarVistoOutro])
 
   const abrirConversa = (c: ConversaComMembro) => {
     setSelecionada(c)
@@ -227,6 +262,11 @@ export default function CanalEcossistemaAdm({
   const wrapperCls = embedded
     ? 'relative flex min-h-0 flex-1 flex-col overflow-hidden'
     : 'relative mx-auto flex w-full max-w-3xl min-h-[70vh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm'
+
+  const mensagemVistoId =
+    adminUserId && selecionada
+      ? idUltimaMensagemPropriaVistaPeloOutro(mensagens, adminUserId, vistoEmOutroMs)
+      : null
 
   return (
     <div className={wrapperCls}>
@@ -317,6 +357,7 @@ export default function CanalEcossistemaAdm({
                     }`}
                   >
                     {m.texto}
+                    {adm ? <ChatReciboVisto visivel={m.id === mensagemVistoId} /> : null}
                   </div>
                 </div>
               )

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
 import { calcularVistoEmAposLeitura } from '@/lib/canalBadge'
+import { vistoEmParaMs } from '@/lib/chatVisto'
 
 export type MembroTipoEcossistema = 'turista' | 'profissional' | 'empresa'
 export type StatusConversaEcossistema = 'aberta' | 'encerrada'
@@ -389,6 +390,33 @@ export async function marcarConversaEcossistemaLida(
     },
     { onConflict: 'usuario_id,conversa_id' },
   )
+}
+
+/** Maior `visto_em` do outro participante na conversa ecossistema (para recibo "Visto"). */
+export async function buscarVistoEmOutroEcossistema(
+  supabase: SupabaseClient,
+  conversaId: string,
+  viewerUserId: string,
+  membroUsuarioId: string,
+): Promise<number> {
+  if (!conversaId || !viewerUserId) return 0
+
+  const { data: leituras } = await supabase
+    .from('ecossistema_conversa_leitura')
+    .select('usuario_id, visto_em')
+    .eq('conversa_id', conversaId)
+
+  let maxOutro = 0
+  const viewerEhMembro = viewerUserId === membroUsuarioId
+
+  for (const row of leituras ?? []) {
+    const uid = String(row.usuario_id ?? '')
+    const ehOutro = viewerEhMembro ? uid !== membroUsuarioId : uid === membroUsuarioId
+    if (!ehOutro) continue
+    maxOutro = Math.max(maxOutro, vistoEmParaMs(row.visto_em != null ? String(row.visto_em) : null))
+  }
+
+  return maxOutro
 }
 
 /** Mensagens de ADM não lidas na conversa aberta do membro. */

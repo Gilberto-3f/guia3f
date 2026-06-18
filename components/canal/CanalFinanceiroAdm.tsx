@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BarChart3, ChevronUp, MessageCircle, Search, Send, X } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
+import ChatReciboVisto from '@/components/chat/ChatReciboVisto'
 import CanalMensagemAudio from '@/components/CanalMensagemAudio'
 import CanalMensagemImagem from '@/components/CanalMensagemImagem'
 import { rotuloCategoriaCardFinanceiro } from '@/lib/canaisProfissionaisListaUi'
@@ -12,6 +14,8 @@ import {
   assuntoSemLinhasAuditoria,
   extrairLinhaAuditoriaUnica,
 } from '@/lib/financeiroConversaAuditoria'
+import { buscarVistoEmOutroFinanceiro } from '@/lib/financeiroMensageiroLeitura'
+import { idUltimaMensagemPropriaVistaPeloOutro } from '@/lib/chatVisto'
 
 const INPUT_FIN = 'text-gray-900 placeholder:text-gray-500 caret-gray-900'
 const AVATAR_QUADRADO = 'shrink-0 rounded-md object-cover'
@@ -200,6 +204,13 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
   const [historicoErro, setHistoricoErro] = useState<string | null>(null)
   const [carregandoDesempenho, setCarregandoDesempenho] = useState(false)
   const [restaurado, setRestaurado] = useState(false)
+  const [adminUserId, setAdminUserId] = useState('')
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => {
+      setAdminUserId(data.session?.user?.id ?? '')
+    })
+  }, [])
 
   const abaBusca: AbaBusca = aba === 'empresa' ? 'empresa' : 'profissional'
   const painel = cards[abaBusca]
@@ -623,7 +634,10 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                           ) : null}
                           <ListaMensagensFinanceiro
                             mensagens={historicoMensagens}
-                            viewerUserId={historicoAdmId ?? ''}
+                            viewerUserId={historicoAdmId ?? adminUserId}
+                            conversaId={historicoDetalhe}
+                            alvoUsuarioId={h.alvo_usuario_id}
+                            admUsuarioId={historicoAdmId ?? adminUserId}
                             carregando={historicoCarregando}
                             erro={historicoErro}
                             className="max-h-52 px-3 py-3"
@@ -738,7 +752,10 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
                     <>
                       <ListaMensagensFinanceiro
                         mensagens={mensagens}
-                        viewerUserId=""
+                        viewerUserId={adminUserId}
+                        conversaId={conversaId}
+                        alvoUsuarioId={selecionado?.usuarioId ?? null}
+                        admUsuarioId={adminUserId}
                         className="max-h-52"
                       />
                       <div className="flex items-end gap-2 border-t border-gray-200 bg-white px-3 py-2">
@@ -797,16 +814,64 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
 function ListaMensagensFinanceiro({
   mensagens,
   viewerUserId,
+  conversaId = null,
+  alvoUsuarioId = null,
+  admUsuarioId = null,
   carregando = false,
   erro = null,
   className = '',
 }: {
   mensagens: Array<Mensagem | FinanceiroMensagemRow>
   viewerUserId: string
+  conversaId?: string | null
+  alvoUsuarioId?: string | null
+  admUsuarioId?: string | null
   carregando?: boolean
   erro?: string | null
   className?: string
 }) {
+  const [vistoEmOutroMs, setVistoEmOutroMs] = useState(0)
+
+  useEffect(() => {
+    if (!conversaId || !viewerUserId || !alvoUsuarioId || !admUsuarioId) {
+      setVistoEmOutroMs(0)
+      return
+    }
+
+    const atualizar = () =>
+      buscarVistoEmOutroFinanceiro(
+        supabase,
+        conversaId,
+        viewerUserId,
+        alvoUsuarioId,
+        admUsuarioId,
+      ).then(setVistoEmOutroMs)
+
+    void atualizar()
+
+    const ch = supabase
+      .channel(`fin-adm-visto-${conversaId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'financeiro_conversa_leitura',
+          filter: `conversa_id=eq.${conversaId}`,
+        },
+        () => {
+          void atualizar()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(ch)
+    }
+  }, [admUsuarioId, alvoUsuarioId, conversaId, viewerUserId])
+
+  const mensagemVistoId = idUltimaMensagemPropriaVistaPeloOutro(mensagens, viewerUserId, vistoEmOutroMs)
+
   if (carregando) {
     return <p className={`py-4 text-center text-xs text-gray-500 ${className}`}>Carregando mensagens…</p>
   }
@@ -856,6 +921,7 @@ function ListaMensagensFinanceiro({
               <div className="mt-0.5 text-right text-[10px] text-gray-500">
                 {new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
               </div>
+              {own ? <ChatReciboVisto visivel={m.id === mensagemVistoId} /> : null}
             </div>
           </div>
         )

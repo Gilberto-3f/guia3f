@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { calcularVistoEmAposLeitura } from '@/lib/canalBadge'
+import { vistoEmParaMs } from '@/lib/chatVisto'
 
 /**
  * Mensagens do mensageiro ADM (tabela `financeiro_mensagens`) não lidas pelo alvo.
@@ -177,4 +178,26 @@ export async function marcarMensageiroFinanceiroLido(
 
     if (error) console.error('marcarMensageiroFinanceiroLido:', error)
   }
+}
+
+/** Maior `visto_em` do outro participante no mensageiro financeiro (para recibo "Visto"). */
+export async function buscarVistoEmOutroFinanceiro(
+  supabase: SupabaseClient,
+  conversaId: string,
+  viewerUserId: string,
+  alvoUsuarioId: string,
+  admUsuarioId: string,
+): Promise<number> {
+  if (!conversaId || !viewerUserId) return 0
+
+  const outroId = viewerUserId === alvoUsuarioId ? admUsuarioId : alvoUsuarioId
+
+  const { data: leitura } = await supabase
+    .from('financeiro_conversa_leitura')
+    .select('visto_em')
+    .eq('conversa_id', conversaId)
+    .eq('usuario_id', outroId)
+    .maybeSingle()
+
+  return vistoEmParaMs(leitura?.visto_em != null ? String(leitura.visto_em) : null)
 }

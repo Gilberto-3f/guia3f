@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Check, DollarSign } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
@@ -27,9 +27,10 @@ import { marcarFinanceiroItemLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade
  *   userTipo: 'profissional' | 'empresa'
  *   usuarioId: string
  *   onAceito?: () => void
+ *   onItemLido?: (itemId: string) => void
  * }} props
  */
-export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioId, onAceito }) {
+export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioId, onAceito, onItemLido }) {
   const [aceitando, setAceitando] = useState(false)
   const [erro, setErro] = useState(/** @type {string | null} */ (null))
 
@@ -104,20 +105,17 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
     }
   }, [degustacaoIdMeta, item.id, planoTituloMeta])
 
-  useEffect(() => {
+  const registrarLeitura = useCallback(async () => {
     if (userTipo !== 'empresa' || !usuarioId || marcadaLida || item.lida_por_empresa) return
-    let ativo = true
-    const marcar = async () => {
-      await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, item.id)
-      if (!ativo) return
-      setMarcadaLida(true)
-      notificarBadgeCanais()
-    }
-    void marcar()
-    return () => {
-      ativo = false
-    }
-  }, [item.id, item.lida_por_empresa, marcadaLida, userTipo, usuarioId])
+    await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, item.id)
+    setMarcadaLida(true)
+    onItemLido?.(item.id)
+    notificarBadgeCanais()
+  }, [item.id, item.lida_por_empresa, marcadaLida, onItemLido, userTipo, usuarioId])
+
+  useEffect(() => {
+    void registrarLeitura()
+  }, [registrarLeitura])
 
   const aceitar = async () => {
     if (userTipo !== 'empresa' || !degustacaoId || aceitando || estadoUi !== 'aguardando_aceite') return
@@ -166,6 +164,8 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
 
       setMarcadaLida(true)
       setCarregando(false)
+      await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, item.id)
+      onItemLido?.(item.id)
       notificarBadgeCanais()
       window.dispatchEvent(new Event('empresa-gate-refresh'))
       window.dispatchEvent(new Event('perfil-atualizado'))

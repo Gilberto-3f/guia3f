@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertAdminSession } from '@/lib/adminApiAuth'
 import { enviarMensagemConversaFinanceiro, listarMensagensConversa } from '@/lib/financeiroConversas'
+import { marcarMensageiroFinanceiroLido } from '@/lib/financeiroMensageiroLeitura'
 
 type RouteCtx = { params: Promise<{ conversaId: string }> }
 
@@ -10,7 +11,9 @@ export async function GET(_req: Request, ctx: RouteCtx) {
 
   const { conversaId } = await ctx.params
   const mensagens = await listarMensagensConversa(auth.supabase, conversaId)
-  return NextResponse.json({ ok: true, mensagens })
+  const ultimaIso = mensagens.length > 0 ? mensagens[mensagens.length - 1]?.created_at ?? null : null
+  await marcarMensageiroFinanceiroLido(auth.supabase, auth.userId, conversaId)
+  return NextResponse.json({ ok: true, mensagens, ultima_mensagem_em: ultimaIso })
 }
 
 export async function POST(req: Request, ctx: RouteCtx) {
