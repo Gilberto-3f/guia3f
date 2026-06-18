@@ -27,6 +27,10 @@ export default function LinhaProfissionalRecomendacao({ profissional, naoLidas =
     [profissional.detalhes],
   )
 
+  const total = recomendacoesOrdenadas.length
+  const resumo =
+    total === 1 ? '1 recomendação feita' : `${total.toLocaleString('pt-BR')} recomendações feitas`
+
   return (
     <LinhaProfissionalCabecalho
       profissionalId={profissional.profissional_id}
@@ -37,13 +41,9 @@ export default function LinhaProfissionalRecomendacao({ profissional, naoLidas =
       naoLidas={naoLidas}
       onAberto={onAberto}
       posicao={posicao}
+      resumo={resumo}
     >
       <div className="space-y-3 px-3">
-        <p className="text-sm font-bold text-gray-700">
-          {recomendacoesOrdenadas.length === 1
-            ? '1 recomendação feita'
-            : `${recomendacoesOrdenadas.length} recomendações feitas`}
-        </p>
         {recomendacoesOrdenadas.map((detalhe) => {
           const porEmail =
             detalhe.turista_canal === 'email' || Boolean(detalhe.turista_email_prefix)

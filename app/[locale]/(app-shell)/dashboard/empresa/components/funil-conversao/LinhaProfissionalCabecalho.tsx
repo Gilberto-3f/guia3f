@@ -15,6 +15,8 @@ interface Props {
   naoLidas?: number
   onAberto?: () => void
   posicao?: number
+  /** Resumo sempre visível (ex.: quantidade de recomendações, PAX ou vendas). */
+  resumo?: string
   children: ReactNode
 }
 
@@ -27,6 +29,7 @@ export default function LinhaProfissionalCabecalho({
   naoLidas = 0,
   onAberto,
   posicao,
+  resumo,
   children,
 }: Props) {
   const [aberto, setAberto] = useState(false)
@@ -62,6 +65,7 @@ export default function LinhaProfissionalCabecalho({
             {verificado ? <CheckVerificado /> : null}
             <span className="truncate">@{handle}</span>
           </p>
+          {resumo ? <p className="mt-0.5 text-sm font-bold text-gray-700">{resumo}</p> : null}
         </div>
         <div className="flex shrink-0 flex-col items-center gap-0.5 self-center">
           <ChevronDown

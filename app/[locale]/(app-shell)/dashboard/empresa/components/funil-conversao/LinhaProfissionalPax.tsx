@@ -12,6 +12,9 @@ interface Props {
 }
 
 export default function LinhaProfissionalPax({ profissional, naoLidas = 0, onAberto, posicao }: Props) {
+  const total = profissional.total
+  const resumo = total === 1 ? '1 passageiro' : `${total.toLocaleString('pt-BR')} passageiros`
+
   return (
     <LinhaProfissionalCabecalho
       profissionalId={profissional.profissional_id}
@@ -22,6 +25,7 @@ export default function LinhaProfissionalPax({ profissional, naoLidas = 0, onAbe
       naoLidas={naoLidas}
       onAberto={onAberto}
       posicao={posicao}
+      resumo={resumo}
     >
       {profissional.detalhes.map((detalhe) => (
         <div key={detalhe.id} className="text-sm leading-relaxed text-gray-600">
