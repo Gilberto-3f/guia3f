@@ -67,16 +67,27 @@ export default function LinhaProfissionalCabecalho({
               <span className="truncate">@{handle}</span>
             </p>
           </div>
-          <div className="flex shrink-0 flex-col items-center gap-0.5 self-center">
-            <ChevronDown
-              className={`h-4 w-4 shrink-0 text-[#0097b2] transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
-              aria-hidden
-            />
-            <CanalNaoLidasBadge count={naoLidas} />
-          </div>
+          {!resumo ? (
+            <div className="flex shrink-0 flex-col items-center gap-0.5 self-center">
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-[#0097b2] transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
+                aria-hidden
+              />
+              <CanalNaoLidasBadge count={naoLidas} />
+            </div>
+          ) : null}
         </div>
         {resumo ? (
-          <p className="mt-2 pl-[52px] pr-10 text-sm font-bold leading-snug text-gray-700">{resumo}</p>
+          <div className="mt-1.5 flex w-full items-center gap-2">
+            <p className="min-w-0 flex-1 truncate whitespace-nowrap text-sm font-bold text-gray-700">{resumo}</p>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-[#0097b2] transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`}
+                aria-hidden
+              />
+              <CanalNaoLidasBadge count={naoLidas} />
+            </div>
+          </div>
         ) : null}
       </button>
 
