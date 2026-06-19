@@ -8,6 +8,7 @@ import CanalFinanceiroItemPreLiberacao from '@/components/CanalFinanceiroItemPre
 import CanalFinanceiroMensageiro from '@/components/CanalFinanceiroMensageiro'
 import CanalFinanceiroAbaPlanos from '@/components/CanalFinanceiroAbaPlanos'
 import {
+  itemCanalFinanceiroContaComoNaoLidoEmpresa,
   marcarFinanceiroItemLidoEmpresa,
   marcarFinanceiroLidoEmpresa,
 } from '@/lib/canaisEmpresaVisibilidade'
@@ -24,6 +25,19 @@ const abaCls = (ativo) =>
   `flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition-colors sm:text-sm ${
     ativo ? 'bg-[#00D443] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
   }`
+
+function itemRelatorioContaComoNaoLido(item, tipo) {
+  if (item.tipo === 'pre_liberacao_turista' && !item.metadata?.respondido) return true
+  if (tipo === 'empresa') {
+    return itemCanalFinanceiroContaComoNaoLidoEmpresa({
+      lida_por_empresa: item.lida_por_empresa,
+      tipo: item.tipo,
+      metadata: item.metadata,
+      comprovante_detalhes: item.comprovante_detalhes,
+    })
+  }
+  return !item.lida_por_profissional
+}
 
 /**
  * Canal financeiro do profissional ou empresa: relatórios do app + mensageiro ADM.
@@ -74,12 +88,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
               }
             : item,
         )
-        setNaoLidas(
-          next.filter((item) => {
-            if (item.tipo === 'pre_liberacao_turista' && !item.metadata?.respondido) return true
-            return tipo === 'profissional' ? !item.lida_por_profissional : !item.lida_por_empresa
-          }).length,
-        )
+        setNaoLidas(next.filter((item) => itemRelatorioContaComoNaoLido(item, tipo)).length)
         return next
       })
       notificarBadgeCanaisAposLeitura()
@@ -88,31 +97,40 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
   )
 
   const marcarRelatoriosComoLidos = useCallback(async () => {
-    if (!usuarioId) return
+    if (!usuarioId) return false
+    let persistiu = false
     if (tipo === 'profissional') {
       await marcarFinanceiroLidoProfissional(supabase, usuarioId)
+      persistiu = true
     } else {
-      await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
+      persistiu = await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
     }
+    if (!persistiu) return false
+
     setNaoLidas(0)
     setItens((prev) =>
       prev.map((item) => ({
         ...item,
         lida_por_profissional: tipo === 'profissional' ? true : item.lida_por_profissional,
         lida_por_empresa: tipo === 'empresa' ? true : item.lida_por_empresa,
+        metadata:
+          tipo === 'empresa' && item.tipo === 'degustacao_plano'
+            ? { ...(item.metadata ?? {}), visualizado_em: new Date().toISOString() }
+            : item.metadata,
+        comprovante_detalhes:
+          tipo === 'empresa' && item.tipo === 'degustacao_plano'
+            ? { ...(item.comprovante_detalhes ?? item.metadata ?? {}), visualizado_em: new Date().toISOString() }
+            : item.comprovante_detalhes,
       })),
     )
     notificarBadgeCanaisAposLeitura()
+    return true
   }, [usuarioId, tipo])
 
   useEffect(() => {
     if (aba !== 'relatorios' || loading || !usuarioId) return
-    const temNaoLidas = itens.some((item) => {
-      if (item.tipo === 'pre_liberacao_turista' && !item.metadata?.respondido) return false
-      return tipo === 'profissional' ? !item.lida_por_profissional : !item.lida_por_empresa
-    })
-    if (temNaoLidas) void marcarRelatoriosComoLidos()
-  }, [aba, loading, itens, usuarioId, tipo, marcarRelatoriosComoLidos])
+    void marcarRelatoriosComoLidos()
+  }, [aba, loading, usuarioId, tipo, marcarRelatoriosComoLidos])
 
   const carregar = useCallback(async (opts = {}) => {
     const silencioso = opts.silencioso === true
@@ -245,12 +263,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
       )
 
       setItens(formatados)
-      setNaoLidas(
-        formatados.filter((item) => {
-          if (item.tipo === 'pre_liberacao_turista' && !item.metadata?.respondido) return true
-          return tipo === 'profissional' ? !item.lida_por_profissional : !item.lida_por_empresa
-        }).length,
-      )
+      setNaoLidas(formatados.filter((item) => itemRelatorioContaComoNaoLido(item, tipo)).length)
       const msgNaoLidas = await contarMensageiroFinanceiroNaoLidas(supabase, usuarioId)
       setNaoLidasMensageiro(msgNaoLidas)
     } catch (e) {

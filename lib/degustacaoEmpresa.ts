@@ -412,14 +412,18 @@ export async function aceitarDegustacaoEmpresa(
       aceitoEm,
       expiraEm,
     })
-    await supabase
+    const { error: canalErr } = await supabase
       .from('canal_financeiro')
       .update({
-        metadata: detalhesAtualizados,
-        comprovante_detalhes: detalhesAtualizados,
+        metadata: { ...detalhesAtualizados, status: 'ativa', visualizado_em: aceitoEm },
+        comprovante_detalhes: { ...detalhesAtualizados, status: 'ativa', visualizado_em: aceitoEm },
         lida_por_empresa: true,
       })
       .eq('id', deg.canal_financeiro_id)
+
+    if (canalErr) {
+      console.error('sincronizarCanalDegustacao:', canalErr)
+    }
   }
 
   if (String(deg.status) === 'ativa') {

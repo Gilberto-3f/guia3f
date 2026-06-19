@@ -10,6 +10,86 @@ import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLe
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS_SLUG = ['guia', 'taxista', 'van', 'motorista_app', 'anfitriao'] as const
 
+export type CanalFinanceiroRowEmpresa = {
+  id?: string | null
+  lida_por_empresa?: boolean | null
+  tipo?: string | null
+  metadata?: Record<string, unknown> | null
+  comprovante_detalhes?: Record<string, unknown> | null
+}
+
+function detalhesCanalFinanceiro(row: CanalFinanceiroRowEmpresa): Record<string, unknown> {
+  if (row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)) {
+    return row.metadata
+  }
+  if (
+    row.comprovante_detalhes &&
+    typeof row.comprovante_detalhes === 'object' &&
+    !Array.isArray(row.comprovante_detalhes)
+  ) {
+    return row.comprovante_detalhes
+  }
+  return {}
+}
+
+/** Degustação aceita ou encerrada não entra no badge mesmo se lida_por_empresa atrasou no banco. */
+export function itemCanalFinanceiroContaComoNaoLidoEmpresa(row: CanalFinanceiroRowEmpresa): boolean {
+  if (row.lida_por_empresa === true) return false
+
+  const tipo = String(row.tipo ?? '')
+  if (tipo !== 'degustacao_plano') return true
+
+  const meta = detalhesCanalFinanceiro(row)
+  if (meta.aceito === true) return false
+  if (meta.visualizado_em != null && String(meta.visualizado_em).trim() !== '') return false
+
+  const status = String(meta.status ?? '').toLowerCase()
+  if (status === 'ativa' || status === 'expirada' || status === 'cancelada') return false
+
+  return true
+}
+
+function mesclarVisualizadoMetadata(
+  atual: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const base =
+    atual && typeof atual === 'object' && !Array.isArray(atual) ? { ...atual } : {}
+  return {
+    ...base,
+    visualizado_em: new Date().toISOString(),
+  }
+}
+
+async function marcarItemLidoViaApi(itemId: string): Promise<boolean> {
+  if (typeof window === 'undefined' || !itemId) return false
+  try {
+    const res = await fetch('/api/empresa/canal-financeiro/marcar-lido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId }),
+    })
+    const json = (await res.json()) as { ok?: boolean }
+    return res.ok && json.ok === true
+  } catch {
+    return false
+  }
+}
+
+async function marcarTodosLidosViaApi(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  try {
+    const res = await fetch('/api/empresa/canal-financeiro/marcar-lido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    const json = (await res.json()) as { ok?: boolean }
+    return res.ok && json.ok === true
+  } catch {
+    return false
+  }
+}
+
 function toSlugComunidade(valor: string | null | undefined): string {
   const raw = String(valor ?? '').trim()
   if (!raw) return ''
@@ -78,12 +158,11 @@ export async function contarFinanceiroNaoLidasEmpresa(
   const empresaId = emp?.id != null ? String(emp.id) : ''
   if (!empresaId) return 0
 
-  const [{ count, error }, mensageiro] = await Promise.all([
+  const [{ data: rows, error }, mensageiro] = await Promise.all([
     supabase
       .from('canal_financeiro')
-      .select('id', { count: 'exact', head: true })
-      .eq('empresa_id', empresaId)
-      .eq('lida_por_empresa', false),
+      .select('id, tipo, lida_por_empresa, metadata, comprovante_detalhes')
+      .eq('empresa_id', empresaId),
     contarMensageiroFinanceiroNaoLidas(supabase, usuarioId),
   ])
 
@@ -91,7 +170,9 @@ export async function contarFinanceiroNaoLidasEmpresa(
     console.error('contarFinanceiroNaoLidasEmpresa:', error)
     return mensageiro
   }
-  return (count ?? 0) + mensageiro
+
+  const relatorios = (rows ?? []).filter(itemCanalFinanceiroContaComoNaoLidoEmpresa).length
+  return relatorios + mensageiro
 }
 
 export async function marcarFinanceiroLidoEmpresa(
@@ -103,16 +184,55 @@ export async function marcarFinanceiroLidoEmpresa(
   const empresaId = emp?.id != null ? String(emp.id) : ''
   if (!empresaId) return false
 
-  const { error } = await supabase
+  const { data: pendentes, error: selErr } = await supabase
     .from('canal_financeiro')
-    .update({ lida_por_empresa: true })
+    .select('id, tipo, metadata, comprovante_detalhes, lida_por_empresa')
     .eq('empresa_id', empresaId)
-    .eq('lida_por_empresa', false)
 
-  if (error) {
-    console.error('marcarFinanceiroLidoEmpresa:', error)
+  if (selErr) {
+    console.error('marcarFinanceiroLidoEmpresa select:', selErr)
     return false
   }
+
+  const idsMarcar = (pendentes ?? [])
+    .filter(itemCanalFinanceiroContaComoNaoLidoEmpresa)
+    .map((r) => String(r.id))
+    .filter(Boolean)
+
+  if (idsMarcar.length === 0) return true
+
+  for (const id of idsMarcar) {
+    const row = (pendentes ?? []).find((r) => String(r.id) === id)
+    const tipo = String(row?.tipo ?? '')
+    const patch: Record<string, unknown> = { lida_por_empresa: true }
+    if (tipo === 'degustacao_plano') {
+      patch.metadata = mesclarVisualizadoMetadata(
+        detalhesCanalFinanceiro(row as CanalFinanceiroRowEmpresa),
+      )
+      patch.comprovante_detalhes = patch.metadata
+    }
+
+    const { error } = await supabase
+      .from('canal_financeiro')
+      .update(patch)
+      .eq('id', id)
+      .eq('empresa_id', empresaId)
+
+    if (error) console.error('marcarFinanceiroLidoEmpresa update:', error)
+  }
+
+  const { data: restRows, error: restErr } = await supabase
+    .from('canal_financeiro')
+    .select('id, tipo, lida_por_empresa, metadata, comprovante_detalhes')
+    .eq('empresa_id', empresaId)
+
+  if (restErr) {
+    console.error('marcarFinanceiroLidoEmpresa verify:', restErr)
+    return marcarTodosLidosViaApi()
+  }
+
+  const aindaNaoLidos = (restRows ?? []).some(itemCanalFinanceiroContaComoNaoLidoEmpresa)
+  if (aindaNaoLidos) return marcarTodosLidosViaApi()
   return true
 }
 
@@ -126,9 +246,31 @@ export async function marcarFinanceiroItemLidoEmpresa(
   const empresaId = emp?.id != null ? String(emp.id) : ''
   if (!empresaId) return false
 
+  const { data: row, error: rowErr } = await supabase
+    .from('canal_financeiro')
+    .select('id, tipo, metadata, comprovante_detalhes, lida_por_empresa')
+    .eq('id', itemId)
+    .eq('empresa_id', empresaId)
+    .maybeSingle()
+
+  if (rowErr) {
+    console.error('marcarFinanceiroItemLidoEmpresa select:', rowErr)
+    return marcarItemLidoViaApi(itemId)
+  }
+
+  if (!row?.id) return false
+  if (!itemCanalFinanceiroContaComoNaoLidoEmpresa(row as CanalFinanceiroRowEmpresa)) return true
+
+  const tipo = String(row.tipo ?? '')
+  const patch: Record<string, unknown> = { lida_por_empresa: true }
+  if (tipo === 'degustacao_plano') {
+    patch.metadata = mesclarVisualizadoMetadata(detalhesCanalFinanceiro(row as CanalFinanceiroRowEmpresa))
+    patch.comprovante_detalhes = patch.metadata
+  }
+
   const { data, error } = await supabase
     .from('canal_financeiro')
-    .update({ lida_por_empresa: true })
+    .update(patch)
     .eq('id', itemId)
     .eq('empresa_id', empresaId)
     .select('id')
@@ -136,19 +278,21 @@ export async function marcarFinanceiroItemLidoEmpresa(
 
   if (error) {
     console.error('marcarFinanceiroItemLidoEmpresa:', error)
-    return false
+    return marcarItemLidoViaApi(itemId)
   }
   if (data?.id) return true
 
+  const viaApi = await marcarItemLidoViaApi(itemId)
+  if (viaApi) return true
+
   const { data: jaLida } = await supabase
     .from('canal_financeiro')
-    .select('id')
+    .select('id, lida_por_empresa, metadata, comprovante_detalhes')
     .eq('id', itemId)
     .eq('empresa_id', empresaId)
-    .eq('lida_por_empresa', true)
     .maybeSingle()
 
-  return Boolean(jaLida?.id)
+  return Boolean(jaLida?.id && !itemCanalFinanceiroContaComoNaoLidoEmpresa(jaLida as CanalFinanceiroRowEmpresa))
 }
 
 export { isCanalFinanceiroEmpresa }

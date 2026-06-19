@@ -55,7 +55,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
   const degustacaoId = degustacaoIdResolvido || degustacaoIdMeta
   const planoTitulo = degustacao?.plano_titulo || planoTituloMeta || null
   const estadoUi = resolverEstadoDegustacaoUi(degustacao)
-  const estaLida = userTipo === 'empresa' ? marcadaLida || item.lida_por_empresa || estadoUi !== 'aguardando_aceite' : false
+  const estaLida = userTipo === 'empresa' ? marcadaLida || item.lida_por_empresa : false
 
   useEffect(() => {
     const inicial = mapDegustacaoUiDeDetalhesCanal(detalhes)
@@ -113,20 +113,6 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
   useEffect(() => {
     void registrarLeitura()
   }, [registrarLeitura])
-
-  useEffect(() => {
-    if (userTipo !== 'empresa' || !usuarioId || marcadaLida || item.lida_por_empresa || carregando) return
-    if (estadoUi === 'aguardando_aceite') return
-    void registrarLeitura()
-  }, [
-    carregando,
-    estadoUi,
-    item.lida_por_empresa,
-    marcadaLida,
-    registrarLeitura,
-    userTipo,
-    usuarioId,
-  ])
 
   const aceitar = async () => {
     if (userTipo !== 'empresa' || !degustacaoId || aceitando || estadoUi !== 'aguardando_aceite') return
