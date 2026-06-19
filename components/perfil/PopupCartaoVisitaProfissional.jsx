@@ -1,9 +1,16 @@
 'use client'
 
+import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import { ShieldCheck, Star, X } from 'lucide-react'
 import EscudoVerificacaoPendente from '@/components/EscudoVerificacaoPendente'
+import IconWhatsApp from '@/components/IconWhatsApp'
+import PopupRecomendarProfissional from '@/components/PopupRecomendarProfissional'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
+import {
+  resolverAcoesCartaoVisitaProfissional,
+  resolverVisaoCartaoVisita,
+} from '@/lib/cartaoVisitaProfissional'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 function formatMesAno(iso) {
@@ -12,31 +19,6 @@ function formatMesAno(iso) {
   if (Number.isNaN(d.getTime())) return null
   const s = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
   return s.charAt(0).toUpperCase() + s.slice(1)
-}
-
-/** @param {string[] | null | undefined} categorias */
-function normalizarCategorias(categorias) {
-  if (!Array.isArray(categorias)) return []
-  return categorias
-    .map((c) => String(c ?? '').trim().toLowerCase())
-    .filter(Boolean)
-}
-
-/**
- * Regra do botão contratar (UI):
- * - Permitido: taxista, motorista de van, guia, etc
- * - Bloqueado: motorista de app, anfitrião
- * - `placa_vermelha` dá preferência a mostrar contratar
- */
-function deveMostrarContratar({ placaVermelha, categorias }) {
-  if (placaVermelha) return true
-  const cats = normalizarCategorias(categorias)
-  if (cats.some((c) => c.includes('anfitri'))) return false
-  if (cats.some((c) => c.includes('app'))) return false
-  if (cats.some((c) => c.includes('tax'))) return true
-  if (cats.some((c) => c.includes('van'))) return true
-  if (cats.some((c) => c.includes('guia'))) return true
-  return false
 }
 
 /**
@@ -52,7 +34,17 @@ function deveMostrarContratar({ placaVermelha, categorias }) {
  *  placaVermelha?: boolean
  *  profissionalVerificado?: boolean
  *  paisBandeira?: string | null
+ *  notaMedia?: number | null
+ *  totalAvaliacoes?: number | null
+ *  meuId?: string | null
+ *  profileId: string
+ *  meuRole?: string | null
+ *  visitantePlacaVermelha?: boolean
+ *  visitanteCategorias?: string[] | null
+ *  profissionalIndicadoId?: string | null
+ *  temParceriaFechada?: boolean
  *  onContratar?: () => void
+ *  onAvaliar?: () => void
  * }} props
  */
 export default function PopupCartaoVisitaProfissional({
@@ -67,156 +59,238 @@ export default function PopupCartaoVisitaProfissional({
   placaVermelha = false,
   profissionalVerificado = false,
   paisBandeira = null,
+  notaMedia = null,
+  totalAvaliacoes = 0,
+  meuId = null,
+  profileId,
+  meuRole = null,
+  visitantePlacaVermelha = false,
+  visitanteCategorias = null,
+  profissionalIndicadoId = null,
+  temParceriaFechada = false,
   onContratar,
+  onAvaliar,
 }) {
   useModalScrollLock(aberto)
+  const [popupRecomendarAberto, setPopupRecomendarAberto] = useState(false)
 
   const verificado = profissionalVerificado === true
   const mesAnoCadastro = formatMesAno(cadastradoEm ?? verificadoEm)
   const u = String(username ?? '').trim().replace(/^@+/, '')
   const uShown = u.length > 15 ? `${u.slice(0, 15)}…` : u
-  const podeContratar = verificado && deveMostrarContratar({ placaVermelha, categorias })
   const rotuloCategoria = formatProfissionalCategorias(categorias)
 
-  const media = 0
-  const total = 0
+  const souDono = Boolean(meuId && profileId && meuId === profileId)
+  const visao = resolverVisaoCartaoVisita({ meuId, profileId, meuRole, souDono })
+
+  const acoes = useMemo(
+    () =>
+      resolverAcoesCartaoVisitaProfissional({
+        visao,
+        profissionalVerificado: verificado,
+        visitantePlacaVermelha,
+        visitanteCategorias,
+        visitadoPlacaVermelha: placaVermelha,
+        visitadoCategorias: categorias,
+        temParceriaFechada,
+      }),
+    [
+      visao,
+      verificado,
+      visitantePlacaVermelha,
+      visitanteCategorias,
+      placaVermelha,
+      categorias,
+      temParceriaFechada,
+    ],
+  )
+
+  const media = notaMedia != null && Number.isFinite(Number(notaMedia)) ? Number(notaMedia) : 0
+  const total = totalAvaliacoes != null && Number.isFinite(Number(totalAvaliacoes)) ? Number(totalAvaliacoes) : 0
+
+  const profissionalRecomendacao =
+    profissionalIndicadoId && profileId
+      ? {
+          id: profissionalIndicadoId,
+          usuarioId: profileId,
+          nome: nome || 'Profissional',
+          nomeUsuario: username,
+          categorias,
+          notaMedia: media || null,
+          totalAvaliacoes: total || null,
+          paisBandeira,
+        }
+      : null
+
+  const tituloAvaliarDesabilitado =
+    visao === 'profissional_visitante'
+      ? 'Disponível após fechar parceria com este profissional'
+      : 'Disponível após conclusão de serviço'
 
   if (!aberto) return null
 
   return (
-    <div
-      className="fixed inset-0 z-[240] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
-      onClick={onFechar}
-      role="presentation"
-    >
+    <>
       <div
-        className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
-        style={{ height: 'min(72vh, 86vh)' }}
-        role="dialog"
-        aria-modal="true"
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-[240] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+        onClick={onFechar}
+        role="presentation"
       >
-        <div className="relative shrink-0 border-b border-gray-100 bg-white pt-4 pb-3">
-          {verificado ? (
-            <>
+        <div
+          className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
+          style={{ height: 'min(72vh, 86vh)' }}
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="relative shrink-0 border-b border-gray-100 bg-white pt-4 pb-3">
+            {verificado ? (
+              <>
+                <div className="flex items-center justify-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-[#00D443]" fill="currentColor" stroke="white" strokeWidth={2} aria-hidden />
+                  <h2 className="text-xl font-bold tracking-wide text-[#00D443]">VERIFICADO</h2>
+                </div>
+                <p className="mt-1 px-4 text-center text-sm text-gray-600">
+                  {mesAnoCadastro ? (
+                    <>
+                      desde <span className="font-semibold text-gray-800">{mesAnoCadastro}</span>
+                    </>
+                  ) : (
+                    'Profissional verificado'
+                  )}
+                </p>
+              </>
+            ) : (
               <div className="flex items-center justify-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-[#00D443]" fill="currentColor" stroke="white" strokeWidth={2} aria-hidden />
-                <h2 className="text-xl font-bold tracking-wide text-[#00D443]">VERIFICADO</h2>
+                <EscudoVerificacaoPendente className="h-6 w-6" iconSize={20} />
+                <h2 className="text-xl font-bold tracking-wide text-[#F44336]">EM ANÁLISE</h2>
               </div>
-              <p className="mt-1 px-4 text-center text-sm text-gray-600">
-                {mesAnoCadastro ? (
-                  <>
-                    desde <span className="font-semibold text-gray-800">{mesAnoCadastro}</span>
-                  </>
-                ) : (
-                  'Profissional verificado'
-                )}
-              </p>
-            </>
-          ) : (
-            <div className="flex items-center justify-center gap-2">
-              <EscudoVerificacaoPendente className="h-6 w-6" iconSize={20} />
-              <h2 className="text-xl font-bold tracking-wide text-[#F44336]">EM ANÁLISE</h2>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={onFechar}
-            className="absolute right-3 top-3 rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-500"
-            aria-label="Fechar"
-          >
-            <X size={22} strokeWidth={2} aria-hidden />
-          </button>
-        </div>
+            )}
+            <button
+              type="button"
+              onClick={onFechar}
+              className="absolute right-3 top-3 rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-500"
+              aria-label="Fechar"
+            >
+              <X size={22} strokeWidth={2} aria-hidden />
+            </button>
+          </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-          {verificado ? (
-            <>
-              <div className="space-y-4">
-                <div className="flex w-full justify-center">
-                  <div className="flex max-w-full flex-row items-center gap-3 sm:gap-5">
-                    <div className="relative h-[3.75rem] w-[3.75rem] shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-[#0097b2]/15 sm:h-[4.25rem] sm:w-[4.25rem]">
-                      {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="68px" /> : null}
-                    </div>
-                    <div className="flex min-w-0 flex-col items-start justify-center gap-0.5 text-left">
-                      <p className="line-clamp-2 max-w-[min(100%,18rem)] text-lg font-bold text-gray-900 sm:text-xl">
-                        {nome || 'Profissional'}
-                      </p>
-                      <p className="flex max-w-[min(100%,18rem)] items-center gap-1.5 truncate text-sm font-normal text-gray-600 sm:text-base">
-                        {paisBandeira ? (
-                          <span className="shrink-0 text-base leading-none" aria-hidden>
-                            {paisBandeira}
-                          </span>
-                        ) : null}
-                        <span className="truncate">@{uShown || 'usuario'}</span>
-                      </p>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+            {verificado ? (
+              <>
+                <div className="space-y-4">
+                  <div className="flex w-full justify-center">
+                    <div className="flex max-w-full flex-row items-center gap-3 sm:gap-5">
+                      <div className="relative h-[3.75rem] w-[3.75rem] shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-[#0097b2]/15 sm:h-[4.25rem] sm:w-[4.25rem]">
+                        {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="68px" /> : null}
+                      </div>
+                      <div className="flex min-w-0 flex-col items-start justify-center gap-0.5 text-left">
+                        <p className="line-clamp-2 max-w-[min(100%,18rem)] text-lg font-bold text-gray-900 sm:text-xl">
+                          {nome || 'Profissional'}
+                        </p>
+                        <p className="flex max-w-[min(100%,18rem)] items-center gap-1.5 truncate text-sm font-normal text-gray-600 sm:text-base">
+                          {paisBandeira ? (
+                            <span className="shrink-0 text-base leading-none" aria-hidden>
+                              {paisBandeira}
+                            </span>
+                          ) : null}
+                          <span className="truncate">@{uShown || 'usuario'}</span>
+                        </p>
+                      </div>
                     </div>
                   </div>
+                  <p className="w-full whitespace-normal px-1 text-center text-2xl font-bold leading-snug tracking-wide text-[#0097b2] sm:text-3xl">
+                    {rotuloCategoria}
+                  </p>
                 </div>
-                <p className="w-full whitespace-normal px-1 text-center text-2xl font-bold leading-snug tracking-wide text-[#0097b2] sm:text-3xl">
-                  {rotuloCategoria}
-                </p>
-              </div>
 
-              <div className="mt-6 w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-4">
-                <p className="text-center text-sm font-semibold text-gray-800">Nota de avaliação</p>
-                <div className="mt-2 flex items-center justify-center gap-2">
-                  <Star className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
-                  <span className="text-xl font-bold text-gray-900">
-                    {total ? media.toFixed(1).replace('.', ',') : '—'}
-                  </span>
-                  <span className="text-sm text-gray-500">({total} avaliações)</span>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className="relative h-[4.25rem] w-[4.25rem] shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-gray-200 sm:h-[5rem] sm:w-[5rem]">
-                {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="80px" /> : null}
-              </div>
-              <div className="flex min-w-0 flex-col items-center gap-0.5">
-                <p className="line-clamp-2 max-w-md text-lg font-bold text-gray-900 sm:text-xl">{nome || 'Profissional'}</p>
-                <p className="flex items-center justify-center gap-1.5 truncate text-sm font-normal text-gray-600 sm:text-base">
-                  {paisBandeira ? (
-                    <span className="shrink-0 text-base leading-none" aria-hidden>
-                      {paisBandeira}
+                <div className="mt-6 w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-4">
+                  <p className="text-center text-sm font-semibold text-gray-800">Nota de avaliação</p>
+                  <div className="mt-2 flex items-center justify-center gap-2">
+                    <Star className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
+                    <span className="text-xl font-bold text-gray-900">
+                      {total ? media.toFixed(1).replace('.', ',') : '—'}
                     </span>
-                  ) : null}
-                  <span className="truncate">@{uShown || 'usuario'}</span>
+                    <span className="text-sm text-gray-500">({total} avaliações)</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-4 text-center">
+                <div className="relative h-[4.25rem] w-[4.25rem] shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-gray-200 sm:h-[5rem] sm:w-[5rem]">
+                  {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="80px" /> : null}
+                </div>
+                <div className="flex min-w-0 flex-col items-center gap-0.5">
+                  <p className="line-clamp-2 max-w-md text-lg font-bold text-gray-900 sm:text-xl">{nome || 'Profissional'}</p>
+                  <p className="flex items-center justify-center gap-1.5 truncate text-sm font-normal text-gray-600 sm:text-base">
+                    {paisBandeira ? (
+                      <span className="shrink-0 text-base leading-none" aria-hidden>
+                        {paisBandeira}
+                      </span>
+                    ) : null}
+                    <span className="truncate">@{uShown || 'usuario'}</span>
+                  </p>
+                </div>
+                <p className="max-w-md px-1 text-sm leading-relaxed text-gray-600">
+                  Novo perfil profissional cadastrado. Usuário aguarda verificação da plataforma.
                 </p>
               </div>
-              <p className="max-w-md px-1 text-sm leading-relaxed text-gray-600">
-                Novo perfil profissional cadastrado. Usuário aguarda verificação da plataforma.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {verificado ? (
-          <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-4">
-            <div className="flex flex-col gap-2">
-              {podeContratar ? (
-                <button
-                  type="button"
-                  onClick={() => onContratar?.()}
-                  className="w-full rounded-xl py-3 text-base font-bold text-white"
-                  style={{ backgroundColor: '#00D443' }}
-                >
-                  CONTRATAR PROFISSIONAL
-                </button>
-              ) : null}
-              <button
-                type="button"
-                disabled
-                title="Disponível após conclusão de serviço"
-                className="w-full rounded-xl bg-[#0097b2] py-3 text-base font-bold text-white opacity-60"
-              >
-                AVALIAR PROFISSIONAL
-              </button>
-            </div>
+            )}
           </div>
-        ) : null}
+
+          {verificado && (acoes.mostrarContratar || acoes.mostrarRecomendar || acoes.mostrarAvaliar) ? (
+            <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-4">
+              <div className="flex flex-col gap-2">
+                {acoes.mostrarContratar ? (
+                  <button
+                    type="button"
+                    onClick={() => onContratar?.()}
+                    className="w-full rounded-xl py-3 text-base font-bold text-white"
+                    style={{ backgroundColor: '#00D443' }}
+                  >
+                    CONTRATAR PROFISSIONAL
+                  </button>
+                ) : null}
+                {acoes.mostrarRecomendar ? (
+                  <button
+                    type="button"
+                    onClick={() => setPopupRecomendarAberto(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-base font-bold text-white"
+                    style={{ backgroundColor: '#00D443' }}
+                  >
+                    <IconWhatsApp size={20} className="shrink-0 text-white" />
+                    RECOMENDAR
+                  </button>
+                ) : null}
+                {acoes.mostrarAvaliar ? (
+                  <button
+                    type="button"
+                    disabled={!acoes.avaliarHabilitado}
+                    title={acoes.avaliarHabilitado ? 'Avaliar profissional' : tituloAvaliarDesabilitado}
+                    onClick={() => {
+                      if (acoes.avaliarHabilitado) onAvaliar?.()
+                    }}
+                    className={`w-full rounded-xl bg-[#0097b2] py-3 text-base font-bold text-white ${
+                      acoes.avaliarHabilitado ? 'hover:opacity-95' : 'opacity-60'
+                    }`}
+                  >
+                    AVALIAR PROFISSIONAL
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
-    </div>
+
+      {profissionalRecomendacao ? (
+        <PopupRecomendarProfissional
+          aberto={popupRecomendarAberto}
+          onFechar={() => setPopupRecomendarAberto(false)}
+          profissional={profissionalRecomendacao}
+        />
+      ) : null}
+    </>
   )
 }

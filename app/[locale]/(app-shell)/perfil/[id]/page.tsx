@@ -27,6 +27,7 @@ import { bandeiraProfissionalRegistro } from '@/lib/bandeiraProfissional'
 import { POST_DELETED_EVENT } from '@/components/MenuPost'
 import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { temParceriaFechadaEntreProfissionais } from '@/lib/parceriaProfissional'
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
@@ -52,7 +53,9 @@ export default function PerfilSocialPage() {
 
   const [meuId, setMeuId] = useState<string | null>(null)
   const [meuRole, setMeuRole] = useState<string | null>(null)
+  const [meuCategorias, setMeuCategorias] = useState<string[] | null>(null)
   const [placaVermelha, setPlacaVermelha] = useState(false)
+  const [temParceriaFechada, setTemParceriaFechada] = useState(false)
   const [adminLevel, setAdminLevel] = useState(0)
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState('')
@@ -93,6 +96,9 @@ export default function PerfilSocialPage() {
     statusProfissional: string | null
     docsVerificado: boolean
     paisBandeira: string | null
+    profissionalId: string | null
+    notaMedia: number
+    totalAvaliacoesProf: number
   }>({
     categorias: null,
     placaVermelha: false,
@@ -101,7 +107,39 @@ export default function PerfilSocialPage() {
     statusProfissional: null,
     docsVerificado: false,
     paisBandeira: null,
+    profissionalId: null,
+    notaMedia: 0,
+    totalAvaliacoesProf: 0,
   })
+
+  const atualizarNotasCartaoProfissional = useCallback(
+    async (usuarioId: string, profissionalId: string | null) => {
+      const alvoIds = [...new Set([usuarioId, ...(profissionalId ? [profissionalId] : [])].filter(Boolean))]
+      const { data, error } = await supabase
+        .from('avaliacoes')
+        .select('nota')
+        .eq('alvo_tipo', 'profissional')
+        .in('alvo_id', alvoIds)
+
+      if (error) {
+        console.warn('[perfil] avaliacoes cartão:', error.message)
+        return
+      }
+
+      const notas = (data ?? [])
+        .map((r) => Number(r.nota))
+        .filter((n) => Number.isFinite(n))
+      const total = notas.length
+      const media = total ? notas.reduce((acc, n) => acc + n, 0) / total : 0
+
+      setProfMeta((prev) => ({
+        ...prev,
+        notaMedia: media,
+        totalAvaliacoesProf: total,
+      }))
+    },
+    []
+  )
 
   const patchFotoPost = useCallback((postId: string, updates: { total_curtidas?: number; total_comentarios?: number }) => {
     setPostsFotos((prev) =>
@@ -239,7 +277,7 @@ export default function PerfilSocialPage() {
           supabase
             .from('profissionais')
             .select(
-              'nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, pais, cidade_atuacao'
+              'id, nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, pais, cidade_atuacao'
             )
             .eq('usuario_id', profileId)
             .maybeSingle(),
@@ -256,6 +294,7 @@ export default function PerfilSocialPage() {
         if (!profRes.error && prof && typeof prof === 'object' && !Array.isArray(prof)) {
           perfilRow = prof as Record<string, unknown>
           const rr = prof as unknown as {
+            id?: string | null
             categorias?: string[] | null
             placa_vermelha?: boolean | null
             docs_verificado?: boolean | null
@@ -265,6 +304,7 @@ export default function PerfilSocialPage() {
             pais?: string | null
             cidade_atuacao?: string[] | null
           }
+          const profId = rr.id != null ? String(rr.id) : null
           setProfMeta({
             categorias: Array.isArray(rr.categorias) ? rr.categorias.map((x) => String(x)) : null,
             placaVermelha: Boolean(rr.placa_vermelha),
@@ -276,7 +316,11 @@ export default function PerfilSocialPage() {
               pais: rr.pais,
               cidadeAtuacao: rr.cidade_atuacao,
             }),
+            profissionalId: profId,
+            notaMedia: 0,
+            totalAvaliacoesProf: 0,
           })
+          if (profId) void atualizarNotasCartaoProfissional(profileId, profId)
         } else if (!turRes.error && tur && typeof tur === 'object' && !Array.isArray(tur)) {
           perfilRow = tur as Record<string, unknown>
           setProfMeta({
@@ -287,13 +331,16 @@ export default function PerfilSocialPage() {
             statusProfissional: null,
             docsVerificado: false,
             paisBandeira: null,
+            profissionalId: null,
+            notaMedia: 0,
+            totalAvaliacoesProf: 0,
           })
         }
       } else if (role === 'profissional') {
         const { data: prof, error: ep } = await supabase
           .from('profissionais')
           .select(
-            'nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, pais, cidade_atuacao'
+            'id, nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, pais, cidade_atuacao'
           )
           .eq('usuario_id', profileId)
           .maybeSingle()
@@ -301,6 +348,7 @@ export default function PerfilSocialPage() {
         if (!ep && prof && typeof prof === 'object' && !Array.isArray(prof)) {
           perfilRow = prof as Record<string, unknown>
           const rr = prof as unknown as {
+            id?: string | null
             categorias?: string[] | null
             placa_vermelha?: boolean | null
             docs_verificado?: boolean | null
@@ -310,6 +358,7 @@ export default function PerfilSocialPage() {
             pais?: string | null
             cidade_atuacao?: string[] | null
           }
+          const profId = rr.id != null ? String(rr.id) : null
           setProfMeta({
             categorias: Array.isArray(rr.categorias) ? rr.categorias.map((x) => String(x)) : null,
             placaVermelha: Boolean(rr.placa_vermelha),
@@ -321,7 +370,11 @@ export default function PerfilSocialPage() {
               pais: rr.pais,
               cidadeAtuacao: rr.cidade_atuacao,
             }),
+            profissionalId: profId,
+            notaMedia: 0,
+            totalAvaliacoesProf: 0,
           })
+          if (profId) void atualizarNotasCartaoProfissional(profileId, profId)
         }
       } else if (role === 'turista') {
         const { data: tur, error: et } = await supabase
@@ -341,6 +394,9 @@ export default function PerfilSocialPage() {
           statusProfissional: null,
           docsVerificado: false,
           paisBandeira: null,
+          profissionalId: null,
+          notaMedia: 0,
+          totalAvaliacoesProf: 0,
         })
       }
 
@@ -502,7 +558,7 @@ export default function PerfilSocialPage() {
     } finally {
       setLoading(false)
     }
-  }, [profileId, meuId, atualizarMetricasPerfil])
+  }, [profileId, meuId, atualizarMetricasPerfil, atualizarNotasCartaoProfissional])
 
   useEffect(() => {
     void carregar()
@@ -537,6 +593,7 @@ export default function PerfilSocialPage() {
         setMeuRole(null)
         setMeuEmail(null)
         setPlacaVermelha(false)
+        setMeuCategorias(null)
         setAdminLevel(0)
         return
       }
@@ -549,11 +606,37 @@ export default function PerfilSocialPage() {
       setMeuRole(row?.role != null ? String(row.role) : null)
       setAdminLevel(typeof row?.admin_level === 'number' ? row.admin_level : 0)
 
-      const { data: profRow } = await supabase.from('profissionais').select('placa_vermelha').eq('usuario_id', id).maybeSingle()
-      setPlacaVermelha(Boolean((profRow as { placa_vermelha?: boolean } | null)?.placa_vermelha))
+      const { data: profRow } = await supabase
+        .from('profissionais')
+        .select('placa_vermelha, categorias')
+        .eq('usuario_id', id)
+        .maybeSingle()
+      const profData = profRow as { placa_vermelha?: boolean; categorias?: string[] | null } | null
+      setPlacaVermelha(Boolean(profData?.placa_vermelha))
+      setMeuCategorias(
+        row?.role === 'profissional' && Array.isArray(profData?.categorias)
+          ? profData.categorias.map((c) => String(c))
+          : null,
+      )
     }
     void boot()
   }, [])
+
+  useEffect(() => {
+    if (!meuId || !profileId || meuId === profileId) {
+      setTemParceriaFechada(false)
+      return
+    }
+    if (meuRole !== 'profissional' || perfilRole !== 'profissional') {
+      setTemParceriaFechada(false)
+      return
+    }
+
+    void (async () => {
+      const ok = await temParceriaFechadaEntreProfissionais(supabase, meuId, profileId)
+      setTemParceriaFechada(ok)
+    })()
+  }, [meuId, profileId, meuRole, perfilRole])
 
   useEffect(() => {
     const onPostDeleted = (e: Event) => {
@@ -814,7 +897,17 @@ export default function PerfilSocialPage() {
         placaVermelha={profMeta.placaVermelha}
         profissionalVerificado={profMeta.statusProfissional === 'aprovado'}
         paisBandeira={profMeta.paisBandeira}
+        notaMedia={profMeta.notaMedia}
+        totalAvaliacoes={profMeta.totalAvaliacoesProf}
+        meuId={meuId}
+        profileId={profileId}
+        meuRole={meuRole}
+        visitantePlacaVermelha={placaVermelha}
+        visitanteCategorias={meuCategorias}
+        profissionalIndicadoId={profMeta.profissionalId}
+        temParceriaFechada={temParceriaFechada}
         onContratar={() => router.push('/canal')}
+        onAvaliar={() => setPopAval(true)}
       />
 
       <ModalFoto
