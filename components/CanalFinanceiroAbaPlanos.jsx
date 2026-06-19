@@ -10,6 +10,7 @@ import {
   precoModalidadePlano,
 } from '@/lib/contratarPlanoEmpresa'
 import { normalizarPlanoSlug, planoEmpresaReconhecidoNoCatalogo } from '@/lib/planosEmpresaServicosGate'
+import PopupPagamentoPlanoEmpresa from '@/components/empresa/PopupPagamentoPlanoEmpresa'
 
 /** @typedef {'mensal' | 'trimestral' | 'anual'} ModalidadePlanoEmpresa */
 
@@ -32,6 +33,7 @@ function planoEhAtual(plano, planoEmpresa) {
 export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
   const [planos, setPlanos] = useState(/** @type {import('@/lib/contratarPlanoEmpresa').PlanoEmpresaCatalogo[]} */ ([]))
   const [planoEmpresa, setPlanoEmpresa] = useState(/** @type {string | null} */ (null))
+  const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [degustacaoPlanoTitulo, setDegustacaoPlanoTitulo] = useState(/** @type {string | null} */ (null))
   const [loading, setLoading] = useState(true)
   const [expandidoId, setExpandidoId] = useState(/** @type {string | null} */ (null))
@@ -39,7 +41,13 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
   const [modalidadePorPlano, setModalidadePorPlano] = useState(
     /** @type {Record<string, ModalidadePlanoEmpresa | ''>} */ ({}),
   )
-  const [contratandoId, setContratandoId] = useState(/** @type {string | null} */ (null))
+  const [popupPagamento, setPopupPagamento] = useState(
+    /** @type {{ aberto: boolean, plano: import('@/lib/contratarPlanoEmpresa').PlanoEmpresaCatalogo | null, modalidade: ModalidadePlanoEmpresa | null }} */ ({
+      aberto: false,
+      plano: null,
+      modalidade: null,
+    }),
+  )
   const [feedback, setFeedback] = useState(/** @type {string | null} */ (null))
   const [erro, setErro] = useState(/** @type {string | null} */ (null))
 
@@ -53,6 +61,7 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
         listarPlanosAtivosEmpresa(supabase),
       ])
       setPlanoEmpresa(emp?.plano != null ? String(emp.plano) : null)
+      setEmpresaId(emp?.id != null ? String(emp.id) : null)
       setPlanos(lista)
 
       if (emp?.id) {
@@ -123,35 +132,21 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
     setFeedback(null)
   }
 
-  const contratar = async (plano) => {
+  const abrirPagamento = (plano) => {
     const modalidade = modalidadePorPlano[plano.id]
-    if (!modalidade || contratandoId) return
-
-    setContratandoId(plano.id)
+    if (!modalidade) return
     setFeedback(null)
     setErro(null)
-    try {
-      const res = await fetch('/api/empresa/contratar-plano', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plano_id: plano.id, modalidade }),
-      })
-      const json = (await res.json())
-      if (!res.ok || !json.ok) {
-        setErro(json.error ?? 'Não foi possível contratar o plano.')
-        return
-      }
-      setPlanoEmpresa(plano.nome)
-      setFeedback(
-        `Plano ${json.plano_titulo ?? plano.titulo} (${labelModalidadePlano(modalidade)}) contratado. Os serviços do plano foram liberados.`,
-      )
-      setExpandidoId(null)
-      setServicosAbertosId(null)
-    } catch {
-      setErro('Falha de conexão ao contratar.')
-    } finally {
-      setContratandoId(null)
-    }
+    setPopupPagamento({ aberto: true, plano, modalidade })
+  }
+
+  const onContratadoPagamento = (msg, planoContratado = false) => {
+    const plano = popupPagamento.plano
+    if (planoContratado && plano) setPlanoEmpresa(plano.nome)
+    setFeedback(msg)
+    setExpandidoId(null)
+    setServicosAbertosId(null)
+    setPopupPagamento({ aberto: false, plano: null, modalidade: null })
   }
 
   if (loading) {
@@ -291,12 +286,12 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
 
                     <button
                       type="button"
-                      disabled={!podeContratar || contratandoId === plano.id}
-                      onClick={() => void contratar(plano)}
+                      disabled={!podeContratar}
+                      onClick={() => abrirPagamento(plano)}
                       className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#00D443] py-3 text-sm font-bold uppercase tracking-wide text-white transition hover:bg-[#00b83b] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <BadgeCheck className="h-5 w-5 shrink-0" aria-hidden />
-                      {contratandoId === plano.id ? 'Contratando…' : ehAtual ? 'Plano atual' : 'Contratar'}
+                      {ehAtual ? 'Plano atual' : 'Contratar'}
                     </button>
                   </div>
                 ) : null}
@@ -305,6 +300,20 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
           })}
         </ul>
       )}
+
+      <PopupPagamentoPlanoEmpresa
+        aberto={popupPagamento.aberto}
+        onFechar={() => setPopupPagamento({ aberto: false, plano: null, modalidade: null })}
+        plano={popupPagamento.plano}
+        modalidade={popupPagamento.modalidade}
+        preco={
+          popupPagamento.plano && popupPagamento.modalidade
+            ? precoModalidadePlano(popupPagamento.plano, popupPagamento.modalidade)
+            : 0
+        }
+        empresaId={empresaId}
+        onContratado={onContratadoPagamento}
+      />
     </div>
   )
 }
