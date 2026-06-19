@@ -1184,7 +1184,8 @@ export default function MenuLateral({
         aria-modal="true"
         aria-label="Menu lateral"
       >
-        <div className="flex shrink-0 items-center gap-3 px-3 py-2">
+        <div className="shrink-0 bg-white pt-safe">
+          <div className="flex items-center gap-3 px-3 py-2">
           {topo?.titulo ? (
             <div className="flex min-w-0 flex-1 items-center gap-1">
               {topo.tipo === 'pagina' && textoInfoDrawer(topo.id) ? (
@@ -1219,6 +1220,7 @@ export default function MenuLateral({
               <X size={16} strokeWidth={2.5} aria-hidden />
             )}
           </button>
+          </div>
         </div>
 
         {!topo ? (

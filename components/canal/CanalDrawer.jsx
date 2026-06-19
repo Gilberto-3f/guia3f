@@ -291,15 +291,17 @@ export default function CanalDrawer({
           aria-modal="true"
           aria-label="Informações do canal"
         >
-          <div className="flex shrink-0 items-center gap-2 px-3 py-3">
-            <button
-              type="button"
-              onClick={onFechar}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-white/90 hover:bg-white/10"
-              aria-label="Voltar ao chat"
-            >
-              <ArrowLeft className="h-6 w-6" aria-hidden />
-            </button>
+          <div className="shrink-0 bg-[#0e0e0e] pt-safe">
+            <div className="flex items-center gap-2 px-3 py-3">
+              <button
+                type="button"
+                onClick={onFechar}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-white/90 hover:bg-white/10"
+                aria-label="Voltar ao chat"
+              >
+                <ArrowLeft className="h-6 w-6" aria-hidden />
+              </button>
+            </div>
           </div>
 
           <div className="scrollbar-perfil flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-8">

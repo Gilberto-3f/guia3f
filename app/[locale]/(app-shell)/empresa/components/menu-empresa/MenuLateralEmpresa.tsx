@@ -129,13 +129,15 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
           aberto ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="relative h-28 bg-gradient-to-r from-[#0097b2] to-[#007a91] p-4">
-          <button type="button" onClick={onClose} className="absolute right-4 top-4 text-xl text-white" aria-label="Fechar">
-            ✕
-          </button>
-          <div className="absolute -bottom-10 left-4">
-            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gray-200 text-2xl">
-              🏢
+        <div className="relative shrink-0 bg-gradient-to-r from-[#0097b2] to-[#007a91] pt-safe">
+          <div className="relative h-28 p-4">
+            <button type="button" onClick={onClose} className="absolute right-4 top-4 text-xl text-white" aria-label="Fechar">
+              ✕
+            </button>
+            <div className="absolute -bottom-10 left-4">
+              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gray-200 text-2xl">
+                🏢
+              </div>
             </div>
           </div>
         </div>

@@ -115,8 +115,8 @@ export default function EmpresaPreviewEditorDrawer(props: {
         aria-modal="true"
         aria-label="Editor da empresa"
       >
-        <div className="border-b border-gray-100 px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
+        <div className="shrink-0 border-b border-gray-100 bg-white pt-safe">
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-bold text-gray-900">Editar empresa</p>
             </div>
