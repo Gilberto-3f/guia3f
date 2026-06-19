@@ -6,10 +6,12 @@ import { ShieldCheck, Star, X } from 'lucide-react'
 import EscudoVerificacaoPendente from '@/components/EscudoVerificacaoPendente'
 import IconWhatsApp from '@/components/IconWhatsApp'
 import PopupRecomendarProfissional from '@/components/PopupRecomendarProfissional'
+import PopupRecomendarMobilidade from '@/components/PopupRecomendarMobilidade'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
 import {
   resolverAcoesCartaoVisitaProfissional,
   resolverVisaoCartaoVisita,
+  tituloAvaliarDesabilitadoCartao,
 } from '@/lib/cartaoVisitaProfissional'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
@@ -43,6 +45,8 @@ function formatMesAno(iso) {
  *  visitanteCategorias?: string[] | null
  *  profissionalIndicadoId?: string | null
  *  temParceriaFechada?: boolean
+ *  turistaContratouProfissional?: boolean
+ *  cidadeAtuacaoVisitado?: string | null
  *  onContratar?: () => void
  *  onAvaliar?: () => void
  * }} props
@@ -68,11 +72,14 @@ export default function PopupCartaoVisitaProfissional({
   visitanteCategorias = null,
   profissionalIndicadoId = null,
   temParceriaFechada = false,
+  turistaContratouProfissional = false,
+  cidadeAtuacaoVisitado = null,
   onContratar,
   onAvaliar,
 }) {
   useModalScrollLock(aberto)
   const [popupRecomendarAberto, setPopupRecomendarAberto] = useState(false)
+  const [popupMobilidadeAberto, setPopupMobilidadeAberto] = useState(false)
 
   const verificado = profissionalVerificado === true
   const mesAnoCadastro = formatMesAno(cadastradoEm ?? verificadoEm)
@@ -93,6 +100,7 @@ export default function PopupCartaoVisitaProfissional({
         visitadoPlacaVermelha: placaVermelha,
         visitadoCategorias: categorias,
         temParceriaFechada,
+        turistaContratouProfissional,
       }),
     [
       visao,
@@ -102,6 +110,7 @@ export default function PopupCartaoVisitaProfissional({
       placaVermelha,
       categorias,
       temParceriaFechada,
+      turistaContratouProfissional,
     ],
   )
 
@@ -122,10 +131,17 @@ export default function PopupCartaoVisitaProfissional({
         }
       : null
 
-  const tituloAvaliarDesabilitado =
-    visao === 'profissional_visitante'
-      ? 'Disponível após fechar parceria com este profissional'
-      : 'Disponível após conclusão de serviço'
+  const tituloAvaliarDesabilitado = tituloAvaliarDesabilitadoCartao({
+    visao,
+    visitadoPlacaVermelha: placaVermelha,
+    visitadoCategorias: categorias,
+  })
+
+  const mostrarRodape =
+    acoes.mostrarContratar ||
+    acoes.mostrarRecomendar ||
+    acoes.mostrarRecomendarMobilidade ||
+    acoes.mostrarAvaliar
 
   if (!aberto) return null
 
@@ -239,7 +255,7 @@ export default function PopupCartaoVisitaProfissional({
             )}
           </div>
 
-          {verificado && (acoes.mostrarContratar || acoes.mostrarRecomendar || acoes.mostrarAvaliar) ? (
+          {verificado && mostrarRodape ? (
             <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-4">
               <div className="flex flex-col gap-2">
                 {acoes.mostrarContratar ? (
@@ -261,6 +277,17 @@ export default function PopupCartaoVisitaProfissional({
                   >
                     <IconWhatsApp size={20} className="shrink-0 text-white" />
                     RECOMENDAR
+                  </button>
+                ) : null}
+                {acoes.mostrarRecomendarMobilidade ? (
+                  <button
+                    type="button"
+                    onClick={() => setPopupMobilidadeAberto(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-base font-bold text-white"
+                    style={{ backgroundColor: '#00D443' }}
+                  >
+                    <IconWhatsApp size={20} className="shrink-0 text-white" />
+                    RECOMENDAR MOBILIDADE
                   </button>
                 ) : null}
                 {acoes.mostrarAvaliar ? (
@@ -291,6 +318,12 @@ export default function PopupCartaoVisitaProfissional({
           profissional={profissionalRecomendacao}
         />
       ) : null}
+
+      <PopupRecomendarMobilidade
+        aberto={popupMobilidadeAberto}
+        onFechar={() => setPopupMobilidadeAberto(false)}
+        cidadeAtuacao={cidadeAtuacaoVisitado}
+      />
     </>
   )
 }

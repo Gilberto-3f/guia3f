@@ -28,6 +28,7 @@ import { POST_DELETED_EVENT } from '@/components/MenuPost'
 import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { temParceriaFechadaEntreProfissionais } from '@/lib/parceriaProfissional'
+import { turistaContratouProfissional } from '@/lib/contratacaoProfissionalTurista'
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
@@ -45,6 +46,12 @@ type FotoPostItem = {
   post_original_id: string | null
 }
 
+function labelCidadeAtuacao(cidades: string[] | null | undefined): string | null {
+  if (!Array.isArray(cidades) || !cidades.length) return null
+  const first = String(cidades[0] ?? '').trim()
+  return first || null
+}
+
 export default function PerfilSocialPage() {
   const { recursosProfissionaisLiberados } = useProfissionalGate()
   const params = useParams()
@@ -56,6 +63,7 @@ export default function PerfilSocialPage() {
   const [meuCategorias, setMeuCategorias] = useState<string[] | null>(null)
   const [placaVermelha, setPlacaVermelha] = useState(false)
   const [temParceriaFechada, setTemParceriaFechada] = useState(false)
+  const [turistaContratouProf, setTuristaContratouProf] = useState(false)
   const [adminLevel, setAdminLevel] = useState(0)
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState('')
@@ -99,6 +107,7 @@ export default function PerfilSocialPage() {
     profissionalId: string | null
     notaMedia: number
     totalAvaliacoesProf: number
+    cidadeAtuacaoLabel: string | null
   }>({
     categorias: null,
     placaVermelha: false,
@@ -110,6 +119,7 @@ export default function PerfilSocialPage() {
     profissionalId: null,
     notaMedia: 0,
     totalAvaliacoesProf: 0,
+    cidadeAtuacaoLabel: null,
   })
 
   const atualizarNotasCartaoProfissional = useCallback(
@@ -319,6 +329,7 @@ export default function PerfilSocialPage() {
             profissionalId: profId,
             notaMedia: 0,
             totalAvaliacoesProf: 0,
+            cidadeAtuacaoLabel: labelCidadeAtuacao(rr.cidade_atuacao),
           })
           if (profId) void atualizarNotasCartaoProfissional(profileId, profId)
         } else if (!turRes.error && tur && typeof tur === 'object' && !Array.isArray(tur)) {
@@ -334,6 +345,7 @@ export default function PerfilSocialPage() {
             profissionalId: null,
             notaMedia: 0,
             totalAvaliacoesProf: 0,
+            cidadeAtuacaoLabel: null,
           })
         }
       } else if (role === 'profissional') {
@@ -373,6 +385,7 @@ export default function PerfilSocialPage() {
             profissionalId: profId,
             notaMedia: 0,
             totalAvaliacoesProf: 0,
+            cidadeAtuacaoLabel: labelCidadeAtuacao(rr.cidade_atuacao),
           })
           if (profId) void atualizarNotasCartaoProfissional(profileId, profId)
         }
@@ -397,6 +410,7 @@ export default function PerfilSocialPage() {
           profissionalId: null,
           notaMedia: 0,
           totalAvaliacoesProf: 0,
+          cidadeAtuacaoLabel: null,
         })
       }
 
@@ -621,6 +635,26 @@ export default function PerfilSocialPage() {
     }
     void boot()
   }, [])
+
+  useEffect(() => {
+    if (!meuId || !profileId || meuId === profileId) {
+      setTuristaContratouProf(false)
+      return
+    }
+    if ((meuRole !== 'turista' && meuRole !== 'empresa') || perfilRole !== 'profissional') {
+      setTuristaContratouProf(false)
+      return
+    }
+    if (!profMeta.placaVermelha) {
+      setTuristaContratouProf(false)
+      return
+    }
+
+    void (async () => {
+      const ok = await turistaContratouProfissional(supabase, meuId, profileId)
+      setTuristaContratouProf(ok)
+    })()
+  }, [meuId, profileId, meuRole, perfilRole, profMeta.placaVermelha])
 
   useEffect(() => {
     if (!meuId || !profileId || meuId === profileId) {
@@ -906,6 +940,8 @@ export default function PerfilSocialPage() {
         visitanteCategorias={meuCategorias}
         profissionalIndicadoId={profMeta.profissionalId}
         temParceriaFechada={temParceriaFechada}
+        turistaContratouProfissional={turistaContratouProf}
+        cidadeAtuacaoVisitado={profMeta.cidadeAtuacaoLabel}
         onContratar={() => router.push('/canal')}
         onAvaliar={() => setPopAval(true)}
       />
