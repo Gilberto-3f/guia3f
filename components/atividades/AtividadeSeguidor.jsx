@@ -1,8 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { getPerfilHref } from '@/lib/perfil-utils'
 
 /**
@@ -18,6 +18,10 @@ import { getPerfilHref } from '@/lib/perfil-utils'
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
  *   meuUsuarioId?: string | null
+ *   seguidorVerificado?: boolean
+ *   seguidorVerificadoTipo?: 'profissional' | 'empresa'
+ *   seguidoVerificado?: boolean
+ *   seguidoVerificadoTipo?: 'profissional' | 'empresa'
  * }} props
  */
 export default function AtividadeSeguidor({
@@ -32,6 +36,10 @@ export default function AtividadeSeguidor({
   tempoInteracao = '',
   modoMinhaConta = false,
   meuUsuarioId = null,
+  seguidorVerificado = false,
+  seguidorVerificadoTipo = 'profissional',
+  seguidoVerificado = false,
+  seguidoVerificadoTipo = 'profissional',
 }) {
   const router = useRouter()
   const hrefAlvo = getPerfilHref({
@@ -40,7 +48,6 @@ export default function AtividadeSeguidor({
     role: seguidoTipo,
     empresa_id: empresaId,
   })
-  /** Seguidor: usa a mesma rota calculada para o username e para o avatar. */
   const hrefSeguidorDestino = hrefSeguidor || `/perfil/${seguidorUsuarioId}`
 
   const euSouSeguido = Boolean(meuUsuarioId && String(seguidoUsuarioId) === String(meuUsuarioId))
@@ -64,46 +71,49 @@ export default function AtividadeSeguidor({
       <p className="min-w-0 pt-0.5 leading-snug">
         {modoMinhaConta && seguidoEhEmpresa ? (
           <>
-            <button
-              type="button"
-              className="font-medium text-[#0097b2] hover:underline"
+            <UsuarioHandleVerificado
+              username={usernameSeguidor}
+              verificado={seguidorVerificado}
+              verificadoTipo={seguidorVerificadoTipo}
               onClick={() => router.push(hrefSeguidorDestino)}
-            >
-              @{usernameSeguidor}
-            </button>{' '}
+            />{' '}
             começou a seguir sua página
           </>
         ) : modoMinhaConta && euSouSeguido ? (
           <>
-            <button
-              type="button"
-              className="font-medium text-[#0097b2] hover:underline"
+            <UsuarioHandleVerificado
+              username={usernameSeguidor}
+              verificado={seguidorVerificado}
+              verificadoTipo={seguidorVerificadoTipo}
               onClick={() => router.push(hrefSeguidorDestino)}
-            >
-              @{usernameSeguidor}
-            </button>{' '}
+            />{' '}
             começou a seguir você
           </>
         ) : modoMinhaConta && euSouSeguidor ? (
           <>
             Você começou a seguir{' '}
-            <Link href={hrefAlvo} className="font-medium text-[#0097b2] hover:underline">
-              @{usernameSeguido}
-            </Link>
+            <UsuarioHandleVerificado
+              username={usernameSeguido}
+              verificado={seguidoVerificado}
+              verificadoTipo={seguidoVerificadoTipo}
+              onClick={() => router.push(hrefAlvo)}
+            />
           </>
         ) : (
           <>
-            <button
-              type="button"
-              className="font-medium text-[#0097b2] hover:underline"
+            <UsuarioHandleVerificado
+              username={usernameSeguidor}
+              verificado={seguidorVerificado}
+              verificadoTipo={seguidorVerificadoTipo}
               onClick={() => router.push(hrefSeguidorDestino)}
-            >
-              @{usernameSeguidor}
-            </button>{' '}
+            />{' '}
             {seguidoEhEmpresa ? 'começou a seguir a página da empresa ' : 'começou a seguir '}
-            <Link href={hrefAlvo} className="font-medium text-[#0097b2] hover:underline">
-              @{usernameSeguido}
-            </Link>
+            <UsuarioHandleVerificado
+              username={usernameSeguido}
+              verificado={seguidoVerificado}
+              verificadoTipo={seguidoVerificadoTipo}
+              onClick={() => router.push(hrefAlvo)}
+            />
           </>
         )}
       </p>

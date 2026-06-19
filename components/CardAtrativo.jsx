@@ -97,6 +97,7 @@ export default function CardAtrativo({ empresa, segmentoGuiaSlug = null, temBota
           <NomeComVerificacao
             nome={String(empresa.nome_fantasia ?? '')}
             verificado={contaVerificadaDocumentacao('empresa', empresa)}
+            verificadoTipo="empresa"
             nomeClassName="line-clamp-1"
           />
         </h3>

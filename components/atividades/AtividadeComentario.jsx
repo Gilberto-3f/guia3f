@@ -20,7 +20,9 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
  *   atorVerificado?: boolean
+ *   atorVerificadoTipo?: 'profissional' | 'empresa'
  *   donoVerificado?: boolean
+ *   donoVerificadoTipo?: 'profissional' | 'empresa'
  * }} props
  */
 export default function AtividadeComentario({
@@ -28,7 +30,9 @@ export default function AtividadeComentario({
   interactorFoto,
   usernameDono,
   atorVerificado = false,
+  atorVerificadoTipo = 'profissional',
   donoVerificado = false,
+  donoVerificadoTipo = 'profissional',
   hrefInteractor,
   hrefDono,
   emFoto,
@@ -65,6 +69,7 @@ export default function AtividadeComentario({
               <UsuarioHandleVerificado
                 username={usernameAtor}
                 verificado={atorVerificado}
+                verificadoTipo={atorVerificadoTipo}
                 onClick={() => router.push(hrefInteractor)}
               />{' '}
               {modoMinhaConta ? (
@@ -75,6 +80,7 @@ export default function AtividadeComentario({
                   <UsuarioHandleVerificado
                     username={usernameDono}
                     verificado={donoVerificado}
+                    verificadoTipo={donoVerificadoTipo}
                     onClick={() => router.push(hrefDono)}
                   />
                 </>

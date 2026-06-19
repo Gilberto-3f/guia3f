@@ -1,7 +1,8 @@
 'use client'
 
-import { Link } from '@/i18n/navigation'
+import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { normalizarUsernameAtividade } from '@/lib/formatarTextoRepostStory'
 
 /**
@@ -15,6 +16,10 @@ import { normalizarUsernameAtividade } from '@/lib/formatarTextoRepostStory'
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
  *   euRepostei?: boolean
+ *   reposterVerificado?: boolean
+ *   reposterVerificadoTipo?: 'profissional' | 'empresa'
+ *   originalVerificado?: boolean
+ *   originalVerificadoTipo?: 'profissional' | 'empresa'
  *   onAbrirStory: () => void
  * }} props
  */
@@ -28,8 +33,13 @@ export default function AtividadeRepostouStory({
   tempoInteracao = '',
   modoMinhaConta = false,
   euRepostei = false,
+  reposterVerificado = false,
+  reposterVerificadoTipo = 'profissional',
+  originalVerificado = false,
+  originalVerificadoTipo = 'profissional',
   onAbrirStory,
 }) {
+  const router = useRouter()
   const reposter = normalizarUsernameAtividade(reposterUsername) || 'usuario'
   const original = normalizarUsernameAtividade(originalUsername) || 'alguém'
   const hrefOriginalEfetivo = original !== 'alguém' ? hrefOriginal : hrefReposter
@@ -39,9 +49,12 @@ export default function AtividadeRepostouStory({
       <>
         Você repostou um story de{' '}
         {original !== 'alguém' ? (
-          <Link href={hrefOriginalEfetivo} className="font-medium text-[#0097b2] hover:underline">
-            @{original}
-          </Link>
+          <UsuarioHandleVerificado
+            username={original}
+            verificado={originalVerificado}
+            verificadoTipo={originalVerificadoTipo}
+            onClick={() => router.push(hrefOriginalEfetivo)}
+          />
         ) : (
           <span className="font-medium text-gray-700">alguém</span>
         )}
@@ -49,9 +62,12 @@ export default function AtividadeRepostouStory({
       </>
     ) : (
       <>
-        <Link href={hrefReposter} className="font-medium text-[#0097b2] hover:underline">
-          @{reposter}
-        </Link>{' '}
+        <UsuarioHandleVerificado
+          username={reposter}
+          verificado={reposterVerificado}
+          verificadoTipo={reposterVerificadoTipo}
+          onClick={() => router.push(hrefReposter)}
+        />{' '}
         repostou um story que você o marcou.
       </>
     )
@@ -59,9 +75,13 @@ export default function AtividadeRepostouStory({
   return (
     <div className="grid min-w-0 grid-cols-[2.5rem_1fr_auto] items-start gap-x-2 text-sm text-gray-800">
       <div className="flex flex-col items-center gap-0.5">
-        <Link href={hrefReposter} className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+        <button
+          type="button"
+          onClick={() => router.push(hrefReposter)}
+          className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+        >
           <AvatarImage src={reposterFoto} alt="" fill className="object-cover" sizes="40px" />
-        </Link>
+        </button>
         {tempoInteracao ? (
           <span className="max-w-[2.5rem] text-center text-[10px] leading-tight text-gray-500">{tempoInteracao}</span>
         ) : null}
@@ -72,14 +92,20 @@ export default function AtividadeRepostouStory({
             textoMinhaConta
           ) : (
             <>
-              <Link href={hrefReposter} className="font-medium text-[#0097b2] hover:underline">
-                @{reposter}
-              </Link>{' '}
+              <UsuarioHandleVerificado
+                username={reposter}
+                verificado={reposterVerificado}
+                verificadoTipo={reposterVerificadoTipo}
+                onClick={() => router.push(hrefReposter)}
+              />{' '}
               repostou um story de{' '}
               {original !== 'alguém' ? (
-                <Link href={hrefOriginalEfetivo} className="font-medium text-[#0097b2] hover:underline">
-                  @{original}
-                </Link>
+                <UsuarioHandleVerificado
+                  username={original}
+                  verificado={originalVerificado}
+                  verificadoTipo={originalVerificadoTipo}
+                  onClick={() => router.push(hrefOriginalEfetivo)}
+                />
               ) : (
                 <span className="font-medium text-gray-700">alguém</span>
               )}

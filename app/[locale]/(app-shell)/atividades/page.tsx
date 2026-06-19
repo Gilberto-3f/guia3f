@@ -38,6 +38,8 @@ import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibili
 import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 import { resolverUsernameOriginalRepostStory, normalizarUsernameAtividade } from '@/lib/formatarTextoRepostStory'
 import { fetchAutorIdsSeguidosAmigos } from '@/lib/feedSeguidosEmpresasFavoritas'
+import { propsInteractor, propsDonor, propsAtor, propsDono, propsSeguidor, propsSeguido, propsReposter, propsOriginal } from '@/components/atividades/atividadeHandleProps'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 
 const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
 
@@ -98,7 +100,7 @@ function mergeAtividadesPorId(anteriores: AtividadeRow[], novas: AtividadeRow[])
 }
 
 type PerfilMap = Record<string, ReturnType<typeof pickAutorDisplay>>
-type EmpresaAvaliacaoMap = Record<string, { nome: string; username: string; foto_url: string | null }>
+type EmpresaAvaliacaoMap = Record<string, { nome: string; username: string; foto_url: string | null; verificado: boolean }>
 
 type StoryViewerState = {
   id: string
@@ -926,7 +928,7 @@ export default function AtividadesPage() {
 
     const { data, error } = await supabase
       .from('empresas')
-      .select('id, nome_fantasia, nome_usuario, foto_url')
+      .select('id, nome_fantasia, nome_usuario, foto_url, docs_verificado, status')
       .in('id', empresaIds)
 
     if (error || !data) {
@@ -936,7 +938,14 @@ export default function AtividadesPage() {
 
     const mapa: EmpresaAvaliacaoMap = {}
     for (const raw of data) {
-      const e = raw as { id: string; nome_fantasia?: string | null; nome_usuario?: string | null; foto_url?: string | null }
+      const e = raw as {
+        id: string
+        nome_fantasia?: string | null
+        nome_usuario?: string | null
+        foto_url?: string | null
+        docs_verificado?: boolean | null
+        status?: string | null
+      }
       const id = String(e.id ?? '')
       if (!id) continue
       mapa[id] = {
@@ -947,6 +956,7 @@ export default function AtividadesPage() {
         username:
           e.nome_usuario != null && String(e.nome_usuario).trim() !== '' ? String(e.nome_usuario).trim() : '',
         foto_url: e.foto_url != null && String(e.foto_url).trim() !== '' ? String(e.foto_url) : null,
+        verificado: Boolean(e.docs_verificado) && String(e.status ?? '').toLowerCase() === 'aprovado',
       }
     }
 
@@ -965,6 +975,8 @@ export default function AtividadesPage() {
         comentarioId?: string
         curtidaId?: string
         atividadeId?: string
+        seguidorId?: string
+        seguidoId?: string
       } | null
     ) => {
       if (!crit) return
@@ -1208,6 +1220,8 @@ export default function AtividadesPage() {
               comentarioId?: string
               curtidaId?: string
               atividadeId?: string
+              seguidorId?: string
+              seguidoId?: string
             } | null)
           : null
       aplicarRemocaoLocal(detail)
@@ -1514,6 +1528,8 @@ export default function AtividadesPage() {
           totalCurtidas={item.rows.length}
           tempoInteracao={formatarDataAtividades(item.created_at)}
           modoMinhaConta={modoMinhaConta}
+          {...propsInteractor(inter)}
+          {...propsDonor(donor)}
         />
       )
     }
@@ -1537,6 +1553,7 @@ export default function AtividadesPage() {
           tempoInteracao={formatarDataAtividades(item.created_at)}
           modoMinhaConta={modoMinhaConta}
           modoColetivo
+          {...propsInteractor(inter)}
         />
       )
     }
@@ -1570,6 +1587,8 @@ export default function AtividadesPage() {
             categoriaRotulo={cat}
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
+            {...propsInteractor(inter)}
+            {...propsDonor(donor)}
           />
         )
       }
@@ -1587,6 +1606,8 @@ export default function AtividadesPage() {
             postId={r.alvo_id}
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
+            {...propsInteractor(inter)}
+            {...propsDonor(donor)}
           />
         )
       }
@@ -1610,6 +1631,8 @@ export default function AtividadesPage() {
             meta={meta}
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
+            {...propsInteractor(inter)}
+            {...propsDonor(donor)}
           />
         )
       }
@@ -1637,6 +1660,8 @@ export default function AtividadesPage() {
             previewTexto={prevTexto || textoPost}
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
+            {...propsInteractor(inter)}
+            {...propsDonor(donor)}
           />
         )
       }
@@ -1686,6 +1711,8 @@ export default function AtividadesPage() {
           nota={Number.isFinite(nota) ? nota : 0}
           feedback={feedback}
           tempoInteracao={formatarDataAtividades(r.created_at)}
+          {...propsAtor(ator)}
+          empresaVerificada={Boolean(empresaAvaliacao?.verificado)}
         />
       )
     }
@@ -1702,6 +1729,8 @@ export default function AtividadesPage() {
           hrefDonor={hrefUsuario(r.usuario_id)}
           tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
+          {...propsInteractor(ator)}
+          {...propsDonor(donor)}
         />
       )
     }
@@ -1738,6 +1767,8 @@ export default function AtividadesPage() {
           modoMinhaConta={modoMinhaConta}
           euRepostei={Boolean(meuId && r.autor_id === meuId)}
           onAbrirStory={() => void carregarStoryPorId(storyId)}
+          {...propsReposter(ator)}
+          {...propsOriginal(donor)}
         />
       )
     }
@@ -1762,6 +1793,8 @@ export default function AtividadesPage() {
           comentarioId={r.alvo_id}
           tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
+          {...propsInteractor(ator)}
+          {...propsDonor(donor)}
         />
       )
     }
@@ -1786,8 +1819,8 @@ export default function AtividadesPage() {
           usernameAtor={ator?.username ?? 'usuario'}
           interactorFoto={ator?.foto_perfil_url ?? null}
           usernameDono={donor?.username ?? 'usuario'}
-          atorVerificado={Boolean(ator?.verificado)}
-          donoVerificado={Boolean(donor?.verificado)}
+          {...propsAtor(ator)}
+          {...propsDono(donor)}
           hrefInteractor={hrefUsuario(r.autor_id)}
           hrefDono={hrefUsuario(donorId)}
           emFoto={emFoto}
@@ -1838,7 +1871,12 @@ export default function AtividadesPage() {
           >
             <span className="min-w-0 flex-1">
               <span className="text-sm leading-snug text-gray-800">
-                <span className="font-medium text-[#0097b2]">@{autorUsername}</span> marcou você em um story.
+                <UsuarioHandleVerificado
+                  username={autorUsername}
+                  {...propsAtor(autorPerfil)}
+                  onClick={() => router.push(hrefUsuario(autorId))}
+                />{' '}
+                marcou você em um story.
               </span>
             </span>
             {conteudoUrl ? (
@@ -1865,6 +1903,7 @@ export default function AtividadesPage() {
           ? ex.empresa_username.trim()
           : 'empresa'
       const uSeg = perfilMap[seguidorId]
+      const empAv = empresaIdStr ? empresaAvaliacaoMap[empresaIdStr] : null
       return (
         <AtividadeSeguidor
           key={r.id}
@@ -1879,6 +1918,9 @@ export default function AtividadesPage() {
           tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
           meuUsuarioId={meuId}
+          {...propsSeguidor(uSeg)}
+          seguidoVerificado={Boolean(empAv?.verificado)}
+          seguidoVerificadoTipo="empresa"
         />
       )
     }
@@ -1898,6 +1940,11 @@ export default function AtividadesPage() {
         seguidoTipo === 'empresa'
           ? (empresaIdExtra !== '' ? empresaIdExtra : seguidoEmpresaMap[seguidoId] ?? null)
           : null
+      const empAv = empId ? empresaAvaliacaoMap[empId] : null
+      const seguidoProps =
+        seguidoTipo === 'empresa'
+          ? { seguidoVerificado: Boolean(empAv?.verificado ?? uAlvo?.verificado), seguidoVerificadoTipo: 'empresa' as const }
+          : propsSeguido(uAlvo)
       return (
         <AtividadeSeguidor
           key={r.id}
@@ -1912,6 +1959,8 @@ export default function AtividadesPage() {
           tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
           meuUsuarioId={meuId}
+          {...propsSeguidor(uSeg)}
+          {...seguidoProps}
         />
       )
     }
@@ -2082,7 +2131,7 @@ export default function AtividadesPage() {
       <AbasAtividades aba={aba} onAba={onAba} somenteMinhaConta={meuRole === 'empresa'} />
 
       <div
-        className={`px-4 pb-3 ${aba === 'amigos' ? 'pt-0' : 'pt-3'}`}
+        className="px-4 pb-3 pt-3"
         onTouchStart={onTouchStartAtividades}
         onTouchMove={onTouchMoveAtividades}
         onTouchEnd={onTouchEndAtividades}

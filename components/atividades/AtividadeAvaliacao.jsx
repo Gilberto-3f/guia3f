@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from '@/i18n/navigation'
 import { Star } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 
 /**
  * @param {{
@@ -18,6 +19,9 @@ import AvatarImage from '@/components/AvatarImage'
  *   nota: number
  *   feedback: string | null
  *   tempoInteracao?: string
+ *   atorVerificado?: boolean
+ *   atorVerificadoTipo?: 'profissional' | 'empresa'
+ *   empresaVerificada?: boolean
  * }} props
  */
 export default function AtividadeAvaliacao({
@@ -32,6 +36,9 @@ export default function AtividadeAvaliacao({
   nota,
   feedback,
   tempoInteracao = '',
+  atorVerificado = false,
+  atorVerificadoTipo = 'profissional',
+  empresaVerificada = false,
 }) {
   const router = useRouter()
   const notaVal = Math.min(5, Math.max(0, Math.round(Number(nota)) || 0))
@@ -55,18 +62,26 @@ export default function AtividadeAvaliacao({
         </div>
         <div className="min-w-0">
           <p className="text-sm leading-snug text-gray-800">
-            <button
-              type="button"
-              className="font-medium text-[#0097b2] hover:underline"
+            <UsuarioHandleVerificado
+              username={usernameAtor}
+              verificado={atorVerificado}
+              verificadoTipo={atorVerificadoTipo}
               onClick={() => router.push(hrefAtor)}
-            >
-              @{usernameAtor}
-            </button>{' '}
+            />{' '}
             avaliou{' '}
             {hrefEmpresa ? (
-              <Link href={hrefEmpresa} className="font-medium text-[#0097b2] hover:underline">
-                {usernameEmpresa ? `@${usernameEmpresa}` : nomeEmpresa}
-              </Link>
+              usernameEmpresa ? (
+                <UsuarioHandleVerificado
+                  username={usernameEmpresa}
+                  verificado={empresaVerificada}
+                  verificadoTipo="empresa"
+                  onClick={() => router.push(hrefEmpresa)}
+                />
+              ) : (
+                <Link href={hrefEmpresa} className="font-medium text-[#0097b2] hover:underline">
+                  {nomeEmpresa}
+                </Link>
+              )
             ) : (
               <span className="font-medium text-gray-700">{usernameEmpresa ? `@${usernameEmpresa}` : nomeEmpresa}</span>
             )}

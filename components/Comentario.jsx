@@ -162,6 +162,7 @@ export default function Comentario({
                 <UsuarioHandleVerificado
                   username={uname}
                   verificado={Boolean(node.autor?.verificado)}
+                  verificadoTipo={node.autor?.role === 'empresa' ? 'empresa' : 'profissional'}
                   asButton={false}
                   className="text-sm font-semibold text-gray-900 hover:text-[#0097b2]"
                 />
@@ -170,6 +171,7 @@ export default function Comentario({
               <UsuarioHandleVerificado
                 username={uname}
                 verificado={Boolean(node.autor?.verificado)}
+                verificadoTipo={node.autor?.role === 'empresa' ? 'empresa' : 'profissional'}
                 asButton={false}
                 className="text-sm font-semibold text-gray-900"
               />

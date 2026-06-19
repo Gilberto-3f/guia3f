@@ -8,7 +8,7 @@ import NomeComVerificacao from '@/components/NomeComVerificacao'
 export default function NomeEmpresa({ nome, verificado = false }) {
   return (
     <h1 className="text-xl font-bold text-gray-800">
-      <NomeComVerificacao nome={nome} verificado={verificado} />
+      <NomeComVerificacao nome={nome} verificado={verificado} verificadoTipo="empresa" />
     </h1>
   )
 }

@@ -816,6 +816,7 @@ export default function PostCard({
                 <UsuarioHandleVerificado
                   username={post.autor?.username ?? ''}
                   verificado={Boolean(post.autor?.verificado)}
+                  verificadoTipo={post.autor?.role === 'empresa' ? 'empresa' : 'profissional'}
                   asButton={false}
                   className="font-semibold text-gray-800 hover:text-[#0097b2]"
                 />
@@ -825,6 +826,7 @@ export default function PostCard({
                 <UsuarioHandleVerificado
                   username={post.autor?.username ?? ''}
                   verificado={Boolean(post.autor?.verificado)}
+                  verificadoTipo={post.autor?.role === 'empresa' ? 'empresa' : 'profissional'}
                   asButton={false}
                   className="font-semibold text-gray-800"
                 />
@@ -976,6 +978,7 @@ export default function PostCard({
                 <UsuarioHandleVerificado
                   username={post.autor?.username ?? ''}
                   verificado={Boolean(post.autor?.verificado)}
+                  verificadoTipo={post.autor?.role === 'empresa' ? 'empresa' : 'profissional'}
                   asButton={false}
                   className="font-semibold text-gray-800 hover:text-[#0097b2]"
                 />
@@ -985,6 +988,7 @@ export default function PostCard({
                 <UsuarioHandleVerificado
                   username={post.autor?.username ?? ''}
                   verificado={Boolean(post.autor?.verificado)}
+                  verificadoTipo={post.autor?.role === 'empresa' ? 'empresa' : 'profissional'}
                   asButton={false}
                   className="font-semibold text-gray-800"
                 />
@@ -1019,6 +1023,7 @@ export default function PostCard({
                     <UsuarioHandleVerificado
                       username={post.autor?.username ?? ''}
                       verificado={Boolean(post.autor?.verificado)}
+                  verificadoTipo={post.autor?.role === 'empresa' ? 'empresa' : 'profissional'}
                       asButton={false}
                       className="text-sm font-semibold text-gray-800 hover:text-[#0097b2]"
                     />
@@ -1028,6 +1033,7 @@ export default function PostCard({
                     <UsuarioHandleVerificado
                       username={post.autor?.username ?? ''}
                       verificado={Boolean(post.autor?.verificado)}
+                  verificadoTipo={post.autor?.role === 'empresa' ? 'empresa' : 'profissional'}
                       asButton={false}
                       className="text-sm font-semibold text-gray-800"
                     />

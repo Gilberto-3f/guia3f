@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
 /**
@@ -17,6 +18,10 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  *   comentarioId: string
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
+ *   interactorVerificado?: boolean
+ *   interactorVerificadoTipo?: 'profissional' | 'empresa'
+ *   donorVerificado?: boolean
+ *   donorVerificadoTipo?: 'profissional' | 'empresa'
  * }} props
  */
 export default function AtividadeCurtiuComentario({
@@ -25,11 +30,16 @@ export default function AtividadeCurtiuComentario({
   usernameDono,
   hrefInteractor,
   hrefDono,
+  hrefDonor,
   textoComentario,
   postId,
   comentarioId,
   tempoInteracao = '',
   modoMinhaConta = false,
+  interactorVerificado = false,
+  interactorVerificadoTipo = 'profissional',
+  donorVerificado = false,
+  donorVerificadoTipo = 'profissional',
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
@@ -52,17 +62,23 @@ export default function AtividadeCurtiuComentario({
           </div>
           <div className="min-w-0">
             <p className="text-sm leading-snug text-gray-800">
-              <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
-                @{usernameAtor}
-              </button>{' '}
+              <UsuarioHandleVerificado
+                username={usernameAtor}
+                verificado={interactorVerificado}
+                verificadoTipo={interactorVerificadoTipo}
+                onClick={() => router.push(hrefInteractor)}
+              />{' '}
               {modoMinhaConta ? (
                 'curtiu seu comentário'
               ) : (
                 <>
                   curtiu comentário de{' '}
-                  <button type="button" onClick={() => router.push(hrefDono)} className="font-medium text-[#0097b2] hover:underline">
-                    @{usernameDono}
-                  </button>
+                  <UsuarioHandleVerificado
+                    username={usernameDono}
+                    verificado={donorVerificado}
+                    verificadoTipo={donorVerificadoTipo}
+                    onClick={() => router.push(hrefDonor ?? hrefDono)}
+                  />
                 </>
               )}
               :

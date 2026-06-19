@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { Link, useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
 /**
@@ -19,6 +20,10 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  *   previewTexto: string
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
+ *   interactorVerificado?: boolean
+ *   interactorVerificadoTipo?: 'profissional' | 'empresa'
+ *   donorVerificado?: boolean
+ *   donorVerificadoTipo?: 'profissional' | 'empresa'
  * }} props
  */
 export default function AtividadeCurtiuRepost({
@@ -33,6 +38,10 @@ export default function AtividadeCurtiuRepost({
   previewTexto,
   tempoInteracao = '',
   modoMinhaConta = false,
+  interactorVerificado = false,
+  interactorVerificadoTipo = 'profissional',
+  donorVerificado = false,
+  donorVerificadoTipo = 'profissional',
 }) {
   const router = useRouter()
   const [modal, setModal] = useState(false)
@@ -59,17 +68,23 @@ export default function AtividadeCurtiuRepost({
           </div>
           <div className="min-w-0">
             <p className="text-sm leading-snug text-gray-800">
-              <Link href={hrefInteractor} className="font-medium text-[#0097b2] hover:underline">
-                @{interactorUsername}
-              </Link>{' '}
+              <UsuarioHandleVerificado
+                username={interactorUsername}
+                verificado={interactorVerificado}
+                verificadoTipo={interactorVerificadoTipo}
+                onClick={() => router.push(hrefInteractor)}
+              />{' '}
               {modoMinhaConta ? (
                 'curtiu seu repost'
               ) : (
                 <>
                   curtiu conteúdo repostado por{' '}
-                  <Link href={hrefDonor} className="font-medium text-[#0097b2] hover:underline">
-                    @{donorUsername}
-                  </Link>
+                  <UsuarioHandleVerificado
+                    username={donorUsername}
+                    verificado={donorVerificado}
+                    verificadoTipo={donorVerificadoTipo}
+                    onClick={() => router.push(hrefDonor)}
+                  />
                 </>
               )}
             </p>

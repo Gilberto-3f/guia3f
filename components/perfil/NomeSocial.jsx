@@ -10,6 +10,7 @@ import EscudoVerificacaoPendente from '@/components/EscudoVerificacaoPendente'
  *   profissionalVerificado?: boolean
  *   contaVerificada?: boolean
  *   seloVerificacaoNoNome?: boolean
+ *   verificadoTipo?: 'profissional' | 'empresa'
  *   onAbrirCartao?: () => void
  * }} props
  * profissionalVerificado: true quando status aprovado (escudo verde); senão escudo vermelho com ?.
@@ -22,6 +23,7 @@ export default function NomeSocial({
   profissionalVerificado = false,
   contaVerificada = false,
   seloVerificacaoNoNome = true,
+  verificadoTipo = 'profissional',
   onAbrirCartao,
 }) {
   return (
@@ -45,6 +47,7 @@ export default function NomeSocial({
         <NomeComVerificacao
           nome={nome}
           verificado={seloVerificacaoNoNome && contaVerificada}
+          verificadoTipo={verificadoTipo}
           nomeClassName="truncate"
         />
       </h1>

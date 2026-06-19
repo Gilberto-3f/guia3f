@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Heart, UserCheck, UserPlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { deletarFavoritoEmpresa, payloadFavoritoEmpresa, usuarioSegueEmpresa } from '@/lib/favoritosEmpresa'
+import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
 function debugSeguir(/** @type {unknown[]} */ ...args) {
@@ -191,6 +192,22 @@ export default function BotaoSeguir({
       onToggle?.(novo)
       window.dispatchEvent(new Event('perfil-atualizado'))
       if (tipo === 'empresa') {
+        window.dispatchEvent(new Event('guia-feed-rede-reload'))
+        if (estadoAntes) {
+          window.dispatchEvent(
+            new CustomEvent(GUIA_ATIVIDADES_RELOAD_EVENT, {
+              detail: { seguidorId: session.user.id, seguidoId: id },
+            }),
+          )
+        }
+      } else if (estadoAntes && id !== session.user.id) {
+        window.dispatchEvent(
+          new CustomEvent(GUIA_ATIVIDADES_RELOAD_EVENT, {
+            detail: { seguidorId: session.user.id, seguidoId: id },
+          }),
+        )
+        window.dispatchEvent(new Event('guia-feed-rede-reload'))
+      } else if (!estadoAntes && id !== session.user.id) {
         window.dispatchEvent(new Event('guia-feed-rede-reload'))
       }
     } catch (err) {

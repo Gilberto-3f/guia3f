@@ -3,10 +3,11 @@
 import CheckVerificado from '@/components/CheckVerificado'
 
 /**
- * @username com selo verde (feed, atividades, comentários).
+ * @username com selo de verificação (feed, atividades, comentários).
  * @param {{
  *   username: string
  *   verificado?: boolean
+ *   verificadoTipo?: 'profissional' | 'empresa'
  *   className?: string
  *   onClick?: () => void
  *   asButton?: boolean
@@ -15,6 +16,7 @@ import CheckVerificado from '@/components/CheckVerificado'
 export default function UsuarioHandleVerificado({
   username,
   verificado = false,
+  verificadoTipo = 'profissional',
   className = 'font-medium text-[#0097b2] hover:underline',
   onClick,
   asButton = true,
@@ -22,7 +24,7 @@ export default function UsuarioHandleVerificado({
   const handle = `@${String(username ?? '').replace(/^@+/, '') || 'usuario'}`
   const inner = (
     <>
-      {verificado ? <CheckVerificado /> : null}
+      {verificado ? <CheckVerificado variant={verificadoTipo} /> : null}
       <span className="min-w-0 truncate">{handle}</span>
     </>
   )

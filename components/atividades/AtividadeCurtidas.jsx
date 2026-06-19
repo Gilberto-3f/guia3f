@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import GridFotos from '@/components/atividades/GridFotos'
 import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
@@ -19,6 +20,10 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
  *   modoColetivo?: boolean
+ *   interactorVerificado?: boolean
+ *   interactorVerificadoTipo?: 'profissional' | 'empresa'
+ *   donorVerificado?: boolean
+ *   donorVerificadoTipo?: 'profissional' | 'empresa'
  * }} props
  */
 export default function AtividadeCurtidas({
@@ -33,6 +38,10 @@ export default function AtividadeCurtidas({
   tempoInteracao = '',
   modoMinhaConta = false,
   modoColetivo = false,
+  interactorVerificado = false,
+  interactorVerificadoTipo = 'profissional',
+  donorVerificado = false,
+  donorVerificadoTipo = 'profissional',
 }) {
   const router = useRouter()
   const [modal, setModal] = useState({ aberto: false, i: 0 })
@@ -53,28 +62,40 @@ export default function AtividadeCurtidas({
 
   const textoLinha = modoMinhaConta ? (
     <>
-      <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
-        @{interactorUsername}
-      </button>{' '}
+      <UsuarioHandleVerificado
+        username={interactorUsername}
+        verificado={interactorVerificado}
+        verificadoTipo={interactorVerificadoTipo}
+        onClick={() => router.push(hrefInteractor)}
+      />{' '}
       {n === 1 ? 'curtiu sua foto' : 'curtiu suas fotos'}
     </>
   ) : modoColetivo ? (
     <>
-      <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
-        @{interactorUsername}
-      </button>{' '}
+      <UsuarioHandleVerificado
+        username={interactorUsername}
+        verificado={interactorVerificado}
+        verificadoTipo={interactorVerificadoTipo}
+        onClick={() => router.push(hrefInteractor)}
+      />{' '}
       curtiu {n === 1 ? 'foto' : `${n} fotos`}
     </>
   ) : (
     <>
-      <button type="button" onClick={() => router.push(hrefInteractor)} className="font-medium text-[#0097b2] hover:underline">
-        @{interactorUsername}
-      </button>{' '}
+      <UsuarioHandleVerificado
+        username={interactorUsername}
+        verificado={interactorVerificado}
+        verificadoTipo={interactorVerificadoTipo}
+        onClick={() => router.push(hrefInteractor)}
+      />{' '}
       curtiu {n === 1 ? 'foto' : `${n} fotos`} de{' '}
       {hrefDonor ? (
-        <button type="button" onClick={() => router.push(hrefDonor)} className="font-medium text-[#0097b2] hover:underline">
-          @{donorUsername ?? 'usuario'}
-        </button>
+        <UsuarioHandleVerificado
+          username={donorUsername ?? 'usuario'}
+          verificado={donorVerificado}
+          verificadoTipo={donorVerificadoTipo}
+          onClick={() => router.push(hrefDonor)}
+        />
       ) : (
         <span className="font-medium text-gray-700">@{donorUsername ?? 'usuario'}</span>
       )}
@@ -82,36 +103,35 @@ export default function AtividadeCurtidas({
   )
 
   return (
-    <div className="min-w-0">
-      <div className="grid min-w-0 grid-cols-[2.5rem_1fr] items-start gap-x-2">
-        <div className="flex flex-col items-center gap-0.5">
-          <button
-            type="button"
-            onClick={() => router.push(hrefInteractor)}
-            className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
-          >
-            <AvatarImage src={interactorFoto} alt="" fill className="object-cover" sizes="40px" />
-          </button>
-          {tempoInteracao ? (
-            <span className="max-w-[2.5rem] text-center text-[10px] leading-tight text-gray-500">{tempoInteracao}</span>
-          ) : null}
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm leading-snug text-gray-800">{textoLinha}</p>
-          <div className="mt-2">
-            <GridFotos urls={urls} max={10} onClickFoto={(i) => setModal({ aberto: true, i })} />
+    <>
+      <div className="min-w-0">
+        <div className="grid min-w-0 grid-cols-[2.5rem_1fr] items-start gap-x-2">
+          <div className="flex flex-col items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => router.push(hrefInteractor)}
+              className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+            >
+              <AvatarImage src={interactorFoto} alt="" fill className="object-cover" sizes="40px" />
+            </button>
+            {tempoInteracao ? (
+              <span className="max-w-[2.5rem] text-center text-[10px] leading-tight text-gray-500">{tempoInteracao}</span>
+            ) : null}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm leading-snug text-gray-800">{textoLinha}</p>
+            <GridFotos urls={urls} onClick={(i) => setModal({ aberto: true, i })} />
           </div>
         </div>
       </div>
       <ModalVisualizacao
         aberto={modal.aberto}
-        onFechar={() => setModal((m) => ({ ...m, aberto: false }))}
+        onFechar={() => setModal({ aberto: false, i: 0 })}
         postIds={postIds}
         indiceInicial={modal.i}
         interacaoUsuario={interactorUsername}
         interacaoResumo={resumoModal}
-        thumbUrls={urls}
       />
-    </div>
+    </>
   )
 }

@@ -37,7 +37,7 @@ export default function LinhaEmpresaCabecalho({ empresa, children }: Props) {
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium leading-snug text-gray-900">{empresa.empresa_nome}</p>
             <p className="flex min-w-0 items-center gap-1 truncate text-sm leading-snug text-gray-500">
-              {empresa.empresa_verificado ? <CheckVerificado /> : null}
+              {empresa.empresa_verificado ? <CheckVerificado variant="empresa" /> : null}
               <span className="truncate">@{handle}</span>
             </p>
             {empresa.total > 0 ? (

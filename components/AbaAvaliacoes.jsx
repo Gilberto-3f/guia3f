@@ -669,6 +669,7 @@ export default function AbaAvaliacoes({
                 <UsuarioHandleVerificado
                   username={av.avaliador.username}
                   verificado={Boolean(av.avaliador.verificado)}
+                  verificadoTipo={av.avaliador.role === 'empresa' ? 'empresa' : 'profissional'}
                   asButton={false}
                   className="text-xs text-gray-500"
                 />

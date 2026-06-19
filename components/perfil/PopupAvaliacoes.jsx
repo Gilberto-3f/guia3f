@@ -261,7 +261,12 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
                 </div>
                 <div className="min-w-0 flex-1 text-left">
                   <p className="max-w-full truncate text-sm font-semibold text-gray-900">
-                    <NomeComVerificacao nome={r.nome} verificado={Boolean(r.verificado)} nomeClassName="truncate" />
+                    <NomeComVerificacao
+                      nome={r.nome}
+                      verificado={Boolean(r.verificado)}
+                      verificadoTipo={r.role === 'empresa' ? 'empresa' : 'profissional'}
+                      nomeClassName="truncate"
+                    />
                   </p>
                   {r.username ? (
                     <p className="max-w-full truncate text-sm text-[#0097b2]">@{r.username}</p>

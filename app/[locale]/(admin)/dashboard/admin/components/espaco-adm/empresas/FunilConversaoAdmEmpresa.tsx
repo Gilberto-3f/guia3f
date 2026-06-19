@@ -148,7 +148,7 @@ export function FunilConversaoAdmEmpresa({
     <div className="space-y-4 py-2">
       <div className="flex w-full flex-col items-center gap-0">
         <span className="inline-flex max-w-full items-center gap-1.5 text-lg font-normal text-gray-900 sm:text-xl">
-          {verificado ? <CheckVerificado /> : null}
+          {verificado ? <CheckVerificado variant="empresa" /> : null}
           <span className="truncate">{usernameLabel}</span>
         </span>
         <p className="text-center text-sm leading-tight text-gray-500">dados convertidos em resultados</p>

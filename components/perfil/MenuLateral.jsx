@@ -1235,6 +1235,7 @@ export default function MenuLateral({
                     <NomeComVerificacao
                       nome={nome || 'Usuário'}
                       verificado={contaVerificadaHeader}
+                      verificadoTipo={variant === 'empresa' ? 'empresa' : 'profissional'}
                       nomeClassName="truncate"
                     />
                   </p>

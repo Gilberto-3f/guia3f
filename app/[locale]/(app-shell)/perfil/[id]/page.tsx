@@ -790,6 +790,7 @@ export default function PerfilSocialPage() {
               <UsuarioHandleVerificado
                 username={displayUsernameRaw || 'usuario'}
                 verificado
+                verificadoTipo="profissional"
                 asButton={false}
                 className={`block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-gray-600 ${
                   displayUsernameRaw.length > 10 ? 'text-[16px]' : 'text-[17px]'
@@ -839,6 +840,7 @@ export default function PerfilSocialPage() {
           profissionalVerificado={profMeta.statusProfissional === 'aprovado'}
           contaVerificada={contaVerificadaProfissional}
           seloVerificacaoNoNome={perfilRole !== 'profissional'}
+          verificadoTipo={perfilRole === 'empresa' ? 'empresa' : 'profissional'}
           onAbrirCartao={() => setPopCartao(true)}
         />
         <div className="mt-1">

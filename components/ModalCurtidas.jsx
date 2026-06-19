@@ -205,7 +205,12 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-gray-900">
-                        <NomeComVerificacao nome={u.nome} verificado={Boolean(u.verificado)} nomeClassName="truncate" />
+                        <NomeComVerificacao
+                          nome={u.nome}
+                          verificado={Boolean(u.verificado)}
+                          verificadoTipo={u.role === 'empresa' ? 'empresa' : 'profissional'}
+                          nomeClassName="truncate"
+                        />
                       </p>
                       <p className="truncate text-xs text-gray-500">@{u.username}</p>
                     </div>
