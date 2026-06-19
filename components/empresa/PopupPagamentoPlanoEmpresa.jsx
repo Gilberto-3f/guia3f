@@ -111,13 +111,13 @@ export default function PopupPagamentoPlanoEmpresa({
     const res = await fetch('/api/empresa/contratar-plano', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plano_id: plano.id, modalidade }),
+      body: JSON.stringify({ plano_id: plano.id, modalidade, forma_pagamento: formaPagamento }),
     })
     const json = await res.json()
     if (!res.ok || !json.ok) {
       throw new Error(json.error ?? 'Não foi possível contratar o plano.')
     }
-    if (empresaId) {
+    if (empresaId && extraMsg) {
       await enviarMensagemPagamentoPlanoAdm(
         supabase,
         empresaId,
@@ -130,7 +130,7 @@ export default function PopupPagamentoPlanoEmpresa({
         }),
       )
     }
-    return json.plano_titulo ?? plano.titulo
+    return { titulo: json.plano_titulo ?? plano.titulo, planoContratado: Boolean(json.plano_contratado) }
   }
 
   const copiarPix = async () => {
@@ -148,10 +148,10 @@ export default function PopupPagamentoPlanoEmpresa({
     setLoading(true)
     setErro(null)
     try {
-      const titulo = await contratarPlano('pix', 'Aguardando confirmação do pagamento PIX pelo ADM.')
+      const { titulo, planoContratado } = await contratarPlano('pix', 'Aguardando confirmação do pagamento PIX pelo ADM.')
       onContratado(
         `Plano ${titulo} (${modLabel}) contratado. Envie o comprovante PIX pelo chat com o ADM, se necessário.`,
-        true,
+        planoContratado,
       )
       fechar()
     } catch (e) {
@@ -176,8 +176,11 @@ export default function PopupPagamentoPlanoEmpresa({
     setErro(null)
     try {
       const ultimos = numeroCartao.replace(/\D/g, '').slice(-4)
-      const titulo = await contratarPlano('cartao', `Cartão final ${ultimos} — aguardando processamento/liberação ADM.`)
-      onContratado(`Plano ${titulo} (${modLabel}) contratado. Pagamento com cartão registrado.`, true)
+      const { titulo, planoContratado } = await contratarPlano(
+        'cartao',
+        `Cartão final ${ultimos} — aguardando processamento/liberação ADM.`,
+      )
+      onContratado(`Plano ${titulo} (${modLabel}) contratado. Pagamento com cartão registrado.`, planoContratado)
       fechar()
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao processar cartão.')
@@ -194,17 +197,12 @@ export default function PopupPagamentoPlanoEmpresa({
     setLoading(true)
     setErro(null)
     try {
-      const msg = montarMensagemPagamentoPlano({
-        planoTitulo: plano.titulo,
-        modalidade,
-        preco,
-        forma: 'dinheiro',
-        extra: 'Solicitação de visita para pagamento em dinheiro e liberação manual do plano.',
-      })
-      const envio = await enviarMensagemPagamentoPlanoAdm(supabase, empresaId, msg)
-      if (!envio.ok) throw new Error(envio.error ?? 'Não foi possível enviar a solicitação.')
+      const { titulo } = await contratarPlano(
+        'dinheiro',
+        'Solicitação de visita para pagamento em dinheiro e liberação manual do plano.',
+      )
       onContratado(
-        `Visita solicitada para pagamento em dinheiro do plano ${plano.titulo} (${modLabel}). O ADM entrará em contato.`,
+        `Solicitação enviada para pagamento em dinheiro do plano ${titulo} (${modLabel}). O ADM entrará em contato para agendar a visita.`,
         false,
       )
       fechar()
