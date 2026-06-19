@@ -30,6 +30,7 @@ import {
   agruparAtividadesCurtidasPost,
   filtrarAtividadesAposDescurtir,
   urlFotoPost,
+  atividadeCurtiuStoryVisivel,
 } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
@@ -125,6 +126,7 @@ type StoryViewerState = {
   visualizado_por?: unknown
   marcacoes?: unknown
   repost_story_id?: string | null
+  created_at?: string | null
 }
 
 type StoryRowSelect = {
@@ -139,6 +141,7 @@ type StoryRowSelect = {
   visualizado_por?: unknown
   marcacoes?: unknown
   repost_story_id?: unknown
+  created_at?: unknown
 }
 
 function mapStoryRowToViewerState(data: StoryRowSelect | null): StoryViewerState | null {
@@ -162,6 +165,7 @@ function mapStoryRowToViewerState(data: StoryRowSelect | null): StoryViewerState
     visualizado_por: data.visualizado_por ?? null,
     marcacoes: data.marcacoes ?? null,
     repost_story_id: data.repost_story_id != null ? String(data.repost_story_id) : null,
+    created_at: data.created_at != null ? String(data.created_at) : null,
   }
 }
 
@@ -287,7 +291,7 @@ export default function AtividadesPage() {
       setStoriesRepostAtivosPronto(true)
       return
     }
-    setStoriesRepostAtivos(new Set((data ?? []).map((r) => String((r as { id: string }).id))))
+    setStoriesRepostAtivos(new Set((data ?? []).map((r) => String((r as { id: string }).id).trim().toLowerCase())))
     setStoriesRepostAtivosPronto(true)
   }, [])
 
@@ -438,7 +442,7 @@ export default function AtividadesPage() {
     if (!id) return
     const { data, error } = await supabase
       .from('stories')
-      .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos, autor_id, curtidas, visualizado_por, marcacoes, repost_story_id')
+      .select('id, conteudo_url, texto_sobreposto, link, tipo, duracao_segundos, autor_id, curtidas, visualizado_por, marcacoes, repost_story_id, created_at')
       .eq('id', id)
       .maybeSingle()
     if (error) {
@@ -1443,8 +1447,14 @@ export default function AtividadesPage() {
         if (storyId && storiesRepostAtivosPronto && !storiesRepostAtivos.has(storyId)) return false
       }
       if (r.tipo === 'curtiu_story') {
-        const storyId = String(r.alvo_id ?? '').trim()
-        if (storyId && storiesRepostAtivosPronto && !storiesRepostAtivos.has(storyId)) return false
+        if (
+          !atividadeCurtiuStoryVisivel(r, storiesRepostAtivos, {
+            abaMinhaConta: aba === 'minha',
+            pronto: storiesRepostAtivosPronto,
+          })
+        ) {
+          return false
+        }
       }
       if (r.tipo === 'comentou' || r.tipo === 'curtiu_comentario') {
         const ex = r.dados_extras ?? {}

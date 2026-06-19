@@ -19,6 +19,7 @@ import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import ModalDenunciarConteudo from '@/components/ModalDenunciarConteudo'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
+import { formatarDataStoryPublicado } from '@/lib/formatarDataPublicacao'
 
 const STORY_VIEW_MS = 15000
 const SWIPE_DOWN_PX = 96
@@ -206,6 +207,7 @@ function iniciaisRotulo(rotulo) {
  *     visualizado_por?: unknown
  *     marcacoes?: unknown
  *     repost_story_id?: string | null
+ *     created_at?: string | null
  *   } | null
  *   userEmail: string | null
  *   meuUsuarioId: string | null
@@ -292,6 +294,7 @@ export default function StoryViewer({
   const [menuAutorStory, setMenuAutorStory] = useState(false)
   const [confirmExcluirStoryEtapa, setConfirmExcluirStoryEtapa] = useState(/** @type {null | 1 | 2} */ (null))
   const [excluindoStory, setExcluindoStory] = useState(false)
+  const [rotuloTempoStory, setRotuloTempoStory] = useState('')
 
   const uid = meuUsuarioId != null && meuUsuarioId !== '' ? String(meuUsuarioId) : null
   const curtiu = uid ? curtidasLista.some((c) => c.usuario_id === uid) : false
@@ -300,6 +303,18 @@ export default function StoryViewer({
     onTimerFimRef.current = onTimerFim
     onFecharRef.current = onFechar
   }, [onTimerFim, onFechar])
+
+  useEffect(() => {
+    const createdAt = story?.created_at
+    if (!createdAt) {
+      setRotuloTempoStory('')
+      return undefined
+    }
+    const atualizar = () => setRotuloTempoStory(formatarDataStoryPublicado(createdAt))
+    atualizar()
+    const id = window.setInterval(atualizar, 60_000)
+    return () => window.clearInterval(id)
+  }, [story?.id, story?.created_at])
 
   useEffect(() => {
     if (!story?.id || !userEmail) return
@@ -1220,6 +1235,9 @@ export default function StoryViewer({
             </Link>
           </span>
         )}
+        {rotuloTempoStory ? (
+          <span className="shrink-0 whitespace-nowrap text-xs font-normal text-white/75">{rotuloTempoStory}</span>
+        ) : null}
       </div>
     </div>
   ) : (
