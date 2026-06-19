@@ -115,7 +115,13 @@ export function useGraficosAdm(periodo: PeriodoAdm) {
     const selectCompleto = `
       created_at,
       status,
-      profissionais:profissional_id (categoria, categorias, cidade_atuacao)
+      profissionais:profissional_id (categorias, cidade_atuacao)
+    `
+
+    const selectBasico = `
+      created_at,
+      status,
+      profissionais:profissional_id (categorias, cidade_atuacao)
     `
 
     let { data: solData, error: solErr } = await supabase
@@ -127,7 +133,7 @@ export function useGraficosAdm(periodo: PeriodoAdm) {
     if (solErr && String(solErr.message ?? '').toLowerCase().includes('does not exist')) {
       const retry = await supabase
         .from('solicitacao_mobilidade')
-        .select(selectCompleto)
+        .select(selectBasico)
         .gte('created_at', since)
         .eq('status', 'concluida')
       solData = retry.data

@@ -160,12 +160,12 @@ export function useEstatisticasMercado(empresaId: string | null, categoriaEmpres
       lat_destino,
       lng_destino,
       regiao,
-      profissionais:profissional_id (categoria, categorias, cidade_atuacao)
+      profissionais:profissional_id (categorias, cidade_atuacao)
     `
     const selectBasico = `
       created_at,
       status,
-      profissionais:profissional_id (categoria, categorias, cidade_atuacao)
+      profissionais:profissional_id (categorias, cidade_atuacao)
     `
     let q = supabase.from('solicitacao_mobilidade').select(selectCompleto).gte('created_at', minHistorico)
     const primeira = await q
