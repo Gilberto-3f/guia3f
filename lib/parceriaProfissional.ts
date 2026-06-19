@@ -32,7 +32,7 @@ async function parceriaNaTabela(
     .select('id')
     .eq('profissional_a_id', a)
     .eq('profissional_b_id', b)
-    .eq('status', 'fechada')
+    .in('status', ['fechada', 'em_andamento', 'concluida'])
     .maybeSingle()
 
   if (error) {

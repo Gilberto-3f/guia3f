@@ -50,10 +50,10 @@ export default function PopupRecomendarProfissional({ aberto, onFechar, profissi
     onFechar()
   }
 
-  const montarMensagem = (indicadorUsername) =>
+  const montarMensagem = (indicadorUsername, recomendacaoId) =>
     mensagemWhatsappRecomendacaoProfissional({
       profissionalNome: String(profissional.nome ?? 'Profissional'),
-      profissionalUrl: urlProfissionalRecomendacao(profissional.usuarioId),
+      profissionalUrl: urlProfissionalRecomendacao(profissional.usuarioId, recomendacaoId),
       indicadorUsername,
       nota: profissional.notaMedia,
       totalAvaliacoes: profissional.totalAvaliacoes,
@@ -74,12 +74,12 @@ export default function PopupRecomendarProfissional({ aberto, onFechar, profissi
           return
         }
 
-        const { profissionalUsername } = await registrarRecomendacaoProfissional(supabase, {
+        const { profissionalUsername, recomendacaoId } = await registrarRecomendacaoProfissional(supabase, {
           profissionalIndicadoId: profissional.id,
           emailTurista: email,
         })
 
-        const mensagem = montarMensagem(profissionalUsername)
+        const mensagem = montarMensagem(profissionalUsername, recomendacaoId)
         const subject = encodeURIComponent(`Recomendação: ${profissional.nome ?? 'Profissional'}`)
         const body = encodeURIComponent(mensagem)
         window.location.href = `mailto:${email}?subject=${subject}&body=${body}`
@@ -95,12 +95,12 @@ export default function PopupRecomendarProfissional({ aberto, onFechar, profissi
         return
       }
 
-      const { profissionalUsername } = await registrarRecomendacaoProfissional(supabase, {
+      const { profissionalUsername, recomendacaoId } = await registrarRecomendacaoProfissional(supabase, {
         profissionalIndicadoId: profissional.id,
         whatsappTurista: phone,
       })
 
-      const mensagem = montarMensagem(profissionalUsername)
+      const mensagem = montarMensagem(profissionalUsername, recomendacaoId)
       const ok = openWhatsAppChat(phone, mensagem)
       if (!ok) {
         setErro('Não foi possível abrir o WhatsApp.')

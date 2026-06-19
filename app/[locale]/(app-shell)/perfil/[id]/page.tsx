@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, Suspense } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -30,6 +30,7 @@ import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { temParceriaFechadaEntreProfissionais } from '@/lib/parceriaProfissional'
 import { turistaContratouProfissional } from '@/lib/contratacaoProfissionalTurista'
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
+import PerfilRecomendacaoContratarGate from '@/components/perfil/PerfilRecomendacaoContratarGate'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
 
@@ -947,6 +948,15 @@ export default function PerfilSocialPage() {
         onContratar={() => router.push('/canal')}
         onAvaliar={() => setPopAval(true)}
       />
+
+      <Suspense fallback={null}>
+        <PerfilRecomendacaoContratarGate
+          profileId={profileId}
+          meuId={meuId}
+          meuRole={meuRole}
+          perfilRole={perfilRole}
+        />
+      </Suspense>
 
       <ModalFoto
         posts={postsFotos}

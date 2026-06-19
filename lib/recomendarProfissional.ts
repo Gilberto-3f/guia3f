@@ -17,9 +17,10 @@ export type ProfissionalRecomendacaoInfo = {
   paisBandeira?: string | null
 }
 
-export function urlProfissionalRecomendacao(usuarioId: string): string {
-  if (typeof window === 'undefined') return `/perfil/${usuarioId}?ref=recomendacao`
-  return `${window.location.origin}/perfil/${usuarioId}?ref=recomendacao`
+export function urlProfissionalRecomendacao(usuarioId: string, recomendacaoId?: string | null): string {
+  const qs = recomendacaoId ? `?ref=recomendacao&rec=${encodeURIComponent(recomendacaoId)}` : '?ref=recomendacao'
+  if (typeof window === 'undefined') return `/perfil/${usuarioId}${qs}`
+  return `${window.location.origin}/perfil/${usuarioId}${qs}`
 }
 
 export async function registrarRecomendacaoProfissional(
@@ -29,7 +30,7 @@ export async function registrarRecomendacaoProfissional(
     whatsappTurista?: string | null
     emailTurista?: string | null
   },
-): Promise<{ profissionalUsername: string | null; profissionalCategorias: string[] }> {
+): Promise<{ profissionalUsername: string | null; profissionalCategorias: string[]; recomendacaoId: string }> {
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -72,21 +73,30 @@ export async function registrarRecomendacaoProfissional(
     if (ddd) payload.turista_whatsapp_ddd = ddd
   }
 
-  let recErr = (await supabase.from('recomendacoes_profissional').insert(payload)).error
+  const tryInsert = async (payloadInsert: Record<string, string>) => {
+    const res = await supabase.from('recomendacoes_profissional').insert(payloadInsert).select('id').maybeSingle()
+    return res
+  }
+
+  let insertRes = await tryInsert(payload)
+  let recErr = insertRes.error
+  let recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : ''
 
   if (recErr && emailPrefix && String(recErr.message ?? '').toLowerCase().includes('turista_email')) {
-    recErr = (
-      await supabase.from('recomendacoes_profissional').insert({
-        profissional_indicador_id: profissionalIndicadorId,
-        profissional_indicado_id: params.profissionalIndicadoId,
-      })
-    ).error
+    insertRes = await tryInsert({
+      profissional_indicador_id: profissionalIndicadorId,
+      profissional_indicado_id: params.profissionalIndicadoId,
+    })
+    recErr = insertRes.error
+    recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : recomendacaoId
   }
 
   if (recErr && String(recErr.message ?? '').toLowerCase().includes('turista_whatsapp_ddd')) {
     const semDdd = { ...payload }
     delete semDdd.turista_whatsapp_ddd
-    recErr = (await supabase.from('recomendacoes_profissional').insert(semDdd)).error
+    insertRes = await tryInsert(semDdd)
+    recErr = insertRes.error
+    recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : recomendacaoId
   }
 
   if (recErr && String(recErr.message ?? '').toLowerCase().includes('turista_whatsapp_final')) {
@@ -98,25 +108,28 @@ export async function registrarRecomendacaoProfissional(
       minimo.turista_canal = 'email'
       minimo.turista_email_prefix = emailPrefix
     }
-    recErr = (await supabase.from('recomendacoes_profissional').insert(minimo)).error
+    insertRes = await tryInsert(minimo)
+    recErr = insertRes.error
+    recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : recomendacaoId
   }
 
   if (recErr && String(recErr.message ?? '').toLowerCase().includes('turista_canal')) {
-    recErr = (
-      await supabase.from('recomendacoes_profissional').insert({
-        profissional_indicador_id: profissionalIndicadorId,
-        profissional_indicado_id: params.profissionalIndicadoId,
-      })
-    ).error
+    insertRes = await tryInsert({
+      profissional_indicador_id: profissionalIndicadorId,
+      profissional_indicado_id: params.profissionalIndicadoId,
+    })
+    recErr = insertRes.error
+    recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : recomendacaoId
   }
 
   if (recErr) throw recErr
+  if (!recomendacaoId) throw new Error('Não foi possível registrar a recomendação.')
 
   const username = prof.nome_usuario != null ? String(prof.nome_usuario).replace(/^@+/, '').trim() : null
   const categorias = Array.isArray(prof.categorias)
     ? prof.categorias.map((c) => String(c).trim()).filter(Boolean)
     : []
-  return { profissionalUsername: username, profissionalCategorias: categorias }
+  return { profissionalUsername: username, profissionalCategorias: categorias, recomendacaoId }
 }
 
 export function rotuloCategoriaProfissionalRecomendacao(categorias: string[] | null | undefined): string {

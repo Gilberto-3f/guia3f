@@ -258,11 +258,11 @@ function secoesProfissional(ctx) {
   const gPro = filtrarMenu(
     [
       { Icon: DollarSign, label: 'Comissões', subpagina: 'comissoes' },
-      { Icon: Handshake, label: 'Parcerias', subpagina: 'parcerias-prof' },
+      { Icon: Handshake, label: 'Parcerias Fechadas', subpagina: 'parcerias-prof' },
       {
         Icon: ClipboardList,
         label: 'Manifesto',
-        subpagina: 'manifestos',
+        href: '/profissional/manifesto',
         condicional: (c) => c.placaVermelha === true,
       },
       {
@@ -300,8 +300,7 @@ function secoesProfissional(ctx) {
             subpagina: 'historico-manifestos',
             condicional: (c) => c.placaVermelha === true,
           },
-          { Icon: Handshake, label: 'Parcerias Fechadas', subpagina: 'parcerias' },
-          { Icon: Speaker, label: 'Recomendações Feitas', subpagina: 'recomendacoes' },
+          { Icon: Speaker, label: 'Recomendações', subpagina: 'recomendacoes' },
         ],
         ctx
       ),
@@ -831,7 +830,7 @@ export default function MenuLateral({
         tabela: 'Serviços Tabelados',
         manifestos: 'Manifesto',
         'historico-manifestos': 'Manifestos Concluídos',
-        'parcerias-prof': 'Parcerias',
+        'parcerias-prof': 'Parcerias Fechadas',
         'editar-pagina': 'Editar Página',
         contratacoes: 'Contratações',
         compras: 'Compras',
@@ -847,7 +846,7 @@ export default function MenuLateral({
         'anexar-documentos-empresa': 'Anexar documentos',
         'visitantes-perfil': 'Visitantes do meu Perfil',
       }
-      const titulosProfissional = ['historico-compras', 'parcerias', 'recomendacoes', 'historico-manifestos']
+      const titulosProfissional = ['historico-compras', 'recomendacoes', 'historico-manifestos']
       const t =
         menuVariantEfetivo === 'profissional' && titulosProfissional.includes(item.subpagina)
           ? item.label
@@ -863,7 +862,7 @@ export default function MenuLateral({
           })
         }
       }
-      if (['contratacoes', 'compras', 'parcerias', 'recomendacoes'].includes(item.subpagina)) {
+      if (['contratacoes', 'compras', 'recomendacoes'].includes(item.subpagina)) {
         if (menuVariantEfetivo === 'profissional' && item.subpagina === 'recomendacoes') {
           abrirPagina(t, 'recomendacoes-feitas')
         } else {
