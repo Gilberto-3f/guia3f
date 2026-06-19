@@ -53,8 +53,15 @@ export async function publicarPublicacaoAgendada(
         marcacoes: Array.isArray(meta.marcacoes) ? meta.marcacoes : [],
         expira_em: expira,
         duracao_segundos: 60,
+        created_at: row.agendado_para,
       })
-      if (error) return { ok: false, error: error.message }
+      if (error) {
+        await admin
+          .from('publicacoes_agendadas')
+          .update({ status: 'erro', erro_msg: error.message })
+          .eq('id', row.id)
+        return { ok: false, error: error.message }
+      }
     } else {
       const tipo = row.tipo_conteudo === 'texto' ? 'texto' : url && texto ? 'misto' : url ? 'foto' : 'texto'
       if (tipo !== 'texto' && !url) return { ok: false, error: 'Publicação de foto sem imagem.' }
@@ -65,8 +72,15 @@ export async function publicarPublicacaoAgendada(
         foto_url: url,
         conteudo_url: url,
         tipo,
+        created_at: row.agendado_para,
       })
-      if (error) return { ok: false, error: error.message }
+      if (error) {
+        await admin
+          .from('publicacoes_agendadas')
+          .update({ status: 'erro', erro_msg: error.message })
+          .eq('id', row.id)
+        return { ok: false, error: error.message }
+      }
     }
 
     const { error: updErr } = await admin

@@ -73,6 +73,14 @@ export default function AbaPostsEmpresa({ empresaUsuarioId }) {
     void carregar()
   }, [carregar])
 
+  useEffect(() => {
+    const onReload = () => {
+      void carregar()
+    }
+    window.addEventListener('guia-empresa-publicacoes-reload', onReload)
+    return () => window.removeEventListener('guia-empresa-publicacoes-reload', onReload)
+  }, [carregar])
+
   if (!empresaUsuarioId) {
     return <p className="py-10 text-center text-sm text-gray-500">Publicações indisponíveis para esta empresa.</p>
   }

@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import AgendarPublicacoes from './AgendarPublicacoes'
+import { tentarProcessarPublicacoesAgendadas } from '@/lib/processarPublicacoesAgendadasClient'
 
 function BotaoAcao({
   href,
@@ -67,7 +68,7 @@ export default function FeedStories() {
   }, [])
 
   useEffect(() => {
-    void fetch('/api/publicacoes-agendadas/processar', { method: 'POST' })
+    void tentarProcessarPublicacoesAgendadas()
   }, [])
 
   return (

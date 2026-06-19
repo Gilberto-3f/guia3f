@@ -91,6 +91,14 @@ export default function AbaFotosEmpresa({ empresaUsuarioId, nomeFantasia, nomeUs
     void carregar()
   }, [carregar])
 
+  useEffect(() => {
+    const onReload = () => {
+      void carregar()
+    }
+    window.addEventListener('guia-empresa-publicacoes-reload', onReload)
+    return () => window.removeEventListener('guia-empresa-publicacoes-reload', onReload)
+  }, [carregar])
+
   const patchFoto = useCallback((postId, updates) => {
     setItems((prev) =>
       prev.map((p) =>

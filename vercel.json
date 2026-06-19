@@ -5,5 +5,11 @@
       "VERCEL_CLI_VERSION": "vercel@50.38.3"
     }
   },
-  "buildCommand": "NEXT_ADAPTER_PATH= npm run build"
+  "buildCommand": "NEXT_ADAPTER_PATH= npm run build",
+  "crons": [
+    {
+      "path": "/api/publicacoes-agendadas/processar",
+      "schedule": "* * * * *"
+    }
+  ]
 }

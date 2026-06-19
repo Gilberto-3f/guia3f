@@ -18,6 +18,7 @@ import {
   maxDatetimeLocalInput,
   minDatetimeLocalInput,
 } from '@/lib/publicarPublicacaoAgendada'
+import { tentarProcessarPublicacoesAgendadas } from '@/lib/processarPublicacoesAgendadasClient'
 import SecaoChevron from './SecaoChevron'
 
 type AbaAgendar = 'programar' | 'agendados'
@@ -140,11 +141,7 @@ export default function AgendarPublicacoes({
   }, [usuarioId])
 
   const processarVencidos = useCallback(async () => {
-    try {
-      await fetch('/api/publicacoes-agendadas/processar', { method: 'POST' })
-    } catch {
-      /* noop — tentativa em background */
-    }
+    await tentarProcessarPublicacoesAgendadas()
   }, [])
 
   useEffect(() => {

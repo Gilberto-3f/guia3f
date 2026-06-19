@@ -15,6 +15,7 @@ import {
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { fetchEmpresasGuiaRows } from '@/lib/feedSeguidosEmpresasFavoritas'
+import { tentarProcessarPublicacoesAgendadas } from '@/lib/processarPublicacoesAgendadasClient'
 import {
   escolherIdStoryInicialPorEmail,
   ordenarStoriesPorCreatedAsc,
@@ -161,6 +162,8 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     setMeuUserId(uid)
 
     try {
+    await tentarProcessarPublicacoesAgendadas()
+
     const USUARIOS_MEU_SELECT = `
       id,
       email,

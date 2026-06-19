@@ -7,6 +7,7 @@ import { pickAutorDisplay, sanearAutoresPostsEmpresaPreview } from '@/lib/feed-a
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { isPostOcultoDoFeed } from '@/lib/feedFiltroSeguidos'
 import { fetchUsuarioIdsTodasEmpresasGuia } from '@/lib/feedSeguidosEmpresasFavoritas'
+import { tentarProcessarPublicacoesAgendadas } from '@/lib/processarPublicacoesAgendadasClient'
 import {
   escolherIdStoryInicialPorEmail,
   ordenarStoriesPorCreatedAsc,
@@ -321,10 +322,13 @@ function FeedPageInner() {
   }, [authReady, meuId, recarregarFeedRede])
 
   useEffect(() => {
-    const onReload = () => void recarregarFeedRede()
+    const onReload = () => {
+      void recarregarFeedRede()
+      void refetchPostsFeed()
+    }
     window.addEventListener('guia-feed-rede-reload', onReload)
     return () => window.removeEventListener('guia-feed-rede-reload', onReload)
-  }, [recarregarFeedRede])
+  }, [recarregarFeedRede, refetchPostsFeed])
 
   const mapRow = useCallback((post: unknown) => {
     const p = post as Record<string, unknown>
@@ -400,6 +404,26 @@ function FeedPageInner() {
     [mapRow, meuId, email, modoAtivo]
   )
 
+  const refetchPostsFeed = useCallback(async () => {
+    if (!feedRedeRef.current.ready || bloqueioEmpresaFeed) return
+    try {
+      const merged = await rebuildMergedPosts(mergeGenRef.current)
+      const visiveis = Math.max(PAGE_SIZE, PAGE_SIZE * Math.max(1, pageRef.current))
+      setPosts(merged.slice(0, visiveis))
+      setHasMore(merged.length > visiveis)
+    } catch (e) {
+      console.error(e)
+    }
+  }, [rebuildMergedPosts, bloqueioEmpresaFeed])
+
+  useEffect(() => {
+    const onPostsReload = () => {
+      void refetchPostsFeed()
+    }
+    window.addEventListener('guia-feed-posts-reload', onPostsReload)
+    return () => window.removeEventListener('guia-feed-posts-reload', onPostsReload)
+  }, [refetchPostsFeed])
+
   useEffect(() => {
     if (!feedRede.ready || bloqueioEmpresaFeed) return
     const run = async () => {
@@ -408,6 +432,7 @@ function FeedPageInner() {
       pageRef.current = 0
       setHasMore(true)
       try {
+        await tentarProcessarPublicacoesAgendadas()
         const merged = await rebuildMergedPosts(0)
         setPosts(merged.slice(0, PAGE_SIZE))
         setHasMore(merged.length > PAGE_SIZE)
