@@ -364,16 +364,22 @@ function secoesEmpresa(ctx) {
   ]
   const gEmpItems = [
       {
-        Icon: DollarSign,
-        label: 'Cadastrar Comissão',
-        href: '/empresa/menu/cadastrar-comissao',
-        condicional: empresaMenuServico('cadastrar-comissao'),
+        Icon: Images,
+        label: 'Rede Social',
+        href: '/empresa/menu/feed-stories',
+        condicional: empresaMenuServico('feed-stories'),
       },
       {
         Icon: Megaphone,
         label: 'Publicidade',
         href: '/empresa/menu/publicidade',
         condicional: empresaMenuServico('publicidade'),
+      },
+      {
+        Icon: DollarSign,
+        label: 'Cadastrar Comissão',
+        href: '/empresa/menu/cadastrar-comissao',
+        condicional: empresaMenuServico('cadastrar-comissao'),
       },
       {
         Icon: ShoppingCart,

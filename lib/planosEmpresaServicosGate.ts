@@ -37,6 +37,9 @@ const MENU_SERVICO: Record<MenuEmpresaId, ServicoPlanoId | null> = {
   'compras-paraguai': 'compras_paraguai_drena',
 }
 
+/** Rede Social e Publicidade: visíveis com qualquer plano contratado ou degustação ativa. */
+const MENU_COM_PLANO_OU_DEGUSTACAO: MenuEmpresaId[] = ['feed-stories', 'publicidade']
+
 const FEATURE_SERVICO: Record<FeatureEmpresaId, ServicoPlanoId> = {
   pagina_rede_social: 'pagina_rede_social',
   botao_dinamico: 'botao_dinamico',
@@ -64,7 +67,15 @@ export function empresaTemServico(servicos: readonly string[], servico: ServicoP
   return servicos.includes(servico)
 }
 
+/** Plano reconhecido no catálogo ou degustação ativa (lista de serviços resolvida não vazia). */
+export function empresaPlanoOuDegustacaoAtivo(servicos: readonly string[]): boolean {
+  return servicos.length > 0
+}
+
 export function menuEmpresaLiberado(menuId: MenuEmpresaId, servicos: readonly string[]): boolean {
+  if (MENU_COM_PLANO_OU_DEGUSTACAO.includes(menuId)) {
+    return empresaPlanoOuDegustacaoAtivo(servicos)
+  }
   const servico = MENU_SERVICO[menuId]
   if (servico === null) return true
   return empresaTemServico(servicos, servico)

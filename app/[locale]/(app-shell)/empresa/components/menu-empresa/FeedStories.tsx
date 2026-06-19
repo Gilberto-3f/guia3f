@@ -39,8 +39,9 @@ export default function FeedStories() {
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [empresaId, setEmpresaId] = useState<string | null>(null)
   const { dados } = useDashboardEmpresa()
-  const { featureLiberada } = useEmpresaServicosPlano(dados?.plano, dados?.id)
-  const mostrarPlanejador = featureLiberada('planejador_publicacoes')
+  const { servicos, featureLiberada } = useEmpresaServicosPlano(dados?.plano, dados?.id)
+  const mostrarPlanejador =
+    servicos.length > 0 || featureLiberada('planejador_publicacoes')
 
   useEffect(() => {
     let ativo = true

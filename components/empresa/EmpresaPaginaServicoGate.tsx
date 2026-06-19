@@ -6,24 +6,29 @@ import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empres
 import { useEmpresaMenuGate } from '@/app/[locale]/(app-shell)/empresa/hooks/useEmpresaMenuGate'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import type { FeatureEmpresaId } from '@/lib/planosEmpresaServicosGate'
-import { featureEmpresaLiberada } from '@/lib/planosEmpresaServicosGate'
+import { empresaPlanoOuDegustacaoAtivo, featureEmpresaLiberada } from '@/lib/planosEmpresaServicosGate'
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 
 export default function EmpresaPaginaServicoGate({
   servico,
   children,
   skeleton,
+  requerPlanoAtivo = false,
 }: {
   servico: FeatureEmpresaId
   children: ReactNode
   skeleton?: ReactNode
+  /** Quando true, basta plano contratado ou degustação (ignora serviço específico). */
+  requerPlanoAtivo?: boolean
 }) {
   const gate = useEmpresaMenuGate()
   const { dados } = useDashboardEmpresa()
   const { servicos, loading: loadingPlano } = useEmpresaServicosPlano(dados?.plano, dados?.id)
 
   const loading = gate === 'loading' || loadingPlano
-  const liberado = featureEmpresaLiberada(servico, servicos)
+  const liberado = requerPlanoAtivo
+    ? empresaPlanoOuDegustacaoAtivo(servicos)
+    : featureEmpresaLiberada(servico, servicos)
 
   if (loading) {
     return (

@@ -38,7 +38,7 @@ export default function FeedStoriesPage() {
       </header>
 
       <div className="mx-auto max-w-4xl px-4 pb-6 pt-0">
-        <EmpresaPaginaServicoGate servico="pagina_rede_social">
+        <EmpresaPaginaServicoGate servico="pagina_rede_social" requerPlanoAtivo>
           <FeedStories />
         </EmpresaPaginaServicoGate>
       </div>
