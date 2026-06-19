@@ -677,7 +677,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
               ) : (
               <>
                 <div
-                  className="sticky top-0 z-10 w-full min-w-0 shrink-0 bg-[#0097b2]"
+                  className="sticky top-0 z-10 w-full min-w-0 shrink-0 bg-[#0097b2] pt-safe"
                   role="tablist"
                   aria-label="Categorias de empresas"
                 >

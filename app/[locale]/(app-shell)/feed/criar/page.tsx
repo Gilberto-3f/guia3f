@@ -627,7 +627,7 @@ function CriarPublicacaoPageInner() {
 
       <div
         ref={headerRef}
-        className="sticky top-0 z-30 flex items-stretch justify-between gap-2 border-b border-gray-200 bg-white shadow-sm"
+        className="sticky top-0 z-30 flex items-stretch justify-between gap-2 border-b border-gray-200 bg-white pt-safe shadow-sm"
         data-criar-header
       >
         <div className="flex min-w-0 flex-1">

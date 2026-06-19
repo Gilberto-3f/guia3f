@@ -195,7 +195,7 @@ function DashboardEmpresaConteudo({
 
   return (
     <div className="bg-gray-50">
-      <header className="sticky top-0 z-20 shrink-0 bg-[#0097b2] shadow-sm">
+      <header className="sticky top-0 z-20 shrink-0 bg-[#0097b2] pt-safe shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <h1 className="flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
             <Crown className="h-6 w-6 shrink-0 text-white" strokeWidth={2} aria-hidden />

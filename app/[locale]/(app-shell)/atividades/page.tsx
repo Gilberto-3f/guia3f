@@ -1944,7 +1944,7 @@ export default function AtividadesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <header className="sticky top-0 z-30 overflow-visible border-b border-white/20 bg-[#0097b2] px-3 py-2 shadow-sm sm:px-4 sm:py-3">
+      <header className="sticky top-0 z-30 overflow-visible border-b border-white/20 bg-[#0097b2] px-3 pb-2 pt-safe shadow-sm sm:px-4 sm:pb-3">
         <div className="relative" ref={dropdownRef}>
           <div className="relative flex min-h-[3rem] w-full items-center sm:min-h-[3.35rem]">
             <div

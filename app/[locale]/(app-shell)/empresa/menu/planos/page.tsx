@@ -51,7 +51,7 @@ export default function PlanosPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="sticky top-0 z-20 border-b bg-white">
+      <div className="sticky top-0 z-20 border-b bg-white pt-safe">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-4">
           <div className="min-w-0">
             <h1 className="truncate text-lg font-bold text-[#001f3f]">Planos</h1>

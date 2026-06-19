@@ -23,6 +23,11 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Empurra conteúdo abaixo da status bar; a cor de fundo do elemento preenche a área superior */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 /*
  * iOS Safari dá zoom ao focar input com font-size < 16px.
  * Em telas touch, força 16px em campos editáveis (evita zoom e facilita o drawer/menu).

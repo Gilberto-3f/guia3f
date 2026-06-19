@@ -77,7 +77,7 @@ export default function CatalogoEmpresaPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
+      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white pt-safe">
         <div className="flex items-center gap-3 p-4">
           <button type="button" onClick={() => router.back()} className="-ml-1 p-1" aria-label="Voltar">
             <ArrowLeft size={24} className="text-gray-600" />

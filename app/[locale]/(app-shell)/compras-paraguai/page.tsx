@@ -29,7 +29,7 @@ export default function ComprasParaguaiPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
+      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white pt-safe">
         <div className="p-4">
           <h1 className="text-xl font-bold text-gray-800">Compras Paraguai</h1>
           <p className="text-sm text-gray-500">Compare preços e economize</p>

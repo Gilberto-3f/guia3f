@@ -145,7 +145,7 @@ function PerfilAtividadePostInner() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-200 bg-white px-3 py-3">
+      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-200 bg-white px-3 pb-3 pt-safe">
         <Link
           href="/perfil"
           className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-gray-800 hover:bg-gray-100"

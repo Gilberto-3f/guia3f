@@ -269,7 +269,7 @@ export default function ListagemCategoriaPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-20 border-b border-white/20 bg-[#0097b2] shadow-sm">
+      <header className="sticky top-0 z-20 border-b border-white/20 bg-[#0097b2] pt-safe shadow-sm">
         <div className="flex flex-col gap-2 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-2">
             <button type="button" onClick={() => router.back()} className="-ml-1 shrink-0 p-1" aria-label="Voltar">

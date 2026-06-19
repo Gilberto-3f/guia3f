@@ -20,7 +20,7 @@ export default function CadastrarComissaoPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <header className="sticky top-0 z-20 border-b border-white/15 bg-[#0097b2]">
+      <header className="sticky top-0 z-20 border-b border-white/15 bg-[#0097b2] pt-safe">
         <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-4">
           <button
             type="button"

@@ -626,7 +626,7 @@ export default function CanalDetalhePage() {
   if (!authPronto || userTipoEfetivo == null || carregandoCanal) {
     return (
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
+        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
           <button
             type="button"
             onClick={() => router.push('/canal')}
@@ -673,7 +673,7 @@ export default function CanalDetalhePage() {
     return (
       <>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
+        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
           <button
             type="button"
             onClick={() => voltarCanais()}
@@ -758,7 +758,7 @@ export default function CanalDetalhePage() {
     return (
       <>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
+        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
           <button
             type="button"
             onClick={() => voltarCanais()}
@@ -808,7 +808,7 @@ export default function CanalDetalhePage() {
               ) : (
                 <>
               {mostrarAbasPaisColetivo ? (
-                <div className="sticky top-0 z-[9] shrink-0 border-b border-gray-100 bg-white shadow-sm">
+                <div className="sticky top-0 z-[9] shrink-0 border-b border-gray-100 bg-white pt-safe shadow-sm">
                   <CanalAbasPais paises={paisesAbasColetivo} abaAtiva={abaPais} onAbaChange={setAbaPais} />
                 </div>
               ) : null}
@@ -845,7 +845,7 @@ export default function CanalDetalhePage() {
     return (
       <>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 py-3 text-white shadow-sm">
+        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
           <button
             type="button"
             onClick={() => voltarCanais()}
@@ -878,7 +878,7 @@ export default function CanalDetalhePage() {
           ) : (
             <>
               {mostrarAbasPais ? (
-                <div className="sticky top-0 z-[9] shrink-0 border-b border-gray-100 bg-white shadow-sm">
+                <div className="sticky top-0 z-[9] shrink-0 border-b border-gray-100 bg-white pt-safe shadow-sm">
                   <CanalAbasPais paises={paisesAbasColetivo} abaAtiva={abaPais} onAbaChange={setAbaPais} />
                 </div>
               ) : null}
