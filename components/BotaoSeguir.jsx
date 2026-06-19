@@ -45,6 +45,30 @@ export default function BotaoSeguir({
   const [seguindo, setSeguindo] = useState(initialFollowing)
   const [erro, setErro] = useState(/** @type {string | null} */ (null))
   const [loading, setLoading] = useState(false)
+  const [visitanteEmpresa, setVisitanteEmpresa] = useState(false)
+
+  useEffect(() => {
+    let cancelado = false
+    void (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id
+      if (!uid || cancelado) return
+      const { data } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
+      if (!cancelado) {
+        setVisitanteEmpresa(String(data?.role ?? '') === 'empresa')
+      }
+    })()
+    return () => {
+      cancelado = true
+    }
+  }, [])
+
+  const tipoAlvo = alvoTipo || (empresaId ? 'empresa' : 'usuario')
+  const bloqueadoEmpresaPerfilSocial = visitanteEmpresa && tipoAlvo === 'usuario'
+  const tituloBloqueadoEmpresa =
+    'Empresas não seguem perfis sociais — sem feed nem notificações de conteúdo de turistas ou profissionais.'
 
   /** Sincroniza com a prop do pai; durante request não sobrescreve estado otimista. */
   useEffect(() => {
@@ -80,6 +104,7 @@ export default function BotaoSeguir({
   const handleToggle = async (e) => {
     e.stopPropagation()
     setErro(null)
+    if (bloqueadoEmpresaPerfilSocial) return
     if (!podeInteragir) {
       notificarSomenteLeitura()
       return
@@ -206,15 +231,19 @@ export default function BotaoSeguir({
     size === 'compact'
       ? [
           'flex min-w-[72px] max-w-[100px] items-center justify-center gap-0.5 rounded-lg border px-1.5 py-1 text-[11px] font-semibold transition-colors',
-          seguindo
-            ? 'border-[#0097b2] bg-white text-[#0097b2] hover:bg-[#0097b2]/5'
-            : 'border-transparent bg-[#0097b2] text-white hover:bg-[#0088a1]',
+          bloqueadoEmpresaPerfilSocial
+            ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 opacity-70'
+            : seguindo
+              ? 'border-[#0097b2] bg-white text-[#0097b2] hover:bg-[#0097b2]/5'
+              : 'border-transparent bg-[#0097b2] text-white hover:bg-[#0088a1]',
         ].join(' ')
       : [
           'flex min-w-[84px] items-center justify-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-medium transition-colors',
-          seguindo
-            ? 'border-[#0097b2] bg-white text-[#0097b2] hover:bg-[#0097b2]/5'
-            : 'border-transparent bg-[#0097b2] text-white hover:bg-[#0088a1]',
+          bloqueadoEmpresaPerfilSocial
+            ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 opacity-70'
+            : seguindo
+              ? 'border-[#0097b2] bg-white text-[#0097b2] hover:bg-[#0097b2]/5'
+              : 'border-transparent bg-[#0097b2] text-white hover:bg-[#0088a1]',
         ].join(' ')
 
   const iconSize = size === 'compact' ? 12 : 14
@@ -224,21 +253,32 @@ export default function BotaoSeguir({
       <button
         type="button"
         onClick={handleToggle}
-        disabled={loading || !podeInteragir}
-        title={!showInlineError && erro ? erro : undefined}
-        aria-label={seguindo ? 'Deixar de seguir' : 'Seguir'}
-        className={buttonClassName.trim() ? buttonClassName : defaultBtn}
+        disabled={loading || !podeInteragir || bloqueadoEmpresaPerfilSocial}
+        title={bloqueadoEmpresaPerfilSocial ? tituloBloqueadoEmpresa : !showInlineError && erro ? erro : undefined}
+        aria-label={bloqueadoEmpresaPerfilSocial ? 'Seguir indisponível para empresas' : seguindo ? 'Deixar de seguir' : 'Seguir'}
+        aria-disabled={bloqueadoEmpresaPerfilSocial || undefined}
+        className={
+          buttonClassName.trim()
+            ? `${buttonClassName.trim()}${bloqueadoEmpresaPerfilSocial ? ' cursor-not-allowed opacity-50' : ''}`
+            : defaultBtn
+        }
       >
-        {leadingIcon === 'heart' && !seguindo ? (
+        {leadingIcon === 'heart' && !seguindo && !bloqueadoEmpresaPerfilSocial ? (
           <Heart size={iconSize} className="text-white" aria-hidden />
         ) : null}
-        {leadingIcon === 'user-plus' && !seguindo ? (
+        {leadingIcon === 'heart' && !seguindo && bloqueadoEmpresaPerfilSocial ? (
+          <Heart size={iconSize} className="text-gray-400" aria-hidden />
+        ) : null}
+        {leadingIcon === 'user-plus' && !seguindo && !bloqueadoEmpresaPerfilSocial ? (
           <UserPlus size={iconSize} className="shrink-0 text-white" aria-hidden />
         ) : null}
-        {leadingIcon === 'user-plus' && seguindo ? (
+        {leadingIcon === 'user-plus' && !seguindo && bloqueadoEmpresaPerfilSocial ? (
+          <UserPlus size={iconSize} className="shrink-0 text-gray-400" aria-hidden />
+        ) : null}
+        {leadingIcon === 'user-plus' && seguindo && !bloqueadoEmpresaPerfilSocial ? (
           <UserCheck size={iconSize} className="shrink-0 text-white" aria-hidden />
         ) : null}
-        <span>{seguindo ? 'Seguindo' : 'Seguir'}</span>
+        <span>{bloqueadoEmpresaPerfilSocial ? 'Seguir' : seguindo ? 'Seguindo' : 'Seguir'}</span>
       </button>
       {showInlineError && erro ? (
         <span className="max-w-[240px] text-right text-xs text-red-600">{erro}</span>
