@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
-import { AlertTriangle, ChevronUp, Send } from 'lucide-react'
+import { AlertTriangle, ChevronUp, MapPin, Send, UserRound } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import AvatarImage from '@/components/AvatarImage'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
@@ -9,6 +9,7 @@ import { buscarVistoEmOutroEcossistema, mapMensagemEcossistemaPayload, type Ecos
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { idUltimaMensagemPropriaVistaPeloOutro } from '@/lib/chatVisto'
 import ChatReciboVisto from '@/components/chat/ChatReciboVisto'
+import type { ProfissionalAtendimentoTurista } from '@/lib/emergenciaTurista'
 
 type AbaEcossistema = 'turista' | 'profissional' | 'empresa' | 'historico'
 
@@ -28,6 +29,21 @@ type NaoLidasPorAba = Record<'turista' | 'profissional' | 'empresa', number>
 const naoLidasPorAbaVazio = (): NaoLidasPorAba => ({ turista: 0, profissional: 0, empresa: 0 })
 
 const COR_LOGO = '#0097b2'
+
+function formatarDataHora(iso: string): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+function bordaConversa(c: ConversaComMembro): string {
+  if (c.status !== 'aberta') return 'border-gray-200 bg-white'
+  if (c.motivo_emergencia === 'perdido') return 'border-[#0097b2] bg-[#0097b2]/5'
+  if (c.motivo_emergencia === 'item_esquecido') return 'border-amber-300 bg-amber-50/60'
+  if (c.urgente) return 'border-red-300 bg-red-50/60'
+  return 'border-gray-200 bg-white'
+}
 
 const abaCls = (ativo: boolean) =>
   `flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold transition-colors sm:text-sm ${
@@ -55,6 +71,8 @@ export default function CanalEcossistemaAdm({
   const [carregando, setCarregando] = useState(true)
   const [adminUserId, setAdminUserId] = useState('')
   const [vistoEmOutroMs, setVistoEmOutroMs] = useState(0)
+  const [profissionaisItem, setProfissionaisItem] = useState<ProfissionalAtendimentoTurista[]>([])
+  const [carregandoProfissionais, setCarregandoProfissionais] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const painelAbertoRef = useRef(false)
 
@@ -205,6 +223,70 @@ export default function CanalEcossistemaAdm({
     }
   }, [selecionada?.id, selecionada?.membro_usuario_id, painelAberto, carregarMensagens, carregarLista, atualizarVistoOutro])
 
+  useEffect(() => {
+    if (!selecionada || selecionada.motivo_emergencia !== 'item_esquecido') {
+      setProfissionaisItem([])
+      return
+    }
+    let ativo = true
+    setCarregandoProfissionais(true)
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/emergencia-profissionais-turista?turista_id=${encodeURIComponent(selecionada.membro_usuario_id)}`,
+        )
+        const json = (await res.json()) as { ok?: boolean; profissionais?: ProfissionalAtendimentoTurista[] }
+        if (ativo) setProfissionaisItem(json.profissionais ?? [])
+      } catch {
+        if (ativo) setProfissionaisItem([])
+      } finally {
+        if (ativo) setCarregandoProfissionais(false)
+      }
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [selecionada?.id, selecionada?.motivo_emergencia, selecionada?.membro_usuario_id])
+
+  useEffect(() => {
+    if (!selecionada?.id || selecionada.motivo_emergencia !== 'perdido' || !painelAberto) return
+
+    const ch = supabase
+      .channel(`eco-adm-loc-${selecionada.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'ecossistema_conversas',
+          filter: `id=eq.${selecionada.id}`,
+        },
+        (payload) => {
+          const row = payload.new as Record<string, unknown> | undefined
+          if (!row) return
+          const lat = row.loc_lat != null ? Number(row.loc_lat) : null
+          const lng = row.loc_lng != null ? Number(row.loc_lng) : null
+          const locAtualizada =
+            row.loc_atualizada_em != null ? String(row.loc_atualizada_em) : selecionada.loc_atualizada_em
+          setSelecionada((prev) =>
+            prev && prev.id === selecionada.id
+              ? {
+                  ...prev,
+                  loc_lat: lat,
+                  loc_lng: lng,
+                  loc_atualizada_em: locAtualizada,
+                }
+              : prev,
+          )
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(ch)
+    }
+  }, [selecionada?.id, selecionada?.motivo_emergencia, painelAberto, selecionada?.loc_atualizada_em])
+
   const abrirConversa = (c: ConversaComMembro) => {
     setSelecionada(c)
     setPainelAberto(true)
@@ -296,9 +378,7 @@ export default function CanalEcossistemaAdm({
                 <button
                   type="button"
                   onClick={() => abrirConversa(c)}
-                  className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition hover:bg-gray-50 ${
-                    c.urgente && c.status === 'aberta' ? 'border-red-300 bg-red-50/60' : 'border-gray-200 bg-white'
-                  }`}
+                  className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition hover:bg-gray-50 ${bordaConversa(c)}`}
                 >
                   <AvatarImage
                     src={c.membro.fotoUrl}
@@ -310,7 +390,10 @@ export default function CanalEcossistemaAdm({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate font-semibold text-gray-900">{c.membro.nome}</span>
-                      {c.urgente && c.status === 'aberta' ? (
+                      {c.motivo_emergencia === 'perdido' && c.status === 'aberta' ? (
+                        <MapPin className="h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
+                      ) : null}
+                      {c.urgente && c.status === 'aberta' && c.motivo_emergencia !== 'perdido' ? (
                         <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" aria-hidden />
                       ) : null}
                       {(c.nao_lidas ?? 0) > 0 ? <CanalNaoLidasBadge count={c.nao_lidas ?? 0} /> : null}
@@ -344,6 +427,81 @@ export default function CanalEcossistemaAdm({
               </button>
             ) : null}
           </div>
+
+          {selecionada.motivo_emergencia === 'item_esquecido' ? (
+            <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-amber-800">
+                Item esquecido — últimos profissionais
+              </p>
+              {carregandoProfissionais ? (
+                <p className="mt-2 text-xs text-amber-700">Carregando profissionais...</p>
+              ) : profissionaisItem.length === 0 ? (
+                <p className="mt-2 text-xs text-amber-700">Nenhum atendimento recente encontrado.</p>
+              ) : (
+                <ul className="mt-2 space-y-2">
+                  {profissionaisItem.map((p) => (
+                    <li
+                      key={p.profissional_id}
+                      className="flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-2 py-2"
+                    >
+                      <AvatarImage
+                        src={p.foto_url}
+                        alt=""
+                        width={36}
+                        height={36}
+                        className="h-9 w-9 shrink-0 rounded-md object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-gray-900">{p.nome}</div>
+                        <div className="truncate text-xs text-[#0097b2]">
+                          {p.username ? (p.username.startsWith('@') ? p.username : `@${p.username}`) : '—'}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Atendimento: {formatarDataHora(p.atendimento_em)}
+                        </div>
+                      </div>
+                      <UserRound className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
+
+          {selecionada.motivo_emergencia === 'perdido' ? (
+            <div className="shrink-0 border-b border-[#0097b2]/30 bg-[#0097b2]/10 px-3 py-3">
+              <p className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-[#007d94]">
+                <MapPin className="h-3.5 w-3.5" aria-hidden />
+                Localização em tempo real
+              </p>
+              {selecionada.loc_lat != null &&
+              selecionada.loc_lng != null &&
+              Number.isFinite(selecionada.loc_lat) &&
+              Number.isFinite(selecionada.loc_lng) ? (
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-gray-700">
+                    {selecionada.loc_lat.toFixed(5)}, {selecionada.loc_lng.toFixed(5)}
+                  </p>
+                  {selecionada.loc_atualizada_em ? (
+                    <p className="text-xs text-gray-500">
+                      Atualizado: {formatarDataHora(selecionada.loc_atualizada_em)}
+                    </p>
+                  ) : null}
+                  <a
+                    href={`https://www.google.com/maps?q=${selecionada.loc_lat},${selecionada.loc_lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded-lg bg-[#0097b2] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#007d94]"
+                  >
+                    <MapPin className="h-3.5 w-3.5" aria-hidden />
+                    Abrir no mapa
+                  </a>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-gray-600">Aguardando GPS do turista...</p>
+              )}
+            </div>
+          ) : null}
 
           <div className="min-h-0 flex-1 overflow-y-auto bg-[#e5ddd5] px-3 py-3" style={{ maxHeight: embedded ? undefined : '280px' }}>
             {mensagens.map((m) => {

@@ -8,6 +8,10 @@ const EcossistemaAlertaUrgente = dynamic(() => import('@/components/canal/Ecossi
   ssr: false,
 })
 
+const EcossistemaAlertaPerdido = dynamic(() => import('@/components/canal/EcossistemaAlertaPerdido'), {
+  ssr: false,
+})
+
 /** Exibe alertas de socorro apenas para usuários com role admin. */
 export default function AdminEcossistemaAlertaGate() {
   const [ehAdmin, setEhAdmin] = useState(false)
@@ -32,5 +36,10 @@ export default function AdminEcossistemaAlertaGate() {
   }, [])
 
   if (!ehAdmin) return null
-  return <EcossistemaAlertaUrgente />
+  return (
+    <>
+      <EcossistemaAlertaUrgente />
+      <EcossistemaAlertaPerdido />
+    </>
+  )
 }

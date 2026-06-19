@@ -6,7 +6,7 @@ export async function GET() {
   const auth = await assertAdminSession()
   if (!auth.ok) return auth.error
 
-  const alertas = await listarAlertasUrgentesAdm(auth.supabase, { motivo: 'socorro_legacy' })
+  const alertas = await listarAlertasUrgentesAdm(auth.supabase, { motivo: 'perdido' })
   return NextResponse.json({ ok: true, alertas })
 }
 

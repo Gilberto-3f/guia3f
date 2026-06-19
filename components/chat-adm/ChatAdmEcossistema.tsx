@@ -16,9 +16,13 @@ import ChatReciboVisto from '@/components/chat/ChatReciboVisto'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 
+import type { MotivoEmergenciaEcossistema } from '@/lib/ecossistemaConversas'
+import { assuntoPadraoMotivo } from '@/lib/emergenciaTurista'
+
 type Props = {
   usuarioId: string
   urgenteInicial?: boolean
+  motivoEmergencia?: MotivoEmergenciaEcossistema | null
 }
 
 function ultimaMensagemIso(lista: EcossistemaMensagemRow[]): string | null {
@@ -26,7 +30,11 @@ function ultimaMensagemIso(lista: EcossistemaMensagemRow[]): string | null {
   return lista[lista.length - 1]?.created_at ?? null
 }
 
-export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }: Props) {
+export default function ChatAdmEcossistema({
+  usuarioId,
+  urgenteInicial = false,
+  motivoEmergencia = null,
+}: Props) {
   const [loading, setLoading] = useState(true)
   const [conversaAberta, setConversaAberta] = useState<EcossistemaConversaRow | null>(null)
   const [arquivadas, setArquivadas] = useState<EcossistemaConversaRow[]>([])
@@ -39,7 +47,9 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
   const [vistoEmOutroMs, setVistoEmOutroMs] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const socorroInicialAplicadoRef = useRef(false)
-  const socorroPendenteRef = useRef(false)
+  const emergenciaPendenteRef = useRef<MotivoEmergenciaEcossistema | null>(null)
+  const watchLocIdRef = useRef<number | null>(null)
+  const locRef = useRef<{ lat: number; lng: number } | null>(null)
   const mensagensRef = useRef<EcossistemaMensagemRow[]>([])
 
   useEffect(() => {
@@ -103,32 +113,36 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
     }
   }, [])
 
-  const abrirChat = useCallback(async (opts?: { socorro?: boolean }) => {
-    const socorro = opts?.socorro === true
-    if (socorro) socorroPendenteRef.current = true
-    setIniciando(true)
-    setErro(null)
-    try {
-      const res = await fetch('/api/ecossistema-conversas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assunto: socorro ? 'Solicitação emergencial' : 'Contato com administração',
-        }),
-      })
-      const json = (await res.json()) as { ok?: boolean; conversa?: EcossistemaConversaRow; error?: string }
-      if (!json.ok || !json.conversa) {
-        setErro(json.error ?? 'Não foi possível iniciar o chat.')
-        return
+  const abrirChat = useCallback(
+    async (opts?: { motivo?: MotivoEmergenciaEcossistema | null }) => {
+      const motivo = opts?.motivo ?? motivoEmergencia ?? null
+      if (motivo) emergenciaPendenteRef.current = motivo
+      setIniciando(true)
+      setErro(null)
+      try {
+        const res = await fetch('/api/ecossistema-conversas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assunto: motivo ? assuntoPadraoMotivo(motivo) : 'Contato com administração',
+            motivo_emergencia: motivo,
+          }),
+        })
+        const json = (await res.json()) as { ok?: boolean; conversa?: EcossistemaConversaRow; error?: string }
+        if (!json.ok || !json.conversa) {
+          setErro(json.error ?? 'Não foi possível iniciar o chat.')
+          return
+        }
+        setConversaAberta(json.conversa)
+        setConversaVisualId(json.conversa.id)
+      } catch {
+        setErro('Falha de conexão.')
+      } finally {
+        setIniciando(false)
       }
-      setConversaAberta(json.conversa)
-      setConversaVisualId(json.conversa.id)
-    } catch {
-      setErro('Falha de conexão.')
-    } finally {
-      setIniciando(false)
-    }
-  }, [])
+    },
+    [motivoEmergencia],
+  )
 
   const carregarMensagens = useCallback(
     async (conversaId: string, opts?: { silencioso?: boolean; marcarLida?: boolean }) => {
@@ -177,9 +191,38 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
   useEffect(() => {
     if (!urgenteInicial || socorroInicialAplicadoRef.current || loading) return
     socorroInicialAplicadoRef.current = true
-    socorroPendenteRef.current = true
-    if (!conversaAberta) void abrirChat({ socorro: true })
-  }, [urgenteInicial, loading, conversaAberta, abrirChat])
+    const motivo = motivoEmergencia ?? 'socorro'
+    emergenciaPendenteRef.current = motivo
+    if (!conversaAberta) void abrirChat({ motivo })
+  }, [urgenteInicial, motivoEmergencia, loading, conversaAberta, abrirChat])
+
+  useEffect(() => {
+    if (motivoEmergencia !== 'perdido' || !conversaAberta?.id) return
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return
+
+    const conversaId = conversaAberta.id
+    const enviarLoc = (lat: number, lng: number) => {
+      locRef.current = { lat, lng }
+      void fetch(`/api/ecossistema-conversas/${conversaId}/localizacao`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat, lng }),
+      })
+    }
+
+    watchLocIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => enviarLoc(pos.coords.latitude, pos.coords.longitude),
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
+    )
+
+    return () => {
+      if (watchLocIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchLocIdRef.current)
+        watchLocIdRef.current = null
+      }
+    }
+  }, [motivoEmergencia, conversaAberta?.id])
 
   useEffect(() => {
     if (!conversaVisualId) {
@@ -263,15 +306,17 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
   const enviarMensagem = async () => {
     const msg = texto.trim()
     if (!msg || !conversaAberta || enviando) return
-    const enviarSocorro = socorroPendenteRef.current
+    const motivoEnvio = emergenciaPendenteRef.current
     setEnviando(true)
     try {
+      const loc = locRef.current
       const res = await fetch(`/api/ecossistema-conversas/${conversaAberta.id}/mensagens`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           texto: msg,
-          ...(enviarSocorro ? { socorro: true } : {}),
+          ...(motivoEnvio ? { motivo_emergencia: motivoEnvio } : {}),
+          ...(motivoEnvio === 'perdido' && loc ? { loc_lat: loc.lat, loc_lng: loc.lng } : {}),
         }),
       })
       const json = (await res.json()) as { ok?: boolean; mensagem?: EcossistemaMensagemRow; error?: string }
@@ -279,9 +324,15 @@ export default function ChatAdmEcossistema({ usuarioId, urgenteInicial = false }
         setErro(json.error ?? 'Falha ao enviar.')
         return
       }
-      if (enviarSocorro) {
-        socorroPendenteRef.current = false
-        setConversaAberta((prev) => (prev ? { ...prev, urgente: true } : prev))
+      if (motivoEnvio) {
+        emergenciaPendenteRef.current = null
+        if (motivoEnvio === 'socorro' || motivoEnvio === 'perdido') {
+          setConversaAberta((prev) => (prev ? { ...prev, urgente: true, motivo_emergencia: motivoEnvio } : prev))
+        } else {
+          setConversaAberta((prev) =>
+            prev ? { ...prev, motivo_emergencia: motivoEnvio } : prev,
+          )
+        }
       }
       appendMensagem(json.mensagem, conversaAberta.id)
       setTexto('')

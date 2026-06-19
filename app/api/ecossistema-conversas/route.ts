@@ -42,11 +42,15 @@ export async function POST(req: Request) {
 
   const body = (await req.json()) as Record<string, unknown>
   const assunto = body.assunto != null ? String(body.assunto) : null
+  const motivoRaw = String(body.motivo_emergencia ?? body.motivo ?? '').trim()
+  const motivoEmergencia =
+    motivoRaw === 'socorro' || motivoRaw === 'perdido' || motivoRaw === 'item_esquecido' ? motivoRaw : null
 
   const res = await abrirConversaEcossistemaMembro(auth.supabase, {
     membroUsuarioId: auth.userId,
     membroTipo,
     assunto,
+    motivoEmergencia,
   })
 
   if (!res.ok || !res.conversa) {

@@ -6,12 +6,21 @@ import { ChevronLeft } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import ChatAdmEcossistema from '@/components/chat-adm/ChatAdmEcossistema'
-import { roleParaMembroTipo } from '@/lib/ecossistemaConversas'
+import { roleParaMembroTipo, type MotivoEmergenciaEcossistema } from '@/lib/ecossistemaConversas'
+
+function parseMotivoEmergencia(raw: string | null): MotivoEmergenciaEcossistema | null {
+  const v = String(raw ?? '').trim().toLowerCase()
+  if (v === 'socorro') return 'socorro'
+  if (v === 'perdido') return 'perdido'
+  if (v === 'item-esquecido' || v === 'item_esquecido') return 'item_esquecido'
+  return null
+}
 
 function ChatAdmConteudo() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const urgente = searchParams.get('urgente') === '1'
+  const motivoEmergencia = parseMotivoEmergencia(searchParams.get('motivo'))
+  const urgente = searchParams.get('urgente') === '1' || motivoEmergencia != null
   const [gate, setGate] = useState<'loading' | 'forbidden' | 'ok'>('loading')
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
 
@@ -72,7 +81,11 @@ function ChatAdmConteudo() {
           <p className="truncate text-xs text-white/80">Mensageiro ECOSSISTEMA</p>
         </div>
       </header>
-      <ChatAdmEcossistema usuarioId={usuarioId} urgenteInicial={urgente} />
+      <ChatAdmEcossistema
+        usuarioId={usuarioId}
+        urgenteInicial={urgente}
+        motivoEmergencia={motivoEmergencia}
+      />
     </>
   )
 }

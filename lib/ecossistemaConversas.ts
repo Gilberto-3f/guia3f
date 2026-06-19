@@ -6,6 +6,8 @@ import { vistoEmParaMs } from '@/lib/chatVisto'
 export type MembroTipoEcossistema = 'turista' | 'profissional' | 'empresa'
 export type StatusConversaEcossistema = 'aberta' | 'encerrada'
 
+export type MotivoEmergenciaEcossistema = 'socorro' | 'perdido' | 'item_esquecido'
+
 export type EcossistemaConversaRow = {
   id: string
   membro_usuario_id: string
@@ -15,6 +17,10 @@ export type EcossistemaConversaRow = {
   urgente: boolean
   alerta_urgente_visto: boolean
   assunto: string | null
+  motivo_emergencia: MotivoEmergenciaEcossistema | null
+  loc_lat: number | null
+  loc_lng: number | null
+  loc_atualizada_em: string | null
   created_at: string
   updated_at: string
   encerrada_em: string | null
@@ -80,10 +86,24 @@ export async function abrirConversaEcossistemaMembro(
     membroTipo: MembroTipoEcossistema
     urgente?: boolean
     assunto?: string | null
+    motivoEmergencia?: MotivoEmergenciaEcossistema | null
   },
 ): Promise<{ ok: boolean; conversa?: EcossistemaConversaRow; criada?: boolean; error?: string }> {
   const aberta = await buscarConversaAbertaMembro(supabase, params.membroUsuarioId)
   if (aberta) {
+    if (params.motivoEmergencia && aberta.motivo_emergencia !== params.motivoEmergencia) {
+      const { data: upd } = await supabase
+        .from('ecossistema_conversas')
+        .update({
+          motivo_emergencia: params.motivoEmergencia,
+          assunto: params.assunto?.trim() ? params.assunto.trim() : aberta.assunto,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', aberta.id)
+        .select('*')
+        .maybeSingle()
+      if (upd) return { ok: true, conversa: mapConversa(upd), criada: false }
+    }
     return { ok: true, conversa: aberta, criada: false }
   }
 
@@ -97,6 +117,7 @@ export async function abrirConversaEcossistemaMembro(
       urgente: false,
       alerta_urgente_visto: false,
       assunto,
+      motivo_emergencia: params.motivoEmergencia ?? null,
     })
     .select('*')
     .maybeSingle()
@@ -143,15 +164,24 @@ export async function listarHistoricoConversasAdmEcossistema(
 
 export async function listarAlertasUrgentesAdm(
   supabase: SupabaseClient,
+  opts?: { motivo?: MotivoEmergenciaEcossistema | 'socorro_legacy' },
 ): Promise<Array<EcossistemaConversaRow & { membro: PerfilMembroEcossistema }>> {
-  const { data } = await supabase
+  let q = supabase
     .from('ecossistema_conversas')
     .select('*')
     .eq('status', 'aberta')
     .eq('urgente', true)
     .eq('alerta_urgente_visto', false)
     .eq('membro_tipo', 'turista')
-    .order('created_at', { ascending: false })
+
+  const motivo = opts?.motivo
+  if (motivo === 'perdido') {
+    q = q.eq('motivo_emergencia', 'perdido')
+  } else if (motivo === 'socorro_legacy') {
+    q = q.or('motivo_emergencia.is.null,motivo_emergencia.eq.socorro')
+  }
+
+  const { data } = await q.order('created_at', { ascending: false })
 
   const conversas = (data ?? []).map(mapConversa)
   if (conversas.length === 0) return []
@@ -179,15 +209,16 @@ export async function listarAlertasUrgentesAdm(
   }))
 }
 
-/** Dispara popup de socorro no ADM — somente após o turista enviar mensagem. */
-export async function ativarSocorroUrgenteConversa(
+/** Dispara popup de emergência no ADM — somente após o turista enviar mensagem. */
+export async function ativarEmergenciaConversa(
   supabase: SupabaseClient,
   conversaId: string,
   membroUsuarioId: string,
+  motivo: MotivoEmergenciaEcossistema = 'socorro',
 ): Promise<{ ok: boolean; error?: string }> {
   const { data: conv } = await supabase
     .from('ecossistema_conversas')
-    .select('id, membro_usuario_id, membro_tipo, status, assunto')
+    .select('id, membro_usuario_id, membro_tipo, status, assunto, motivo_emergencia')
     .eq('id', conversaId)
     .maybeSingle()
 
@@ -195,18 +226,60 @@ export async function ativarSocorroUrgenteConversa(
     return { ok: false, error: 'Conversa encerrada ou inexistente.' }
   }
   if (String(conv.membro_tipo) !== 'turista' || String(conv.membro_usuario_id) !== membroUsuarioId) {
-    return { ok: false, error: 'Socorro urgente só para turista.' }
+    return { ok: false, error: 'Emergência só para turista.' }
+  }
+
+  const assuntos: Record<MotivoEmergenciaEcossistema, string> = {
+    socorro: 'Solicitação emergencial — SOCORRO',
+    perdido: 'Turista perdido(a) — apoio de localização',
+    item_esquecido: 'Item esquecido — contato com profissional',
   }
 
   const { error } = await supabase
     .from('ecossistema_conversas')
     .update({
-      urgente: true,
+      urgente: motivo !== 'item_esquecido',
       alerta_urgente_visto: false,
-      assunto: conv.assunto != null && String(conv.assunto).trim() ? String(conv.assunto) : 'Solicitação emergencial',
+      motivo_emergencia: motivo,
+      assunto:
+        conv.assunto != null && String(conv.assunto).trim()
+          ? String(conv.assunto)
+          : assuntos[motivo],
       updated_at: new Date().toISOString(),
     })
     .eq('id', conversaId)
+
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
+/** @deprecated Use {@link ativarEmergenciaConversa} */
+export async function ativarSocorroUrgenteConversa(
+  supabase: SupabaseClient,
+  conversaId: string,
+  membroUsuarioId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  return ativarEmergenciaConversa(supabase, conversaId, membroUsuarioId, 'socorro')
+}
+
+export async function atualizarLocalizacaoConversaEmergencia(
+  supabase: SupabaseClient,
+  conversaId: string,
+  membroUsuarioId: string,
+  lat: number,
+  lng: number,
+): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('ecossistema_conversas')
+    .update({
+      loc_lat: lat,
+      loc_lng: lng,
+      loc_atualizada_em: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', conversaId)
+    .eq('membro_usuario_id', membroUsuarioId)
+    .eq('motivo_emergencia', 'perdido')
 
   if (error) return { ok: false, error: error.message }
   return { ok: true }
@@ -703,6 +776,15 @@ function mapConversa(row: Record<string, unknown>): EcossistemaConversaRow {
     urgente: Boolean(row.urgente),
     alerta_urgente_visto: Boolean(row.alerta_urgente_visto),
     assunto: row.assunto != null ? String(row.assunto) : null,
+    motivo_emergencia:
+      row.motivo_emergencia === 'socorro' ||
+      row.motivo_emergencia === 'perdido' ||
+      row.motivo_emergencia === 'item_esquecido'
+        ? row.motivo_emergencia
+        : null,
+    loc_lat: row.loc_lat != null ? Number(row.loc_lat) : null,
+    loc_lng: row.loc_lng != null ? Number(row.loc_lng) : null,
+    loc_atualizada_em: row.loc_atualizada_em != null ? String(row.loc_atualizada_em) : null,
     created_at: String(row.created_at ?? ''),
     updated_at: String(row.updated_at ?? ''),
     encerrada_em: row.encerrada_em != null ? String(row.encerrada_em) : null,

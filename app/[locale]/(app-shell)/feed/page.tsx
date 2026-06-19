@@ -321,15 +321,6 @@ function FeedPageInner() {
     void recarregarFeedRede()
   }, [authReady, meuId, recarregarFeedRede])
 
-  useEffect(() => {
-    const onReload = () => {
-      void recarregarFeedRede()
-      void refetchPostsFeed()
-    }
-    window.addEventListener('guia-feed-rede-reload', onReload)
-    return () => window.removeEventListener('guia-feed-rede-reload', onReload)
-  }, [recarregarFeedRede, refetchPostsFeed])
-
   const mapRow = useCallback((post: unknown) => {
     const p = post as Record<string, unknown>
     const rawU = p.usuarios
@@ -415,6 +406,15 @@ function FeedPageInner() {
       console.error(e)
     }
   }, [rebuildMergedPosts, bloqueioEmpresaFeed])
+
+  useEffect(() => {
+    const onReload = () => {
+      void recarregarFeedRede()
+      void refetchPostsFeed()
+    }
+    window.addEventListener('guia-feed-rede-reload', onReload)
+    return () => window.removeEventListener('guia-feed-rede-reload', onReload)
+  }, [recarregarFeedRede, refetchPostsFeed])
 
   useEffect(() => {
     const onPostsReload = () => {

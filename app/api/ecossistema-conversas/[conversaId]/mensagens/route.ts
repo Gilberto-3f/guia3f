@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import {
-  ativarSocorroUrgenteConversa,
+  ativarEmergenciaConversa,
   enviarMensagemEcossistema,
   listarMensagensEcossistema,
+  type MotivoEmergenciaEcossistema,
+  atualizarLocalizacaoConversaEmergencia,
 } from '@/lib/ecossistemaConversas'
 
 type RouteCtx = { params: Promise<{ conversaId: string }> }
@@ -64,8 +66,22 @@ export async function POST(req: Request, ctx: RouteCtx) {
   }
 
   const socorro = body.socorro === true || body.urgente === true
-  if (socorro && String(conversa.membro_tipo) === 'turista') {
-    await ativarSocorroUrgenteConversa(auth.supabase, conversaId, auth.userId)
+  const motivoRaw = String(body.motivo_emergencia ?? body.motivo ?? '').trim()
+  const motivo: MotivoEmergenciaEcossistema | null =
+    motivoRaw === 'perdido' || motivoRaw === 'item_esquecido' || motivoRaw === 'socorro'
+      ? motivoRaw
+      : socorro
+        ? 'socorro'
+        : null
+
+  if (motivo && String(conversa.membro_tipo) === 'turista') {
+    await ativarEmergenciaConversa(auth.supabase, conversaId, auth.userId, motivo)
+  }
+
+  const lat = body.loc_lat != null ? Number(body.loc_lat) : NaN
+  const lng = body.loc_lng != null ? Number(body.loc_lng) : NaN
+  if (motivo === 'perdido' && Number.isFinite(lat) && Number.isFinite(lng)) {
+    await atualizarLocalizacaoConversaEmergencia(auth.supabase, conversaId, auth.userId, lat, lng)
   }
 
   return NextResponse.json({ ok: true, mensagem: res.mensagem })
