@@ -55,7 +55,10 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
   const degustacaoId = degustacaoIdResolvido || degustacaoIdMeta
   const planoTitulo = degustacao?.plano_titulo || planoTituloMeta || null
   const estadoUi = resolverEstadoDegustacaoUi(degustacao)
-  const estaLida = userTipo === 'empresa' ? marcadaLida || item.lida_por_empresa : false
+  const estaLida =
+    userTipo === 'empresa'
+      ? marcadaLida || item.lida_por_empresa || estadoUi !== 'aguardando_aceite'
+      : false
 
   useEffect(() => {
     const inicial = mapDegustacaoUiDeDetalhesCanal(detalhes)
@@ -102,7 +105,8 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
   }, [degustacaoIdMeta, item.id, planoTituloMeta])
 
   const registrarLeitura = useCallback(async () => {
-    if (userTipo !== 'empresa' || !usuarioId || marcadaLida || item.lida_por_empresa) return
+    if (userTipo !== 'empresa' || !usuarioId) return
+    if (marcadaLida || item.lida_por_empresa) return
     const ok = await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, item.id)
     if (!ok) return
     setMarcadaLida(true)
@@ -111,8 +115,31 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
   }, [item.id, item.lida_por_empresa, marcadaLida, onItemLido, userTipo, usuarioId])
 
   useEffect(() => {
-    void registrarLeitura()
-  }, [registrarLeitura])
+    if (userTipo !== 'empresa' || !usuarioId || carregando) return
+    if (estadoUi === 'aguardando_aceite') {
+      void registrarLeitura()
+      return
+    }
+    if (!marcadaLida && !item.lida_por_empresa) {
+      void marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, item.id).then((ok) => {
+        if (ok) {
+          setMarcadaLida(true)
+          onItemLido?.(item.id)
+          notificarBadgeCanaisAposLeitura()
+        }
+      })
+    }
+  }, [
+    carregando,
+    estadoUi,
+    item.id,
+    item.lida_por_empresa,
+    marcadaLida,
+    onItemLido,
+    registrarLeitura,
+    userTipo,
+    usuarioId,
+  ])
 
   const aceitar = async () => {
     if (userTipo !== 'empresa' || !degustacaoId || aceitando || estadoUi !== 'aguardando_aceite') return

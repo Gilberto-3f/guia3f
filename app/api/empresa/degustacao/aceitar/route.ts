@@ -1,7 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { persistirLeituraCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresaLeitura.server'
 import { aceitarDegustacaoEmpresa } from '@/lib/degustacaoEmpresa'
+import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 
 /** Empresa aceita convite de degustação no canal financeiro. */
 export async function POST(req: Request) {
@@ -47,6 +49,17 @@ export async function POST(req: Request) {
 
     if (!res.ok) {
       return NextResponse.json({ error: res.error ?? 'Não foi possível aceitar.' }, { status: 400 })
+    }
+
+    const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', user.id).maybeSingle()
+    const empresaId = emp?.id != null ? String(emp.id) : ''
+    if (empresaId) {
+      try {
+        const admin = createSupabaseAdmin()
+        await persistirLeituraCanalFinanceiroEmpresa(admin, empresaId)
+      } catch (syncErr) {
+        console.error('aceitar degustacao sync leitura:', syncErr)
+      }
     }
 
     return NextResponse.json({ ok: true })

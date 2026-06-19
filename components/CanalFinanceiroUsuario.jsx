@@ -8,6 +8,7 @@ import CanalFinanceiroItemPreLiberacao from '@/components/CanalFinanceiroItemPre
 import CanalFinanceiroMensageiro from '@/components/CanalFinanceiroMensageiro'
 import CanalFinanceiroAbaPlanos from '@/components/CanalFinanceiroAbaPlanos'
 import {
+  buscarMapaStatusDegustacaoCanalEmpresa,
   itemCanalFinanceiroContaComoNaoLidoEmpresa,
   marcarFinanceiroItemLidoEmpresa,
   marcarFinanceiroLidoEmpresa,
@@ -26,15 +27,19 @@ const abaCls = (ativo) =>
     ativo ? 'bg-[#00D443] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
   }`
 
-function itemRelatorioContaComoNaoLido(item, tipo) {
+function itemRelatorioContaComoNaoLido(item, tipo, statusDegustacaoPorCanal) {
   if (item.tipo === 'pre_liberacao_turista' && !item.metadata?.respondido) return true
   if (tipo === 'empresa') {
-    return itemCanalFinanceiroContaComoNaoLidoEmpresa({
-      lida_por_empresa: item.lida_por_empresa,
-      tipo: item.tipo,
-      metadata: item.metadata,
-      comprovante_detalhes: item.comprovante_detalhes,
-    })
+    return itemCanalFinanceiroContaComoNaoLidoEmpresa(
+      {
+        id: item.id,
+        lida_por_empresa: item.lida_por_empresa,
+        tipo: item.tipo,
+        metadata: item.metadata,
+        comprovante_detalhes: item.comprovante_detalhes,
+      },
+      statusDegustacaoPorCanal,
+    )
   }
   return !item.lida_por_profissional
 }
@@ -49,6 +54,9 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
   const [loading, setLoading] = useState(true)
   const [naoLidas, setNaoLidas] = useState(0)
   const [naoLidasMensageiro, setNaoLidasMensageiro] = useState(0)
+  const [statusDegustacaoPorCanal, setStatusDegustacaoPorCanal] = useState(
+    /** @type {Map<string, string>} */ (() => new Map()),
+  )
 
   const marcarItemRelatorioLido = useCallback(
     async (itemId) => {
@@ -79,21 +87,30 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
       if (!persistiu) return
 
       setItens((prev) => {
+        const visualizadoEm = new Date().toISOString()
         const next = prev.map((item) =>
           item.id === itemId
             ? {
                 ...item,
                 lida_por_profissional: tipo === 'profissional' ? true : item.lida_por_profissional,
                 lida_por_empresa: tipo === 'empresa' ? true : item.lida_por_empresa,
+                metadata:
+                  tipo === 'empresa' && item.tipo === 'degustacao_plano'
+                    ? { ...(item.metadata ?? {}), visualizado_em: visualizadoEm }
+                    : item.metadata,
+                comprovante_detalhes:
+                  tipo === 'empresa' && item.tipo === 'degustacao_plano'
+                    ? { ...(item.comprovante_detalhes ?? item.metadata ?? {}), visualizado_em: visualizadoEm }
+                    : item.comprovante_detalhes,
               }
             : item,
         )
-        setNaoLidas(next.filter((item) => itemRelatorioContaComoNaoLido(item, tipo)).length)
+        setNaoLidas(next.filter((row) => itemRelatorioContaComoNaoLido(row, tipo, statusDegustacaoPorCanal)).length)
         return next
       })
       notificarBadgeCanaisAposLeitura()
     },
-    [tipo, usuarioId],
+    [tipo, usuarioId, statusDegustacaoPorCanal],
   )
 
   const marcarRelatoriosComoLidos = useCallback(async () => {
@@ -262,8 +279,14 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       )
 
+      let statusDegMap = /** @type {Map<string, string>} */ (new Map())
+      if (tipo === 'empresa' && empresaId) {
+        statusDegMap = await buscarMapaStatusDegustacaoCanalEmpresa(supabase, empresaId)
+        setStatusDegustacaoPorCanal(statusDegMap)
+      }
+
       setItens(formatados)
-      setNaoLidas(formatados.filter((item) => itemRelatorioContaComoNaoLido(item, tipo)).length)
+      setNaoLidas(formatados.filter((item) => itemRelatorioContaComoNaoLido(item, tipo, statusDegMap)).length)
       const msgNaoLidas = await contarMensageiroFinanceiroNaoLidas(supabase, usuarioId)
       setNaoLidasMensageiro(msgNaoLidas)
     } catch (e) {
@@ -276,6 +299,13 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  useEffect(() => {
+    if (tipo !== 'empresa' || !usuarioId) return
+    void fetch('/api/empresa/canal-financeiro/reparar-degustacao', { method: 'POST' })
+      .then(() => notificarBadgeCanais())
+      .catch(() => {})
+  }, [tipo, usuarioId])
 
   useEffect(() => {
     if (!usuarioId) return
