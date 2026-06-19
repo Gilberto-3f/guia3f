@@ -562,6 +562,7 @@ export default function MenuLateral({
   const { servicos: empresaServicos, loading: empresaServicosLoading } = useEmpresaServicosPlano(
     menuVariantEfetivo === 'empresa' ? empresaPlano : null,
     menuVariantEfetivo === 'empresa' ? empresaIdCtx : null,
+    { aguardarEmpresa: menuVariantEfetivo === 'empresa' && !empresaIdCtx },
   )
 
   const atualizarIndicadoresMenu = useCallback(async () => {

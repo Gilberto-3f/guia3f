@@ -142,7 +142,9 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
   const [meuUsername, setMeuUsername] = useState(/** @type {string | null} */ (null))
   const [financeiroCanalIdGlobal, setFinanceiroCanalIdGlobal] = useState(/** @type {string | null} */ (null))
-  const { featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(empresaPlano, empresaId)
+  const { featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(empresaPlano, empresaId, {
+    aguardarEmpresa: !empresaId,
+  })
   const temCanaisComunidade = featureLiberada('canais')
 
   /**

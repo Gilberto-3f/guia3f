@@ -22,8 +22,10 @@ export default function EmpresaPaginaServicoGate({
   requerPlanoAtivo?: boolean
 }) {
   const gate = useEmpresaMenuGate()
-  const { dados } = useDashboardEmpresa()
-  const { servicos, loading: loadingPlano } = useEmpresaServicosPlano(dados?.plano, dados?.id)
+  const { dados, loading: empresaLoading } = useDashboardEmpresa()
+  const { servicos, loading: loadingPlano } = useEmpresaServicosPlano(dados?.plano, dados?.id, {
+    aguardarEmpresa: empresaLoading,
+  })
 
   const loading = gate === 'loading' || loadingPlano
   const liberado = requerPlanoAtivo

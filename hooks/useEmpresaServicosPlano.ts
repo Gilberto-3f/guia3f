@@ -15,10 +15,17 @@ import {
 } from '@/lib/planosEmpresaServicosGate'
 import { buscarServicosPlanoDegustacao } from '@/lib/degustacaoEmpresa'
 
+export type UseEmpresaServicosPlanoOpts = {
+  /** Mantém loading=true enquanto a empresa ainda não foi carregada (evita flash de bloqueio). */
+  aguardarEmpresa?: boolean
+}
+
 export function useEmpresaServicosPlano(
   planoEmpresa: string | null | undefined,
   empresaId?: string | null,
+  opts?: UseEmpresaServicosPlanoOpts,
 ) {
+  const aguardarEmpresa = opts?.aguardarEmpresa ?? false
   const [planos, setPlanos] = useState<PlanoResumoServicos[]>([])
   const [degustacaoAtiva, setDegustacaoAtiva] = useState(false)
   const [degustacaoPlanoId, setDegustacaoPlanoId] = useState<string | null>(null)
@@ -97,6 +104,10 @@ export function useEmpresaServicosPlano(
   }, [empresaId])
 
   useEffect(() => {
+    setLoading(true)
+  }, [empresaId, planoEmpresa])
+
+  useEffect(() => {
     void carregar()
   }, [carregar])
 
@@ -139,10 +150,13 @@ export function useEmpresaServicosPlano(
     [servicos],
   )
 
+  const contextoEmpresaPendente = aguardarEmpresa && empresaId == null
+  const loadingEfetivo = loading || contextoEmpresaPendente
+
   return useMemo(
     () => ({
       servicos,
-      loading,
+      loading: loadingEfetivo,
       degustacaoAtiva,
       degustacaoPlanoId,
       degustacaoPlanoTitulo,
@@ -159,7 +173,7 @@ export function useEmpresaServicosPlano(
       degustacaoPlanoId,
       degustacaoPlanoTitulo,
       featureLiberada,
-      loading,
+      loadingEfetivo,
       menuLiberado,
       servicos,
       temServico,

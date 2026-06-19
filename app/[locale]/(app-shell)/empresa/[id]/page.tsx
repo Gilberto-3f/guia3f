@@ -78,10 +78,13 @@ export default function EmpresaPage() {
   const { modoAtivo } = useModoApresentacao()
   const planoEmpresa =
     empresa && empresa.plano != null ? String(empresa.plano) : null
-  const { featureLiberada } = useEmpresaServicosPlano(planoEmpresa, empresaId || null)
-  const mostrarBotaoDinamico = featureLiberada('botao_dinamico')
-  const mostrarChamarCorrida = featureLiberada('botao_chamar_corrida')
-  const mostrarConteudoRede = featureLiberada('pagina_rede_social')
+  const { featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
+    aguardarEmpresa: loading,
+  })
+  const aguardandoPlanoRede = loading || planoLoading
+  const mostrarBotaoDinamico = !aguardandoPlanoRede && featureLiberada('botao_dinamico')
+  const mostrarChamarCorrida = !aguardandoPlanoRede && featureLiberada('botao_chamar_corrida')
+  const mostrarConteudoRede = !aguardandoPlanoRede && featureLiberada('pagina_rede_social')
 
   useEffect(() => {
     if (!mostrarBotaoDinamico && abaExpandida === 'dinamico') {
@@ -392,7 +395,11 @@ export default function EmpresaPage() {
       ) : null}
 
       {abaExpandida == null ? (
-        mostrarConteudoRede ? (
+        aguardandoPlanoRede && donoEmpresa ? (
+          <div className="border-b border-gray-100 bg-white px-4 py-8">
+            <div className="h-24 animate-pulse rounded-lg bg-gray-100" aria-busy="true" aria-label="A carregar conteúdo" />
+          </div>
+        ) : mostrarConteudoRede ? (
         <div className="border-b border-gray-100 bg-white pt-4 px-4 pb-0">
           <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
             <button

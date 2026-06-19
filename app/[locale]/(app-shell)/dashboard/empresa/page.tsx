@@ -168,8 +168,11 @@ function DashboardEmpresaConteudo({
   periodo: Periodo
   setPeriodo: (p: Periodo) => void
 }) {
-  const { dados: empresa } = useDashboardEmpresa()
-  const { abaLiberada } = useEmpresaServicosPlano(empresa?.plano, empresa?.id)
+  const { dados: empresa, loading: empresaLoading } = useDashboardEmpresa()
+  const { abaLiberada, loading: planoLoading } = useEmpresaServicosPlano(empresa?.plano, empresa?.id, {
+    aguardarEmpresa: empresaLoading,
+  })
+  const aguardandoPlano = empresaLoading || planoLoading
 
   const mostrarDrenaStok = useMemo(
     () => empresaEhSegmentoLojasParaguai(empresa?.categoria, empresa?.cidade) && abaLiberada('drena'),
@@ -180,18 +183,20 @@ function DashboardEmpresaConteudo({
   const mostrarMercado = abaLiberada('mercado')
 
   useEffect(() => {
+    if (aguardandoPlano) return
     if (!mostrarDrenaStok && abaAtiva === 'drena') {
       setAbaAtiva('funil')
     }
-  }, [mostrarDrenaStok, abaAtiva, setAbaAtiva])
+  }, [aguardandoPlano, mostrarDrenaStok, abaAtiva, setAbaAtiva])
 
   useEffect(() => {
+    if (aguardandoPlano) return
     if (!mostrarFunil && abaAtiva === 'funil') {
       setAbaAtiva(mostrarMercado ? 'mercado' : mostrarDrenaStok ? 'drena' : 'funil')
     } else if (!mostrarMercado && abaAtiva === 'mercado') {
       setAbaAtiva(mostrarFunil ? 'funil' : mostrarDrenaStok ? 'drena' : 'mercado')
     }
-  }, [abaAtiva, mostrarDrenaStok, mostrarFunil, mostrarMercado, setAbaAtiva])
+  }, [aguardandoPlano, abaAtiva, mostrarDrenaStok, mostrarFunil, mostrarMercado, setAbaAtiva])
 
   return (
     <div className="bg-gray-50">
@@ -205,6 +210,12 @@ function DashboardEmpresaConteudo({
         </div>
 
         <div className="border-b border-gray-200 bg-white">
+          {aguardandoPlano ? (
+            <div className="mx-auto flex w-full max-w-7xl gap-2 px-4 py-3">
+              <div className="h-14 flex-1 animate-pulse rounded-lg bg-gray-100" />
+              <div className="h-14 flex-1 animate-pulse rounded-lg bg-gray-100" />
+            </div>
+          ) : (
           <div className="mx-auto flex w-full max-w-7xl">
             {mostrarFunil ? (
               <button type="button" onClick={() => setAbaAtiva('funil')} className={abaCls(abaAtiva === 'funil')}>
@@ -230,11 +241,17 @@ function DashboardEmpresaConteudo({
               </button>
             ) : null}
           </div>
+          )}
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 py-4 pb-0">
-        {!mostrarFunil && !mostrarMercado && !mostrarDrenaStok ? (
+        {aguardandoPlano ? (
+          <div className="space-y-4 py-2" aria-busy="true" aria-label="A carregar painel">
+            <div className="h-10 animate-pulse rounded-lg bg-gray-200" />
+            <div className="h-52 animate-pulse rounded-lg bg-gray-200 sm:h-64" />
+          </div>
+        ) : !mostrarFunil && !mostrarMercado && !mostrarDrenaStok ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center">
             <p className="text-amber-900">{AVISO_PLANO_EMPRESA_PADRAO}</p>
           </div>

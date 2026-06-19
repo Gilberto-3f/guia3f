@@ -9,8 +9,10 @@ import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBl
 /** Redireciona para o Chat ADM unificado quando o plano libera o recurso. */
 export default function ChatAdmEmpresaRedirectPage() {
   const router = useRouter()
-  const { dados } = useDashboardEmpresa()
-  const { featureLiberada, loading } = useEmpresaServicosPlano(dados?.plano, dados?.id)
+  const { dados, loading: empresaLoading } = useDashboardEmpresa()
+  const { featureLiberada, loading } = useEmpresaServicosPlano(dados?.plano, dados?.id, {
+    aguardarEmpresa: empresaLoading,
+  })
 
   useEffect(() => {
     if (loading) return
