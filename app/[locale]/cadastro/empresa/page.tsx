@@ -226,6 +226,7 @@ export default function CadastroEmpresaPage() {
         endereco: montarEndereco(),
         bairro: enderecoBairro.trim(),
         whatsapp: whatsApp.trim(),
+        descricao_curta: '',
         status: 'aguardando_aprovacao',
       }
 
@@ -243,6 +244,7 @@ export default function CadastroEmpresaPage() {
           categoria,
           cidade,
           endereco: montarEndereco(),
+          descricao_curta: '',
           status: 'aguardando_aprovacao',
         }
         insertEmpresa = await supabase.from('empresas').insert(payloadMinimo)

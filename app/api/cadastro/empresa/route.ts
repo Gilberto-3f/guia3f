@@ -126,6 +126,7 @@ export async function POST(req: NextRequest) {
       endereco,
       bairro: enderecoBairro,
       whatsapp: whatsApp,
+      descricao_curta: '',
       latitude: null,
       longitude: null,
       status: 'aguardando_aprovacao',
@@ -150,6 +151,7 @@ export async function POST(req: NextRequest) {
           endereco,
           bairro: enderecoBairro,
           whatsapp: whatsApp,
+          descricao_curta: '',
           status: 'aguardando_aprovacao',
         }
       } else {
