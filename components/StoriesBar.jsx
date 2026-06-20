@@ -431,7 +431,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
   if (hidden) return null
 
   if (!barMounted) {
-    return <div aria-hidden className="h-[100px] shrink-0 border-b border-gray-200 bg-transparent" />
+    return <div aria-hidden className="h-[100px] shrink-0 border-b border-gray-200 bg-gray-100 pt-safe" />
   }
 
   const meuVisto = foiVisualizado(meuSlot.visualizado_por, userEmail)
@@ -444,7 +444,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
   }
 
   return (
-    <div className="border-b border-gray-200 bg-transparent py-1.5">
+    <div className="border-b border-gray-200 bg-gray-100 pt-safe py-1.5">
       <div className="flex items-start gap-3 overflow-x-auto px-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Slot fixo estilo Instagram: foto do utilizador + criar story */}
         <div className="flex w-[76px] shrink-0 flex-col items-center gap-1">
