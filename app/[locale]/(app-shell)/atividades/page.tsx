@@ -1319,6 +1319,9 @@ export default function AtividadesPage() {
       if (a === 'amigos' && typeof window !== 'undefined') {
         window.localStorage.setItem(LS_AMIGOS_VISTO, new Date().toISOString())
       }
+      if (typeof window !== 'undefined') {
+        window.scrollTo(0, 0)
+      }
     },
     [marcarMinhaLidas]
   )
@@ -1444,7 +1447,8 @@ export default function AtividadesPage() {
       if (r.tipo === 'repostou_story') {
         if (!atividadeRepostStoryVisivel(r)) return false
         const storyId = storyIdDeAtividadeRepost(r)
-        if (storyId && storiesRepostAtivosPronto && !storiesRepostAtivos.has(storyId)) return false
+        if (!storyId) return false
+        if (storiesRepostAtivosPronto && !storiesRepostAtivos.has(storyId)) return false
       }
       if (r.tipo === 'curtiu_story') {
         if (
@@ -2162,7 +2166,7 @@ export default function AtividadesPage() {
           </p>
         ) : (
           <>
-            <div className="space-y-6">
+            <div className="flex flex-col gap-6">
               {itensAgrupados.map((it: (typeof itensAgrupados)[number], i: number) => {
                 const rowKey =
                   it.kind === 'curtiu_post_fotos'
@@ -2172,9 +2176,11 @@ export default function AtividadesPage() {
                     : it.kind === 'curtiu_post_solo'
                       ? it.row.id
                       : `row-${it.row.id}`
+                const conteudo = renderItem(it, i)
+                if (!conteudo) return null
                 return (
                   <div key={rowKey} className="min-w-0">
-                    {renderItem(it, i)}
+                    {conteudo}
                   </div>
                 )
               })}
