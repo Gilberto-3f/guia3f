@@ -31,6 +31,7 @@ import {
   filtrarAtividadesAposDescurtir,
   urlFotoPost,
   atividadeCurtiuStoryVisivel,
+  atividadeAgrupadaTemUi,
 } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
@@ -1087,7 +1088,7 @@ export default function AtividadesPage() {
             .in('autor_id', seguindo)
             /* Destinatário = eu → fica só na aba "Minha conta"; aqui só o que seguidos fazem no conteúdo de terceiros. */
             .neq('usuario_id', uid)
-            .not('tipo', 'in', '(avaliou,marcou_em_story)')
+            .not('tipo', 'in', '(avaliou,marcou_em_story,repostou_post)')
             .order('created_at', { ascending: false })
             .range(0, lim - 1)
         : Promise.resolve({ data: [] as AtividadeRow[], error: null }),
@@ -1166,7 +1167,7 @@ export default function AtividadesPage() {
         .select('*')
         .in('autor_id', seg)
         .neq('usuario_id', uid)
-        .not('tipo', 'in', '(avaliou,marcou_em_story)')
+        .not('tipo', 'in', '(avaliou,marcou_em_story,repostou_post)')
         .order('created_at', { ascending: false })
         .range(start, start + lim - 1)
       if (error) {
@@ -1432,6 +1433,7 @@ export default function AtividadesPage() {
     const seguidoresVistos = new Set<string>()
     return raw.filter((r) => {
       if (aba === 'amigos' && r.tipo === 'avaliou') return false
+      if (r.tipo === 'repostou_post') return false
       if (r.tipo === 'seguiu_empresa') return false
       if (r.tipo === 'seguiu') {
         const ex = r.dados_extras ?? {}
@@ -1482,7 +1484,7 @@ export default function AtividadesPage() {
 
   const itensAgrupados = useMemo((): ReturnType<typeof agruparAtividadesCurtidasPost> => {
     const ord = [...listaAtividadesFiltrada].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    const out = agruparAtividadesCurtidasPost(ord, postMetaMap)
+    const out = agruparAtividadesCurtidasPost(ord, postMetaMap).filter(atividadeAgrupadaTemUi)
     if (process.env.NODE_ENV === 'development' && aba === 'amigos') {
       // eslint-disable-next-line no-console
       console.log('[Atividades][Amigos][diag] itensAgrupados', {
@@ -2145,7 +2147,7 @@ export default function AtividadesPage() {
       <AbasAtividades aba={aba} onAba={onAba} somenteMinhaConta={meuRole === 'empresa'} />
 
       <div
-        className="px-4 pb-3 pt-3"
+        className={`px-4 pb-3 ${aba === 'amigos' && meuRole !== 'empresa' ? 'pt-0' : 'pt-3'}`}
         onTouchStart={onTouchStartAtividades}
         onTouchMove={onTouchMoveAtividades}
         onTouchEnd={onTouchEndAtividades}
@@ -2153,7 +2155,7 @@ export default function AtividadesPage() {
         onPointerMove={onPointerMoveAtividades}
         onPointerUp={onPointerUpAtividades}
       >
-        {erroAmigos ? (
+        {aba === 'amigos' && erroAmigos ? (
           <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
             Não foi possível carregar a aba Seguindo: {erroAmigos}
           </div>
