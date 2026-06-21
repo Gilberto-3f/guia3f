@@ -90,8 +90,6 @@ export default function BotaoDinamico({
   const [reservaHora, setReservaHora] = useState('')
   const [reservaPessoas, setReservaPessoas] = useState(2)
 
-  const ACOES_EXIGEM_LIBERACAO = ['reserva_mesa', 'ticket', 'hospedagem', 'produtos', 'corrida']
-
   // FIX: somente texto e ícone mudam por categoria/cidade
   const config = useMemo(() => {
     if (isGastronomia(categoria)) return { texto: 'RESERVAR MESA', icon: Utensils, acao: 'reserva_mesa' }
@@ -148,7 +146,7 @@ export default function BotaoDinamico({
       notificarSomenteLeitura()
       return
     }
-    if (ACOES_EXIGEM_LIBERACAO.includes(config.acao) && !podeComprarReservar) {
+    if (!podeComprarReservar) {
       avisarBloqueio()
       return
     }

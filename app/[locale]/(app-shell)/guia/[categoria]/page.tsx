@@ -70,6 +70,7 @@ type Empresa = {
   preco_diaria?: number | null
   plano?: string | null
   palavras_chave?: unknown
+  docs_verificado?: boolean | null
 }
 
 type OrdenacaoModo = 'avaliacao' | 'localizacao'
@@ -91,6 +92,7 @@ export default function ListagemCategoriaPage() {
 
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [planosResumo, setPlanosResumo] = useState<PlanoResumoServicos[]>([])
+  const [planosCarregando, setPlanosCarregando] = useState(true)
   const [loading, setLoading] = useState(true)
   const [erroLista, setErroLista] = useState('')
   const [pais, setPais] = useState<PaisFiltro>('br')
@@ -117,7 +119,7 @@ export default function ListagemCategoriaPage() {
         .from('empresas')
         // FIX: seleciona só o necessário (melhor para tsc/typing e rede)
         .select(
-          'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave, plano'
+          'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave, plano'
         )
         .eq('categoria', categoriaDb)
         .eq('cidade', cidadeDb)
@@ -135,7 +137,7 @@ export default function ListagemCategoriaPage() {
           const retry = await supabase
             .from('empresas')
             .select(
-              'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
+              'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
             )
             .eq('categoria', categoriaDb)
             .eq('cidade', cidadeDb)
@@ -167,21 +169,26 @@ export default function ListagemCategoriaPage() {
   useEffect(() => {
     let ativo = true
     const carregarPlanos = async () => {
-      const { data } = await supabase.from('planos').select('nome, titulo, servicos').eq('ativo', true)
-      if (!ativo) return
-      const mapped = (data ?? []).map((row) => {
-        const r = row as Record<string, unknown>
-        const servicosRaw = r.servicos
-        const servicos = Array.isArray(servicosRaw)
-          ? servicosRaw.filter((s): s is ServicoPlanoId => typeof s === 'string')
-          : []
-        return {
-          nome: String(r.nome ?? ''),
-          titulo: String(r.titulo ?? r.nome ?? ''),
-          servicos,
-        }
-      })
-      setPlanosResumo(mapped)
+      setPlanosCarregando(true)
+      try {
+        const { data } = await supabase.from('planos').select('nome, titulo, servicos').eq('ativo', true)
+        if (!ativo) return
+        const mapped = (data ?? []).map((row) => {
+          const r = row as Record<string, unknown>
+          const servicosRaw = r.servicos
+          const servicos = Array.isArray(servicosRaw)
+            ? servicosRaw.filter((s): s is ServicoPlanoId => typeof s === 'string')
+            : []
+          return {
+            nome: String(r.nome ?? ''),
+            titulo: String(r.titulo ?? r.nome ?? ''),
+            servicos,
+          }
+        })
+        setPlanosResumo(mapped)
+      } finally {
+        if (ativo) setPlanosCarregando(false)
+      }
     }
     void carregarPlanos()
     return () => {
@@ -398,6 +405,7 @@ export default function ListagemCategoriaPage() {
                 empresa={empresa}
                 segmentoGuiaSlug={slug}
                 temBotaoDinamico={empresaTemBotaoDinamico(empresa.plano)}
+                planosCarregando={planosCarregando}
               />
             ))}
           </div>

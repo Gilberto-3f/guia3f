@@ -26,6 +26,8 @@ import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibili
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
+import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
+import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 
 function debugEmpresa(...args: unknown[]) {
   if (process.env.NODE_ENV === 'development') {
@@ -81,8 +83,20 @@ export default function EmpresaPage() {
   const { featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
     aguardarEmpresa: loading,
   })
+  const { podeComprarReservar, loading: gateLoading } = useGateComprasReservas()
   const aguardandoPlanoRede = loading || planoLoading
-  const mostrarBotaoDinamico = !aguardandoPlanoRede && featureLiberada('botao_dinamico')
+  const empresaVerificada =
+    empresa != null && contaVerificadaDocumentacao('empresa', empresa as { docs_verificado?: boolean | null; status?: string | null })
+  const donoEmpresaPreview =
+    usuarioId != null &&
+    empresa != null &&
+    String(empresa.usuario_id ?? '') === usuarioId &&
+    meuRole === 'empresa'
+  const mostrarBotaoDinamico =
+    !aguardandoPlanoRede &&
+    !gateLoading &&
+    featureLiberada('botao_dinamico') &&
+    (donoEmpresaPreview || (empresaVerificada && podeComprarReservar))
   const mostrarChamarCorrida = !aguardandoPlanoRede && featureLiberada('botao_chamar_corrida')
   const mostrarConteudoRede = !aguardandoPlanoRede && featureLiberada('pagina_rede_social')
 

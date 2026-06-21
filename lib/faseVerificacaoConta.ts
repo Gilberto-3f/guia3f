@@ -1,4 +1,9 @@
-import { profissionalRecursosLiberados, type LinhaProfissionalGate } from '@/lib/verificacao-documentos'
+import {
+  empresaRecursosLiberados,
+  profissionalRecursosLiberados,
+  type LinhaEmpresaGate,
+  type LinhaProfissionalGate,
+} from '@/lib/verificacao-documentos'
 import {
   turistaCadastroVerificadoPeloAdm,
   turistaRecursosLiberados,
@@ -58,4 +63,16 @@ export function faseFeedSocialProfissional(
   prof: LinhaProfissionalGate | null | undefined,
 ): FaseVerificacaoConta {
   return faseVerificacaoProfissional(usuarioStatus, prof)
+}
+
+export function faseVerificacaoEmpresa(
+  usuarioStatus: string | null | undefined,
+  emp: LinhaEmpresaGate | null | undefined,
+): FaseVerificacaoConta {
+  if (!emp) return 'pendente_docs'
+  if (empresaRecursosLiberados(usuarioStatus, emp)) return 'liberado'
+  const st = String(emp.status ?? '').toLowerCase()
+  if (st === 'aguardando_aprovacao' || st === 'aguardando_analise') return 'aguardando_adm'
+  if (emp.aprovado_em || emp.verificado_em) return 'aguardando_adm'
+  return 'pendente_docs'
 }

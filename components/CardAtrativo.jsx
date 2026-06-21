@@ -8,6 +8,8 @@ import BotaoRecomendar from '@/components/BotaoRecomendar'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
+import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import { normalizarPlanoSlug } from '@/lib/planosEmpresaServicosGate'
 
 const BANDEIRA_POR_CIDADE = {
   'Foz do Iguaçu': '🇧🇷',
@@ -39,16 +41,33 @@ function bandeiraPorCidade(cidade) {
  *     bairro?: string | null
  *     total_avaliacoes?: number | null
  *     is_seguindo?: boolean
+ *     docs_verificado?: boolean | null
+ *     status?: string | null
+ *     plano?: string | null
  *   },
  *   segmentoGuiaSlug?: string | null
  *   onSeguirToggle?: () => void
  *   temBotaoDinamico?: boolean
+ *   planosCarregando?: boolean
  * }} props
  */
-export default function CardAtrativo({ empresa, segmentoGuiaSlug = null, temBotaoDinamico = true }) {
+export default function CardAtrativo({
+  empresa,
+  segmentoGuiaSlug = null,
+  temBotaoDinamico = true,
+  planosCarregando = false,
+}) {
   const router = useRouter()
   const { perfilEhProfissional, recursosProfissionaisLiberados, loading: gateLoading } =
     useProfissionalGate()
+  const { podeComprarReservar } = useGateComprasReservas()
+
+  const empresaVerificada = contaVerificadaDocumentacao('empresa', empresa)
+  const planoSlug = normalizarPlanoSlug(empresa.plano ?? '')
+  const empresaPodeTerBotaoPlano = Boolean(planoSlug && planoSlug !== 'gratuito')
+  const exibirBotaoDinamico =
+    empresaVerificada && (temBotaoDinamico || (planosCarregando && empresaPodeTerBotaoPlano))
+  const aguardandoSlot = gateLoading || planosCarregando
 
   const desc =
     empresa.descricao_curta && empresa.descricao_curta.length > 170
@@ -117,9 +136,13 @@ export default function CardAtrativo({ empresa, segmentoGuiaSlug = null, temBota
           </button>
           {perfilEhProfissional && recursosProfissionaisLiberados ? (
             <BotaoRecomendar empresa={empresa} segmentoGuiaSlug={segmentoGuiaSlug} />
-          ) : gateLoading ? (
-            <div className="min-h-[3.25rem] flex-1 animate-pulse rounded-lg bg-gray-100" aria-hidden />
-          ) : temBotaoDinamico ? (
+          ) : exibirBotaoDinamico && aguardandoSlot ? (
+            <div
+              className="min-h-[3.25rem] flex-1 animate-pulse rounded-lg bg-[#00D443]/35"
+              aria-busy="true"
+              aria-label="A carregar botão de serviço"
+            />
+          ) : exibirBotaoDinamico && temBotaoDinamico && podeComprarReservar ? (
             <BotaoDinamico
               categoria={empresa.categoria}
               cidade={empresa.cidade}

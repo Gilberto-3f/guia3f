@@ -117,10 +117,7 @@ export default function AbaBotaoDinamico({
 
   const Icon = config.icon
 
-  const exigeLiberacao = (acao) => ['reserva', 'ticket', 'produtos', 'corrida'].includes(acao)
-
-  const bloqueadoNaAba =
-    exigeLiberacao(config.acao) && !gateLoading && !podeComprarReservar && Boolean(mensagemBloqueio)
+  const bloqueadoNaAba = !gateLoading && !podeComprarReservar && Boolean(mensagemBloqueio)
 
   const irMobilidadeEmpresa = () => {
     const aviso = avaliarAvisoChamarCorrida(horarios)
@@ -174,7 +171,7 @@ export default function AbaBotaoDinamico({
   }
 
   const handleClick = () => {
-    if (exigeLiberacao(config.acao) && !podeComprarReservar) {
+    if (!podeComprarReservar) {
       avisarBloqueio()
       return
     }
