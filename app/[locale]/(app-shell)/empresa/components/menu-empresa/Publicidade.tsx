@@ -290,7 +290,9 @@ export default function Publicidade() {
             titulo="Publicidade Externa"
             aberta={secExterna}
             onToggle={() => setSecExterna((v) => !v)}
-          />
+          >
+            {null}
+          </SecaoChevron>
         </div>
       ) : (
         <div className="mt-4 rounded-lg border bg-white p-4">
