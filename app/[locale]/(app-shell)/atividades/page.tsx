@@ -2147,7 +2147,7 @@ export default function AtividadesPage() {
       <AbasAtividades aba={aba} onAba={onAba} somenteMinhaConta={meuRole === 'empresa'} />
 
       <div
-        className={`px-4 pb-3 ${aba === 'amigos' && meuRole !== 'empresa' ? 'pt-0' : 'pt-3'}`}
+        className="px-4 pb-3 pt-3"
         onTouchStart={onTouchStartAtividades}
         onTouchMove={onTouchMoveAtividades}
         onTouchEnd={onTouchEndAtividades}
