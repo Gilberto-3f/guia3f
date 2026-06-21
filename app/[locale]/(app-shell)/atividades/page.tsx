@@ -33,7 +33,7 @@ import {
   atividadeCurtiuStoryVisivel,
   atividadeAgrupadaTemUi,
 } from '@/lib/atividades-feed'
-import { buscarPerfisPorIds } from '@/lib/perfil-utils'
+import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
@@ -432,10 +432,14 @@ export default function AtividadesPage() {
   const hrefUsuario = useCallback(
     (uid: string) => {
       const p = perfilMap[uid]
-      if (p?.role === 'empresa' && p.empresa_id) return `/empresa/${p.empresa_id}`
-      return `/perfil/${uid}`
+      return getPerfilHref({
+        usuario_id: uid,
+        role: p?.role,
+        tipo: p?.role,
+        empresa_id: p?.empresa_id || seguidoEmpresaMap[uid] || null,
+      })
     },
-    [perfilMap]
+    [perfilMap, seguidoEmpresaMap]
   )
 
   const carregarStoryPorId = useCallback(async (storyId: string) => {
@@ -553,7 +557,7 @@ export default function AtividadesPage() {
       ] = await Promise.all([
         supabase.from('turistas').select('usuario_id, nome_usuario, foto_perfil_url, foto_url').in('usuario_id', ids),
         supabase.from('profissionais').select('usuario_id, nome_usuario, foto_perfil_url, foto_url').in('usuario_id', ids),
-        supabase.from('empresas').select('usuario_id, nome_usuario, foto_url, somente_modo_apresentacao').in('usuario_id', ids),
+        supabase.from('empresas').select('id, usuario_id, nome_usuario, foto_url, somente_modo_apresentacao').in('usuario_id', ids),
       ])
       if (errTur) console.warn('Atividades turistas:', errTur.message)
       if (errProf) console.warn('Atividades profissionais:', errProf.message)
@@ -569,9 +573,13 @@ export default function AtividadesPage() {
         const u = p as { usuario_id: string; nome_usuario?: string | null; foto_perfil_url?: string | null; foto_url?: string | null }
         if (u.usuario_id) profBy.set(String(u.usuario_id), u)
       }
-      const empBy = new Map<string, { nome_usuario?: string | null; foto_url?: string | null }>()
+      const empBy = new Map<
+        string,
+        { id: string; nome_usuario?: string | null; foto_url?: string | null }
+      >()
       for (const e of rowsEmp ?? []) {
         const u = e as {
+          id: string
           usuario_id: string
           nome_usuario?: string | null
           foto_url?: string | null
@@ -579,7 +587,11 @@ export default function AtividadesPage() {
         }
         if (!u.usuario_id) continue
         if (!podeVerConteudoEmpresaPreviewApp(meuEmail, modoAtivo) && u.somente_modo_apresentacao === true) continue
-        empBy.set(String(u.usuario_id), u)
+        empBy.set(String(u.usuario_id), {
+          id: String(u.id),
+          nome_usuario: u.nome_usuario,
+          foto_url: u.foto_url,
+        })
       }
 
       const pickFoto = (row: {
@@ -605,6 +617,8 @@ export default function AtividadesPage() {
           const fp = emp.foto_url != null && String(emp.foto_url).trim() !== '' ? String(emp.foto_url) : null
           m[uid] = {
             ...cur,
+            role: 'empresa',
+            empresa_id: cur.empresa_id || emp.id,
             ...(nu ? { username: nu } : {}),
             ...(fp ? { foto_perfil_url: fp } : {}),
           }
@@ -701,13 +715,8 @@ export default function AtividadesPage() {
         console.log('[Atividades] perfilMap amostra:', amostra)
       }
 
-      if (merge) {
-        setPerfilMap((prev) => ({ ...prev, ...m }))
-      } else {
-        setPerfilMap(m)
-      }
-
-      const empresaUsuarioIds = ids.filter((id) => m[id]?.role === 'empresa')
+      const empresaUsuarioIds = ids.filter((id) => String(m[id]?.role ?? '').toLowerCase() === 'empresa')
+      let sm: Record<string, string> = {}
       if (empresaUsuarioIds.length > 0) {
         /** Ignorar empresas só modo apresentação para o mapa gestor → empresa, exceto ADM demo com modo ativo. */
         let qEmpSeguido = supabase
@@ -718,19 +727,24 @@ export default function AtividadesPage() {
           qEmpSeguido = qEmpSeguido.not('somente_modo_apresentacao', 'eq', true)
         }
         const { data: emps } = await qEmpSeguido
-        const sm: Record<string, string> = {}
         for (const e of emps ?? []) {
           const rec = e as { id: string; usuario_id: string }
           const uid = String(rec.usuario_id)
           if (uid && !sm[uid]) sm[uid] = String(rec.id)
+          if (uid && m[uid] && !m[uid].empresa_id) {
+            m[uid] = { ...m[uid], role: 'empresa', empresa_id: String(rec.id) }
+          }
         }
-        if (merge) {
+      }
+
+      if (merge) {
+        setPerfilMap((prev) => ({ ...prev, ...m }))
+        if (Object.keys(sm).length > 0) {
           setSeguidoEmpresaMap((prev) => ({ ...prev, ...sm }))
-        } else {
-          setSeguidoEmpresaMap(sm)
         }
-      } else if (!merge) {
-        setSeguidoEmpresaMap({})
+      } else {
+        setPerfilMap(m)
+        setSeguidoEmpresaMap(sm)
       }
     },
     [coletarIdsPerfis, meuId, meuEmail, meuRole, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId]

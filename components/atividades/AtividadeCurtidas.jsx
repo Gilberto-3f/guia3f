@@ -120,7 +120,7 @@ export default function AtividadeCurtidas({
           </div>
           <div className="min-w-0">
             <p className="text-sm leading-snug text-gray-800">{textoLinha}</p>
-            <GridFotos urls={urls} onClick={(i) => setModal({ aberto: true, i })} />
+            <GridFotos urls={urls} onClickFoto={(i) => setModal({ aberto: true, i })} />
           </div>
         </div>
       </div>
