@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  createAuthUserForCadastro,
+  upsertUsuarioCadastro,
+} from '@/lib/cadastroCreateAuthUser'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { ehCategoriaEmpresaPermitida } from '@/lib/segmentosEmpresaGuia'
 
@@ -98,23 +102,51 @@ export async function POST(req: NextRequest) {
     }
 
     step = 'createUser'
-    const { data: created, error: cuErr } = await admin.auth.admin.createUser({
+    const authResult = await createAuthUserForCadastro(admin, {
       email,
       password,
-      email_confirm: true,
-      user_metadata: { role: 'empresa' },
+      role: 'empresa',
     })
-    if (cuErr) {
-      const msg = (cuErr.message || '').toLowerCase()
-      if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
-        return NextResponse.json({ error: 'email_exists', step, details: safeSupabaseError(cuErr) }, { status: 409 })
+    if (!authResult.ok) {
+      if (authResult.kind === 'email_exists') {
+        return NextResponse.json({ error: 'email_exists', step, details: { message: authResult.error } }, { status: 409 })
       }
-      return NextResponse.json({ error: 'Erro ao criar usuário', step, details: safeSupabaseError(cuErr) }, { status: 500 })
+      if (authResult.kind === 'auth_database_error') {
+        return NextResponse.json(
+          { error: 'auth_database_error', step, details: { message: authResult.error } },
+          { status: 503 },
+        )
+      }
+      return NextResponse.json({ error: 'Erro ao criar usuário', step, details: { message: authResult.error } }, { status: 500 })
     }
 
-    createdUserId = created.user?.id ?? null
-    if (!createdUserId) {
-      return NextResponse.json({ error: 'no_user', step, details: { created } }, { status: 500 })
+    createdUserId = authResult.user.id
+
+    step = 'insertUsuario'
+    const { error: usuarioErr } = await upsertUsuarioCadastro(admin, {
+      id: createdUserId,
+      email,
+      role: 'empresa',
+    })
+    if (usuarioErr) {
+      try {
+        step = 'rollbackDeleteUser'
+        await admin.auth.admin.deleteUser(createdUserId)
+      } catch (rbErr) {
+        return NextResponse.json(
+          {
+            error: 'Erro ao inserir usuário + rollback falhou',
+            step,
+            details: { insert: usuarioErr, rollback: errDetails(rbErr) },
+            createdUserId,
+          },
+          { status: 500 },
+        )
+      }
+      return NextResponse.json(
+        { error: 'Erro ao inserir usuário', step: 'insertUsuario', details: { message: usuarioErr }, createdUserId },
+        { status: 500 },
+      )
     }
 
     const payloadCompleto: Record<string, unknown> = {
