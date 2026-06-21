@@ -194,24 +194,29 @@ export default function PopupCartaoVisitaProfissional({
       return
     }
 
-    const avaliadorTipo =
-      meuRole === 'profissional' ? 'profissional' : meuRole === 'empresa' ? 'empresa' : 'turista'
-
     setEnviandoAvaliacao(true)
     setErroAvaliacao('')
     try {
-      const payload = {
-        usuario_id: meuId,
-        empresa_id: null,
-        alvo_id: alvoId,
-        alvo_tipo: 'profissional',
-        nota: notaUsuario,
-        feedback: feedbackUsuario.trim() !== '' ? feedbackUsuario.trim() : null,
-        avaliador_tipo: avaliadorTipo,
-      }
-      const { error } = await supabase.from('avaliacoes').insert(payload)
+      const { data: avaliacaoId, error } = await supabase.rpc('inserir_avaliacao_profissional', {
+        p_alvo_id: alvoId,
+        p_nota: notaUsuario,
+        p_feedback: feedbackUsuario.trim() !== '' ? feedbackUsuario.trim() : null,
+      })
       if (error) {
-        setErroAvaliacao(error.message)
+        const msg = String(error.message ?? '')
+        if (msg.includes('ja_avaliou')) {
+          setErroAvaliacao('Você já avaliou este profissional.')
+        } else if (msg.includes('not_authenticated')) {
+          setErroAvaliacao('Faça login para avaliar.')
+        } else if (msg.includes('role_nao_pode_avaliar')) {
+          setErroAvaliacao('Seu tipo de conta não pode avaliar profissionais.')
+        } else {
+          setErroAvaliacao(msg)
+        }
+        return
+      }
+      if (!avaliacaoId) {
+        setErroAvaliacao('Não foi possível registrar a avaliação.')
         return
       }
       window.dispatchEvent(new Event('perfil-atualizado'))
