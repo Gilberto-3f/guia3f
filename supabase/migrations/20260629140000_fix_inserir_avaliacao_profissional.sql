@@ -1,5 +1,5 @@
--- Avaliação de profissional: RPC contorna trigger legado `trg_atividade_avaliacao`
--- que ainda tenta INSERT em `atividades` (tipo avaliou / empresa_id null) e quebra o INSERT.
+-- Corrige RPC: Supabase não permite `session_replication_role`.
+-- Desabilita trigger legado na sessão da função (owner postgres) e insere a avaliação.
 
 DO $$
 DECLARE
@@ -133,6 +133,3 @@ $$;
 
 ALTER FUNCTION public.inserir_avaliacao_profissional (uuid, integer, text) OWNER TO postgres;
 GRANT EXECUTE ON FUNCTION public.inserir_avaliacao_profissional (uuid, integer, text) TO authenticated;
-
-COMMENT ON FUNCTION public.inserir_avaliacao_profissional (uuid, integer, text) IS
-  'Insere avaliação de profissional (alvo_tipo=profissional) sem disparar trigger legado de atividades.';
