@@ -36,11 +36,12 @@ function formatarDataAvaliacao(data) {
  *   onFechar: () => void
  *   profileId: string
  *   perfilTipo: 'turista' | 'profissional'
+ *   abaInicial?: 'empresa' | 'profissional' | 'feedback'
  * }} props
  */
-export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTipo }) {
+export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTipo, abaInicial = 'empresa' }) {
   useModalScrollLock(aberto)
-  const [aba, setAba] = useState(/** @type {'empresa' | 'profissional' | 'feedback'} */ ('empresa'))
+  const [aba, setAba] = useState(/** @type {'empresa' | 'profissional' | 'feedback'} */ (abaInicial))
   const [listaEmpresas, setListaEmpresas] = useState(/** @type {LinhaAvaliacao[]} */ ([]))
   const [listaProfissionais, setListaProfissionais] = useState(/** @type {LinhaAvaliacao[]} */ ([]))
 
@@ -196,8 +197,21 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
   }, [perfilTipo, profileId])
 
   useEffect(() => {
-    if (aberto) void carregar()
-  }, [aberto, carregar])
+    if (aberto) {
+      const abaPadrao =
+        abaInicial === 'feedback' && perfilTipo === 'profissional'
+          ? 'feedback'
+          : abaInicial === 'profissional' && perfilTipo !== 'profissional'
+            ? 'profissional'
+            : abaInicial === 'empresa'
+              ? 'empresa'
+              : perfilTipo === 'profissional'
+                ? 'feedback'
+                : 'empresa'
+      setAba(abaPadrao)
+      void carregar()
+    }
+  }, [aberto, abaInicial, carregar, perfilTipo])
 
   useEffect(() => {
     if (perfilTipo === 'profissional' && aba === 'profissional') setAba('feedback')

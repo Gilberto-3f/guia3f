@@ -92,6 +92,7 @@ export default function PerfilSocialPage() {
   const [popFav, setPopFav] = useState(false)
   const [popSeg, setPopSeg] = useState(false)
   const [popAval, setPopAval] = useState(false)
+  const [popAvalAba, setPopAvalAba] = useState(/** @type {'empresa' | 'profissional' | 'feedback'} */ ('empresa'))
   const [popCartao, setPopCartao] = useState(false)
   const [modalFoto, setModalFoto] = useState({ aberto: false, i: 0 })
 
@@ -918,9 +919,13 @@ export default function PerfilSocialPage() {
       <PopupSeguidores aberto={popSeg} onFechar={() => setPopSeg(false)} profileId={profileId} meuId={meuId} />
       <PopupAvaliacoes
         aberto={popAval}
-        onFechar={() => setPopAval(false)}
+        onFechar={() => {
+          setPopAval(false)
+          setPopAvalAba('empresa')
+        }}
         profileId={profileId}
         perfilTipo={perfilTipo}
+        abaInicial={popAvalAba}
       />
       <PopupCartaoVisitaProfissional
         aberto={popCartao}
@@ -946,7 +951,11 @@ export default function PerfilSocialPage() {
         turistaContratouProfissional={turistaContratouProf}
         cidadeAtuacaoVisitado={profMeta.cidadeAtuacaoLabel}
         onContratar={() => router.push('/canal')}
-        onAvaliar={() => setPopAval(true)}
+        onAvaliacaoConcluida={() => {
+          setPopAvalAba('feedback')
+          setPopAval(true)
+          void atualizarNotasCartaoProfissional(profileId, profMeta.profissionalId)
+        }}
       />
 
       <Suspense fallback={null}>

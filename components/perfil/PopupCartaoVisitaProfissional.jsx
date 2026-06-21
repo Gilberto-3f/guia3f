@@ -1,12 +1,13 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { ShieldCheck, Star, X } from 'lucide-react'
+import { ChevronLeft, ShieldCheck, Star, User, X } from 'lucide-react'
 import EscudoVerificacaoPendente from '@/components/EscudoVerificacaoPendente'
 import IconWhatsApp from '@/components/IconWhatsApp'
 import PopupRecomendarProfissional from '@/components/PopupRecomendarProfissional'
 import PopupRecomendarMobilidade from '@/components/PopupRecomendarMobilidade'
+import EstrelasAvaliacao from '@/components/EstrelasAvaliacao'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
 import {
   resolverAcoesCartaoVisitaProfissional,
@@ -14,6 +15,7 @@ import {
   tituloAvaliarDesabilitadoCartao,
 } from '@/lib/cartaoVisitaProfissional'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { supabase } from '@/lib/supabase'
 
 function formatMesAno(iso) {
   if (!iso) return null
@@ -48,7 +50,7 @@ function formatMesAno(iso) {
  *  turistaContratouProfissional?: boolean
  *  cidadeAtuacaoVisitado?: string | null
  *  onContratar?: () => void
- *  onAvaliar?: () => void
+ *  onAvaliacaoConcluida?: () => void
  * }} props
  */
 export default function PopupCartaoVisitaProfissional({
@@ -75,9 +77,16 @@ export default function PopupCartaoVisitaProfissional({
   turistaContratouProfissional = false,
   cidadeAtuacaoVisitado = null,
   onContratar,
-  onAvaliar,
+  onAvaliacaoConcluida,
 }) {
   useModalScrollLock(aberto)
+  const [modo, setModo] = useState(/** @type {'cartao' | 'avaliar'} */ ('cartao'))
+  const [notaUsuario, setNotaUsuario] = useState(0)
+  const [feedbackUsuario, setFeedbackUsuario] = useState('')
+  const [enviandoAvaliacao, setEnviandoAvaliacao] = useState(false)
+  const [erroAvaliacao, setErroAvaliacao] = useState('')
+  const [jaAvaliou, setJaAvaliou] = useState(false)
+  const [checandoJaAvaliou, setChecandoJaAvaliou] = useState(false)
   const [popupRecomendarAberto, setPopupRecomendarAberto] = useState(false)
   const [popupMobilidadeAberto, setPopupMobilidadeAberto] = useState(false)
 
@@ -137,6 +146,88 @@ export default function PopupCartaoVisitaProfissional({
     visitadoCategorias: categorias,
   })
 
+  const alvoIdsAvaliacao = useMemo(
+    () => [...new Set([profissionalIndicadoId, profileId].filter(Boolean).map(String))],
+    [profissionalIndicadoId, profileId],
+  )
+
+  const resetAvaliacao = useCallback(() => {
+    setModo('cartao')
+    setNotaUsuario(0)
+    setFeedbackUsuario('')
+    setErroAvaliacao('')
+    setJaAvaliou(false)
+    setChecandoJaAvaliou(false)
+  }, [])
+
+  useEffect(() => {
+    if (!aberto) resetAvaliacao()
+  }, [aberto, resetAvaliacao])
+
+  useEffect(() => {
+    if (!aberto || modo !== 'avaliar' || !meuId || alvoIdsAvaliacao.length === 0) return
+    let ativo = true
+    setChecandoJaAvaliou(true)
+    void supabase
+      .from('avaliacoes')
+      .select('id')
+      .eq('usuario_id', meuId)
+      .eq('alvo_tipo', 'profissional')
+      .in('alvo_id', alvoIdsAvaliacao)
+      .limit(1)
+      .then(({ data, error }) => {
+        if (!ativo) return
+        if (error) console.error('[CartaoVisita] checar avaliacao:', error.message)
+        setJaAvaliou((data?.length ?? 0) > 0)
+        setChecandoJaAvaliou(false)
+      })
+    return () => {
+      ativo = false
+    }
+  }, [aberto, modo, meuId, alvoIdsAvaliacao])
+
+  const confirmarAvaliacao = async () => {
+    if (!meuId || notaUsuario === 0 || jaAvaliou || enviandoAvaliacao) return
+    const alvoId = profissionalIndicadoId || profileId
+    if (!alvoId) {
+      setErroAvaliacao('Não foi possível identificar o profissional.')
+      return
+    }
+
+    const avaliadorTipo =
+      meuRole === 'profissional' ? 'profissional' : meuRole === 'empresa' ? 'empresa' : 'turista'
+
+    setEnviandoAvaliacao(true)
+    setErroAvaliacao('')
+    try {
+      const payload = {
+        usuario_id: meuId,
+        alvo_id: alvoId,
+        alvo_tipo: 'profissional',
+        nota: notaUsuario,
+        feedback: feedbackUsuario.trim() !== '' ? feedbackUsuario.trim() : null,
+        avaliador_tipo: avaliadorTipo,
+      }
+      const { error } = await supabase.from('avaliacoes').insert(payload)
+      if (error) {
+        setErroAvaliacao(error.message)
+        return
+      }
+      window.dispatchEvent(new Event('perfil-atualizado'))
+      window.dispatchEvent(new CustomEvent('avaliacao-enviada', { detail: { profileId, alvoId } }))
+      resetAvaliacao()
+      onFechar()
+      onAvaliacaoConcluida?.()
+    } finally {
+      setEnviandoAvaliacao(false)
+    }
+  }
+
+  const fecharPopup = () => {
+    resetAvaliacao()
+    onFechar()
+  }
+
   const mostrarRodape =
     acoes.mostrarContratar ||
     acoes.mostrarRecomendar ||
@@ -149,7 +240,7 @@ export default function PopupCartaoVisitaProfissional({
     <>
       <div
         className="fixed inset-0 z-[240] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
-        onClick={onFechar}
+        onClick={fecharPopup}
         role="presentation"
       >
         <div
@@ -160,7 +251,19 @@ export default function PopupCartaoVisitaProfissional({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="relative shrink-0 border-b border-gray-100 bg-white pt-4 pb-3">
-            {verificado ? (
+            {modo === 'avaliar' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setModo('cartao')}
+                  className="absolute left-3 top-3 rounded-full p-1 text-gray-500 transition hover:bg-gray-100"
+                  aria-label="Voltar ao cartão de visita"
+                >
+                  <ChevronLeft size={22} strokeWidth={2} aria-hidden />
+                </button>
+                <h2 className="px-10 text-center text-xl font-bold text-[#0097b2]">Avaliar Profissional</h2>
+              </>
+            ) : verificado ? (
               <>
                 <div className="flex items-center justify-center gap-2">
                   <ShieldCheck className="h-5 w-5 text-[#00D443]" fill="currentColor" stroke="white" strokeWidth={2} aria-hidden />
@@ -184,7 +287,7 @@ export default function PopupCartaoVisitaProfissional({
             )}
             <button
               type="button"
-              onClick={onFechar}
+              onClick={fecharPopup}
               className="absolute right-3 top-3 rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-500"
               aria-label="Fechar"
             >
@@ -193,7 +296,67 @@ export default function PopupCartaoVisitaProfissional({
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-            {verificado ? (
+            {modo === 'avaliar' ? (
+              <div className="flex flex-col items-center">
+                <div className="flex w-full max-w-sm justify-center">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-[#0097b2]/15">
+                      {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="48px" /> : null}
+                    </div>
+                    <div className="min-w-0 text-left">
+                      <p className="line-clamp-2 text-base font-bold text-gray-900">{nome || 'Profissional'}</p>
+                      <p className="truncate text-sm text-[#0097b2]">@{uShown || 'usuario'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {checandoJaAvaliou ? (
+                  <p className="mt-8 text-sm text-gray-500">Carregando…</p>
+                ) : jaAvaliou ? (
+                  <p className="mt-8 text-center text-sm text-gray-600">Você já avaliou este profissional.</p>
+                ) : (
+                  <>
+                    <div className="mt-8 flex justify-center">
+                      <EstrelasAvaliacao
+                        nota={notaUsuario}
+                        onChange={(n) => {
+                          setNotaUsuario(n)
+                          setErroAvaliacao('')
+                        }}
+                        tamanho={40}
+                      />
+                    </div>
+                    {notaUsuario > 0 ? (
+                      <div className="mt-6 w-full max-w-sm">
+                        <textarea
+                          value={feedbackUsuario}
+                          onChange={(e) => {
+                            setFeedbackUsuario(e.target.value)
+                            setErroAvaliacao('')
+                          }}
+                          placeholder="Compartilhe sua experiência (opcional)"
+                          className="w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                          rows={3}
+                        />
+                        {erroAvaliacao ? (
+                          <p className="mt-2 text-center text-sm text-red-600">{erroAvaliacao}</p>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => void confirmarAvaliacao()}
+                          disabled={enviandoAvaliacao}
+                          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-base font-bold text-white transition-opacity hover:opacity-95 disabled:opacity-50"
+                          style={{ backgroundColor: '#00D443' }}
+                        >
+                          <User size={20} className="shrink-0 text-white" strokeWidth={2.25} aria-hidden />
+                          {enviandoAvaliacao ? 'CONFIRMANDO…' : 'CONFIRMAR'}
+                        </button>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            ) : verificado ? (
               <>
                 <div className="space-y-4">
                   <div className="flex w-full justify-center">
@@ -255,7 +418,7 @@ export default function PopupCartaoVisitaProfissional({
             )}
           </div>
 
-          {verificado && mostrarRodape ? (
+          {verificado && mostrarRodape && modo === 'cartao' ? (
             <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-4">
               <div className="flex flex-col gap-2">
                 {acoes.mostrarContratar ? (
@@ -296,7 +459,7 @@ export default function PopupCartaoVisitaProfissional({
                     disabled={!acoes.avaliarHabilitado}
                     title={acoes.avaliarHabilitado ? 'Avaliar profissional' : tituloAvaliarDesabilitado}
                     onClick={() => {
-                      if (acoes.avaliarHabilitado) onAvaliar?.()
+                      if (acoes.avaliarHabilitado) setModo('avaliar')
                     }}
                     className={`w-full rounded-xl bg-[#0097b2] py-3 text-base font-bold text-white ${
                       acoes.avaliarHabilitado ? 'hover:opacity-95' : 'opacity-60'
