@@ -173,18 +173,6 @@ const histComprasSubitensGeral = () => [
 ]
 
 function itensMinhaConta(ctx) {
-  const redeSocial =
-    ctx?.variant === 'empresa'
-      ? [
-          {
-            Icon: Images,
-            label: 'Rede Social',
-            href: '/empresa/menu/feed-stories',
-            condicional: empresaMenuServico('feed-stories'),
-          },
-        ]
-      : []
-
   const base = [
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
     { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
@@ -192,7 +180,7 @@ function itensMinhaConta(ctx) {
     { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
   ]
 
-  return ctx ? filtrarMenu([...redeSocial, ...base], ctx) : [...redeSocial, ...base]
+  return ctx ? filtrarMenu(base, ctx) : base
 }
 
 function secaoMinhaConta(ctx) {
