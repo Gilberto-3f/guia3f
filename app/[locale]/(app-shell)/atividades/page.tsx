@@ -32,6 +32,9 @@ import {
   urlFotoPost,
   atividadeCurtiuStoryVisivel,
   atividadeAgrupadaTemUi,
+  coletarStoryIdsAtividades,
+  storyIdDeAtividadeCurtiu,
+  resolverConteudoUrlStoryAtividade,
 } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
@@ -259,6 +262,35 @@ export default function AtividadesPage() {
   /** Reposts de story ainda ativos no carrossel (expira_em > agora). */
   const [storiesRepostAtivos, setStoriesRepostAtivos] = useState<Set<string>>(() => new Set())
   const [storiesRepostAtivosPronto, setStoriesRepostAtivosPronto] = useState(false)
+  const [storyMetaMap, setStoryMetaMap] = useState<Record<string, { conteudo_url: string | null }>>({})
+
+  const carregarStoriesMeta = useCallback(async (rows: AtividadeRow[], opcoes?: { merge?: boolean }) => {
+    const merge = Boolean(opcoes?.merge)
+    const ids = coletarStoryIdsAtividades(rows)
+    if (ids.length === 0) {
+      if (!merge) setStoryMetaMap({})
+      return
+    }
+    const { data, error } = await supabase.from('stories').select('id, conteudo_url').in('id', ids)
+    if (error) {
+      console.error('[Atividades] stories meta:', error)
+      if (!merge) setStoryMetaMap({})
+      return
+    }
+    const chunk: Record<string, { conteudo_url: string | null }> = {}
+    for (const row of data ?? []) {
+      const rec = row as { id: string; conteudo_url?: string | null }
+      const id = String(rec.id ?? '').trim()
+      if (!id) continue
+      const url = rec.conteudo_url != null && String(rec.conteudo_url).trim() !== '' ? String(rec.conteudo_url) : null
+      chunk[id] = { conteudo_url: url }
+    }
+    if (merge) {
+      setStoryMetaMap((prev) => ({ ...prev, ...chunk }))
+    } else {
+      setStoryMetaMap(chunk)
+    }
+  }, [])
 
   const carregarStoriesRepostAtivos = useCallback(async (rows: AtividadeRow[]) => {
     const ids = [
@@ -1027,6 +1059,7 @@ export default function AtividadesPage() {
       setErroAmigos(null)
       setStoriesRepostAtivos(new Set())
       setStoriesRepostAtivosPronto(false)
+      setStoryMetaMap({})
       return
     }
 
@@ -1077,6 +1110,7 @@ export default function AtividadesPage() {
       }
       await carregarPostsMeta(postIdsEmp, { merge: false })
 
+      await carregarStoriesMeta(minhaEmpresa, { merge: false })
       await carregarStoriesRepostAtivos(minhaEmpresa)
 
       setCarregando(false)
@@ -1159,10 +1193,11 @@ export default function AtividadesPage() {
     }
     await carregarPostsMeta(postIds, { merge: false })
 
+    await carregarStoriesMeta(todos, { merge: false })
     await carregarStoriesRepostAtivos(todos)
 
     setCarregando(false)
-  }, [carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesRepostAtivos, modoAtivo])
+  }, [carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesMeta, carregarStoriesRepostAtivos, modoAtivo])
 
   const carregarMaisAtividades = useCallback(async () => {
     if (carregandoMais) return
@@ -1211,11 +1246,12 @@ export default function AtividadesPage() {
         }
       }
       await carregarPostsMeta(postIds, { merge: true })
+      await carregarStoriesMeta(novas, { merge: true })
       await carregarStoriesRepostAtivos([...listaAmigos, ...novas])
     } finally {
       setCarregandoMais(false)
     }
-  }, [aba, meuId, offsetAmigos, temMaisAmigos, listaAmigos, carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesRepostAtivos])
+  }, [aba, meuId, offsetAmigos, temMaisAmigos, listaAmigos, carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesMeta, carregarStoriesRepostAtivos])
 
   useEffect(() => {
     void recarregar()
@@ -1749,6 +1785,8 @@ export default function AtividadesPage() {
 
     if (r.tipo === 'curtiu_story') {
       const donor = perfilMap[r.usuario_id]
+      const storyId = storyIdDeAtividadeCurtiu(r)
+      const conteudoUrl = resolverConteudoUrlStoryAtividade(r, storyMetaMap)
       return (
         <AtividadeCurtiuStory
           key={r.id}
@@ -1757,8 +1795,10 @@ export default function AtividadesPage() {
           donorUsername={donor?.username ?? 'usuario'}
           hrefInteractor={hrefUsuario(r.autor_id)}
           hrefDonor={hrefUsuario(r.usuario_id)}
+          conteudoUrl={conteudoUrl}
           tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
+          onAbrirStory={storyId ? () => void carregarStoryPorId(storyId) : undefined}
           {...propsInteractor(ator)}
           {...propsDonor(donor)}
         />
@@ -1782,8 +1822,7 @@ export default function AtividadesPage() {
           typeof ex.autor_username === 'string' ? ex.autor_username : ator?.username
         ) || 'usuario'
       const originalUsername = resolverUsernameOriginalRepostStory(ex, donor?.username ?? '')
-      const conteudoUrl =
-        typeof ex.conteudo_url === 'string' && ex.conteudo_url.trim() !== '' ? ex.conteudo_url.trim() : null
+      const conteudoUrl = resolverConteudoUrlStoryAtividade(r, storyMetaMap)
       return (
         <AtividadeRepostouStory
           key={r.id}
@@ -1877,8 +1916,7 @@ export default function AtividadesPage() {
         typeof ex.autor_username === 'string' && ex.autor_username.trim() !== ''
           ? ex.autor_username.trim().replace(/^@+/, '')
           : (autorPerfil?.username ?? 'usuario')
-      const conteudoUrl =
-        typeof ex.conteudo_url === 'string' && ex.conteudo_url.trim() !== '' ? ex.conteudo_url.trim() : null
+      const conteudoUrl = resolverConteudoUrlStoryAtividade(r, storyMetaMap)
       return (
         <div key={r.id} className="grid min-w-0 grid-cols-[2.5rem_1fr] items-start gap-x-2 text-sm text-gray-800">
           <div className="flex flex-col items-center gap-0.5">
