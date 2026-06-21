@@ -3,6 +3,7 @@ import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroE
 import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
 import { buscarConfigComissoesAtiva, parProfissionaisOrdenado } from '@/lib/configComissoesRuntime'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
+import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
 
 export type DadosAtendimentoManifesto = {
   nome_completo: string
@@ -78,8 +79,8 @@ export async function processarContratacaoRecomendacaoProfissional(
   if (recErr || !rec) return { ok: false, error: 'Recomendação não encontrada.' }
   if (rec.contratado_em) return { ok: false, error: 'Esta recomendação já foi convertida em contratação.' }
 
-  const indicado = rec.profissional_indicado as Record<string, unknown> | null
-  const indicador = rec.profissional_indicador as Record<string, unknown> | null
+  const indicado = joinSupabaseRow(rec.profissional_indicado)
+  const indicador = joinSupabaseRow(rec.profissional_indicador)
   if (!indicado?.usuario_id || String(indicado.usuario_id) !== profissionalIndicadoUsuarioId) {
     return { ok: false, error: 'Profissional não corresponde à recomendação.' }
   }
@@ -232,7 +233,7 @@ export async function notificarEmpresasParceriaComissaoDividida(
 
   const vistos = new Set<string>()
   for (const row of ofertas ?? []) {
-    const emp = row.empresas as Record<string, unknown> | null
+    const emp = joinSupabaseRow(row.empresas)
     const empresaUsuarioId = emp?.usuario_id != null ? String(emp.usuario_id) : ''
     if (!empresaUsuarioId || vistos.has(empresaUsuarioId)) continue
     vistos.add(empresaUsuarioId)

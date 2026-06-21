@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
+import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
 
 /** Dados do popup de contratação (link ref=recomendacao&rec=). */
 export async function GET(req: Request) {
@@ -40,12 +41,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Recomendação não encontrada.' }, { status: 404 })
   }
 
-  const indicado = rec.profissional_indicado as Record<string, unknown> | null
+  const indicado = joinSupabaseRow(rec.profissional_indicado)
   if (!indicado || String(indicado.usuario_id) !== indicadoUsuarioId) {
     return NextResponse.json({ error: 'Recomendação inválida para este perfil.' }, { status: 400 })
   }
 
-  const indicador = rec.profissional_indicador as Record<string, unknown> | null
+  const indicador = joinSupabaseRow(rec.profissional_indicador)
 
   const mapProf = (p: Record<string, unknown> | null, notaMedia = 0, totalAval = 0) => {
     if (!p) return null

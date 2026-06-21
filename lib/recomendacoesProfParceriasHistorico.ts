@@ -6,6 +6,7 @@ import {
   formatarEmailTuristaMascarado,
   formatarWhatsappTuristaMascarado,
 } from '@/lib/recomendarEmpresa'
+import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
 
 export type RecomendacaoProfParceriaDetalhe = {
   id: string
@@ -72,7 +73,7 @@ export async function buscarRecomendacoesProfissionaisParaProfissional(
     const pid = row.profissional_indicado_id != null ? String(row.profissional_indicado_id) : ''
     if (!pid) continue
 
-    const prof = row.profissional_indicado as Record<string, unknown> | null
+    const prof = joinSupabaseRow(row.profissional_indicado)
     const foto =
       prof?.foto_perfil_url != null
         ? String(prof.foto_perfil_url)

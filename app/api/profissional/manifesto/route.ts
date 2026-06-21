@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
+import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
 
 export type ManifestoProfRow = {
   id: string
@@ -87,7 +88,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const indicador = row.profissional_indicador as { nome_completo?: string } | null
+    const indicador = joinSupabaseRow(row.profissional_indicador)
 
     manifestos.push({
       id: String(row.id),

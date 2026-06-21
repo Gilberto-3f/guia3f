@@ -5,6 +5,7 @@ import {
   notificarEmpresasParceriaComissaoDividida,
   processarContratacaoRecomendacaoProfissional,
 } from '@/lib/parceriaRecomendacaoContratacao'
+import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
 
 /** Turista contrata profissional via link de recomendação (ref=recomendacao&rec=). */
 export async function POST(req: Request) {
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
     .eq('id', recomendacaoId)
     .maybeSingle()
 
-  const indicador = rec?.profissional_indicador as { usuario_id?: string } | null
+  const indicador = joinSupabaseRow(rec?.profissional_indicador)
   const indicadorUsuarioId = indicador?.usuario_id != null ? String(indicador.usuario_id) : ''
 
   if (indicadorUsuarioId) {

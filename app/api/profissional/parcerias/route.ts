@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
+import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
 
 export type ParceriaEmAndamentoRow = {
   id: string
@@ -92,7 +93,7 @@ export async function GET() {
       }
     }
 
-    const rec = row.recomendacao as { contratado_em?: string } | null
+    const rec = joinSupabaseRow(row.recomendacao)
     const foto =
       parceiro?.foto_perfil_url != null
         ? String(parceiro.foto_perfil_url)
