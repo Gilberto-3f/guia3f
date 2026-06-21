@@ -202,6 +202,7 @@ export default function PopupCartaoVisitaProfissional({
     try {
       const payload = {
         usuario_id: meuId,
+        empresa_id: null,
         alvo_id: alvoId,
         alvo_tipo: 'profissional',
         nota: notaUsuario,
