@@ -49,6 +49,7 @@ export default function Publicidade() {
   const [arteFile, setArteFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [secHome, setSecHome] = useState(true)
+  const [secExterna, setSecExterna] = useState(false)
   const previewRevokeRef = useRef<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -284,6 +285,12 @@ export default function Publicidade() {
             </div>
           )}
           </SecaoChevron>
+
+          <SecaoChevron
+            titulo="Publicidade Externa"
+            aberta={secExterna}
+            onToggle={() => setSecExterna((v) => !v)}
+          />
         </div>
       ) : (
         <div className="mt-4 rounded-lg border bg-white p-4">
