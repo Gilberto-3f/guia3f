@@ -255,21 +255,27 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
           {filtradas.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
           {filtradas.map((r) => (
             <div key={r.id} className="rounded-lg bg-white p-4 shadow-sm">
-              <div className="flex flex-col items-center text-center">
-                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                  <AvatarImage src={r.fotoUrl} alt="" fill className="object-cover" sizes="40px" />
+              <div className="flex justify-center">
+                <div className="flex min-w-0 max-w-full items-center gap-3 text-left">
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                    <AvatarImage src={r.fotoUrl} alt="" fill className="object-cover" sizes="40px" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="max-w-full truncate text-sm font-semibold text-gray-900">
+                      <NomeComVerificacao
+                        nome={r.nome}
+                        verificado={Boolean(r.verificado)}
+                        verificadoTipo={r.role === 'empresa' ? 'empresa' : 'profissional'}
+                        nomeClassName="truncate"
+                      />
+                    </p>
+                    {r.username ? (
+                      <p className="max-w-full truncate text-sm text-[#0097b2]">
+                        @{String(r.username).replace(/^@+/, '')}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
-                <p className="mt-2 max-w-full truncate text-sm font-semibold text-gray-900">
-                  <NomeComVerificacao
-                    nome={r.nome}
-                    verificado={Boolean(r.verificado)}
-                    verificadoTipo={r.role === 'empresa' ? 'empresa' : 'profissional'}
-                    nomeClassName="truncate"
-                  />
-                </p>
-                {r.username ? (
-                  <p className="max-w-full truncate text-sm text-[#0097b2]">@{r.username}</p>
-                ) : null}
               </div>
 
               <div className="mt-2 flex flex-col items-center text-center">
