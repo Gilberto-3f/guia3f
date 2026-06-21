@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Link } from '@/i18n/navigation'
-import { CalendarClock, FileText, Image as ImageIcon, Sparkles } from 'lucide-react'
+import { Image as ImageIcon, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
@@ -73,10 +73,6 @@ export default function FeedStories() {
 
   return (
     <div className="mt-4 space-y-4">
-      <p className="text-sm text-gray-600">
-        Crie conteúdo para o feed e stories da sua empresa, ou programe publicações para datas futuras.
-      </p>
-
       <div className="space-y-3">
         <BotaoAcao
           href="/feed/criar"
@@ -93,20 +89,6 @@ export default function FeedStories() {
       </div>
 
       {mostrarPlanejador ? <AgendarPublicacoes usuarioId={usuarioId} empresaId={empresaId} /> : null}
-
-      <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-3 text-xs text-gray-500">
-        <p className="flex items-start gap-2">
-          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
-          <span>
-            Publicações agendadas são publicadas automaticamente no feed ou nos stories na data e horário
-            definidos (até 1 mês de antecedência).
-          </span>
-        </p>
-        <p className="mt-2 flex items-start gap-2">
-          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
-          <span>Posts de texto, fotos e stories seguem as mesmas regras das páginas de criação do app.</span>
-        </p>
-      </div>
     </div>
   )
 }

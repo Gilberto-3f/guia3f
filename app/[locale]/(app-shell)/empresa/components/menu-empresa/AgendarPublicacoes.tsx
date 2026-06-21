@@ -7,6 +7,7 @@ import {
   Clock,
   FileText,
   Image as ImageIcon,
+  Info,
   Loader2,
   Plus,
   Sparkles,
@@ -84,6 +85,43 @@ function tipoBtnCls(ativo: boolean) {
   ].join(' ')
 }
 
+function PopupInfoAgendamento({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
+  if (!aberto) return null
+  return (
+    <div
+      className="fixed inset-0 z-[220] flex items-center justify-center bg-black/50 p-4"
+      role="presentation"
+      onClick={onFechar}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="info-agendamento-titulo"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 id="info-agendamento-titulo" className="text-lg font-bold text-gray-900">
+          Agendamento de publicações
+        </h3>
+        <p className="mt-3 text-sm leading-relaxed text-gray-700">
+          Publicações agendadas são publicadas automaticamente no feed ou nos stories na data e horário
+          definidos (até 1 mês de antecedência).
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-gray-700">
+          Posts de texto, fotos e stories seguem as mesmas regras das páginas de criação do app.
+        </p>
+        <button
+          type="button"
+          onClick={onFechar}
+          className="mt-5 w-full rounded-lg bg-[#0097b2] px-4 py-3 text-sm font-bold text-white hover:opacity-95"
+        >
+          Entendi
+        </button>
+      </div>
+    </div>
+  )
+}
+
 async function uploadMidiaAgendada(
   usuarioId: string,
   tipo: TipoCard,
@@ -109,6 +147,7 @@ export default function AgendarPublicacoes({
   empresaId: string | null
 }) {
   const [secaoAberta, setSecaoAberta] = useState(false)
+  const [infoAberto, setInfoAberto] = useState(false)
   const [aba, setAba] = useState<AbaAgendar>('programar')
   const [cards, setCards] = useState<CardProgramar[]>([novoCard()])
   const [agendados, setAgendados] = useState<PublicacaoAgendada[]>([])
@@ -278,10 +317,21 @@ export default function AgendarPublicacoes({
   }
 
   return (
+    <>
     <SecaoChevron
       titulo="Agendar Publicação"
       aberta={secaoAberta}
       onToggle={() => setSecaoAberta((v) => !v)}
+      leading={
+        <button
+          type="button"
+          onClick={() => setInfoAberto(true)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#0097b2] transition hover:bg-[#0097b2]/10"
+          aria-label="Informações sobre agendamento de publicações"
+        >
+          <Info className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+        </button>
+      }
     >
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Agendar publicações">
@@ -492,5 +542,7 @@ export default function AgendarPublicacoes({
         )}
       </div>
     </SecaoChevron>
+    <PopupInfoAgendamento aberto={infoAberto} onFechar={() => setInfoAberto(false)} />
+    </>
   )
 }
