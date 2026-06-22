@@ -4,6 +4,7 @@ import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanc
 import { buscarConfigComissoesAtiva, parProfissionaisOrdenado } from '@/lib/configComissoesRuntime'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
 import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
+import { registrarTuristaNoManifesto, filtrarEmpresaIds } from '@/lib/manifestoDiario'
 
 export type DadosAtendimentoManifesto = {
   nome_completo: string
@@ -92,7 +93,9 @@ export async function processarContratacaoRecomendacaoProfissional(
 
   const dadosAtendimento = await buscarDadosTurista(supabase, turistaUsuarioId)
   if (params.pontoPartida?.trim()) dadosAtendimento.ponto_partida = params.pontoPartida.trim()
-  if (params.atrativos?.length) dadosAtendimento.atrativos = params.atrativos.filter(Boolean)
+  if (params.atrativos?.length) dadosAtendimento.atrativos = filtrarEmpresaIds(params.atrativos)
+
+  const atrativosIds = filtrarEmpresaIds(params.atrativos ?? [])
 
   const agora = new Date().toISOString()
 
@@ -156,6 +159,23 @@ export async function processarContratacaoRecomendacaoProfissional(
     .maybeSingle()
 
   if (manErr) return { ok: false, error: manErr.message }
+
+  const dataManifesto = dadosAtendimento.data_hora_atendimento.slice(0, 10)
+
+  await registrarTuristaNoManifesto(supabase, {
+    profissionalId: indicadoId,
+    turistaUsuarioId,
+    contratacaoTipo: 'indicacao',
+    profissionalIndiretoId: indicadorId,
+    dataManifesto,
+    atrativosEmpresaIds: atrativosIds.length ? atrativosIds : undefined,
+    legacyManifestoId: manifestoRow?.id != null ? String(manifestoRow.id) : null,
+    dadosTurista: {
+      nome: dadosAtendimento.nome_completo,
+      documento: dadosAtendimento.documento,
+      username: dadosAtendimento.username,
+    },
+  })
 
   const config = await buscarConfigComissoesAtiva(supabase)
   const splitRegular = config.empresa_split.regular

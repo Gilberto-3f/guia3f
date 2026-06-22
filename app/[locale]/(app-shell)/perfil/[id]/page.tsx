@@ -950,7 +950,23 @@ export default function PerfilSocialPage() {
         temParceriaFechada={temParceriaFechada}
         turistaContratouProfissional={turistaContratouProf}
         cidadeAtuacaoVisitado={profMeta.cidadeAtuacaoLabel}
-        onContratar={() => router.push('/canal')}
+        onContratar={async () => {
+          if (profMeta.placaVermelha && meuRole === 'turista' && profileId) {
+            try {
+              await fetch('/api/profissional/manifesto/registrar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  profissional_usuario_id: profileId,
+                  contratacao_tipo: 'contratacao_direta',
+                }),
+              })
+            } catch {
+              /* não bloqueia navegação ao canal */
+            }
+          }
+          router.push('/canal')
+        }}
         onAvaliacaoConcluida={() => {
           setPopAvalAba('feedback')
           setPopAval(true)

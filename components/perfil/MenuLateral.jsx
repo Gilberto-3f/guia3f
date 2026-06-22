@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   Bookmark,
   Building2,
-  Calendar,
   Car,
   ChevronDown,
   ChevronUp,
@@ -246,7 +245,6 @@ function secoesProfissional(ctx) {
   const gPro = filtrarMenu(
     [
       { Icon: DollarSign, label: 'Comissões', subpagina: 'comissoes' },
-      { Icon: Handshake, label: 'Parcerias Fechadas', subpagina: 'parcerias-prof' },
       {
         Icon: ClipboardList,
         label: 'Manifesto',
@@ -259,12 +257,7 @@ function secoesProfissional(ctx) {
         subpagina: 'tabela',
         condicional: (c) => c.placaVermelha === true,
       },
-      {
-        Icon: Calendar,
-        label: 'Agendamento Automático',
-        subpagina: 'agendamento',
-        condicional: (c) => c.placaVermelha === true,
-      },
+      { Icon: Handshake, label: 'Parcerias Fechadas', subpagina: 'parcerias-prof' },
     ],
     ctx
   )
