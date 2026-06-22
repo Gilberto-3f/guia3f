@@ -70,7 +70,7 @@ async function buscarAtrativosParceria(
   if (manifestoIds.length === 0) return []
 
   const { data: atrs } = await supabase
-    .from('manifesto_atrativos')
+    .from('itinerario_paradas')
     .select(
       `
       empresa_id, visitado, selecionado_em,

@@ -31,6 +31,7 @@ import { temParceriaFechadaEntreProfissionais } from '@/lib/parceriaProfissional
 import { turistaContratouProfissional } from '@/lib/contratacaoProfissionalTurista'
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 import PerfilRecomendacaoContratarGate from '@/components/perfil/PerfilRecomendacaoContratarGate'
+import PopupComplementoContratacao from '@/components/manifesto/PopupComplementoContratacao'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
 
@@ -94,6 +95,9 @@ export default function PerfilSocialPage() {
   const [popAval, setPopAval] = useState(false)
   const [popAvalAba, setPopAvalAba] = useState<'empresa' | 'profissional' | 'feedback'>('empresa')
   const [popCartao, setPopCartao] = useState(false)
+  const [popComplementoContrato, setPopComplementoContrato] = useState(false)
+  const [complementoTurista, setComplementoTurista] = useState({ nome: '', documento: '' })
+  const [enviandoContrato, setEnviandoContrato] = useState(false)
   const [modalFoto, setModalFoto] = useState({ aberto: false, i: 0 })
 
   const [profMeta, setProfMeta] = useState<{
@@ -952,18 +956,20 @@ export default function PerfilSocialPage() {
         cidadeAtuacaoVisitado={profMeta.cidadeAtuacaoLabel}
         onContratar={async () => {
           if (profMeta.placaVermelha && meuRole === 'turista' && profileId) {
-            try {
-              await fetch('/api/profissional/manifesto/registrar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  profissional_usuario_id: profileId,
-                  contratacao_tipo: 'contratacao_direta',
-                }),
-              })
-            } catch {
-              /* não bloqueia navegação ao canal */
+            let nomeIni = ''
+            let docIni = ''
+            if (meuId) {
+              const { data: tur } = await supabase
+                .from('turistas')
+                .select('nome_completo, documento_identidade')
+                .eq('usuario_id', meuId)
+                .maybeSingle()
+              nomeIni = String(tur?.nome_completo ?? '')
+              docIni = tur?.documento_identidade != null ? String(tur.documento_identidade) : ''
             }
+            setComplementoTurista({ nome: nomeIni, documento: docIni })
+            setPopComplementoContrato(true)
+            return
           }
           router.push('/canal')
         }}
@@ -998,6 +1004,35 @@ export default function PerfilSocialPage() {
         }}
         onPatchPost={patchFotoPost}
         onRemovePost={(postId) => setPostsFotos((prev) => prev.filter((p) => p.id !== postId))}
+      />
+
+      <PopupComplementoContratacao
+        aberto={popComplementoContrato}
+        onFechar={() => setPopComplementoContrato(false)}
+        nomeInicial={complementoTurista.nome}
+        documentoInicial={complementoTurista.documento}
+        enviando={enviandoContrato}
+        onConfirmar={async (dados) => {
+          setEnviandoContrato(true)
+          try {
+            await fetch('/api/profissional/manifesto/registrar', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                profissional_usuario_id: profileId,
+                contratacao_tipo: 'contratacao_direta',
+                nome_completo: dados.nome_completo,
+                data_nascimento: dados.data_nascimento,
+                documento: dados.documento,
+              }),
+            })
+            setPopComplementoContrato(false)
+            setPopCartao(false)
+            router.push('/canal')
+          } finally {
+            setEnviandoContrato(false)
+          }
+        }}
       />
     </div>
   )

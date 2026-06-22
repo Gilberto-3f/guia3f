@@ -19,8 +19,21 @@ export async function POST(req: Request) {
   const dataManifesto = body.data_manifesto != null ? String(body.data_manifesto) : undefined
   const empresaIds = Array.isArray(body.empresa_ids) ? body.empresa_ids.map(String).filter(Boolean) : []
 
+  const nomeCompleto = String(body.nome_completo ?? '').trim()
+  const documento = body.documento != null ? String(body.documento).trim() : null
+  const dataNascimento = body.data_nascimento != null ? String(body.data_nascimento).slice(0, 10) : null
+
   if (!profissionalUsuarioId) {
     return NextResponse.json({ error: 'profissional_usuario_id obrigatório.' }, { status: 400 })
+  }
+
+  if (auth.role === 'turista' && turistaUsuarioId === auth.userId) {
+    if (!nomeCompleto || !dataNascimento || !documento) {
+      return NextResponse.json(
+        { error: 'Nome completo, data de nascimento e documento são obrigatórios.' },
+        { status: 400 },
+      )
+    }
   }
 
   const isTurista = auth.role === 'turista' && turistaUsuarioId === auth.userId
@@ -50,7 +63,15 @@ export async function POST(req: Request) {
     turistaUsuarioId,
     contratacaoTipo,
     dataManifesto,
-    atrativosEmpresaIds: empresaIds.length ? empresaIds : undefined,
+    paradasEmpresaIds: empresaIds.length ? empresaIds : undefined,
+    dadosPax: nomeCompleto
+      ? {
+          nome: nomeCompleto,
+          documento,
+          data_nascimento: dataNascimento,
+          validada: true,
+        }
+      : undefined,
   })
 
   if ('error' in res) {

@@ -4,7 +4,7 @@ import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanc
 import { buscarConfigComissoesAtiva, parProfissionaisOrdenado } from '@/lib/configComissoesRuntime'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
 import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
-import { registrarTuristaNoManifesto, filtrarEmpresaIds } from '@/lib/manifestoDiario'
+import { registrarTuristaNoManifesto, filtrarEmpresaIds, type DadosPaxManifesto } from '@/lib/manifestoDiario'
 
 export type DadosAtendimentoManifesto = {
   nome_completo: string
@@ -58,6 +58,7 @@ export async function processarContratacaoRecomendacaoProfissional(
     profissionalIndicadoUsuarioId: string
     pontoPartida?: string | null
     atrativos?: string[]
+    dadosPax?: DadosPaxManifesto
   },
 ): Promise<ContratarRecomendacaoResult> {
   const { turistaUsuarioId, recomendacaoId, profissionalIndicadoUsuarioId } = params
@@ -168,12 +169,13 @@ export async function processarContratacaoRecomendacaoProfissional(
     contratacaoTipo: 'indicacao',
     profissionalIndiretoId: indicadorId,
     dataManifesto,
-    atrativosEmpresaIds: atrativosIds.length ? atrativosIds : undefined,
+    paradasEmpresaIds: atrativosIds.length ? atrativosIds : undefined,
     legacyManifestoId: manifestoRow?.id != null ? String(manifestoRow.id) : null,
-    dadosTurista: {
+    dadosPax: params.dadosPax ?? {
       nome: dadosAtendimento.nome_completo,
       documento: dadosAtendimento.documento,
       username: dadosAtendimento.username,
+      validada: false,
     },
   })
 

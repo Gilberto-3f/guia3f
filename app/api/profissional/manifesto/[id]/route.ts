@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
-import { buscarProfissionalPlacaVermelha, filtrarEmpresaIds, inserirAtrativosManifesto, inserirPassageiroManifesto } from '@/lib/manifestoDiario'
+import { buscarProfissionalPlacaVermelha, filtrarEmpresaIds, inserirPassageiroManifesto } from '@/lib/manifestoDiario'
+import { inserirParadasItinerario } from '@/lib/itinerarioParadas'
 
 type RouteCtx = { params: Promise<{ id: string }> }
 
@@ -54,14 +55,15 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
     }
   }
 
-  if (Array.isArray(body.atrativos)) {
-    for (const a of body.atrativos) {
+  if (Array.isArray(body.paradas) || Array.isArray(body.atrativos)) {
+    const lista = Array.isArray(body.paradas) ? body.paradas : body.atrativos
+    for (const a of lista as unknown[]) {
       if (typeof a !== 'object' || !a) continue
       const ab = a as Record<string, unknown>
       const empresaId = String(ab.empresa_id ?? '').trim()
       const turistaId = String(ab.turista_id ?? '').trim()
       if (!empresaId || !turistaId) continue
-      await inserirAtrativosManifesto(auth.supabase, {
+      await inserirParadasItinerario(auth.supabase, {
         manifestoId: id,
         turistaUsuarioId: turistaId,
         empresaIds: filtrarEmpresaIds([empresaId]),

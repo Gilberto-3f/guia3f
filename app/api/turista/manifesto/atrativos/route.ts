@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { inserirAtrativosManifesto } from '@/lib/manifestoDiario'
+import { inserirParadasItinerario } from '@/lib/itinerarioParadas'
 
 /** Turista adiciona atrativos ao manifesto ativo do profissional contratado. */
 export async function POST(req: Request) {
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 })
   }
 
-  await inserirAtrativosManifesto(admin, {
+  await inserirParadasItinerario(admin, {
     manifestoId: String(md.id),
     turistaUsuarioId: auth.userId,
     empresaIds,

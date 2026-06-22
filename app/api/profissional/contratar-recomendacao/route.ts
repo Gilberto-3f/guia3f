@@ -21,9 +21,19 @@ export async function POST(req: Request) {
   const profissionalIndicadoUsuarioId = String(body.profissional_usuario_id ?? '').trim()
   const pontoPartida = body.ponto_partida != null ? String(body.ponto_partida) : null
   const atrativos = Array.isArray(body.atrativos) ? body.atrativos.map(String) : []
+  const nomeCompleto = String(body.nome_completo ?? '').trim()
+  const documento = body.documento != null ? String(body.documento).trim() : null
+  const dataNascimento = body.data_nascimento != null ? String(body.data_nascimento).slice(0, 10) : null
 
   if (!recomendacaoId || !profissionalIndicadoUsuarioId) {
     return NextResponse.json({ error: 'recomendacao_id e profissional_usuario_id obrigatórios.' }, { status: 400 })
+  }
+
+  if (!nomeCompleto || !dataNascimento || !documento) {
+    return NextResponse.json(
+      { error: 'Nome completo, data de nascimento e documento são obrigatórios.' },
+      { status: 400 },
+    )
   }
 
   let admin
@@ -39,6 +49,12 @@ export async function POST(req: Request) {
     profissionalIndicadoUsuarioId,
     pontoPartida,
     atrativos,
+    dadosPax: {
+      nome: nomeCompleto,
+      documento,
+      data_nascimento: dataNascimento,
+      validada: true,
+    },
   })
 
   if (!res.ok) {

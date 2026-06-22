@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import { BadgeCheck, Star, X } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
+import PopupComplementoContratacao, {
+  type DadosComplementoContratacao,
+} from '@/components/manifesto/PopupComplementoContratacao'
 
 type ProfPopup = {
   nome: string
@@ -65,10 +68,11 @@ export default function PopupContratarProfissionalRecomendado({
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState(jaContratado)
+  const [mostrarComplemento, setMostrarComplemento] = useState(false)
 
   if (!aberto || !indicador || !indicado) return null
 
-  const contratar = async () => {
+  const executarContratacao = async (dados: DadosComplementoContratacao) => {
     setEnviando(true)
     setErro('')
     try {
@@ -78,6 +82,9 @@ export default function PopupContratarProfissionalRecomendado({
         body: JSON.stringify({
           recomendacao_id: recomendacaoId,
           profissional_usuario_id: profissionalUsuarioId,
+          nome_completo: dados.nome_completo,
+          data_nascimento: dados.data_nascimento,
+          documento: dados.documento,
         }),
       })
       const json = (await res.json()) as { ok?: boolean; error?: string }
@@ -85,6 +92,7 @@ export default function PopupContratarProfissionalRecomendado({
         setErro(json.error ?? 'Não foi possível contratar.')
         return
       }
+      setMostrarComplemento(false)
       setSucesso(true)
       onContratado?.()
     } catch {
@@ -95,58 +103,67 @@ export default function PopupContratarProfissionalRecomendado({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[270] flex items-center justify-center bg-black/55 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="popup-contratar-rec-titulo"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !enviando) onFechar()
-      }}
-    >
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-2">
-          <h2 id="popup-contratar-rec-titulo" className="text-lg font-bold text-[#001f3f]">
-            Indicação profissional
-          </h2>
-          <button
-            type="button"
-            onClick={onFechar}
-            disabled={enviando}
-            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
-            aria-label="Fechar"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <CardProf prof={indicador} />
-
-        <p className="my-3 text-center text-sm font-medium text-gray-700">
-          profissional recomenda o trabalho de outro colega:
-        </p>
-
-        <CardProf prof={indicado} destaque />
-
-        {sucesso ? (
-          <p className="mt-4 rounded-xl bg-[#00D443]/10 px-3 py-3 text-center text-sm font-semibold text-[#15803d]">
-            Contratação registrada! Parceria formada e turista incluído no manifesto do profissional.
-          </p>
-        ) : (
-          <>
-            {erro ? <p className="mt-3 text-sm text-rose-600">{erro}</p> : null}
+    <>
+      <div
+        className="fixed inset-0 z-[270] flex items-center justify-center bg-black/55 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="popup-contratar-rec-titulo"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !enviando) onFechar()
+        }}
+      >
+        <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-start justify-between gap-2">
+            <h2 id="popup-contratar-rec-titulo" className="text-lg font-bold text-[#001f3f]">
+              Indicação profissional
+            </h2>
             <button
               type="button"
+              onClick={onFechar}
               disabled={enviando}
-              onClick={() => void contratar()}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#00D443] py-3.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-[#00b83a] disabled:opacity-60"
+              className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+              aria-label="Fechar"
             >
-              <BadgeCheck className="h-5 w-5 shrink-0 text-white" strokeWidth={2.25} aria-hidden />
-              {enviando ? 'Contratando...' : 'Contratar'}
+              <X className="h-5 w-5" />
             </button>
-          </>
-        )}
+          </div>
+
+          <CardProf prof={indicador} />
+
+          <p className="my-3 text-center text-sm font-medium text-gray-700">
+            profissional recomenda o trabalho de outro colega:
+          </p>
+
+          <CardProf prof={indicado} destaque />
+
+          {sucesso ? (
+            <p className="mt-4 rounded-xl bg-[#00D443]/10 px-3 py-3 text-center text-sm font-semibold text-[#15803d]">
+              Contratação registrada! Parceria formada e turista incluído no manifesto do profissional.
+            </p>
+          ) : (
+            <>
+              {erro ? <p className="mt-3 text-sm text-rose-600">{erro}</p> : null}
+              <button
+                type="button"
+                disabled={enviando}
+                onClick={() => setMostrarComplemento(true)}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#00D443] py-3.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-[#00b83a] disabled:opacity-60"
+              >
+                <BadgeCheck className="h-5 w-5 shrink-0 text-white" strokeWidth={2.25} aria-hidden />
+                Contratar
+              </button>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+
+      <PopupComplementoContratacao
+        aberto={mostrarComplemento}
+        onFechar={() => setMostrarComplemento(false)}
+        enviando={enviando}
+        onConfirmar={executarContratacao}
+      />
+    </>
   )
 }

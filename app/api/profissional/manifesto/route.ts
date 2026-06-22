@@ -3,33 +3,30 @@ import { assertUserSession } from '@/lib/apiUserSession'
 import {
   buscarProfissionalPlacaVermelha,
   filtrarEmpresaIds,
-  inserirAtrativosManifesto,
+  inserirParadasItinerario,
   inserirPassageiroManifesto,
   rotuloContratacao,
 } from '@/lib/manifestoDiario'
+import { listarParadasManifesto, type ParadaItinerarioRow } from '@/lib/itinerarioParadas'
+import { profissionalEhGuia } from '@/lib/profissionalCategoriaManifesto'
 import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
 
 export type ManifestoPassageiroRow = {
   id: string
+  ordem: number
   turista_id: string | null
   nome: string
+  nome_social: string | null
   username: string | null
   documento: string | null
+  data_nascimento: string | null
+  foto_url: string | null
+  contratacao_validada: boolean
   contratacao_tipo: string
   contratacao_rotulo: string
   profissional_indireto_nome: string | null
   entrou_em: string
-}
-
-export type ManifestoAtrativoRow = {
-  id: string
-  turista_id: string | null
-  empresa_id: string
-  empresa_nome: string
-  categoria: string
-  visitado: boolean
-  visitado_em: string | null
-  checkin_confirmado: boolean
+  qtd_paradas: number
 }
 
 export type ManifestoDiarioRow = {
@@ -39,10 +36,13 @@ export type ManifestoDiarioRow = {
   criado_em: string
   confirmado_em: string | null
   concluido_em: string | null
+  eh_guia: boolean
   qtd_passageiros: number
-  qtd_atrativos: number
+  qtd_paradas: number
   passageiros: ManifestoPassageiroRow[]
-  atrativos: ManifestoAtrativoRow[]
+  itinerario: ParadaItinerarioRow[]
+  /** @deprecated use itinerario */
+  atrativos: ParadaItinerarioRow[]
 }
 
 async function assertPlacaVermelha(auth: Awaited<ReturnType<typeof assertUserSession>> & { ok: true }) {
@@ -60,40 +60,30 @@ async function montarManifestoRow(
       : never
     : never,
   row: Record<string, unknown>,
+  categorias: unknown,
 ): Promise<ManifestoDiarioRow> {
   const id = String(row.id)
 
-  const [{ data: passageiros }, { data: atrativos }, { data: checkins }] = await Promise.all([
+  const [{ data: passageiros }, itinerario] = await Promise.all([
     supabase
       .from('manifesto_passageiros')
       .select(
         `
-        id, turista_id, nome, username, documento, contratacao_tipo, entrou_em,
+        id, ordem, turista_id, nome, nome_social, username, documento, data_nascimento, foto_url,
+        contratacao_tipo, entrou_em, contratacao_validada_em,
         profissional_indireto:profissional_indireto_id (nome_completo)
       `,
       )
       .eq('manifesto_id', id)
-      .order('entrou_em', { ascending: true }),
-    supabase
-      .from('manifesto_atrativos')
-      .select(
-        `
-        id, turista_id, empresa_id, visitado, visitado_em,
-        empresas:empresa_id (nome_fantasia, categoria)
-      `,
-      )
-      .eq('manifesto_id', id)
-      .order('selecionado_em', { ascending: true }),
-    supabase
-      .from('manifesto_checkins')
-      .select('empresa_id, turista_id, status')
-      .eq('manifesto_id', id)
-      .eq('status', 'confirmado'),
+      .order('ordem', { ascending: true }),
+    listarParadasManifesto(supabase, id),
   ])
 
-  const checkinSet = new Set(
-    (checkins ?? []).map((c) => `${String(c.empresa_id)}:${String(c.turista_id ?? '')}`),
-  )
+  const paradasPorTurista = new Map<string, number>()
+  for (const p of itinerario) {
+    if (!p.turista_id) continue
+    paradasPorTurista.set(p.turista_id, (paradasPorTurista.get(p.turista_id) ?? 0) + 1)
+  }
 
   return {
     id,
@@ -102,36 +92,32 @@ async function montarManifestoRow(
     criado_em: String(row.criado_em),
     confirmado_em: row.confirmado_em != null ? String(row.confirmado_em) : null,
     concluido_em: row.concluido_em != null ? String(row.concluido_em) : null,
+    eh_guia: profissionalEhGuia(categorias),
     qtd_passageiros: passageiros?.length ?? 0,
-    qtd_atrativos: atrativos?.length ?? 0,
-    passageiros: (passageiros ?? []).map((p) => {
+    qtd_paradas: itinerario.length,
+    passageiros: (passageiros ?? []).map((p, idx) => {
       const ind = joinSupabaseRow(p.profissional_indireto)
+      const tid = p.turista_id != null ? String(p.turista_id) : null
       return {
         id: String(p.id),
-        turista_id: p.turista_id != null ? String(p.turista_id) : null,
+        ordem: p.ordem != null ? Number(p.ordem) : idx + 1,
+        turista_id: tid,
         nome: String(p.nome),
+        nome_social: p.nome_social != null ? String(p.nome_social) : null,
         username: p.username != null ? String(p.username) : null,
         documento: p.documento != null ? String(p.documento) : null,
+        data_nascimento: p.data_nascimento != null ? String(p.data_nascimento) : null,
+        foto_url: p.foto_url != null ? String(p.foto_url) : null,
+        contratacao_validada: p.contratacao_validada_em != null,
         contratacao_tipo: String(p.contratacao_tipo),
         contratacao_rotulo: rotuloContratacao(String(p.contratacao_tipo)),
         profissional_indireto_nome: ind?.nome_completo != null ? String(ind.nome_completo) : null,
         entrou_em: String(p.entrou_em),
+        qtd_paradas: tid ? (paradasPorTurista.get(tid) ?? 0) : 0,
       }
     }),
-    atrativos: (atrativos ?? []).map((a) => {
-      const emp = joinSupabaseRow(a.empresas)
-      const key = `${String(a.empresa_id)}:${String(a.turista_id ?? '')}`
-      return {
-        id: String(a.id),
-        turista_id: a.turista_id != null ? String(a.turista_id) : null,
-        empresa_id: String(a.empresa_id),
-        empresa_nome: String(emp?.nome_fantasia ?? 'Empresa'),
-        categoria: String(emp?.categoria ?? ''),
-        visitado: Boolean(a.visitado),
-        visitado_em: a.visitado_em != null ? String(a.visitado_em) : null,
-        checkin_confirmado: checkinSet.has(key),
-      }
-    }),
+    itinerario,
+    atrativos: itinerario,
   }
 }
 
@@ -165,7 +151,9 @@ export async function GET(req: Request) {
 
   const manifestos: ManifestoDiarioRow[] = []
   for (const row of data ?? []) {
-    manifestos.push(await montarManifestoRow(auth.supabase, row as Record<string, unknown>))
+    manifestos.push(
+      await montarManifestoRow(auth.supabase, row as Record<string, unknown>, profCheck.categorias),
+    )
   }
 
   return NextResponse.json({ ok: true, manifestos })
@@ -183,8 +171,7 @@ export async function POST(req: Request) {
   const body = (await req.json()) as Record<string, unknown>
   const dataManifesto = String(body.data_manifesto ?? new Date().toISOString().slice(0, 10))
   const turistaIds = Array.isArray(body.turista_ids) ? body.turista_ids.map(String) : []
-  const passageirosBody = Array.isArray(body.passageiros) ? body.passageiros : []
-  const atrativosBody = Array.isArray(body.atrativos) ? body.atrativos : []
+  const paradasBody = Array.isArray(body.paradas) ? body.paradas : Array.isArray(body.atrativos) ? body.atrativos : []
 
   const { data: existente } = await auth.supabase
     .from('manifesto_diario')
@@ -214,45 +201,11 @@ export async function POST(req: Request) {
 
   const manifestoId = String(novo.id)
 
-  for (const p of passageirosBody) {
-    if (typeof p !== 'object' || !p) continue
-    const pb = p as Record<string, unknown>
-    const turistaId = String(pb.turista_id ?? '').trim()
-    if (!turistaId) continue
-
-    let nome = String(pb.nome ?? 'Turista')
-    let documento = pb.documento != null ? String(pb.documento) : null
-    let username = pb.username != null ? String(pb.username) : null
-
-    if (!pb.nome) {
-      const { data: tur } = await auth.supabase
-        .from('turistas')
-        .select('nome_completo, nome_usuario, documento_identidade')
-        .eq('usuario_id', turistaId)
-        .maybeSingle()
-      if (tur) {
-        nome = String(tur.nome_completo ?? nome)
-        documento = tur.documento_identidade != null ? String(tur.documento_identidade) : null
-        const un = tur.nome_usuario != null ? String(tur.nome_usuario).replace(/^@+/, '') : ''
-        username = un ? `@${un}` : null
-      }
-    }
-
-    await inserirPassageiroManifesto(auth.supabase, {
-      manifestoId,
-      turistaUsuarioId: turistaId,
-      nome,
-      documento,
-      username,
-      contratacaoTipo: String(pb.contratacao_tipo ?? 'contratacao_direta') as 'indicacao',
-    })
-  }
-
   for (const turistaId of turistaIds) {
     if (!turistaId) continue
     const { data: tur } = await auth.supabase
       .from('turistas')
-      .select('nome_completo, nome_usuario, documento_identidade')
+      .select('nome_completo, nome_usuario, documento_identidade, foto_url, foto_perfil_url')
       .eq('usuario_id', turistaId)
       .maybeSingle()
     const un = tur?.nome_usuario != null ? String(tur.nome_usuario).replace(/^@+/, '') : ''
@@ -262,23 +215,34 @@ export async function POST(req: Request) {
       nome: String(tur?.nome_completo ?? 'Turista'),
       documento: tur?.documento_identidade != null ? String(tur.documento_identidade) : null,
       username: un ? `@${un}` : null,
+      nome_social: un || null,
+      foto_url:
+        tur?.foto_perfil_url != null
+          ? String(tur.foto_perfil_url)
+          : tur?.foto_url != null
+            ? String(tur.foto_url)
+            : null,
       contratacaoTipo: 'contratacao_direta',
     })
   }
 
-  for (const a of atrativosBody) {
+  for (const a of paradasBody) {
     if (typeof a !== 'object' || !a) continue
     const ab = a as Record<string, unknown>
     const empresaId = String(ab.empresa_id ?? '').trim()
     const turistaId = String(ab.turista_id ?? '').trim()
-    if (!empresaId) continue
-    await inserirAtrativosManifesto(auth.supabase, {
+    if (!empresaId || !turistaId) continue
+    await inserirParadasItinerario(auth.supabase, {
       manifestoId,
       turistaUsuarioId: turistaId,
       empresaIds: filtrarEmpresaIds([empresaId]),
     })
   }
 
-  const manifesto = await montarManifestoRow(auth.supabase, novo as Record<string, unknown>)
+  const manifesto = await montarManifestoRow(
+    auth.supabase,
+    novo as Record<string, unknown>,
+    profCheck.categorias,
+  )
   return NextResponse.json({ ok: true, manifesto })
 }

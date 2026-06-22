@@ -1,7 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
 import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
-import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
+import {
+  confirmarCheckInItinerario,
+  inserirParadasItinerario,
+} from '@/lib/itinerarioParadas'
+import { profissionalEhGuia } from '@/lib/profissionalCategoriaManifesto'
 
 export type ManifestoDiarioStatus =
   | 'rascunho'
@@ -34,7 +37,7 @@ export function rotuloContratacao(tipo: string): string {
 export async function buscarProfissionalPlacaVermelha(
   supabase: SupabaseClient,
   usuarioId: string,
-): Promise<{ id: string; placa_vermelha: boolean } | null> {
+): Promise<{ id: string; placa_vermelha: boolean; categorias: unknown } | null> {
   const { data } = await supabase
     .from('profissionais')
     .select('id, placa_vermelha, categorias')
@@ -42,7 +45,11 @@ export async function buscarProfissionalPlacaVermelha(
     .maybeSingle()
 
   if (!data?.id) return null
-  return { id: String(data.id), placa_vermelha: Boolean(data.placa_vermelha) }
+  return {
+    id: String(data.id),
+    placa_vermelha: Boolean(data.placa_vermelha),
+    categorias: data.categorias,
+  }
 }
 
 export async function obterOuCriarManifestoDiario(
@@ -59,9 +66,7 @@ export async function obterOuCriarManifestoDiario(
     .not('status', 'in', '("cancelado","concluido")')
     .maybeSingle()
 
-  if (existente?.id) {
-    return { id: String(existente.id), created: false }
-  }
+  if (existente?.id) return { id: String(existente.id), created: false }
 
   const { data: novo, error } = await supabase
     .from('manifesto_diario')
@@ -77,15 +82,29 @@ export async function obterOuCriarManifestoDiario(
   return { id: String(novo!.id), created: true }
 }
 
+export type DadosPaxManifesto = {
+  nome: string
+  documento?: string | null
+  username?: string | null
+  nome_social?: string | null
+  data_nascimento?: string | null
+  foto_url?: string | null
+  validada?: boolean
+}
+
 export type InserirPassageiroParams = {
   manifestoId: string
   turistaUsuarioId: string
   nome: string
   documento?: string | null
   username?: string | null
+  nome_social?: string | null
+  data_nascimento?: string | null
+  foto_url?: string | null
   contratacaoTipo: ContratacaoTipo
   profissionalIndiretoId?: string | null
   legacyManifestoId?: string | null
+  contratacaoValidada?: boolean
 }
 
 export async function inserirPassageiroManifesto(
@@ -99,19 +118,45 @@ export async function inserirPassageiroManifesto(
     .eq('turista_id', params.turistaUsuarioId)
     .maybeSingle()
 
-  if (dup?.id) return { id: String(dup.id) }
+  if (dup?.id) {
+    if (params.contratacaoValidada) {
+      await supabase
+        .from('manifesto_passageiros')
+        .update({
+          nome: params.nome,
+          documento: params.documento ?? null,
+          data_nascimento: params.data_nascimento ?? null,
+          nome_social: params.nome_social ?? null,
+          contratacao_validada_em: new Date().toISOString(),
+        })
+        .eq('id', dup.id)
+    }
+    return { id: String(dup.id) }
+  }
+
+  const { count } = await supabase
+    .from('manifesto_passageiros')
+    .select('id', { count: 'exact', head: true })
+    .eq('manifesto_id', params.manifestoId)
+
+  const agora = params.contratacaoValidada ? new Date().toISOString() : null
 
   const { data, error } = await supabase
     .from('manifesto_passageiros')
     .insert({
       manifesto_id: params.manifestoId,
       turista_id: params.turistaUsuarioId,
+      ordem: (count ?? 0) + 1,
       nome: params.nome,
       documento: params.documento ?? null,
       username: params.username ?? null,
+      nome_social: params.nome_social ?? null,
+      data_nascimento: params.data_nascimento ?? null,
+      foto_url: params.foto_url ?? null,
       contratacao_tipo: params.contratacaoTipo,
       profissional_indireto_id: params.profissionalIndiretoId ?? null,
       legacy_manifesto_id: params.legacyManifestoId ?? null,
+      contratacao_validada_em: agora,
     })
     .select('id')
     .maybeSingle()
@@ -120,67 +165,7 @@ export async function inserirPassageiroManifesto(
   return { id: String(data!.id) }
 }
 
-export async function inserirAtrativosManifesto(
-  supabase: SupabaseClient,
-  params: {
-    manifestoId: string
-    turistaUsuarioId: string
-    empresaIds: string[]
-    profissionalIndiretoId?: string | null
-  },
-): Promise<void> {
-  const ids = filtrarEmpresaIds(params.empresaIds)
-  if (ids.length === 0) return
-
-  for (const empresaId of ids) {
-    const { data: dup } = await supabase
-      .from('manifesto_atrativos')
-      .select('id')
-      .eq('manifesto_id', params.manifestoId)
-      .eq('turista_id', params.turistaUsuarioId)
-      .eq('empresa_id', empresaId)
-      .maybeSingle()
-
-    if (dup?.id) continue
-
-    await supabase.from('manifesto_atrativos').insert({
-      manifesto_id: params.manifestoId,
-      turista_id: params.turistaUsuarioId,
-      empresa_id: empresaId,
-    })
-  }
-
-  if (params.profissionalIndiretoId) {
-    const { data: profInd } = await supabase
-      .from('profissionais')
-      .select('usuario_id, nome_completo')
-      .eq('id', params.profissionalIndiretoId)
-      .maybeSingle()
-
-    if (profInd?.usuario_id) {
-      const { count } = await supabase
-        .from('manifesto_atrativos')
-        .select('id', { count: 'exact', head: true })
-        .eq('manifesto_id', params.manifestoId)
-        .eq('turista_id', params.turistaUsuarioId)
-
-      await inserirNotificacaoCanalFinanceiroProfissional(supabase, {
-        profissionalUsuarioId: String(profInd.usuario_id),
-        tipo: 'extrato_parceria',
-        titulo: 'Turista selecionou atrativos — parceria 50/50',
-        mensagem: `${count ?? ids.length} atrativo(s) agendado(s) no manifesto. Benefícios de parceria serão calculados ao concluir o manifesto.`,
-        comprovanteDetalhes: {
-          manifesto_id: params.manifestoId,
-          turista_usuario_id: params.turistaUsuarioId,
-          empresa_ids: ids,
-          profissional_indireto_id: params.profissionalIndiretoId,
-        },
-      })
-    }
-  }
-}
-
-/** Registra turista no manifesto diário do profissional (4 formas de entrada). */
+/** Registra turista no manifesto diário (PAX) e opcionalmente paradas no itinerário. */
 export async function registrarTuristaNoManifesto(
   supabase: SupabaseClient,
   params: {
@@ -189,9 +174,9 @@ export async function registrarTuristaNoManifesto(
     contratacaoTipo: ContratacaoTipo
     profissionalIndiretoId?: string | null
     dataManifesto?: string
-    atrativosEmpresaIds?: string[]
+    paradasEmpresaIds?: string[]
     legacyManifestoId?: string | null
-    dadosTurista?: { nome: string; documento?: string | null; username?: string | null }
+    dadosPax?: DadosPaxManifesto
   },
 ): Promise<{ manifestoId: string; passageiroId: string } | { error: string }> {
   const dataManifesto = params.dataManifesto ?? new Date().toISOString().slice(0, 10)
@@ -199,14 +184,17 @@ export async function registrarTuristaNoManifesto(
   const diario = await obterOuCriarManifestoDiario(supabase, params.profissionalId, dataManifesto, 'em_andamento')
   if ('error' in diario) return { error: diario.error }
 
-  let nome = params.dadosTurista?.nome ?? 'Turista'
-  let documento = params.dadosTurista?.documento ?? null
-  let username = params.dadosTurista?.username ?? null
+  let nome = params.dadosPax?.nome ?? 'Turista'
+  let documento = params.dadosPax?.documento ?? null
+  let username = params.dadosPax?.username ?? null
+  let nome_social = params.dadosPax?.nome_social ?? null
+  let data_nascimento = params.dadosPax?.data_nascimento ?? null
+  let foto_url = params.dadosPax?.foto_url ?? null
 
-  if (!params.dadosTurista) {
+  if (!params.dadosPax) {
     const { data: tur } = await supabase
       .from('turistas')
-      .select('nome_completo, nome_usuario, documento_identidade')
+      .select('nome_completo, nome_usuario, documento_identidade, foto_url, foto_perfil_url')
       .eq('usuario_id', params.turistaUsuarioId)
       .maybeSingle()
     if (tur) {
@@ -214,6 +202,13 @@ export async function registrarTuristaNoManifesto(
       documento = tur.documento_identidade != null ? String(tur.documento_identidade) : null
       const un = tur.nome_usuario != null ? String(tur.nome_usuario).replace(/^@+/, '') : ''
       username = un ? `@${un}` : null
+      nome_social = un || null
+      foto_url =
+        tur.foto_perfil_url != null
+          ? String(tur.foto_perfil_url)
+          : tur.foto_url != null
+            ? String(tur.foto_url)
+            : null
     }
   }
 
@@ -223,18 +218,22 @@ export async function registrarTuristaNoManifesto(
     nome,
     documento,
     username,
+    nome_social,
+    data_nascimento,
+    foto_url,
     contratacaoTipo: params.contratacaoTipo,
     profissionalIndiretoId: params.profissionalIndiretoId ?? null,
     legacyManifestoId: params.legacyManifestoId ?? null,
+    contratacaoValidada: params.dadosPax?.validada === true,
   })
 
   if ('error' in passageiro) return { error: passageiro.error }
 
-  if (params.atrativosEmpresaIds?.length) {
-    await inserirAtrativosManifesto(supabase, {
+  if (params.paradasEmpresaIds?.length) {
+    await inserirParadasItinerario(supabase, {
       manifestoId: diario.id,
       turistaUsuarioId: params.turistaUsuarioId,
-      empresaIds: params.atrativosEmpresaIds,
+      empresaIds: params.paradasEmpresaIds,
       profissionalIndiretoId: params.profissionalIndiretoId ?? null,
     })
   }
@@ -251,56 +250,7 @@ export async function confirmarCheckInManifesto(
     metodo: MetodoValidacaoCheckin
   },
 ): Promise<{ ok: boolean; error?: string }> {
-  const agora = new Date().toISOString()
-
-  const { data: checkin, error: insErr } = await supabase
-    .from('manifesto_checkins')
-    .insert({
-      manifesto_id: params.manifestoId,
-      empresa_id: params.empresaId,
-      turista_id: params.turistaUsuarioId ?? null,
-      horario_chegada: agora,
-      status: 'confirmado',
-      confirmado_em: agora,
-      metodo_validacao: params.metodo,
-    })
-    .select('id')
-    .maybeSingle()
-
-  if (insErr) return { ok: false, error: insErr.message }
-
-  let updAtr = supabase
-    .from('manifesto_atrativos')
-    .update({ visitado: true, visitado_em: agora })
-    .eq('manifesto_id', params.manifestoId)
-    .eq('empresa_id', params.empresaId)
-  if (params.turistaUsuarioId) {
-    updAtr = updAtr.eq('turista_id', params.turistaUsuarioId)
-  }
-  await updAtr
-
-  const { data: emp } = await supabase
-    .from('empresas')
-    .select('usuario_id, nome_fantasia')
-    .eq('id', params.empresaId)
-    .maybeSingle()
-
-  if (emp?.usuario_id) {
-    await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
-      empresaUsuarioId: String(emp.usuario_id),
-      tipo: 'relatorio_pax',
-      titulo: 'Check-in confirmado no manifesto',
-      mensagem: `Check-in confirmado (${params.metodo}) em ${String(emp.nome_fantasia ?? 'sua empresa')}.`,
-      comprovanteDetalhes: {
-        manifesto_id: params.manifestoId,
-        empresa_id: params.empresaId,
-        checkin_id: checkin?.id,
-        metodo_validacao: params.metodo,
-      },
-    })
-  }
-
-  return { ok: true }
+  return confirmarCheckInItinerario(supabase, params)
 }
 
 export async function concluirManifestoDiario(
@@ -318,14 +268,25 @@ export async function concluirManifestoDiario(
   if (mdErr || !md) return { ok: false, error: 'Manifesto não encontrado.' }
   if (String(md.status) === 'concluido') return { ok: true }
 
-  const { data: atrativos } = await supabase
-    .from('manifesto_atrativos')
-    .select('id, visitado, empresa_id')
+  const { data: prof } = await supabase
+    .from('profissionais')
+    .select('usuario_id, nome_completo, categorias')
+    .eq('id', profissionalId)
+    .maybeSingle()
+
+  const ehGuia = profissionalEhGuia(prof?.categorias)
+
+  const { data: paradas } = await supabase
+    .from('itinerario_paradas')
+    .select('id, visitado')
     .eq('manifesto_id', manifestoId)
 
-  const pendentes = (atrativos ?? []).filter((a) => !a.visitado)
-  if (pendentes.length > 0) {
-    return { ok: false, error: 'Confirme check-in em todos os atrativos antes de concluir.' }
+  const qtdParadas = paradas?.length ?? 0
+  if (ehGuia && qtdParadas > 0) {
+    const pendentes = (paradas ?? []).filter((a) => !a.visitado)
+    if (pendentes.length > 0) {
+      return { ok: false, error: 'Confirme check-in em todas as paradas do itinerário antes de concluir.' }
+    }
   }
 
   const agora = new Date().toISOString()
@@ -336,27 +297,24 @@ export async function concluirManifestoDiario(
 
   if (updErr) return { ok: false, error: updErr.message }
 
-  const { data: prof } = await supabase
-    .from('profissionais')
-    .select('usuario_id, nome_completo')
-    .eq('id', profissionalId)
-    .maybeSingle()
-
   const { data: passageiros } = await supabase
     .from('manifesto_passageiros')
     .select('nome, profissional_indireto_id, turista_id')
     .eq('manifesto_id', manifestoId)
 
   const qtdPax = passageiros?.length ?? 0
-  const qtdAtr = atrativos?.length ?? 0
 
   if (prof?.usuario_id) {
     await inserirNotificacaoCanalFinanceiroProfissional(supabase, {
       profissionalUsuarioId: String(prof.usuario_id),
       tipo: 'extrato_comissao',
       titulo: 'Manifesto concluído — resumo do dia',
-      mensagem: `Manifesto concluído com ${qtdPax} passageiro(s) e ${qtdAtr} atrativo(s) visitados.`,
-      comprovanteDetalhes: { manifesto_id: manifestoId, qtd_passageiros: qtdPax, qtd_atrativos: qtdAtr },
+      mensagem: `Manifesto concluído com ${qtdPax} passageiro(s) e ${qtdParadas} parada(s) no itinerário.`,
+      comprovanteDetalhes: {
+        manifesto_id: manifestoId,
+        qtd_passageiros: qtdPax,
+        qtd_paradas: qtdParadas,
+      },
     })
   }
 
@@ -384,8 +342,8 @@ export async function concluirManifestoDiario(
   }
 
   const turistaIds = (passageiros ?? [])
-    .map((p) => (p as { turista_id?: string }).turista_id)
-    .filter(Boolean) as string[]
+    .map((p) => (p.turista_id != null ? String(p.turista_id) : ''))
+    .filter(Boolean)
 
   if (turistaIds.length > 0) {
     await supabase
@@ -398,61 +356,5 @@ export async function concluirManifestoDiario(
   return { ok: true }
 }
 
-export async function buscarAtrativosParceriaIndireto(
-  supabase: SupabaseClient,
-  profissionalIndiretoId: string,
-  turistaUsuarioId?: string | null,
-): Promise<
-  Array<{
-    empresa_id: string
-    empresa_nome: string
-    categoria: string
-    visitado: boolean
-    selecionado_em: string
-  }>
-> {
-  let q = supabase
-    .from('manifesto_passageiros')
-    .select(
-      `
-      manifesto_id,
-      turista_id,
-      manifesto_atrativos:manifesto_id (
-        empresa_id,
-        visitado,
-        selecionado_em,
-        empresas:empresa_id (nome_fantasia, categoria)
-      )
-    `,
-    )
-    .eq('profissional_indireto_id', profissionalIndiretoId)
-
-  if (turistaUsuarioId) q = q.eq('turista_id', turistaUsuarioId)
-
-  const { data } = await q
-  const out: Array<{
-    empresa_id: string
-    empresa_nome: string
-    categoria: string
-    visitado: boolean
-    selecionado_em: string
-  }> = []
-
-  for (const row of data ?? []) {
-    const atrs = row.manifesto_atrativos
-    const lista = Array.isArray(atrs) ? atrs : atrs ? [atrs] : []
-    for (const a of lista) {
-      const emp = joinSupabaseRow(a.empresas)
-      if (!a.empresa_id) continue
-      out.push({
-        empresa_id: String(a.empresa_id),
-        empresa_nome: String(emp?.nome_fantasia ?? 'Empresa'),
-        categoria: String(emp?.categoria ?? ''),
-        visitado: Boolean(a.visitado),
-        selecionado_em: String(a.selecionado_em ?? ''),
-      })
-    }
-  }
-
-  return out
-}
+// Re-export itinerário para compatibilidade
+export { inserirParadasItinerario, inserirParadasItinerario as inserirAtrativosManifesto } from '@/lib/itinerarioParadas'

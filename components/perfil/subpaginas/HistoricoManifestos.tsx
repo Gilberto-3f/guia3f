@@ -55,7 +55,7 @@ export default function HistoricoManifestos() {
             <li key={m.id} className="rounded-xl border border-gray-200 bg-white p-3 text-sm">
               <p className="font-semibold text-gray-900">{formatarData(m.data_manifesto)}</p>
               <p className="text-xs text-gray-500">
-                {m.qtd_passageiros} passageiro(s) · {m.qtd_atrativos} atrativo(s)
+                {m.qtd_passageiros} passageiro(s) · {m.qtd_paradas} parada(s)
               </p>
               <p className="mt-1 text-xs text-gray-500">
                 Concluído: {m.concluido_em ? formatarDataHora(m.concluido_em) : '—'}
