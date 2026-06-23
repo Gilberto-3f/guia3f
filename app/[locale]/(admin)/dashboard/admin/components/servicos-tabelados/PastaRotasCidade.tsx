@@ -5,11 +5,12 @@ import { Plus, Trash2 } from 'lucide-react'
 import { AdminSecaoChevron } from '../shared/AdminSecaoChevron'
 import {
   CIDADES_ORIGEM_TABELADO,
+  descricaoPeriodoRota,
   type CategoriaTabeladoId,
   type CidadeOrigemTabeladoId,
   type RotaTabelada,
 } from '@/lib/servicosTabeladosCatalogo'
-import { CardNovaTabela } from './CardNovaTabela'
+import { CardNovaTabela, type NovaTabelaFormData } from './CardNovaTabela'
 
 export function PastaRotasCidade({
   categoria,
@@ -23,7 +24,7 @@ export function PastaRotasCidade({
   cidadeId: CidadeOrigemTabeladoId
   rotas: RotaTabelada[]
   salvando: boolean
-  onSalvar: (destino: string, valor: number) => Promise<{ success: boolean; error?: unknown }>
+  onSalvar: (dados: NovaTabelaFormData) => Promise<{ success: boolean; error?: unknown }>
   onExcluir: (id: string) => Promise<void>
 }) {
   const meta = CIDADES_ORIGEM_TABELADO[cidadeId]
@@ -57,11 +58,12 @@ export function PastaRotasCidade({
         {criando ? (
           <div className="mb-3 pr-36">
             <CardNovaTabela
+              categoria={categoria}
               pontoPartida={meta.pontoPartida}
               salvando={salvando}
               onCancelar={() => setCriando(false)}
-              onConfirmar={async (destino, valor) => {
-                const res = await onSalvar(destino, valor)
+              onConfirmar={async (dados) => {
+                const res = await onSalvar(dados)
                 if (res.success) setCriando(false)
                 return res
               }}
@@ -73,7 +75,9 @@ export function PastaRotasCidade({
           <p className="py-6 text-center text-sm text-gray-500">Nenhuma tabela cadastrada nesta região.</p>
         ) : (
           <ul className="space-y-2">
-            {rotasPasta.map((rota) => (
+            {rotasPasta.map((rota) => {
+              const periodo = descricaoPeriodoRota(rota)
+              return (
               <li
                 key={rota.id}
                 className="flex items-start justify-between gap-2 rounded-xl border border-gray-200 bg-white p-3"
@@ -82,6 +86,9 @@ export function PastaRotasCidade({
                   <p className="text-sm font-bold text-gray-900">
                     {rota.pontoPartida} → {rota.destinoFinal}
                   </p>
+                  {periodo ? (
+                    <p className="mt-1 text-xs font-medium text-gray-700">{periodo}</p>
+                  ) : null}
                   <p className="mt-1 text-sm text-[#0097b2]">
                     R$ {rota.valorRota.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
@@ -98,7 +105,7 @@ export function PastaRotasCidade({
                   <Trash2 className="h-4 w-4" aria-hidden />
                 </button>
               </li>
-            ))}
+            )})}
           </ul>
         )}
       </div>

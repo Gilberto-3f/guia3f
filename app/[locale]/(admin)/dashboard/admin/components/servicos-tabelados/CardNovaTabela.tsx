@@ -1,20 +1,38 @@
 'use client'
 
 import { useState } from 'react'
+import type { CategoriaTabeladoId, TipoPeriodoGuia } from '@/lib/servicosTabeladosCatalogo'
+
+export type NovaTabelaFormData = {
+  destino: string
+  valor: number
+  tipoPeriodoGuia?: TipoPeriodoGuia
+  horaInicio?: string
+  horaFim?: string
+  horaSaida?: string
+  horaRetorno?: string
+}
 
 export function CardNovaTabela({
+  categoria,
   pontoPartida,
   salvando,
   onConfirmar,
   onCancelar,
 }: {
+  categoria: CategoriaTabeladoId
   pontoPartida: string
   salvando: boolean
-  onConfirmar: (destino: string, valor: number) => Promise<{ success: boolean; error?: unknown }>
+  onConfirmar: (dados: NovaTabelaFormData) => Promise<{ success: boolean; error?: unknown }>
   onCancelar: () => void
 }) {
   const [destino, setDestino] = useState('')
   const [valor, setValor] = useState('')
+  const [tipoPeriodoGuia, setTipoPeriodoGuia] = useState<TipoPeriodoGuia>('acompanhamento')
+  const [horaInicio, setHoraInicio] = useState('')
+  const [horaFim, setHoraFim] = useState('')
+  const [horaSaida, setHoraSaida] = useState('')
+  const [horaRetorno, setHoraRetorno] = useState('')
   const [erro, setErro] = useState<string | null>(null)
 
   const confirmar = async () => {
@@ -28,7 +46,30 @@ export function CardNovaTabela({
       setErro('Informe o valor da rota.')
       return
     }
-    const res = await onConfirmar(destino.trim(), valorNum)
+    if (categoria === 'guia' && (!horaInicio || !horaFim)) {
+      setErro('Informe o horário de início e fim do período.')
+      return
+    }
+    if (categoria === 'van' && (!horaSaida || !horaRetorno)) {
+      setErro('Informe o horário de saída e retorno.')
+      return
+    }
+
+    const dados: NovaTabelaFormData = {
+      destino: destino.trim(),
+      valor: valorNum,
+    }
+    if (categoria === 'guia') {
+      dados.tipoPeriodoGuia = tipoPeriodoGuia
+      dados.horaInicio = horaInicio
+      dados.horaFim = horaFim
+    }
+    if (categoria === 'van') {
+      dados.horaSaida = horaSaida
+      dados.horaRetorno = horaRetorno
+    }
+
+    const res = await onConfirmar(dados)
     if (!res.success) {
       const msg =
         res.error instanceof Error
@@ -65,6 +106,91 @@ export function CardNovaTabela({
             className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#0097b2]"
           />
         </label>
+
+        {categoria === 'guia' ? (
+          <fieldset className="space-y-3 rounded-lg border border-gray-100 bg-[#f5f5f5] p-3">
+            <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Período do serviço
+            </legend>
+            <p className="text-[11px] text-gray-600">
+              Escolha um tipo por tabela: acompanhamento presencial nos atrativos ou diária pelo período combinado.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                <input
+                  type="radio"
+                  name="tipo-periodo-guia"
+                  checked={tipoPeriodoGuia === 'acompanhamento'}
+                  onChange={() => setTipoPeriodoGuia('acompanhamento')}
+                  className="accent-[#00D443]"
+                />
+                <span>Acompanhamento (média padrão)</span>
+              </label>
+              <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                <input
+                  type="radio"
+                  name="tipo-periodo-guia"
+                  checked={tipoPeriodoGuia === 'diaria'}
+                  onChange={() => setTipoPeriodoGuia('diaria')}
+                  className="accent-[#00D443]"
+                />
+                <span>Diária (período combinado)</span>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block text-xs font-semibold text-gray-600">
+                Das
+                <input
+                  type="time"
+                  value={horaInicio}
+                  onChange={(e) => setHoraInicio(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block text-xs font-semibold text-gray-600">
+                Às
+                <input
+                  type="time"
+                  value={horaFim}
+                  onChange={(e) => setHoraFim(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+          </fieldset>
+        ) : null}
+
+        {categoria === 'van' ? (
+          <fieldset className="space-y-3 rounded-lg border border-gray-100 bg-[#f5f5f5] p-3">
+            <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Ida e volta
+            </legend>
+            <p className="text-[11px] text-gray-600">
+              Horários de transporte (saída e retorno no ponto combinado). O passageiro visita os atrativos por conta
+              própria.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block text-xs font-semibold text-gray-600">
+                Saída às
+                <input
+                  type="time"
+                  value={horaSaida}
+                  onChange={(e) => setHoraSaida(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block text-xs font-semibold text-gray-600">
+                Retorno às
+                <input
+                  type="time"
+                  value={horaRetorno}
+                  onChange={(e) => setHoraRetorno(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+          </fieldset>
+        ) : null}
 
         <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">
           Valor da Rota

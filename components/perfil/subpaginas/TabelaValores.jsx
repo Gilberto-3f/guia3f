@@ -5,6 +5,7 @@ import { ArrowRight, ChevronDown, MapPin } from 'lucide-react'
 import { useServicosTabeladosProfissional } from '@/hooks/useServicosTabeladosProfissional'
 import {
   CIDADES_ORIGEM_TABELADO,
+  descricaoPeriodoRota,
   labelCategoriaTabelado,
   ordenarCidadesTabeladas,
 } from '@/lib/servicosTabeladosCatalogo'
@@ -27,6 +28,7 @@ function SubtituloCategoria({ categoria }) {
 
 function LinhaRota({ rota }) {
   const partida = limparPontoPartida(rota.pontoPartida)
+  const periodo = descricaoPeriodoRota(rota)
   return (
     <li className="flex items-center justify-between gap-3 px-3 py-3">
       <div className="min-w-0 flex-1 space-y-1.5">
@@ -38,6 +40,9 @@ function LinhaRota({ rota }) {
           <MapPin className="h-4 w-4 shrink-0" style={{ color: COR_ICONE_ROTA }} strokeWidth={2.25} aria-hidden />
           <span className="min-w-0 truncate">{rota.destinoFinal}</span>
         </p>
+        {periodo ? (
+          <p className="text-xs font-medium text-gray-600">{periodo}</p>
+        ) : null}
       </div>
       <p className="shrink-0 text-sm font-bold text-[#0097b2]">
         R$ {rota.valorRota.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}

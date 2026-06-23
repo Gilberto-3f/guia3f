@@ -76,15 +76,20 @@ export function ServicosTabeladosConteudo() {
           cidadeId={cidadeId}
           rotas={rotas}
           salvando={salvando}
-          onSalvar={async (destino, valor) => {
+          onSalvar={async (dados) => {
             if (!admin) return { success: false, error: new Error('Sem permissão') }
             return salvarRota(
               {
                 categoria,
                 cidadeOrigem: cidadeId,
                 pontoPartida: CIDADES_ORIGEM_TABELADO[cidadeId].pontoPartida,
-                destinoFinal: destino,
-                valorRota: valor,
+                destinoFinal: dados.destino,
+                valorRota: dados.valor,
+                tipoPeriodoGuia: dados.tipoPeriodoGuia,
+                horaInicio: dados.horaInicio,
+                horaFim: dados.horaFim,
+                horaSaida: dados.horaSaida,
+                horaRetorno: dados.horaRetorno,
               },
               admin.id,
             )

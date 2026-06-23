@@ -7,6 +7,7 @@ import {
   type CategoriaTabeladoId,
   type CidadeOrigemTabeladoId,
   type RotaTabelada,
+  type TipoPeriodoGuia,
 } from '@/lib/servicosTabeladosCatalogo'
 
 export type NovaRotaTabeladaInput = {
@@ -15,6 +16,11 @@ export type NovaRotaTabeladaInput = {
   pontoPartida: string
   destinoFinal: string
   valorRota: number
+  tipoPeriodoGuia?: TipoPeriodoGuia | null
+  horaInicio?: string | null
+  horaFim?: string | null
+  horaSaida?: string | null
+  horaRetorno?: string | null
 }
 
 export function useServicosTabeladosAdm() {
@@ -53,9 +59,20 @@ export function useServicosTabeladosAdm() {
         return { success: false, error: new Error('Valor da rota inválido') }
       }
 
+      if (input.categoria === 'guia') {
+        if (!input.tipoPeriodoGuia || !input.horaInicio || !input.horaFim) {
+          return { success: false, error: new Error('Informe o tipo de período e os horários do guia') }
+        }
+      }
+      if (input.categoria === 'van') {
+        if (!input.horaSaida || !input.horaRetorno) {
+          return { success: false, error: new Error('Informe horário de saída e retorno da van') }
+        }
+      }
+
       setSalvando(true)
       try {
-        const { error } = await supabase.from('servicos_tabelados_rotas').insert({
+        const payload: Record<string, unknown> = {
           categoria: input.categoria,
           cidade_origem: input.cidadeOrigem,
           ponto_partida: input.pontoPartida.trim(),
@@ -64,7 +81,18 @@ export function useServicosTabeladosAdm() {
           criado_por: adminId,
           ativo: true,
           updated_at: new Date().toISOString(),
-        })
+        }
+
+        if (input.categoria === 'guia') {
+          payload.tipo_periodo_guia = input.tipoPeriodoGuia
+          payload.hora_inicio = input.horaInicio
+          payload.hora_fim = input.horaFim
+        } else if (input.categoria === 'van') {
+          payload.hora_saida = input.horaSaida
+          payload.hora_retorno = input.horaRetorno
+        }
+
+        const { error } = await supabase.from('servicos_tabelados_rotas').insert(payload)
         if (error) throw error
         await carregar()
         return { success: true }

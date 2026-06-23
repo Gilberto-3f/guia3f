@@ -6,6 +6,8 @@ export type CategoriaTabeladoId = 'guia' | 'van' | 'taxista' | 'motorista_app'
 
 export type CidadeOrigemTabeladoId = 'cde' | 'foz' | 'puerto_iguazu'
 
+export type TipoPeriodoGuia = 'acompanhamento' | 'diaria'
+
 export type RotaTabelada = {
   id: string
   categoria: CategoriaTabeladoId
@@ -15,6 +17,40 @@ export type RotaTabelada = {
   valorRota: number
   ativo: boolean
   createdAt: string
+  /** Guia: acompanhamento ou diária (um por tabela). */
+  tipoPeriodoGuia?: TipoPeriodoGuia | null
+  horaInicio?: string | null
+  horaFim?: string | null
+  /** Van: ida e volta. */
+  horaSaida?: string | null
+  horaRetorno?: string | null
+}
+
+/** Normaliza TIME do Postgres (HH:MM:SS) para exibição HH:MM. */
+export function formatarHorarioTabelado(raw: string | null | undefined): string {
+  if (!raw) return ''
+  const m = String(raw).match(/^(\d{1,2}):(\d{2})/)
+  if (!m) return String(raw)
+  return `${m[1].padStart(2, '0')}:${m[2]}`
+}
+
+export function labelTipoPeriodoGuia(tipo: TipoPeriodoGuia): string {
+  return tipo === 'acompanhamento' ? 'Acompanhamento (média padrão)' : 'Diária'
+}
+
+/** Texto do período/horário conforme categoria da rota. */
+export function descricaoPeriodoRota(rota: RotaTabelada): string | null {
+  if (rota.categoria === 'guia' && rota.tipoPeriodoGuia && rota.horaInicio && rota.horaFim) {
+    const ini = formatarHorarioTabelado(rota.horaInicio)
+    const fim = formatarHorarioTabelado(rota.horaFim)
+    return `${labelTipoPeriodoGuia(rota.tipoPeriodoGuia)}: das ${ini} às ${fim}`
+  }
+  if (rota.categoria === 'van' && rota.horaSaida && rota.horaRetorno) {
+    const saida = formatarHorarioTabelado(rota.horaSaida)
+    const retorno = formatarHorarioTabelado(rota.horaRetorno)
+    return `Ida e volta: saída às ${saida} / retorno às ${retorno}`
+  }
+  return null
 }
 
 export const CATEGORIAS_TABELADOS: {
@@ -111,6 +147,10 @@ export function mapCategoriaProfissionalParaTabelado(
 }
 
 export function mapRotaTabeladaRow(row: Record<string, unknown>): RotaTabelada {
+  const tipoRaw = row.tipo_periodo_guia
+  const tipoPeriodoGuia =
+    tipoRaw === 'acompanhamento' || tipoRaw === 'diaria' ? tipoRaw : null
+
   return {
     id: String(row.id ?? ''),
     categoria: String(row.categoria ?? 'guia') as CategoriaTabeladoId,
@@ -120,5 +160,10 @@ export function mapRotaTabeladaRow(row: Record<string, unknown>): RotaTabelada {
     valorRota: Number(row.valor_rota ?? 0),
     ativo: row.ativo !== false,
     createdAt: String(row.created_at ?? ''),
+    tipoPeriodoGuia,
+    horaInicio: row.hora_inicio != null ? String(row.hora_inicio) : null,
+    horaFim: row.hora_fim != null ? String(row.hora_fim) : null,
+    horaSaida: row.hora_saida != null ? String(row.hora_saida) : null,
+    horaRetorno: row.hora_retorno != null ? String(row.hora_retorno) : null,
   }
 }
