@@ -48,6 +48,7 @@ function bandeiraPorCidade(cidade) {
  *   segmentoGuiaSlug?: string | null
  *   onSeguirToggle?: () => void
  *   temBotaoDinamico?: boolean
+ *   emDegustacao?: boolean
  *   planosCarregando?: boolean
  * }} props
  */
@@ -55,6 +56,7 @@ export default function CardAtrativo({
   empresa,
   segmentoGuiaSlug = null,
   temBotaoDinamico = true,
+  emDegustacao = false,
   planosCarregando = false,
 }) {
   const router = useRouter()
@@ -68,7 +70,8 @@ export default function CardAtrativo({
     temBotaoDinamico || (planoSlug && planoSlug !== 'gratuito'),
   )
   const exibirBotaoDinamico =
-    empresaVerificada && (temBotaoDinamico || (planosCarregando && empresaPodeTerBotaoPlano))
+    empresaVerificada &&
+    (temBotaoDinamico || emDegustacao || (planosCarregando && empresaPodeTerBotaoPlano))
   const aguardandoSlot = gateLoading || planosCarregando
 
   const desc =
@@ -142,7 +145,7 @@ export default function CardAtrativo({
               aria-busy="true"
               aria-label="A carregar botão de serviço"
             />
-          ) : exibirBotaoDinamico && temBotaoDinamico && podeComprarReservar ? (
+          ) : exibirBotaoDinamico && (temBotaoDinamico || emDegustacao) && podeComprarReservar ? (
             <BotaoDinamico
               categoria={empresa.categoria}
               cidade={empresa.cidade}

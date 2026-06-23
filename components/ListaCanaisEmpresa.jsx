@@ -147,6 +147,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     aguardarEmpresa: !empresaId,
   })
   const temCanaisComunidade = featureLiberada('canais') || degustacaoAtiva
+  const canalProfissionalPendenteRef = useRef(/** @type {string | null} */ (null))
 
   /**
    * Canal de segmento da empresa + Financeiro (sem expor o canal ADM / Mensageiro).
@@ -393,6 +394,21 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       })
       const ordenados = ordenarCanais(filtrada)
       setCanais(ordenados)
+
+      const pendenteSlug = canalProfissionalPendenteRef.current
+      if (pendenteSlug && empId) {
+        const real = ordenados.find(
+          (c) =>
+            String(c.empresa_id ?? '') === String(empId) &&
+            toSlug(c.comunidade_prof) === pendenteSlug &&
+            !String(c.id ?? '').startsWith('__placeholder'),
+        )
+        if (real) {
+          canalProfissionalPendenteRef.current = null
+          onSelectCanal(real)
+        }
+      }
+
       const ids = ordenados.map((c) => c.id).filter((id) => !String(id).startsWith('__placeholder'))
       const [ultimas, contagens, fin, username] = await Promise.all([
         buscarUltimasMensagensCanais(supabase, ids),
@@ -413,7 +429,20 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [onSelectCanal])
+
+  useEffect(() => {
+    if (!degustacaoAtiva || !empresaId || planoLoading) return
+    void (async () => {
+      await garantirCanaisEmpresaComunidade(supabase, empresaId)
+      await carregar()
+    })()
+  }, [carregar, degustacaoAtiva, empresaId, planoLoading])
+
+  useEffect(() => {
+    if (planoLoading || !temCanaisComunidade) return
+    setGruposAbertos((prev) => ({ ...prev, profissionais: true }))
+  }, [planoLoading, temCanaisComunidade])
 
   useEffect(() => {
     void refreshGate()
@@ -579,7 +608,11 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     const isPlaceholder = String(canal.id ?? '').startsWith('__placeholder_')
     const financeiroBloqueado = ehFinanceiro && !recursosEmpresaLiberados && !gateLoading
     const financeiroSemCanal = ehFinanceiro && isPlaceholder && !financeiroCanalIdGlobal
-    const rowDisabled = isPlaceholder && !(ehFinanceiro && recursosEmpresaLiberados && financeiroCanalIdGlobal)
+    const profissionalPlaceholder = isPlaceholder && ehProfissional && temCanaisComunidade
+    const rowDisabled =
+      isPlaceholder &&
+      !(ehFinanceiro && recursosEmpresaLiberados && financeiroCanalIdGlobal) &&
+      !profissionalPlaceholder
     const label = ehFinanceiro ? (
       <CanalFinanceiroListaRotulo username={meuUsername} />
     ) : ehSegmentoAdm ? (
@@ -621,6 +654,16 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         disabled={rowDisabled}
         onClick={() => {
           if (rowDisabled) return
+          if (profissionalPlaceholder) {
+            const slug = toSlug(canal.comunidade_prof != null ? String(canal.comunidade_prof) : '')
+            if (!empresaId || !slug) return
+            canalProfissionalPendenteRef.current = slug
+            void (async () => {
+              await garantirCanaisEmpresaComunidade(supabase, empresaId)
+              await carregar()
+            })()
+            return
+          }
           if (ehFinanceiro && financeiroBloqueado) {
             window.alert(
               'O canal financeiro é liberado após a verificação dos seus documentos. Menu → USUÁRIO → Anexar documentos.',

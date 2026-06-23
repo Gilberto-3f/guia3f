@@ -135,10 +135,10 @@ export function resolverServicosEmpresa(
 export function resolverServicosEmpresaComDegustacao(
   planoEmpresa: string | null | undefined,
   planos: PlanoResumoServicos[],
-  degustacaoPlanoId?: string | null,
+  degustacao?: { ativa: boolean; planoId?: string | null } | null,
 ): ServicoPlanoId[] {
-  if (degustacaoPlanoId) {
-    const planoDeg = planos.find((p) => p.id === degustacaoPlanoId)
+  if (degustacao?.ativa) {
+    const planoDeg = degustacao.planoId ? planos.find((p) => p.id === degustacao.planoId) : null
     return resolverServicosEmpresa(planoEmpresa, planos, {
       ativa: true,
       servicos: planoDeg?.servicos?.length ? planoDeg.servicos : null,

@@ -15,7 +15,7 @@ import {
 } from '@/lib/planosEmpresaServicosGate'
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import { buscarMapaDegustacaoAtivaPorEmpresas } from '@/lib/degustacaoEmpresa'
-import { aplicarFiltroEmpresasGuiaPublico } from '@/lib/empresaGuiaVisibilidade'
+import { buscarEmpresasListagemGuia } from '@/lib/empresaGuiaVisibilidade'
 
 import { slugGuiaParaCategoriaDb } from '@/lib/segmentosEmpresaGuia'
 
@@ -120,43 +120,17 @@ export default function ListagemCategoriaPage() {
     if (!silent) setLoading(true)
     if (!silent) setErroLista('')
     try {
-      const { data: empresasData, error } = await aplicarFiltroEmpresasGuiaPublico(
-        supabase
-          .from('empresas')
-          .select(
-            'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave, plano'
-          )
-          .eq('categoria', categoriaDb)
-          .eq('cidade', cidadeDb),
-      )
-        .order('nota_media', { ascending: false })
-        .order('total_avaliacoes', { ascending: false })
+      const { lista, error } = await buscarEmpresasListagemGuia(supabase, {
+        categoria: categoriaDb,
+        cidade: cidadeDb,
+      })
 
       if (error) {
-        const msg = String(error.message ?? '').toLowerCase()
-        if (msg.includes('palavras_chave') && (msg.includes('column') || msg.includes('does not exist'))) {
-          const retry = await aplicarFiltroEmpresasGuiaPublico(
-            supabase
-              .from('empresas')
-              .select(
-                'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
-              )
-              .eq('categoria', categoriaDb)
-              .eq('cidade', cidadeDb),
-          )
-            .order('nota_media', { ascending: false })
-            .order('total_avaliacoes', { ascending: false })
-          if (!retry.error) {
-            setEmpresas((retry.data ?? []) as Empresa[])
-            return
-          }
-        }
-        setErroLista(error.message)
+        setErroLista(error)
         setEmpresas([])
         return
       }
-      const lista = (empresasData ?? []) as Empresa[]
-      setEmpresas(lista)
+      setEmpresas(lista as Empresa[])
       try {
         sessionStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), lista }))
       } catch {
@@ -200,8 +174,14 @@ export default function ListagemCategoriaPage() {
 
   const empresaTemBotaoDinamico = useCallback(
     (empresa: Empresa) => {
-      const degPlanoId = degustacaoPlanoPorEmpresa.get(empresa.id) ?? null
-      const servicos = resolverServicosEmpresaComDegustacao(empresa.plano, planosResumo, degPlanoId)
+      const emDegustacao = degustacaoPlanoPorEmpresa.has(empresa.id)
+      const servicos = resolverServicosEmpresaComDegustacao(
+        empresa.plano,
+        planosResumo,
+        emDegustacao
+          ? { ativa: true, planoId: degustacaoPlanoPorEmpresa.get(empresa.id) ?? null }
+          : null,
+      )
       return empresaTemServico(servicos, 'botao_dinamico')
     },
     [degustacaoPlanoPorEmpresa, planosResumo],
@@ -426,6 +406,7 @@ export default function ListagemCategoriaPage() {
                 empresa={empresa}
                 segmentoGuiaSlug={slug}
                 temBotaoDinamico={empresaTemBotaoDinamico(empresa)}
+                emDegustacao={degustacaoPlanoPorEmpresa.has(empresa.id)}
                 planosCarregando={planosCarregando}
               />
             ))}
