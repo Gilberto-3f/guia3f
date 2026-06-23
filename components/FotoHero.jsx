@@ -2,11 +2,14 @@
 
 import Image from 'next/image'
 import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
+import MediaFillImage from '@/components/MediaFillImage'
 
 /**
  * @param {{ fotoUrl: string | null, nome: string, onOpenMenu?: () => void, mostrarMenu?: boolean }} props
  */
 export default function FotoHero({ fotoUrl, nome, onOpenMenu, mostrarMenu = false }) {
+  const inicial = (nome || '').trim().charAt(0) || '?'
+
   return (
     <div
       className={`relative aspect-square w-full overflow-hidden ${
@@ -14,10 +17,10 @@ export default function FotoHero({ fotoUrl, nome, onOpenMenu, mostrarMenu = fals
       }`}
     >
       {fotoUrl ? (
-        <Image src={fotoUrl} alt={nome} fill className="object-cover" priority sizes="100vw" />
+        <MediaFillImage src={fotoUrl} alt={nome || 'Empresa'} priority sizes="100vw" />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-4xl font-bold text-white/40">
-          {nome.trim().charAt(0) || '?'}
+          {inicial}
         </div>
       )}
       {mostrarMenu && onOpenMenu ? (

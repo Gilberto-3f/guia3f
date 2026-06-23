@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { Bookmark, Heart, MessageCircle, Repeat2, Share2, ShieldCheck, Star } from 'lucide-react'
 import ModalComentarios from '@/components/ModalComentarios'
@@ -13,6 +12,7 @@ import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/lib/feed-autor'
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import AvatarImage from '@/components/AvatarImage'
+import MediaFillImage from '@/components/MediaFillImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
@@ -1173,11 +1173,11 @@ export default function PostCard({
                         className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
                         aria-label={`Ver empresa ${nomeFantasiaAlvo}`}
                       >
-                        <Image src={fotoAlvo} alt="" width={40} height={40} className="h-full w-full object-cover" />
+                        <AvatarImage src={fotoAlvo} alt="" width={40} height={40} className="h-full w-full object-cover" />
                       </Link>
                     ) : (
                       <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                        <Image src={fotoAlvo} alt="" width={40} height={40} className="h-full w-full object-cover" />
+                        <AvatarImage src={fotoAlvo} alt="" width={40} height={40} className="h-full w-full object-cover" />
                       </div>
                     )
                   ) : (
@@ -1302,13 +1302,13 @@ export default function PostCard({
                 }}
               />
             ) : (
-              <Image
+              <MediaFillImage
                 src={mediaUrl}
                 alt=""
-                fill
-                className="object-contain"
+                objectFit="contain"
                 sizes="(max-width: 768px) 100vw, 480px"
-                onLoadingComplete={(img) => {
+                onLoad={(e) => {
+                  const img = e.currentTarget
                   const w = img.naturalWidth
                   const h = img.naturalHeight
                   if (w > 0 && h > 0) setMediaAspectRatio(w / h)

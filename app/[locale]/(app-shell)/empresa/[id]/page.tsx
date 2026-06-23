@@ -80,7 +80,7 @@ export default function EmpresaPage() {
   const { modoAtivo } = useModoApresentacao()
   const planoEmpresa =
     empresa && empresa.plano != null ? String(empresa.plano) : null
-  const { featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
+  const { featureLiberada, loading: planoLoading, degustacaoAtiva } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
     aguardarEmpresa: loading,
   })
   const { podeComprarReservar, loading: gateLoading } = useGateComprasReservas()
@@ -98,7 +98,8 @@ export default function EmpresaPage() {
     featureLiberada('botao_dinamico') &&
     (donoEmpresaPreview || (empresaVerificada && podeComprarReservar))
   const mostrarChamarCorrida = !aguardandoPlanoRede && featureLiberada('botao_chamar_corrida')
-  const mostrarConteudoRede = !aguardandoPlanoRede && featureLiberada('pagina_rede_social')
+  const mostrarConteudoRede =
+    !aguardandoPlanoRede && (featureLiberada('pagina_rede_social') || degustacaoAtiva)
 
   useEffect(() => {
     if (!mostrarBotaoDinamico && abaExpandida === 'dinamico') {
@@ -482,7 +483,7 @@ export default function EmpresaPage() {
         ) : null
       ) : null}
 
-      {podeAbrirMenu && usuarioId ? (
+      {podeAbrirMenu && usuarioId && menuAberto ? (
         meuRole === 'admin' && typeof adminLevel === 'number' && adminLevel === 1 && modoAtivo ? (
           <MenuLateral
             aberto={menuAberto}

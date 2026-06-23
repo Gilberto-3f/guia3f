@@ -72,6 +72,7 @@ import HistoricoStories from '@/components/perfil/subpaginas/HistoricoStories'
 import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
 import ModoApresentacao from '@/components/perfil/subpaginas/ModoApresentacao'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
+import AvatarImage from '@/components/AvatarImage'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import AnexarDocumentos from '@/components/perfil/subpaginas/AnexarDocumentos'
 import AnexarDocumentosTurista from '@/components/perfil/subpaginas/AnexarDocumentosTurista'
@@ -1208,7 +1209,7 @@ export default function MenuLateral({
             <div className="shrink-0 border-b border-gray-100 px-4 pt-0 pb-3">
               <div className="flex items-center gap-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-200">
-                  {fotoUrl ? <Image src={fotoUrl} alt="" fill className="object-cover" sizes="56px" /> : null}
+                  {fotoUrl ? <AvatarImage src={fotoUrl} alt="" fill className="object-cover" sizes="56px" /> : null}
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-base font-semibold text-gray-900">

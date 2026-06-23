@@ -1,6 +1,6 @@
 'use client'
 
-import Image from 'next/image'
+import MediaFillImage from '@/components/MediaFillImage'
 
 /**
  * @param {{
@@ -22,7 +22,7 @@ export default function AbaFotos({ posts, onOpen }) {
           onClick={() => onOpen(idx)}
           className="relative aspect-square overflow-hidden bg-gray-100"
         >
-          <Image src={p.url} alt="" fill className="object-cover" sizes="(100vw/3)" />
+          <MediaFillImage src={p.url} alt="" sizes="(max-width: 768px) 33vw, 200px" />
         </button>
       ))}
     </div>
