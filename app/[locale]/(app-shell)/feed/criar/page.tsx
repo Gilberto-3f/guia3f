@@ -21,6 +21,7 @@ import LoadingOverlay from '@/components/LoadingOverlay'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { supabase } from '@/lib/supabase'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
+import { obterUrlPosPublicacaoEmpresa } from '@/lib/redirecionamentoPosPublicacaoEmpresa'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
 
 type Aba = 'foto' | 'texto'
@@ -534,7 +535,8 @@ function CriarPublicacaoPageInner() {
       if (error) throw error
 
       setLoadingMsg('Publicado! Redirecionando…')
-      router.push('/feed')
+      const destinoEmpresa = await obterUrlPosPublicacaoEmpresa(supabase)
+      router.push(destinoEmpresa ?? '/feed')
       router.refresh()
     } catch (err) {
       console.error('Erro ao criar publicação:', err)

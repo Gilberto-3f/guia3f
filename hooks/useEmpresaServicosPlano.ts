@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import {
@@ -107,7 +107,7 @@ export function useEmpresaServicosPlano(
 
   carregarRef.current = carregar
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setLoading(true)
   }, [empresaId, planoEmpresa])
 

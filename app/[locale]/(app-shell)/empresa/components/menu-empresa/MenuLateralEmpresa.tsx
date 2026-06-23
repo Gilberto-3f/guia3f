@@ -20,6 +20,7 @@ interface MenuItem {
 
 const MENU_ITEMS: MenuItem[] = [
   { id: 'feed-stories', icon: '📱', label: 'Rede Social', href: '/empresa/menu/feed-stories' },
+  { id: 'botao-dinamico', icon: '🔘', label: 'Botão Dinâmico', href: '/empresa/menu/botao-dinamico' },
   { id: 'publicidade', icon: '📢', label: 'Publicidade', href: '/empresa/menu/publicidade' },
   { id: 'chat-adm', icon: '💬', label: 'Chat ADM', href: '/chat-adm' },
   { id: 'denuncias', icon: '⚠️', label: 'Denúncias', href: '/empresa/menu/denuncias' },

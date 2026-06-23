@@ -3,12 +3,14 @@
 import { useMemo, useState } from 'react'
 import { Ticket, Calendar, Car, Package, Utensils, ShoppingBag, MessageCircle, X } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
+import { supabase } from '@/lib/supabase'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
+import { registrarCliqueBotaoDinamico } from '@/lib/botaoDinamicoCliques'
 import {
   openWhatsAppChat,
   mensagemWhatsappReservaMesa,
@@ -153,6 +155,8 @@ export default function BotaoDinamico({
     if (!empresaId) {
       return
     }
+
+    void registrarCliqueBotaoDinamico(supabase, empresaId)
 
     switch (config.acao) {
       case 'reserva_mesa':

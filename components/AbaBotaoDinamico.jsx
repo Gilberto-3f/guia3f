@@ -14,6 +14,8 @@ import {
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
+import { registrarCliqueBotaoDinamico } from '@/lib/botaoDinamicoCliques'
+import { supabase } from '@/lib/supabase'
 import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-empresa'
 import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
 
@@ -175,6 +177,7 @@ export default function AbaBotaoDinamico({
       avisarBloqueio()
       return
     }
+    void registrarCliqueBotaoDinamico(supabase, empresaId)
     switch (config.acao) {
       case 'reserva':
         if (isHospedagem(categoria)) {

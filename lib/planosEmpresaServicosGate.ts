@@ -7,6 +7,7 @@ export type MenuEmpresaId =
   | 'chat-adm'
   | 'denuncias'
   | 'compras-paraguai'
+  | 'botao-dinamico'
 
 export type AbaDashboardEmpresa = 'funil' | 'mercado' | 'drena'
 
@@ -35,6 +36,7 @@ const MENU_SERVICO: Record<MenuEmpresaId, ServicoPlanoId | null> = {
   'chat-adm': 'pagina_rede_social',
   denuncias: null,
   'compras-paraguai': 'compras_paraguai_drena',
+  'botao-dinamico': 'botao_dinamico',
 }
 
 /** Rede Social e Publicidade: visíveis com qualquer plano contratado ou degustação ativa. */

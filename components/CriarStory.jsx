@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
+import { obterUrlPosPublicacaoEmpresa } from '@/lib/redirecionamentoPosPublicacaoEmpresa'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import EditorStory from '@/components/EditorStory'
@@ -33,6 +34,14 @@ export default function CriarStory({ autorTipo }) {
     }
   }, [gateFeedLoading, podeInteragirFeedSocial, router])
   const [passo, setPasso] = useState(/** @type {1 | 2} */ (1))
+  const [destinoAposPublicar, setDestinoAposPublicar] = useState('/feed')
+
+  useEffect(() => {
+    void (async () => {
+      const destino = await obterUrlPosPublicacaoEmpresa(supabase)
+      if (destino) setDestinoAposPublicar(destino)
+    })()
+  }, [])
   const [file, setFile] = useState(/** @type {File | null} */ (null))
   const [previewBlob, setPreviewBlob] = useState(/** @type {string | null} */ (null))
   const [legenda, setLegenda] = useState('')
@@ -109,7 +118,7 @@ export default function CriarStory({ autorTipo }) {
       if (file) return
       const dt = Date.now() - autoPickerRef.current.startedAt
       if (dt < 350) return
-      router.push('/feed')
+      router.push(destinoAposPublicar)
     }
     window.addEventListener('focus', onFocus)
     return () => {
@@ -191,7 +200,7 @@ export default function CriarStory({ autorTipo }) {
 
       if (insErr) throw insErr
 
-      router.push('/feed')
+      router.push(destinoAposPublicar)
       void Promise.resolve().then(() => router.refresh())
     } catch (e) {
       console.error(e)

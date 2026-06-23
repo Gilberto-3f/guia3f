@@ -20,6 +20,7 @@ import {
   MapPin,
   Megaphone,
   MessageSquare,
+  MousePointerClick,
   Eye,
   Paperclip,
   Scale,
@@ -349,6 +350,12 @@ function secoesEmpresa(ctx) {
         label: 'Rede Social',
         href: '/empresa/menu/feed-stories',
         condicional: empresaMenuServico('feed-stories'),
+      },
+      {
+        Icon: MousePointerClick,
+        label: 'Botão Dinâmico',
+        href: '/empresa/menu/botao-dinamico',
+        condicional: empresaMenuServico('botao-dinamico'),
       },
       {
         Icon: Megaphone,

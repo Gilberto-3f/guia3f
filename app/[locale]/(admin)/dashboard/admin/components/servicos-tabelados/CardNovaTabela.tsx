@@ -36,11 +36,12 @@ export function CardNovaTabela({
   const [horaRetorno, setHoraRetorno] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [infoValorAberto, setInfoValorAberto] = useState(false)
+  const [infoPeriodoAberto, setInfoPeriodoAberto] = useState(false)
 
   const inputCls =
     'mt-1.5 w-full min-w-0 rounded-lg border border-gray-200 px-3 py-3 text-base text-gray-900 outline-none focus:border-[#0097b2] sm:py-2.5 sm:text-sm'
   const timeInputCls =
-    'mt-1 w-full min-w-0 max-w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-900 outline-none focus:border-[#0097b2]'
+    'mt-1 w-full min-w-0 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#0097b2]'
   const labelCls = 'block text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-[11px]'
   const radioLabelCls =
     'flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium leading-snug text-gray-900 sm:items-center'
@@ -113,13 +114,27 @@ export function CardNovaTabela({
         </label>
 
         {categoria === 'guia' ? (
-          <fieldset className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-gray-100 bg-[#f5f5f5] p-3 sm:p-4">
-            <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Período do serviço
-            </legend>
-            <p className="text-xs leading-relaxed text-gray-600 sm:text-sm">
-              Escolha um tipo por tabela: acompanhamento presencial nos atrativos ou diária pelo período combinado.
-            </p>
+          <fieldset className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-gray-100 bg-[#f5f5f5] p-4">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Período do serviço
+              </span>
+              <button
+                type="button"
+                onClick={() => setInfoPeriodoAberto((v) => !v)}
+                className="inline-flex rounded-full p-0.5 text-[#0097b2] hover:bg-[#0097b2]/10"
+                aria-label="Informação sobre o período do serviço"
+                aria-expanded={infoPeriodoAberto}
+              >
+                <Info className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+            {infoPeriodoAberto ? (
+              <p className="text-xs leading-relaxed text-gray-600 sm:text-sm">
+                Escolha um tipo por tabela: acompanhamento presencial nos atrativos ou diária pelo período
+                combinado.
+              </p>
+            ) : null}
             <div className="flex flex-col gap-2">
               <label className={radioLabelCls}>
                 <input
@@ -166,10 +181,8 @@ export function CardNovaTabela({
         ) : null}
 
         {categoria === 'van' ? (
-          <fieldset className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-gray-100 bg-[#f5f5f5] p-3 sm:p-4">
-            <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Ida e volta
-            </legend>
+          <fieldset className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-gray-100 bg-[#f5f5f5] p-4">
+            <span className="block text-xs font-semibold uppercase tracking-wide text-gray-500">Ida e volta</span>
             <p className="text-xs leading-relaxed text-gray-600 sm:text-sm">
               Horários de transporte (saída e retorno no ponto combinado). O passageiro visita os atrativos por conta
               própria.

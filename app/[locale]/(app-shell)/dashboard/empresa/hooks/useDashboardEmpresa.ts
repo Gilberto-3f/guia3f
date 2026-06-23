@@ -15,10 +15,14 @@ export interface DadosEmpresa {
   nota_media: number
   total_avaliacoes: number
   verificado: boolean
+  whatsapp?: string | null
+  preco_ticket_inteira?: number | null
+  preco_ticket_meia?: number | null
+  preco_diaria?: number | null
 }
 
 export const EMPRESA_SELECT =
-  'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, plano, nota_media, total_avaliacoes, docs_verificado, status'
+  'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, plano, nota_media, total_avaliacoes, docs_verificado, status, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
 
 export type DashboardEmpresaCtx = {
   dados: DadosEmpresa | null
@@ -51,6 +55,11 @@ export function mapEmpresaRow(data: Record<string, unknown>): DadosEmpresa {
     nota_media: asNumber(data.nota_media, 0),
     total_avaliacoes: asNumber(data.total_avaliacoes, 0),
     verificado: Boolean(data.docs_verificado) || status === 'ativo',
+    whatsapp: data.whatsapp != null ? asString(data.whatsapp) : null,
+    preco_ticket_inteira:
+      data.preco_ticket_inteira != null ? asNumber(data.preco_ticket_inteira, 0) : null,
+    preco_ticket_meia: data.preco_ticket_meia != null ? asNumber(data.preco_ticket_meia, 0) : null,
+    preco_diaria: data.preco_diaria != null ? asNumber(data.preco_diaria, 0) : null,
   }
 }
 

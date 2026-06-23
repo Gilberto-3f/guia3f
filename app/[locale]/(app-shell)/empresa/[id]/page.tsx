@@ -73,6 +73,7 @@ export default function EmpresaPage() {
   const [abaExpandida, setAbaExpandida] = useState<null | 'avaliacoes' | 'endereco' | 'dinamico'>(null)
   const [subAbaAtiva, setSubAbaAtiva] = useState<'fotos' | 'posts' | 'tour360'>('fotos')
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
+  const [authCarregado, setAuthCarregado] = useState(false)
   const [meuRole, setMeuRole] = useState<string | null>(null)
   const [adminLevel, setAdminLevel] = useState(0)
   const [meuEmail, setMeuEmail] = useState<string | null>(null)
@@ -109,20 +110,24 @@ export default function EmpresaPage() {
 
   useEffect(() => {
     const getUsuario = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      const uid = session?.user?.id ?? null
-      setMeuEmail(session?.user?.email ?? null)
-      setUsuarioId(uid)
-      if (!uid) {
-        setMeuRole(null)
-        setAdminLevel(0)
-        return
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        const uid = session?.user?.id ?? null
+        setMeuEmail(session?.user?.email ?? null)
+        setUsuarioId(uid)
+        if (!uid) {
+          setMeuRole(null)
+          setAdminLevel(0)
+          return
+        }
+        const { data } = await supabase.from('usuarios').select('role, admin_level').eq('id', uid).maybeSingle()
+        setMeuRole(data?.role != null ? String(data.role) : null)
+        setAdminLevel(typeof data?.admin_level === 'number' ? data.admin_level : 0)
+      } finally {
+        setAuthCarregado(true)
       }
-      const { data } = await supabase.from('usuarios').select('role, admin_level').eq('id', uid).maybeSingle()
-      setMeuRole(data?.role != null ? String(data.role) : null)
-      setAdminLevel(typeof data?.admin_level === 'number' ? data.admin_level : 0)
     }
     getUsuario()
   }, [])
@@ -299,7 +304,7 @@ export default function EmpresaPage() {
       <div className="border-b border-gray-100 bg-white pt-safe">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5 sm:px-4">
           <div className="flex min-w-0 items-center gap-1.5">
-            {!modoEmpresaLayout ? <BotaoVoltar /> : null}
+            {authCarregado && !modoEmpresaLayout ? <BotaoVoltar /> : null}
             <div className="min-w-0 flex-1 overflow-hidden">
               <Username username={nomeUsuario} />
             </div>
