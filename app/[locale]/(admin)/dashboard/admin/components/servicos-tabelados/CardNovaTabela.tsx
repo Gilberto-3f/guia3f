@@ -142,7 +142,7 @@ export function CardNovaTabela({
                 <span className="text-gray-900">Diária (período combinado)</span>
               </label>
             </div>
-            <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3">
+            <div className="grid min-w-0 grid-cols-1 gap-2">
               <label className="min-w-0 text-xs font-semibold text-gray-700">
                 Das
                 <input
@@ -174,7 +174,7 @@ export function CardNovaTabela({
               Horários de transporte (saída e retorno no ponto combinado). O passageiro visita os atrativos por conta
               própria.
             </p>
-            <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3">
+            <div className="grid min-w-0 grid-cols-1 gap-2">
               <label className="min-w-0 text-xs font-semibold text-gray-700">
                 Saída às
                 <input

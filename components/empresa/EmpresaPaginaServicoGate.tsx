@@ -23,16 +23,16 @@ export default function EmpresaPaginaServicoGate({
 }) {
   const gate = useEmpresaMenuGate()
   const { dados, loading: empresaLoading } = useDashboardEmpresa()
-  const { servicos, loading: loadingPlano } = useEmpresaServicosPlano(dados?.plano, dados?.id, {
-    aguardarEmpresa: empresaLoading,
+  const { servicos, loading: loadingPlano, degustacaoAtiva } = useEmpresaServicosPlano(dados?.plano, dados?.id, {
+    aguardarEmpresa: empresaLoading || dados?.id == null,
   })
 
-  const loading = gate === 'loading' || loadingPlano
-  const liberado = requerPlanoAtivo
-    ? empresaPlanoOuDegustacaoAtivo(servicos)
-    : featureEmpresaLiberada(servico, servicos)
+  const aguardandoLiberacao = gate === 'loading' || empresaLoading || loadingPlano || dados?.id == null
+  const liberado =
+    degustacaoAtiva ||
+    (requerPlanoAtivo ? empresaPlanoOuDegustacaoAtivo(servicos) : featureEmpresaLiberada(servico, servicos))
 
-  if (loading) {
+  if (aguardandoLiberacao) {
     return (
       skeleton ?? (
         <div className="space-y-4 pt-4" aria-busy="true" aria-label="A carregar">

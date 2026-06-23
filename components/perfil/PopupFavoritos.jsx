@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Heart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import BotaoSeguir from '@/components/BotaoSeguir'
+import NomeComVerificacao from '@/components/NomeComVerificacao'
 import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
@@ -21,7 +22,7 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
 export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onMetricasAlteradas }) {
   useModalScrollLock(aberto)
   const [users, setUsers] = useState(
-    /** @type {{ usuario_id: string; empresa_id: string | null; tipo: string; nome: string; username: string; foto_url: string | null; jaSigo: boolean }[]} */ (
+    /** @type {{ usuario_id: string; empresa_id: string | null; tipo: string; nome: string; username: string; foto_url: string | null; jaSigo: boolean; verificadoProfissional?: boolean }[]} */ (
       []
     )
   )
@@ -65,6 +66,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
           username: String(p.username ?? 'usuario'),
           foto_url: p.foto_url != null ? String(p.foto_url) : null,
           jaSigo: minhas.has(String(p.usuario_id ?? '')),
+          verificadoProfissional: Boolean(p.verificadoProfissional),
         }))
       )
     } finally {
@@ -127,7 +129,14 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-gray-800">{row.nome}</p>
-                      <p className="truncate text-xs text-gray-500">@{row.username}</p>
+                      <p className="truncate text-xs text-gray-500">
+                        <NomeComVerificacao
+                          nome={`@${row.username}`}
+                          verificado={Boolean(row.verificadoProfissional)}
+                          verificadoTipo="profissional"
+                          nomeClassName="truncate"
+                        />
+                      </p>
                     </div>
                   </Link>
                   {meuId && row.usuario_id !== meuId ? (
