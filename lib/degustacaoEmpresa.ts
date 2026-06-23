@@ -192,6 +192,29 @@ export async function buscarServicosPlanoBasico(supabase: SupabaseClient): Promi
   return servicosRaw.filter((s): s is ServicoPlanoId => typeof s === 'string')
 }
 
+/** Degustações ativas por empresa (leitura em lote — guia turístico). */
+export async function buscarMapaDegustacaoAtivaPorEmpresas(
+  supabase: SupabaseClient,
+  empresaIds: string[],
+): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>()
+  const ids = [...new Set(empresaIds.filter(Boolean))]
+  if (ids.length === 0) return map
+
+  const agora = new Date().toISOString()
+  const { data } = await supabase
+    .from('empresa_degustacoes')
+    .select('empresa_id, plano_id')
+    .in('empresa_id', ids)
+    .eq('status', 'ativa')
+    .gt('expira_em', agora)
+
+  for (const row of data ?? []) {
+    map.set(String(row.empresa_id), row.plano_id != null ? String(row.plano_id) : null)
+  }
+  return map
+}
+
 export async function empresaDegustacaoAtiva(
   supabase: SupabaseClient,
   empresaId: string,

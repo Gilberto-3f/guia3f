@@ -131,6 +131,22 @@ export function resolverServicosEmpresa(
   return resolverServicosDoPlano(planoEmpresa, planos)
 }
 
+/** Serviços efetivos considerando degustação ativa (mapa empresa_id → plano_id da degustação). */
+export function resolverServicosEmpresaComDegustacao(
+  planoEmpresa: string | null | undefined,
+  planos: PlanoResumoServicos[],
+  degustacaoPlanoId?: string | null,
+): ServicoPlanoId[] {
+  if (degustacaoPlanoId) {
+    const planoDeg = planos.find((p) => p.id === degustacaoPlanoId)
+    return resolverServicosEmpresa(planoEmpresa, planos, {
+      ativa: true,
+      servicos: planoDeg?.servicos?.length ? planoDeg.servicos : null,
+    })
+  }
+  return resolverServicosDoPlano(planoEmpresa, planos)
+}
+
 /** Plano contratado reconhecido no catálogo ativo (evita exibir slug órfão legado). */
 export function planoEmpresaReconhecidoNoCatalogo(
   planoEmpresa: string | null | undefined,

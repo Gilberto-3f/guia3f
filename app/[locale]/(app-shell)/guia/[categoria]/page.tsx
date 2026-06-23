@@ -10,10 +10,11 @@ import { empresaCorrespondeBusca } from '@/lib/palavrasChaveGuia'
 import { registrarBuscaGuia } from '@/lib/buscasGuia'
 import {
   empresaTemServico,
-  resolverServicosDoPlano,
+  resolverServicosEmpresaComDegustacao,
   type PlanoResumoServicos,
 } from '@/lib/planosEmpresaServicosGate'
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
+import { buscarMapaDegustacaoAtivaPorEmpresas } from '@/lib/degustacaoEmpresa'
 
 import { slugGuiaParaCategoriaDb } from '@/lib/segmentosEmpresaGuia'
 
@@ -92,6 +93,9 @@ export default function ListagemCategoriaPage() {
 
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [planosResumo, setPlanosResumo] = useState<PlanoResumoServicos[]>([])
+  const [degustacaoPlanoPorEmpresa, setDegustacaoPlanoPorEmpresa] = useState<Map<string, string | null>>(
+    new Map(),
+  )
   const [planosCarregando, setPlanosCarregando] = useState(true)
   const [loading, setLoading] = useState(true)
   const [erroLista, setErroLista] = useState('')
@@ -171,7 +175,7 @@ export default function ListagemCategoriaPage() {
     const carregarPlanos = async () => {
       setPlanosCarregando(true)
       try {
-        const { data } = await supabase.from('planos').select('nome, titulo, servicos').eq('ativo', true)
+        const { data } = await supabase.from('planos').select('id, nome, titulo, servicos').eq('ativo', true)
         if (!ativo) return
         const mapped = (data ?? []).map((row) => {
           const r = row as Record<string, unknown>
@@ -180,6 +184,7 @@ export default function ListagemCategoriaPage() {
             ? servicosRaw.filter((s): s is ServicoPlanoId => typeof s === 'string')
             : []
           return {
+            id: r.id != null ? String(r.id) : undefined,
             nome: String(r.nome ?? ''),
             titulo: String(r.titulo ?? r.nome ?? ''),
             servicos,
@@ -197,12 +202,31 @@ export default function ListagemCategoriaPage() {
   }, [])
 
   const empresaTemBotaoDinamico = useCallback(
-    (plano?: string | null) => {
-      const servicos = resolverServicosDoPlano(plano, planosResumo)
+    (empresa: Empresa) => {
+      const degPlanoId = degustacaoPlanoPorEmpresa.get(empresa.id) ?? null
+      const servicos = resolverServicosEmpresaComDegustacao(empresa.plano, planosResumo, degPlanoId)
       return empresaTemServico(servicos, 'botao_dinamico')
     },
-    [planosResumo],
+    [degustacaoPlanoPorEmpresa, planosResumo],
   )
+
+  useEffect(() => {
+    if (empresas.length === 0) {
+      setDegustacaoPlanoPorEmpresa(new Map())
+      return
+    }
+    let ativo = true
+    void (async () => {
+      const mapa = await buscarMapaDegustacaoAtivaPorEmpresas(
+        supabase,
+        empresas.map((e) => e.id),
+      )
+      if (ativo) setDegustacaoPlanoPorEmpresa(mapa)
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [empresas])
 
   useEffect(() => {
     // FIX: cache rápido para volta instantânea
@@ -404,7 +428,7 @@ export default function ListagemCategoriaPage() {
                 key={empresa.id}
                 empresa={empresa}
                 segmentoGuiaSlug={slug}
-                temBotaoDinamico={empresaTemBotaoDinamico(empresa.plano)}
+                temBotaoDinamico={empresaTemBotaoDinamico(empresa)}
                 planosCarregando={planosCarregando}
               />
             ))}

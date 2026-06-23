@@ -121,6 +121,28 @@ export function useEmpresaServicosPlano(
     }
   }, [carregar])
 
+  useEffect(() => {
+    if (!empresaId) return
+    const ch = supabase
+      .channel(`empresa-degustacao-${empresaId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'empresa_degustacoes',
+          filter: `empresa_id=eq.${empresaId}`,
+        },
+        () => {
+          void carregar()
+        },
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(ch)
+    }
+  }, [carregar, empresaId])
+
   const servicos = useMemo(
     () =>
       resolverServicosEmpresa(planoEmpresa, planos, {

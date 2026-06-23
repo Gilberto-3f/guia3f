@@ -64,7 +64,9 @@ export default function CardAtrativo({
 
   const empresaVerificada = contaVerificadaDocumentacao('empresa', empresa)
   const planoSlug = normalizarPlanoSlug(empresa.plano ?? '')
-  const empresaPodeTerBotaoPlano = Boolean(planoSlug && planoSlug !== 'gratuito')
+  const empresaPodeTerBotaoPlano = Boolean(
+    temBotaoDinamico || (planoSlug && planoSlug !== 'gratuito'),
+  )
   const exibirBotaoDinamico =
     empresaVerificada && (temBotaoDinamico || (planosCarregando && empresaPodeTerBotaoPlano))
   const aguardandoSlot = gateLoading || planosCarregando
