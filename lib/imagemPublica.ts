@@ -20,7 +20,8 @@ export function urlSupabaseStoragePublica(raw: string): boolean {
 }
 
 export function podeUsarNextImage(src: string): boolean {
+  // URLs remotas (Supabase, etc.) usam <img> nativo — evita proxy Vercel (_next/image) e erro 402.
+  if (/^https?:\/\//i.test(src)) return false
   if (src.startsWith('/') || src.startsWith('data:')) return true
-  if (!urlSupabaseStoragePublica(src)) return false
-  return true
+  return false
 }

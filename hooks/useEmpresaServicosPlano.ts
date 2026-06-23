@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import {
@@ -32,6 +32,8 @@ export function useEmpresaServicosPlano(
   const [degustacaoPlanoTitulo, setDegustacaoPlanoTitulo] = useState<string | null>(null)
   const [degustacaoServicos, setDegustacaoServicos] = useState<ServicoPlanoId[] | null>(null)
   const [loading, setLoading] = useState(true)
+  const carregarRef = useRef<() => Promise<void>>(async () => {})
+  const channelInstancia = useId().replace(/:/g, '')
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -103,6 +105,8 @@ export function useEmpresaServicosPlano(
     }
   }, [empresaId])
 
+  carregarRef.current = carregar
+
   useEffect(() => {
     setLoading(true)
   }, [empresaId, planoEmpresa])
@@ -124,7 +128,7 @@ export function useEmpresaServicosPlano(
   useEffect(() => {
     if (!empresaId) return
     const ch = supabase
-      .channel(`empresa-degustacao-${empresaId}`)
+      .channel(`empresa-degustacao-${empresaId}-${channelInstancia}`)
       .on(
         'postgres_changes',
         {
@@ -134,14 +138,14 @@ export function useEmpresaServicosPlano(
           filter: `empresa_id=eq.${empresaId}`,
         },
         () => {
-          void carregar()
+          void carregarRef.current()
         },
       )
       .subscribe()
     return () => {
       void supabase.removeChannel(ch)
     }
-  }, [carregar, empresaId])
+  }, [channelInstancia, empresaId])
 
   const servicos = useMemo(
     () =>
