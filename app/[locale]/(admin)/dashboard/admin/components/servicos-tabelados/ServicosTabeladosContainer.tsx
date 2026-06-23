@@ -63,12 +63,7 @@ export function ServicosTabeladosConteudo() {
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-center text-xs text-gray-500 sm:text-sm">
-        Cadastre rotas e valores de referência para {meta?.label ?? 'esta categoria'}. Os valores sincronizam com o
-        menu dos profissionais credenciados (placa vermelha) e servem de base para comissões e mobilidade.
-      </p>
-
+    <div className="space-y-3">
       {(meta?.cidades ?? []).map((cidadeId) => (
         <PastaRotasCidade
           key={`${categoria}-${cidadeId}`}

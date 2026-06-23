@@ -35,6 +35,10 @@ export function CardNovaTabela({
   const [horaRetorno, setHoraRetorno] = useState('')
   const [erro, setErro] = useState<string | null>(null)
 
+  const inputCls =
+    'mt-1.5 w-full min-w-0 rounded-lg border border-gray-200 px-3 py-3 text-base text-gray-900 outline-none focus:border-[#0097b2] sm:py-2.5 sm:text-sm'
+  const labelCls = 'block text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-[11px]'
+
   const confirmar = async () => {
     setErro(null)
     const valorNum = Number(valor)
@@ -82,78 +86,73 @@ export function CardNovaTabela({
   }
 
   return (
-    <article className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-bold uppercase tracking-wide text-[#0097b2]">Nova Tabela</h3>
+    <article className="w-full rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+      <h3 className="text-sm font-bold uppercase tracking-wide text-[#0097b2] sm:text-base">Nova Tabela</h3>
 
-      <div className="mt-4 space-y-3">
-        <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">
+      <div className="mt-4 space-y-4 sm:space-y-5">
+        <label className={labelCls}>
           Ponto de Partida
-          <input
-            type="text"
-            readOnly
-            value={pontoPartida}
-            className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800"
-          />
+          <input type="text" readOnly value={pontoPartida} className={`${inputCls} bg-gray-50 text-gray-800`} />
         </label>
 
-        <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <label className={labelCls}>
           Destino Final
           <input
             type="text"
             value={destino}
             onChange={(e) => setDestino(e.target.value.slice(0, 200))}
             placeholder="Para onde vai a rota?"
-            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#0097b2]"
+            className={inputCls}
           />
         </label>
 
         {categoria === 'guia' ? (
-          <fieldset className="space-y-3 rounded-lg border border-gray-100 bg-[#f5f5f5] p-3">
+          <fieldset className="space-y-3 rounded-xl border border-gray-100 bg-[#f5f5f5] p-4 sm:p-5">
             <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
               Período do serviço
             </legend>
-            <p className="text-[11px] text-gray-600">
+            <p className="text-xs leading-relaxed text-gray-600 sm:text-sm">
               Escolha um tipo por tabela: acompanhamento presencial nos atrativos ou diária pelo período combinado.
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+            <div className="flex flex-col gap-2.5">
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm leading-snug sm:items-center sm:py-2.5">
                 <input
                   type="radio"
                   name="tipo-periodo-guia"
                   checked={tipoPeriodoGuia === 'acompanhamento'}
                   onChange={() => setTipoPeriodoGuia('acompanhamento')}
-                  className="accent-[#00D443]"
+                  className="mt-0.5 shrink-0 accent-[#00D443] sm:mt-0"
                 />
                 <span>Acompanhamento (média padrão)</span>
               </label>
-              <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm leading-snug sm:items-center sm:py-2.5">
                 <input
                   type="radio"
                   name="tipo-periodo-guia"
                   checked={tipoPeriodoGuia === 'diaria'}
                   onChange={() => setTipoPeriodoGuia('diaria')}
-                  className="accent-[#00D443]"
+                  className="mt-0.5 shrink-0 accent-[#00D443] sm:mt-0"
                 />
                 <span>Diária (período combinado)</span>
               </label>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block text-xs font-semibold text-gray-600">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <label className="block text-xs font-semibold text-gray-600 sm:text-sm">
                 Das
                 <input
                   type="time"
                   value={horaInicio}
                   onChange={(e) => setHoraInicio(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  className={inputCls}
                 />
               </label>
-              <label className="block text-xs font-semibold text-gray-600">
+              <label className="block text-xs font-semibold text-gray-600 sm:text-sm">
                 Às
                 <input
                   type="time"
                   value={horaFim}
                   onChange={(e) => setHoraFim(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  className={inputCls}
                 />
               </label>
             </div>
@@ -161,41 +160,41 @@ export function CardNovaTabela({
         ) : null}
 
         {categoria === 'van' ? (
-          <fieldset className="space-y-3 rounded-lg border border-gray-100 bg-[#f5f5f5] p-3">
+          <fieldset className="space-y-3 rounded-xl border border-gray-100 bg-[#f5f5f5] p-4 sm:p-5">
             <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
               Ida e volta
             </legend>
-            <p className="text-[11px] text-gray-600">
+            <p className="text-xs leading-relaxed text-gray-600 sm:text-sm">
               Horários de transporte (saída e retorno no ponto combinado). O passageiro visita os atrativos por conta
               própria.
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block text-xs font-semibold text-gray-600">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              <label className="block text-xs font-semibold text-gray-600 sm:text-sm">
                 Saída às
                 <input
                   type="time"
                   value={horaSaida}
                   onChange={(e) => setHoraSaida(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  className={inputCls}
                 />
               </label>
-              <label className="block text-xs font-semibold text-gray-600">
+              <label className="block text-xs font-semibold text-gray-600 sm:text-sm">
                 Retorno às
                 <input
                   type="time"
                   value={horaRetorno}
                   onChange={(e) => setHoraRetorno(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  className={inputCls}
                 />
               </label>
             </div>
           </fieldset>
         ) : null}
 
-        <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <label className={labelCls}>
           Valor da Rota
-          <div className="relative mt-1">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+          <div className="relative mt-1.5">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
               R$
             </span>
             <input
@@ -205,23 +204,23 @@ export function CardNovaTabela({
               value={valor}
               onChange={(e) => setValor(e.target.value)}
               placeholder="0,00"
-              className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-2 text-sm outline-none focus:border-[#0097b2]"
+              className="w-full min-w-0 rounded-lg border border-gray-200 py-3 pl-9 pr-3 text-base outline-none focus:border-[#0097b2] sm:py-2.5 sm:text-sm"
             />
           </div>
-          <p className="mt-1 text-[11px] text-gray-500">
+          <p className="mt-2 text-xs leading-relaxed text-gray-500">
             Apenas deslocamento do trajeto. Tickets negociados à parte nos botões dinâmicos.
           </p>
         </label>
       </div>
 
-      {erro ? <p className="mt-3 text-sm text-rose-600">{erro}</p> : null}
+      {erro ? <p className="mt-4 text-sm text-rose-600">{erro}</p> : null}
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
         <button
           type="button"
           onClick={onCancelar}
           disabled={salvando}
-          className="flex-1 rounded-xl border border-gray-300 bg-white py-2.5 text-sm font-bold text-gray-700 disabled:opacity-50"
+          className="w-full rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-700 disabled:opacity-50 sm:flex-1 sm:py-2.5"
         >
           Cancelar
         </button>
@@ -229,7 +228,7 @@ export function CardNovaTabela({
           type="button"
           onClick={() => void confirmar()}
           disabled={salvando}
-          className="flex-1 rounded-xl bg-[#00D443] py-2.5 text-sm font-bold text-white disabled:opacity-50"
+          className="w-full rounded-xl bg-[#00D443] py-3 text-sm font-bold text-white disabled:opacity-50 sm:flex-1 sm:py-2.5"
         >
           {salvando ? 'Salvando…' : 'Confirmar'}
         </button>
