@@ -2,7 +2,7 @@
 
 import type { SyntheticEvent } from 'react'
 import Image from 'next/image'
-import { podeUsarNextImage, urlMidiaValida } from '@/lib/imagemPublica'
+import { normalizarUrlMidiaSupabase, podeUsarNextImage, urlMidiaValida } from '@/lib/imagemPublica'
 
 type Props = {
   src: string | null | undefined
@@ -24,7 +24,7 @@ export default function MediaFillImage({
   objectFit = 'cover',
   onLoad,
 }: Props) {
-  const s = urlMidiaValida(src) ? String(src).trim() : ''
+  const s = urlMidiaValida(src) ? normalizarUrlMidiaSupabase(src) : ''
 
   if (!s) {
     return null

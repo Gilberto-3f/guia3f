@@ -142,11 +142,12 @@ export default function CanalDetalhePage() {
     return userTipo
   }, [modoAtivo, perfilSimulado, userTipo])
 
-  const { featureLiberada: empresaFeatureLiberada, loading: empresaPlanoLoading } = useEmpresaServicosPlano(
+  const { featureLiberada: empresaFeatureLiberada, loading: empresaPlanoLoading, degustacaoAtiva } = useEmpresaServicosPlano(
     userTipoEfetivo === 'empresa' ? empresaContaPlano : null,
     userTipoEfetivo === 'empresa' ? empresaContaId : null,
     { aguardarEmpresa: userTipoEfetivo === 'empresa' && empresaContaId == null },
   )
+  const empresaTemCanais = empresaFeatureLiberada('canais') || degustacaoAtiva
 
   const financeUid = useMemo(() => usuarioId, [usuarioId])
   const accessTokenRef = useRef<string | null>(null)
@@ -804,7 +805,7 @@ export default function CanalDetalhePage() {
             <>
               {empresaPlanoLoading ? (
                 <div className="flex flex-1 items-center justify-center text-sm text-gray-400">Carregando…</div>
-              ) : !empresaFeatureLiberada('canais') ? (
+              ) : !empresaTemCanais ? (
                 <div className="flex flex-1 flex-col overflow-y-auto px-4 py-6">
                   <AvisoPlanoEmpresaBloqueado compact />
                 </div>

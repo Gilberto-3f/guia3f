@@ -51,7 +51,8 @@ export function empresaRecursosLiberados(
 ): boolean {
   if (!emp) return false
   if (String(usuarioStatus ?? '') !== 'ativo') return false
-  if (String(emp.status ?? '').toLowerCase() !== 'aprovado') return false
+  const statusEmp = String(emp.status ?? '').toLowerCase()
+  if (statusEmp !== 'aprovado' && statusEmp !== 'ativo') return false
   if (emp.docs_verificado === true) return true
   // Aprovação legada ou snapshot sem docs_verificado sincronizado
   if (emp.aprovado_em || emp.verificado_em) return true

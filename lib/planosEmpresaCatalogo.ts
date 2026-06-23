@@ -19,6 +19,20 @@ export const CORES_PLANO: { id: PlanoCorId; hex: string; label: string }[] = [
   { id: 'roxo', hex: '#7C3AED', label: 'Roxo' },
 ]
 
+/** Todos os serviços liberados durante degustação ativa (período de teste integral). */
+export const TODOS_SERVICOS_EMPRESA: ServicoPlanoId[] = [
+  'pagina_rede_social',
+  'botao_dinamico',
+  'botao_chamar_corrida',
+  'canais',
+  'dashboard_empresa',
+  'estatisticas_mercado',
+  'compras_paraguai_drena',
+  'publicidade',
+  'planejador_publicacoes',
+  'auxiliar_adm',
+]
+
 export const SERVICOS_PLANO_EMPRESA: { id: ServicoPlanoId; label: string }[] = [
   {
     id: 'pagina_rede_social',

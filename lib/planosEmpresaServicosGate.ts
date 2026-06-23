@@ -1,4 +1,4 @@
-import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
+import { TODOS_SERVICOS_EMPRESA, type ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 
 export type MenuEmpresaId =
   | 'feed-stories'
@@ -125,8 +125,8 @@ export function resolverServicosEmpresa(
     typeof degustacao === 'boolean' ? { ativa: degustacao } : degustacao
 
   if (opts.ativa) {
-    if (opts.servicos?.length) return [...opts.servicos]
-    return servicosPlanoBasico(planos)
+    const doPlano = opts.servicos?.length ? opts.servicos : servicosPlanoBasico(planos)
+    return [...new Set([...doPlano, ...TODOS_SERVICOS_EMPRESA])]
   }
   return resolverServicosDoPlano(planoEmpresa, planos)
 }

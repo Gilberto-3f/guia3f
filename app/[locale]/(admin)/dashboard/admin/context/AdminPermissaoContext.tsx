@@ -19,3 +19,8 @@ export function useSharedAdminGate(): GateState {
   }
   return gate
 }
+
+/** Fora do dashboard ADM (ex.: MenuLateral no app) — não lança se o provider não existir. */
+export function useOptionalAdminGate(): GateState | null {
+  return useContext(AdminGateContext)
+}

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { aplicarFiltroEmpresasGuiaPublico } from '@/lib/empresaGuiaVisibilidade'
 
 function usuarioIdDeRow(row: unknown): string {
   if (row == null || typeof row !== 'object') return ''
@@ -15,20 +16,18 @@ type EmpresasGuiaOpts = {
 
 /**
  * Empresas elegíveis no guia: verificadas pelo ADM e com página pública.
- * Mesmo critério base do guia turístico (`status = aprovado` + `docs_verificado`).
+ * Mesmo critério do guia turístico (inclui degustação ativa com cadastro verificado).
  */
 function queryEmpresasGuiaAprovadas(
   supabase: SupabaseClient,
   opts?: EmpresasGuiaOpts,
 ) {
-  let q = supabase
-    .from('empresas')
-    .select(opts?.select ?? 'usuario_id')
-    .eq('status', 'aprovado')
-    .eq('docs_verificado', true)
+  let q = supabase.from('empresas').select(opts?.select ?? 'usuario_id')
 
   if (!opts?.incluirModoApresentacao) {
-    q = q.eq('somente_modo_apresentacao', false)
+    q = aplicarFiltroEmpresasGuiaPublico(q)
+  } else {
+    q = q.eq('docs_verificado', true).in('status', ['aprovado', 'ativo'])
   }
 
   return q

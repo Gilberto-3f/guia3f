@@ -15,6 +15,7 @@ import {
 } from '@/lib/planosEmpresaServicosGate'
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import { buscarMapaDegustacaoAtivaPorEmpresas } from '@/lib/degustacaoEmpresa'
+import { aplicarFiltroEmpresasGuiaPublico } from '@/lib/empresaGuiaVisibilidade'
 
 import { slugGuiaParaCategoriaDb } from '@/lib/segmentosEmpresaGuia'
 
@@ -119,34 +120,30 @@ export default function ListagemCategoriaPage() {
     if (!silent) setLoading(true)
     if (!silent) setErroLista('')
     try {
-      const { data: empresasData, error } = await supabase
-        .from('empresas')
-        // FIX: seleciona só o necessário (melhor para tsc/typing e rede)
-        .select(
-          'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave, plano'
-        )
-        .eq('categoria', categoriaDb)
-        .eq('cidade', cidadeDb)
-        // FIX: apenas aprovadas
-        .eq('status', 'aprovado')
-        // FIX: exibir apenas com foto
-        .not('foto_url', 'is', null)
-        // FIX: melhores avaliados primeiro + desempate por total de avaliações (quando disponível)
+      const { data: empresasData, error } = await aplicarFiltroEmpresasGuiaPublico(
+        supabase
+          .from('empresas')
+          .select(
+            'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave, plano'
+          )
+          .eq('categoria', categoriaDb)
+          .eq('cidade', cidadeDb),
+      )
         .order('nota_media', { ascending: false })
         .order('total_avaliacoes', { ascending: false })
 
       if (error) {
         const msg = String(error.message ?? '').toLowerCase()
         if (msg.includes('palavras_chave') && (msg.includes('column') || msg.includes('does not exist'))) {
-          const retry = await supabase
-            .from('empresas')
-            .select(
-              'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
-            )
-            .eq('categoria', categoriaDb)
-            .eq('cidade', cidadeDb)
-            .eq('status', 'aprovado')
-            .not('foto_url', 'is', null)
+          const retry = await aplicarFiltroEmpresasGuiaPublico(
+            supabase
+              .from('empresas')
+              .select(
+                'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria'
+              )
+              .eq('categoria', categoriaDb)
+              .eq('cidade', cidadeDb),
+          )
             .order('nota_media', { ascending: false })
             .order('total_avaliacoes', { ascending: false })
           if (!retry.error) {

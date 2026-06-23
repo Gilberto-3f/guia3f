@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { usePermissao } from './usePermissao'
+import { useOptionalAdminGate } from '../context/AdminPermissaoContext'
 
 export type Infracao = {
   id: string
@@ -33,7 +33,9 @@ export type HistoricoDecisao = {
 }
 
 export function useInfracoes() {
-  const { admin, nivel } = usePermissao()
+  const gate = useOptionalAdminGate()
+  const admin = gate?.status === 'ok' ? gate.admin : null
+  const nivel = admin?.admin_level ?? 0
   const [infracoes, setInfracoes] = useState<Infracao[]>([])
   const [historico, setHistorico] = useState<HistoricoDecisao[]>([])
   const [loading, setLoading] = useState(true)

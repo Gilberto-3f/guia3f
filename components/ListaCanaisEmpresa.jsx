@@ -33,6 +33,7 @@ import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
 import CanalListaRow from '@/components/CanalListaRow'
 import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
+import { garantirCanaisEmpresaComunidade } from '@/lib/canaisEmpresaGarantir'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
 /** @type {readonly string[]} */
@@ -142,10 +143,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
   const [meuUsername, setMeuUsername] = useState(/** @type {string | null} */ (null))
   const [financeiroCanalIdGlobal, setFinanceiroCanalIdGlobal] = useState(/** @type {string | null} */ (null))
-  const { featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(empresaPlano, empresaId, {
+  const { featureLiberada, loading: planoLoading, degustacaoAtiva } = useEmpresaServicosPlano(empresaPlano, empresaId, {
     aguardarEmpresa: !empresaId,
   })
-  const temCanaisComunidade = featureLiberada('canais')
+  const temCanaisComunidade = featureLiberada('canais') || degustacaoAtiva
 
   /**
    * Canal de segmento da empresa + Financeiro (sem expor o canal ADM / Mensageiro).
@@ -357,6 +358,11 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       setEmpresaId(empId)
       setEmpresaPlano(planoEmp)
       setEmpresaCategoria(catEmp)
+
+      if (empId) {
+        await garantirCanaisEmpresaComunidade(supabase, empId)
+      }
+
       const chaveEmp = chaveSegmentoPorCategoriaEmpresa(catEmp)
 
       const [{ data, error }, finCanalId] = await Promise.all([

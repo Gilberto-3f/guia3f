@@ -1,7 +1,7 @@
 'use client'
 
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import MediaFillImage from '@/components/MediaFillImage'
 import { Heart } from 'lucide-react'
 import BotaoDinamico from '@/components/BotaoDinamico'
 import BotaoRecomendar from '@/components/BotaoRecomendar'
@@ -100,11 +100,9 @@ export default function CardAtrativo({
       {/* RODADA 2: foto quadrada (alinhada à hero quadrada da página da empresa) */}
       <div className="relative mt-2 aspect-square w-full min-w-0 bg-gray-100">
         {empresa.foto_url ? (
-          <Image
+          <MediaFillImage
             src={empresa.foto_url}
             alt={empresa.nome_fantasia}
-            fill
-            className="object-cover"
             sizes="(max-width: 768px) 100vw, 520px"
           />
         ) : (
