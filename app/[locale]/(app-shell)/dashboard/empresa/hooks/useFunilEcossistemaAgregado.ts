@@ -77,7 +77,33 @@ async function contarPaxAgregado(dataLimite: string | null): Promise<number> {
     .select('*', { count: 'exact', head: true })
     .eq('status', 'confirmado')
   if (dataLimite) q = q.gte('created_at', dataLimite)
-  return contar(q)
+  const legado = await contar(q)
+
+  let qPax = supabase.from('manifesto_passageiros').select('*', { count: 'exact', head: true })
+  if (dataLimite) qPax = qPax.gte('entrou_em', dataLimite)
+  const diario = await contar(qPax)
+  return legado + diario
+}
+
+function isRpcIndisponivel(err: unknown): boolean {
+  const e = err as { code?: string; message?: string }
+  if (e?.code === 'PGRST202') return true
+  const msg = String(e?.message ?? '').toLowerCase()
+  return msg.includes('could not find the function') || msg.includes('schema cache')
+}
+
+async function buscarFunilEcossistemaRpc(dataLimite: string | null): Promise<DadosFunilEcossistema | null> {
+  const { data, error } = await supabase.rpc('rpc_funil_ecossistema_mercado', { p_desde: dataLimite })
+  if (error) {
+    if (isRpcIndisponivel(error)) return null
+    throw error
+  }
+  const o = (data ?? {}) as Record<string, unknown>
+  return {
+    recomendacoes: Number(o.recomendacoes) || 0,
+    pax: Number(o.pax) || 0,
+    vendas: Number(o.vendas) || 0,
+  }
 }
 
 async function contarVendasAgregadas(dataLimite: string | null): Promise<number> {
@@ -148,6 +174,12 @@ export function useFunilEcossistemaAgregado(periodo: Periodo) {
     setRecomendacoesPorCategoria([])
 
     try {
+      const rpc = await buscarFunilEcossistemaRpc(dataLimite)
+      if (rpc) {
+        setDados(rpc)
+        return
+      }
+
       const [recomendacoes, pax, vendas] = await Promise.all([
         contarRecomendacoesAgregadas(dataLimite),
         contarPaxAgregado(dataLimite),
