@@ -7,6 +7,12 @@ import {
   slugCanalComunidadeProfissional,
 } from '@/lib/canaisProfissionalSlugs'
 import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
+import { categoriasIncluemAnfitriao } from '@/lib/anfitriaoDualMode'
+import {
+  buscarMapaStatusDegustacaoCanalEmpresa,
+  itemCanalFinanceiroContaComoNaoLidoEmpresa,
+  type CanalFinanceiroRowEmpresa,
+} from '@/lib/canaisEmpresaVisibilidade'
 
 export type CanalVisibilidadeRow = {
   id: string
@@ -119,6 +125,39 @@ export async function obterIdsCanaisMensagensProfissional(
   return ids
 }
 
+/** Notificações financeiras da empresa de hospedagem do anfitrião (canal profissional unificado). */
+async function contarFinanceiroEmpresaHospedagemAnfitriao(
+  supabase: SupabaseClient,
+  usuarioId: string,
+): Promise<number> {
+  if (!usuarioId) return 0
+  const { data: prof } = await supabase
+    .from('profissionais')
+    .select('categorias, empresa_hospedagem_id')
+    .eq('usuario_id', usuarioId)
+    .maybeSingle()
+  const cats = Array.isArray(prof?.categorias)
+    ? prof.categorias.filter((c): c is string => typeof c === 'string')
+    : []
+  const empresaId = prof?.empresa_hospedagem_id != null ? String(prof.empresa_hospedagem_id) : ''
+  if (!empresaId || !categoriasIncluemAnfitriao(cats)) return 0
+
+  const [{ data: rows, error }, statusDeg] = await Promise.all([
+    supabase
+      .from('canal_financeiro')
+      .select('id, tipo, lida_por_empresa, metadata, comprovante_detalhes')
+      .eq('empresa_id', empresaId),
+    buscarMapaStatusDegustacaoCanalEmpresa(supabase, empresaId),
+  ])
+  if (error) {
+    console.error('contarFinanceiroEmpresaHospedagemAnfitriao:', error)
+    return 0
+  }
+  return (rows ?? []).filter((r) =>
+    itemCanalFinanceiroContaComoNaoLidoEmpresa(r as CanalFinanceiroRowEmpresa, statusDeg),
+  ).length
+}
+
 /**
  * Avisos não lidos no canal financeiro (tabela `canal_financeiro`).
  */
@@ -131,7 +170,8 @@ export async function contarFinanceiroNaoLidasProfissional(
   const profissionalId = prof?.id != null ? String(prof.id) : ''
   if (!profissionalId) return 0
 
-  const [{ count, error }, mensageiro, { data: pendentesTpl, error: tplErr }] = await Promise.all([
+  const [{ count, error }, mensageiro, { data: pendentesTpl, error: tplErr }, extraEmpresaHospedagem] =
+    await Promise.all([
     supabase
       .from('canal_financeiro')
       .select('id', { count: 'exact', head: true })
@@ -143,6 +183,7 @@ export async function contarFinanceiroNaoLidasProfissional(
       .select('id, canal_financeiro_id')
       .eq('profissional_usuario_id', usuarioId)
       .eq('status', 'pendente'),
+    contarFinanceiroEmpresaHospedagemAnfitriao(supabase, usuarioId),
   ])
 
   if (error) {
@@ -155,7 +196,7 @@ export async function contarFinanceiroNaoLidasProfissional(
       ? 0
       : pendentesTpl.filter((r) => r.canal_financeiro_id == null).length
 
-  return (count ?? 0) + extraTpl + mensageiro
+  return (count ?? 0) + extraTpl + mensageiro + extraEmpresaHospedagem
 }
 
 /** Marca todos os avisos financeiros do profissional como lidos (ao abrir o canal). */

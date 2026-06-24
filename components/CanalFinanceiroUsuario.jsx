@@ -21,14 +21,27 @@ import {
 } from '@/lib/turistaPreLiberacao'
 import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
 import { notificarBadgeCanais, notificarBadgeCanaisAposLeitura } from '@/lib/canais-badge-events'
+import { rotuloDestinoNotificacaoFinanceira, rotuloDestinoNotificacaoFinanceiraTexto } from '@/lib/anfitriaoDualMode'
 
 const abaCls = (ativo) =>
   `flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition-colors sm:text-sm ${
     ativo ? 'bg-[#00D443] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
   }`
 
-function itemRelatorioContaComoNaoLido(item, tipo, statusDegustacaoPorCanal) {
+function itemRelatorioContaComoNaoLido(item, tipo, statusDegustacaoPorCanal, empresaHospedagemId) {
   if (item.tipo === 'pre_liberacao_turista' && !item.metadata?.respondido) return true
+  if (empresaHospedagemId && item.empresa_id) {
+    return itemCanalFinanceiroContaComoNaoLidoEmpresa(
+      {
+        id: item.id,
+        lida_por_empresa: item.lida_por_empresa,
+        tipo: item.tipo,
+        metadata: item.metadata,
+        comprovante_detalhes: item.comprovante_detalhes,
+      },
+      statusDegustacaoPorCanal,
+    )
+  }
   if (tipo === 'empresa') {
     return itemCanalFinanceiroContaComoNaoLidoEmpresa(
       {
@@ -46,9 +59,10 @@ function itemRelatorioContaComoNaoLido(item, tipo, statusDegustacaoPorCanal) {
 
 /**
  * Canal financeiro do profissional ou empresa: relatórios do app + mensageiro ADM.
- * @param {{ usuarioId: string, tipo: 'profissional' | 'empresa' }} props
+ * @param {{ usuarioId: string, tipo: 'profissional' | 'empresa', empresaHospedagemId?: string | null }} props
  */
-export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
+export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospedagemId = null }) {
+  const modoAnfitriaoFinanceiro = tipo === 'profissional' && Boolean(empresaHospedagemId)
   const [aba, setAba] = useState(/** @type {'relatorios' | 'mensageiro' | 'planos'} */ ('relatorios'))
   const [itens, setItens] = useState([])
   const [loading, setLoading] = useState(true)
@@ -63,7 +77,9 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
       if (!usuarioId || !itemId) return
 
       let persistiu = false
-      if (tipo === 'empresa') {
+      if (modoAnfitriaoFinanceiro && item.empresa_id) {
+        persistiu = await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, itemId)
+      } else if (tipo === 'empresa') {
         persistiu = await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, itemId)
       } else {
         const { data: prof } = await supabase
@@ -105,12 +121,12 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
               }
             : item,
         )
-        setNaoLidas(next.filter((row) => itemRelatorioContaComoNaoLido(row, tipo, statusDegustacaoPorCanal)).length)
+        setNaoLidas(next.filter((row) => itemRelatorioContaComoNaoLido(row, tipo, statusDegustacaoPorCanal, empresaHospedagemId)).length)
         return next
       })
       notificarBadgeCanaisAposLeitura()
     },
-    [tipo, usuarioId, statusDegustacaoPorCanal],
+    [tipo, usuarioId, statusDegustacaoPorCanal, empresaHospedagemId, modoAnfitriaoFinanceiro],
   )
 
   const marcarRelatoriosComoLidos = useCallback(async () => {
@@ -119,6 +135,9 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
     if (tipo === 'profissional') {
       await marcarFinanceiroLidoProfissional(supabase, usuarioId)
       persistiu = true
+      if (modoAnfitriaoFinanceiro) {
+        await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
+      }
     } else {
       persistiu = await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
     }
@@ -128,8 +147,12 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
     setItens((prev) =>
       prev.map((item) => ({
         ...item,
-        lida_por_profissional: tipo === 'profissional' ? true : item.lida_por_profissional,
-        lida_por_empresa: tipo === 'empresa' ? true : item.lida_por_empresa,
+        lida_por_profissional:
+          tipo === 'profissional' && (!modoAnfitriaoFinanceiro || !item.empresa_id)
+            ? true
+            : item.lida_por_profissional,
+        lida_por_empresa:
+          tipo === 'empresa' || (modoAnfitriaoFinanceiro && item.empresa_id) ? true : item.lida_por_empresa,
         metadata:
           tipo === 'empresa' && item.tipo === 'degustacao_plano'
             ? { ...(item.metadata ?? {}), visualizado_em: new Date().toISOString() }
@@ -142,7 +165,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
     )
     notificarBadgeCanaisAposLeitura()
     return true
-  }, [usuarioId, tipo])
+  }, [usuarioId, tipo, modoAnfitriaoFinanceiro])
 
   useEffect(() => {
     if (aba !== 'relatorios' || loading || !usuarioId) return
@@ -160,6 +183,9 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
       if (tipo === 'profissional') {
         const { data: p } = await supabase.from('profissionais').select('id').eq('usuario_id', usuarioId).maybeSingle()
         profissionalId = p?.id != null ? String(p.id) : null
+        if (modoAnfitriaoFinanceiro && empresaHospedagemId) {
+          empresaId = String(empresaHospedagemId)
+        }
       } else {
         const { data: e } = await supabase.from('empresas').select('id').eq('usuario_id', usuarioId).maybeSingle()
         empresaId = e?.id != null ? String(e.id) : null
@@ -189,7 +215,11 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
         .order('created_at', { ascending: false })
 
       if (tipo === 'profissional' && profissionalId) {
-        query = query.eq('profissional_id', profissionalId)
+        if (modoAnfitriaoFinanceiro && empresaId) {
+          query = query.or(`profissional_id.eq.${profissionalId},empresa_id.eq.${empresaId}`)
+        } else {
+          query = query.eq('profissional_id', profissionalId)
+        }
       } else if (tipo === 'empresa' && empresaId) {
         query = query.eq('empresa_id', empresaId)
       }
@@ -211,6 +241,11 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
               ? String(/** @type {{ nome_fantasia?: string }} */ (emp).nome_fantasia ?? 'Empresa')
               : 'Empresa'
 
+          const destino = rotuloDestinoNotificacaoFinanceira({
+            empresa_id: r.empresa_id,
+            profissional_id: r.profissional_id,
+          })
+
           return {
             id: String(r.id),
             tipo: String(r.tipo ?? ''),
@@ -231,8 +266,12 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
                 ? /** @type {Record<string, unknown>} */ (r.comprovante_detalhes)
                 : {},
             created_at: String(r.created_at ?? ''),
+            profissional_id: r.profissional_id != null ? String(r.profissional_id) : null,
+            empresa_id: r.empresa_id != null ? String(r.empresa_id) : null,
             profissional_nome: pn,
             empresa_nome: en,
+            destino_notificacao: destino,
+            destino_rotulo: rotuloDestinoNotificacaoFinanceiraTexto(destino),
           }
         }) ?? []
 
@@ -280,13 +319,18 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
       )
 
       let statusDegMap = /** @type {Map<string, string>} */ (new Map())
-      if (tipo === 'empresa' && empresaId) {
-        statusDegMap = await buscarMapaStatusDegustacaoCanalEmpresa(supabase, empresaId)
+      const empresaDegId = tipo === 'empresa' ? empresaId : modoAnfitriaoFinanceiro ? empresaHospedagemId : null
+      if (empresaDegId) {
+        statusDegMap = await buscarMapaStatusDegustacaoCanalEmpresa(supabase, empresaDegId)
         setStatusDegustacaoPorCanal(statusDegMap)
       }
 
       setItens(formatados)
-      setNaoLidas(formatados.filter((item) => itemRelatorioContaComoNaoLido(item, tipo, statusDegMap)).length)
+      setNaoLidas(
+        formatados.filter((item) =>
+          itemRelatorioContaComoNaoLido(item, tipo, statusDegMap, modoAnfitriaoFinanceiro ? empresaHospedagemId : null),
+        ).length,
+      )
       const msgNaoLidas = await contarMensageiroFinanceiroNaoLidas(supabase, usuarioId)
       setNaoLidasMensageiro(msgNaoLidas)
     } catch (e) {
@@ -294,7 +338,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
     } finally {
       if (!silencioso) setLoading(false)
     }
-  }, [usuarioId, tipo])
+  }, [usuarioId, tipo, empresaHospedagemId, modoAnfitriaoFinanceiro])
 
   useEffect(() => {
     void carregar()
@@ -481,7 +525,12 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo }) {
                     onItemLido={marcarItemRelatorioLido}
                   />
                 ) : (
-                  <CanalFinanceiroItem key={item.id} item={item} userTipo={tipo} />
+                  <CanalFinanceiroItem
+                    key={item.id}
+                    item={item}
+                    userTipo={modoAnfitriaoFinanceiro && item.empresa_id ? 'empresa' : tipo}
+                    destinoRotulo={modoAnfitriaoFinanceiro ? item.destino_rotulo : null}
+                  />
                 ),
               )
           )}

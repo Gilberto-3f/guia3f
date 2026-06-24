@@ -14,10 +14,13 @@ import {
   type PlanoResumoServicos,
 } from '@/lib/planosEmpresaServicosGate'
 import { buscarServicosPlanoDegustacao } from '@/lib/degustacaoEmpresa'
+import { TODOS_SERVICOS_EMPRESA } from '@/lib/planosEmpresaCatalogo'
 
 export type UseEmpresaServicosPlanoOpts = {
   /** Mantém loading=true enquanto a empresa ainda não foi carregada (evita flash de bloqueio). */
   aguardarEmpresa?: boolean
+  /** Hospedagem do anfitrião: todos os serviços liberados sem plano pago. */
+  somenteAnfitriao?: boolean
 }
 
 export function useEmpresaServicosPlano(
@@ -26,6 +29,7 @@ export function useEmpresaServicosPlano(
   opts?: UseEmpresaServicosPlanoOpts,
 ) {
   const aguardarEmpresa = opts?.aguardarEmpresa ?? false
+  const somenteAnfitriao = opts?.somenteAnfitriao ?? false
   const [planos, setPlanos] = useState<PlanoResumoServicos[]>([])
   const [degustacaoAtiva, setDegustacaoAtiva] = useState(false)
   const [degustacaoPlanoId, setDegustacaoPlanoId] = useState<string | null>(null)
@@ -147,14 +151,13 @@ export function useEmpresaServicosPlano(
     }
   }, [channelInstancia, empresaId])
 
-  const servicos = useMemo(
-    () =>
-      resolverServicosEmpresa(planoEmpresa, planos, {
-        ativa: degustacaoAtiva,
-        servicos: degustacaoServicos,
-      }),
-    [degustacaoAtiva, degustacaoServicos, planoEmpresa, planos],
-  )
+  const servicos = useMemo(() => {
+    if (somenteAnfitriao) return [...TODOS_SERVICOS_EMPRESA]
+    return resolverServicosEmpresa(planoEmpresa, planos, {
+      ativa: degustacaoAtiva,
+      servicos: degustacaoServicos,
+    })
+  }, [degustacaoAtiva, degustacaoServicos, planoEmpresa, planos, somenteAnfitriao])
 
   const temServico = useCallback(
     (servico: ServicoPlanoId) => servicos.includes(servico),

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { AdminPermissaoProvider } from '@/app/[locale]/(admin)/dashboard/admin/context/AdminPermissaoContext'
 import { ModoApresentacaoProvider, useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { ProfissionalGateProvider } from '@/context/ProfissionalGateContext'
+import { AnfitriaoModoProvider } from '@/context/AnfitriaoModoContext'
 import ModoApresentacaoChrome from '@/components/ModoApresentacaoChrome'
 import ProfissionalGateBanner from '@/components/ProfissionalGateBanner'
 import BottomBar from '@/components/BottomBar'
@@ -114,9 +115,11 @@ export default function AppShellClient({ children }: { children: ReactNode }) {
     <AdminPermissaoProvider>
       <ModoApresentacaoProvider>
         <ProfissionalGateProvider>
-          <Suspense fallback={<AppShellSuspenseFallback>{children}</AppShellSuspenseFallback>}>
-            <AppShellInner>{children}</AppShellInner>
-          </Suspense>
+          <AnfitriaoModoProvider>
+            <Suspense fallback={<AppShellSuspenseFallback>{children}</AppShellSuspenseFallback>}>
+              <AppShellInner>{children}</AppShellInner>
+            </Suspense>
+          </AnfitriaoModoProvider>
         </ProfissionalGateProvider>
       </ModoApresentacaoProvider>
     </AdminPermissaoProvider>

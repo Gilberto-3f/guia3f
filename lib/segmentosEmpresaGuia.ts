@@ -10,18 +10,22 @@ export const SEGMENTOS_EMPRESA_SLUG = [
 
 export type SegmentoEmpresaSlug = (typeof SEGMENTOS_EMPRESA_SLUG)[number]
 
-/** Valores em `empresas.categoria` (cadastro). */
-export const CATEGORIAS_EMPRESA_DB = [
-  'Restaurantes',
-  'Atrativos',
-  'Lojas',
-  'Hospedagem',
-  'Serviços Locais',
-] as const
+import { CATEGORIAS_EMPRESA_COMERCIAL, ehCategoriaEmpresaComercial } from '@/lib/anfitriaoDualMode'
+
+/** Valores em `empresas.categoria` (cadastro comercial — sem Hospedagem). */
+export const CATEGORIAS_EMPRESA_DB = [...CATEGORIAS_EMPRESA_COMERCIAL] as const
 
 export type CategoriaEmpresaDb = (typeof CATEGORIAS_EMPRESA_DB)[number]
 
-export const SLUG_PARA_CATEGORIA_DB: Record<string, CategoriaEmpresaDb> = {
+/** Todas as categorias exibidas no guia (inclui Hospedagem de anfitriões). */
+export const CATEGORIAS_GUIA_TODAS = [
+  ...CATEGORIAS_EMPRESA_COMERCIAL,
+  'Hospedagem',
+] as const
+
+export type CategoriaGuiaTodas = (typeof CATEGORIAS_GUIA_TODAS)[number]
+
+export const SLUG_PARA_CATEGORIA_DB: Record<string, string> = {
   gastronomia: 'Restaurantes',
   passeios: 'Atrativos',
   lojas: 'Lojas',
@@ -70,11 +74,11 @@ export function slugGuiaParaCategoriaDb(slug: string | null | undefined): string
 }
 
 export function ehCategoriaEmpresaPermitida(valor: string | null | undefined): boolean {
-  return (CATEGORIAS_EMPRESA_DB as readonly string[]).includes(String(valor ?? '').trim() as CategoriaEmpresaDb)
+  return ehCategoriaEmpresaComercial(valor)
 }
 
 /** Rótulos exibidos no guia turístico (canais / filtros). */
-export const ROTULO_SEGUIMENTO_GUIA: Record<CategoriaEmpresaDb, string> = {
+export const ROTULO_SEGUIMENTO_GUIA: Record<CategoriaGuiaTodas, string> = {
   Restaurantes: 'Gastronomia',
   Atrativos: 'Atrativos',
   Lojas: 'Lojas',
@@ -82,7 +86,7 @@ export const ROTULO_SEGUIMENTO_GUIA: Record<CategoriaEmpresaDb, string> = {
   'Serviços Locais': 'Serviços Locais',
 }
 
-const CORES_SEGUIMENTO_GUIA: Record<CategoriaEmpresaDb, string> = {
+const CORES_SEGUIMENTO_GUIA: Record<CategoriaGuiaTodas, string> = {
   Restaurantes: '#E74C3C',
   Atrativos: '#F1C40F',
   Lojas: '#9B59B6',
@@ -90,20 +94,23 @@ const CORES_SEGUIMENTO_GUIA: Record<CategoriaEmpresaDb, string> = {
   'Serviços Locais': '#1ABC9C',
 }
 
-/** Mapeia valor legado ou slug para categoria atual do guia (ex.: gastronomia → Restaurantes). */
-export function normalizarCategoriaEmpresaGuia(valor: string | null | undefined): CategoriaEmpresaDb | null {
+/** Mapeia valor legado ou slug para categoria do guia. */
+export function normalizarCategoriaEmpresaGuia(valor: string | null | undefined): CategoriaGuiaTodas | null {
   const raw = String(valor ?? '').trim()
   if (!raw) return null
-  if (ehCategoriaEmpresaPermitida(raw)) return raw as CategoriaEmpresaDb
+  if ((CATEGORIAS_GUIA_TODAS as readonly string[]).includes(raw)) return raw as CategoriaGuiaTodas
   const slug = categoriaDbParaSlug(raw)
-  if (slug && SLUG_PARA_CATEGORIA_DB[slug]) return SLUG_PARA_CATEGORIA_DB[slug]
+  const mapped = slug ? SLUG_PARA_CATEGORIA_DB[slug] : null
+  if (mapped && (CATEGORIAS_GUIA_TODAS as readonly string[]).includes(mapped)) {
+    return mapped as CategoriaGuiaTodas
+  }
   return null
 }
 
 export function agregarEmpresasPorSeguimentoGuia(
   rows: { categoria: string | null; somente_modo_apresentacao?: boolean | null }[],
 ): { label: string; valor: number; percentual: number; cor: string }[] {
-  const porCategoria: Record<CategoriaEmpresaDb, number> = {
+  const porCategoria: Record<CategoriaGuiaTodas, number> = {
     Restaurantes: 0,
     Atrativos: 0,
     Lojas: 0,
@@ -120,7 +127,7 @@ export function agregarEmpresasPorSeguimentoGuia(
 
   const total = Object.values(porCategoria).reduce((a, b) => a + b, 0) || 1
 
-  return CATEGORIAS_EMPRESA_DB.map((cat) => ({
+  return CATEGORIAS_GUIA_TODAS.map((cat) => ({
     label: ROTULO_SEGUIMENTO_GUIA[cat],
     valor: porCategoria[cat],
     percentual: total > 0 ? (porCategoria[cat] / total) * 100 : 0,

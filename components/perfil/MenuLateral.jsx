@@ -33,6 +33,8 @@ import {
   Table,
   User,
   Users,
+  Home,
+  Hotel,
   X,
   ArrowRight,
 } from 'lucide-react'
@@ -42,6 +44,7 @@ import { supabase } from '@/lib/supabase'
 import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import { menuEmpresaLiberado } from '@/lib/planosEmpresaServicosGate'
 import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
@@ -68,6 +71,7 @@ import AgendamentoAutomatico from '@/components/perfil/subpaginas/AgendamentoAut
 import TabelaValores from '@/components/perfil/subpaginas/TabelaValores'
 import MeusManifestos from '@/components/perfil/subpaginas/MeusManifestos'
 import EditarPaginaEmpresa from '@/components/perfil/subpaginas/EditarPaginaEmpresa'
+import CadastrarHospedagemAnfitriao from '@/components/perfil/subpaginas/CadastrarHospedagemAnfitriao'
 import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 import HistoricoStories from '@/components/perfil/subpaginas/HistoricoStories'
 import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
@@ -293,6 +297,23 @@ function secoesProfissional(ctx) {
     secaoUsuario(gUsuario),
     secaoMinhaConta(ctx),
     /** @type {const} */ { tipo: 'grupo', key: 'profissional', label: 'Profissional', items: gPro },
+    ...(ctx.ehAnfitriao
+      ? [
+          {
+            tipo: 'grupo',
+            key: 'anfitriao',
+            label: 'Anfitrião',
+            items: [
+              { Icon: Home, label: 'Anfitrião', subpagina: 'anfitriao-modo-social' },
+              {
+                Icon: Hotel,
+                label: 'Hospedagem',
+                subpagina: ctx.empresaHospedagemId ? 'anfitriao-modo-hospedagem' : 'cadastrar-hospedagem-anfitriao',
+              },
+            ],
+          },
+        ]
+      : []),
     {
       tipo: 'grupo',
       key: 'aplicativo',
@@ -465,6 +486,15 @@ export default function MenuLateral({
   recursosProfissionaisLiberados = true,
 }) {
   const { loading: gateLoading, turistaGate } = useProfissionalGate()
+  const {
+    ehAnfitriao,
+    modo: modoAnfitriao,
+    setModo: setModoAnfitriao,
+    empresaHospedagemId,
+    empresaHospedagemLiberada,
+    recarregar: recarregarAnfitriao,
+  } = useAnfitriaoModo()
+  const [empresaAnfitriao, setEmpresaAnfitriao] = useState(null)
   const router = useRouter()
   /** @type {[HistoricoEntry[], (h: HistoricoEntry[]) => void]} */
   const [historico, setHistorico] = useState(/** @type {HistoricoEntry[]} */ ([]))
@@ -500,11 +530,13 @@ export default function MenuLateral({
   }, [aberto, variant, usuarioId])
 
   const contaVerificadaHeader =
-    variant === 'empresa' && empresa
-      ? contaVerificadaDocumentacao('empresa', empresa)
-      : variant === 'profissional'
-        ? profVerificadoMenu
-        : false
+    menuVariantEfetivo === 'empresa' && empresaEfetiva
+      ? contaVerificadaDocumentacao('empresa', empresaEfetiva)
+      : variant === 'empresa' && empresa
+        ? contaVerificadaDocumentacao('empresa', empresa)
+        : variant === 'profissional'
+          ? profVerificadoMenu
+          : false
 
   const [gruposAbertos, setGruposAbertos] = useState(() => ({
     emergencia: false,
@@ -512,6 +544,7 @@ export default function MenuLateral({
     'minha-conta': false,
     aplicativo: false,
     profissional: false,
+    anfitriao: false,
     empresa: false,
     admin: false,
     'aplic-pessoal': false,
@@ -531,6 +564,9 @@ export default function MenuLateral({
       if (perfilSimulado.tipo === 'profissional') return /** @type {const} */ ('profissional')
       return /** @type {const} */ ('turista')
     }
+    if (ehAnfitriao && modoAnfitriao === 'hospedagem' && empresaHospedagemId) {
+      return /** @type {const} */ ('empresa')
+    }
     return variant || 'turista'
   })()
 
@@ -542,15 +578,46 @@ export default function MenuLateral({
   const usuarioIdEfetivo = usuarioId
   const empresaIdEfetivo = empresaId
 
-  const empresaCategoria = empresa?.categoria != null ? String(empresa.categoria) : ''
-  const empresaCidade = empresa?.cidade != null ? String(empresa.cidade) : ''
-  const empresaPlano = empresa?.plano != null ? String(empresa.plano) : 'gratuito'
   const empresaIdCtx =
-    empresaId ?? (empresa?.id != null ? String(empresa.id) : null)
+    empresaId ??
+    (empresa?.id != null ? String(empresa.id) : null) ??
+    (ehAnfitriao && modoAnfitriao === 'hospedagem' ? empresaHospedagemId : null)
+
+  useEffect(() => {
+    if (!ehAnfitriao || !empresaHospedagemId) {
+      setEmpresaAnfitriao(null)
+      return
+    }
+    let ativo = true
+    void (async () => {
+      const { data } = await supabase.from('empresas').select('*').eq('id', empresaHospedagemId).maybeSingle()
+      if (!ativo) return
+      setEmpresaAnfitriao(data && typeof data === 'object' ? data : null)
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [ehAnfitriao, empresaHospedagemId, aberto])
+
+  const empresaEfetiva =
+    menuVariantEfetivo === 'empresa' && ehAnfitriao && empresaAnfitriao ? empresaAnfitriao : empresa
+  const empresaPlano =
+    empresaEfetiva?.plano != null ? String(empresaEfetiva.plano) : empresa?.plano != null ? String(empresa.plano) : 'gratuito'
+  const empresaCategoria =
+    empresaEfetiva?.categoria != null
+      ? String(empresaEfetiva.categoria)
+      : empresa?.categoria != null
+        ? String(empresa.categoria)
+        : ''
+  const empresaCidade =
+    empresaEfetiva?.cidade != null ? String(empresaEfetiva.cidade) : empresa?.cidade != null ? String(empresa.cidade) : ''
   const { servicos: empresaServicos, loading: empresaServicosLoading } = useEmpresaServicosPlano(
     menuVariantEfetivo === 'empresa' ? empresaPlano : null,
     menuVariantEfetivo === 'empresa' ? empresaIdCtx : null,
-    { aguardarEmpresa: menuVariantEfetivo === 'empresa' && !empresaIdCtx },
+    {
+      aguardarEmpresa: menuVariantEfetivo === 'empresa' && !empresaIdCtx,
+      somenteAnfitriao: Boolean(empresaEfetiva?.somente_anfitriao),
+    },
   )
 
   const atualizarIndicadoresMenu = useCallback(async () => {
@@ -598,6 +665,9 @@ export default function MenuLateral({
       empresaCategoria,
       empresaCidade,
       empresaServicos,
+      ehAnfitriao,
+      empresaHospedagemId,
+      somenteAnfitriao: Boolean(empresaEfetiva?.somente_anfitriao),
     }
     const mostrarPreLiberacaoTurista = !Boolean(turistaGate?.documentacao_validada_adm)
     const t = secoesTurista({ mostrarPreLiberacao: mostrarPreLiberacaoTurista })
@@ -615,6 +685,23 @@ export default function MenuLateral({
     if (variant === 'turista') return t
     if (variant === 'profissional') {
       if (!recursosProfLiberadosEfetivo) return secoesProfissionalAguardandoDocs(c)
+      if (ehAnfitriao && modoAnfitriao === 'hospedagem' && empresaHospedagemId) {
+        const emp = secoesEmpresa(c)
+        const pastaAnfitriao = {
+          tipo: 'grupo',
+          key: 'anfitriao',
+          label: 'Anfitrião',
+          items: [
+            { Icon: Home, label: 'Anfitrião', subpagina: 'anfitriao-modo-social' },
+            { Icon: Hotel, label: 'Hospedagem', subpagina: 'anfitriao-modo-hospedagem' },
+          ],
+        }
+        const idxEmp = emp.findIndex((s) => s.tipo === 'grupo' && s.key === 'empresa')
+        if (idxEmp >= 0) {
+          return [...emp.slice(0, idxEmp), pastaAnfitriao, ...emp.slice(idxEmp)]
+        }
+        return [...emp, pastaAnfitriao]
+      }
       return p
     }
     if (variant === 'empresa') return e
@@ -632,6 +719,10 @@ export default function MenuLateral({
     empresaCategoria,
     empresaCidade,
     empresaServicos,
+    ehAnfitriao,
+    empresaHospedagemId,
+    empresaEfetiva,
+    modoAnfitriao,
     turistaGate,
   ])
 
@@ -787,6 +878,24 @@ export default function MenuLateral({
   const executarItem = (item) => {
     if (item.acao === 'logout') {
       setModalLogout(true)
+      return
+    }
+    if (item.subpagina === 'anfitriao-modo-social') {
+      setModoAnfitriao('anfitriao')
+      onFechar()
+      return
+    }
+    if (item.subpagina === 'anfitriao-modo-hospedagem') {
+      if (!empresaHospedagemId) {
+        abrirPagina('Cadastrar Hospedagem', 'cadastrar-hospedagem-anfitriao')
+        return
+      }
+      if (!empresaHospedagemLiberada) {
+        abrirPagina('Hospedagem em análise', 'hospedagem-pendente')
+        return
+      }
+      setModoAnfitriao('hospedagem')
+      onFechar()
       return
     }
     if (item.href) {
@@ -973,27 +1082,56 @@ export default function MenuLateral({
       return (
         <HistoricoDecisoes
           usuarioId={usuarioIdEfetivo}
-          empresaId={empresaIdEfetivo ? String(empresaIdEfetivo) : null}
+          empresaId={empresaIdCtx ? String(empresaIdCtx) : empresaIdEfetivo ? String(empresaIdEfetivo) : null}
           denunciadoTipo={denunciadoTipo}
         />
       )
     }
     if (id === 'historico-stories') return <HistoricoStories usuarioId={usuarioIdEfetivo} />
     if (id === 'modo-apresentacao') return <ModoApresentacao />
-    if (id === 'editar-pagina' && empresa && empresaIdEfetivo) {
-      return <EditarPaginaEmpresa empresa={empresa} empresaId={String(empresaIdEfetivo)} onSalvo={onPerfilAtualizado} />
+    if (id === 'cadastrar-hospedagem-anfitriao')
+      return (
+        <CadastrarHospedagemAnfitriao
+          onConcluido={() => {
+            void recarregarAnfitriao()
+            onPerfilAtualizado?.()
+          }}
+          onAlternarHospedagem={() => setModoAnfitriao('hospedagem')}
+        />
+      )
+    if (id === 'hospedagem-pendente')
+      return (
+        <p className="px-1 text-sm text-gray-600">
+          Seu cadastro de hospedagem está em análise. Após a aprovação do administrador, você poderá operar no modo
+          Hospedagem.
+        </p>
+      )
+    if (id === 'editar-pagina' && empresaEfetiva && empresaIdCtx) {
+      return (
+        <EditarPaginaEmpresa
+          empresa={empresaEfetiva}
+          empresaId={String(empresaIdCtx)}
+          onSalvo={onPerfilAtualizado}
+        />
+      )
     }
     if (id === 'visitantes-perfil') return <VisitantesPerfil usuarioId={usuarioIdEfetivo} />
     if (id === 'anexar-documentos-turista')
       return <AnexarDocumentosTurista usuarioId={usuarioIdEfetivo} onConcluido={onPerfilAtualizado} />
     if (id === 'anexar-documentos')
       return <AnexarDocumentos usuarioId={usuarioIdEfetivo} onConcluido={onPerfilAtualizado} />
-    if (id === 'anexar-documentos-empresa' && empresaIdEfetivo && usuarioIdEfetivo)
+    if (id === 'anexar-documentos-empresa' && empresaIdCtx && usuarioIdEfetivo)
       return (
         <AnexarDocumentosEmpresa
-          empresaId={String(empresaIdEfetivo)}
+          empresaId={String(empresaIdCtx)}
           usuarioId={usuarioIdEfetivo}
-          nomeFantasiaInicial={empresa?.nome_fantasia != null ? String(empresa.nome_fantasia) : ''}
+          nomeFantasiaInicial={
+            empresaEfetiva?.nome_fantasia != null
+              ? String(empresaEfetiva.nome_fantasia)
+              : empresa?.nome_fantasia != null
+                ? String(empresa.nome_fantasia)
+                : ''
+          }
           onConcluido={onPerfilAtualizado}
         />
       )

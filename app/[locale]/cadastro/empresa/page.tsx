@@ -48,7 +48,6 @@ const catMessageKey: Record<CategoriaEmpresa, string> = {
   Restaurantes: 'empresa.cat.Restaurantes',
   Atrativos: 'empresa.cat.Atrativos',
   Lojas: 'empresa.cat.Lojas',
-  Hospedagem: 'empresa.cat.Hospedagem',
   'Serviços Locais': 'empresa.cat.ServicosLocais',
 }
 

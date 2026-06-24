@@ -266,7 +266,12 @@ export default function EmpresaPage() {
   const longitude =
     lngRaw == null || typeof lngRaw === 'object' ? null : typeof lngRaw === 'number' ? lngRaw : Number(lngRaw)
 
-  const donoEmpresa = usuarioId != null && String(empresa.usuario_id ?? '') === usuarioId && meuRole === 'empresa'
+  const donoEmpresa =
+    (usuarioId != null && String(empresa.usuario_id ?? '') === usuarioId && meuRole === 'empresa') ||
+    (usuarioId != null &&
+      String(empresa.usuario_id ?? '') === usuarioId &&
+      meuRole === 'profissional' &&
+      Boolean(empresa.somente_anfitriao))
   const podeAbrirMenu =
     donoEmpresa || (meuRole === 'admin' && typeof adminLevel === 'number' && adminLevel === 1 && modoAtivo)
   /** Apenas admin altera fotos 360° na página pública da empresa. */

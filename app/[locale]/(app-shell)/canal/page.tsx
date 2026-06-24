@@ -6,6 +6,8 @@ import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { anfitriaoUsaCanaisProfissionais } from '@/lib/anfitriaoDualMode'
 import ListaCanais from '@/components/ListaCanais'
 import ListaCanaisEmpresa from '@/components/ListaCanaisEmpresa'
 import ListaCanaisProfissional from '@/components/ListaCanaisProfissional'
@@ -17,7 +19,8 @@ export default function CanalPage() {
   const router = useRouter()
   const pathname = usePathname()
   const { modoAtivo, perfilSimulado, podeInteragir } = useModoApresentacao()
-  const { refreshGate } = useProfissionalGate()
+  const { refreshGate, userRole } = useProfissionalGate()
+  const { ehAnfitriao } = useAnfitriaoModo()
   const [userTipo, setUserTipo] = useState<TipoUsuario>(null)
   const [loading, setLoading] = useState(true)
   const [turismoCanalId, setTurismoCanalId] = useState<string | null>(null)
@@ -29,8 +32,9 @@ export default function CanalPage() {
       if (perfilSimulado.tipo === 'profissional') return 'profissional'
       if (perfilSimulado.tipo === 'empresa') return 'empresa'
     }
+    if (anfitriaoUsaCanaisProfissionais(userRole, ehAnfitriao)) return 'profissional'
     return userTipo
-  }, [modoAtivo, perfilSimulado, userTipo])
+  }, [modoAtivo, perfilSimulado, userTipo, userRole, ehAnfitriao])
 
   useEffect(() => {
     const init = async () => {

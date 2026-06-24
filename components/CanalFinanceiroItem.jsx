@@ -19,11 +19,13 @@ import { notificarBadgeCanais } from '@/lib/canais-badge-events'
  *     created_at: string
  *     profissional_nome: string
  *     empresa_nome: string
+ *     destino_rotulo?: string | null
  *   }
  *   userTipo: 'profissional' | 'empresa'
+ *   destinoRotulo?: string | null
  * }} props
  */
-export default function CanalFinanceiroItem({ item, userTipo }) {
+export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = null }) {
   const [marcandoLida, setMarcandoLida] = useState(false)
 
   const getIcon = () => {
@@ -82,10 +84,19 @@ export default function CanalFinanceiroItem({ item, userTipo }) {
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <h3 className="font-medium text-gray-800">{item.titulo}</h3>
             {!estaLida ? <span className="rounded-full bg-[#00D443] px-2 py-0.5 text-xs text-white">Nova</span> : null}
+            {destinoRotulo ? (
+              <span className="rounded-full bg-[#0097b2]/10 px-2 py-0.5 text-xs font-semibold text-[#0097b2]">
+                {destinoRotulo}
+              </span>
+            ) : null}
           </div>
 
           <p className="mb-2 text-sm text-gray-600">
-            {userTipo === 'profissional' ? item.empresa_nome : item.profissional_nome}
+            {destinoRotulo
+              ? null
+              : userTipo === 'profissional'
+                ? item.empresa_nome
+                : item.profissional_nome}
           </p>
 
           {item.mensagem ? <p className="mb-2 text-sm text-gray-500">{item.mensagem}</p> : null}

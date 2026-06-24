@@ -9,6 +9,8 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import { AVISO_PLANO_EMPRESA_PADRAO } from '@/lib/planosEmpresaServicosGate'
+import { categoriasIncluemAnfitriao, lerModoAnfitriaoStorage } from '@/lib/anfitriaoDualMode'
+import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
 
 import MenuPeriodoDashboard from './components/shared/MenuPeriodoDashboard'
 import FunilConversao from './components/funil-conversao/FunilConversao'
@@ -78,6 +80,44 @@ export default function DashboardEmpresaPage() {
         return
       }
 
+      if (role === 'profissional') {
+        const { data: prof } = await supabase
+          .from('profissionais')
+          .select('categorias, empresa_hospedagem_id')
+          .eq('usuario_id', uid)
+          .maybeSingle()
+        const cats = Array.isArray(prof?.categorias)
+          ? prof.categorias.filter((c): c is string => typeof c === 'string')
+          : []
+        const empHospId = prof?.empresa_hospedagem_id != null ? String(prof.empresa_hospedagem_id) : null
+        if (!categoriasIncluemAnfitriao(cats) || !empHospId || lerModoAnfitriaoStorage() !== 'hospedagem') {
+          if (ativo) setGate({ status: 'forbidden' })
+          return
+        }
+        const { data: empAnfitriao } = await supabase
+          .from('empresas')
+          .select(EMPRESA_SELECT)
+          .eq('id', empHospId)
+          .maybeSingle()
+        const empAnfitriaoRow = empAnfitriao ? mapEmpresaRow(empAnfitriao as Record<string, unknown>) : null
+        const empGateRow = empAnfitriao as Record<string, unknown> | null
+        if (
+          !empresaRecursosLiberados(uStatus, empGateRow
+            ? {
+                status: empGateRow.status != null ? String(empGateRow.status) : null,
+                docs_verificado: Boolean(empGateRow.docs_verificado),
+                aprovado_em: empGateRow.aprovado_em != null ? String(empGateRow.aprovado_em) : null,
+                verificado_em: empGateRow.verificado_em != null ? String(empGateRow.verificado_em) : null,
+              }
+            : null)
+        ) {
+          if (ativo) setGate({ status: 'pending' })
+          return
+        }
+        if (ativo) setGate({ status: 'allowed', userId: uid, empresaInicial: empAnfitriaoRow })
+        return
+      }
+
       if (role !== 'empresa') {
         if (ativo) setGate({ status: 'forbidden' })
         return
@@ -92,8 +132,11 @@ export default function DashboardEmpresaPage() {
     }
 
     void boot()
+    const onRef = () => void boot()
+    window.addEventListener('anfitriao-modo-change', onRef)
     return () => {
       ativo = false
+      window.removeEventListener('anfitriao-modo-change', onRef)
     }
   }, [modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
 
@@ -171,6 +214,7 @@ function DashboardEmpresaConteudo({
   const { dados: empresa, loading: empresaLoading } = useDashboardEmpresa()
   const { abaLiberada, loading: planoLoading } = useEmpresaServicosPlano(empresa?.plano, empresa?.id, {
     aguardarEmpresa: empresaLoading,
+    somenteAnfitriao: Boolean(empresa?.somente_anfitriao),
   })
   const aguardandoPlano = empresaLoading || planoLoading
 

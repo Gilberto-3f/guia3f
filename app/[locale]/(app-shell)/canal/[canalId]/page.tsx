@@ -7,6 +7,7 @@ import { ChevronLeft, MoreVertical } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
@@ -114,6 +115,7 @@ export default function CanalDetalhePage() {
 
   const { modoAtivo, perfilSimulado, podeInteragir } = useModoApresentacao()
   const { recursosProfissionaisLiberados, recursosEmpresaLiberados, loading: gateLoading, refreshGate } = useProfissionalGate()
+  const { ehAnfitriao, empresaHospedagemId } = useAnfitriaoModo()
   const [userTipo, setUserTipo] = useState<TipoUsuario>(null)
   const [authPronto, setAuthPronto] = useState(false)
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
@@ -713,7 +715,11 @@ export default function CanalDetalhePage() {
           {profCanalBloqueadoPorDocs ? (
             <AvisoDocsProfissionalBloqueado />
           ) : canal != null && isFinanceiro && financeUid ? (
-            <CanalFinanceiroLista usuarioId={financeUid} tipo="profissional" />
+            <CanalFinanceiroLista
+              usuarioId={financeUid}
+              tipo="profissional"
+              empresaHospedagemId={ehAnfitriao ? empresaHospedagemId : null}
+            />
           ) : (
             <div className="min-h-0 flex-1 overflow-hidden">
             <CanalMensagens

@@ -16,7 +16,7 @@ import {
 import {
   normalizarCategoriaEmpresaGuia,
   ROTULO_SEGUIMENTO_GUIA,
-  type CategoriaEmpresaDb,
+  type CategoriaGuiaTodas,
   CATEGORIAS_EMPRESA_DB,
 } from '@/lib/segmentosEmpresaGuia'
 
@@ -360,7 +360,7 @@ export function useGraficosAdm(periodo: PeriodoAdm) {
       }
     }
 
-    const empSeg = new Map<string, CategoriaEmpresaDb>()
+    const empSeg = new Map<string, CategoriaGuiaTodas>()
     for (const row of emps ?? []) {
       const r = row as { id: string; categoria?: string | null }
       const cat = normalizarCategoriaEmpresaGuia(r.categoria)
