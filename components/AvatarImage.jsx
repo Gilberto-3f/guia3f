@@ -1,11 +1,12 @@
 'use client'
 
 import Image from 'next/image'
+import { normalizarUrlMidiaSupabase, podeUsarNextImage } from '@/lib/imagemPublica'
 
 const DEFAULT = '/avatar-default.png'
 
 /**
- * Foto de perfil: rotas locais (`/…`) usam `next/image`; URLs remotas usam `<img>` para evitar erro quando o host não está em `remotePatterns`.
+ * Foto de perfil: rotas locais (`/…`) usam `next/image`; URLs remotas usam `<img>` para evitar erro 402 no proxy Vercel.
  * @param {{
  *   src: string | null | undefined
  *   alt?: string
@@ -27,13 +28,14 @@ export default function AvatarImage({
   sizes,
   priority = false,
 }) {
-  const s = src && String(src).trim() ? String(src) : DEFAULT
-  const isLocal = s.startsWith('/') || s.startsWith('data:')
+  const raw = src && String(src).trim() ? String(src) : DEFAULT
+  const s = raw === DEFAULT ? DEFAULT : normalizarUrlMidiaSupabase(raw) || DEFAULT
+  const usarNext = podeUsarNextImage(s)
 
-  if (fill && isLocal) {
+  if (fill && usarNext) {
     return <Image src={s} alt={alt} fill className={className} sizes={sizes} priority={priority} />
   }
-  if (fill && !isLocal) {
+  if (fill && !usarNext) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -46,14 +48,7 @@ export default function AvatarImage({
       />
     )
   }
-  const isSupabasePublic =
-    !isLocal && s.startsWith('https://') && s.includes('/storage/v1/object/public/')
-
-  if (isLocal) {
-    return <Image src={s} alt={alt} width={width} height={height} className={className} priority={priority} />
-  }
-
-  if (isSupabasePublic) {
+  if (usarNext) {
     return (
       <Image
         src={s}

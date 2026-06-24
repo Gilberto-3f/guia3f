@@ -238,10 +238,8 @@ export default function StoryViewer({
 }) {
   const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
   const {
-    podeInteragirFeedSocial,
-    avisarBloqueioFeed,
-    avisoFeedAberto,
     fecharAvisoBloqueioFeed,
+    avisoFeedAberto,
     mensagemBloqueioFeed,
     tituloBloqueioFeed,
   } = useGateFeedSocial()
@@ -733,7 +731,10 @@ export default function StoryViewer({
   const souAutor = Boolean(uid && autorId && uid === autorId)
   const marcacoesStory = useMemo(() => normalizarMarcacoesStory(story?.marcacoes), [story?.marcacoes])
   const storyOriginalParaRepostId = story?.repost_story_id ? String(story.repost_story_id) : story?.id ? String(story.id) : null
-  const podeRepostarStory = Boolean(uid && !souAutor && storyOriginalParaRepostId && marcacoesStory.some((m) => m.usuario_id === uid))
+  const souMarcadoNoStory = Boolean(
+    uid && marcacoesStory.some((m) => String(m.usuario_id ?? '').toLowerCase() === String(uid).toLowerCase()),
+  )
+  const podeRepostarStory = Boolean(uid && !souAutor && storyOriginalParaRepostId && souMarcadoNoStory)
 
   useEffect(() => {
     if (!story?.id || marcacoesStory.length === 0) return
@@ -1019,10 +1020,6 @@ export default function StoryViewer({
 
   const repostarStory = async () => {
     if (!story?.id || !uid || !storyOriginalParaRepostId || repostando || !podeRepostarStory) return
-    if (!podeInteragirFeedSocial) {
-      avisarBloqueioFeed()
-      return
-    }
     setRepostando(true)
     try {
       const {
@@ -1060,25 +1057,37 @@ export default function StoryViewer({
         setToastMsg('Este story já está repostado.')
         return
       }
+      const conteudoUrl = String(story.conteudo_url ?? '').trim()
+      if (!conteudoUrl) {
+        setToastMsg('Story sem mídia para repostar.')
+        return
+      }
       const { data: userRow } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
       const expira = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      const { data: repostCriado, error } = await supabase
-        .from('stories')
-        .insert({
-          autor_id: session.user.id,
-          autor_tipo: typeof userRow?.role === 'string' && userRow.role ? userRow.role : 'turista',
-          tipo: story.tipo || 'foto',
-          conteudo_url: story.conteudo_url,
-          texto_sobreposto: story.texto_sobreposto ?? null,
-          link: story.link ?? null,
-          expira_em: expira,
-          duracao_segundos: story.duracao_segundos ?? 60,
-          marcacoes: [],
-          repost_story_id: storyOriginalParaRepostId,
-        })
-        .select('id')
-        .single()
+      const { error } = await supabase.from('stories').insert({
+        autor_id: session.user.id,
+        autor_tipo: typeof userRow?.role === 'string' && userRow.role ? userRow.role : 'turista',
+        tipo: story.tipo || 'foto',
+        conteudo_url: conteudoUrl,
+        texto_sobreposto: story.texto_sobreposto ?? null,
+        link: story.link ?? null,
+        expira_em: expira,
+        duracao_segundos: story.duracao_segundos ?? 60,
+        marcacoes: [],
+        repost_story_id: storyOriginalParaRepostId,
+      })
       if (error) throw error
+
+      const { data: repostCriado, error: fetchErr } = await supabase
+        .from('stories')
+        .select('id')
+        .eq('autor_id', session.user.id)
+        .eq('repost_story_id', storyOriginalParaRepostId)
+        .gt('expira_em', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (fetchErr) throw fetchErr
       setRepostExistenteId(repostCriado?.id != null ? String(repostCriado.id) : null)
       setToastMsg('Story repostado no seu perfil.')
       window.dispatchEvent(new Event('guia-stories-bar-reload'))

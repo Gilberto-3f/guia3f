@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { normalizarUrlMidiaSupabase } from '@/lib/imagemPublica'
 import AbaFotos from '@/components/perfil/AbaFotos'
 import ModalFoto from '@/components/perfil/ModalFoto'
 
@@ -10,12 +11,19 @@ import ModalFoto from '@/components/perfil/ModalFoto'
  *
  * @param {{
  *   empresaUsuarioId: string | null
+ *   empresaId?: string | null
  *   nomeFantasia: string
  *   nomeUsuario: string
  *   fotoPerfilUrl: string | null
  * }} props
  */
-export default function AbaFotosEmpresa({ empresaUsuarioId, nomeFantasia, nomeUsuario, fotoPerfilUrl }) {
+export default function AbaFotosEmpresa({
+  empresaUsuarioId,
+  empresaId = null,
+  nomeFantasia,
+  nomeUsuario,
+  fotoPerfilUrl,
+}) {
   const [items, setItems] = useState(/** @type {object[]} */ ([]))
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState('')
@@ -143,8 +151,9 @@ export default function AbaFotosEmpresa({ empresaUsuarioId, nomeFantasia, nomeUs
         autor={{
           nome: nomeFantasia,
           username: nomeUsuario,
-          foto_perfil_url: fotoPerfilUrl,
+          foto_perfil_url: fotoPerfilUrl ? normalizarUrlMidiaSupabase(fotoPerfilUrl) : null,
           usuario_id: empresaUsuarioId,
+          empresa_id: empresaId != null ? String(empresaId) : '',
           role: 'empresa',
         }}
         onPatchPost={patchFoto}

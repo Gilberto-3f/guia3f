@@ -464,6 +464,7 @@ export default function EmpresaPage() {
             {subAbaAtiva === 'fotos' ? (
               <AbaFotosEmpresa
                 empresaUsuarioId={empresaUsuarioIdPosts}
+                empresaId={empresaId}
                 nomeFantasia={nomeFantasia}
                 nomeUsuario={nomeUsuario}
                 fotoPerfilUrl={fotoUrl}

@@ -158,7 +158,7 @@ export function CardNovaTabela({
               </label>
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-2">
-              <label className="min-w-0 text-xs font-semibold text-gray-700">
+              <label className="flex min-w-0 flex-col rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs font-semibold text-gray-700">
                 Das
                 <input
                   type="time"
@@ -167,7 +167,7 @@ export function CardNovaTabela({
                   className={timeInputCls}
                 />
               </label>
-              <label className="min-w-0 text-xs font-semibold text-gray-700">
+              <label className="flex min-w-0 flex-col rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs font-semibold text-gray-700">
                 Às
                 <input
                   type="time"
@@ -188,7 +188,7 @@ export function CardNovaTabela({
               própria.
             </p>
             <div className="grid min-w-0 grid-cols-1 gap-2">
-              <label className="min-w-0 text-xs font-semibold text-gray-700">
+              <label className="flex min-w-0 flex-col rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs font-semibold text-gray-700">
                 Saída às
                 <input
                   type="time"
@@ -197,7 +197,7 @@ export function CardNovaTabela({
                   className={timeInputCls}
                 />
               </label>
-              <label className="min-w-0 text-xs font-semibold text-gray-700">
+              <label className="flex min-w-0 flex-col rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs font-semibold text-gray-700">
                 Retorno às
                 <input
                   type="time"
