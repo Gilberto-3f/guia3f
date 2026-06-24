@@ -1,12 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { Heart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import BotaoSeguir from '@/components/BotaoSeguir'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
+import AvatarImage from '@/components/AvatarImage'
 import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
@@ -125,7 +125,7 @@ export default function PopupFavoritos({ aberto, onFechar, profileId, meuId, onM
                 <div key={row.usuario_id} className="flex items-center gap-3 border-b border-gray-100 py-2 last:border-0">
                   <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50">
                     <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
-                      {row.foto_url ? <Image src={row.foto_url} alt="" fill className="object-cover" sizes="40px" /> : null}
+                      {row.foto_url ? <AvatarImage src={row.foto_url} alt="" fill className="object-cover" sizes="40px" /> : null}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-gray-800">{row.nome}</p>

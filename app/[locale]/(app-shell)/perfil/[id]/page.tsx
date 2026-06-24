@@ -895,20 +895,22 @@ export default function PerfilSocialPage() {
         </div>
       </div>
 
-      <MenuLateral
-        aberto={menuAberto}
-        onFechar={() => setMenuAberto(false)}
-        variant={menuVariant}
-        nome={nome}
-        username={username}
-        fotoUrl={fotoPerfil}
-        usuarioId={meuId}
-        placaVermelha={placaVermelha}
-        adminLevel={adminLevel}
-        bioText={bio ?? ''}
-        recursosProfissionaisLiberados={recursosProfissionaisLiberados}
-        onPerfilAtualizado={() => void carregar()}
-      />
+      {menuVariant ? (
+        <MenuLateral
+          aberto={menuAberto}
+          onFechar={() => setMenuAberto(false)}
+          variant={menuVariant}
+          nome={nome}
+          username={username}
+          fotoUrl={fotoPerfil}
+          usuarioId={meuId}
+          placaVermelha={placaVermelha}
+          adminLevel={adminLevel}
+          bioText={bio ?? ''}
+          recursosProfissionaisLiberados={recursosProfissionaisLiberados}
+          onPerfilAtualizado={() => void carregar()}
+        />
+      ) : null}
 
       <PopupFavoritos
         aberto={popFav}

@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
 import MediaFillImage from '@/components/MediaFillImage'
 

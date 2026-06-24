@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -30,6 +29,7 @@ import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
+import AvatarImage from '@/components/AvatarImage'
 
 /**
  * @param {string} path
@@ -656,7 +656,7 @@ export default function BottomBar() {
         <div
           className={`relative h-6 w-6 overflow-hidden rounded-md ${active ? 'ring-2 ring-[#0097b2] ring-offset-2' : ''}`}
         >
-          <Image src={fotoPerfil} alt="Perfil" width={24} height={24} className="h-full w-full object-cover" />
+          <AvatarImage src={fotoPerfil} alt="Perfil" fill className="object-cover" sizes="24px" />
         </div>
       )
     }

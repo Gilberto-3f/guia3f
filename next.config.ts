@@ -13,6 +13,8 @@ try {
 
 const nextConfig: NextConfig = {
   images: {
+    /** Evita proxy `/_next/image` na Vercel (erro 402 quando cota de otimização esgota). */
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",

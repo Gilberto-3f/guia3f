@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react'
+import MediaFillImage from '@/components/MediaFillImage'
+import { normalizarUrlMidiaSupabase, urlMidiaValida } from '@/lib/imagemPublica'
 
 /**
  * @param {{
@@ -58,6 +59,7 @@ export default function ModalFotos({ urls, indiceInicial, aberto, onFechar }) {
   if (!aberto || urls.length === 0) return null
 
   const url = urls[i]
+  const src = urlMidiaValida(url) ? normalizarUrlMidiaSupabase(url) : ''
 
   return (
     <div className="fixed inset-0 z-[240] flex flex-col bg-black/90">
@@ -88,7 +90,7 @@ export default function ModalFotos({ urls, indiceInicial, aberto, onFechar }) {
         }}
       >
         <div className="relative h-full max-h-[70vh] w-full max-w-3xl">
-          <Image src={url} alt="" fill className="object-contain" sizes="(max-width: 768px) 100vw, 720px" />
+          {src ? <MediaFillImage src={src} alt="" objectFit="contain" sizes="(max-width: 768px) 100vw, 720px" /> : null}
         </div>
         {urls.length > 1 ? (
           <>
@@ -113,16 +115,19 @@ export default function ModalFotos({ urls, indiceInicial, aberto, onFechar }) {
       </div>
 
       <div className="flex gap-1 overflow-x-auto border-t border-white/10 p-2">
-        {urls.map((u, idx) => (
-          <button
-            key={`${u}-${idx}`}
-            type="button"
-            onClick={() => setI(idx)}
-            className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 ${idx === i ? 'border-[#0097b2]' : 'border-transparent opacity-70'}`}
-          >
-            <Image src={u} alt="" fill className="object-cover" sizes="56px" />
-          </button>
-        ))}
+        {urls.map((u, idx) => {
+          const thumbSrc = urlMidiaValida(u) ? normalizarUrlMidiaSupabase(u) : ''
+          return (
+            <button
+              key={`${u}-${idx}`}
+              type="button"
+              onClick={() => setI(idx)}
+              className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 ${idx === i ? 'border-[#0097b2]' : 'border-transparent opacity-70'}`}
+            >
+              {thumbSrc ? <MediaFillImage src={thumbSrc} alt="" sizes="56px" /> : null}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

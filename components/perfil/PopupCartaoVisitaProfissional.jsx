@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
 import { ChevronLeft, ShieldCheck, Star, User, X } from 'lucide-react'
+import AvatarImage from '@/components/AvatarImage'
 import EscudoVerificacaoPendente from '@/components/EscudoVerificacaoPendente'
 import IconWhatsApp from '@/components/IconWhatsApp'
 import PopupRecomendarProfissional from '@/components/PopupRecomendarProfissional'
@@ -307,7 +307,7 @@ export default function PopupCartaoVisitaProfissional({
                 <div className="flex w-full max-w-sm justify-center">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-[#0097b2]/15">
-                      {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="48px" /> : null}
+                      {avatarUrl ? <AvatarImage src={avatarUrl} alt="" fill className="object-cover" sizes="48px" /> : null}
                     </div>
                     <div className="min-w-0 text-left">
                       <p className="line-clamp-2 text-base font-bold text-gray-900">{nome || 'Profissional'}</p>
@@ -368,7 +368,7 @@ export default function PopupCartaoVisitaProfissional({
                   <div className="flex w-full justify-center">
                     <div className="flex max-w-full flex-row items-center gap-3 sm:gap-5">
                       <div className="relative h-[3.75rem] w-[3.75rem] shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-[#0097b2]/15 sm:h-[4.25rem] sm:w-[4.25rem]">
-                        {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="68px" /> : null}
+                        {avatarUrl ? <AvatarImage src={avatarUrl} alt="" fill className="object-cover" sizes="68px" /> : null}
                       </div>
                       <div className="flex min-w-0 flex-col items-start justify-center gap-0.5 text-left">
                         <p className="line-clamp-2 max-w-[min(100%,18rem)] text-lg font-bold text-gray-900 sm:text-xl">
@@ -404,7 +404,7 @@ export default function PopupCartaoVisitaProfissional({
             ) : (
               <div className="flex flex-col items-center gap-4 text-center">
                 <div className="relative h-[4.25rem] w-[4.25rem] shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-gray-200 sm:h-[5rem] sm:w-[5rem]">
-                  {avatarUrl ? <Image src={avatarUrl} alt="" fill className="object-cover" sizes="80px" /> : null}
+                  {avatarUrl ? <AvatarImage src={avatarUrl} alt="" fill className="object-cover" sizes="80px" /> : null}
                 </div>
                 <div className="flex min-w-0 flex-col items-center gap-0.5">
                   <p className="line-clamp-2 max-w-md text-lg font-bold text-gray-900 sm:text-xl">{nome || 'Profissional'}</p>

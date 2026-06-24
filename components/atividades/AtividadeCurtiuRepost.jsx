@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import { Link, useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
+import MediaFillImage from '@/components/MediaFillImage'
+import { normalizarUrlMidiaSupabase, urlMidiaValida } from '@/lib/imagemPublica'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
@@ -95,7 +96,11 @@ export default function AtividadeCurtiuRepost({
             >
               {previewTipo === 'foto' && previewUrl ? (
                 <div className="relative aspect-square w-full max-w-[52px] shrink-0 overflow-hidden rounded-md bg-gray-100">
-                  <Image src={previewUrl} alt="" fill className="object-cover" sizes="52px" />
+                  <MediaFillImage
+                    src={urlMidiaValida(previewUrl) ? normalizarUrlMidiaSupabase(previewUrl) : ''}
+                    alt=""
+                    sizes="52px"
+                  />
                 </div>
               ) : (
                 <p className="line-clamp-3 whitespace-pre-wrap text-base text-gray-800">
