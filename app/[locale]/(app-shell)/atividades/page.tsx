@@ -30,6 +30,7 @@ import {
   agruparAtividadesCurtidasPost,
   filtrarAtividadesAposDescurtir,
   urlFotoPost,
+  normalizarUrlFotoPost,
   atividadeCurtiuStoryVisivel,
   atividadeAgrupadaTemUi,
   coletarStoryIdsAtividades,
@@ -819,23 +820,41 @@ export default function AtividadesPage() {
           avaliacao_meta: unknown
           autor_id: string
         }
-        acc[String(p.id)] = { ...p }
+        acc[String(p.id)] = {
+          ...p,
+          conteudo_url: p.conteudo_url ? normalizarUrlFotoPost(String(p.conteudo_url)) : null,
+          foto_url: p.foto_url ? normalizarUrlFotoPost(String(p.foto_url)) : null,
+        }
       }
       return acc
     }
 
-    const { data, error } = await supabase.from('posts').select(sel).in('id', uniq)
-    if (error || !data) {
+    const fetchPostsChunked = async (ids: string[]) => {
+      const CHUNK = 80
+      const rows: unknown[] = []
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK)
+        const { data, error } = await supabase.from('posts').select(sel).in('id', chunk)
+        if (error) return { error, rows: [] as unknown[] }
+        if (data?.length) rows.push(...data)
+      }
+      return { error: null, rows }
+    }
+
+    const { error, rows } = await fetchPostsChunked(uniq)
+    if (error) {
       if (!merge) setPostMetaMap({})
       return
     }
-    let m = mergeRows({}, data as unknown[])
+    let m = mergeRows({}, rows)
 
     const originais = [...new Set(Object.values(m).map((p) => p.post_original_id).filter((x): x is string => Boolean(x)))].filter((id) => !m[id])
 
     if (originais.length > 0) {
-      const { data: origData } = await supabase.from('posts').select(sel).in('id', originais)
-      m = mergeRows(m, (origData ?? []) as unknown[])
+      const { error: origErr, rows: origRows } = await fetchPostsChunked(originais)
+      if (!origErr && origRows.length > 0) {
+        m = mergeRows(m, origRows)
+      }
     }
 
     const postsAvaliacao = Object.values(m).filter((p) => {
@@ -1532,6 +1551,22 @@ export default function AtividadesPage() {
     })
   }, [aba, listaAmigos, listaMinha, storiesRepostAtivos, storiesRepostAtivosPronto])
 
+  /** Busca meta de posts curtidos que ainda não estão no mapa (ex.: bloco paginado). */
+  useEffect(() => {
+    const faltando: string[] = []
+    const vistos = new Set<string>()
+    for (const r of listaAtividadesFiltrada) {
+      if (r.tipo !== 'curtiu_post') continue
+      const id = String(r.alvo_id ?? '').trim()
+      if (!id || vistos.has(id) || postMetaMap[id]) continue
+      vistos.add(id)
+      faltando.push(id)
+    }
+    if (faltando.length > 0) {
+      void carregarPostsMeta(faltando, { merge: true })
+    }
+  }, [listaAtividadesFiltrada, postMetaMap, carregarPostsMeta])
+
   const itensAgrupados = useMemo((): ReturnType<typeof agruparAtividadesCurtidasPost> => {
     const ord = [...listaAtividadesFiltrada].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     const out = agruparAtividadesCurtidasPost(ord, postMetaMap).filter(atividadeAgrupadaTemUi)
@@ -1579,7 +1614,7 @@ export default function AtividadesPage() {
       /** Uma URL por linha (alinhada a `postIds`); placeholder se a meta ainda não tiver foto. */
       const urlsGrid = item.rows.map((r: AtividadeRow) => {
         const u = urlFotoPost(postMetaMap[r.alvo_id])
-        return u && String(u).trim() !== '' ? String(u) : '/window.svg'
+        return u && String(u).trim() !== '' ? String(u) : ''
       })
       return (
         <AtividadeCurtidas
@@ -1605,7 +1640,7 @@ export default function AtividadesPage() {
       /** Uma URL por linha (alinhada a `postIds`); placeholder se a meta ainda não tiver foto. */
       const urlsGrid = item.rows.map((r: AtividadeRow) => {
         const u = urlFotoPost(postMetaMap[r.alvo_id])
-        return u && String(u).trim() !== '' ? String(u) : '/window.svg'
+        return u && String(u).trim() !== '' ? String(u) : ''
       })
       return (
         <AtividadeCurtidas

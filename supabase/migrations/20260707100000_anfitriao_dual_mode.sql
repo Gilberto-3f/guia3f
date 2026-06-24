@@ -29,16 +29,7 @@ CREATE POLICY "Anfitrião insere empresa hospedagem"
     somente_anfitriao = TRUE
     AND categoria = 'Hospedagem'
     AND usuario_id = auth.uid ()
-    AND EXISTS (
-      SELECT 1
-      FROM public.profissionais p
-      WHERE p.usuario_id = auth.uid ()
-        AND (
-          'Anfitriao' = ANY (p.categorias)
-          OR 'anfitriao' = ANY (p.categorias)
-          OR 'Anfitrião' = ANY (p.categorias)
-        )
-    )
+    AND public.profissional_tem_slug_categoria(auth.uid(), 'anfitriao')
   );
 
 DROP POLICY IF EXISTS "Anfitrião atualiza empresa hospedagem" ON public.empresas;

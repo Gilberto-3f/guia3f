@@ -529,15 +529,6 @@ export default function MenuLateral({
     }
   }, [aberto, variant, usuarioId])
 
-  const contaVerificadaHeader =
-    menuVariantEfetivo === 'empresa' && empresaEfetiva
-      ? contaVerificadaDocumentacao('empresa', empresaEfetiva)
-      : variant === 'empresa' && empresa
-        ? contaVerificadaDocumentacao('empresa', empresa)
-        : variant === 'profissional'
-          ? profVerificadoMenu
-          : false
-
   const [gruposAbertos, setGruposAbertos] = useState(() => ({
     emergencia: false,
     usuario: false,
@@ -601,6 +592,16 @@ export default function MenuLateral({
 
   const empresaEfetiva =
     menuVariantEfetivo === 'empresa' && ehAnfitriao && empresaAnfitriao ? empresaAnfitriao : empresa
+
+  const contaVerificadaHeader =
+    menuVariantEfetivo === 'empresa' && empresaEfetiva
+      ? contaVerificadaDocumentacao('empresa', empresaEfetiva)
+      : variant === 'empresa' && empresa
+        ? contaVerificadaDocumentacao('empresa', empresa)
+        : variant === 'profissional'
+          ? profVerificadoMenu
+          : false
+
   const empresaPlano =
     empresaEfetiva?.plano != null ? String(empresaEfetiva.plano) : empresa?.plano != null ? String(empresa.plano) : 'gratuito'
   const empresaCategoria =

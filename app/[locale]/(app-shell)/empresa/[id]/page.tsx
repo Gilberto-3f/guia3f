@@ -20,6 +20,7 @@ import AbaFotosEmpresa from '@/components/empresa/AbaFotosEmpresa'
 import AbaPostsEmpresa from '@/components/empresa/AbaPostsEmpresa'
 import AbaTour360Empresa from '@/components/empresa/AbaTour360Empresa'
 import { parseTourConfig, sincronizarTourComFotos } from '@/lib/pannellumTour'
+import { normalizarUrlMidiaSupabase } from '@/lib/imagemPublica'
 import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
@@ -243,7 +244,7 @@ export default function EmpresaPage() {
 
   const nomeFantasia = String(empresa.nome_fantasia ?? '')
   const nomeUsuario = String(empresa.nome_usuario ?? '')
-  const fotoUrl = empresa.foto_url ? String(empresa.foto_url) : null
+  const fotoUrl = empresa.foto_url ? normalizarUrlMidiaSupabase(String(empresa.foto_url)) : null
   const descLongaRaw = empresa.descricao_longa != null ? String(empresa.descricao_longa) : ''
   const descLonga = descLongaRaw.trim() !== '' ? descLongaRaw : null
   const notaMedia = Number(empresa.nota_media) || 0

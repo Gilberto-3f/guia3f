@@ -23,8 +23,15 @@ export function normalizarCategoriaSlug(c: string): string {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
-export function categoriasIncluemAnfitriao(categorias: readonly string[] | null | undefined): boolean {
-  return (categorias ?? []).some((c) => normalizarCategoriaSlug(String(c)) === 'anfitriao')
+export function categoriasIncluemAnfitriao(
+  categorias: readonly string[] | string | null | undefined,
+): boolean {
+  if (categorias == null) return false
+  if (typeof categorias === 'string') {
+    return normalizarCategoriaSlug(categorias) === 'anfitriao'
+  }
+  if (!Array.isArray(categorias)) return false
+  return categorias.some((c) => normalizarCategoriaSlug(String(c)) === 'anfitriao')
 }
 
 export function ehCategoriaEmpresaComercial(valor: string | null | undefined): boolean {
