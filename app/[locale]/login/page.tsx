@@ -6,7 +6,9 @@ import { useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
+import type { Session } from "@supabase/supabase-js";
 import { syncSessionCookiesToServer } from "@/lib/authCookieSync";
+import { signInWithPasswordResilient } from "@/lib/resilientSignIn";
 import { supabase } from "@/lib/supabase";
 import { getSafeCadastroNext } from "@/lib/cadastroNextRedirect";
 import { getPostAuthRedirectPath } from "@/lib/postAuthRedirect";
@@ -55,8 +57,24 @@ export default function LoginPage() {
     };
   }, [router, searchParams]);
 
+  const finalizarLogin = async (session: Session) => {
+    const synced = await syncSessionCookiesToServer(session);
+    if (!synced) {
+      setErroSenha(t("genericError"));
+      return;
+    }
+    const nextCadastro = getSafeCadastroNext(searchParams.get("next"));
+    if (nextCadastro) {
+      router.replace(nextCadastro);
+      return;
+    }
+    const path = await getPostAuthRedirectPath(supabase, session.user.id);
+    router.replace(path);
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (carregando) return;
     setErroSenha("");
     const id = loginId.trim().toLowerCase();
     if (!emailOuUsuarioRegex.test(id)) {
@@ -69,32 +87,16 @@ export default function LoginPage() {
     }
     setCarregando(true);
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: id,
-        password: senha,
-      });
-      if (authError) {
-        setErroSenha(authError.message);
+      const result = await signInWithPasswordResilient(id, senha);
+      if (!result.ok) {
+        if (result.kind === "network") {
+          setErroSenha(t("networkError"));
+        } else {
+          setErroSenha(result.error.message);
+        }
         return;
       }
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const uid = session?.user?.id;
-      if (uid && session?.access_token && session.refresh_token) {
-        const synced = await syncSessionCookiesToServer(session);
-        if (!synced) {
-          setErroSenha(t("genericError"));
-          return;
-        }
-        const nextCadastro = getSafeCadastroNext(searchParams.get("next"));
-        if (nextCadastro) {
-          router.replace(nextCadastro);
-          return;
-        }
-        const path = await getPostAuthRedirectPath(supabase, uid);
-        router.replace(path);
-      }
+      await finalizarLogin(result.session);
     } catch {
       setErroSenha(t("genericError"));
     } finally {

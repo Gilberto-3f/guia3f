@@ -10,6 +10,7 @@
     "invalidEmail": "Informe um e-mail válido para entrar.",
     "passwordMinLength": "A senha deve ter pelo menos 8 caracteres.",
     "genericError": "Erro ao entrar. Tente novamente.",
+    "networkError": "Falha de conexão. Verifique sua internet e tente novamente.",
     "marketingHeadline": "Não tem cadastro?",
     "marketingBody1": "Nosso aplicativo oferece um ecossistema completo de serviços e empresas locais.",
     "marketingBody2": "Crie sua conta agora mesmo na melhor comunidade do turismo da Tríplice Fronteira e desfrute de benefícios exclusivos como:",
