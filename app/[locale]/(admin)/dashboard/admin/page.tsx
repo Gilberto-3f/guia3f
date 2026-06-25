@@ -20,7 +20,7 @@ import { VerificacaoContainer } from './components/verificacao/VerificacaoContai
 import { DenunciasContainer } from './components/denuncias/DenunciasContainer'
 import { EspacoAdmContainer } from './components/espaco-adm/EspacoAdmContainer'
 import { EspacoAdmBarraFixa } from './components/espaco-adm/EspacoAdmBarraFixa'
-import { ConfiguracoesContainer } from './components/configuracoes/ConfiguracoesContainer'
+import { ConfiguracoesBarraFixa, ConfiguracoesContainer } from './components/configuracoes/ConfiguracoesContainer'
 import {
   ServicosTabeladosBarraFixa,
   ServicosTabeladosConteudo,
@@ -130,7 +130,9 @@ function DashboardAdminContent() {
 
           {tab === 'servicos-tabelados' ? <ServicosTabeladosBarraFixa /> : null}
 
-          {tab && tab !== 'visao-geral' && tab !== 'cadastros' && tab !== 'espaco-adm' && tab !== 'servicos-tabelados' ? (
+          {tab === 'configuracoes' ? <ConfiguracoesBarraFixa sub={sub} /> : null}
+
+          {tab && tab !== 'visao-geral' && tab !== 'cadastros' && tab !== 'espaco-adm' && tab !== 'servicos-tabelados' && tab !== 'configuracoes' ? (
             <div className="border-t border-gray-100 bg-white px-3 sm:px-4">
               <AdminSubabasRail tab={tab} sub={sub} />
             </div>

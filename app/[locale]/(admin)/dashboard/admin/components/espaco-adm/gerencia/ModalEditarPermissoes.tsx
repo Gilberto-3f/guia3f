@@ -54,7 +54,9 @@ export function ModalEditarPermissoes({ aberto, onClose, admin, onSave }: Props)
       'espaco_graficos',
       'espaco_empresas',
       'espaco_financeiro',
-      'config_logs',
+      'config_apis',
+      'config_geral',
+      'config_seguranca',
     ],
     []
   )

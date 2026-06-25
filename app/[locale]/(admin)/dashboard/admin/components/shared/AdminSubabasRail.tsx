@@ -3,7 +3,6 @@
 import { useMemo, type ReactNode } from 'react'
 import type { AbaPrincipalId } from './AbasNavegacao'
 import SubabasDenuncias from '../denuncias/SubabasDenuncias'
-import { SubabasConfig, type ConfigSubabaId } from '../configuracoes/SubabasConfig'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
 import { isAdmGeral } from '../../utils/permissoes'
 import { useDenunciasToolbar } from '../../context/DenunciasToolbarContext'
@@ -13,11 +12,6 @@ import { useAdminNav } from '../../context/AdminNavContext'
 function coerceDenunciasSub(sub: string): 'turistas' | 'profissionais' | 'empresas' | 'auditoria' {
   if (sub === 'profissionais' || sub === 'empresas' || sub === 'auditoria') return sub
   return 'turistas'
-}
-
-function coerceConfigSub(sub: string): ConfigSubabaId {
-  if (sub === 'logs' || sub === 'geral' || sub === 'seguranca') return sub
-  return 'apis'
 }
 
 function DenunciasSubNav({ sub }: { sub: string }) {
@@ -60,11 +54,10 @@ export function AdminSubabasRail({ tab, sub }: { tab: AbaPrincipalId; sub: strin
       return null
     case 'espaco-adm':
       return null
+    case 'configuracoes':
+      return null
     case 'denuncias':
       inner = <DenunciasSubNav sub={sub} />
-      break
-    case 'configuracoes':
-      inner = <SubabasConfig value={coerceConfigSub(sub)} />
       break
     default:
       inner = null

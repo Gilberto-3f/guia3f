@@ -12,7 +12,6 @@ export type ModuloPermissao =
   | 'espacoAdm.financeiro'
   | 'espacoAdm.gerencia'
   | 'configuracoes.apis'
-  | 'configuracoes.logs'
   | 'configuracoes.geral'
   | 'configuracoes.seguranca'
 
