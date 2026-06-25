@@ -34,7 +34,7 @@ export default function EmergenciaSocorro() {
       </div>
 
       <div className="mt-6">
-        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">Emergência policial</p>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">Polícia Local</p>
         <div className="flex flex-col gap-2">
           <a href="tel:190" className="rounded-xl bg-red-600 px-4 py-3.5 text-sm font-bold text-white hover:bg-red-700">
             Polícia — Foz (190)
@@ -63,7 +63,7 @@ export default function EmergenciaSocorro() {
                       window.alert(`Contato de ${aduana.label} — em breve.`)
                     }
               }
-              className="rounded-xl bg-red-600 px-4 py-3.5 text-sm font-bold text-white hover:bg-red-700"
+              className="rounded-xl bg-amber-400 px-4 py-3.5 text-sm font-bold text-gray-900 hover:bg-amber-500"
             >
               {aduana.label}
             </a>
