@@ -11,7 +11,6 @@ import { roleParaMembroTipo, type MotivoEmergenciaEcossistema } from '@/lib/ecos
 function parseMotivoEmergencia(raw: string | null): MotivoEmergenciaEcossistema | null {
   const v = String(raw ?? '').trim().toLowerCase()
   if (v === 'socorro') return 'socorro'
-  if (v === 'perdido') return 'perdido'
   if (v === 'item-esquecido' || v === 'item_esquecido') return 'item_esquecido'
   return null
 }

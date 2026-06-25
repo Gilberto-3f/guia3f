@@ -16,7 +16,6 @@ import {
   KeyRound,
   Images,
   LayoutDashboard,
-  MapPin,
   Megaphone,
   MessageSquare,
   MousePointerClick,
@@ -52,7 +51,6 @@ import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
 import { GUIA_CHAT_ADM_BADGE_EVENT } from '@/lib/chat-adm-badge-events'
 
 import EmergenciaItemEsquecido from '@/components/perfil/subpaginas/emergencia/EmergenciaItemEsquecido'
-import EmergenciaPerdido from '@/components/perfil/subpaginas/emergencia/EmergenciaPerdido'
 import EmergenciaSocorro from '@/components/perfil/subpaginas/emergencia/EmergenciaSocorro'
 import EmergenciaMensageiroAdm from '@/components/perfil/subpaginas/emergencia/EmergenciaMensageiroAdm'
 import EmergenciaPreLiberacao from '@/components/perfil/subpaginas/emergencia/EmergenciaPreLiberacao'
@@ -211,7 +209,6 @@ function secoesTurista(opts = {}) {
   const mostrarPreLiberacao = opts.mostrarPreLiberacao !== false
   const gEmergencia = [
     { Icon: Search, label: 'Item esquecido', subpagina: 'emergencia-item-esquecido' },
-    { Icon: MapPin, label: 'Estou perdido(a)', subpagina: 'emergencia-perdido' },
     { Icon: AlertTriangle, label: 'SOCORRO', subpagina: 'emergencia-socorro' },
     { Icon: MessageSquare, label: 'Chat ADM', href: '/chat-adm' },
   ]
@@ -915,7 +912,6 @@ export default function MenuLateral({
       }
       const titulos = {
         'emergencia-item-esquecido': 'Item esquecido',
-        'emergencia-perdido': 'Estou perdido(a)',
         'emergencia-socorro': 'SOCORRO',
         'emergencia-adm': 'Chat ADM',
         'emergencia-pre-liberacao': 'Pré-liberação de Cadastro',
@@ -1009,7 +1005,6 @@ export default function MenuLateral({
     const histTipo = topo.historicoTipo || 'contratacoes'
 
     if (id === 'emergencia-item-esquecido') return <EmergenciaItemEsquecido />
-    if (id === 'emergencia-perdido') return <EmergenciaPerdido />
     if (id === 'emergencia-socorro') return <EmergenciaSocorro />
     if (id === 'emergencia-adm')
       return (

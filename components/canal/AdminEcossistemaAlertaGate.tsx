@@ -8,10 +8,6 @@ const EcossistemaAlertaUrgente = dynamic(() => import('@/components/canal/Ecossi
   ssr: false,
 })
 
-const EcossistemaAlertaPerdido = dynamic(() => import('@/components/canal/EcossistemaAlertaPerdido'), {
-  ssr: false,
-})
-
 /** Exibe alertas de socorro apenas para usuários com role admin. */
 export default function AdminEcossistemaAlertaGate() {
   const [ehAdmin, setEhAdmin] = useState(false)
@@ -22,7 +18,7 @@ export default function AdminEcossistemaAlertaGate() {
       const {
         data: { session },
       } = await supabase.auth.getSession()
-      const uid = session?.user?.id
+      const uid = session?.user?.id ?? null
       if (!uid) return
       const { data } = await supabase.from('usuarios').select('role, admin_level').eq('id', uid).maybeSingle()
       const role = data?.role != null ? String(data.role) : ''
@@ -36,10 +32,5 @@ export default function AdminEcossistemaAlertaGate() {
   }, [])
 
   if (!ehAdmin) return null
-  return (
-    <>
-      <EcossistemaAlertaUrgente />
-      <EcossistemaAlertaPerdido />
-    </>
-  )
+  return <EcossistemaAlertaUrgente />
 }
