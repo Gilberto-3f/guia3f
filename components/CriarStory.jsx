@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { salvarDraftAgendamento, urlRetornoAgendamento } from '@/lib/agendamentoConteudoDraft'
+import { uploadMidiaAgendada } from '@/lib/agendamentoUpload'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { obterUrlPosPublicacaoEmpresa } from '@/lib/redirecionamentoPosPublicacaoEmpresa'
@@ -11,9 +13,9 @@ import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import EditorStory from '@/components/EditorStory'
 
 /**
- * @param {{ autorTipo: 'turista' | 'profissional' | 'empresa' | string }} props
+ * @param {{ autorTipo: 'turista' | 'profissional' | 'empresa' | string; agendarCardKey?: string | null }} props
  */
-export default function CriarStory({ autorTipo }) {
+export default function CriarStory({ autorTipo, agendarCardKey = null }) {
   const router = useRouter()
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const {
@@ -37,11 +39,12 @@ export default function CriarStory({ autorTipo }) {
   const [destinoAposPublicar, setDestinoAposPublicar] = useState('/feed')
 
   useEffect(() => {
+    if (agendarCardKey) return
     void (async () => {
       const destino = await obterUrlPosPublicacaoEmpresa(supabase)
       if (destino) setDestinoAposPublicar(destino)
     })()
-  }, [])
+  }, [agendarCardKey])
   const [file, setFile] = useState(/** @type {File | null} */ (null))
   const [previewBlob, setPreviewBlob] = useState(/** @type {string | null} */ (null))
   const [legenda, setLegenda] = useState('')
@@ -118,7 +121,7 @@ export default function CriarStory({ autorTipo }) {
       if (file) return
       const dt = Date.now() - autoPickerRef.current.startedAt
       if (dt < 350) return
-      router.push(destinoAposPublicar)
+      router.push(agendarCardKey ? urlRetornoAgendamento(agendarCardKey) : destinoAposPublicar)
     }
     window.addEventListener('focus', onFocus)
     return () => {
@@ -164,6 +167,36 @@ export default function CriarStory({ autorTipo }) {
 
       const fileToUpload = await compressImageFileForStoryUpload(file)
       const ext = fileToUpload.type === 'image/jpeg' ? 'jpg' : file.name.split('.').pop() || 'jpg'
+
+      if (agendarCardKey) {
+        const url = await uploadMidiaAgendada(session.user.id, 'story', fileToUpload, `${Date.now()}.${ext}`)
+        const storyMeta = {
+          texto_sobreposto: {
+            texto: legenda.trim() || null,
+            posicao_x: posicao.x,
+            posicao_y: posicao.y,
+            link_posicao_x: posicaoLink.x,
+            link_posicao_y: posicaoLink.y,
+            fundo_fit: 'contain',
+            fundo_scale: fundo.scale,
+            fundo_pan_x_pct: fundo.pan_x_pct,
+            fundo_pan_y_pct: fundo.pan_y_pct,
+            texto_scale: textoScale,
+          },
+          link: linkUrl.trim() || null,
+          marcacoes,
+        }
+        salvarDraftAgendamento(agendarCardKey, {
+          kind: 'story',
+          conteudoUrl: url,
+          texto: legenda.trim(),
+          story_meta: storyMeta,
+          previewUrl: url,
+        })
+        router.push(urlRetornoAgendamento(agendarCardKey))
+        return
+      }
+
       const path = `${session.user.id}/${Date.now()}.${ext}`
       const { error: upErr } = await supabase.storage.from('stories').upload(path, fileToUpload, {
         contentType: fileToUpload.type || 'image/jpeg',

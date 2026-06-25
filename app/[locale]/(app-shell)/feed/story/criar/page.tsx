@@ -1,10 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import CriarStory from '@/components/CriarStory'
 import { supabase } from '@/lib/supabase'
 
-export default function CriarStoryPage() {
+function CriarStoryPageInner() {
+  const searchParams = useSearchParams()
+  const agendarCardKey = searchParams.get('agendar')
   const [autorTipo, setAutorTipo] = useState('turista')
 
   useEffect(() => {
@@ -20,5 +23,13 @@ export default function CriarStoryPage() {
     void run()
   }, [])
 
-  return <CriarStory autorTipo={autorTipo} />
+  return <CriarStory autorTipo={autorTipo} agendarCardKey={agendarCardKey} />
+}
+
+export default function CriarStoryPage() {
+  return (
+    <Suspense fallback={null}>
+      <CriarStoryPageInner />
+    </Suspense>
+  )
 }

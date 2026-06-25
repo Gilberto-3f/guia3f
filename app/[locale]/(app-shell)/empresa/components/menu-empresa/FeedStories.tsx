@@ -12,11 +12,13 @@ import { tentarProcessarPublicacoesAgendadas } from '@/lib/processarPublicacoesA
 function BotaoAcao({
   href,
   icon: Icon,
+  categoria,
   titulo,
   descricao,
 }: {
   href: string
   icon: typeof ImageIcon
+  categoria: string
   titulo: string
   descricao: string
 }) {
@@ -29,7 +31,8 @@ function BotaoAcao({
         <Icon className="h-6 w-6" strokeWidth={2} aria-hidden />
       </span>
       <span className="min-w-0 flex-1 text-left">
-        <span className="block text-sm font-bold text-[#001f3f]">{titulo}</span>
+        <span className="block text-[10px] font-bold uppercase tracking-widest text-[#0097b2]">{categoria}</span>
+        <span className="mt-0.5 block text-sm font-bold text-[#001f3f]">{titulo}</span>
         <span className="mt-0.5 block text-xs text-gray-600">{descricao}</span>
       </span>
     </Link>
@@ -77,14 +80,16 @@ export default function FeedStories() {
         <BotaoAcao
           href="/feed/criar"
           icon={ImageIcon}
-          titulo="Publicar no Feed"
-          descricao="Foto com legenda ou post somente de texto."
+          categoria="Feed"
+          titulo="Foto com legenda ou post de texto"
+          descricao="Publique no feed da sua empresa com recorte e legenda."
         />
         <BotaoAcao
           href="/feed/story/criar"
           icon={Sparkles}
-          titulo="Publicar Story"
-          descricao="Escolha um arquivo na galeria e edite antes de publicar."
+          categoria="Story"
+          titulo="Publicação temporária por 24h"
+          descricao="Escolha uma imagem, edite e publique nos stories."
         />
       </div>
 

@@ -9,7 +9,7 @@
   "crons": [
     {
       "path": "/api/publicacoes-agendadas/processar",
-      "schedule": "0 1 * * *"
+      "schedule": "* * * * *"
     }
   ]
 }

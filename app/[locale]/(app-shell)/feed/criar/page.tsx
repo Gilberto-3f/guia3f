@@ -22,6 +22,8 @@ import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { supabase } from '@/lib/supabase'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { obterUrlPosPublicacaoEmpresa } from '@/lib/redirecionamentoPosPublicacaoEmpresa'
+import { salvarDraftAgendamento, urlRetornoAgendamento } from '@/lib/agendamentoConteudoDraft'
+import { uploadMidiaAgendada } from '@/lib/agendamentoUpload'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
 
 type Aba = 'foto' | 'texto'
@@ -70,6 +72,7 @@ function CriarPublicacaoPageInner() {
   const nextRouter = useNextRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const agendarCardKey = searchParams.get('agendar')
   const {
     podeInteragirFeedSocial,
     avisarBloqueioFeed,
@@ -127,6 +130,11 @@ function CriarPublicacaoPageInner() {
       navegandoParaFotoRef.current = false
     })
   }, [sincronizarUrlComAba])
+
+  useEffect(() => {
+    if (!agendarCardKey) return
+    if (aba !== 'foto') irParaFoto()
+  }, [agendarCardKey, aba, irParaFoto])
 
   const irParaTexto = useCallback(() => {
     if (performance.now() < ignorarIrParaTextoAteRef.current) return
@@ -507,6 +515,20 @@ function CriarPublicacaoPageInner() {
 
       if (fileToUpload) {
         setLoadingMsg('Enviando imagem…')
+
+        if (agendarCardKey && origem === 'foto') {
+          const url = await uploadMidiaAgendada(session.user.id, 'foto', fileToUpload)
+          salvarDraftAgendamento(agendarCardKey, {
+            kind: 'foto',
+            conteudoUrl: url,
+            texto: texto.trim(),
+            previewUrl: url,
+          })
+          setLoadingMsg('Conteúdo salvo! Voltando ao agendamento…')
+          router.push(urlRetornoAgendamento(agendarCardKey))
+          return
+        }
+
         const fileName = `${Date.now()}.jpg`
         const filePath = `${session.user.id}/${fileName}`
 
@@ -643,16 +665,18 @@ function CriarPublicacaoPageInner() {
           >
             FOTO
           </button>
-          <button
-            type="button"
-            className={tabCls(aba === 'texto')}
-            onClick={irParaTexto}
-            onPointerDown={(e) => {
-              if (aba === 'texto') e.preventDefault()
-            }}
-          >
-            TEXTO
-          </button>
+          {!agendarCardKey ? (
+            <button
+              type="button"
+              className={tabCls(aba === 'texto')}
+              onClick={irParaTexto}
+              onPointerDown={(e) => {
+                if (aba === 'texto') e.preventDefault()
+              }}
+            >
+              TEXTO
+            </button>
+          ) : null}
         </div>
       </div>
 
