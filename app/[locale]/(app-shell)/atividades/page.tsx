@@ -25,6 +25,9 @@ import {
   atividadeVisivelNaMinhaContaEmpresa,
   atividadeVisivelNaMinhaContaPessoal,
   chaveAtividadeSeguidor,
+  chaveAtividadeCurtiuPost,
+  postCanonicoId,
+  postMetaCanonico,
   atividadeRepostStoryVisivel,
   storyIdDeAtividadeRepost,
   agruparAtividadesCurtidasPost,
@@ -1500,6 +1503,7 @@ export default function AtividadesPage() {
     const raw = aba === 'amigos' ? listaAmigos : listaMinha
     const comentariosVistos = new Set<string>()
     const seguidoresVistos = new Set<string>()
+    const curtidasPostVistas = new Set<string>()
     return raw.filter((r) => {
       if (aba === 'amigos' && r.tipo === 'avaliou') return false
       if (r.tipo === 'repostou_post') return false
@@ -1547,9 +1551,16 @@ export default function AtividadesPage() {
           comentariosVistos.add(key)
         }
       }
+      if (r.tipo === 'curtiu_post') {
+        const chaveCurtida = chaveAtividadeCurtiuPost(r, postMetaMap)
+        if (chaveCurtida) {
+          if (curtidasPostVistas.has(chaveCurtida)) return false
+          curtidasPostVistas.add(chaveCurtida)
+        }
+      }
       return true
     })
-  }, [aba, listaAmigos, listaMinha, storiesRepostAtivos, storiesRepostAtivosPronto])
+  }, [aba, listaAmigos, listaMinha, storiesRepostAtivos, storiesRepostAtivosPronto, postMetaMap])
 
   /** Busca meta de posts curtidos que ainda não estão no mapa (ex.: bloco paginado). */
   useEffect(() => {
@@ -1613,7 +1624,8 @@ export default function AtividadesPage() {
       const donor = perfilMap[item.usuario_dono_id]
       /** Uma URL por linha (alinhada a `postIds`); placeholder se a meta ainda não tiver foto. */
       const urlsGrid = item.rows.map((r: AtividadeRow) => {
-        const u = urlFotoPost(postMetaMap[r.alvo_id])
+        const canonId = postCanonicoId(postMetaMap, r.alvo_id)
+        const u = urlFotoPost(postMetaMap[canonId] ?? postMetaMap[r.alvo_id])
         return u && String(u).trim() !== '' ? String(u) : ''
       })
       return (
@@ -1625,7 +1637,7 @@ export default function AtividadesPage() {
           hrefInteractor={hrefUsuario(item.autor_id)}
           hrefDonor={hrefUsuario(item.usuario_dono_id)}
           urls={urlsGrid}
-          postIds={item.rows.map((r: AtividadeRow) => String(r.alvo_id))}
+          postIds={item.rows.map((r: AtividadeRow) => postCanonicoId(postMetaMap, r.alvo_id) || String(r.alvo_id))}
           totalCurtidas={item.rows.length}
           tempoInteracao={formatarDataAtividades(item.created_at)}
           modoMinhaConta={modoMinhaConta}
@@ -1639,7 +1651,8 @@ export default function AtividadesPage() {
       const inter = perfilMap[item.autor_id]
       /** Uma URL por linha (alinhada a `postIds`); placeholder se a meta ainda não tiver foto. */
       const urlsGrid = item.rows.map((r: AtividadeRow) => {
-        const u = urlFotoPost(postMetaMap[r.alvo_id])
+        const canonId = postCanonicoId(postMetaMap, r.alvo_id)
+        const u = urlFotoPost(postMetaMap[canonId] ?? postMetaMap[r.alvo_id])
         return u && String(u).trim() !== '' ? String(u) : ''
       })
       return (
@@ -1649,7 +1662,7 @@ export default function AtividadesPage() {
           interactorFoto={inter?.foto_perfil_url ?? null}
           hrefInteractor={hrefUsuario(item.autor_id)}
           urls={urlsGrid}
-          postIds={item.rows.map((r: AtividadeRow) => String(r.alvo_id))}
+          postIds={item.rows.map((r: AtividadeRow) => postCanonicoId(postMetaMap, r.alvo_id) || String(r.alvo_id))}
           totalCurtidas={item.rows.length}
           tempoInteracao={formatarDataAtividades(item.created_at)}
           modoMinhaConta={modoMinhaConta}
@@ -1662,11 +1675,20 @@ export default function AtividadesPage() {
     if (item.kind === 'curtiu_post_solo') {
       const r = item.row
       const inter = perfilMap[r.autor_id]
-      const donor = perfilMap[r.usuario_id]
+      const canonPost = postMetaCanonico(postMetaMap, r.alvo_id)
+      const canonId = postCanonicoId(postMetaMap, r.alvo_id)
       const post = postMetaMap[r.alvo_id]
-      const textoPost = post?.texto != null ? String(post.texto) : ''
+      const donorUserId = canonPost?.autor_id ?? r.usuario_id
+      const donor = perfilMap[donorUserId]
+      const textoPost =
+        canonPost?.texto != null
+          ? String(canonPost.texto)
+          : post?.texto != null
+            ? String(post.texto)
+            : ''
       const hrefI = hrefUsuario(r.autor_id)
-      const hrefD = hrefUsuario(r.usuario_id)
+      const hrefD = hrefUsuario(donorUserId)
+      const postIdExibir = canonId || r.alvo_id
 
       if (item.categoria === 'verificacao_profissional') {
         const rawMeta = post?.avaliacao_meta
@@ -1684,7 +1706,7 @@ export default function AtividadesPage() {
             hrefInteractor={hrefI}
             hrefDonor={hrefD}
             texto={textoPost}
-            postId={r.alvo_id}
+            postId={postIdExibir}
             categoriaRotulo={cat}
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
@@ -1704,7 +1726,7 @@ export default function AtividadesPage() {
             hrefInteractor={hrefI}
             hrefDonor={hrefD}
             texto={textoPost}
-            postId={r.alvo_id}
+            postId={postIdExibir}
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
             {...propsInteractor(inter)}
@@ -1728,7 +1750,7 @@ export default function AtividadesPage() {
             donorUsername={donor?.username ?? 'usuario'}
             hrefInteractor={hrefI}
             hrefDonor={hrefD}
-            postId={r.alvo_id}
+            postId={postIdExibir}
             meta={meta}
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
@@ -1739,8 +1761,8 @@ export default function AtividadesPage() {
       }
 
       if (item.categoria === 'repost') {
-        const origId = post?.post_original_id
-        const orig = origId ? postMetaMap[String(origId)] : null
+        const origId = canonId || post?.post_original_id
+        const orig = origId ? postMetaMap[String(origId)] : canonPost
         const prevUrl = urlFotoPost(orig)
         const prevTexto = orig?.texto != null ? String(orig.texto) : ''
         const tipoOrig = (orig?.tipo ?? 'texto').toLowerCase()
@@ -1755,7 +1777,7 @@ export default function AtividadesPage() {
             donorUsername={donor?.username ?? 'usuario'}
             hrefInteractor={hrefI}
             hrefDonor={hrefD}
-            postId={r.alvo_id}
+            postId={postIdExibir}
             previewTipo={previewTipo}
             previewUrl={prevUrl}
             previewTexto={prevTexto || textoPost}
