@@ -113,13 +113,26 @@ function passoArquivoCompleto(card: CardProgramar): boolean {
 function passoLegendaCompleto(card: CardProgramar): boolean {
   if (card.tipo === 'texto') return card.texto.trim().length > 0
   if (card.tipo === 'story' || card.tipo === 'foto') {
-    return card.editadoNoFluxoNativo || card.texto.trim().length > 0
+    return (
+      card.editadoNoFluxoNativo ||
+      card.texto.trim().length > 0 ||
+      Boolean(card.conteudoUrl || card.arquivo)
+    )
   }
   return false
 }
 
 function passoDataCompleto(card: CardProgramar): boolean {
   return Boolean(dataHoraAgendamentoValida(card.agendadoPara))
+}
+
+/** Card com tipo escolhido (ignora placeholder vazio ao validar/agendar). */
+function cardEmProgramacao(card: CardProgramar): boolean {
+  return card.tipo != null
+}
+
+function cardsParaSalvar(cards: CardProgramar[]): CardProgramar[] {
+  return cards.filter(cardEmProgramacao)
 }
 
 function aplicarDraftNoCard(card: CardProgramar, draft: AgendamentoDraft): CardProgramar {
@@ -235,6 +248,7 @@ export default function AgendarPublicacoes({
   const [loadingLista, setLoadingLista] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [feedbackErro, setFeedbackErro] = useState(false)
 
   const carregarAgendados = useCallback(async () => {
     if (!usuarioId) {
@@ -277,23 +291,24 @@ export default function AgendarPublicacoes({
     const draft = consumirDraftAgendamento(agendarKey)
     const snapshot = lerSnapshotCardAgendamento(agendarKey)
     if (snapshot) removerSnapshotCardAgendamento(agendarKey)
+
     setCards((lista) => {
-      const existe = lista.some((c) => c.key === agendarKey)
-      const base = existe ? lista : [...lista, { ...novoCard(), key: agendarKey }]
-      return base.map((c) => {
-        if (c.key !== agendarKey) return c
-        let next = c
-        if (snapshot) {
-          next = {
-            ...next,
-            tipo: snapshot.tipo,
-            texto: snapshot.texto,
-            agendadoPara: snapshot.agendadoPara,
-          }
+      const limpa = lista.filter((c) => c.key === agendarKey || c.tipo != null)
+      const idx = limpa.findIndex((c) => c.key === agendarKey)
+      let card: CardProgramar =
+        idx >= 0 ? { ...limpa[idx] } : { ...novoCard(), key: agendarKey }
+      const restantes = idx >= 0 ? limpa.filter((c) => c.key !== agendarKey) : limpa
+
+      if (snapshot) {
+        card = {
+          ...card,
+          tipo: snapshot.tipo,
+          texto: snapshot.texto,
+          agendadoPara: snapshot.agendadoPara,
         }
-        if (draft) next = aplicarDraftNoCard(next, draft)
-        return next
-      })
+      }
+      if (draft) card = aplicarDraftNoCard(card, draft)
+      return [card, ...restantes]
     })
   }, [searchParams])
 
@@ -350,12 +365,13 @@ export default function AgendarPublicacoes({
     setCards((lista) => [...lista, novoCard()])
   }
 
-  const validarCards = (): string | null => {
-    if (!usuarioId) return 'Faça login para agendar publicações.'
-    for (let i = 0; i < cards.length; i += 1) {
-      const c = cards[i]
+  const validarCards = (lista: CardProgramar[]): string | null => {
+    const ativos = cardsParaSalvar(lista)
+    if (ativos.length === 0) return 'Selecione o tipo de conteúdo da publicação.'
+    for (let i = 0; i < ativos.length; i += 1) {
+      const c = ativos[i]
       const n = i + 1
-      if (!c.tipo) return `Publicação ${n}: selecione o tipo de conteúdo.`
+      if (!c.tipo) continue
       const iso = dataHoraAgendamentoValida(c.agendadoPara)
       if (!iso) return `Publicação ${n}: informe data e hora válidas (até 1 mês).`
       if ((c.tipo === 'foto' || c.tipo === 'story') && !c.conteudoUrl && !c.arquivo) {
@@ -369,26 +385,36 @@ export default function AgendarPublicacoes({
   }
 
   const agendar = async () => {
-    const erroValidacao = validarCards()
+    const erroValidacao = validarCards(cards)
     if (erroValidacao) {
       setFeedback(erroValidacao)
+      setFeedbackErro(true)
       return
     }
-    if (!usuarioId) return
 
     setSalvando(true)
     setFeedback(null)
+    setFeedbackErro(false)
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = usuarioId ?? session?.user?.id ?? null
+      if (!uid) {
+        setFeedback('Faça login para agendar publicações.')
+        setFeedbackErro(true)
+        return
+      }
+
       const rows = []
-      for (const card of cards) {
-        if (!card.tipo) continue
+      for (const card of cardsParaSalvar(cards)) {
         const agendadoIso = dataHoraAgendamentoValida(card.agendadoPara)!
         let url: string | null = card.conteudoUrl
         if (!url && card.arquivo) {
-          url = await uploadMidiaAgendada(usuarioId, card.tipo === 'story' ? 'story' : 'foto', card.arquivo)
+          url = await uploadMidiaAgendada(uid, card.tipo === 'story' ? 'story' : 'foto', card.arquivo)
         }
         rows.push({
-          usuario_id: usuarioId,
+          usuario_id: uid,
           empresa_id: empresaId,
           tipo_conteudo: card.tipo,
           texto: card.texto.trim() || null,
@@ -426,11 +452,13 @@ export default function AgendarPublicacoes({
       setCards([novoCard()])
       setAba('agendados')
       setFeedback(`${rows.length} publicação(ões) agendada(s) com sucesso.`)
-      cards.forEach((c) => removerSnapshotCardAgendamento(c.key))
+      setFeedbackErro(false)
+      cardsParaSalvar(cards).forEach((c) => removerSnapshotCardAgendamento(c.key))
       await carregarAgendados()
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Não foi possível agendar.'
       setFeedback(msg)
+      setFeedbackErro(true)
     } finally {
       setSalvando(false)
     }
@@ -445,10 +473,12 @@ export default function AgendarPublicacoes({
     if (!error) void carregarAgendados()
   }
 
-  const podeAgendar = cards.every(
-    (c) => c.tipo && passoArquivoCompleto(c) && passoLegendaCompleto(c) && passoDataCompleto(c),
-  )
-  const podeAdicionarCard = cards.length === 0 || passoDataCompleto(cards[cards.length - 1])
+  const ativos = cardsParaSalvar(cards)
+  const podeAgendar =
+    ativos.length > 0 &&
+    ativos.every((c) => passoArquivoCompleto(c) && passoLegendaCompleto(c) && passoDataCompleto(c))
+  const podeAdicionarCard =
+    cards.length === 0 || (cards[cards.length - 1]?.tipo != null && passoDataCompleto(cards[cards.length - 1]))
 
   return (
     <>
@@ -492,7 +522,14 @@ export default function AgendarPublicacoes({
           </div>
 
           {feedback ? (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            <p
+              className={[
+                'rounded-lg border px-3 py-2 text-sm',
+                feedbackErro
+                  ? 'border-rose-200 bg-rose-50 text-rose-800'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-800',
+              ].join(' ')}
+            >
               {feedback}
             </p>
           ) : null}
@@ -655,19 +692,33 @@ export default function AgendarPublicacoes({
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => void agendar()}
-                disabled={salvando || !usuarioId || !podeAgendar}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00D443] px-4 py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm transition hover:brightness-95 disabled:opacity-60"
-              >
-                {salvando ? (
-                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                ) : (
-                  <CalendarClock className="h-5 w-5" aria-hidden />
-                )}
-                Agendar
-              </button>
+              <div className="sticky bottom-0 z-10 -mx-4 border-t border-gray-100 bg-gray-50/95 px-4 pb-2 pt-3 backdrop-blur-sm">
+                <button
+                  type="button"
+                  onClick={() => void agendar()}
+                  disabled={salvando}
+                  aria-disabled={salvando || !podeAgendar}
+                  className={[
+                    'flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm transition',
+                    podeAgendar && !salvando
+                      ? 'bg-[#00D443] hover:brightness-95'
+                      : 'bg-[#00D443]/70 hover:brightness-95',
+                    salvando ? 'opacity-70' : '',
+                  ].join(' ')}
+                >
+                  {salvando ? (
+                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                  ) : (
+                    <CalendarClock className="h-5 w-5" aria-hidden />
+                  )}
+                  Agendar
+                </button>
+                {!podeAgendar && !salvando ? (
+                  <p className="mt-2 text-center text-[11px] text-gray-500">
+                    Conclua tipo, conteúdo e data/hora de cada publicação.
+                  </p>
+                ) : null}
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
