@@ -17,37 +17,21 @@ import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import { buscarMapaDegustacaoAtivaPorEmpresas } from '@/lib/degustacaoEmpresa'
 import { buscarEmpresasListagemGuia } from '@/lib/empresaGuiaVisibilidade'
 
-import { slugGuiaParaCategoriaDb } from '@/lib/segmentosEmpresaGuia'
+import {
+  categoriaDbPorSlugGuia,
+  cidadeGuiaPorPais,
+  TITULO_SLUG_GUIA,
+  type PaisGuiaFiltro,
+} from '@/lib/segmentosEmpresaGuia'
 
-/** Slug da URL (GradeFiltros) → valor de empresas.categoria no cadastro */
-const SLUG_PARA_CATEGORIA_DB: Record<string, string> = {
-  gastronomia: 'Restaurantes',
-  passeios: 'Atrativos',
-  lojas: 'Lojas',
-  hospedagem: 'Hospedagem',
-  servicos_locais: 'Serviços Locais',
+/** Slugs extras (fora dos 5 segmentos comerciais principais). */
+const SLUG_CATEGORIA_EXTRA: Record<string, string> = {
   compras: 'Compras Paraguai',
   eventos: 'Eventos',
   mobilidade: 'Mobilidade',
 }
 
-// FIX: apenas 3 filtros fixos (bandeiras)
-type PaisFiltro = 'br' | 'py' | 'ar'
-
-// FIX: bandeira → empresas.cidade no cadastro
-// Observação: mantemos os nomes já usados no projeto para compatibilidade.
-const CIDADE_POR_PAIS: Record<PaisFiltro, string> = {
-  br: 'Foz do Iguaçu',
-  py: 'Ciudad del Este',
-  ar: 'Puerto Iguazu',
-}
-
-const TITULO_CATEGORIA: Record<string, string> = {
-  gastronomia: 'Gastronomia',
-  passeios: 'Passeios',
-  lojas: 'Lojas',
-  hospedagem: 'Hospedagem',
-  servicos_locais: 'Serviços Locais',
+const TITULO_CATEGORIA_EXTRA: Record<string, string> = {
   compras: 'Compras Paraguai',
   eventos: 'Eventos',
   mobilidade: 'Mobilidade',
@@ -104,15 +88,15 @@ export default function ListagemCategoriaPage() {
   const [planosCarregando, setPlanosCarregando] = useState(true)
   const [loading, setLoading] = useState(true)
   const [erroLista, setErroLista] = useState('')
-  const [pais, setPais] = useState<PaisFiltro>('br')
+  const [pais, setPais] = useState<PaisGuiaFiltro>('br')
   const [ordenacao, setOrdenacao] = useState<OrdenacaoModo>('avaliacao')
   const [geoCarregando, setGeoCarregando] = useState(false)
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null)
   const [termoBusca, setTermoBusca] = useState('')
   const [buscando, setBuscando] = useState(false)
 
-  const categoriaDb = SLUG_PARA_CATEGORIA_DB[slug] ?? slugGuiaParaCategoriaDb(slug) ?? slug
-  const cidadeDb = useMemo(() => CIDADE_POR_PAIS[pais], [pais])
+  const categoriaDb = SLUG_CATEGORIA_EXTRA[slug] ?? categoriaDbPorSlugGuia(slug)
+  const cidadeDb = useMemo(() => cidadeGuiaPorPais(pais), [pais])
 
   const cacheKey = useMemo(
     () => `guia:listagem:v2:${String(slug)}:${String(categoriaDb)}:${String(cidadeDb)}`,
@@ -296,7 +280,7 @@ export default function ListagemCategoriaPage() {
     [slug],
   )
 
-  const titulo = TITULO_CATEGORIA[slug] ?? slug
+  const titulo = TITULO_CATEGORIA_EXTRA[slug] ?? TITULO_SLUG_GUIA[slug] ?? slug
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -26,3 +26,11 @@ UPDATE public.empresas
 SET categoria = 'Serviços Locais'
 WHERE lower(btrim(categoria)) IN ('servicos_locais', 'servicos locais', 'servicos')
   AND categoria IS DISTINCT FROM 'Serviços Locais';
+
+-- Puerto Iguazú: unificar grafias (cadastro vs edição de perfil)
+UPDATE public.empresas
+SET cidade = 'Puerto Iguazu'
+WHERE lower(
+  translate(cidade, 'áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ', 'aaaaeeiooouucAAAAEEIOOOUUC')
+) = 'puerto iguazu'
+  AND cidade IS DISTINCT FROM 'Puerto Iguazu';

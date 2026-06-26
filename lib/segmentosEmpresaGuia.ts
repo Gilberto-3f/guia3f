@@ -28,6 +28,33 @@ export type CategoriaGuiaTodas = (typeof CATEGORIAS_GUIA_TODAS)[number]
 export const SLUG_PARA_CATEGORIA_DB: Record<string, string> = {
   gastronomia: 'Restaurantes',
   passeios: 'Atrativos',
+  atrativos: 'Atrativos',
+  lojas: 'Lojas',
+  hospedagem: 'Hospedagem',
+  servicos_locais: 'Serviços Locais',
+}
+
+/** Filtro de país no cabeçalho da listagem do guia → cidade em `empresas.cidade`. */
+export type PaisGuiaFiltro = 'br' | 'py' | 'ar'
+
+export const CIDADE_POR_PAIS_GUIA: Record<PaisGuiaFiltro, string> = {
+  br: 'Foz do Iguaçu',
+  py: 'Ciudad del Este',
+  ar: 'Puerto Iguazu',
+}
+
+/** Todas as grafias aceitas por cidade (cadastro legado, edição de perfil, guia). */
+export const VARIANTES_CIDADE_GUIA: Record<string, readonly string[]> = {
+  'foz do iguacu': ['Foz do Iguaçu', 'Foz do Iguacu'],
+  'ciudad del este': ['Ciudad del Este'],
+  'puerto iguazu': ['Puerto Iguazu', 'Puerto Iguazú'],
+}
+
+/** Título da página de filtros por slug da URL (GradeFiltros). */
+export const TITULO_SLUG_GUIA: Record<string, string> = {
+  gastronomia: 'Gastronomia',
+  passeios: 'Atrativos',
+  atrativos: 'Atrativos',
   lojas: 'Lojas',
   hospedagem: 'Hospedagem',
   servicos_locais: 'Serviços Locais',
@@ -71,6 +98,43 @@ export function categoriaDbParaSlug(valor: string | null | undefined): SegmentoE
 export function slugGuiaParaCategoriaDb(slug: string | null | undefined): string {
   const s = String(slug ?? '').trim()
   return SLUG_PARA_CATEGORIA_DB[s] ?? s
+}
+
+export function categoriaDbPorSlugGuia(slug: string | null | undefined): string {
+  const s = String(slug ?? '').trim()
+  return SLUG_PARA_CATEGORIA_DB[s] ?? slugGuiaParaCategoriaDb(s) ?? s
+}
+
+export function normalizarChaveCidadeGuia(cidade: string | null | undefined): string {
+  return String(cidade ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+export function cidadeGuiaPorPais(pais: PaisGuiaFiltro): string {
+  return CIDADE_POR_PAIS_GUIA[pais]
+}
+
+/** Cidade da empresa pertence ao filtro de país selecionado no guia. */
+export function empresaCidadeCorrespondePaisGuia(
+  cidadeEmpresa: string | null | undefined,
+  pais: PaisGuiaFiltro,
+): boolean {
+  const alvo = aliasesCidadeGuia(cidadeGuiaPorPais(pais))
+  const cidade = String(cidadeEmpresa ?? '').trim()
+  return alvo.some((c) => c === cidade)
+}
+
+/** Categoria da empresa pertence ao segmento (slug) da página de filtros. */
+export function empresaCategoriaCorrespondeSegmentoGuia(
+  categoriaEmpresa: string | null | undefined,
+  slugSegmento: string | null | undefined,
+): boolean {
+  const alvo = aliasesCategoriaDbGuia(categoriaDbPorSlugGuia(slugSegmento))
+  const cat = String(categoriaEmpresa ?? '').trim()
+  return alvo.some((c) => c === cat)
 }
 
 /** Valores equivalentes de `empresas.categoria` para busca no guia (cadastro legado + slugs). */
@@ -122,22 +186,12 @@ export function aliasesCidadeGuia(cidade: string | null | undefined): string[] {
   const raw = String(cidade ?? '').trim()
   if (!raw) return []
 
-  const norm = raw
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-
+  const norm = normalizarChaveCidadeGuia(raw)
   const set = new Set<string>([raw])
-
-  if (norm === 'foz do iguacu') {
-    set.add('Foz do Iguaçu')
-    set.add('Foz do Iguacu')
-  } else if (norm === 'ciudad del este') {
-    set.add('Ciudad del Este')
-  } else if (norm === 'puerto iguazu') {
-    set.add('Puerto Iguazu')
+  const variants = VARIANTES_CIDADE_GUIA[norm]
+  if (variants) {
+    for (const v of variants) set.add(v)
   }
-
   return [...set]
 }
 

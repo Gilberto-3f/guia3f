@@ -13,8 +13,10 @@ import { normalizarPlanoSlug } from '@/lib/planosEmpresaServicosGate'
 
 const BANDEIRA_POR_CIDADE = {
   'Foz do Iguaçu': '🇧🇷',
+  'Foz do Iguacu': '🇧🇷',
   'Ciudad del Este': '🇵🇾',
   'Puerto Iguazu': '🇦🇷',
+  'Puerto Iguazú': '🇦🇷',
 }
 
 function bandeiraPorCidade(cidade) {
