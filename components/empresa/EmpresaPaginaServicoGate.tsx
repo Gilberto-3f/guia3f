@@ -6,32 +6,30 @@ import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empres
 import { useEmpresaMenuGate } from '@/app/[locale]/(app-shell)/empresa/hooks/useEmpresaMenuGate'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import type { FeatureEmpresaId } from '@/lib/planosEmpresaServicosGate'
-import { empresaPlanoOuDegustacaoAtivo, featureEmpresaLiberada } from '@/lib/planosEmpresaServicosGate'
+import { featureEmpresaLiberada } from '@/lib/planosEmpresaServicosGate'
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 
 export default function EmpresaPaginaServicoGate({
   servico,
   children,
   skeleton,
-  requerPlanoAtivo = false,
+  semBloqueioServico = false,
 }: {
   servico: FeatureEmpresaId
   children: ReactNode
   skeleton?: ReactNode
-  /** Quando true, basta plano contratado ou degustação (ignora serviço específico). */
-  requerPlanoAtivo?: boolean
+  /** Página acessível; bloqueio de serviço fica a cargo do conteúdo interno (ex.: Publicidade). */
+  semBloqueioServico?: boolean
 }) {
   const gate = useEmpresaMenuGate()
   const { dados, loading: empresaLoading } = useDashboardEmpresa()
-  const { servicos, loading: loadingPlano, degustacaoAtiva } = useEmpresaServicosPlano(dados?.plano, dados?.id, {
+  const { servicos, loading: loadingPlano } = useEmpresaServicosPlano(dados?.plano, dados?.id, {
     aguardarEmpresa: empresaLoading || dados?.id == null,
     somenteAnfitriao: Boolean(dados?.somente_anfitriao),
   })
 
   const aguardandoLiberacao = gate === 'loading' || empresaLoading || loadingPlano || dados?.id == null
-  const liberado =
-    degustacaoAtiva ||
-    (requerPlanoAtivo ? empresaPlanoOuDegustacaoAtivo(servicos) : featureEmpresaLiberada(servico, servicos))
+  const liberado = featureEmpresaLiberada(servico, servicos)
 
   if (aguardandoLiberacao) {
     return (
@@ -64,7 +62,7 @@ export default function EmpresaPaginaServicoGate({
     )
   }
 
-  if (!liberado) {
+  if (!semBloqueioServico && !liberado) {
     return <AvisoPlanoEmpresaBloqueado />
   }
 

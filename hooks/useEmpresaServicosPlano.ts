@@ -7,6 +7,9 @@ import {
   abaDashboardLiberada,
   featureEmpresaLiberada,
   menuEmpresaLiberado,
+  menuEmpresaVisivel,
+  publicidadeExternaLiberada,
+  publicidadeHomeLiberada,
   resolverServicosEmpresa,
   type AbaDashboardEmpresa,
   type FeatureEmpresaId,
@@ -14,6 +17,11 @@ import {
   type PlanoResumoServicos,
 } from '@/lib/planosEmpresaServicosGate'
 import { buscarServicosPlanoDegustacao } from '@/lib/degustacaoEmpresa'
+import {
+  assinaturaContratadaVigente,
+  deveExibirLembreteVencimentoPlano,
+  diasParaVencimento,
+} from '@/lib/empresaAssinatura'
 import { TODOS_SERVICOS_EMPRESA } from '@/lib/planosEmpresaCatalogo'
 
 export type UseEmpresaServicosPlanoOpts = {
@@ -36,6 +44,9 @@ export function useEmpresaServicosPlano(
   const [degustacaoPlanoTitulo, setDegustacaoPlanoTitulo] = useState<string | null>(null)
   const [degustacaoServicos, setDegustacaoServicos] = useState<ServicoPlanoId[] | null>(null)
   const [planoContratadoId, setPlanoContratadoId] = useState<string | null>(null)
+  const [temAssinaturaAtivaRegistro, setTemAssinaturaAtivaRegistro] = useState(false)
+  const [assinaturaContratadaVigenteFlag, setAssinaturaContratadaVigenteFlag] = useState(false)
+  const [assinaturaVencimentoEm, setAssinaturaVencimentoEm] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const carregarRef = useRef<() => Promise<void>>(async () => {})
   const channelInstancia = useId().replace(/:/g, '')
@@ -77,7 +88,7 @@ export function useEmpresaServicosPlano(
             .maybeSingle(),
           supabase
             .from('empresa_assinaturas')
-            .select('plano_id')
+            .select('plano_id, status, vencimento_em')
             .eq('empresa_id', empresaId)
             .eq('status', 'ativo')
             .order('assinado_em', { ascending: false })
@@ -85,8 +96,15 @@ export function useEmpresaServicosPlano(
             .maybeSingle(),
         ])
 
+        const temAssinatura = Boolean(assinatura)
+        const vigente = assinaturaContratadaVigente(assinatura)
+        setTemAssinaturaAtivaRegistro(temAssinatura)
+        setAssinaturaContratadaVigenteFlag(vigente)
         setPlanoContratadoId(
-          assinatura?.plano_id != null ? String(assinatura.plano_id) : null,
+          vigente && assinatura?.plano_id != null ? String(assinatura.plano_id) : null,
+        )
+        setAssinaturaVencimentoEm(
+          assinatura?.vencimento_em != null ? String(assinatura.vencimento_em) : null,
         )
 
         const ativa = Boolean(deg?.id)
@@ -100,8 +118,8 @@ export function useEmpresaServicosPlano(
             ? planosJoin[0]?.titulo
             : planosJoin?.titulo
           setDegustacaoPlanoTitulo(titulo != null ? String(titulo) : null)
-          const servicos = await buscarServicosPlanoDegustacao(supabase, pid)
-          setDegustacaoServicos(servicos)
+          const servicosDeg = await buscarServicosPlanoDegustacao(supabase, pid)
+          setDegustacaoServicos(servicosDeg)
         } else {
           setDegustacaoPlanoId(null)
           setDegustacaoPlanoTitulo(null)
@@ -113,6 +131,9 @@ export function useEmpresaServicosPlano(
         setDegustacaoPlanoTitulo(null)
         setDegustacaoServicos(null)
         setPlanoContratadoId(null)
+        setTemAssinaturaAtivaRegistro(false)
+        setAssinaturaContratadaVigenteFlag(false)
+        setAssinaturaVencimentoEm(null)
       }
     } catch {
       setPlanos([])
@@ -121,6 +142,9 @@ export function useEmpresaServicosPlano(
       setDegustacaoPlanoTitulo(null)
       setDegustacaoServicos(null)
       setPlanoContratadoId(null)
+      setTemAssinaturaAtivaRegistro(false)
+      setAssinaturaContratadaVigenteFlag(false)
+      setAssinaturaVencimentoEm(null)
     } finally {
       setLoading(false)
     }
@@ -148,7 +172,7 @@ export function useEmpresaServicosPlano(
 
   useEffect(() => {
     if (!empresaId) return
-    const ch = supabase
+    const chDeg = supabase
       .channel(`empresa-degustacao-${empresaId}-${channelInstancia}`)
       .on(
         'postgres_changes',
@@ -163,18 +187,57 @@ export function useEmpresaServicosPlano(
         },
       )
       .subscribe()
+
+    const chAss = supabase
+      .channel(`empresa-assinatura-${empresaId}-${channelInstancia}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'empresa_assinaturas',
+          filter: `empresa_id=eq.${empresaId}`,
+        },
+        () => {
+          void carregarRef.current()
+        },
+      )
+      .subscribe()
+
     return () => {
-      void supabase.removeChannel(ch)
+      void supabase.removeChannel(chDeg)
+      void supabase.removeChannel(chAss)
     }
   }, [channelInstancia, empresaId])
 
   const servicos = useMemo(() => {
     if (somenteAnfitriao) return [...TODOS_SERVICOS_EMPRESA]
-    return resolverServicosEmpresa(planoEmpresa, planos, {
-      ativa: degustacaoAtiva,
-      servicos: degustacaoServicos,
-    }, { planoContratadoId })
-  }, [degustacaoAtiva, degustacaoServicos, planoContratadoId, planoEmpresa, planos, somenteAnfitriao])
+    return resolverServicosEmpresa(
+      planoEmpresa,
+      planos,
+      {
+        ativa: degustacaoAtiva,
+        servicos: degustacaoServicos,
+      },
+      {
+        planoContratadoId,
+        assinaturaContratadaVigente: degustacaoAtiva
+          ? undefined
+          : temAssinaturaAtivaRegistro
+            ? assinaturaContratadaVigenteFlag
+            : undefined,
+      },
+    )
+  }, [
+    assinaturaContratadaVigenteFlag,
+    degustacaoAtiva,
+    degustacaoServicos,
+    planoContratadoId,
+    planoEmpresa,
+    planos,
+    somenteAnfitriao,
+    temAssinaturaAtivaRegistro,
+  ])
 
   const temServico = useCallback(
     (servico: ServicoPlanoId) => servicos.includes(servico),
@@ -183,6 +246,11 @@ export function useEmpresaServicosPlano(
 
   const menuLiberado = useCallback(
     (menuId: MenuEmpresaId) => menuEmpresaLiberado(menuId, servicos),
+    [servicos],
+  )
+
+  const menuVisivel = useCallback(
+    (menuId: MenuEmpresaId) => menuEmpresaVisivel(menuId, servicos),
     [servicos],
   )
 
@@ -196,6 +264,33 @@ export function useEmpresaServicosPlano(
     [servicos],
   )
 
+  const temPublicidadeHome = useCallback(
+    () => publicidadeHomeLiberada(servicos),
+    [servicos],
+  )
+
+  const temPublicidadeExterna = useCallback(
+    () =>
+      publicidadeExternaLiberada(servicos, {
+        emDegustacao: degustacaoAtiva,
+        assinaturaContratadaVigente: assinaturaContratadaVigenteFlag,
+      }),
+    [assinaturaContratadaVigenteFlag, degustacaoAtiva, servicos],
+  )
+
+  const lembreteVencimentoPlano = useMemo(
+    () =>
+      !degustacaoAtiva &&
+      assinaturaContratadaVigenteFlag &&
+      deveExibirLembreteVencimentoPlano(assinaturaVencimentoEm),
+    [assinaturaContratadaVigenteFlag, assinaturaVencimentoEm, degustacaoAtiva],
+  )
+
+  const diasParaVencimentoPlano = useMemo(
+    () => diasParaVencimento(assinaturaVencimentoEm),
+    [assinaturaVencimentoEm],
+  )
+
   const contextoEmpresaPendente = aguardarEmpresa && empresaId == null
   const loadingEfetivo = loading || contextoEmpresaPendente
 
@@ -206,22 +301,36 @@ export function useEmpresaServicosPlano(
       degustacaoAtiva,
       degustacaoPlanoId,
       degustacaoPlanoTitulo,
+      assinaturaContratadaVigente: assinaturaContratadaVigenteFlag,
+      assinaturaVencimentoEm,
+      lembreteVencimentoPlano,
+      diasParaVencimentoPlano,
       temServico,
       menuLiberado,
+      menuVisivel,
       abaLiberada,
       featureLiberada,
+      temPublicidadeHome,
+      temPublicidadeExterna,
       refetch: carregar,
     }),
     [
       abaLiberada,
+      assinaturaContratadaVigenteFlag,
+      assinaturaVencimentoEm,
       carregar,
       degustacaoAtiva,
       degustacaoPlanoId,
       degustacaoPlanoTitulo,
+      diasParaVencimentoPlano,
       featureLiberada,
+      lembreteVencimentoPlano,
       loadingEfetivo,
       menuLiberado,
+      menuVisivel,
       servicos,
+      temPublicidadeExterna,
+      temPublicidadeHome,
       temServico,
     ],
   )

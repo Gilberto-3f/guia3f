@@ -144,12 +144,12 @@ export default function CanalDetalhePage() {
     return userTipo
   }, [modoAtivo, perfilSimulado, userTipo])
 
-  const { featureLiberada: empresaFeatureLiberada, loading: empresaPlanoLoading, degustacaoAtiva } = useEmpresaServicosPlano(
+  const { featureLiberada: empresaFeatureLiberada, loading: empresaPlanoLoading } = useEmpresaServicosPlano(
     userTipoEfetivo === 'empresa' ? empresaContaPlano : null,
     userTipoEfetivo === 'empresa' ? empresaContaId : null,
     { aguardarEmpresa: userTipoEfetivo === 'empresa' && empresaContaId == null },
   )
-  const empresaTemCanais = empresaFeatureLiberada('canais') || degustacaoAtiva
+  const empresaTemCanais = empresaFeatureLiberada('canais')
 
   const financeUid = useMemo(() => usuarioId, [usuarioId])
   const accessTokenRef = useRef<string | null>(null)

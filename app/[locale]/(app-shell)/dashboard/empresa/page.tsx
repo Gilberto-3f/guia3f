@@ -9,6 +9,7 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import { AVISO_PLANO_EMPRESA_PADRAO } from '@/lib/planosEmpresaServicosGate'
+import LembreteVencimentoPlanoEmpresa from '@/components/empresa/LembreteVencimentoPlanoEmpresa'
 import { categoriasIncluemAnfitriao, lerModoAnfitriaoStorage } from '@/lib/anfitriaoDualMode'
 import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
 
@@ -212,7 +213,8 @@ function DashboardEmpresaConteudo({
   setPeriodo: (p: Periodo) => void
 }) {
   const { dados: empresa, loading: empresaLoading } = useDashboardEmpresa()
-  const { abaLiberada, loading: planoLoading } = useEmpresaServicosPlano(empresa?.plano, empresa?.id, {
+  const { abaLiberada, loading: planoLoading, lembreteVencimentoPlano, diasParaVencimentoPlano } =
+    useEmpresaServicosPlano(empresa?.plano, empresa?.id, {
     aguardarEmpresa: empresaLoading,
     somenteAnfitriao: Boolean(empresa?.somente_anfitriao),
   })
@@ -290,6 +292,9 @@ function DashboardEmpresaConteudo({
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 py-4 pb-0">
+        {lembreteVencimentoPlano ? (
+          <LembreteVencimentoPlanoEmpresa diasParaVencimento={diasParaVencimentoPlano} className="mb-4" />
+        ) : null}
         {aguardandoPlano ? (
           <div className="space-y-4 py-2" aria-busy="true" aria-label="A carregar painel">
             <div className="h-10 animate-pulse rounded-lg bg-gray-200" />

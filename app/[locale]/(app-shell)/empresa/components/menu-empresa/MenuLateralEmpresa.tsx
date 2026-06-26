@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { signOutCurrentDevice } from '@/lib/authCookieSync'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
+import { empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import type { MenuEmpresaId } from '@/lib/planosEmpresaServicosGate'
 import { supabase } from '@/lib/supabase'
@@ -20,7 +21,9 @@ interface MenuItem {
 
 const MENU_ITEMS: MenuItem[] = [
   { id: 'feed-stories', icon: '📱', label: 'Rede Social', href: '/empresa/menu/feed-stories' },
+  { id: 'cadastrar-comissao', icon: '💰', label: 'Cadastrar Comissão', href: '/empresa/menu/cadastrar-comissao' },
   { id: 'botao-dinamico', icon: '🔘', label: 'Botão Dinâmico', href: '/empresa/menu/botao-dinamico' },
+  { id: 'auxiliar-adm', icon: '🛡️', label: 'Auxiliar ADM', href: '/empresa/menu/auxiliar-adm' },
   { id: 'publicidade', icon: '📢', label: 'Publicidade', href: '/empresa/menu/publicidade' },
   { id: 'chat-adm', icon: '💬', label: 'Chat ADM', href: '/chat-adm' },
   { id: 'denuncias', icon: '⚠️', label: 'Denúncias', href: '/empresa/menu/denuncias' },
@@ -30,7 +33,7 @@ const MENU_ITEMS: MenuItem[] = [
 export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolean; onClose: () => void }) {
   const pathname = usePathname()
   const { dados } = useDashboardEmpresa()
-  const { menuLiberado } = useEmpresaServicosPlano(dados?.plano, dados?.id)
+  const { menuVisivel } = useEmpresaServicosPlano(dados?.plano, dados?.id)
   const [chatAdmNaoLido, setChatAdmNaoLido] = useState(0)
 
   const usuarioId = dados?.usuario_id ?? null
@@ -114,7 +117,14 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
     if (aberto) void refreshChatAdmBadge()
   }, [aberto, refreshChatAdmBadge])
 
-  const itensVisiveis = MENU_ITEMS.filter((item) => menuLiberado(item.id))
+  const itensVisiveis = MENU_ITEMS.filter((item) => {
+    if (item.id === 'compras-paraguai') {
+      return (
+        empresaEhSegmentoLojasParaguai(dados?.categoria, dados?.cidade) && menuVisivel(item.id)
+      )
+    }
+    return menuVisivel(item.id)
+  })
 
   const handleLogout = async () => {
     await signOutCurrentDevice()

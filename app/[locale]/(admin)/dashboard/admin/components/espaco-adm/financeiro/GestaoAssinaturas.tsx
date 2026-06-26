@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { BadgeCheck, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { BadgeCheck, ChevronDown, ChevronUp, Loader2, MoreVertical } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import { usePermissao } from '../../../hooks/usePermissao'
 
@@ -195,11 +195,84 @@ function CardAssinaturaItem({
   )
 }
 
+type ItemAuxiliarAdm = {
+  id: string
+  empresa_id: string
+  created_at: string
+  empresa: {
+    empresa_id: string
+    usuario_id: string | null
+    nome: string
+    username: string
+    foto_url: string | null
+  } | null
+}
+
+function CardAuxiliarAdmItem({
+  item,
+  atribuindoId,
+  onAtribuir,
+}: {
+  item: ItemAuxiliarAdm
+  atribuindoId: string | null
+  onAtribuir: (solicitacaoId: string, moderadorUsuarioId: string) => void
+}) {
+  const [menuAberto, setMenuAberto] = useState(false)
+  const moderadorId = item.empresa?.usuario_id ?? null
+
+  return (
+    <li className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="p-4">
+        {item.empresa ? (
+          <CabecalhoEmpresaCard
+            empresa={{
+              empresa_id: item.empresa.empresa_id,
+              usuario_id: item.empresa.usuario_id,
+              nome: item.empresa.nome,
+              username: item.empresa.username,
+              foto_url: item.empresa.foto_url,
+              verificado_em: null,
+              verificado_por: { id: null, email: null, username: null },
+            }}
+          />
+        ) : null}
+        <p className="mt-3 text-xs text-gray-500">Solicitado em {formatarData(item.created_at)}</p>
+        <div className="relative mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setMenuAberto((v) => !v)}
+            className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
+            aria-label="Ações Auxiliar ADM"
+          >
+            <MoreVertical className="h-5 w-5" aria-hidden />
+          </button>
+          {menuAberto ? (
+            <div className="absolute right-0 top-full z-10 mt-1 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+              <button
+                type="button"
+                disabled={!moderadorId || atribuindoId === item.id}
+                onClick={() => {
+                  setMenuAberto(false)
+                  if (moderadorId) onAtribuir(item.id, moderadorId)
+                }}
+                className="block w-full px-4 py-2.5 text-left text-sm text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {atribuindoId === item.id ? 'Atribuindo…' : 'Atribuir dono como moderador (nível 2)'}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </li>
+  )
+}
+
 export function GestaoAssinaturas() {
   const { admin } = usePermissao()
   const isAdminFinanceiro = Boolean(
     admin && (admin.admin_level === 1 || (admin.admin_permissoes as { cargo?: string })?.cargo === 'FINANCEIRO'),
   )
+  const isAdminGeral = admin?.admin_level === 1
 
   const [aba, setAba] = useState<AbaGestao>('solicitacoes')
   const [items, setItems] = useState<ItemGestaoAssinatura[]>([])
@@ -207,6 +280,9 @@ export function GestaoAssinaturas() {
   const [erro, setErro] = useState<string | null>(null)
   const [validandoId, setValidandoId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [auxiliarItems, setAuxiliarItems] = useState<ItemAuxiliarAdm[]>([])
+  const [auxiliarLoading, setAuxiliarLoading] = useState(false)
+  const [atribuindoAuxiliarId, setAtribuindoAuxiliarId] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     if (!isAdminFinanceiro) return
@@ -232,6 +308,51 @@ export function GestaoAssinaturas() {
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  const carregarAuxiliarAdm = useCallback(async () => {
+    if (!isAdminGeral) return
+    setAuxiliarLoading(true)
+    try {
+      const res = await fetch('/api/admin/auxiliar-adm-empresa')
+      const json = (await res.json()) as { ok?: boolean; items?: ItemAuxiliarAdm[]; error?: string }
+      if (!res.ok || !json.ok) {
+        setAuxiliarItems([])
+        return
+      }
+      setAuxiliarItems(json.items ?? [])
+    } catch {
+      setAuxiliarItems([])
+    } finally {
+      setAuxiliarLoading(false)
+    }
+  }, [isAdminGeral])
+
+  useEffect(() => {
+    void carregarAuxiliarAdm()
+  }, [carregarAuxiliarAdm])
+
+  const atribuirAuxiliarAdm = async (solicitacaoId: string, moderadorUsuarioId: string) => {
+    setAtribuindoAuxiliarId(solicitacaoId)
+    setFeedback(null)
+    try {
+      const res = await fetch('/api/admin/auxiliar-adm-empresa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ solicitacao_id: solicitacaoId, moderador_usuario_id: moderadorUsuarioId }),
+      })
+      const json = (await res.json()) as { ok?: boolean; error?: string }
+      if (!res.ok || !json.ok) {
+        setErro(json.error ?? 'Não foi possível atribuir moderador.')
+        return
+      }
+      setFeedback('Moderador atribuído com sucesso.')
+      await carregarAuxiliarAdm()
+    } catch {
+      setErro('Falha ao atribuir moderador.')
+    } finally {
+      setAtribuindoAuxiliarId(null)
+    }
+  }
 
   const validar = async (assinaturaId: string) => {
     setValidandoId(assinaturaId)
@@ -296,6 +417,31 @@ export function GestaoAssinaturas() {
           ))}
         </ul>
       )}
+
+      {isAdminGeral ? (
+        <div className="mt-8 border-t border-gray-200 pt-6">
+          <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-gray-700">Auxiliar ADM — pendentes</h3>
+          {auxiliarLoading ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-500">
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+              Carregando…
+            </div>
+          ) : auxiliarItems.length === 0 ? (
+            <p className="py-4 text-center text-sm text-gray-500">Nenhuma solicitação de Auxiliar ADM pendente.</p>
+          ) : (
+            <ul className="space-y-3">
+              {auxiliarItems.map((item) => (
+                <CardAuxiliarAdmItem
+                  key={item.id}
+                  item={item}
+                  atribuindoId={atribuindoAuxiliarId}
+                  onAtribuir={(sid, uid) => void atribuirAuxiliarAdm(sid, uid)}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
     </div>
   )
 }

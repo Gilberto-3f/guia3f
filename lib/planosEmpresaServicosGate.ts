@@ -1,4 +1,4 @@
-import { TODOS_SERVICOS_EMPRESA, type ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
+import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 
 export type MenuEmpresaId =
   | 'feed-stories'
@@ -8,6 +8,7 @@ export type MenuEmpresaId =
   | 'denuncias'
   | 'compras-paraguai'
   | 'botao-dinamico'
+  | 'auxiliar-adm'
 
 export type AbaDashboardEmpresa = 'funil' | 'mercado' | 'drena'
 
@@ -18,6 +19,7 @@ export type FeatureEmpresaId =
   | 'canais'
   | 'planejador_publicacoes'
   | 'publicidade'
+  | 'auxiliar_adm'
 
 export const AVISO_PLANO_EMPRESA_PADRAO =
   'Este recurso depende do plano contratado. Confira os planos disponíveis no canal Financeiro.'
@@ -37,10 +39,8 @@ const MENU_SERVICO: Record<MenuEmpresaId, ServicoPlanoId | null> = {
   denuncias: null,
   'compras-paraguai': 'compras_paraguai_drena',
   'botao-dinamico': 'botao_dinamico',
+  'auxiliar-adm': 'auxiliar_adm',
 }
-
-/** Rede Social e Publicidade: visíveis com qualquer plano contratado ou degustação ativa. */
-const MENU_COM_PLANO_OU_DEGUSTACAO: MenuEmpresaId[] = ['feed-stories', 'publicidade']
 
 const FEATURE_SERVICO: Record<FeatureEmpresaId, ServicoPlanoId> = {
   pagina_rede_social: 'pagina_rede_social',
@@ -49,6 +49,7 @@ const FEATURE_SERVICO: Record<FeatureEmpresaId, ServicoPlanoId> = {
   canais: 'canais',
   planejador_publicacoes: 'planejador_publicacoes',
   publicidade: 'publicidade',
+  auxiliar_adm: 'auxiliar_adm',
 }
 
 const ABA_SERVICO: Record<AbaDashboardEmpresa, ServicoPlanoId> = {
@@ -74,13 +75,20 @@ export function empresaPlanoOuDegustacaoAtivo(servicos: readonly string[]): bool
   return servicos.length > 0
 }
 
+/** Item do menu lateral: liberado para uso quando o serviço está no plano/degustação. */
 export function menuEmpresaLiberado(menuId: MenuEmpresaId, servicos: readonly string[]): boolean {
-  if (MENU_COM_PLANO_OU_DEGUSTACAO.includes(menuId)) {
-    return empresaPlanoOuDegustacaoAtivo(servicos)
-  }
   const servico = MENU_SERVICO[menuId]
   if (servico === null) return true
   return empresaTemServico(servicos, servico)
+}
+
+/**
+ * Visibilidade no menu: Publicidade sempre aparece (página trata upgrade);
+ * demais itens só quando o serviço correspondente está liberado.
+ */
+export function menuEmpresaVisivel(menuId: MenuEmpresaId, servicos: readonly string[]): boolean {
+  if (menuId === 'publicidade') return true
+  return menuEmpresaLiberado(menuId, servicos)
 }
 
 export function abaDashboardLiberada(aba: AbaDashboardEmpresa, servicos: readonly string[]): boolean {
@@ -89,6 +97,21 @@ export function abaDashboardLiberada(aba: AbaDashboardEmpresa, servicos: readonl
 
 export function featureEmpresaLiberada(feature: FeatureEmpresaId, servicos: readonly string[]): boolean {
   return empresaTemServico(servicos, FEATURE_SERVICO[feature])
+}
+
+/** Propaganda na Home (serviço publicidade no plano ou degustação). */
+export function publicidadeHomeLiberada(servicos: readonly string[]): boolean {
+  return empresaTemServico(servicos, 'publicidade')
+}
+
+/** Catálogo Publicidade Externa: só com plano contratado (não em degustação). */
+export function publicidadeExternaLiberada(
+  servicos: readonly string[],
+  opts: { emDegustacao: boolean; assinaturaContratadaVigente: boolean },
+): boolean {
+  if (!empresaTemServico(servicos, 'publicidade')) return false
+  if (opts.emDegustacao) return false
+  return opts.assinaturaContratadaVigente
 }
 
 export function resolverServicosDoPlano(
@@ -127,19 +150,30 @@ export type DegustacaoServicosOpts = {
   servicos?: ServicoPlanoId[] | null
 }
 
+export type ResolverServicosEmpresaOpts = {
+  planoContratadoId?: string | null
+  /** Quando false, serviços do plano pago não entram (assinatura vencida). */
+  assinaturaContratadaVigente?: boolean
+}
+
 export function resolverServicosEmpresa(
   planoEmpresa: string | null | undefined,
   planos: PlanoResumoServicos[],
   degustacao: boolean | DegustacaoServicosOpts,
-  opts?: { planoContratadoId?: string | null },
+  opts?: ResolverServicosEmpresaOpts,
 ): ServicoPlanoId[] {
   const optsDeg: DegustacaoServicosOpts =
     typeof degustacao === 'boolean' ? { ativa: degustacao } : degustacao
 
   if (optsDeg.ativa) {
     const doPlano = optsDeg.servicos?.length ? optsDeg.servicos : servicosPlanoBasico(planos)
-    return [...new Set([...doPlano, ...TODOS_SERVICOS_EMPRESA])]
+    return [...doPlano]
   }
+
+  if (opts?.assinaturaContratadaVigente === false) {
+    return []
+  }
+
   return resolverServicosDoPlano(planoEmpresa, planos, { planoId: opts?.planoContratadoId })
 }
 
@@ -148,7 +182,7 @@ export function resolverServicosEmpresaComDegustacao(
   planoEmpresa: string | null | undefined,
   planos: PlanoResumoServicos[],
   degustacao?: { ativa: boolean; planoId?: string | null } | null,
-  opts?: { planoContratadoId?: string | null },
+  opts?: ResolverServicosEmpresaOpts,
 ): ServicoPlanoId[] {
   if (degustacao?.ativa) {
     const planoDeg = degustacao.planoId ? planos.find((p) => p.id === degustacao.planoId) : null

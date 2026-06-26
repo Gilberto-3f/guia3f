@@ -7,6 +7,7 @@ import {
 import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
 import type { FormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { labelFormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
+import { registrarSolicitacaoAuxiliarAdmSeAplicavel } from '@/lib/empresaAuxiliarAdm'
 
 export type StatusAssinaturaEmpresa = 'pendente' | 'ativo' | 'inativo' | 'cancelado'
 
@@ -61,6 +62,26 @@ export function diasParaVencimento(vencimentoIso: string | null, agora = new Dat
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
 
+/** Assinatura paga ativa e dentro do ciclo (vencimento_em). */
+export function assinaturaContratadaVigente(
+  row: { status?: string | null; vencimento_em?: string | null } | null | undefined,
+  agora = new Date(),
+): boolean {
+  if (!row?.status || String(row.status) !== 'ativo') return false
+  const venc = row.vencimento_em != null ? String(row.vencimento_em) : null
+  if (!venc) return true
+  return new Date(venc).getTime() >= agora.getTime()
+}
+
+/** Empresa deve ver lembrete de renovação (5 dias antes do vencimento). */
+export function deveExibirLembreteVencimentoPlano(
+  vencimentoIso: string | null | undefined,
+  agora = new Date(),
+): boolean {
+  const dias = diasParaVencimento(vencimentoIso != null ? String(vencimentoIso) : null, agora)
+  return dias != null && dias >= 0 && dias <= 5
+}
+
 export async function registrarAssinaturaPlanoEmpresa(
   supabase: SupabaseClient,
   params: {
@@ -101,7 +122,7 @@ export async function registrarAssinaturaPlanoEmpresa(
 
   const { data: planoRow, error: planoErr } = await supabase
     .from('planos')
-    .select('id, nome, titulo, ativo, preco_mensal, preco_trimestral, preco_anual, valor')
+    .select('id, nome, titulo, ativo, preco_mensal, preco_trimestral, preco_anual, valor, servicos')
     .eq('id', planoId)
     .eq('ativo', true)
     .maybeSingle()
@@ -159,6 +180,16 @@ export async function registrarAssinaturaPlanoEmpresa(
         .eq('status', 'ativa')
     } catch {
       /* degustação opcional */
+    }
+
+    try {
+      await registrarSolicitacaoAuxiliarAdmSeAplicavel(supabase, {
+        empresaId,
+        assinaturaId: String(ins.id),
+        planoServicos: (planoRow as Record<string, unknown>).servicos,
+      })
+    } catch {
+      /* solicitação auxiliar ADM opcional */
     }
   }
 
@@ -226,6 +257,24 @@ export async function validarAssinaturaDinheiroEmpresa(
       .eq('status', 'ativa')
   } catch {
     /* noop */
+  }
+
+  const planoId = row.plano_id != null ? String(row.plano_id) : null
+  if (planoId) {
+    const { data: planoRow } = await supabase
+      .from('planos')
+      .select('servicos')
+      .eq('id', planoId)
+      .maybeSingle()
+    try {
+      await registrarSolicitacaoAuxiliarAdmSeAplicavel(supabase, {
+        empresaId,
+        assinaturaId,
+        planoServicos: planoRow?.servicos,
+      })
+    } catch {
+      /* noop */
+    }
   }
 
   return { ok: true }

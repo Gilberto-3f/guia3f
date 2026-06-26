@@ -19,7 +19,7 @@ export const CORES_PLANO: { id: PlanoCorId; hex: string; label: string }[] = [
   { id: 'roxo', hex: '#7C3AED', label: 'Roxo' },
 ]
 
-/** Todos os serviços liberados durante degustação ativa (período de teste integral). */
+/** Todos os serviços (ex.: modo anfitrião). Degustação usa apenas servicos do plano bonificado. */
 export const TODOS_SERVICOS_EMPRESA: ServicoPlanoId[] = [
   'pagina_rede_social',
   'botao_dinamico',

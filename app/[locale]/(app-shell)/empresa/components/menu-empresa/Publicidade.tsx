@@ -8,6 +8,8 @@ import {
   usePublicidade,
 } from '../../hooks/usePublicidade'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
+import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
+import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 import SecaoChevron from './SecaoChevron'
 
 function formatDate(value: string) {
@@ -33,6 +35,15 @@ function abaCls(ativa: boolean) {
 
 export default function Publicidade() {
   const { dados: empresa } = useDashboardEmpresa()
+  const {
+    loading: planoLoading,
+    temPublicidadeHome,
+    temPublicidadeExterna,
+    degustacaoAtiva,
+  } = useEmpresaServicosPlano(empresa?.plano, empresa?.id, {
+    aguardarEmpresa: !empresa?.id,
+    somenteAnfitriao: Boolean(empresa?.somente_anfitriao),
+  })
   const { anuncios, loading, error, salvarAnuncioHomeArte, desativarAnuncio } = usePublicidade(
     empresa?.id ?? null
   )
@@ -141,7 +152,7 @@ export default function Publicidade() {
     }
   }
 
-  if (loading) {
+  if (loading || planoLoading) {
     return (
       <div className="space-y-4 pt-2" aria-busy="true" aria-label="A carregar publicidade">
         <div className="flex gap-0 border-b border-gray-200 bg-white">
@@ -163,6 +174,17 @@ export default function Publicidade() {
     )
   }
 
+  if (!temPublicidadeHome()) {
+    return (
+      <div className="pt-4">
+        <AvisoPlanoEmpresaBloqueado mensagem="A publicidade faz parte do plano contratado. Confira os planos disponíveis no canal Financeiro." />
+      </div>
+    )
+  }
+
+  const homeLiberada = temPublicidadeHome()
+  const externaLiberada = temPublicidadeExterna()
+
   return (
     <div>
       <div className="-mx-4 flex border-b border-gray-200 bg-white px-0 sm:mx-0">
@@ -176,6 +198,7 @@ export default function Publicidade() {
 
       {aba === 'propagandas' ? (
         <div className="mt-4 space-y-4">
+          {homeLiberada ? (
           <SecaoChevron titulo="Propaganda na Home" aberta={secHome} onToggle={() => setSecHome((v) => !v)}>
           {anuncioAtivo ? (
             <div className="space-y-4">
@@ -285,13 +308,27 @@ export default function Publicidade() {
             </div>
           )}
           </SecaoChevron>
+          ) : null}
 
           <SecaoChevron
             titulo="Publicidade Externa"
             aberta={secExterna}
             onToggle={() => setSecExterna((v) => !v)}
           >
-            {null}
+            {externaLiberada ? (
+              <p className="text-sm text-gray-600">
+                O catálogo de publicidade externa estará disponível em breve para empresas com plano contratado.
+              </p>
+            ) : (
+              <AvisoPlanoEmpresaBloqueado
+                compact
+                mensagem={
+                  degustacaoAtiva
+                    ? 'Na degustação, a propaganda na Home está liberada. O catálogo Publicidade Externa exige plano contratado (não disponível em degustação).'
+                    : 'O catálogo Publicidade Externa exige plano contratado e vigente.'
+                }
+              />
+            )}
           </SecaoChevron>
         </div>
       ) : (

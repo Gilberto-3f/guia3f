@@ -4,9 +4,9 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { useDashboardEmpresa } from '../../../dashboard/empresa/hooks/useDashboardEmpresa'
 import EmpresaPaginaServicoGate from '@/components/empresa/EmpresaPaginaServicoGate'
-import FeedStories from '../../components/menu-empresa/FeedStories'
+import AuxiliarAdm from '../../components/menu-empresa/AuxiliarAdm'
 
-export default function FeedStoriesPage() {
+export default function AuxiliarAdmPage() {
   const router = useRouter()
   const { dados: empresaDados } = useDashboardEmpresa()
 
@@ -31,15 +31,15 @@ export default function FeedStoriesPage() {
             <ArrowLeft className="h-5 w-5" aria-hidden />
           </button>
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold text-white">Rede Social</h1>
-            <p className="truncate text-xs text-white/80">Feed, stories e agendamentos</p>
+            <h1 className="truncate text-lg font-bold text-white">Auxiliar ADM</h1>
+            <p className="truncate text-xs text-white/80">Menu Empresa</p>
           </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-4xl px-4 pb-6 pt-0">
-        <EmpresaPaginaServicoGate servico="pagina_rede_social">
-          <FeedStories />
+        <EmpresaPaginaServicoGate servico="auxiliar_adm">
+          <AuxiliarAdm />
         </EmpresaPaginaServicoGate>
       </div>
     </div>

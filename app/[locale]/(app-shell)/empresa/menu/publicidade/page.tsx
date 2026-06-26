@@ -38,7 +38,7 @@ export default function PublicidadePage() {
       </header>
 
       <div className="mx-auto max-w-4xl px-4 pb-6 pt-0">
-        <EmpresaPaginaServicoGate servico="publicidade" requerPlanoAtivo>
+        <EmpresaPaginaServicoGate servico="publicidade" semBloqueioServico>
           <Publicidade />
         </EmpresaPaginaServicoGate>
       </div>

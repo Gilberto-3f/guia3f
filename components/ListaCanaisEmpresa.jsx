@@ -151,10 +151,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
   const [meuUsername, setMeuUsername] = useState(/** @type {string | null} */ (null))
   const [financeiroCanalIdGlobal, setFinanceiroCanalIdGlobal] = useState(/** @type {string | null} */ (null))
-  const { featureLiberada, loading: planoLoading, degustacaoAtiva } = useEmpresaServicosPlano(empresaPlano, empresaId, {
+  const { featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(empresaPlano, empresaId, {
     aguardarEmpresa: !empresaId,
   })
-  const temCanaisComunidade = featureLiberada('canais') || degustacaoAtiva
+  const temCanaisComunidade = featureLiberada('canais')
   const canalProfissionalPendenteRef = useRef(/** @type {string | null} */ (null))
 
   /**
@@ -440,13 +440,13 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   }, [onSelectCanal])
 
   useEffect(() => {
-    if (!degustacaoAtiva && !temCanaisComunidade) return
+    if (!temCanaisComunidade) return
     if (!empresaId || planoLoading) return
     void (async () => {
       await garantirCanaisEmpresaComunidade(supabase, empresaId)
       await carregar()
     })()
-  }, [carregar, degustacaoAtiva, empresaId, planoLoading, temCanaisComunidade])
+  }, [carregar, empresaId, planoLoading, temCanaisComunidade])
 
   useEffect(() => {
     if (planoLoading || !temCanaisComunidade) return

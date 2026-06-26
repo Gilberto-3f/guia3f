@@ -24,6 +24,7 @@ import {
   Scale,
   Search,
   Settings,
+  Shield,
   ShoppingBag,
   ShoppingCart,
   Speaker,
@@ -44,7 +45,7 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
-import { menuEmpresaLiberado } from '@/lib/planosEmpresaServicosGate'
+import { menuEmpresaLiberado, menuEmpresaVisivel } from '@/lib/planosEmpresaServicosGate'
 import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
 import { textoInfoDrawer } from '@/lib/drawerInfoTextos'
 import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
@@ -154,6 +155,10 @@ function empresaComprasParaguaiVisivel(ctx) {
 
 function empresaMenuServico(id) {
   return (ctx) => menuEmpresaLiberado(id, ctx.empresaServicos ?? [])
+}
+
+function empresaMenuVisivel(id) {
+  return (ctx) => menuEmpresaVisivel(id, ctx.empresaServicos ?? [])
 }
 
 /**
@@ -378,7 +383,13 @@ function secoesEmpresa(ctx) {
         Icon: Megaphone,
         label: 'Publicidade',
         href: '/empresa/menu/publicidade',
-        condicional: empresaMenuServico('publicidade'),
+        condicional: empresaMenuVisivel('publicidade'),
+      },
+      {
+        Icon: Shield,
+        label: 'Auxiliar ADM',
+        href: '/empresa/menu/auxiliar-adm',
+        condicional: empresaMenuServico('auxiliar-adm'),
       },
       {
         Icon: DollarSign,
