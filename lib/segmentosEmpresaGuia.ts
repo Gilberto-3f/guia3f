@@ -73,6 +73,74 @@ export function slugGuiaParaCategoriaDb(slug: string | null | undefined): string
   return SLUG_PARA_CATEGORIA_DB[s] ?? s
 }
 
+/** Valores equivalentes de `empresas.categoria` para busca no guia (cadastro legado + slugs). */
+export function aliasesCategoriaDbGuia(categoriaOuSlug: string | null | undefined): string[] {
+  const raw = String(categoriaOuSlug ?? '').trim()
+  if (!raw) return []
+
+  const canon = normalizarCategoriaEmpresaGuia(raw)
+  const set = new Set<string>([raw])
+  if (canon) set.add(canon)
+
+  const slug = categoriaDbParaSlug(raw) || (SLUG_PARA_CATEGORIA_DB[raw] ? raw : '')
+  if (slug) {
+    set.add(slug)
+    const db = SLUG_PARA_CATEGORIA_DB[slug]
+    if (db) set.add(db)
+  }
+
+  if (canon === 'Atrativos' || raw === 'passeios' || raw === 'Passeios') {
+    set.add('Atrativos')
+    set.add('passeios')
+    set.add('Passeios')
+    set.add('atrativos')
+  }
+  if (canon === 'Restaurantes' || raw === 'gastronomia') {
+    set.add('Restaurantes')
+    set.add('gastronomia')
+    set.add('Gastronomia')
+  }
+  if (canon === 'Lojas' || raw === 'lojas') {
+    set.add('Lojas')
+    set.add('lojas')
+  }
+  if (canon === 'Hospedagem' || raw === 'hospedagem') {
+    set.add('Hospedagem')
+    set.add('hospedagem')
+  }
+  if (canon === 'Serviços Locais' || raw === 'servicos_locais') {
+    set.add('Serviços Locais')
+    set.add('Servicos Locais')
+    set.add('servicos_locais')
+  }
+
+  return [...set].filter(Boolean)
+}
+
+/** Valores equivalentes de `empresas.cidade` (cadastro sem acento vs guia com acento). */
+export function aliasesCidadeGuia(cidade: string | null | undefined): string[] {
+  const raw = String(cidade ?? '').trim()
+  if (!raw) return []
+
+  const norm = raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+  const set = new Set<string>([raw])
+
+  if (norm === 'foz do iguacu') {
+    set.add('Foz do Iguaçu')
+    set.add('Foz do Iguacu')
+  } else if (norm === 'ciudad del este') {
+    set.add('Ciudad del Este')
+  } else if (norm === 'puerto iguazu') {
+    set.add('Puerto Iguazu')
+  }
+
+  return [...set]
+}
+
 export function ehCategoriaEmpresaPermitida(valor: string | null | undefined): boolean {
   return ehCategoriaEmpresaComercial(valor)
 }
