@@ -6,6 +6,8 @@ import { Camera, ChevronDown, ChevronUp, FileText, Globe2, MapPin, Star } from '
 import { supabase } from '@/lib/supabase'
 import BotaoVoltar from '@/components/BotaoVoltar'
 import Username from '@/components/Username'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
+import { bandeiraProfissionalRegistro } from '@/lib/bandeiraProfissional'
 import FotoHero from '@/components/FotoHero'
 import MenuLateral from '@/components/perfil/MenuLateral'
 import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
@@ -243,6 +245,13 @@ export default function EmpresaPage() {
 
   const nomeFantasia = String(empresa.nome_fantasia ?? '')
   const nomeUsuario = String(empresa.nome_usuario ?? '')
+  const nomeUsuarioRaw = nomeUsuario.trim().replace(/^@+/, '')
+  const usernameHeaderClass = `block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-gray-600 ${
+    nomeUsuarioRaw.length > 10 ? 'text-[16px]' : 'text-[17px]'
+  }`
+  const bandeiraPais = bandeiraProfissionalRegistro({
+    cidadeAtuacao: String(empresa.cidade ?? ''),
+  })
   const fotoUrl = empresa.foto_url ? normalizarUrlMidiaSupabase(String(empresa.foto_url)) : null
   const descLongaRaw = empresa.descricao_longa != null ? String(empresa.descricao_longa) : ''
   const descLonga = descLongaRaw.trim() !== '' ? descLongaRaw : null
@@ -311,7 +320,17 @@ export default function EmpresaPage() {
           <div className="flex min-w-0 items-center gap-1.5">
             {authCarregado && !modoEmpresaLayout ? <BotaoVoltar /> : null}
             <div className="min-w-0 flex-1 overflow-hidden">
-              <Username username={nomeUsuario} />
+              {empresaVerificada ? (
+                <UsuarioHandleVerificado
+                  username={nomeUsuarioRaw || 'usuario'}
+                  verificado
+                  verificadoTipo="empresa"
+                  asButton={false}
+                  className={usernameHeaderClass}
+                />
+              ) : (
+                <Username username={nomeUsuario} />
+              )}
             </div>
           </div>
           <div className="flex shrink-0 justify-end">
@@ -324,10 +343,7 @@ export default function EmpresaPage() {
 
       <div className="border-b border-gray-100 bg-white p-4">
         <div className="mb-2">
-          <NomeEmpresa
-            nome={nomeFantasia}
-            verificado={Boolean(empresa.docs_verificado) || String(empresa.status ?? '') === 'ativo'}
-          />
+          <NomeEmpresa nome={nomeFantasia} bandeira={bandeiraPais} />
         </div>
 
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">

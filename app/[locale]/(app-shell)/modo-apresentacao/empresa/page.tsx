@@ -12,6 +12,9 @@ import EmpresaPreviewEditorDrawer from '@/components/empresa/EmpresaPreviewEdito
 
 import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
 import Username from '@/components/Username'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
+import { bandeiraProfissionalRegistro } from '@/lib/bandeiraProfissional'
+import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import FotoHero from '@/components/FotoHero'
 import NomeEmpresa from '@/components/NomeEmpresa'
 import NotaMedia from '@/components/NotaMedia'
@@ -203,6 +206,14 @@ export default function EmpresaPreviewModoApresentacaoPage() {
   const empresaId = gate.empresaId
   const nomeFantasia = String(empresaMerged.nome_fantasia ?? '')
   const nomeUsuario = String(empresaMerged.nome_usuario ?? '')
+  const nomeUsuarioRaw = nomeUsuario.trim().replace(/^@+/, '')
+  const usernameHeaderClass = `block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-gray-600 ${
+    nomeUsuarioRaw.length > 10 ? 'text-[16px]' : 'text-[17px]'
+  }`
+  const empresaVerificada = contaVerificadaDocumentacao('empresa', empresaMerged)
+  const bandeiraPais = bandeiraProfissionalRegistro({
+    cidadeAtuacao: String(empresaMerged.cidade ?? ''),
+  })
   const fotoUrl = empresaMerged.foto_url ? String(empresaMerged.foto_url) : null
   const descLonga = empresaMerged.descricao_longa != null ? String(empresaMerged.descricao_longa) : null
   const notaMedia = Number(empresaMerged.nota_media) || 0
@@ -249,7 +260,17 @@ export default function EmpresaPreviewModoApresentacaoPage() {
       <div className="border-b border-gray-100 bg-white pt-safe">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
-            <Username username={nomeUsuario} />
+            {empresaVerificada ? (
+              <UsuarioHandleVerificado
+                username={nomeUsuarioRaw || 'usuario'}
+                verificado
+                verificadoTipo="empresa"
+                asButton={false}
+                className={usernameHeaderClass}
+              />
+            ) : (
+              <Username username={nomeUsuario} />
+            )}
           </div>
           <BotaoAbrirMenuLateral
             onClick={() => setMenuAberto(true)}
@@ -262,12 +283,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
 
       <div className="border-b border-gray-100 bg-white p-4">
         <div className="mb-2 flex items-start justify-between gap-2">
-          <NomeEmpresa
-            nome={nomeFantasia}
-            verificado={
-              Boolean(empresaMerged.docs_verificado) || String(empresaMerged.status ?? '') === 'ativo'
-            }
-          />
+          <NomeEmpresa nome={nomeFantasia} bandeira={bandeiraPais} />
         </div>
 
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
