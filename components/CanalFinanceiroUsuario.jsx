@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import CanalFinanceiroItem from '@/components/CanalFinanceiroItem'
 import CanalFinanceiroItemDegustacao from '@/components/CanalFinanceiroItemDegustacao'
 import CanalFinanceiroItemPreLiberacao from '@/components/CanalFinanceiroItemPreLiberacao'
+import CanalFinanceiroItemLembreteVencimento from '@/components/CanalFinanceiroItemLembreteVencimento'
 import CanalFinanceiroMensageiro from '@/components/CanalFinanceiroMensageiro'
 import CanalFinanceiroAbaPlanos from '@/components/CanalFinanceiroAbaPlanos'
 import {
@@ -524,6 +525,8 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospeda
                     onAceito={() => void carregar({ silencioso: true })}
                     onItemLido={marcarItemRelatorioLido}
                   />
+                ) : item.tipo === 'lembrete_vencimento_plano' && tipo === 'empresa' ? (
+                  <CanalFinanceiroItemLembreteVencimento key={item.id} item={item} />
                 ) : (
                   <CanalFinanceiroItem
                     key={item.id}

@@ -47,6 +47,7 @@ export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = nu
       case 'pagamento_pendente':
       case 'plano_assinatura':
       case 'degustacao_plano':
+      case 'lembrete_vencimento_plano':
       case 'relatorio_pax':
       case 'relatorio_parceria':
       case 'comprovante_pagamento':

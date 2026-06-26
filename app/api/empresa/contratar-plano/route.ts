@@ -44,6 +44,12 @@ export async function POST(req: Request) {
     const formaPagamento: FormaPagamentoPlano =
       formaRaw === 'cartao' || formaRaw === 'pix' || formaRaw === 'dinheiro' ? formaRaw : 'pix'
 
+    const visitaAgendadaEm = body.visita_agendada_em != null ? String(body.visita_agendada_em).trim() : ''
+    const visitaResponsavelNome =
+      body.visita_responsavel_nome != null ? String(body.visita_responsavel_nome).trim() : ''
+    const visitaResponsavelWhatsapp =
+      body.visita_responsavel_whatsapp != null ? String(body.visita_responsavel_whatsapp).trim() : ''
+
     if (!planoId) {
       return NextResponse.json({ error: 'plano_id é obrigatório.' }, { status: 400 })
     }
@@ -53,6 +59,14 @@ export async function POST(req: Request) {
       planoId,
       modalidade,
       formaPagamento,
+      visitaDinheiro:
+        formaPagamento === 'dinheiro'
+          ? {
+              visitaAgendadaEm,
+              responsavelNome: visitaResponsavelNome,
+              responsavelWhatsapp: visitaResponsavelWhatsapp,
+            }
+          : null,
     })
 
     if (!res.ok) {

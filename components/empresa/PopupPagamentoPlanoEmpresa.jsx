@@ -67,6 +67,10 @@ export default function PopupPagamentoPlanoEmpresa({
   const [validadeCartao, setValidadeCartao] = useState('')
   const [cvvCartao, setCvvCartao] = useState('')
 
+  const [visitaDataHora, setVisitaDataHora] = useState('')
+  const [visitaResponsavel, setVisitaResponsavel] = useState('')
+  const [visitaWhatsapp, setVisitaWhatsapp] = useState('')
+
   useModalScrollLock(aberto)
 
   const reset = useCallback(() => {
@@ -78,6 +82,9 @@ export default function PopupPagamentoPlanoEmpresa({
     setNumeroCartao('')
     setValidadeCartao('')
     setCvvCartao('')
+    setVisitaDataHora('')
+    setVisitaResponsavel('')
+    setVisitaWhatsapp('')
   }, [])
 
   useEffect(() => {
@@ -107,17 +114,25 @@ export default function PopupPagamentoPlanoEmpresa({
     setEtapa(forma)
   }
 
-  const contratarPlano = async (formaPagamento, extraMsg) => {
+  const contratarPlano = async (formaPagamento, extraMsg, visitaPayload) => {
+    const body = {
+      plano_id: plano.id,
+      modalidade,
+      forma_pagamento: formaPagamento,
+    }
+    if (formaPagamento === 'dinheiro' && visitaPayload) {
+      Object.assign(body, visitaPayload)
+    }
     const res = await fetch('/api/empresa/contratar-plano', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plano_id: plano.id, modalidade, forma_pagamento: formaPagamento }),
+      body: JSON.stringify(body),
     })
     const json = await res.json()
     if (!res.ok || !json.ok) {
       throw new Error(json.error ?? 'Não foi possível contratar o plano.')
     }
-    if (empresaId && extraMsg) {
+    if (empresaId && extraMsg && formaPagamento !== 'dinheiro') {
       await enviarMensagemPagamentoPlanoAdm(
         supabase,
         empresaId,
@@ -194,15 +209,37 @@ export default function PopupPagamentoPlanoEmpresa({
       setErro('Empresa não identificada.')
       return
     }
+    if (!visitaDataHora.trim()) {
+      setErro('Informe a data e horário da visita.')
+      return
+    }
+    if (!visitaResponsavel.trim()) {
+      setErro('Informe o nome do responsável.')
+      return
+    }
+    if (!visitaWhatsapp.trim()) {
+      setErro('Informe o WhatsApp do responsável.')
+      return
+    }
+    const visitaIso = new Date(visitaDataHora)
+    if (Number.isNaN(visitaIso.getTime())) {
+      setErro('Data da visita inválida.')
+      return
+    }
+    if (visitaIso.getTime() < Date.now()) {
+      setErro('A data da visita deve ser futura.')
+      return
+    }
     setLoading(true)
     setErro(null)
     try {
-      const { titulo } = await contratarPlano(
-        'dinheiro',
-        'Solicitação de visita para pagamento em dinheiro e liberação manual do plano.',
-      )
+      const { titulo } = await contratarPlano('dinheiro', null, {
+        visita_agendada_em: visitaIso.toISOString(),
+        visita_responsavel_nome: visitaResponsavel.trim(),
+        visita_responsavel_whatsapp: visitaWhatsapp.trim(),
+      })
       onContratado(
-        `Solicitação enviada para pagamento em dinheiro do plano ${titulo} (${modLabel}). O ADM entrará em contato para agendar a visita.`,
+        `Solicitação enviada para pagamento em dinheiro do plano ${titulo} (${modLabel}). Visita agendada para ${visitaIso.toLocaleString('pt-BR')}. Os serviços serão liberados após confirmação do ADM Financeiro.`,
         false,
       )
       fechar()
@@ -354,11 +391,42 @@ export default function PopupPagamentoPlanoEmpresa({
                 Voltar
               </button>
               <p className="text-sm leading-relaxed text-gray-600">
-                Para pagamento em dinheiro, agende uma visita com nossa equipe. O ADM fará a liberação manual do plano
+                Para pagamento em dinheiro, agende a visita da nossa equipe. Na data faremos as fotos 360° do local
+                (para o Guia Turístico) e receberemos o pagamento. O ADM Financeiro confirmará a liberação do plano
                 após o recebimento.
               </p>
               <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm font-semibold text-[#001f3f]">
                 Valor: R$ {valorFmt} ({modLabel})
+              </p>
+              <label className="block text-xs font-bold uppercase tracking-wide text-gray-500">
+                Data e horário da visita
+              </label>
+              <input
+                type="datetime-local"
+                value={visitaDataHora}
+                onChange={(e) => setVisitaDataHora(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900"
+              />
+              <label className="block text-xs font-bold uppercase tracking-wide text-gray-500">
+                Nome do responsável
+              </label>
+              <input
+                type="text"
+                value={visitaResponsavel}
+                onChange={(e) => setVisitaResponsavel(e.target.value)}
+                placeholder="Quem receberá a equipe"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900"
+              />
+              <label className="block text-xs font-bold uppercase tracking-wide text-gray-500">WhatsApp</label>
+              <input
+                type="tel"
+                value={visitaWhatsapp}
+                onChange={(e) => setVisitaWhatsapp(e.target.value)}
+                placeholder="(45) 99999-9999"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900"
+              />
+              <p className="text-xs text-amber-800">
+                Os serviços do plano só serão liberados após confirmação do pagamento pelo ADM Geral ou Financeiro.
               </p>
               <button
                 type="button"

@@ -8,6 +8,8 @@ import {
   featureEmpresaLiberada,
   menuEmpresaLiberado,
   menuEmpresaVisivel,
+  normalizarPlanoSlug,
+  planoEmpresaReconhecidoNoCatalogo,
   publicidadeExternaLiberada,
   publicidadeHomeLiberada,
   resolverServicosEmpresa,
@@ -210,6 +212,13 @@ export function useEmpresaServicosPlano(
     }
   }, [channelInstancia, empresaId])
 
+  const exigeAssinaturaVigente = useMemo(() => {
+    if (degustacaoAtiva || somenteAnfitriao) return false
+    const slug = normalizarPlanoSlug(planoEmpresa ?? '')
+    if (!slug || slug === 'gratuito') return false
+    return planoEmpresaReconhecidoNoCatalogo(planoEmpresa, planos) || temAssinaturaAtivaRegistro
+  }, [degustacaoAtiva, planoEmpresa, planos, somenteAnfitriao, temAssinaturaAtivaRegistro])
+
   const servicos = useMemo(() => {
     if (somenteAnfitriao) return [...TODOS_SERVICOS_EMPRESA]
     return resolverServicosEmpresa(
@@ -223,7 +232,7 @@ export function useEmpresaServicosPlano(
         planoContratadoId,
         assinaturaContratadaVigente: degustacaoAtiva
           ? undefined
-          : temAssinaturaAtivaRegistro
+          : exigeAssinaturaVigente
             ? assinaturaContratadaVigenteFlag
             : undefined,
       },
@@ -232,11 +241,11 @@ export function useEmpresaServicosPlano(
     assinaturaContratadaVigenteFlag,
     degustacaoAtiva,
     degustacaoServicos,
+    exigeAssinaturaVigente,
     planoContratadoId,
     planoEmpresa,
     planos,
     somenteAnfitriao,
-    temAssinaturaAtivaRegistro,
   ])
 
   const temServico = useCallback(

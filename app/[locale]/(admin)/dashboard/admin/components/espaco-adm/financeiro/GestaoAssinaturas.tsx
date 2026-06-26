@@ -35,6 +35,9 @@ type ItemGestaoAssinatura = {
   expira_em?: string | null
   dias_para_vencimento?: number | null
   status_badge?: string
+  visita_agendada_em?: string | null
+  visita_responsavel_nome?: string | null
+  visita_responsavel_whatsapp?: string | null
   empresa: EmpresaCardInfo
 }
 
@@ -99,20 +102,24 @@ function CardAssinaturaItem({
   item,
   aba,
   validandoId,
-  onValidar,
+  recusandoId,
+  onConfirmar,
+  onRecusar,
 }: {
   item: ItemGestaoAssinatura
   aba: AbaGestao
   validandoId: string | null
-  onValidar: (id: string) => void
+  recusandoId: string | null
+  onConfirmar: (id: string) => void
+  onRecusar: (id: string) => void
 }) {
   const [assinaturaAberta, setAssinaturaAberta] = useState(true)
-  const mostrarValidar = aba === 'solicitacoes' && item.tipo === 'solicitacao'
+  const mostrarAcoes = aba === 'solicitacoes' && item.tipo === 'solicitacao'
   const lembreteVencimento =
     item.dias_para_vencimento != null &&
-    item.dias_para_vencimento <= 7 &&
+    item.dias_para_vencimento <= 5 &&
     item.dias_para_vencimento >= 0 &&
-    item.forma_pagamento_label === 'Dinheiro'
+    item.status_badge === 'ATIVO'
 
   return (
     <li className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -167,6 +174,17 @@ function CardAssinaturaItem({
             {item.expira_em ? (
               <p className="text-xs text-gray-500">Expira em {formatarData(item.expira_em)}</p>
             ) : null}
+            {item.visita_agendada_em ? (
+              <p className="text-xs font-medium text-[#001f3f]">
+                Visita agendada: {formatarData(item.visita_agendada_em)}
+              </p>
+            ) : null}
+            {item.visita_responsavel_nome ? (
+              <p className="text-xs text-gray-600">Responsável: {item.visita_responsavel_nome}</p>
+            ) : null}
+            {item.visita_responsavel_whatsapp ? (
+              <p className="text-xs text-gray-600">WhatsApp: {item.visita_responsavel_whatsapp}</p>
+            ) : null}
             {lembreteVencimento ? (
               <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-900">
                 Lembrete: vencimento do plano em {item.dias_para_vencimento} dia(s).
@@ -175,20 +193,33 @@ function CardAssinaturaItem({
           </div>
         ) : null}
 
-        {mostrarValidar ? (
-          <button
-            type="button"
-            disabled={validandoId === item.id}
-            onClick={() => onValidar(item.id)}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#00D443] py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-[#00b83b] disabled:opacity-50"
-          >
-            {validandoId === item.id ? (
-              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-            ) : (
-              <BadgeCheck className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
-            )}
-            {validandoId === item.id ? 'Validando…' : 'Validar'}
-          </button>
+        {mostrarAcoes ? (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={validandoId === item.id || recusandoId === item.id}
+              onClick={() => onConfirmar(item.id)}
+              className="flex items-center justify-center gap-2 rounded-xl bg-[#00D443] py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-[#00b83b] disabled:opacity-50"
+            >
+              {validandoId === item.id ? (
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+              ) : (
+                <BadgeCheck className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
+              )}
+              {validandoId === item.id ? 'Confirmando…' : 'Confirmar'}
+            </button>
+            <button
+              type="button"
+              disabled={validandoId === item.id || recusandoId === item.id}
+              onClick={() => onRecusar(item.id)}
+              className="flex items-center justify-center gap-2 rounded-xl bg-[#0097b2] py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-[#008099] disabled:opacity-50"
+            >
+              {recusandoId === item.id ? (
+                <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+              ) : null}
+              {recusandoId === item.id ? 'Recusando…' : 'Recusar'}
+            </button>
+          </div>
         ) : null}
       </div>
     </li>
@@ -279,6 +310,7 @@ export function GestaoAssinaturas() {
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [validandoId, setValidandoId] = useState<string | null>(null)
+  const [recusandoId, setRecusandoId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [auxiliarItems, setAuxiliarItems] = useState<ItemAuxiliarAdm[]>([])
   const [auxiliarLoading, setAuxiliarLoading] = useState(false)
@@ -354,26 +386,54 @@ export function GestaoAssinaturas() {
     }
   }
 
-  const validar = async (assinaturaId: string) => {
+  const confirmar = async (assinaturaId: string) => {
     setValidandoId(assinaturaId)
     setFeedback(null)
     try {
       const res = await fetch('/api/admin/assinaturas-empresa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assinatura_id: assinaturaId }),
+        body: JSON.stringify({ assinatura_id: assinaturaId, acao: 'confirmar' }),
       })
       const json = (await res.json()) as { ok?: boolean; error?: string }
       if (!res.ok || !json.ok) {
-        setErro(json.error ?? 'Não foi possível validar.')
+        setErro(json.error ?? 'Não foi possível confirmar.')
         return
       }
-      setFeedback('Assinatura validada e plano liberado.')
+      setFeedback('Assinatura confirmada e plano liberado.')
       await carregar()
     } catch {
-      setErro('Falha ao validar assinatura.')
+      setErro('Falha ao confirmar assinatura.')
     } finally {
       setValidandoId(null)
+    }
+  }
+
+  const recusar = async (assinaturaId: string) => {
+    const motivo = window.prompt('Motivo da recusa (opcional):') ?? ''
+    setRecusandoId(assinaturaId)
+    setFeedback(null)
+    try {
+      const res = await fetch('/api/admin/assinaturas-empresa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assinatura_id: assinaturaId,
+          acao: 'recusar',
+          motivo_recusa: motivo.trim() || null,
+        }),
+      })
+      const json = (await res.json()) as { ok?: boolean; error?: string }
+      if (!res.ok || !json.ok) {
+        setErro(json.error ?? 'Não foi possível recusar.')
+        return
+      }
+      setFeedback('Solicitação recusada. A empresa foi notificada.')
+      await carregar()
+    } catch {
+      setErro('Falha ao recusar assinatura.')
+    } finally {
+      setRecusandoId(null)
     }
   }
 
@@ -412,7 +472,9 @@ export function GestaoAssinaturas() {
               item={item}
               aba={aba}
               validandoId={validandoId}
-              onValidar={(id) => void validar(id)}
+              recusandoId={recusandoId}
+              onConfirmar={(id) => void confirmar(id)}
+              onRecusar={(id) => void recusar(id)}
             />
           ))}
         </ul>

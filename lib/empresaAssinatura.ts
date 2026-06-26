@@ -8,6 +8,8 @@ import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
 import type { FormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { labelFormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { registrarSolicitacaoAuxiliarAdmSeAplicavel } from '@/lib/empresaAuxiliarAdm'
+import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
+import { enviarMensagemPagamentoPlanoAdm, montarMensagemPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 
 export type StatusAssinaturaEmpresa = 'pendente' | 'ativo' | 'inativo' | 'cancelado'
 
@@ -25,7 +27,39 @@ export type AssinaturaEmpresaRow = {
   assinado_em: string
   validado_por: string | null
   validado_em: string | null
+  visita_agendada_em: string | null
+  visita_responsavel_nome: string | null
+  visita_responsavel_whatsapp: string | null
+  recusado_por: string | null
+  recusado_em: string | null
+  motivo_recusa: string | null
   created_at: string
+}
+
+export type DadosVisitaPagamentoDinheiro = {
+  visitaAgendadaEm: string
+  responsavelNome: string
+  responsavelWhatsapp: string
+}
+
+function formatarDataVisita(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    })
+  } catch {
+    return iso
+  }
+}
+
+function montarTextoVisitaDinheiro(dados: DadosVisitaPagamentoDinheiro): string {
+  return [
+    `Visita agendada: ${formatarDataVisita(dados.visitaAgendadaEm)}`,
+    `Responsável: ${dados.responsavelNome.trim()}`,
+    `WhatsApp: ${dados.responsavelWhatsapp.trim()}`,
+    'Na data faremos as fotos 360° e receberemos o pagamento em dinheiro.',
+  ].join('\n')
 }
 
 export function calcularVencimentoAssinatura(
@@ -89,6 +123,7 @@ export async function registrarAssinaturaPlanoEmpresa(
     planoId: string
     modalidade: ModalidadePlanoEmpresa
     formaPagamento: FormaPagamentoPlano
+    visitaDinheiro?: DadosVisitaPagamentoDinheiro | null
   },
 ): Promise<{ ok: boolean; error?: string; assinaturaId?: string; planoTitulo?: string; planoContratado?: boolean }> {
   const uid = params.empresaUsuarioId?.trim()
@@ -102,6 +137,23 @@ export async function registrarAssinaturaPlanoEmpresa(
   }
   if (forma !== 'cartao' && forma !== 'pix' && forma !== 'dinheiro') {
     return { ok: false, error: 'Forma de pagamento inválida.' }
+  }
+
+  if (forma === 'dinheiro') {
+    const visita = params.visitaDinheiro
+    if (!visita?.visitaAgendadaEm?.trim()) {
+      return { ok: false, error: 'Informe a data da visita para pagamento em dinheiro.' }
+    }
+    if (!visita.responsavelNome?.trim()) {
+      return { ok: false, error: 'Informe o nome do responsável pela visita.' }
+    }
+    if (!visita.responsavelWhatsapp?.trim()) {
+      return { ok: false, error: 'Informe o WhatsApp do responsável.' }
+    }
+    const visitaDate = new Date(visita.visitaAgendadaEm)
+    if (Number.isNaN(visitaDate.getTime())) {
+      return { ok: false, error: 'Data da visita inválida.' }
+    }
   }
 
   const { data: usuario } = await supabase.from('usuarios').select('status').eq('id', uid).maybeSingle()
@@ -141,6 +193,15 @@ export async function registrarAssinaturaPlanoEmpresa(
   const autoAtivo = forma === 'pix' || forma === 'cartao'
   const vencimento = autoAtivo ? calcularVencimentoAssinatura(modalidade, agora).toISOString() : null
 
+  const visitaInsert =
+    forma === 'dinheiro' && params.visitaDinheiro
+      ? {
+          visita_agendada_em: new Date(params.visitaDinheiro.visitaAgendadaEm).toISOString(),
+          visita_responsavel_nome: params.visitaDinheiro.responsavelNome.trim(),
+          visita_responsavel_whatsapp: params.visitaDinheiro.responsavelWhatsapp.trim(),
+        }
+      : {}
+
   const { data: ins, error: insErr } = await supabase
     .from('empresa_assinaturas')
     .insert({
@@ -155,6 +216,7 @@ export async function registrarAssinaturaPlanoEmpresa(
       vencimento_em: vencimento,
       assinado_em: agoraIso,
       updated_at: agoraIso,
+      ...visitaInsert,
     })
     .select('id')
     .maybeSingle()
@@ -190,6 +252,46 @@ export async function registrarAssinaturaPlanoEmpresa(
       })
     } catch {
       /* solicitação auxiliar ADM opcional */
+    }
+  }
+
+  if (forma === 'dinheiro' && params.visitaDinheiro) {
+    const visitaTexto = montarTextoVisitaDinheiro(params.visitaDinheiro)
+    const assinaturaId = String(ins.id)
+
+    try {
+      await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
+        empresaUsuarioId: uid,
+        tipo: 'pagamento_pendente',
+        titulo: 'Solicitação de plano — pagamento em dinheiro',
+        mensagem: `Solicitação registrada. ${visitaTexto.replace(/\n/g, ' · ')} Aguarde a confirmação do ADM Financeiro para liberar os serviços.`,
+        valor,
+        comprovanteDetalhes: {
+          variant: 'assinatura_dinheiro_pendente',
+          assinatura_id: assinaturaId,
+          plano_titulo: planoTitulo,
+          modalidade,
+          visita: params.visitaDinheiro,
+        },
+      })
+    } catch {
+      /* notificação empresa opcional */
+    }
+
+    try {
+      await enviarMensagemPagamentoPlanoAdm(
+        supabase,
+        empresaId,
+        montarMensagemPagamentoPlano({
+          planoTitulo,
+          modalidade,
+          preco: valor,
+          forma: 'dinheiro',
+          extra: `${visitaTexto} · Assinatura ID: ${assinaturaId} · Aguardando confirmação ADM.`,
+        }),
+      )
+    } catch {
+      /* chat ADM opcional */
     }
   }
 
@@ -275,6 +377,99 @@ export async function validarAssinaturaDinheiroEmpresa(
     } catch {
       /* noop */
     }
+  }
+
+  try {
+    const { data: emp } = await supabase
+      .from('empresas')
+      .select('usuario_id')
+      .eq('id', empresaId)
+      .maybeSingle()
+    const empresaUsuarioId = emp?.usuario_id != null ? String(emp.usuario_id) : null
+    if (empresaUsuarioId) {
+      await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
+        empresaUsuarioId,
+        tipo: 'plano_assinatura',
+        titulo: 'Plano confirmado e liberado',
+        mensagem: `Pagamento em dinheiro confirmado. O plano ${String(row.plano_titulo ?? '')} está ativo até ${formatarDataVisita(vencimento)}.`,
+        valor: Number(row.valor) || null,
+        comprovanteDetalhes: {
+          variant: 'assinatura_dinheiro_confirmada',
+          assinatura_id: assinaturaId,
+        },
+      })
+    }
+  } catch {
+    /* noop */
+  }
+
+  return { ok: true }
+}
+
+export async function recusarAssinaturaDinheiroEmpresa(
+  supabase: SupabaseClient,
+  params: { assinaturaId: string; adminUsuarioId: string; motivoRecusa?: string | null },
+): Promise<{ ok: boolean; error?: string }> {
+  const assinaturaId = params.assinaturaId?.trim()
+  const adminId = params.adminUsuarioId?.trim()
+  if (!assinaturaId || !adminId) return { ok: false, error: 'Dados inválidos.' }
+
+  const { data: row, error: fetchErr } = await supabase
+    .from('empresa_assinaturas')
+    .select('*')
+    .eq('id', assinaturaId)
+    .maybeSingle()
+
+  if (fetchErr || !row) return { ok: false, error: 'Assinatura não encontrada.' }
+
+  const status = String(row.status ?? '')
+  const forma = String(row.forma_pagamento ?? '')
+  if (status !== 'pendente' || forma !== 'dinheiro') {
+    return { ok: false, error: 'Esta assinatura não está pendente de validação em dinheiro.' }
+  }
+
+  const agoraIso = new Date().toISOString()
+  const empresaId = String(row.empresa_id)
+  const motivo = params.motivoRecusa?.trim() || null
+
+  const { error: upAssinatura } = await supabase
+    .from('empresa_assinaturas')
+    .update({
+      status: 'cancelado',
+      recusado_por: adminId,
+      recusado_em: agoraIso,
+      motivo_recusa: motivo,
+      updated_at: agoraIso,
+    })
+    .eq('id', assinaturaId)
+    .eq('status', 'pendente')
+
+  if (upAssinatura) return { ok: false, error: upAssinatura.message }
+
+  try {
+    const { data: emp } = await supabase
+      .from('empresas')
+      .select('usuario_id')
+      .eq('id', empresaId)
+      .maybeSingle()
+    const empresaUsuarioId = emp?.usuario_id != null ? String(emp.usuario_id) : null
+    if (empresaUsuarioId) {
+      await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
+        empresaUsuarioId,
+        tipo: 'pagamento_pendente',
+        titulo: 'Solicitação de plano recusada',
+        mensagem: motivo
+          ? `A solicitação de pagamento em dinheiro foi recusada. Motivo: ${motivo}`
+          : 'A solicitação de pagamento em dinheiro foi recusada. Entre em contato pelo Mensageiro ou escolha outra forma de pagamento.',
+        comprovanteDetalhes: {
+          variant: 'assinatura_dinheiro_recusada',
+          assinatura_id: assinaturaId,
+          motivo_recusa: motivo,
+        },
+      })
+    }
+  } catch {
+    /* noop */
   }
 
   return { ok: true }

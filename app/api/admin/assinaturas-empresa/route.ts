@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertAdminSession, jsonAdminError, loadAdminUsuarioRow } from '@/lib/adminApiAuth'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { validarAssinaturaDinheiroEmpresa } from '@/lib/empresaAssinatura'
+import { validarAssinaturaDinheiroEmpresa, recusarAssinaturaDinheiroEmpresa } from '@/lib/empresaAssinatura'
 import { labelModalidadePlano } from '@/lib/contratarPlanoEmpresa'
 import { labelFormaPagamentoPlano, statusExibicaoAssinante, diasParaVencimento } from '@/lib/empresaAssinatura'
 
@@ -74,6 +74,7 @@ export async function GET(req: Request) {
         .select(
           `
           id, empresa_id, plano_titulo, plano_nome, modalidade, forma_pagamento, valor, status, assinado_em, vencimento_em,
+          visita_agendada_em, visita_responsavel_nome, visita_responsavel_whatsapp,
           empresas ( id, nome_fantasia, nome_usuario, foto_url, docs_verificado_em, docs_verificado_por, usuario_id )
         `,
         )
@@ -99,6 +100,11 @@ export async function GET(req: Request) {
           forma_pagamento: String(row.forma_pagamento ?? ''),
           forma_pagamento_label: labelFormaPagamentoPlano(String(row.forma_pagamento ?? 'dinheiro') as 'dinheiro'),
           valor: Number(row.valor) || 0,
+          visita_agendada_em: row.visita_agendada_em != null ? String(row.visita_agendada_em) : null,
+          visita_responsavel_nome:
+            row.visita_responsavel_nome != null ? String(row.visita_responsavel_nome) : null,
+          visita_responsavel_whatsapp:
+            row.visita_responsavel_whatsapp != null ? String(row.visita_responsavel_whatsapp) : null,
           empresa,
         })
       }
@@ -199,7 +205,7 @@ export async function GET(req: Request) {
   }
 }
 
-/** Valida assinatura em dinheiro (pendente → ativo). */
+/** Confirma ou recusa assinatura em dinheiro (pendente). */
 export async function POST(req: Request) {
   try {
     const auth = await assertAdminSession()
@@ -212,11 +218,27 @@ export async function POST(req: Request) {
 
     const body = (await req.json()) as Record<string, unknown>
     const assinaturaId = String(body.assinatura_id ?? '').trim()
+    const acao = String(body.acao ?? 'confirmar').trim()
+    const motivoRecusa = body.motivo_recusa != null ? String(body.motivo_recusa) : null
+
     if (!assinaturaId) {
       return NextResponse.json({ error: 'assinatura_id é obrigatório.' }, { status: 400 })
     }
 
     const adminDb = createSupabaseAdmin()
+
+    if (acao === 'recusar') {
+      const res = await recusarAssinaturaDinheiroEmpresa(adminDb, {
+        assinaturaId,
+        adminUsuarioId: actorId,
+        motivoRecusa,
+      })
+      if (!res.ok) {
+        return NextResponse.json({ error: res.error ?? 'Não foi possível recusar.' }, { status: 400 })
+      }
+      return NextResponse.json({ ok: true, acao: 'recusar' })
+    }
+
     const res = await validarAssinaturaDinheiroEmpresa(adminDb, {
       assinaturaId,
       adminUsuarioId: actorId,
@@ -226,7 +248,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: res.error ?? 'Não foi possível validar.' }, { status: 400 })
     }
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, acao: 'confirmar' })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro interno'
     return NextResponse.json({ error: msg }, { status: 500 })
