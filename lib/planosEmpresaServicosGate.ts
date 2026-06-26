@@ -94,14 +94,23 @@ export function featureEmpresaLiberada(feature: FeatureEmpresaId, servicos: read
 export function resolverServicosDoPlano(
   planoEmpresa: string | null | undefined,
   planos: PlanoResumoServicos[],
+  opts?: { planoId?: string | null },
 ): ServicoPlanoId[] {
   const p = normalizarPlanoSlug(planoEmpresa ?? '')
-  if (!p || p === 'gratuito') return []
+  if (p && p !== 'gratuito') {
+    const match = planos.find(
+      (item) => normalizarPlanoSlug(item.nome) === p || normalizarPlanoSlug(item.titulo) === p,
+    )
+    if (match?.servicos?.length) return match.servicos
+  }
 
-  const match = planos.find(
-    (item) => normalizarPlanoSlug(item.nome) === p || normalizarPlanoSlug(item.titulo) === p,
-  )
-  return match?.servicos ?? []
+  const planoId = opts?.planoId?.trim()
+  if (planoId) {
+    const porId = planos.find((item) => item.id === planoId)
+    if (porId?.servicos?.length) return porId.servicos
+  }
+
+  return []
 }
 
 export function servicosPlanoBasico(planos: PlanoResumoServicos[]): ServicoPlanoId[] {
@@ -122,15 +131,16 @@ export function resolverServicosEmpresa(
   planoEmpresa: string | null | undefined,
   planos: PlanoResumoServicos[],
   degustacao: boolean | DegustacaoServicosOpts,
+  opts?: { planoContratadoId?: string | null },
 ): ServicoPlanoId[] {
-  const opts: DegustacaoServicosOpts =
+  const optsDeg: DegustacaoServicosOpts =
     typeof degustacao === 'boolean' ? { ativa: degustacao } : degustacao
 
-  if (opts.ativa) {
-    const doPlano = opts.servicos?.length ? opts.servicos : servicosPlanoBasico(planos)
+  if (optsDeg.ativa) {
+    const doPlano = optsDeg.servicos?.length ? optsDeg.servicos : servicosPlanoBasico(planos)
     return [...new Set([...doPlano, ...TODOS_SERVICOS_EMPRESA])]
   }
-  return resolverServicosDoPlano(planoEmpresa, planos)
+  return resolverServicosDoPlano(planoEmpresa, planos, { planoId: opts?.planoContratadoId })
 }
 
 /** Serviços efetivos considerando degustação ativa (mapa empresa_id → plano_id da degustação). */
@@ -138,6 +148,7 @@ export function resolverServicosEmpresaComDegustacao(
   planoEmpresa: string | null | undefined,
   planos: PlanoResumoServicos[],
   degustacao?: { ativa: boolean; planoId?: string | null } | null,
+  opts?: { planoContratadoId?: string | null },
 ): ServicoPlanoId[] {
   if (degustacao?.ativa) {
     const planoDeg = degustacao.planoId ? planos.find((p) => p.id === degustacao.planoId) : null
@@ -146,7 +157,7 @@ export function resolverServicosEmpresaComDegustacao(
       servicos: planoDeg?.servicos?.length ? planoDeg.servicos : null,
     })
   }
-  return resolverServicosDoPlano(planoEmpresa, planos)
+  return resolverServicosDoPlano(planoEmpresa, planos, { planoId: opts?.planoContratadoId })
 }
 
 /** Plano contratado reconhecido no catálogo ativo (evita exibir slug órfão legado). */

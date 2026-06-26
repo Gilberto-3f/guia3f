@@ -7,8 +7,10 @@ import {
 } from '@/lib/canaisEmpresaSlugs'
 import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
 
-/** @type {readonly string[]} */
-const COMUNIDADES_PROFISSIONAIS_SLUG = ['guia', 'taxista', 'van', 'motorista_app', 'anfitriao'] as const
+import {
+  COMUNIDADES_PROFISSIONAIS_SLUG,
+  slugComunidadeProfissionalDeCanalEmpresa,
+} from '@/lib/canaisProfissionaisListaUi'
 
 export type CanalFinanceiroRowEmpresa = {
   id?: string | null
@@ -114,6 +116,14 @@ function toSlugComunidade(valor: string | null | undefined): string {
     .toLowerCase()
 }
 
+function slugComunidadeCanalEmpresa(c: {
+  nome?: string | null
+  categoria?: string | null
+  comunidade_prof?: string | null
+}): string {
+  return slugComunidadeProfissionalDeCanalEmpresa(c)
+}
+
 /**
  * IDs de canais cujas mensagens entram no badge / lista da empresa.
  */
@@ -154,7 +164,12 @@ export async function obterIdsCanaisMensagensEmpresa(
       )
       if (slug && segmentosSlugs.includes(slug)) ids.add(id)
     } else if (empresaId && String(c.empresa_id) === empresaId) {
-      const slug = toSlugComunidade(c.comunidade_prof != null ? String(c.comunidade_prof) : '')
+      const slug =
+        slugComunidadeCanalEmpresa({
+          nome: c.nome != null ? String(c.nome) : null,
+          categoria: c.categoria != null ? String(c.categoria) : null,
+          comunidade_prof: c.comunidade_prof != null ? String(c.comunidade_prof) : null,
+        }) || toSlugComunidade(c.comunidade_prof != null ? String(c.comunidade_prof) : '')
       if (slug && (COMUNIDADES_PROFISSIONAIS_SLUG as readonly string[]).includes(slug)) {
         ids.add(id)
       }

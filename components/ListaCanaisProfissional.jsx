@@ -7,6 +7,7 @@ import {
   CLASSE_AVATAR_CANAL_ADMINISTRACAO,
   iconeCanalProfissionalLista,
   rotuloCanalListaProfissional,
+  slugComunidadeProfissionalDeCanalEmpresa,
 } from '@/lib/canaisProfissionaisListaUi'
 import { canalExibeContagemMembros, formatarLegendaMembrosCanal } from '@/lib/canalMembrosContagem'
 import { useContagemMembrosCanais } from '@/hooks/useContagemMembrosCanais'
@@ -215,7 +216,10 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     const administracao = ordenarAdministracao(
       canais.filter((c) => c.tipo_publico === 'profissional' && !isCanalAdmProfissionalGlobal(c)),
     )
-    const empresas = canais.filter((c) => c.tipo_publico === 'empresa' && c.empresa_id != null && c.comunidade_prof != null)
+    const empresas = canais.filter((c) => {
+      if (c.tipo_publico !== 'empresa' || c.empresa_id == null) return false
+      return slugComunidadeProfissionalDeCanalEmpresa(c) !== ''
+    })
     return { administracao, empresas }
   }, [canais])
 
@@ -359,7 +363,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         if (c.tipo_publico === 'empresa') {
           if (c.empresa_id == null) return false
           if (empresasAprovadas && !empresasAprovadas.has(String(c.empresa_id))) return false
-          const comuSlug = toSlug(c.comunidade_prof != null ? String(c.comunidade_prof) : '')
+          const comuSlug = slugComunidadeProfissionalDeCanalEmpresa(c)
           if (!comuSlug || !CATEGORIAS_PROFISSIONAIS.includes(comuSlug)) return false
           return slugsCarregados.includes(comuSlug)
         }

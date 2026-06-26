@@ -50,6 +50,7 @@ function bandeiraPorCidade(cidade) {
  *   temBotaoDinamico?: boolean
  *   emDegustacao?: boolean
  *   planosCarregando?: boolean
+ *   degustacaoCarregando?: boolean
  * }} props
  */
 export default function CardAtrativo({
@@ -58,6 +59,7 @@ export default function CardAtrativo({
   temBotaoDinamico = true,
   emDegustacao = false,
   planosCarregando = false,
+  degustacaoCarregando = false,
 }) {
   const router = useRouter()
   const { perfilEhProfissional, recursosProfissionaisLiberados, loading: gateLoading } =
@@ -71,8 +73,11 @@ export default function CardAtrativo({
   )
   const exibirBotaoDinamico =
     empresaVerificada &&
-    (temBotaoDinamico || emDegustacao || (planosCarregando && empresaPodeTerBotaoPlano))
-  const aguardandoSlot = gateLoading || planosCarregando
+    (temBotaoDinamico ||
+      emDegustacao ||
+      degustacaoCarregando ||
+      (planosCarregando && empresaPodeTerBotaoPlano))
+  const aguardandoSlot = gateLoading || planosCarregando || degustacaoCarregando
 
   const desc =
     empresa.descricao_curta && empresa.descricao_curta.length > 170

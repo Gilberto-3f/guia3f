@@ -97,6 +97,10 @@ export default function ListagemCategoriaPage() {
   const [degustacaoPlanoPorEmpresa, setDegustacaoPlanoPorEmpresa] = useState<Map<string, string | null>>(
     new Map(),
   )
+  const [planoContratadoPorEmpresa, setPlanoContratadoPorEmpresa] = useState<Map<string, string>>(
+    new Map(),
+  )
+  const [degustacaoCarregando, setDegustacaoCarregando] = useState(true)
   const [planosCarregando, setPlanosCarregando] = useState(true)
   const [loading, setLoading] = useState(true)
   const [erroLista, setErroLista] = useState('')
@@ -181,24 +185,43 @@ export default function ListagemCategoriaPage() {
         emDegustacao
           ? { ativa: true, planoId: degustacaoPlanoPorEmpresa.get(empresa.id) ?? null }
           : null,
+        { planoContratadoId: planoContratadoPorEmpresa.get(empresa.id) ?? null },
       )
       return empresaTemServico(servicos, 'botao_dinamico')
     },
-    [degustacaoPlanoPorEmpresa, planosResumo],
+    [degustacaoPlanoPorEmpresa, planoContratadoPorEmpresa, planosResumo],
   )
 
   useEffect(() => {
     if (empresas.length === 0) {
       setDegustacaoPlanoPorEmpresa(new Map())
+      setPlanoContratadoPorEmpresa(new Map())
+      setDegustacaoCarregando(false)
       return
     }
     let ativo = true
+    setDegustacaoCarregando(true)
     void (async () => {
-      const mapa = await buscarMapaDegustacaoAtivaPorEmpresas(
-        supabase,
-        empresas.map((e) => e.id),
-      )
-      if (ativo) setDegustacaoPlanoPorEmpresa(mapa)
+      const ids = empresas.map((e) => e.id)
+      const [mapa, assinaturasRes] = await Promise.all([
+        buscarMapaDegustacaoAtivaPorEmpresas(supabase, ids),
+        supabase
+          .from('empresa_assinaturas')
+          .select('empresa_id, plano_id')
+          .in('empresa_id', ids)
+          .eq('status', 'ativo'),
+      ])
+      const mapaPlano = new Map<string, string>()
+      for (const row of assinaturasRes.data ?? []) {
+        const empId = row.empresa_id != null ? String(row.empresa_id) : ''
+        const pid = row.plano_id != null ? String(row.plano_id) : ''
+        if (empId && pid) mapaPlano.set(empId, pid)
+      }
+      if (ativo) {
+        setDegustacaoPlanoPorEmpresa(mapa)
+        setPlanoContratadoPorEmpresa(mapaPlano)
+        setDegustacaoCarregando(false)
+      }
     })()
     return () => {
       ativo = false
@@ -408,6 +431,7 @@ export default function ListagemCategoriaPage() {
                 temBotaoDinamico={empresaTemBotaoDinamico(empresa)}
                 emDegustacao={degustacaoPlanoPorEmpresa.has(empresa.id)}
                 planosCarregando={planosCarregando}
+                degustacaoCarregando={degustacaoCarregando}
               />
             ))}
           </div>

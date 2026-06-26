@@ -35,6 +35,7 @@ export function useEmpresaServicosPlano(
   const [degustacaoPlanoId, setDegustacaoPlanoId] = useState<string | null>(null)
   const [degustacaoPlanoTitulo, setDegustacaoPlanoTitulo] = useState<string | null>(null)
   const [degustacaoServicos, setDegustacaoServicos] = useState<ServicoPlanoId[] | null>(null)
+  const [planoContratadoId, setPlanoContratadoId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const carregarRef = useRef<() => Promise<void>>(async () => {})
   const channelInstancia = useId().replace(/:/g, '')
@@ -65,14 +66,28 @@ export function useEmpresaServicosPlano(
 
       if (empresaId) {
         const agora = new Date().toISOString()
-        const { data: deg } = await supabase
-          .from('empresa_degustacoes')
-          .select('id, plano_id, planos ( titulo )')
-          .eq('empresa_id', empresaId)
-          .eq('status', 'ativa')
-          .gt('expira_em', agora)
-          .limit(1)
-          .maybeSingle()
+        const [{ data: deg }, { data: assinatura }] = await Promise.all([
+          supabase
+            .from('empresa_degustacoes')
+            .select('id, plano_id, planos ( titulo )')
+            .eq('empresa_id', empresaId)
+            .eq('status', 'ativa')
+            .gt('expira_em', agora)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('empresa_assinaturas')
+            .select('plano_id')
+            .eq('empresa_id', empresaId)
+            .eq('status', 'ativo')
+            .order('assinado_em', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ])
+
+        setPlanoContratadoId(
+          assinatura?.plano_id != null ? String(assinatura.plano_id) : null,
+        )
 
         const ativa = Boolean(deg?.id)
         setDegustacaoAtiva(ativa)
@@ -97,6 +112,7 @@ export function useEmpresaServicosPlano(
         setDegustacaoPlanoId(null)
         setDegustacaoPlanoTitulo(null)
         setDegustacaoServicos(null)
+        setPlanoContratadoId(null)
       }
     } catch {
       setPlanos([])
@@ -104,6 +120,7 @@ export function useEmpresaServicosPlano(
       setDegustacaoPlanoId(null)
       setDegustacaoPlanoTitulo(null)
       setDegustacaoServicos(null)
+      setPlanoContratadoId(null)
     } finally {
       setLoading(false)
     }
@@ -156,8 +173,8 @@ export function useEmpresaServicosPlano(
     return resolverServicosEmpresa(planoEmpresa, planos, {
       ativa: degustacaoAtiva,
       servicos: degustacaoServicos,
-    })
-  }, [degustacaoAtiva, degustacaoServicos, planoEmpresa, planos, somenteAnfitriao])
+    }, { planoContratadoId })
+  }, [degustacaoAtiva, degustacaoServicos, planoContratadoId, planoEmpresa, planos, somenteAnfitriao])
 
   const temServico = useCallback(
     (servico: ServicoPlanoId) => servicos.includes(servico),

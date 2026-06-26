@@ -4,17 +4,20 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export async function garantirCanaisEmpresaComunidade(
   supabase: SupabaseClient,
   empresaId: string | null | undefined,
-): Promise<void> {
+): Promise<boolean> {
   const id = String(empresaId ?? '').trim()
-  if (!id) return
+  if (!id) return false
   try {
     const { error } = await supabase.rpc('garantir_canais_empresa_comunidade', {
       p_empresa_id: id,
     })
     if (error) {
       console.warn('garantir_canais_empresa_comunidade:', error.message)
+      return false
     }
+    return true
   } catch (err) {
     console.warn('garantir_canais_empresa_comunidade:', err)
+    return false
   }
 }

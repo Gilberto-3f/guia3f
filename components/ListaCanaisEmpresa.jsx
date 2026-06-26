@@ -10,6 +10,7 @@ import {
   iconeCanalFinanceiro,
   iconeCanalProfissionalLista,
   rotuloCanalProfissionalLista,
+  slugComunidadeProfissionalDeCanalEmpresa,
   toSlugComunidadeProf,
   tituloCanalEmpresaLista,
 } from '@/lib/canaisProfissionaisListaUi'
@@ -38,6 +39,13 @@ import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS_SLUG = ['guia', 'taxista', 'van', 'motorista_app', 'anfitriao']
+
+/**
+ * @param {{ comunidade_prof?: string | null; nome?: string | null; categoria?: string | null }} c
+ */
+function slugComunidadeCanalEmpresa(c) {
+  return slugComunidadeProfissionalDeCanalEmpresa(c)
+}
 
 /**
  * @param {string | null | undefined} valor
@@ -217,7 +225,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     /** @type {Map<string, Canal>} */
     const porComunidade = new Map()
     for (const c of lista) {
-      const k = toSlug(c.comunidade_prof != null ? String(c.comunidade_prof) : '')
+      const k = slugComunidadeCanalEmpresa(c)
       if (!k) continue
       if (!porComunidade.has(k)) porComunidade.set(k, c)
     }
@@ -252,7 +260,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     const profissionais = canais
       .filter((c) => c.tipo_publico === 'empresa' && empresaId && String(c.empresa_id ?? '') === String(empresaId))
       .filter((c) => {
-        const slug = toSlug(c.comunidade_prof != null ? String(c.comunidade_prof) : '')
+        const slug = slugComunidadeCanalEmpresa(c)
         return Boolean(slug) && COMUNIDADES_PROFISSIONAIS_SLUG.includes(slug)
       })
     return {
@@ -400,7 +408,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         const real = ordenados.find(
           (c) =>
             String(c.empresa_id ?? '') === String(empId) &&
-            toSlug(c.comunidade_prof) === pendenteSlug &&
+            slugComunidadeCanalEmpresa(c) === pendenteSlug &&
             !String(c.id ?? '').startsWith('__placeholder'),
         )
         if (real) {
@@ -432,12 +440,13 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   }, [onSelectCanal])
 
   useEffect(() => {
-    if (!degustacaoAtiva || !empresaId || planoLoading) return
+    if (!degustacaoAtiva && !temCanaisComunidade) return
+    if (!empresaId || planoLoading) return
     void (async () => {
       await garantirCanaisEmpresaComunidade(supabase, empresaId)
       await carregar()
     })()
-  }, [carregar, degustacaoAtiva, empresaId, planoLoading])
+  }, [carregar, degustacaoAtiva, empresaId, planoLoading, temCanaisComunidade])
 
   useEffect(() => {
     if (planoLoading || !temCanaisComunidade) return
@@ -600,6 +609,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     const ehProfissional =
       !pastaAdministracao &&
       (opts.pastaProfissionais ||
+        slugComunidadeCanalEmpresa(canal) !== '' ||
         (canal.comunidade_prof != null && String(canal.comunidade_prof).trim() !== ''))
     const ehSegmentoAdm = canal.empresa_id == null && ehCanalSegmentoEmpresaGlobal(canal)
     const ehFinanceiro = canal.empresa_id == null && isCanalFinanceiroEmpresa(canal.nome)
@@ -655,12 +665,17 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         onClick={() => {
           if (rowDisabled) return
           if (profissionalPlaceholder) {
-            const slug = toSlug(canal.comunidade_prof != null ? String(canal.comunidade_prof) : '')
+            const slug = slugComunidadeCanalEmpresa(canal)
             if (!empresaId || !slug) return
             canalProfissionalPendenteRef.current = slug
             void (async () => {
-              await garantirCanaisEmpresaComunidade(supabase, empresaId)
+              const ok = await garantirCanaisEmpresaComunidade(supabase, empresaId)
               await carregar()
+              if (!ok) {
+                window.alert(
+                  'Não foi possível preparar este canal. Tente novamente ou contacte o suporte.',
+                )
+              }
             })()
             return
           }

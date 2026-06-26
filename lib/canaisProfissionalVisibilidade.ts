@@ -8,6 +8,7 @@ import {
 } from '@/lib/canaisProfissionalSlugs'
 import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
 import { categoriasIncluemAnfitriao } from '@/lib/anfitriaoDualMode'
+import { chaveProfissionalCanal } from '@/lib/canaisProfissionaisListaUi'
 import {
   buscarMapaStatusDegustacaoCanalEmpresa,
   itemCanalFinanceiroContaComoNaoLidoEmpresa,
@@ -62,7 +63,13 @@ export function canalEmpresaVisivelParaProfissional(
 ): boolean {
   if (canal.tipo_publico !== 'empresa' || canal.empresa_id == null) return false
   if (empresasAprovadas && !empresasAprovadas.has(String(canal.empresa_id))) return false
-  const comuSlug = categoriaProfissionalParaSlug(canal.comunidade_prof)
+  const comuSlug =
+    categoriaProfissionalParaSlug(canal.comunidade_prof) ||
+    chaveProfissionalCanal({
+      nome: canal.nome,
+      categoria: canal.categoria,
+      comunidade_prof: canal.comunidade_prof,
+    })
   if (!comuSlug || !(CATEGORIAS_PROFISSIONAIS_SLUG as readonly string[]).includes(comuSlug)) return false
   return slugsProfissional.includes(comuSlug)
 }
