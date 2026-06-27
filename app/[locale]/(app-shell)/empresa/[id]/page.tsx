@@ -88,6 +88,7 @@ export default function EmpresaPage() {
     empresa && empresa.plano != null ? String(empresa.plano) : null
   const { featurePublicaLiberada, featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
     aguardarEmpresa: loading,
+    somenteAnfitriao: Boolean(empresa?.somente_anfitriao),
   })
   const { podeComprarReservar, loading: gateLoading } = useGateComprasReservas()
   const aguardandoPlanoRede = loading || planoLoading
