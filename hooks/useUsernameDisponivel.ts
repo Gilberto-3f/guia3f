@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 export type UsernameStatus = 'idle' | 'checking' | 'available' | 'unavailable'
 
@@ -18,6 +18,9 @@ export function useUsernameDisponivel(
     [nomeUsuario]
   )
 
+  const tRef = useRef(t)
+  tRef.current = t
+
   useEffect(() => {
     if (!usernameLimpo) {
       setUsernameStatus('idle')
@@ -27,13 +30,13 @@ export function useUsernameDisponivel(
 
     if (!usernameRegex.test(usernameLimpo)) {
       setUsernameStatus('unavailable')
-      setUsernameFeedback(t('username.rulesHint'))
+      setUsernameFeedback(tRef.current('username.rulesHint'))
       return
     }
 
     let ativo = true
     setUsernameStatus('checking')
-    setUsernameFeedback(t('username.checking'))
+    setUsernameFeedback(tRef.current('username.checking'))
 
     const timer = setTimeout(async () => {
       try {
@@ -49,21 +52,21 @@ export function useUsernameDisponivel(
 
         if (!res.ok || json.reason === 'error') {
           setUsernameStatus('unavailable')
-          setUsernameFeedback(t('username.validateError'))
+          setUsernameFeedback(tRef.current('username.validateError'))
           return
         }
 
         if (json.available) {
           setUsernameStatus('available')
-          setUsernameFeedback(t('username.available'))
+          setUsernameFeedback(tRef.current('username.available'))
         } else {
           setUsernameStatus('unavailable')
-          setUsernameFeedback(t('username.unavailable'))
+          setUsernameFeedback(tRef.current('username.unavailable'))
         }
       } catch {
         if (!ativo) return
         setUsernameStatus('unavailable')
-        setUsernameFeedback(t('username.validateError'))
+        setUsernameFeedback(tRef.current('username.validateError'))
       }
     }, 400)
 
@@ -71,7 +74,7 @@ export function useUsernameDisponivel(
       ativo = false
       clearTimeout(timer)
     }
-  }, [usernameLimpo, t])
+  }, [usernameLimpo])
 
   return { usernameLimpo, usernameStatus, usernameFeedback }
 }

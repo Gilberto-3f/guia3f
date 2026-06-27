@@ -51,7 +51,7 @@ export default function CampoUsernameCadastro({
       </label>
       <div className="relative">
         <span
-          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-medium text-white"
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#0097b2]"
           aria-hidden
         >
           @

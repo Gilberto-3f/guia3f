@@ -37,11 +37,12 @@ export default function CadastrarHospedagemAnfitriao({ onConcluido, onAlternarHo
       'username.available': 'Disponível',
       'username.unavailable': 'Indisponível',
       'username.rulesHint': 'Use 3–20 caracteres: letras minúsculas, números, ponto ou _',
+      'username.validateError': 'Não foi possível verificar. Tente novamente.',
     }
     return map[key] ?? key
   })
 
-  const inputCls = 'w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm'
+  const inputCls = 'w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900'
 
   const podeEnviar =
     nomeFantasia.trim().length >= 2 &&
@@ -90,11 +91,6 @@ export default function CadastrarHospedagemAnfitriao({ onConcluido, onAlternarHo
 
   return (
     <form onSubmit={enviar} className="space-y-4 px-1 pb-6">
-      <p className="text-sm text-gray-600">
-        Cadastre seu negócio de hospedagem vinculado ao perfil de Anfitrião. Após a aprovação do administrador, você
-        poderá alternar entre os modos Anfitrião e Hospedagem no menu.
-      </p>
-
       <label className="block">
         <span className="mb-1 block text-sm font-medium text-gray-700">Nome fantasia *</span>
         <input

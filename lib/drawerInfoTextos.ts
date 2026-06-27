@@ -4,6 +4,8 @@ export const DRAWER_INFO_TEXTO: Record<string, string> = {
     'Valores de referência para deslocamento (rotas) da sua categoria (tickets e ingressos de atrativos são negociados à parte).',
   'recomendacoes-feitas':
     'Histórico das empresas que você recomendou no app. Os dados são os mesmos do funil de conversão da empresa — contatos dos turistas aparecem mascarados por privacidade.',
+  'cadastrar-hospedagem-anfitriao':
+    'Cadastre seu negócio de hospedagem vinculado ao perfil de Anfitrião. Após a aprovação do administrador, você poderá alternar entre os modos Anfitrião e Hospedagem no menu.',
 }
 
 export function textoInfoDrawer(paginaId: string | undefined): string | null {
