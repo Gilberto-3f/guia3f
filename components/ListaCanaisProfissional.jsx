@@ -34,8 +34,8 @@ const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'an
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS = ['Guia', 'Taxista', 'Van', 'Motorista de App', 'Anfitriao']
 
-/** Ordem amigável das categorias de empresa. */
-const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Hospedagem', 'Serviços Locais']
+/** Ordem das abas de empresas (sem Hospedagem — anfitrião usa perfil empresa separado). */
+const ORDEM_CATEGORIA_EMPRESA = ['Restaurantes', 'Atrativos', 'Lojas', 'Serviços Locais']
 
 /**
  * Normalização de comunidade/categoria para slug.
@@ -225,17 +225,24 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
   const membrosPorCanal = useContagemMembrosCanais(part.administracao)
 
+  const empresasVisiveis = useMemo(
+    () =>
+      part.empresas.filter((c) => chaveAbaEmpresaCategoria(c.empresa_categoria) !== 'Hospedagem'),
+    [part.empresas],
+  )
+
   const totalNaoLidasEmpresas = useMemo(
-    () => part.empresas.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0),
-    [part.empresas, naoLidasPorCanal],
+    () => empresasVisiveis.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0),
+    [empresasVisiveis, naoLidasPorCanal],
   )
 
   /** Sempre expõe as 4 segmentações de empresas (vazias se necessário) + outras chaves com canais. */
   const abasCategoriasEmpresas = useMemo(() => {
     /** @type {Record<string, Canal[]>} */
     const map = {}
-    for (const c of part.empresas) {
+    for (const c of empresasVisiveis) {
       const cat = chaveAbaEmpresaCategoria(c.empresa_categoria)
+      if (cat === 'Hospedagem') continue
       if (!map[cat]) map[cat] = []
       map[cat].push(c)
     }
@@ -249,7 +256,16 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       .sort((a, b) => a.localeCompare(b))
     const extraPairs = extras.map((k) => /** @type {[string, Canal[]]} */ ([k, map[k] ?? []]))
     return [...fixas, ...extraPairs]
-  }, [part.empresas])
+  }, [empresasVisiveis])
+
+  const naoLidasPorCategoriaAba = useMemo(() => {
+    /** @type {Record<string, number>} */
+    const out = {}
+    for (const [cat, lista] of abasCategoriasEmpresas) {
+      out[cat] = lista.reduce((s, c) => s + (naoLidasPorCanal[c.id] ?? 0), 0)
+    }
+    return out
+  }, [abasCategoriasEmpresas, naoLidasPorCanal])
 
   useEffect(() => {
     const chaves = abasCategoriasEmpresas.map(([k]) => k)
@@ -689,21 +705,37 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
                     {abasCategoriasEmpresas.map(([cat]) => {
                       const ativo = categoriaAba === cat
                       const { Icon, rótulo } = metaCategoriaEmpresa(cat)
+                      const naoLidasAba = naoLidasPorCategoriaAba[cat] ?? 0
+                      const exibirBadgeSegmento =
+                        gruposAbertos.empresas === true && !ativo && naoLidasAba > 0
                       return (
                         <button
                           key={cat}
                           type="button"
                           role="tab"
                           aria-selected={ativo}
-                          aria-label={rótulo}
+                          aria-label={
+                            naoLidasAba > 0 && !ativo
+                              ? `${rótulo}, ${naoLidasAba} mensagem(ns) não lida(s)`
+                              : rótulo
+                          }
                           onClick={() => setCategoriaAba(cat)}
-                          className={`flex min-h-[3rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-center transition-all min-[400px]:min-h-[3.25rem] sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2.5 ${
+                          className={`relative flex min-h-[3rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-center transition-all min-[400px]:min-h-[3.25rem] sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2.5 ${
                             ativo
                               ? 'bg-white font-semibold text-[#0097b2] shadow-sm'
                               : 'text-white hover:bg-white/15'
                           }`}
                         >
-                          <Icon className="h-5 w-5 shrink-0" aria-hidden />
+                          <span className="relative inline-flex shrink-0">
+                            <Icon className="h-5 w-5 shrink-0" aria-hidden />
+                            {exibirBadgeSegmento ? (
+                              <CanalNaoLidasBadge
+                                variant="segmento"
+                                count={naoLidasAba}
+                                className="absolute -right-2 -top-2 z-[1]"
+                              />
+                            ) : null}
+                          </span>
                           {ativo ? (
                             <span className="max-w-full text-[0.65rem] font-medium leading-tight [overflow-wrap:balance] min-[400px]:text-xs">
                               {rótulo}
