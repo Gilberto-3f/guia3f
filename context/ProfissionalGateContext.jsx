@@ -285,6 +285,7 @@ export function ProfissionalGateProvider({ children }) {
       .channel('recursos-perfil-gate-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'empresas' }, () => {
         void refreshGate()
+        window.dispatchEvent(new Event('anfitriao-modo-refresh'))
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profissionais' }, () => {
         void refreshGate()

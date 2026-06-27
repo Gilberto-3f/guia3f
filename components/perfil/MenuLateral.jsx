@@ -567,15 +567,15 @@ export default function MenuLateral({
       if (perfilSimulado.tipo === 'profissional') return /** @type {const} */ ('profissional')
       return /** @type {const} */ ('turista')
     }
-    if (ehAnfitriao && modoAnfitriao === 'hospedagem' && empresaHospedagemId) {
+    if (ehAnfitriao && modoAnfitriao === 'hospedagem' && empresaHospedagemId && empresaHospedagemLiberada) {
       return /** @type {const} */ ('empresa')
     }
     return variant || 'turista'
   })()
 
   const recursosProfLiberadosEfetivo =
-    menuVariantEfetivo === 'profissional' && !gateLoading && recursosProfissionaisLiberados
-  const profDocsBloqueado = menuVariantEfetivo === 'profissional' && !recursosProfLiberadosEfetivo
+    variant === 'profissional' && !gateLoading && recursosProfissionaisLiberados
+  const profDocsBloqueado = variant === 'profissional' && !recursosProfLiberadosEfetivo
 
   /** Identidade social sempre a do utilizador logado (ADM); preview empresa é só noutras rotas. */
   const usuarioIdEfetivo = usuarioId
@@ -698,7 +698,7 @@ export default function MenuLateral({
     if (variant === 'turista') return t
     if (variant === 'profissional') {
       if (!recursosProfLiberadosEfetivo) return secoesProfissionalAguardandoDocs(c)
-      if (ehAnfitriao && modoAnfitriao === 'hospedagem' && empresaHospedagemId) {
+      if (ehAnfitriao && modoAnfitriao === 'hospedagem' && empresaHospedagemId && empresaHospedagemLiberada) {
         const emp = secoesEmpresa(c)
         const idxEmp = emp.findIndex((s) => s.tipo === 'grupo' && s.key === 'empresa')
         if (idxEmp >= 0) {
@@ -725,6 +725,7 @@ export default function MenuLateral({
     empresaServicos,
     ehAnfitriao,
     empresaHospedagemId,
+    empresaHospedagemLiberada,
     empresaEfetiva,
     modoAnfitriao,
     turistaGate,
@@ -904,6 +905,12 @@ export default function MenuLateral({
         return
       }
       setModoAnfitriao('hospedagem')
+      void recarregarAnfitriao()
+      window.dispatchEvent(new Event('anfitriao-modo-change'))
+      window.dispatchEvent(new Event('empresa-gate-refresh'))
+      if (empresaHospedagemId) {
+        router.push(`/empresa/${empresaHospedagemId}`)
+      }
       onFechar()
       return
     }

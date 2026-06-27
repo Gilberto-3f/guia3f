@@ -238,10 +238,10 @@ export async function POST(req: Request) {
         try {
           const { data: emp } = await adminDb
             .from('empresas')
-            .select('usuario_id, nome_usuario')
+            .select('usuario_id, nome_usuario, somente_anfitriao')
             .eq('id', id)
             .maybeSingle()
-          if (emp?.usuario_id) {
+          if (emp?.usuario_id && emp.somente_anfitriao !== true) {
             const nomeUsuario = String(emp.nome_usuario ?? '').trim().replace(/^@+/, '')
             const msgFin = await enviarMensagemAprovacaoCanalFinanceiro(adminDb, {
               tipo: 'empresa',
