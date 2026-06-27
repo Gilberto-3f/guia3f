@@ -44,6 +44,7 @@ import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useIn
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { empresaDocumentosEnviados } from '@/lib/faseVerificacaoConta'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import { menuEmpresaLiberado, menuEmpresaVisivel } from '@/lib/planosEmpresaServicosGate'
 import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
@@ -502,6 +503,7 @@ export default function MenuLateral({
     setModo: setModoAnfitriao,
     empresaHospedagemId,
     empresaHospedagemLiberada,
+    empresaHospedagem,
     recarregar: recarregarAnfitriao,
   } = useAnfitriaoModo()
   const [empresaAnfitriao, setEmpresaAnfitriao] = useState(null)
@@ -582,7 +584,7 @@ export default function MenuLateral({
   const empresaIdCtx =
     empresaId ??
     (empresa?.id != null ? String(empresa.id) : null) ??
-    (ehAnfitriao && modoAnfitriao === 'hospedagem' ? empresaHospedagemId : null)
+    (ehAnfitriao && empresaHospedagemId ? String(empresaHospedagemId) : null)
 
   useEffect(() => {
     if (!ehAnfitriao || !empresaHospedagemId) {
@@ -892,6 +894,11 @@ export default function MenuLateral({
         abrirPagina('Cadastrar Hospedagem', 'cadastrar-hospedagem-anfitriao')
         return
       }
+      const empHospedagem = empresaAnfitriao ?? empresaHospedagem
+      if (!empresaDocumentosEnviados(empHospedagem)) {
+        abrirPagina('Anexar documentos', 'anexar-documentos-empresa')
+        return
+      }
       if (!empresaHospedagemLiberada) {
         abrirPagina('Hospedagem em análise', 'hospedagem-pendente')
         return
@@ -1092,17 +1099,18 @@ export default function MenuLateral({
     if (id === 'cadastrar-hospedagem-anfitriao')
       return (
         <CadastrarHospedagemAnfitriao
-          onConcluido={() => {
-            void recarregarAnfitriao()
+          onConcluido={async () => {
+            await recarregarAnfitriao()
             onPerfilAtualizado?.()
+            abrirPagina('Anexar documentos', 'anexar-documentos-empresa')
           }}
         />
       )
     if (id === 'hospedagem-pendente')
       return (
         <p className="px-1 text-sm text-gray-600">
-          Seu cadastro de hospedagem está em análise. Após a aprovação do administrador, você poderá operar no modo
-          Hospedagem.
+          Seu cadastro de hospedagem e a documentação foram enviados e estão em análise. Após a aprovação do
+          administrador, o modo Hospedagem será liberado com o menu completo da empresa.
         </p>
       )
     if (id === 'editar-pagina' && empresaEfetiva && empresaIdCtx) {

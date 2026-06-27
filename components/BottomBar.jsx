@@ -28,6 +28,7 @@ import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
+import { lerPerfilBarraCache } from '@/lib/perfilBarraCache'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import AvatarImage from '@/components/AvatarImage'
 
@@ -99,12 +100,15 @@ export default function BottomBar() {
   const pathname = usePathname()
   const { modoAtivo, perfilSimulado, contextoEmpresaId, podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
-  const { loading: gateLoading, userRole } = useProfissionalGate()
-  const { ehAnfitriao, modo: modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
+  const { userRole, fotoPerfilBarra, empresaIdBarra } = useProfissionalGate()
+  const { ehAnfitriao, modo: modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada, empresaHospedagem } = useAnfitriaoModo()
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [authUserId, setAuthUserId] = useState(/** @type {string | null} */ (null))
   const [authPronto, setAuthPronto] = useState(false)
-  const [fotoPerfil, setFotoPerfil] = useState(/** @type {string | null} */ (null))
+  const [fotoPerfilCache, setFotoPerfilCache] = useState(() => {
+    if (typeof window === 'undefined') return null
+    return lerPerfilBarraCache()?.fotoUrl ?? null
+  })
   const [naoLidasAtividades, setNaoLidasAtividades] = useState(0)
   const [naoLidasCanais, setNaoLidasCanais] = useState(0)
   const [naoLidasFunil, setNaoLidasFunil] = useState(0)
@@ -122,9 +126,14 @@ export default function BottomBar() {
       setAuthUserId(uid)
       if (!uid) {
         setEmpresaId(null)
-        setFotoPerfil(null)
+        setFotoPerfilCache(null)
         setNaoLidasAtividades(0)
         setNaoLidasCanais(0)
+      } else {
+        const cached = lerPerfilBarraCache()
+        if (cached?.userId === uid && cached.fotoUrl) {
+          setFotoPerfilCache(cached.fotoUrl)
+        }
       }
       setAuthPronto(true)
     }
@@ -145,130 +154,29 @@ export default function BottomBar() {
     }
   }, [])
 
-  /** Avatar e empresa_id não bloqueiam a barra — carregam após o gate. */
+  /** Sincroniza avatar em cache quando o gate atualiza. */
   useEffect(() => {
-    if (gateLoading) return
-    let ativo = true
+    if (fotoPerfilBarra) setFotoPerfilCache(fotoPerfilBarra)
+  }, [fotoPerfilBarra])
 
-    const carregarPerfilBarra = async () => {
-      if (!authUserId) {
-        if (ativo) {
-          setEmpresaId(null)
-          setFotoPerfil(null)
-        }
-        return
-      }
-
-      const role = userRole
-      if (role === 'empresa') {
-        const { data: empresa } = await supabase
-          .from('empresas')
-          .select('id, foto_url')
-          .eq('usuario_id', authUserId)
-          .maybeSingle()
-        if (ativo) {
-          setEmpresaId(empresa?.id ?? null)
-          setFotoPerfil(empresa?.foto_url != null ? String(empresa.foto_url) : null)
-        }
-        return
-      }
-
-      if (ativo) setEmpresaId(null)
-
-      if (role === 'turista') {
-        const { data: perfil } = await supabase
-          .from('turistas')
-          .select('foto_perfil_url, foto_url')
-          .eq('usuario_id', authUserId)
-          .maybeSingle()
-        if (ativo) {
-          setFotoPerfil(
-            perfil?.foto_perfil_url != null
-              ? String(perfil.foto_perfil_url)
-              : perfil?.foto_url != null
-                ? String(perfil.foto_url)
-                : null,
-          )
-        }
-        return
-      }
-
-      if (role === 'profissional') {
-        const { data: perfil } = await supabase
-          .from('profissionais')
-          .select('foto_perfil_url, foto_url, empresa_hospedagem_id')
-          .eq('usuario_id', authUserId)
-          .maybeSingle()
-        const operaEmpresa = profissionalOperaComoEmpresaHospedagem(
-          role,
-          ehAnfitriao,
-          modoAnfitriao,
-          perfil?.empresa_hospedagem_id != null ? String(perfil.empresa_hospedagem_id) : empresaHospedagemId,
-          empresaHospedagemLiberada,
-        )
-        if (operaEmpresa && perfil?.empresa_hospedagem_id) {
-          const { data: empresa } = await supabase
-            .from('empresas')
-            .select('id, foto_url')
-            .eq('id', String(perfil.empresa_hospedagem_id))
-            .maybeSingle()
-          if (ativo) {
-            setEmpresaId(empresa?.id != null ? String(empresa.id) : null)
-            setFotoPerfil(empresa?.foto_url != null ? String(empresa.foto_url) : null)
-          }
-          return
-        }
-        if (ativo) setEmpresaId(null)
-        if (ativo) {
-          setFotoPerfil(
-            perfil?.foto_perfil_url != null
-              ? String(perfil.foto_perfil_url)
-              : perfil?.foto_url != null
-                ? String(perfil.foto_url)
-                : null,
-          )
-        }
-        return
-      }
-
-      if (role === 'admin') {
-        const [profRes, turRes] = await Promise.all([
-          supabase.from('profissionais').select('foto_perfil_url, foto_url').eq('usuario_id', authUserId).maybeSingle(),
-          supabase.from('turistas').select('foto_perfil_url, foto_url').eq('usuario_id', authUserId).maybeSingle(),
-        ])
-        const prof = profRes.data
-        const tur = turRes.data
-        const url =
-          prof?.foto_perfil_url != null
-            ? String(prof.foto_perfil_url)
-            : prof?.foto_url != null
-              ? String(prof.foto_url)
-              : tur?.foto_perfil_url != null
-                ? String(tur.foto_perfil_url)
-                : tur?.foto_url != null
-                  ? String(tur.foto_url)
-                  : null
-        if (ativo) setFotoPerfil(url)
-        return
-      }
-
-      if (ativo) setFotoPerfil(null)
+  /** Sincroniza empresa_id da barra com o gate (sem query extra). */
+  useEffect(() => {
+    if (userRole === 'empresa' && empresaIdBarra) {
+      setEmpresaId(empresaIdBarra)
+      return
     }
-
-    void carregarPerfilBarra()
-
-    const onPerfilAtualizado = () => {
-      void carregarPerfilBarra()
+    if (
+      userRole === 'profissional' &&
+      profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada) &&
+      empresaHospedagemId
+    ) {
+      setEmpresaId(empresaHospedagemId)
+      return
     }
-    window.addEventListener('perfil-atualizado', onPerfilAtualizado)
-    window.addEventListener('anfitriao-modo-change', onPerfilAtualizado)
-
-    return () => {
-      ativo = false
-      window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
-      window.removeEventListener('anfitriao-modo-change', onPerfilAtualizado)
+    if (userRole !== 'empresa') {
+      setEmpresaId(null)
     }
-  }, [gateLoading, authUserId, userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada])
+  }, [userRole, empresaIdBarra, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada])
 
   /** Feed social (`atividades`): badge do coração — nunca mistura com `mensagens_canal`. */
   useEffect(() => {
@@ -585,20 +493,24 @@ export default function BottomBar() {
   const isFeedPage = pathname === '/feed'
 
   const roleParaBarra = (() => {
+    const cached = authUserId ? lerPerfilBarraCache() : null
+    const roleBase = userRole ?? (cached?.userId === authUserId ? cached.role : null)
     if (modoAtivo && perfilSimulado) return perfilSimulado.tipo
-    if (profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada)) {
+    if (profissionalOperaComoEmpresaHospedagem(roleBase, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada)) {
       return 'empresa'
     }
-    return userRole === 'admin' ? 'admin' : userRole
+    return roleBase === 'admin' ? 'admin' : roleBase
   })()
   const isEmpresaBar = roleParaBarra === 'empresa'
+  const perfilBarraCache =
+    authUserId && lerPerfilBarraCache()?.userId === authUserId ? lerPerfilBarraCache() : null
   const empresaIdBar =
     isEmpresaBar && modoAtivo && contextoEmpresaId
       ? contextoEmpresaId
       : isEmpresaBar && profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada)
-        ? empresaHospedagemId ?? empresaId
+        ? empresaHospedagemId ?? empresaId ?? perfilBarraCache?.empresaHospedagemId ?? null
         : userRole === 'empresa'
-          ? empresaId
+          ? empresaId ?? perfilBarraCache?.empresaId ?? null
           : null
 
   /** Turistas: Mobilidade no 2.º slot; demais perfis logados ou simulados: Canal. */
@@ -647,17 +559,34 @@ export default function BottomBar() {
     return pathname === '/perfil' || (pathname != null && pathname.startsWith('/perfil/'))
   }
 
-  const barPronta = authPronto && !gateLoading
+  const barPronta = authPronto
+
+  const fotoExibidaBarra = (() => {
+    const operaEmpresa = profissionalOperaComoEmpresaHospedagem(
+      userRole,
+      ehAnfitriao,
+      modoAnfitriao,
+      empresaHospedagemId,
+      empresaHospedagemLiberada,
+    )
+    if (operaEmpresa) {
+      return empresaHospedagem?.foto_url ?? perfilBarraCache?.empresaFotoUrl ?? fotoPerfilBarra ?? fotoPerfilCache
+    }
+    if (userRole === 'empresa' || isEmpresaBar) {
+      return fotoPerfilBarra ?? perfilBarraCache?.fotoUrl ?? fotoPerfilCache
+    }
+    return fotoPerfilBarra ?? fotoPerfilCache
+  })()
 
   const getQuintoIcone = () => {
     const active = isQuintoActive()
 
-    if (fotoPerfil) {
+    if (fotoExibidaBarra) {
       return (
         <div
           className={`relative h-6 w-6 overflow-hidden rounded-md ${active ? 'ring-2 ring-[#0097b2] ring-offset-2' : ''}`}
         >
-          <AvatarImage src={fotoPerfil} alt="Perfil" fill className="object-cover" sizes="24px" />
+          <AvatarImage src={fotoExibidaBarra} alt="Perfil" fill className="object-cover" sizes="24px" />
         </div>
       )
     }

@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import { lerPerfilBarraCache } from '@/lib/perfilBarraCache'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { useTranslations } from 'next-intl'
 import { Car, MapPin } from 'lucide-react'
@@ -26,6 +27,12 @@ export default function GuiaPage() {
   const tGuia = useTranslations('Guia')
   const router = useRouter()
   const { roleEfetivo, perfilEhTurista, loading: gateLoading } = useProfissionalGate()
+  const roleOtimista = useMemo(() => {
+    if (roleEfetivo) return roleEfetivo
+    if (typeof window === 'undefined') return null
+    return lerPerfilBarraCache()?.role ?? null
+  }, [roleEfetivo])
+
   const {
     podeComprarReservar,
     avisarBloqueio,
@@ -37,10 +44,9 @@ export default function GuiaPage() {
 
   /** Abas Guia | Mobilidade: perfis com Canal na barra (profissional, empresa, admin). Turista vê só "Guia Turístico". */
   const perfilComCanalNaBarra =
-    !gateLoading &&
-    (roleEfetivo === 'profissional' || roleEfetivo === 'empresa' || roleEfetivo === 'admin')
+    roleOtimista === 'profissional' || roleOtimista === 'empresa' || roleOtimista === 'admin'
   const mostrarAbaMobilidade = perfilComCanalNaBarra
-  const mostrarTituloGuiaTuristico = !gateLoading && perfilEhTurista
+  const mostrarTituloGuiaTuristico = perfilEhTurista || (gateLoading && roleOtimista === 'turista')
   const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
 
   useEffect(() => {
@@ -75,14 +81,7 @@ export default function GuiaPage() {
           />
         </div>
 
-        {gateLoading ? (
-          <div className="flex w-full border-b border-gray-200 bg-white">
-            <div className={abaGuiaCls(true, true)}>
-              <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
-              <span>{tGuia('tabGuia')}</span>
-            </div>
-          </div>
-        ) : mostrarTituloGuiaTuristico ? (
+        {mostrarTituloGuiaTuristico ? (
           <div className="flex w-full border-b border-gray-200 bg-white">
             <div className={abaGuiaCls(true, true, true)}>
               <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />

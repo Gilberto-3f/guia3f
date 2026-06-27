@@ -26,6 +26,20 @@ export function profissionalDocumentosEnviados(prof: LinhaProfissionalGate | nul
   return Boolean(String(prof.documento_frente_url ?? '').trim())
 }
 
+export function empresaDocumentosEnviados(
+  emp: {
+    documentos_enviados_em?: string | null
+    documento_comercial_url?: string | null
+    comprovante_residencia_url?: string | null
+  } | null
+    | undefined,
+): boolean {
+  if (!emp) return false
+  if (String(emp.documentos_enviados_em ?? '').trim()) return true
+  if (String(emp.documento_comercial_url ?? '').trim()) return true
+  return false
+}
+
 export function faseVerificacaoTurista(
   u: UsuarioTuristaGate | null | undefined,
   tur: TuristaDocsRow | null | undefined,
@@ -71,8 +85,6 @@ export function faseVerificacaoEmpresa(
 ): FaseVerificacaoConta {
   if (!emp) return 'pendente_docs'
   if (empresaRecursosLiberados(usuarioStatus, emp)) return 'liberado'
-  const st = String(emp.status ?? '').toLowerCase()
-  if (st === 'aguardando_aprovacao' || st === 'aguardando_analise') return 'aguardando_adm'
-  if (emp.aprovado_em || emp.verificado_em) return 'aguardando_adm'
+  if (empresaDocumentosEnviados(emp)) return 'aguardando_adm'
   return 'pendente_docs'
 }

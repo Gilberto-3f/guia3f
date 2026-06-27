@@ -223,10 +223,21 @@ export default function AnexarDocumentosEmpresa({
 
       if (upErr) throw new Error(upErr.message)
 
-      try {
-        await supabase.from('usuarios').update({ status: 'pre_aprovado' }).eq('id', usuarioId)
-      } catch {
-        /* RLS ou coluna ausente — envio de documentos já foi gravado */
+      const { data: usuarioRow } = await supabase
+        .from('usuarios')
+        .select('role, status')
+        .eq('id', usuarioId)
+        .maybeSingle()
+      const roleUsuario = usuarioRow?.role != null ? String(usuarioRow.role) : ''
+      const statusUsuario = usuarioRow?.status != null ? String(usuarioRow.status).toLowerCase() : ''
+      /** Anfitrião já ativo como profissional: não rebaixar conta ao enviar docs da hospedagem. */
+      const preservarStatusProfissionalAtivo = roleUsuario === 'profissional' && statusUsuario === 'ativo'
+      if (!preservarStatusProfissionalAtivo) {
+        try {
+          await supabase.from('usuarios').update({ status: 'pre_aprovado' }).eq('id', usuarioId)
+        } catch {
+          /* RLS ou coluna ausente — envio de documentos já foi gravado */
+        }
       }
 
       setUrlEndereco(uEndereco)

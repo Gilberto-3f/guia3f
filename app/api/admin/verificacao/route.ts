@@ -291,7 +291,20 @@ export async function POST(req: Request) {
     }
 
     if (perfil?.usuario_id) {
-      await adminDb.from('usuarios').update({ status: 'reprovado' }).eq('id', perfil.usuario_id)
+      let alterarUsuario = true
+      if (tipo === 'empresas') {
+        const { data: empRow } = await adminDb
+          .from('empresas')
+          .select('somente_anfitriao')
+          .eq('id', id)
+          .maybeSingle()
+        if (empRow?.somente_anfitriao === true) {
+          alterarUsuario = false
+        }
+      }
+      if (alterarUsuario) {
+        await adminDb.from('usuarios').update({ status: 'reprovado' }).eq('id', perfil.usuario_id)
+      }
     }
 
     await adminDb.from('logs_verificacao').insert({

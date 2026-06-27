@@ -13,6 +13,9 @@ export type LinhaEmpresaGate = {
   docs_verificado?: boolean | null
   aprovado_em?: string | null
   verificado_em?: string | null
+  documentos_enviados_em?: string | null
+  documento_comercial_url?: string | null
+  comprovante_residencia_url?: string | null
 }
 
 /** Status que nunca liberam recursos profissionais (mesmo com docs_verificado legado). */

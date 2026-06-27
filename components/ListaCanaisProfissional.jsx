@@ -726,14 +726,10 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
                               : 'text-white hover:bg-white/15'
                           }`}
                         >
-                          <span className="relative inline-flex shrink-0">
+                          <span className="inline-flex shrink-0 items-center gap-1">
                             <Icon className="h-5 w-5 shrink-0" aria-hidden />
                             {exibirBadgeSegmento ? (
-                              <CanalNaoLidasBadge
-                                variant="segmento"
-                                count={naoLidasAba}
-                                className="absolute -right-2 -top-2 z-[1]"
-                              />
+                              <CanalNaoLidasBadge variant="segmento" count={naoLidasAba} />
                             ) : null}
                           </span>
                           {ativo ? (

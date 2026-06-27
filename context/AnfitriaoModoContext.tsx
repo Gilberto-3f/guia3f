@@ -29,6 +29,10 @@ export type EmpresaHospedagemResumo = {
   verificado_em: string | null
   nome_fantasia: string | null
   nome_usuario: string | null
+  foto_url: string | null
+  documentos_enviados_em: string | null
+  documento_comercial_url: string | null
+  comprovante_residencia_url: string | null
 }
 
 type AnfitriaoModoValue = {
@@ -59,11 +63,7 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
     categoriasIncluemAnfitriao(profCategorias.length ? profCategorias : (profRow as { categorias?: string[] } | null)?.categorias)
 
   const recarregar = useCallback(async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    const uid = session?.user?.id ?? null
-    if (!uid || userRole !== 'profissional') {
+    if (userRole !== 'profissional') {
       setProfCategorias([])
       setEmpresaHospedagemId(null)
       setEmpresaHospedagem(null)
@@ -71,12 +71,7 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const { data: prof } = await supabase
-      .from('profissionais')
-      .select('categorias, empresa_hospedagem_id')
-      .eq('usuario_id', uid)
-      .maybeSingle()
-
+    const prof = profRow as { categorias?: string[]; empresa_hospedagem_id?: string | null } | null
     const cats = Array.isArray(prof?.categorias)
       ? prof.categorias.filter((c): c is string => typeof c === 'string')
       : []
@@ -93,7 +88,9 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
 
     const { data: emp } = await supabase
       .from('empresas')
-      .select('id, status, docs_verificado, aprovado_em, verificado_em, nome_fantasia, nome_usuario, somente_anfitriao')
+      .select(
+        'id, status, docs_verificado, aprovado_em, verificado_em, nome_fantasia, nome_usuario, somente_anfitriao, foto_url, documentos_enviados_em, documento_comercial_url, comprovante_residencia_url',
+      )
       .eq('id', empId)
       .maybeSingle()
 
@@ -111,14 +108,29 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
       verificado_em: emp.verificado_em != null ? String(emp.verificado_em) : null,
       nome_fantasia: emp.nome_fantasia != null ? String(emp.nome_fantasia) : null,
       nome_usuario: emp.nome_usuario != null ? String(emp.nome_usuario) : null,
+      foto_url: emp.foto_url != null && String(emp.foto_url).trim() !== '' ? String(emp.foto_url) : null,
+      documentos_enviados_em:
+        emp.documentos_enviados_em != null ? String(emp.documentos_enviados_em) : null,
+      documento_comercial_url:
+        emp.documento_comercial_url != null ? String(emp.documento_comercial_url) : null,
+      comprovante_residencia_url:
+        emp.comprovante_residencia_url != null ? String(emp.comprovante_residencia_url) : null,
     })
     setAnfitriaoDadosProntos(true)
-  }, [userRole])
+  }, [userRole, profRow])
 
   useEffect(() => {
     if (gateLoading) return
+    if (userRole !== 'profissional') {
+      setProfCategorias([])
+      setEmpresaHospedagemId(null)
+      setEmpresaHospedagem(null)
+      setAnfitriaoDadosProntos(true)
+      return
+    }
+    if (!profRow) return
     void recarregar()
-  }, [gateLoading, recarregar])
+  }, [gateLoading, userRole, profRow, recarregar])
 
   useEffect(() => {
     const onRef = () => void recarregar()
