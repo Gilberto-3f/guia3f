@@ -62,6 +62,38 @@ export default function CriarStory({ autorTipo, agendarCardKey = null }) {
   /** Galeria nativa (sem `capture`) — mesmo padrão do iOS ao “trocar foto” no editor. */
   const inputTrocarFotoRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const autoPickerRef = useRef({ startedAt: 0, opened: false })
+  const passoRef = useRef(passo)
+  const fileAplicadoRef = useRef(false)
+  const destinoAposPublicarRef = useRef(destinoAposPublicar)
+  const cancelPickerTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null))
+
+  passoRef.current = passo
+  destinoAposPublicarRef.current = destinoAposPublicar
+
+  const podeAbrirPickerAutomaticamente = () => {
+    if (typeof window === 'undefined') return false
+    return (
+      window.matchMedia('(pointer: coarse)').matches ||
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    )
+  }
+
+  const cancelarAguardoPicker = () => {
+    if (cancelPickerTimerRef.current != null) {
+      window.clearTimeout(cancelPickerTimerRef.current)
+      cancelPickerTimerRef.current = null
+    }
+  }
+
+  const voltarSePickerCancelado = () => {
+    cancelarAguardoPicker()
+    cancelPickerTimerRef.current = window.setTimeout(() => {
+      cancelPickerTimerRef.current = null
+      if (fileAplicadoRef.current || passoRef.current !== 1) return
+      autoPickerRef.current.opened = false
+      router.push(agendarCardKey ? urlRetornoAgendamento(agendarCardKey) : destinoAposPublicarRef.current)
+    }, 500)
+  }
 
   /**
    * Apenas imagens (sem vídeo).
@@ -74,6 +106,9 @@ export default function CriarStory({ autorTipo, agendarCardKey = null }) {
       return
     }
     if (previewBlob) URL.revokeObjectURL(previewBlob)
+    cancelarAguardoPicker()
+    fileAplicadoRef.current = true
+    autoPickerRef.current.opened = false
     setFile(f)
     setPreviewBlob(URL.createObjectURL(f))
     setFundo({ scale: 1, pan_x_pct: 0, pan_y_pct: 0 })
@@ -96,6 +131,8 @@ export default function CriarStory({ autorTipo, agendarCardKey = null }) {
     }
     const input = inputPrincipalRef.current
     if (!input) return
+    cancelarAguardoPicker()
+    fileAplicadoRef.current = false
     autoPickerRef.current.startedAt = Date.now()
     autoPickerRef.current.opened = true
     try {
@@ -110,29 +147,35 @@ export default function CriarStory({ autorTipo, agendarCardKey = null }) {
     input.click()
   }
 
-  // Elimina o passo 1: ao entrar, abre o seletor nativo (iOS/Android/desktop).
+  // Mobile: abre o seletor nativo ao entrar. Desktop: exige clique (gesto do utilizador).
   useEffect(() => {
     if (passo !== 1) return
     if (autoPickerRef.current.opened) return
+    if (!podeAbrirPickerAutomaticamente()) return
     const t = window.setTimeout(() => abrirSeletorNativo(), 0)
 
     const onFocus = () => {
-      if (passo !== 1) return
-      if (file) return
+      if (passoRef.current !== 1) return
+      if (fileAplicadoRef.current) return
+      if (!autoPickerRef.current.opened) return
       const dt = Date.now() - autoPickerRef.current.startedAt
       if (dt < 350) return
-      router.push(agendarCardKey ? urlRetornoAgendamento(agendarCardKey) : destinoAposPublicar)
+      voltarSePickerCancelado()
     }
     window.addEventListener('focus', onFocus)
     return () => {
       window.clearTimeout(t)
       window.removeEventListener('focus', onFocus)
+      cancelarAguardoPicker()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [passo])
 
   const voltarAoInicio = () => {
     if (previewBlob) URL.revokeObjectURL(previewBlob)
+    cancelarAguardoPicker()
+    fileAplicadoRef.current = false
+    autoPickerRef.current.opened = false
     setPreviewBlob(null)
     setFile(null)
     setLegenda('')
@@ -247,7 +290,7 @@ export default function CriarStory({ autorTipo, agendarCardKey = null }) {
     <div className={passo === 1 ? 'min-h-[100dvh] bg-black' : 'flex min-h-[100dvh] flex-col bg-black'}>
       {/* Passo 1 eliminado: abrimos o seletor nativo ao montar. Mantemos só um fallback discreto. */}
       {passo === 1 ? (
-        <div className="flex min-h-[100dvh] items-center justify-center bg-black px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
+        <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-black px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
           <input
             ref={inputPrincipalRef}
             type="file"
@@ -256,12 +299,26 @@ export default function CriarStory({ autorTipo, agendarCardKey = null }) {
             aria-label="Escolher imagem para criar story"
             onChange={onFileChange}
           />
+          <p className="max-w-sm text-center text-sm text-white/70">
+            {podeAbrirPickerAutomaticamente()
+              ? 'Abrindo galeria ou câmera…'
+              : 'Escolha uma imagem para publicar no story.'}
+          </p>
           <button
             type="button"
             onClick={() => abrirSeletorNativo()}
-            className="rounded-lg bg-white/10 px-5 py-3 text-sm font-semibold text-white ring-1 ring-white/20 hover:bg-white/15"
+            className="rounded-lg bg-[#00D443] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#00b83a] active:bg-[#009e32]"
           >
-            Abrindo galeria/câmera…
+            {podeAbrirPickerAutomaticamente() ? 'Abrir galeria/câmera' : 'Escolher imagem'}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              router.push(agendarCardKey ? urlRetornoAgendamento(agendarCardKey) : destinoAposPublicar)
+            }
+            className="text-sm font-medium text-white/60 underline-offset-2 hover:text-white/90 hover:underline"
+          >
+            Cancelar
           </button>
         </div>
       ) : null}
