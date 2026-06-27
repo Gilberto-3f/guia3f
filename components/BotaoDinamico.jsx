@@ -60,6 +60,7 @@ function isServicosLocais(cat) {
  *   precoTicketInteira?: number
  *   precoTicketMeia?: number
  *   precoDiaria?: number
+ *   palavrasChave?: unknown
  *   onClick?: (e: { stopPropagation: () => void }) => void
  * }} props
  */
@@ -73,6 +74,7 @@ export default function BotaoDinamico({
   precoTicketInteira = 0,
   precoTicketMeia,
   precoDiaria = 0,
+  palavrasChave = [],
   onClick,
 }) {
   const router = useRouter()
@@ -311,8 +313,9 @@ export default function BotaoDinamico({
             onClose={() => setShowReservaPopup(false)}
             empresaId={empresaId}
             empresaNome={empresaNome}
-            whatsappDestino={whatsapp}
             precoDiaria={precoDiaria}
+            palavrasChave={palavrasChave}
+            exibirPalavrasChave={isHospedagem(categoria)}
           />
         </>
       ) : null}

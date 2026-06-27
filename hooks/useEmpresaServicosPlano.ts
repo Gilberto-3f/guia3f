@@ -27,11 +27,54 @@ import {
 } from '@/lib/empresaAssinatura'
 import { TODOS_SERVICOS_EMPRESA } from '@/lib/planosEmpresaCatalogo'
 
+let planosCacheGlobal: PlanoResumoServicos[] | null = null
+let planosCachePromise: Promise<PlanoResumoServicos[]> | null = null
+
+async function fetchPlanosAtivosCached(): Promise<PlanoResumoServicos[]> {
+  if (planosCacheGlobal) return planosCacheGlobal
+  if (planosCachePromise) return planosCachePromise
+
+  planosCachePromise = (async () => {
+    const { data, error } = await supabase
+      .from('planos')
+      .select('id, nome, titulo, servicos')
+      .eq('ativo', true)
+    if (error) throw error
+
+    const mapped = (data ?? []).map((row) => {
+      const r = row as Record<string, unknown>
+      const servicosRaw = r.servicos
+      const servicos = Array.isArray(servicosRaw)
+        ? servicosRaw.filter((s): s is ServicoPlanoId => typeof s === 'string')
+        : []
+      return {
+        id: r.id != null ? String(r.id) : undefined,
+        nome: String(r.nome ?? ''),
+        titulo: String(r.titulo ?? r.nome ?? ''),
+        servicos,
+      }
+    })
+    planosCacheGlobal = mapped
+    return mapped
+  })()
+
+  try {
+    return await planosCachePromise
+  } finally {
+    planosCachePromise = null
+  }
+}
+
 export type UseEmpresaServicosPlanoOpts = {
   /** Mantém loading=true enquanto a empresa ainda não foi carregada (evita flash de bloqueio). */
   aguardarEmpresa?: boolean
   /** Hospedagem do anfitrião: todos os serviços liberados sem plano pago. */
   somenteAnfitriao?: boolean
+}
+
+/** Pré-carrega catálogo de planos (cache em memória) para abrir o menu empresa mais rápido. */
+export function prefetchPlanosEmpresa() {
+  void fetchPlanosAtivosCached().catch(() => {})
 }
 
 export function useEmpresaServicosPlano(
@@ -50,32 +93,28 @@ export function useEmpresaServicosPlano(
   const [temAssinaturaAtivaRegistro, setTemAssinaturaAtivaRegistro] = useState(false)
   const [assinaturaContratadaVigenteFlag, setAssinaturaContratadaVigenteFlag] = useState(false)
   const [assinaturaVencimentoEm, setAssinaturaVencimentoEm] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !(opts?.somenteAnfitriao ?? false))
   const carregarRef = useRef<() => Promise<void>>(async () => {})
   const channelInstancia = useId().replace(/:/g, '')
 
   const carregar = useCallback(async () => {
+    if (somenteAnfitriao) {
+      setPlanos([])
+      setDegustacaoAtiva(false)
+      setDegustacaoPlanoId(null)
+      setDegustacaoPlanoTitulo(null)
+      setDegustacaoServicos(null)
+      setPlanoContratadoId(null)
+      setTemAssinaturaAtivaRegistro(false)
+      setAssinaturaContratadaVigenteFlag(false)
+      setAssinaturaVencimentoEm(null)
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('planos')
-        .select('id, nome, titulo, servicos')
-        .eq('ativo', true)
-      if (error) throw error
-
-      const mapped = (data ?? []).map((row) => {
-        const r = row as Record<string, unknown>
-        const servicosRaw = r.servicos
-        const servicos = Array.isArray(servicosRaw)
-          ? servicosRaw.filter((s): s is ServicoPlanoId => typeof s === 'string')
-          : []
-        return {
-          id: r.id != null ? String(r.id) : undefined,
-          nome: String(r.nome ?? ''),
-          titulo: String(r.titulo ?? r.nome ?? ''),
-          servicos,
-        }
-      })
+      const mapped = await fetchPlanosAtivosCached()
       setPlanos(mapped)
 
       if (empresaId) {
@@ -151,13 +190,17 @@ export function useEmpresaServicosPlano(
     } finally {
       setLoading(false)
     }
-  }, [empresaId])
+  }, [empresaId, somenteAnfitriao])
 
   carregarRef.current = carregar
 
   useLayoutEffect(() => {
+    if (somenteAnfitriao) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
-  }, [empresaId, planoEmpresa])
+  }, [empresaId, planoEmpresa, somenteAnfitriao])
 
   useEffect(() => {
     void carregar()
@@ -174,7 +217,7 @@ export function useEmpresaServicosPlano(
   }, [carregar])
 
   useEffect(() => {
-    if (!empresaId) return
+    if (!empresaId || somenteAnfitriao) return
     const chDeg = supabase
       .channel(`empresa-degustacao-${empresaId}-${channelInstancia}`)
       .on(
@@ -211,7 +254,7 @@ export function useEmpresaServicosPlano(
       void supabase.removeChannel(chDeg)
       void supabase.removeChannel(chAss)
     }
-  }, [channelInstancia, empresaId])
+  }, [channelInstancia, empresaId, somenteAnfitriao])
 
   const exigeAssinaturaVigente = useMemo(() => {
     if (degustacaoAtiva || somenteAnfitriao) return false
@@ -318,7 +361,9 @@ export function useEmpresaServicosPlano(
   )
 
   const contextoEmpresaPendente = aguardarEmpresa && empresaId == null
-  const loadingEfetivo = loading || contextoEmpresaPendente
+  const loadingEfetivo = somenteAnfitriao
+    ? contextoEmpresaPendente
+    : loading || contextoEmpresaPendente
 
   return useMemo(
     () => ({

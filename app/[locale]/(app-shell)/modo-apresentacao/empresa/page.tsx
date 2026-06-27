@@ -360,6 +360,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               precoTicketInteira={precoTicketInteira}
               precoTicketMeia={precoTicketMeia}
               precoDiaria={precoDiaria}
+              palavrasChave={empresaMerged.palavras_chave}
             />
           ) : null}
         </div>

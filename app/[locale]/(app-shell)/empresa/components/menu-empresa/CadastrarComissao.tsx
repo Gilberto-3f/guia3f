@@ -7,6 +7,7 @@ import ModoApresentacaoIcon from '@/components/ModoApresentacaoIcon'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import {
   classeStatusOferta,
+  empresaUsaComissaoDiarias,
   listarBeneficiosOferta,
   mapaOfertasAtivasPorComunidade,
   ofertaPodeSerRemovidaPelaEmpresa,
@@ -50,18 +51,34 @@ function criarBeneficiosVazio() {
   }
 }
 
-function criarFormularioVazio() {
+function criarBeneficiosHospedagemVazio() {
   return {
-    beneficios: criarBeneficiosVazio(),
+    percentual_diaria: { ativo: false, valor: 0 },
+    valor_fixo_diaria: { ativo: false, valor: 0 },
+  }
+}
+
+type BeneficiosPadrao = ReturnType<typeof criarBeneficiosVazio>
+type BeneficiosHospedagem = ReturnType<typeof criarBeneficiosHospedagemVazio>
+
+type FormularioComissao = {
+  beneficios: BeneficiosPadrao | BeneficiosHospedagem
+  porTempoLimitado: boolean
+  validade: string
+}
+
+function criarFormularioVazio(hospedagem = false): FormularioComissao {
+  return {
+    beneficios: hospedagem ? criarBeneficiosHospedagemVazio() : criarBeneficiosVazio(),
     porTempoLimitado: false,
     validade: '',
   }
 }
 
-function formulariosIniciais() {
-  return Object.fromEntries(COMUNIDADES.map((c) => [c.label, criarFormularioVazio()])) as Record<
+function formulariosIniciais(hospedagem = false) {
+  return Object.fromEntries(COMUNIDADES.map((c) => [c.label, criarFormularioVazio(hospedagem)])) as Record<
     ComunidadeLabel,
-    ReturnType<typeof criarFormularioVazio>
+    FormularioComissao
   >
 }
 
@@ -84,6 +101,7 @@ function textoValidadeOferta(oferta: Record<string, unknown>) {
 export default function CadastrarComissao() {
   const { dados: empresa } = useDashboardEmpresa()
   const empresaId = empresa?.id ?? null
+  const ehEmpresaHospedagem = empresaUsaComissaoDiarias(empresa)
 
   const [aba, setAba] = useState<'comissao' | 'historico'>('comissao')
   const [formularios, setFormularios] = useState(formulariosIniciais)
@@ -122,14 +140,29 @@ export default function CadastrarComissao() {
     void carregar()
   }, [carregar])
 
+  useEffect(() => {
+    setFormularios(formulariosIniciais(ehEmpresaHospedagem))
+    setComunidadesAbertas(comunidadesAbertasIniciais())
+  }, [ehEmpresaHospedagem])
+
   const toggleComunidade = (categoria: ComunidadeLabel) => {
     setComunidadesAbertas((p) => ({ ...p, [categoria]: !p[categoria] }))
   }
 
-  const atualizarFormulario = (categoria: ComunidadeLabel, patch: Partial<ReturnType<typeof criarFormularioVazio>>) => {
+  const atualizarFormulario = (categoria: ComunidadeLabel, patch: Partial<FormularioComissao>) => {
     setFormularios((p) => ({
       ...p,
       [categoria]: { ...p[categoria], ...patch },
+    }))
+  }
+
+  const atualizarBeneficiosHospedagem = (
+    categoria: ComunidadeLabel,
+    beneficios: ReturnType<typeof criarBeneficiosHospedagemVazio>
+  ) => {
+    setFormularios((p) => ({
+      ...p,
+      [categoria]: { ...p[categoria], beneficios },
     }))
   }
 
@@ -148,6 +181,9 @@ export default function CadastrarComissao() {
     beneficios.percentual.ativo ||
     beneficios.fixo.ativo ||
     (beneficios.extra.ativo && String(beneficios.extra.texto).trim() !== '')
+
+  const temBeneficioHospedagemAtivo = (beneficios: ReturnType<typeof criarBeneficiosHospedagemVazio>) =>
+    beneficios.percentual_diaria.ativo || beneficios.valor_fixo_diaria.ativo
 
   const executarCadastro = async (categoria: ComunidadeLabel, ofertaAtivaIdSubstituir: string | null) => {
     if (!empresaId) return
@@ -168,10 +204,16 @@ export default function CadastrarComissao() {
       }
     }
 
-    const beneficiosPayload = {
-      ...form.beneficios,
-      por_tempo_limitado: form.porTempoLimitado,
-    }
+    const beneficiosPayload = ehEmpresaHospedagem
+      ? {
+          ...(form.beneficios as BeneficiosHospedagem),
+          modo_hospedagem: true,
+          por_tempo_limitado: form.porTempoLimitado,
+        }
+      : {
+          ...(form.beneficios as BeneficiosPadrao),
+          por_tempo_limitado: form.porTempoLimitado,
+        }
 
     const { error } = await supabase.from('comissao_oferta').insert({
       empresa_id: empresaId,
@@ -195,7 +237,7 @@ export default function CadastrarComissao() {
       return
     }
 
-    setFormularios((p) => ({ ...p, [categoria]: criarFormularioVazio() }))
+    setFormularios((p) => ({ ...p, [categoria]: criarFormularioVazio(ehEmpresaHospedagem) }))
     setComunidadesAbertas((p) => ({ ...p, [categoria]: false }))
     setSubstituicaoPendente(null)
     setMsg(
@@ -210,7 +252,10 @@ export default function CadastrarComissao() {
   const handleSubmit = (categoria: ComunidadeLabel) => {
     if (!empresaId) return
     const form = formularios[categoria]
-    if (!temBeneficioAtivo(form.beneficios)) {
+    const beneficioOk = ehEmpresaHospedagem
+      ? temBeneficioHospedagemAtivo(form.beneficios as BeneficiosHospedagem)
+      : temBeneficioAtivo(form.beneficios as BeneficiosPadrao)
+    if (!beneficioOk) {
       setMsg('Ative pelo menos um benefício antes de cadastrar.')
       return
     }
@@ -300,7 +345,7 @@ export default function CadastrarComissao() {
 
   const renderBeneficios = (categoria: ComunidadeLabel) => {
     const form = formularios[categoria]
-    const beneficios = form.beneficios
+    const beneficios = form.beneficios as BeneficiosPadrao
 
     return (
       <div className="space-y-4 border-t border-gray-100 pt-3">
@@ -446,6 +491,114 @@ export default function CadastrarComissao() {
     )
   }
 
+  const renderBeneficiosHospedagem = (categoria: ComunidadeLabel) => {
+    const form = formularios[categoria]
+    const beneficios = form.beneficios as BeneficiosHospedagem
+
+    return (
+      <div className="space-y-4 border-t border-gray-100 pt-3">
+        <p className="text-xs text-gray-500">
+          Comissão por diárias reservadas — escolha uma ou ambas as opções abaixo.
+        </p>
+
+        {renderLinhaBeneficio(
+          categoria,
+          'percentual_diaria',
+          'pct-diaria',
+          ROTULOS_BENEFICIO.percentual_diaria,
+          beneficios.percentual_diaria.ativo,
+          (ativo) =>
+            atualizarBeneficiosHospedagem(categoria, {
+              ...beneficios,
+              percentual_diaria: { ...beneficios.percentual_diaria, ativo },
+            }),
+          <input
+            type="number"
+            placeholder="Percentual (%)"
+            value={beneficios.percentual_diaria.valor || ''}
+            onChange={(e) =>
+              atualizarBeneficiosHospedagem(categoria, {
+                ...beneficios,
+                percentual_diaria: {
+                  ...beneficios.percentual_diaria,
+                  valor: parseFloat(e.target.value) || 0,
+                },
+              })
+            }
+            className={`w-full ${INPUT_CLS}`}
+          />
+        )}
+
+        {renderLinhaBeneficio(
+          categoria,
+          'valor_fixo_diaria',
+          'fixo-diaria',
+          ROTULOS_BENEFICIO.valor_fixo_diaria,
+          beneficios.valor_fixo_diaria.ativo,
+          (ativo) =>
+            atualizarBeneficiosHospedagem(categoria, {
+              ...beneficios,
+              valor_fixo_diaria: { ...beneficios.valor_fixo_diaria, ativo },
+            }),
+          <input
+            type="number"
+            placeholder="Valor por diária (R$)"
+            value={beneficios.valor_fixo_diaria.valor || ''}
+            onChange={(e) =>
+              atualizarBeneficiosHospedagem(categoria, {
+                ...beneficios,
+                valor_fixo_diaria: {
+                  ...beneficios.valor_fixo_diaria,
+                  valor: parseFloat(e.target.value) || 0,
+                },
+              })
+            }
+            className={`w-full ${INPUT_CLS}`}
+          />
+        )}
+
+        <div className="rounded-lg bg-gray-50 p-3">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id={`${categoria}-tempo-hosp`}
+              checked={form.porTempoLimitado}
+              onChange={(e) =>
+                atualizarFormulario(categoria, {
+                  porTempoLimitado: e.target.checked,
+                  validade: e.target.checked ? form.validade : '',
+                })
+              }
+            />
+            <label htmlFor={`${categoria}-tempo-hosp`} className="text-sm font-medium text-gray-800">
+              por tempo limitado?
+            </label>
+          </div>
+          {form.porTempoLimitado ? (
+            <input
+              type="date"
+              value={form.validade}
+              onChange={(e) => atualizarFormulario(categoria, { validade: e.target.value })}
+              className={`mt-2 w-full ${INPUT_CLS}`}
+              aria-label="Data limite da oferta"
+            />
+          ) : (
+            <p className="mt-2 text-xs text-gray-500">Opcional — a oferta permanece sem data de expiração.</p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          disabled={salvando === categoria}
+          onClick={() => handleSubmit(categoria)}
+          className="w-full rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white transition hover:bg-[#008199] disabled:opacity-60"
+        >
+          {salvando === categoria ? 'Cadastrando…' : 'Cadastrar'}
+        </button>
+      </div>
+    )
+  }
+
   if (!empresaId) {
     return (
       <div className="py-10 text-center text-sm text-gray-500">
@@ -470,6 +623,11 @@ export default function CadastrarComissao() {
       {aba === 'comissao' ? (
         <div className="mt-4 space-y-2">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Comunidades</p>
+          {ehEmpresaHospedagem ? (
+            <p className="text-xs text-gray-500">
+              Ofertas de comissão por diárias reservadas para profissionais parceiros.
+            </p>
+          ) : null}
           {COMUNIDADES.map(({ label, iconeKey }) => {
             const aberta = comunidadesAbertas[label]
             const ofertaAtiva = ofertasAtivasPorComunidade.get(label)
@@ -501,7 +659,11 @@ export default function CadastrarComissao() {
                     <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
                   )}
                 </button>
-                {aberta ? <div className="px-3 pb-3">{renderBeneficios(label)}</div> : null}
+                {aberta ? (
+                  <div className="px-3 pb-3">
+                    {ehEmpresaHospedagem ? renderBeneficiosHospedagem(label) : renderBeneficios(label)}
+                  </div>
+                ) : null}
               </div>
             )
           })}

@@ -57,6 +57,7 @@ function isGastronomia(cat) {
  *   precoTicketInteira?: number
  *   precoTicketMeia?: number
  *   precoDiaria?: number
+ *   palavrasChave?: unknown
  * }} props
  */
 export default function AbaBotaoDinamico({
@@ -70,6 +71,7 @@ export default function AbaBotaoDinamico({
   precoTicketInteira = 0,
   precoTicketMeia,
   precoDiaria = 0,
+  palavrasChave = [],
 }) {
   const router = useRouter()
   const {
@@ -256,8 +258,9 @@ export default function AbaBotaoDinamico({
         onClose={() => setShowReservaPopup(false)}
         empresaId={empresaId}
         empresaNome={empresaNome}
-        whatsappDestino={whatsapp}
         precoDiaria={precoDiaria}
+        palavrasChave={palavrasChave}
+        exibirPalavrasChave={isHospedagem(categoria)}
       />
 
       {showReservaMesaModal ? (

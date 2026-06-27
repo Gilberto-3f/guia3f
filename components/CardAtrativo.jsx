@@ -39,6 +39,7 @@ function bandeiraPorCidade(cidade) {
  *     preco_ticket_inteira?: number | null
  *     preco_ticket_meia?: number | null
  *     preco_diaria?: number | null
+ *     palavras_chave?: unknown
  *     endereco?: string | null
  *     bairro?: string | null
  *     total_avaliacoes?: number | null
@@ -163,6 +164,7 @@ export default function CardAtrativo({
               precoTicketInteira={Number(empresa.preco_ticket_inteira) || 0}
               precoTicketMeia={Number(empresa.preco_ticket_meia) || 0}
               precoDiaria={Number(empresa.preco_diaria) || 0}
+              palavrasChave={empresa.palavras_chave}
             />
           ) : null}
         </div>

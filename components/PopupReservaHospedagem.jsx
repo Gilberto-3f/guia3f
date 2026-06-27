@@ -4,10 +4,10 @@ import { useState } from 'react'
 import { X, CalendarDays } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
-import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
+import { sanitizarPalavrasChave } from '@/lib/palavrasChaveGuia'
 
 /**
  * @param {{
@@ -17,6 +17,8 @@ import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
  *   empresaNome: string
  *   whatsappDestino?: string | null
  *   precoDiaria: number
+ *   palavrasChave?: unknown
+ *   exibirPalavrasChave?: boolean
  * }} props
  */
 export default function PopupReservaHospedagem({
@@ -24,8 +26,9 @@ export default function PopupReservaHospedagem({
   onClose,
   empresaId,
   empresaNome,
-  whatsappDestino,
   precoDiaria,
+  palavrasChave = [],
+  exibirPalavrasChave = false,
 }) {
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const {
@@ -39,6 +42,7 @@ export default function PopupReservaHospedagem({
   const [checkin, setCheckin] = useState('')
   const [checkout, setCheckout] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sucesso, setSucesso] = useState(false)
 
   if (!isOpen) return null
 
@@ -53,8 +57,16 @@ export default function PopupReservaHospedagem({
   const noites = calcularNoites()
   const diaria = Math.max(0, Number(precoDiaria) || 0)
   const total = diaria * noites
+  const termos = exibirPalavrasChave ? sanitizarPalavrasChave(palavrasChave) : []
 
-  const handleConfirmar = async () => {
+  const handleFechar = () => {
+    setSucesso(false)
+    setCheckin('')
+    setCheckout('')
+    onClose()
+  }
+
+  const handleSolicitar = async () => {
     if (!podeInteragir) {
       notificarSomenteLeitura()
       return
@@ -82,17 +94,27 @@ export default function PopupReservaHospedagem({
         return
       }
 
-      const mensagem = `Olá! Gostaria de reservar em ${empresaNome} do dia ${checkin} até ${checkout} (${noites} noite(s)). Total: R$ ${total.toFixed(2)}. (empresa: ${empresaId})`
-      if (!openWhatsAppChat(whatsappDestino, mensagem)) {
-        alert('WhatsApp da empresa não configurado.')
+      const { error } = await supabase.from('reservas_hospedagem').insert({
+        empresa_id: empresaId,
+        turista_usuario_id: session.user.id,
+        data_checkin: checkin,
+        data_checkout: checkout,
+        status: 'pendente',
+        valor_estimado: total,
+        noites,
+      })
+
+      if (error) {
+        alert(error.message || 'Não foi possível enviar a solicitação.')
         return
       }
+
       void registrarUsoPreLiberacao({
         tipo: 'reserva_hospedagem',
-        descricao: `Hospedagem ${noites} noite(s) — ${empresaNome}`,
+        descricao: `Solicitação hospedagem ${noites} noite(s) — ${empresaNome}`,
         empresaId,
       })
-      onClose()
+      setSucesso(true)
     } finally {
       setLoading(false)
     }
@@ -102,71 +124,105 @@ export default function PopupReservaHospedagem({
 
   return (
     <>
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white">
-        <div className="flex items-center justify-between border-b border-gray-100 p-4">
-          <div className="flex items-center gap-2">
-            <CalendarDays size={20} className="text-[#0097b2]" aria-hidden />
-            <h2 className="text-lg font-semibold">Reservar Hospedagem</h2>
-          </div>
-          <button type="button" onClick={onClose} className="p-1" aria-label="Fechar">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="space-y-4 p-4">
-          <p className="text-gray-600">{empresaNome}</p>
-          <p className="text-sm text-gray-500">Diária: R$ {diaria.toFixed(2)}</p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <span className="mb-1 block text-sm text-gray-600">Check-in</span>
-              <input
-                type="date"
-                value={checkin}
-                onChange={(e) => setCheckin(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 p-2"
-                min={hoje}
-              />
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+        <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white">
+          <div className="flex items-center justify-between border-b border-gray-100 p-4">
+            <div className="flex items-center gap-2">
+              <CalendarDays size={20} className="text-[#0097b2]" aria-hidden />
+              <h2 className="text-lg font-semibold">Reservar Hospedagem</h2>
             </div>
-            <div>
-              <span className="mb-1 block text-sm text-gray-600">Check-out</span>
-              <input
-                type="date"
-                value={checkout}
-                onChange={(e) => setCheckout(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 p-2"
-                min={checkin || hoje}
-              />
-            </div>
+            <button type="button" onClick={handleFechar} className="p-1" aria-label="Fechar">
+              <X size={20} />
+            </button>
           </div>
 
-          {noites > 0 ? (
-            <div className="border-t border-gray-100 pt-3">
-              <div className="flex justify-between">
-                <span>{noites} noite(s)</span>
-                <span>R$ {total.toFixed(2)}</span>
-              </div>
-              <div className="mt-2 flex justify-between font-semibold">
-                <span>Total</span>
-                <span className="text-[#0097b2]">R$ {total.toFixed(2)}</span>
-              </div>
+          {sucesso ? (
+            <div className="space-y-4 p-6 text-center">
+              <p className="text-base font-semibold text-[#0097b2]">Solicitação enviada!</p>
+              <p className="text-sm text-gray-600">
+                Sua solicitação de reserva foi enviada para <strong>{empresaNome}</strong>. Aguarde a
+                confirmação da empresa.
+              </p>
+              <button
+                type="button"
+                onClick={handleFechar}
+                className="w-full rounded-lg bg-[#0097b2] py-3 font-medium text-white"
+              >
+                Fechar
+              </button>
             </div>
-          ) : null}
-        </div>
+          ) : (
+            <>
+              <div className="space-y-4 p-4">
+                <p className="text-center text-lg font-bold text-gray-900">{empresaNome}</p>
+                <p className="text-center text-sm text-gray-600">
+                  Diária: <span className="font-semibold text-[#0097b2]">R$ {diaria.toFixed(2)}</span>
+                </p>
 
-        <div className="border-t border-gray-100 p-4">
-          <button
-            type="button"
-            onClick={handleConfirmar}
-            disabled={loading || !checkin || !checkout || noites <= 0}
-            className="w-full rounded-lg bg-[#0097b2] py-3 font-medium text-white disabled:opacity-50"
-          >
-            {loading ? 'Processando...' : 'Confirmar reserva'}
-          </button>
+                {termos.length > 0 ? (
+                  <div className="flex flex-wrap justify-center gap-1.5">
+                    {termos.map((termo) => (
+                      <span
+                        key={termo}
+                        className="rounded-full bg-[#0097b2]/10 px-2.5 py-0.5 text-xs font-medium text-[#0097b2]"
+                      >
+                        {termo}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="mb-1 block text-sm text-gray-600">Check-in</span>
+                    <input
+                      type="date"
+                      value={checkin}
+                      onChange={(e) => setCheckin(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 p-2"
+                      min={hoje}
+                    />
+                  </div>
+                  <div>
+                    <span className="mb-1 block text-sm text-gray-600">Check-out</span>
+                    <input
+                      type="date"
+                      value={checkout}
+                      onChange={(e) => setCheckout(e.target.value)}
+                      className="w-full rounded-lg border border-gray-200 p-2"
+                      min={checkin || hoje}
+                    />
+                  </div>
+                </div>
+
+                {noites > 0 ? (
+                  <div className="border-t border-gray-100 pt-3">
+                    <div className="flex justify-between">
+                      <span>{noites} noite(s)</span>
+                      <span>R$ {total.toFixed(2)}</span>
+                    </div>
+                    <div className="mt-2 flex justify-between font-semibold">
+                      <span>Total estimado</span>
+                      <span className="text-[#0097b2]">R$ {total.toFixed(2)}</span>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="border-t border-gray-100 p-4">
+                <button
+                  type="button"
+                  onClick={handleSolicitar}
+                  disabled={loading || !checkin || !checkout || noites <= 0}
+                  className="w-full rounded-lg bg-[#00D443] py-3 font-bold text-white disabled:opacity-50"
+                >
+                  {loading ? 'Enviando…' : 'Solicitar Reserva'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
-    </div>
       <PopupAvisoBloqueioConta
         aberto={avisoAberto}
         onFechar={fecharAvisoBloqueio}

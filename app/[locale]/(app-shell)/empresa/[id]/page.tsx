@@ -29,7 +29,7 @@ import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibili
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 import { empresaElegivelGuiaPublico } from '@/lib/empresaGuiaVisibilidade'
 import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
-import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
+import { prefetchPlanosEmpresa, useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
@@ -107,6 +107,12 @@ export default function EmpresaPage() {
     (ehDonoEmpresa || (empresaVerificada && podeComprarReservar))
   const mostrarChamarCorrida =
     !aguardandoPlanoRede && featurePublicaLiberada('botao_chamar_corrida')
+
+  useEffect(() => {
+    if (empresaId && ehDonoEmpresa && !empresa?.somente_anfitriao) {
+      prefetchPlanosEmpresa()
+    }
+  }, [empresaId, ehDonoEmpresa, empresa?.somente_anfitriao])
   const mostrarConteudoRede = !aguardandoPlanoRede && featureLiberada('pagina_rede_social')
 
   useEffect(() => {
@@ -451,6 +457,7 @@ export default function EmpresaPage() {
               precoTicketInteira={precoTicketInteira}
               precoTicketMeia={precoTicketMeia}
               precoDiaria={precoDiaria}
+              palavrasChave={empresa.palavras_chave}
             />
           ) : null}
         </div>
@@ -531,7 +538,7 @@ export default function EmpresaPage() {
         ) : null
       ) : null}
 
-      {podeAbrirMenu && usuarioId && menuAberto ? (
+      {podeAbrirMenu && usuarioId ? (
         meuRole === 'admin' && typeof adminLevel === 'number' && adminLevel === 1 && modoAtivo ? (
           <MenuLateral
             aberto={menuAberto}

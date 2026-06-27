@@ -1,7 +1,13 @@
 /** Largura fixa do tooltip — texto quebra naturalmente (menos cumprimento horizontal). */
 export const LARGURA_POPUP_INFO_PX = 168
 
-export type TipoBeneficioComissao = 'pax' | 'percentual' | 'fixo' | 'extra'
+export type TipoBeneficioComissao =
+  | 'pax'
+  | 'percentual'
+  | 'fixo'
+  | 'extra'
+  | 'percentual_diaria'
+  | 'valor_fixo_diaria'
 
 export const INFO_BENEFICIO_TEXTO: Record<TipoBeneficioComissao, string> = {
   pax: 'Comissão paga por passageiro que trouxerem no local da empresa.',
@@ -10,6 +16,10 @@ export const INFO_BENEFICIO_TEXTO: Record<TipoBeneficioComissao, string> = {
   fixo: 'Comissão de valor fixo por passageiro que consumir ou comprar na empresa.',
   extra:
     'Um benefício particular e personalizado que a empresa oferece além das comissões.',
+  percentual_diaria:
+    'Comissão paga como porcentagem sobre o valor das diárias reservadas na hospedagem.',
+  valor_fixo_diaria:
+    'Comissão de valor fixo por cada diária reservada na hospedagem.',
 }
 
 export const ROTULOS_BENEFICIO: Record<TipoBeneficioComissao, string> = {
@@ -17,23 +27,69 @@ export const ROTULOS_BENEFICIO: Record<TipoBeneficioComissao, string> = {
   percentual: 'PORCENTAGEM',
   fixo: 'INDICAÇÃO',
   extra: 'BENEFÍCIO EXTRA',
+  percentual_diaria: '% DAS DIÁRIAS',
+  valor_fixo_diaria: 'VALOR FIXO POR DIÁRIA',
+}
+
+/** Empresa do segmento Hospedagem (inclui perfil anfitrião com somente_anfitriao). */
+export function empresaUsaComissaoDiarias(
+  empresa: { categoria?: unknown; somente_anfitriao?: unknown } | null | undefined,
+): boolean {
+  if (!empresa) return false
+  if (empresa.somente_anfitriao === true) return true
+  return String(empresa.categoria ?? '').toLowerCase() === 'hospedagem'
+}
+
+export function isBeneficiosModoHospedagem(b: BeneficiosOfertaRecord): boolean {
+  if (b.modo_hospedagem === true) return true
+  const pct = b.percentual_diaria
+  const fixo = b.valor_fixo_diaria
+  return Boolean(
+    (pct && typeof pct === 'object' && pct.ativo) ||
+      (fixo && typeof fixo === 'object' && fixo.ativo),
+  )
 }
 
 export type BeneficiosOfertaRecord = Record<
   string,
-  { ativo?: boolean; valor?: number; texto?: string; por_tempo_limitado?: boolean }
+  { ativo?: boolean; valor?: number; texto?: string; por_tempo_limitado?: boolean } | boolean | undefined
 >
 
 /** Lista vertical de benefícios ativos para histórico / cards. */
 export function listarBeneficiosOferta(b: BeneficiosOfertaRecord): { label: string; valor: string }[] {
   const itens: { label: string; valor: string }[] = []
-  if (b.pax?.ativo) itens.push({ label: ROTULOS_BENEFICIO.pax, valor: `R$ ${b.pax.valor ?? 0}` })
-  if (b.percentual?.ativo) {
-    itens.push({ label: ROTULOS_BENEFICIO.percentual, valor: `${b.percentual.valor ?? 0}%` })
+  if (isBeneficiosModoHospedagem(b)) {
+    const pct = b.percentual_diaria
+    const fixo = b.valor_fixo_diaria
+    if (pct && typeof pct === 'object' && pct.ativo) {
+      itens.push({
+        label: ROTULOS_BENEFICIO.percentual_diaria,
+        valor: `${pct.valor ?? 0}%`,
+      })
+    }
+    if (fixo && typeof fixo === 'object' && fixo.ativo) {
+      itens.push({
+        label: ROTULOS_BENEFICIO.valor_fixo_diaria,
+        valor: `R$ ${fixo.valor ?? 0}`,
+      })
+    }
+    return itens
   }
-  if (b.fixo?.ativo) itens.push({ label: ROTULOS_BENEFICIO.fixo, valor: `R$ ${b.fixo.valor ?? 0}` })
-  if (b.extra?.ativo && String(b.extra.texto ?? '').trim()) {
-    itens.push({ label: ROTULOS_BENEFICIO.extra, valor: String(b.extra.texto).trim() })
+  const pax = b.pax
+  const pct = b.percentual
+  const fixo = b.fixo
+  const extra = b.extra
+  if (pax && typeof pax === 'object' && pax.ativo) {
+    itens.push({ label: ROTULOS_BENEFICIO.pax, valor: `R$ ${pax.valor ?? 0}` })
+  }
+  if (pct && typeof pct === 'object' && pct.ativo) {
+    itens.push({ label: ROTULOS_BENEFICIO.percentual, valor: `${pct.valor ?? 0}%` })
+  }
+  if (fixo && typeof fixo === 'object' && fixo.ativo) {
+    itens.push({ label: ROTULOS_BENEFICIO.fixo, valor: `R$ ${fixo.valor ?? 0}` })
+  }
+  if (extra && typeof extra === 'object' && extra.ativo && String(extra.texto ?? '').trim()) {
+    itens.push({ label: ROTULOS_BENEFICIO.extra, valor: String(extra.texto).trim() })
   }
   return itens
 }
