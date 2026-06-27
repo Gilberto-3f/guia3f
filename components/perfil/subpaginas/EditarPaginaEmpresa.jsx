@@ -5,6 +5,7 @@ import { Camera, MessageCircle, Phone } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { sanitizarPalavrasChave, MAX_PALAVRAS_CHAVE } from '@/lib/palavrasChaveGuia'
+import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
 
 const CIDADES = ['Foz do Iguaçu', 'Ciudad del Este', 'Puerto Iguazú']
 
@@ -573,11 +574,13 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
       </section>
 
       <section className="space-y-3">
-        <h3 className="text-lg font-bold text-gray-900">Adicionar Palavras-chave</h3>
-        <p className="text-xs leading-relaxed text-gray-500">
-          Até {MAX_PALAVRAS_CHAVE} termos relacionados ao seu segmento. Eles não aparecem na página pública, mas
-          ajudam turistas e profissionais a encontrar sua empresa no motor de busca do guia.
-        </p>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-bold text-gray-900">Adicionar Palavras-chave</h3>
+          <BotaoInfoPopup
+            texto={`Até ${MAX_PALAVRAS_CHAVE} termos relacionados ao seu segmento. Eles não aparecem na página pública, mas ajudam turistas e profissionais a encontrar sua empresa no motor de busca do guia.`}
+            ariaLabel="Informações sobre palavras-chave"
+          />
+        </div>
         <div className="space-y-2">
           {palavrasChave.map((valor, idx) => (
             <input

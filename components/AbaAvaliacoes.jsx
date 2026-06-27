@@ -76,6 +76,9 @@ export default function AbaAvaliacoes({
   } = useGateFeedSocial()
   const bloquearAvaliacaoEmpresa =
     !podeInteragirFeedSocial && usuarioTipo !== 'empresa' && usuarioTipo !== 'admin'
+  const ehDonoEmpresa = Boolean(usuarioId && empresaUsuarioId && usuarioId === empresaUsuarioId)
+  const podeExibirFormularioAvaliacao =
+    Boolean(usuarioId) && usuarioTipo !== 'empresa' && usuarioTipo !== 'admin' && !ehDonoEmpresa
 
   useEffect(() => {
     const getUsuario = async () => {
@@ -290,6 +293,10 @@ export default function AbaAvaliacoes({
 
   const executarSalvarAvaliacao = async () => {
     if (!usuarioId || notaUsuario === 0 || jaAvaliou) return
+    if (ehDonoEmpresa) {
+      setErroSalvarAvaliacao('Você não pode avaliar a própria empresa.')
+      return
+    }
     if (bloquearAvaliacaoEmpresa) {
       avisarBloqueioFeed()
       return
@@ -325,6 +332,7 @@ export default function AbaAvaliacoes({
 
   const abrirConfirmacaoEnvio = () => {
     if (!usuarioId || notaUsuario === 0 || enviando || jaAvaliou) return
+    if (ehDonoEmpresa) return
     if (bloquearAvaliacaoEmpresa) {
       avisarBloqueioFeed()
       return
@@ -554,7 +562,7 @@ export default function AbaAvaliacoes({
         </div>
       </div>
 
-      {usuarioId && usuarioTipo !== 'empresa' && usuarioTipo !== 'admin' ? (
+      {podeExibirFormularioAvaliacao ? (
         bloquearAvaliacaoEmpresa ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
             <p className="text-center text-sm text-amber-950">
