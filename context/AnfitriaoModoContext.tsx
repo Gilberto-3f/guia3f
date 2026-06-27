@@ -52,12 +52,14 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
   const [empresaHospedagemId, setEmpresaHospedagemId] = useState<string | null>(null)
   const [empresaHospedagem, setEmpresaHospedagem] = useState<EmpresaHospedagemResumo | null>(null)
   const [profCategorias, setProfCategorias] = useState<string[]>([])
+  const [anfitriaoDadosProntos, setAnfitriaoDadosProntos] = useState(false)
 
   const ehAnfitriao =
     userRole === 'profissional' &&
     categoriasIncluemAnfitriao(profCategorias.length ? profCategorias : (profRow as { categorias?: string[] } | null)?.categorias)
 
   const recarregar = useCallback(async () => {
+    setAnfitriaoDadosProntos(false)
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -66,6 +68,7 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
       setProfCategorias([])
       setEmpresaHospedagemId(null)
       setEmpresaHospedagem(null)
+      setAnfitriaoDadosProntos(true)
       return
     }
 
@@ -85,6 +88,7 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
 
     if (!empId) {
       setEmpresaHospedagem(null)
+      setAnfitriaoDadosProntos(true)
       return
     }
 
@@ -96,6 +100,7 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
 
     if (!emp?.id) {
       setEmpresaHospedagem(null)
+      setAnfitriaoDadosProntos(true)
       return
     }
 
@@ -108,6 +113,7 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
       nome_fantasia: emp.nome_fantasia != null ? String(emp.nome_fantasia) : null,
       nome_usuario: emp.nome_usuario != null ? String(emp.nome_usuario) : null,
     })
+    setAnfitriaoDadosProntos(true)
   }, [userRole])
 
   useEffect(() => {
@@ -134,27 +140,36 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
       setModoState('anfitriao')
       return
     }
-    setModoState(lerModoAnfitriaoStorage())
-  }, [ehAnfitriao])
+    if (!anfitriaoDadosProntos) return
+    let stored = lerModoAnfitriaoStorage()
+    if (stored === 'hospedagem' && (!empresaHospedagemId || !empresaRecursosLiberados(usuarioStatus, empresaHospedagem))) {
+      stored = 'anfitriao'
+      gravarModoAnfitriaoStorage('anfitriao')
+    }
+    setModoState(stored)
+  }, [ehAnfitriao, anfitriaoDadosProntos, empresaHospedagemId, empresaHospedagem, usuarioStatus])
 
   const setModo = useCallback(
     (next: ModoAnfitriao) => {
       if (!ehAnfitriao) return
-      if (next === 'hospedagem' && !empresaHospedagemId) return
+      if (next === 'hospedagem' && (!empresaHospedagemId || !empresaRecursosLiberados(usuarioStatus, empresaHospedagem))) return
       setModoState(next)
       gravarModoAnfitriaoStorage(next)
       window.dispatchEvent(new Event('anfitriao-modo-change'))
     },
-    [ehAnfitriao, empresaHospedagemId],
+    [ehAnfitriao, empresaHospedagemId, empresaHospedagem, usuarioStatus],
   )
 
   const empresaHospedagemLiberada = empresaRecursosLiberados(usuarioStatus, empresaHospedagem)
+
+  const modoEfetivo: ModoAnfitriao =
+    ehAnfitriao && modo === 'hospedagem' && empresaHospedagemLiberada ? 'hospedagem' : 'anfitriao'
 
   const varianteUi = resolverVarianteUi({
     userRole,
     modoApresentacaoTipo: modoAtivo && perfilSimulado ? perfilSimulado.tipo : null,
     ehAnfitriao,
-    modoAnfitriao: ehAnfitriao ? modo : null,
+    modoAnfitriao: ehAnfitriao ? modoEfetivo : null,
   })
 
   const podeAlternarHospedagem = Boolean(ehAnfitriao && empresaHospedagemId)

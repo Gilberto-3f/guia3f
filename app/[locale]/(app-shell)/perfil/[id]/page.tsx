@@ -464,6 +464,7 @@ export default function PerfilSocialPage() {
         .eq('autor_id', profileId)
         .is('deleted_at', null)
         .is('post_original_id', null)
+        .or('autor_tipo.is.null,autor_tipo.neq.empresa')
         .in('tipo', ['foto', 'misto'])
         .order('created_at', { ascending: false })
 
@@ -494,6 +495,7 @@ export default function PerfilSocialPage() {
         .eq('autor_id', profileId)
         .is('deleted_at', null)
         .is('post_original_id', null)
+        .or('autor_tipo.is.null,autor_tipo.neq.empresa')
         .in('tipo', ['postagem', 'texto'])
         .order('created_at', { ascending: false })
 
@@ -542,6 +544,7 @@ export default function PerfilSocialPage() {
         .eq('autor_id', profileId)
         .not('post_original_id', 'is', null)
         .is('deleted_at', null)
+        .or('autor_tipo.is.null,autor_tipo.neq.empresa')
         .order('created_at', { ascending: false })
 
       const repRows = reps ?? []

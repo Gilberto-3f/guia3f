@@ -80,7 +80,6 @@ export default function CadastrarHospedagemAnfitriao({ onConcluido, onAlternarHo
       window.dispatchEvent(new Event('anfitriao-modo-refresh'))
       window.dispatchEvent(new Event('empresa-gate-refresh'))
       window.dispatchEvent(new Event('perfil-atualizado'))
-      onAlternarHospedagem?.()
       onConcluido?.()
     } catch {
       setErro('Erro de conexão. Tente novamente.')

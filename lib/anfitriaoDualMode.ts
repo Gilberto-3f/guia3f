@@ -102,11 +102,13 @@ export function profissionalOperaComoEmpresaHospedagem(
   ehAnfitriao: boolean,
   modo: ModoAnfitriao | null | undefined,
   empresaHospedagemId: string | null | undefined,
+  empresaHospedagemLiberada = false,
 ): boolean {
   return (
     role === 'profissional' &&
     ehAnfitriao &&
     modo === 'hospedagem' &&
+    empresaHospedagemLiberada === true &&
     empresaHospedagemId != null &&
     String(empresaHospedagemId).trim() !== ''
   )

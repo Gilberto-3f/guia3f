@@ -30,6 +30,7 @@ export default function AbaPostsEmpresa({ empresaUsuarioId }) {
         .from('posts')
         .select('id, texto, created_at, total_curtidas, total_comentarios, tipo, post_original_id')
         .eq('autor_id', empresaUsuarioId)
+        .eq('autor_tipo', 'empresa')
         .is('deleted_at', null)
         .is('post_original_id', null)
         .in('tipo', ['postagem', 'texto'])

@@ -241,6 +241,25 @@ function secoesTurista(opts = {}) {
 /**
  * @param {MenuContext} ctx
  */
+function pastaAnfitriao(ctx) {
+  return {
+    tipo: 'grupo',
+    key: 'anfitriao',
+    label: 'Anfitrião',
+    items: [
+      { Icon: Home, label: 'Anfitrião', subpagina: 'anfitriao-modo-social' },
+      {
+        Icon: Hotel,
+        label: 'Hospedagem',
+        subpagina: ctx.empresaHospedagemId ? 'anfitriao-modo-hospedagem' : 'cadastrar-hospedagem-anfitriao',
+      },
+    ],
+  }
+}
+
+/**
+ * @param {MenuContext} ctx
+ */
 function secoesProfissional(ctx) {
   const gUsuario = filtrarMenu(
     [
@@ -295,26 +314,10 @@ function secoesProfissional(ctx) {
     },
   ]
   return [
+    ...(ctx.ehAnfitriao ? [pastaAnfitriao(ctx)] : []),
     secaoUsuario(gUsuario),
     secaoMinhaConta(ctx),
     /** @type {const} */ { tipo: 'grupo', key: 'profissional', label: 'Profissional', items: gPro },
-    ...(ctx.ehAnfitriao
-      ? [
-          {
-            tipo: 'grupo',
-            key: 'anfitriao',
-            label: 'Anfitrião',
-            items: [
-              { Icon: Home, label: 'Anfitrião', subpagina: 'anfitriao-modo-social' },
-              {
-                Icon: Hotel,
-                label: 'Hospedagem',
-                subpagina: ctx.empresaHospedagemId ? 'anfitriao-modo-hospedagem' : 'cadastrar-hospedagem-anfitriao',
-              },
-            ],
-          },
-        ]
-      : []),
     {
       tipo: 'grupo',
       key: 'aplicativo',
@@ -695,20 +698,11 @@ export default function MenuLateral({
       if (!recursosProfLiberadosEfetivo) return secoesProfissionalAguardandoDocs(c)
       if (ehAnfitriao && modoAnfitriao === 'hospedagem' && empresaHospedagemId) {
         const emp = secoesEmpresa(c)
-        const pastaAnfitriao = {
-          tipo: 'grupo',
-          key: 'anfitriao',
-          label: 'Anfitrião',
-          items: [
-            { Icon: Home, label: 'Anfitrião', subpagina: 'anfitriao-modo-social' },
-            { Icon: Hotel, label: 'Hospedagem', subpagina: 'anfitriao-modo-hospedagem' },
-          ],
-        }
         const idxEmp = emp.findIndex((s) => s.tipo === 'grupo' && s.key === 'empresa')
         if (idxEmp >= 0) {
-          return [...emp.slice(0, idxEmp), pastaAnfitriao, ...emp.slice(idxEmp)]
+          return [pastaAnfitriao(c), ...emp.slice(0, idxEmp), ...emp.slice(idxEmp)]
         }
-        return [...emp, pastaAnfitriao]
+        return [pastaAnfitriao(c), ...emp]
       }
       return p
     }
@@ -1102,7 +1096,6 @@ export default function MenuLateral({
             void recarregarAnfitriao()
             onPerfilAtualizado?.()
           }}
-          onAlternarHospedagem={() => setModoAnfitriao('hospedagem')}
         />
       )
     if (id === 'hospedagem-pendente')

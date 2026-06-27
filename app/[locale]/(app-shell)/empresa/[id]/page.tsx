@@ -27,7 +27,8 @@ import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
-import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
+import { empresaElegivelGuiaPublico } from '@/lib/empresaGuiaVisibilidade'
+import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
@@ -166,14 +167,38 @@ export default function EmpresaPage() {
       }
 
       const isPreview = Boolean((empresaData as { somente_modo_apresentacao?: boolean } | null)?.somente_modo_apresentacao)
+      const somenteAnfitriao = Boolean((empresaData as { somente_anfitriao?: boolean } | null)?.somente_anfitriao)
       const donoId = (empresaData as { usuario_id?: string } | null)?.usuario_id ?? null
       const viewerEmail = session?.user?.email ?? meuEmail ?? null
+      const ehDono = Boolean(viewerUid && donoId && String(viewerUid) === String(donoId))
+      let usuarioStatusDono: string | null = 'ativo'
+      if (viewerUid) {
+        const { data: uRow } = await supabase.from('usuarios').select('status').eq('id', viewerUid).maybeSingle()
+        usuarioStatusDono = uRow?.status != null ? String(uRow.status) : 'ativo'
+      }
+      const liberadaAnfitriao = empresaRecursosLiberados(
+        usuarioStatusDono,
+        empresaData as Parameters<typeof empresaRecursosLiberados>[1],
+      )
+
       if (
         isPreview &&
         (!viewerUid ||
           String(donoId ?? '') !== String(viewerUid) ||
           !podeVerConteudoEmpresaPreviewApp(viewerEmail, modoAtivo))
       ) {
+        setEmpresa(null)
+        router.replace('/guia')
+        return
+      }
+
+      if (somenteAnfitriao && !liberadaAnfitriao) {
+        setEmpresa(null)
+        router.replace(ehDono ? '/guia' : '/guia')
+        return
+      }
+
+      if (!ehDono && !empresaElegivelGuiaPublico(empresaData)) {
         setEmpresa(null)
         router.replace('/guia')
         return

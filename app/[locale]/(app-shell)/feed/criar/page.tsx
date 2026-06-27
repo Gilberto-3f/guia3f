@@ -25,6 +25,8 @@ import { obterUrlPosPublicacaoEmpresa } from '@/lib/redirecionamentoPosPublicaca
 import { salvarDraftAgendamento, urlRetornoAgendamento } from '@/lib/agendamentoConteudoDraft'
 import { uploadMidiaAgendada } from '@/lib/agendamentoUpload'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
+import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 
 type Aba = 'foto' | 'texto'
 
@@ -82,6 +84,7 @@ function CriarPublicacaoPageInner() {
     tituloBloqueioFeed,
     loading: gateFeedLoading,
   } = useGateFeedSocial()
+  const { ehAnfitriao, modo: modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
 
   useEffect(() => {
     if (gateFeedLoading) return
@@ -546,8 +549,19 @@ function CriarPublicacaoPageInner() {
         origem === 'texto' ? 'texto' : fotoUrl && texto.trim() ? 'misto' : fotoUrl ? 'foto' : 'texto'
 
       setLoadingMsg('Criando publicação…')
+      const { data: uRow } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
+      const roleUsuario = uRow?.role != null ? String(uRow.role) : 'turista'
+      const publicarComoEmpresa = profissionalOperaComoEmpresaHospedagem(
+        roleUsuario,
+        ehAnfitriao,
+        modoAnfitriao,
+        empresaHospedagemId,
+        empresaHospedagemLiberada,
+      )
       const { error } = await supabase.from('posts').insert({
         autor_id: session.user.id,
+        autor_tipo: publicarComoEmpresa ? 'empresa' : roleUsuario,
+        empresa_id: publicarComoEmpresa && empresaHospedagemId ? empresaHospedagemId : null,
         texto: !texto.trim() ? null : texto,
         foto_url: fotoUrl,
         conteudo_url: fotoUrl,

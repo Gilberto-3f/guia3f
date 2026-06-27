@@ -100,7 +100,7 @@ export default function BottomBar() {
   const { modoAtivo, perfilSimulado, contextoEmpresaId, podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const { loading: gateLoading, userRole } = useProfissionalGate()
-  const { ehAnfitriao, modo: modoAnfitriao, empresaHospedagemId } = useAnfitriaoModo()
+  const { ehAnfitriao, modo: modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [authUserId, setAuthUserId] = useState(/** @type {string | null} */ (null))
   const [authPronto, setAuthPronto] = useState(false)
@@ -204,6 +204,7 @@ export default function BottomBar() {
           ehAnfitriao,
           modoAnfitriao,
           perfil?.empresa_hospedagem_id != null ? String(perfil.empresa_hospedagem_id) : empresaHospedagemId,
+          empresaHospedagemLiberada,
         )
         if (operaEmpresa && perfil?.empresa_hospedagem_id) {
           const { data: empresa } = await supabase
@@ -267,7 +268,7 @@ export default function BottomBar() {
       window.removeEventListener('perfil-atualizado', onPerfilAtualizado)
       window.removeEventListener('anfitriao-modo-change', onPerfilAtualizado)
     }
-  }, [gateLoading, authUserId, userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId])
+  }, [gateLoading, authUserId, userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada])
 
   /** Feed social (`atividades`): badge do coração — nunca mistura com `mensagens_canal`. */
   useEffect(() => {
@@ -466,11 +467,11 @@ export default function BottomBar() {
     const ehEmpresa =
       (modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId) ||
       userRole === 'empresa' ||
-      profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId)
+      profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada)
     const empId =
       modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId
         ? contextoEmpresaId
-        : profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId)
+        : profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada)
           ? empresaHospedagemId ?? empresaId
           : empresaId
 
@@ -529,7 +530,7 @@ export default function BottomBar() {
       window.removeEventListener(GUIA_FUNIL_BADGE_EVENT, onFunil)
       void supabase.removeChannel(chFunil)
     }
-  }, [authUserId, userRole, empresaId, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId, ehAnfitriao, modoAnfitriao, empresaHospedagemId])
+  }, [authUserId, userRole, empresaId, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada])
 
   /** Ao navegar entre telas, reconta (fallback se Realtime ainda não estiver na publication). */
   const prevPathnameRef = useRef(/** @type {string | null} */ (null))
@@ -585,7 +586,7 @@ export default function BottomBar() {
 
   const roleParaBarra = (() => {
     if (modoAtivo && perfilSimulado) return perfilSimulado.tipo
-    if (profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId)) {
+    if (profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada)) {
       return 'empresa'
     }
     return userRole === 'admin' ? 'admin' : userRole
@@ -594,7 +595,7 @@ export default function BottomBar() {
   const empresaIdBar =
     isEmpresaBar && modoAtivo && contextoEmpresaId
       ? contextoEmpresaId
-      : isEmpresaBar && profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId)
+      : isEmpresaBar && profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada)
         ? empresaHospedagemId ?? empresaId
         : userRole === 'empresa'
           ? empresaId
