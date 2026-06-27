@@ -29,6 +29,7 @@ import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibili
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 import { empresaElegivelGuiaPublico } from '@/lib/empresaGuiaVisibilidade'
 import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
+import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
