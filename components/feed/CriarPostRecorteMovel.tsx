@@ -26,10 +26,10 @@ function dimensoesMolduraMaxima(aspect: number, cw: number, ch: number) {
   return { w, h: w / aspect }
 }
 
-/** Escala base “cover” no contentor (igual a `object-cover` em cw×ch). */
-function escalaCover(natW: number, natH: number, cw: number, ch: number) {
-  if (natW <= 0 || natH <= 0 || cw <= 0 || ch <= 0) return 0
-  return Math.max(cw / natW, ch / natH)
+/** Escala base “cover” na área de referência (moldura de recorte). */
+function escalaCover(natW: number, natH: number, refW: number, refH: number) {
+  if (natW <= 0 || natH <= 0 || refW <= 0 || refH <= 0) return 0
+  return Math.max(refW / natW, refH / natH)
 }
 
 function clampPan(
@@ -43,7 +43,7 @@ function clampPan(
   cropH: number,
   zoom: number
 ): { panX: number; panY: number } {
-  const s0 = escalaCover(natW, natH, cw, ch)
+  const s0 = escalaCover(natW, natH, cropW, cropH)
   if (s0 <= 0 || !cropW || !cropH) return { panX: 0, panY: 0 }
   const s = s0 * zoom
   const Wd = natW * s
@@ -71,7 +71,7 @@ function paraPixelCropPanZoom(
   panX: number,
   panY: number
 ): PixelCrop {
-  const s0 = escalaCover(natW, natH, cw, ch)
+  const s0 = escalaCover(natW, natH, cropW, cropH)
   if (s0 <= 0 || !cropW || !cropH) {
     return { x: 0, y: 0, width: 1, height: 1 }
   }
@@ -257,7 +257,12 @@ export default function CriarPostRecorteMovel({
     setNat({ w: im.naturalWidth, h: im.naturalHeight })
   }
 
-  const s0 = ready ? escalaCover(nat.w, nat.h, cw, ch) : 0
+  const s0 =
+    ready && showMoldura && cropW > 0 && cropH > 0
+      ? escalaCover(nat.w, nat.h, cropW, cropH)
+      : ready
+        ? escalaCover(nat.w, nat.h, cw, ch)
+        : 0
   const s = s0 * zoom
   const Wd = nat.w * s
   const Hd = nat.h * s
@@ -269,7 +274,7 @@ export default function CriarPostRecorteMovel({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full overflow-hidden rounded-lg bg-black ${className}`}
+      className={`relative mx-auto w-full max-w-[430px] overflow-hidden rounded-lg bg-black ${className}`}
       style={{ touchAction: showMoldura ? 'none' : 'auto', height: 'min(52vh, 440px)' }}
       role="presentation"
       aria-label={showMoldura ? 'Arraste para posicionar; rodinha ou pinça para zoom' : undefined}
