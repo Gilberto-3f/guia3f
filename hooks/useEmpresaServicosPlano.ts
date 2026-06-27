@@ -13,6 +13,7 @@ import {
   publicidadeExternaLiberada,
   publicidadeHomeLiberada,
   resolverServicosEmpresa,
+  resolverServicosEmpresaComDegustacao,
   type AbaDashboardEmpresa,
   type FeatureEmpresaId,
   type MenuEmpresaId,
@@ -248,6 +249,17 @@ export function useEmpresaServicosPlano(
     somenteAnfitriao,
   ])
 
+  /** Visibilidade pública (guia + página da empresa): degustação ou plano, sem bloqueio de vencimento. */
+  const servicosPublicos = useMemo(() => {
+    if (somenteAnfitriao) return [...TODOS_SERVICOS_EMPRESA]
+    return resolverServicosEmpresaComDegustacao(
+      planoEmpresa,
+      planos,
+      degustacaoAtiva ? { ativa: true, planoId: degustacaoPlanoId } : null,
+      { planoContratadoId },
+    )
+  }, [somenteAnfitriao, planoEmpresa, planos, degustacaoAtiva, degustacaoPlanoId, planoContratadoId])
+
   const temServico = useCallback(
     (servico: ServicoPlanoId) => servicos.includes(servico),
     [servicos],
@@ -271,6 +283,11 @@ export function useEmpresaServicosPlano(
   const featureLiberada = useCallback(
     (feature: FeatureEmpresaId) => featureEmpresaLiberada(feature, servicos),
     [servicos],
+  )
+
+  const featurePublicaLiberada = useCallback(
+    (feature: FeatureEmpresaId) => featureEmpresaLiberada(feature, servicosPublicos),
+    [servicosPublicos],
   )
 
   const temPublicidadeHome = useCallback(
@@ -306,6 +323,7 @@ export function useEmpresaServicosPlano(
   return useMemo(
     () => ({
       servicos,
+      servicosPublicos,
       loading: loadingEfetivo,
       degustacaoAtiva,
       degustacaoPlanoId,
@@ -319,6 +337,7 @@ export function useEmpresaServicosPlano(
       menuVisivel,
       abaLiberada,
       featureLiberada,
+      featurePublicaLiberada,
       temPublicidadeHome,
       temPublicidadeExterna,
       refetch: carregar,
@@ -333,11 +352,13 @@ export function useEmpresaServicosPlano(
       degustacaoPlanoTitulo,
       diasParaVencimentoPlano,
       featureLiberada,
+      featurePublicaLiberada,
       lembreteVencimentoPlano,
       loadingEfetivo,
       menuLiberado,
       menuVisivel,
       servicos,
+      servicosPublicos,
       temPublicidadeExterna,
       temPublicidadeHome,
       temServico,

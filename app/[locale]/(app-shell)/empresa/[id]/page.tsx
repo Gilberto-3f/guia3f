@@ -86,24 +86,26 @@ export default function EmpresaPage() {
   const { modoAtivo } = useModoApresentacao()
   const planoEmpresa =
     empresa && empresa.plano != null ? String(empresa.plano) : null
-  const { featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
+  const { featurePublicaLiberada, featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
     aguardarEmpresa: loading,
   })
   const { podeComprarReservar, loading: gateLoading } = useGateComprasReservas()
   const aguardandoPlanoRede = loading || planoLoading
   const empresaVerificada =
     empresa != null && contaVerificadaDocumentacao('empresa', empresa as { docs_verificado?: boolean | null; status?: string | null })
-  const donoEmpresaPreview =
+  const ehDonoEmpresa =
     usuarioId != null &&
     empresa != null &&
     String(empresa.usuario_id ?? '') === usuarioId &&
-    meuRole === 'empresa'
+    (meuRole === 'empresa' ||
+      (meuRole === 'profissional' && Boolean(empresa.somente_anfitriao)))
   const mostrarBotaoDinamico =
     !aguardandoPlanoRede &&
     !gateLoading &&
-    featureLiberada('botao_dinamico') &&
-    (donoEmpresaPreview || (empresaVerificada && podeComprarReservar))
-  const mostrarChamarCorrida = !aguardandoPlanoRede && featureLiberada('botao_chamar_corrida')
+    featurePublicaLiberada('botao_dinamico') &&
+    (ehDonoEmpresa || (empresaVerificada && podeComprarReservar))
+  const mostrarChamarCorrida =
+    !aguardandoPlanoRede && featurePublicaLiberada('botao_chamar_corrida')
   const mostrarConteudoRede = !aguardandoPlanoRede && featureLiberada('pagina_rede_social')
 
   useEffect(() => {

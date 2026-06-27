@@ -194,6 +194,22 @@ export function resolverServicosEmpresaComDegustacao(
   return resolverServicosDoPlano(planoEmpresa, planos, { planoId: opts?.planoContratadoId })
 }
 
+/** Mesma regra do card do guia turístico (degustação ou plano contratado). */
+export function empresaTemBotaoDinamicoPublico(
+  planoEmpresa: string | null | undefined,
+  planos: PlanoResumoServicos[],
+  degustacao: { ativa: boolean; planoId?: string | null } | null | undefined,
+  planoContratadoId: string | null | undefined,
+): boolean {
+  const servicos = resolverServicosEmpresaComDegustacao(
+    planoEmpresa,
+    planos,
+    degustacao?.ativa ? { ativa: true, planoId: degustacao.planoId ?? null } : null,
+    { planoContratadoId: planoContratadoId ?? null },
+  )
+  return empresaTemServico(servicos, 'botao_dinamico')
+}
+
 /** Plano contratado reconhecido no catálogo ativo (evita exibir slug órfão legado). */
 export function planoEmpresaReconhecidoNoCatalogo(
   planoEmpresa: string | null | undefined,

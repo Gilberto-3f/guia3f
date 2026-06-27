@@ -9,8 +9,7 @@ import BuscadorGuiaSegmento from '@/components/guia/BuscadorGuiaSegmento'
 import { empresaCorrespondeBusca } from '@/lib/palavrasChaveGuia'
 import { registrarBuscaGuia } from '@/lib/buscasGuia'
 import {
-  empresaTemServico,
-  resolverServicosEmpresaComDegustacao,
+  empresaTemBotaoDinamicoPublico,
   type PlanoResumoServicos,
 } from '@/lib/planosEmpresaServicosGate'
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
@@ -161,18 +160,15 @@ export default function ListagemCategoriaPage() {
   }, [])
 
   const empresaTemBotaoDinamico = useCallback(
-    (empresa: Empresa) => {
-      const emDegustacao = degustacaoPlanoPorEmpresa.has(empresa.id)
-      const servicos = resolverServicosEmpresaComDegustacao(
+    (empresa: Empresa) =>
+      empresaTemBotaoDinamicoPublico(
         empresa.plano,
         planosResumo,
-        emDegustacao
+        degustacaoPlanoPorEmpresa.has(empresa.id)
           ? { ativa: true, planoId: degustacaoPlanoPorEmpresa.get(empresa.id) ?? null }
           : null,
-        { planoContratadoId: planoContratadoPorEmpresa.get(empresa.id) ?? null },
-      )
-      return empresaTemServico(servicos, 'botao_dinamico')
-    },
+        planoContratadoPorEmpresa.get(empresa.id) ?? null,
+      ),
     [degustacaoPlanoPorEmpresa, planoContratadoPorEmpresa, planosResumo],
   )
 
