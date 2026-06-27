@@ -135,5 +135,5 @@ export async function fetchAutorIdsSeguidosAmigos(
   const seguidosRede = (segRows ?? [])
     .map((r) => String((r as { seguido_id: string }).seguido_id))
     .filter(Boolean)
-  return [...new Set([...seguidosRede, ...autoresEmpresas])].filter(Boolean)
+  return [...new Set([...seguidosRede, ...autoresEmpresas])].filter((id) => Boolean(id) && id !== meuId)
 }

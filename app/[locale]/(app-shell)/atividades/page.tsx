@@ -24,6 +24,8 @@ import AvatarImage from '@/components/AvatarImage'
 import {
   atividadeVisivelNaMinhaContaEmpresa,
   atividadeVisivelNaMinhaContaPessoal,
+  atividadeVisivelMinhaContaModoAnfitriao,
+  atividadeVisivelMinhaContaModoHospedagem,
   chaveAtividadeSeguidor,
   chaveAtividadeCurtiuPost,
   postCanonicoId,
@@ -47,6 +49,8 @@ import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibili
 import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 import { resolverUsernameOriginalRepostStory, normalizarUsernameAtividade } from '@/lib/formatarTextoRepostStory'
 import { fetchAutorIdsSeguidosAmigos } from '@/lib/feedSeguidosEmpresasFavoritas'
+import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 import { propsInteractor, propsDonor, propsAtor, propsDono, propsSeguidor, propsSeguido, propsReposter, propsOriginal } from '@/components/atividades/atividadeHandleProps'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 
@@ -200,6 +204,7 @@ const USUARIOS_SELECT = `
 export default function AtividadesPage() {
   const router = useRouter()
   const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
+  const { ehAnfitriao, modo, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
   const [aba, setAba] = useState<'amigos' | 'minha'>('amigos')
   const [termoBusca, setTermoBusca] = useState('')
   const [resultadosBusca, setResultadosBusca] = useState<
@@ -257,6 +262,8 @@ export default function AtividadesPage() {
         post_original_id: string | null
         avaliacao_meta: unknown
         autor_id: string
+        autor_tipo: string | null
+        empresa_id: string | null
       }
     >
   >({})
@@ -266,7 +273,21 @@ export default function AtividadesPage() {
   /** Reposts de story ainda ativos no carrossel (expira_em > agora). */
   const [storiesRepostAtivos, setStoriesRepostAtivos] = useState<Set<string>>(() => new Set())
   const [storiesRepostAtivosPronto, setStoriesRepostAtivosPronto] = useState(false)
-  const [storyMetaMap, setStoryMetaMap] = useState<Record<string, { conteudo_url: string | null }>>({})
+  const [storyMetaMap, setStoryMetaMap] = useState<
+    Record<string, { conteudo_url: string | null; autor_tipo?: string | null }>
+  >({})
+
+  const operaComoEmpresaHospedagem = useMemo(
+    () =>
+      profissionalOperaComoEmpresaHospedagem(
+        meuRole,
+        ehAnfitriao,
+        modo,
+        empresaHospedagemId,
+        empresaHospedagemLiberada,
+      ),
+    [meuRole, ehAnfitriao, modo, empresaHospedagemId, empresaHospedagemLiberada],
+  )
 
   const carregarStoriesMeta = useCallback(async (rows: AtividadeRow[], opcoes?: { merge?: boolean }) => {
     const merge = Boolean(opcoes?.merge)
@@ -275,19 +296,22 @@ export default function AtividadesPage() {
       if (!merge) setStoryMetaMap({})
       return
     }
-    const { data, error } = await supabase.from('stories').select('id, conteudo_url').in('id', ids)
+    const { data, error } = await supabase.from('stories').select('id, conteudo_url, autor_tipo').in('id', ids)
     if (error) {
       console.error('[Atividades] stories meta:', error)
       if (!merge) setStoryMetaMap({})
       return
     }
-    const chunk: Record<string, { conteudo_url: string | null }> = {}
+    const chunk: Record<string, { conteudo_url: string | null; autor_tipo?: string | null }> = {}
     for (const row of data ?? []) {
-      const rec = row as { id: string; conteudo_url?: string | null }
+      const rec = row as { id: string; conteudo_url?: string | null; autor_tipo?: string | null }
       const id = String(rec.id ?? '').trim()
       if (!id) continue
       const url = rec.conteudo_url != null && String(rec.conteudo_url).trim() !== '' ? String(rec.conteudo_url) : null
-      chunk[id] = { conteudo_url: url }
+      chunk[id] = {
+        conteudo_url: url,
+        autor_tipo: rec.autor_tipo != null ? String(rec.autor_tipo) : null,
+      }
     }
     if (merge) {
       setStoryMetaMap((prev) => ({ ...prev, ...chunk }))
@@ -794,7 +818,7 @@ export default function AtividadesPage() {
       return
     }
     const sel =
-      'id, tipo, texto, conteudo_url, foto_url, post_original_id, avaliacao_meta, autor_id'
+      'id, tipo, texto, conteudo_url, foto_url, post_original_id, avaliacao_meta, autor_id, autor_tipo, empresa_id'
 
     const mergeRows = (
       acc: Record<
@@ -808,6 +832,8 @@ export default function AtividadesPage() {
           post_original_id: string | null
           avaliacao_meta: unknown
           autor_id: string
+          autor_tipo: string | null
+          empresa_id: string | null
         }
       >,
       rows: unknown[]
@@ -822,9 +848,13 @@ export default function AtividadesPage() {
           post_original_id: string | null
           avaliacao_meta: unknown
           autor_id: string
+          autor_tipo?: string | null
+          empresa_id?: string | null
         }
         acc[String(p.id)] = {
           ...p,
+          autor_tipo: p.autor_tipo != null ? String(p.autor_tipo) : null,
+          empresa_id: p.empresa_id != null ? String(p.empresa_id) : null,
           conteudo_url: p.conteudo_url ? normalizarUrlFotoPost(String(p.conteudo_url)) : null,
           foto_url: p.foto_url ? normalizarUrlFotoPost(String(p.foto_url)) : null,
         }
@@ -1091,6 +1121,14 @@ export default function AtividadesPage() {
     const role = (urow as { role?: string } | null)?.role ?? null
     setMeuRole(role)
 
+    const modoHospedagemAnfitriao = profissionalOperaComoEmpresaHospedagem(
+      role,
+      ehAnfitriao,
+      modo,
+      empresaHospedagemId,
+      empresaHospedagemLiberada,
+    )
+
     if (role === 'empresa') {
       setErroAmigos(null)
       setListaAmigos([])
@@ -1134,6 +1172,53 @@ export default function AtividadesPage() {
 
       await carregarStoriesMeta(minhaEmpresa, { merge: false })
       await carregarStoriesRepostAtivos(minhaEmpresa)
+
+      setCarregando(false)
+      return
+    }
+
+    if (modoHospedagemAnfitriao) {
+      setErroAmigos(null)
+      setListaAmigos([])
+      setEmpresaAvaliacaoMap({})
+      setQtdSeguindo(0)
+      seguindoRef.current = []
+      setOffsetAmigos(0)
+      setTemMaisAmigos(false)
+      setTemMaisMinha(false)
+      setMinhaEmpresaAtividades(null)
+
+      const limHosp = ATIVIDADES_LIMITE_MINHA_CONTA
+      const minhaHospRes = await supabase
+        .from('atividades')
+        .select('*')
+        .eq('usuario_id', uid)
+        .neq('autor_id', uid)
+        .not('tipo', 'in', '(avaliou,seguiu_empresa)')
+        .order('created_at', { ascending: false })
+        .range(0, limHosp - 1)
+
+      const minhaHosp = ((minhaHospRes.data ?? []) as AtividadeRow[]).filter((row) =>
+        atividadeVisivelNaMinhaContaEmpresa(row),
+      )
+      setListaMinha(minhaHosp)
+      setOffsetMinha(minhaHosp.length)
+
+      await carregarPerfis(minhaHosp, { merge: false })
+      await carregarEmpresasAvaliacoes(minhaHosp, { merge: false })
+
+      const postIdsHosp: string[] = []
+      for (const r of minhaHosp) {
+        if (r.tipo === 'curtiu_post') postIdsHosp.push(r.alvo_id)
+        const ex = r.dados_extras
+        if (ex && typeof ex === 'object') {
+          const pid = ex.post_id
+          if (typeof pid === 'string') postIdsHosp.push(pid)
+        }
+      }
+      await carregarPostsMeta(postIdsHosp, { merge: false })
+      await carregarStoriesMeta(minhaHosp, { merge: false })
+      await carregarStoriesRepostAtivos(minhaHosp)
 
       setCarregando(false)
       return
@@ -1219,7 +1304,18 @@ export default function AtividadesPage() {
     await carregarStoriesRepostAtivos(todos)
 
     setCarregando(false)
-  }, [carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesMeta, carregarStoriesRepostAtivos, modoAtivo])
+  }, [
+    carregarEmpresasAvaliacoes,
+    carregarPerfis,
+    carregarPostsMeta,
+    carregarStoriesMeta,
+    carregarStoriesRepostAtivos,
+    modoAtivo,
+    ehAnfitriao,
+    modo,
+    empresaHospedagemId,
+    empresaHospedagemLiberada,
+  ])
 
   const carregarMaisAtividades = useCallback(async () => {
     if (carregandoMais) return
@@ -1277,6 +1373,14 @@ export default function AtividadesPage() {
 
   useEffect(() => {
     void recarregar()
+  }, [recarregar])
+
+  useEffect(() => {
+    const onModoAnfitriao = () => {
+      void recarregar()
+    }
+    window.addEventListener('anfitriao-modo-change', onModoAnfitriao)
+    return () => window.removeEventListener('anfitriao-modo-change', onModoAnfitriao)
   }, [recarregar])
 
   useEffect(() => {
@@ -1399,11 +1503,12 @@ export default function AtividadesPage() {
     [marcarMinhaLidas]
   )
 
-  /** Empresa só tem “Minha conta”: força aba e marca lidas (antes era só `setAba`, sem `marcarMinhaLidas`). */
+  /** Empresa ou anfitrião em modo Hospedagem: só “Minha conta”. */
   useEffect(() => {
-    if (meuRole !== 'empresa' || !meuId) return
-    onAba('minha')
-  }, [meuRole, meuId, onAba])
+    if ((meuRole === 'empresa' || operaComoEmpresaHospedagem) && meuId) {
+      onAba('minha')
+    }
+  }, [meuRole, operaComoEmpresaHospedagem, meuId, onAba])
 
   const SWIPE_MIN_PX = 60
   const SWIPE_DOMINANCIA = 1.5
@@ -1418,7 +1523,7 @@ export default function AtividadesPage() {
 
   const tentarTrocarAbaPorSwipe = useCallback(
     (dx: number, dy: number) => {
-      if (meuRole === 'empresa') return
+      if (meuRole === 'empresa' || operaComoEmpresaHospedagem) return
       if (Math.abs(dx) < SWIPE_MIN_PX) return
       if (Math.abs(dx) <= Math.abs(dy) * SWIPE_DOMINANCIA) return
       if (dx < 0) {
@@ -1429,7 +1534,7 @@ export default function AtividadesPage() {
         if (aba !== 'amigos') onAba('amigos')
       }
     },
-    [aba, meuRole, onAba]
+    [aba, meuRole, operaComoEmpresaHospedagem, onAba]
   )
 
   const onTouchStartAtividades = useCallback((e: React.TouchEvent) => {
@@ -1501,10 +1606,18 @@ export default function AtividadesPage() {
 
   const listaAtividadesFiltrada = useMemo(() => {
     const raw = aba === 'amigos' ? listaAmigos : listaMinha
+    const ctxModo = { postMetaMap, storyMetaMap }
     const comentariosVistos = new Set<string>()
     const seguidoresVistos = new Set<string>()
     const curtidasPostVistas = new Set<string>()
     return raw.filter((r) => {
+      if (aba === 'minha' && meuId) {
+        if (operaComoEmpresaHospedagem) {
+          if (!atividadeVisivelMinhaContaModoHospedagem(r, ctxModo)) return false
+        } else if (ehAnfitriao && meuRole === 'profissional') {
+          if (!atividadeVisivelMinhaContaModoAnfitriao(r, meuId, ctxModo)) return false
+        }
+      }
       if (aba === 'amigos' && r.tipo === 'avaliou') return false
       if (r.tipo === 'repostou_post') return false
       if (r.tipo === 'seguiu_empresa') return false
@@ -1560,7 +1673,19 @@ export default function AtividadesPage() {
       }
       return true
     })
-  }, [aba, listaAmigos, listaMinha, storiesRepostAtivos, storiesRepostAtivosPronto, postMetaMap])
+  }, [
+    aba,
+    listaAmigos,
+    listaMinha,
+    storiesRepostAtivos,
+    storiesRepostAtivosPronto,
+    postMetaMap,
+    storyMetaMap,
+    meuId,
+    operaComoEmpresaHospedagem,
+    ehAnfitriao,
+    meuRole,
+  ])
 
   /** Busca meta de posts curtidos que ainda não estão no mapa (ex.: bloco paginado). */
   useEffect(() => {
@@ -2129,7 +2254,7 @@ export default function AtividadesPage() {
             >
               <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">ATIVIDADES</h1>
               <p className="text-center text-xs font-medium leading-tight text-white/90 sm:text-sm">
-                {meuRole === 'empresa' ? 'Minha Conta' : 'Atividades recentes'}
+                {meuRole === 'empresa' || operaComoEmpresaHospedagem ? 'Minha Conta' : 'Atividades recentes'}
               </p>
             </div>
             <div className="relative z-10 flex min-w-0 flex-1 items-center justify-end gap-2">
@@ -2253,7 +2378,7 @@ export default function AtividadesPage() {
         </div>
       </header>
 
-      <AbasAtividades aba={aba} onAba={onAba} somenteMinhaConta={meuRole === 'empresa'} />
+      <AbasAtividades aba={aba} onAba={onAba} somenteMinhaConta={meuRole === 'empresa' || operaComoEmpresaHospedagem} />
 
       <div
         className="px-4 pb-3 pt-3"
