@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase'
 import {
   fetchFotoPerfilUsuario,
   fetchFotosPerfilPorUsuarioIds,
-  pickAutorDisplay,
+  fetchPerfisSociaisPorUsuarioIds,
   STORY_RING_GRADIENT,
   visualizadoPorEmails,
 } from '@/lib/feed-autor'
@@ -50,46 +50,16 @@ function abreviarLabelStory(s, max = 11) {
   return `${t.slice(0, max)}…`
 }
 
-function labelStoryDeAutor(d) {
-  const h = d.username != null ? String(d.username).trim() : ''
-  if (h && h !== 'usuario') return abreviarLabelStory(h.startsWith('@') ? h : `@${h.replace(/^@/, '')}`)
-  const n = d.nome != null ? String(d.nome).trim() : ''
-  if (n) return abreviarLabelStory(n)
-  return abreviarLabelStory('Usuário')
-}
-
-/**
- * Username para o texto abaixo do anel: prioriza `nome_usuario` nos embeds (igual ao @ do feed).
- * @param {unknown} u linha de `usuarios` com turistas/profissionais/empresas
- */
-function labelFromUsuarioRow(u) {
-  if (!u || typeof u !== 'object') return abreviarLabelStory('Usuário')
-  const row = /** @type {Record<string, unknown>} */ (u)
-  const firstEmbed = (v) => {
-    if (v == null) return null
-    if (Array.isArray(v)) {
-      const x = v[0]
-      return x != null && typeof x === 'object' ? /** @type {Record<string, unknown>} */ (x) : null
-    }
-    return typeof v === 'object' ? /** @type {Record<string, unknown>} */ (v) : null
-  }
-  const t = firstEmbed(row.turistas)
-  const p = firstEmbed(row.profissionais)
-  const e = firstEmbed(row.empresas)
-  const colUsername =
-    typeof row.username === 'string' && row.username.trim() !== '' ? row.username.trim() : null
-  const colUsernameOk = colUsername && colUsername.toLowerCase() !== 'usuario' ? colUsername : null
-  /** Embeds primeiro (mesma fonte do @ no feed); `usuarios.username` só como fallback. */
-  const raw =
-    (t?.nome_usuario != null ? String(t.nome_usuario).trim() : null) ??
-    (p?.nome_usuario != null ? String(p.nome_usuario).trim() : null) ??
-    (e?.nome_usuario != null ? String(e.nome_usuario).trim() : null) ??
-    colUsernameOk
+/** @param {{ username: string, nome: string }} perfil */
+function labelFromPerfilSocial(perfil) {
+  const raw = String(perfil.username ?? '').trim()
   if (raw && raw.toLowerCase() !== 'usuario') {
     const out = raw.startsWith('@') ? raw : `@${raw.replace(/^@/, '')}`
     return abreviarLabelStory(out)
   }
-  return abreviarLabelStory(labelStoryDeAutor(pickAutorDisplay(u)))
+  const n = String(perfil.nome ?? '').trim()
+  if (n) return abreviarLabelStory(n)
+  return abreviarLabelStory('Usuário')
 }
 
 /** @param {string | null | undefined} s */
@@ -164,26 +134,8 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     try {
     await tentarProcessarPublicacoesAgendadas()
 
-    const USUARIOS_MEU_SELECT = `
-      id,
-      email,
-      role,
-      turistas (nome_completo, nome_usuario, foto_perfil_url, foto_url),
-      profissionais (nome_completo, nome_usuario, foto_perfil_url, foto_url),
-      empresas (id, nome_fantasia, nome_usuario, foto_url)
-    `
-
     /** @param {string} userId */
-    const carregarMeuAvatar = async (userId) => {
-      let meuAvatarUrl = await fetchFotoPerfilUsuario(supabase, userId)
-      if (!meuAvatarUrl) {
-        const { data: meU, error: meErr } = await supabase.from('usuarios').select(USUARIOS_MEU_SELECT).eq('id', userId).maybeSingle()
-        if (!meErr && meU) {
-          meuAvatarUrl = pickAutorDisplay(meU).foto_perfil_url
-        }
-      }
-      return meuAvatarUrl
-    }
+    const carregarMeuAvatar = async (userId) => fetchFotoPerfilUsuario(supabase, userId)
 
     const [{ data: seguidosRows }, { data: storiesRows, error: storiesErr }, meuAvatarUrl] = await Promise.all([
       supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid),
@@ -304,21 +256,13 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       }
     }
     const precisaPerfil = ordered.filter((aid) => labels[aid] == null)
-    const usuariosPromise =
-      precisaPerfil.length > 0
-        ? supabase.from('usuarios').select(USUARIOS_MEU_SELECT).in('id', precisaPerfil)
-        : Promise.resolve({ data: null, error: null })
-
-    const { data: usuariosRows, error: uErr } = await usuariosPromise
-    if (uErr) {
-      console.error('[StoriesBar] usuarios (perfis story):', uErr)
-    }
-    if (!uErr && usuariosRows?.length) {
-      for (const u of usuariosRows) {
-        const d = pickAutorDisplay(u)
-        const id = String(u.id)
-        labels[id] = labelFromUsuarioRow(u)
-        previews[id] = d.foto_perfil_url
+    if (precisaPerfil.length > 0) {
+      const perfisSociais = await fetchPerfisSociaisPorUsuarioIds(supabase, precisaPerfil)
+      for (const aid of precisaPerfil) {
+        const perfil = perfisSociais.get(aid)
+        if (!perfil) continue
+        labels[aid] = labelFromPerfilSocial(perfil)
+        previews[aid] = perfil.foto
       }
     }
 

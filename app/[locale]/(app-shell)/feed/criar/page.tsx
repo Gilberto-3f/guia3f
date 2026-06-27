@@ -26,6 +26,7 @@ import { salvarDraftAgendamento, urlRetornoAgendamento } from '@/lib/agendamento
 import { uploadMidiaAgendada } from '@/lib/agendamentoUpload'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 
 type Aba = 'foto' | 'texto'
@@ -85,6 +86,7 @@ function CriarPublicacaoPageInner() {
     loading: gateFeedLoading,
   } = useGateFeedSocial()
   const { ehAnfitriao, modo: modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
+  const { userRole } = useProfissionalGate()
 
   useEffect(() => {
     if (gateFeedLoading) return
@@ -549,8 +551,7 @@ function CriarPublicacaoPageInner() {
         origem === 'texto' ? 'texto' : fotoUrl && texto.trim() ? 'misto' : fotoUrl ? 'foto' : 'texto'
 
       setLoadingMsg('Criando publicação…')
-      const { data: uRow } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
-      const roleUsuario = uRow?.role != null ? String(uRow.role) : 'turista'
+      const roleUsuario = userRole != null ? String(userRole) : 'turista'
       const publicarComoEmpresa = profissionalOperaComoEmpresaHospedagem(
         roleUsuario,
         ehAnfitriao,

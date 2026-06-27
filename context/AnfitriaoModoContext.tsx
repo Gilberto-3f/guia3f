@@ -59,7 +59,6 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
     categoriasIncluemAnfitriao(profCategorias.length ? profCategorias : (profRow as { categorias?: string[] } | null)?.categorias)
 
   const recarregar = useCallback(async () => {
-    setAnfitriaoDadosProntos(false)
     const {
       data: { session },
     } = await supabase.auth.getSession()
