@@ -258,6 +258,16 @@ function pastaAnfitriao(ctx) {
   }
 }
 
+/** Pasta Anfitrião fixa + seções de empresa (modo Hospedagem). */
+function secoesAnfitriaoComEmpresa(ctx) {
+  const emp = secoesEmpresa(ctx)
+  const idxEmp = emp.findIndex((s) => s.tipo === 'grupo' && s.key === 'empresa')
+  if (idxEmp >= 0) {
+    return [pastaAnfitriao(ctx), ...emp.slice(0, idxEmp), ...emp.slice(idxEmp)]
+  }
+  return [pastaAnfitriao(ctx), ...emp]
+}
+
 /**
  * @param {MenuContext} ctx
  */
@@ -699,16 +709,14 @@ export default function MenuLateral({
     if (variant === 'profissional') {
       if (!recursosProfLiberadosEfetivo) return secoesProfissionalAguardandoDocs(c)
       if (ehAnfitriao && modoAnfitriao === 'hospedagem' && empresaHospedagemId && empresaHospedagemLiberada) {
-        const emp = secoesEmpresa(c)
-        const idxEmp = emp.findIndex((s) => s.tipo === 'grupo' && s.key === 'empresa')
-        if (idxEmp >= 0) {
-          return [pastaAnfitriao(c), ...emp.slice(0, idxEmp), ...emp.slice(idxEmp)]
-        }
-        return [pastaAnfitriao(c), ...emp]
+        return secoesAnfitriaoComEmpresa(c)
       }
       return p
     }
-    if (variant === 'empresa') return e
+    if (variant === 'empresa') {
+      if (ehAnfitriao) return secoesAnfitriaoComEmpresa(c)
+      return e
+    }
     if (variant === 'admin') return a
     return []
   }, [
@@ -887,6 +895,8 @@ export default function MenuLateral({
     }
     if (item.subpagina === 'anfitriao-modo-social') {
       setModoAnfitriao('anfitriao')
+      window.dispatchEvent(new Event('anfitriao-modo-change'))
+      if (usuarioIdEfetivo) router.push(`/perfil/${usuarioIdEfetivo}`)
       onFechar()
       return
     }

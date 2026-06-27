@@ -56,6 +56,7 @@ export default function AbaFotosEmpresa({
           'id, conteudo_url, foto_url, tipo, texto, total_curtidas, total_comentarios, total_compartilhamentos, total_reposts, post_original_id, created_at'
         )
         .eq('autor_id', empresaUsuarioId)
+        .eq('autor_tipo', 'empresa')
         .is('deleted_at', null)
         .is('post_original_id', null)
         .in('tipo', ['foto', 'misto'])
