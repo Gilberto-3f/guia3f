@@ -1,15 +1,44 @@
 'use client'
 
 import type { LucideIcon } from 'lucide-react'
-import { Plug, Settings, Lock } from 'lucide-react'
+import { Settings, ShieldCheck } from 'lucide-react'
 
-export type ConfigSubabaId = 'apis' | 'geral' | 'seguranca'
+export type ConfigSubabaId = 'geral' | 'conformidade'
+
+export type ConfigConformidadeSubId = 'aplicativo' | 'seguranca'
 
 const TABS: { id: ConfigSubabaId; label: string; Icon: LucideIcon }[] = [
-  { id: 'apis', label: 'AP', Icon: Plug },
   { id: 'geral', label: 'Geral', Icon: Settings },
-  { id: 'seguranca', label: 'Segurança', Icon: Lock },
+  { id: 'conformidade', label: 'Conformidade', Icon: ShieldCheck },
 ]
+
+export function parseConfigSub(sub: string): {
+  main: ConfigSubabaId
+  conformidade: ConfigConformidadeSubId
+} {
+  if (sub === 'conformidade-seguranca' || sub === 'seguranca') {
+    return { main: 'conformidade', conformidade: 'seguranca' }
+  }
+  if (sub === 'conformidade-aplicativo' || sub === 'conformidade') {
+    return { main: 'conformidade', conformidade: 'aplicativo' }
+  }
+  if (sub === 'apis' || sub === 'logs') {
+    return { main: 'geral', conformidade: 'aplicativo' }
+  }
+  return { main: 'geral', conformidade: 'aplicativo' }
+}
+
+export function configSubConformidade(next: ConfigConformidadeSubId): string {
+  return next === 'seguranca' ? 'conformidade-seguranca' : 'conformidade-aplicativo'
+}
+
+export function configSubPrincipal(main: ConfigSubabaId, conformidade: ConfigConformidadeSubId = 'aplicativo'): string {
+  return main === 'conformidade' ? configSubConformidade(conformidade) : 'geral'
+}
+
+export function coerceConfigSubaba(sub: string): ConfigSubabaId {
+  return parseConfigSub(sub).main
+}
 
 export function ConfiguracoesTabs({
   value,
@@ -49,10 +78,4 @@ export function ConfiguracoesTabs({
       })}
     </div>
   )
-}
-
-export function coerceConfigSubaba(sub: string): ConfigSubabaId {
-  if (sub === 'geral' || sub === 'seguranca') return sub
-  if (sub === 'logs') return 'geral'
-  return 'apis'
 }
