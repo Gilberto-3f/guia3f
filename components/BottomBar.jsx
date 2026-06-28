@@ -101,13 +101,15 @@ export default function BottomBar() {
   const { modoAtivo, perfilSimulado, contextoEmpresaId, podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const { userRole, fotoPerfilBarra, empresaIdBarra } = useProfissionalGate()
-  const { ehAnfitriao, modo: modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada, empresaHospedagem } = useAnfitriaoModo()
+  const { ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada, empresaHospedagem } = useAnfitriaoModo()
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [authUserId, setAuthUserId] = useState(/** @type {string | null} */ (null))
   const [authPronto, setAuthPronto] = useState(false)
   const [fotoPerfilCache, setFotoPerfilCache] = useState(() => {
     if (typeof window === 'undefined') return null
-    return lerPerfilBarraCache()?.fotoUrl ?? null
+    const cached = lerPerfilBarraCache()
+    if (!cached) return null
+    return cached.fotoProfSocialUrl ?? cached.fotoUrl ?? null
   })
   const [naoLidasAtividades, setNaoLidasAtividades] = useState(0)
   const [naoLidasCanais, setNaoLidasCanais] = useState(0)
@@ -131,8 +133,8 @@ export default function BottomBar() {
         setNaoLidasCanais(0)
       } else {
         const cached = lerPerfilBarraCache()
-        if (cached?.userId === uid && cached.fotoUrl) {
-          setFotoPerfilCache(cached.fotoUrl)
+        if (cached?.userId === uid) {
+          setFotoPerfilCache(cached.fotoProfSocialUrl ?? cached.fotoUrl ?? null)
         }
       }
       setAuthPronto(true)
@@ -167,7 +169,7 @@ export default function BottomBar() {
     }
     if (
       userRole === 'profissional' &&
-      profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada) &&
+      profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada) &&
       empresaHospedagemId
     ) {
       setEmpresaId(empresaHospedagemId)
@@ -176,7 +178,7 @@ export default function BottomBar() {
     if (userRole !== 'empresa') {
       setEmpresaId(null)
     }
-  }, [userRole, empresaIdBarra, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada])
+  }, [userRole, empresaIdBarra, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada])
 
   /** Feed social (`atividades`): badge do coração — nunca mistura com `mensagens_canal`. */
   useEffect(() => {
@@ -375,11 +377,11 @@ export default function BottomBar() {
     const ehEmpresa =
       (modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId) ||
       userRole === 'empresa' ||
-      profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada)
+      profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada)
     const empId =
       modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId
         ? contextoEmpresaId
-        : profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada)
+        : profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada)
           ? empresaHospedagemId ?? empresaId
           : empresaId
 
@@ -438,7 +440,7 @@ export default function BottomBar() {
       window.removeEventListener(GUIA_FUNIL_BADGE_EVENT, onFunil)
       void supabase.removeChannel(chFunil)
     }
-  }, [authUserId, userRole, empresaId, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada])
+  }, [authUserId, userRole, empresaId, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada])
 
   /** Ao navegar entre telas, reconta (fallback se Realtime ainda não estiver na publication). */
   const prevPathnameRef = useRef(/** @type {string | null} */ (null))
@@ -496,7 +498,7 @@ export default function BottomBar() {
     const cached = authUserId ? lerPerfilBarraCache() : null
     const roleBase = userRole ?? (cached?.userId === authUserId ? cached.role : null)
     if (modoAtivo && perfilSimulado) return perfilSimulado.tipo
-    if (profissionalOperaComoEmpresaHospedagem(roleBase, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada)) {
+    if (profissionalOperaComoEmpresaHospedagem(roleBase, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada)) {
       return 'empresa'
     }
     return roleBase === 'admin' ? 'admin' : roleBase
@@ -507,7 +509,7 @@ export default function BottomBar() {
   const empresaIdBar =
     isEmpresaBar && modoAtivo && contextoEmpresaId
       ? contextoEmpresaId
-      : isEmpresaBar && profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada)
+      : isEmpresaBar && profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada)
         ? empresaHospedagemId ?? empresaId ?? perfilBarraCache?.empresaHospedagemId ?? null
         : userRole === 'empresa'
           ? empresaId ?? perfilBarraCache?.empresaId ?? null
@@ -562,20 +564,25 @@ export default function BottomBar() {
   const barPronta = authPronto
 
   const fotoExibidaBarra = (() => {
+    const fotoProfSocial =
+      perfilBarraCache?.fotoProfSocialUrl ??
+      fotoPerfilBarra ??
+      (userRole === 'profissional' ? perfilBarraCache?.fotoUrl : null) ??
+      fotoPerfilCache
     const operaEmpresa = profissionalOperaComoEmpresaHospedagem(
       userRole,
       ehAnfitriao,
-      modoAnfitriao,
+      modoEfetivo,
       empresaHospedagemId,
       empresaHospedagemLiberada,
     )
     if (operaEmpresa) {
-      return empresaHospedagem?.foto_url ?? perfilBarraCache?.empresaFotoUrl ?? fotoPerfilBarra ?? fotoPerfilCache
+      return empresaHospedagem?.foto_url ?? perfilBarraCache?.empresaFotoUrl ?? fotoProfSocial
     }
     if (userRole === 'empresa' || isEmpresaBar) {
       return fotoPerfilBarra ?? perfilBarraCache?.fotoUrl ?? fotoPerfilCache
     }
-    return fotoPerfilBarra ?? fotoPerfilCache
+    return fotoProfSocial
   })()
 
   const getQuintoIcone = () => {

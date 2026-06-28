@@ -30,7 +30,10 @@ function estadoInicialGate() {
   return {
     loading: false,
     userRole: cached.role,
-    fotoPerfilBarra: cached.fotoUrl,
+    fotoPerfilBarra:
+      cached.role === 'profissional'
+        ? cached.fotoProfSocialUrl ?? cached.fotoUrl
+        : cached.fotoUrl,
     empresaIdBarra: cached.empresaId,
   }
 }
@@ -88,7 +91,9 @@ export function ProfissionalGateProvider({ children }) {
       const cached = lerPerfilBarraCache()
       if (cached?.userId === uid) {
         if (cached.role) setUserRole(cached.role)
-        if (cached.fotoUrl) setFotoPerfilBarra(cached.fotoUrl)
+        const fotoBarra =
+          cached.role === 'profissional' ? cached.fotoProfSocialUrl ?? cached.fotoUrl : cached.fotoUrl
+        if (fotoBarra) setFotoPerfilBarra(fotoBarra)
         if (cached.empresaId) setEmpresaIdBarra(cached.empresaId)
       }
     }
@@ -242,6 +247,7 @@ export function ProfissionalGateProvider({ children }) {
       userId: uid,
       role,
       fotoUrl: fotoCache,
+      fotoProfSocialUrl: role === 'profissional' ? fotoCache : null,
       empresaId: empresaIdCache,
       empresaHospedagemId: empresaHospedagemIdCache,
       empresaFotoUrl: empresaFotoCache,

@@ -37,7 +37,10 @@ export type EmpresaHospedagemResumo = {
 
 type AnfitriaoModoValue = {
   ehAnfitriao: boolean
+  /** Modo persistido (localStorage). */
   modo: ModoAnfitriao
+  /** Modo efetivo para UI (respeita liberação da hospedagem). */
+  modoEfetivo: ModoAnfitriao
   setModo: (m: ModoAnfitriao) => void
   empresaHospedagemId: string | null
   empresaHospedagem: EmpresaHospedagemResumo | null
@@ -189,6 +192,7 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
     () => ({
       ehAnfitriao: Boolean(ehAnfitriao),
       modo,
+      modoEfetivo,
       setModo,
       empresaHospedagemId,
       empresaHospedagem,
@@ -200,6 +204,7 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
     [
       ehAnfitriao,
       modo,
+      modoEfetivo,
       setModo,
       empresaHospedagemId,
       empresaHospedagem,
@@ -219,6 +224,7 @@ export function useAnfitriaoModo(): AnfitriaoModoValue {
   return {
     ehAnfitriao: false,
     modo: 'anfitriao',
+    modoEfetivo: 'anfitriao',
     setModo: () => {},
     empresaHospedagemId: null,
     empresaHospedagem: null,
