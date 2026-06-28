@@ -9,6 +9,9 @@ import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { sanitizarPalavrasChave } from '@/lib/palavrasChaveGuia'
 
+/** Azul do botão dinâmico do segmento Hospedagem. */
+const COR_HOSPEDAGEM = '#45B7D1'
+
 /**
  * @param {{
  *   isOpen: boolean
@@ -125,38 +128,51 @@ export default function PopupReservaHospedagem({
   return (
     <>
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-        <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white">
+        <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white text-gray-900 shadow-xl [color-scheme:light]">
           <div className="flex items-center justify-between border-b border-gray-100 p-4">
             <div className="flex items-center gap-2">
-              <CalendarDays size={20} className="text-[#0097b2]" aria-hidden />
-              <h2 className="text-lg font-semibold">Reservar Hospedagem</h2>
+              <CalendarDays size={20} style={{ color: COR_HOSPEDAGEM }} aria-hidden />
+              <h2 className="text-lg font-semibold" style={{ color: COR_HOSPEDAGEM }}>
+                Reservar Hospedagem
+              </h2>
             </div>
-            <button type="button" onClick={handleFechar} className="p-1" aria-label="Fechar">
+            <button
+              type="button"
+              onClick={handleFechar}
+              className="rounded p-1 text-gray-700 hover:bg-gray-100"
+              aria-label="Fechar"
+            >
               <X size={20} />
             </button>
           </div>
 
           {sucesso ? (
             <div className="space-y-4 p-6 text-center">
-              <p className="text-base font-semibold text-[#0097b2]">Solicitação enviada!</p>
-              <p className="text-sm text-gray-600">
+              <p className="text-base font-semibold" style={{ color: COR_HOSPEDAGEM }}>
+                Solicitação enviada!
+              </p>
+              <p className="text-sm text-gray-700">
                 Sua solicitação de reserva foi enviada para <strong>{empresaNome}</strong>. Aguarde a
                 confirmação da empresa.
               </p>
               <button
                 type="button"
                 onClick={handleFechar}
-                className="w-full rounded-lg bg-[#0097b2] py-3 font-medium text-white"
+                className="w-full rounded-lg py-3 font-medium text-white"
+                style={{ backgroundColor: COR_HOSPEDAGEM }}
               >
                 Fechar
               </button>
             </div>
           ) : (
             <>
-              <div className="space-y-4 p-4">
+              <div className="space-y-3 p-4">
                 <p className="text-center text-lg font-bold text-gray-900">{empresaNome}</p>
-                <p className="text-center text-sm text-gray-600">
-                  Diária: <span className="font-semibold text-[#0097b2]">R$ {diaria.toFixed(2)}</span>
+                <p className="text-center text-sm text-gray-800">
+                  Diária:{' '}
+                  <span className="font-semibold" style={{ color: COR_HOSPEDAGEM }}>
+                    R$ {diaria.toFixed(2)}
+                  </span>
                 </p>
 
                 {termos.length > 0 ? (
@@ -164,7 +180,8 @@ export default function PopupReservaHospedagem({
                     {termos.map((termo) => (
                       <span
                         key={termo}
-                        className="rounded-full bg-[#0097b2]/10 px-2.5 py-0.5 text-xs font-medium text-[#0097b2]"
+                        className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+                        style={{ backgroundColor: `${COR_HOSPEDAGEM}18`, color: COR_HOSPEDAGEM }}
                       >
                         {termo}
                       </span>
@@ -172,38 +189,44 @@ export default function PopupReservaHospedagem({
                   </div>
                 ) : null}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <span className="mb-1 block text-sm text-gray-600">Check-in</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="min-w-0">
+                    <label htmlFor="reserva-hosp-checkin" className="mb-0.5 block text-xs font-medium text-gray-800">
+                      Check-in
+                    </label>
                     <input
+                      id="reserva-hosp-checkin"
                       type="date"
                       value={checkin}
                       onChange={(e) => setCheckin(e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 p-2"
+                      className="w-full min-w-0 max-w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 [color-scheme:light]"
                       min={hoje}
                     />
                   </div>
-                  <div>
-                    <span className="mb-1 block text-sm text-gray-600">Check-out</span>
+                  <div className="min-w-0">
+                    <label htmlFor="reserva-hosp-checkout" className="mb-0.5 block text-xs font-medium text-gray-800">
+                      Check-out
+                    </label>
                     <input
+                      id="reserva-hosp-checkout"
                       type="date"
                       value={checkout}
                       onChange={(e) => setCheckout(e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 p-2"
+                      className="w-full min-w-0 max-w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 [color-scheme:light]"
                       min={checkin || hoje}
                     />
                   </div>
                 </div>
 
                 {noites > 0 ? (
-                  <div className="border-t border-gray-100 pt-3">
+                  <div className="border-t border-gray-100 pt-2 text-sm text-gray-900">
                     <div className="flex justify-between">
                       <span>{noites} noite(s)</span>
                       <span>R$ {total.toFixed(2)}</span>
                     </div>
-                    <div className="mt-2 flex justify-between font-semibold">
+                    <div className="mt-1 flex justify-between font-semibold">
                       <span>Total estimado</span>
-                      <span className="text-[#0097b2]">R$ {total.toFixed(2)}</span>
+                      <span style={{ color: COR_HOSPEDAGEM }}>R$ {total.toFixed(2)}</span>
                     </div>
                   </div>
                 ) : null}
@@ -214,7 +237,7 @@ export default function PopupReservaHospedagem({
                   type="button"
                   onClick={handleSolicitar}
                   disabled={loading || !checkin || !checkout || noites <= 0}
-                  className="w-full rounded-lg bg-[#00D443] py-3 font-bold text-white disabled:opacity-50"
+                  className="w-full rounded-lg bg-[#00D443] py-2.5 text-sm font-bold text-white disabled:opacity-50"
                 >
                   {loading ? 'Enviando…' : 'Solicitar Reserva'}
                 </button>

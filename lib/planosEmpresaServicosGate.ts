@@ -200,7 +200,9 @@ export function empresaTemBotaoDinamicoPublico(
   planos: PlanoResumoServicos[],
   degustacao: { ativa: boolean; planoId?: string | null } | null | undefined,
   planoContratadoId: string | null | undefined,
+  opts?: { somenteAnfitriao?: boolean },
 ): boolean {
+  if (opts?.somenteAnfitriao) return true
   const servicos = resolverServicosEmpresaComDegustacao(
     planoEmpresa,
     planos,

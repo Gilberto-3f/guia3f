@@ -56,6 +56,7 @@ type Empresa = {
   plano?: string | null
   palavras_chave?: unknown
   docs_verificado?: boolean | null
+  somente_anfitriao?: boolean | null
 }
 
 type OrdenacaoModo = 'avaliacao' | 'localizacao'
@@ -168,6 +169,7 @@ export default function ListagemCategoriaPage() {
           ? { ativa: true, planoId: degustacaoPlanoPorEmpresa.get(empresa.id) ?? null }
           : null,
         planoContratadoPorEmpresa.get(empresa.id) ?? null,
+        { somenteAnfitriao: empresa.somente_anfitriao === true },
       ),
     [degustacaoPlanoPorEmpresa, planoContratadoPorEmpresa, planosResumo],
   )

@@ -17,8 +17,9 @@ import {
   mensagemWhatsappContatoGuia,
 } from '@/lib/whatsapp-empresa'
 
-// FIX: cor padronizada para TODAS as categorias
+// FIX: cor padronizada para TODAS as categorias (hospedagem usa azul do segmento)
 const COR_PADRAO = '#00D443'
+const COR_HOSPEDAGEM = '#45B7D1'
 
 function norm(s) {
   return String(s ?? '').toLowerCase().trim()
@@ -113,6 +114,7 @@ export default function BotaoDinamico({
   }, [categoria, cidade])
 
   const Icon = config.icon
+  const corBotao = isHospedagem(categoria) ? COR_HOSPEDAGEM : COR_PADRAO
 
   const enviarWhatsappReservaMesa = () => {
     const d = reservaData.trim()
@@ -201,7 +203,7 @@ export default function BotaoDinamico({
         type="button"
         onClick={handleClick}
         className="flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center text-xs font-bold leading-tight text-white whitespace-normal transition-opacity hover:opacity-95 sm:text-sm"
-        style={{ backgroundColor: COR_PADRAO }}
+        style={{ backgroundColor: corBotao }}
       >
         <Icon size={20} className="shrink-0 text-white" aria-hidden />
         <span className="max-w-full leading-tight">{config.texto}</span>
