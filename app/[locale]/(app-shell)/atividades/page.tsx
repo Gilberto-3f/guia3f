@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Loader2, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay, fetchFotoPerfilUsuario } from '@/lib/feed-autor'
-import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
+import { fetchVerificadoPorUsuarioIds, contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import AbasAtividades from '@/components/atividades/AbasAtividades'
 import AtividadeCurtidas from '@/components/atividades/AtividadeCurtidas'
 import AtividadeCurtiuComentario from '@/components/atividades/AtividadeCurtiuComentario'
@@ -41,6 +41,8 @@ import {
   coletarStoryIdsAtividades,
   storyIdDeAtividadeCurtiu,
   resolverConteudoUrlStoryAtividade,
+  resolverDonoPostAtividade,
+  postMetaEhConteudoEmpresa,
 } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
@@ -114,6 +116,7 @@ function mergeAtividadesPorId(anteriores: AtividadeRow[], novas: AtividadeRow[])
 
 type PerfilMap = Record<string, ReturnType<typeof pickAutorDisplay>>
 type EmpresaAvaliacaoMap = Record<string, { nome: string; username: string; foto_url: string | null; verificado: boolean }>
+type ProfissionalPerfilMap = Record<string, { username: string; foto_url: string | null }>
 
 type StoryViewerState = {
   id: string
@@ -238,6 +241,7 @@ export default function AtividadesPage() {
   /** Nome da empresa logada (aba Atividades — linhas `avaliou` e texto da página). */
   const [minhaEmpresaAtividades, setMinhaEmpresaAtividades] = useState<{ id: string; nome: string } | null>(null)
   const [empresaAvaliacaoMap, setEmpresaAvaliacaoMap] = useState<EmpresaAvaliacaoMap>({})
+  const [profissionalPerfilMap, setProfissionalPerfilMap] = useState<ProfissionalPerfilMap>({})
   const [carregando, setCarregando] = useState(true)
   const [listaAmigos, setListaAmigos] = useState<AtividadeRow[]>([])
   const [listaMinha, setListaMinha] = useState<AtividadeRow[]>([])
@@ -502,6 +506,37 @@ export default function AtividadesPage() {
     [perfilMap, seguidoEmpresaMap]
   )
 
+  const propsDonorDeCurtida = useCallback(
+    (opts: {
+      usuario_dono_id: string
+      empresa_dono_id?: string | null
+      donor_tipo?: 'empresa' | 'usuario'
+    }) => {
+      if (opts.donor_tipo === 'empresa' && opts.empresa_dono_id) {
+        const emp = empresaAvaliacaoMap[opts.empresa_dono_id]
+        const username = emp?.username
+          ? normalizarUsernameAtividade(emp.username)
+          : 'empresa'
+        return {
+          donorUsername: username,
+          hrefDonor: `/empresa/${opts.empresa_dono_id}`,
+          donorVerificado: emp?.verificado ?? false,
+          donorVerificadoTipo: 'empresa' as const,
+        }
+      }
+      const uid = opts.usuario_dono_id
+      const prof = profissionalPerfilMap[uid]
+      const donor = perfilMap[uid]
+      return {
+        donorUsername: prof?.username || donor?.username || 'usuario',
+        hrefDonor: `/perfil/${uid}`,
+        donorVerificado: Boolean(donor?.verificado),
+        donorVerificadoTipo: 'profissional' as const,
+      }
+    },
+    [empresaAvaliacaoMap, perfilMap, profissionalPerfilMap]
+  )
+
   const carregarStoryPorId = useCallback(async (storyId: string) => {
     const id = String(storyId ?? '').trim()
     if (!id) return
@@ -530,6 +565,7 @@ export default function AtividadesPage() {
         if (!merge) {
           setPerfilMap({})
           setSeguidoEmpresaMap({})
+          setProfissionalPerfilMap({})
         }
         return
       }
@@ -775,6 +811,25 @@ export default function AtividadesPage() {
         console.log('[Atividades] perfilMap amostra:', amostra)
       }
 
+      const profExtras: ProfissionalPerfilMap = {}
+      for (const [uid, prof] of profBy) {
+        const nu =
+          prof.nome_usuario != null && String(prof.nome_usuario).trim() !== ''
+            ? String(prof.nome_usuario).trim()
+            : ''
+        if (nu) {
+          profExtras[uid] = {
+            username: normalizarUsernameAtividade(nu),
+            foto_url: pickFoto(prof),
+          }
+        }
+      }
+      if (merge) {
+        setProfissionalPerfilMap((prev) => ({ ...prev, ...profExtras }))
+      } else {
+        setProfissionalPerfilMap(profExtras)
+      }
+
       const empresaUsuarioIds = ids.filter((id) => String(m[id]?.role ?? '').toLowerCase() === 'empresa')
       let sm: Record<string, string> = {}
       if (empresaUsuarioIds.length > 0) {
@@ -1005,6 +1060,51 @@ export default function AtividadesPage() {
       setPostMetaMap((prev) => ({ ...prev, ...m }))
     } else {
       setPostMetaMap(m)
+    }
+
+    const empresaIdsPost = [
+      ...new Set(
+        Object.values(m)
+          .filter((p) => postMetaEhConteudoEmpresa(p) && p.empresa_id)
+          .map((p) => String(p.empresa_id))
+          .filter(Boolean)
+      ),
+    ]
+    if (empresaIdsPost.length > 0) {
+      const { data: empRows, error: empErr } = await supabase
+        .from('empresas')
+        .select('id, nome_fantasia, nome_usuario, foto_url, docs_verificado, status')
+        .in('id', empresaIdsPost)
+      if (!empErr && empRows) {
+        const mapaEmp: EmpresaAvaliacaoMap = {}
+        for (const raw of empRows) {
+          const e = raw as {
+            id: string
+            nome_fantasia?: string | null
+            nome_usuario?: string | null
+            foto_url?: string | null
+            docs_verificado?: boolean | null
+            status?: string | null
+          }
+          const id = String(e.id ?? '')
+          if (!id) continue
+          mapaEmp[id] = {
+            nome:
+              e.nome_fantasia != null && String(e.nome_fantasia).trim() !== ''
+                ? String(e.nome_fantasia).trim()
+                : 'Empresa',
+            username:
+              e.nome_usuario != null && String(e.nome_usuario).trim() !== ''
+                ? String(e.nome_usuario).trim()
+                : '',
+            foto_url: e.foto_url != null && String(e.foto_url).trim() !== '' ? String(e.foto_url) : null,
+            verificado: contaVerificadaDocumentacao('empresa', e),
+          }
+        }
+        if (Object.keys(mapaEmp).length > 0) {
+          setEmpresaAvaliacaoMap((prev) => ({ ...prev, ...mapaEmp }))
+        }
+      }
     }
   }, [])
 
@@ -1746,7 +1846,11 @@ export default function AtividadesPage() {
 
     if (item.kind === 'curtiu_post_fotos') {
       const inter = perfilMap[item.autor_id]
-      const donor = perfilMap[item.usuario_dono_id]
+      const donorExibir = propsDonorDeCurtida({
+        usuario_dono_id: item.usuario_dono_id,
+        empresa_dono_id: item.empresa_dono_id,
+        donor_tipo: item.donor_tipo,
+      })
       /** Uma URL por linha (alinhada a `postIds`); placeholder se a meta ainda não tiver foto. */
       const urlsGrid = item.rows.map((r: AtividadeRow) => {
         const canonId = postCanonicoId(postMetaMap, r.alvo_id)
@@ -1755,19 +1859,20 @@ export default function AtividadesPage() {
       })
       return (
         <AtividadeCurtidas
-          key={`cf-${item.autor_id}-${item.usuario_dono_id}-${item.rows.map((r: AtividadeRow) => r.alvo_id).join('-')}`}
+          key={`cf-${item.autor_id}-${item.empresa_dono_id ?? item.usuario_dono_id}-${item.donor_tipo}-${item.rows.map((r: AtividadeRow) => r.alvo_id).join('-')}`}
           interactorUsername={inter?.username ?? 'usuario'}
           interactorFoto={inter?.foto_perfil_url ?? null}
-          donorUsername={donor?.username ?? 'usuario'}
+          donorUsername={donorExibir.donorUsername}
           hrefInteractor={hrefUsuario(item.autor_id)}
-          hrefDonor={hrefUsuario(item.usuario_dono_id)}
+          hrefDonor={donorExibir.hrefDonor}
           urls={urlsGrid}
           postIds={item.rows.map((r: AtividadeRow) => postCanonicoId(postMetaMap, r.alvo_id) || String(r.alvo_id))}
           totalCurtidas={item.rows.length}
           tempoInteracao={formatarDataAtividades(item.created_at)}
           modoMinhaConta={modoMinhaConta}
+          donorVerificado={donorExibir.donorVerificado}
+          donorVerificadoTipo={donorExibir.donorVerificadoTipo}
           {...propsInteractor(inter)}
-          {...propsDonor(donor)}
         />
       )
     }
@@ -1803,8 +1908,12 @@ export default function AtividadesPage() {
       const canonPost = postMetaCanonico(postMetaMap, r.alvo_id)
       const canonId = postCanonicoId(postMetaMap, r.alvo_id)
       const post = postMetaMap[r.alvo_id]
-      const donorUserId = canonPost?.autor_id ?? r.usuario_id
-      const donor = perfilMap[donorUserId]
+      const donoPost = resolverDonoPostAtividade(canonPost, r.usuario_id)
+      const donorExibir = propsDonorDeCurtida({
+        usuario_dono_id: donoPost.usuario_id,
+        empresa_dono_id: donoPost.empresa_id,
+        donor_tipo: donoPost.donor_tipo,
+      })
       const textoPost =
         canonPost?.texto != null
           ? String(canonPost.texto)
@@ -1812,8 +1921,13 @@ export default function AtividadesPage() {
             ? String(post.texto)
             : ''
       const hrefI = hrefUsuario(r.autor_id)
-      const hrefD = hrefUsuario(donorUserId)
+      const hrefD = donorExibir.hrefDonor
       const postIdExibir = canonId || r.alvo_id
+      const donorProps = {
+        donorUsername: donorExibir.donorUsername,
+        donorVerificado: donorExibir.donorVerificado,
+        donorVerificadoTipo: donorExibir.donorVerificadoTipo,
+      }
 
       if (item.categoria === 'verificacao_profissional') {
         const rawMeta = post?.avaliacao_meta
@@ -1827,7 +1941,7 @@ export default function AtividadesPage() {
             key={r.id}
             interactorUsername={inter?.username ?? 'usuario'}
             interactorFoto={inter?.foto_perfil_url ?? null}
-            donorUsername={donor?.username ?? 'usuario'}
+            donorUsername={donorProps.donorUsername}
             hrefInteractor={hrefI}
             hrefDonor={hrefD}
             texto={textoPost}
@@ -1836,7 +1950,8 @@ export default function AtividadesPage() {
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
             {...propsInteractor(inter)}
-            {...propsDonor(donor)}
+            donorVerificado={donorProps.donorVerificado}
+            donorVerificadoTipo={donorProps.donorVerificadoTipo}
           />
         )
       }
@@ -1847,7 +1962,7 @@ export default function AtividadesPage() {
             key={r.id}
             interactorUsername={inter?.username ?? 'usuario'}
             interactorFoto={inter?.foto_perfil_url ?? null}
-            donorUsername={donor?.username ?? 'usuario'}
+            donorUsername={donorProps.donorUsername}
             hrefInteractor={hrefI}
             hrefDonor={hrefD}
             texto={textoPost}
@@ -1855,7 +1970,8 @@ export default function AtividadesPage() {
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
             {...propsInteractor(inter)}
-            {...propsDonor(donor)}
+            donorVerificado={donorProps.donorVerificado}
+            donorVerificadoTipo={donorProps.donorVerificadoTipo}
           />
         )
       }
@@ -1872,7 +1988,7 @@ export default function AtividadesPage() {
             key={r.id}
             interactorUsername={inter?.username ?? 'usuario'}
             interactorFoto={inter?.foto_perfil_url ?? null}
-            donorUsername={donor?.username ?? 'usuario'}
+            donorUsername={donorProps.donorUsername}
             hrefInteractor={hrefI}
             hrefDonor={hrefD}
             postId={postIdExibir}
@@ -1880,7 +1996,8 @@ export default function AtividadesPage() {
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
             {...propsInteractor(inter)}
-            {...propsDonor(donor)}
+            donorVerificado={donorProps.donorVerificado}
+            donorVerificadoTipo={donorProps.donorVerificadoTipo}
           />
         )
       }
@@ -1899,7 +2016,7 @@ export default function AtividadesPage() {
             key={r.id}
             interactorUsername={inter?.username ?? 'usuario'}
             interactorFoto={inter?.foto_perfil_url ?? null}
-            donorUsername={donor?.username ?? 'usuario'}
+            donorUsername={donorProps.donorUsername}
             hrefInteractor={hrefI}
             hrefDonor={hrefD}
             postId={postIdExibir}
@@ -1909,7 +2026,8 @@ export default function AtividadesPage() {
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
             {...propsInteractor(inter)}
-            {...propsDonor(donor)}
+            donorVerificado={donorProps.donorVerificado}
+            donorVerificadoTipo={donorProps.donorVerificadoTipo}
           />
         )
       }
