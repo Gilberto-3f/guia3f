@@ -1,14 +1,11 @@
 import { ehCanalInboxMensageiroAdm } from '@/lib/canaisAdminVisibilidade'
 import { excluirCanalMensageiroVisaoAdm, nomeNormCanal } from '@/lib/rotulosCanaisAdministracao'
+import { slugCanalSegmentoEmpresa } from '@/lib/canaisEmpresaSlugs'
 
-import { CATEGORIAS_EMPRESA_DB, SEGMENTOS_EMPRESA_SLUG } from '@/lib/segmentosEmpresaGuia'
+import { SEGMENTOS_EMPRESA_SLUG } from '@/lib/segmentosEmpresaGuia'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao'] as const
-
-/** Valores legados (categoria) e rótulos atuais (cadastro / `empresa_categoria`). */
-const CATEGORIAS_EMPRESAS = SEGMENTOS_EMPRESA_SLUG
-const CATEGORIAS_EMPRESAS_ROTULO = CATEGORIAS_EMPRESA_DB
 
 export type CanalParticaoAdmin = {
   id: string
@@ -17,18 +14,9 @@ export type CanalParticaoAdmin = {
   categoria?: string | null
   empresa_categoria?: string | null
   empresa_id?: string | null
-}
-
-function canalEMSegmentoNegocio(c: CanalParticaoAdmin) {
-  const c1 = (c.categoria ?? '').trim()
-  const c2 = (c.empresa_categoria ?? '').trim()
-  const n = (c.nome ?? '').trim()
-  for (const x of [c1, c2, n]) {
-    const t = x.toLowerCase()
-    if ((CATEGORIAS_EMPRESAS as readonly string[]).includes(t)) return true
-    if ((CATEGORIAS_EMPRESAS_ROTULO as readonly string[]).includes(x)) return true
-  }
-  return false
+  comunidade_prof?: string | null
+  ordem_tipo?: string | null
+  ordem_posicao?: number | null
 }
 
 function canalEhProfissional(c: CanalParticaoAdmin) {
@@ -55,6 +43,19 @@ function chaveProfissional(c: CanalParticaoAdmin): string | null {
 
   if ((CATEGORIAS_PROFISSIONAIS as readonly string[]).includes(nome)) return nome
   return null
+}
+
+function chaveSegmentoEmpresa(c: CanalParticaoAdmin): string | null {
+  return slugCanalSegmentoEmpresa(c.categoria ?? c.empresa_categoria, c.nome)
+}
+
+function ehCanalGlobalSegmentoEmpresaAdm(c: CanalParticaoAdmin): boolean {
+  if (c.tipo_publico !== 'empresa') return false
+  if (c.empresa_id != null && String(c.empresa_id).trim() !== '') return false
+  if (c.comunidade_prof != null && String(c.comunidade_prof).trim() !== '') return false
+  const n = nomeNormCanal(c.nome)
+  if (n === 'ADM' || n === 'FINANCEIRO') return false
+  return chaveSegmentoEmpresa(c) != null && !canalEhProfissional(c)
 }
 
 /**
@@ -104,14 +105,31 @@ export function particionarVisaoAdminTodos(canaisOrdenados: CanalParticaoAdmin[]
     })(),
     /** Canal Financeiro empresa é pessoal; hub ADM usa o canal profissional (evita duplicata na lista). */
     administracaoEmp: [] as CanalParticaoAdmin[],
-    empresas: canaisOrdenados.filter(
-      (c) =>
-        c.tipo_publico === 'empresa' &&
-        nomeNormCanal(c.nome) !== 'ADM' &&
-        nomeNormCanal(c.nome) !== 'FINANCEIRO' &&
-        canalEMSegmentoNegocio(c) &&
-        !canalEhProfissional(c),
-    ),
+    empresas: (() => {
+      const candidatos = canaisOrdenados.filter((c) => ehCanalGlobalSegmentoEmpresaAdm(c))
+
+      const best = new Map<string, CanalParticaoAdmin>()
+      for (const c of candidatos) {
+        const k = chaveSegmentoEmpresa(c)
+        if (!k) continue
+        const cur = best.get(k)
+        if (!cur) {
+          best.set(k, c)
+          continue
+        }
+        const score = (x: CanalParticaoAdmin) =>
+          (x.ordem_tipo === 'fixo' ? 10 : 0) + (x.ordem_posicao != null ? 1 : 0)
+        if (score(c) > score(cur)) best.set(k, c)
+      }
+
+      const ordem = [...SEGMENTOS_EMPRESA_SLUG]
+      return [...best.values()].sort((a, b) => {
+        const ka = chaveSegmentoEmpresa(a) ?? ''
+        const kb = chaveSegmentoEmpresa(b) ?? ''
+        return ordem.indexOf(ka as (typeof SEGMENTOS_EMPRESA_SLUG)[number]) -
+          ordem.indexOf(kb as (typeof SEGMENTOS_EMPRESA_SLUG)[number])
+      })
+    })(),
   }
 }
 
