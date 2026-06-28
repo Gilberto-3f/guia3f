@@ -121,9 +121,10 @@ function montarQueryMapaEndereco(e) {
  *   nome_fantasia?: string
  * }
  * mostrarChamarCorrida?: boolean
+ * locacaoBloqueada?: boolean
  * }} props
  */
-export default function AbaEndereco({ empresa, mostrarChamarCorrida = false }) {
+export default function AbaEndereco({ empresa, mostrarChamarCorrida = false, locacaoBloqueada = false }) {
   const nomeDestino = empresa.nome_fantasia || ''
   const redes = parseRedesSociais(empresa.redes_sociais)
 
@@ -145,7 +146,17 @@ export default function AbaEndereco({ empresa, mostrarChamarCorrida = false }) {
 
   return (
     <div className="space-y-6 pb-0 text-gray-900 [&>section:last-child]:mb-0">
-      {mostrarChamarCorrida ? (
+      {locacaoBloqueada ? (
+        <section className="rounded-xl border border-[#45B7D1]/30 bg-[#45B7D1]/5 px-4 py-4 text-sm text-gray-800">
+          <p className="font-semibold text-[#0097b2]">Endereço disponível após confirmação</p>
+          <p className="mt-2 leading-relaxed text-gray-700">
+            Solicite uma reserva na aba de hospedagem. O endereço, o mapa e a opção de chamar corrida serão
+            liberados quando a empresa confirmar sua solicitação.
+          </p>
+        </section>
+      ) : null}
+
+      {!locacaoBloqueada && mostrarChamarCorrida ? (
       <section className="space-y-3">
         <BotaoChamarCorrida
           variant="empresa"
@@ -158,16 +169,18 @@ export default function AbaEndereco({ empresa, mostrarChamarCorrida = false }) {
       </section>
       ) : null}
 
-      <section className="space-y-2 border-t border-gray-100 pt-5">
-        <TituloSecao Icon={MapPin} titulo="Endereço" />
-        <div className="min-w-0">
-          <p className="text-base font-medium text-gray-900">{empresa.endereco}</p>
-          {empresa.bairro != null && String(empresa.bairro).trim() !== '' ? (
-            <p className="mt-0.5 text-base text-gray-600">{String(empresa.bairro).trim()}</p>
-          ) : null}
-          {empresa.cidade ? <p className="mt-0.5 text-base text-gray-600">{empresa.cidade}</p> : null}
-        </div>
-      </section>
+      {!locacaoBloqueada ? (
+        <section className="space-y-2 border-t border-gray-100 pt-5">
+          <TituloSecao Icon={MapPin} titulo="Endereço" />
+          <div className="min-w-0">
+            <p className="text-base font-medium text-gray-900">{empresa.endereco}</p>
+            {empresa.bairro != null && String(empresa.bairro).trim() !== '' ? (
+              <p className="mt-0.5 text-base text-gray-600">{String(empresa.bairro).trim()}</p>
+            ) : null}
+            {empresa.cidade ? <p className="mt-0.5 text-base text-gray-600">{empresa.cidade}</p> : null}
+          </div>
+        </section>
+      ) : null}
 
       <section className="border-t border-gray-100 pt-5">
         <TituloSecao Icon={Clock} titulo="Horário de Funcionamento" />
@@ -257,7 +270,7 @@ export default function AbaEndereco({ empresa, mostrarChamarCorrida = false }) {
         </section>
       ) : null}
 
-      {mapSrc ? (
+      {!locacaoBloqueada && mapSrc ? (
         <section className="mb-0 border-t border-gray-100 pt-5 pb-0">
           <TituloSecao Icon={MapPin} titulo="Mapa" />
           <div className="mb-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-100 leading-none shadow-sm">

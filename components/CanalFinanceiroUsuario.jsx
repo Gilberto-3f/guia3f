@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import CanalFinanceiroItem from '@/components/CanalFinanceiroItem'
 import CanalFinanceiroItemDegustacao from '@/components/CanalFinanceiroItemDegustacao'
 import CanalFinanceiroItemPreLiberacao from '@/components/CanalFinanceiroItemPreLiberacao'
+import CanalFinanceiroItemReservaHospedagem from '@/components/CanalFinanceiroItemReservaHospedagem'
 import CanalFinanceiroItemLembreteVencimento from '@/components/CanalFinanceiroItemLembreteVencimento'
 import CanalFinanceiroMensageiro from '@/components/CanalFinanceiroMensageiro'
 import CanalFinanceiroAbaPlanos from '@/components/CanalFinanceiroAbaPlanos'
@@ -31,6 +32,14 @@ const abaCls = (ativo) =>
 
 function itemRelatorioContaComoNaoLido(item, tipo, statusDegustacaoPorCanal, empresaHospedagemId) {
   if (item.tipo === 'pre_liberacao_turista' && !item.metadata?.respondido) return true
+  if (item.tipo === 'reserva_hospedagem') {
+    const respondido = String(item.metadata?.respondido ?? '').trim()
+    if (!respondido) return true
+    if (tipo === 'empresa' || (empresaHospedagemId && item.empresa_id)) {
+      return !item.lida_por_empresa
+    }
+    return !item.lida_por_profissional
+  }
   if (empresaHospedagemId && item.empresa_id) {
     return itemCanalFinanceiroContaComoNaoLidoEmpresa(
       {
@@ -512,6 +521,13 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospeda
               .map((item) =>
                 item.tipo === 'pre_liberacao_turista' && tipo === 'profissional' ? (
                   <CanalFinanceiroItemPreLiberacao
+                    key={item.id}
+                    item={item}
+                    onRespondido={() => void carregar({ silencioso: true })}
+                  />
+                ) : item.tipo === 'reserva_hospedagem' &&
+                  (tipo === 'empresa' || (modoAnfitriaoFinanceiro && item.empresa_id)) ? (
+                  <CanalFinanceiroItemReservaHospedagem
                     key={item.id}
                     item={item}
                     onRespondido={() => void carregar({ silencioso: true })}

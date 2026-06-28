@@ -8,6 +8,7 @@ import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { sanitizarPalavrasChave } from '@/lib/palavrasChaveGuia'
+import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 
 /** Azul do botão dinâmico do segmento Hospedagem. */
 const COR_HOSPEDAGEM = '#45B7D1'
@@ -97,18 +98,21 @@ export default function PopupReservaHospedagem({
         return
       }
 
-      const { error } = await supabase.from('reservas_hospedagem').insert({
-        empresa_id: empresaId,
-        turista_usuario_id: session.user.id,
-        data_checkin: checkin,
-        data_checkout: checkout,
-        status: 'pendente',
-        valor_estimado: total,
-        noites,
+      const res = await fetch('/api/reservas-hospedagem/solicitar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          empresa_id: empresaId,
+          data_checkin: checkin,
+          data_checkout: checkout,
+          noites,
+          valor_estimado: total,
+        }),
       })
-
-      if (error) {
-        alert(error.message || 'Não foi possível enviar a solicitação.')
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json.ok) {
+        alert(json.error ?? 'Não foi possível enviar a solicitação.')
         return
       }
 
@@ -117,6 +121,7 @@ export default function PopupReservaHospedagem({
         descricao: `Solicitação hospedagem ${noites} noite(s) — ${empresaNome}`,
         empresaId,
       })
+      notificarBadgeCanais()
       setSucesso(true)
     } finally {
       setLoading(false)

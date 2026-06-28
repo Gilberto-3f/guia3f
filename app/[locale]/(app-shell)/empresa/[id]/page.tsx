@@ -32,6 +32,7 @@ import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
 import { prefetchPlanosEmpresa, useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
+import { empresaEhHospedagemAnfitriao, turistaTemReservaHospedagemConfirmada } from '@/lib/reservaHospedagem'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 
 function debugEmpresa(...args: unknown[]) {
@@ -82,6 +83,7 @@ export default function EmpresaPage() {
   const [meuRole, setMeuRole] = useState<string | null>(null)
   const [adminLevel, setAdminLevel] = useState(0)
   const [meuEmail, setMeuEmail] = useState<string | null>(null)
+  const [reservaHospedagemConfirmada, setReservaHospedagemConfirmada] = useState(false)
   const [menuAberto, setMenuAberto] = useState(false)
   const { modoAtivo } = useModoApresentacao()
   const planoEmpresa =
@@ -120,6 +122,66 @@ export default function EmpresaPage() {
       setAbaExpandida(null)
     }
   }, [abaExpandida, mostrarBotaoDinamico])
+
+  const ehDonoEmpresaEarly =
+    usuarioId != null &&
+    empresa != null &&
+    String(empresa.usuario_id ?? '') === usuarioId &&
+    (meuRole === 'empresa' ||
+      (meuRole === 'profissional' && Boolean(empresa.somente_anfitriao)))
+
+  const ehPaginaHospedagem =
+    empresa != null &&
+    empresaEhHospedagemAnfitriao({
+      categoria: empresa.categoria != null ? String(empresa.categoria) : null,
+      somente_anfitriao: Boolean(empresa.somente_anfitriao),
+    })
+
+  const enderecoExigeReservaConfirmada =
+    ehPaginaHospedagem && !ehDonoEmpresaEarly && meuRole !== 'admin'
+
+  useEffect(() => {
+    if (!enderecoExigeReservaConfirmada || !empresaId) {
+      setReservaHospedagemConfirmada(false)
+      return
+    }
+
+    if (!usuarioId) {
+      setReservaHospedagemConfirmada(false)
+      return
+    }
+
+    let ativo = true
+
+    const verificar = async () => {
+      const ok = await turistaTemReservaHospedagemConfirmada(supabase, empresaId, usuarioId)
+      if (!ativo) return
+      setReservaHospedagemConfirmada(ok)
+    }
+
+    void verificar()
+
+    const ch = supabase
+      .channel(`reserva-hosp-page-${empresaId}-${usuarioId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'reservas_hospedagem',
+          filter: `turista_usuario_id=eq.${usuarioId}`,
+        },
+        () => {
+          void verificar()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      ativo = false
+      void supabase.removeChannel(ch)
+    }
+  }, [enderecoExigeReservaConfirmada, usuarioId, empresaId])
 
   useEffect(() => {
     const getUsuario = async () => {
@@ -340,6 +402,9 @@ export default function EmpresaPage() {
     nome_fantasia: nomeFantasia,
   }
 
+  const locacaoEnderecoBloqueada =
+    enderecoExigeReservaConfirmada && (!usuarioId || !reservaHospedagemConfirmada)
+
   return (
     <div className="bg-gray-50">
       <div className="border-b border-gray-100 bg-white pt-safe">
@@ -443,7 +508,11 @@ export default function EmpresaPage() {
             />
           ) : null}
           {abaExpandida === 'endereco' ? (
-            <AbaEndereco empresa={empresaEndereco} mostrarChamarCorrida={mostrarChamarCorrida} />
+            <AbaEndereco
+              empresa={empresaEndereco}
+              mostrarChamarCorrida={mostrarChamarCorrida && !locacaoEnderecoBloqueada}
+              locacaoBloqueada={locacaoEnderecoBloqueada}
+            />
           ) : null}
           {abaExpandida === 'dinamico' && mostrarBotaoDinamico ? (
             <AbaBotaoDinamico

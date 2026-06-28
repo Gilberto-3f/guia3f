@@ -10,6 +10,7 @@ export type TipoNotificacaoFinanceiroEmpresa =
   | 'plano_assinatura'
   | 'degustacao_plano'
   | 'lembrete_vencimento_plano'
+  | 'reserva_hospedagem'
 
 export type InserirNotificacaoFinanceiroEmpresaParams = {
   empresaUsuarioId: string
