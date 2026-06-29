@@ -72,6 +72,145 @@ export async function turistaTemReservaHospedagemConfirmada(
   return (data?.length ?? 0) > 0
 }
 
+export type ReservaHospedagemPendenteResumo = {
+  id: string
+  empresa_id: string
+  data_checkin: string
+  data_checkout: string
+  noites: number | null
+  canal_financeiro_id: string | null
+}
+
+/** Períodos [check-in, check-out) com sobreposição de diárias. */
+export function reservasHospedagemDatasSobrepoem(
+  checkinA: string,
+  checkoutA: string,
+  checkinB: string,
+  checkoutB: string,
+): boolean {
+  const a0 = String(checkinA).slice(0, 10)
+  const a1 = String(checkoutA).slice(0, 10)
+  const b0 = String(checkinB).slice(0, 10)
+  const b1 = String(checkoutB).slice(0, 10)
+  if (!a0 || !a1 || !b0 || !b1) return false
+  return a0 < b1 && b0 < a1
+}
+
+/** Reserva pendente do turista nesta empresa (aguardando anfitrião). */
+export async function buscarReservaPendenteEmpresa(
+  supabase: SupabaseClient,
+  turistaUsuarioId: string,
+  empresaId: string,
+): Promise<ReservaHospedagemPendenteResumo | null> {
+  const uid = String(turistaUsuarioId ?? '').trim()
+  const empId = String(empresaId ?? '').trim()
+  if (!uid || !empId) return null
+
+  const { data, error } = await supabase
+    .from('reservas_hospedagem')
+    .select('id, empresa_id, data_checkin, data_checkout, noites, canal_financeiro_id')
+    .eq('turista_usuario_id', uid)
+    .eq('empresa_id', empId)
+    .eq('status', 'pendente')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !data?.id) return null
+  return data as ReservaHospedagemPendenteResumo
+}
+
+/** Reservas pendentes do turista em outras empresas de hospedagem. */
+export async function listarReservasPendentesOutrasEmpresas(
+  supabase: SupabaseClient,
+  turistaUsuarioId: string,
+  empresaIdAtual: string,
+): Promise<ReservaHospedagemPendenteResumo[]> {
+  const uid = String(turistaUsuarioId ?? '').trim()
+  const empId = String(empresaIdAtual ?? '').trim()
+  if (!uid) return []
+
+  const { data, error } = await supabase
+    .from('reservas_hospedagem')
+    .select('id, empresa_id, data_checkin, data_checkout, noites, canal_financeiro_id')
+    .eq('turista_usuario_id', uid)
+    .eq('status', 'pendente')
+    .neq('empresa_id', empId)
+    .order('created_at', { ascending: false })
+
+  if (error) return []
+  return (data ?? []) as ReservaHospedagemPendenteResumo[]
+}
+
+export function algumaReservaPendenteConflitaComPeriodo(
+  pendentes: ReservaHospedagemPendenteResumo[],
+  checkin: string,
+  checkout: string,
+): boolean {
+  return pendentes.some((r) =>
+    reservasHospedagemDatasSobrepoem(r.data_checkin, r.data_checkout, checkin, checkout),
+  )
+}
+
+const MOTIVO_CANCELAMENTO_AUTO =
+  'Cancelada automaticamente: outra reserva confirmada para o mesmo período.'
+
+/** Cancela reservas pendentes conflitantes em outras empresas após confirmação. */
+export async function cancelarReservasPendentesConflitantes(
+  supabase: SupabaseClient,
+  params: {
+    turistaUsuarioId: string
+    reservaConfirmadaId: string
+    empresaConfirmadaId: string
+    dataCheckin: string
+    dataCheckout: string
+  },
+): Promise<ReservaHospedagemRow[]> {
+  const uid = String(params.turistaUsuarioId ?? '').trim()
+  if (!uid) return []
+
+  const { data: pendentesRaw } = await supabase
+    .from('reservas_hospedagem')
+    .select('*')
+    .eq('turista_usuario_id', uid)
+    .eq('status', 'pendente')
+    .neq('id', params.reservaConfirmadaId)
+    .neq('empresa_id', params.empresaConfirmadaId)
+
+  const pendentes = (pendentesRaw ?? []) as ReservaHospedagemRow[]
+  const conflitantes = pendentes.filter((r) =>
+    reservasHospedagemDatasSobrepoem(
+      r.data_checkin,
+      r.data_checkout,
+      params.dataCheckin,
+      params.dataCheckout,
+    ),
+  )
+
+  if (conflitantes.length === 0) return []
+
+  const now = new Date().toISOString()
+  const canceladas: ReservaHospedagemRow[] = []
+
+  for (const r of conflitantes) {
+    const { error } = await supabase
+      .from('reservas_hospedagem')
+      .update({
+        status: 'cancelada',
+        respondido_em: now,
+        motivo_recusa: MOTIVO_CANCELAMENTO_AUTO,
+      })
+      .eq('id', r.id)
+      .eq('status', 'pendente')
+
+    if (!error) canceladas.push(r)
+  }
+
+  return canceladas
+}
+
+export { MOTIVO_CANCELAMENTO_AUTO }
+
 function formatarDataBr(iso: string): string {
   const d = new Date(`${iso}T12:00:00`)
   if (Number.isNaN(d.getTime())) return iso

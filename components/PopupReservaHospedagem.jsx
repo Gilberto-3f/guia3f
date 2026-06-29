@@ -1,15 +1,21 @@
 'use client'
 
-import { useState } from 'react'
-import { X, CalendarDays } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { X, CalendarDays, Clock } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
+import PopupAvisoReservaHospedagemConflito from '@/components/PopupAvisoReservaHospedagemConflito'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { sanitizarPalavrasChave } from '@/lib/palavrasChaveGuia'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
-import { FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM } from '@/lib/reservaHospedagem'
+import {
+  FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM,
+  algumaReservaPendenteConflitaComPeriodo,
+  buscarReservaPendenteEmpresa,
+  listarReservasPendentesOutrasEmpresas,
+} from '@/lib/reservaHospedagem'
 
 /** Azul do botão dinâmico do segmento Hospedagem. */
 const COR_HOSPEDAGEM = '#45B7D1'
@@ -50,7 +56,41 @@ export default function PopupReservaHospedagem({
     /** @type {import('@/lib/reservaHospedagem').FormaPagamentoReservaHospedagem | ''} */ (''),
   )
   const [loading, setLoading] = useState(false)
+  const [carregandoEstado, setCarregandoEstado] = useState(false)
   const [sucesso, setSucesso] = useState(false)
+  const [reservaPendente, setReservaPendente] = useState(
+    /** @type {import('@/lib/reservaHospedagem').ReservaHospedagemPendenteResumo | null} */ (null),
+  )
+  const [mostrarAvisoConflito, setMostrarAvisoConflito] = useState(false)
+  const [conflitoReconhecido, setConflitoReconhecido] = useState(false)
+
+  const carregarEstadoReserva = useCallback(async () => {
+    if (!isOpen || !empresaId) return
+    setCarregandoEstado(true)
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session?.user?.id) {
+        setReservaPendente(null)
+        return
+      }
+      const pendente = await buscarReservaPendenteEmpresa(supabase, session.user.id, empresaId)
+      setReservaPendente(pendente)
+      if (pendente) setSucesso(false)
+    } finally {
+      setCarregandoEstado(false)
+    }
+  }, [isOpen, empresaId])
+
+  useEffect(() => {
+    if (!isOpen) {
+      setMostrarAvisoConflito(false)
+      setConflitoReconhecido(false)
+      return
+    }
+    void carregarEstadoReserva()
+  }, [isOpen, carregarEstadoReserva])
 
   if (!isOpen) return null
 
@@ -63,50 +103,25 @@ export default function PopupReservaHospedagem({
   }
 
   const noites = calcularNoites()
+  const noitesPendentes = Math.max(1, Number(reservaPendente?.noites) || 0)
   const diaria = Math.max(0, Number(precoDiaria) || 0)
   const total = diaria * noites
   const termos = exibirPalavrasChave ? sanitizarPalavrasChave(palavrasChave) : []
+  const aguardandoAnfitriao = Boolean(reservaPendente)
 
   const handleFechar = () => {
     setSucesso(false)
     setCheckin('')
     setCheckout('')
     setFormaPagamento('')
+    setMostrarAvisoConflito(false)
+    setConflitoReconhecido(false)
     onClose()
   }
 
-  const handleSolicitar = async () => {
-    if (!podeInteragir) {
-      notificarSomenteLeitura()
-      return
-    }
-    if (!podeComprarReservar) {
-      avisarBloqueio()
-      return
-    }
-    if (!checkin || !checkout) {
-      alert('Selecione as datas de check-in e check-out')
-      return
-    }
-    if (noites <= 0) {
-      alert('Check-out deve ser após o check-in')
-      return
-    }
-    if (!formaPagamento) {
-      alert('Selecione a forma de pagamento')
-      return
-    }
-
+  const enviarSolicitacao = async () => {
     setLoading(true)
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) {
-        alert('Faça login para continuar')
-        return
-      }
-
       const res = await fetch('/api/reservas-hospedagem/solicitar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -133,9 +148,57 @@ export default function PopupReservaHospedagem({
       })
       notificarBadgeCanais()
       setSucesso(true)
+      setConflitoReconhecido(false)
+      await carregarEstadoReserva()
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSolicitar = async () => {
+    if (!podeInteragir) {
+      notificarSomenteLeitura()
+      return
+    }
+    if (!podeComprarReservar) {
+      avisarBloqueio()
+      return
+    }
+    if (aguardandoAnfitriao) return
+    if (!checkin || !checkout) {
+      alert('Selecione as datas de check-in e check-out')
+      return
+    }
+    if (noites <= 0) {
+      alert('Check-out deve ser após o check-in')
+      return
+    }
+    if (!formaPagamento) {
+      alert('Selecione a forma de pagamento')
+      return
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session?.user?.id) {
+      alert('Faça login para continuar')
+      return
+    }
+
+    const outrasPendentes = await listarReservasPendentesOutrasEmpresas(
+      supabase,
+      session.user.id,
+      empresaId,
+    )
+    const temConflito = algumaReservaPendenteConflitaComPeriodo(outrasPendentes, checkin, checkout)
+
+    if (temConflito && !conflitoReconhecido) {
+      setMostrarAvisoConflito(true)
+      return
+    }
+
+    await enviarSolicitacao()
   }
 
   const hoje = new Date().toISOString().split('T')[0]
@@ -160,7 +223,7 @@ export default function PopupReservaHospedagem({
             <div className="flex items-center gap-2">
               <CalendarDays size={20} style={{ color: COR_HOSPEDAGEM }} aria-hidden />
               <h2 id="popup-reserva-hospedagem-titulo" className="text-lg font-semibold" style={{ color: COR_HOSPEDAGEM }}>
-                Fazer Reserva
+                {aguardandoAnfitriao ? 'Reserva Enviada' : 'Fazer Reserva'}
               </h2>
             </div>
             <button
@@ -173,7 +236,34 @@ export default function PopupReservaHospedagem({
             </button>
           </div>
 
-          {sucesso ? (
+          {carregandoEstado ? (
+            <div className="p-8 text-center text-sm text-gray-500">Carregando…</div>
+          ) : aguardandoAnfitriao ? (
+            <div className="space-y-4 p-6 text-center">
+              <div className="flex justify-center">
+                <Clock size={40} style={{ color: COR_HOSPEDAGEM }} aria-hidden />
+              </div>
+              <p className="text-base font-bold" style={{ color: COR_HOSPEDAGEM }}>
+                Reserva Enviada
+              </p>
+              <p className="text-sm leading-relaxed text-gray-700">
+                Você já solicitou reservas para{' '}
+                <strong>
+                  {noitesPendentes} {noitesPendentes === 1 ? 'dia' : 'dias'}
+                </strong>
+                . Aguarde a confirmação do Anfitrião da pousada para ter acesso ao endereço desta
+                Hospedagem.
+              </p>
+              <button
+                type="button"
+                onClick={handleFechar}
+                className="w-full rounded-lg py-3 font-medium text-white"
+                style={{ backgroundColor: COR_HOSPEDAGEM }}
+              >
+                Fechar
+              </button>
+            </div>
+          ) : sucesso ? (
             <div className="space-y-4 p-6 text-center">
               <p className="text-base font-semibold" style={{ color: COR_HOSPEDAGEM }}>
                 Solicitação enviada!
@@ -225,7 +315,10 @@ export default function PopupReservaHospedagem({
                       id="reserva-hosp-checkin"
                       type="date"
                       value={checkin}
-                      onChange={(e) => setCheckin(e.target.value)}
+                      onChange={(e) => {
+                        setCheckin(e.target.value)
+                        setConflitoReconhecido(false)
+                      }}
                       className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 [color-scheme:light]"
                       min={hoje}
                     />
@@ -238,7 +331,10 @@ export default function PopupReservaHospedagem({
                       id="reserva-hosp-checkout"
                       type="date"
                       value={checkout}
-                      onChange={(e) => setCheckout(e.target.value)}
+                      onChange={(e) => {
+                        setCheckout(e.target.value)
+                        setConflitoReconhecido(false)
+                      }}
                       className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 [color-scheme:light]"
                       min={checkin || hoje}
                     />
@@ -299,6 +395,15 @@ export default function PopupReservaHospedagem({
           )}
         </div>
       </div>
+
+      <PopupAvisoReservaHospedagemConflito
+        isOpen={mostrarAvisoConflito}
+        onOk={() => {
+          setMostrarAvisoConflito(false)
+          setConflitoReconhecido(true)
+        }}
+      />
+
       <PopupAvisoBloqueioConta
         aberto={avisoAberto}
         onFechar={fecharAvisoBloqueio}

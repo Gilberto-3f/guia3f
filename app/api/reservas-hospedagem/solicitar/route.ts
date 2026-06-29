@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import {
+  buscarReservaPendenteEmpresa,
   carregarTuristaReservaMeta,
   criarAvisoCanalFinanceiroReservaHospedagem,
 } from '@/lib/reservaHospedagem'
@@ -52,6 +53,18 @@ export async function POST(req: Request) {
     }
 
     const turistaMeta = await carregarTuristaReservaMeta(adminDb, session.userId)
+
+    const pendenteMesmaEmpresa = await buscarReservaPendenteEmpresa(
+      adminDb,
+      session.userId,
+      empresaId,
+    )
+    if (pendenteMesmaEmpresa) {
+      return NextResponse.json(
+        { error: 'Você já possui uma solicitação pendente nesta hospedagem.' },
+        { status: 409 },
+      )
+    }
 
     const { data: reserva, error: insErr } = await adminDb
       .from('reservas_hospedagem')

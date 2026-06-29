@@ -3,7 +3,9 @@ import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import {
   atualizarCanalFinanceiroReservaRespondida,
+  cancelarReservasPendentesConflitantes,
   carregarTuristaReservaMeta,
+  MOTIVO_CANCELAMENTO_AUTO,
   type ReservaHospedagemRow,
   usuarioGerenciaEmpresaHospedagem,
 } from '@/lib/reservaHospedagem'
@@ -105,6 +107,45 @@ export async function POST(req: Request) {
       novoStatus === 'confirmada' ? 'confirmada' : 'cancelada',
       empresaNome,
     )
+
+    if (acao === 'confirmar' && turistaId) {
+      const canceladas = await cancelarReservasPendentesConflitantes(adminDb, {
+        turistaUsuarioId: turistaId,
+        reservaConfirmadaId: reservaId,
+        empresaConfirmadaId: String(reserva.empresa_id),
+        dataCheckin: String(reserva.data_checkin),
+        dataCheckout: String(reserva.data_checkout),
+      })
+
+      for (const cancelada of canceladas) {
+        const { data: empCancelada } = await adminDb
+          .from('empresas')
+          .select('nome_fantasia')
+          .eq('id', cancelada.empresa_id)
+          .maybeSingle()
+
+        const nomeEmpCancelada =
+          empCancelada?.nome_fantasia != null ? String(empCancelada.nome_fantasia) : 'Hospedagem'
+
+        await atualizarCanalFinanceiroReservaRespondida(adminDb, {
+          canalFinanceiroId: cancelada.canal_financeiro_id,
+          reserva: cancelada,
+          acao: 'recusar',
+          motivoRecusa: MOTIVO_CANCELAMENTO_AUTO,
+          turistaUsername: turistaMeta?.username,
+          turistaNome: turistaMeta?.nome,
+          turistaFotoUrl: turistaMeta?.fotoUrl ?? null,
+          empresaNome: nomeEmpCancelada,
+        })
+
+        await sincronizarCompraReservaHospedagem(
+          adminDb,
+          { ...cancelada, motivo_recusa: MOTIVO_CANCELAMENTO_AUTO },
+          'cancelada',
+          nomeEmpCancelada,
+        )
+      }
+    }
 
     return NextResponse.json({ ok: true, status: novoStatus })
   } catch (e) {
