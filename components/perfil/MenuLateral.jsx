@@ -452,6 +452,25 @@ function secoesEmpresa(ctx) {
   ]
 }
 
+function secaoAdministracaoColaborador() {
+  return {
+    tipo: 'grupo',
+    key: 'administracao',
+    label: 'Administração',
+    items: [{ Icon: LayoutDashboard, label: 'Dashboard ADM', href: '/dashboard/admin' }],
+  }
+}
+
+/** Pasta Administração para colaboradores ADM (níveis 2–4) no menu turista/prof/empresa. */
+function injetarSecaoAdministracao(secoes, adminLevelN) {
+  const nivel = Number(adminLevelN ?? 0)
+  if (nivel < 2) return secoes
+  const idx = secoes.findIndex((s) => s.tipo === 'sair')
+  const sec = secaoAdministracaoColaborador()
+  if (idx < 0) return [...secoes, sec]
+  return [...secoes.slice(0, idx), sec, ...secoes.slice(idx)]
+}
+
 /**
  * @param {MenuContext} ctx
  * @param {{ omitirModoNaLista: boolean }} opt
@@ -546,6 +565,46 @@ export default function MenuLateral({
   const [profVerificadoMenu, setProfVerificadoMenu] = useState(false)
   const [visitasPendentes, setVisitasPendentes] = useState(0)
   const [comprasPendentes, setComprasPendentes] = useState(0)
+  const [adminLevelMenu, setAdminLevelMenu] = useState(adminLevel)
+
+  useEffect(() => {
+    setAdminLevelMenu(adminLevel)
+  }, [adminLevel])
+
+  useEffect(() => {
+    if (!usuarioIdEfetivo) return
+    let ativo = true
+    void (async () => {
+      const { data } = await supabase
+        .from('usuarios')
+        .select('admin_level, role')
+        .eq('id', usuarioIdEfetivo)
+        .maybeSingle()
+      if (!ativo) return
+      const nivel = Number(data?.admin_level ?? adminLevel)
+      setAdminLevelMenu(Number.isFinite(nivel) ? nivel : adminLevel)
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [usuarioIdEfetivo, adminLevel, aberto])
+
+  useEffect(() => {
+    const onConvite = () => {
+      if (!usuarioIdEfetivo) return
+      void supabase
+        .from('usuarios')
+        .select('admin_level')
+        .eq('id', usuarioIdEfetivo)
+        .maybeSingle()
+        .then(({ data }) => {
+          const nivel = Number(data?.admin_level ?? 0)
+          if (Number.isFinite(nivel)) setAdminLevelMenu(nivel)
+        })
+    }
+    window.addEventListener('admin-convite-respondido', onConvite)
+    return () => window.removeEventListener('admin-convite-respondido', onConvite)
+  }, [usuarioIdEfetivo])
 
   useEffect(() => {
     if (!aberto || variant !== 'profissional' || !usuarioId) {
@@ -745,24 +804,24 @@ export default function MenuLateral({
     const e = secoesEmpresa(c)
     const a = secoesAdmin(c, { omitirModoNaLista: omitirModoNaListaAdmin })
     if (simulandoComoPerfil && perfilSimulado) {
-      if (perfilSimulado.tipo === 'empresa') return e
+      if (perfilSimulado.tipo === 'empresa') return injetarSecaoAdministracao(e, adminLevelMenu)
       if (perfilSimulado.tipo === 'profissional') {
         if (!recursosProfLiberadosEfetivo) return secoesProfissionalAguardandoDocs(c)
-        return p
+        return injetarSecaoAdministracao(p, adminLevelMenu)
       }
-      if (perfilSimulado.tipo === 'turista') return t
+      if (perfilSimulado.tipo === 'turista') return injetarSecaoAdministracao(t, adminLevelMenu)
     }
-    if (variant === 'turista') return t
+    if (variant === 'turista') return injetarSecaoAdministracao(t, adminLevelMenu)
     if (variant === 'profissional') {
       if (!recursosProfLiberadosEfetivo) return secoesProfissionalAguardandoDocs(c)
       if (ehAnfitriao && modoAnfitriao === 'hospedagem' && empresaHospedagemId && empresaHospedagemLiberada) {
-        return secoesAnfitriaoComEmpresa(c)
+        return injetarSecaoAdministracao(secoesAnfitriaoComEmpresa(c), adminLevelMenu)
       }
-      return p
+      return injetarSecaoAdministracao(p, adminLevelMenu)
     }
     if (variant === 'empresa') {
-      if (ehAnfitriao) return secoesAnfitriaoComEmpresa(c)
-      return e
+      if (ehAnfitriao) return injetarSecaoAdministracao(secoesAnfitriaoComEmpresa(c), adminLevelMenu)
+      return injetarSecaoAdministracao(e, adminLevelMenu)
     }
     if (variant === 'admin') return a
     return []
@@ -784,6 +843,7 @@ export default function MenuLateral({
     empresaEfetiva,
     modoAnfitriao,
     turistaGate,
+    adminLevelMenu,
   ])
 
   useEffect(() => {

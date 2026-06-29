@@ -29,8 +29,8 @@ export function ListaAdmins() {
 
   const cargoLabel = (cargo: string, comunidade: string | null) => {
     if (cargo === 'MODERADOR') return `Moderador${comunidade ? ` (${comunidade})` : ''}`
-    if (cargo === 'FINANCEIRO') return 'Financeiro'
-    if (cargo === 'SUPORTE') return 'Suporte'
+    if (cargo === 'FINANCEIRO') return 'ADM financeiro'
+    if (cargo === 'AUXILIAR_ADM' || cargo === 'SUPORTE') return 'Auxiliar ADM'
     return 'ADM GERAL'
   }
 

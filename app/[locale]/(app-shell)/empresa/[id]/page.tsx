@@ -640,6 +640,7 @@ export default function EmpresaPage() {
             aberto={menuAberto}
             onFechar={() => setMenuAberto(false)}
             variant="empresa"
+            adminLevel={adminLevel}
             nome={nomeFantasia}
             username={nomeUsuario}
             fotoUrl={fotoUrl}

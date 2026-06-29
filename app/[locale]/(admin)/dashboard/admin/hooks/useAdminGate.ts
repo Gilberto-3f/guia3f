@@ -41,7 +41,7 @@ export function useAdminGate(): GateState {
 
       const { data: u, error } = await supabase
         .from('usuarios')
-        .select('id, role, admin_level, email, status')
+        .select('id, role, admin_level, email, username, admin_permissoes, status')
         .eq('id', uid)
         .maybeSingle()
 
@@ -60,20 +60,25 @@ export function useAdminGate(): GateState {
       }
 
       const email = (u as { email?: string | null }).email ?? null
+      const username = (u as { username?: string | null }).username ?? null
       const nivel = coerceNivel((u as { admin_level?: unknown }).admin_level)
+      const permsRaw = (u as { admin_permissoes?: unknown }).admin_permissoes
 
       const admin: AdminUser = {
         id: String(u.id),
         role: 'admin',
         admin_level: nivel,
-        admin_permissoes: {
-          recursos: ['*'],
-          nivel,
-          cargo: 'ADM_GERAL',
-          modulos: ['*'],
-          comunidade: null,
-        } as AdminPermissoes,
-        username: email?.split('@')[0] ?? null,
+        admin_permissoes:
+          permsRaw && typeof permsRaw === 'object'
+            ? (permsRaw as AdminUser['admin_permissoes'])
+            : {
+                recursos: nivel === 1 ? ['*'] : [],
+                nivel,
+                cargo: nivel === 1 ? 'ADM_GERAL' : undefined,
+                modulos: nivel === 1 ? ['*'] : [],
+                comunidade: null,
+              },
+        username: username?.replace(/^@+/, '') ?? email?.split('@')[0] ?? null,
         email,
       }
 
