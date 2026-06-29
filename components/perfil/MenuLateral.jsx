@@ -70,6 +70,7 @@ import AgendamentoAutomatico from '@/components/perfil/subpaginas/AgendamentoAut
 import TabelaValores from '@/components/perfil/subpaginas/TabelaValores'
 import MeusManifestos from '@/components/perfil/subpaginas/MeusManifestos'
 import EditarPaginaEmpresa from '@/components/perfil/subpaginas/EditarPaginaEmpresa'
+import DisponibilidadeHospedagem from '@/components/perfil/subpaginas/DisponibilidadeHospedagem'
 import CadastrarHospedagemAnfitriao from '@/components/perfil/subpaginas/CadastrarHospedagemAnfitriao'
 import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 import HistoricoStories from '@/components/perfil/subpaginas/HistoricoStories'
@@ -121,6 +122,7 @@ import {
  *   empresaCategoria?: string
  *   empresaCidade?: string
  *   empresaServicos?: string[]
+ *   somenteAnfitriao?: boolean
  * }} MenuContext
  */
 
@@ -153,6 +155,12 @@ function empresaComprasParaguaiVisivel(ctx) {
     .replace(/[\u0300-\u036f]/g, '')
   const segmentoOk = cat === 'lojas' && cidade.includes('ciudad del este')
   return segmentoOk && menuEmpresaLiberado('compras-paraguai', ctx.empresaServicos ?? [])
+}
+
+/** Menu Disponibilidade — apenas segmento Hospedagem. */
+function empresaMenuHospedagemVisivel(ctx) {
+  if (Boolean(ctx.somenteAnfitriao)) return true
+  return String(ctx.empresaCategoria ?? '').trim() === 'Hospedagem'
 }
 
 function empresaMenuServico(id) {
@@ -393,6 +401,12 @@ function secoesEmpresa(ctx) {
         label: 'Botão Dinâmico',
         href: '/empresa/menu/botao-dinamico',
         condicional: empresaMenuServico('botao-dinamico'),
+      },
+      {
+        Icon: Hotel,
+        label: 'Disponibilidade',
+        subpagina: 'disponibilidade-hospedagem',
+        condicional: empresaMenuHospedagemVisivel,
       },
       {
         Icon: Megaphone,
@@ -708,6 +722,7 @@ export default function MenuLateral({
     empresaCategoria,
     empresaCidade,
     empresaServicos,
+    somenteAnfitriao: Boolean(empresaEfetiva?.somente_anfitriao),
   }
 
   const secoes = useMemo(() => {
@@ -987,6 +1002,7 @@ export default function MenuLateral({
         'historico-manifestos': 'Manifestos Concluídos',
         'parcerias-prof': 'Parcerias Fechadas',
         'editar-pagina': 'Editar Página',
+        'disponibilidade-hospedagem': 'Disponibilidade',
         contratacoes: 'Contratações',
         compras: 'Compras',
         parcerias: 'Parcerias',
@@ -1166,6 +1182,14 @@ export default function MenuLateral({
       return (
         <EditarPaginaEmpresa
           empresa={empresaEfetiva}
+          empresaId={String(empresaIdCtx)}
+          onSalvo={onPerfilAtualizado}
+        />
+      )
+    }
+    if (id === 'disponibilidade-hospedagem' && empresaIdCtx) {
+      return (
+        <DisponibilidadeHospedagem
           empresaId={String(empresaIdCtx)}
           onSalvo={onPerfilAtualizado}
         />

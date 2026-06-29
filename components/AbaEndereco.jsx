@@ -5,6 +5,7 @@ import { MapPin, Phone, User, Globe, Clock, Facebook, Instagram, Music2, Chevron
 import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
 import { whatsappWebSendUrl, digitsWhatsapp } from '@/lib/whatsapp-empresa'
 import HorariosFuncionamento from '@/components/HorariosFuncionamento'
+import StatusDisponibilidadeHospedagem from '@/components/StatusDisponibilidadeHospedagem'
 
 const ICON_CLASS = 'shrink-0 text-[#0097b2]'
 
@@ -152,9 +153,17 @@ function montarQueryMapaEndereco(e) {
  * }
  * mostrarChamarCorrida?: boolean
  * locacaoBloqueada?: boolean
+ * exibirDisponibilidadeHospedagem?: boolean
+ * hospedagemDisponibilidade?: string | null
  * }} props
  */
-export default function AbaEndereco({ empresa, mostrarChamarCorrida = false, locacaoBloqueada = false }) {
+export default function AbaEndereco({
+  empresa,
+  mostrarChamarCorrida = false,
+  locacaoBloqueada = false,
+  exibirDisponibilidadeHospedagem = false,
+  hospedagemDisponibilidade = null,
+}) {
   const nomeDestino = empresa.nome_fantasia || ''
   const redes = parseRedesSociais(empresa.redes_sociais)
 
@@ -221,6 +230,12 @@ export default function AbaEndereco({ empresa, mostrarChamarCorrida = false, loc
             ) : null}
             {empresa.cidade ? <p className="mt-0.5 text-base text-gray-600">{empresa.cidade}</p> : null}
           </div>
+        </section>
+      ) : null}
+
+      {exibirDisponibilidadeHospedagem ? (
+        <section className="border-t border-gray-100 pt-5">
+          <StatusDisponibilidadeHospedagem disponibilidade={hospedagemDisponibilidade ?? 'livre'} />
         </section>
       ) : null}
 

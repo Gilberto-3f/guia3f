@@ -14,6 +14,7 @@ import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
 import NomeEmpresa from '@/components/NomeEmpresa'
 import NotaMedia from '@/components/NotaMedia'
 import StatusAtendimento from '@/components/StatusAtendimento'
+import StatusDisponibilidadeHospedagem from '@/components/StatusDisponibilidadeHospedagem'
 import DescricaoLonga from '@/components/DescricaoLonga'
 import AbaAvaliacoes from '@/components/AbaAvaliacoes'
 import AbaEndereco from '@/components/AbaEndereco'
@@ -440,6 +441,15 @@ export default function EmpresaPage() {
 
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
           <NotaMedia nota={notaMedia} total={totalAval} />
+          {ehPaginaHospedagem ? (
+            <StatusDisponibilidadeHospedagem
+              disponibilidade={
+                empresa.hospedagem_disponibilidade != null
+                  ? String(empresa.hospedagem_disponibilidade)
+                  : 'livre'
+              }
+            />
+          ) : null}
           <StatusAtendimento horarios={empresaEndereco.horarios} />
         </div>
 
@@ -512,6 +522,12 @@ export default function EmpresaPage() {
               empresa={empresaEndereco}
               mostrarChamarCorrida={mostrarChamarCorrida && !locacaoEnderecoBloqueada}
               locacaoBloqueada={locacaoEnderecoBloqueada}
+              exibirDisponibilidadeHospedagem={Boolean(ehPaginaHospedagem)}
+              hospedagemDisponibilidade={
+                empresa.hospedagem_disponibilidade != null
+                  ? String(empresa.hospedagem_disponibilidade)
+                  : 'livre'
+              }
             />
           ) : null}
           {abaExpandida === 'dinamico' && mostrarBotaoDinamico ? (
