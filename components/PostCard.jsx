@@ -21,6 +21,7 @@ import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
 import { getPerfilHref } from '@/lib/perfil-utils'
 import { asUuidFilter } from '@/lib/supabaseRestUuid'
+import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
 
 /** UUID da empresa avaliada no `avaliacao_meta`, ou `null`. */
 function postAvaliacaoEmpresaAlvoId(p) {
@@ -161,6 +162,7 @@ export default function PostCard({
     tituloBloqueioFeed,
   } = useGateFeedSocial()
   const bloqueioFeedSocial = !podeInteragirFeedSocial
+  const empresaInteratorId = useEmpresaInteratorSocial()
   const [comentAberto, setComentAberto] = useState(false)
   const [curtidasAberto, setCurtidasAberto] = useState(false)
   const [shareAberto, setShareAberto] = useState(false)
@@ -599,7 +601,11 @@ export default function PostCard({
         })
       }
     } else {
-      const { error } = await supabase.from('curtidas').insert({ post_id: pid, usuario_id: uid })
+      const { error } = await supabase.from('curtidas').insert({
+        post_id: pid,
+        usuario_id: uid,
+        ...(empresaInteratorId ? { empresa_interator_id: empresaInteratorId } : {}),
+      })
       if (error) {
         console.error('[PostCard] curtir:', error)
         return

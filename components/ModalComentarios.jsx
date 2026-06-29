@@ -8,6 +8,7 @@ import { fetchFotoPerfilUsuario, fetchFotosPerfilPorUsuarioIds } from '@/lib/fee
 import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
 import AvatarImage from '@/components/AvatarImage'
+import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
 
 /**
  * Monta árvore de comentários (vários níveis: resposta à resposta).
@@ -75,6 +76,7 @@ export default function ModalComentarios({
   mostrarCompositor = true,
 }) {
   const inline = variant === 'inline'
+  const empresaInteratorId = useEmpresaInteratorSocial()
   /** Em linha: sempre ativo com `postId`; em modal: só quando `aberto`. */
   const ativo = inline || aberto
   /** Sem envio de comentários (modo leitura ou post isolado). */
@@ -206,6 +208,7 @@ export default function ModalComentarios({
           autor_id: usuarioId,
           texto,
           resposta_para_id: parentId,
+          ...(empresaInteratorId ? { empresa_interator_id: empresaInteratorId } : {}),
         })
         if (error) {
           console.error('ModalComentarios resposta:', error.message)
@@ -319,6 +322,7 @@ export default function ModalComentarios({
         post_id: postId,
         autor_id: usuarioId,
         texto,
+        ...(empresaInteratorId ? { empresa_interator_id: empresaInteratorId } : {}),
       })
       if (error) {
         console.error('ModalComentarios insert:', error.message)

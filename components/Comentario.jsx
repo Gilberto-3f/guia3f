@@ -12,6 +12,7 @@ import { getPerfilHref } from '@/lib/perfil-utils'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
 import { asUuidFilter } from '@/lib/supabaseRestUuid'
+import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
 
 /**
  * @typedef {{
@@ -44,6 +45,7 @@ export default function Comentario({
   nivel = 0,
   enviando = false,
 }) {
+  const empresaInteratorId = useEmpresaInteratorSocial()
   const [curtiu, setCurtiu] = useState(false)
   const [total, setTotal] = useState(node.total_curtidas ?? 0)
   const [modoResposta, setModoResposta] = useState(false)
@@ -101,7 +103,11 @@ export default function Comentario({
         remover: { autorId: uid, comentarioId: cid },
       })
     } else {
-      const { error } = await supabase.from('curtidas').insert({ comentario_id: cid, usuario_id: uid })
+      const { error } = await supabase.from('curtidas').insert({
+        comentario_id: cid,
+        usuario_id: uid,
+        ...(empresaInteratorId ? { empresa_interator_id: empresaInteratorId } : {}),
+      })
       if (error) return
       setCurtiu(true)
       setTotal((t) => t + 1)

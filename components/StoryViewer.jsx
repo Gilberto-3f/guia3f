@@ -20,6 +20,7 @@ import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import ModalDenunciarConteudo from '@/components/ModalDenunciarConteudo'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 import { formatarDataStoryPublicado } from '@/lib/formatarDataPublicacao'
+import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
 
 const STORY_VIEW_MS = 15000
 const SWIPE_DOWN_PX = 96
@@ -243,6 +244,7 @@ export default function StoryViewer({
     mensagemBloqueioFeed,
     tituloBloqueioFeed,
   } = useGateFeedSocial()
+  const empresaInteratorId = useEmpresaInteratorSocial()
   const videoRef = useRef(/** @type {HTMLVideoElement | null} */ (null))
   const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const swipeRef = useRef(/** @type {{ x0: number, y0: number, t0: number } | null} */ (null))
@@ -672,7 +674,10 @@ export default function StoryViewer({
       setCurtidasLista((prev) => (prev.some((c) => c.usuario_id === uid) ? prev : [...prev, { usuario_id: uid }]))
     }
     try {
-      const { data, error } = await supabase.rpc('toggle_story_curtida', { p_story_id: story.id })
+      const { data, error } = await supabase.rpc('toggle_story_curtida', {
+        p_story_id: story.id,
+        p_empresa_interator_id: empresaInteratorId,
+      })
       if (error) {
         console.error(error)
         setCurtidasLista(prevCurtidas)

@@ -43,6 +43,8 @@ import {
   resolverConteudoUrlStoryAtividade,
   resolverDonoPostAtividade,
   postMetaEhConteudoEmpresa,
+  empresaInteratorIdDeAtividade,
+  atividadeFeitaComoEmpresaHospedagem,
 } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
@@ -535,6 +537,35 @@ export default function AtividadesPage() {
       }
     },
     [empresaAvaliacaoMap, perfilMap, profissionalPerfilMap]
+  )
+
+  const resolverPerfilInteractor = useCallback(
+    (row: Pick<AtividadeRow, 'autor_id' | 'dados_extras'>) => {
+      const empId = empresaInteratorIdDeAtividade(row)
+      if (empId && empresaAvaliacaoMap[empId]) {
+        const emp = empresaAvaliacaoMap[empId]
+        const username = emp.username ? normalizarUsernameAtividade(emp.username) : 'empresa'
+        return {
+          username,
+          nome: emp.nome ?? username,
+          foto_perfil_url: emp.foto_url ?? null,
+          role: 'empresa',
+          empresa_id: empId,
+          verificado: emp.verificado ?? false,
+        }
+      }
+      return perfilMap[row.autor_id]
+    },
+    [empresaAvaliacaoMap, perfilMap]
+  )
+
+  const hrefPerfilInteractor = useCallback(
+    (row: Pick<AtividadeRow, 'autor_id' | 'dados_extras'>) => {
+      const empId = empresaInteratorIdDeAtividade(row)
+      if (empId) return `/empresa/${empId}`
+      return hrefUsuario(row.autor_id)
+    },
+    [hrefUsuario]
   )
 
   const carregarStoryPorId = useCallback(async (storyId: string) => {
@@ -1112,15 +1143,17 @@ export default function AtividadesPage() {
     const merge = Boolean(opcoes?.merge)
     const empresaIds = [
       ...new Set(
-        rows
-          .filter((r) => r.tipo === 'avaliou')
-          .map((r) => {
+        rows.flatMap((r) => {
+          const ids: string[] = []
+          if (r.tipo === 'avaliou') {
             const ex = r.dados_extras ?? {}
-            return typeof ex.empresa_id === 'string' && ex.empresa_id.trim() !== ''
-              ? ex.empresa_id.trim()
-              : String(r.alvo_id ?? '').trim()
-          })
-          .filter(Boolean)
+            const aval = typeof ex.empresa_id === 'string' && ex.empresa_id.trim() !== '' ? ex.empresa_id.trim() : String(r.alvo_id ?? '').trim()
+            if (aval) ids.push(aval)
+          }
+          const inter = empresaInteratorIdDeAtividade(r)
+          if (inter) ids.push(inter)
+          return ids
+        })
       ),
     ]
 
@@ -1718,6 +1751,9 @@ export default function AtividadesPage() {
           if (!atividadeVisivelMinhaContaModoAnfitriao(r, meuId, ctxModo)) return false
         }
       }
+      if (aba === 'amigos' && ehAnfitriao && meuId && meuRole === 'profissional' && !operaComoEmpresaHospedagem) {
+        if (r.autor_id === meuId && atividadeFeitaComoEmpresaHospedagem(r)) return false
+      }
       if (aba === 'amigos' && r.tipo === 'avaliou') return false
       if (r.tipo === 'repostou_post') return false
       if (r.tipo === 'seguiu_empresa') return false
@@ -1845,7 +1881,8 @@ export default function AtividadesPage() {
     const modoMinhaConta = aba === 'minha'
 
     if (item.kind === 'curtiu_post_fotos') {
-      const inter = perfilMap[item.autor_id]
+      const rowRef = item.rows[0]
+      const inter = resolverPerfilInteractor(rowRef)
       const donorExibir = propsDonorDeCurtida({
         usuario_dono_id: item.usuario_dono_id,
         empresa_dono_id: item.empresa_dono_id,
@@ -1863,7 +1900,7 @@ export default function AtividadesPage() {
           interactorUsername={inter?.username ?? 'usuario'}
           interactorFoto={inter?.foto_perfil_url ?? null}
           donorUsername={donorExibir.donorUsername}
-          hrefInteractor={hrefUsuario(item.autor_id)}
+          hrefInteractor={hrefPerfilInteractor(rowRef)}
           hrefDonor={donorExibir.hrefDonor}
           urls={urlsGrid}
           postIds={item.rows.map((r: AtividadeRow) => postCanonicoId(postMetaMap, r.alvo_id) || String(r.alvo_id))}
@@ -1878,7 +1915,8 @@ export default function AtividadesPage() {
     }
 
     if (item.kind === 'curtiu_post_fotos_multi') {
-      const inter = perfilMap[item.autor_id]
+      const rowRef = item.rows[0]
+      const inter = resolverPerfilInteractor(rowRef)
       /** Uma URL por linha (alinhada a `postIds`); placeholder se a meta ainda não tiver foto. */
       const urlsGrid = item.rows.map((r: AtividadeRow) => {
         const canonId = postCanonicoId(postMetaMap, r.alvo_id)
@@ -1890,7 +1928,7 @@ export default function AtividadesPage() {
           key={`cfm-${item.autor_id}-${item.rows.map((r: AtividadeRow) => r.alvo_id).join('-')}`}
           interactorUsername={inter?.username ?? 'usuario'}
           interactorFoto={inter?.foto_perfil_url ?? null}
-          hrefInteractor={hrefUsuario(item.autor_id)}
+          hrefInteractor={hrefPerfilInteractor(rowRef)}
           urls={urlsGrid}
           postIds={item.rows.map((r: AtividadeRow) => postCanonicoId(postMetaMap, r.alvo_id) || String(r.alvo_id))}
           totalCurtidas={item.rows.length}
@@ -1904,7 +1942,7 @@ export default function AtividadesPage() {
 
     if (item.kind === 'curtiu_post_solo') {
       const r = item.row
-      const inter = perfilMap[r.autor_id]
+      const inter = resolverPerfilInteractor(r)
       const canonPost = postMetaCanonico(postMetaMap, r.alvo_id)
       const canonId = postCanonicoId(postMetaMap, r.alvo_id)
       const post = postMetaMap[r.alvo_id]
@@ -1920,7 +1958,7 @@ export default function AtividadesPage() {
           : post?.texto != null
             ? String(post.texto)
             : ''
-      const hrefI = hrefUsuario(r.autor_id)
+      const hrefI = hrefPerfilInteractor(r)
       const hrefD = donorExibir.hrefDonor
       const postIdExibir = canonId || r.alvo_id
       const donorProps = {
@@ -2040,7 +2078,7 @@ export default function AtividadesPage() {
     }
 
     const r = item.row
-    const ator = perfilMap[r.autor_id]
+    const ator = resolverPerfilInteractor(r)
 
     if (r.tipo === 'avaliou') {
       const ex = r.dados_extras ?? {}
@@ -2093,7 +2131,7 @@ export default function AtividadesPage() {
           interactorUsername={ator?.username ?? 'usuario'}
           interactorFoto={ator?.foto_perfil_url ?? null}
           donorUsername={donor?.username ?? 'usuario'}
-          hrefInteractor={hrefUsuario(r.autor_id)}
+          hrefInteractor={hrefPerfilInteractor(r)}
           hrefDonor={hrefUsuario(r.usuario_id)}
           conteudoUrl={conteudoUrl}
           tempoInteracao={formatarDataAtividades(r.created_at)}
@@ -2155,7 +2193,7 @@ export default function AtividadesPage() {
           usernameAtor={ator?.username ?? 'usuario'}
           interactorFoto={ator?.foto_perfil_url ?? null}
           usernameDono={donor?.username ?? 'usuario'}
-          hrefInteractor={hrefUsuario(r.autor_id)}
+          hrefInteractor={hrefPerfilInteractor(r)}
           hrefDono={hrefUsuario(donorId)}
           textoComentario={texto}
           postId={postId || r.alvo_id}
@@ -2190,7 +2228,7 @@ export default function AtividadesPage() {
           usernameDono={donor?.username ?? 'usuario'}
           {...propsAtor(ator)}
           {...propsDono(donor)}
-          hrefInteractor={hrefUsuario(r.autor_id)}
+          hrefInteractor={hrefPerfilInteractor(r)}
           hrefDono={hrefUsuario(donorId)}
           emFoto={emFoto}
           textoComentario={texto}
