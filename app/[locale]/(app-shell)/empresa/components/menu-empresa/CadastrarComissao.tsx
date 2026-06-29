@@ -27,6 +27,12 @@ const COMUNIDADES = [
 
 type ComunidadeLabel = (typeof COMUNIDADES)[number]['label']
 
+/** No modo hospedagem, anfitriões não recebem ofertas (concorrentes entre si). */
+function comunidadesParaCadastro(hospedagem: boolean) {
+  if (!hospedagem) return COMUNIDADES
+  return COMUNIDADES.filter((c) => c.label !== 'Anfitrião')
+}
+
 const ICONE_POR_CATEGORIA: Record<string, string> = Object.fromEntries(
   COMUNIDADES.map((c) => [c.label, c.iconeKey])
 )
@@ -119,6 +125,10 @@ export default function CadastrarComissao() {
   } | null>(null)
 
   const ofertasAtivasPorComunidade = useMemo(() => mapaOfertasAtivasPorComunidade(ofertas), [ofertas])
+  const comunidadesVisiveis = useMemo(
+    () => comunidadesParaCadastro(ehEmpresaHospedagem),
+    [ehEmpresaHospedagem]
+  )
 
   const carregar = useCallback(async () => {
     if (!empresaId) {
@@ -628,7 +638,7 @@ export default function CadastrarComissao() {
               Ofertas de comissão por diárias reservadas para profissionais parceiros.
             </p>
           ) : null}
-          {COMUNIDADES.map(({ label, iconeKey }) => {
+          {comunidadesVisiveis.map(({ label, iconeKey }) => {
             const aberta = comunidadesAbertas[label]
             const ofertaAtiva = ofertasAtivasPorComunidade.get(label)
             const statusAtivo = ofertaAtiva ? String(ofertaAtiva.status ?? 'pendente') : null
