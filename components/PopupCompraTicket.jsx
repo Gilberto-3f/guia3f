@@ -88,8 +88,19 @@ export default function PopupCompraTicket({
 
   return (
     <>
-      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-        <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white text-gray-900">
+      <div
+        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose()
+        }}
+        role="presentation"
+      >
+        <div
+          className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white text-gray-900"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="flex items-center justify-between border-b border-gray-100 p-4">
             <div className="flex items-center gap-2">
               <Ticket size={20} className="text-[#0097b2]" aria-hidden />

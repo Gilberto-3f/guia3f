@@ -9,6 +9,10 @@ import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { sanitizarPalavrasChave } from '@/lib/palavrasChaveGuia'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
+import {
+  FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM,
+  type FormaPagamentoReservaHospedagem,
+} from '@/lib/reservaHospedagem'
 
 /** Azul do botão dinâmico do segmento Hospedagem. */
 const COR_HOSPEDAGEM = '#45B7D1'
@@ -45,6 +49,7 @@ export default function PopupReservaHospedagem({
   } = useGateComprasReservas()
   const [checkin, setCheckin] = useState('')
   const [checkout, setCheckout] = useState('')
+  const [formaPagamento, setFormaPagamento] = useState(/** @type {FormaPagamentoReservaHospedagem | ''} */ (''))
   const [loading, setLoading] = useState(false)
   const [sucesso, setSucesso] = useState(false)
 
@@ -67,6 +72,7 @@ export default function PopupReservaHospedagem({
     setSucesso(false)
     setCheckin('')
     setCheckout('')
+    setFormaPagamento('')
     onClose()
   }
 
@@ -85,6 +91,10 @@ export default function PopupReservaHospedagem({
     }
     if (noites <= 0) {
       alert('Check-out deve ser após o check-in')
+      return
+    }
+    if (!formaPagamento) {
+      alert('Selecione a forma de pagamento')
       return
     }
 
@@ -108,6 +118,7 @@ export default function PopupReservaHospedagem({
           data_checkout: checkout,
           noites,
           valor_estimado: total,
+          forma_pagamento: formaPagamento,
         }),
       })
       const json = await res.json().catch(() => ({}))
@@ -132,13 +143,25 @@ export default function PopupReservaHospedagem({
 
   return (
     <>
-      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-        <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white text-gray-900 shadow-xl [color-scheme:light]">
+      <div
+        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) handleFechar()
+        }}
+        role="presentation"
+      >
+        <div
+          className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white text-gray-900 shadow-xl [color-scheme:light]"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="popup-reserva-hospedagem-titulo"
+        >
           <div className="flex items-center justify-between border-b border-gray-100 p-4">
             <div className="flex items-center gap-2">
               <CalendarDays size={20} style={{ color: COR_HOSPEDAGEM }} aria-hidden />
-              <h2 className="text-lg font-semibold" style={{ color: COR_HOSPEDAGEM }}>
-                Reservar Hospedagem
+              <h2 id="popup-reserva-hospedagem-titulo" className="text-lg font-semibold" style={{ color: COR_HOSPEDAGEM }}>
+                Fazer Reserva
               </h2>
             </div>
             <button
@@ -194,9 +217,9 @@ export default function PopupReservaHospedagem({
                   </div>
                 ) : null}
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="min-w-0">
-                    <label htmlFor="reserva-hosp-checkin" className="mb-0.5 block text-xs font-medium text-gray-800">
+                <div className="space-y-3">
+                  <div>
+                    <label htmlFor="reserva-hosp-checkin" className="mb-1 block text-xs font-medium text-gray-800">
                       Check-in
                     </label>
                     <input
@@ -204,12 +227,12 @@ export default function PopupReservaHospedagem({
                       type="date"
                       value={checkin}
                       onChange={(e) => setCheckin(e.target.value)}
-                      className="w-full min-w-0 max-w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 [color-scheme:light]"
+                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 [color-scheme:light]"
                       min={hoje}
                     />
                   </div>
-                  <div className="min-w-0">
-                    <label htmlFor="reserva-hosp-checkout" className="mb-0.5 block text-xs font-medium text-gray-800">
+                  <div>
+                    <label htmlFor="reserva-hosp-checkout" className="mb-1 block text-xs font-medium text-gray-800">
                       Check-out
                     </label>
                     <input
@@ -217,9 +240,35 @@ export default function PopupReservaHospedagem({
                       type="date"
                       value={checkout}
                       onChange={(e) => setCheckout(e.target.value)}
-                      className="w-full min-w-0 max-w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 [color-scheme:light]"
+                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 [color-scheme:light]"
                       min={checkin || hoje}
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-medium text-gray-800">Forma de Pagamento</p>
+                  <div className="space-y-2">
+                    {FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM.map(({ value, label }) => (
+                      <label
+                        key={value}
+                        className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                          formaPagamento === value
+                            ? 'border-[#45B7D1] bg-[#45B7D1]/10 font-semibold text-gray-900'
+                            : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="forma-pagamento-reserva"
+                          value={value}
+                          checked={formaPagamento === value}
+                          onChange={() => setFormaPagamento(value)}
+                          className="shrink-0"
+                        />
+                        {label}
+                      </label>
+                    ))}
                   </div>
                 </div>
 
@@ -241,7 +290,7 @@ export default function PopupReservaHospedagem({
                 <button
                   type="button"
                   onClick={handleSolicitar}
-                  disabled={loading || !checkin || !checkout || noites <= 0}
+                  disabled={loading || !checkin || !checkout || noites <= 0 || !formaPagamento}
                   className="w-full rounded-lg bg-[#00D443] py-2.5 text-sm font-bold text-white disabled:opacity-50"
                 >
                   {loading ? 'Enviando…' : 'Solicitar Reserva'}

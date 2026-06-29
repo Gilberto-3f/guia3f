@@ -17,9 +17,15 @@ export async function POST(req: Request) {
     const checkout = String(body.data_checkout ?? '').trim()
     const noites = Number(body.noites)
     const valorEstimado = Number(body.valor_estimado)
+    const formaRaw = String(body.forma_pagamento ?? '').trim()
+    const formasValidas = new Set(['dinheiro', 'pix', 'cartao_deb_cred'])
 
     if (!empresaId || !checkin || !checkout || !Number.isFinite(noites) || noites <= 0) {
       return NextResponse.json({ error: 'Dados da reserva inválidos.' }, { status: 400 })
+    }
+
+    if (!formasValidas.has(formaRaw)) {
+      return NextResponse.json({ error: 'Selecione a forma de pagamento.' }, { status: 400 })
     }
 
     let adminDb
@@ -56,6 +62,7 @@ export async function POST(req: Request) {
         status: 'pendente',
         valor_estimado: Number.isFinite(valorEstimado) ? valorEstimado : null,
         noites,
+        forma_pagamento: formaRaw,
       })
       .select('id')
       .single()
@@ -76,6 +83,7 @@ export async function POST(req: Request) {
       dataCheckout: checkout,
       noites,
       valorEstimado: Number.isFinite(valorEstimado) ? valorEstimado : 0,
+      formaPagamento: formaRaw as 'dinheiro' | 'pix' | 'cartao_deb_cred',
     })
 
     if (aviso.ok && aviso.canalFinanceiroId) {

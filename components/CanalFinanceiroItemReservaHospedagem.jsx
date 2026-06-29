@@ -6,6 +6,7 @@ import AvatarImage from '@/components/AvatarImage'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { supabase } from '@/lib/supabase'
 import { pickFotoTurista } from '@/lib/turistaPreLiberacao'
+import { rotuloFormaPagamentoReservaHospedagem } from '@/lib/reservaHospedagem'
 
 const AVATAR_QUADRADO = 'h-full w-full object-cover'
 
@@ -58,6 +59,9 @@ export default function CanalFinanceiroItemReservaHospedagem({ item, onRespondid
       : item.valor != null
         ? Number(item.valor)
         : null
+  const formaPagamentoLabel = rotuloFormaPagamentoReservaHospedagem(
+    meta.forma_pagamento != null ? String(meta.forma_pagamento) : null,
+  )
 
   useEffect(() => {
     if (!turistaUsuarioId) {
@@ -158,6 +162,11 @@ export default function CanalFinanceiroItemReservaHospedagem({ item, onRespondid
             {valor != null && Number.isFinite(valor) ? (
               <p>
                 <span className="font-medium">Valor estimado:</span> R$ {valor.toFixed(2)}
+              </p>
+            ) : null}
+            {formaPagamentoLabel ? (
+              <p>
+                <span className="font-medium">Forma de pagamento:</span> {formaPagamentoLabel}
               </p>
             ) : null}
           </div>

@@ -1,6 +1,24 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { pickFotoTurista } from '@/lib/turistaPreLiberacao'
 
+export type FormaPagamentoReservaHospedagem = 'dinheiro' | 'pix' | 'cartao_deb_cred'
+
+export const FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM: ReadonlyArray<{
+  value: FormaPagamentoReservaHospedagem
+  label: string
+}> = [
+  { value: 'dinheiro', label: 'Dinheiro' },
+  { value: 'pix', label: 'PIX' },
+  { value: 'cartao_deb_cred', label: 'Cartão DÉB/CRÉD' },
+]
+
+export function rotuloFormaPagamentoReservaHospedagem(
+  forma: string | null | undefined,
+): string | null {
+  const hit = FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM.find((f) => f.value === forma)
+  return hit?.label ?? null
+}
+
 export type ReservaHospedagemRow = {
   id: string
   empresa_id: string
@@ -10,6 +28,7 @@ export type ReservaHospedagemRow = {
   status: string
   valor_estimado: number | null
   noites: number | null
+  forma_pagamento: FormaPagamentoReservaHospedagem | null
   motivo_recusa: string | null
   respondido_em: string | null
   canal_financeiro_id: string | null
@@ -73,11 +92,13 @@ export async function criarAvisoCanalFinanceiroReservaHospedagem(
     dataCheckout: string
     noites: number
     valorEstimado: number
+    formaPagamento: FormaPagamentoReservaHospedagem
   },
 ): Promise<{ ok: boolean; canalFinanceiroId?: string; error?: string }> {
   const checkin = formatarDataBr(params.dataCheckin)
   const checkout = formatarDataBr(params.dataCheckout)
-  const mensagem = `${params.turistaNome} (@${params.turistaUsername}) solicitou reserva de ${params.noites} noite(s) (${checkin} → ${checkout}). Valor estimado: R$ ${params.valorEstimado.toFixed(2)}.`
+  const formaLabel = rotuloFormaPagamentoReservaHospedagem(params.formaPagamento) ?? params.formaPagamento
+  const mensagem = `${params.turistaNome} (@${params.turistaUsername}) solicitou reserva de ${params.noites} noite(s) (${checkin} → ${checkout}). Valor estimado: R$ ${params.valorEstimado.toFixed(2)}. Forma de pagamento: ${formaLabel}.`
 
   const metadata = {
     reserva_id: params.reservaId,
@@ -91,6 +112,7 @@ export async function criarAvisoCanalFinanceiroReservaHospedagem(
     data_checkout: params.dataCheckout,
     noites: params.noites,
     valor_estimado: params.valorEstimado,
+    forma_pagamento: params.formaPagamento,
     respondido: '',
   }
 
@@ -145,6 +167,7 @@ export async function atualizarCanalFinanceiroReservaRespondida(
     data_checkout: params.reserva.data_checkout,
     noites: params.reserva.noites,
     valor_estimado: params.reserva.valor_estimado,
+    forma_pagamento: params.reserva.forma_pagamento ?? null,
     respondido,
     motivo_recusa: params.motivoRecusa ?? null,
   }
