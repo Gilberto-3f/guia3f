@@ -5,6 +5,7 @@ import {
   carregarTuristaReservaMeta,
   criarAvisoCanalFinanceiroReservaHospedagem,
 } from '@/lib/reservaHospedagem'
+import { sincronizarCompraReservaHospedagem } from '@/lib/turistaCompras'
 
 export async function POST(req: Request) {
   try {
@@ -92,6 +93,22 @@ export async function POST(req: Request) {
         .update({ canal_financeiro_id: aviso.canalFinanceiroId })
         .eq('id', reserva.id)
     }
+
+    await sincronizarCompraReservaHospedagem(
+      adminDb,
+      {
+        id: String(reserva.id),
+        turista_usuario_id: session.userId,
+        empresa_id: empresaId,
+        data_checkin: checkin,
+        data_checkout: checkout,
+        noites,
+        valor_estimado: Number.isFinite(valorEstimado) ? valorEstimado : null,
+        forma_pagamento: formaRaw,
+      },
+      'pendente',
+      String(emp.nome_fantasia ?? 'Hospedagem'),
+    )
 
     return NextResponse.json({ ok: true, reserva_id: reserva.id })
   } catch (e) {

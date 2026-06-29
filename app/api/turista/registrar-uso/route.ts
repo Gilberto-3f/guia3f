@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { registrarContratacaoPreLiberada } from '@/lib/turistaPreLiberacao'
+import { registrarCompraTuristaUso } from '@/lib/turistaCompras'
 
 export async function POST(req: Request) {
   try {
@@ -31,6 +32,13 @@ export async function POST(req: Request) {
       descricao,
       empresa_id: empresaId,
       profissional_usuario_id: profissionalUsuarioId,
+    })
+
+    await registrarCompraTuristaUso(adminDb, session.userId, {
+      tipo,
+      descricao,
+      empresaId,
+      profissionalUsuarioId,
     })
 
     return NextResponse.json({ ok: true })

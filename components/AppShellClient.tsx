@@ -10,6 +10,7 @@ import ModoApresentacaoChrome from '@/components/ModoApresentacaoChrome'
 import ProfissionalGateBanner from '@/components/ProfissionalGateBanner'
 import BottomBar from '@/components/BottomBar'
 import AdminEcossistemaAlertaGate from '@/components/canal/AdminEcossistemaAlertaGate'
+import TuristaComprasNotificacaoGate from '@/components/TuristaComprasNotificacaoGate'
 
 /** `feed/criar` emite quando o teclado está visível para esconder a barra (aba TEXTO ou legenda na FOTO). */
 const CRIAR_KEYBOARD_EVENT = 'guia-criar-keyboard'
@@ -64,6 +65,7 @@ function AppShellLayoutFrame({
       {modoAtivo ? null : <ModoApresentacaoChrome />}
       <ProfissionalGateBanner />
       <AdminEcossistemaAlertaGate />
+      <TuristaComprasNotificacaoGate />
       <div className={`flex min-h-0 flex-1 flex-col ${telaMensageiro ? 'overflow-hidden' : ''}`}>{children}</div>
       {!hideBottomBar ? <BottomBar /> : null}
     </div>

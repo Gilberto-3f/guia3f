@@ -86,6 +86,7 @@ import RecomendacoesFeitas from '@/components/perfil/subpaginas/RecomendacoesFei
 import ParceriasProfissional from '@/components/perfil/subpaginas/ParceriasProfissional'
 import VisitantesPerfil from '@/components/perfil/subpaginas/VisitantesPerfil'
 import { contarVisitasPerfilPendentes } from '@/lib/perfilVisitas'
+import { contarComprasTuristaPendentes } from '@/lib/turistaCompras'
 import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 import {
@@ -530,6 +531,7 @@ export default function MenuLateral({
 
   const [profVerificadoMenu, setProfVerificadoMenu] = useState(false)
   const [visitasPendentes, setVisitasPendentes] = useState(0)
+  const [comprasPendentes, setComprasPendentes] = useState(0)
 
   useEffect(() => {
     if (!aberto || variant !== 'profissional' || !usuarioId) {
@@ -645,8 +647,12 @@ export default function MenuLateral({
 
   const atualizarIndicadoresMenu = useCallback(async () => {
     if (!usuarioIdEfetivo) return
-    const pendentes = await contarVisitasPerfilPendentes(supabase, usuarioIdEfetivo)
+    const [pendentes, compras] = await Promise.all([
+      contarVisitasPerfilPendentes(supabase, usuarioIdEfetivo),
+      contarComprasTuristaPendentes(supabase, usuarioIdEfetivo),
+    ])
     setVisitasPendentes(pendentes)
+    setComprasPendentes(compras)
   }, [usuarioIdEfetivo])
 
   useEffect(() => {
@@ -661,12 +667,38 @@ export default function MenuLateral({
     window.addEventListener('perfil-atualizado', onRefresh)
     window.addEventListener('profissional-gate-refresh', onRefresh)
     window.addEventListener('perfil-visitas-lidas', onRefresh)
+    window.addEventListener('turista-compras-lidas', onRefresh)
+    window.addEventListener('turista-compras-atualizado', onRefresh)
     return () => {
       window.removeEventListener('perfil-atualizado', onRefresh)
       window.removeEventListener('profissional-gate-refresh', onRefresh)
       window.removeEventListener('perfil-visitas-lidas', onRefresh)
+      window.removeEventListener('turista-compras-lidas', onRefresh)
+      window.removeEventListener('turista-compras-atualizado', onRefresh)
     }
   }, [atualizarIndicadoresMenu])
+
+  useEffect(() => {
+    if (!usuarioIdEfetivo || menuVariantEfetivo !== 'turista') return
+    const ch = supabase
+      .channel(`menu-turista-compras-${usuarioIdEfetivo}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'turista_compras',
+          filter: `turista_usuario_id=eq.${usuarioIdEfetivo}`,
+        },
+        () => {
+          void atualizarIndicadoresMenu()
+        },
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(ch)
+    }
+  }, [usuarioIdEfetivo, menuVariantEfetivo, atualizarIndicadoresMenu])
 
   const ctx = {
     variant: menuVariantEfetivo,
@@ -1090,7 +1122,7 @@ export default function MenuLateral({
         />
       )
     if (id === 'regras-ecossistema') return <RegrasEcossistema />
-    if (id === 'historico-compras') return <HistoricoCompras />
+    if (id === 'historico-compras') return <HistoricoCompras usuarioId={usuarioIdEfetivo} />
     if (id === 'docs-prof-bloqueado') return <AvisoDocsProfissionalBloqueado />
     if (id === 'comissoes') return <Comissoes usuarioId={usuarioIdEfetivo} />
     if (id === 'agendamento') return <AgendamentoAutomatico />
@@ -1171,7 +1203,9 @@ export default function MenuLateral({
       ? historicoNaoLido
       : item.subpagina === 'visitantes-perfil'
         ? visitasPendentes
-        : itemEhChatAdm(item)
+        : item.subpagina === 'historico-compras'
+          ? comprasPendentes
+          : itemEhChatAdm(item)
           ? chatAdmNaoLido
           : 0)
 

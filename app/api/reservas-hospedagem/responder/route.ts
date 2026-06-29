@@ -7,6 +7,7 @@ import {
   type ReservaHospedagemRow,
   usuarioGerenciaEmpresaHospedagem,
 } from '@/lib/reservaHospedagem'
+import { sincronizarCompraReservaHospedagem } from '@/lib/turistaCompras'
 
 export async function POST(req: Request) {
   try {
@@ -93,6 +94,17 @@ export async function POST(req: Request) {
       turistaFotoUrl: turistaMeta?.fotoUrl ?? null,
       empresaNome: emp?.nome_fantasia != null ? String(emp.nome_fantasia) : '',
     })
+
+    const empresaNome = emp?.nome_fantasia != null ? String(emp.nome_fantasia) : 'Hospedagem'
+    await sincronizarCompraReservaHospedagem(
+      adminDb,
+      {
+        ...reserva,
+        motivo_recusa: acao === 'recusar' ? motivoRecusa : null,
+      },
+      novoStatus === 'confirmada' ? 'confirmada' : 'cancelada',
+      empresaNome,
+    )
 
     return NextResponse.json({ ok: true, status: novoStatus })
   } catch (e) {
