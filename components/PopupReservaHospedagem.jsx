@@ -9,10 +9,7 @@ import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { sanitizarPalavrasChave } from '@/lib/palavrasChaveGuia'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
-import {
-  FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM,
-  type FormaPagamentoReservaHospedagem,
-} from '@/lib/reservaHospedagem'
+import { FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM } from '@/lib/reservaHospedagem'
 
 /** Azul do botão dinâmico do segmento Hospedagem. */
 const COR_HOSPEDAGEM = '#45B7D1'
@@ -49,7 +46,9 @@ export default function PopupReservaHospedagem({
   } = useGateComprasReservas()
   const [checkin, setCheckin] = useState('')
   const [checkout, setCheckout] = useState('')
-  const [formaPagamento, setFormaPagamento] = useState(/** @type {FormaPagamentoReservaHospedagem | ''} */ (''))
+  const [formaPagamento, setFormaPagamento] = useState(
+    /** @type {import('@/lib/reservaHospedagem').FormaPagamentoReservaHospedagem | ''} */ (''),
+  )
   const [loading, setLoading] = useState(false)
   const [sucesso, setSucesso] = useState(false)
 
