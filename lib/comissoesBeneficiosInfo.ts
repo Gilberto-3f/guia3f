@@ -40,58 +40,38 @@ export function empresaUsaComissaoDiarias(
   return String(empresa.categoria ?? '').toLowerCase() === 'hospedagem'
 }
 
-export function isBeneficiosModoHospedagem(b: BeneficiosOfertaRecord): boolean {
-  if (b.modo_hospedagem === true) return true
-  const pct = b.percentual_diaria
-  const fixo = b.valor_fixo_diaria
-  return Boolean(
-    (pct && typeof pct === 'object' && pct.ativo) ||
-      (fixo && typeof fixo === 'object' && fixo.ativo),
-  )
-}
-
 export type BeneficiosOfertaRecord = Record<
   string,
   { ativo?: boolean; valor?: number; texto?: string; por_tempo_limitado?: boolean } | boolean | undefined
 >
 
-/** Lista vertical de benefícios ativos para histórico / cards. */
-export function listarBeneficiosOferta(b: BeneficiosOfertaRecord): { label: string; valor: string }[] {
-  const itens: { label: string; valor: string }[] = []
-  if (isBeneficiosModoHospedagem(b)) {
-    const pct = b.percentual_diaria
-    const fixo = b.valor_fixo_diaria
-    if (pct && typeof pct === 'object' && pct.ativo) {
-      itens.push({
-        label: ROTULOS_BENEFICIO.percentual_diaria,
-        valor: `${pct.valor ?? 0}%`,
-      })
-    }
-    if (fixo && typeof fixo === 'object' && fixo.ativo) {
-      itens.push({
-        label: ROTULOS_BENEFICIO.valor_fixo_diaria,
-        valor: `R$ ${fixo.valor ?? 0}`,
-      })
-    }
-    return itens
-  }
-  const pax = b.pax
-  const pct = b.percentual
-  const fixo = b.fixo
-  const extra = b.extra
-  if (pax && typeof pax === 'object' && pax.ativo) {
-    itens.push({ label: ROTULOS_BENEFICIO.pax, valor: `R$ ${pax.valor ?? 0}` })
-  }
-  if (pct && typeof pct === 'object' && pct.ativo) {
-    itens.push({ label: ROTULOS_BENEFICIO.percentual, valor: `${pct.valor ?? 0}%` })
-  }
-  if (fixo && typeof fixo === 'object' && fixo.ativo) {
-    itens.push({ label: ROTULOS_BENEFICIO.fixo, valor: `R$ ${fixo.valor ?? 0}` })
-  }
-  if (extra && typeof extra === 'object' && extra.ativo && String(extra.texto ?? '').trim()) {
-    itens.push({ label: ROTULOS_BENEFICIO.extra, valor: String(extra.texto).trim() })
-  }
-  return itens
+export type ListarBeneficiosOpts = {
+  /** Empresa do segmento Hospedagem — força leitura dos campos de diária. */
+  segmentoHospedagem?: boolean
+}
+
+function objBeneficio(val: unknown): BeneficioValor | undefined {
+  if (!val || typeof val !== 'object' || Array.isArray(val)) return undefined
+  return val as BeneficioValor
+}
+
+function temCamposBeneficioHospedagem(b: BeneficiosOfertaRecord): boolean {
+  return Boolean(objBeneficio(b.percentual_diaria) || objBeneficio(b.valor_fixo_diaria))
+}
+
+export function isBeneficiosModoHospedagem(
+  b: BeneficiosOfertaRecord,
+  opts?: ListarBeneficiosOpts,
+): boolean {
+  if (b.modo_hospedagem === true) return true
+  if (opts?.segmentoHospedagem) return true
+  const pct = objBeneficio(b.percentual_diaria)
+  const fixo = objBeneficio(b.valor_fixo_diaria)
+  return Boolean(
+    (pct && (pct.ativo === true || Number(pct.valor ?? 0) > 0)) ||
+      (fixo && (fixo.ativo === true || Number(fixo.valor ?? 0) > 0)) ||
+      temCamposBeneficioHospedagem(b),
+  )
 }
 
 type BeneficioValor = { ativo?: boolean; valor?: number; texto?: string }
@@ -103,46 +83,95 @@ function beneficioComValor(obj: BeneficioValor | undefined, exigeTexto = false):
   return Number(obj.valor ?? 0) > 0
 }
 
-/** Histórico/arquivo ADM: exibe proposta mesmo se flags `ativo` foram desligadas após decisão. */
-export function listarBeneficiosProposta(b: BeneficiosOfertaRecord): { label: string; valor: string }[] {
-  const ativos = listarBeneficiosOferta(b)
-  if (ativos.length > 0) return ativos
-
+function listarBeneficiosHospedagem(
+  b: BeneficiosOfertaRecord,
+  incluirInativos: boolean,
+): { label: string; valor: string }[] {
   const itens: { label: string; valor: string }[] = []
-  if (isBeneficiosModoHospedagem(b)) {
-    const pct = b.percentual_diaria
-    const fixo = b.valor_fixo_diaria
-    if (pct && typeof pct === 'object' && beneficioComValor(pct)) {
-      itens.push({
-        label: ROTULOS_BENEFICIO.percentual_diaria,
-        valor: `${pct.valor ?? 0}%`,
-      })
-    }
-    if (fixo && typeof fixo === 'object' && beneficioComValor(fixo)) {
-      itens.push({
-        label: ROTULOS_BENEFICIO.valor_fixo_diaria,
-        valor: `R$ ${fixo.valor ?? 0}`,
-      })
-    }
-    return itens
+  const pct = objBeneficio(b.percentual_diaria)
+  const fixo = objBeneficio(b.valor_fixo_diaria)
+  const aceita = incluirInativos
+    ? (obj: BeneficioValor | undefined) => beneficioComValor(obj)
+    : (obj: BeneficioValor | undefined) => obj?.ativo === true
+
+  if (pct && aceita(pct)) {
+    itens.push({
+      label: ROTULOS_BENEFICIO.percentual_diaria,
+      valor: `${pct.valor ?? 0}%`,
+    })
   }
-  const pax = b.pax
-  const pct = b.percentual
-  const fixo = b.fixo
-  const extra = b.extra
-  if (pax && typeof pax === 'object' && beneficioComValor(pax)) {
+  if (fixo && aceita(fixo)) {
+    itens.push({
+      label: ROTULOS_BENEFICIO.valor_fixo_diaria,
+      valor: `R$ ${fixo.valor ?? 0}`,
+    })
+  }
+  return itens
+}
+
+function listarBeneficiosPadrao(
+  b: BeneficiosOfertaRecord,
+  incluirInativos: boolean,
+): { label: string; valor: string }[] {
+  const itens: { label: string; valor: string }[] = []
+  const aceita = incluirInativos
+    ? (obj: BeneficioValor | undefined, exigeTexto = false) => beneficioComValor(obj, exigeTexto)
+    : (obj: BeneficioValor | undefined, exigeTexto = false) =>
+        Boolean(
+          obj &&
+            (exigeTexto
+              ? obj.ativo === true && String(obj.texto ?? '').trim()
+              : obj.ativo === true),
+        )
+
+  const pax = objBeneficio(b.pax)
+  const pct = objBeneficio(b.percentual)
+  const fixo = objBeneficio(b.fixo)
+  const extra = objBeneficio(b.extra)
+
+  if (pax && aceita(pax)) {
     itens.push({ label: ROTULOS_BENEFICIO.pax, valor: `R$ ${pax.valor ?? 0}` })
   }
-  if (pct && typeof pct === 'object' && beneficioComValor(pct)) {
+  if (pct && aceita(pct)) {
     itens.push({ label: ROTULOS_BENEFICIO.percentual, valor: `${pct.valor ?? 0}%` })
   }
-  if (fixo && typeof fixo === 'object' && beneficioComValor(fixo)) {
+  if (fixo && aceita(fixo)) {
     itens.push({ label: ROTULOS_BENEFICIO.fixo, valor: `R$ ${fixo.valor ?? 0}` })
   }
-  if (extra && typeof extra === 'object' && beneficioComValor(extra, true)) {
+  if (extra && aceita(extra, true)) {
     itens.push({ label: ROTULOS_BENEFICIO.extra, valor: String(extra.texto).trim() })
   }
   return itens
+}
+
+/** Lista vertical de benefícios ativos para histórico / cards. */
+export function listarBeneficiosOferta(
+  b: BeneficiosOfertaRecord,
+  opts?: ListarBeneficiosOpts,
+): { label: string; valor: string }[] {
+  if (isBeneficiosModoHospedagem(b, opts)) {
+    return listarBeneficiosHospedagem(b, false)
+  }
+  return listarBeneficiosPadrao(b, false)
+}
+
+/** Histórico/arquivo ADM: exibe proposta mesmo se flags `ativo` foram desligadas após decisão. */
+export function listarBeneficiosProposta(
+  b: BeneficiosOfertaRecord,
+  opts?: ListarBeneficiosOpts,
+): { label: string; valor: string }[] {
+  const ativos = listarBeneficiosOferta(b, opts)
+  if (ativos.length > 0) return ativos
+
+  if (isBeneficiosModoHospedagem(b, opts)) {
+    const hospedagem = listarBeneficiosHospedagem(b, true)
+    if (hospedagem.length > 0) return hospedagem
+  }
+
+  const padrao = listarBeneficiosPadrao(b, true)
+  if (padrao.length > 0) return padrao
+
+  return []
 }
 
 /** Rótulo do cargo ADM para decisões de comissão (auditoria / cards arquivados). */

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { Archive, Check, Clock, X, type LucideIcon } from 'lucide-react'
-import { listarBeneficiosOferta, listarBeneficiosProposta } from '@/lib/comissoesBeneficiosInfo'
+import { listarBeneficiosOferta, listarBeneficiosProposta, empresaUsaComissaoDiarias } from '@/lib/comissoesBeneficiosInfo'
 import type { useComissaoOfertaAdm } from '../../../hooks/useComissaoOfertaAdm'
 import { textoValidadeOferta } from '../../../hooks/useComissaoOfertaAdm'
 
@@ -69,10 +69,12 @@ function OfertaCard({
   onAprovar?: () => void
   onReprovar?: () => void
 }) {
+  const segmentoHospedagem = empresaUsaComissaoDiarias({ categoria: oferta.empresaCategoria })
+  const optsBeneficios = { segmentoHospedagem }
   const beneficios =
     modo === 'arquivados'
-      ? listarBeneficiosProposta(oferta.beneficios as Record<string, unknown>)
-      : listarBeneficiosOferta(oferta.beneficios as Record<string, unknown>)
+      ? listarBeneficiosProposta(oferta.beneficios as Record<string, unknown>, optsBeneficios)
+      : listarBeneficiosOferta(oferta.beneficios as Record<string, unknown>, optsBeneficios)
   const validade = textoValidadeOferta(oferta)
   const decididoEm = oferta.decisaoAdm?.decididoEm
     ? new Date(oferta.decisaoAdm.decididoEm).toLocaleDateString('pt-BR', {
