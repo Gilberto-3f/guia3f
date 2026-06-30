@@ -221,7 +221,7 @@ export default function ModalComentarios({
         setEnviando(false)
       }
     },
-    [leituraComentarios, postId, usuarioId, carregar, scrollListaAoFim, onComentou]
+    [leituraComentarios, postId, usuarioId, empresaInteratorId, carregar, scrollListaAoFim, onComentou]
   )
 
   useEffect(() => {

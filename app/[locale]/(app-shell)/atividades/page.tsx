@@ -45,6 +45,7 @@ import {
   postMetaEhConteudoEmpresa,
   empresaInteratorIdDeAtividade,
   atividadeFeitaComoEmpresaHospedagem,
+  enriquecerAtividadesEmpresaInterator,
 } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
@@ -209,7 +210,7 @@ const USUARIOS_SELECT = `
 export default function AtividadesPage() {
   const router = useRouter()
   const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
-  const { ehAnfitriao, modo, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
+  const { ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
   const [aba, setAba] = useState<'amigos' | 'minha'>('amigos')
   const [termoBusca, setTermoBusca] = useState('')
   const [resultadosBusca, setResultadosBusca] = useState<
@@ -288,11 +289,11 @@ export default function AtividadesPage() {
       profissionalOperaComoEmpresaHospedagem(
         meuRole,
         ehAnfitriao,
-        modo,
+        modoEfetivo,
         empresaHospedagemId,
         empresaHospedagemLiberada,
       ),
-    [meuRole, ehAnfitriao, modo, empresaHospedagemId, empresaHospedagemLiberada],
+    [meuRole, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada],
   )
 
   const carregarStoriesMeta = useCallback(async (rows: AtividadeRow[], opcoes?: { merge?: boolean }) => {
@@ -542,16 +543,16 @@ export default function AtividadesPage() {
   const resolverPerfilInteractor = useCallback(
     (row: Pick<AtividadeRow, 'autor_id' | 'dados_extras'>) => {
       const empId = empresaInteratorIdDeAtividade(row)
-      if (empId && empresaAvaliacaoMap[empId]) {
+      if (empId) {
         const emp = empresaAvaliacaoMap[empId]
-        const username = emp.username ? normalizarUsernameAtividade(emp.username) : 'empresa'
+        const username = emp?.username ? normalizarUsernameAtividade(emp.username) : 'empresa'
         return {
           username,
-          nome: emp.nome ?? username,
-          foto_perfil_url: emp.foto_url ?? null,
+          nome: emp?.nome ?? username,
+          foto_perfil_url: emp?.foto_url ?? null,
           role: 'empresa',
           empresa_id: empId,
-          verificado: emp.verificado ?? false,
+          verificado: emp?.verificado ?? false,
         }
       }
       return perfilMap[row.autor_id]
@@ -1257,7 +1258,7 @@ export default function AtividadesPage() {
     const modoHospedagemAnfitriao = profissionalOperaComoEmpresaHospedagem(
       role,
       ehAnfitriao,
-      modo,
+      modoEfetivo,
       empresaHospedagemId,
       empresaHospedagemLiberada,
     )
@@ -1285,7 +1286,13 @@ export default function AtividadesPage() {
         console.error('[Atividades][empresa] erro ao carregar Minha conta:', minhaEmpresaRes.error)
       }
 
-      const minhaEmpresa = ((minhaEmpresaRes.data ?? []) as AtividadeRow[]).filter(atividadeVisivelNaMinhaContaEmpresa)
+      const minhaEmpresaRaw = ((minhaEmpresaRes.data ?? []) as AtividadeRow[]).filter(
+        atividadeVisivelNaMinhaContaEmpresa,
+      )
+      const minhaEmpresa = (await enriquecerAtividadesEmpresaInterator(
+        supabase,
+        minhaEmpresaRaw,
+      )) as AtividadeRow[]
       setListaMinha(minhaEmpresa)
       setOffsetMinha(minhaEmpresa.length)
 
@@ -1331,9 +1338,13 @@ export default function AtividadesPage() {
         .order('created_at', { ascending: false })
         .range(0, limHosp - 1)
 
-      const minhaHosp = ((minhaHospRes.data ?? []) as AtividadeRow[]).filter((row) =>
+      const minhaHospRaw = ((minhaHospRes.data ?? []) as AtividadeRow[]).filter((row) =>
         atividadeVisivelNaMinhaContaEmpresa(row),
       )
+      const minhaHosp = (await enriquecerAtividadesEmpresaInterator(
+        supabase,
+        minhaHospRaw,
+      )) as AtividadeRow[]
       setListaMinha(minhaHosp)
       setOffsetMinha(minhaHosp.length)
 
@@ -1404,10 +1415,14 @@ export default function AtividadesPage() {
       console.error('[Atividades][Amigos] erro ao carregar atividades de amigos:', amigosRes.error)
     }
 
-    const amigos = (amigosRes.data ?? []) as AtividadeRow[]
-    const minha = ((minhaRes.data ?? []) as AtividadeRow[]).filter((row) =>
+    const amigosRaw = (amigosRes.data ?? []) as AtividadeRow[]
+    const minhaRaw = ((minhaRes.data ?? []) as AtividadeRow[]).filter((row) =>
       atividadeVisivelNaMinhaContaPessoal(row, uid),
     )
+    const [amigos, minha] = (await Promise.all([
+      enriquecerAtividadesEmpresaInterator(supabase, amigosRaw),
+      enriquecerAtividadesEmpresaInterator(supabase, minhaRaw),
+    ])) as [AtividadeRow[], AtividadeRow[]]
 
     logDiagAmigos('após parse', { uid, seguindo, amigosLen: amigos.length, res: amigosRes })
 
@@ -1445,7 +1460,7 @@ export default function AtividadesPage() {
     carregarStoriesRepostAtivos,
     modoAtivo,
     ehAnfitriao,
-    modo,
+    modoEfetivo,
     empresaHospedagemId,
     empresaHospedagemLiberada,
   ])
@@ -1477,7 +1492,8 @@ export default function AtividadesPage() {
         return
       }
       setErroAmigos(null)
-      const novas = (data ?? []) as AtividadeRow[]
+      const novasRaw = (data ?? []) as AtividadeRow[]
+      const novas = (await enriquecerAtividadesEmpresaInterator(supabase, novasRaw)) as AtividadeRow[]
       if (novas.length === 0) {
         setTemMaisAmigos(false)
         return

@@ -7,12 +7,14 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
 import { asUuidFilter } from '@/lib/supabaseRestUuid'
+import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
 
 /**
  * @param {{ postId: string, totalInicial: number, usuarioId: string | null }} props
  */
 export default function BotaoCurtir({ postId, totalInicial, usuarioId }) {
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
+  const empresaInteratorId = useEmpresaInteratorSocial()
   const [curtiu, setCurtiu] = useState(false)
   const [total, setTotal] = useState(totalInicial)
 
@@ -61,7 +63,11 @@ export default function BotaoCurtir({ postId, totalInicial, usuarioId }) {
         remover: { autorId: uid, postId: pid },
       })
     } else {
-      const { error } = await supabase.from('curtidas').insert({ post_id: pid, usuario_id: uid })
+      const { error } = await supabase.from('curtidas').insert({
+        post_id: pid,
+        usuario_id: uid,
+        ...(empresaInteratorId ? { empresa_interator_id: empresaInteratorId } : {}),
+      })
       if (error) return
       setCurtiu(true)
       setTotal((t) => t + 1)

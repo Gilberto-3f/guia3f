@@ -55,7 +55,9 @@ const AnfitriaoModoContext = createContext<AnfitriaoModoValue | null>(null)
 export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
   const { modoAtivo, perfilSimulado } = useModoApresentacao()
   const { userRole, usuarioStatus, profRow, loading: gateLoading } = useProfissionalGate()
-  const [modo, setModoState] = useState<ModoAnfitriao>('anfitriao')
+  const [modo, setModoState] = useState<ModoAnfitriao>(() =>
+    typeof window !== 'undefined' ? lerModoAnfitriaoStorage() : 'anfitriao',
+  )
   const [empresaHospedagemId, setEmpresaHospedagemId] = useState<string | null>(null)
   const [empresaHospedagem, setEmpresaHospedagem] = useState<EmpresaHospedagemResumo | null>(null)
   const [profCategorias, setProfCategorias] = useState<string[]>([])
