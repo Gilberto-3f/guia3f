@@ -5,15 +5,28 @@ import { UserPlus } from 'lucide-react'
 import { useGerenciaAdm } from '../../../hooks/useGerenciaAdm'
 import { COMUNIDADES_MODERADOR, FUNCOES_ADMIN_CONVITE } from '@/lib/adminConvites'
 
+type UsuarioConvite = {
+  id: string
+  email?: string | null
+  username?: string | null
+  nome_completo?: string | null
+  nome_exibicao?: string | null
+  nome_usuario?: string | null
+  role?: string | null
+  admin_level?: number | null
+}
+
+type MensagemConvite = { tipo: 'sucesso' | 'erro'; texto: string }
+
 export function ConvidarAdmin() {
   const { buscarUsuariosPorUsername, criarConvite, isAdminGeral } = useGerenciaAdm()
   const [username, setUsername] = useState('')
-  const [nivel, setNivel] = useState(/** @type {2 | 3 | 4} */ (2))
+  const [nivel, setNivel] = useState<2 | 3 | 4>(2)
   const [comunidade, setComunidade] = useState('')
-  const [resultados, setResultados] = useState(/** @type {any[]} */ ([]))
+  const [resultados, setResultados] = useState<UsuarioConvite[]>([])
   const [buscando, setBuscando] = useState(false)
   const [enviando, setEnviando] = useState(false)
-  const [mensagem, setMensagem] = useState(/** @type {{ tipo: 'sucesso' | 'erro', texto: string } | null} */ (null))
+  const [mensagem, setMensagem] = useState<MensagemConvite | null>(null)
 
   if (!isAdminGeral) return null
 
@@ -37,7 +50,7 @@ export function ConvidarAdmin() {
     }
   }
 
-  const handleConvidar = async (usuarioId, rotulo) => {
+  const handleConvidar = async (usuarioId: string, rotulo: string) => {
     if (nivel === 2 && !comunidade) {
       setMensagem({ tipo: 'erro', texto: 'Selecione a comunidade do moderador.' })
       return

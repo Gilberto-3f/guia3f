@@ -71,13 +71,7 @@ export function useAdminGate(): GateState {
         admin_permissoes:
           permsRaw && typeof permsRaw === 'object'
             ? (permsRaw as AdminUser['admin_permissoes'])
-            : {
-                recursos: nivel === 1 ? ['*'] : [],
-                nivel,
-                cargo: nivel === 1 ? 'ADM_GERAL' : undefined,
-                modulos: nivel === 1 ? ['*'] : [],
-                comunidade: null,
-              },
+            : {},
         username: username?.replace(/^@+/, '') ?? email?.split('@')[0] ?? null,
         email,
       }
