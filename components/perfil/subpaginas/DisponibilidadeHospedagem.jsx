@@ -73,15 +73,12 @@ export default function DisponibilidadeHospedagem({ empresaId, onSalvo }) {
   }
 
   const btnBase =
-    'flex w-full items-center justify-center gap-2.5 rounded-xl py-4 text-sm font-bold uppercase tracking-wide text-white transition'
+    'flex w-full items-center justify-center gap-2.5 rounded-xl py-4 text-sm font-bold uppercase tracking-wide transition'
+  const livreAtivo = selecionado === 'livre'
+  const lotadoAtivo = selecionado === 'lotado'
 
   return (
     <div className="space-y-4 px-1 pb-4">
-      <p className="text-sm text-gray-600">
-        Informe se há vagas disponíveis ou se a hospedagem está lotada. A escolha aparece na página da
-        empresa e na aba Endereço.
-      </p>
-
       <div className="space-y-3">
         <button
           type="button"
@@ -89,10 +86,13 @@ export default function DisponibilidadeHospedagem({ empresaId, onSalvo }) {
             setSelecionado('livre')
             setSalvo(false)
           }}
-          className={`${btnBase} ${selecionado === 'livre' ? 'ring-4 ring-[#00D443]/40' : ''}`}
-          style={{ backgroundColor: COR_QUARTOS_LIVRES }}
+          className={`${btnBase} ${livreAtivo ? 'text-white ring-4 ring-[#00D443]/40' : 'text-[#666666]'}`}
+          style={{ backgroundColor: livreAtivo ? COR_QUARTOS_LIVRES : '#e5e7eb' }}
         >
-          <ModoApresentacaoIcon iconeKey="anfitriao" className="h-5 w-5 text-white" />
+          <ModoApresentacaoIcon
+            iconeKey="anfitriao"
+            className={`h-5 w-5 ${livreAtivo ? 'text-white' : 'text-[#666666]'}`}
+          />
           QUARTOS LIVRES
         </button>
 
@@ -102,10 +102,13 @@ export default function DisponibilidadeHospedagem({ empresaId, onSalvo }) {
             setSelecionado('lotado')
             setSalvo(false)
           }}
-          className={`${btnBase} ${selecionado === 'lotado' ? 'ring-4 ring-red-300/50' : ''}`}
-          style={{ backgroundColor: COR_ESTAMOS_LOTADO }}
+          className={`${btnBase} ${lotadoAtivo ? 'text-white ring-4 ring-red-300/50' : 'text-[#666666]'}`}
+          style={{ backgroundColor: lotadoAtivo ? COR_ESTAMOS_LOTADO : '#e5e7eb' }}
         >
-          <ModoApresentacaoIcon iconeKey="hospedagem" className="h-5 w-5 text-white" />
+          <ModoApresentacaoIcon
+            iconeKey="hospedagem"
+            className={`h-5 w-5 ${lotadoAtivo ? 'text-white' : 'text-[#666666]'}`}
+          />
           ESTAMOS LOTADO
         </button>
 

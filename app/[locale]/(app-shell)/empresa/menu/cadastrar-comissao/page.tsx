@@ -1,14 +1,20 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { useDashboardEmpresa } from '../../../dashboard/empresa/hooks/useDashboardEmpresa'
 import EmpresaPaginaServicoGate from '@/components/empresa/EmpresaPaginaServicoGate'
+import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
+import { empresaUsaComissaoDiarias } from '@/lib/comissoesBeneficiosInfo'
 import CadastrarComissao from '../../components/menu-empresa/CadastrarComissao'
+
+const INFO_COMISSAO_HOSPEDAGEM =
+  'Ofertas de comissão por diárias reservadas para profissionais parceiros.'
 
 export default function CadastrarComissaoPage() {
   const router = useRouter()
   const { dados: empresaDados } = useDashboardEmpresa()
+  const ehEmpresaHospedagem = empresaUsaComissaoDiarias(empresaDados)
 
   const voltarParaEmpresa = () => {
     if (empresaDados?.id) {
@@ -30,9 +36,19 @@ export default function CadastrarComissaoPage() {
           >
             <ArrowLeft className="h-5 w-5" aria-hidden />
           </button>
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold text-white">Cadastrar Comissão</h1>
-            <p className="truncate text-xs text-white/80">Menu Empresa</p>
+          <div className="flex min-w-0 flex-1 items-center gap-1">
+            {ehEmpresaHospedagem ? (
+              <span className="[&_button]:text-white [&_button]:hover:bg-white/15">
+                <BotaoInfoPopup
+                  texto={INFO_COMISSAO_HOSPEDAGEM}
+                  ariaLabel="Informações sobre cadastro de comissão"
+                />
+              </span>
+            ) : null}
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-bold text-white">Cadastrar Comissão</h1>
+              <p className="truncate text-xs text-white/80">Menu Empresa</p>
+            </div>
           </div>
         </div>
       </header>

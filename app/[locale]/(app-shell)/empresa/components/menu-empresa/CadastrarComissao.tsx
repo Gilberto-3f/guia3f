@@ -253,7 +253,7 @@ export default function CadastrarComissao() {
     setMsg(
       ofertaAtivaIdSubstituir
         ? `Oferta substituída para ${categoria}. A anterior foi marcada como removida.`
-        : `Oferta cadastrada para ${categoria}.`
+        : null
     )
     window.dispatchEvent(new Event('comissao-oferta-updated'))
     void carregar()
@@ -633,11 +633,6 @@ export default function CadastrarComissao() {
       {aba === 'comissao' ? (
         <div className="mt-4 space-y-2">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Comunidades</p>
-          {ehEmpresaHospedagem ? (
-            <p className="text-xs text-gray-500">
-              Ofertas de comissão por diárias reservadas para profissionais parceiros.
-            </p>
-          ) : null}
           {comunidadesVisiveis.map(({ label, iconeKey }) => {
             const aberta = comunidadesAbertas[label]
             const ofertaAtiva = ofertasAtivasPorComunidade.get(label)

@@ -16,9 +16,13 @@ export default function StatusDisponibilidadeHospedagem({ disponibilidade, class
   const cor = corDisponibilidadeHospedagem(valor)
   const rotulo = rotuloDisponibilidadeHospedagem(valor)
 
+  const iconeKey = valor === 'lotado' ? 'hospedagem' : 'anfitriao'
+
   return (
     <div className={`flex items-center gap-2 ${className}`.trim()}>
-      <ModoApresentacaoIcon iconeKey="anfitriao" className="h-5 w-5 shrink-0" style={{ color: cor }} />
+      <span className="inline-flex shrink-0" style={{ color: cor }}>
+        <ModoApresentacaoIcon iconeKey={iconeKey} className="h-5 w-5" />
+      </span>
       <span className="text-sm font-bold tracking-wide" style={{ color: cor }}>
         {rotulo}
       </span>
