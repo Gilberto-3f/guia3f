@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ROTULOS_BENEFICIO } from '@/lib/comissoesBeneficiosInfo'
+import { rotuloAdminDecisaoComissao } from '@/lib/comissoesBeneficiosInfo'
 import { supabase } from '@/lib/supabase'
 import { useSharedAdminGate } from '../context/AdminPermissaoContext'
 import { adminContextFromGate, registrarLogVerificacao } from '../utils/registrarLogVerificacao'
@@ -12,6 +12,12 @@ export type BeneficiosOferta = {
   fixo?: { ativo?: boolean; valor?: number }
   extra?: { ativo?: boolean; texto?: string }
   por_tempo_limitado?: boolean
+}
+
+export type DecisaoComissaoAdm = {
+  adminRotulo: string
+  adminEmail: string | null
+  decididoEm: string | null
 }
 
 export type OfertaComissaoAdm = {
@@ -27,6 +33,7 @@ export type OfertaComissaoAdm = {
   empresaFotoUrl: string | null
   empresaCategoria: string
   empresaCidade: string
+  decisaoAdm: DecisaoComissaoAdm | null
 }
 
 const SEM_PRAZO_DATA = '2099-12-31'
@@ -57,18 +64,37 @@ function parseOfertaRow(row: Record<string, unknown>): OfertaComissaoAdm | null 
     empresaFotoUrl: emp?.foto_url != null ? String(emp.foto_url) : null,
     empresaCategoria: String(emp?.categoria ?? '—'),
     empresaCidade: String(emp?.cidade ?? '—'),
+    decisaoAdm: null,
   }
 }
 
-export function listarBeneficiosAtivos(b: BeneficiosOferta) {
-  const itens: { label: string; valor: string }[] = []
-  if (b.pax?.ativo) itens.push({ label: ROTULOS_BENEFICIO.pax, valor: `R$ ${b.pax.valor ?? 0}` })
-  if (b.percentual?.ativo) itens.push({ label: ROTULOS_BENEFICIO.percentual, valor: `${b.percentual.valor ?? 0}%` })
-  if (b.fixo?.ativo) itens.push({ label: ROTULOS_BENEFICIO.fixo, valor: `R$ ${b.fixo.valor ?? 0}` })
-  if (b.extra?.ativo && String(b.extra.texto ?? '').trim()) {
-    itens.push({ label: ROTULOS_BENEFICIO.extra, valor: String(b.extra.texto).trim() })
+async function carregarDecisoesAdm(ofertaIds: string[]): Promise<Map<string, DecisaoComissaoAdm>> {
+  const map = new Map<string, DecisaoComissaoAdm>()
+  if (ofertaIds.length === 0) return map
+
+  const { data, error } = await supabase
+    .from('logs_verificacao')
+    .select('perfil_id, acao, admin_email, admin_nivel, created_at')
+    .eq('tipo', 'comissao_oferta')
+    .in('perfil_id', ofertaIds)
+    .in('acao', ['comissao_aprovada', 'comissao_reprovada'])
+    .order('created_at', { ascending: false })
+
+  if (error || !data) return map
+
+  for (const row of data) {
+    const id = String(row.perfil_id ?? '').trim()
+    if (!id || map.has(id)) continue
+    map.set(id, {
+      adminRotulo: rotuloAdminDecisaoComissao(
+        typeof row.admin_nivel === 'number' ? row.admin_nivel : Number(row.admin_nivel ?? 0),
+      ),
+      adminEmail: row.admin_email != null ? String(row.admin_email) : null,
+      decididoEm: row.created_at != null ? String(row.created_at) : null,
+    })
   }
-  return itens
+
+  return map
 }
 
 export function textoValidadeOferta(oferta: OfertaComissaoAdm) {
@@ -125,9 +151,17 @@ export function useComissaoOfertaAdm(statusFiltro: StatusFiltroOfertaAdm = 'pend
       const { data, error: e } = await query
       if (e) throw e
 
-      const parsed = (data ?? [])
+      let parsed = (data ?? [])
         .map((row) => parseOfertaRow(row as Record<string, unknown>))
         .filter((o): o is OfertaComissaoAdm => o != null)
+
+      if (statusFiltro === 'arquivados' && parsed.length > 0) {
+        const decisoes = await carregarDecisoesAdm(parsed.map((o) => o.id))
+        parsed = parsed.map((o) => ({
+          ...o,
+          decisaoAdm: decisoes.get(o.id) ?? null,
+        }))
+      }
 
       setOfertas(parsed)
     } catch (err) {
@@ -140,6 +174,9 @@ export function useComissaoOfertaAdm(statusFiltro: StatusFiltroOfertaAdm = 'pend
 
   useEffect(() => {
     void fetchOfertas()
+    const onUpdate = () => void fetchOfertas()
+    window.addEventListener('comissao-oferta-updated', onUpdate)
+    return () => window.removeEventListener('comissao-oferta-updated', onUpdate)
   }, [fetchOfertas])
 
   const atualizarStatus = useCallback(

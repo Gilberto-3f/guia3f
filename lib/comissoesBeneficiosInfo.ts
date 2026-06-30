@@ -94,6 +94,67 @@ export function listarBeneficiosOferta(b: BeneficiosOfertaRecord): { label: stri
   return itens
 }
 
+type BeneficioValor = { ativo?: boolean; valor?: number; texto?: string }
+
+function beneficioComValor(obj: BeneficioValor | undefined, exigeTexto = false): boolean {
+  if (!obj || typeof obj !== 'object') return false
+  if (obj.ativo === true) return true
+  if (exigeTexto) return String(obj.texto ?? '').trim().length > 0
+  return Number(obj.valor ?? 0) > 0
+}
+
+/** Histórico/arquivo ADM: exibe proposta mesmo se flags `ativo` foram desligadas após decisão. */
+export function listarBeneficiosProposta(b: BeneficiosOfertaRecord): { label: string; valor: string }[] {
+  const ativos = listarBeneficiosOferta(b)
+  if (ativos.length > 0) return ativos
+
+  const itens: { label: string; valor: string }[] = []
+  if (isBeneficiosModoHospedagem(b)) {
+    const pct = b.percentual_diaria
+    const fixo = b.valor_fixo_diaria
+    if (pct && typeof pct === 'object' && beneficioComValor(pct)) {
+      itens.push({
+        label: ROTULOS_BENEFICIO.percentual_diaria,
+        valor: `${pct.valor ?? 0}%`,
+      })
+    }
+    if (fixo && typeof fixo === 'object' && beneficioComValor(fixo)) {
+      itens.push({
+        label: ROTULOS_BENEFICIO.valor_fixo_diaria,
+        valor: `R$ ${fixo.valor ?? 0}`,
+      })
+    }
+    return itens
+  }
+  const pax = b.pax
+  const pct = b.percentual
+  const fixo = b.fixo
+  const extra = b.extra
+  if (pax && typeof pax === 'object' && beneficioComValor(pax)) {
+    itens.push({ label: ROTULOS_BENEFICIO.pax, valor: `R$ ${pax.valor ?? 0}` })
+  }
+  if (pct && typeof pct === 'object' && beneficioComValor(pct)) {
+    itens.push({ label: ROTULOS_BENEFICIO.percentual, valor: `${pct.valor ?? 0}%` })
+  }
+  if (fixo && typeof fixo === 'object' && beneficioComValor(fixo)) {
+    itens.push({ label: ROTULOS_BENEFICIO.fixo, valor: `R$ ${fixo.valor ?? 0}` })
+  }
+  if (extra && typeof extra === 'object' && beneficioComValor(extra, true)) {
+    itens.push({ label: ROTULOS_BENEFICIO.extra, valor: String(extra.texto).trim() })
+  }
+  return itens
+}
+
+/** Rótulo do cargo ADM para decisões de comissão (auditoria / cards arquivados). */
+export function rotuloAdminDecisaoComissao(adminNivel: number | null | undefined): string {
+  const n = Number(adminNivel ?? 0)
+  if (n === 1) return 'ADM GERAL'
+  if (n === 3) return 'ADM FINANCEIRO'
+  if (n === 2) return 'MODERADOR'
+  if (n === 4) return 'SUPORTE'
+  return 'ADM'
+}
+
 export type StatusOfertaComissao = 'pendente' | 'aprovada' | 'reprovada' | 'removido' | string
 
 /** Oferta que ocupa a “vaga” da comunidade (ainda não removida/recusada). */

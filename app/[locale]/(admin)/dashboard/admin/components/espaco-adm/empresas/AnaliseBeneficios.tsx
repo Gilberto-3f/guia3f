@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { Archive, Check, Clock, X, type LucideIcon } from 'lucide-react'
+import { listarBeneficiosOferta, listarBeneficiosProposta } from '@/lib/comissoesBeneficiosInfo'
 import type { useComissaoOfertaAdm } from '../../../hooks/useComissaoOfertaAdm'
-import { listarBeneficiosAtivos, textoValidadeOferta } from '../../../hooks/useComissaoOfertaAdm'
+import { textoValidadeOferta } from '../../../hooks/useComissaoOfertaAdm'
 
 const COR_ABA_ATIVA = '#00D443'
 
@@ -68,8 +69,20 @@ function OfertaCard({
   onAprovar?: () => void
   onReprovar?: () => void
 }) {
-  const beneficios = listarBeneficiosAtivos(oferta.beneficios)
+  const beneficios =
+    modo === 'arquivados'
+      ? listarBeneficiosProposta(oferta.beneficios as Record<string, unknown>)
+      : listarBeneficiosOferta(oferta.beneficios as Record<string, unknown>)
   const validade = textoValidadeOferta(oferta)
+  const decididoEm = oferta.decisaoAdm?.decididoEm
+    ? new Date(oferta.decisaoAdm.decididoEm).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null
   const dia = oferta.createdAt
     ? new Date(oferta.createdAt).toLocaleDateString('pt-BR', {
         day: '2-digit',
@@ -128,7 +141,11 @@ function OfertaCard({
       <div className="mt-3">
         <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Proposta de oferta</p>
         {beneficios.length === 0 ? (
-          <p className="mt-1 text-sm text-gray-500">Nenhum benefício ativo na proposta.</p>
+          <p className="mt-1 text-sm text-gray-500">
+            {modo === 'arquivados'
+              ? 'Nenhum benefício registrado na proposta.'
+              : 'Nenhum benefício ativo na proposta.'}
+          </p>
         ) : (
           <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
             {beneficios.map((b) => (
@@ -140,6 +157,13 @@ function OfertaCard({
           </ul>
         )}
         {validade ? <p className="mt-2 text-xs text-amber-800">{validade}</p> : null}
+        {modo === 'arquivados' && oferta.decisaoAdm ? (
+          <p className="mt-2 text-xs text-gray-600">
+            {oferta.status === 'aprovada' ? 'Aprovada' : 'Reprovada'} por{' '}
+            <span className="font-semibold text-gray-800">{oferta.decisaoAdm.adminRotulo}</span>
+            {decididoEm ? ` em ${decididoEm}` : null}
+          </p>
+        ) : null}
       </div>
 
       {modo === 'pendentes' && onAprovar && onReprovar ? (
