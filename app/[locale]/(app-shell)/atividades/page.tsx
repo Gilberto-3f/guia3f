@@ -26,6 +26,7 @@ import {
   atividadeVisivelNaMinhaContaPessoal,
   atividadeVisivelMinhaContaModoAnfitriao,
   atividadeVisivelMinhaContaModoHospedagem,
+  atividadeVisivelNaAbaSeguindo,
   chaveAtividadeSeguidor,
   chaveAtividadeCurtiuPost,
   postCanonicoId,
@@ -44,7 +45,6 @@ import {
   resolverDonoPostAtividade,
   postMetaEhConteudoEmpresa,
   empresaInteratorIdDeAtividade,
-  atividadeFeitaComoEmpresaHospedagem,
   enriquecerAtividadesEmpresaInterator,
 } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
@@ -1255,14 +1255,6 @@ export default function AtividadesPage() {
     const role = (urow as { role?: string } | null)?.role ?? null
     setMeuRole(role)
 
-    const modoHospedagemAnfitriao = profissionalOperaComoEmpresaHospedagem(
-      role,
-      ehAnfitriao,
-      modoEfetivo,
-      empresaHospedagemId,
-      empresaHospedagemLiberada,
-    )
-
     if (role === 'empresa') {
       setErroAmigos(null)
       setListaAmigos([])
@@ -1317,57 +1309,6 @@ export default function AtividadesPage() {
       return
     }
 
-    if (modoHospedagemAnfitriao) {
-      setErroAmigos(null)
-      setListaAmigos([])
-      setEmpresaAvaliacaoMap({})
-      setQtdSeguindo(0)
-      seguindoRef.current = []
-      setOffsetAmigos(0)
-      setTemMaisAmigos(false)
-      setTemMaisMinha(false)
-      setMinhaEmpresaAtividades(null)
-
-      const limHosp = ATIVIDADES_LIMITE_MINHA_CONTA
-      const minhaHospRes = await supabase
-        .from('atividades')
-        .select('*')
-        .eq('usuario_id', uid)
-        .neq('autor_id', uid)
-        .not('tipo', 'in', '(avaliou,seguiu_empresa)')
-        .order('created_at', { ascending: false })
-        .range(0, limHosp - 1)
-
-      const minhaHospRaw = ((minhaHospRes.data ?? []) as AtividadeRow[]).filter((row) =>
-        atividadeVisivelNaMinhaContaEmpresa(row),
-      )
-      const minhaHosp = (await enriquecerAtividadesEmpresaInterator(
-        supabase,
-        minhaHospRaw,
-      )) as AtividadeRow[]
-      setListaMinha(minhaHosp)
-      setOffsetMinha(minhaHosp.length)
-
-      await carregarPerfis(minhaHosp, { merge: false })
-      await carregarEmpresasAvaliacoes(minhaHosp, { merge: false })
-
-      const postIdsHosp: string[] = []
-      for (const r of minhaHosp) {
-        if (r.tipo === 'curtiu_post') postIdsHosp.push(r.alvo_id)
-        const ex = r.dados_extras
-        if (ex && typeof ex === 'object') {
-          const pid = ex.post_id
-          if (typeof pid === 'string') postIdsHosp.push(pid)
-        }
-      }
-      await carregarPostsMeta(postIdsHosp, { merge: false })
-      await carregarStoriesMeta(minhaHosp, { merge: false })
-      await carregarStoriesRepostAtivos(minhaHosp)
-
-      setCarregando(false)
-      return
-    }
-
     setMinhaEmpresaAtividades(null)
 
     const seguindo = await fetchAutorIdsSeguidosAmigos(supabase, uid, {
@@ -1379,7 +1320,7 @@ export default function AtividadesPage() {
     const lim = ATIVIDADES_LIMITE_PAGINA
     setErroAmigos(null)
 
-    const [amigosRes, minhaRes] = await Promise.all([
+    const [amigosRes, minhaRes, outboundRes] = await Promise.all([
       seguindo.length
         ? supabase
             .from('atividades')
@@ -1400,12 +1341,25 @@ export default function AtividadesPage() {
         .not('tipo', 'in', '(avaliou,seguiu_empresa)')
         .order('created_at', { ascending: false })
         .range(0, ATIVIDADES_LIMITE_MINHA_CONTA - 1),
+      supabase
+        .from('atividades')
+        .select('*')
+        .eq('autor_id', uid)
+        .neq('usuario_id', uid)
+        .not('tipo', 'in', '(avaliou,seguiu_empresa,marcou_em_story,repostou_post)')
+        .order('created_at', { ascending: false })
+        .range(0, lim - 1),
     ])
 
     logDiagAmigos('resposta atividades (amigos)', { uid, seguindo, res: amigosRes })
     if (minhaRes.error && process.env.NODE_ENV === 'development') {
       // eslint-disable-next-line no-console
       console.error('[Atividades][diag] erro query Minha conta:', minhaRes.error)
+    }
+
+    if (outboundRes.error && process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.error('[Atividades][diag] erro query outbound (Seguindo):', outboundRes.error)
     }
 
     if (amigosRes.error) {
@@ -1415,7 +1369,10 @@ export default function AtividadesPage() {
       console.error('[Atividades][Amigos] erro ao carregar atividades de amigos:', amigosRes.error)
     }
 
-    const amigosRaw = (amigosRes.data ?? []) as AtividadeRow[]
+    const amigosRaw = mergeAtividadesPorId(
+      (amigosRes.data ?? []) as AtividadeRow[],
+      (outboundRes.data ?? []) as AtividadeRow[],
+    )
     const minhaRaw = ((minhaRes.data ?? []) as AtividadeRow[]).filter((row) =>
       atividadeVisivelNaMinhaContaPessoal(row, uid),
     )
@@ -1652,12 +1609,12 @@ export default function AtividadesPage() {
     [marcarMinhaLidas]
   )
 
-  /** Empresa ou anfitrião em modo Hospedagem: só “Minha conta”. */
+  /** Conta empresa: só aba “Minha conta”. */
   useEffect(() => {
-    if ((meuRole === 'empresa' || operaComoEmpresaHospedagem) && meuId) {
+    if (meuRole === 'empresa' && meuId) {
       onAba('minha')
     }
-  }, [meuRole, operaComoEmpresaHospedagem, meuId, onAba])
+  }, [meuRole, meuId, onAba])
 
   const SWIPE_MIN_PX = 60
   const SWIPE_DOMINANCIA = 1.5
@@ -1672,7 +1629,7 @@ export default function AtividadesPage() {
 
   const tentarTrocarAbaPorSwipe = useCallback(
     (dx: number, dy: number) => {
-      if (meuRole === 'empresa' || operaComoEmpresaHospedagem) return
+      if (meuRole === 'empresa') return
       if (Math.abs(dx) < SWIPE_MIN_PX) return
       if (Math.abs(dx) <= Math.abs(dy) * SWIPE_DOMINANCIA) return
       if (dx < 0) {
@@ -1683,7 +1640,7 @@ export default function AtividadesPage() {
         if (aba !== 'amigos') onAba('amigos')
       }
     },
-    [aba, meuRole, operaComoEmpresaHospedagem, onAba]
+    [aba, meuRole, onAba]
   )
 
   const onTouchStartAtividades = useCallback((e: React.TouchEvent) => {
@@ -1762,13 +1719,21 @@ export default function AtividadesPage() {
     return raw.filter((r) => {
       if (aba === 'minha' && meuId) {
         if (operaComoEmpresaHospedagem) {
-          if (!atividadeVisivelMinhaContaModoHospedagem(r, ctxModo)) return false
+          if (!atividadeVisivelMinhaContaModoHospedagem(r, meuId, ctxModo)) return false
         } else if (ehAnfitriao && meuRole === 'profissional') {
           if (!atividadeVisivelMinhaContaModoAnfitriao(r, meuId, ctxModo)) return false
         }
       }
-      if (aba === 'amigos' && ehAnfitriao && meuId && meuRole === 'profissional' && !operaComoEmpresaHospedagem) {
-        if (r.autor_id === meuId && atividadeFeitaComoEmpresaHospedagem(r)) return false
+      if (aba === 'amigos' && meuId && meuRole === 'profissional' && ehAnfitriao) {
+        if (
+          !atividadeVisivelNaAbaSeguindo(r, meuId, ctxModo, {
+            operaComoEmpresaHospedagem,
+            ehAnfitriao,
+            role: meuRole,
+          })
+        ) {
+          return false
+        }
       }
       if (aba === 'amigos' && r.tipo === 'avaliou') return false
       if (r.tipo === 'repostou_post') return false
@@ -2426,7 +2391,7 @@ export default function AtividadesPage() {
             >
               <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">ATIVIDADES</h1>
               <p className="text-center text-xs font-medium leading-tight text-white/90 sm:text-sm">
-                {meuRole === 'empresa' || operaComoEmpresaHospedagem ? 'Minha Conta' : 'Atividades recentes'}
+                {meuRole === 'empresa' ? 'Minha Conta' : 'Atividades recentes'}
               </p>
             </div>
             <div className="relative z-10 flex min-w-0 flex-1 items-center justify-end gap-2">
@@ -2550,7 +2515,7 @@ export default function AtividadesPage() {
         </div>
       </header>
 
-      <AbasAtividades aba={aba} onAba={onAba} somenteMinhaConta={meuRole === 'empresa' || operaComoEmpresaHospedagem} />
+      <AbasAtividades aba={aba} onAba={onAba} somenteMinhaConta={meuRole === 'empresa'} />
 
       <div
         className="px-4 pb-3 pt-3"
