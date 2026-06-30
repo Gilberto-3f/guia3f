@@ -567,6 +567,10 @@ export default function MenuLateral({
   const [comprasPendentes, setComprasPendentes] = useState(0)
   const [adminLevelMenu, setAdminLevelMenu] = useState(adminLevel)
 
+  /** Identidade social sempre a do utilizador logado (ADM); preview empresa é só noutras rotas. */
+  const usuarioIdEfetivo = usuarioId
+  const empresaIdEfetivo = empresaId
+
   useEffect(() => {
     setAdminLevelMenu(adminLevel)
   }, [adminLevel])
@@ -661,10 +665,6 @@ export default function MenuLateral({
   const recursosProfLiberadosEfetivo =
     variant === 'profissional' && !gateLoading && recursosProfissionaisLiberados
   const profDocsBloqueado = variant === 'profissional' && !recursosProfLiberadosEfetivo
-
-  /** Identidade social sempre a do utilizador logado (ADM); preview empresa é só noutras rotas. */
-  const usuarioIdEfetivo = usuarioId
-  const empresaIdEfetivo = empresaId
 
   const empresaIdCtx =
     empresaId ??
