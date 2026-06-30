@@ -22,8 +22,8 @@ import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
 const botoesPorCategoria = {
   gastronomia: { texto: 'RESERVAR MESA', icon: Utensils, cor: '#FF6B6B', acao: 'reserva' },
   Restaurantes: { texto: 'RESERVAR MESA', icon: Utensils, cor: '#FF6B6B', acao: 'reserva' },
-  passeios: { texto: 'TIKETS', icon: Ticket, cor: '#4ECDC4', acao: 'ticket' },
-  Atrativos: { texto: 'TIKETS', icon: Ticket, cor: '#4ECDC4', acao: 'ticket' },
+  passeios: { texto: 'TICKET', icon: Ticket, cor: '#4ECDC4', acao: 'ticket' },
+  Atrativos: { texto: 'TICKET', icon: Ticket, cor: '#4ECDC4', acao: 'ticket' },
   lojas: { texto: 'VER PRODUTOS', icon: ShoppingBag, cor: '#96CEB4', acao: 'produtos' },
   Lojas: { texto: 'VER PRODUTOS', icon: ShoppingBag, cor: '#96CEB4', acao: 'produtos' },
   hospedagem: { texto: 'FAZER RESERVA', icon: Hotel, cor: '#45B7D1', acao: 'reserva' },

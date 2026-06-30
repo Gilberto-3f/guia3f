@@ -283,14 +283,16 @@ export default function PopupReservaHospedagem({
             </div>
           ) : (
             <>
-              <div className="space-y-3 p-4">
-                <p className="text-center text-lg font-bold text-gray-900">{empresaNome}</p>
-                <p className="text-center text-sm text-gray-800">
-                  Diária:{' '}
-                  <span className="font-semibold" style={{ color: COR_HOSPEDAGEM }}>
-                    R$ {diaria.toFixed(2)}
-                  </span>
-                </p>
+              <div className="space-y-2 p-3">
+                <div className="text-center">
+                  <p className="text-base font-bold leading-tight text-gray-900">{empresaNome}</p>
+                  <p className="mt-0.5 text-sm text-gray-800">
+                    Diária:{' '}
+                    <span className="font-semibold" style={{ color: COR_HOSPEDAGEM }}>
+                      R$ {diaria.toFixed(2)}
+                    </span>
+                  </p>
+                </div>
 
                 {termos.length > 0 ? (
                   <div className="flex flex-wrap justify-center gap-1.5">
@@ -306,9 +308,9 @@ export default function PopupReservaHospedagem({
                   </div>
                 ) : null}
 
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div>
-                    <label htmlFor="reserva-hosp-checkin" className="mb-1 block text-xs font-medium text-gray-800">
+                    <label htmlFor="reserva-hosp-checkin" className="mb-0.5 block text-xs font-medium text-gray-800">
                       Check-in
                     </label>
                     <input
@@ -319,12 +321,12 @@ export default function PopupReservaHospedagem({
                         setCheckin(e.target.value)
                         setConflitoReconhecido(false)
                       }}
-                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 [color-scheme:light]"
+                      className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm leading-tight text-gray-900 [color-scheme:light]"
                       min={hoje}
                     />
                   </div>
                   <div>
-                    <label htmlFor="reserva-hosp-checkout" className="mb-1 block text-xs font-medium text-gray-800">
+                    <label htmlFor="reserva-hosp-checkout" className="mb-0.5 block text-xs font-medium text-gray-800">
                       Check-out
                     </label>
                     <input
@@ -335,14 +337,14 @@ export default function PopupReservaHospedagem({
                         setCheckout(e.target.value)
                         setConflitoReconhecido(false)
                       }}
-                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 [color-scheme:light]"
+                      className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm leading-tight text-gray-900 [color-scheme:light]"
                       min={checkin || hoje}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <p className="mb-2 text-xs font-medium text-gray-800">Forma de Pagamento</p>
+                  <p className="mb-1.5 text-xs font-medium text-gray-800">Forma de Pagamento</p>
                   <div className="space-y-2">
                     {FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM.map(({ value, label }) => (
                       <label
@@ -381,7 +383,7 @@ export default function PopupReservaHospedagem({
                 ) : null}
               </div>
 
-              <div className="border-t border-gray-100 p-4">
+              <div className="border-t border-gray-100 p-3">
                 <button
                   type="button"
                   onClick={handleSolicitar}

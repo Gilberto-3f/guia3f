@@ -9,7 +9,7 @@ export const FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM: ReadonlyArray<{
 }> = [
   { value: 'dinheiro', label: 'Dinheiro' },
   { value: 'pix', label: 'PIX' },
-  { value: 'cartao_deb_cred', label: 'Cartão DÉB/CRÉD' },
+  { value: 'cartao_deb_cred', label: 'Cartão (Débito ou Crédito)' },
 ]
 
 export function rotuloFormaPagamentoReservaHospedagem(

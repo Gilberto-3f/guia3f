@@ -97,7 +97,7 @@ export default function BotaoDinamico({
   // FIX: somente texto e ícone mudam por categoria/cidade
   const config = useMemo(() => {
     if (isGastronomia(categoria)) return { texto: 'RESERVAR MESA', icon: Utensils, acao: 'reserva_mesa' }
-    if (isPasseios(categoria)) return { texto: 'TIKETS', icon: Ticket, acao: 'ticket' }
+    if (isPasseios(categoria)) return { texto: 'TICKET', icon: Ticket, acao: 'ticket' }
     if (isHospedagem(categoria)) return { texto: 'FAZER RESERVA', icon: Calendar, acao: 'hospedagem' }
     if (isServicosLocais(categoria)) return { texto: 'FALAR NO WHATSAPP', icon: MessageCircle, acao: 'whatsapp' }
 
