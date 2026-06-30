@@ -4,6 +4,7 @@ import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import {
   buscarReservaPendenteEmpresa,
   carregarTuristaReservaMeta,
+  consolidarReservasPendentesDuplicadas,
   criarAvisoCanalFinanceiroReservaHospedagem,
 } from '@/lib/reservaHospedagem'
 import { sincronizarCompraReservaHospedagem } from '@/lib/turistaCompras'
@@ -53,6 +54,8 @@ export async function POST(req: Request) {
     }
 
     const turistaMeta = await carregarTuristaReservaMeta(adminDb, session.userId)
+
+    await consolidarReservasPendentesDuplicadas(adminDb, session.userId, empresaId)
 
     const pendenteMesmaEmpresa = await buscarReservaPendenteEmpresa(
       adminDb,

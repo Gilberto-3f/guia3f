@@ -211,6 +211,155 @@ export async function cancelarReservasPendentesConflitantes(
 
 export { MOTIVO_CANCELAMENTO_AUTO }
 
+const MOTIVO_CONSOLIDACAO_RESERVA =
+  'Consolidada: uma solicitação por período de hospedagem.'
+
+function noitesEntreDatas(checkin: string, checkout: string): number {
+  const inicio = new Date(`${checkin}T12:00:00`)
+  const fim = new Date(`${checkout}T12:00:00`)
+  const diff = fim.getTime() - inicio.getTime()
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
+}
+
+/** Remove reservas/cards pendentes duplicados (ex.: um por diária) — mantém o período mais longo. */
+export async function consolidarReservasPendentesDuplicadas(
+  supabase: SupabaseClient,
+  turistaUsuarioId: string,
+  empresaId: string,
+): Promise<void> {
+  const uid = String(turistaUsuarioId ?? '').trim()
+  const empId = String(empresaId ?? '').trim()
+  if (!uid || !empId) return
+
+  const { data: pendentes } = await supabase
+    .from('reservas_hospedagem')
+    .select('id, data_checkin, data_checkout, noites, canal_financeiro_id, created_at')
+    .eq('turista_usuario_id', uid)
+    .eq('empresa_id', empId)
+    .eq('status', 'pendente')
+    .order('created_at', { ascending: false })
+
+  const rows = pendentes ?? []
+  if (rows.length <= 1) {
+    await limparCanaisReservaHospedagemPendentesDuplicados(supabase, empId, uid, rows[0]?.id ?? null, rows[0]?.canal_financeiro_id ?? null)
+    return
+  }
+
+  const ordenadas = [...rows].sort((a, b) => {
+    const noitesA = Number(a.noites) || noitesEntreDatas(String(a.data_checkin), String(a.data_checkout))
+    const noitesB = Number(b.noites) || noitesEntreDatas(String(b.data_checkin), String(b.data_checkout))
+    if (noitesB !== noitesA) return noitesB - noitesA
+    return new Date(String(b.created_at ?? 0)).getTime() - new Date(String(a.created_at ?? 0)).getTime()
+  })
+
+  const manter = ordenadas[0]
+  const cancelar = ordenadas.slice(1)
+  const now = new Date().toISOString()
+
+  for (const r of cancelar) {
+    await supabase
+      .from('reservas_hospedagem')
+      .update({
+        status: 'cancelada',
+        motivo_recusa: MOTIVO_CONSOLIDACAO_RESERVA,
+        respondido_em: now,
+      })
+      .eq('id', r.id)
+      .eq('status', 'pendente')
+
+    if (r.canal_financeiro_id) {
+      await supabase.from('canal_financeiro').delete().eq('id', r.canal_financeiro_id)
+    }
+  }
+
+  await limparCanaisReservaHospedagemPendentesDuplicados(
+    supabase,
+    empId,
+    uid,
+    manter?.id != null ? String(manter.id) : null,
+    manter?.canal_financeiro_id != null ? String(manter.canal_financeiro_id) : null,
+  )
+}
+
+async function limparCanaisReservaHospedagemPendentesDuplicados(
+  supabase: SupabaseClient,
+  empresaId: string,
+  turistaUsuarioId: string,
+  reservaManterId: string | null,
+  canalManterId: string | null,
+): Promise<void> {
+  const { data } = await supabase
+    .from('canal_financeiro')
+    .select('id, metadata')
+    .eq('empresa_id', empresaId)
+    .eq('tipo', 'reserva_hospedagem')
+
+  for (const row of data ?? []) {
+    const canalId = String(row.id)
+    if (canalManterId && canalId === canalManterId) continue
+
+    const meta =
+      row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+        ? (row.metadata as Record<string, unknown>)
+        : {}
+    if (String(meta.turista_usuario_id ?? '') !== turistaUsuarioId) continue
+    if (String(meta.respondido ?? '').trim()) continue
+
+    const reservaId = String(meta.reserva_id ?? '').trim()
+    if (reservaManterId && reservaId && reservaId === reservaManterId) continue
+
+    await supabase.from('canal_financeiro').delete().eq('id', canalId)
+  }
+}
+
+/** Evita cards repetidos no canal financeiro (mesma reserva ou mesma solicitação pendente). */
+export function dedupeItensCanalReservaHospedagem<
+  T extends { id: string; tipo: string; metadata?: Record<string, unknown> },
+>(itens: T[]): T[] {
+  const reservaVista = new Set<string>()
+  const pendenteTuristaEmpresa = new Set<string>()
+  const out: T[] = []
+
+  for (const item of itens) {
+    if (item.tipo !== 'reserva_hospedagem') {
+      out.push(item)
+      continue
+    }
+
+    const meta = item.metadata ?? {}
+    const reservaId = String(meta.reserva_id ?? '').trim()
+    const respondido = String(meta.respondido ?? '').trim()
+
+    if (reservaId) {
+      if (reservaVista.has(reservaId)) continue
+      reservaVista.add(reservaId)
+      out.push(item)
+      continue
+    }
+
+    if (!respondido) {
+      const chave = `${String(meta.turista_usuario_id ?? '')}|${String(meta.empresa_id ?? '')}`
+      if (pendenteTuristaEmpresa.has(chave)) continue
+      pendenteTuristaEmpresa.add(chave)
+    }
+
+    out.push(item)
+  }
+
+  return out
+}
+
+/** Após confirmação pelo anfitrião, marca a hospedagem como lotada na página da empresa. */
+export async function marcarEmpresaHospedagemLotada(
+  supabase: SupabaseClient,
+  empresaId: string,
+): Promise<void> {
+  const empId = String(empresaId ?? '').trim()
+  if (!empId) return
+
+  await supabase.from('empresas').update({ hospedagem_disponibilidade: 'lotado' }).eq('id', empId)
+}
+
 function formatarDataBr(iso: string): string {
   const d = new Date(`${iso}T12:00:00`)
   if (Number.isNaN(d.getTime())) return iso
@@ -255,6 +404,29 @@ export async function criarAvisoCanalFinanceiroReservaHospedagem(
     respondido: '',
   }
 
+  const canalExistenteId = await buscarCanalReservaHospedagemPendente(
+    supabase,
+    params.empresaId,
+    params.turistaUsuarioId,
+  )
+
+  if (canalExistenteId) {
+    const { error: upErr } = await supabase
+      .from('canal_financeiro')
+      .update({
+        titulo: 'Solicitação de reserva',
+        mensagem,
+        valor: params.valorEstimado,
+        lida_por_profissional: false,
+        lida_por_empresa: false,
+        metadata,
+      })
+      .eq('id', canalExistenteId)
+
+    if (upErr) return { ok: false, error: upErr.message ?? 'canal_financeiro_falhou' }
+    return { ok: true, canalFinanceiroId: canalExistenteId }
+  }
+
   const { data, error } = await supabase
     .from('canal_financeiro')
     .insert({
@@ -275,6 +447,35 @@ export async function criarAvisoCanalFinanceiroReservaHospedagem(
     return { ok: false, error: error?.message ?? 'canal_financeiro_falhou' }
   }
   return { ok: true, canalFinanceiroId: String(data.id) }
+}
+
+async function buscarCanalReservaHospedagemPendente(
+  supabase: SupabaseClient,
+  empresaId: string,
+  turistaUsuarioId: string,
+): Promise<string | null> {
+  const empId = String(empresaId ?? '').trim()
+  const uid = String(turistaUsuarioId ?? '').trim()
+  if (!empId || !uid) return null
+
+  const { data } = await supabase
+    .from('canal_financeiro')
+    .select('id, metadata')
+    .eq('empresa_id', empId)
+    .eq('tipo', 'reserva_hospedagem')
+    .order('created_at', { ascending: false })
+
+  for (const row of data ?? []) {
+    const meta =
+      row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+        ? (row.metadata as Record<string, unknown>)
+        : {}
+    if (String(meta.turista_usuario_id ?? '') !== uid) continue
+    if (String(meta.respondido ?? '').trim()) continue
+    return String(row.id)
+  }
+
+  return null
 }
 
 export async function atualizarCanalFinanceiroReservaRespondida(

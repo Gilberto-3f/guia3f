@@ -24,6 +24,7 @@ import {
 import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
 import { notificarBadgeCanais, notificarBadgeCanaisAposLeitura } from '@/lib/canais-badge-events'
 import { rotuloDestinoNotificacaoFinanceira, rotuloDestinoNotificacaoFinanceiraTexto } from '@/lib/anfitriaoDualMode'
+import { dedupeItensCanalReservaHospedagem } from '@/lib/reservaHospedagem'
 
 const abaCls = (ativo) =>
   `flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition-colors sm:text-sm ${
@@ -323,6 +324,8 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospeda
 
         formatados = [...sinteticosPendentes, ...sinteticosHistorico, ...formatados]
       }
+
+      formatados = dedupeItensCanalReservaHospedagem(formatados)
 
       formatados.sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
