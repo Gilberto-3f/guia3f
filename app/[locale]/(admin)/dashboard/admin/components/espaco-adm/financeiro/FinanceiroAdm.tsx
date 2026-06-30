@@ -31,12 +31,12 @@ const SECOES: Record<SecaoId, SecaoMeta> = {
     descricao: 'Solicitações em dinheiro e assinantes ativos, inativos ou em degustação.',
   },
   comissoes: {
-    titulo: 'Configuração de Comissões',
+    titulo: 'Gestão de Comissões',
     Icon: Percent,
     descricao: 'Regras de divisão de comissões por tipo de serviço e modelo de indicação.',
   },
   parceiras: {
-    titulo: 'Cadastro de Empresas Parceiras',
+    titulo: 'Empresas Parceiras',
     Icon: Handshake,
     descricao: 'Cadastro e gestão das empresas parceiras da rede.',
   },
