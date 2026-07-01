@@ -1,4 +1,5 @@
 import type { AdminPermissoes, AdminUser } from '../types/admin.types'
+import type { AbaPrincipalId } from '../components/shared/AbasNavegacao'
 
 export type ModuloPermissao =
   | 'verificacao.turistas'
@@ -31,6 +32,25 @@ export function podeAcessar(admin: AdminUser, key: ModuloPermissao): boolean {
   if (key === 'configuracoes.apis' && rawCargo === 'FINANCEIRO') return true
   const flag = readFlag(admin.admin_permissoes ?? {}, key)
   return flag === true
+}
+
+const PASTA_MODULO: Record<AbaPrincipalId, string> = {
+  'visao-geral': 'visao-geral',
+  cadastros: 'verificacao',
+  denuncias: 'denuncias',
+  'servicos-tabelados': 'servicos-tabelados',
+  'espaco-adm': 'espaco-adm',
+  configuracoes: 'configuracoes',
+}
+
+/** Pastas visíveis no painel principal da Dashboard ADM. */
+export function podeAcessarPasta(admin: AdminUser, pastaId: AbaPrincipalId): boolean {
+  if (admin.admin_level === 1) return true
+  if (pastaId === 'configuracoes') return false
+  const raw = admin.admin_permissoes as unknown as { modulos?: string[]; cargo?: string }
+  const modulos = Array.isArray(raw?.modulos) ? raw.modulos : []
+  const mod = PASTA_MODULO[pastaId]
+  return modulos.includes(mod)
 }
 
 export function withDefaultsAdminPerms(input: unknown): AdminPermissoes {

@@ -5,7 +5,7 @@ import type { VerificacaoSubabaId } from './SubabasVerificacao'
 import { ListaPendentes } from './ListaPendentes'
 import { CadastrosAuditoria } from './CadastrosAuditoria'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
-import { isAdmGeral } from '../../utils/permissoes'
+import { isAdmGeral, podeAcessar } from '../../utils/permissoes'
 
 function coerceSub(sub: string): VerificacaoSubabaId {
   if (sub === 'profissionais' || sub === 'empresas' || sub === 'auditoria') return sub
@@ -66,7 +66,11 @@ function VerificacaoContainerInner({ sub }: { sub: string }) {
   const allowed =
     activeSub === 'auditoria' ||
     isAdmGeral(admin) ||
-    ((cargo === 'FINANCEIRO' ? activeSub !== 'profissionais' : true) && (cargo === 'SUPORTE' ? activeSub === 'turistas' : true))
+    cargo === 'FINANCEIRO' ||
+    (cargo === 'MODERADOR' &&
+      ((activeSub === 'profissionais' && podeAcessar(admin, 'verificacao.profissionais')) ||
+        (activeSub === 'empresas' && podeAcessar(admin, 'verificacao.empresas')))) ||
+    (cargo === 'AUXILIAR_ADM' || cargo === 'SUPORTE' ? activeSub === 'turistas' : false)
 
   return (
     <div className="space-y-4">

@@ -14,59 +14,107 @@ type EmpresaJoin = {
   usuario_id: string | null
 }
 
-/** Lista solicitações pendentes de Auxiliar ADM (ADM Geral). */
+type AssinaturaJoin = {
+  id: string
+  plano_id: string | null
+  plano_nome: string | null
+}
+
+/** Lista solicitações pendentes (ADM Geral) ou empresas atribuídas (Auxiliar ADM). */
 export async function GET() {
   try {
     const auth = await assertAdminSession()
     if (!auth.ok) return auth.error
 
     const { row: adminRow } = await loadAdminUsuarioRow(auth.userId, auth.email)
-    if (!isAdminGeral(adminRow)) {
-      return jsonAdminError(403, 'forbidden', 'Apenas ADM Geral.')
+    const nivel = Number(adminRow?.admin_level ?? 0)
+    const adminDb = createSupabaseAdmin()
+
+    if (isAdminGeral(adminRow)) {
+      const { data, error } = await adminDb
+        .from('empresa_auxiliar_adm_solicitacoes')
+        .select(
+          `
+          id, empresa_id, assinatura_id, status, created_at,
+          empresas ( id, nome_fantasia, nome_usuario, foto_url, usuario_id ),
+          empresa_assinaturas ( id, plano_id, plano_nome )
+        `,
+        )
+        .eq('status', 'pendente')
+        .order('created_at', { ascending: true })
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+      const items = (data ?? []).map((row) => {
+        const empRaw = row.empresas
+        const emp = (Array.isArray(empRaw) ? empRaw[0] : empRaw) as EmpresaJoin | null
+        const assRaw = row.empresa_assinaturas
+        const ass = (Array.isArray(assRaw) ? assRaw[0] : assRaw) as AssinaturaJoin | null
+        return {
+          id: String(row.id),
+          empresa_id: String(row.empresa_id),
+          assinatura_id: row.assinatura_id != null ? String(row.assinatura_id) : null,
+          created_at: String(row.created_at ?? ''),
+          plano_nome: ass?.plano_nome ?? ass?.plano_id ?? 'Auxiliar ADM',
+          empresa: emp
+            ? {
+                empresa_id: emp.id,
+                usuario_id: emp.usuario_id,
+                nome: emp.nome_fantasia ?? 'Empresa',
+                username: emp.nome_usuario ?? '',
+                foto_url: emp.foto_url,
+              }
+            : null,
+        }
+      })
+
+      return NextResponse.json({ ok: true, items })
     }
 
-    const adminDb = createSupabaseAdmin()
-    const { data, error } = await adminDb
-      .from('empresa_auxiliar_adm_solicitacoes')
-      .select(
-        `
-        id, empresa_id, assinatura_id, status, created_at,
-        empresas ( id, nome_fantasia, nome_usuario, foto_url, usuario_id )
-      `,
-      )
-      .eq('status', 'pendente')
-      .order('created_at', { ascending: true })
+    if (nivel === 4) {
+      const { data, error } = await adminDb
+        .from('empresa_auxiliar_adm_solicitacoes')
+        .select(
+          `
+          id, empresa_id, status, atribuido_em,
+          empresas ( id, nome_fantasia, nome_usuario, foto_url, usuario_id )
+        `,
+        )
+        .eq('status', 'atribuido')
+        .or(`auxiliar_usuario_id.eq.${auth.userId},moderador_usuario_id.eq.${auth.userId}`)
+        .order('atribuido_em', { ascending: false })
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    const items = (data ?? []).map((row) => {
-      const empRaw = row.empresas
-      const emp = (Array.isArray(empRaw) ? empRaw[0] : empRaw) as EmpresaJoin | null
-      return {
-        id: String(row.id),
-        empresa_id: String(row.empresa_id),
-        assinatura_id: row.assinatura_id != null ? String(row.assinatura_id) : null,
-        created_at: String(row.created_at ?? ''),
-        empresa: emp
-          ? {
-              empresa_id: emp.id,
-              usuario_id: emp.usuario_id,
-              nome: emp.nome_fantasia ?? 'Empresa',
-              username: emp.nome_usuario ?? '',
-              foto_url: emp.foto_url,
-            }
-          : null,
-      }
-    })
+      const items = (data ?? []).map((row) => {
+        const empRaw = row.empresas
+        const emp = (Array.isArray(empRaw) ? empRaw[0] : empRaw) as EmpresaJoin | null
+        return {
+          id: String(row.id),
+          empresa_id: String(row.empresa_id),
+          empresa: emp
+            ? {
+                empresa_id: emp.id,
+                usuario_id: emp.usuario_id,
+                nome: emp.nome_fantasia ?? 'Empresa',
+                username: emp.nome_usuario ?? '',
+                foto_url: emp.foto_url,
+              }
+            : null,
+        }
+      })
 
-    return NextResponse.json({ ok: true, items })
+      return NextResponse.json({ ok: true, items, modo: 'auxiliar' })
+    }
+
+    return jsonAdminError(403, 'forbidden', 'Sem permissão.')
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro interno'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
 
-/** Atribui moderador (admin_level 2) a uma solicitação Auxiliar ADM. */
+/** Atribui Auxiliar ADM (nível 4) a uma solicitação pendente. */
 export async function POST(req: Request) {
   try {
     const auth = await assertAdminSession()
@@ -79,9 +127,14 @@ export async function POST(req: Request) {
 
     const body = (await req.json()) as Record<string, unknown>
     const solicitacaoId = String(body.solicitacao_id ?? '').trim()
-    const moderadorUsuarioId = String(body.moderador_usuario_id ?? '').trim()
-    if (!solicitacaoId || !moderadorUsuarioId) {
-      return NextResponse.json({ error: 'solicitacao_id e moderador_usuario_id são obrigatórios.' }, { status: 400 })
+    const auxiliarUsuarioId = String(
+      body.auxiliar_usuario_id ?? body.moderador_usuario_id ?? '',
+    ).trim()
+    if (!solicitacaoId || !auxiliarUsuarioId) {
+      return NextResponse.json(
+        { error: 'solicitacao_id e auxiliar_usuario_id são obrigatórios.' },
+        { status: 400 },
+      )
     }
 
     const adminDb = createSupabaseAdmin()
@@ -98,30 +151,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Solicitação já processada.' }, { status: 400 })
     }
 
-    const { data: moderador } = await adminDb
+    const { data: auxiliar } = await adminDb
       .from('usuarios')
-      .select('id, role')
-      .eq('id', moderadorUsuarioId)
+      .select('id, admin_level, role')
+      .eq('id', auxiliarUsuarioId)
       .maybeSingle()
 
-    if (!moderador?.id) {
-      return NextResponse.json({ error: 'Usuário moderador não encontrado.' }, { status: 404 })
+    if (!auxiliar?.id) {
+      return NextResponse.json({ error: 'Auxiliar ADM não encontrado.' }, { status: 404 })
+    }
+    if (Number(auxiliar.admin_level) !== 4) {
+      return NextResponse.json(
+        { error: 'Apenas usuários com função Auxiliar ADM (nível 4) podem ser autorizados.' },
+        { status: 400 },
+      )
     }
 
     const agora = new Date().toISOString()
-
-    const { error: upMod } = await adminDb
-      .from('usuarios')
-      .update({ role: 'admin', admin_level: 2 })
-      .eq('id', moderadorUsuarioId)
-
-    if (upMod) return NextResponse.json({ error: upMod.message }, { status: 500 })
 
     const { error: upSol } = await adminDb
       .from('empresa_auxiliar_adm_solicitacoes')
       .update({
         status: 'atribuido',
-        moderador_usuario_id: moderadorUsuarioId,
+        auxiliar_usuario_id: auxiliarUsuarioId,
+        moderador_usuario_id: auxiliarUsuarioId,
         atribuido_por: actorId,
         atribuido_em: agora,
         updated_at: agora,

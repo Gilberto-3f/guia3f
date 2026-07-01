@@ -12,6 +12,7 @@ import BottomBar from '@/components/BottomBar'
 import AdminEcossistemaAlertaGate from '@/components/canal/AdminEcossistemaAlertaGate'
 import TuristaComprasNotificacaoGate from '@/components/TuristaComprasNotificacaoGate'
 import ConviteAdminGate from '@/components/ConviteAdminGate'
+import AdminColaboradorModoGate from '@/components/AdminColaboradorModoGate'
 
 /** `feed/criar` emite quando o teclado está visível para esconder a barra (aba TEXTO ou legenda na FOTO). */
 const CRIAR_KEYBOARD_EVENT = 'guia-criar-keyboard'
@@ -117,15 +118,17 @@ function AppShellInner({ children }: { children: ReactNode }) {
 export default function AppShellClient({ children }: { children: ReactNode }) {
   return (
     <AdminPermissaoProvider>
-      <ModoApresentacaoProvider>
-        <ProfissionalGateProvider>
-          <AnfitriaoModoProvider>
-            <Suspense fallback={<AppShellSuspenseFallback>{children}</AppShellSuspenseFallback>}>
-              <AppShellInner>{children}</AppShellInner>
-            </Suspense>
-          </AnfitriaoModoProvider>
-        </ProfissionalGateProvider>
-      </ModoApresentacaoProvider>
+      <AdminColaboradorModoGate>
+        <ModoApresentacaoProvider>
+          <ProfissionalGateProvider>
+            <AnfitriaoModoProvider>
+              <Suspense fallback={<AppShellSuspenseFallback>{children}</AppShellSuspenseFallback>}>
+                <AppShellInner>{children}</AppShellInner>
+              </Suspense>
+            </AnfitriaoModoProvider>
+          </ProfissionalGateProvider>
+        </ModoApresentacaoProvider>
+      </AdminColaboradorModoGate>
     </AdminPermissaoProvider>
   )
 }

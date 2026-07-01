@@ -8,6 +8,7 @@ import { ShieldCheck, X } from 'lucide-react'
  *   isOpen: boolean
  *   funcao: string
  *   comunidade?: string
+ *   pais?: string
  *   convidadoPor?: string
  *   onAceitar: () => void | Promise<void>
  *   onRecusar: () => void | Promise<void>
@@ -18,6 +19,7 @@ export default function PopupConviteAdmin({
   isOpen,
   funcao,
   comunidade = '',
+  pais = '',
   convidadoPor = 'ADM GERAL',
   onAceitar,
   onRecusar,
@@ -39,7 +41,7 @@ export default function PopupConviteAdmin({
         role="dialog"
         aria-modal="true"
         aria-labelledby="popup-convite-admin-titulo"
-        className="relative z-10 w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="relative z-10 w-full max-w-sm overflow-hidden rounded-2xl bg-[#0097b2] text-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -47,32 +49,38 @@ export default function PopupConviteAdmin({
           onClick={() => {
             if (!loading) void onRecusar()
           }}
-          className="absolute right-3 top-3 text-gray-500 hover:text-gray-800"
+          className="absolute right-3 top-3 text-white/80 hover:text-white"
           aria-label="Recusar convite"
         >
           <X className="h-5 w-5" aria-hidden />
         </button>
 
-        <div className="px-5 pb-6 pt-8 text-center text-gray-900">
+        <div className="px-5 pb-6 pt-8 text-center">
           <div className="mb-3 flex justify-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0097b2]/10">
-              <ShieldCheck className="h-8 w-8 text-[#0097b2]" strokeWidth={1.75} aria-hidden />
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15">
+              <ShieldCheck className="h-8 w-8 text-white" strokeWidth={1.75} aria-hidden />
             </span>
           </div>
-          <h2 id="popup-convite-admin-titulo" className="text-lg font-bold text-gray-900">
+          <h2 id="popup-convite-admin-titulo" className="text-lg font-bold text-white">
             Convite para administração
           </h2>
-          <p className="mt-3 text-sm leading-relaxed text-gray-700">
-            <strong>{convidadoPor}</strong> convidou você para atuar como{' '}
-            <strong>{funcao}</strong>
+          <p className="mt-3 text-sm leading-relaxed text-white/95">
+            <strong className="text-white">{convidadoPor}</strong> convidou você para atuar como{' '}
+            <strong className="text-white">{funcao}</strong>
             {comunidade ? (
               <>
                 {' '}
-                na comunidade <strong>{comunidade}</strong>
+                na comunidade <strong className="text-white">{comunidade}</strong>
               </>
             ) : null}
-            . Ao aceitar, a pasta <strong>Administração</strong> ficará disponível no seu menu com acesso à
-            Dashboard ADM.
+            {pais ? (
+              <>
+                {' '}
+                ({pais})
+              </>
+            ) : null}
+            . Ao aceitar, a pasta <strong className="text-white">Admin</strong> ficará disponível no seu menu com
+            acesso à Dashboard ADM.
           </p>
 
           <div className="mt-6 flex flex-col gap-2">
@@ -82,7 +90,7 @@ export default function PopupConviteAdmin({
               onClick={() => {
                 void onAceitar()
               }}
-              className="w-full rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              className="w-full rounded-xl bg-[#00D443] py-2.5 text-sm font-bold text-white disabled:opacity-50"
             >
               {loading ? 'Processando…' : 'Aceitar função'}
             </button>
@@ -92,7 +100,7 @@ export default function PopupConviteAdmin({
               onClick={() => {
                 void onRecusar()
               }}
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 text-sm font-semibold text-gray-700 disabled:opacity-50"
+              className="w-full rounded-xl border border-white/40 bg-white/10 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               Recusar
             </button>

@@ -4,7 +4,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
-import { AdminPastaNav, pastaAdminPorId, tituloPastaAdmin } from './components/shared/AdminPastaNav'
+import { ADMIN_PASTAS, AdminPastaNav, pastaAdminPorId, tituloPastaAdmin } from './components/shared/AdminPastaNav'
 import { TopoCardsResumo } from './components/shared/TopoCards'
 import { AdminSubabasRail } from './components/shared/AdminSubabasRail'
 import { AdminPermissaoProvider, useSharedAdminGate } from './context/AdminPermissaoContext'
@@ -29,7 +29,7 @@ import {
 import { useCadastrosContadores } from './hooks/useCadastrosContadores'
 import { useDenunciasContadores } from './hooks/useDenunciasContadores'
 import { useComissaoOfertaContadores } from './hooks/useComissaoOfertaContadores'
-import { isAdmGeral } from './utils/permissoes'
+import { isAdmGeral, podeAcessarPasta } from './utils/permissoes'
 
 function DashboardAdminContent() {
   const { tab, sub, selectPasta, voltarPainel } = useAdminNav()
@@ -69,6 +69,10 @@ function DashboardAdminContent() {
   }
 
   const pastaAtiva = tab ? pastaAdminPorId(tab) : null
+  const pastasNav =
+    gate.status === 'ok'
+      ? ADMIN_PASTAS.filter((p) => podeAcessarPasta(gate.admin, p.id))
+      : ADMIN_PASTAS
 
   const shell = (
     <DenunciasToolbarProvider>
@@ -143,6 +147,7 @@ function DashboardAdminContent() {
           <div className="mt-4">
             <AdminPastaNav
               onSelect={selectPasta}
+              pastas={pastasNav}
               cadastrosVerificacoes={cadastrosContadores.totalVerificacoes}
               cadastrosExclusoes={cadastrosContadores.totalExclusoes}
               mostrarBadgeExclusaoCadastros={mostrarBadgeExclusao}

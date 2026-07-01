@@ -34,7 +34,16 @@ export function usePermissao() {
     }
   }, [admin])
 
+  const getPais = useMemo(() => {
+    return () => {
+      if (!admin) return null
+      const raw = admin.admin_permissoes as unknown as { pais?: string | null }
+      const p = raw?.pais != null ? String(raw.pais).trim().toUpperCase() : ''
+      return p || null
+    }
+  }, [admin])
+
   const nivel = admin?.admin_level ?? 0
 
-  return { admin, nivel, podeExecutarRecurso, getComunidade }
+  return { admin, nivel, podeExecutarRecurso, getComunidade, getPais }
 }

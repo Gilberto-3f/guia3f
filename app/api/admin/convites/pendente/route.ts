@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { rotuloComunidadeModerador, rotuloFuncaoAdmin } from '@/lib/adminConvites'
+import { rotuloComunidadeModerador, rotuloFuncaoAdmin, rotuloPaisModerador } from '@/lib/adminConvites'
 
 export async function GET() {
   try {
@@ -17,7 +17,7 @@ export async function GET() {
 
     const { data: convite } = await adminDb
       .from('convites_admin')
-      .select('id, nivel, comunidade, convidado_em, expira_em, convidado_por')
+      .select('id, nivel, comunidade, pais, convidado_em, expira_em, convidado_por')
       .eq('usuario_id', session.userId)
       .eq('status', 'pendente')
       .gt('expira_em', new Date().toISOString())
@@ -49,6 +49,7 @@ export async function GET() {
         nivel: convite.nivel,
         funcao: rotuloFuncaoAdmin(Number(convite.nivel)),
         comunidade: rotuloComunidadeModerador(convite.comunidade),
+        pais: rotuloPaisModerador(convite.pais),
         convidado_por: convidadoPorNome,
         expira_em: convite.expira_em,
       },

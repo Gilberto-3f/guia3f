@@ -29,12 +29,17 @@ export async function POST(req: Request) {
     const usuarioId = String(body.usuario_id ?? '').trim()
     const nivel = Number(body.nivel)
     const comunidade = body.comunidade != null ? String(body.comunidade).trim() : ''
+    const paisRaw = body.pais != null ? String(body.pais).trim().toUpperCase() : ''
+    const pais = ['BR', 'AR', 'PY'].includes(paisRaw) ? paisRaw : ''
 
     if (!usuarioId || ![2, 3, 4].includes(nivel)) {
       return NextResponse.json({ error: 'params' }, { status: 400 })
     }
     if (nivel === 2 && !comunidade) {
       return NextResponse.json({ error: 'Selecione a comunidade do moderador.' }, { status: 400 })
+    }
+    if (nivel === 2 && !pais) {
+      return NextResponse.json({ error: 'Selecione o país do moderador.' }, { status: 400 })
     }
 
     const { data: alvo } = await adminDb
@@ -64,7 +69,10 @@ export async function POST(req: Request) {
 
     const email = String(alvo.email ?? '').trim() || `${String(alvo.username ?? usuarioId).replace(/^@+/, '')}@guia3f.local`
     const codigo = Math.random().toString(36).slice(2, 10).toUpperCase()
-    const permissoes = permissoesPadraoPorNivel(nivel, nivel === 2 ? comunidade : null)
+    const permissoes = permissoesPadraoPorNivel(nivel, {
+      comunidade: nivel === 2 ? comunidade : null,
+      pais: nivel === 2 ? pais : null,
+    })
 
     const { data: convite, error: insErr } = await adminDb
       .from('convites_admin')
@@ -73,6 +81,7 @@ export async function POST(req: Request) {
         usuario_id: usuarioId,
         nivel,
         comunidade: nivel === 2 ? comunidade : null,
+        pais: nivel === 2 ? pais : null,
         permissoes,
         convidado_por: session.userId,
         codigo,
@@ -93,7 +102,13 @@ export async function POST(req: Request) {
       admin_id: session.userId,
       admin_email: solicitante?.email ?? solicitante?.username ?? 'admin',
       admin_nivel: solicitante?.admin_level,
-      detalhes: { usuario_id: usuarioId, nivel, comunidade: nivel === 2 ? comunidade : null, cargo: cargoPorNivel(nivel) },
+      detalhes: {
+        usuario_id: usuarioId,
+        nivel,
+        comunidade: nivel === 2 ? comunidade : null,
+        pais: nivel === 2 ? pais : null,
+        cargo: cargoPorNivel(nivel),
+      },
     })
 
     return NextResponse.json({ ok: true, convite_id: convite.id })

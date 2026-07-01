@@ -7,6 +7,8 @@ import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { useAdminColaboradorModo } from '@/context/AdminColaboradorModoContext'
+import { colaboradorTemModoDual } from '@/lib/adminColaboradorModo'
 import { anfitriaoUsaCanaisProfissionais } from '@/lib/anfitriaoDualMode'
 import ListaCanais from '@/components/ListaCanais'
 import ListaCanaisEmpresa from '@/components/ListaCanaisEmpresa'
@@ -21,12 +23,17 @@ export default function CanalPage() {
   const { modoAtivo, perfilSimulado, podeInteragir } = useModoApresentacao()
   const { refreshGate, userRole } = useProfissionalGate()
   const { ehAnfitriao } = useAnfitriaoModo()
+  const { emModoAdm, habilitado: modoColaboradorDual } = useAdminColaboradorModo()
   const [userTipo, setUserTipo] = useState<TipoUsuario>(null)
+  const [adminLevel, setAdminLevel] = useState(0)
   const [loading, setLoading] = useState(true)
   const [turismoCanalId, setTurismoCanalId] = useState<string | null>(null)
   const [carregandoTurismo, setCarregandoTurismo] = useState(false)
 
   const userTipoEfetivo = useMemo((): TipoUsuario => {
+    if (modoColaboradorDual && emModoAdm && colaboradorTemModoDual(adminLevel)) {
+      return 'admin'
+    }
     if (modoAtivo && perfilSimulado) {
       if (perfilSimulado.tipo === 'turista') return 'turista'
       if (perfilSimulado.tipo === 'profissional') return 'profissional'
@@ -34,7 +41,7 @@ export default function CanalPage() {
     }
     if (anfitriaoUsaCanaisProfissionais(userRole, ehAnfitriao)) return 'profissional'
     return userTipo
-  }, [modoAtivo, perfilSimulado, userTipo, userRole, ehAnfitriao])
+  }, [modoColaboradorDual, emModoAdm, adminLevel, modoAtivo, perfilSimulado, userTipo, userRole, ehAnfitriao])
 
   useEffect(() => {
     const init = async () => {
@@ -46,8 +53,13 @@ export default function CanalPage() {
         return
       }
 
-      const { data: userData } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
+      const { data: userData } = await supabase
+        .from('usuarios')
+        .select('role, admin_level')
+        .eq('id', session.user.id)
+        .maybeSingle()
       const role = userData?.role ?? null
+      setAdminLevel(Number(userData?.admin_level ?? 0))
 
       if (role === 'turista') setUserTipo('turista')
       else if (role === 'profissional') setUserTipo('profissional')
@@ -66,6 +78,14 @@ export default function CanalPage() {
       void refreshGate()
     }
   }, [userTipoEfetivo, refreshGate])
+
+  useEffect(() => {
+    const onModo = () => {
+      void refreshGate()
+    }
+    window.addEventListener('admin-colaborador-modo-change', onModo)
+    return () => window.removeEventListener('admin-colaborador-modo-change', onModo)
+  }, [refreshGate])
 
   /** Ao voltar da conversa para a lista, atualiza leituras e badge da barra. */
   useEffect(() => {

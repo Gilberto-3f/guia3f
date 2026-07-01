@@ -12,6 +12,7 @@ import type {
   PerfilVerificacao,
 } from '../types/admin.types'
 import { usePermissao } from './usePermissao'
+import { normalizarPaisProfissional } from '@/lib/adminConvites'
 
 /** JSONB ou coluna legada: normaliza para string[]. */
 function parseCategoriasProfissional(raw: unknown): string[] {
@@ -98,7 +99,7 @@ function aquecerCacheDocumentos(tipo: PerfilVerificacao, rows: Record<string, un
 }
 
 export function useVerificacao(filtros: FiltrosVerificacao) {
-  const { getComunidade } = usePermissao()
+  const { getComunidade, getPais } = usePermissao()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [pendentes, setPendentes] = useState<PendenteUnion[]>([])
@@ -229,6 +230,7 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     const rows = (data ?? []) as Record<string, unknown>[]
     const emailMap = await fetchEmailPorUsuarioIds(rows.map((r) => String(r.usuario_id ?? '')))
     const comunidade = getComunidade()
+    const paisModerador = getPais()
 
     const mapped: PendenteProfissional[] = rows.map((r) => {
       const categorias = parseCategoriasProfissional(r.categorias)
@@ -273,11 +275,15 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
     const filtered = mapped.filter((x) => {
       const cats = x.categorias ?? []
       if (comunidade && !cats.map((c) => c.toLowerCase()).includes(comunidade.toLowerCase())) return false
+      if (paisModerador) {
+        const p = normalizarPaisProfissional(x.pais)
+        if (p && p !== paisModerador) return false
+      }
       return true
     })
     setPendentes(filtered)
     aquecerCacheDocumentos('profissionais', rows)
-  }, [getComunidade])
+  }, [getComunidade, getPais])
 
   const fetchEmpresasPendentes = useCallback(async () => {
     const { data, error } = await supabase

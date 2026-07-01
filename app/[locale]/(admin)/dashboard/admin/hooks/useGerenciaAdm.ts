@@ -8,10 +8,15 @@ export type AdminRow = {
   id: string
   email: string
   nome: string
+  nome_social: string
+  username: string
+  foto_url: string | null
   role: string
   admin_level: number
   cargo: string
   comunidade: string | null
+  pais: string | null
+  participacao_percentual: number | null
   permissoes: unknown
   created_at: string
 }
@@ -53,92 +58,35 @@ export function useGerenciaAdm() {
 
   const isAdminGeral = admin?.admin_level === 1
 
-  const buscarUsuariosPorUsername = useCallback(
-    async (username: string) => {
-      if (!isAdminGeral) return []
-      const q = username.trim().replace(/^@+/, '')
-      if (q.length < 2) return []
-
-      const { data, error: e } = await supabase
-        .from('usuarios')
-        .select('id, email, username, nome_completo, role, admin_level')
-        .ilike('username', `%${q}%`)
-        .limit(10)
-
-      if (e) throw e
-
-      const base = data ?? []
-      if (base.length >= 10) {
-        return base.map((row) => ({
-          ...row,
-          nome_exibicao: row.nome_completo ?? row.email,
-          nome_usuario: row.username,
-        }))
-      }
-
-      const { data: turistas } = await supabase
-        .from('turistas')
-        .select('usuario_id, nome, nome_usuario')
-        .ilike('nome_usuario', `%${q}%`)
-        .limit(10)
-
-      const { data: profs } = await supabase
-        .from('profissionais')
-        .select('usuario_id, nome_completo, nome_usuario')
-        .ilike('nome_usuario', `%${q}%`)
-        .limit(10)
-
-      const idsExtra = new Set<string>()
-      for (const t of turistas ?? []) {
-        if (t.usuario_id) idsExtra.add(String(t.usuario_id))
-      }
-      for (const p of profs ?? []) {
-        if (p.usuario_id) idsExtra.add(String(p.usuario_id))
-      }
-
-      const idsNovos = [...idsExtra].filter((id) => !base.some((b) => String(b.id) === id))
-      let extraRows: typeof base = []
-      if (idsNovos.length > 0) {
-        const { data: extra } = await supabase
-          .from('usuarios')
-          .select('id, email, username, nome_completo, role, admin_level')
-          .in('id', idsNovos)
-        extraRows = extra ?? []
-      }
-
-      const merged = [...base, ...extraRows]
-      const perfilNome = new Map<string, string>()
-      for (const t of turistas ?? []) {
-        if (t.usuario_id) {
-          perfilNome.set(String(t.usuario_id), String(t.nome ?? t.nome_usuario ?? ''))
-        }
-      }
-      for (const p of profs ?? []) {
-        if (p.usuario_id) {
-          perfilNome.set(String(p.usuario_id), String(p.nome_completo ?? p.nome_usuario ?? ''))
-        }
-      }
-
-      return merged.map((row) => {
-        const tur = turistas?.find((t) => String(t.usuario_id) === String(row.id))
-        const prof = profs?.find((p) => String(p.usuario_id) === String(row.id))
-        const nomeUsuario =
-          String(row.username ?? '').trim() ||
-          String(tur?.nome_usuario ?? '').trim() ||
-          String(prof?.nome_usuario ?? '').trim()
-        return {
-          ...row,
-          username: nomeUsuario || row.username,
-          nome_usuario: nomeUsuario,
-          nome_exibicao:
-            perfilNome.get(String(row.id)) ||
-            row.nome_completo ||
-            row.email ||
-            nomeUsuario,
-        }
+  const buscarUsuarioExato = useCallback(
+    async (termo: string) => {
+      if (!isAdminGeral) return null
+      const q = termo.trim().replace(/^@+/, '')
+      if (q.length < 2) return null
+      const res = await fetch(`/api/admin/convites/buscar-usuario?q=${encodeURIComponent(q)}`, {
+        credentials: 'include',
       })
+      const json = (await res.json()) as {
+        ok?: boolean
+        usuario?: {
+          id: string
+          username: string
+          nome_social: string
+          foto_url: string | null
+        } | null
+      }
+      if (!res.ok || !json.ok || !json.usuario) return null
+      return json.usuario
     },
     [isAdminGeral],
+  )
+
+  const buscarUsuariosPorUsername = useCallback(
+    async (username: string) => {
+      const u = await buscarUsuarioExato(username)
+      return u ? [{ ...u, nome_exibicao: u.nome_social, nome_usuario: u.username }] : []
+    },
+    [buscarUsuarioExato],
   )
 
   const buscarUsuariosPorEmail = buscarUsuariosPorUsername
@@ -148,31 +96,79 @@ export function useGerenciaAdm() {
     setLoading(true)
     setError(null)
     try {
-      const { data, error: e } = await supabase.from('usuarios').select('id, email, nome_completo, role, admin_level, admin_permissoes, created_at').eq('role', 'admin')
+      const { data, error: e } = await supabase
+        .from('usuarios')
+        .select('id, email, nome_completo, username, role, admin_level, admin_permissoes, created_at')
+        .eq('role', 'admin')
       if (e) throw e
+
+      const rows = data ?? []
+      const ids = rows.map((r) => String((r as { id: string }).id))
+      const perfilMap = new Map<string, { nome: string; username: string; foto: string | null }>()
+
+      if (ids.length > 0) {
+        const [{ data: profs }, { data: turistas }] = await Promise.all([
+          supabase.from('profissionais').select('usuario_id, nome_completo, nome_usuario, foto_perfil_url').in('usuario_id', ids),
+          supabase.from('turistas').select('usuario_id, nome, nome_usuario, foto_url').in('usuario_id', ids),
+        ])
+        for (const p of profs ?? []) {
+          const uid = String(p.usuario_id)
+          perfilMap.set(uid, {
+            nome: String(p.nome_completo ?? p.nome_usuario ?? ''),
+            username: String(p.nome_usuario ?? '').replace(/^@+/, ''),
+            foto: p.foto_perfil_url != null ? String(p.foto_perfil_url) : null,
+          })
+        }
+        for (const t of turistas ?? []) {
+          const uid = String(t.usuario_id)
+          if (!perfilMap.has(uid)) {
+            perfilMap.set(uid, {
+              nome: String(t.nome ?? t.nome_usuario ?? ''),
+              username: String(t.nome_usuario ?? '').replace(/^@+/, ''),
+              foto: t.foto_url != null ? String(t.foto_url) : null,
+            })
+          }
+        }
+      }
+
       setAdmins(
-        (data ?? []).map((row) => {
+        rows.map((row) => {
           const r = row as {
             id: string
             email?: string | null
             nome_completo?: string | null
+            username?: string | null
             role?: string | null
             admin_level?: number | null
-            admin_permissoes?: { cargo?: string | null; comunidade?: string | null }
+            admin_permissoes?: {
+              cargo?: string | null
+              comunidade?: string | null
+              pais?: string | null
+              participacao_percentual?: number | null
+            }
             created_at?: string | null
           }
+          const perf = perfilMap.get(String(r.id))
+          const perms = r.admin_permissoes ?? {}
+          const pct = perms.participacao_percentual
           return {
             id: r.id,
             email: r.email ?? '',
             nome: r.nome_completo ?? r.email ?? r.id,
+            nome_social: perf?.nome || r.nome_completo || r.email || '',
+            username: perf?.username || String(r.username ?? '').replace(/^@+/, '') || r.email?.split('@')[0] || '',
+            foto_url: perf?.foto ?? null,
             role: r.role ?? 'admin',
             admin_level: r.admin_level ?? 0,
-            cargo: r.admin_permissoes?.cargo ?? '',
-            comunidade: r.admin_permissoes?.comunidade ?? null,
+            cargo: perms.cargo ?? '',
+            comunidade: perms.comunidade ?? null,
+            pais: perms.pais ?? null,
+            participacao_percentual:
+              pct != null && Number.isFinite(Number(pct)) ? Number(pct) : null,
             permissoes: r.admin_permissoes ?? {},
             created_at: r.created_at ?? new Date().toISOString(),
           }
-        })
+        }),
       )
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Erro ao listar admins'))
@@ -302,7 +298,7 @@ export function useGerenciaAdm() {
   )
 
   const criarConvite = useCallback(
-    async (usuarioId: string, nivel: number, comunidade?: string) => {
+    async (usuarioId: string, nivel: number, comunidade?: string, pais?: string) => {
       if (!isAdminGeral || !admin) throw new Error('Apenas ADM GERAL')
       const res = await fetch('/api/admin/convites/criar', {
         method: 'POST',
@@ -312,6 +308,7 @@ export function useGerenciaAdm() {
           usuario_id: usuarioId,
           nivel,
           comunidade: comunidade ?? null,
+          pais: pais ?? null,
         }),
       })
       const json = await res.json().catch(() => ({}))
@@ -420,6 +417,25 @@ export function useGerenciaAdm() {
     [admin, isAdminGeral]
   )
 
+  const atualizarBonificacao = useCallback(
+    async (usuarioId: string, participacaoPercentual: number) => {
+      if (!isAdminGeral) throw new Error('Apenas ADM GERAL')
+      const res = await fetch('/api/admin/colaboradores/bonificacao', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ usuario_id: usuarioId, participacao_percentual: participacaoPercentual }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? 'Não foi possível salvar o percentual.')
+      }
+      await listarAdmins()
+      return json
+    },
+    [isAdminGeral, listarAdmins],
+  )
+
   useEffect(() => {
     if (isAdminGeral) {
       void listarAdmins()
@@ -436,10 +452,12 @@ export function useGerenciaAdm() {
     isAdminGeral,
     buscarUsuariosPorEmail,
     buscarUsuariosPorUsername,
+    buscarUsuarioExato,
     criarAdmin,
     atualizarAdmin,
     removerAdmin,
     criarConvite,
+    atualizarBonificacao,
     listarAdmins,
     listarConvites,
     listarPagamentosColaboradores,

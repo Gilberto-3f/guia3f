@@ -50,7 +50,8 @@ export async function POST(req: Request) {
 
     const nivel = Number(convite.nivel)
     const comunidade = convite.comunidade != null ? String(convite.comunidade) : null
-    const perms = permissoesPadraoPorNivel(nivel, comunidade)
+    const pais = convite.pais != null ? String(convite.pais) : null
+    const perms = permissoesPadraoPorNivel(nivel, { comunidade, pais })
 
     const { error: upUserErr } = await adminDb
       .from('usuarios')
@@ -75,7 +76,7 @@ export async function POST(req: Request) {
       perfil_id: session.userId,
       acao: 'aceitou_convite_admin',
       admin_id: session.userId,
-      detalhes: { nivel, cargo: cargoPorNivel(nivel), comunidade },
+      detalhes: { nivel, cargo: cargoPorNivel(nivel), comunidade, pais },
     })
 
     return NextResponse.json({ ok: true, status: 'aceito', admin_level: nivel })

@@ -36,12 +36,14 @@ import {
   Hotel,
   X,
   ArrowRight,
+  ArrowLeftRight,
 } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { signOutCurrentDevice } from '@/lib/authCookieSync'
 import { supabase } from '@/lib/supabase'
 import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useAdminColaboradorModo } from '@/context/AdminColaboradorModoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { empresaDocumentosEnviados } from '@/lib/faseVerificacaoConta'
@@ -76,6 +78,7 @@ import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 import HistoricoStories from '@/components/perfil/subpaginas/HistoricoStories'
 import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
 import ModoApresentacao from '@/components/perfil/subpaginas/ModoApresentacao'
+import AuxiliarAdmEmpresas from '@/components/perfil/subpaginas/AuxiliarAdmEmpresas'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
 import AvatarImage from '@/components/AvatarImage'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
@@ -452,21 +455,41 @@ function secoesEmpresa(ctx) {
   ]
 }
 
-function secaoAdministracaoColaborador() {
-  return {
-    tipo: 'grupo',
-    key: 'administracao',
-    label: 'Administração',
-    items: [{ Icon: LayoutDashboard, label: 'Dashboard ADM', href: '/dashboard/admin' }],
+function secaoAdminColaborador(adminLevelN, { emModoAdm, temModoDual }) {
+  const nivel = Number(adminLevelN ?? 0)
+  if (nivel < 2) return null
+
+  /** @type {MenuItem[]} */
+  const items = []
+
+  if (nivel === 2 || nivel === 3) {
+    if (temModoDual && emModoAdm) {
+      items.push({ Icon: LayoutDashboard, label: 'Dashboard ADM', href: '/dashboard/admin' })
+    }
+    if (temModoDual) {
+      items.push({
+        Icon: ArrowLeftRight,
+        label: emModoAdm ? 'Modo Usuário' : 'Modo ADM',
+        acao: 'alternar-modo-colaborador',
+      })
+    }
+  } else if (nivel === 4) {
+    items.push({ Icon: LayoutDashboard, label: 'Dashboard ADM', href: '/dashboard/admin' })
+    items.push({ Icon: Building2, label: 'Empresas atribuídas', subpagina: 'auxiliar-adm-empresas' })
   }
+
+  if (items.length === 0) return null
+
+  return { tipo: 'grupo', key: 'admin', label: 'Admin', items }
 }
 
-/** Pasta Administração para colaboradores ADM (níveis 2–4) no menu turista/prof/empresa. */
-function injetarSecaoAdministracao(secoes, adminLevelN) {
+/** Pasta Admin para colaboradores ADM (níveis 2–4) no menu turista/prof/empresa. */
+function injetarSecaoAdministracao(secoes, adminLevelN, opts = {}) {
   const nivel = Number(adminLevelN ?? 0)
   if (nivel < 2) return secoes
+  const sec = secaoAdminColaborador(adminLevelN, opts)
+  if (!sec) return secoes
   const idx = secoes.findIndex((s) => s.tipo === 'sair')
-  const sec = secaoAdministracaoColaborador()
   if (idx < 0) return [...secoes, sec]
   return [...secoes.slice(0, idx), sec, ...secoes.slice(idx)]
 }
@@ -561,6 +584,11 @@ export default function MenuLateral({
   const { historico: historicoDecisoes, fetchHistoricoUsuario } = useInfracoes()
   const { modoAtivo, perfilSimulado } = useModoApresentacao()
   const modoApresentacaoAtivo = modoAtivo
+  const {
+    emModoAdm: emModoAdmColaborador,
+    alternar: alternarModoColaborador,
+    habilitado: modoColaboradorDual,
+  } = useAdminColaboradorModo()
 
   const [profVerificadoMenu, setProfVerificadoMenu] = useState(false)
   const [visitasPendentes, setVisitasPendentes] = useState(0)
@@ -798,30 +826,31 @@ export default function MenuLateral({
       empresaHospedagemId,
       somenteAnfitriao: Boolean(empresaEfetiva?.somente_anfitriao),
     }
+    const colabAdminOpts = { emModoAdm: emModoAdmColaborador, temModoDual: modoColaboradorDual }
     const mostrarPreLiberacaoTurista = !Boolean(turistaGate?.documentacao_validada_adm)
     const t = secoesTurista({ mostrarPreLiberacao: mostrarPreLiberacaoTurista })
     const p = secoesProfissional(c)
     const e = secoesEmpresa(c)
     const a = secoesAdmin(c, { omitirModoNaLista: omitirModoNaListaAdmin })
     if (simulandoComoPerfil && perfilSimulado) {
-      if (perfilSimulado.tipo === 'empresa') return injetarSecaoAdministracao(e, adminLevelMenu)
+      if (perfilSimulado.tipo === 'empresa') return injetarSecaoAdministracao(e, adminLevelMenu, colabAdminOpts)
       if (perfilSimulado.tipo === 'profissional') {
         if (!recursosProfLiberadosEfetivo) return secoesProfissionalAguardandoDocs(c)
-        return injetarSecaoAdministracao(p, adminLevelMenu)
+        return injetarSecaoAdministracao(p, adminLevelMenu, colabAdminOpts)
       }
-      if (perfilSimulado.tipo === 'turista') return injetarSecaoAdministracao(t, adminLevelMenu)
+      if (perfilSimulado.tipo === 'turista') return injetarSecaoAdministracao(t, adminLevelMenu, colabAdminOpts)
     }
-    if (variant === 'turista') return injetarSecaoAdministracao(t, adminLevelMenu)
+    if (variant === 'turista') return injetarSecaoAdministracao(t, adminLevelMenu, colabAdminOpts)
     if (variant === 'profissional') {
       if (!recursosProfLiberadosEfetivo) return secoesProfissionalAguardandoDocs(c)
       if (ehAnfitriao && modoAnfitriao === 'hospedagem' && empresaHospedagemId && empresaHospedagemLiberada) {
-        return injetarSecaoAdministracao(secoesAnfitriaoComEmpresa(c), adminLevelMenu)
+        return injetarSecaoAdministracao(secoesAnfitriaoComEmpresa(c), adminLevelMenu, colabAdminOpts)
       }
-      return injetarSecaoAdministracao(p, adminLevelMenu)
+      return injetarSecaoAdministracao(p, adminLevelMenu, colabAdminOpts)
     }
     if (variant === 'empresa') {
-      if (ehAnfitriao) return injetarSecaoAdministracao(secoesAnfitriaoComEmpresa(c), adminLevelMenu)
-      return injetarSecaoAdministracao(e, adminLevelMenu)
+      if (ehAnfitriao) return injetarSecaoAdministracao(secoesAnfitriaoComEmpresa(c), adminLevelMenu, colabAdminOpts)
+      return injetarSecaoAdministracao(e, adminLevelMenu, colabAdminOpts)
     }
     if (variant === 'admin') return a
     return []
@@ -844,6 +873,8 @@ export default function MenuLateral({
     modoAnfitriao,
     turistaGate,
     adminLevelMenu,
+    emModoAdmColaborador,
+    modoColaboradorDual,
   ])
 
   useEffect(() => {
@@ -1000,6 +1031,11 @@ export default function MenuLateral({
       setModalLogout(true)
       return
     }
+    if (item.acao === 'alternar-modo-colaborador') {
+      alternarModoColaborador()
+      onFechar()
+      return
+    }
     if (item.subpagina === 'anfitriao-modo-social') {
       setModoAnfitriao('anfitriao')
       window.dispatchEvent(new Event('anfitriao-modo-change'))
@@ -1072,6 +1108,7 @@ export default function MenuLateral({
         'historico-stories': 'Histórico de Stories',
         salvos: 'Publicações Salvas',
         'modo-apresentacao': 'Modo Apresentação',
+        'auxiliar-adm-empresas': 'Empresas atribuídas',
         'anexar-documentos': 'Anexar Documentos',
         'anexar-documentos-turista': 'Anexar Documentos',
         'anexar-documentos-empresa': 'Anexar documentos',
@@ -1221,6 +1258,7 @@ export default function MenuLateral({
     }
     if (id === 'historico-stories') return <HistoricoStories usuarioId={usuarioIdEfetivo} />
     if (id === 'modo-apresentacao') return <ModoApresentacao />
+    if (id === 'auxiliar-adm-empresas') return <AuxiliarAdmEmpresas />
     if (id === 'cadastrar-hospedagem-anfitriao')
       return (
         <CadastrarHospedagemAnfitriao

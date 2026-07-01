@@ -28,6 +28,7 @@ export function pastaAdminPorId(tab: AbaPrincipalId) {
 
 export function AdminPastaNav({
   onSelect,
+  pastas = ADMIN_PASTAS,
   cadastrosVerificacoes = 0,
   cadastrosExclusoes = 0,
   mostrarBadgeExclusaoCadastros = false,
@@ -45,10 +46,12 @@ export function AdminPastaNav({
   mostrarBadgeExclusaoDenuncias?: boolean
   /** Ofertas de comissão pendentes (Análise de Benefícios). */
   espacoAdmBeneficios?: number
+  /** Subconjunto de pastas (permissão por colaborador). */
+  pastas?: typeof ADMIN_PASTAS
 }) {
   return (
     <nav className="space-y-2" aria-label="Seções do painel administrativo">
-      {ADMIN_PASTAS.map(({ id, label, Icon }) => (
+      {pastas.map(({ id, label, Icon }) => (
         <section
           key={id}
           className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"

@@ -21,8 +21,8 @@ export function DenunciasContainer({ sub }: { sub: string }) {
 
   const perfilAtivo = coerceSub(sub)
   const nivelNum = typeof nivel === 'string' ? parseInt(nivel, 10) : nivel
-  const podeVerProfissionais = nivelNum === 1 || nivelNum === 2
-  const podeVerEmpresas = nivelNum === 1 || nivelNum === 3
+  const podeVerProfissionais = nivelNum === 1 || nivelNum === 2 || nivelNum === 3
+  const podeVerEmpresas = nivelNum === 1 || nivelNum === 2 || nivelNum === 3
 
   useEffect(() => {
     if (perfilAtivo === 'profissionais' && !podeVerProfissionais) {
@@ -90,12 +90,6 @@ export function DenunciasContainer({ sub }: { sub: string }) {
       if (nivelNum === 2) {
         exclusoes.empresas = 0
         pendentes.empresas = 0
-      }
-      if (nivelNum === 3) {
-        pendentes.turistas = 0
-        pendentes.profissionais = 0
-        exclusoes.turistas = 0
-        exclusoes.profissionais = 0
       }
       if (nivelNum === 4) {
         pendentes.profissionais = 0
