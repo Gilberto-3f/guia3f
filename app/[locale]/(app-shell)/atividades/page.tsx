@@ -54,7 +54,7 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 import { resolverUsernameOriginalRepostStory, normalizarUsernameAtividade } from '@/lib/formatarTextoRepostStory'
-import { fetchAutorIdsSeguidosAmigos } from '@/lib/feedSeguidosEmpresasFavoritas'
+import { fetchAutorIdsSeguidosAmigos, fetchSeguidosRedeAtividades } from '@/lib/feedSeguidosEmpresasFavoritas'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 import { propsInteractor, propsDonor, propsAtor, propsDono, propsSeguidor, propsSeguido, propsReposter, propsOriginal } from '@/components/atividades/atividadeHandleProps'
@@ -278,6 +278,8 @@ export default function AtividadesPage() {
   const [storyModal, setStoryModal] = useState<StoryViewerState | null>(null)
   const [seguidoEmpresaMap, setSeguidoEmpresaMap] = useState<Record<string, string>>({})
   const [qtdSeguindo, setQtdSeguindo] = useState(0)
+  /** Apenas perfis seguidos em rede (sem empresas do guia) — mensagem vazia da aba Seguindo. */
+  const [qtdSeguindoRede, setQtdSeguindoRede] = useState(0)
   /** Reposts de story ainda ativos no carrossel (expira_em > agora). */
   const [storiesRepostAtivos, setStoriesRepostAtivos] = useState<Set<string>>(() => new Set())
   const [storiesRepostAtivosPronto, setStoriesRepostAtivosPronto] = useState(false)
@@ -1239,6 +1241,7 @@ export default function AtividadesPage() {
       setListaMinha([])
       setEmpresaAvaliacaoMap({})
       setQtdSeguindo(0)
+      setQtdSeguindoRede(0)
       seguindoRef.current = []
       setOffsetAmigos(0)
       setOffsetMinha(0)
@@ -1262,6 +1265,7 @@ export default function AtividadesPage() {
       setListaAmigos([])
       setEmpresaAvaliacaoMap({})
       setQtdSeguindo(0)
+      setQtdSeguindoRede(0)
       seguindoRef.current = []
       setOffsetAmigos(0)
       setTemMaisAmigos(false)
@@ -1325,6 +1329,7 @@ export default function AtividadesPage() {
       setErroAmigos(null)
       setListaAmigos([])
       setQtdSeguindo(0)
+      setQtdSeguindoRede(0)
       seguindoRef.current = []
       setOffsetAmigos(0)
       setTemMaisAmigos(false)
@@ -1375,10 +1380,14 @@ export default function AtividadesPage() {
       return
     }
 
-    const seguindo = await fetchAutorIdsSeguidosAmigos(supabase, uid, {
-      incluirModoApresentacao: modoAtivo,
-    })
+    const [seguindoRede, seguindo] = await Promise.all([
+      fetchSeguidosRedeAtividades(supabase, uid),
+      fetchAutorIdsSeguidosAmigos(supabase, uid, {
+        incluirModoApresentacao: modoAtivo,
+      }),
+    ])
     seguindoRef.current = seguindo
+    setQtdSeguindoRede(seguindoRede.length)
     setQtdSeguindo(seguindo.length)
 
     const lim = ATIVIDADES_LIMITE_PAGINA
@@ -2607,8 +2616,8 @@ export default function AtividadesPage() {
         ) : null}
         {itensAgrupados.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-400">
-            {aba === 'amigos' && qtdSeguindo === 0
-              ? 'Siga pessoas no perfil delas para ver aqui o que estão curtindo, comentando e fazendo no app.'
+            {aba === 'amigos' && qtdSeguindoRede === 0
+              ? 'Aqui aparecem as interações das empresas da região. Siga turistas e profissionais nos perfis deles para acompanhar também as atividades deles.'
               : 'Nenhuma atividade por aqui ainda.'}
           </p>
         ) : (

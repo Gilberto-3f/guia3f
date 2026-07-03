@@ -123,17 +123,64 @@ export async function fetchAutorIdsSeguidosAmigos(
   meuId: string | null,
   opts?: { incluirModoApresentacao?: boolean },
 ): Promise<string[]> {
+  const { rede, empresas } = await fetchSeguidosRedeEEmpresasAtividades(supabase, meuId, opts)
+  return [...new Set([...rede, ...empresas])].filter((id) => Boolean(id) && id !== meuId)
+}
+
+/**
+ * Seguidos em rede (sem empresas do guia) — usado na mensagem vazia da aba Seguindo.
+ */
+export async function fetchSeguidosRedeAtividades(
+  supabase: SupabaseClient,
+  meuId: string | null,
+): Promise<string[]> {
   if (!meuId) return []
-  const [{ data: segRows, error: errRede }, autoresEmpresas] = await Promise.all([
-    supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', meuId),
-    fetchUsuarioIdsTodasEmpresasGuia(supabase, opts),
-  ])
+  const { data: segRows, error: errRede } = await supabase
+    .from('redecontatos')
+    .select('seguido_id')
+    .eq('seguidor_id', meuId)
   if (errRede && process.env.NODE_ENV === 'development') {
     // eslint-disable-next-line no-console
     console.error('[Atividades] redecontatos (seguindo):', errRede)
   }
-  const seguidosRede = (segRows ?? [])
+  return (segRows ?? [])
     .map((r) => String((r as { seguido_id: string }).seguido_id))
-    .filter(Boolean)
-  return [...new Set([...seguidosRede, ...autoresEmpresas])].filter((id) => Boolean(id) && id !== meuId)
+    .filter((id) => Boolean(id) && id !== meuId)
+}
+
+/** Rede + gestores de empresas do guia (critérios separados para UI e queries). */
+export async function fetchSeguidosRedeEEmpresasAtividades(
+  supabase: SupabaseClient,
+  meuId: string | null,
+  opts?: { incluirModoApresentacao?: boolean },
+): Promise<{ rede: string[]; empresas: string[] }> {
+  const [rede, empresas] = await Promise.all([
+    fetchSeguidosRedeAtividades(supabase, meuId),
+    fetchUsuarioIdsTodasEmpresasGuia(supabase, opts),
+  ])
+  return { rede, empresas }
+}
+
+/**
+ * Gestores de empresas anfitrião (`somente_anfitriao`): posts sociais exigem follow no feed.
+ */
+export async function fetchUsuarioIdsGestoresAnfitriaoGuia(
+  supabase: SupabaseClient,
+  opts?: { incluirModoApresentacao?: boolean },
+): Promise<string[]> {
+  const rows = await fetchEmpresasGuiaRows<{ usuario_id: string; somente_anfitriao?: boolean | null }>(
+    supabase,
+    {
+      select: 'usuario_id, somente_anfitriao',
+      incluirModoApresentacao: opts?.incluirModoApresentacao,
+    },
+  )
+  return [
+    ...new Set(
+      rows
+        .filter((r) => r.somente_anfitriao === true)
+        .map(usuarioIdDeRow)
+        .filter(Boolean),
+    ),
+  ]
 }

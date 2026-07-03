@@ -5,8 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay, sanearAutoresPostsEmpresaPreview } from '@/lib/feed-autor'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
-import { isPostOcultoDoFeed } from '@/lib/feedFiltroSeguidos'
-import { fetchUsuarioIdsTodasEmpresasGuia } from '@/lib/feedSeguidosEmpresasFavoritas'
+import { isPostOcultoDoFeed, postRawVisivelNoFeed } from '@/lib/feedFiltroSeguidos'
+import {
+  fetchUsuarioIdsGestoresAnfitriaoGuia,
+  fetchUsuarioIdsTodasEmpresasGuia,
+} from '@/lib/feedSeguidosEmpresasFavoritas'
 import { tentarProcessarPublicacoesAgendadas } from '@/lib/processarPublicacoesAgendadasClient'
 import {
   escolherIdStoryInicialPorEmail,
@@ -375,6 +378,9 @@ function FeedPageInner() {
       const autoresEmpresas = await fetchUsuarioIdsTodasEmpresasGuia(supabase, {
         incluirModoApresentacao: modoAtivo,
       })
+      const gestoresAnfitriao = await fetchUsuarioIdsGestoresAnfitriaoGuia(supabase, {
+        incluirModoApresentacao: modoAtivo,
+      })
       const allowedAutorIds = [
         ...new Set([...(meu ? [meu] : []), ...seguidos, ...autoresEmpresas]),
       ].filter(Boolean)
@@ -391,7 +397,16 @@ function FeedPageInner() {
               .limit(limit)
           : { data: [] as unknown[] }
 
-      const rows = (dFeed ?? []).filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
+      const gestoresSet = new Set(gestoresAnfitriao)
+      const rows = (dFeed ?? [])
+        .filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
+        .filter((row) =>
+          postRawVisivelNoFeed(row as { autor_id?: unknown; autor_tipo?: unknown }, {
+            meuId: meu,
+            seguidos,
+            gestoresAnfitriao: gestoresSet,
+          }),
+        )
       const merged = rows.map(mapRow).filter((row) => !isPostOcultoDoFeed(row.tipo))
       const saneados = await sanearAutoresPostsEmpresaPreview(
         supabase,
@@ -485,6 +500,20 @@ function FeedPageInner() {
       const autoresEmpresas = await fetchUsuarioIdsTodasEmpresasGuia(supabase, {
         incluirModoApresentacao: modoAtivo,
       })
+      const gestoresAnfitriao = await fetchUsuarioIdsGestoresAnfitriaoGuia(supabase, {
+        incluirModoApresentacao: modoAtivo,
+      })
+      const raw = data as { autor_id?: unknown; autor_tipo?: unknown; deleted_at?: string | null }
+      if (
+        !postRawVisivelNoFeed(raw, {
+          meuId: uidRef,
+          seguidos,
+          gestoresAnfitriao: new Set(gestoresAnfitriao),
+        })
+      ) {
+        fetchPostAttempted.current = null
+        return
+      }
       const allowed = new Set([...seguidos, ...autoresEmpresas, ...(uidRef ? [uidRef] : [])])
       const aid = row.autor?.usuario_id ?? ''
       if (uidRef && aid && aid !== uidRef && !allowed.has(aid)) {
