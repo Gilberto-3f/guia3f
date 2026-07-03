@@ -15,6 +15,8 @@ interface Props {
   naoLidas?: number
   onAberto?: () => void
   posicao?: number
+  /** Exibir ranking numérico sobre o avatar (padrão: false — avatar limpo). */
+  mostrarPosicaoNoAvatar?: boolean
   /** Resumo sempre visível (ex.: quantidade de recomendações, PAX ou vendas). */
   resumo?: string
   children: ReactNode
@@ -29,6 +31,7 @@ export default function LinhaProfissionalCabecalho({
   naoLidas = 0,
   onAberto,
   posicao,
+  mostrarPosicaoNoAvatar = false,
   resumo,
   children,
 }: Props) {
@@ -54,7 +57,7 @@ export default function LinhaProfissionalCabecalho({
         <div className="flex w-full items-start gap-3">
           <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-100">
             <AvatarImage src={fotoUrl} alt={nome} width={40} height={40} className="h-full w-full object-cover" />
-            {posicao != null ? (
+            {mostrarPosicaoNoAvatar && posicao != null ? (
               <span className="absolute -left-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[#0097b2] px-0.5 text-[9px] font-bold tabular-nums text-white">
                 {posicao}
               </span>

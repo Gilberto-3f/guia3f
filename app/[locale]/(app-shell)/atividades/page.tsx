@@ -26,6 +26,7 @@ import {
   atividadeVisivelNaMinhaContaPessoal,
   atividadeVisivelMinhaContaModoAnfitriao,
   atividadeVisivelMinhaContaModoHospedagem,
+  atividadeInboundMinhaContaEhDoUsuario,
   atividadeVisivelNaAbaSeguindo,
   chaveAtividadeSeguidor,
   chaveAtividadeCurtiuPost,
@@ -281,7 +282,7 @@ export default function AtividadesPage() {
   const [storiesRepostAtivos, setStoriesRepostAtivos] = useState<Set<string>>(() => new Set())
   const [storiesRepostAtivosPronto, setStoriesRepostAtivosPronto] = useState(false)
   const [storyMetaMap, setStoryMetaMap] = useState<
-    Record<string, { conteudo_url: string | null; autor_tipo?: string | null }>
+    Record<string, { conteudo_url: string | null; autor_tipo?: string | null; autor_id?: string | null }>
   >({})
 
   const operaComoEmpresaHospedagem = useMemo(
@@ -303,21 +304,22 @@ export default function AtividadesPage() {
       if (!merge) setStoryMetaMap({})
       return
     }
-    const { data, error } = await supabase.from('stories').select('id, conteudo_url, autor_tipo').in('id', ids)
+    const { data, error } = await supabase.from('stories').select('id, conteudo_url, autor_tipo, autor_id').in('id', ids)
     if (error) {
       console.error('[Atividades] stories meta:', error)
       if (!merge) setStoryMetaMap({})
       return
     }
-    const chunk: Record<string, { conteudo_url: string | null; autor_tipo?: string | null }> = {}
+    const chunk: Record<string, { conteudo_url: string | null; autor_tipo?: string | null; autor_id?: string | null }> = {}
     for (const row of data ?? []) {
-      const rec = row as { id: string; conteudo_url?: string | null; autor_tipo?: string | null }
+      const rec = row as { id: string; conteudo_url?: string | null; autor_tipo?: string | null; autor_id?: string | null }
       const id = String(rec.id ?? '').trim()
       if (!id) continue
       const url = rec.conteudo_url != null && String(rec.conteudo_url).trim() !== '' ? String(rec.conteudo_url) : null
       chunk[id] = {
         conteudo_url: url,
         autor_tipo: rec.autor_tipo != null ? String(rec.autor_tipo) : null,
+        autor_id: rec.autor_id != null ? String(rec.autor_id) : null,
       }
     }
     if (merge) {
@@ -1780,11 +1782,17 @@ export default function AtividadesPage() {
     const curtidasPostVistas = new Set<string>()
     return raw.filter((r) => {
       if (aba === 'minha' && meuId) {
+        let okMinha = false
         if (operaComoEmpresaHospedagem) {
-          if (!atividadeVisivelMinhaContaModoHospedagem(r, meuId, ctxModo)) return false
+          okMinha = atividadeVisivelMinhaContaModoHospedagem(r, meuId, ctxModo)
         } else if (ehAnfitriao && meuRole === 'profissional') {
-          if (!atividadeVisivelMinhaContaModoAnfitriao(r, meuId, ctxModo)) return false
+          okMinha = atividadeVisivelMinhaContaModoAnfitriao(r, meuId, ctxModo)
+        } else if (meuRole === 'empresa') {
+          okMinha = atividadeInboundMinhaContaEhDoUsuario(r, meuId, ctxModo, { modoHospedagem: true }) === true
+        } else {
+          okMinha = atividadeInboundMinhaContaEhDoUsuario(r, meuId, ctxModo) === true
         }
+        if (!okMinha) return false
       }
       if (aba === 'amigos' && meuId) {
         if (
