@@ -20,6 +20,13 @@ import {
 /** Azul do botão dinâmico do segmento Hospedagem. */
 const COR_HOSPEDAGEM = '#45B7D1'
 
+/** Mesma largura/altura visual dos botões de forma de pagamento. */
+const CAMPO_LINHA_CLASS =
+  'box-border flex min-h-[2.5rem] w-full min-w-0 max-w-full items-center rounded-lg border border-gray-200 bg-white px-3 py-2'
+
+const INPUT_DATA_CLASS =
+  'min-h-0 min-w-0 w-full max-w-full flex-1 border-0 bg-transparent p-0 text-sm leading-tight text-gray-900 outline-none [color-scheme:light]'
+
 /**
  * @param {{
  *   isOpen: boolean
@@ -213,7 +220,7 @@ export default function PopupReservaHospedagem({
         role="presentation"
       >
         <div
-          className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white text-gray-900 shadow-xl [color-scheme:light]"
+          className="max-h-[90vh] w-full max-w-md overflow-x-hidden overflow-y-auto rounded-xl bg-white text-gray-900 shadow-xl [color-scheme:light]"
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -283,7 +290,7 @@ export default function PopupReservaHospedagem({
             </div>
           ) : (
             <>
-              <div className="space-y-2 p-3">
+              <div className="min-w-0 space-y-2 p-3">
                 <div className="text-center">
                   <p className="text-base font-bold leading-tight text-gray-900">{empresaNome}</p>
                   <p className="mt-0.5 text-sm text-gray-800">
@@ -308,51 +315,55 @@ export default function PopupReservaHospedagem({
                   </div>
                 ) : null}
 
-                <div className="space-y-2">
-                  <div>
+                <div className="min-w-0 space-y-2">
+                  <div className="min-w-0">
                     <label htmlFor="reserva-hosp-checkin" className="mb-0.5 block text-xs font-medium text-gray-800">
                       Check-in
                     </label>
-                    <input
-                      id="reserva-hosp-checkin"
-                      type="date"
-                      value={checkin}
-                      onChange={(e) => {
-                        setCheckin(e.target.value)
-                        setConflitoReconhecido(false)
-                      }}
-                      className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm leading-tight text-gray-900 [color-scheme:light]"
-                      min={hoje}
-                    />
+                    <div className={CAMPO_LINHA_CLASS}>
+                      <input
+                        id="reserva-hosp-checkin"
+                        type="date"
+                        value={checkin}
+                        onChange={(e) => {
+                          setCheckin(e.target.value)
+                          setConflitoReconhecido(false)
+                        }}
+                        className={INPUT_DATA_CLASS}
+                        min={hoje}
+                      />
+                    </div>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <label htmlFor="reserva-hosp-checkout" className="mb-0.5 block text-xs font-medium text-gray-800">
                       Check-out
                     </label>
-                    <input
-                      id="reserva-hosp-checkout"
-                      type="date"
-                      value={checkout}
-                      onChange={(e) => {
-                        setCheckout(e.target.value)
-                        setConflitoReconhecido(false)
-                      }}
-                      className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm leading-tight text-gray-900 [color-scheme:light]"
-                      min={checkin || hoje}
-                    />
+                    <div className={CAMPO_LINHA_CLASS}>
+                      <input
+                        id="reserva-hosp-checkout"
+                        type="date"
+                        value={checkout}
+                        onChange={(e) => {
+                          setCheckout(e.target.value)
+                          setConflitoReconhecido(false)
+                        }}
+                        className={INPUT_DATA_CLASS}
+                        min={checkin || hoje}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <p className="mb-1.5 text-xs font-medium text-gray-800">Forma de Pagamento</p>
                   <div className="space-y-2">
                     {FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM.map(({ value, label }) => (
                       <label
                         key={value}
-                        className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                        className={`${CAMPO_LINHA_CLASS} cursor-pointer gap-2 text-sm transition ${
                           formaPagamento === value
                             ? 'border-[#45B7D1] bg-[#45B7D1]/10 font-semibold text-gray-900'
-                            : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                            : 'text-gray-700 hover:bg-gray-50'
                         }`}
                       >
                         <input
