@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { useSharedAdminGate } from '../context/AdminPermissaoContext'
+import { isAdmGeral } from '../utils/permissoes'
 
 export type { GateState } from './useAdminGate'
 
@@ -20,8 +21,10 @@ export function usePermissao() {
   const podeExecutarRecurso = useMemo(() => {
     return (recurso: string) => {
       if (!admin) return false
+      if (isAdmGeral(admin)) return true
       const raw = admin.admin_permissoes as unknown as { recursos?: string[] }
       const recursos = Array.isArray(raw?.recursos) ? raw.recursos : []
+      if (recursos.length === 0) return true
       return recursos.includes('*') || recursos.includes(recurso)
     }
   }, [admin])

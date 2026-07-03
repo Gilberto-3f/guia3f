@@ -194,7 +194,7 @@ export async function assertAdminSession(): Promise<AdminSessionResult> {
   }
 }
 
-/** Alinhado ao `useAdminGate`: sem `recursos` no JSON = acesso total; senão exige lista. */
+/** ADM GERAL (nível 1) ou lista vazia = acesso total; senão exige recurso na lista. */
 export function adminPodeRecurso(
   adminPermissoes: unknown,
   adminLevel: number,
@@ -203,6 +203,7 @@ export function adminPodeRecurso(
 ): boolean {
   const nivel = Number(adminLevel ?? 0)
   if (String(role) !== 'admin' && nivel < 1) return false
+  if (nivel === 1) return true
   const raw = adminPermissoes as { recursos?: string[] } | null
   const recursos = Array.isArray(raw?.recursos) ? raw.recursos : []
   if (recursos.length === 0) return true
