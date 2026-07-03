@@ -17,6 +17,10 @@ import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { fetchEmpresasGuiaRows } from '@/lib/feedSeguidosEmpresasFavoritas'
 import { tentarProcessarPublicacoesAgendadas } from '@/lib/processarPublicacoesAgendadasClient'
 import {
+  autorIdFromStorySlot,
+  storySlotEhEmpresa,
+} from '@/lib/storyAnfitriaoSlots'
+import {
   escolherIdStoryInicialPorEmail,
   ordenarStoriesPorCreatedAsc,
   visualizadoPorConsolidadoParaAnel,
@@ -175,39 +179,30 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       })
     }
 
-    const emps = empresasRows
-    const empresaAutorSet = new Set((emps ?? []).map((e) => String(e.usuario_id)).filter(Boolean))
-
-    /** Stories permitidos: o próprio utilizador, seguidos (não empresa) ou qualquer empresa; sem vídeo. */
+    /** Stories permitidos: próprio utilizador; empresa (global); profissional/turista só se seguido. */
     const storiesFiltradas = storiesValidas.filter((s) => {
       if (isTipoVideoPost(s.tipo)) return false
       const aid = String(s.autor_id)
       if (aid === uid) return true
-      const isEmp = isAutorEmpresa(s.autor_tipo) || empresaAutorSet.has(aid)
-      if (isEmp) return true
+      if (isAutorEmpresa(s.autor_tipo)) return true
       return seguidosIds.has(aid)
     })
 
-    /** Autores cujo story foi publicado como "empresa" (autor_tipo). */
-    const autorStoryEmpresaSet = new Set(
-      (storiesFiltradas ?? [])
-        .filter((s) => isAutorEmpresa(s.autor_tipo))
-        .map((s) => String(s.autor_id))
-        .filter(Boolean)
-    )
-
-    /** Todos os stories por autor (foto), ordenados do mais antigo ao mais novo. */
-    const storiesPorAutorArr = /** @type {Map<string, NonNullable<typeof storiesFiltradas>>} */ (new Map())
+    /** Stories agrupados por slot (autor + persona prof/emp). */
+    const storiesPorSlot = /** @type {Map<string, NonNullable<typeof storiesFiltradas>>} */ (new Map())
     for (const s of storiesFiltradas) {
-      const aid = String(s.autor_id)
-      if (!storiesPorAutorArr.has(aid)) storiesPorAutorArr.set(aid, [])
-      storiesPorAutorArr.get(aid).push(s)
+      const slot = storySlotKeyFromRow(s)
+      if (!slot) continue
+      if (!storiesPorSlot.has(slot)) storiesPorSlot.set(slot, [])
+      storiesPorSlot.get(slot).push(s)
     }
-    for (const arr of storiesPorAutorArr.values()) {
+    for (const arr of storiesPorSlot.values()) {
       ordenarStoriesPorCreatedAsc(arr)
     }
 
-    const meuArr = storiesPorAutorArr.get(uid) ?? []
+    const meuProfArr = storiesPorSlot.get(`${uid}|prof`) ?? []
+    const meuEmpArr = storiesPorSlot.get(`${uid}|emp`) ?? []
+    const meuArr = [...meuProfArr, ...meuEmpArr]
     const meuAbrirId = escolherIdStoryInicialPorEmail(meuArr, userEmail)
     setMeuSlot({
       avatarUrl: meuAvatarUrl,
@@ -219,94 +214,108 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     const ordered = []
     const seen = new Set()
 
-    const pushAid = (aid) => {
+    const pushSlot = (slot) => {
       if (ordered.length >= MAX_STORY_RINGS) return false
-      if (seen.has(aid) || !storiesPorAutorArr.has(aid)) return false
-      ordered.push(aid)
-      seen.add(aid)
+      if (seen.has(slot) || !storiesPorSlot.has(slot)) return false
+      ordered.push(slot)
+      seen.add(slot)
       return true
     }
 
-    seen.add(uid)
+    for (const sk of [`${uid}|prof`, `${uid}|emp`]) {
+      seen.add(sk)
+    }
 
-    const latestStoryMs = (aid) => {
-      const arr = storiesPorAutorArr.get(aid)
+    const latestStoryMs = (slot) => {
+      const arr = storiesPorSlot.get(slot)
       if (!arr?.length) return 0
       const last = arr[arr.length - 1]
       return new Date(String(last.created_at ?? 0)).getTime()
     }
 
-    const autoresOrdenados = [...storiesPorAutorArr.keys()]
-      .filter((aid) => aid !== uid)
+    const slotsOrdenados = [...storiesPorSlot.keys()]
+      .filter((sk) => autorIdFromStorySlot(sk) !== uid)
       .sort((a, b) => latestStoryMs(b) - latestStoryMs(a))
 
-    for (const aid of autoresOrdenados) {
+    for (const sk of slotsOrdenados) {
       if (ordered.length >= MAX_STORY_RINGS) break
-      pushAid(aid)
+      pushSlot(sk)
     }
 
     const labels = /** @type {Record<string, string>} */ ({})
     const previews = /** @type {Record<string, string | null>} */ ({})
-    for (const e of emps ?? []) {
-      const uid = String(e.usuario_id)
-      const podeRotularComoEmpresa = autorStoryEmpresaSet.has(uid) || (simulandoEmpresa && uid === String(session.user.id))
-      if (podeRotularComoEmpresa) {
-        labels[uid] = labelStoryEmpresa(e)
-        previews[uid] = e.foto_url != null ? String(e.foto_url) : null
+    for (const e of empresasRows ?? []) {
+      const euid = String(e.usuario_id)
+      const empSlot = `${euid}|emp`
+      if (storiesPorSlot.has(empSlot) || (simulandoEmpresa && euid === String(session.user.id))) {
+        labels[empSlot] = labelStoryEmpresa(e)
+        previews[empSlot] = e.foto_url != null ? String(e.foto_url) : null
       }
     }
-    const precisaPerfil = ordered.filter((aid) => labels[aid] == null)
+    const precisaPerfil = ordered.filter((sk) => labels[sk] == null)
     if (precisaPerfil.length > 0) {
-      const perfisSociais = await fetchPerfisSociaisPorUsuarioIds(supabase, precisaPerfil)
-      for (const aid of precisaPerfil) {
+      const autorIds = [...new Set(precisaPerfil.map((sk) => autorIdFromStorySlot(sk)).filter(Boolean))]
+      const perfisSociais = await fetchPerfisSociaisPorUsuarioIds(supabase, autorIds)
+      for (const sk of precisaPerfil) {
+        const aid = autorIdFromStorySlot(sk)
         const perfil = perfisSociais.get(aid)
         if (!perfil) continue
-        labels[aid] = labelFromPerfilSocial(perfil)
-        previews[aid] = perfil.foto
+        labels[sk] = labelFromPerfilSocial(perfil)
+        previews[sk] = perfil.foto
       }
     }
 
-    const semFoto = ordered.filter((aid) => !previews[aid])
+    const semFoto = ordered.filter((sk) => !previews[sk])
     if (semFoto.length > 0) {
-      const fotosMap = await fetchFotosPerfilPorUsuarioIds(supabase, semFoto)
-      for (const aid of semFoto) {
+      const autorIds = [...new Set(semFoto.map((sk) => autorIdFromStorySlot(sk)).filter(Boolean))]
+      const fotosMap = await fetchFotosPerfilPorUsuarioIds(supabase, autorIds)
+      for (const sk of semFoto) {
+        const aid = autorIdFromStorySlot(sk)
         const url = fotosMap.get(aid)
-        if (url) previews[aid] = url
+        if (url) previews[sk] = url
       }
     }
 
-    const semLabel = ordered.filter((aid) => labels[aid] == null)
+    const semLabel = ordered.filter((sk) => labels[sk] == null)
     if (semLabel.length > 0) {
-      const perfisBusca = await buscarPerfisPorIds(supabase, semLabel)
+      const autorIds = [...new Set(semLabel.map((sk) => autorIdFromStorySlot(sk)).filter(Boolean))]
+      const perfisBusca = await buscarPerfisPorIds(supabase, autorIds)
       for (const p of perfisBusca) {
         const id = String(p.usuario_id ?? '')
         if (!id) continue
+        const profSlot = `${id}|prof`
+        const empSlot = `${id}|emp`
         const nu = (p.username ?? '').trim()
         const nome = (p.nome ?? '').trim()
-        if (nu) {
-          const h = formatStoryHandle(nu)
-          if (h) labels[id] = abreviarLabelStory(h)
-        } else if (nome) {
-          labels[id] = abreviarLabelStory(nome)
+        const lbl =
+          nu && nu.toLowerCase() !== 'usuario'
+            ? abreviarLabelStory(formatStoryHandle(nu) ?? nu)
+            : nome
+              ? abreviarLabelStory(nome)
+              : 'Usuário'
+        if (semLabel.includes(profSlot) && labels[profSlot] == null) labels[profSlot] = lbl
+        if (semLabel.includes(empSlot) && labels[empSlot] == null && storySlotEhEmpresa(empSlot)) {
+          labels[empSlot] = lbl
         }
-        if (!previews[id] && p.foto_url) previews[id] = p.foto_url
+        if (!previews[profSlot] && p.foto_url) previews[profSlot] = p.foto_url
       }
-      for (const aid of semLabel) {
-        if (labels[aid] == null) labels[aid] = 'Usuário'
+      for (const sk of semLabel) {
+        if (labels[sk] == null) labels[sk] = 'Usuário'
       }
     }
 
     const built = ordered
-      .map((aid) => {
-        const arr = storiesPorAutorArr.get(aid)
+      .map((slotKey) => {
+        const arr = storiesPorSlot.get(slotKey)
         if (!arr?.length) return null
         const abrirId = escolherIdStoryInicialPorEmail(arr, userEmail)
         if (!abrirId) return null
-        const avatarUrl = previews[aid] ?? null
+        const avatarUrl = previews[slotKey] ?? null
         return {
           id: abrirId,
-          autorId: aid,
-          label: labels[aid] ?? 'Usuário',
+          autorId: autorIdFromStorySlot(slotKey),
+          slotKey,
+          label: labels[slotKey] ?? 'Usuário',
           avatarUrl,
           visualizado_por: visualizadoPorConsolidadoParaAnel(arr, userEmail),
         }
@@ -382,8 +391,9 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
   const meuTemStory = Boolean(meuSlot.storyId)
 
   const filaAutoresParaNavegacao = () => {
-    const outros = rings.map((r) => r.autorId).filter(Boolean)
-    if (meuTemStory && meuUserId) return [meuUserId, ...outros]
+    const meuSlots = [`${meuUserId}|prof`, `${meuUserId}|emp`].filter((sk) => meuTemStory && meuUserId)
+    const outros = rings.map((r) => r.slotKey).filter(Boolean)
+    if (meuSlots.length) return [...meuSlots, ...outros.filter((sk) => !meuSlots.includes(sk))]
     return outros
   }
 
@@ -514,10 +524,11 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
                 userEmail={userEmail}
                 onPress={() => {
                   const filaAutores = filaAutoresParaNavegacao()
-                  const filaAutorIndex = filaAutores.indexOf(s.autorId)
+                  const filaAutorIndex = s.slotKey ? filaAutores.indexOf(s.slotKey) : filaAutores.indexOf(s.autorId)
                   onOpenStory(s.id, {
                     filaAutores,
                     filaAutorIndex: filaAutorIndex >= 0 ? filaAutorIndex : 0,
+                    storySlotKey: s.slotKey,
                   })
                 }}
               />

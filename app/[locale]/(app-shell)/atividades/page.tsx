@@ -1311,6 +1311,68 @@ export default function AtividadesPage() {
 
     setMinhaEmpresaAtividades(null)
 
+    const comoHospedagem = profissionalOperaComoEmpresaHospedagem(
+      role,
+      ehAnfitriao,
+      modoEfetivo,
+      empresaHospedagemId,
+      empresaHospedagemLiberada,
+    )
+
+    if (comoHospedagem) {
+      setErroAmigos(null)
+      setListaAmigos([])
+      setQtdSeguindo(0)
+      seguindoRef.current = []
+      setOffsetAmigos(0)
+      setTemMaisAmigos(false)
+
+      const minhaHospRes = await supabase
+        .from('atividades')
+        .select('*')
+        .eq('usuario_id', uid)
+        .neq('autor_id', uid)
+        .not('tipo', 'in', '(avaliou,seguiu_empresa)')
+        .order('created_at', { ascending: false })
+        .range(0, ATIVIDADES_LIMITE_MINHA_CONTA - 1)
+
+      if (minhaHospRes.error && process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.error('[Atividades][hospedagem] erro query Minha conta:', minhaHospRes.error)
+      }
+
+      const minhaHospRaw = ((minhaHospRes.data ?? []) as AtividadeRow[]).filter(
+        atividadeVisivelNaMinhaContaEmpresa,
+      )
+      const minhaHosp = (await enriquecerAtividadesEmpresaInterator(
+        supabase,
+        minhaHospRaw,
+      )) as AtividadeRow[]
+
+      setListaMinha(minhaHosp)
+      setOffsetMinha(minhaHosp.length)
+      setTemMaisMinha(false)
+
+      await carregarPerfis(minhaHosp, { merge: false })
+      await carregarEmpresasAvaliacoes(minhaHosp, { merge: false })
+
+      const postIdsHosp: string[] = []
+      for (const r of minhaHosp) {
+        if (r.tipo === 'curtiu_post') postIdsHosp.push(r.alvo_id)
+        const ex = r.dados_extras
+        if (ex && typeof ex === 'object') {
+          const pid = ex.post_id
+          if (typeof pid === 'string') postIdsHosp.push(pid)
+        }
+      }
+      await carregarPostsMeta(postIdsHosp, { merge: false })
+      await carregarStoriesMeta(minhaHosp, { merge: false })
+      await carregarStoriesRepostAtivos(minhaHosp)
+
+      setCarregando(false)
+      return
+    }
+
     const seguindo = await fetchAutorIdsSeguidosAmigos(supabase, uid, {
       incluirModoApresentacao: modoAtivo,
     })
@@ -1609,12 +1671,12 @@ export default function AtividadesPage() {
     [marcarMinhaLidas]
   )
 
-  /** Conta empresa: só aba “Minha conta”. */
+  /** Conta empresa ou anfitrião em modo hospedagem: só aba “Minha conta”. */
   useEffect(() => {
-    if (meuRole === 'empresa' && meuId) {
+    if ((meuRole === 'empresa' || operaComoEmpresaHospedagem) && meuId) {
       onAba('minha')
     }
-  }, [meuRole, meuId, onAba])
+  }, [meuRole, meuId, onAba, operaComoEmpresaHospedagem])
 
   const SWIPE_MIN_PX = 60
   const SWIPE_DOMINANCIA = 1.5
@@ -1629,7 +1691,7 @@ export default function AtividadesPage() {
 
   const tentarTrocarAbaPorSwipe = useCallback(
     (dx: number, dy: number) => {
-      if (meuRole === 'empresa') return
+      if (meuRole === 'empresa' || operaComoEmpresaHospedagem) return
       if (Math.abs(dx) < SWIPE_MIN_PX) return
       if (Math.abs(dx) <= Math.abs(dy) * SWIPE_DOMINANCIA) return
       if (dx < 0) {
@@ -1640,7 +1702,7 @@ export default function AtividadesPage() {
         if (aba !== 'amigos') onAba('amigos')
       }
     },
-    [aba, meuRole, onAba]
+    [aba, meuRole, onAba, operaComoEmpresaHospedagem]
   )
 
   const onTouchStartAtividades = useCallback((e: React.TouchEvent) => {
@@ -1724,7 +1786,7 @@ export default function AtividadesPage() {
           if (!atividadeVisivelMinhaContaModoAnfitriao(r, meuId, ctxModo)) return false
         }
       }
-      if (aba === 'amigos' && meuId && meuRole === 'profissional' && ehAnfitriao) {
+      if (aba === 'amigos' && meuId) {
         if (
           !atividadeVisivelNaAbaSeguindo(r, meuId, ctxModo, {
             operaComoEmpresaHospedagem,
@@ -2515,7 +2577,11 @@ export default function AtividadesPage() {
         </div>
       </header>
 
-      <AbasAtividades aba={aba} onAba={onAba} somenteMinhaConta={meuRole === 'empresa'} />
+      <AbasAtividades
+        aba={aba}
+        onAba={onAba}
+        somenteMinhaConta={meuRole === 'empresa' || operaComoEmpresaHospedagem}
+      />
 
       <div
         className="px-4 pb-3 pt-3"

@@ -9,6 +9,12 @@ import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
 import AvatarImage from '@/components/AvatarImage'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
 
+function chaveCurtidaLista(usuarioId, empresaInteratorId) {
+  const uid = String(usuarioId ?? '').trim()
+  const emp = empresaInteratorId != null ? String(empresaInteratorId).trim() : ''
+  return emp ? `${uid}:emp:${emp}` : `${uid}:prof`
+}
+
 /**
  * @param {{
  *   postId: string | null
@@ -19,7 +25,9 @@ import NomeComVerificacao from '@/components/NomeComVerificacao'
  */
 export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }) {
   const [lista, setLista] = useState(
-    /** @type {{ id: string, nome: string, username: string, foto: string | null, role: string, empresaId: string }[]} */ ([])
+    /** @type {{ chave: string, id: string, nome: string, username: string, foto: string | null, role: string, empresaId: string, verificado: boolean }[]} */ (
+      []
+    ),
   )
   const [carregando, setCarregando] = useState(false)
   const [erroCarregar, setErroCarregar] = useState(false)
@@ -36,7 +44,7 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
     try {
       const { data: rows, error } = await supabase
         .from('curtidas')
-        .select('id, usuario_id, created_at')
+        .select('id, usuario_id, empresa_interator_id, created_at')
         .eq('post_id', postId)
         .is('comentario_id', null)
         .order('created_at', { ascending: false })
@@ -55,39 +63,90 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
         return
       }
 
-      const ordemIds = []
-      const visto = new Set()
-      for (const r of rows) {
-        const id = r.usuario_id != null ? String(r.usuario_id) : ''
-        if (id && !visto.has(id)) {
-          visto.add(id)
-          ordemIds.push(id)
+      /** @type {typeof rows} */
+      const ordenadas = [...rows]
+      /** @type {Map<string, (typeof rows)[0]>} */
+      const porChave = new Map()
+      for (const r of ordenadas) {
+        const chave = chaveCurtidaLista(r.usuario_id, r.empresa_interator_id)
+        if (!porChave.has(chave)) porChave.set(chave, r)
+      }
+
+      const entradas = [...porChave.values()]
+      const usuarioIds = [...new Set(entradas.map((r) => String(r.usuario_id ?? '').trim()).filter(Boolean))]
+      const empresaIds = [
+        ...new Set(
+          entradas
+            .map((r) => (r.empresa_interator_id != null ? String(r.empresa_interator_id).trim() : ''))
+            .filter(Boolean),
+        ),
+      ]
+
+      const perfis = await buscarPerfisPorIds(supabase, usuarioIds)
+      const verificadoPorUsuario = await fetchVerificadoPorUsuarioIds(supabase, usuarioIds)
+      const byUid = new Map(perfis.map((p) => [String(p.usuario_id), p]))
+
+      /** @type {Record<string, { nome: string, username: string, foto_url: string | null, verificado: boolean }>} */
+      const empMap = {}
+      if (empresaIds.length > 0) {
+        const { data: empRows } = await supabase
+          .from('empresas')
+          .select('id, nome_fantasia, nome_usuario, foto_url, docs_verificado, status')
+          .in('id', empresaIds)
+        for (const raw of empRows ?? []) {
+          const e = raw
+          const id = String(e.id ?? '').trim()
+          if (!id) continue
+          empMap[id] = {
+            nome:
+              e.nome_fantasia != null && String(e.nome_fantasia).trim() !== ''
+                ? String(e.nome_fantasia).trim()
+                : 'Empresa',
+            username:
+              e.nome_usuario != null && String(e.nome_usuario).trim() !== ''
+                ? String(e.nome_usuario).trim()
+                : 'empresa',
+            foto_url: e.foto_url != null && String(e.foto_url).trim() !== '' ? String(e.foto_url) : null,
+            verificado: Boolean(e.docs_verificado) && String(e.status ?? '').toLowerCase() === 'aprovado',
+          }
         }
       }
 
-      const perfis = await buscarPerfisPorIds(supabase, ordemIds)
-      const verificadoPorUsuario = await fetchVerificadoPorUsuarioIds(supabase, ordemIds)
-      const byUid = new Map(perfis.map((p) => [String(p.usuario_id), p]))
+      const linhas = entradas.map((r) => {
+        const uid = String(r.usuario_id ?? '').trim()
+        const empId = r.empresa_interator_id != null ? String(r.empresa_interator_id).trim() : ''
+        const chave = chaveCurtidaLista(uid, empId)
 
-      const linhas = ordemIds.map((id) => {
-        const p = byUid.get(id)
+        if (empId && empMap[empId]) {
+          const emp = empMap[empId]
+          const username = emp.username.trim().replace(/^@+/, '') || 'empresa'
+          return {
+            chave,
+            id: uid,
+            nome: emp.nome,
+            username,
+            foto: emp.foto_url,
+            role: 'empresa',
+            empresaId: empId,
+            verificado: emp.verificado,
+          }
+        }
+
+        const p = byUid.get(uid)
         const username = (p?.username ?? 'usuario').trim().replace(/^@+/, '') || 'usuario'
         const nome = (p?.nome ?? '').trim() || username
         const tipo = String(p?.tipo ?? '').toLowerCase()
         return {
-          id,
+          chave,
+          id: uid,
           nome,
           username,
           foto: p?.foto_url != null && String(p.foto_url).trim() !== '' ? String(p.foto_url) : null,
           role: tipo || 'user',
           empresaId: p?.empresa_id != null ? String(p.empresa_id) : '',
-          verificado: Boolean(verificadoPorUsuario.get(id)),
+          verificado: Boolean(verificadoPorUsuario.get(uid)),
         }
       })
-
-      if (linhas.length === 0 && ordemIds.length > 0) {
-        console.warn('ModalCurtidas: curtidas sem perfil em perfis_para_busca para', ordemIds.length, 'usuários')
-      }
 
       setLista(linhas)
 
@@ -191,7 +250,7 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
                 empresa_id: u.empresaId || null,
               })
               return (
-                <div key={u.id} className="flex items-center justify-between gap-2 border-b border-gray-100 py-3 last:border-0">
+                <div key={u.chave} className="flex items-center justify-between gap-2 border-b border-gray-100 py-3 last:border-0">
                   <Link
                     href={hrefPerfil}
                     className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50"

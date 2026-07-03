@@ -17,6 +17,12 @@ import StoriesBar from '@/components/StoriesBar'
 import PostCard from '@/components/PostCard'
 import { POST_DELETED_EVENT } from '@/components/MenuPost'
 import StoryViewer from '@/components/StoryViewer'
+import {
+  autorIdFromStorySlot,
+  storyRowCombinaSlot,
+  storySlotEhEmpresa,
+  storySlotKeyFromRow,
+} from '@/lib/storyAnfitriaoSlots'
 
 const PAGE_SIZE = 12
 
@@ -75,6 +81,7 @@ type StoryViewerState = {
 type StoryOpenMeta = {
   filaAutores: string[]
   filaAutorIndex: number
+  storySlotKey?: string
 }
 
 type StoryModalPack = {
@@ -619,32 +626,55 @@ function FeedPageInner() {
     if (nextId) void carregarStoryPorId(nextId)
   }, [storyModal, carregarStoryPorId, preloadStoryImage])
 
-  /** Fila de stories de um autor (antigo → novo); sempre abre no mais antigo (índice 0). */
+  /** Fila de stories de um slot (autor + persona prof/emp). */
   const montarPackStoryAutor = useCallback(
-    async (autorUsuarioId: string): Promise<{ ids: string[]; index: number; data: StoryViewerState } | null> => {
+    async (
+      autorRef: string,
+      anchorStoryId?: string | null,
+    ): Promise<{ ids: string[]; index: number; data: StoryViewerState } | null> => {
+      const autorUsuarioId = autorIdFromStorySlot(autorRef)
       if (!autorUsuarioId) {
-        console.warn('[feed] montarPackStoryAutor chamado sem autor:', autorUsuarioId)
+        console.warn('[feed] montarPackStoryAutor chamado sem autor:', autorRef)
         return null
       }
+
+      let slotEmpresa = storySlotEhEmpresa(autorRef)
+      if (anchorStoryId) {
+        const { data: anchorRow } = await supabase
+          .from('stories')
+          .select('autor_tipo')
+          .eq('id', anchorStoryId)
+          .maybeSingle()
+        if (anchorRow) {
+          slotEmpresa = String((anchorRow as { autor_tipo?: string }).autor_tipo ?? '').toLowerCase() === 'empresa'
+        }
+      }
+
       const { data: rows, error } = await supabase
         .from('stories')
-        .select('id, tipo, created_at, visualizado_por, conteudo_url, autor_id')
+        .select('id, tipo, created_at, visualizado_por, conteudo_url, autor_id, autor_tipo')
         .eq('autor_id', autorUsuarioId)
         .gt('expira_em', new Date().toISOString())
         .order('created_at', { ascending: true })
       if (error || !rows?.length) return null
+
       const asc = rows.filter((r) => {
         const ok =
           !isPostOcultoDoFeed((r as { tipo?: string }).tipo) &&
           Boolean((r as { id?: unknown }).id) &&
           Boolean((r as { autor_id?: unknown }).autor_id) &&
-          String((r as { conteudo_url?: unknown }).conteudo_url ?? '').trim() !== ''
+          String((r as { conteudo_url?: unknown }).conteudo_url ?? '').trim() !== '' &&
+          storyRowCombinaSlot(r as { autor_tipo?: string }, slotEmpresa)
         if (!ok) console.warn('[feed] Story inválido ignorado na fila:', r)
         return ok
       })
       if (asc.length === 0) return null
       const ids = asc.map((r) => String((r as { id: unknown }).id))
-      const index = 0
+      let index = 0
+      if (anchorStoryId) {
+        const ai = ids.indexOf(String(anchorStoryId))
+        if (ai >= 0) index = ai
+      }
       const data = await carregarStoryPorId(ids[index])
       if (!data) return null
       return { ids, index, data }
@@ -672,14 +702,26 @@ function FeedPageInner() {
         })
         return
       }
-      const pack = await montarPackStoryAutor(autorId)
+
+      const { data: anchorRow } = await supabase
+        .from('stories')
+        .select('autor_id, autor_tipo')
+        .eq('id', id)
+        .maybeSingle()
+      const slotKey =
+        meta?.storySlotKey ??
+        storySlotKeyFromRow(
+          anchorRow ?? { autor_id: autorId, autor_tipo: null },
+        )
+
+      const pack = await montarPackStoryAutor(meta?.storySlotKey ?? slotKey, id)
       if (!pack) return
       const { ids, index, data } = pack
-      const filaAutores = meta?.filaAutores?.length ? meta.filaAutores : [autorId]
+      const filaAutores = meta?.filaAutores?.length ? meta.filaAutores : slotKey ? [slotKey] : [autorId]
       const filaAutorIndex =
         meta?.filaAutores?.length && typeof meta.filaAutorIndex === 'number' && meta.filaAutorIndex >= 0
           ? meta.filaAutorIndex
-          : Math.max(0, filaAutores.indexOf(autorId))
+          : Math.max(0, filaAutores.indexOf(meta?.storySlotKey ?? slotKey))
       setStoryModal({
         ids,
         index,
@@ -713,8 +755,8 @@ function FeedPageInner() {
       const rawNext = cur.index + delta
       if (rawNext < 0) {
         if (fIdx > 0 && cur.index === 0) {
-          const prevAid = fila[fIdx - 1]
-          const pack = await montarPackStoryAutor(prevAid)
+          const prevRef = fila[fIdx - 1]
+          const pack = await montarPackStoryAutor(prevRef, null)
           if (!pack?.ids.length) {
             setStoryModal((p) => (p ? { ...p, index: 0, playbackKey: p.playbackKey + 1 } : null))
             return
@@ -741,8 +783,8 @@ function FeedPageInner() {
       }
       if (rawNext >= n) {
         if (fila.length > 0 && fIdx < fila.length - 1) {
-          const nextAid = fila[fIdx + 1]
-          const pack = await montarPackStoryAutor(nextAid)
+          const nextRef = fila[fIdx + 1]
+          const pack = await montarPackStoryAutor(nextRef, null)
           if (!pack) {
             fecharStoryModal()
             return
