@@ -83,11 +83,9 @@ export function menuEmpresaLiberado(menuId: MenuEmpresaId, servicos: readonly st
 }
 
 /**
- * Visibilidade no menu: Publicidade sempre aparece (página trata upgrade);
- * demais itens só quando o serviço correspondente está liberado.
+ * Visibilidade no menu: item só aparece quando o serviço correspondente está no plano/degustação.
  */
 export function menuEmpresaVisivel(menuId: MenuEmpresaId, servicos: readonly string[]): boolean {
-  if (menuId === 'publicidade') return true
   return menuEmpresaLiberado(menuId, servicos)
 }
 

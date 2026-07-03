@@ -89,7 +89,7 @@ export default function EmpresaPage() {
   const { modoAtivo } = useModoApresentacao()
   const planoEmpresa =
     empresa && empresa.plano != null ? String(empresa.plano) : null
-  const { featurePublicaLiberada, featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
+  const { featurePublicaLiberada, loading: planoLoading } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
     aguardarEmpresa: loading,
     somenteAnfitriao: Boolean(empresa?.somente_anfitriao),
   })
@@ -116,7 +116,7 @@ export default function EmpresaPage() {
       prefetchPlanosEmpresa()
     }
   }, [empresaId, ehDonoEmpresa, empresa?.somente_anfitriao])
-  const mostrarConteudoRede = !aguardandoPlanoRede && featureLiberada('pagina_rede_social')
+  const mostrarConteudoRede = !aguardandoPlanoRede && empresaVerificada
 
   useEffect(() => {
     if (!mostrarBotaoDinamico && abaExpandida === 'dinamico') {
@@ -616,7 +616,7 @@ export default function EmpresaPage() {
             ) : null}
           </div>
         </div>
-        ) : donoEmpresa ? (
+        ) : donoEmpresa && !empresaVerificada ? (
           <div className="border-b border-gray-100 bg-white px-4 py-6">
             <AvisoPlanoEmpresaBloqueado />
           </div>
