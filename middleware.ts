@@ -5,8 +5,34 @@ import { routing } from "./i18n/routing";
 
 const intlMiddleware = createMiddleware(routing);
 
+/** Guia público (home e categorias); subrotas específicas podem exigir login. */
+const PROTECTED_PREFIXES = [
+  "/feed",
+  "/perfil",
+  "/atividades",
+  "/canal",
+  "/dashboard",
+  "/favoritos",
+  "/servicos",
+  "/mobilidade",
+];
+
+function rotaExigeAuth(pathname: string): boolean {
+  return (
+    PROTECTED_PREFIXES.some((route) => pathname.startsWith(route)) ||
+    pathname.startsWith("/guia/compras")
+  );
+}
+
 export default async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const needsAuth = rotaExigeAuth(pathname);
+
   const response = intlMiddleware(request);
+
+  if (!needsAuth) {
+    return response;
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,24 +61,7 @@ export default async function middleware(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const pathname = request.nextUrl.pathname;
-
-  /** Guia público (home e categorias); subrotas específicas podem exigir login. */
-  const protectedPrefixes = [
-    "/feed",
-    "/perfil",
-    "/atividades",
-    "/canal",
-    "/dashboard",
-    "/favoritos",
-    "/servicos",
-    "/mobilidade",
-  ];
-  const needsAuth =
-    protectedPrefixes.some((route) => pathname.startsWith(route)) ||
-    pathname.startsWith("/guia/compras");
-
-  if (needsAuth && !session) {
+  if (!session) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

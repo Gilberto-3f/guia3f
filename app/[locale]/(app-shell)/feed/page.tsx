@@ -375,12 +375,14 @@ function FeedPageInner() {
       if (!ready) return []
 
       const meu = uidRef ?? meuId
-      const autoresEmpresas = await fetchUsuarioIdsTodasEmpresasGuia(supabase, {
-        incluirModoApresentacao: modoAtivo,
-      })
-      const gestoresAnfitriao = await fetchUsuarioIdsGestoresAnfitriaoGuia(supabase, {
-        incluirModoApresentacao: modoAtivo,
-      })
+      const [autoresEmpresas, gestoresAnfitriao] = await Promise.all([
+        fetchUsuarioIdsTodasEmpresasGuia(supabase, {
+          incluirModoApresentacao: modoAtivo,
+        }),
+        fetchUsuarioIdsGestoresAnfitriaoGuia(supabase, {
+          incluirModoApresentacao: modoAtivo,
+        }),
+      ])
       const allowedAutorIds = [
         ...new Set([...(meu ? [meu] : []), ...seguidos, ...autoresEmpresas]),
       ].filter(Boolean)

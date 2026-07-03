@@ -19,6 +19,7 @@ import { tentarProcessarPublicacoesAgendadas } from '@/lib/processarPublicacoesA
 import {
   autorIdFromStorySlot,
   storySlotEhEmpresa,
+  storySlotKeyFromRow,
 } from '@/lib/storyAnfitriaoSlots'
 import {
   escolherIdStoryInicialPorEmail,
@@ -136,7 +137,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     setMeuUserId(uid)
 
     try {
-    await tentarProcessarPublicacoesAgendadas()
+    void tentarProcessarPublicacoesAgendadas()
 
     /** @param {string} userId */
     const carregarMeuAvatar = async (userId) => fetchFotoPerfilUsuario(supabase, userId)
