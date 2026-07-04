@@ -10,6 +10,7 @@ import { labelFormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { registrarSolicitacaoAuxiliarAdmSeAplicavel } from '@/lib/empresaAuxiliarAdm'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
 import { enviarMensagemPagamentoPlanoAdm, montarMensagemPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
+import { inserirAvisoAgendamentoAssinaturaDinheiroHub } from '@/lib/financeiroAvisosAdmHub'
 
 export type StatusAssinaturaEmpresa = 'pendente' | 'ativo' | 'inativo' | 'cancelado'
 
@@ -159,7 +160,7 @@ export async function registrarAssinaturaPlanoEmpresa(
   const { data: usuario } = await supabase.from('usuarios').select('status').eq('id', uid).maybeSingle()
   const { data: emp, error: empErr } = await supabase
     .from('empresas')
-    .select('id, status, docs_verificado, aprovado_em, verificado_em, plano')
+    .select('id, status, docs_verificado, aprovado_em, verificado_em, plano, nome_usuario')
     .eq('usuario_id', uid)
     .maybeSingle()
 
@@ -292,6 +293,21 @@ export async function registrarAssinaturaPlanoEmpresa(
       )
     } catch {
       /* chat ADM opcional */
+    }
+
+    try {
+      const empresaUsername =
+        emp.nome_usuario != null && String(emp.nome_usuario).trim() !== ''
+          ? String(emp.nome_usuario).trim()
+          : 'empresa'
+      await inserirAvisoAgendamentoAssinaturaDinheiroHub(supabase, {
+        assinaturaId,
+        empresaId,
+        empresaUsername,
+        visitaAgendadaEm: params.visitaDinheiro.visitaAgendadaEm,
+      })
+    } catch {
+      /* aviso hub ADM opcional */
     }
   }
 

@@ -16,6 +16,7 @@ import {
 } from '@/lib/financeiroConversaAuditoria'
 import { buscarVistoEmOutroFinanceiro } from '@/lib/financeiroMensageiroLeitura'
 import { idUltimaMensagemPropriaVistaPeloOutro } from '@/lib/chatVisto'
+import FinanceiroAvisosAdmHub from '@/components/canal/FinanceiroAvisosAdmHub'
 
 const INPUT_FIN = 'text-gray-900 placeholder:text-gray-500 caret-gray-900'
 const AVATAR_QUADRADO = 'shrink-0 rounded-md object-cover'
@@ -544,6 +545,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
 
   return (
     <div className={shellClass}>
+      <FinanceiroAvisosAdmHub />
       <div className="flex shrink-0 gap-2" role="tablist">
         <button
           type="button"
