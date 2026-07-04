@@ -2,6 +2,16 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type VisivelAvisoAdmHub = 'adm_geral' | 'adm_financeiro'
 
+const VISIVEL_AVISO_ADM_HUB = new Set<VisivelAvisoAdmHub>(['adm_geral', 'adm_financeiro'])
+
+/** Normaliza valores do banco para o union tipado. */
+export function parseVisivelParaAvisoAdmHub(raw: unknown): VisivelAvisoAdmHub[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map(String)
+    .filter((v): v is VisivelAvisoAdmHub => VISIVEL_AVISO_ADM_HUB.has(v as VisivelAvisoAdmHub))
+}
+
 export type FinanceiroAvisoAdmHubRow = {
   id: string
   tipo: string

@@ -4,6 +4,7 @@ import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import {
   adminPodeVerAvisosFinanceiroHub,
   filtrarAvisosFinanceiroHubPorAdmin,
+  parseVisivelParaAvisoAdmHub,
   type FinanceiroAvisoAdmHubRow,
 } from '@/lib/financeiroAvisosAdmHub'
 
@@ -13,7 +14,7 @@ function mapRow(r: Record<string, unknown>): FinanceiroAvisoAdmHubRow {
     tipo: String(r.tipo ?? ''),
     titulo: String(r.titulo ?? ''),
     mensagem: String(r.mensagem ?? ''),
-    visivel_para: Array.isArray(r.visivel_para) ? r.visivel_para.map(String) : [],
+    visivel_para: parseVisivelParaAvisoAdmHub(r.visivel_para),
     metadata: r.metadata && typeof r.metadata === 'object' ? (r.metadata as Record<string, unknown>) : {},
     lido_por: Array.isArray(r.lido_por) ? r.lido_por.map(String) : [],
     created_at: String(r.created_at ?? ''),
