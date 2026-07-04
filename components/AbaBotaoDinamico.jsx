@@ -34,8 +34,8 @@ const botoesPorCategoria = {
   Eventos: { texto: 'COMPRAR INGRESSO', icon: Calendar, cor: '#DDA0DD', acao: 'ticket' },
   Mobilidade: { texto: 'CHAMAR CORRIDA', icon: Car, cor: '#FFEAA7', acao: 'corrida' },
   'Compras Paraguai': { texto: 'VER OFERTAS', icon: ShoppingBag, cor: '#F1C40F', acao: 'produtos' },
-  servicos_locais: { texto: 'FALAR NO WHATSAPP', icon: MessageCircle, cor: '#25D366', acao: 'whatsapp' },
-  'Serviços Locais': { texto: 'FALAR NO WHATSAPP', icon: MessageCircle, cor: '#25D366', acao: 'whatsapp' },
+  servicos_locais: { texto: 'WhatsApp', icon: MessageCircle, cor: '#25D366', acao: 'whatsapp' },
+  'Serviços Locais': { texto: 'WhatsApp', icon: MessageCircle, cor: '#25D366', acao: 'whatsapp' },
 }
 
 function isHospedagem(cat) {
@@ -116,7 +116,7 @@ export default function AbaBotaoDinamico({
         return { ...base, texto: 'VER PRODUTOS', icon: ShoppingBag, cor: '#96CEB4', acao: 'produtos' }
       }
       if (cidadeEhFozOuPuertoIguazu(cidade)) {
-        return { ...base, texto: 'CHAMAR CORRIDA', icon: Car, cor: '#FFEAA7', acao: 'corrida' }
+        return { ...base, texto: 'CHAMAR CORRIDA', icon: Car, cor: '#FFEAA7', acao: 'corrida', textoCompacto: true }
       }
       return { texto: 'VER MAIS', icon: Package, cor: '#0097b2', acao: 'detalhes' }
     }
@@ -230,7 +230,7 @@ export default function AbaBotaoDinamico({
             <button
               type="button"
               onClick={handleClick}
-              className="w-full rounded-lg py-3 font-bold text-white transition-colors hover:opacity-90"
+              className={`w-full rounded-lg py-3 font-bold text-white transition-colors hover:opacity-90${config.textoCompacto ? ' text-sm tracking-tight' : ''}`}
               style={{ backgroundColor: config.cor }}
             >
               {config.texto}

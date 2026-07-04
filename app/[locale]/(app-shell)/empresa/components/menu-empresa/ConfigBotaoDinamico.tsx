@@ -49,7 +49,7 @@ function textoBotaoPreview(categoria: string, cidade: string) {
   if (isGastronomia(categoria)) return 'RESERVAR MESA'
   if (isPasseios(categoria)) return 'TICKET'
   if (isHospedagem(categoria)) return 'FAZER RESERVA'
-  if (isServicosLocais(categoria)) return 'FALAR NO WHATSAPP'
+  if (isServicosLocais(categoria)) return 'WhatsApp'
   if (isLojas(categoria)) {
     if (cidadeEhCiudadDelEste(cidade)) return 'VER PRODUTOS'
     if (cidadeEhFozOuPuertoIguazu(cidade)) return 'CHAMAR CORRIDA'

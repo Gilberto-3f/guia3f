@@ -49,6 +49,7 @@ import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { empresaDocumentosEnviados } from '@/lib/faseVerificacaoConta'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import { menuEmpresaLiberado, menuEmpresaVisivel } from '@/lib/planosEmpresaServicosGate'
+import { empresaEhLojasBrasilOuArgentina } from '@/lib/cidade-empresa'
 import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
 import { textoInfoDrawer } from '@/lib/drawerInfoTextos'
 import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
@@ -164,6 +165,12 @@ function empresaComprasParaguaiVisivel(ctx) {
 function empresaMenuHospedagemVisivel(ctx) {
   if (Boolean(ctx.somenteAnfitriao)) return true
   return String(ctx.empresaCategoria ?? '').trim() === 'Hospedagem'
+}
+
+/** Lojas BR/AR: endereço já é destino na mobilidade — oculta configuração do botão dinâmico. */
+function empresaBotaoDinamicoVisivel(ctx) {
+  if (empresaEhLojasBrasilOuArgentina(ctx.empresaCategoria, ctx.empresaCidade)) return false
+  return menuEmpresaLiberado('botao-dinamico', ctx.empresaServicos ?? [])
 }
 
 function empresaMenuServico(id) {
@@ -403,7 +410,7 @@ function secoesEmpresa(ctx) {
         Icon: MousePointerClick,
         label: 'Botão Dinâmico',
         href: '/empresa/menu/botao-dinamico',
-        condicional: empresaMenuServico('botao-dinamico'),
+        condicional: empresaBotaoDinamicoVisivel,
       },
       {
         Icon: Hotel,

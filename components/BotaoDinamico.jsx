@@ -103,14 +103,14 @@ export default function BotaoDinamico({
     if (isGastronomia(categoria)) return { texto: 'RESERVAR MESA', icon: Utensils, acao: 'reserva_mesa' }
     if (isPasseios(categoria)) return { texto: 'TICKET', icon: Ticket, acao: 'ticket' }
     if (isHospedagem(categoria)) return { texto: 'FAZER RESERVA', icon: Calendar, acao: 'hospedagem' }
-    if (isServicosLocais(categoria)) return { texto: 'FALAR NO WHATSAPP', icon: MessageCircle, acao: 'whatsapp' }
+    if (isServicosLocais(categoria)) return { texto: 'WhatsApp', icon: MessageCircle, acao: 'whatsapp' }
 
     if (isLojas(categoria)) {
       const c = norm(cidade)
       const ehCde = c.includes('ciudad del este')
       return ehCde
         ? { texto: 'VER PRODUTOS', icon: ShoppingBag, acao: 'produtos' }
-        : { texto: 'CHAMAR CORRIDA', icon: Car, acao: 'corrida' }
+        : { texto: 'CHAMAR CORRIDA', icon: Car, acao: 'corrida', textoCompacto: true }
     }
 
     return { texto: 'VER MAIS', icon: Package, acao: 'detalhes' }
@@ -205,7 +205,9 @@ export default function BotaoDinamico({
       <button
         type="button"
         onClick={handleClick}
-        className="flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center text-xs font-bold leading-tight text-white whitespace-normal transition-opacity hover:opacity-95 sm:text-sm"
+        className={`flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center font-bold leading-tight text-white transition-opacity hover:opacity-95 ${
+          config.textoCompacto ? 'text-[10px] whitespace-nowrap sm:text-[11px]' : 'text-xs whitespace-normal sm:text-sm'
+        }`}
         style={{ backgroundColor: corBotao }}
       >
         <Icon size={20} className="shrink-0 text-white" aria-hidden />

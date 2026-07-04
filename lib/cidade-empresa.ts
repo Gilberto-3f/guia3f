@@ -35,3 +35,12 @@ export function cidadeEhFozOuPuertoIguazu(cidade: string | null | undefined): bo
   const puerto = n.includes('puerto') && n.includes('iguazu')
   return foz || puerto
 }
+
+/** Lojas em Foz ou Puerto Iguazú — endereço já é destino na mobilidade (sem menu Botão Dinâmico). */
+export function empresaEhLojasBrasilOuArgentina(
+  categoria: string | null | undefined,
+  cidade: string | null | undefined,
+): boolean {
+  const cat = normalizarCidade(categoria).replace(/\s+/g, ' ')
+  return cat === 'lojas' && cidadeEhFozOuPuertoIguazu(cidade)
+}
