@@ -22,6 +22,7 @@ import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
 import { getPerfilHref } from '@/lib/perfil-utils'
 import { asUuidFilter } from '@/lib/supabaseRestUuid'
 import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
+import { deletarCurtidaModoAtual, usuarioCurtiuNoModoAtual } from '@/lib/curtidaModoSocial'
 
 /** UUID da empresa avaliada no `avaliacao_meta`, ou `null`. */
 function postAvaliacaoEmpresaAlvoId(p) {
@@ -346,13 +347,12 @@ export default function PostCard({
       setCurtiu(false)
       return
     }
-    void supabase
-      .from('curtidas')
-      .select('id')
-      .match({ post_id: pid, usuario_id: uid })
-      .maybeSingle()
-      .then(({ data }) => setCurtiu(Boolean(data)))
-  }, [post.id, meuUsuarioId])
+    void usuarioCurtiuNoModoAtual(supabase, {
+      postId: pid,
+      usuarioId: uid,
+      empresaInteratorId,
+    }).then(setCurtiu)
+  }, [post.id, meuUsuarioId, empresaInteratorId])
 
   useEffect(() => {
     if (!meuUsuarioId || !post.id) {
@@ -580,11 +580,11 @@ export default function PostCard({
         onEngagementChange?.(post.id, { total_curtidas: n })
         return n
       })
-      const { data: removidas, error } = await supabase
-        .from('curtidas')
-        .delete()
-        .match({ post_id: pid, usuario_id: uid })
-        .select('id')
+      const { data: removidas, error } = await deletarCurtidaModoAtual(supabase, {
+        postId: pid,
+        usuarioId: uid,
+        empresaInteratorId,
+      })
       if (error || !removidas?.length) {
         if (error) console.error('[PostCard] descurtir:', error)
         else console.warn('[PostCard] descurtir: nenhuma curtida removida (post_id/usuario_id)', { pid, uid })
@@ -593,7 +593,12 @@ export default function PostCard({
         onEngagementChange?.(post.id, { total_curtidas: totalAntes })
         return
       }
-      await limparAtividadesAposDescurtir(supabase, { postId: pid, usuarioId: uid })
+      await limparAtividadesAposDescurtir(supabase, {
+        postId: pid,
+        usuarioId: uid,
+        empresaInteratorId,
+        curtidaId: removidas?.[0]?.id ?? null,
+      })
       if (!suprimirNotificacaoAtividades) {
         notificarEngajamentoAtividades({
           sincronizarLista: true,

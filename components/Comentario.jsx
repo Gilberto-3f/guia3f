@@ -13,6 +13,7 @@ import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
 import { asUuidFilter } from '@/lib/supabaseRestUuid'
 import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
+import { deletarCurtidaModoAtual, usuarioCurtiuNoModoAtual } from '@/lib/curtidaModoSocial'
 
 /**
  * @typedef {{
@@ -66,16 +67,12 @@ export default function Comentario({
     const cid = asUuidFilter(node.id)
     const uid = asUuidFilter(usuarioId)
     if (!cid || !uid) return
-    const check = async () => {
-      const { data } = await supabase
-        .from('curtidas')
-        .select('id')
-        .match({ comentario_id: cid, usuario_id: uid })
-        .maybeSingle()
-      setCurtiu(Boolean(data))
-    }
-    void check()
-  }, [node.id, usuarioId])
+    void usuarioCurtiuNoModoAtual(supabase, {
+      comentarioId: cid,
+      usuarioId: uid,
+      empresaInteratorId,
+    }).then(setCurtiu)
+  }, [node.id, usuarioId, empresaInteratorId])
 
   const toggle = async () => {
     const cid = asUuidFilter(node.id)
@@ -85,11 +82,11 @@ export default function Comentario({
       const totalAntes = total
       setCurtiu(false)
       setTotal((t) => Math.max(0, t - 1))
-      const { data: removidas, error } = await supabase
-        .from('curtidas')
-        .delete()
-        .match({ comentario_id: cid, usuario_id: uid })
-        .select('id')
+      const { data: removidas, error } = await deletarCurtidaModoAtual(supabase, {
+        comentarioId: cid,
+        usuarioId: uid,
+        empresaInteratorId,
+      })
       if (error || !removidas?.length) {
         if (error) console.error('[Comentario] descurtir:', error)
         else console.warn('[Comentario] descurtir: nenhuma curtida removida', { cid, uid })
@@ -97,7 +94,12 @@ export default function Comentario({
         setTotal(totalAntes)
         return
       }
-      await limparAtividadesAposDescurtir(supabase, { comentarioId: cid, usuarioId: uid })
+      await limparAtividadesAposDescurtir(supabase, {
+        comentarioId: cid,
+        usuarioId: uid,
+        empresaInteratorId,
+        curtidaId: removidas?.[0]?.id ?? null,
+      })
       notificarEngajamentoAtividades({
         sincronizarLista: true,
         remover: { autorId: uid, comentarioId: cid },

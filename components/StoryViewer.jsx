@@ -21,6 +21,11 @@ import ModalDenunciarConteudo from '@/components/ModalDenunciarConteudo'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 import { formatarDataStoryPublicado } from '@/lib/formatarDataPublicacao'
 import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
+import {
+  chaveCurtidaStory,
+  parseCurtidasStoryModo,
+  usuarioCurtiuStoryNoModoAtual,
+} from '@/lib/curtidaModoSocial'
 
 const STORY_VIEW_MS = 15000
 const SWIPE_DOWN_PX = 96
@@ -62,21 +67,10 @@ function entryUsuarioId(entry) {
 
 /**
  * @param {unknown} raw
- * @returns {{ usuario_id: string, created_at?: string }[]}
+ * @returns {{ usuario_id: string, created_at?: string, empresa_interator_id?: string | null }[]}
  */
 function parseCurtidasStory(raw) {
-  if (raw == null) return []
-  if (!Array.isArray(raw)) return []
-  const out = []
-  for (const item of raw) {
-    const uid = entryUsuarioId(item)
-    if (uid) {
-      const created_at =
-        typeof item === 'object' && item && 'created_at' in item && item.created_at != null ? String(item.created_at) : undefined
-      out.push({ usuario_id: uid, created_at })
-    }
-  }
-  return out
+  return parseCurtidasStoryModo(raw)
 }
 
 /**
@@ -267,7 +261,9 @@ export default function StoryViewer({
   const [fotoAutor, setFotoAutor] = useState(/** @type {string | null} */ (null))
   const [rotuloAutor, setRotuloAutor] = useState(/** @type {string | null} */ (null))
   const [barraProgresso, setBarraProgresso] = useState(0)
-  const [curtidasLista, setCurtidasLista] = useState(/** @type {{ usuario_id: string, created_at?: string }[]} */ ([]))
+  const [curtidasLista, setCurtidasLista] = useState(
+    /** @type {{ usuario_id: string, created_at?: string, empresa_interator_id?: string | null }[]} */ ([]),
+  )
   const [curtirBusy, setCurtirBusy] = useState(false)
   const [modalInsights, setModalInsights] = useState(false)
   const [curtidasInsights, setCurtidasInsights] = useState(
@@ -297,7 +293,7 @@ export default function StoryViewer({
   const [rotuloTempoStory, setRotuloTempoStory] = useState('')
 
   const uid = meuUsuarioId != null && meuUsuarioId !== '' ? String(meuUsuarioId) : null
-  const curtiu = uid ? curtidasLista.some((c) => c.usuario_id === uid) : false
+  const curtiu = uid ? usuarioCurtiuStoryNoModoAtual(curtidasLista, uid, empresaInteratorId) : false
 
   useEffect(() => {
     onTimerFimRef.current = onTimerFim
@@ -666,12 +662,23 @@ export default function StoryViewer({
     if (!story?.id || !uid || curtirBusy) return
     setCurtirBusy(true)
     const prevCurtidas = curtidasLista
-    const jaCurtiu = prevCurtidas.some((c) => c.usuario_id === uid)
+    const chaveModo = chaveCurtidaStory(uid, empresaInteratorId)
+    const jaCurtiu = usuarioCurtiuStoryNoModoAtual(prevCurtidas, uid, empresaInteratorId)
+    const novaEntrada = {
+      usuario_id: uid,
+      ...(empresaInteratorId ? { empresa_interator_id: empresaInteratorId } : {}),
+    }
     // Optimistic UI: pinta/despinta imediatamente.
     if (jaCurtiu) {
-      setCurtidasLista((prev) => prev.filter((c) => c.usuario_id !== uid))
+      setCurtidasLista((prev) =>
+        prev.filter((c) => chaveCurtidaStory(c.usuario_id, c.empresa_interator_id) !== chaveModo),
+      )
     } else {
-      setCurtidasLista((prev) => (prev.some((c) => c.usuario_id === uid) ? prev : [...prev, { usuario_id: uid }]))
+      setCurtidasLista((prev) =>
+        prev.some((c) => chaveCurtidaStory(c.usuario_id, c.empresa_interator_id) === chaveModo)
+          ? prev
+          : [...prev, novaEntrada],
+      )
     }
     try {
       const { data, error } = await supabase.rpc('toggle_story_curtida', {
@@ -713,20 +720,32 @@ export default function StoryViewer({
           return
         }
         if (liked === true) {
-          setCurtidasLista((prev) => (prev.some((c) => c.usuario_id === uid) ? prev : [...prev, { usuario_id: uid }]))
+          setCurtidasLista((prev) =>
+            prev.some((c) => chaveCurtidaStory(c.usuario_id, c.empresa_interator_id) === chaveModo)
+              ? prev
+              : [...prev, novaEntrada],
+          )
           return
         }
         if (liked === false) {
-          setCurtidasLista((prev) => prev.filter((c) => c.usuario_id !== uid))
+          setCurtidasLista((prev) =>
+            prev.filter((c) => chaveCurtidaStory(c.usuario_id, c.empresa_interator_id) !== chaveModo),
+          )
           return
         }
         return
       }
 
       if (liked === true) {
-        setCurtidasLista((prev) => (prev.some((c) => c.usuario_id === uid) ? prev : [...prev, { usuario_id: uid }]))
+        setCurtidasLista((prev) =>
+          prev.some((c) => chaveCurtidaStory(c.usuario_id, c.empresa_interator_id) === chaveModo)
+            ? prev
+            : [...prev, novaEntrada],
+        )
       } else if (liked === false) {
-        setCurtidasLista((prev) => prev.filter((c) => c.usuario_id !== uid))
+        setCurtidasLista((prev) =>
+          prev.filter((c) => chaveCurtidaStory(c.usuario_id, c.empresa_interator_id) !== chaveModo),
+        )
       }
     } finally {
       setCurtirBusy(false)

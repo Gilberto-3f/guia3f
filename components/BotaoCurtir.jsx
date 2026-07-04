@@ -8,6 +8,7 @@ import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
 import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
 import { asUuidFilter } from '@/lib/supabaseRestUuid'
 import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
+import { deletarCurtidaModoAtual, usuarioCurtiuNoModoAtual } from '@/lib/curtidaModoSocial'
 
 /**
  * @param {{ postId: string, totalInicial: number, usuarioId: string | null }} props
@@ -26,12 +27,12 @@ export default function BotaoCurtir({ postId, totalInicial, usuarioId }) {
     const pid = asUuidFilter(postId)
     const uid = asUuidFilter(usuarioId)
     if (!pid || !uid) return
-    const check = async () => {
-      const { data } = await supabase.from('curtidas').select('id').match({ post_id: pid, usuario_id: uid }).maybeSingle()
-      setCurtiu(Boolean(data))
-    }
-    void check()
-  }, [postId, usuarioId])
+    void usuarioCurtiuNoModoAtual(supabase, {
+      postId: pid,
+      usuarioId: uid,
+      empresaInteratorId,
+    }).then(setCurtiu)
+  }, [postId, usuarioId, empresaInteratorId])
 
   const toggle = async () => {
     if (!podeInteragir) {
@@ -45,11 +46,11 @@ export default function BotaoCurtir({ postId, totalInicial, usuarioId }) {
       const totalAntes = total
       setCurtiu(false)
       setTotal((t) => Math.max(0, t - 1))
-      const { data: removidas, error } = await supabase
-        .from('curtidas')
-        .delete()
-        .match({ post_id: pid, usuario_id: uid })
-        .select('id')
+      const { data: removidas, error } = await deletarCurtidaModoAtual(supabase, {
+        postId: pid,
+        usuarioId: uid,
+        empresaInteratorId,
+      })
       if (error || !removidas?.length) {
         if (error) console.error('[BotaoCurtir] descurtir:', error)
         else console.warn('[BotaoCurtir] descurtir: nenhuma curtida removida', { pid, uid })
@@ -57,7 +58,12 @@ export default function BotaoCurtir({ postId, totalInicial, usuarioId }) {
         setTotal(totalAntes)
         return
       }
-      await limparAtividadesAposDescurtir(supabase, { postId: pid, usuarioId: uid })
+      await limparAtividadesAposDescurtir(supabase, {
+        postId: pid,
+        usuarioId: uid,
+        empresaInteratorId,
+        curtidaId: removidas?.[0]?.id ?? null,
+      })
       notificarEngajamentoAtividades({
         sincronizarLista: true,
         remover: { autorId: uid, postId: pid },

@@ -17,6 +17,7 @@ type Props = {
   nomeInicial?: string
   documentoInicial?: string
   enviando?: boolean
+  erroServidor?: string
 }
 
 /** Popup para validar contratação com dados do manifesto físico (PAX). */
@@ -27,6 +28,7 @@ export default function PopupComplementoContratacao({
   nomeInicial = '',
   documentoInicial = '',
   enviando = false,
+  erroServidor = '',
 }: Props) {
   useModalScrollLock(aberto)
   const [nome, setNome] = useState(nomeInicial)
@@ -115,6 +117,7 @@ export default function PopupComplementoContratacao({
         </div>
 
         {erro ? <p className="mt-3 text-sm text-rose-600">{erro}</p> : null}
+        {!erro && erroServidor ? <p className="mt-3 text-sm text-rose-600">{erroServidor}</p> : null}
 
         <button
           type="button"

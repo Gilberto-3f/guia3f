@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BadgeCheck, Star, X } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import PopupComplementoContratacao, {
@@ -70,6 +70,15 @@ export default function PopupContratarProfissionalRecomendado({
   const [sucesso, setSucesso] = useState(jaContratado)
   const [mostrarComplemento, setMostrarComplemento] = useState(false)
 
+  useEffect(() => {
+    if (!aberto) {
+      setMostrarComplemento(false)
+      setErro('')
+      setEnviando(false)
+    }
+    setSucesso(jaContratado)
+  }, [aberto, jaContratado])
+
   if (!aberto || !indicador || !indicado) return null
 
   const executarContratacao = async (dados: DadosComplementoContratacao) => {
@@ -102,17 +111,31 @@ export default function PopupContratarProfissionalRecomendado({
     }
   }
 
-  return (
-    <>
-      <div
-        className="fixed inset-0 z-[270] flex items-center justify-center bg-black/55 p-4"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="popup-contratar-rec-titulo"
-        onClick={(e) => {
-          if (e.target === e.currentTarget && !enviando) onFechar()
+  if (mostrarComplemento) {
+    return (
+      <PopupComplementoContratacao
+        aberto
+        onFechar={() => {
+          if (enviando) return
+          setMostrarComplemento(false)
         }}
-      >
+        enviando={enviando}
+        erroServidor={erro}
+        onConfirmar={executarContratacao}
+      />
+    )
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[270] flex items-center justify-center bg-black/55 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="popup-contratar-rec-titulo"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !enviando) onFechar()
+      }}
+    >
         <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-start justify-between gap-2">
             <h2 id="popup-contratar-rec-titulo" className="text-lg font-bold text-[#001f3f]">
@@ -147,7 +170,10 @@ export default function PopupContratarProfissionalRecomendado({
               <button
                 type="button"
                 disabled={enviando}
-                onClick={() => setMostrarComplemento(true)}
+                onClick={() => {
+                  setErro('')
+                  setMostrarComplemento(true)
+                }}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#00D443] py-3.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-[#00b83a] disabled:opacity-60"
               >
                 <BadgeCheck className="h-5 w-5 shrink-0 text-white" strokeWidth={2.25} aria-hidden />
@@ -157,13 +183,5 @@ export default function PopupContratarProfissionalRecomendado({
           )}
         </div>
       </div>
-
-      <PopupComplementoContratacao
-        aberto={mostrarComplemento}
-        onFechar={() => setMostrarComplemento(false)}
-        enviando={enviando}
-        onConfirmar={executarContratacao}
-      />
-    </>
   )
 }
