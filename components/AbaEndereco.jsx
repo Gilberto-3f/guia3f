@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { MapPin, Phone, User, Globe, Clock, Facebook, Instagram, Music2, ChevronDown, ChevronUp } from 'lucide-react'
 import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
 import { whatsappWebSendUrl, digitsWhatsapp } from '@/lib/whatsapp-empresa'
+import { formatarTelefoneExibicao } from '@/lib/formatarTelefoneExibicao'
 import HorariosFuncionamento from '@/components/HorariosFuncionamento'
 import StatusDisponibilidadeHospedagem from '@/components/StatusDisponibilidadeHospedagem'
 
@@ -47,6 +48,34 @@ function SecaoColapsavel({ titulo, Icon, children, defaultAberto = true }) {
 
 const BOTAO_REDE_CLS =
   'flex min-h-[5.25rem] flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-2 py-3 text-center shadow-sm transition hover:border-[#0097b2] hover:text-[#0097b2]'
+
+const BOTAO_CONTATO_CLS =
+  'flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-[#0097b2] hover:text-[#0097b2]'
+
+/**
+ * @param {{ tipo: 'whatsapp' | 'telefone', valor: string, cidade?: string | null, href: string, externo?: boolean }} props
+ */
+function BotaoContatoTelefone({ tipo, valor, cidade, href, externo = false }) {
+  const { texto, bandeira } = formatarTelefoneExibicao(valor, { cidadeFallback: cidade })
+  const rotulo = tipo === 'whatsapp' ? 'WhatsApp' : 'Telefone'
+
+  return (
+    <a
+      href={href}
+      {...(externo ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+      className={BOTAO_CONTATO_CLS}
+      aria-label={`${rotulo}: ${texto || valor}`}
+    >
+      <span className="text-xl leading-none" aria-hidden>
+        {bandeira}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-medium text-gray-500">{rotulo}</span>
+        <span className="block text-base font-normal text-gray-900">{texto || valor}</span>
+      </span>
+    </a>
+  )
+}
 
 /**
  * @param {unknown} raw
@@ -246,27 +275,25 @@ export default function AbaEndereco({
       {(empresa.whatsapp || empresa.telefone) && (
         <section className="space-y-4 border-t border-gray-100 pt-5">
           <TituloSecao Icon={Phone} titulo="Contato" />
-          {empresa.whatsapp ? (
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-gray-600">WhatsApp</p>
-              <a
+          <div className="flex flex-col gap-3">
+            {empresa.whatsapp ? (
+              <BotaoContatoTelefone
+                tipo="whatsapp"
+                valor={empresa.whatsapp}
+                cidade={empresa.cidade}
                 href={whatsappWebSendUrl(digitsWhatsapp(empresa.whatsapp))}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-base font-normal text-gray-900 hover:text-[#0097b2]"
-              >
-                {empresa.whatsapp}
-              </a>
-            </div>
-          ) : null}
-          {empresa.telefone ? (
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-gray-600">Telefone</p>
-              <a href={`tel:${empresa.telefone}`} className="block text-base font-normal text-gray-900 hover:text-[#0097b2]">
-                {empresa.telefone}
-              </a>
-            </div>
-          ) : null}
+                externo
+              />
+            ) : null}
+            {empresa.telefone ? (
+              <BotaoContatoTelefone
+                tipo="telefone"
+                valor={empresa.telefone}
+                cidade={empresa.cidade}
+                href={`tel:${digitsWhatsapp(empresa.telefone)}`}
+              />
+            ) : null}
+          </div>
         </section>
       )}
 
