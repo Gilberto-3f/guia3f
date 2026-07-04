@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
-import { atividadeVisivelNaMinhaContaPessoal } from '@/lib/atividades-feed'
+import { contarAtividadesMinhaContaNaoLidas } from '@/lib/atividades-feed'
 import { GUIA_ATIVIDADES_BADGE_EVENT } from '@/lib/atividades-events'
 import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 import { GUIA_FUNIL_BADGE_EVENT } from '@/lib/dashboard-funil-badge-events'
@@ -50,18 +50,9 @@ function isBarraAtividades(pathname) {
  * Badge do coração deve contar a mesma lista exibida em Atividades > Minha Conta.
  * @param {string} userId
  */
-async function contarAtividadesMinhaContaNaoLidas(userId) {
+async function contarAtividadesMinhaContaNaoLidasLocal(userId, opts = {}) {
   if (!userId) return 0
-  const { data, error } = await supabase
-    .from('atividades')
-    .select('id, tipo, dados_extras, autor_id, usuario_id')
-    .eq('usuario_id', userId)
-    .neq('autor_id', userId)
-    .eq('lida', false)
-    .not('tipo', 'in', '(avaliou,seguiu_empresa)')
-    .limit(1000)
-  if (error || !data) return 0
-  return data.filter((row) => atividadeVisivelNaMinhaContaPessoal(row, userId)).length
+  return contarAtividadesMinhaContaNaoLidas(supabase, userId, opts)
 }
 
 function matchPath(path, pathname) {
@@ -203,9 +194,11 @@ export default function BottomBar() {
 
       let total = 0
       if (roleContagem === 'empresa') {
-        total = await contarAtividadesMinhaContaNaoLidas(usuarioIdContagemAtividades)
+        total = await contarAtividadesMinhaContaNaoLidasLocal(usuarioIdContagemAtividades, {
+          modoHospedagem: true,
+        })
       } else if (userRole != null) {
-        total = await contarAtividadesMinhaContaNaoLidas(authUserId)
+        total = await contarAtividadesMinhaContaNaoLidasLocal(authUserId)
       }
       if (ativo) setNaoLidasAtividades(total)
     }

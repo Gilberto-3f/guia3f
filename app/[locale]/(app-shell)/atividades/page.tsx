@@ -1784,7 +1784,9 @@ export default function AtividadesPage() {
   )
 
   const listaAtividadesFiltrada = useMemo(() => {
-    const raw = aba === 'amigos' ? listaAmigos : listaMinha
+    /* Minha Conta: inclui inbound direto + interações no meu conteúdo vindas da lista Seguindo (ex.: repost). */
+    const raw =
+      aba === 'minha' ? mergeAtividadesPorId(listaMinha, listaAmigos) : listaAmigos
     const ctxModo = { postMetaMap, storyMetaMap }
     const comentariosVistos = new Set<string>()
     const seguidoresVistos = new Set<string>()
