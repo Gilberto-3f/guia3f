@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
+import { garantirCanaisEmpresaComunidade } from '@/lib/canaisEmpresaGarantir'
 import { normalizarPlanoSlug } from '@/lib/planosEmpresaServicosGate'
 
 export const TITULO_DEGUSTACAO_CANAL = 'Degustação do aplicativo'
@@ -454,6 +455,7 @@ export async function aceitarDegustacaoEmpresa(
       deg.aceito_em != null ? String(deg.aceito_em) : new Date().toISOString(),
       deg.expira_em != null ? String(deg.expira_em) : new Date().toISOString(),
     )
+    await garantirCanaisEmpresaComunidade(supabase, String(emp.id))
     return { ok: true }
   }
   if (String(deg.status) !== 'aguardando_aceite') {
@@ -479,6 +481,8 @@ export async function aceitarDegustacaoEmpresa(
   if (upErr) return { ok: false, error: upErr.message }
 
   await sincronizarCanalDegustacao(agora.toISOString(), expira.toISOString())
+
+  await garantirCanaisEmpresaComunidade(supabase, String(emp.id))
 
   return { ok: true }
 }
