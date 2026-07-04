@@ -15,6 +15,7 @@ import {
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import { buscarMapaDegustacaoAtivaPorEmpresas } from '@/lib/degustacaoEmpresa'
 import { buscarEmpresasListagemGuia } from '@/lib/empresaGuiaVisibilidade'
+import { empresaHospedagemTemVagas } from '@/lib/hospedagemDisponibilidade'
 
 import {
   categoriaDbPorSlugGuia,
@@ -57,6 +58,7 @@ type Empresa = {
   palavras_chave?: unknown
   docs_verificado?: boolean | null
   somente_anfitriao?: boolean | null
+  hospedagem_disponibilidade?: string | null
 }
 
 type OrdenacaoModo = 'avaliacao' | 'localizacao'
@@ -94,6 +96,9 @@ export default function ListagemCategoriaPage() {
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null)
   const [termoBusca, setTermoBusca] = useState('')
   const [buscando, setBuscando] = useState(false)
+  const [somenteDisponiveis, setSomenteDisponiveis] = useState(false)
+
+  const ehPaginaHospedagem = slug === 'hospedagem'
 
   const categoriaDb = SLUG_CATEGORIA_EXTRA[slug] ?? categoriaDbPorSlugGuia(slug)
   const cidadeDb = useMemo(() => cidadeGuiaPorPais(pais), [pais])
@@ -232,9 +237,13 @@ export default function ListagemCategoriaPage() {
   }, [carregarEmpresas, cacheKey])
 
   const empresasFiltradas = useMemo(() => {
-    if (!termoBusca.trim()) return empresas
-    return empresas.filter((e) => empresaCorrespondeBusca(e, termoBusca))
-  }, [empresas, termoBusca])
+    let base = empresas
+    if (ehPaginaHospedagem && somenteDisponiveis) {
+      base = base.filter((e) => empresaHospedagemTemVagas(e.hospedagem_disponibilidade))
+    }
+    if (!termoBusca.trim()) return base
+    return base.filter((e) => empresaCorrespondeBusca(e, termoBusca))
+  }, [empresas, termoBusca, ehPaginaHospedagem, somenteDisponiveis])
 
   const empresasOrdenadas = useMemo(() => {
     const base = [...empresasFiltradas]
@@ -326,6 +335,23 @@ export default function ListagemCategoriaPage() {
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
+              {ehPaginaHospedagem ? (
+                <button
+                  type="button"
+                  title="Somente hospedagens disponíveis"
+                  aria-label="Filtrar hospedagens disponíveis"
+                  aria-pressed={somenteDisponiveis}
+                  onClick={() => setSomenteDisponiveis((v) => !v)}
+                  className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-xs font-semibold transition ${
+                    somenteDisponiveis
+                      ? 'border-[#00D443] bg-[#00D443] text-white'
+                      : 'border-gray-200 bg-white text-[#0097b2] hover:bg-gray-50'
+                  }`}
+                >
+                  Disponíveis
+                </button>
+              ) : null}
+
               <button
                 type="button"
                 title="Ordenar por avaliação"
@@ -400,7 +426,9 @@ export default function ListagemCategoriaPage() {
             <p className="text-gray-400">
               {termoBusca.trim()
                 ? 'Nenhuma empresa encontrada para este termo neste segmento'
-                : 'Nenhuma empresa encontrada nesta região'}
+                : ehPaginaHospedagem && somenteDisponiveis
+                  ? 'Nenhuma hospedagem disponível nesta região'
+                  : 'Nenhuma empresa encontrada nesta região'}
             </p>
           </div>
         ) : (

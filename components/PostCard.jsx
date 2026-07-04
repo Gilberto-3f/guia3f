@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Bookmark, Heart, MessageCircle, Repeat2, Share2, ShieldCheck, Star } from 'lucide-react'
 import ModalComentarios from '@/components/ModalComentarios'
@@ -621,6 +621,30 @@ export default function PostCard({
       }
     }
   }
+
+  const ultimoToqueFotoRef = useRef({ time: 0, x: 0, y: 0 })
+
+  const handleCurtirFotoDoubleTap = useCallback(() => {
+    if (isVideoPost || bloqueioApresentacao || !meuUsuarioId || curtiu) return
+    void handleCurtir()
+  }, [isVideoPost, bloqueioApresentacao, meuUsuarioId, curtiu, handleCurtir])
+
+  const onFotoPointerUp = useCallback(
+    (e) => {
+      if (isVideoPost || e.pointerType === 'mouse') return
+      const now = Date.now()
+      const x = e.clientX
+      const y = e.clientY
+      const { time, x: px, y: py } = ultimoToqueFotoRef.current
+      if (now - time < 350 && Math.hypot(x - px, y - py) < 30) {
+        ultimoToqueFotoRef.current = { time: 0, x: 0, y: 0 }
+        handleCurtirFotoDoubleTap()
+        return
+      }
+      ultimoToqueFotoRef.current = { time: now, x, y }
+    },
+    [isVideoPost, handleCurtirFotoDoubleTap],
+  )
 
   const mostrarCompositorInline = !compositorComentarioAteClique || compositorAberto
 
@@ -1292,6 +1316,15 @@ export default function PostCard({
                     ? '16 / 9'
                     : '4 / 5',
             }}
+            onDoubleClick={
+              !isVideoPost
+                ? (e) => {
+                    e.preventDefault()
+                    handleCurtirFotoDoubleTap()
+                  }
+                : undefined
+            }
+            onPointerUp={!isVideoPost ? onFotoPointerUp : undefined}
           >
             {isVideoPost ? (
               <video

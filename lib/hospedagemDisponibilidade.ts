@@ -33,3 +33,8 @@ export function corDisponibilidadeHospedagem(
   if (disponibilidade === 'lotado') return COR_ESTAMOS_LOTADO
   return COR_QUARTOS_LIVRES
 }
+
+/** Hospedagem com quartos disponíveis (não marcada como lotada). */
+export function empresaHospedagemTemVagas(raw: unknown): boolean {
+  return normalizarDisponibilidadeHospedagem(raw) !== 'lotado'
+}

@@ -53,10 +53,10 @@ export function aplicarFiltroEmpresasGuiaPlanoOuDegustacao(query: any, opts?: { 
 }
 
 const COLUNAS_EMPRESA_GUIA =
-  'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave, plano, somente_anfitriao'
+  'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave, plano, somente_anfitriao, hospedagem_disponibilidade'
 
 const COLUNAS_EMPRESA_GUIA_SEM_PALAVRAS =
-  'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, plano, somente_anfitriao'
+  'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, plano, somente_anfitriao, hospedagem_disponibilidade'
 
 /** Lista empresas do guia por categoria/cidade, incluindo verificadas em degustação ativa. */
 export async function buscarEmpresasListagemGuia(
