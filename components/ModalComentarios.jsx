@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Send, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import Comentario from '@/components/Comentario'
@@ -9,6 +10,8 @@ import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
 import AvatarImage from '@/components/AvatarImage'
 import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
+import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { asUuidFilter } from '@/lib/supabaseRestUuid'
 
 /**
  * Monta árvore de comentários (vários níveis: resposta à resposta).
@@ -77,11 +80,14 @@ export default function ModalComentarios({
 }) {
   const inline = variant === 'inline'
   const empresaInteratorId = useEmpresaInteratorSocial()
+  const postIdValido = asUuidFilter(postId)
+  const usuarioIdValido = asUuidFilter(usuarioId)
   /** Em linha: sempre ativo com `postId`; em modal: só quando `aberto`. */
   const ativo = inline || aberto
   /** Sem envio de comentários (modo leitura ou post isolado). */
   const leituraComentarios = Boolean(somenteLeitura)
   const mostrarRodape = !leituraComentarios && (!inline || mostrarCompositor)
+  useModalScrollLock(!inline && aberto)
   const [arvore, setArvore] = useState([])
   const [novoComentario, setNovoComentario] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -91,10 +97,14 @@ export default function ModalComentarios({
   const listaScrollRef = useRef(/** @type {HTMLDivElement | null} */ (null))
 
   const carregar = useCallback(async () => {
+    if (!postIdValido) {
+      setArvore([])
+      return
+    }
     const { data, error } = await supabase
       .from('comentarios')
       .select('id, texto, created_at, total_curtidas, autor_id, resposta_para_id')
-      .eq('post_id', postId)
+      .eq('post_id', postIdValido)
       .is('deleted_at', null)
       .order('created_at', { ascending: true })
 
@@ -155,7 +165,7 @@ export default function ModalComentarios({
     })
 
     setArvore(buildCommentTree(flat))
-  }, [postId])
+  }, [postIdValido])
 
   /** Lista em ordem cronológica crescente: último comentário no fim. */
   const scrollListaAoFim = useCallback(() => {
@@ -200,12 +210,12 @@ export default function ModalComentarios({
 
   const handleEnviarResposta = useCallback(
     async (parentId, texto) => {
-      if (leituraComentarios || !usuarioId || !postId) return
+      if (leituraComentarios || !usuarioIdValido || !postIdValido) return
       setEnviando(true)
       try {
         const { error } = await supabase.from('comentarios').insert({
-          post_id: postId,
-          autor_id: usuarioId,
+          post_id: postIdValido,
+          autor_id: usuarioIdValido,
           texto,
           resposta_para_id: parentId,
           ...(empresaInteratorId ? { empresa_interator_id: empresaInteratorId } : {}),
@@ -221,16 +231,16 @@ export default function ModalComentarios({
         setEnviando(false)
       }
     },
-    [leituraComentarios, postId, usuarioId, empresaInteratorId, carregar, scrollListaAoFim, onComentou]
+    [leituraComentarios, postIdValido, usuarioIdValido, empresaInteratorId, carregar, scrollListaAoFim, onComentou]
   )
 
   useEffect(() => {
-    if (!ativo || !postId) return
+    if (!ativo || !postIdValido) return
     void carregar()
 
     const ch = supabase
-      .channel(`comentarios-${postId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comentarios', filter: `post_id=eq.${postId}` }, () => {
+      .channel(`comentarios-${postIdValido}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comentarios', filter: `post_id=eq.${postIdValido}` }, () => {
         void carregar()
       })
       .subscribe()
@@ -238,7 +248,7 @@ export default function ModalComentarios({
     return () => {
       void supabase.removeChannel(ch)
     }
-  }, [ativo, postId, carregar])
+  }, [ativo, postIdValido, carregar])
 
   useEffect(() => {
     if (!ativo || !usuarioId || leituraComentarios) {
@@ -283,17 +293,12 @@ export default function ModalComentarios({
   /** Impede scroll do feed atrás do overlay (apenas modal). */
   useEffect(() => {
     if (inline || !aberto || typeof document === 'undefined') return
-    const html = document.documentElement
-    const body = document.body
-    const prevHtmlOverflow = html.style.overflow
-    const prevBodyOverflow = body.style.overflow
-    html.style.overflow = 'hidden'
-    body.style.overflow = 'hidden'
-    return () => {
-      html.style.overflow = prevHtmlOverflow
-      body.style.overflow = prevBodyOverflow
+    const onKey = (e) => {
+      if (e.key === 'Escape') onFechar()
     }
-  }, [inline, aberto])
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [inline, aberto, onFechar])
 
   useEffect(() => {
     if (!ativo || !destacarComentarioId) return
@@ -312,15 +317,16 @@ export default function ModalComentarios({
     el.style.height = `${Math.min(Math.max(el.scrollHeight, 36), 96)}px`
   }, [novoComentario, ativo])
 
-  const handleEnviarComentario = async () => {
+  const handleEnviarComentario = async (e) => {
+    e?.preventDefault?.()
     if (leituraComentarios) return
     const texto = novoComentario.trim()
-    if (!texto || !usuarioId) return
+    if (!texto || !usuarioIdValido || !postIdValido) return
     setEnviando(true)
     try {
       const { error } = await supabase.from('comentarios').insert({
-        post_id: postId,
-        autor_id: usuarioId,
+        post_id: postIdValido,
+        autor_id: usuarioIdValido,
         texto,
         ...(empresaInteratorId ? { empresa_interator_id: empresaInteratorId } : {}),
       })
@@ -350,7 +356,7 @@ export default function ModalComentarios({
     : 'min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 text-black'
 
   const lista = (
-    <div ref={listaScrollRef} className={listaClasses}>
+    <div ref={listaScrollRef} className={listaClasses} data-modal-scroll-lock-scrollable>
       {arvore.length === 0 ? <p className="py-8 text-center text-sm text-gray-900">Nenhum comentário</p> : null}
       {arvore.map((c) => (
         <Comentario
@@ -368,10 +374,11 @@ export default function ModalComentarios({
   )
 
   const rodape = (
-    <div
+    <form
       id={`comentarios-rodape-${postId}`}
       className={`shrink-0 border-t border-gray-200 bg-white p-3 ${inline ? 'sticky bottom-0 z-[2] shadow-[0_-4px_12px_rgba(0,0,0,0.06)]' : ''}`}
       style={{ paddingBottom: Math.max(12, tecladoInset) }}
+      onSubmit={(e) => void handleEnviarComentario(e)}
     >
       <div className="flex min-w-0 items-end gap-2">
         <div className="relative h-9 w-9 shrink-0 self-center overflow-hidden rounded-md bg-gray-100">
@@ -387,13 +394,18 @@ export default function ModalComentarios({
           className="max-h-24 min-h-9 min-w-0 flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm leading-5 text-black placeholder:text-gray-400 focus:border-[#0097b2] focus:outline-none focus:ring-1 focus:ring-[#0097b2]"
           placeholder="Comentar"
           value={novoComentario}
-          disabled={!usuarioId || enviando}
+          disabled={!usuarioIdValido || enviando}
           onChange={(e) => setNovoComentario(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              void handleEnviarComentario(e)
+            }
+          }}
         />
         <button
-          type="button"
-          disabled={!novoComentario.trim() || enviando || !usuarioId}
-          onClick={() => void handleEnviarComentario()}
+          type="submit"
+          disabled={!novoComentario.trim() || enviando || !usuarioIdValido}
           className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-lg bg-[#0097b2] text-white shadow-sm transition hover:bg-[#0088a1] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
           aria-label="Enviar comentário"
         >
@@ -406,8 +418,8 @@ export default function ModalComentarios({
           )}
         </button>
       </div>
-      {!usuarioId ? <p className="mt-2 text-center text-xs text-gray-500">Entre na conta para comentar.</p> : null}
-    </div>
+      {!usuarioIdValido ? <p className="mt-2 text-center text-xs text-gray-500">Entre na conta para comentar.</p> : null}
+    </form>
   )
 
   if (inline) {
@@ -426,14 +438,19 @@ export default function ModalComentarios({
     )
   }
 
-  return (
-    <div className="fixed inset-0 z-[230] flex items-end justify-center overscroll-none bg-black/50 sm:items-center sm:p-4">
+  const modal = (
+    <div
+      className="fixed inset-0 z-[230] flex items-end justify-center overscroll-none bg-black/50 sm:items-center sm:p-4"
+      onClick={onFechar}
+      role="presentation"
+    >
       <div
         className="flex w-full min-w-0 max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
         style={{ height: 'min(70vh, 85vh)' }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-comentarios-titulo"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3">
           <h3 id="modal-comentarios-titulo" className="font-bold text-black">
@@ -448,4 +465,6 @@ export default function ModalComentarios({
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }

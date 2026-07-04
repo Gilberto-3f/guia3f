@@ -18,6 +18,7 @@ import { registrarCliqueBotaoDinamico } from '@/lib/botaoDinamicoCliques'
 import { supabase } from '@/lib/supabase'
 import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-empresa'
 import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
+import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 const botoesPorCategoria = {
   gastronomia: { texto: 'RESERVAR MESA', icon: Utensils, cor: '#FF6B6B', acao: 'reserva' },
@@ -89,6 +90,9 @@ export default function AbaBotaoDinamico({
   const [dataMesa, setDataMesa] = useState('')
   const [horaMesa, setHoraMesa] = useState('')
   const [nPessoasMesa, setNPessoasMesa] = useState(2)
+
+  const popupDinamicoAberto = showReservaMesaModal || showTicketPopup || showReservaPopup
+  useModalScrollLock(popupDinamicoAberto)
 
   useEffect(() => {
     if (!showReservaMesaModal) return
@@ -273,6 +277,7 @@ export default function AbaBotaoDinamico({
         >
           <div
             className="w-full max-w-sm min-w-0 overflow-hidden rounded-xl bg-white p-4 text-gray-900 shadow-xl [color-scheme:light]"
+            data-modal-scroll-lock-scrollable
             onClick={(ev) => ev.stopPropagation()}
             role="dialog"
             aria-labelledby="reserva-mesa-titulo"

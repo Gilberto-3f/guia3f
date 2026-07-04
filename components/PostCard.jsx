@@ -629,20 +629,20 @@ export default function PostCard({
       notificarSomenteLeitura()
       return
     }
-    if (comentariosInline && compositorComentarioAteClique && bloqueioFeedSocial) {
+    if (bloqueioFeedSocial) {
       avisarBloqueioFeed()
       return
     }
-    if (comentariosInline) {
-      if (compositorComentarioAteClique) {
-        setCompositorAberto(true)
+    if (comentariosInline && compositorComentarioAteClique) {
+      setCompositorAberto(true)
+      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            document.getElementById(`comentarios-inline-${post.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          })
+          document.getElementById(`comentarios-inline-${post.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         })
-        return
-      }
+      })
+      return
+    }
+    if (comentariosInline) {
       document.getElementById(`comentarios-inline-${post.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }

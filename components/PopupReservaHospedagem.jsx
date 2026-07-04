@@ -16,6 +16,7 @@ import {
   buscarReservaPendenteEmpresa,
   listarReservasPendentesOutrasEmpresas,
 } from '@/lib/reservaHospedagem'
+import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 /** Azul do botão dinâmico do segmento Hospedagem. */
 const COR_HOSPEDAGEM = '#45B7D1'
@@ -98,6 +99,8 @@ export default function PopupReservaHospedagem({
     }
     void carregarEstadoReserva()
   }, [isOpen, carregarEstadoReserva])
+
+  useModalScrollLock(isOpen)
 
   if (!isOpen) return null
 
@@ -221,6 +224,7 @@ export default function PopupReservaHospedagem({
       >
         <div
           className="max-h-[90vh] w-full max-w-md overflow-x-hidden overflow-y-auto rounded-xl bg-white text-gray-900 shadow-xl [color-scheme:light]"
+          data-modal-scroll-lock-scrollable
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"

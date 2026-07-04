@@ -8,6 +8,7 @@ import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
+import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 /**
  * @param {{
@@ -41,6 +42,8 @@ export default function PopupCompraTicket({
   const [quantidade, setQuantidade] = useState(1)
   const [tipoIngresso, setTipoIngresso] = useState(/** @type {'inteira' | 'meia'} */ ('inteira'))
   const [loading, setLoading] = useState(false)
+
+  useModalScrollLock(isOpen)
 
   if (!isOpen) return null
 
@@ -97,6 +100,7 @@ export default function PopupCompraTicket({
       >
         <div
           className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white text-gray-900"
+          data-modal-scroll-lock-scrollable
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"

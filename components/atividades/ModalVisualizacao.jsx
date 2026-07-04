@@ -10,6 +10,7 @@ import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
 import { pickAutorDisplay } from '@/lib/feed-autor'
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import { getPerfilHref } from '@/lib/perfil-utils'
+import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 const POSTS_FEED_VIEW = 'posts_com_autores'
 
@@ -123,19 +124,7 @@ export default function ModalVisualizacao({
     setIndiceAtual(i)
   }, [aberto, indiceInicial, ids.length, idsKey])
 
-  useEffect(() => {
-    if (!aberto) return
-    const html = document.documentElement
-    const body = document.body
-    const prevHtml = html.style.overflow
-    const prevBody = body.style.overflow
-    html.style.overflow = 'hidden'
-    body.style.overflow = 'hidden'
-    return () => {
-      html.style.overflow = prevHtml
-      body.style.overflow = prevBody
-    }
-  }, [aberto])
+  useModalScrollLock(aberto)
 
   useEffect(() => {
     if (!aberto) return
@@ -427,6 +416,7 @@ export default function ModalVisualizacao({
         <div className="flex min-h-0 flex-1 flex-col">
           <div
             className="min-h-0 flex-1 overflow-y-auto px-2 pb-4 pt-2 sm:px-4"
+            data-modal-scroll-lock-scrollable
             onTouchStart={onTouchStartCarouselNav}
             onTouchEnd={onTouchEndCarouselNav}
             onTouchCancel={onTouchCancelCarouselNav}

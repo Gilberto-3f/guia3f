@@ -16,6 +16,7 @@ import {
   mensagemWhatsappReservaMesa,
   mensagemWhatsappContatoGuia,
 } from '@/lib/whatsapp-empresa'
+import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 // Cards de filtros: botão dinâmico sempre verde (página da empresa usa AbaBotaoDinamico com cores por segmento)
 const COR_PADRAO = '#00D443'
@@ -93,6 +94,9 @@ export default function BotaoDinamico({
   const [reservaData, setReservaData] = useState('')
   const [reservaHora, setReservaHora] = useState('')
   const [reservaPessoas, setReservaPessoas] = useState(2)
+
+  const popupDinamicoAberto = showReservaMesaModal || showTicketPopup || showReservaPopup
+  useModalScrollLock(popupDinamicoAberto)
 
   // FIX: somente texto e ícone mudam por categoria/cidade
   const config = useMemo(() => {
@@ -220,7 +224,7 @@ export default function BotaoDinamico({
                 if (e.target === e.currentTarget) setShowReservaMesaModal(false)
               }}
             >
-              <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" data-modal-scroll-lock-scrollable onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-extrabold text-gray-900">Reservar mesa</h3>
