@@ -82,17 +82,20 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
       .channel(`menu-empresa-chat-adm-${usuarioId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'ecossistema_mensagens' },
-        (payload) => {
-          const remetente = payload.new?.remetente_id != null ? String(payload.new.remetente_id) : ''
-          if (remetente === usuarioId) return
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'ecossistema_conversa_leitura',
+          filter: `usuario_id=eq.${usuarioId}`,
+        },
+        () => {
           scheduleRefresh()
         },
       )
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'ecossistema_conversa_leitura',
           filter: `usuario_id=eq.${usuarioId}`,

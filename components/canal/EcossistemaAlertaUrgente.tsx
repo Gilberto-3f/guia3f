@@ -66,13 +66,6 @@ export default function EcossistemaAlertaUrgente() {
           }
         },
       )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'ecossistema_mensagens' },
-        () => {
-          agendarCarregar()
-        },
-      )
       .subscribe()
 
     return () => {

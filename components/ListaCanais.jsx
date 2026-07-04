@@ -428,24 +428,13 @@ export default function ListaCanais({
       )
     }
 
-    if (agruparPorTipo || tipoPublico === 'admin') {
-      ch.on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'ecossistema_mensagens' },
-        () => {
-          notificarBadgeCanais()
-          agendarRecarregarContagens()
-        },
-      )
-    }
-
     void ch.subscribe()
 
     return () => {
       if (contagensTimerRef.current) clearTimeout(contagensTimerRef.current)
       void supabase.removeChannel(ch)
     }
-  }, [idsMonitor, agendarRecarregarContagens, agruparPorTipo, tipoPublico])
+  }, [idsMonitor, agendarRecarregarContagens])
 
   /**
    * @param {Canal} canal

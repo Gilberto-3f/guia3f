@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { carregarContagensMembrosPorCanais } from '@/lib/canalMembrosContagem'
 
 /**
- * Contagem de membros impactados por canal + atualização em tempo real (cadastros).
+ * Contagem de membros impactados por canal (recarrega ao montar ou quando a lista muda).
  * @param {Array<{ id: string, nome?: string | null, tipo_publico?: string | null, categoria?: string | null, comunidade_prof?: string | null, empresa_id?: string | null, empresa_categoria?: string | null }>} canais
  */
 export function useContagemMembrosCanais(canais) {
@@ -34,25 +34,6 @@ export function useContagemMembrosCanais(canais) {
   useEffect(() => {
     void recarregar()
   }, [recarregar, idsChave])
-
-  useEffect(() => {
-    const ch = supabase
-      .channel('contagem-membros-canais')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profissionais' }, () => {
-        void recarregar()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'empresas' }, () => {
-        void recarregar()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'usuarios' }, () => {
-        void recarregar()
-      })
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(ch)
-    }
-  }, [recarregar])
 
   return membrosPorCanal
 }

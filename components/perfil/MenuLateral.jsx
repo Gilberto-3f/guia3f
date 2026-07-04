@@ -977,17 +977,20 @@ export default function MenuLateral({
       .channel(`menu-chat-adm-${usuarioIdEfetivo}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'ecossistema_mensagens' },
-        (payload) => {
-          const remetente = payload.new?.remetente_id != null ? String(payload.new.remetente_id) : ''
-          if (remetente && remetente === usuarioIdEfetivo) return
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'ecossistema_conversa_leitura',
+          filter: `usuario_id=eq.${usuarioIdEfetivo}`,
+        },
+        () => {
           scheduleRefresh()
         },
       )
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'ecossistema_conversa_leitura',
           filter: `usuario_id=eq.${usuarioIdEfetivo}`,

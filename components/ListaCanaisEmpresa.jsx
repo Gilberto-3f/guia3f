@@ -538,20 +538,6 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
         .on(
           'postgres_changes',
           {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'financeiro_mensagens',
-          },
-          () => {
-            if (!cancelled) {
-              notificarBadgeCanais()
-              agendarRecarregarContagens()
-            }
-          },
-        )
-        .on(
-          'postgres_changes',
-          {
             event: '*',
             schema: 'public',
             table: 'financeiro_conversa_leitura',

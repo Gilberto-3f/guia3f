@@ -1606,7 +1606,7 @@ export default function AtividadesPage() {
       .channel(`atividades-sync-${meuId}`)
       .on(
         'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'atividades' },
+        { event: 'DELETE', schema: 'public', table: 'atividades', filter: `usuario_id=eq.${meuId}` },
         (payload) => {
           if (process.env.NODE_ENV === 'development') {
             // eslint-disable-next-line no-console

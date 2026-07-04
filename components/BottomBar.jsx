@@ -82,6 +82,8 @@ function matchPath(path, pathname) {
 
 /** Badges pesados não bloqueiam a liberação da barra. */
 const BADGE_DEFER_MS = 600
+/** Fallback leve quando o utilizador não está em /canal (evita postgres_changes sem filtro). */
+const CANAIS_BADGE_POLL_MS = 90_000
 
 /**
  * @param {{ Icon: import('lucide-react').LucideIcon, label: string, className?: string, children?: import('react').ReactNode }} props
@@ -293,26 +295,9 @@ export default function BottomBar() {
     }
     document.addEventListener('visibilitychange', onVisible)
 
+    /** Só leitura filtrada por utilizador — novas mensagens vêm de `GUIA_CANAIS_BADGE_EVENT` + poll leve. */
     const channel = supabase
       .channel(`bottom-bar-mensagens-canal-${authUserId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'mensagens_canal' },
-        (payload) => {
-          const autor = payload.new?.remetente_id != null ? String(payload.new.remetente_id) : ''
-          if (autor && autor === authUserId) return
-          scheduleRefresh()
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'ecossistema_mensagens' },
-        (payload) => {
-          const autor = payload.new?.remetente_id != null ? String(payload.new.remetente_id) : ''
-          if (autor && autor === authUserId) return
-          scheduleRefresh()
-        },
-      )
       .on(
         'postgres_changes',
         {
@@ -337,19 +322,22 @@ export default function BottomBar() {
           scheduleRefresh()
         },
       )
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'canal_financeiro' }, () => {
-        scheduleRefresh()
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'canal_financeiro' }, () => {
-        scheduleRefresh()
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'financeiro_mensagens' }, () => {
-        scheduleRefresh()
-      })
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
+          schema: 'public',
+          table: 'financeiro_conversa_leitura',
+          filter: `usuario_id=eq.${authUserId}`,
+        },
+        () => {
+          scheduleRefresh()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
           schema: 'public',
           table: 'financeiro_conversa_leitura',
           filter: `usuario_id=eq.${authUserId}`,
@@ -362,9 +350,14 @@ export default function BottomBar() {
         if (status === 'SUBSCRIBED') void refreshCanais()
       })
 
+    const pollId = setInterval(() => {
+      if (document.visibilityState === 'visible') scheduleRefresh()
+    }, CANAIS_BADGE_POLL_MS)
+
     return () => {
       cancelled = true
       clearTimeout(deferId)
+      clearInterval(pollId)
       if (debounceId) clearTimeout(debounceId)
       window.removeEventListener(GUIA_CANAIS_BADGE_EVENT, onCanaisBadge)
       document.removeEventListener('visibilitychange', onVisible)

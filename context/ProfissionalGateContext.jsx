@@ -287,24 +287,67 @@ export function ProfissionalGateProvider({ children }) {
 
   /** Atualiza gate quando ADM aprova cadastro (sem recarregar a página). */
   useEffect(() => {
-    const ch = supabase
-      .channel('recursos-perfil-gate-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'empresas' }, () => {
+    let ch = /** @type {ReturnType<typeof supabase.channel> | null} */ (null)
+    let cancelled = false
+
+    void (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id
+      if (!uid || cancelled) return
+
+      const onGateChange = () => {
+        void refreshGate()
+      }
+      const onEmpresaChange = () => {
         void refreshGate()
         window.dispatchEvent(new Event('anfitriao-modo-refresh'))
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profissionais' }, () => {
-        void refreshGate()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'turistas' }, () => {
-        void refreshGate()
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'usuarios' }, () => {
-        void refreshGate()
-      })
-      .subscribe()
+      }
+
+      ch = supabase
+        .channel(`recursos-perfil-gate-${uid}`)
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'empresas', filter: `usuario_id=eq.${uid}` },
+          onEmpresaChange,
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'empresas', filter: `usuario_id=eq.${uid}` },
+          onEmpresaChange,
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'profissionais', filter: `usuario_id=eq.${uid}` },
+          onGateChange,
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'profissionais', filter: `usuario_id=eq.${uid}` },
+          onGateChange,
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'turistas', filter: `usuario_id=eq.${uid}` },
+          onGateChange,
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'turistas', filter: `usuario_id=eq.${uid}` },
+          onGateChange,
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'usuarios', filter: `id=eq.${uid}` },
+          onGateChange,
+        )
+        .subscribe()
+    })()
+
     return () => {
-      void supabase.removeChannel(ch)
+      cancelled = true
+      if (ch) void supabase.removeChannel(ch)
     }
   }, [refreshGate])
 
