@@ -1486,7 +1486,7 @@ export default function MenuLateral({
     <div className="fixed inset-0 z-[100] max-h-[100dvh]">
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar menu" onClick={onFechar} />
       <aside
-        className={`absolute right-0 top-0 flex h-full max-h-[100dvh] w-[min(92vw,28rem)] min-w-0 flex-col overflow-hidden bg-white text-gray-900 shadow-xl transition-transform duration-300 ease-out ${
+        className={`absolute right-0 top-0 flex h-full max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-white text-gray-900 shadow-xl transition-transform duration-300 ease-out ${
           drawerEntered ? 'translate-x-0' : 'translate-x-full'
         }`}
         role="dialog"

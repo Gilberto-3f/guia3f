@@ -129,7 +129,7 @@ const ROTULO_CATEGORIA = /** @type {const} */ ({
   Atrativos: { Icon: Ticket, rótulo: 'Atrativos' },
   Lojas: { Icon: ShoppingBag, rótulo: 'Lojas' },
   Hospedagem: { Icon: IconHospedagemEstrela, rótulo: 'Hospedagem' },
-  'Serviços Locais': { Icon: Wrench, rótulo: 'Serviços Locais' },
+  'Serviços Locais': { Icon: Wrench, rótulo: 'Serviços' },
   Outros: { Icon: Building2, rótulo: 'Outros' },
 })
 
@@ -683,7 +683,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
               ) : (
               <>
                 <div
-                  className="sticky top-0 z-10 w-full min-w-0 shrink-0 bg-[#0097b2] pt-safe"
+                  className="sticky top-0 z-10 w-full min-w-0 shrink-0 bg-[#0097b2]"
                   role="tablist"
                   aria-label="Categorias de empresas"
                 >

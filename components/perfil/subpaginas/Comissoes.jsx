@@ -408,7 +408,7 @@ export default function Comissoes({ usuarioId = null }) {
         role="tablist"
         aria-label="Categorias de comércio"
       >
-        <div className="grid grid-cols-4 gap-0.5 p-0.5">
+        <div className="grid grid-cols-5 gap-0.5 p-0.5">
           {ORDEM_CATEGORIA_COMERCIO.map((cat) => {
             const ativo = categoriaAba === cat
             const meta = ROTULO_CATEGORIA_COMERCIO[/** @type {keyof typeof ROTULO_CATEGORIA_COMERCIO} */ (cat)]
@@ -436,7 +436,7 @@ export default function Comissoes({ usuarioId = null }) {
                   aria-hidden
                 />
                 <span
-                  className={`w-full px-0.5 text-[9px] font-medium leading-tight tracking-tight sm:text-[10px] ${
+                  className={`w-full px-0.5 text-[8px] font-medium leading-tight tracking-tight sm:text-[9px] ${
                     ativo ? 'text-white' : 'text-[#0097b2]'
                   }`}
                 >

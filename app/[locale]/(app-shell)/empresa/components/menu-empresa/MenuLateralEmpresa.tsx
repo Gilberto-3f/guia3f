@@ -139,7 +139,7 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
       {aberto ? <button type="button" className="fixed inset-0 z-[190] bg-black/50" onClick={onClose} aria-label="Fechar menu" /> : null}
 
       <div
-        className={`fixed right-0 top-0 z-[200] h-full w-[min(100%,360px)] transform bg-white shadow-2xl transition-transform duration-300 ${
+        className={`fixed right-0 top-0 z-[200] h-full w-full transform bg-white shadow-2xl transition-transform duration-300 ${
           aberto ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
