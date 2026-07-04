@@ -280,6 +280,10 @@ export default function AtividadesPage() {
   const [qtdSeguindo, setQtdSeguindo] = useState(0)
   /** Apenas perfis seguidos em rede (sem empresas do guia) — mensagem vazia da aba Seguindo. */
   const [qtdSeguindoRede, setQtdSeguindoRede] = useState(0)
+  /** IDs seguidos só na rede (sem gestores globais do guia). */
+  const [seguidosRedeIds, setSeguidosRedeIds] = useState<string[]>([])
+  /** Gestores de empresa no guia — interações sociais (não hospedagem) só para seguidores da rede. */
+  const [autoresGuiaGlobalIds, setAutoresGuiaGlobalIds] = useState<string[]>([])
   /** Reposts de story ainda ativos no carrossel (expira_em > agora). */
   const [storiesRepostAtivos, setStoriesRepostAtivos] = useState<Set<string>>(() => new Set())
   const [storiesRepostAtivosPronto, setStoriesRepostAtivosPronto] = useState(false)
@@ -1242,6 +1246,8 @@ export default function AtividadesPage() {
       setEmpresaAvaliacaoMap({})
       setQtdSeguindo(0)
       setQtdSeguindoRede(0)
+      setSeguidosRedeIds([])
+      setAutoresGuiaGlobalIds([])
       seguindoRef.current = []
       setOffsetAmigos(0)
       setOffsetMinha(0)
@@ -1266,6 +1272,8 @@ export default function AtividadesPage() {
       setEmpresaAvaliacaoMap({})
       setQtdSeguindo(0)
       setQtdSeguindoRede(0)
+      setSeguidosRedeIds([])
+      setAutoresGuiaGlobalIds([])
       seguindoRef.current = []
       setOffsetAmigos(0)
       setTemMaisAmigos(false)
@@ -1330,6 +1338,8 @@ export default function AtividadesPage() {
       setListaAmigos([])
       setQtdSeguindo(0)
       setQtdSeguindoRede(0)
+      setSeguidosRedeIds([])
+      setAutoresGuiaGlobalIds([])
       seguindoRef.current = []
       setOffsetAmigos(0)
       setTemMaisAmigos(false)
@@ -1387,6 +1397,9 @@ export default function AtividadesPage() {
       }),
     ])
     seguindoRef.current = seguindo
+    const redeSet = new Set(seguindoRede)
+    setSeguidosRedeIds(seguindoRede)
+    setAutoresGuiaGlobalIds(seguindo.filter((id) => !redeSet.has(id)))
     setQtdSeguindoRede(seguindoRede.length)
     setQtdSeguindo(seguindo.length)
 
@@ -1811,6 +1824,8 @@ export default function AtividadesPage() {
             operaComoEmpresaHospedagem,
             ehAnfitriao,
             role: meuRole,
+            seguidosRede: seguidosRedeIds,
+            autoresSomenteGuiaGlobal: autoresGuiaGlobalIds,
           })
         ) {
           return false
@@ -1883,6 +1898,8 @@ export default function AtividadesPage() {
     operaComoEmpresaHospedagem,
     ehAnfitriao,
     meuRole,
+    seguidosRedeIds,
+    autoresGuiaGlobalIds,
   ])
 
   /** Busca meta de posts curtidos que ainda não estão no mapa (ex.: bloco paginado). */
@@ -1958,7 +1975,7 @@ export default function AtividadesPage() {
       })
       return (
         <AtividadeCurtidas
-          key={`cf-${item.autor_id}-${item.empresa_dono_id ?? item.usuario_dono_id}-${item.donor_tipo}-${item.rows.map((r: AtividadeRow) => r.alvo_id).join('-')}`}
+          key={`cf-${item.persona_key}-${item.autor_id}-${item.empresa_dono_id ?? item.usuario_dono_id}-${item.donor_tipo}-${item.rows.map((r: AtividadeRow) => r.alvo_id).join('-')}`}
           interactorUsername={inter?.username ?? 'usuario'}
           interactorFoto={inter?.foto_perfil_url ?? null}
           donorUsername={donorExibir.donorUsername}
@@ -1987,7 +2004,7 @@ export default function AtividadesPage() {
       })
       return (
         <AtividadeCurtidas
-          key={`cfm-${item.autor_id}-${item.rows.map((r: AtividadeRow) => r.alvo_id).join('-')}`}
+          key={`cfm-${item.persona_key}-${item.autor_id}-${item.rows.map((r: AtividadeRow) => r.alvo_id).join('-')}`}
           interactorUsername={inter?.username ?? 'usuario'}
           interactorFoto={inter?.foto_perfil_url ?? null}
           hrefInteractor={hrefPerfilInteractor(rowRef)}
@@ -2628,9 +2645,9 @@ export default function AtividadesPage() {
               {itensAgrupados.map((it: (typeof itensAgrupados)[number], i: number) => {
                 const rowKey =
                   it.kind === 'curtiu_post_fotos'
-                    ? `cf-${it.autor_id}-${it.usuario_dono_id}-${it.created_at}`
+                    ? `cf-${it.persona_key}-${it.usuario_dono_id}-${it.created_at}`
                     : it.kind === 'curtiu_post_fotos_multi'
-                      ? `cfm-${it.autor_id}-${it.created_at}`
+                      ? `cfm-${it.persona_key}-${it.created_at}`
                     : it.kind === 'curtiu_post_solo'
                       ? it.row.id
                       : `row-${it.row.id}`
