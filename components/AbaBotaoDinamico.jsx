@@ -23,8 +23,8 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
 const botoesPorCategoria = {
   gastronomia: { texto: 'RESERVAR MESA', icon: Utensils, cor: '#FF6B6B', acao: 'reserva' },
   Restaurantes: { texto: 'RESERVAR MESA', icon: Utensils, cor: '#FF6B6B', acao: 'reserva' },
-  passeios: { texto: 'TICKET', icon: Ticket, cor: '#4ECDC4', acao: 'ticket' },
-  Atrativos: { texto: 'TICKET', icon: Ticket, cor: '#4ECDC4', acao: 'ticket' },
+  passeios: { texto: 'Comprar Ticket', icon: Ticket, cor: '#4ECDC4', acao: 'ticket', textoCompacto: true },
+  Atrativos: { texto: 'Comprar Ticket', icon: Ticket, cor: '#4ECDC4', acao: 'ticket', textoCompacto: true },
   lojas: { texto: 'VER PRODUTOS', icon: ShoppingBag, cor: '#96CEB4', acao: 'produtos' },
   Lojas: { texto: 'VER PRODUTOS', icon: ShoppingBag, cor: '#96CEB4', acao: 'produtos' },
   hospedagem: { texto: 'FAZER RESERVA', icon: Hotel, cor: '#45B7D1', acao: 'reserva' },
@@ -230,7 +230,9 @@ export default function AbaBotaoDinamico({
             <button
               type="button"
               onClick={handleClick}
-              className={`w-full rounded-lg py-3 font-bold text-white transition-colors hover:opacity-90${config.textoCompacto ? ' text-sm tracking-tight' : ''}`}
+              className={`w-full rounded-lg py-3 font-bold text-white transition-colors hover:opacity-90${
+                config.textoCompacto ? ' text-sm tracking-tight' : ' text-base'
+              }`}
               style={{ backgroundColor: config.cor }}
             >
               {config.texto}

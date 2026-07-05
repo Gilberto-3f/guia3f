@@ -101,7 +101,9 @@ export default function BotaoDinamico({
   // FIX: somente texto e ícone mudam por categoria/cidade
   const config = useMemo(() => {
     if (isGastronomia(categoria)) return { texto: 'RESERVAR MESA', icon: Utensils, acao: 'reserva_mesa' }
-    if (isPasseios(categoria)) return { texto: 'TICKET', icon: Ticket, acao: 'ticket' }
+    if (isPasseios(categoria)) {
+      return { texto: 'Comprar Ticket', icon: Ticket, acao: 'ticket', textoCompacto: true }
+    }
     if (isHospedagem(categoria)) return { texto: 'FAZER RESERVA', icon: Calendar, acao: 'hospedagem' }
     if (isServicosLocais(categoria)) return { texto: 'WhatsApp', icon: MessageCircle, acao: 'whatsapp' }
 
@@ -205,7 +207,7 @@ export default function BotaoDinamico({
       <button
         type="button"
         onClick={handleClick}
-        className={`flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center font-bold leading-tight text-white transition-opacity hover:opacity-95 ${
+        className={`flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center font-extrabold leading-tight text-white transition-opacity hover:opacity-95 ${
           config.textoCompacto ? 'text-[10px] whitespace-nowrap sm:text-[11px]' : 'text-xs whitespace-normal sm:text-sm'
         }`}
         style={{ backgroundColor: corBotao }}
