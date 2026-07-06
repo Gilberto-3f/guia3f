@@ -1,7 +1,7 @@
-import { createServerClient } from "@supabase/ssr";
 import createMiddleware from "next-intl/middleware";
 import { type NextRequest, NextResponse } from "next/server";
 import { routing } from "./i18n/routing";
+import { middlewareTemSessaoLocal } from "./lib/middlewareAuthCookie";
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -34,34 +34,7 @@ export default async function middleware(request: NextRequest) {
     return response;
   }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        encode: "tokens-only",
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet, responseHeaders) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
-          });
-          if (responseHeaders) {
-            Object.entries(responseHeaders).forEach(([key, value]) => {
-              response.headers.set(key, value);
-            });
-          }
-        },
-      },
-    }
-  );
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
+  if (!middlewareTemSessaoLocal(request)) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { parseTourConfig, sincronizarTourComFotos, storagePathFromPublicUrl } from '@/lib/pannellumTour'
 import type { TourConfig } from '@/lib/tour360Types'
+import { getUserFromCookieSession } from '@/lib/serverAuthSession'
 
 async function assertAdmin() {
   const cookieStore = await cookies()
@@ -22,10 +23,7 @@ async function assertAdmin() {
     }
   )
 
-  const {
-    data: { user },
-    error: authErr,
-  } = await supabaseAuth.auth.getUser()
+  const { user, error: authErr } = await getUserFromCookieSession(supabaseAuth)
   if (authErr || !user) {
     return { error: NextResponse.json({ error: 'unauthorized' }, { status: 401 }) }
   }

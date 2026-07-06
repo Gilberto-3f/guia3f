@@ -75,6 +75,8 @@ function matchPath(path, pathname) {
 const BADGE_DEFER_MS = 600
 /** Fallback leve quando o utilizador não está em /canal (evita postgres_changes sem filtro). */
 const CANAIS_BADGE_POLL_MS = 90_000
+const ATIVIDADES_BADGE_POLL_MS = 120_000
+const FUNIL_BADGE_POLL_MS = 120_000
 
 /**
  * @param {{ Icon: import('lucide-react').LucideIcon, label: string, className?: string, children?: import('react').ReactNode }} props
@@ -212,43 +214,15 @@ export default function BottomBar() {
       void refreshBadgeAtividades()
     }, BADGE_DEFER_MS)
 
-    const chAtividades = supabase
-      .channel(`bottom-bar-atividades-${authUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'atividades',
-          filter: `usuario_id=eq.${authUserId}`,
-        },
-        (payload) => {
-          const autor = payload.new?.autor_id != null ? String(payload.new.autor_id) : ''
-          if (autor && autor === authUserId) return
-          void refreshBadgeAtividades()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'atividades',
-          filter: `usuario_id=eq.${authUserId}`,
-        },
-        (payload) => {
-          const autor = payload.new?.autor_id != null ? String(payload.new.autor_id) : ''
-          if (autor && autor === authUserId) return
-          void refreshBadgeAtividades()
-        },
-      )
-      .subscribe()
+    const pollId = setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshBadgeAtividades()
+    }, ATIVIDADES_BADGE_POLL_MS)
 
     return () => {
       ativo = false
       clearTimeout(deferId)
+      clearInterval(pollId)
       window.removeEventListener(GUIA_ATIVIDADES_BADGE_EVENT, onBadge)
-      void supabase.removeChannel(chAtividades)
     }
   }, [authUserId, userRole, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
 
@@ -341,35 +315,15 @@ export default function BottomBar() {
     }
     window.addEventListener(GUIA_FUNIL_BADGE_EVENT, onFunil)
 
-    const chFunil = supabase
-      .channel(`bottom-bar-funil-${empId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'recomendacoes', filter: `empresa_id=eq.${empId}` },
-        onFunil,
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'manifesto',
-          filter: `empresa_destino_id=eq.${empId}`,
-        },
-        onFunil,
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'comissao', filter: `empresa_id=eq.${empId}` },
-        onFunil,
-      )
-      .subscribe()
+    const pollFunilId = setInterval(() => {
+      if (document.visibilityState === 'visible') void refresh()
+    }, FUNIL_BADGE_POLL_MS)
 
     return () => {
       cancelled = true
       clearTimeout(deferId)
+      clearInterval(pollFunilId)
       window.removeEventListener(GUIA_FUNIL_BADGE_EVENT, onFunil)
-      void supabase.removeChannel(chFunil)
     }
   }, [authUserId, userRole, empresaId, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada])
 

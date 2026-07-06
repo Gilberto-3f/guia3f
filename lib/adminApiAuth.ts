@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { getUserFromCookieSession } from '@/lib/serverAuthSession'
 
 export type AdminSessionOk = {
   ok: true
@@ -132,13 +133,10 @@ export async function assertAdminSession(): Promise<AdminSessionResult> {
     },
   )
 
-  const {
-    data: { user },
-    error: authErr,
-  } = await supabase.auth.getUser()
+  const { user, error: authErr } = await getUserFromCookieSession(supabase)
 
   if (authErr) {
-    console.error('[assertAdminSession] getUser', authErr.message)
+    console.error('[assertAdminSession] getSession', authErr.message)
     return {
       ok: false,
       error: jsonAdminError(401, 'auth', 'Sessão inválida ou expirada. Faça login novamente no painel ADM.'),

@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
 import type { TipoNotificacaoFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
+import { getUserFromCookieSession } from '@/lib/serverAuthSession'
 
 async function assertAdminSession() {
   const cookieStore = await cookies()
@@ -19,10 +20,7 @@ async function assertAdminSession() {
     }
   )
 
-  const {
-    data: { user },
-    error: authErr,
-  } = await supabase.auth.getUser()
+  const { user, error: authErr } = await getUserFromCookieSession(supabase)
   if (authErr || !user) {
     return { error: NextResponse.json({ error: 'unauthorized' }, { status: 401 }) }
   }

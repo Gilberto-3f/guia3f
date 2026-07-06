@@ -5,6 +5,7 @@ import { type ModalidadePlanoEmpresa } from '@/lib/contratarPlanoEmpresa'
 import { registrarAssinaturaPlanoEmpresa } from '@/lib/empresaAssinatura'
 import type { FormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { getUserFromCookieSession } from '@/lib/serverAuthSession'
 
 /** Empresa contrata plano do catálogo ADM (aba Planos do canal financeiro). */
 export async function POST(req: Request) {
@@ -23,10 +24,7 @@ export async function POST(req: Request) {
       },
     )
 
-    const {
-      data: { user },
-      error: authErr,
-    } = await supabase.auth.getUser()
+    const { user, error: authErr } = await getUserFromCookieSession(supabase)
 
     if (authErr || !user) {
       return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })

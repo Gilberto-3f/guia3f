@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { persistirLeituraCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresaLeitura.server'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { getUserFromCookieSession } from '@/lib/serverAuthSession'
 
 /** Empresa marca aviso(s) do canal financeiro como lido(s) — persiste via service role. */
 export async function POST(req: Request) {
@@ -21,10 +22,7 @@ export async function POST(req: Request) {
       },
     )
 
-    const {
-      data: { user },
-      error: authErr,
-    } = await supabase.auth.getUser()
+    const { user, error: authErr } = await getUserFromCookieSession(supabase)
 
     if (authErr || !user) {
       return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })

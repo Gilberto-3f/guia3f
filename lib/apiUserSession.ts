@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { getUserFromCookieSession } from '@/lib/serverAuthSession'
 
 export type UserSessionOk = {
   ok: true
@@ -31,10 +32,7 @@ export async function assertUserSession(): Promise<UserSessionOk | UserSessionFa
     },
   )
 
-  const {
-    data: { user },
-    error: authErr,
-  } = await supabase.auth.getUser()
+  const { user, error: authErr } = await getUserFromCookieSession(supabase)
 
   if (authErr || !user) {
     return { ok: false, error: NextResponse.json({ error: 'unauthorized' }, { status: 401 }) }
