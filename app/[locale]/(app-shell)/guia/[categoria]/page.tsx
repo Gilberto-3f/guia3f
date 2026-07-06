@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, MapPin, Star } from 'lucide-react'
+import { ArrowLeft, Check, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import CardAtrativo from '@/components/CardAtrativo'
 import BuscadorGuiaSegmento from '@/components/guia/BuscadorGuiaSegmento'
@@ -342,13 +342,15 @@ export default function ListagemCategoriaPage() {
                   aria-label="Filtrar hospedagens disponíveis"
                   aria-pressed={somenteDisponiveis}
                   onClick={() => setSomenteDisponiveis((v) => !v)}
-                  className={`inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-xs font-semibold transition ${
-                    somenteDisponiveis
-                      ? 'border-[#00D443] bg-[#00D443] text-white'
-                      : 'border-gray-200 bg-white text-[#0097b2] hover:bg-gray-50'
-                  }`}
+                  className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-2 transition hover:bg-gray-50"
                 >
-                  Disponíveis
+                  <Check
+                    className="h-6 w-6 shrink-0 text-[#0097b2]"
+                    fill={somenteDisponiveis ? 'currentColor' : 'none'}
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    aria-hidden
+                  />
                 </button>
               ) : null}
 
