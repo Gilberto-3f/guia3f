@@ -21,6 +21,11 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
 // Cards de filtros: botão dinâmico sempre verde (página da empresa usa AbaBotaoDinamico com cores por segmento)
 const COR_PADRAO = '#00D443'
 
+/** Mesmo tamanho do botão "VISITAR PÁGINA" no CardAtrativo. */
+const CLASSE_TEXTO_BOTAO_PADRAO = 'text-xs font-extrabold leading-tight whitespace-normal sm:text-sm'
+/** Texto longo em uma linha (ex.: Comprar Ticket). */
+const CLASSE_TEXTO_BOTAO_COMPACTO = 'text-[11px] font-extrabold leading-tight whitespace-nowrap sm:text-xs'
+
 function norm(s) {
   return String(s ?? '').toLowerCase().trim()
 }
@@ -207,8 +212,8 @@ export default function BotaoDinamico({
       <button
         type="button"
         onClick={handleClick}
-        className={`flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center font-extrabold leading-tight text-white transition-opacity hover:opacity-95 ${
-          config.textoCompacto ? 'text-[10px] whitespace-nowrap sm:text-[11px]' : 'text-xs whitespace-normal sm:text-sm'
+        className={`flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center text-white transition-opacity hover:opacity-95 ${
+          config.textoCompacto ? CLASSE_TEXTO_BOTAO_COMPACTO : CLASSE_TEXTO_BOTAO_PADRAO
         }`}
         style={{ backgroundColor: corBotao }}
       >
@@ -228,15 +233,19 @@ export default function BotaoDinamico({
                 if (e.target === e.currentTarget) setShowReservaMesaModal(false)
               }}
             >
-              <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" data-modal-scroll-lock-scrollable onClick={(e) => e.stopPropagation()}>
+              <div
+                className="w-full min-w-0 max-w-sm overflow-hidden rounded-2xl bg-white p-5 shadow-xl [color-scheme:light]"
+                data-modal-scroll-lock-scrollable
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <h3 className="text-lg font-extrabold text-gray-900">Reservar mesa</h3>
                     <p className="mt-1 text-xs text-gray-500">Preencha os dados para enviar no WhatsApp.</p>
                   </div>
                   <button
                     type="button"
-                    className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+                    className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100"
                     onClick={() => setShowReservaMesaModal(false)}
                     aria-label="Fechar"
                   >
@@ -244,23 +253,23 @@ export default function BotaoDinamico({
                   </button>
                 </div>
 
-                <div className="mt-4 space-y-3">
-                  <div>
+                <div className="mt-4 min-w-0 max-w-full space-y-3">
+                  <div className="min-w-0 max-w-full">
                     <label className="block text-xs font-semibold text-gray-700">Data</label>
                     <input
                       type="date"
                       value={reservaData}
                       onChange={(e) => setReservaData(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                      className="mt-1 box-border w-full min-w-0 max-w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0 max-w-full">
                     <label className="block text-xs font-semibold text-gray-700">Horário</label>
                     <input
                       type="time"
                       value={reservaHora}
                       onChange={(e) => setReservaHora(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                      className="mt-1 box-border w-full min-w-0 max-w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                     />
                   </div>
                   <div>
