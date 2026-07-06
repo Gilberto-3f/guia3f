@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
+import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
 import AvatarImage from '@/components/AvatarImage'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
@@ -73,7 +73,14 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
       }
 
       const entradas = [...porChave.values()]
-      const usuarioIds = [...new Set(entradas.map((r) => String(r.usuario_id ?? '').trim()).filter(Boolean))]
+      const usuarioIdsProf = [
+        ...new Set(
+          entradas
+            .filter((r) => !(r.empresa_interator_id != null && String(r.empresa_interator_id).trim() !== ''))
+            .map((r) => String(r.usuario_id ?? '').trim())
+            .filter(Boolean),
+        ),
+      ]
       const empresaIds = [
         ...new Set(
           entradas
@@ -82,9 +89,9 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
         ),
       ]
 
-      const perfis = await buscarPerfisPorIds(supabase, usuarioIds)
-      const verificadoPorUsuario = await fetchVerificadoPorUsuarioIds(supabase, usuarioIds)
-      const byUid = new Map(perfis.map((p) => [String(p.usuario_id), p]))
+      const perfisSociais = await buscarPerfisSociaisPorIds(supabase, usuarioIdsProf)
+      const verificadoPorUsuario = await fetchVerificadoPorUsuarioIds(supabase, usuarioIdsProf)
+      const byUid = new Map(perfisSociais.map((p) => [String(p.usuario_id), p]))
 
       /** @type {Record<string, { nome: string, username: string, foto_url: string | null, verificado: boolean }>} */
       const empMap = {}
@@ -132,19 +139,31 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
           }
         }
 
+        if (empId) {
+          return {
+            chave,
+            id: uid,
+            nome: 'Empresa',
+            username: 'empresa',
+            foto: null,
+            role: 'empresa',
+            empresaId: empId,
+            verificado: false,
+          }
+        }
+
         const p = byUid.get(uid)
         const username = (p?.username ?? 'usuario').trim().replace(/^@+/, '') || 'usuario'
         const nome = (p?.nome ?? '').trim() || username
-        const tipo = String(p?.tipo ?? '').toLowerCase()
         return {
           chave,
           id: uid,
           nome,
           username,
           foto: p?.foto_url != null && String(p.foto_url).trim() !== '' ? String(p.foto_url) : null,
-          role: tipo || 'user',
-          empresaId: p?.empresa_id != null ? String(p.empresa_id) : '',
-          verificado: Boolean(verificadoPorUsuario.get(uid)),
+          role: p?.origem === 'profissionais' ? 'profissional' : 'turista',
+          empresaId: '',
+          verificado: Boolean(p?.verificadoProfissional ?? verificadoPorUsuario.get(uid)),
         }
       })
 

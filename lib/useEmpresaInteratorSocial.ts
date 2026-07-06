@@ -3,11 +3,7 @@
 import { useMemo } from 'react'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
-import {
-  categoriasIncluemAnfitriao,
-  lerModoAnfitriaoStorage,
-  profissionalOperaComoEmpresaHospedagem,
-} from '@/lib/anfitriaoDualMode'
+import { categoriasIncluemAnfitriao } from '@/lib/anfitriaoDualMode'
 
 /** Empresa de hospedagem quando o anfitrião interage no feed em modo hospedagem. */
 export function useEmpresaInteratorSocial(): string | null {
@@ -26,20 +22,8 @@ export function useEmpresaInteratorSocial(): string | null {
       String(empresaHospedagemId ?? prof?.empresa_hospedagem_id ?? '').trim() || null
     if (!empId || !empresaHospedagemLiberada) return null
 
-    if (
-      profissionalOperaComoEmpresaHospedagem(
-        userRole,
-        ehAnfit,
-        modoEfetivo,
-        empId,
-        empresaHospedagemLiberada,
-      )
-    ) {
-      return empId
-    }
-
-    // Contexto ainda sincronizando: confiar no modo persistido se a hospedagem já está liberada.
-    if (lerModoAnfitriaoStorage() === 'hospedagem') return empId
+    // Única fonte de verdade: modo efetivo do contexto (já sincronizado com localStorage).
+    if (modoEfetivo === 'hospedagem') return empId
 
     return null
   }, [userRole, profRow, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada])
