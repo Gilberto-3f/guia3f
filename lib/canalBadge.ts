@@ -12,6 +12,7 @@ import {
   contarFinanceiroNaoLidasProfissional,
   obterIdsCanaisMensagensProfissional,
 } from '@/lib/canaisProfissionalVisibilidade'
+import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
 
 /**
  * `visto_em` após leitura: cobre a última mensagem visível (+ folga de 1s para relógio/Postgres).
@@ -160,7 +161,7 @@ export async function contarMensagensNaoLidasCanais(
 ): Promise<number> {
   if (!userId) return 0
 
-  const { data: userRow } = await supabase.from('usuarios').select('role').eq('id', userId).maybeSingle()
+  const { data: userRow } = await buscarUsuarioCached(supabase, userId, 'role')
   const role = userRow?.role != null ? String(userRow.role) : ''
 
   const desde = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString()
@@ -177,7 +178,7 @@ export async function contarMensagensNaoLidasCanais(
   } else if (role === 'admin') {
     const [inbox, { data: adminRow }] = await Promise.all([
       contarMensagensNaoLidasInboxAdmin(supabase, userId),
-      supabase.from('usuarios').select('admin_level, admin_permissoes').eq('id', userId).maybeSingle(),
+      buscarUsuarioCached(supabase, userId, 'admin_level, admin_permissoes'),
     ])
     const hub = await contarAvisosFinanceiroHubNaoLidos(supabase, userId, adminRow ?? {})
     return inbox + hub
@@ -249,7 +250,7 @@ export async function contarNaoLidasPorCanalIds(
   const out: Record<string, number> = {}
   if (!userId || canalIds.length === 0) return out
 
-  const { data: userRow } = await supabase.from('usuarios').select('role').eq('id', userId).maybeSingle()
+  const { data: userRow } = await buscarUsuarioCached(supabase, userId, 'role')
   if (userRow?.role === 'admin') {
     return contarNaoLidasPorCanalIdsAdmin(supabase, userId, canalIds)
   }

@@ -16,6 +16,7 @@ import { buscarPerfisPorIds } from '@/lib/perfil-utils'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { fetchEmpresasGuiaRows } from '@/lib/feedSeguidosEmpresasFavoritas'
 import { tentarProcessarPublicacoesAgendadas } from '@/lib/processarPublicacoesAgendadasClient'
+import { listarSeguidosIdsCached } from '@/lib/redeContatosCache'
 import {
   autorIdFromStorySlot,
   storySlotEhEmpresa,
@@ -142,8 +143,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     /** @param {string} userId */
     const carregarMeuAvatar = async (userId) => fetchFotoPerfilUsuario(supabase, userId)
 
-    const [{ data: seguidosRows }, { data: storiesRows, error: storiesErr }, meuAvatarUrl] = await Promise.all([
-      supabase.from('redecontatos').select('seguido_id').eq('seguidor_id', uid),
+    const [{ data: storiesRows, error: storiesErr }, meuAvatarUrl, seguidosIdsList] = await Promise.all([
       supabase
         .from('stories')
         .select('id, autor_id, conteudo_url, visualizado_por, created_at, tipo, autor_tipo')
@@ -151,6 +151,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
         .order('created_at', { ascending: false })
         .limit(120),
       carregarMeuAvatar(uid),
+      listarSeguidosIdsCached(supabase, uid),
     ])
 
     if (storiesErr) {
@@ -166,7 +167,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       return ok
     })
 
-    const seguidosIds = new Set((seguidosRows ?? []).map((r) => String(r.seguido_id)).filter(Boolean))
+    const seguidosIds = new Set(seguidosIdsList)
 
     const storyAutorIds = [...new Set(storiesValidas.map((s) => String(s.autor_id)).filter(Boolean))]
     let empresasRows = /** @type {{ usuario_id: string, nome_fantasia: string | null, nome_usuario: string | null, foto_url: string | null }[]} */ (

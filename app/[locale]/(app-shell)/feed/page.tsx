@@ -11,6 +11,8 @@ import {
   fetchUsuarioIdsTodasEmpresasGuia,
 } from '@/lib/feedSeguidosEmpresasFavoritas'
 import { tentarProcessarPublicacoesAgendadas } from '@/lib/processarPublicacoesAgendadasClient'
+import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
+import { listarSeguidosIdsCached } from '@/lib/redeContatosCache'
 import {
   escolherIdStoryInicialPorEmail,
   ordenarStoriesPorCreatedAsc,
@@ -289,7 +291,7 @@ function FeedPageInner() {
         data: { session },
       } = await supabase.auth.getSession()
       if (!session?.user?.id || !ativo) return
-      const { data: u } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
+      const { data: u } = await buscarUsuarioCached(supabase, session.user.id, 'role')
       if (!ativo) return
       if (String(u?.role ?? '') === 'empresa') {
         setBloqueioEmpresaFeed(true)
@@ -308,13 +310,7 @@ function FeedPageInner() {
       return
     }
     try {
-      const { data: segRows } = await supabase
-        .from('redecontatos')
-        .select('seguido_id')
-        .eq('seguidor_id', meuId)
-      const seguidos = (segRows ?? [])
-        .map((r) => String((r as { seguido_id: string }).seguido_id))
-        .filter(Boolean)
+      const seguidos = await listarSeguidosIdsCached(supabase, meuId)
       setFeedRede({
         seguidos,
         patrocinioAutores: [],

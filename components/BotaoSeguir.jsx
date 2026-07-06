@@ -7,6 +7,7 @@ import { deletarFavoritoEmpresa, payloadFavoritoEmpresa, usuarioSegueEmpresa } f
 import { inserirRedeContato, removerRedeContato } from '@/lib/redeContatos'
 import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 
 function debugSeguir(/** @type {unknown[]} */ ...args) {
   if (process.env.NODE_ENV === 'development') {
@@ -44,28 +45,11 @@ export default function BotaoSeguir({
   size = 'default',
 }) {
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
+  const { userRole } = useProfissionalGate()
   const [seguindo, setSeguindo] = useState(initialFollowing)
   const [erro, setErro] = useState(/** @type {string | null} */ (null))
   const [loading, setLoading] = useState(false)
-  const [visitanteEmpresa, setVisitanteEmpresa] = useState(false)
-
-  useEffect(() => {
-    let cancelado = false
-    void (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      const uid = session?.user?.id
-      if (!uid || cancelado) return
-      const { data } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
-      if (!cancelado) {
-        setVisitanteEmpresa(String(data?.role ?? '') === 'empresa')
-      }
-    })()
-    return () => {
-      cancelado = true
-    }
-  }, [])
+  const visitanteEmpresa = userRole === 'empresa'
 
   const tipoAlvo = alvoTipo || (empresaId ? 'empresa' : 'usuario')
   const bloqueadoEmpresaPerfilSocial = visitanteEmpresa && tipoAlvo === 'usuario'

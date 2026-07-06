@@ -6,6 +6,7 @@ import { diasAteRevisaoDocumentos, empresaRecursosLiberados, profissionalRecurso
 import { turistaRecursosLiberados } from '@/lib/turistaAcesso'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { gravarPerfilBarraCache, lerPerfilBarraCache } from '@/lib/perfilBarraCache'
+import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
 
 const ProfissionalGateContext = createContext(null)
 
@@ -40,17 +41,17 @@ function estadoInicialGate() {
 
 /** @param {string} uid */
 async function carregarUsuarioGate(uid) {
-  const full = await supabase
-    .from('usuarios')
-    .select('status, role, documentacao_validada_adm, turista_pre_liberado_ate')
-    .eq('id', uid)
-    .maybeSingle()
+  const full = await buscarUsuarioCached(
+    supabase,
+    uid,
+    'status, role, documentacao_validada_adm, turista_pre_liberado_ate',
+  )
 
   if (
     full.error &&
     (full.error.code === '42703' || String(full.error.message ?? '').includes('does not exist'))
   ) {
-    const slim = await supabase.from('usuarios').select('status, role').eq('id', uid).maybeSingle()
+    const slim = await buscarUsuarioCached(supabase, uid, 'status, role')
     const u = slim.data && typeof slim.data === 'object' ? slim.data : null
     if (!u) return { data: null, error: slim.error }
     return {

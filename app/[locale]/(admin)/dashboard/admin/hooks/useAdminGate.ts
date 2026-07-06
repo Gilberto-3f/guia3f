@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
 import type { AdminPermissoes, AdminUser } from '../types/admin.types'
 
 export type GateState =
@@ -39,11 +40,11 @@ export function useAdminGate(): GateState {
         return
       }
 
-      const { data: u, error } = await supabase
-        .from('usuarios')
-        .select('id, role, admin_level, email, username, admin_permissoes, status')
-        .eq('id', uid)
-        .maybeSingle()
+      const { data: u, error } = await buscarUsuarioCached(
+        supabase,
+        uid,
+        'id, role, admin_level, email, username, admin_permissoes, status',
+      )
 
       if (error || !u) {
         if (alive) setState({ status: 'forbidden' })

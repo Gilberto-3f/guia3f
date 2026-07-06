@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { invalidarCacheSeguidos } from '@/lib/redeContatosCache'
 
 /** Seguir perfil social sem erro 23505 em clique duplo ou corrida entre abas. */
 export async function inserirRedeContato(
@@ -15,6 +16,7 @@ export async function inserirRedeContato(
   )
 
   if (error) return { ok: false, error: error.message }
+  invalidarCacheSeguidos(row.seguidor_id)
   return { ok: true }
 }
 
@@ -30,5 +32,6 @@ export async function removerRedeContato(
     .eq('seguido_id', seguidoId)
 
   if (error) return { ok: false, error: error.message }
+  invalidarCacheSeguidos(seguidorId)
   return { ok: true }
 }
