@@ -14,6 +14,7 @@ import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import {
   buscarConversaAbertaParaAlvo,
   buscarPerfisAdmFinanceiro,
+  conversaFinanceiroSomenteLeitura,
   enviarMensagemConversaFinanceiro,
   listarConversasFinanceiroParaAlvo,
   listarMensagensConversa,
@@ -105,7 +106,8 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
     conversaAtual != null &&
     conversaAtual.status === 'aberta' &&
     conversaAtual.iniciada_por_adm &&
-    conversaAtual.id === conversaAberta?.id
+    conversaAtual.id === conversaAberta?.id &&
+    !conversaFinanceiroSomenteLeitura(conversaAtual)
 
   const emLista = !idAtivo
 

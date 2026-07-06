@@ -1,11 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
+  ASSUNTO_CONVERSA_APROVACAO_CADASTRO,
   abrirConversaFinanceiroAdm,
   buscarConversaAbertaParaAlvo,
+  conversaFinanceiroSomenteLeitura,
+  encerrarConversaFinanceiro,
   enviarMensagemConversaFinanceiro,
 } from '@/lib/financeiroConversas'
-
-const TITULO_APROVACAO = 'Cadastro aprovado'
 
 export function montarMensagemAprovacaoCadastro(nomeUsuario: string): string {
   const handle = nomeUsuario.trim().replace(/^@+/, '')
@@ -44,7 +45,7 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
       admUsuarioId: admId,
       alvoUsuarioId: uid,
       alvoTipo: params.tipo,
-      assunto: TITULO_APROVACAO,
+      assunto: ASSUNTO_CONVERSA_APROVACAO_CADASTRO,
     })
     if (!res.ok || !res.conversa?.id) {
       console.error('[canalFinanceiroAprovacao] abrir conversa', res.error)
@@ -59,7 +60,14 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
     .eq('conversa_id', conversa.id)
     .ilike('texto', 'Bem-Vindo%')
 
-  if (count && count > 0) return { ok: true }
+  if (count && count > 0) {
+    if (conversa.status === 'aberta' && conversaFinanceiroSomenteLeitura(conversa)) {
+      await encerrarConversaFinanceiro(supabase, conversa.id, {
+        admUsuarioId: conversa.adm_usuario_id || admId,
+      })
+    }
+    return { ok: true }
+  }
 
   const remetenteId = conversa.adm_usuario_id || admId
   const msg = await enviarMensagemConversaFinanceiro(supabase, {
@@ -72,6 +80,8 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
     console.error('[canalFinanceiroAprovacao] enviar mensagem', msg.error)
     return { ok: false, error: msg.error ?? 'mensagem_falhou' }
   }
+
+  await encerrarConversaFinanceiro(supabase, conversa.id, { admUsuarioId: remetenteId })
 
   return { ok: true }
 }

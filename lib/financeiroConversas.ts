@@ -9,6 +9,15 @@ import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
 export type AlvoTipoFinanceiro = 'profissional' | 'empresa'
 export type StatusConversaFinanceiro = 'aberta' | 'encerrada'
 
+/** Assunto da conversa automática de boas-vindas após aprovação de cadastro (somente leitura). */
+export const ASSUNTO_CONVERSA_APROVACAO_CADASTRO = 'Cadastro aprovado'
+
+export function conversaFinanceiroSomenteLeitura(conversa: {
+  assunto?: string | null
+}): boolean {
+  return conversa.assunto?.trim() === ASSUNTO_CONVERSA_APROVACAO_CADASTRO
+}
+
 export type FinanceiroConversaRow = {
   id: string
   adm_usuario_id: string
@@ -273,12 +282,19 @@ export async function enviarMensagemConversaFinanceiro(
 
   const { data: conv } = await supabase
     .from('financeiro_conversas')
-    .select('id, status')
+    .select('id, status, assunto, alvo_usuario_id')
     .eq('id', params.conversaId)
     .maybeSingle()
 
   if (!conv || String(conv.status) !== 'aberta') {
     return { ok: false, error: 'Conversa encerrada ou inexistente.' }
+  }
+
+  if (
+    conversaFinanceiroSomenteLeitura(conv) &&
+    String(conv.alvo_usuario_id) === String(params.remetenteId)
+  ) {
+    return { ok: false, error: 'Esta mensagem é somente informativa.' }
   }
 
   const { data, error } = await supabase
