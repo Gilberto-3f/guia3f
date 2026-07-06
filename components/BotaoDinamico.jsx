@@ -21,10 +21,12 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
 // Cards de filtros: botão dinâmico sempre verde (página da empresa usa AbaBotaoDinamico com cores por segmento)
 const COR_PADRAO = '#00D443'
 
-/** Mesmo tamanho do botão "VISITAR PÁGINA" no CardAtrativo. */
-const CLASSE_TEXTO_BOTAO_PADRAO = 'text-xs font-extrabold leading-tight whitespace-normal sm:text-sm'
-/** Texto longo em uma linha (ex.: Comprar Ticket). */
-const CLASSE_TEXTO_BOTAO_COMPACTO = 'text-[11px] font-extrabold leading-tight whitespace-nowrap sm:text-xs'
+/** Mesmas classes do botão "VISITAR PÁGINA" em CardAtrativo. */
+const CLASSE_BOTAO_TEXTO =
+  'text-xs font-extrabold leading-tight text-white whitespace-normal sm:text-sm'
+/** Mesmo tamanho, forçando uma linha (ex.: Comprar Ticket). */
+const CLASSE_BOTAO_TEXTO_UMA_LINHA =
+  'text-xs font-extrabold leading-tight text-white whitespace-nowrap sm:text-sm'
 
 function norm(s) {
   return String(s ?? '').toLowerCase().trim()
@@ -107,7 +109,7 @@ export default function BotaoDinamico({
   const config = useMemo(() => {
     if (isGastronomia(categoria)) return { texto: 'RESERVAR MESA', icon: Utensils, acao: 'reserva_mesa' }
     if (isPasseios(categoria)) {
-      return { texto: 'Comprar Ticket', icon: Ticket, acao: 'ticket', textoCompacto: true }
+      return { texto: 'Comprar Ticket', icon: Ticket, acao: 'ticket', textoUmaLinha: true }
     }
     if (isHospedagem(categoria)) return { texto: 'FAZER RESERVA', icon: Calendar, acao: 'hospedagem' }
     if (isServicosLocais(categoria)) return { texto: 'WhatsApp', icon: MessageCircle, acao: 'whatsapp' }
@@ -117,7 +119,7 @@ export default function BotaoDinamico({
       const ehCde = c.includes('ciudad del este')
       return ehCde
         ? { texto: 'VER PRODUTOS', icon: ShoppingBag, acao: 'produtos' }
-        : { texto: 'CHAMAR CORRIDA', icon: Car, acao: 'corrida', textoCompacto: true }
+        : { texto: 'CHAMAR CORRIDA', icon: Car, acao: 'corrida', textoUmaLinha: true }
     }
 
     return { texto: 'VER MAIS', icon: Package, acao: 'detalhes' }
@@ -212,13 +214,13 @@ export default function BotaoDinamico({
       <button
         type="button"
         onClick={handleClick}
-        className={`flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center text-white transition-opacity hover:opacity-95 ${
-          config.textoCompacto ? CLASSE_TEXTO_BOTAO_COMPACTO : CLASSE_TEXTO_BOTAO_PADRAO
+        className={`flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center transition-opacity hover:opacity-95 ${
+          config.textoUmaLinha ? CLASSE_BOTAO_TEXTO_UMA_LINHA : CLASSE_BOTAO_TEXTO
         }`}
         style={{ backgroundColor: corBotao }}
       >
         <Icon size={20} className="shrink-0 text-white" aria-hidden />
-        <span className="max-w-full leading-tight">{config.texto}</span>
+        <span className="max-w-full">{config.texto}</span>
       </button>
 
       {empresaId ? (
@@ -240,8 +242,8 @@ export default function BotaoDinamico({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-lg font-extrabold text-gray-900">Reservar mesa</h3>
-                    <p className="mt-1 text-xs text-gray-500">Preencha os dados para enviar no WhatsApp.</p>
+                    <h3 className="text-lg font-extrabold text-gray-900">Reservar Mesa</h3>
+                    <p className="mt-1 text-xs text-gray-500">Reserva será feita pelo WhatsApp</p>
                   </div>
                   <button
                     type="button"
@@ -253,8 +255,8 @@ export default function BotaoDinamico({
                   </button>
                 </div>
 
-                <div className="mt-4 min-w-0 max-w-full space-y-3">
-                  <div className="min-w-0 max-w-full">
+                <div className="mt-4 min-w-0 space-y-3">
+                  <div className="w-2/3 min-w-0 max-w-full">
                     <label className="block text-xs font-semibold text-gray-700">Data</label>
                     <input
                       type="date"
@@ -263,7 +265,7 @@ export default function BotaoDinamico({
                       className="mt-1 box-border w-full min-w-0 max-w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                     />
                   </div>
-                  <div className="min-w-0 max-w-full">
+                  <div className="w-2/3 min-w-0 max-w-full">
                     <label className="block text-xs font-semibold text-gray-700">Horário</label>
                     <input
                       type="time"
@@ -307,10 +309,11 @@ export default function BotaoDinamico({
                   </button>
                   <button
                     type="button"
-                    className="flex-1 rounded-lg bg-[#00D443] py-2 text-sm font-extrabold text-white hover:opacity-95"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#00D443] py-2.5 text-sm font-extrabold text-white hover:opacity-95"
                     onClick={enviarWhatsappReservaMesa}
                   >
-                    Enviar WhatsApp
+                    <MessageCircle size={18} className="shrink-0 text-white" aria-hidden />
+                    WhatsApp
                   </button>
                 </div>
               </div>
