@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Heart, UserCheck, UserPlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { deletarFavoritoEmpresa, payloadFavoritoEmpresa, usuarioSegueEmpresa } from '@/lib/favoritosEmpresa'
+import { inserirRedeContato, removerRedeContato } from '@/lib/redeContatos'
 import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
@@ -170,17 +171,17 @@ export default function BotaoSeguir({
         debugSeguir('[BotaoSeguir] operação rede', { operacaoRede, id })
 
         if (estadoAntes) {
-          const { error } = await supabase.from('redecontatos').delete().eq('seguidor_id', session.user.id).eq('seguido_id', id)
+          const { error } = await removerRedeContato(supabase, session.user.id, id)
           debugSeguir('[BotaoSeguir] resposta Supabase (delete redecontatos)', { error })
-          if (error) throw error
+          if (error) throw new Error(error)
         } else {
-          const { data, error } = await supabase
-            .from('redecontatos')
-            .insert({ seguidor_id: session.user.id, seguido_id: id, seguido_tipo: seguidoTipo || 'user' })
-            .select('id')
-            .maybeSingle()
-          debugSeguir('[BotaoSeguir] resposta Supabase (insert redecontatos)', { data, error })
-          if (error) throw error
+          const { ok, error } = await inserirRedeContato(supabase, {
+            seguidor_id: session.user.id,
+            seguido_id: id,
+            seguido_tipo: seguidoTipo || 'user',
+          })
+          debugSeguir('[BotaoSeguir] resposta Supabase (insert redecontatos)', { ok, error })
+          if (!ok) throw new Error(error ?? 'insert_falhou')
         }
       }
 

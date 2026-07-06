@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Flag, MoreHorizontal, Pencil, Repeat2, Trash2, UserMinus, UserPlus, Bookmark } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { inserirRedeContato, removerRedeContato } from '@/lib/redeContatos'
 import ModalDenunciarConteudo from '@/components/ModalDenunciarConteudo'
 
 /** Nome do evento global após soft delete bem-sucedido (cascata no estado do feed/perfil). */
@@ -115,9 +116,9 @@ export default function MenuPost({
   const toggleSeguirUsuario = async () => {
     if (!usuarioAlvo || !meuUsuarioId) return
     if (usuarioAlvo.jaSegue) {
-      await supabase.from('redecontatos').delete().eq('seguidor_id', meuUsuarioId).eq('seguido_id', usuarioAlvo.seguidoId)
+      await removerRedeContato(supabase, meuUsuarioId, usuarioAlvo.seguidoId)
     } else {
-      await supabase.from('redecontatos').insert({
+      await inserirRedeContato(supabase, {
         seguidor_id: meuUsuarioId,
         seguido_id: usuarioAlvo.seguidoId,
         seguido_tipo: usuarioAlvo.seguidoTipo,

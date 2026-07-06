@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
+import { inserirRedeContato, removerRedeContato } from '@/lib/redeContatos'
 import AvatarImage from '@/components/AvatarImage'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
 
@@ -32,6 +33,7 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
   const [carregando, setCarregando] = useState(false)
   const [erroCarregar, setErroCarregar] = useState(false)
   const [seguindoMap, setSeguindoMap] = useState(/** @type {Record<string, boolean>} */ ({}))
+  const seguirBusyRef = useRef(false)
 
   const carregar = useCallback(async () => {
     if (!postId) {
@@ -208,32 +210,41 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
   }, [aberto, postId, carregar])
 
   const toggleSeguir = async (alvo) => {
-    if (!meuUsuarioId || alvo.id === meuUsuarioId) return
+    if (!meuUsuarioId || alvo.id === meuUsuarioId || seguirBusyRef.current) return
+    seguirBusyRef.current = true
     const ja = Boolean(seguindoMap[alvo.id])
-    if (alvo.role === 'empresa' && alvo.empresaId) {
-      if (ja) {
-        await supabase
-          .from('favoritos')
-          .delete()
-          .eq('usuario_id', meuUsuarioId)
-          .eq('alvo_id', alvo.empresaId)
-          .eq('alvo_tipo', 'empresa')
-      } else {
-        await supabase.from('favoritos').insert({
-          usuario_id: meuUsuarioId,
-          alvo_id: alvo.empresaId,
-          alvo_tipo: 'empresa',
-        })
-      }
-    } else {
-      if (ja) {
-        await supabase.from('redecontatos').delete().eq('seguidor_id', meuUsuarioId).eq('seguido_id', alvo.id)
+    setSeguindoMap((prev) => ({ ...prev, [alvo.id]: !ja }))
+    try {
+      if (alvo.role === 'empresa' && alvo.empresaId) {
+        if (ja) {
+          await supabase
+            .from('favoritos')
+            .delete()
+            .eq('usuario_id', meuUsuarioId)
+            .eq('alvo_id', alvo.empresaId)
+            .eq('alvo_tipo', 'empresa')
+        } else {
+          await supabase.from('favoritos').insert({
+            usuario_id: meuUsuarioId,
+            alvo_id: alvo.empresaId,
+            alvo_tipo: 'empresa',
+          })
+        }
+      } else if (ja) {
+        await removerRedeContato(supabase, meuUsuarioId, alvo.id)
       } else {
         const tipo = alvo.role === 'profissional' ? 'profissional' : 'turista'
-        await supabase.from('redecontatos').insert({ seguidor_id: meuUsuarioId, seguido_id: alvo.id, seguido_tipo: tipo })
+        await inserirRedeContato(supabase, {
+          seguidor_id: meuUsuarioId,
+          seguido_id: alvo.id,
+          seguido_tipo: tipo,
+        })
       }
+    } catch {
+      setSeguindoMap((prev) => ({ ...prev, [alvo.id]: ja }))
+    } finally {
+      seguirBusyRef.current = false
     }
-    setSeguindoMap((prev) => ({ ...prev, [alvo.id]: !ja }))
   }
 
   if (!aberto || !postId) return null
