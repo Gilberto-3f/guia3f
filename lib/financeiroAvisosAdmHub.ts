@@ -208,25 +208,15 @@ export async function contarAvisosFinanceiroHubNaoLidos(
 ): Promise<number> {
   if (!adminUserId || !adminPodeVerAvisosFinanceiroHub(admin)) return 0
 
-  const { data, error } = await supabase
-    .from('financeiro_avisos_adm_hub')
-    .select('id, visivel_para, lido_por')
-    .order('created_at', { ascending: false })
-    .limit(80)
+  const { data, error } = await supabase.rpc('contar_financeiro_avisos_hub_nao_lidos', {
+    p_limite: 50,
+  })
 
   if (error) {
     console.error('contarAvisosFinanceiroHubNaoLidos:', error)
     return 0
   }
 
-  const filtrados = filtrarAvisosFinanceiroHubPorAdmin(
-    (data ?? []).map((r) => ({
-      ...r,
-      visivel_para: Array.isArray(r.visivel_para) ? r.visivel_para.map(String) : [],
-      lido_por: Array.isArray(r.lido_por) ? r.lido_por.map(String) : [],
-    })),
-    admin,
-  )
-
-  return filtrados.filter((a) => !a.lido_por.includes(adminUserId)).length
+  const n = Number(data)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
 }
