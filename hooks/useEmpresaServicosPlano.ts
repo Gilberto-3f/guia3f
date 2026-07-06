@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import {
@@ -94,9 +94,6 @@ export function useEmpresaServicosPlano(
   const [assinaturaContratadaVigenteFlag, setAssinaturaContratadaVigenteFlag] = useState(false)
   const [assinaturaVencimentoEm, setAssinaturaVencimentoEm] = useState<string | null>(null)
   const [loading, setLoading] = useState(() => !(opts?.somenteAnfitriao ?? false))
-  const carregarRef = useRef<() => Promise<void>>(async () => {})
-  const channelInstancia = useId().replace(/:/g, '')
-
   const carregar = useCallback(async () => {
     if (somenteAnfitriao) {
       setPlanos([])
@@ -192,8 +189,6 @@ export function useEmpresaServicosPlano(
     }
   }, [empresaId, somenteAnfitriao])
 
-  carregarRef.current = carregar
-
   useLayoutEffect(() => {
     if (somenteAnfitriao) {
       setLoading(false)
@@ -215,46 +210,6 @@ export function useEmpresaServicosPlano(
       window.removeEventListener('perfil-atualizado', onRef)
     }
   }, [carregar])
-
-  useEffect(() => {
-    if (!empresaId || somenteAnfitriao) return
-    const chDeg = supabase
-      .channel(`empresa-degustacao-${empresaId}-${channelInstancia}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'empresa_degustacoes',
-          filter: `empresa_id=eq.${empresaId}`,
-        },
-        () => {
-          void carregarRef.current()
-        },
-      )
-      .subscribe()
-
-    const chAss = supabase
-      .channel(`empresa-assinatura-${empresaId}-${channelInstancia}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'empresa_assinaturas',
-          filter: `empresa_id=eq.${empresaId}`,
-        },
-        () => {
-          void carregarRef.current()
-        },
-      )
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(chDeg)
-      void supabase.removeChannel(chAss)
-    }
-  }, [channelInstancia, empresaId, somenteAnfitriao])
 
   const exigeAssinaturaVigente = useMemo(() => {
     if (degustacaoAtiva || somenteAnfitriao) return false

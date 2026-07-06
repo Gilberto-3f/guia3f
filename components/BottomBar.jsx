@@ -288,61 +288,7 @@ export default function BottomBar() {
     }
     document.addEventListener('visibilitychange', onVisible)
 
-    /** Só leitura filtrada por utilizador — novas mensagens vêm de `GUIA_CANAIS_BADGE_EVENT` + poll leve. */
-    const channel = supabase
-      .channel(`bottom-bar-mensagens-canal-${authUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'canal_leitura_profissional',
-          filter: `usuario_id=eq.${authUserId}`,
-        },
-        () => {
-          scheduleRefresh()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'canal_leitura_profissional',
-          filter: `usuario_id=eq.${authUserId}`,
-        },
-        () => {
-          scheduleRefresh()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'financeiro_conversa_leitura',
-          filter: `usuario_id=eq.${authUserId}`,
-        },
-        () => {
-          scheduleRefresh()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'financeiro_conversa_leitura',
-          filter: `usuario_id=eq.${authUserId}`,
-        },
-        () => {
-          scheduleRefresh()
-        },
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') void refreshCanais()
-      })
-
+    /** Badge de canais: `GUIA_CANAIS_BADGE_EVENT` + poll (tabelas de leitura fora da publication Realtime). */
     const pollId = setInterval(() => {
       if (document.visibilityState === 'visible') scheduleRefresh()
     }, CANAIS_BADGE_POLL_MS)
@@ -354,7 +300,6 @@ export default function BottomBar() {
       if (debounceId) clearTimeout(debounceId)
       window.removeEventListener(GUIA_CANAIS_BADGE_EVENT, onCanaisBadge)
       document.removeEventListener('visibilitychange', onVisible)
-      void supabase.removeChannel(channel)
     }
   }, [authUserId])
 

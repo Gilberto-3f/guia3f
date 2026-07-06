@@ -1,14 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Heart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
-import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
 import { asUuidFilter } from '@/lib/supabaseRestUuid'
 import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
-import { deletarCurtidaModoAtual, usuarioCurtiuNoModoAtual } from '@/lib/curtidaModoSocial'
+import { usuarioCurtiuNoModoAtual } from '@/lib/curtidaModoSocial'
+import { isDuplicateCurtidaError, toggleCurtidaSocial } from '@/lib/toggleCurtidaSocial'
 
 /**
  * @param {{ postId: string, totalInicial: number, usuarioId: string | null }} props
@@ -18,6 +18,7 @@ export default function BotaoCurtir({ postId, totalInicial, usuarioId }) {
   const empresaInteratorId = useEmpresaInteratorSocial()
   const [curtiu, setCurtiu] = useState(false)
   const [total, setTotal] = useState(totalInicial)
+  const curtirBusyRef = useRef(false)
 
   useEffect(() => {
     setTotal(totalInicial)
@@ -39,45 +40,52 @@ export default function BotaoCurtir({ postId, totalInicial, usuarioId }) {
       notificarSomenteLeitura()
       return
     }
+    if (curtirBusyRef.current) return
     const pid = asUuidFilter(postId)
     const uid = asUuidFilter(usuarioId)
     if (!pid || !uid) return
-    if (curtiu) {
-      const totalAntes = total
+
+    const eraCurtido = curtiu
+    const totalAntes = total
+    curtirBusyRef.current = true
+
+    if (eraCurtido) {
       setCurtiu(false)
       setTotal((t) => Math.max(0, t - 1))
-      const { data: removidas, error } = await deletarCurtidaModoAtual(supabase, {
+    } else {
+      setCurtiu(true)
+      setTotal((t) => t + 1)
+    }
+
+    try {
+      const { data, error } = await toggleCurtidaSocial(supabase, {
         postId: pid,
-        usuarioId: uid,
         empresaInteratorId,
       })
-      if (error || !removidas?.length) {
-        if (error) console.error('[BotaoCurtir] descurtir:', error)
-        else console.warn('[BotaoCurtir] descurtir: nenhuma curtida removida', { pid, uid })
-        setCurtiu(true)
+
+      if (error && !isDuplicateCurtidaError(error)) {
+        console.error('[BotaoCurtir] curtir:', error)
+        setCurtiu(eraCurtido)
         setTotal(totalAntes)
         return
       }
-      await limparAtividadesAposDescurtir(supabase, {
-        postId: pid,
-        usuarioId: uid,
-        empresaInteratorId,
-        curtidaId: removidas?.[0]?.id ?? null,
-      })
-      notificarEngajamentoAtividades({
-        sincronizarLista: true,
-        remover: { autorId: uid, postId: pid },
-      })
-    } else {
-      const { error } = await supabase.from('curtidas').insert({
-        post_id: pid,
-        usuario_id: uid,
-        ...(empresaInteratorId ? { empresa_interator_id: empresaInteratorId } : {}),
-      })
-      if (error) return
-      setCurtiu(true)
-      setTotal((t) => t + 1)
-      notificarEngajamentoAtividades()
+
+      const liked = error && isDuplicateCurtidaError(error) ? true : Boolean(data?.liked)
+      setCurtiu(liked)
+      if (liked === eraCurtido) {
+        setTotal(totalAntes)
+      }
+
+      if (liked && !eraCurtido) {
+        notificarEngajamentoAtividades()
+      } else if (!liked && eraCurtido) {
+        notificarEngajamentoAtividades({
+          sincronizarLista: true,
+          remover: { autorId: uid, postId: pid },
+        })
+      }
+    } finally {
+      curtirBusyRef.current = false
     }
   }
 

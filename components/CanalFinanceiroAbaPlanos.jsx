@@ -96,22 +96,6 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
     void carregar()
   }, [carregar])
 
-  useEffect(() => {
-    if (!usuarioId) return
-    const ch = supabase
-      .channel(`planos-empresa-${usuarioId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'planos' }, () => {
-        void carregar()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'empresa_degustacoes' }, () => {
-        void carregar()
-      })
-      .subscribe()
-    return () => {
-      void supabase.removeChannel(ch)
-    }
-  }, [usuarioId, carregar])
-
   const planoContratadoTitulo = useMemo(() => {
     const match = planoEmpresaReconhecidoNoCatalogo(planoEmpresa, planos)
     return match?.titulo ?? null

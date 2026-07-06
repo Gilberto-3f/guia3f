@@ -285,69 +285,19 @@ export function ProfissionalGateProvider({ children }) {
     }
   }, [refreshGate])
 
-  /** Atualiza gate quando ADM aprova cadastro (sem recarregar a página). */
+  /** Atualiza gate quando ADM aprova cadastro (poll leve — perfis fora da publication Realtime). */
   useEffect(() => {
-    let ch = /** @type {ReturnType<typeof supabase.channel> | null} */ (null)
-    let cancelled = false
-
-    void (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      const uid = session?.user?.id
-      if (!uid || cancelled) return
-
-      const onGateChange = () => {
-        void refreshGate()
-      }
-      const onEmpresaChange = () => {
-        void refreshGate()
-        window.dispatchEvent(new Event('anfitriao-modo-refresh'))
-      }
-
-      ch = supabase
-        .channel(`recursos-perfil-gate-${uid}`)
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'empresas', filter: `usuario_id=eq.${uid}` },
-          onEmpresaChange,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'empresas', filter: `usuario_id=eq.${uid}` },
-          onEmpresaChange,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'profissionais', filter: `usuario_id=eq.${uid}` },
-          onGateChange,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'profissionais', filter: `usuario_id=eq.${uid}` },
-          onGateChange,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'turistas', filter: `usuario_id=eq.${uid}` },
-          onGateChange,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'turistas', filter: `usuario_id=eq.${uid}` },
-          onGateChange,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'usuarios', filter: `id=eq.${uid}` },
-          onGateChange,
-        )
-        .subscribe()
-    })()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refreshGate()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    const pollId = setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshGate()
+    }, 120_000)
 
     return () => {
-      cancelled = true
-      if (ch) void supabase.removeChannel(ch)
+      document.removeEventListener('visibilitychange', onVisible)
+      clearInterval(pollId)
     }
   }, [refreshGate])
 

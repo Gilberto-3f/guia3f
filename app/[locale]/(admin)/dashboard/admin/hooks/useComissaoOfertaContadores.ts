@@ -26,18 +26,13 @@ export function useComissaoOfertaContadores(enabled = true) {
     const onUpdate = () => void refetch()
     window.addEventListener('comissao-oferta-updated', onUpdate)
 
-    const channel = supabase
-      .channel('comissao-oferta-contadores-adm')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'comissao_oferta' },
-        () => void refetch(),
-      )
-      .subscribe()
+    const pollId = setInterval(() => {
+      if (document.visibilityState === 'visible') void refetch()
+    }, 60_000)
 
     return () => {
       window.removeEventListener('comissao-oferta-updated', onUpdate)
-      void supabase.removeChannel(channel)
+      clearInterval(pollId)
     }
   }, [refetch])
 

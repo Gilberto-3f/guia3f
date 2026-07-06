@@ -18,11 +18,11 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
-import { limparAtividadesAposDescurtir } from '@/lib/limparAtividadesCurtida'
 import { getPerfilHref } from '@/lib/perfil-utils'
 import { asUuidFilter } from '@/lib/supabaseRestUuid'
 import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
-import { deletarCurtidaModoAtual, usuarioCurtiuNoModoAtual } from '@/lib/curtidaModoSocial'
+import { usuarioCurtiuNoModoAtual } from '@/lib/curtidaModoSocial'
+import { isDuplicateCurtidaError, toggleCurtidaSocial } from '@/lib/toggleCurtidaSocial'
 
 /** UUID da empresa avaliada no `avaliacao_meta`, ou `null`. */
 function postAvaliacaoEmpresaAlvoId(p) {
@@ -171,6 +171,7 @@ export default function PostCard({
   const [repostTotal, setRepostTotal] = useState(post.total_reposts ?? 0)
   const [curtTotal, setCurtTotal] = useState(post.total_curtidas ?? 0)
   const [curtiu, setCurtiu] = useState(false)
+  const curtirBusyRef = useRef(false)
   const [salvo, setSalvo] = useState(false)
   const [jaSegueEmpresa, setJaSegueEmpresa] = useState(false)
   const [jaSegueUsuario, setJaSegueUsuario] = useState(false)
@@ -569,61 +570,64 @@ export default function PostCard({
       notificarSomenteLeitura()
       return
     }
+    if (curtirBusyRef.current) return
     const pid = asUuidFilter(post.id)
     const uid = asUuidFilter(meuUsuarioId)
     if (!pid || !uid) return
-    if (curtiu) {
-      const totalAntes = curtTotal
+
+    const eraCurtido = curtiu
+    const totalAntes = curtTotal
+    curtirBusyRef.current = true
+
+    if (eraCurtido) {
       setCurtiu(false)
       setCurtTotal((t) => {
         const n = Math.max(0, t - 1)
         onEngagementChange?.(post.id, { total_curtidas: n })
         return n
       })
-      const { data: removidas, error } = await deletarCurtidaModoAtual(supabase, {
-        postId: pid,
-        usuarioId: uid,
-        empresaInteratorId,
-      })
-      if (error || !removidas?.length) {
-        if (error) console.error('[PostCard] descurtir:', error)
-        else console.warn('[PostCard] descurtir: nenhuma curtida removida (post_id/usuario_id)', { pid, uid })
-        setCurtiu(true)
-        setCurtTotal(totalAntes)
-        onEngagementChange?.(post.id, { total_curtidas: totalAntes })
-        return
-      }
-      await limparAtividadesAposDescurtir(supabase, {
-        postId: pid,
-        usuarioId: uid,
-        empresaInteratorId,
-        curtidaId: removidas?.[0]?.id ?? null,
-      })
-      if (!suprimirNotificacaoAtividades) {
-        notificarEngajamentoAtividades({
-          sincronizarLista: true,
-          remover: { autorId: uid, postId: pid },
-        })
-      }
     } else {
-      const { error } = await supabase.from('curtidas').insert({
-        post_id: pid,
-        usuario_id: uid,
-        ...(empresaInteratorId ? { empresa_interator_id: empresaInteratorId } : {}),
-      })
-      if (error) {
-        console.error('[PostCard] curtir:', error)
-        return
-      }
       setCurtiu(true)
       setCurtTotal((t) => {
         const n = t + 1
         onEngagementChange?.(post.id, { total_curtidas: n })
         return n
       })
-      if (!suprimirNotificacaoAtividades) {
-        notificarEngajamentoAtividades()
+    }
+
+    try {
+      const { data, error } = await toggleCurtidaSocial(supabase, {
+        postId: pid,
+        empresaInteratorId,
+      })
+
+      if (error && !isDuplicateCurtidaError(error)) {
+        console.error('[PostCard] curtir:', error)
+        setCurtiu(eraCurtido)
+        setCurtTotal(totalAntes)
+        onEngagementChange?.(post.id, { total_curtidas: totalAntes })
+        return
       }
+
+      const liked = error && isDuplicateCurtidaError(error) ? true : Boolean(data?.liked)
+      setCurtiu(liked)
+      if (liked === eraCurtido) {
+        setCurtTotal(totalAntes)
+        onEngagementChange?.(post.id, { total_curtidas: totalAntes })
+      }
+
+      if (!suprimirNotificacaoAtividades) {
+        if (liked && !eraCurtido) {
+          notificarEngajamentoAtividades()
+        } else if (!liked && eraCurtido) {
+          notificarEngajamentoAtividades({
+            sincronizarLista: true,
+            remover: { autorId: uid, postId: pid },
+          })
+        }
+      }
+    } finally {
+      curtirBusyRef.current = false
     }
   }
 

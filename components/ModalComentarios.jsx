@@ -238,15 +238,12 @@ export default function ModalComentarios({
     if (!ativo || !postIdValido) return
     void carregar()
 
-    const ch = supabase
-      .channel(`comentarios-${postIdValido}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comentarios', filter: `post_id=eq.${postIdValido}` }, () => {
-        void carregar()
-      })
-      .subscribe()
+    const pollId = setInterval(() => {
+      if (document.visibilityState === 'visible') void carregar()
+    }, 20_000)
 
     return () => {
-      void supabase.removeChannel(ch)
+      clearInterval(pollId)
     }
   }, [ativo, postIdValido, carregar])
 

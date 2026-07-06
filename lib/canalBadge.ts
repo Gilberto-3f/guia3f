@@ -177,13 +177,24 @@ export async function contarMensagensNaoLidasCanais(
     return contarMensagensNaoLidasInboxAdmin(supabase, userId)
   }
 
+  if (canalIdsPermitidos != null && canalIdsPermitidos.size === 0) {
+    return extraFinanceiro
+  }
+
+  let msgQuery = supabase
+    .from('mensagens_canal')
+    .select('remetente_id, canal_id, created_at')
+    .neq('remetente_id', userId)
+    .gte('created_at', desde)
+
+  if (canalIdsPermitidos != null) {
+    msgQuery = msgQuery.in('canal_id', Array.from(canalIdsPermitidos))
+  } else {
+    msgQuery = msgQuery.limit(800)
+  }
+
   const [{ data: mensagens, error: msgErr }, { data: leituras, error: leitErr }] = await Promise.all([
-    supabase
-      .from('mensagens_canal')
-      .select('remetente_id, canal_id, created_at')
-      .neq('remetente_id', userId)
-      .gte('created_at', desde)
-      .limit(2500),
+    msgQuery,
     supabase.from('canal_leitura_profissional').select('canal_id, visto_em').eq('usuario_id', userId),
   ])
 
