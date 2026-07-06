@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { ModalidadePlanoEmpresa } from '@/lib/contratarPlanoEmpresa'
 
 export type VisivelAvisoAdmHub = 'adm_geral' | 'adm_financeiro'
 
@@ -21,6 +22,13 @@ export type FinanceiroAvisoAdmHubRow = {
   metadata: Record<string, unknown>
   lido_por: string[]
   created_at: string
+}
+
+export type EmpresaPerfilAvisoHub = {
+  empresaId: string
+  empresaUsername: string
+  empresaNomeSocial: string
+  empresaFotoUrl: string | null
 }
 
 export function adminPodeVerAvisosFinanceiroHub(admin: {
@@ -58,49 +66,167 @@ export function formatarDataCurtaAgendamento(iso: string): string {
   }
 }
 
-export function montarMensagemAgendamentoAssinaturaDinheiro(params: {
-  empresaUsername: string
-  visitaAgendadaEm: string
-}): string {
-  const username = params.empresaUsername.trim().replace(/^@/, '')
-  const dataCurta = formatarDataCurtaAgendamento(params.visitaAgendadaEm)
-  return `Agendamento - Nova empresa do guia turístico @${username || 'empresa'} agendou um trabalho para o dia ${dataCurta} (mais informações no ESPAÇO ADM).`
+/** Texto de validade do plano para cards do hub (ex.: "1 mês", "3 meses"). */
+export function textoValidadeModalidadePlano(modalidade: ModalidadePlanoEmpresa): string {
+  if (modalidade === 'trimestral') return '3 meses'
+  if (modalidade === 'anual') return '12 meses'
+  return '1 mês'
 }
 
-/**
- * Card informativo no Canal Financeiro ADM quando empresa agenda visita (pagamento em dinheiro).
- */
-export async function inserirAvisoAgendamentoAssinaturaDinheiroHub(
+export function montarMensagemNovaAssinaturaHub(params: {
+  planoTitulo: string
+  assinadoEm: string
+  modalidade: ModalidadePlanoEmpresa
+}): string {
+  const dataCurta = formatarDataCurtaAgendamento(params.assinadoEm)
+  const validade = textoValidadeModalidadePlano(params.modalidade)
+  const plano = params.planoTitulo.trim() || 'Plano'
+  return `Usuário assinou o Plano ${plano} no dia ${dataCurta} com validade para ${validade}.`
+}
+
+export function montarMensagemAgendamentoAssinaturaHub(params: {
+  planoTitulo: string
+  assinadoEm: string
+  modalidade: ModalidadePlanoEmpresa
+  visitaAgendadaEm: string
+}): string {
+  const dataCurta = formatarDataCurtaAgendamento(params.assinadoEm)
+  const dataVisita = formatarDataCurtaAgendamento(params.visitaAgendadaEm)
+  const validade = textoValidadeModalidadePlano(params.modalidade)
+  const plano = params.planoTitulo.trim() || 'Plano'
+  return `Usuário assinou o Plano ${plano} no dia ${dataCurta} com validade para ${validade} e agendou o pagamento para o dia do trabalho fotográfico, no dia ${dataVisita} (mais informações na página do ESPAÇO ADM).`
+}
+
+function metadataEmpresaHub(
+  perfil: EmpresaPerfilAvisoHub,
+  extra: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    empresa_id: perfil.empresaId,
+    empresa_username: perfil.empresaUsername,
+    empresa_nome_social: perfil.empresaNomeSocial,
+    empresa_foto_url: perfil.empresaFotoUrl,
+    ...extra,
+  }
+}
+
+async function inserirAvisoHub(
   supabase: SupabaseClient,
-  params: {
-    assinaturaId: string
-    empresaId: string
-    empresaUsername: string
-    visitaAgendadaEm: string
+  row: {
+    tipo: string
+    titulo: string
+    mensagem: string
+    metadata: Record<string, unknown>
   },
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
-  const mensagem = montarMensagemAgendamentoAssinaturaDinheiro({
-    empresaUsername: params.empresaUsername,
-    visitaAgendadaEm: params.visitaAgendadaEm,
-  })
-
   const { data, error } = await supabase
     .from('financeiro_avisos_adm_hub')
     .insert({
-      tipo: 'agendamento_assinatura_dinheiro',
-      titulo: 'Agendamento',
-      mensagem,
+      tipo: row.tipo,
+      titulo: row.titulo,
+      mensagem: row.mensagem,
       visivel_para: ['adm_geral', 'adm_financeiro'],
-      metadata: {
-        assinatura_id: params.assinaturaId,
-        empresa_id: params.empresaId,
-        empresa_username: params.empresaUsername,
-        visita_agendada_em: params.visitaAgendadaEm,
-      },
+      metadata: row.metadata,
     })
     .select('id')
     .maybeSingle()
 
   if (error) return { ok: false, error: error.message }
   return { ok: true, id: data?.id != null ? String(data.id) : undefined }
+}
+
+/** Card no Canal Financeiro ADM — assinatura imediata (PIX/cartão) ou qualquer plano ativo. */
+export async function inserirAvisoNovaAssinaturaHub(
+  supabase: SupabaseClient,
+  params: {
+    assinaturaId: string
+    planoTitulo: string
+    modalidade: ModalidadePlanoEmpresa
+    assinadoEm: string
+    empresa: EmpresaPerfilAvisoHub
+  },
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const mensagem = montarMensagemNovaAssinaturaHub({
+    planoTitulo: params.planoTitulo,
+    assinadoEm: params.assinadoEm,
+    modalidade: params.modalidade,
+  })
+
+  return inserirAvisoHub(supabase, {
+    tipo: 'nova_assinatura',
+    titulo: 'Nova Assinatura',
+    mensagem,
+    metadata: metadataEmpresaHub(params.empresa, {
+      assinatura_id: params.assinaturaId,
+      plano_titulo: params.planoTitulo,
+      modalidade: params.modalidade,
+      assinado_em: params.assinadoEm,
+      validade_texto: textoValidadeModalidadePlano(params.modalidade),
+    }),
+  })
+}
+
+/** Card no Canal Financeiro ADM — pagamento em dinheiro + visita fotográfica agendada. */
+export async function inserirAvisoAgendamentoAssinaturaDinheiroHub(
+  supabase: SupabaseClient,
+  params: {
+    assinaturaId: string
+    planoTitulo: string
+    modalidade: ModalidadePlanoEmpresa
+    assinadoEm: string
+    visitaAgendadaEm: string
+    empresa: EmpresaPerfilAvisoHub
+  },
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const mensagem = montarMensagemAgendamentoAssinaturaHub({
+    planoTitulo: params.planoTitulo,
+    assinadoEm: params.assinadoEm,
+    modalidade: params.modalidade,
+    visitaAgendadaEm: params.visitaAgendadaEm,
+  })
+
+  return inserirAvisoHub(supabase, {
+    tipo: 'agendamento_assinatura_dinheiro',
+    titulo: 'Agendamento',
+    mensagem,
+    metadata: metadataEmpresaHub(params.empresa, {
+      assinatura_id: params.assinaturaId,
+      plano_titulo: params.planoTitulo,
+      modalidade: params.modalidade,
+      assinado_em: params.assinadoEm,
+      visita_agendada_em: params.visitaAgendadaEm,
+      validade_texto: textoValidadeModalidadePlano(params.modalidade),
+    }),
+  })
+}
+
+/** Contagem de cards não lidos no hub (badge do canal Financeiro ADM). */
+export async function contarAvisosFinanceiroHubNaoLidos(
+  supabase: SupabaseClient,
+  adminUserId: string,
+  admin: { admin_level?: number | null; admin_permissoes?: unknown },
+): Promise<number> {
+  if (!adminUserId || !adminPodeVerAvisosFinanceiroHub(admin)) return 0
+
+  const { data, error } = await supabase
+    .from('financeiro_avisos_adm_hub')
+    .select('id, visivel_para, lido_por')
+    .order('created_at', { ascending: false })
+    .limit(80)
+
+  if (error) {
+    console.error('contarAvisosFinanceiroHubNaoLidos:', error)
+    return 0
+  }
+
+  const filtrados = filtrarAvisosFinanceiroHubPorAdmin(
+    (data ?? []).map((r) => ({
+      ...r,
+      visivel_para: Array.isArray(r.visivel_para) ? r.visivel_para.map(String) : [],
+      lido_por: Array.isArray(r.lido_por) ? r.lido_por.map(String) : [],
+    })),
+    admin,
+  )
+
+  return filtrados.filter((a) => !a.lido_por.includes(adminUserId)).length
 }

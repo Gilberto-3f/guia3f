@@ -22,12 +22,14 @@ import {
 } from '@/lib/canaisEmpresasSegmentoUi'
 import {
   excluirCanalMensageiroVisaoAdm,
+  isCanalFinanceiroHubAdm,
   rotuloNomeCanalAdministracao,
   TITULO_PASTA_ADMINISTRADORES_APP,
 } from '@/lib/rotulosCanaisAdministracao'
 import { buscarUltimasMensagensCanais, formatarListaHora, patchUltimaMensagemCanal } from '@/lib/canalLista'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { ehCanalInboxMensageiroAdm, obterIdCanalInboxMensageiroAdm } from '@/lib/canaisAdminVisibilidade'
+import { contarAvisosFinanceiroHubNaoLidos } from '@/lib/financeiroAvisosAdmHub'
 import { particionarVisaoAdminTodos } from '@/lib/canaisAdminParticao'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
 import CanalListaRow from '@/components/CanalListaRow'
@@ -299,13 +301,30 @@ export default function ListaCanais({
     })
   }, [gruposIniciais])
 
-  /** Admin: badge só no inbox Mensageiro ADM; broadcast não notifica. */
+  /** Admin: badge no inbox Mensageiro ADM + cards não lidos do Canal Financeiro (hub). */
   const resolverIdsContagemAdmin = useCallback(async () => {
     const inboxNaLista = canais.filter((c) => ehCanalInboxMensageiroAdm(c)).map((c) => c.id)
     if (inboxNaLista.length > 0) return inboxNaLista
     const inboxId = await obterIdCanalInboxMensageiroAdm(supabase)
     return inboxId ? [inboxId] : []
   }, [canais])
+
+  const somarBadgeHubFinanceiroAdm = useCallback(async (contagens, uid, listaCanais) => {
+    if (!uid || tipoPublico !== 'admin') return contagens
+    const finCanal = (listaCanais ?? canais).find((c) => isCanalFinanceiroHubAdm(c))
+    if (!finCanal?.id) return contagens
+
+    const { data: adminRow } = await supabase
+      .from('usuarios')
+      .select('admin_level, admin_permissoes')
+      .eq('id', uid)
+      .maybeSingle()
+
+    const extra = await contarAvisosFinanceiroHubNaoLidos(supabase, uid, adminRow ?? {})
+    if (extra <= 0) return contagens
+
+    return { ...contagens, [finCanal.id]: (contagens[finCanal.id] ?? 0) + extra }
+  }, [canais, tipoPublico])
 
   const recarregarContagens = useCallback(async () => {
     const {
@@ -326,9 +345,10 @@ export default function ListaCanais({
     }
 
     const idsContagem = agruparPorTipo || tipoPublico === 'admin' ? ids : todosIds
-    const contagens = await contarNaoLidasPorCanalIds(supabase, uid, idsContagem)
+    let contagens = await contarNaoLidasPorCanalIds(supabase, uid, idsContagem)
+    contagens = await somarBadgeHubFinanceiroAdm(contagens, uid, canais)
     setNaoLidasPorCanal(contagens)
-  }, [canais, agruparPorTipo, tipoPublico, resolverIdsContagemAdmin])
+  }, [canais, agruparPorTipo, tipoPublico, resolverIdsContagemAdmin, somarBadgeHubFinanceiroAdm])
 
   useEffect(() => {
     const onBadge = () => {
@@ -390,12 +410,16 @@ export default function ListaCanais({
             inboxNaLista.length > 0 ? inboxNaLista[0] : await obterIdCanalInboxMensageiroAdm(supabase)
           idsContagem = inboxId ? [inboxId] : []
         }
-        const [ultimas, contagens] = await Promise.all([
+        const [ultimas, contagensBase] = await Promise.all([
           buscarUltimasMensagensCanais(supabase, idsBrutos),
           uid
             ? contarNaoLidasPorCanalIds(supabase, uid, idsContagem)
             : Promise.resolve(/** @type {Record<string, number>} */ ({})),
         ])
+        const contagens =
+          uid && tipoPublico === 'admin'
+            ? await somarBadgeHubFinanceiroAdm(contagensBase, uid, ordenados)
+            : contagensBase
         setUltimasMensagens(ultimas)
         if (uid) setNaoLidasPorCanal(contagens)
       } catch (e) {
@@ -435,6 +459,33 @@ export default function ListaCanais({
       void supabase.removeChannel(ch)
     }
   }, [idsMonitor, agendarRecarregarContagens])
+
+  useEffect(() => {
+    if (tipoPublico !== 'admin') return
+
+    const chHub = supabase
+      .channel('lista-canais-adm-avisos-hub')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'financeiro_avisos_adm_hub' },
+        () => {
+          notificarBadgeCanais()
+          agendarRecarregarContagens()
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'financeiro_avisos_adm_hub' },
+        () => {
+          agendarRecarregarContagens()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(chHub)
+    }
+  }, [tipoPublico, agendarRecarregarContagens])
 
   /**
    * @param {Canal} canal

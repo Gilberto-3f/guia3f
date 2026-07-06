@@ -10,7 +10,7 @@ import { labelFormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { registrarSolicitacaoAuxiliarAdmSeAplicavel } from '@/lib/empresaAuxiliarAdm'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
 import { enviarMensagemPagamentoPlanoAdm, montarMensagemPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
-import { inserirAvisoAgendamentoAssinaturaDinheiroHub } from '@/lib/financeiroAvisosAdmHub'
+import { inserirAvisoAgendamentoAssinaturaDinheiroHub, inserirAvisoNovaAssinaturaHub, type EmpresaPerfilAvisoHub } from '@/lib/financeiroAvisosAdmHub'
 
 export type StatusAssinaturaEmpresa = 'pendente' | 'ativo' | 'inativo' | 'cancelado'
 
@@ -61,6 +61,29 @@ function montarTextoVisitaDinheiro(dados: DadosVisitaPagamentoDinheiro): string 
     `WhatsApp: ${dados.responsavelWhatsapp.trim()}`,
     'Na data faremos as fotos 360° e receberemos o pagamento em dinheiro.',
   ].join('\n')
+}
+
+function perfilEmpresaAvisoHub(emp: {
+  id: string
+  nome_usuario?: string | null
+  nome_fantasia?: string | null
+  foto_url?: string | null
+}): EmpresaPerfilAvisoHub {
+  const username =
+    emp.nome_usuario != null && String(emp.nome_usuario).trim() !== ''
+      ? String(emp.nome_usuario).trim().replace(/^@+/, '')
+      : 'empresa'
+  const nomeSocial =
+    emp.nome_fantasia != null && String(emp.nome_fantasia).trim() !== ''
+      ? String(emp.nome_fantasia).trim()
+      : username
+  const foto = emp.foto_url != null && String(emp.foto_url).trim() !== '' ? String(emp.foto_url).trim() : null
+  return {
+    empresaId: String(emp.id),
+    empresaUsername: username,
+    empresaNomeSocial: nomeSocial,
+    empresaFotoUrl: foto,
+  }
 }
 
 export function calcularVencimentoAssinatura(
@@ -160,7 +183,7 @@ export async function registrarAssinaturaPlanoEmpresa(
   const { data: usuario } = await supabase.from('usuarios').select('status').eq('id', uid).maybeSingle()
   const { data: emp, error: empErr } = await supabase
     .from('empresas')
-    .select('id, status, docs_verificado, aprovado_em, verificado_em, plano, nome_usuario')
+    .select('id, status, docs_verificado, aprovado_em, verificado_em, plano, nome_usuario, nome_fantasia, foto_url')
     .eq('usuario_id', uid)
     .maybeSingle()
 
@@ -254,6 +277,17 @@ export async function registrarAssinaturaPlanoEmpresa(
     } catch {
       /* solicitação auxiliar ADM opcional */
     }
+
+    const avisoNova = await inserirAvisoNovaAssinaturaHub(supabase, {
+      assinaturaId: String(ins.id),
+      planoTitulo,
+      modalidade,
+      assinadoEm: agoraIso,
+      empresa: perfilEmpresaAvisoHub(emp),
+    })
+    if (!avisoNova.ok) {
+      console.error('inserirAvisoNovaAssinaturaHub:', avisoNova.error)
+    }
   }
 
   if (forma === 'dinheiro' && params.visitaDinheiro) {
@@ -295,19 +329,16 @@ export async function registrarAssinaturaPlanoEmpresa(
       /* chat ADM opcional */
     }
 
-    try {
-      const empresaUsername =
-        emp.nome_usuario != null && String(emp.nome_usuario).trim() !== ''
-          ? String(emp.nome_usuario).trim()
-          : 'empresa'
-      await inserirAvisoAgendamentoAssinaturaDinheiroHub(supabase, {
-        assinaturaId,
-        empresaId,
-        empresaUsername,
-        visitaAgendadaEm: params.visitaDinheiro.visitaAgendadaEm,
-      })
-    } catch {
-      /* aviso hub ADM opcional */
+    const avisoAgend = await inserirAvisoAgendamentoAssinaturaDinheiroHub(supabase, {
+      assinaturaId,
+      planoTitulo,
+      modalidade,
+      assinadoEm: agoraIso,
+      visitaAgendadaEm: params.visitaDinheiro.visitaAgendadaEm,
+      empresa: perfilEmpresaAvisoHub(emp),
+    })
+    if (!avisoAgend.ok) {
+      console.error('inserirAvisoAgendamentoAssinaturaDinheiroHub:', avisoAgend.error)
     }
   }
 

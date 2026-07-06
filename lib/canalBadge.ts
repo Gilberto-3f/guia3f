@@ -3,6 +3,7 @@ import {
   contarMensagensNaoLidasInboxAdmin,
   contarNaoLidasPorCanalIdsAdmin,
 } from '@/lib/canaisAdminVisibilidade'
+import { contarAvisosFinanceiroHubNaoLidos } from '@/lib/financeiroAvisosAdmHub'
 import {
   contarFinanceiroNaoLidasEmpresa,
   obterIdsCanaisMensagensEmpresa,
@@ -174,7 +175,12 @@ export async function contarMensagensNaoLidasCanais(
     canalIdsPermitidos = await obterIdsCanaisMensagensEmpresa(supabase, userId)
     extraFinanceiro = await contarFinanceiroNaoLidasEmpresa(supabase, userId)
   } else if (role === 'admin') {
-    return contarMensagensNaoLidasInboxAdmin(supabase, userId)
+    const [inbox, { data: adminRow }] = await Promise.all([
+      contarMensagensNaoLidasInboxAdmin(supabase, userId),
+      supabase.from('usuarios').select('admin_level, admin_permissoes').eq('id', userId).maybeSingle(),
+    ])
+    const hub = await contarAvisosFinanceiroHubNaoLidos(supabase, userId, adminRow ?? {})
+    return inbox + hub
   }
 
   if (canalIdsPermitidos != null && canalIdsPermitidos.size === 0) {
