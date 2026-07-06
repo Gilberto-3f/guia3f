@@ -87,7 +87,7 @@ export default function ModalFoto({ posts, indiceInicial, aberto, onFechar, meuU
 
   return (
     <div className="fixed inset-0 z-[220] flex flex-col bg-gray-50">
-      <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-3 py-2">
+      <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-3 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <button
           type="button"
           onClick={onFechar}

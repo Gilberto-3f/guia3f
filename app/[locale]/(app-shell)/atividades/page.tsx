@@ -1162,7 +1162,13 @@ export default function AtividadesPage() {
       ),
     ]
 
-    if (empresaIds.length === 0) {
+    if (ehAnfitriao && empresaHospedagemId) {
+      empresaIds.push(empresaHospedagemId)
+    }
+
+    const uniqEmpresaIds = [...new Set(empresaIds.filter(Boolean))]
+
+    if (uniqEmpresaIds.length === 0) {
       if (!merge) setEmpresaAvaliacaoMap({})
       return
     }
@@ -1170,7 +1176,7 @@ export default function AtividadesPage() {
     const { data, error } = await supabase
       .from('empresas')
       .select('id, nome_fantasia, nome_usuario, foto_url, docs_verificado, status')
-      .in('id', empresaIds)
+      .in('id', uniqEmpresaIds)
 
     if (error || !data) {
       if (!merge) setEmpresaAvaliacaoMap({})
@@ -1206,7 +1212,7 @@ export default function AtividadesPage() {
     } else {
       setEmpresaAvaliacaoMap(mapa)
     }
-  }, [])
+  }, [ehAnfitriao, empresaHospedagemId])
 
   const aplicarRemocaoLocal = useCallback(
     (
@@ -2228,7 +2234,7 @@ export default function AtividadesPage() {
           key={r.id}
           reposterUsername={reposterUsername}
           reposterFoto={ator?.foto_perfil_url ?? null}
-          hrefReposter={hrefUsuario(r.autor_id)}
+          hrefReposter={hrefPerfilInteractor(r)}
           originalUsername={originalUsername}
           hrefOriginal={hrefUsuario(originalAuthorId)}
           conteudoUrl={conteudoUrl}
@@ -2398,7 +2404,7 @@ export default function AtividadesPage() {
       const seguidorId = typeof ex.seguidor_id === 'string' ? ex.seguidor_id : r.autor_id
       const seguidoId = typeof ex.seguido_id === 'string' ? ex.seguido_id : r.usuario_id
       const seguidoTipo = typeof ex.seguido_tipo === 'string' ? ex.seguido_tipo : 'turista'
-      const uSeg = perfilMap[seguidorId]
+      const uSeg = resolverPerfilInteractor(r)
       const uAlvo = perfilMap[seguidoId]
       const empresaIdExtra =
         ex && typeof ex === 'object' && typeof (ex as Record<string, unknown>).empresa_id === 'string'
@@ -2419,7 +2425,7 @@ export default function AtividadesPage() {
           seguidorUsuarioId={seguidorId}
           usernameSeguidor={uSeg?.username ?? 'usuario'}
           seguidorFoto={uSeg?.foto_perfil_url ?? null}
-          hrefSeguidor={hrefUsuario(seguidorId)}
+          hrefSeguidor={hrefPerfilInteractor(r)}
           usernameSeguido={uAlvo?.username ?? 'usuario'}
           seguidoUsuarioId={seguidoId}
           seguidoTipo={seguidoTipo}
