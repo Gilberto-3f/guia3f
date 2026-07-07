@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { X } from 'lucide-react'
+import { ChevronLeft, X } from 'lucide-react'
 import PostCard from '@/components/PostCard'
 import AvatarImage from '@/components/AvatarImage'
 import { supabase } from '@/lib/supabase'
@@ -298,15 +298,18 @@ export default function ModalVisualizacao({
     : ''
 
   return (
-    <div className="fixed inset-0 z-[260] flex items-center justify-center px-2 py-4 sm:px-4 sm:py-6 md:px-6">
-      <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar" onClick={onFechar} />
+    <div className="fixed inset-0 z-[260] flex flex-col bg-black/50 sm:items-center sm:justify-center sm:px-4 sm:py-6 md:px-6">
+      <button
+        type="button"
+        className="w-full shrink-0 sm:hidden"
+        style={{ height: 'max(3.25rem, calc(env(safe-area-inset-top) + 2.75rem))' }}
+        aria-label="Fechar"
+        onClick={onFechar}
+      />
+      <button type="button" className="absolute inset-0 hidden sm:block" aria-label="Fechar" onClick={onFechar} />
       <div
-        className="relative z-[1] flex min-h-0 w-full max-w-[min(98.5vw,1152px)] flex-col overflow-hidden rounded-xl bg-white shadow-xl"
-        style={
-          isCarrossel
-            ? { height: 'min(92vh, calc(100vh - 2rem))', maxHeight: 'min(92vh, calc(100vh - 2rem))' }
-            : { maxHeight: 'min(92vh, calc(100vh - 2rem))' }
-        }
+        className="relative z-[1] flex min-h-0 w-full max-w-[min(98.5vw,1152px)] flex-1 flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[min(85vh,calc(100vh-2rem))] sm:flex-none sm:rounded-xl"
+        style={isCarrossel ? { height: 'auto' } : undefined}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-atividade-titulo"
@@ -357,7 +360,16 @@ export default function ModalVisualizacao({
               </p>
             </div>
           ) : null}
-          <div className="flex items-center justify-between gap-2 px-3 py-2">
+          <div className="flex items-center gap-2 px-3 py-2">
+            <button
+              type="button"
+              onClick={onFechar}
+              className="inline-flex min-h-[44px] shrink-0 items-center gap-1 rounded-lg px-1 text-sm font-medium text-gray-800 hover:bg-gray-100 sm:hidden"
+              aria-label="Voltar"
+            >
+              <ChevronLeft className="h-5 w-5 shrink-0" aria-hidden />
+              Voltar
+            </button>
             {!carregando && post ? (
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 {post.autor?.usuario_id ? (
@@ -405,7 +417,7 @@ export default function ModalVisualizacao({
             <button
               type="button"
               onClick={onFechar}
-              className="shrink-0 rounded-full p-1 text-gray-500 hover:bg-gray-100"
+              className="ml-auto shrink-0 rounded-full p-2 text-gray-500 hover:bg-gray-100 sm:p-1"
               aria-label="Fechar"
             >
               <X className="h-5 w-5" />
@@ -423,14 +435,14 @@ export default function ModalVisualizacao({
           >
             {carregando ? (
               <div
-                className={`flex ${isCarrossel ? 'min-h-[70vh]' : 'min-h-[240px]'} items-center justify-center rounded-xl bg-gray-50`}
+                className={`flex ${isCarrossel ? 'min-h-[40vh] sm:min-h-[70vh]' : 'min-h-[200px] sm:min-h-[240px]'} items-center justify-center rounded-xl bg-gray-50`}
               >
                 <div className="h-72 w-full max-w-md animate-pulse rounded-xl bg-gray-200" aria-hidden />
                 <span className="sr-only">Carregando publicação…</span>
               </div>
             ) : !post ? (
               <div
-                className={`flex ${isCarrossel ? 'min-h-[70vh]' : 'min-h-[240px]'} items-center justify-center text-sm text-gray-500`}
+                className={`flex ${isCarrossel ? 'min-h-[40vh] sm:min-h-[70vh]' : 'min-h-[200px] sm:min-h-[240px]'} items-center justify-center text-sm text-gray-500`}
               >
                 Esta publicação não está disponível.
               </div>
