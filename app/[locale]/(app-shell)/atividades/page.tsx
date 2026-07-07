@@ -54,7 +54,7 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 import { resolverUsernameOriginalRepostStory, normalizarUsernameAtividade } from '@/lib/formatarTextoRepostStory'
-import { fetchAutorIdsSeguidosAmigos, fetchSeguidosRedeAtividades } from '@/lib/feedSeguidosEmpresasFavoritas'
+import { fetchSeguidosRedeEEmpresasAtividades, fetchUsuarioIdsGestoresAnfitriaoGuia } from '@/lib/feedSeguidosEmpresasFavoritas'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 import { propsInteractor, propsDonor, propsAtor, propsDono, propsSeguidor, propsSeguido, propsReposter, propsOriginal } from '@/components/atividades/atividadeHandleProps'
@@ -257,6 +257,8 @@ export default function AtividadesPage() {
   /** Erro na query da aba Amigos (RLS, rede, etc.); só diagnóstico/UX mínima. */
   const [erroAmigos, setErroAmigos] = useState<string | null>(null)
   const seguindoRef = useRef<string[]>([])
+  const seguindoRedeRef = useRef<string[]>([])
+  const gestoresAnfitriaoRef = useRef<Set<string>>(new Set())
   const [perfilMap, setPerfilMap] = useState<PerfilMap>({})
   const [postMetaMap, setPostMetaMap] = useState<
     Record<
@@ -1249,6 +1251,8 @@ export default function AtividadesPage() {
       setQtdSeguindo(0)
       setQtdSeguindoRede(0)
       seguindoRef.current = []
+      seguindoRedeRef.current = []
+      gestoresAnfitriaoRef.current = new Set()
       setOffsetAmigos(0)
       setOffsetMinha(0)
       setTemMaisAmigos(false)
@@ -1273,6 +1277,8 @@ export default function AtividadesPage() {
       setQtdSeguindo(0)
       setQtdSeguindoRede(0)
       seguindoRef.current = []
+      seguindoRedeRef.current = []
+      gestoresAnfitriaoRef.current = new Set()
       setOffsetAmigos(0)
       setTemMaisAmigos(false)
       setTemMaisMinha(false)
@@ -1337,6 +1343,8 @@ export default function AtividadesPage() {
       setQtdSeguindo(0)
       setQtdSeguindoRede(0)
       seguindoRef.current = []
+      seguindoRedeRef.current = []
+      gestoresAnfitriaoRef.current = new Set()
       setOffsetAmigos(0)
       setTemMaisAmigos(false)
 
@@ -1386,13 +1394,20 @@ export default function AtividadesPage() {
       return
     }
 
-    const [seguindoRede, seguindo] = await Promise.all([
-      fetchSeguidosRedeAtividades(supabase, uid),
-      fetchAutorIdsSeguidosAmigos(supabase, uid, {
+    const [{ rede: seguindoRede, empresas: seguindoEmpresas }, gestoresAnfitriao] = await Promise.all([
+      fetchSeguidosRedeEEmpresasAtividades(supabase, uid, {
+        incluirModoApresentacao: modoAtivo,
+      }),
+      fetchUsuarioIdsGestoresAnfitriaoGuia(supabase, {
         incluirModoApresentacao: modoAtivo,
       }),
     ])
+    const seguindo = [...new Set([...seguindoRede, ...seguindoEmpresas])].filter(
+      (id) => Boolean(id) && id !== uid,
+    )
     seguindoRef.current = seguindo
+    seguindoRedeRef.current = seguindoRede
+    gestoresAnfitriaoRef.current = new Set(gestoresAnfitriao)
     setQtdSeguindoRede(seguindoRede.length)
     setQtdSeguindo(seguindo.length)
 
@@ -1793,7 +1808,12 @@ export default function AtividadesPage() {
     /* Minha Conta: inclui inbound direto + interações no meu conteúdo vindas da lista Seguindo (ex.: repost). */
     const raw =
       aba === 'minha' ? mergeAtividadesPorId(listaMinha, listaAmigos) : listaAmigos
-    const ctxModo = { postMetaMap, storyMetaMap }
+    const ctxModo = {
+      postMetaMap,
+      storyMetaMap,
+      seguidosRede: seguindoRedeRef.current,
+      gestoresAnfitriao: gestoresAnfitriaoRef.current,
+    }
     const comentariosVistos = new Set<string>()
     const seguidoresVistos = new Set<string>()
     const curtidasPostVistas = new Set<string>()
