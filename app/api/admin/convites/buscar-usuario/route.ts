@@ -6,6 +6,8 @@ function norm(q: string): string {
   return q.trim().replace(/^@+/, '')
 }
 
+const USUARIO_CONVITE_SELECT = 'id, email, username, role, admin_level'
+
 /** Busca exata por username ou nome social (ADM Geral — convite). */
 export async function GET(req: Request) {
   try {
@@ -33,7 +35,7 @@ export async function GET(req: Request) {
 
     const { data: porUsername } = await adminDb
       .from('usuarios')
-      .select('id, email, username, nome_completo, role, admin_level')
+      .select(USUARIO_CONVITE_SELECT)
       .ilike('username', q)
       .limit(5)
 
@@ -55,7 +57,7 @@ export async function GET(req: Request) {
       if (turHit?.usuario_id) {
         const { data: u } = await adminDb
           .from('usuarios')
-          .select('id, email, username, nome_completo, role, admin_level')
+          .select(USUARIO_CONVITE_SELECT)
           .eq('id', turHit.usuario_id)
           .maybeSingle()
         usuario = u
@@ -77,7 +79,7 @@ export async function GET(req: Request) {
       if (profHit?.usuario_id) {
         const { data: u } = await adminDb
           .from('usuarios')
-          .select('id, email, username, nome_completo, role, admin_level')
+          .select(USUARIO_CONVITE_SELECT)
           .eq('id', profHit.usuario_id)
           .maybeSingle()
         usuario = u
@@ -97,7 +99,7 @@ export async function GET(req: Request) {
     }
 
     const uid = String(usuario.id)
-    let nomeSocial = String(usuario.nome_completo ?? '').trim()
+    let nomeSocial = ''
     let username = norm(String(usuario.username ?? ''))
     let fotoUrl: string | null = null
 
