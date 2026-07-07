@@ -300,7 +300,7 @@ export default function ModalVisualizacao({
 
   const modal = (
     <div
-      className="fixed inset-0 z-[260] flex h-dvh max-h-dvh flex-col bg-white"
+      className="fixed inset-0 z-[300] flex flex-col overflow-hidden bg-white pb-safe"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-atividade-titulo"
@@ -409,7 +409,7 @@ export default function ModalVisualizacao({
 
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <div
-          className={`min-h-0 flex-1 overflow-y-auto px-2 pt-2 sm:px-4 ${isCarrossel ? 'pb-2' : 'pb-[max(1rem,env(safe-area-inset-bottom))]'}`}
+          className={`min-h-0 flex-1 overflow-y-auto px-2 pt-2 sm:px-4 ${isCarrossel ? 'pb-0' : 'pb-[max(1rem,env(safe-area-inset-bottom))]'}`}
           data-modal-scroll-lock-scrollable
           onTouchStart={onTouchStartCarouselNav}
           onTouchEnd={onTouchEndCarouselNav}
@@ -447,43 +447,36 @@ export default function ModalVisualizacao({
         </div>
 
         {isCarrossel ? (
-          <div className="mt-auto w-full shrink-0 bg-white">
-            <div className="border-t-2 border-[#0097b2] px-4 pt-2.5 pb-1.5">
-              <div className="flex justify-center gap-3 overflow-x-auto">
-                {ids.map((id, idx) => {
-                  const url = thumbs[idx] ?? null
-                  const selecionado = idx === indiceAtual
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setIndiceAtual(idx)}
-                      className={`box-border shrink-0 rounded-md p-0.5 transition ${
-                        selecionado
-                          ? 'border-2 border-[#0097b2] bg-white'
-                          : 'border-2 border-transparent opacity-70 hover:opacity-100'
-                      }`}
-                      aria-label={`Ver publicação ${idx + 1} de ${ids.length}`}
-                      aria-current={selecionado ? 'true' : undefined}
-                    >
-                      <div className="relative h-12 w-12 overflow-hidden rounded-[4px]">
-                        {url ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- URLs arbitrários do storage
-                          <img src={url} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="h-full w-full bg-gray-200" />
-                        )}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
+          <div className="mt-auto shrink-0 border-t-2 border-[#0097b2] bg-white px-4 pt-1">
+            <div className="flex justify-center gap-3 overflow-x-auto">
+              {ids.map((id, idx) => {
+                const url = thumbs[idx] ?? null
+                const selecionado = idx === indiceAtual
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setIndiceAtual(idx)}
+                    className={`box-border shrink-0 rounded-md p-0.5 transition ${
+                      selecionado
+                        ? 'border-2 border-[#0097b2] bg-white'
+                        : 'border-2 border-transparent opacity-70 hover:opacity-100'
+                    }`}
+                    aria-label={`Ver publicação ${idx + 1} de ${ids.length}`}
+                    aria-current={selecionado ? 'true' : undefined}
+                  >
+                    <div className="relative h-12 w-12 overflow-hidden rounded-[4px]">
+                      {url ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- URLs arbitrários do storage
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full bg-gray-200" />
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
-            <div
-              className="w-full bg-white"
-              style={{ height: 'env(safe-area-inset-bottom, 0px)', minHeight: 'env(safe-area-inset-bottom, 0px)' }}
-              aria-hidden
-            />
           </div>
         ) : null}
       </div>

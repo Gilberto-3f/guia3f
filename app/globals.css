@@ -28,6 +28,10 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /*
  * iOS Safari dá zoom ao focar input com font-size < 16px.
  * Em telas touch, força 16px em campos editáveis (evita zoom e facilita o drawer/menu).
