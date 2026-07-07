@@ -354,9 +354,9 @@ export default function ListagemCategoriaPage() {
                 >
                   <Check
                     className={`${iconFiltroApoioCls} text-[#0097b2]`}
-                    fill={somenteDisponiveis ? 'currentColor' : 'none'}
+                    fill="none"
                     stroke="currentColor"
-                    strokeWidth={2.5}
+                    strokeWidth={somenteDisponiveis ? 3.25 : 1.75}
                     aria-hidden
                   />
                 </button>

@@ -299,7 +299,7 @@ export default function ModalVisualizacao({
 
   return (
     <div
-      className="fixed inset-0 z-[260] flex h-dvh max-h-dvh flex-col bg-white"
+      className="fixed inset-0 z-[260] flex min-h-dvh flex-col bg-white"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-atividade-titulo"
@@ -408,7 +408,7 @@ export default function ModalVisualizacao({
 
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <div
-          className="min-h-0 flex-1 overflow-y-auto px-2 pt-2 sm:px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+          className={`min-h-0 flex-1 overflow-y-auto px-2 pt-2 sm:px-4 ${isCarrossel ? 'pb-2' : 'pb-[max(1rem,env(safe-area-inset-bottom))]'}`}
           data-modal-scroll-lock-scrollable
           onTouchStart={onTouchStartCarouselNav}
           onTouchEnd={onTouchEndCarouselNav}
@@ -446,31 +446,39 @@ export default function ModalVisualizacao({
         </div>
 
         {isCarrossel ? (
-          <div className="shrink-0 border-t border-gray-200 bg-white px-4 pt-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <div className="flex justify-center gap-2 overflow-x-auto">
+          <div className="mt-auto shrink-0 bg-white">
+            <div className="border-t-2 border-[#0097b2] px-4 pt-3 pb-3">
+              <div className="flex justify-center gap-3 overflow-x-auto py-1">
               {ids.map((id, idx) => {
                 const url = thumbs[idx] ?? null
+                const selecionado = idx === indiceAtual
                 return (
                   <button
                     key={id}
                     type="button"
                     onClick={() => setIndiceAtual(idx)}
-                    className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-md ${
-                      idx === indiceAtual ? 'ring-2 ring-[#0097b2] ring-offset-2' : 'opacity-70 hover:opacity-100'
+                    className={`box-border shrink-0 rounded-md p-0.5 transition ${
+                      selecionado
+                        ? 'border-2 border-[#0097b2] bg-white'
+                        : 'border-2 border-transparent opacity-70 hover:opacity-100'
                     }`}
                     aria-label={`Ver publicação ${idx + 1} de ${ids.length}`}
-                    aria-current={idx === indiceAtual ? 'true' : undefined}
+                    aria-current={selecionado ? 'true' : undefined}
                   >
-                    {url ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- URLs arbitrários do storage
-                      <img src={url} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="h-full w-full bg-gray-200" />
-                    )}
+                    <div className="relative h-12 w-12 overflow-hidden rounded-[4px]">
+                      {url ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- URLs arbitrários do storage
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full bg-gray-200" />
+                      )}
+                    </div>
                   </button>
                 )
               })}
+              </div>
             </div>
+            <div className="bg-white pb-[max(0.75rem,env(safe-area-inset-bottom))]" aria-hidden />
           </div>
         ) : null}
       </div>
