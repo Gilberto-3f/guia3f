@@ -69,17 +69,30 @@ export default function FinanceiroAvisosAdmHub() {
         avisos?: Array<AvisoHub & { metadata?: Record<string, unknown> }>
       }
       if (json.ok && Array.isArray(json.avisos)) {
-        setAvisos(
-          json.avisos.map((a) => ({
-            id: a.id,
-            tipo: a.tipo,
-            titulo: a.titulo,
-            mensagem: a.mensagem,
-            created_at: a.created_at,
-            lido: a.lido,
-            metadata: a.metadata as AvisoHubMetadata | undefined,
-          })),
-        )
+        let mapped = json.avisos.map((a) => ({
+          id: a.id,
+          tipo: a.tipo,
+          titulo: a.titulo,
+          mensagem: a.mensagem,
+          created_at: a.created_at,
+          lido: a.lido,
+          metadata: a.metadata as AvisoHubMetadata | undefined,
+        }))
+
+        if (mapped.some((a) => !a.lido)) {
+          const markRes = await fetch('/api/admin/financeiro-avisos-hub', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ marcar_todos: true }),
+          })
+          if (markRes.ok) {
+            mapped = mapped.map((a) => ({ ...a, lido: true }))
+            notificarBadgeCanaisAposLeitura()
+          }
+        }
+
+        setAvisos(mapped)
       } else {
         setAvisos([])
       }
@@ -154,7 +167,7 @@ export default function FinanceiroAvisosAdmHub() {
   if (avisos.length === 0) return null
 
   return (
-    <div className="mb-4 space-y-3">
+    <div className="mb-4 mt-3 space-y-3">
       {avisos.map((aviso) => {
         const meta = aviso.metadata ?? {}
         const nomeSocial = String(meta.empresa_nome_social ?? '').trim() || 'Empresa'

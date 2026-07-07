@@ -59,7 +59,7 @@ export async function GET() {
   }
 }
 
-/** Marca aviso como lido pelo admin autenticado. */
+/** Marca aviso como lido pelo admin autenticado. Corpo: `{ id }` ou `{ marcar_todos: true }`. */
 export async function PATCH(req: Request) {
   try {
     const auth = await assertAdminSession()
@@ -70,13 +70,43 @@ export async function PATCH(req: Request) {
       return jsonAdminError(403, 'forbidden', 'Acesso restrito ao ADM GERAL ou ADM Financeiro.')
     }
 
-    const body = (await req.json()) as { id?: string }
+    const body = (await req.json()) as { id?: string; marcar_todos?: boolean }
+    const adminDb = createSupabaseAdmin()
+
+    if (body.marcar_todos === true) {
+      const { data: todos, error: listErr } = await adminDb
+        .from('financeiro_avisos_adm_hub')
+        .select('id, visivel_para, lido_por')
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (listErr) {
+        return jsonAdminError(500, 'db', listErr.message)
+      }
+
+      const filtrados = filtrarAvisosFinanceiroHubPorAdmin(
+        (todos ?? []).map((r) => mapRow(r as Record<string, unknown>)),
+        adminRow,
+      )
+
+      let marcados = 0
+      for (const aviso of filtrados) {
+        if (aviso.lido_por.includes(adminRow.id)) continue
+        const { error: upErr } = await adminDb
+          .from('financeiro_avisos_adm_hub')
+          .update({ lido_por: [...aviso.lido_por, adminRow.id] })
+          .eq('id', aviso.id)
+        if (!upErr) marcados += 1
+      }
+
+      return NextResponse.json({ ok: true, marcados })
+    }
+
     const id = String(body.id ?? '').trim()
     if (!id) {
       return jsonAdminError(400, 'validation', 'id é obrigatório.')
     }
 
-    const adminDb = createSupabaseAdmin()
     const { data: atual, error: fetchErr } = await adminDb
       .from('financeiro_avisos_adm_hub')
       .select('id, visivel_para, lido_por')

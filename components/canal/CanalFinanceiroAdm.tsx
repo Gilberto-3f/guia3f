@@ -654,7 +654,6 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
         </div>
       ) : (
         <>
-          {aba === 'empresa' ? <FinanceiroAvisosAdmHub /> : null}
           <div className="relative mt-4">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
@@ -672,6 +671,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
               className={`w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#00D443] focus:ring-1 focus:ring-[#00D443] ${INPUT_FIN}`}
             />
           </div>
+          {aba === 'empresa' ? <FinanceiroAvisosAdmHub /> : null}
           {buscando && !selecionado ? <p className="mt-2 text-xs text-gray-500">Buscando…</p> : null}
 
           {resultados.length > 0 && !selecionado ? (

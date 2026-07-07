@@ -10,6 +10,7 @@ import {
   precoModalidadePlano,
 } from '@/lib/contratarPlanoEmpresa'
 import { normalizarPlanoSlug, planoEmpresaReconhecidoNoCatalogo } from '@/lib/planosEmpresaServicosGate'
+import { assinaturaContratadaVigente } from '@/lib/empresaAssinatura'
 import PopupPagamentoPlanoEmpresa from '@/components/empresa/PopupPagamentoPlanoEmpresa'
 
 /** @typedef {'mensal' | 'trimestral' | 'anual'} ModalidadePlanoEmpresa */
@@ -33,6 +34,7 @@ function planoEhAtual(plano, planoEmpresa) {
 export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
   const [planos, setPlanos] = useState(/** @type {import('@/lib/contratarPlanoEmpresa').PlanoEmpresaCatalogo[]} */ ([]))
   const [planoEmpresa, setPlanoEmpresa] = useState(/** @type {string | null} */ (null))
+  const [modalidadeAtual, setModalidadeAtual] = useState(/** @type {ModalidadePlanoEmpresa | null} */ (null))
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [degustacaoPlanoTitulo, setDegustacaoPlanoTitulo] = useState(/** @type {string | null} */ (null))
   const [loading, setLoading] = useState(true)
@@ -66,14 +68,34 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
 
       if (emp?.id) {
         const agora = new Date().toISOString()
-        const { data: deg } = await supabase
-          .from('empresa_degustacoes')
-          .select('id, planos ( titulo )')
-          .eq('empresa_id', String(emp.id))
-          .eq('status', 'ativa')
-          .gt('expira_em', agora)
-          .limit(1)
-          .maybeSingle()
+        const [{ data: deg }, { data: assinatura }] = await Promise.all([
+          supabase
+            .from('empresa_degustacoes')
+            .select('id, planos ( titulo )')
+            .eq('empresa_id', String(emp.id))
+            .eq('status', 'ativa')
+            .gt('expira_em', agora)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('empresa_assinaturas')
+            .select('modalidade, status, vencimento_em')
+            .eq('empresa_id', String(emp.id))
+            .eq('status', 'ativo')
+            .order('assinado_em', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ])
+
+        if (assinaturaContratadaVigente(assinatura)) {
+          const mod = String(assinatura?.modalidade ?? '')
+          setModalidadeAtual(
+            mod === 'mensal' || mod === 'trimestral' || mod === 'anual' ? mod : null,
+          )
+        } else {
+          setModalidadeAtual(null)
+        }
+
         if (deg?.id) {
           const planosJoin = deg.planos
           const titulo = Array.isArray(planosJoin) ? planosJoin[0]?.titulo : planosJoin?.titulo
@@ -83,6 +105,7 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
         }
       } else {
         setDegustacaoPlanoTitulo(null)
+        setModalidadeAtual(null)
       }
     } catch {
       setErro('Não foi possível carregar os planos.')
@@ -131,6 +154,7 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
     setExpandidoId(null)
     setServicosAbertosId(null)
     setPopupPagamento({ aberto: false, plano: null, modalidade: null })
+    if (planoContratado) void carregar()
   }
 
   if (loading) {
@@ -148,7 +172,14 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
       ) : null}
 
       {planoContratadoTitulo ? (
-        <p className="mb-4 text-xs font-semibold text-[#0097b2]">Plano atual: {planoContratadoTitulo}</p>
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-[#0097b2]">Plano atual: {planoContratadoTitulo}</p>
+          {modalidadeAtual ? (
+            <p className="mt-0.5 text-xs text-gray-600">
+              Período de vigência: {labelModalidadePlano(modalidadeAtual)}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {feedback ? (
