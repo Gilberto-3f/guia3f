@@ -253,6 +253,8 @@ export default function ListaCanais({
   /** @type {Record<string, number>} */
   const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
 
+  const ehVisaoAdminBadges = tipoPublico === 'admin' || agruparPorTipo
+
   const part = useMemo(() => {
     if (agruparPorTipo) return particionarVisaoAdminTodos(canais)
     return particionarPorPerfil(canais, tipoPublico)
@@ -310,7 +312,7 @@ export default function ListaCanais({
   }, [canais])
 
   const somarBadgeHubFinanceiroAdm = useCallback(async (contagens, uid, listaCanais) => {
-    if (!uid || tipoPublico !== 'admin') return contagens
+    if (!uid || !ehVisaoAdminBadges) return contagens
     const finCanal = (listaCanais ?? canais).find((c) => isCanalFinanceiroHubAdm(c))
     if (!finCanal?.id) return contagens
 
@@ -324,7 +326,7 @@ export default function ListaCanais({
     if (extra <= 0) return contagens
 
     return { ...contagens, [finCanal.id]: (contagens[finCanal.id] ?? 0) + extra }
-  }, [canais, tipoPublico])
+  }, [canais, ehVisaoAdminBadges])
 
   const recarregarContagens = useCallback(async () => {
     const {
@@ -335,20 +337,20 @@ export default function ListaCanais({
 
     const todosIds = canais.map((c) => c.id).filter((id) => !id.startsWith('__placeholder'))
     const ids =
-      agruparPorTipo || tipoPublico === 'admin'
+      ehVisaoAdminBadges
         ? await resolverIdsContagemAdmin()
         : todosIds
 
-    if (ids.length === 0 && (agruparPorTipo || tipoPublico === 'admin')) {
+    if (ids.length === 0 && ehVisaoAdminBadges) {
       setNaoLidasPorCanal({})
       return
     }
 
-    const idsContagem = agruparPorTipo || tipoPublico === 'admin' ? ids : todosIds
+    const idsContagem = ehVisaoAdminBadges ? ids : todosIds
     let contagens = await contarNaoLidasPorCanalIds(supabase, uid, idsContagem)
     contagens = await somarBadgeHubFinanceiroAdm(contagens, uid, canais)
     setNaoLidasPorCanal(contagens)
-  }, [canais, agruparPorTipo, tipoPublico, resolverIdsContagemAdmin, somarBadgeHubFinanceiroAdm])
+  }, [canais, ehVisaoAdminBadges, resolverIdsContagemAdmin, somarBadgeHubFinanceiroAdm])
 
   useEffect(() => {
     const onBadge = () => {
@@ -417,7 +419,7 @@ export default function ListaCanais({
             : Promise.resolve(/** @type {Record<string, number>} */ ({})),
         ])
         const contagens =
-          uid && tipoPublico === 'admin'
+          uid && ehVisaoAdminBadges
             ? await somarBadgeHubFinanceiroAdm(contagensBase, uid, ordenados)
             : contagensBase
         setUltimasMensagens(ultimas)
@@ -461,7 +463,7 @@ export default function ListaCanais({
   }, [idsMonitor, agendarRecarregarContagens])
 
   useEffect(() => {
-    if (tipoPublico !== 'admin') return
+    if (!ehVisaoAdminBadges) return
 
     const chHub = supabase
       .channel('lista-canais-adm-avisos-hub')
@@ -477,6 +479,7 @@ export default function ListaCanais({
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'financeiro_avisos_adm_hub' },
         () => {
+          notificarBadgeCanais()
           agendarRecarregarContagens()
         },
       )
@@ -485,7 +488,7 @@ export default function ListaCanais({
     return () => {
       void supabase.removeChannel(chHub)
     }
-  }, [tipoPublico, agendarRecarregarContagens])
+  }, [ehVisaoAdminBadges, agendarRecarregarContagens])
 
   /**
    * @param {Canal} canal

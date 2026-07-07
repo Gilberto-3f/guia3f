@@ -9,6 +9,7 @@ import type { FormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { labelFormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { registrarSolicitacaoAuxiliarAdmSeAplicavel } from '@/lib/empresaAuxiliarAdm'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
+import { encerrarDegustacaoCanalAposAssinatura } from '@/lib/degustacaoEmpresa'
 import { enviarMensagemPagamentoPlanoAdm, montarMensagemPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { inserirAvisoAgendamentoAssinaturaDinheiroHub, inserirAvisoNovaAssinaturaHub, type EmpresaPerfilAvisoHub } from '@/lib/financeiroAvisosAdmHub'
 
@@ -269,6 +270,40 @@ export async function registrarAssinaturaPlanoEmpresa(
     }
 
     try {
+      await encerrarDegustacaoCanalAposAssinatura(supabase, empresaId)
+    } catch {
+      /* degustação opcional */
+    }
+
+    try {
+      const diasPeriodo = diasParaVencimento(vencimento, agora)
+      const diasTexto =
+        diasPeriodo != null && diasPeriodo > 0
+          ? `${diasPeriodo} dias`
+          : modalidade === 'trimestral'
+            ? '90 dias'
+            : modalidade === 'anual'
+              ? '365 dias'
+              : '30 dias'
+      await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
+        empresaUsuarioId: uid,
+        tipo: 'plano_assinatura',
+        titulo: 'Plano ativo',
+        mensagem: `Parabéns, seu plano está ativo pelo período de ${diasTexto}, boa sorte nos seus negócios.`,
+        valor,
+        comprovanteDetalhes: {
+          variant: 'assinatura_ativa_imediata',
+          assinatura_id: String(ins.id),
+          plano_titulo: planoTitulo,
+          modalidade,
+          vencimento_em: vencimento,
+        },
+      })
+    } catch {
+      /* notificação empresa opcional */
+    }
+
+    try {
       await registrarSolicitacaoAuxiliarAdmSeAplicavel(supabase, {
         empresaId,
         assinaturaId: String(ins.id),
@@ -404,6 +439,12 @@ export async function validarAssinaturaDinheiroEmpresa(
       .update({ status: 'cancelada', updated_at: agoraIso })
       .eq('empresa_id', empresaId)
       .eq('status', 'ativa')
+  } catch {
+    /* noop */
+  }
+
+  try {
+    await encerrarDegustacaoCanalAposAssinatura(supabase, empresaId)
   } catch {
     /* noop */
   }

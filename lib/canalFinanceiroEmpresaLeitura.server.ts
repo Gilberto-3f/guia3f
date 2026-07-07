@@ -3,7 +3,7 @@ import {
   itemCanalFinanceiroContaComoNaoLidoEmpresa,
   type CanalFinanceiroRowEmpresa,
 } from '@/lib/canaisEmpresaVisibilidade'
-import { metadataDegustacaoCanal } from '@/lib/degustacaoEmpresa'
+import { metadataDegustacaoCanal, mensagemDegustacaoExpirada } from '@/lib/degustacaoEmpresa'
 
 function detalhesCanal(row: CanalFinanceiroRowEmpresa): Record<string, unknown> {
   if (row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)) {
@@ -52,6 +52,11 @@ export async function repararLeituraDegustacaoConcluidaEmpresa(
     const planoNome = String(planoInfo?.nome ?? planoTitulo)
     const status = String(deg.status ?? 'ativa')
     const aceitoEm = deg.aceito_em != null ? String(deg.aceito_em) : new Date().toISOString()
+    const expiraEm = deg.expira_em != null ? String(deg.expira_em) : null
+    const mensagemEncerramento =
+      status === 'cancelada' || status === 'expirada'
+        ? mensagemDegustacaoExpirada(expiraEm, planoTitulo)
+        : undefined
 
     const detalhes = metadataDegustacaoCanal({
       degustacaoId: String(deg.id),
@@ -59,15 +64,16 @@ export async function repararLeituraDegustacaoConcluidaEmpresa(
       planoId: deg.plano_id != null ? String(deg.plano_id) : '',
       planoTitulo,
       planoNome,
-      aceito: status === 'ativa' || status === 'expirada',
-      aceitoEm: status === 'ativa' || status === 'expirada' ? aceitoEm : undefined,
-      expiraEm: deg.expira_em != null ? String(deg.expira_em) : undefined,
+      aceito: status === 'ativa' || status === 'expirada' || status === 'cancelada',
+      aceitoEm: status === 'ativa' || status === 'expirada' || status === 'cancelada' ? aceitoEm : undefined,
+      expiraEm: expiraEm ?? undefined,
     })
 
     const meta = {
       ...detalhes,
       status,
       visualizado_em: aceitoEm,
+      ...(mensagemEncerramento ? { mensagem_encerramento: mensagemEncerramento } : {}),
     }
 
     const { error: upErr } = await admin

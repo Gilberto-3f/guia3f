@@ -25,6 +25,20 @@ import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLe
 import { notificarBadgeCanais, notificarBadgeCanaisAposLeitura } from '@/lib/canais-badge-events'
 import { rotuloDestinoNotificacaoFinanceira, rotuloDestinoNotificacaoFinanceiraTexto } from '@/lib/anfitriaoDualMode'
 import { dedupeItensCanalReservaHospedagem } from '@/lib/reservaHospedagem'
+import { TITULO_PLANOS_CANAL } from '@/lib/canalFinanceiroPlanosEmpresa'
+
+/** Catálogo de planos fica na aba Planos; avisos de assinatura ativa aparecem em Relatórios. */
+function ocultarPlanoAssinaturaCatalogoRelatorios(item, userTipo) {
+  if (userTipo !== 'empresa' || item.tipo !== 'plano_assinatura') return false
+  if (String(item.titulo ?? '').trim() === TITULO_PLANOS_CANAL) return true
+  const detalhes =
+    item.comprovante_detalhes && typeof item.comprovante_detalhes === 'object'
+      ? item.comprovante_detalhes
+      : item.metadata && typeof item.metadata === 'object'
+        ? item.metadata
+        : {}
+  return detalhes.variant === 'catalogo_planos'
+}
 
 const abaCls = (ativo) =>
   `flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition-colors sm:text-sm ${
@@ -516,11 +530,11 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospeda
 
       {aba === 'relatorios' ? (
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-          {itens.filter((item) => !(tipo === 'empresa' && item.tipo === 'plano_assinatura')).length === 0 ? (
+          {itens.filter((item) => !ocultarPlanoAssinaturaCatalogoRelatorios(item, tipo)).length === 0 ? (
             <div className="py-8 text-center text-gray-400">Nenhuma movimentação financeira ainda</div>
           ) : (
             itens
-              .filter((item) => !(tipo === 'empresa' && item.tipo === 'plano_assinatura'))
+              .filter((item) => !ocultarPlanoAssinaturaCatalogoRelatorios(item, tipo))
               .map((item) =>
                 item.tipo === 'pre_liberacao_turista' && tipo === 'profissional' ? (
                   <CanalFinanceiroItemPreLiberacao

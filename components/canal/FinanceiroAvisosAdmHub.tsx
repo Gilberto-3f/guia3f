@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { CalendarClock, CreditCard, ExternalLink, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { notificarBadgeCanais } from '@/lib/canais-badge-events'
+import { notificarBadgeCanais, notificarBadgeCanaisAposLeitura } from '@/lib/canais-badge-events'
 import { adminPodeVerAvisosFinanceiroHub } from '@/lib/financeiroAvisosAdmHub'
 import AvatarImage from '@/components/AvatarImage'
 
@@ -104,7 +104,7 @@ export default function FinanceiroAvisosAdmHub() {
         { event: 'INSERT', schema: 'public', table: 'financeiro_avisos_adm_hub' },
         () => {
           void carregar()
-          notificarBadgeCanais()
+          notificarBadgeCanaisAposLeitura()
         },
       )
       .on(
@@ -112,7 +112,7 @@ export default function FinanceiroAvisosAdmHub() {
         { event: 'UPDATE', schema: 'public', table: 'financeiro_avisos_adm_hub' },
         () => {
           void carregar()
-          notificarBadgeCanais()
+          notificarBadgeCanaisAposLeitura()
         },
       )
       .subscribe()
@@ -133,7 +133,7 @@ export default function FinanceiroAvisosAdmHub() {
       })
       if (res.ok) {
         setAvisos((prev) => prev.map((a) => (a.id === id ? { ...a, lido: true } : a)))
-        notificarBadgeCanais()
+        notificarBadgeCanaisAposLeitura()
       }
     } finally {
       setMarcandoId(null)

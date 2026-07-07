@@ -111,6 +111,97 @@ export function mensagemDegustacaoExpirada(
   return `O período de degustação${sufixoPlano} encerrou${data !== '—' ? ` em ${data}` : ''}. Escolha um plano para continuar utilizando os serviços do aplicativo.`
 }
 
+/** Mensagem informativa exibida no card após aceite/encerramento (preserva texto mesmo após assinatura de plano). */
+export function mensagemInformativaDegustacaoCard(
+  detalhes: Record<string, unknown> | null | undefined,
+  degustacao: DegustacaoUiResumo | null | undefined,
+  planoTitulo?: string | null,
+): string | null {
+  const fixa = detalhes?.mensagem_encerramento
+  if (typeof fixa === 'string' && fixa.trim()) return fixa.trim()
+
+  const estado = resolverEstadoDegustacaoUi(degustacao)
+  if (estado === 'ativa') {
+    return mensagemDegustacaoAtiva(degustacao?.expira_em, planoTitulo)
+  }
+  if (estado === 'expirada' || estado === 'cancelada') {
+    const expira = degustacao?.expira_em ?? (detalhes?.expira_em != null ? String(detalhes.expira_em) : null)
+    const aceito = detalhes?.aceito === true || Boolean(degustacao?.aceito_em)
+    if (aceito || expira) {
+      return mensagemDegustacaoExpirada(expira, planoTitulo)
+    }
+  }
+  return null
+}
+
+/** Preserva no canal o texto de encerramento da degustação ao contratar plano pago. */
+export async function encerrarDegustacaoCanalAposAssinatura(
+  supabase: SupabaseClient,
+  empresaId: string,
+): Promise<void> {
+  if (!empresaId) return
+
+  const { data: degs, error } = await supabase
+    .from('empresa_degustacoes')
+    .select(
+      'id, dias, status, canal_financeiro_id, expira_em, aceito_em, plano_id, planos ( nome, titulo )',
+    )
+    .eq('empresa_id', empresaId)
+    .not('canal_financeiro_id', 'is', null)
+    .in('status', ['ativa', 'expirada', 'cancelada'])
+
+  if (error) {
+    console.error('encerrarDegustacaoCanalAposAssinatura:', error)
+    return
+  }
+
+  const agoraIso = new Date().toISOString()
+
+  for (const deg of degs ?? []) {
+    const canalId = deg.canal_financeiro_id != null ? String(deg.canal_financeiro_id) : ''
+    if (!canalId) continue
+
+    const planosJoin = deg.planos as { nome?: string; titulo?: string } | { nome?: string; titulo?: string }[] | null
+    const planoInfo = Array.isArray(planosJoin) ? planosJoin[0] : planosJoin
+    const planoTitulo = String(planoInfo?.titulo ?? planoInfo?.nome ?? 'Plano')
+    const planoNome = String(planoInfo?.nome ?? planoTitulo)
+    const planoId = deg.plano_id != null ? String(deg.plano_id) : ''
+    const expiraEm = deg.expira_em != null ? String(deg.expira_em) : null
+    const aceitoEm = deg.aceito_em != null ? String(deg.aceito_em) : agoraIso
+    const mensagemEncerramento = mensagemDegustacaoExpirada(expiraEm, planoTitulo)
+
+    const detalhesBase = metadataDegustacaoCanal({
+      degustacaoId: String(deg.id),
+      dias: Number(deg.dias) || 1,
+      planoId,
+      planoTitulo,
+      planoNome,
+      aceito: true,
+      aceitoEm,
+      expiraEm: expiraEm ?? undefined,
+    })
+
+    const meta = {
+      ...detalhesBase,
+      status: 'cancelada',
+      mensagem_encerramento: mensagemEncerramento,
+      visualizado_em: agoraIso,
+    }
+
+    const { error: upErr } = await supabase
+      .from('canal_financeiro')
+      .update({
+        metadata: meta,
+        comprovante_detalhes: meta,
+        lida_por_empresa: true,
+      })
+      .eq('id', canalId)
+      .eq('empresa_id', empresaId)
+
+    if (upErr) console.error('encerrarDegustacaoCanalAposAssinatura update:', upErr)
+  }
+}
+
 export function montarMensagemDegustacao(
   username: string,
   dias: number,

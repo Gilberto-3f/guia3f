@@ -4,9 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Check, DollarSign } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
-  mensagemDegustacaoAtiva,
-  mensagemDegustacaoExpirada,
   mapDegustacaoUiDeDetalhesCanal,
+  mensagemInformativaDegustacaoCard,
   resolverEstadoDegustacaoUi,
 } from '@/lib/degustacaoEmpresa'
 import { notificarBadgeCanaisAposLeitura } from '@/lib/canais-badge-events'
@@ -55,6 +54,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
   const degustacaoId = degustacaoIdResolvido || degustacaoIdMeta
   const planoTitulo = degustacao?.plano_titulo || planoTituloMeta || null
   const estadoUi = resolverEstadoDegustacaoUi(degustacao)
+  const mensagemInformativa = mensagemInformativaDegustacaoCard(detalhes, degustacao, planoTitulo)
   const estaLida =
     userTipo === 'empresa'
       ? marcadaLida || item.lida_por_empresa || estadoUi !== 'aguardando_aceite'
@@ -221,7 +221,7 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
             </p>
           ) : null}
 
-          {item.mensagem ? (
+          {estadoUi === 'aguardando_aceite' && item.mensagem ? (
             <p className="mb-3 whitespace-pre-line text-sm text-gray-600">{item.mensagem}</p>
           ) : null}
 
@@ -237,13 +237,13 @@ export default function CanalFinanceiroItemDegustacao({ item, userTipo, usuarioI
               <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
               {aceitando ? 'Aceitando…' : degustacaoId ? 'ACEITAR' : 'Carregando…'}
             </button>
-          ) : estadoUi === 'ativa' ? (
-            <p className="text-sm font-semibold text-[#00D443]">
-              {mensagemDegustacaoAtiva(degustacao?.expira_em, planoTitulo)}
-            </p>
-          ) : estadoUi === 'expirada' ? (
-            <p className="text-sm font-semibold text-amber-700">
-              {mensagemDegustacaoExpirada(degustacao?.expira_em, planoTitulo)}
+          ) : mensagemInformativa ? (
+            <p
+              className={`text-sm font-semibold ${
+                estadoUi === 'ativa' ? 'text-[#00D443]' : 'text-amber-700'
+              }`}
+            >
+              {mensagemInformativa}
             </p>
           ) : null}
 

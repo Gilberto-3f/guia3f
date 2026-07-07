@@ -545,7 +545,6 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
 
   return (
     <div className={shellClass}>
-      <FinanceiroAvisosAdmHub />
       <div className="flex shrink-0 gap-2" role="tablist">
         <button
           type="button"
@@ -655,6 +654,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
         </div>
       ) : (
         <>
+          {aba === 'empresa' ? <FinanceiroAvisosAdmHub /> : null}
           <div className="relative mt-4">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
