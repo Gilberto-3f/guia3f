@@ -27,6 +27,9 @@ const CLASSE_BOTAO_TEXTO =
 /** Mesmo tamanho, forçando uma linha (ex.: Comprar Ticket). */
 const CLASSE_BOTAO_TEXTO_UMA_LINHA =
   'text-xs font-extrabold leading-tight text-white whitespace-nowrap sm:text-sm'
+/** Serviços Locais — rótulo WhatsApp um pouco maior. */
+const CLASSE_BOTAO_TEXTO_WHATSAPP =
+  'text-sm font-extrabold leading-tight text-white whitespace-nowrap sm:text-base'
 
 function norm(s) {
   return String(s ?? '').toLowerCase().trim()
@@ -112,7 +115,9 @@ export default function BotaoDinamico({
       return { texto: 'Comprar Ticket', icon: Ticket, acao: 'ticket', textoUmaLinha: true }
     }
     if (isHospedagem(categoria)) return { texto: 'FAZER RESERVA', icon: Calendar, acao: 'hospedagem' }
-    if (isServicosLocais(categoria)) return { texto: 'WhatsApp', icon: MessageCircle, acao: 'whatsapp' }
+    if (isServicosLocais(categoria)) {
+      return { texto: 'WhatsApp', icon: MessageCircle, acao: 'whatsapp', textoWhatsapp: true }
+    }
 
     if (isLojas(categoria)) {
       const c = norm(cidade)
@@ -215,7 +220,11 @@ export default function BotaoDinamico({
         type="button"
         onClick={handleClick}
         className={`flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center transition-opacity hover:opacity-95 ${
-          config.textoUmaLinha ? CLASSE_BOTAO_TEXTO_UMA_LINHA : CLASSE_BOTAO_TEXTO
+          config.textoWhatsapp
+            ? CLASSE_BOTAO_TEXTO_WHATSAPP
+            : config.textoUmaLinha
+              ? CLASSE_BOTAO_TEXTO_UMA_LINHA
+              : CLASSE_BOTAO_TEXTO
         }`}
         style={{ backgroundColor: corBotao }}
       >
@@ -256,22 +265,22 @@ export default function BotaoDinamico({
                 </div>
 
                 <div className="mt-4 space-y-3">
-                  <div className="mx-auto w-[10rem]">
+                  <div className="flex flex-col items-center">
                     <label className="block text-center text-xs font-semibold text-gray-700">Data</label>
                     <input
                       type="date"
                       value={reservaData}
                       onChange={(e) => setReservaData(e.target.value)}
-                      className="reserva-mesa-input mt-1 box-border w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-center text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                      className="reserva-mesa-input mt-1 box-border w-[10rem] max-w-full rounded-lg border border-gray-300 bg-white py-2 text-center text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                     />
                   </div>
-                  <div className="mx-auto w-[10rem]">
+                  <div className="flex flex-col items-center">
                     <label className="block text-center text-xs font-semibold text-gray-700">Horário</label>
                     <input
                       type="time"
                       value={reservaHora}
                       onChange={(e) => setReservaHora(e.target.value)}
-                      className="reserva-mesa-input mt-1 box-border w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-center text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                      className="reserva-mesa-input mt-1 box-border w-[10rem] max-w-full rounded-lg border border-gray-300 bg-white py-2 text-center text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                     />
                   </div>
                   <div>
