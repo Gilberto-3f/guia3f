@@ -256,8 +256,8 @@ export default function BotaoDinamico({
                 </div>
 
                 <div className="mt-4 min-w-0 space-y-3">
-                  <div className="w-2/3 min-w-0 max-w-full">
-                    <label className="block text-xs font-semibold text-gray-700">Data</label>
+                  <div className="mx-auto w-2/3 min-w-0 max-w-full">
+                    <label className="block text-center text-xs font-semibold text-gray-700">Data</label>
                     <input
                       type="date"
                       value={reservaData}
@@ -265,8 +265,8 @@ export default function BotaoDinamico({
                       className="mt-1 box-border w-full min-w-0 max-w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                     />
                   </div>
-                  <div className="w-2/3 min-w-0 max-w-full">
-                    <label className="block text-xs font-semibold text-gray-700">Horário</label>
+                  <div className="mx-auto w-2/3 min-w-0 max-w-full">
+                    <label className="block text-center text-xs font-semibold text-gray-700">Horário</label>
                     <input
                       type="time"
                       value={reservaHora}
@@ -275,8 +275,10 @@ export default function BotaoDinamico({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700">Mesa para</label>
-                    <div className="mt-1 flex items-center gap-3">
+                    <label className="block text-center text-xs font-semibold text-gray-700">
+                      Mesa para quantas pessoas?
+                    </label>
+                    <div className="mt-1 flex items-center justify-center gap-3">
                       <button
                         type="button"
                         className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-lg font-bold text-gray-700"
@@ -286,7 +288,6 @@ export default function BotaoDinamico({
                         −
                       </button>
                       <span className="min-w-[2rem] text-center text-lg font-bold text-gray-900">{reservaPessoas}</span>
-                      <span className="text-sm text-gray-600">pessoas</span>
                       <button
                         type="button"
                         className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-lg font-bold text-gray-700"

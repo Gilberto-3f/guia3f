@@ -308,8 +308,8 @@ export default function ListagemCategoriaPage() {
             />
           </div>
 
-          <div className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-2 sm:flex-1">
-            <div className="flex items-center gap-4">
+          <div className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-1 sm:gap-2 sm:flex-1">
+            <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
               {(
                 [
                   { id: 'br' as const, emoji: '🇧🇷', alt: 'Brasil' },
@@ -324,8 +324,8 @@ export default function ListagemCategoriaPage() {
                     type="button"
                     onClick={() => setPais(f.id)}
                     aria-label={f.alt}
-                    className={`p-0.5 leading-none drop-shadow-[0_0_2px_white] transition ${
-                      ativo ? 'scale-110 text-5xl' : 'scale-100 text-4xl'
+                    className={`shrink-0 p-0 leading-none drop-shadow-[0_0_2px_white] transition ${
+                      ativo ? 'scale-105 text-3xl sm:scale-110 sm:text-4xl' : 'scale-100 text-2xl sm:text-3xl'
                     }`}
                   >
                     <span aria-hidden>{f.emoji}</span>
@@ -334,7 +334,7 @@ export default function ListagemCategoriaPage() {
               })}
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
               {ehPaginaHospedagem ? (
                 <button
                   type="button"
@@ -342,10 +342,10 @@ export default function ListagemCategoriaPage() {
                   aria-label="Filtrar hospedagens disponíveis"
                   aria-pressed={somenteDisponiveis}
                   onClick={() => setSomenteDisponiveis((v) => !v)}
-                  className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-2 transition hover:bg-gray-50"
+                  className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-1.5 transition hover:bg-gray-50"
                 >
                   <Check
-                    className="h-6 w-6 shrink-0 text-[#0097b2]"
+                    className="h-5 w-5 shrink-0 text-[#0097b2]"
                     fill={somenteDisponiveis ? 'currentColor' : 'none'}
                     stroke="currentColor"
                     strokeWidth={2.5}
@@ -359,10 +359,10 @@ export default function ListagemCategoriaPage() {
                 title="Ordenar por avaliação"
                 aria-label="Ordenar por avaliação"
                 onClick={() => setOrdenacao('avaliacao')}
-                className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-2 transition hover:bg-gray-50"
+                className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-1.5 transition hover:bg-gray-50"
               >
                 <Star
-                  className="h-6 w-6 shrink-0 text-[#0097b2]"
+                  className="h-5 w-5 shrink-0 text-[#0097b2]"
                   fill={ordenacao === 'avaliacao' ? 'currentColor' : 'none'}
                   stroke="currentColor"
                   aria-hidden
@@ -393,13 +393,13 @@ export default function ListagemCategoriaPage() {
                     { enableHighAccuracy: true, timeout: 8000 }
                   )
                 }}
-                className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-2 transition hover:bg-gray-50"
+                className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-1.5 transition hover:bg-gray-50"
               >
                 <span
-                  className={`relative inline-flex h-6 w-6 shrink-0 items-center justify-center ${geoCarregando ? 'animate-pulse' : ''}`}
+                  className={`relative inline-flex h-5 w-5 shrink-0 items-center justify-center ${geoCarregando ? 'animate-pulse' : ''}`}
                 >
                   <MapPin
-                    className="h-6 w-6 text-[#0097b2]"
+                    className="h-5 w-5 text-[#0097b2]"
                     fill={ordenacao === 'localizacao' ? 'currentColor' : 'none'}
                     stroke="currentColor"
                     aria-hidden
