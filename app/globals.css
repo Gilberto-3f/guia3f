@@ -59,6 +59,16 @@ body {
   border-radius: 3px;
 }
 
+/* Popup Reservar Mesa — centraliza valor em date/time no iOS/Safari */
+.reserva-mesa-input::-webkit-date-and-time-value {
+  text-align: center;
+}
+.reserva-mesa-input::-webkit-datetime-edit {
+  display: inline-flex;
+  justify-content: center;
+  width: 100%;
+}
+
 @keyframes perfil-sheet-in {
   from {
     transform: translateY(24px);

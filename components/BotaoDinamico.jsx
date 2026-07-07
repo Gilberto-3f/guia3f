@@ -255,23 +255,23 @@ export default function BotaoDinamico({
                   </button>
                 </div>
 
-                <div className="mt-4 flex flex-col items-center space-y-3">
-                  <div className="w-full max-w-[11.5rem]">
+                <div className="mt-4 space-y-3">
+                  <div className="mx-auto w-[10rem]">
                     <label className="block text-center text-xs font-semibold text-gray-700">Data</label>
                     <input
                       type="date"
                       value={reservaData}
                       onChange={(e) => setReservaData(e.target.value)}
-                      className="mt-1 box-border w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-center text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                      className="reserva-mesa-input mt-1 box-border w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-center text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                     />
                   </div>
-                  <div className="w-full max-w-[11.5rem]">
+                  <div className="mx-auto w-[10rem]">
                     <label className="block text-center text-xs font-semibold text-gray-700">Horário</label>
                     <input
                       type="time"
                       value={reservaHora}
                       onChange={(e) => setReservaHora(e.target.value)}
-                      className="mt-1 box-border w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-center text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                      className="reserva-mesa-input mt-1 box-border w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-center text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                     />
                   </div>
                   <div>

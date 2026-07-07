@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { X } from 'lucide-react'
 import PostCard from '@/components/PostCard'
@@ -297,9 +298,9 @@ export default function ModalVisualizacao({
       })
     : ''
 
-  return (
+  const modal = (
     <div
-      className="fixed inset-0 z-[260] flex min-h-dvh flex-col bg-white"
+      className="fixed inset-0 z-[260] flex h-dvh max-h-dvh flex-col bg-white"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-atividade-titulo"
@@ -446,42 +447,48 @@ export default function ModalVisualizacao({
         </div>
 
         {isCarrossel ? (
-          <div className="mt-auto shrink-0 bg-white">
-            <div className="border-t-2 border-[#0097b2] px-4 pt-3 pb-3">
-              <div className="flex justify-center gap-3 overflow-x-auto py-1">
-              {ids.map((id, idx) => {
-                const url = thumbs[idx] ?? null
-                const selecionado = idx === indiceAtual
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setIndiceAtual(idx)}
-                    className={`box-border shrink-0 rounded-md p-0.5 transition ${
-                      selecionado
-                        ? 'border-2 border-[#0097b2] bg-white'
-                        : 'border-2 border-transparent opacity-70 hover:opacity-100'
-                    }`}
-                    aria-label={`Ver publicação ${idx + 1} de ${ids.length}`}
-                    aria-current={selecionado ? 'true' : undefined}
-                  >
-                    <div className="relative h-12 w-12 overflow-hidden rounded-[4px]">
-                      {url ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- URLs arbitrários do storage
-                        <img src={url} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="h-full w-full bg-gray-200" />
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
+          <div className="mt-auto w-full shrink-0 bg-white">
+            <div className="border-t-2 border-[#0097b2] px-4 pt-2.5 pb-1.5">
+              <div className="flex justify-center gap-3 overflow-x-auto">
+                {ids.map((id, idx) => {
+                  const url = thumbs[idx] ?? null
+                  const selecionado = idx === indiceAtual
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setIndiceAtual(idx)}
+                      className={`box-border shrink-0 rounded-md p-0.5 transition ${
+                        selecionado
+                          ? 'border-2 border-[#0097b2] bg-white'
+                          : 'border-2 border-transparent opacity-70 hover:opacity-100'
+                      }`}
+                      aria-label={`Ver publicação ${idx + 1} de ${ids.length}`}
+                      aria-current={selecionado ? 'true' : undefined}
+                    >
+                      <div className="relative h-12 w-12 overflow-hidden rounded-[4px]">
+                        {url ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- URLs arbitrários do storage
+                          <img src={url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="h-full w-full bg-gray-200" />
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
             </div>
-            <div className="bg-white pb-[max(0.75rem,env(safe-area-inset-bottom))]" aria-hidden />
+            <div
+              className="w-full bg-white"
+              style={{ height: 'env(safe-area-inset-bottom, 0px)', minHeight: 'env(safe-area-inset-bottom, 0px)' }}
+              aria-hidden
+            />
           </div>
         ) : null}
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : null
 }
