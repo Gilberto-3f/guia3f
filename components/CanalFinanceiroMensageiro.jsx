@@ -14,7 +14,7 @@ import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import {
   buscarConversaAbertaParaAlvo,
   buscarPerfisAdmFinanceiro,
-  conversaFinanceiroSomenteLeitura,
+  conversaEhBoasVindasAprovacao,
   enviarMensagemConversaFinanceiro,
   listarConversasFinanceiroParaAlvo,
   listarMensagensConversa,
@@ -102,12 +102,24 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
     return list
   }, [conversaAberta, arquivadas])
 
+  const ehConversaInformativa = useMemo(
+    () => conversaEhBoasVindasAprovacao(conversaAtual, mensagens),
+    [conversaAtual, mensagens],
+  )
+
+  const aguardandoDetectarInformativa =
+    idAtivo != null &&
+    conversaAtual?.status === 'aberta' &&
+    !ehConversaInformativa &&
+    mensagens.length === 0
+
   const podeResponder =
     conversaAtual != null &&
     conversaAtual.status === 'aberta' &&
     conversaAtual.iniciada_por_adm &&
     conversaAtual.id === conversaAberta?.id &&
-    !conversaFinanceiroSomenteLeitura(conversaAtual)
+    !ehConversaInformativa &&
+    !aguardandoDetectarInformativa
 
   const emLista = !idAtivo
 

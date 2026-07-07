@@ -3,7 +3,6 @@ import {
   ASSUNTO_CONVERSA_APROVACAO_CADASTRO,
   abrirConversaFinanceiroAdm,
   buscarConversaAbertaParaAlvo,
-  conversaFinanceiroSomenteLeitura,
   encerrarConversaFinanceiro,
   enviarMensagemConversaFinanceiro,
 } from '@/lib/financeiroConversas'
@@ -52,6 +51,16 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
       return { ok: false, error: res.error ?? 'conversa_falhou' }
     }
     conversa = res.conversa
+  } else if (conversa.assunto?.trim() !== ASSUNTO_CONVERSA_APROVACAO_CADASTRO) {
+    const { error: assuntoErr } = await supabase
+      .from('financeiro_conversas')
+      .update({ assunto: ASSUNTO_CONVERSA_APROVACAO_CADASTRO })
+      .eq('id', conversa.id)
+    if (assuntoErr) {
+      console.error('[canalFinanceiroAprovacao] atualizar assunto', assuntoErr.message)
+    } else {
+      conversa = { ...conversa, assunto: ASSUNTO_CONVERSA_APROVACAO_CADASTRO }
+    }
   }
 
   const { count } = await supabase
@@ -61,10 +70,13 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
     .ilike('texto', 'Bem-Vindo%')
 
   if (count && count > 0) {
-    if (conversa.status === 'aberta' && conversaFinanceiroSomenteLeitura(conversa)) {
-      await encerrarConversaFinanceiro(supabase, conversa.id, {
+    if (conversa.status === 'aberta') {
+      const enc = await encerrarConversaFinanceiro(supabase, conversa.id, {
         admUsuarioId: conversa.adm_usuario_id || admId,
       })
+      if (!enc.ok) {
+        console.error('[canalFinanceiroAprovacao] encerrar conversa existente', enc.error)
+      }
     }
     return { ok: true }
   }
@@ -81,7 +93,11 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
     return { ok: false, error: msg.error ?? 'mensagem_falhou' }
   }
 
-  await encerrarConversaFinanceiro(supabase, conversa.id, { admUsuarioId: remetenteId })
+  const enc = await encerrarConversaFinanceiro(supabase, conversa.id, { admUsuarioId: remetenteId })
+  if (!enc.ok) {
+    console.error('[canalFinanceiroAprovacao] encerrar conversa', enc.error)
+    return { ok: false, error: enc.error ?? 'encerrar_falhou' }
+  }
 
   return { ok: true }
 }

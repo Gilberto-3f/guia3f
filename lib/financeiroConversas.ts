@@ -12,10 +12,37 @@ export type StatusConversaFinanceiro = 'aberta' | 'encerrada'
 /** Assunto da conversa automática de boas-vindas após aprovação de cadastro (somente leitura). */
 export const ASSUNTO_CONVERSA_APROVACAO_CADASTRO = 'Cadastro aprovado'
 
+export function textoEhMensagemBoasVindasAprovacao(texto: string | null | undefined): boolean {
+  return String(texto ?? '').trim().startsWith('Bem-Vindo')
+}
+
 export function conversaFinanceiroSomenteLeitura(conversa: {
   assunto?: string | null
 }): boolean {
   return conversa.assunto?.trim() === ASSUNTO_CONVERSA_APROVACAO_CADASTRO
+}
+
+/** Card de boas-vindas pós-aprovação — informativo, sem resposta do usuário. */
+export function conversaEhBoasVindasAprovacao(
+  conversa: { assunto?: string | null } | null | undefined,
+  mensagens?: { texto?: string | null }[],
+): boolean {
+  if (!conversa) return false
+  if (conversaFinanceiroSomenteLeitura(conversa)) return true
+  return Boolean(mensagens?.some((m) => textoEhMensagemBoasVindasAprovacao(m.texto)))
+}
+
+export async function conversaTemMensagemBoasVindasAprovacao(
+  supabase: SupabaseClient,
+  conversaId: string,
+): Promise<boolean> {
+  const { count } = await supabase
+    .from('financeiro_mensagens')
+    .select('id', { count: 'exact', head: true })
+    .eq('conversa_id', conversaId)
+    .ilike('texto', 'Bem-Vindo%')
+
+  return (count ?? 0) > 0
 }
 
 export type FinanceiroConversaRow = {
@@ -290,11 +317,13 @@ export async function enviarMensagemConversaFinanceiro(
     return { ok: false, error: 'Conversa encerrada ou inexistente.' }
   }
 
-  if (
-    conversaFinanceiroSomenteLeitura(conv) &&
-    String(conv.alvo_usuario_id) === String(params.remetenteId)
-  ) {
-    return { ok: false, error: 'Esta mensagem é somente informativa.' }
+  if (String(conv.alvo_usuario_id) === String(params.remetenteId)) {
+    const informativa =
+      conversaFinanceiroSomenteLeitura(conv) ||
+      (await conversaTemMensagemBoasVindasAprovacao(supabase, params.conversaId))
+    if (informativa) {
+      return { ok: false, error: 'Esta mensagem é somente informativa.' }
+    }
   }
 
   const { data, error } = await supabase
