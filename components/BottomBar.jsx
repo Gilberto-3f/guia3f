@@ -205,7 +205,11 @@ export default function BottomBar() {
       if (ativo) setNaoLidasAtividades(total)
     }
 
-    const onBadge = () => {
+    const onBadge = (ev) => {
+      if (ev instanceof CustomEvent && ev.detail?.zero === true) {
+        setNaoLidasAtividades(0)
+        return
+      }
       void refreshBadgeAtividades()
     }
     window.addEventListener(GUIA_ATIVIDADES_BADGE_EVENT, onBadge)

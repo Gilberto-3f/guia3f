@@ -52,7 +52,7 @@ import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
-import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
+import { GUIA_ATIVIDADES_BADGE_EVENT, GUIA_ATIVIDADES_RELOAD_EVENT, zerarBadgeAtividadesMinhaConta } from '@/lib/atividades-events'
 import { resolverUsernameOriginalRepostStory, normalizarUsernameAtividade } from '@/lib/formatarTextoRepostStory'
 import { fetchSeguidosRedeEEmpresasAtividades, fetchUsuarioIdsGestoresAnfitriaoGuia } from '@/lib/feedSeguidosEmpresasFavoritas'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
@@ -333,7 +333,8 @@ export default function AtividadesPage() {
     }
   }, [])
 
-  const carregarStoriesRepostAtivos = useCallback(async (rows: AtividadeRow[]) => {
+  const carregarStoriesRepostAtivos = useCallback(async (rows: AtividadeRow[], opcoes?: { merge?: boolean }) => {
+    const merge = Boolean(opcoes?.merge)
     const ids = [
       ...new Set(
         rows.flatMap((r) => {
@@ -350,7 +351,7 @@ export default function AtividadesPage() {
       ),
     ]
     if (ids.length === 0) {
-      setStoriesRepostAtivos(new Set())
+      if (!merge) setStoriesRepostAtivos(new Set())
       setStoriesRepostAtivosPronto(true)
       return
     }
@@ -361,11 +362,16 @@ export default function AtividadesPage() {
       .gt('expira_em', new Date().toISOString())
     if (error) {
       console.error('[Atividades] stories repost ativos:', error)
-      setStoriesRepostAtivos(new Set())
+      if (!merge) setStoriesRepostAtivos(new Set())
       setStoriesRepostAtivosPronto(true)
       return
     }
-    setStoriesRepostAtivos(new Set((data ?? []).map((r) => String((r as { id: string }).id).trim().toLowerCase())))
+    const novos = new Set((data ?? []).map((r) => String((r as { id: string }).id).trim().toLowerCase()))
+    if (merge) {
+      setStoriesRepostAtivos((prev) => new Set([...prev, ...novos]))
+    } else {
+      setStoriesRepostAtivos(novos)
+    }
     setStoriesRepostAtivosPronto(true)
   }, [])
 
@@ -1485,21 +1491,23 @@ export default function AtividadesPage() {
     setTemMaisMinha(false)
 
     const todos = [...amigos, ...minha]
-    await carregarPerfis(todos, { merge: false })
-    await carregarEmpresasAvaliacoes(todos, { merge: false })
-
-    const postIds: string[] = []
-    for (const r of todos) {
-      if (r.tipo === 'curtiu_post') postIds.push(r.alvo_id)
-      const ex = r.dados_extras
-      if (ex && typeof ex === 'object') {
-        const pid = ex.post_id
-        if (typeof pid === 'string') postIds.push(pid)
-      }
-    }
-    await carregarPostsMeta(postIds, { merge: false })
-
-    await carregarStoriesMeta(todos, { merge: false })
+    await Promise.all([
+      carregarPerfis(todos, { merge: false }),
+      carregarEmpresasAvaliacoes(todos, { merge: false }),
+      (async () => {
+        const postIds: string[] = []
+        for (const r of todos) {
+          if (r.tipo === 'curtiu_post') postIds.push(r.alvo_id)
+          const ex = r.dados_extras
+          if (ex && typeof ex === 'object') {
+            const pid = ex.post_id
+            if (typeof pid === 'string') postIds.push(pid)
+          }
+        }
+        await carregarPostsMeta(postIds, { merge: false })
+      })(),
+      carregarStoriesMeta(todos, { merge: false }),
+    ])
     await carregarStoriesRepostAtivos(todos)
 
     setCarregando(false)
@@ -1552,8 +1560,7 @@ export default function AtividadesPage() {
       setListaAmigos((prev) => mergeAtividadesPorId(prev, novas))
       setOffsetAmigos(start + novas.length)
       setTemMaisAmigos(novas.length === lim)
-      await carregarPerfis(novas, { merge: true })
-      await carregarEmpresasAvaliacoes(novas, { merge: true })
+
       const postIds: string[] = []
       for (const r of novas) {
         if (r.tipo === 'curtiu_post') postIds.push(r.alvo_id)
@@ -1563,13 +1570,17 @@ export default function AtividadesPage() {
           if (typeof pid === 'string') postIds.push(pid)
         }
       }
-      await carregarPostsMeta(postIds, { merge: true })
-      await carregarStoriesMeta(novas, { merge: true })
-      await carregarStoriesRepostAtivos([...listaAmigos, ...novas])
+
+      void Promise.all([
+        carregarPerfis(novas, { merge: true }),
+        carregarEmpresasAvaliacoes(novas, { merge: true }),
+        carregarPostsMeta(postIds, { merge: true }),
+        carregarStoriesMeta(novas, { merge: true }),
+      ]).then(() => carregarStoriesRepostAtivos(novas, { merge: true }))
     } finally {
       setCarregandoMais(false)
     }
-  }, [aba, meuId, offsetAmigos, temMaisAmigos, listaAmigos, carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesMeta, carregarStoriesRepostAtivos])
+  }, [aba, meuId, offsetAmigos, temMaisAmigos, carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesMeta, carregarStoriesRepostAtivos, carregandoMais])
 
   useEffect(() => {
     void recarregar()
@@ -1677,15 +1688,18 @@ export default function AtividadesPage() {
 
   const marcarMinhaLidas = useCallback(async () => {
     if (!meuId) return
+    zerarBadgeAtividadesMinhaConta()
+    setListaMinha((prev) => prev.map((r) => ({ ...r, lida: true })))
     const { error } = await supabase
       .from('atividades')
       .update({ lida: true })
       .eq('usuario_id', meuId)
       .eq('lida', false)
-    if (error) return
-    setListaMinha((prev) => prev.map((r) => ({ ...r, lida: true })))
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('perfil-atualizado'))
+    if (error) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event(GUIA_ATIVIDADES_BADGE_EVENT))
+      }
+      return
     }
   }, [meuId])
 
