@@ -12,7 +12,57 @@ import {
   contarFinanceiroNaoLidasProfissional,
   obterIdsCanaisMensagensProfissional,
 } from '@/lib/canaisProfissionalVisibilidade'
+import {
+  canalFiltraLeituraPorPaisEmpresa,
+  canalFiltraLeituraPorPaisProfissional,
+  empresaPaisParaAba,
+  mensagemCanalVisivelNoFiltroPais,
+  profissionalPaisParaAba,
+} from '@/lib/canalAbasPaisColetivo'
 import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
+
+type CanalPaisRow = {
+  id: string
+  nome?: string | null
+  tipo_publico?: string | null
+  categoria?: string | null
+  comunidade_prof?: string | null
+  empresa_id?: string | null
+}
+
+async function carregarMapaCanaisPorIds(
+  supabase: SupabaseClient,
+  ids: string[],
+): Promise<Map<string, CanalPaisRow>> {
+  const map = new Map<string, CanalPaisRow>()
+  if (ids.length === 0) return map
+  const { data } = await supabase
+    .from('canais')
+    .select('id, nome, tipo_publico, categoria, comunidade_prof, empresa_id')
+    .in('id', ids)
+  for (const c of data ?? []) {
+    map.set(String(c.id), c as CanalPaisRow)
+  }
+  return map
+}
+
+function mensagemContaParaLeituraColetiva(
+  canal: CanalPaisRow | undefined,
+  paisMsg: string | null | undefined,
+  opts: {
+    role: string
+    paisTabLeitura: string
+  },
+): boolean {
+  if (!canal) return true
+  if (opts.role === 'profissional' && canalFiltraLeituraPorPaisProfissional(canal)) {
+    return mensagemCanalVisivelNoFiltroPais(paisMsg, opts.paisTabLeitura, 'leitura_publico')
+  }
+  if (opts.role === 'empresa' && canalFiltraLeituraPorPaisEmpresa(canal)) {
+    return mensagemCanalVisivelNoFiltroPais(paisMsg, opts.paisTabLeitura, 'leitura_publico')
+  }
+  return true
+}
 
 /**
  * `visto_em` após leitura: cobre a última mensagem visível (+ folga de 1s para relógio/Postgres).
@@ -169,12 +219,28 @@ export async function contarMensagensNaoLidasCanais(
   /** Filtra mensagens aos canais visíveis por perfil (+ avisos financeiros em tabela própria). */
   let canalIdsPermitidos: Set<string> | null = null
   let extraFinanceiro = 0
+  let paisTabLeitura = 'geral'
+  let canalPorId = new Map<string, CanalPaisRow>()
+
   if (role === 'profissional') {
     canalIdsPermitidos = await obterIdsCanaisMensagensProfissional(supabase, userId)
     extraFinanceiro = await contarFinanceiroNaoLidasProfissional(supabase, userId)
+    const { data: prof } = await supabase
+      .from('profissionais')
+      .select('pais, cidade_atuacao')
+      .eq('usuario_id', userId)
+      .maybeSingle()
+    paisTabLeitura = profissionalPaisParaAba(
+      prof?.pais != null ? String(prof.pais) : null,
+      prof?.cidade_atuacao,
+    )
+    canalPorId = await carregarMapaCanaisPorIds(supabase, Array.from(canalIdsPermitidos))
   } else if (role === 'empresa') {
     canalIdsPermitidos = await obterIdsCanaisMensagensEmpresa(supabase, userId)
     extraFinanceiro = await contarFinanceiroNaoLidasEmpresa(supabase, userId)
+    const { data: emp } = await supabase.from('empresas').select('cidade').eq('usuario_id', userId).maybeSingle()
+    paisTabLeitura = empresaPaisParaAba(emp?.cidade != null ? String(emp.cidade) : null)
+    canalPorId = await carregarMapaCanaisPorIds(supabase, Array.from(canalIdsPermitidos))
   } else if (role === 'admin') {
     const [inbox, { data: adminRow }] = await Promise.all([
       contarMensagensNaoLidasInboxAdmin(supabase, userId),
@@ -190,7 +256,7 @@ export async function contarMensagensNaoLidasCanais(
 
   let msgQuery = supabase
     .from('mensagens_canal')
-    .select('remetente_id, canal_id, created_at')
+    .select('remetente_id, canal_id, created_at, pais')
     .neq('remetente_id', userId)
     .gte('created_at', desde)
 
@@ -229,6 +295,15 @@ export async function contarMensagensNaoLidasCanais(
     if (!cid) continue
     if (canalIdsPermitidos != null && !canalIdsPermitidos.has(cid)) continue
 
+    if (
+      !mensagemContaParaLeituraColetiva(canalPorId.get(cid), row.pais != null ? String(row.pais) : null, {
+        role,
+        paisTabLeitura,
+      })
+    ) {
+      continue
+    }
+
     const created = new Date(String(row.created_at ?? 0)).getTime()
     if (Number.isNaN(created)) continue
 
@@ -251,11 +326,32 @@ export async function contarNaoLidasPorCanalIds(
   if (!userId || canalIds.length === 0) return out
 
   const { data: userRow } = await buscarUsuarioCached(supabase, userId, 'role')
-  if (userRow?.role === 'admin') {
+  const role = userRow?.role != null ? String(userRow.role) : ''
+  if (role === 'admin') {
     return contarNaoLidasPorCanalIdsAdmin(supabase, userId, canalIds)
   }
 
   for (const id of canalIds) out[id] = 0
+
+  let paisTabLeitura = 'geral'
+  let canalPorId = new Map<string, CanalPaisRow>()
+
+  if (role === 'profissional') {
+    const { data: prof } = await supabase
+      .from('profissionais')
+      .select('pais, cidade_atuacao')
+      .eq('usuario_id', userId)
+      .maybeSingle()
+    paisTabLeitura = profissionalPaisParaAba(
+      prof?.pais != null ? String(prof.pais) : null,
+      prof?.cidade_atuacao,
+    )
+    canalPorId = await carregarMapaCanaisPorIds(supabase, canalIds)
+  } else if (role === 'empresa') {
+    const { data: emp } = await supabase.from('empresas').select('cidade').eq('usuario_id', userId).maybeSingle()
+    paisTabLeitura = empresaPaisParaAba(emp?.cidade != null ? String(emp.cidade) : null)
+    canalPorId = await carregarMapaCanaisPorIds(supabase, canalIds)
+  }
 
   const { data: leituras } = await supabase
     .from('canal_leitura_profissional')
@@ -272,7 +368,7 @@ export async function contarNaoLidasPorCanalIds(
   const desde = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString()
   const { data: mensagens, error } = await supabase
     .from('mensagens_canal')
-    .select('canal_id, remetente_id, created_at')
+    .select('canal_id, remetente_id, created_at, pais')
     .in('canal_id', canalIds)
     .neq('remetente_id', userId)
     .gte('created_at', desde)
@@ -286,6 +382,15 @@ export async function contarNaoLidasPorCanalIds(
     const cid = row.canal_id != null ? String(row.canal_id) : ''
     const rid = row.remetente_id != null ? String(row.remetente_id) : ''
     if (!cid || !rid || rid === userId) continue
+
+    if (
+      !mensagemContaParaLeituraColetiva(canalPorId.get(cid), row.pais != null ? String(row.pais) : null, {
+        role,
+        paisTabLeitura,
+      })
+    ) {
+      continue
+    }
 
     const created = new Date(String(row.created_at ?? 0)).getTime()
     if (Number.isNaN(created)) continue

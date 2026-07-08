@@ -213,12 +213,15 @@ export default function CanalDetalhePage() {
       if (role === 'profissional') {
         const { data: profPais } = await supabase
           .from('profissionais')
-          .select('pais')
+          .select('pais, cidade_atuacao')
           .eq('usuario_id', uid)
           .maybeSingle()
         if (!cancelado) {
           setPaisLeituraProfissional(
-            profissionalPaisParaAba(profPais?.pais != null ? String(profPais.pais) : null),
+            profissionalPaisParaAba(
+              profPais?.pais != null ? String(profPais.pais) : null,
+              profPais?.cidade_atuacao,
+            ),
           )
         }
       }
@@ -255,12 +258,15 @@ export default function CanalDetalhePage() {
       if (role === 'profissional') {
         const { data: profPais } = await supabase
           .from('profissionais')
-          .select('pais')
+          .select('pais, cidade_atuacao')
           .eq('usuario_id', uid)
           .maybeSingle()
         if (!cancelado) {
           setPaisLeituraProfissional(
-            profissionalPaisParaAba(profPais?.pais != null ? String(profPais.pais) : null),
+            profissionalPaisParaAba(
+              profPais?.pais != null ? String(profPais.pais) : null,
+              profPais?.cidade_atuacao,
+            ),
           )
         }
       }

@@ -79,16 +79,32 @@ export function canalTemAbasPaisColetivo(
 }
 
 /** Normaliza `profissionais.pais` (texto) para código de aba. */
-export function profissionalPaisParaAba(pais: string | null | undefined): CodigoPaisAba {
+export function profissionalPaisParaAba(
+  pais: string | null | undefined,
+  cidadeAtuacao?: string | string[] | null | undefined,
+): CodigoPaisAba {
   const p = String(pais ?? '')
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-  if (!p) return 'geral'
-  if (p === 'br' || p.includes('brasil')) return 'BR'
-  if (p === 'py' || p.includes('paraguai') || p.includes('paraguay')) return 'PY'
-  if (p === 'ar' || p.includes('argentina')) return 'AR'
+  if (p) {
+    if (p === 'br' || p.includes('brasil')) return 'BR'
+    if (p === 'py' || p.includes('paraguai') || p.includes('paraguay')) return 'PY'
+    if (p === 'ar' || p.includes('argentina')) return 'AR'
+  }
+
+  /** Cadastro grava `cidade_atuacao` (Foz / CDE / Puerto Iguazú) — `pais` costuma vir vazio. */
+  const cidades = Array.isArray(cidadeAtuacao)
+    ? cidadeAtuacao
+    : cidadeAtuacao != null && String(cidadeAtuacao).trim() !== ''
+      ? [String(cidadeAtuacao)]
+      : []
+  for (const raw of cidades) {
+    const cod = inferCodigoPaisEmpresa(String(raw ?? ''))
+    if (cod === 'BR' || cod === 'AR' || cod === 'PY') return cod
+  }
+
   return 'geral'
 }
 
