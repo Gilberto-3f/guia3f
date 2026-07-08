@@ -102,6 +102,9 @@ export default function Comissoes({ usuarioId = null }) {
   const [carregando, setCarregando] = useState(!cacheInicial)
   const [erro, setErro] = useState(/** @type {string | null} */ (cacheInicial?.erro ?? null))
   const [semComunidade, setSemComunidade] = useState(cacheInicial?.semComunidade ?? false)
+  const [ehProfissionalAnfitriao, setEhProfissionalAnfitriao] = useState(
+    cacheInicial?.ehProfissionalAnfitriao ?? false
+  )
   const [favLoadingId, setFavLoadingId] = useState(/** @type {string | null} */ (null))
   const [beneficioInfoAberto, setBeneficioInfoAberto] = useState(/** @type {string | null} */ (null))
   const [cardsExpandidos, setCardsExpandidos] = useState(/** @type {Set<string>} */ (new Set()))
@@ -123,11 +126,12 @@ export default function Comissoes({ usuarioId = null }) {
     }
 
     try {
-      const { ofertas: lista, favoritosEmpresaIds: favIds, semComunidade: semCom, erro: err } =
+      const { ofertas: lista, favoritosEmpresaIds: favIds, semComunidade: semCom, ehProfissionalAnfitriao: ehAnfitriao, erro: err } =
         await fetchComissoesOfertasData(supabase, usuarioId)
       setOfertas(lista)
       setFavoritosEmpresaIds(new Set(favIds))
       setSemComunidade(semCom)
+      setEhProfissionalAnfitriao(!!ehAnfitriao)
       setErro(err)
     } catch (e) {
       console.error('[Comissoes] carregar:', e)
@@ -168,6 +172,20 @@ export default function Comissoes({ usuarioId = null }) {
       setFavLoadingId(null)
     }
   }
+
+  const categoriasVisiveis = useMemo(
+    () =>
+      ehProfissionalAnfitriao
+        ? ORDEM_CATEGORIA_COMERCIO.filter((cat) => cat !== 'Hospedagem')
+        : ORDEM_CATEGORIA_COMERCIO,
+    [ehProfissionalAnfitriao]
+  )
+
+  useEffect(() => {
+    if (!categoriasVisiveis.includes(categoriaAba)) {
+      setCategoriaAba(categoriasVisiveis[0] ?? ORDEM_CATEGORIA_COMERCIO[0])
+    }
+  }, [categoriasVisiveis, categoriaAba])
 
   const termoBusca = useMemo(() => normalizarTexto(busca), [busca])
 
@@ -408,8 +426,12 @@ export default function Comissoes({ usuarioId = null }) {
         role="tablist"
         aria-label="Categorias de comércio"
       >
-        <div className="grid grid-cols-5 gap-0.5 p-0.5">
-          {ORDEM_CATEGORIA_COMERCIO.map((cat) => {
+        <div
+          className={`grid gap-0.5 p-0.5 ${
+            categoriasVisiveis.length === 4 ? 'grid-cols-4' : 'grid-cols-5'
+          }`}
+        >
+          {categoriasVisiveis.map((cat) => {
             const ativo = categoriaAba === cat
             const meta = ROTULO_CATEGORIA_COMERCIO[/** @type {keyof typeof ROTULO_CATEGORIA_COMERCIO} */ (cat)]
             if (!meta) return null

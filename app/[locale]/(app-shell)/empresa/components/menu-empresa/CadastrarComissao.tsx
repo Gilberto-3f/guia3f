@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode, type WheelEvent } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import BotaoInfoBeneficio from '@/components/comissoes/BotaoInfoBeneficio'
 import ModoApresentacaoIcon from '@/components/ModoApresentacaoIcon'
@@ -41,6 +41,11 @@ const SEM_PRAZO_DATA = '2099-12-31'
 
 const INPUT_CLS =
   'rounded-lg border border-gray-200 bg-white p-2 text-sm text-gray-900 placeholder:text-gray-400'
+
+/** Evita que a roda do mouse altere o valor com o campo focado (comportamento padrão de type=number). */
+function evitarScrollAlterarNumero(e: WheelEvent<HTMLInputElement>) {
+  e.currentTarget.blur()
+}
 
 function abaCls(ativa: boolean) {
   return `flex-1 border-b-[3px] py-3 text-center text-sm font-semibold transition-colors sm:text-base ${
@@ -380,6 +385,7 @@ export default function CadastrarComissao() {
                 pax: { ...beneficios.pax, valor: parseFloat(e.target.value) || 0 },
               })
             }
+            onWheel={evitarScrollAlterarNumero}
             className={`w-full ${INPUT_CLS}`}
           />
         )}
@@ -405,6 +411,7 @@ export default function CadastrarComissao() {
                 percentual: { ...beneficios.percentual, valor: parseFloat(e.target.value) || 0 },
               })
             }
+            onWheel={evitarScrollAlterarNumero}
             className={`w-full ${INPUT_CLS}`}
           />
         )}
@@ -430,6 +437,7 @@ export default function CadastrarComissao() {
                 fixo: { ...beneficios.fixo, valor: parseFloat(e.target.value) || 0 },
               })
             }
+            onWheel={evitarScrollAlterarNumero}
             className={`w-full ${INPUT_CLS}`}
           />
         )}
@@ -535,6 +543,7 @@ export default function CadastrarComissao() {
                 },
               })
             }
+            onWheel={evitarScrollAlterarNumero}
             className={`w-full ${INPUT_CLS}`}
           />
         )}
@@ -563,6 +572,7 @@ export default function CadastrarComissao() {
                 },
               })
             }
+            onWheel={evitarScrollAlterarNumero}
             className={`w-full ${INPUT_CLS}`}
           />
         )}
