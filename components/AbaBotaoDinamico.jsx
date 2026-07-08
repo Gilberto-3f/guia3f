@@ -20,6 +20,8 @@ import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-e
 import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
+const COR_BOTAO_CHAMAR_CORRIDA = '#00D443'
+
 const botoesPorCategoria = {
   gastronomia: { texto: 'RESERVAR MESA', icon: Utensils, cor: '#FF6B6B', acao: 'reserva' },
   Restaurantes: { texto: 'RESERVAR MESA', icon: Utensils, cor: '#FF6B6B', acao: 'reserva' },
@@ -116,7 +118,14 @@ export default function AbaBotaoDinamico({
         return { ...base, texto: 'VER PRODUTOS', icon: ShoppingBag, cor: '#96CEB4', acao: 'produtos' }
       }
       if (cidadeEhFozOuPuertoIguazu(cidade)) {
-        return { ...base, texto: 'CHAMAR CORRIDA', icon: Car, cor: '#FFEAA7', acao: 'corrida', textoCompacto: true }
+        return {
+          ...base,
+          texto: 'CHAMAR CORRIDA',
+          icon: Car,
+          cor: COR_BOTAO_CHAMAR_CORRIDA,
+          acao: 'corrida',
+          textoCompacto: true,
+        }
       }
       return { texto: 'VER MAIS', icon: Package, cor: '#0097b2', acao: 'detalhes' }
     }

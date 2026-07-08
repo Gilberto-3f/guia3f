@@ -36,7 +36,7 @@ export function cidadeEhFozOuPuertoIguazu(cidade: string | null | undefined): bo
   return foz || puerto
 }
 
-/** Lojas em Foz ou Puerto Iguazú — endereço já é destino na mobilidade (sem menu Botão Dinâmico). */
+/** Lojas em Foz ou Puerto Iguazú — mobilidade via botão dinâmico (sem duplicar na aba Endereço). */
 export function empresaEhLojasBrasilOuArgentina(
   categoria: string | null | undefined,
   cidade: string | null | undefined,
