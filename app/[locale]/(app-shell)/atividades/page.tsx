@@ -542,14 +542,33 @@ export default function AtividadesPage() {
       const uid = opts.usuario_dono_id
       const prof = profissionalPerfilMap[uid]
       const donor = perfilMap[uid]
+      const empIdPerfil =
+        (donor?.empresa_id != null && String(donor.empresa_id).trim() !== '' ? String(donor.empresa_id) : null) ||
+        seguidoEmpresaMap[uid] ||
+        null
+      if (String(donor?.role ?? '').toLowerCase() === 'empresa' && empIdPerfil) {
+        const emp = empresaAvaliacaoMap[empIdPerfil]
+        const username = emp?.username
+          ? normalizarUsernameAtividade(emp.username)
+          : donor?.username
+            ? normalizarUsernameAtividade(donor.username)
+            : 'empresa'
+        return {
+          donorUsername: username,
+          hrefDonor: `/empresa/${empIdPerfil}`,
+          donorVerificado: emp?.verificado ?? Boolean(donor?.verificado),
+          donorVerificadoTipo: 'empresa' as const,
+        }
+      }
       return {
         donorUsername: prof?.username || donor?.username || 'usuario',
         hrefDonor: `/perfil/${uid}`,
         donorVerificado: Boolean(donor?.verificado),
-        donorVerificadoTipo: 'profissional' as const,
+        donorVerificadoTipo:
+          String(donor?.role ?? '').toLowerCase() === 'empresa' ? ('empresa' as const) : ('profissional' as const),
       }
     },
-    [empresaAvaliacaoMap, perfilMap, profissionalPerfilMap]
+    [empresaAvaliacaoMap, perfilMap, profissionalPerfilMap, seguidoEmpresaMap]
   )
 
   const resolverPerfilInteractor = useCallback(

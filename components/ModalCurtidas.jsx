@@ -75,15 +75,27 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
       }
 
       const entradas = [...porChave.values()]
-      const usuarioIdsProf = [
-        ...new Set(
-          entradas
-            .filter((r) => !(r.empresa_interator_id != null && String(r.empresa_interator_id).trim() !== ''))
-            .map((r) => String(r.usuario_id ?? '').trim())
-            .filter(Boolean),
-        ),
+      const allUsuarioIds = [
+        ...new Set(entradas.map((r) => String(r.usuario_id ?? '').trim()).filter(Boolean)),
       ]
-      const empresaIds = [
+
+      const [{ data: userRows }, perfisSociais, verificadoPorUsuario] = await Promise.all([
+        allUsuarioIds.length
+          ? supabase.from('usuarios').select('id, role').in('id', allUsuarioIds)
+          : Promise.resolve({ data: [] }),
+        buscarPerfisSociaisPorIds(supabase, allUsuarioIds),
+        fetchVerificadoPorUsuarioIds(supabase, allUsuarioIds),
+      ])
+
+      const roleByUid = new Map(
+        (userRows ?? []).map((u) => [String(u.id), String(u.role ?? '').toLowerCase()]),
+      )
+
+      const usuarioIdsEmpresa = allUsuarioIds.filter((uid) => roleByUid.get(uid) === 'empresa')
+
+      const byUid = new Map(perfisSociais.map((p) => [String(p.usuario_id), p]))
+
+      const empresaIdsInterator = [
         ...new Set(
           entradas
             .map((r) => (r.empresa_interator_id != null ? String(r.empresa_interator_id).trim() : ''))
@@ -91,17 +103,31 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
         ),
       ]
 
-      const perfisSociais = await buscarPerfisSociaisPorIds(supabase, usuarioIdsProf)
-      const verificadoPorUsuario = await fetchVerificadoPorUsuarioIds(supabase, usuarioIdsProf)
-      const byUid = new Map(perfisSociais.map((p) => [String(p.usuario_id), p]))
-
       /** @type {Record<string, { nome: string, username: string, foto_url: string | null, verificado: boolean }>} */
       const empMap = {}
-      if (empresaIds.length > 0) {
+      /** @type {Record<string, string>} */
+      const empresaIdPorUsuario = {}
+      const empresaIdsBusca = [...new Set(empresaIdsInterator)]
+
+      if (usuarioIdsEmpresa.length > 0) {
+        const { data: empPorUsuario } = await supabase
+          .from('empresas')
+          .select('id, usuario_id, nome_fantasia, nome_usuario, foto_url, docs_verificado, status')
+          .in('usuario_id', usuarioIdsEmpresa)
+        for (const raw of empPorUsuario ?? []) {
+          const e = raw
+          const uid = String(e.usuario_id ?? '').trim()
+          const id = String(e.id ?? '').trim()
+          if (uid && id) empresaIdPorUsuario[uid] = id
+          if (id && !empresaIdsBusca.includes(id)) empresaIdsBusca.push(id)
+        }
+      }
+
+      if (empresaIdsBusca.length > 0) {
         const { data: empRows } = await supabase
           .from('empresas')
           .select('id, nome_fantasia, nome_usuario, foto_url, docs_verificado, status')
-          .in('id', empresaIds)
+          .in('id', empresaIdsBusca)
         for (const raw of empRows ?? []) {
           const e = raw
           const id = String(e.id ?? '').trim()
@@ -123,8 +149,10 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
 
       const linhas = entradas.map((r) => {
         const uid = String(r.usuario_id ?? '').trim()
-        const empId = r.empresa_interator_id != null ? String(r.empresa_interator_id).trim() : ''
-        const chave = chaveCurtidaLista(uid, empId)
+        const empIdInterator = r.empresa_interator_id != null ? String(r.empresa_interator_id).trim() : ''
+        const chave = chaveCurtidaLista(uid, empIdInterator)
+        const ehContaEmpresa = roleByUid.get(uid) === 'empresa'
+        const empId = empIdInterator || (ehContaEmpresa ? empresaIdPorUsuario[uid] ?? '' : '')
 
         if (empId && empMap[empId]) {
           const emp = empMap[empId]
@@ -141,7 +169,7 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
           }
         }
 
-        if (empId) {
+        if (ehContaEmpresa) {
           return {
             chave,
             id: uid,
@@ -149,8 +177,8 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
             username: 'empresa',
             foto: null,
             role: 'empresa',
-            empresaId: empId,
-            verificado: false,
+            empresaId: empId || '',
+            verificado: Boolean(verificadoPorUsuario.get(uid)),
           }
         }
 
@@ -172,30 +200,21 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
       setLista(linhas)
 
       if (meuUsuarioId && linhas.length) {
-        const idList = linhas.map((l) => l.id)
-        const { data: rede } = await supabase
-          .from('redecontatos')
-          .select('seguido_id')
-          .eq('seguidor_id', meuUsuarioId)
-          .in('seguido_id', idList)
-        const m = /** @type {Record<string, boolean>} */ ({})
-        for (const r of rede ?? []) {
-          m[String(r.seguido_id)] = true
-        }
-        const { data: favs } = await supabase
-          .from('favoritos')
-          .select('alvo_id')
-          .eq('usuario_id', meuUsuarioId)
-          .eq('alvo_tipo', 'empresa')
-        const empUserIds = linhas.filter((l) => l.role === 'empresa' && l.id).map((l) => l.id)
-        if (empUserIds.length && favs?.length) {
-          const { data: emps } = await supabase.from('empresas').select('id, usuario_id').in('usuario_id', empUserIds)
-          const favSet = new Set((favs ?? []).map((f) => String(f.alvo_id)))
-          for (const e of emps ?? []) {
-            if (favSet.has(String(e.id))) m[String(e.usuario_id)] = true
+        const idList = linhas.filter((l) => l.role !== 'empresa').map((l) => l.id)
+        if (idList.length === 0) {
+          setSeguindoMap({})
+        } else {
+          const { data: rede } = await supabase
+            .from('redecontatos')
+            .select('seguido_id')
+            .eq('seguidor_id', meuUsuarioId)
+            .in('seguido_id', idList)
+          const m = /** @type {Record<string, boolean>} */ ({})
+          for (const r of rede ?? []) {
+            m[String(r.seguido_id)] = true
           }
+          setSeguindoMap(m)
         }
-        setSeguindoMap(m)
       } else {
         setSeguindoMap({})
       }
@@ -210,27 +229,12 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
   }, [aberto, postId, carregar])
 
   const toggleSeguir = async (alvo) => {
-    if (!meuUsuarioId || alvo.id === meuUsuarioId || seguirBusyRef.current) return
+    if (!meuUsuarioId || alvo.id === meuUsuarioId || alvo.role === 'empresa' || seguirBusyRef.current) return
     seguirBusyRef.current = true
     const ja = Boolean(seguindoMap[alvo.id])
     setSeguindoMap((prev) => ({ ...prev, [alvo.id]: !ja }))
     try {
-      if (alvo.role === 'empresa' && alvo.empresaId) {
-        if (ja) {
-          await supabase
-            .from('favoritos')
-            .delete()
-            .eq('usuario_id', meuUsuarioId)
-            .eq('alvo_id', alvo.empresaId)
-            .eq('alvo_tipo', 'empresa')
-        } else {
-          await supabase.from('favoritos').insert({
-            usuario_id: meuUsuarioId,
-            alvo_id: alvo.empresaId,
-            alvo_tipo: 'empresa',
-          })
-        }
-      } else if (ja) {
+      if (ja) {
         await removerRedeContato(supabase, meuUsuarioId, alvo.id)
       } else {
         const tipo = alvo.role === 'profissional' ? 'profissional' : 'turista'

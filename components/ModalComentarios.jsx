@@ -140,6 +140,7 @@ export default function ModalComentarios({
             foto_perfil_url: fotoAtual,
             usuario_id: aid,
             tipo: p.tipo ?? null,
+            role: String(p.tipo ?? '').toLowerCase() === 'empresa' ? 'empresa' : p.tipo ?? null,
             empresa_id: p.empresa_id ?? null,
             verificado,
           }
