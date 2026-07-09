@@ -13,6 +13,8 @@ import {
   ofertaPodeSerRemovidaPelaEmpresa,
   rotuloStatusOferta,
   ROTULOS_BENEFICIO,
+  ROTULOS_EXTRA_COMISSAO,
+  criarExtrasComissaoVazio,
 } from '@/lib/comissoesBeneficiosInfo'
 import type { TipoBeneficioComissao } from '@/lib/comissoesBeneficiosInfo'
 import { supabase } from '@/lib/supabase'
@@ -58,7 +60,7 @@ function criarBeneficiosVazio() {
     pax: { ativo: false, valor: 0 },
     percentual: { ativo: false, valor: 0 },
     fixo: { ativo: false, valor: 0 },
-    extra: { ativo: false, texto: '' },
+    extras: criarExtrasComissaoVazio(),
   }
 }
 
@@ -192,10 +194,7 @@ export default function CadastrarComissao() {
   }
 
   const temBeneficioAtivo = (beneficios: ReturnType<typeof criarBeneficiosVazio>) =>
-    beneficios.pax.ativo ||
-    beneficios.percentual.ativo ||
-    beneficios.fixo.ativo ||
-    (beneficios.extra.ativo && String(beneficios.extra.texto).trim() !== '')
+    beneficios.pax.ativo || beneficios.percentual.ativo || beneficios.fixo.ativo
 
   const temBeneficioHospedagemAtivo = (beneficios: ReturnType<typeof criarBeneficiosHospedagemVazio>) =>
     beneficios.percentual_diaria.ativo || beneficios.valor_fixo_diaria.ativo
@@ -442,30 +441,112 @@ export default function CadastrarComissao() {
           />
         )}
 
-        {renderLinhaBeneficio(
-          categoria,
-          'extra',
-          'extra',
-          ROTULOS_BENEFICIO.extra,
-          beneficios.extra.ativo,
-          (ativo) =>
-            atualizarBeneficios(categoria, {
-              ...beneficios,
-              extra: { ...beneficios.extra, ativo },
-            }),
-          <textarea
-            placeholder="Descreva o benefício extra…"
-            value={beneficios.extra.texto}
-            onChange={(e) =>
-              atualizarBeneficios(categoria, {
-                ...beneficios,
-                extra: { ...beneficios.extra, texto: e.target.value },
-              })
-            }
-            className={`w-full ${INPUT_CLS}`}
-            rows={2}
-          />
-        )}
+        <div className="space-y-3 rounded-lg border border-gray-100 bg-gray-50/80 p-3">
+          <div>
+            <p className="text-sm font-medium text-gray-800">Benefícios extras</p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Opcional — marque os que deseja oferecer junto à proposta de comissão.
+            </p>
+          </div>
+
+          {(['estacionamento', 'refeicao', 'voucher'] as const).map((chave) => {
+            const infoKey = `${categoria}-extra-${chave}`
+            const tipoInfo =
+              chave === 'estacionamento'
+                ? 'extra_estacionamento'
+                : chave === 'refeicao'
+                  ? 'extra_refeicao'
+                  : 'extra_voucher'
+            return (
+              <div key={chave} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id={`${categoria}-extra-${chave}`}
+                  checked={beneficios.extras[chave].ativo}
+                  onChange={(e) =>
+                    atualizarBeneficios(categoria, {
+                      ...beneficios,
+                      extras: {
+                        ...beneficios.extras,
+                        [chave]: { ativo: e.target.checked },
+                      },
+                    })
+                  }
+                  className="shrink-0"
+                />
+                <label
+                  htmlFor={`${categoria}-extra-${chave}`}
+                  className="min-w-0 flex-1 text-sm font-medium text-gray-700"
+                >
+                  {ROTULOS_EXTRA_COMISSAO[chave]}
+                </label>
+                <BotaoInfoBeneficio
+                  tipo={tipoInfo}
+                  aberto={beneficioInfoAberto === infoKey}
+                  onToggle={() => setBeneficioInfoAberto((atual) => (atual === infoKey ? null : infoKey))}
+                  onFechar={() => setBeneficioInfoAberto(null)}
+                />
+              </div>
+            )
+          })}
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id={`${categoria}-extra-outro`}
+                checked={beneficios.extras.outro.ativo}
+                onChange={(e) =>
+                  atualizarBeneficios(categoria, {
+                    ...beneficios,
+                    extras: {
+                      ...beneficios.extras,
+                      outro: {
+                        ...beneficios.extras.outro,
+                        ativo: e.target.checked,
+                        ...(e.target.checked ? {} : { texto: '' }),
+                      },
+                    },
+                  })
+                }
+                className="shrink-0"
+              />
+              <label
+                htmlFor={`${categoria}-extra-outro`}
+                className="min-w-0 flex-1 text-sm font-medium text-gray-700"
+              >
+                {ROTULOS_EXTRA_COMISSAO.outro}
+              </label>
+              <BotaoInfoBeneficio
+                tipo="extra_outro"
+                aberto={beneficioInfoAberto === `${categoria}-extra-outro`}
+                onToggle={() =>
+                  setBeneficioInfoAberto((atual) =>
+                    atual === `${categoria}-extra-outro` ? null : `${categoria}-extra-outro`,
+                  )
+                }
+                onFechar={() => setBeneficioInfoAberto(null)}
+              />
+            </div>
+            {beneficios.extras.outro.ativo ? (
+              <textarea
+                placeholder="Descreva o outro benefício…"
+                value={beneficios.extras.outro.texto}
+                onChange={(e) =>
+                  atualizarBeneficios(categoria, {
+                    ...beneficios,
+                    extras: {
+                      ...beneficios.extras,
+                      outro: { ...beneficios.extras.outro, texto: e.target.value },
+                    },
+                  })
+                }
+                className={`ml-6 w-[calc(100%-1.5rem)] ${INPUT_CLS}`}
+                rows={2}
+              />
+            ) : null}
+          </div>
+        </div>
 
         <div className="rounded-lg bg-gray-50 p-3">
           <div className="flex items-center gap-3">

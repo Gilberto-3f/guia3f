@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { ChevronDown, Search, Star } from 'lucide-react'
 import BotaoInfoBeneficio from '@/components/comissoes/BotaoInfoBeneficio'
-import { listarBeneficiosOferta, ROTULOS_BENEFICIO } from '@/lib/comissoesBeneficiosInfo'
+import { listarBeneficiosOferta, tipoInfoBeneficioPorRotulo } from '@/lib/comissoesBeneficiosInfo'
 import { supabase } from '@/lib/supabase'
 import {
   ORDEM_CATEGORIA_COMERCIO,
@@ -56,17 +56,11 @@ function empresaCombinaTermo(empresa, termo) {
 }
 
 function listarBeneficiosAtivos(b) {
-  return listarBeneficiosOferta(b).map((item) => {
-    const tipo =
-      item.label === ROTULOS_BENEFICIO.pax
-        ? 'pax'
-        : item.label === ROTULOS_BENEFICIO.percentual
-          ? 'percentual'
-          : item.label === ROTULOS_BENEFICIO.fixo
-            ? 'fixo'
-            : 'extra'
-    return { tipo, label: item.label, valor: item.valor }
-  })
+  return listarBeneficiosOferta(b).map((item) => ({
+    tipo: tipoInfoBeneficioPorRotulo(item.label),
+    label: item.label,
+    valor: item.valor,
+  }))
 }
 
 function textoValidadeOferta(oferta) {

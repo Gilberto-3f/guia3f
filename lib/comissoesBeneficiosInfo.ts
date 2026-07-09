@@ -6,8 +6,42 @@ export type TipoBeneficioComissao =
   | 'percentual'
   | 'fixo'
   | 'extra'
+  | 'extra_estacionamento'
+  | 'extra_refeicao'
+  | 'extra_voucher'
+  | 'extra_outro'
   | 'percentual_diaria'
   | 'valor_fixo_diaria'
+
+export type ChaveExtraComissao = 'estacionamento' | 'refeicao' | 'voucher' | 'outro'
+
+export const CHAVES_EXTRA_COMISSAO = ['estacionamento', 'refeicao', 'voucher', 'outro'] as const
+
+export const ROTULOS_EXTRA_COMISSAO: Record<ChaveExtraComissao, string> = {
+  estacionamento: 'Estacionamento grátis',
+  refeicao: 'Refeição almoço/jantar',
+  voucher: 'Voucher',
+  outro: 'Outro benefício',
+}
+
+export type ExtrasComissaoForm = Record<
+  ChaveExtraComissao,
+  ChaveExtraComissao extends 'outro' ? { ativo: boolean; texto: string } : { ativo: boolean }
+>
+
+export function criarExtrasComissaoVazio(): {
+  estacionamento: { ativo: boolean }
+  refeicao: { ativo: boolean }
+  voucher: { ativo: boolean }
+  outro: { ativo: boolean; texto: string }
+} {
+  return {
+    estacionamento: { ativo: false },
+    refeicao: { ativo: false },
+    voucher: { ativo: false },
+    outro: { ativo: false, texto: '' },
+  }
+}
 
 export const INFO_BENEFICIO_TEXTO: Record<TipoBeneficioComissao, string> = {
   pax: 'Comissão paga por passageiro que trouxerem no local da empresa.',
@@ -16,6 +50,10 @@ export const INFO_BENEFICIO_TEXTO: Record<TipoBeneficioComissao, string> = {
   fixo: 'Comissão de valor fixo por passageiro que consumir ou comprar na empresa.',
   extra:
     'Um benefício particular e personalizado que a empresa oferece além das comissões.',
+  extra_estacionamento: 'Estacionamento gratuito para clientes indicados pela parceria.',
+  extra_refeicao: 'Refeição (almoço ou jantar) oferecida como benefício da parceria.',
+  extra_voucher: 'Voucher promocional oferecido junto à proposta de comissão.',
+  extra_outro: 'Benefício personalizado descrito pela empresa.',
   percentual_diaria:
     'Comissão paga como porcentagem sobre o valor das diárias reservadas na hospedagem.',
   valor_fixo_diaria:
@@ -127,7 +165,6 @@ function listarBeneficiosPadrao(
   const pax = objBeneficio(b.pax)
   const pct = objBeneficio(b.percentual)
   const fixo = objBeneficio(b.fixo)
-  const extra = objBeneficio(b.extra)
 
   if (pax && aceita(pax)) {
     itens.push({ label: ROTULOS_BENEFICIO.pax, valor: `R$ ${pax.valor ?? 0}` })
@@ -138,9 +175,34 @@ function listarBeneficiosPadrao(
   if (fixo && aceita(fixo)) {
     itens.push({ label: ROTULOS_BENEFICIO.fixo, valor: `R$ ${fixo.valor ?? 0}` })
   }
+
+  /** Legado: campo único `extra` (propostas antigas). */
+  const extra = objBeneficio(b.extra)
   if (extra && aceita(extra, true)) {
     itens.push({ label: ROTULOS_BENEFICIO.extra, valor: String(extra.texto).trim() })
   }
+
+  const extrasRaw = b.extras
+  if (extrasRaw && typeof extrasRaw === 'object' && !Array.isArray(extrasRaw)) {
+    const extras = extrasRaw as Record<string, BeneficioValor | undefined>
+    for (const key of CHAVES_EXTRA_COMISSAO) {
+      if (key === 'outro') {
+        const outro = objBeneficio(extras.outro)
+        if (outro && aceita(outro, true)) {
+          itens.push({
+            label: ROTULOS_EXTRA_COMISSAO.outro,
+            valor: String(outro.texto ?? '').trim(),
+          })
+        }
+        continue
+      }
+      const item = objBeneficio(extras[key])
+      if (item?.ativo === true) {
+        itens.push({ label: ROTULOS_EXTRA_COMISSAO[key], valor: 'Incluso' })
+      }
+    }
+  }
+
   return itens
 }
 
@@ -227,4 +289,19 @@ export function classeStatusOferta(status: StatusOfertaComissao): string {
 
 export function ofertaPodeSerRemovidaPelaEmpresa(status: StatusOfertaComissao): boolean {
   return String(status ?? '').toLowerCase() !== 'removido'
+}
+
+/** Tipo de info (tooltip) a partir do rótulo exibido na lista de benefícios. */
+export function tipoInfoBeneficioPorRotulo(label: string): TipoBeneficioComissao {
+  if (label === ROTULOS_BENEFICIO.pax) return 'pax'
+  if (label === ROTULOS_BENEFICIO.percentual) return 'percentual'
+  if (label === ROTULOS_BENEFICIO.fixo) return 'fixo'
+  if (label === ROTULOS_BENEFICIO.extra) return 'extra'
+  if (label === ROTULOS_BENEFICIO.percentual_diaria) return 'percentual_diaria'
+  if (label === ROTULOS_BENEFICIO.valor_fixo_diaria) return 'valor_fixo_diaria'
+  if (label === ROTULOS_EXTRA_COMISSAO.estacionamento) return 'extra_estacionamento'
+  if (label === ROTULOS_EXTRA_COMISSAO.refeicao) return 'extra_refeicao'
+  if (label === ROTULOS_EXTRA_COMISSAO.voucher) return 'extra_voucher'
+  if (label === ROTULOS_EXTRA_COMISSAO.outro) return 'extra_outro'
+  return 'extra'
 }
