@@ -11,6 +11,11 @@ import {
   fetchUsuarioIdsTodasEmpresasGuia,
 } from '@/lib/feedSeguidosEmpresasFavoritas'
 import { tentarProcessarPublicacoesAgendadas } from '@/lib/processarPublicacoesAgendadasClient'
+import {
+  fetchPostIdsVisualizadosFeed,
+  marcarPostVisualizadoFeed,
+  ordenarPostsFeedPorVisualizacao,
+} from '@/lib/feedVisualizacao'
 import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
 import { listarSeguidosIdsCached } from '@/lib/redeContatosCache'
 import {
@@ -20,6 +25,8 @@ import {
 } from '@/lib/story-open-order'
 import StoriesBar from '@/components/StoriesBar'
 import PostCard from '@/components/PostCard'
+import PostCardViewport from '@/components/feed/PostCardViewport'
+import FeedPullRefresh from '@/components/feed/FeedPullRefresh'
 import { POST_DELETED_EVENT } from '@/components/MenuPost'
 import StoryViewer from '@/components/StoryViewer'
 import {
@@ -162,6 +169,7 @@ function FeedPageInner() {
   const [hasMore, setHasMore] = useState(true)
   const pageRef = useRef(0)
   const mergeGenRef = useRef(0)
+  const postsVistosRef = useRef<Set<string>>(new Set())
   const sentinelRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const fetchPostAttempted = useRef<string | null>(null)
   const storyCacheRef = useRef(new Map<string, StoryViewerState>())
@@ -184,6 +192,36 @@ function FeedPageInner() {
     ready: false,
     meuId: null as string | null,
   })
+  useEffect(() => {
+    postsVistosRef.current = new Set()
+  }, [meuId])
+
+  const handlePostEntrouViewport = useCallback(
+    (postId: string) => {
+      const pid = String(postId ?? '').trim()
+      const uid = meuId != null ? String(meuId).trim() : ''
+      if (!pid || !uid) return
+      if (postsVistosRef.current.has(pid)) return
+      postsVistosRef.current.add(pid)
+      void marcarPostVisualizadoFeed(supabase, uid, pid)
+    },
+    [meuId],
+  )
+
+  const ordenarListaFeed = useCallback((lista: PostFeedRow[]) => {
+    return ordenarPostsFeedPorVisualizacao(lista, postsVistosRef.current)
+  }, [])
+
+  const enriquecerComVisualizacoes = useCallback(
+    async (lista: PostFeedRow[]): Promise<PostFeedRow[]> => {
+      if (!meuId || lista.length === 0) return ordenarListaFeed(lista)
+      const ids = lista.map((p) => p.id).filter(Boolean)
+      const fetched = await fetchPostIdsVisualizadosFeed(supabase, meuId, ids)
+      for (const id of fetched) postsVistosRef.current.add(id)
+      return ordenarListaFeed(lista)
+    },
+    [meuId, ordenarListaFeed],
+  )
   useEffect(() => {
     feedRedeRef.current = {
       seguidos: feedRede.seguidos,
@@ -412,9 +450,9 @@ function FeedPageInner() {
         email,
         modoAtivo
       )
-      return saneados as PostFeedRow[]
+      return enriquecerComVisualizacoes(saneados as PostFeedRow[])
     },
-    [mapRow, meuId, email, modoAtivo]
+    [mapRow, meuId, email, modoAtivo, enriquecerComVisualizacoes]
   )
 
   const refetchPostsFeed = useCallback(async () => {
@@ -549,6 +587,25 @@ function FeedPageInner() {
       setLoadingMore(false)
     }
   }, [rebuildMergedPosts, hasMore, loadingMore, posts.length, bloqueioEmpresaFeed])
+
+  /** Pull-to-refresh e reentrada: rebusca posts e reordena com base em visualizações (sem marcar novos). */
+  const atualizarFeedComVisualizacao = useCallback(async () => {
+    if (!feedRede.ready || bloqueioEmpresaFeed) return
+    mergeGenRef.current = 0
+    pageRef.current = 0
+    setHasMore(true)
+    fetchPostAttempted.current = null
+    try {
+      await tentarProcessarPublicacoesAgendadas()
+      const merged = await rebuildMergedPosts(0)
+      setPosts(merged.slice(0, PAGE_SIZE))
+      setHasMore(merged.length > PAGE_SIZE)
+      pageRef.current = 1
+    } catch (e) {
+      console.error(e)
+    }
+    bumpStoriesBar()
+  }, [bumpStoriesBar, feedRede.ready, rebuildMergedPosts, bloqueioEmpresaFeed])
 
   /** Recarrega a primeira página (ex.: após editar perfil — evento `perfil-atualizado`). */
   const recarregarPrimeiraPagina = useCallback(async () => {
@@ -882,75 +939,88 @@ function FeedPageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="bg-gray-100">
-        <StoriesBar
-          userEmail={email}
-          reloadSignal={storiesBarReload}
-          onOpenStory={(id, meta) => void abrirStory(id, meta)}
-        />
-      </div>
+    <FeedPullRefresh
+      onRefresh={atualizarFeedComVisualizacao}
+      disabled={loading || bloqueioEmpresaFeed || !meuId}
+    >
+      <div className="min-h-screen bg-gray-50 pb-24">
+        <div className="bg-gray-100">
+          <StoriesBar
+            userEmail={email}
+            reloadSignal={storiesBarReload}
+            onOpenStory={(id, meta) => void abrirStory(id, meta)}
+          />
+        </div>
 
-      <div className="space-y-4 p-4">
-        {posts.length === 0 ? (
-          <div className="py-8 text-center">
-            <p className="text-gray-400">Nenhuma publicação ainda</p>
-            <p className="mt-1 text-sm text-gray-400">
-              Siga perfis no Guia ou aguarde conteúdo de empresas em campanha para ver o feed aqui.
-            </p>
-          </div>
-        ) : (
-          posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              meuUsuarioId={meuId}
-              userEmail={email}
-              storyAtivo={storiesPorAutor[post.autor?.usuario_id ?? ''] ?? null}
-              onAbrirStory={(id) => void abrirStory(id)}
-              onRemove={removerPost}
-              abrirComentariosInicial={postParam === post.id && Boolean(comentarioParam)}
-              destacarComentarioId={postParam === post.id ? comentarioParam : null}
-              onRepublicouPrepend={(raw) => {
-                void (async () => {
-                  const mapped = mapRow(raw)
-                  const [row] = (await sanearAutoresPostsEmpresaPreview(supabase, [mapped], email, modoAtivo)) as PostFeedRow[]
-                  setPosts((prev) => (prev.some((x) => x.id === row.id) ? prev : [row, ...prev]))
-                })()
-              }}
-              onPostLocalPatch={(postId, patch) => {
-                setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, ...patch } : x)))
-              }}
-              onEngagementChange={(postId, patch) => {
-                setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, ...patch } : x)))
-              }}
-              onRepostRemovido={(repostPostId) => {
-                setPosts((prev) => prev.filter((p) => p.id !== repostPostId))
-              }}
-            />
-          ))
-        )}
-        <div ref={sentinelRef} className="h-4 w-full" aria-hidden />
-        {loadingMore ? <p className="py-2 text-center text-sm text-gray-400">Carregando…</p> : null}
-        {!hasMore && posts.length > 0 ? <p className="py-2 text-center text-xs text-gray-300">Fim do feed</p> : null}
-      </div>
+        <div className="space-y-4 p-4">
+          {posts.length === 0 ? (
+            <div className="py-8 text-center">
+              <p className="text-gray-400">Nenhuma publicação ainda</p>
+              <p className="mt-1 text-sm text-gray-400">
+                Siga perfis no Guia ou aguarde conteúdo de empresas em campanha para ver o feed aqui.
+              </p>
+            </div>
+          ) : (
+            posts.map((post) => (
+              <PostCardViewport
+                key={post.id}
+                postId={post.id}
+                onEntrouViewport={meuId ? handlePostEntrouViewport : undefined}
+              >
+                <PostCard
+                  post={post}
+                  meuUsuarioId={meuId}
+                  userEmail={email}
+                  storyAtivo={storiesPorAutor[post.autor?.usuario_id ?? ''] ?? null}
+                  onAbrirStory={(id) => void abrirStory(id)}
+                  onRemove={removerPost}
+                  abrirComentariosInicial={postParam === post.id && Boolean(comentarioParam)}
+                  destacarComentarioId={postParam === post.id ? comentarioParam : null}
+                  onRepublicouPrepend={(raw) => {
+                    void (async () => {
+                      const mapped = mapRow(raw)
+                      const [row] = (await sanearAutoresPostsEmpresaPreview(supabase, [mapped], email, modoAtivo)) as PostFeedRow[]
+                      setPosts((prev) => {
+                        if (prev.some((x) => x.id === row.id)) return prev
+                        return ordenarListaFeed([row, ...prev])
+                      })
+                    })()
+                  }}
+                  onPostLocalPatch={(postId, patch) => {
+                    setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, ...patch } : x)))
+                  }}
+                  onEngagementChange={(postId, patch) => {
+                    setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, ...patch } : x)))
+                  }}
+                  onRepostRemovido={(repostPostId) => {
+                    setPosts((prev) => prev.filter((p) => p.id !== repostPostId))
+                  }}
+                />
+              </PostCardViewport>
+            ))
+          )}
+          <div ref={sentinelRef} className="h-4 w-full" aria-hidden />
+          {loadingMore ? <p className="py-2 text-center text-sm text-gray-400">Carregando…</p> : null}
+          {!hasMore && posts.length > 0 ? <p className="py-2 text-center text-xs text-gray-300">Fim do feed</p> : null}
+        </div>
 
-      {storyModal ? (
-        <StoryViewer
-          story={storyModal.data}
-          userEmail={email}
-          meuUsuarioId={meuId}
-          storyQueueLength={storyModal.ids.length}
-          storyQueueIndex={storyModal.index}
-          timerPlaybackKey={storyModal.playbackKey}
-          onVisualizado={bumpStoriesBar}
-          onFechar={fecharStoryModal}
-          onIrAnterior={() => void navegarStory(-1)}
-          onIrProximo={() => void navegarStory(1)}
-          onTimerFim={() => void navegarStory(1)}
-        />
-      ) : null}
-    </div>
+        {storyModal ? (
+          <StoryViewer
+            story={storyModal.data}
+            userEmail={email}
+            meuUsuarioId={meuId}
+            storyQueueLength={storyModal.ids.length}
+            storyQueueIndex={storyModal.index}
+            timerPlaybackKey={storyModal.playbackKey}
+            onVisualizado={bumpStoriesBar}
+            onFechar={fecharStoryModal}
+            onIrAnterior={() => void navegarStory(-1)}
+            onIrProximo={() => void navegarStory(1)}
+            onTimerFim={() => void navegarStory(1)}
+          />
+        ) : null}
+      </div>
+    </FeedPullRefresh>
   )
 }
 
