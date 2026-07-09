@@ -65,6 +65,10 @@ export const ROTULOS_BENEFICIO: Record<TipoBeneficioComissao, string> = {
   percentual: 'PORCENTAGEM',
   fixo: 'INDICAÇÃO',
   extra: 'BENEFÍCIO EXTRA',
+  extra_estacionamento: 'ESTACIONAMENTO',
+  extra_refeicao: 'REFEIÇÃO',
+  extra_voucher: 'VOUCHER',
+  extra_outro: 'OUTRO BENEFÍCIO',
   percentual_diaria: '% DAS DIÁRIAS',
   valor_fixo_diaria: 'VALOR FIXO POR DIÁRIA',
 }
