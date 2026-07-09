@@ -35,38 +35,51 @@ export function resumoMensagem(texto: string | null | undefined, anexoTipo: stri
 }
 
 /**
- * Última mensagem por canal (primeira ocorrência após ordenar desc).
+ * Última mensagem por canal (uma query por canal, em lotes — ordenação confiável na lista).
  */
 export async function buscarUltimasMensagensCanais(
   supabase: SupabaseClient,
   canalIds: string[],
 ): Promise<Record<string, UltimaMensagemCanal>> {
-  if (canalIds.length === 0) return {}
-
-  const { data, error } = await supabase
-    .from('mensagens_canal')
-    .select('canal_id, texto, anexo_tipo, created_at')
-    .in('canal_id', canalIds)
-    .order('created_at', { ascending: false })
-    .limit(Math.min(canalIds.length * 3, 400))
-
-  if (error) {
-    console.error('buscarUltimasMensagensCanais:', error)
-    return {}
-  }
+  const unique = [...new Set(canalIds.map((x) => String(x).trim()).filter(Boolean))]
+  if (unique.length === 0) return {}
 
   const map: Record<string, UltimaMensagemCanal> = {}
-  for (const row of data ?? []) {
-    const cid = String(row.canal_id)
-    if (map[cid]) continue
-    map[cid] = {
-      preview: resumoMensagem(
-        row.texto != null ? String(row.texto) : null,
-        row.anexo_tipo != null ? String(row.anexo_tipo) : null,
-      ),
-      created_at: String(row.created_at ?? ''),
+  const BATCH = 24
+
+  for (let i = 0; i < unique.length; i += BATCH) {
+    const chunk = unique.slice(i, i + BATCH)
+    const rows = await Promise.all(
+      chunk.map(async (cid) => {
+        const { data, error } = await supabase
+          .from('mensagens_canal')
+          .select('canal_id, texto, anexo_tipo, created_at')
+          .eq('canal_id', cid)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (error) {
+          console.warn('buscarUltimasMensagensCanais:', cid, error.message)
+          return null
+        }
+        return data
+      }),
+    )
+
+    for (const row of rows) {
+      if (!row) continue
+      const cid = String(row.canal_id ?? '')
+      if (!cid || map[cid]) continue
+      map[cid] = {
+        preview: resumoMensagem(
+          row.texto != null ? String(row.texto) : null,
+          row.anexo_tipo != null ? String(row.anexo_tipo) : null,
+        ),
+        created_at: String(row.created_at ?? ''),
+      }
     }
   }
+
   return map
 }
 
@@ -85,6 +98,41 @@ export function patchUltimaMensagemCanal(
       created_at: created,
     },
   }
+}
+
+type CanalComUltimaMensagem = {
+  id: string
+  ultima_mensagem_em?: string | null
+}
+
+/** Timestamp efetivo da última atividade (coluna do canal + mapa de previews). */
+export function timestampUltimaMensagemCanal(
+  canal: CanalComUltimaMensagem,
+  ultimas?: Record<string, UltimaMensagemCanal>,
+): number {
+  const fromCol = canal.ultima_mensagem_em ? new Date(canal.ultima_mensagem_em).getTime() : 0
+  const fromMap = ultimas?.[canal.id]?.created_at ? new Date(ultimas[canal.id].created_at).getTime() : 0
+  const t = Math.max(
+    Number.isNaN(fromCol) ? 0 : fromCol,
+    Number.isNaN(fromMap) ? 0 : fromMap,
+  )
+  return t
+}
+
+/**
+ * Ordena canais por última mensagem recebida (mais recente no topo).
+ * Canais sem mensagens ficam no final.
+ */
+export function ordenarCanaisPorUltimaMensagem<T extends CanalComUltimaMensagem>(
+  lista: T[],
+  ultimas?: Record<string, UltimaMensagemCanal>,
+): T[] {
+  return [...lista].sort((a, b) => {
+    const ta = timestampUltimaMensagemCanal(a, ultimas)
+    const tb = timestampUltimaMensagemCanal(b, ultimas)
+    if (tb !== ta) return tb - ta
+    return String(a.id).localeCompare(String(b.id))
+  })
 }
 
 /**

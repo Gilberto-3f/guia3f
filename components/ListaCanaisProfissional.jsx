@@ -21,7 +21,7 @@ import CanalEmpresaRow from '@/components/CanalEmpresaRow'
 import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
 import CanalListaRow from '@/components/CanalListaRow'
 import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
-import { buscarUltimasMensagensCanais, formatarListaHora, patchUltimaMensagemCanal } from '@/lib/canalLista'
+import { buscarUltimasMensagensCanais, formatarListaHora, ordenarCanaisPorUltimaMensagem, patchUltimaMensagemCanal } from '@/lib/canalLista'
 import { contarFinanceiroNaoLidasProfissional } from '@/lib/canaisProfissionalVisibilidade'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
@@ -168,6 +168,15 @@ function nomeNorm(nome) {
  */
 
 /**
+ * Pasta EMPRESAS: ordem por última mensagem (mais recente no topo).
+ * @param {Canal[]} lista
+ * @param {Record<string, { preview: string, created_at: string }>} [ultimas]
+ */
+function ordenarCanaisEmpresas(lista, ultimas) {
+  return ordenarCanaisPorUltimaMensagem(lista, ultimas)
+}
+
+/**
  * @param {Canal[]} lista
  */
 function ordenarCanais(lista) {
@@ -247,7 +256,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       map[cat].push(c)
     }
     for (const k of Object.keys(map)) {
-      map[k] = ordenarCanais(map[k])
+      map[k] = ordenarCanaisEmpresas(map[k], ultimasMensagens)
     }
     const fixas = ORDEM_CATEGORIA_EMPRESA.map((cat) => /** @type {[string, Canal[]]} */ ([cat, map[cat] ? [...map[cat]] : []]))
     const visto = new Set(ORDEM_CATEGORIA_EMPRESA)
@@ -256,7 +265,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       .sort((a, b) => a.localeCompare(b))
     const extraPairs = extras.map((k) => /** @type {[string, Canal[]]} */ ([k, map[k] ?? []]))
     return [...fixas, ...extraPairs]
-  }, [empresasVisiveis])
+  }, [empresasVisiveis, ultimasMensagens])
 
   const naoLidasPorCategoriaAba = useMemo(() => {
     /** @type {Record<string, number>} */
@@ -428,7 +437,13 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
           const novo = payload.new
           if (!novo?.id || String(canalId).startsWith('__placeholder')) return
           notificarBadgeCanais()
+          const created = novo.created_at != null ? String(novo.created_at) : ''
           setUltimasMensagens((prev) => patchUltimaMensagemCanal(prev, canalId, novo))
+          if (created) {
+            setCanais((prev) =>
+              prev.map((c) => (c.id === canalId ? { ...c, ultima_mensagem_em: created } : c)),
+            )
+          }
           agendarRecarregarContagens()
         },
       )
