@@ -6,6 +6,7 @@ import { ArrowLeft, Check, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import CardAtrativo from '@/components/CardAtrativo'
 import BuscadorGuiaSegmento from '@/components/guia/BuscadorGuiaSegmento'
+import PopupQuestionarioHospedagemCheck from '@/components/PopupQuestionarioHospedagemCheck'
 import { empresaCorrespondeBusca } from '@/lib/palavrasChaveGuia'
 import { registrarBuscaGuia } from '@/lib/buscasGuia'
 import {
@@ -15,7 +16,10 @@ import {
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import { buscarMapaDegustacaoAtivaPorEmpresas } from '@/lib/degustacaoEmpresa'
 import { buscarEmpresasListagemGuia } from '@/lib/empresaGuiaVisibilidade'
-import { empresaHospedagemTemVagas } from '@/lib/hospedagemDisponibilidade'
+import {
+  filtrarEmpresasPorQuestionarioHospedagem,
+  type CriteriosFiltroHospedagemCheck,
+} from '@/lib/hospedagemFiltroCheck'
 
 import {
   categoriaDbPorSlugGuia,
@@ -96,7 +100,12 @@ export default function ListagemCategoriaPage() {
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null)
   const [termoBusca, setTermoBusca] = useState('')
   const [buscando, setBuscando] = useState(false)
-  const [somenteDisponiveis, setSomenteDisponiveis] = useState(false)
+  const [popupCheckAberto, setPopupCheckAberto] = useState(false)
+  const [checkAtivo, setCheckAtivo] = useState(false)
+  const [checkPesquisando, setCheckPesquisando] = useState(false)
+  const [idsCheck, setIdsCheck] = useState<string[] | null>(null)
+  const [precoMinCheck, setPrecoMinCheck] = useState<Record<string, number>>({})
+  const [ordenarPrecoCheck, setOrdenarPrecoCheck] = useState(false)
 
   const ehPaginaHospedagem = slug === 'hospedagem'
 
@@ -238,15 +247,27 @@ export default function ListagemCategoriaPage() {
 
   const empresasFiltradas = useMemo(() => {
     let base = empresas
-    if (ehPaginaHospedagem && somenteDisponiveis) {
-      base = base.filter((e) => empresaHospedagemTemVagas(e.hospedagem_disponibilidade))
+    if (ehPaginaHospedagem && checkAtivo && idsCheck) {
+      const setIds = new Set(idsCheck)
+      base = base.filter((e) => setIds.has(e.id))
     }
     if (!termoBusca.trim()) return base
     return base.filter((e) => empresaCorrespondeBusca(e, termoBusca))
-  }, [empresas, termoBusca, ehPaginaHospedagem, somenteDisponiveis])
+  }, [empresas, termoBusca, ehPaginaHospedagem, checkAtivo, idsCheck])
 
   const empresasOrdenadas = useMemo(() => {
     const base = [...empresasFiltradas]
+
+    if (ehPaginaHospedagem && checkAtivo && ordenarPrecoCheck) {
+      base.sort((a, b) => {
+        const pa = precoMinCheck[a.id] ?? Infinity
+        const pb = precoMinCheck[b.id] ?? Infinity
+        if (pa !== pb) return pa - pb
+        return (Number(b.nota_media) || 0) - (Number(a.nota_media) || 0)
+      })
+      return base
+    }
+
     if (ordenacao === 'avaliacao') {
       base.sort((a, b) => {
         const na = Number(a.nota_media) || 0
@@ -270,7 +291,43 @@ export default function ListagemCategoriaPage() {
       return ad - bd
     })
     return base
-  }, [empresasFiltradas, ordenacao, userPos])
+  }, [
+    empresasFiltradas,
+    ordenacao,
+    userPos,
+    ehPaginaHospedagem,
+    checkAtivo,
+    ordenarPrecoCheck,
+    precoMinCheck,
+  ])
+
+  const aplicarQuestionarioCheck = useCallback(
+    async (criterios: CriteriosFiltroHospedagemCheck) => {
+      setCheckPesquisando(true)
+      try {
+        const resultado = await filtrarEmpresasPorQuestionarioHospedagem(
+          supabase,
+          empresas.map((e) => e.id),
+          criterios,
+        )
+        setIdsCheck(resultado.empresaIds)
+        setPrecoMinCheck(resultado.precoMinPorEmpresa)
+        setOrdenarPrecoCheck(Boolean(criterios.ordenarPorPreco))
+        setCheckAtivo(true)
+        setPopupCheckAberto(false)
+      } finally {
+        setCheckPesquisando(false)
+      }
+    },
+    [empresas],
+  )
+
+  const limparCheck = useCallback(() => {
+    setCheckAtivo(false)
+    setIdsCheck(null)
+    setPrecoMinCheck({})
+    setOrdenarPrecoCheck(false)
+  }, [])
 
   const handleBuscar = useCallback(
     async (termo: string) => {
@@ -286,6 +343,10 @@ export default function ListagemCategoriaPage() {
     },
     [slug],
   )
+
+  useEffect(() => {
+    limparCheck()
+  }, [pais, limparCheck])
 
   const titulo = TITULO_CATEGORIA_EXTRA[slug] ?? TITULO_SLUG_GUIA[slug] ?? slug
   const filtrosApoioCompactos = ehPaginaHospedagem
@@ -346,17 +407,17 @@ export default function ListagemCategoriaPage() {
               {ehPaginaHospedagem ? (
                 <button
                   type="button"
-                  title="Somente hospedagens disponíveis"
-                  aria-label="Filtrar hospedagens disponíveis"
-                  aria-pressed={somenteDisponiveis}
-                  onClick={() => setSomenteDisponiveis((v) => !v)}
+                  title="Filtrar acomodações (Check)"
+                  aria-label="Filtrar acomodações com questionário"
+                  aria-pressed={checkAtivo}
+                  onClick={() => setPopupCheckAberto(true)}
                   className={btnFiltroApoioCls}
                 >
                   <Check
                     className={`${iconFiltroApoioCls} text-[#0097b2]`}
-                    fill="none"
+                    fill={checkAtivo ? 'currentColor' : 'none'}
                     stroke="currentColor"
-                    strokeWidth={somenteDisponiveis ? 3.25 : 1.75}
+                    strokeWidth={checkAtivo ? 3.25 : 1.75}
                     aria-hidden
                   />
                 </button>
@@ -424,6 +485,21 @@ export default function ListagemCategoriaPage() {
       </header>
 
       <div className="p-4">
+        {ehPaginaHospedagem && checkAtivo ? (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#0097b2]/25 bg-[#0097b2]/5 px-3 py-2">
+            <p className="text-xs font-semibold text-[#0097b2]">
+              Filtro Check ativo
+              {idsCheck ? ` · ${idsCheck.length} hospedagem(ns)` : ''}
+            </p>
+            <button
+              type="button"
+              onClick={limparCheck}
+              className="text-xs font-bold text-[#001f3f] underline"
+            >
+              Limpar filtro
+            </button>
+          </div>
+        ) : null}
         {erroLista ? <p className="mb-4 text-center text-sm font-medium text-red-600">{erroLista}</p> : null}
         {loading ? (
           <div className="flex justify-center py-8">
@@ -434,10 +510,22 @@ export default function ListagemCategoriaPage() {
             <p className="text-gray-400">
               {termoBusca.trim()
                 ? 'Nenhuma empresa encontrada para este termo neste segmento'
-                : ehPaginaHospedagem && somenteDisponiveis
-                  ? 'Nenhuma hospedagem disponível nesta região'
+                : ehPaginaHospedagem && checkAtivo
+                  ? 'Nenhuma hospedagem combina com o questionário nesta região'
                   : 'Nenhuma empresa encontrada nesta região'}
             </p>
+            {ehPaginaHospedagem && checkAtivo ? (
+              <button
+                type="button"
+                onClick={() => {
+                  limparCheck()
+                  setPopupCheckAberto(true)
+                }}
+                className="mt-3 text-sm font-semibold text-[#0097b2] underline"
+              >
+                Refazer pesquisa
+              </button>
+            ) : null}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -455,6 +543,17 @@ export default function ListagemCategoriaPage() {
           </div>
         )}
       </div>
+
+      {ehPaginaHospedagem ? (
+        <PopupQuestionarioHospedagemCheck
+          isOpen={popupCheckAberto}
+          onClose={() => setPopupCheckAberto(false)}
+          onPesquisar={(c) => void aplicarQuestionarioCheck(c)}
+          onLimpar={limparCheck}
+          filtroAtivo={checkAtivo}
+          pesquisando={checkPesquisando}
+        />
+      ) : null}
     </div>
   )
 }
