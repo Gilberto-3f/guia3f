@@ -35,11 +35,14 @@ export default function CanalFinanceiroItemReservaHospedagem({ item, onRespondid
   const [mostrarMotivoRecusa, setMostrarMotivoRecusa] = useState(false)
   const [motivoRecusa, setMotivoRecusa] = useState('')
   const [respondidoLocal, setRespondidoLocal] = useState('')
+  const [posCheckoutLocal, setPosCheckoutLocal] = useState('')
 
   const meta = item.metadata && typeof item.metadata === 'object' ? item.metadata : {}
   const reservaId = String(meta.reserva_id ?? '').trim()
   const respondido = respondidoLocal || String(meta.respondido ?? '').trim()
   const pendente = !respondido
+  const posCheckout =
+    posCheckoutLocal || (meta.pos_checkout_status != null ? String(meta.pos_checkout_status) : '')
 
   const turistaUsername = String(meta.turista_username ?? '').trim() || 'turista'
   const turistaNome = String(meta.turista_nome ?? '').trim() || 'Turista'
@@ -52,6 +55,10 @@ export default function CanalFinanceiroItemReservaHospedagem({ item, onRespondid
 
   const checkin = formatarData(meta.data_checkin)
   const checkout = formatarData(meta.data_checkout)
+  const checkoutIso = meta.data_checkout != null ? String(meta.data_checkout).slice(0, 10) : ''
+  const hojeIso = new Date().toISOString().slice(0, 10)
+  const noDiaCheckoutOuApos =
+    Boolean(checkoutIso) && hojeIso >= checkoutIso && respondido === 'confirmada'
   const noites = meta.noites != null ? Number(meta.noites) : null
   const valor =
     meta.valor_estimado != null
@@ -115,6 +122,30 @@ export default function CanalFinanceiroItemReservaHospedagem({ item, onRespondid
       setRespondidoLocal(acao === 'confirmar' ? 'confirmada' : 'recusada')
       setMostrarMotivoRecusa(false)
       notificarBadgeCanais()
+      onRespondido()
+    } catch {
+      window.alert('Erro de conexão.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const responderPosCheckout = async (status) => {
+    if (!reservaId || loading) return
+    setLoading(true)
+    try {
+      const res = await fetch('/api/reservas-hospedagem/pos-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reserva_id: reservaId, status }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json.ok) {
+        window.alert(json.error ?? 'Não foi possível salvar o status.')
+        return
+      }
+      setPosCheckoutLocal(status)
       onRespondido()
     } catch {
       window.alert('Erro de conexão.')
@@ -236,7 +267,51 @@ export default function CanalFinanceiroItemReservaHospedagem({ item, onRespondid
           {!pendente && respondido === 'confirmada' ? (
             <div className="mt-3 rounded-lg border border-[#00D443]/30 bg-[#00D443]/5 px-3 py-2.5 text-sm text-gray-700">
               <p className="font-semibold text-[#00A835]">Reserva confirmada</p>
-              <p className="mt-1 text-gray-600">O turista poderá ver o endereço e chamar corrida na página da hospedagem.</p>
+              <p className="mt-1 text-gray-600">
+                O turista poderá ver o endereço e chamar corrida na página da hospedagem.
+              </p>
+              {noDiaCheckoutOuApos ? (
+                <div className="mt-3 border-t border-[#00D443]/20 pt-3">
+                  <p className="font-semibold text-[#001f3f]">Relatório de pagamento (check-out)</p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    Período {checkin} → {checkout}
+                    {noites != null ? ` · ${noites} noite(s)` : ''}
+                    {valor != null && Number.isFinite(valor)
+                      ? ` · Total R$ ${valor.toFixed(2)}`
+                      : ''}
+                    {formaPagamentoLabel ? ` · ${formaPagamentoLabel}` : ''}
+                  </p>
+                  {!posCheckout ? (
+                    <>
+                      <p className="mt-2 text-sm font-medium text-gray-800">
+                        Qual o novo status da acomodação?
+                      </p>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          disabled={loading}
+                          onClick={() => void responderPosCheckout('disponivel')}
+                          className="rounded-lg bg-[#00D443] px-3 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+                        >
+                          Disponível
+                        </button>
+                        <button
+                          type="button"
+                          disabled={loading}
+                          onClick={() => void responderPosCheckout('ocupado')}
+                          className="rounded-lg bg-[#0097b2] px-3 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+                        >
+                          Ocupado
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="mt-2 text-sm font-semibold text-[#0097b2]">
+                      Status registrado: {posCheckout === 'disponivel' ? 'Disponível' : 'Ocupado'}
+                    </p>
+                  )}
+                </div>
+              ) : null}
             </div>
           ) : null}
 

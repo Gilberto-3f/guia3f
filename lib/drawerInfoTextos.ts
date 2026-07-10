@@ -6,8 +6,8 @@ export const DRAWER_INFO_TEXTO: Record<string, string> = {
     'Histórico das empresas que você recomendou no app. Os dados são os mesmos do funil de conversão da empresa — contatos dos turistas aparecem mascarados por privacidade.',
   'cadastrar-hospedagem-anfitriao':
     'Cadastre seu negócio de hospedagem vinculado ao perfil de Anfitrião. Após a aprovação do administrador, você poderá alternar entre os modos Anfitrião e Hospedagem no menu.',
-  'disponibilidade-hospedagem':
-    'Informe se há vagas disponíveis ou se a hospedagem está lotada. A escolha aparece na página da empresa e na aba Endereço.',
+  'calendario-reservas-hospedagem':
+    'Veja a disponibilidade de cada acomodação e bloqueie datas reservadas em outros canais.',
 }
 
 export function textoInfoDrawer(paginaId: string | undefined): string | null {

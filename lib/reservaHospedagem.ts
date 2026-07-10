@@ -1,7 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { pickFotoTurista } from '@/lib/turistaPreLiberacao'
 
-export type FormaPagamentoReservaHospedagem = 'dinheiro' | 'pix' | 'cartao_deb_cred'
+export type FormaPagamentoReservaHospedagem =
+  | 'dinheiro'
+  | 'pix'
+  | 'cartao_deb_cred'
+  | 'cartao_credito'
+  | 'cartao_debito'
 
 export const FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM: ReadonlyArray<{
   value: FormaPagamentoReservaHospedagem
@@ -9,6 +14,8 @@ export const FORMAS_PAGAMENTO_RESERVA_HOSPEDAGEM: ReadonlyArray<{
 }> = [
   { value: 'dinheiro', label: 'Dinheiro' },
   { value: 'pix', label: 'PIX' },
+  { value: 'cartao_credito', label: 'Cartão de Crédito' },
+  { value: 'cartao_debito', label: 'Cartão de Débito' },
   { value: 'cartao_deb_cred', label: 'Cartão (Débito ou Crédito)' },
 ]
 
@@ -22,16 +29,19 @@ export function rotuloFormaPagamentoReservaHospedagem(
 export type ReservaHospedagemRow = {
   id: string
   empresa_id: string
+  acomodacao_id?: string | null
   turista_usuario_id: string | null
   data_checkin: string
   data_checkout: string
   status: string
   valor_estimado: number | null
   noites: number | null
+  numero_hospedes?: number | null
   forma_pagamento: FormaPagamentoReservaHospedagem | null
   motivo_recusa: string | null
   respondido_em: string | null
   canal_financeiro_id: string | null
+  pos_checkout_status?: string | null
   created_at: string
 }
 

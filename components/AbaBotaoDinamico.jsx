@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag, MessageCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
-import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
+import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
 import {
   openWhatsAppChat,
   mensagemWhatsappReservaMesa,
@@ -59,8 +59,8 @@ function isGastronomia(cat) {
  *   whatsapp?: string | null
  *   precoTicketInteira?: number
  *   precoTicketMeia?: number
- *   precoDiaria?: number
- *   palavrasChave?: unknown
+ *   empresaFotoUrl?: string | null
+ *   notaMedia?: number | null
  * }} props
  */
 export default function AbaBotaoDinamico({
@@ -68,12 +68,13 @@ export default function AbaBotaoDinamico({
   empresaId,
   empresaNome,
   empresaUsername = null,
+  empresaFotoUrl = null,
+  notaMedia = null,
   cidade = '',
   horarios = {},
   whatsapp = null,
   precoTicketInteira = 0,
   precoTicketMeia,
-  precoDiaria = 0,
   palavrasChave = [],
 }) {
   const router = useRouter()
@@ -268,14 +269,14 @@ export default function AbaBotaoDinamico({
         precoMeia={precoTicketMeia}
       />
 
-      <PopupReservaHospedagem
+      <DrawerReservaHospedagem
         isOpen={showReservaPopup}
         onClose={() => setShowReservaPopup(false)}
         empresaId={empresaId}
         empresaNome={empresaNome}
-        precoDiaria={precoDiaria}
-        palavrasChave={palavrasChave}
-        exibirPalavrasChave={isHospedagem(categoria)}
+        empresaUsername={empresaUsername}
+        empresaFotoUrl={empresaFotoUrl}
+        notaMedia={notaMedia}
       />
 
       {showReservaMesaModal ? (

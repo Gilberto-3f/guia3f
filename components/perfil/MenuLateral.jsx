@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   Bookmark,
   Building2,
+  CalendarDays,
   Car,
   ChevronDown,
   ChevronUp,
@@ -73,7 +74,7 @@ import AgendamentoAutomatico from '@/components/perfil/subpaginas/AgendamentoAut
 import TabelaValores from '@/components/perfil/subpaginas/TabelaValores'
 import MeusManifestos from '@/components/perfil/subpaginas/MeusManifestos'
 import EditarPaginaEmpresa from '@/components/perfil/subpaginas/EditarPaginaEmpresa'
-import DisponibilidadeHospedagem from '@/components/perfil/subpaginas/DisponibilidadeHospedagem'
+import CalendarioReservasHospedagem from '@/components/perfil/subpaginas/CalendarioReservasHospedagem'
 import CadastrarHospedagemAnfitriao from '@/components/perfil/subpaginas/CadastrarHospedagemAnfitriao'
 import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 import HistoricoStories from '@/components/perfil/subpaginas/HistoricoStories'
@@ -413,9 +414,9 @@ function secoesEmpresa(ctx) {
         condicional: empresaBotaoDinamicoVisivel,
       },
       {
-        Icon: Hotel,
-        label: 'Disponibilidade',
-        subpagina: 'disponibilidade-hospedagem',
+        Icon: CalendarDays,
+        label: 'Calendário de Reservas',
+        href: '/empresa/menu/calendario-reservas',
         condicional: empresaMenuHospedagemVisivel,
       },
       {
@@ -1108,7 +1109,7 @@ export default function MenuLateral({
         'historico-manifestos': 'Manifestos Concluídos',
         'parcerias-prof': 'Parcerias Fechadas',
         'editar-pagina': 'Editar Página',
-        'disponibilidade-hospedagem': 'Disponibilidade',
+        'calendario-reservas-hospedagem': 'Calendário de Reservas',
         contratacoes: 'Contratações',
         compras: 'Compras',
         parcerias: 'Parcerias',
@@ -1295,13 +1296,8 @@ export default function MenuLateral({
         />
       )
     }
-    if (id === 'disponibilidade-hospedagem' && empresaIdCtx) {
-      return (
-        <DisponibilidadeHospedagem
-          empresaId={String(empresaIdCtx)}
-          onSalvo={onPerfilAtualizado}
-        />
-      )
+    if (id === 'calendario-reservas-hospedagem' && empresaIdCtx) {
+      return <CalendarioReservasHospedagem empresaId={String(empresaIdCtx)} />
     }
     if (id === 'visitantes-perfil') return <VisitantesPerfil usuarioId={usuarioIdEfetivo} />
     if (id === 'anexar-documentos-turista')

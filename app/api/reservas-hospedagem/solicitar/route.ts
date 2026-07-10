@@ -8,6 +8,18 @@ import {
   criarAvisoCanalFinanceiroReservaHospedagem,
 } from '@/lib/reservaHospedagem'
 import { sincronizarCompraReservaHospedagem } from '@/lib/turistaCompras'
+import {
+  carregarPeriodosOcupacaoAcomodacao,
+  periodoDisponivel,
+} from '@/lib/hospedagemCalendario'
+
+const FORMAS_VALIDAS = new Set([
+  'dinheiro',
+  'pix',
+  'cartao_deb_cred',
+  'cartao_credito',
+  'cartao_debito',
+])
 
 export async function POST(req: Request) {
   try {
@@ -16,19 +28,28 @@ export async function POST(req: Request) {
 
     const body = (await req.json()) as Record<string, unknown>
     const empresaId = String(body.empresa_id ?? '').trim()
+    const acomodacaoId = String(body.acomodacao_id ?? '').trim()
     const checkin = String(body.data_checkin ?? '').trim()
     const checkout = String(body.data_checkout ?? '').trim()
     const noites = Number(body.noites)
     const valorEstimado = Number(body.valor_estimado)
     const formaRaw = String(body.forma_pagamento ?? '').trim()
-    const formasValidas = new Set(['dinheiro', 'pix', 'cartao_deb_cred'])
+    const numeroHospedes = Number(body.numero_hospedes)
 
     if (!empresaId || !checkin || !checkout || !Number.isFinite(noites) || noites <= 0) {
       return NextResponse.json({ error: 'Dados da reserva inválidos.' }, { status: 400 })
     }
 
-    if (!formasValidas.has(formaRaw)) {
+    if (!acomodacaoId) {
+      return NextResponse.json({ error: 'Selecione uma acomodação.' }, { status: 400 })
+    }
+
+    if (!FORMAS_VALIDAS.has(formaRaw)) {
       return NextResponse.json({ error: 'Selecione a forma de pagamento.' }, { status: 400 })
+    }
+
+    if (!Number.isFinite(numeroHospedes) || numeroHospedes < 1) {
+      return NextResponse.json({ error: 'Informe o número de hóspedes.' }, { status: 400 })
     }
 
     let adminDb
@@ -53,6 +74,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Reserva disponível apenas para hospedagem.' }, { status: 400 })
     }
 
+    const { data: acom } = await adminDb
+      .from('hospedagem_acomodacoes')
+      .select('id, empresa_id, capacidade_pessoas, valor_diaria')
+      .eq('id', acomodacaoId)
+      .eq('empresa_id', empresaId)
+      .maybeSingle()
+
+    if (!acom?.id) {
+      return NextResponse.json({ error: 'Acomodação não encontrada.' }, { status: 404 })
+    }
+
+    if (numeroHospedes > Number(acom.capacidade_pessoas)) {
+      return NextResponse.json(
+        { error: 'Número de hóspedes excede a capacidade da acomodação.' },
+        { status: 400 },
+      )
+    }
+
+    const periodos = await carregarPeriodosOcupacaoAcomodacao(adminDb, acomodacaoId)
+    if (!periodoDisponivel(periodos, checkin, checkout)) {
+      return NextResponse.json(
+        { error: 'As datas escolhidas não estão disponíveis para esta acomodação.' },
+        { status: 409 },
+      )
+    }
+
     const turistaMeta = await carregarTuristaReservaMeta(adminDb, session.userId)
 
     await consolidarReservasPendentesDuplicadas(adminDb, session.userId, empresaId)
@@ -73,6 +120,7 @@ export async function POST(req: Request) {
       .from('reservas_hospedagem')
       .insert({
         empresa_id: empresaId,
+        acomodacao_id: acomodacaoId,
         turista_usuario_id: session.userId,
         data_checkin: checkin,
         data_checkout: checkout,
@@ -80,12 +128,16 @@ export async function POST(req: Request) {
         valor_estimado: Number.isFinite(valorEstimado) ? valorEstimado : null,
         noites,
         forma_pagamento: formaRaw,
+        numero_hospedes: numeroHospedes,
       })
       .select('id')
       .single()
 
     if (insErr || !reserva?.id) {
-      return NextResponse.json({ error: insErr?.message ?? 'Não foi possível registrar a solicitação.' }, { status: 400 })
+      return NextResponse.json(
+        { error: insErr?.message ?? 'Não foi possível registrar a solicitação.' },
+        { status: 400 },
+      )
     }
 
     const aviso = await criarAvisoCanalFinanceiroReservaHospedagem(adminDb, {
@@ -100,7 +152,7 @@ export async function POST(req: Request) {
       dataCheckout: checkout,
       noites,
       valorEstimado: Number.isFinite(valorEstimado) ? valorEstimado : 0,
-      formaPagamento: formaRaw as 'dinheiro' | 'pix' | 'cartao_deb_cred',
+      formaPagamento: formaRaw as 'dinheiro' | 'pix' | 'cartao_deb_cred' | 'cartao_credito' | 'cartao_debito',
     })
 
     if (aviso.ok && aviso.canalFinanceiroId) {

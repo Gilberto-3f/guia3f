@@ -6,7 +6,7 @@ import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import PopupCompraTicket from '@/components/PopupCompraTicket'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
-import PopupReservaHospedagem from '@/components/PopupReservaHospedagem'
+import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
@@ -70,8 +70,8 @@ function isServicosLocais(cat) {
  *   whatsapp?: string | null
  *   precoTicketInteira?: number
  *   precoTicketMeia?: number
- *   precoDiaria?: number
- *   palavrasChave?: unknown
+ *   empresaFotoUrl?: string | null
+ *   notaMedia?: number | null
  *   onClick?: (e: { stopPropagation: () => void }) => void
  * }} props
  */
@@ -81,10 +81,11 @@ export default function BotaoDinamico({
   empresaId = '',
   empresaNome = '',
   empresaUsername = null,
+  empresaFotoUrl = null,
+  notaMedia = null,
   whatsapp = null,
   precoTicketInteira = 0,
   precoTicketMeia,
-  precoDiaria = 0,
   palavrasChave = [],
   onClick,
 }) {
@@ -339,14 +340,14 @@ export default function BotaoDinamico({
             precoInteira={precoTicketInteira}
             precoMeia={precoTicketMeia}
           />
-          <PopupReservaHospedagem
+          <DrawerReservaHospedagem
             isOpen={showReservaPopup}
             onClose={() => setShowReservaPopup(false)}
             empresaId={empresaId}
             empresaNome={empresaNome}
-            precoDiaria={precoDiaria}
-            palavrasChave={palavrasChave}
-            exibirPalavrasChave={isHospedagem(categoria)}
+            empresaUsername={empresaUsername}
+            empresaFotoUrl={empresaFotoUrl}
+            notaMedia={notaMedia}
           />
         </>
       ) : null}

@@ -5,7 +5,6 @@ import {
   atualizarCanalFinanceiroReservaRespondida,
   cancelarReservasPendentesConflitantes,
   carregarTuristaReservaMeta,
-  marcarEmpresaHospedagemLotada,
   MOTIVO_CANCELAMENTO_AUTO,
   type ReservaHospedagemRow,
   usuarioGerenciaEmpresaHospedagem,
@@ -108,10 +107,6 @@ export async function POST(req: Request) {
       novoStatus === 'confirmada' ? 'confirmada' : 'cancelada',
       empresaNome,
     )
-
-    if (acao === 'confirmar') {
-      await marcarEmpresaHospedagemLotada(adminDb, String(reserva.empresa_id))
-    }
 
     if (acao === 'confirmar' && turistaId) {
       const canceladas = await cancelarReservasPendentesConflitantes(adminDb, {

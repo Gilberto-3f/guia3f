@@ -160,10 +160,11 @@ export default function CardAtrativo({
               empresaId={empresa.id}
               empresaNome={empresa.nome_fantasia}
               empresaUsername={empresa.nome_usuario ?? null}
+              empresaFotoUrl={empresa.foto_url ?? null}
+              notaMedia={empresa.nota_media != null ? Number(empresa.nota_media) : null}
               whatsapp={empresa.whatsapp ?? null}
               precoTicketInteira={Number(empresa.preco_ticket_inteira) || 0}
               precoTicketMeia={Number(empresa.preco_ticket_meia) || 0}
-              precoDiaria={Number(empresa.preco_diaria) || 0}
               palavrasChave={empresa.palavras_chave}
             />
           ) : null}
