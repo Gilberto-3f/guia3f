@@ -224,7 +224,6 @@ export default function EmpresaPreviewModoApresentacaoPage() {
 
   const precoTicketInteira = Number(empresaMerged.preco_ticket_inteira) || 0
   const precoTicketMeia = Number(empresaMerged.preco_ticket_meia) || 0
-  const precoDiaria = Number(empresaMerged.preco_diaria) || 0
 
   type HorariosMap = Record<string, { abre: string; fecha: string; fechado: boolean }>
   const horariosParsed = asHorarios(empresaMerged.horarios) as HorariosMap
@@ -359,7 +358,6 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               whatsapp={empresaMerged.whatsapp != null ? String(empresaMerged.whatsapp) : null}
               precoTicketInteira={precoTicketInteira}
               precoTicketMeia={precoTicketMeia}
-              precoDiaria={precoDiaria}
               palavrasChave={empresaMerged.palavras_chave}
             />
           ) : null}
