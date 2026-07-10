@@ -9,6 +9,8 @@ type ProfPopup = {
   username: string
   foto_url: string | null
   categorias: string
+  categorias_raw?: string[]
+  placa_vermelha?: boolean
   nota_media: number
   total_avaliacoes: number
 }

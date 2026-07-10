@@ -220,6 +220,12 @@ export default function EmpresaPage() {
     })()
   }, [router, searchParams])
 
+  useEffect(() => {
+    if (searchParams.get('abrir') !== 'reserva') return
+    if (!mostrarBotaoDinamico) return
+    setAbaExpandida('dinamico')
+  }, [searchParams, mostrarBotaoDinamico])
+
   const carregarEmpresa = useCallback(async (opts?: { silent?: boolean }) => {
     if (!empresaId) return
     const silent = Boolean(opts?.silent)
@@ -534,6 +540,7 @@ export default function EmpresaPage() {
               precoTicketInteira={precoTicketInteira}
               precoTicketMeia={precoTicketMeia}
               palavrasChave={empresa.palavras_chave}
+              abrirReservaAuto={searchParams.get('abrir') === 'reserva'}
             />
           ) : null}
         </div>

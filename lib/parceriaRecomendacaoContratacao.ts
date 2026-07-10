@@ -90,6 +90,7 @@ export async function processarContratacaoRecomendacaoProfissional(
   const indicadoId = String(indicado.id)
   const indicadorId = String(rec.profissional_indicador_id)
   const indicadorUsuarioId = String(indicador?.usuario_id ?? '')
+  const placaVermelha = Boolean(indicado.placa_vermelha)
   const [profA, profB] = parProfissionaisOrdenado(indicadorId, indicadoId)
 
   const dadosAtendimento = await buscarDadosTurista(supabase, turistaUsuarioId)
@@ -145,45 +146,49 @@ export async function processarContratacaoRecomendacaoProfissional(
     parceriaId = novaPar?.id != null ? String(novaPar.id) : undefined
   }
 
-  const { data: manifestoRow, error: manErr } = await supabase
-    .from('manifesto')
-    .insert({
-      profissional_id: indicadoId,
-      status: 'pendente',
-      pax_qtd: 1,
-      turista_usuario_id: turistaUsuarioId,
-      recomendacao_id: recomendacaoId,
-      profissional_indicador_id: indicadorId,
-      dados_atendimento: dadosAtendimento,
+  // Manifesto operacional: apenas profissionais com placa vermelha
+  let manifestoId: string | undefined
+  if (placaVermelha) {
+    const { data: manifestoRow, error: manErr } = await supabase
+      .from('manifesto')
+      .insert({
+        profissional_id: indicadoId,
+        status: 'pendente',
+        pax_qtd: 1,
+        turista_usuario_id: turistaUsuarioId,
+        recomendacao_id: recomendacaoId,
+        profissional_indicador_id: indicadorId,
+        dados_atendimento: dadosAtendimento,
+      })
+      .select('id')
+      .maybeSingle()
+
+    if (manErr) return { ok: false, error: manErr.message }
+    manifestoId = manifestoRow?.id != null ? String(manifestoRow.id) : undefined
+
+    const dataManifesto = dadosAtendimento.data_hora_atendimento.slice(0, 10)
+
+    await registrarTuristaNoManifesto(supabase, {
+      profissionalId: indicadoId,
+      turistaUsuarioId,
+      contratacaoTipo: 'indicacao',
+      profissionalIndiretoId: indicadorId,
+      dataManifesto,
+      paradasEmpresaIds: atrativosIds.length ? atrativosIds : undefined,
+      legacyManifestoId: manifestoId ?? null,
+      dadosPax: params.dadosPax ?? {
+        nome: dadosAtendimento.nome_completo,
+        documento: dadosAtendimento.documento,
+        username: dadosAtendimento.username,
+        validada: false,
+      },
     })
-    .select('id')
-    .maybeSingle()
-
-  if (manErr) return { ok: false, error: manErr.message }
-
-  const dataManifesto = dadosAtendimento.data_hora_atendimento.slice(0, 10)
-
-  await registrarTuristaNoManifesto(supabase, {
-    profissionalId: indicadoId,
-    turistaUsuarioId,
-    contratacaoTipo: 'indicacao',
-    profissionalIndiretoId: indicadorId,
-    dataManifesto,
-    paradasEmpresaIds: atrativosIds.length ? atrativosIds : undefined,
-    legacyManifestoId: manifestoRow?.id != null ? String(manifestoRow.id) : null,
-    dadosPax: params.dadosPax ?? {
-      nome: dadosAtendimento.nome_completo,
-      documento: dadosAtendimento.documento,
-      username: dadosAtendimento.username,
-      validada: false,
-    },
-  })
+  }
 
   const config = await buscarConfigComissoesAtiva(supabase)
   const splitRegular = config.empresa_split.regular
   const splitIndicador = config.empresa_split.indicador
   const nomeIndicado = String(indicado.nome_completo ?? 'Profissional')
-  const nomeIndicador = String(indicador?.nome_completo ?? 'Profissional')
   const catIndicado = formatProfissionalCategorias(
     Array.isArray(indicado.categorias) ? indicado.categorias.map(String) : [],
   )
@@ -191,19 +196,23 @@ export async function processarContratacaoRecomendacaoProfissional(
   const metaComum = {
     recomendacao_id: recomendacaoId,
     parceria_id: parceriaId,
-    manifesto_id: manifestoRow?.id,
+    manifesto_id: manifestoId ?? null,
     turista_usuario_id: turistaUsuarioId,
     split_regular_pct: splitRegular,
     split_indicador_pct: splitIndicador,
     dados_atendimento: dadosAtendimento,
   }
 
+  const msgIndicado = placaVermelha
+    ? `Turista ${dadosAtendimento.username} entrou no seu manifesto. Comissão de serviço regular: ${splitRegular}% (config. ADM).`
+    : `Turista ${dadosAtendimento.username} aceitou sua indicação e foi direcionado à contratação. Comissão de serviço regular: ${splitRegular}% (config. ADM).`
+
   await Promise.all([
     inserirNotificacaoCanalFinanceiroProfissional(supabase, {
       profissionalUsuarioId: profissionalIndicadoUsuarioId,
       tipo: 'extrato_comissao',
       titulo: 'Contratação via recomendação — serviço regular',
-      mensagem: `Turista ${dadosAtendimento.username} entrou no seu manifesto. Comissão de serviço regular: ${splitRegular}% (config. ADM).`,
+      mensagem: msgIndicado,
       comprovanteDetalhes: {
         ...metaComum,
         papel: 'regular_contratado',
@@ -230,7 +239,7 @@ export async function processarContratacaoRecomendacaoProfissional(
   return {
     ok: true,
     parceriaId,
-    manifestoId: manifestoRow?.id != null ? String(manifestoRow.id) : undefined,
+    manifestoId,
   }
 }
 

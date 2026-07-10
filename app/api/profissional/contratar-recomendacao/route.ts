@@ -6,6 +6,11 @@ import {
   processarContratacaoRecomendacaoProfissional,
 } from '@/lib/parceriaRecomendacaoContratacao'
 import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
+import {
+  hrefDestinoContratacao,
+  precisaDadosPaxManifesto,
+  resolverDestinoContratacaoRecomendacao,
+} from '@/lib/recomendacaoContratacaoDestino'
 
 /** Turista contrata profissional via link de recomendação (ref=recomendacao&rec=). */
 export async function POST(req: Request) {
@@ -29,13 +34,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'recomendacao_id e profissional_usuario_id obrigatórios.' }, { status: 400 })
   }
 
-  if (!nomeCompleto || !dataNascimento || !documento) {
-    return NextResponse.json(
-      { error: 'Nome completo, data de nascimento e documento são obrigatórios.' },
-      { status: 400 },
-    )
-  }
-
   let admin
   try {
     admin = createSupabaseAdmin()
@@ -43,18 +41,66 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 })
   }
 
+  const { data: recMeta } = await admin
+    .from('recomendacoes_profissional')
+    .select(
+      `
+      id,
+      profissional_indicado:profissional_indicado_id (
+        id, usuario_id, categorias, placa_vermelha, empresa_hospedagem_id
+      )
+    `,
+    )
+    .eq('id', recomendacaoId)
+    .maybeSingle()
+
+  const indicadoMeta = joinSupabaseRow(recMeta?.profissional_indicado)
+  if (!indicadoMeta || String(indicadoMeta.usuario_id) !== profissionalIndicadoUsuarioId) {
+    return NextResponse.json({ error: 'Recomendação inválida.' }, { status: 400 })
+  }
+
+  const placaVermelha = Boolean(indicadoMeta.placa_vermelha)
+  const cats = Array.isArray(indicadoMeta.categorias) ? indicadoMeta.categorias.map(String) : []
+
+  if (precisaDadosPaxManifesto(cats, placaVermelha)) {
+    if (!nomeCompleto || !dataNascimento || !documento) {
+      return NextResponse.json(
+        { error: 'Nome completo, data de nascimento e documento são obrigatórios.' },
+        { status: 400 },
+      )
+    }
+  }
+
+  const { data: cfg } = await admin
+    .from('config_apis')
+    .select('api_mobilidade_url')
+    .limit(1)
+    .maybeSingle()
+
+  const destino = resolverDestinoContratacaoRecomendacao({
+    categoriasIndicado: cats,
+    placaVermelhaIndicado: placaVermelha,
+    empresaHospedagemId:
+      indicadoMeta.empresa_hospedagem_id != null ? String(indicadoMeta.empresa_hospedagem_id) : null,
+    profissionalUsuarioId: profissionalIndicadoUsuarioId,
+    apiMobilidadeUrl: cfg?.api_mobilidade_url != null ? String(cfg.api_mobilidade_url) : null,
+  })
+
   const res = await processarContratacaoRecomendacaoProfissional(admin, {
     turistaUsuarioId: auth.userId,
     recomendacaoId,
     profissionalIndicadoUsuarioId,
     pontoPartida,
     atrativos,
-    dadosPax: {
-      nome: nomeCompleto,
-      documento,
-      data_nascimento: dataNascimento,
-      validada: true,
-    },
+    dadosPax:
+      nomeCompleto && dataNascimento && documento
+        ? {
+            nome: nomeCompleto,
+            documento,
+            data_nascimento: dataNascimento,
+            validada: true,
+          }
+        : undefined,
   })
 
   if (!res.ok) {
@@ -82,6 +128,9 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     parceria_id: res.parceriaId,
-    manifesto_id: res.manifestoId,
+    manifesto_id: res.manifestoId ?? null,
+    destino,
+    redirect: hrefDestinoContratacao(destino),
+    api_url: destino.tipo === 'api_parceiro' ? destino.url : null,
   })
 }

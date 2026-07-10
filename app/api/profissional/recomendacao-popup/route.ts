@@ -30,7 +30,7 @@ export async function GET(req: Request) {
         id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias
       ),
       profissional_indicado:profissional_indicado_id (
-        id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha
+        id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, empresa_hospedagem_id
       )
     `,
     )
@@ -64,6 +64,10 @@ export async function GET(req: Request) {
       username: String(p.nome_usuario ?? '').replace(/^@+/, ''),
       foto_url: foto,
       categorias: formatProfissionalCategorias(cats),
+      categorias_raw: cats,
+      placa_vermelha: Boolean(p.placa_vermelha),
+      empresa_hospedagem_id:
+        p.empresa_hospedagem_id != null ? String(p.empresa_hospedagem_id) : null,
       nota_media: notaMedia,
       total_avaliacoes: totalAval,
     }

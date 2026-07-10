@@ -61,6 +61,7 @@ function isGastronomia(cat) {
  *   precoTicketMeia?: number
  *   empresaFotoUrl?: string | null
  *   notaMedia?: number | null
+ *   abrirReservaAuto?: boolean
  * }} props
  */
 export default function AbaBotaoDinamico({
@@ -76,6 +77,7 @@ export default function AbaBotaoDinamico({
   precoTicketInteira = 0,
   precoTicketMeia,
   palavrasChave = [],
+  abrirReservaAuto = false,
 }) {
   const router = useRouter()
   const {
@@ -96,6 +98,13 @@ export default function AbaBotaoDinamico({
 
   const popupDinamicoAberto = showReservaMesaModal || showTicketPopup || showReservaPopup
   useModalScrollLock(popupDinamicoAberto)
+
+  useEffect(() => {
+    if (!abrirReservaAuto) return
+    if (!isHospedagem(categoria)) return
+    if (!podeComprarReservar && !gateLoading) return
+    setShowReservaPopup(true)
+  }, [abrirReservaAuto, categoria, podeComprarReservar, gateLoading])
 
   useEffect(() => {
     if (!showReservaMesaModal) return
