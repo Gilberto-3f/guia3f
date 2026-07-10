@@ -7,6 +7,9 @@ import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empres
 import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
 import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-empresa'
 import { getRotuloAbaServico } from '@/lib/empresaCategoria'
+import ChevronPasta from './hospedagem/ChevronPasta'
+import AbaAcomodacoes from './hospedagem/AbaAcomodacoes'
+import AbaInformacoes from './hospedagem/AbaInformacoes'
 
 function asNumberOrNull(v: string) {
   const t = v.trim()
@@ -66,7 +69,7 @@ function descricaoSegmento(categoria: string, cidade: string) {
     return 'Defina os preços dos tickets (inteira e meia) exibidos no popup de compra.'
   }
   if (isHospedagem(categoria)) {
-    return 'Informe o preço da diária e o WhatsApp para reservas de quarto.'
+    return 'Cadastre acomodações, políticas da casa e WhatsApp para recomendações de parceiros. O preço fica por acomodação.'
   }
   if (isServicosLocais(categoria)) {
     return 'O botão abre conversa no WhatsApp da empresa.'
@@ -88,15 +91,17 @@ export default function ConfigBotaoDinamico() {
   const empresaId = dados?.id != null ? String(dados.id) : ''
   const categoria = dados?.categoria != null ? String(dados.categoria) : ''
   const cidade = dados?.cidade != null ? String(dados.cidade) : ''
+  const ehHospedagem = isHospedagem(categoria) || Boolean(dados?.somente_anfitriao)
 
   const [whatsapp, setWhatsapp] = useState('')
   const [ticketInteira, setTicketInteira] = useState('')
   const [ticketMeia, setTicketMeia] = useState('')
-  const [precoDiaria, setPrecoDiaria] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [cliquesMes, setCliquesMes] = useState<number | null>(null)
   const [infoAberto, setInfoAberto] = useState(false)
+  const [abaAcomodacoesAberta, setAbaAcomodacoesAberta] = useState(true)
+  const [abaInformacoesAberta, setAbaInformacoesAberta] = useState(false)
 
   const rotuloAba = getRotuloAbaServico(categoria)
   const textoBotao = useMemo(() => textoBotaoPreview(categoria, cidade), [categoria, cidade])
@@ -104,12 +109,11 @@ export default function ConfigBotaoDinamico() {
 
   const precisaWhatsapp =
     isGastronomia(categoria) ||
-    isHospedagem(categoria) ||
+    ehHospedagem ||
     isServicosLocais(categoria) ||
     isPasseios(categoria) ||
     isEventos(categoria)
   const precisaTickets = isPasseios(categoria) || isEventos(categoria)
-  const precisaDiaria = isHospedagem(categoria)
 
   useEffect(() => {
     if (!dados) return
@@ -118,7 +122,6 @@ export default function ConfigBotaoDinamico() {
       dados.preco_ticket_inteira != null ? String(dados.preco_ticket_inteira) : '',
     )
     setTicketMeia(dados.preco_ticket_meia != null ? String(dados.preco_ticket_meia) : '')
-    setPrecoDiaria(dados.preco_diaria != null ? String(dados.preco_diaria) : '')
   }, [dados])
 
   const carregarCliques = useCallback(async () => {
@@ -143,9 +146,6 @@ export default function ConfigBotaoDinamico() {
       if (precisaTickets) {
         payload.preco_ticket_inteira = asNumberOrNull(ticketInteira)
         payload.preco_ticket_meia = asNumberOrNull(ticketMeia)
-      }
-      if (precisaDiaria) {
-        payload.preco_diaria = asNumberOrNull(precoDiaria)
       }
 
       const { error } = await supabase.from('empresas').update(payload).eq('id', empresaId)
@@ -241,21 +241,7 @@ export default function ConfigBotaoDinamico() {
             </>
           ) : null}
 
-          {precisaDiaria ? (
-            <label className={labelCls}>
-              Diária (R$)
-              <input
-                type="number"
-                min={0}
-                step={0.01}
-                value={precoDiaria}
-                onChange={(e) => setPrecoDiaria(e.target.value)}
-                className={inputCls}
-              />
-            </label>
-          ) : null}
-
-          {!precisaWhatsapp && !precisaTickets && !precisaDiaria ? (
+          {!precisaWhatsapp && !precisaTickets && !ehHospedagem ? (
             <p className="text-sm text-gray-600">
               Para o seu segmento não há campos extras — o botão usa a lógica padrão do guia com os dados da sua
               página.
@@ -267,15 +253,47 @@ export default function ConfigBotaoDinamico() {
           <p className={`mt-4 text-sm ${msg.includes('salvas') ? 'text-emerald-700' : 'text-rose-600'}`}>{msg}</p>
         ) : null}
 
-        <button
-          type="button"
-          onClick={() => void salvar()}
-          disabled={salvando || !empresaId}
-          className="mt-5 w-full rounded-xl bg-[#00D443] py-3 text-sm font-bold text-white disabled:opacity-50"
-        >
-          {salvando ? 'Salvando…' : 'Salvar configuração'}
-        </button>
+        {(precisaWhatsapp || precisaTickets) && !ehHospedagem ? (
+          <button
+            type="button"
+            onClick={() => void salvar()}
+            disabled={salvando || !empresaId}
+            className="mt-5 w-full rounded-xl bg-[#00D443] py-3 text-sm font-bold text-white disabled:opacity-50"
+          >
+            {salvando ? 'Salvando…' : 'Salvar configuração'}
+          </button>
+        ) : null}
+
+        {ehHospedagem && precisaWhatsapp ? (
+          <button
+            type="button"
+            onClick={() => void salvar()}
+            disabled={salvando || !empresaId}
+            className="mt-5 w-full rounded-xl bg-[#00D443] py-3 text-sm font-bold text-white disabled:opacity-50"
+          >
+            {salvando ? 'Salvando…' : 'Salvar WhatsApp'}
+          </button>
+        ) : null}
       </div>
+
+      {ehHospedagem && empresaId ? (
+        <div className="space-y-3">
+          <ChevronPasta
+            titulo="Acomodações"
+            aberto={abaAcomodacoesAberta}
+            onToggle={() => setAbaAcomodacoesAberta((v) => !v)}
+          >
+            <AbaAcomodacoes empresaId={empresaId} />
+          </ChevronPasta>
+          <ChevronPasta
+            titulo="Informações"
+            aberto={abaInformacoesAberta}
+            onToggle={() => setAbaInformacoesAberta((v) => !v)}
+          >
+            <AbaInformacoes empresaId={empresaId} />
+          </ChevronPasta>
+        </div>
+      ) : null}
 
       <div className="rounded-xl border border-gray-200 bg-[#f5f5f5] p-4">
         <div className="flex items-center gap-2 text-[#001f3f]">
