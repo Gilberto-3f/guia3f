@@ -61,6 +61,7 @@ function isGastronomia(cat) {
  *   precoTicketMeia?: number
  *   empresaFotoUrl?: string | null
  *   notaMedia?: number | null
+ *   palavrasChave?: unknown
  *   abrirReservaAuto?: boolean
  * }} props
  */

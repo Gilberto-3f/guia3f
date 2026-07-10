@@ -72,6 +72,7 @@ function isServicosLocais(cat) {
  *   precoTicketMeia?: number
  *   empresaFotoUrl?: string | null
  *   notaMedia?: number | null
+ *   palavrasChave?: unknown
  *   onClick?: (e: { stopPropagation: () => void }) => void
  * }} props
  */
