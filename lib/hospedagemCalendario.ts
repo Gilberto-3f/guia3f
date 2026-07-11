@@ -29,15 +29,24 @@ export function periodosSobrepoem(
   return reservasHospedagemDatasSobrepoem(inicioA, fimA, inicioB, fimB)
 }
 
-/** Status do card no Drawer 1: ocupado se a data de referência (hoje) está em reserva/bloqueio. */
+/** Status do card no Drawer 1: ocupado se há reserva/bloqueio vigente ou futuro. */
 export function statusAcomodacaoHoje(
   periodos: PeriodoOcupacao[],
-  hojeIso = new Date().toISOString().slice(0, 10),
+  hojeIso = hojeIsoLocal(),
 ): 'disponivel' | 'ocupado' {
   const hoje = hojeIso.slice(0, 10)
-  return periodos.some((p) => dataNoPeriodoOcupado(hoje, p.inicio, p.fim))
+  // Qualquer período ainda não encerrado (pendente/confirmada/bloqueio) marca ocupado.
+  return periodos.some((p) => String(p.fim).slice(0, 10) > hoje || dataNoPeriodoOcupado(hoje, p.inicio, p.fim))
     ? 'ocupado'
     : 'disponivel'
+}
+
+function hojeIsoLocal(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 export function corDiaCalendario(ocupado: boolean): string {
@@ -51,6 +60,22 @@ export async function carregarPeriodosOcupacaoAcomodacao(
   const id = String(acomodacaoId ?? '').trim()
   if (!id) return []
 
+  // RPC SECURITY DEFINER: qualquer visitante vê ocupação (sem PII do turista).
+  const { data: rpcRows, error: rpcErr } = await supabase.rpc('periodos_ocupacao_acomodacao', {
+    p_acomodacao_id: id,
+  })
+
+  if (!rpcErr && Array.isArray(rpcRows)) {
+    return (rpcRows as Array<Record<string, unknown>>).map((r) => ({
+      inicio: String(r.data_checkin).slice(0, 10),
+      fim: String(r.data_checkout).slice(0, 10),
+      origem: String(r.origem) === 'bloqueio' ? ('bloqueio' as const) : ('reserva' as const),
+      reservaId: r.id != null && String(r.origem) !== 'bloqueio' ? String(r.id) : undefined,
+      status: r.status != null ? String(r.status) : undefined,
+    }))
+  }
+
+  // Fallback legado (sujeito a RLS — outros turistas não veem reservas alheias).
   const periodos: PeriodoOcupacao[] = []
 
   const { data: reservas } = await supabase
@@ -75,7 +100,6 @@ export async function carregarPeriodosOcupacaoAcomodacao(
     .eq('acomodacao_id', id)
 
   for (const b of bloqueios ?? []) {
-    // Bloqueio inclusivo: data_fim conta como ocupado → fim exclusivo = dia seguinte
     const fimExcl = adicionarDias(String(b.data_fim).slice(0, 10), 1)
     periodos.push({
       inicio: String(b.data_inicio).slice(0, 10),

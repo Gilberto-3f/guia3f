@@ -419,54 +419,60 @@ export default function DrawerReservaHospedagem({
       className="shrink-0 border-b border-white/15 bg-[#0097b2]"
       style={{ paddingTop: 'max(0.15rem, env(safe-area-inset-top, 0px))' }}
     >
-      <div className="relative flex items-start gap-3.5 pl-5 pr-3 pb-3 pt-1.5">
-        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 border-white bg-white/20">
-          {avatarEmpresa ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
-          ) : null}
-        </div>
-        <div className="min-w-0 flex-1 pr-8">
-          <p className="truncate text-base font-bold leading-tight text-white">{empresaNome}</p>
-          {empresaUsername ? (
-            <p className="truncate text-sm leading-tight text-white/80">@{empresaUsername}</p>
-          ) : null}
+      <div className="relative px-5 pb-3 pt-1.5 pr-3">
+        <div className="flex items-start gap-3.5">
+          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 border-white bg-white/20">
+            {avatarEmpresa ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
+            ) : null}
+          </div>
+          <div className="min-w-0 flex-1 pr-8">
+            <p className="truncate text-base font-bold leading-tight text-white">{empresaNome}</p>
+            {empresaUsername ? (
+              <p className="truncate text-sm leading-tight text-white/80">@{empresaUsername}</p>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setAnfitriaoAberto((v) => !v)}
+              className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-white"
+            >
+              Anfitrião
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${anfitriaoAberto ? 'rotate-180' : ''}`}
+                aria-hidden
+              />
+            </button>
+          </div>
           <button
             type="button"
-            onClick={() => setAnfitriaoAberto((v) => !v)}
-            className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-white"
+            onClick={handleFechar}
+            className="absolute right-1 top-0.5 shrink-0 rounded-lg p-1.5 text-white hover:bg-white/15"
+            aria-label="Fechar"
           >
-            Anfitrião
-            <ChevronDown
-              className={`h-4 w-4 transition-transform ${anfitriaoAberto ? 'rotate-180' : ''}`}
-              aria-hidden
-            />
+            <X className="h-5 w-5" aria-hidden />
           </button>
-          {anfitriaoAberto && anfitriao ? (
-            <div className="mt-2 ml-1 flex items-center gap-3 rounded-lg bg-white/15 p-2.5">
-              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 border-white bg-white/30">
-                {anfitriao.foto ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={anfitriao.foto} alt="" className="h-full w-full object-cover" />
-                ) : null}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-base font-bold leading-tight text-white">{anfitriao.nome}</p>
-                {anfitriao.username ? (
-                  <p className="truncate text-sm leading-tight text-white/80">@{anfitriao.username}</p>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
         </div>
-        <button
-          type="button"
-          onClick={handleFechar}
-          className="absolute right-1 top-0.5 shrink-0 rounded-lg p-1.5 text-white hover:bg-white/15"
-          aria-label="Fechar"
-        >
-          <X className="h-5 w-5" aria-hidden />
-        </button>
+        {anfitriaoAberto && anfitriao ? (
+          <div className="mt-2.5 flex w-full items-center gap-3 rounded-xl bg-white px-3 py-2.5 shadow-sm">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 border-[#0097b2] bg-[#0097b2]/10">
+              {anfitriao.foto ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={anfitriao.foto} alt="" className="h-full w-full object-cover" />
+              ) : null}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="break-words text-base font-bold leading-snug text-[#0097b2]">
+                {anfitriao.nome}
+              </p>
+              {anfitriao.username ? (
+                <p className="mt-0.5 break-words text-sm leading-snug text-[#0097b2]/80">
+                  @{anfitriao.username}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </div>
     </header>
   )
@@ -598,7 +604,7 @@ export default function DrawerReservaHospedagem({
                   Nenhuma acomodação cadastrada ainda. Não é possível avançar.
                 </p>
               ) : (
-                <div className="-mx-4 flex gap-3 overflow-x-auto pl-6 pr-4 pb-2 snap-x">
+                <div className="-mx-4 flex gap-3 overflow-x-auto pl-8 pr-4 pb-2 snap-x">
                   {acomodacoes.map((a) => {
                     const st = statusMap[a.id] ?? 'disponivel'
                     const capa = a.fotos[0]
