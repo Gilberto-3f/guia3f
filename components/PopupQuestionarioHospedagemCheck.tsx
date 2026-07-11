@@ -72,7 +72,8 @@ export default function PopupQuestionarioHospedagemCheck({
   const hoje = useMemo(() => new Date().toISOString().slice(0, 10), [])
 
   const grupos = useMemo(() => {
-    const map = new Map<string, typeof COMODIDADES_FILTRO_CHECK>()
+    type Item = (typeof COMODIDADES_FILTRO_CHECK)[number]
+    const map = new Map<string, Item[]>()
     for (const item of COMODIDADES_FILTRO_CHECK) {
       const list = map.get(item.grupo) ?? []
       list.push(item)
