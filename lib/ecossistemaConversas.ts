@@ -534,6 +534,14 @@ export async function contarNaoLidasChatAdmMembro(
   supabase: SupabaseClient,
   membroUserId: string,
 ): Promise<number> {
+  const { data: rpcCount, error: rpcErr } = await supabase.rpc('contar_ecossistema_nao_lidas_membro', {
+    p_membro_id: membroUserId,
+  })
+  if (!rpcErr && typeof rpcCount === 'number') return Math.max(0, rpcCount)
+  if (!rpcErr && rpcCount != null && Number.isFinite(Number(rpcCount))) {
+    return Math.max(0, Number(rpcCount))
+  }
+
   const conversa = await buscarConversaAbertaMembro(supabase, membroUserId)
   if (!conversa) return 0
 
@@ -616,11 +624,24 @@ export async function contarNaoLidasEcossistemaAdmPorConversas(
     vistoPorConversa.set(String(l.conversa_id), Number.isNaN(t) ? 0 : t)
   }
 
-  const { data: mensagens, error: msgErr } = await supabase
+  const minVistoMs = Math.min(
+    ...abertas.map((c) => vistoPorConversa.get(c.id) ?? 0),
+    Number.POSITIVE_INFINITY,
+  )
+  const desdeIso =
+    Number.isFinite(minVistoMs) && minVistoMs > 0
+      ? new Date(minVistoMs).toISOString()
+      : new Date(0).toISOString()
+
+  let msgQuery = supabase
     .from('ecossistema_mensagens')
     .select('conversa_id, remetente_id, created_at')
     .in('conversa_id', conversaIds)
     .neq('remetente_id', adminUserId)
+  if (desdeIso !== new Date(0).toISOString()) {
+    msgQuery = msgQuery.gt('created_at', desdeIso)
+  }
+  const { data: mensagens, error: msgErr } = await msgQuery
 
   if (msgErr) {
     console.error('contarNaoLidasEcossistemaAdmPorConversas:', msgErr)
@@ -685,6 +706,15 @@ export async function contarNaoLidasEcossistemaAdm(
   adminUserId: string,
   vistoMs: number,
 ): Promise<number> {
+  const desdeIso = vistoMs > 0 ? new Date(vistoMs).toISOString() : null
+  const { data: rpcCount, error: rpcErr } = await supabase.rpc('contar_ecossistema_nao_lidas_adm', {
+    p_visto_em: desdeIso,
+  })
+  if (!rpcErr && typeof rpcCount === 'number') return Math.max(0, rpcCount)
+  if (!rpcErr && rpcCount != null && Number.isFinite(Number(rpcCount))) {
+    return Math.max(0, Number(rpcCount))
+  }
+
   const { data: conversas, error: convErr } = await supabase
     .from('ecossistema_conversas')
     .select('id, created_at, membro_usuario_id')
@@ -699,13 +729,13 @@ export async function contarNaoLidasEcossistemaAdm(
   if (abertas.length === 0) return 0
 
   const conversaIds = abertas.map((c) => String(c.id))
-  const desdeIso = vistoMs > 0 ? new Date(vistoMs).toISOString() : new Date(0).toISOString()
+  const desdeFallback = vistoMs > 0 ? new Date(vistoMs).toISOString() : new Date(0).toISOString()
 
   const { data: mensagens, error: msgErr } = await supabase
     .from('ecossistema_mensagens')
     .select('conversa_id, remetente_id, created_at')
     .in('conversa_id', conversaIds)
-    .gt('created_at', desdeIso)
+    .gt('created_at', desdeFallback)
     .neq('remetente_id', adminUserId)
 
   if (msgErr) {

@@ -42,6 +42,7 @@ import {
 import { useRouter } from '@/i18n/navigation'
 import { signOutCurrentDevice } from '@/lib/authCookieSync'
 import { supabase } from '@/lib/supabase'
+import { buscarUsuarioCached, invalidarCacheUsuarioSession } from '@/lib/usuarioSessionCache'
 import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useAdminColaboradorModo } from '@/context/AdminColaboradorModoContext'
@@ -615,11 +616,7 @@ export default function MenuLateral({
     if (!usuarioIdEfetivo) return
     let ativo = true
     void (async () => {
-      const { data } = await supabase
-        .from('usuarios')
-        .select('admin_level, role')
-        .eq('id', usuarioIdEfetivo)
-        .maybeSingle()
+      const { data } = await buscarUsuarioCached(supabase, usuarioIdEfetivo, 'admin_level, role')
       if (!ativo) return
       const nivel = Number(data?.admin_level ?? adminLevel)
       setAdminLevelMenu(Number.isFinite(nivel) ? nivel : adminLevel)
@@ -632,15 +629,11 @@ export default function MenuLateral({
   useEffect(() => {
     const onConvite = () => {
       if (!usuarioIdEfetivo) return
-      void supabase
-        .from('usuarios')
-        .select('admin_level')
-        .eq('id', usuarioIdEfetivo)
-        .maybeSingle()
-        .then(({ data }) => {
-          const nivel = Number(data?.admin_level ?? 0)
-          if (Number.isFinite(nivel)) setAdminLevelMenu(nivel)
-        })
+      invalidarCacheUsuarioSession(usuarioIdEfetivo)
+      void buscarUsuarioCached(supabase, usuarioIdEfetivo, 'admin_level').then(({ data }) => {
+        const nivel = Number(data?.admin_level ?? 0)
+        if (Number.isFinite(nivel)) setAdminLevelMenu(nivel)
+      })
     }
     window.addEventListener('admin-convite-respondido', onConvite)
     return () => window.removeEventListener('admin-convite-respondido', onConvite)

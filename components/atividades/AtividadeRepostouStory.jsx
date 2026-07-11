@@ -68,7 +68,7 @@ export default function AtividadeRepostouStory({
           verificadoTipo={reposterVerificadoTipo}
           onClick={() => router.push(hrefReposter)}
         />{' '}
-        repostou um story que você o marcou.
+        repostou seu story.
       </>
     )
 

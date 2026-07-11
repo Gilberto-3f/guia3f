@@ -16,6 +16,7 @@ import AtividadeCurtiuRepost from '@/components/atividades/AtividadeCurtiuRepost
 import AtividadeCurtiuAvaliacao from '@/components/atividades/AtividadeCurtiuAvaliacao'
 import AtividadeCurtiuStory from '@/components/atividades/AtividadeCurtiuStory'
 import AtividadeRepostouStory from '@/components/atividades/AtividadeRepostouStory'
+import AtividadeRepostouPost from '@/components/atividades/AtividadeRepostouPost'
 import AtividadeComentario from '@/components/atividades/AtividadeComentario'
 import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
 import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
@@ -1516,11 +1517,13 @@ export default function AtividadesPage() {
       (async () => {
         const postIds: string[] = []
         for (const r of todos) {
-          if (r.tipo === 'curtiu_post') postIds.push(r.alvo_id)
+          if (r.tipo === 'curtiu_post' || r.tipo === 'repostou_post') postIds.push(r.alvo_id)
           const ex = r.dados_extras
           if (ex && typeof ex === 'object') {
             const pid = ex.post_id
             if (typeof pid === 'string') postIds.push(pid)
+            const orig = ex.post_original_id
+            if (typeof orig === 'string') postIds.push(orig)
           }
         }
         await carregarPostsMeta(postIds, { merge: false })
@@ -1876,7 +1879,7 @@ export default function AtividadesPage() {
         }
       }
       if (aba === 'amigos' && r.tipo === 'avaliou') return false
-      if (r.tipo === 'repostou_post') return false
+      if (r.tipo === 'repostou_post' && aba !== 'minha') return false
       if (r.tipo === 'seguiu_empresa') return false
       if (r.tipo === 'seguiu') {
         const ex = r.dados_extras ?? {}
@@ -1949,11 +1952,19 @@ export default function AtividadesPage() {
     const faltando: string[] = []
     const vistos = new Set<string>()
     for (const r of listaAtividadesFiltrada) {
-      if (r.tipo !== 'curtiu_post') continue
+      if (r.tipo !== 'curtiu_post' && r.tipo !== 'repostou_post') continue
       const id = String(r.alvo_id ?? '').trim()
       if (!id || vistos.has(id) || postMetaMap[id]) continue
       vistos.add(id)
       faltando.push(id)
+      const ex = r.dados_extras
+      if (ex && typeof ex === 'object') {
+        const orig = typeof ex.post_original_id === 'string' ? ex.post_original_id.trim() : ''
+        if (orig && !vistos.has(orig) && !postMetaMap[orig]) {
+          vistos.add(orig)
+          faltando.push(orig)
+        }
+      }
     }
     if (faltando.length > 0) {
       void carregarPostsMeta(faltando, { merge: true })
@@ -2260,6 +2271,42 @@ export default function AtividadesPage() {
           onAbrirStory={storyId ? () => void carregarStoryPorId(storyId) : undefined}
           {...propsInteractor(ator)}
           {...propsDonor(donor)}
+        />
+      )
+    }
+
+    if (r.tipo === 'repostou_post') {
+      const ex = r.dados_extras ?? {}
+      const origId =
+        typeof ex.post_original_id === 'string' && ex.post_original_id.trim() !== ''
+          ? ex.post_original_id.trim()
+          : postCanonicoId(postMetaMap, r.alvo_id) || String(r.alvo_id ?? '').trim()
+      if (!origId) return null
+      const post = postMetaCanonico(postMetaMap, r.alvo_id) ?? postMetaMap[origId] ?? null
+      const prevUrl =
+        post?.foto_url != null && String(post.foto_url).trim() !== ''
+          ? String(post.foto_url)
+          : post?.conteudo_url != null && String(post.conteudo_url).trim() !== ''
+            ? String(post.conteudo_url)
+            : null
+      const tipoOrig = String(post?.tipo ?? '').toLowerCase()
+      const prevTexto = post?.texto != null ? String(post.texto) : ''
+      const previewTipo: 'foto' | 'texto' =
+        tipoOrig === 'foto' || tipoOrig === 'misto' || (Boolean(prevUrl) && !prevTexto.trim())
+          ? 'foto'
+          : 'texto'
+      return (
+        <AtividadeRepostouPost
+          key={r.id}
+          interactorUsername={ator?.username ?? 'usuario'}
+          interactorFoto={ator?.foto_perfil_url ?? null}
+          hrefInteractor={hrefPerfilInteractor(r)}
+          postId={origId}
+          previewUrl={prevUrl}
+          previewTipo={previewTipo}
+          tempoInteracao={formatarDataAtividades(r.created_at)}
+          modoMinhaConta={modoMinhaConta}
+          {...propsInteractor(ator)}
         />
       )
     }

@@ -111,7 +111,8 @@ export function particionarVisaoAdminTodos(canaisOrdenados: CanalParticaoAdmin[]
       const best = new Map<string, CanalParticaoAdmin>()
       for (const c of candidatos) {
         const k = chaveSegmentoEmpresa(c)
-        if (!k) continue
+        // Hospedagem: comunidade Anfitrião / Hospedagem (pasta PROFISSIONAIS) cobre o dual mode.
+        if (!k || k === 'hospedagem') continue
         const cur = best.get(k)
         if (!cur) {
           best.set(k, c)

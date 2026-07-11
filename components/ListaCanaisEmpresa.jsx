@@ -63,7 +63,7 @@ function slugToLabel(slug) {
   if (s === 'guia') return 'Guia'
   if (s === 'taxista') return 'Taxista'
   if (s === 'van') return 'Van'
-  if (s === 'anfitriao') return 'Anfitrião'
+  if (s === 'anfitriao') return 'Anfitrião / Hospedagem'
   return s
 }
 
@@ -165,24 +165,24 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
    */
   function garantirAdministracaoEmpresa(lista, categoriaEmpresa, financeiroIdResolvido) {
     const chaveEmp = chaveSegmentoPorCategoriaEmpresa(categoriaEmpresa)
-    const segmento =
-      lista.find(
-        (c) =>
-          ehCanalSegmentoEmpresaGlobal(c) && chaveEmp != null && chaveSegmentoEmpresaDeCanal(c) === chaveEmp,
-      ) ??
-      (chaveEmp
-        ? {
-            id: '__placeholder_segmento__',
-            nome: chaveEmp,
-            tipo_publico: 'empresa',
-            categoria: categoriaEmpresa,
-            comunidade_prof: null,
-            empresa_id: null,
-            ordem_tipo: 'fixo',
-            ordem_posicao: 1,
-            ultima_mensagem_em: null,
-          }
-        : null)
+    // Hospedagem: sem canal de segmento — dual mode usa comunidade Anfitrião / Hospedagem.
+    const usarSegmento = chaveEmp != null && chaveEmp !== 'Hospedagem'
+    const segmento = !usarSegmento
+      ? null
+      : (lista.find(
+          (c) =>
+            ehCanalSegmentoEmpresaGlobal(c) && chaveSegmentoEmpresaDeCanal(c) === chaveEmp,
+        ) ?? {
+          id: '__placeholder_segmento__',
+          nome: chaveEmp,
+          tipo_publico: 'empresa',
+          categoria: categoriaEmpresa,
+          comunidade_prof: null,
+          empresa_id: null,
+          ordem_tipo: 'fixo',
+          ordem_posicao: 1,
+          ultima_mensagem_em: null,
+        })
     const fin =
       lista.find((c) => nomeNorm(c.nome) === 'FINANCEIRO') ??
       (financeiroIdResolvido

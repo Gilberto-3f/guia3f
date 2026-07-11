@@ -32,7 +32,7 @@ const tabBandeira =
  */
 export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadores = {} }) {
   return (
-    <div className="bg-white px-4 py-2">
+    <div className="bg-white px-4 py-1.5">
       <div
         className="mx-auto flex w-full max-w-md items-stretch justify-center gap-4"
         role="tablist"

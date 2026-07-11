@@ -824,7 +824,7 @@ export default function CanalDetalhePage() {
               ) : (
                 <>
               {mostrarAbasPaisColetivo ? (
-                <div className="sticky top-0 z-[9] shrink-0 border-b border-gray-100 bg-white pt-safe shadow-sm">
+                <div className="sticky top-0 z-[9] shrink-0 border-b border-gray-100 bg-white shadow-sm">
                   <CanalAbasPais paises={paisesAbasColetivo} abaAtiva={abaPais} onAbaChange={setAbaPais} />
                 </div>
               ) : null}
@@ -894,7 +894,7 @@ export default function CanalDetalhePage() {
           ) : (
             <>
               {mostrarAbasPais ? (
-                <div className="sticky top-0 z-[9] shrink-0 border-b border-gray-100 bg-white pt-safe shadow-sm">
+                <div className="sticky top-0 z-[9] shrink-0 border-b border-gray-100 bg-white shadow-sm">
                   <CanalAbasPais paises={paisesAbasColetivo} abaAtiva={abaPais} onAbaChange={setAbaPais} />
                 </div>
               ) : null}
