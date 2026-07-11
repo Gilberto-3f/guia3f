@@ -100,12 +100,7 @@ export default function BottomBar() {
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [authUserId, setAuthUserId] = useState(/** @type {string | null} */ (null))
   const [authPronto, setAuthPronto] = useState(false)
-  const [fotoPerfilCache, setFotoPerfilCache] = useState(() => {
-    if (typeof window === 'undefined') return null
-    const cached = lerPerfilBarraCache()
-    if (!cached) return null
-    return cached.fotoProfSocialUrl ?? cached.fotoUrl ?? null
-  })
+  const [fotoPerfilCache, setFotoPerfilCache] = useState(/** @type {string | null} */ (null))
   const [naoLidasAtividades, setNaoLidasAtividades] = useState(0)
   const [naoLidasCanais, setNaoLidasCanais] = useState(0)
   const [naoLidasFunil, setNaoLidasFunil] = useState(0)

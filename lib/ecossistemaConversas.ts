@@ -3,6 +3,22 @@ import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
 import { calcularVistoEmAposLeitura } from '@/lib/canalBadge'
 import { vistoEmParaMs } from '@/lib/chatVisto'
 
+/** Evita spam de 404 no Network quando a migration das RPCs ainda não foi aplicada no Supabase. */
+let rpcEcossistemaMembroDisponivel: boolean | null = null
+let rpcEcossistemaAdmDisponivel: boolean | null = null
+
+function rpcFunctionMissing(error: { code?: string; message?: string; status?: number } | null): boolean {
+  if (!error) return false
+  const code = String(error.code ?? '')
+  const msg = String(error.message ?? '').toLowerCase()
+  return (
+    code === 'PGRST202' ||
+    code === '42883' ||
+    msg.includes('could not find the function') ||
+    msg.includes('does not exist')
+  )
+}
+
 export type MembroTipoEcossistema = 'turista' | 'profissional' | 'empresa'
 export type StatusConversaEcossistema = 'aberta' | 'encerrada'
 
@@ -534,12 +550,19 @@ export async function contarNaoLidasChatAdmMembro(
   supabase: SupabaseClient,
   membroUserId: string,
 ): Promise<number> {
-  const { data: rpcCount, error: rpcErr } = await supabase.rpc('contar_ecossistema_nao_lidas_membro', {
-    p_membro_id: membroUserId,
-  })
-  if (!rpcErr && typeof rpcCount === 'number') return Math.max(0, rpcCount)
-  if (!rpcErr && rpcCount != null && Number.isFinite(Number(rpcCount))) {
-    return Math.max(0, Number(rpcCount))
+  if (rpcEcossistemaMembroDisponivel !== false) {
+    const { data: rpcCount, error: rpcErr } = await supabase.rpc('contar_ecossistema_nao_lidas_membro', {
+      p_membro_id: membroUserId,
+    })
+    if (!rpcErr) {
+      rpcEcossistemaMembroDisponivel = true
+      if (typeof rpcCount === 'number') return Math.max(0, rpcCount)
+      if (rpcCount != null && Number.isFinite(Number(rpcCount))) {
+        return Math.max(0, Number(rpcCount))
+      }
+    } else if (rpcFunctionMissing(rpcErr)) {
+      rpcEcossistemaMembroDisponivel = false
+    }
   }
 
   const conversa = await buscarConversaAbertaMembro(supabase, membroUserId)
@@ -707,12 +730,19 @@ export async function contarNaoLidasEcossistemaAdm(
   vistoMs: number,
 ): Promise<number> {
   const desdeIso = vistoMs > 0 ? new Date(vistoMs).toISOString() : null
-  const { data: rpcCount, error: rpcErr } = await supabase.rpc('contar_ecossistema_nao_lidas_adm', {
-    p_visto_em: desdeIso,
-  })
-  if (!rpcErr && typeof rpcCount === 'number') return Math.max(0, rpcCount)
-  if (!rpcErr && rpcCount != null && Number.isFinite(Number(rpcCount))) {
-    return Math.max(0, Number(rpcCount))
+  if (rpcEcossistemaAdmDisponivel !== false) {
+    const { data: rpcCount, error: rpcErr } = await supabase.rpc('contar_ecossistema_nao_lidas_adm', {
+      p_visto_em: desdeIso,
+    })
+    if (!rpcErr) {
+      rpcEcossistemaAdmDisponivel = true
+      if (typeof rpcCount === 'number') return Math.max(0, rpcCount)
+      if (rpcCount != null && Number.isFinite(Number(rpcCount))) {
+        return Math.max(0, Number(rpcCount))
+      }
+    } else if (rpcFunctionMissing(rpcErr)) {
+      rpcEcossistemaAdmDisponivel = false
+    }
   }
 
   const { data: conversas, error: convErr } = await supabase
