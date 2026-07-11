@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ChevronDown,
   ChevronLeft,
@@ -30,14 +30,19 @@ import {
   parseComodidadesPadrao,
   parseFormasPagamento,
   rotuloAcomodacaoResumo,
+  rotuloAcomodacaoResumoCurto,
   rotuloCategoriaImovel,
-  tipoCategoriaImovel,
+  rotuloCategoriaImovelCurto,
   rotuloCategoriaParticular,
+  rotuloCategoriaParticularCurto,
+  tipoCategoriaImovel,
   rotuloOpcaoCompartilhada,
+  rotuloOpcaoCompartilhadaCurto,
   COMODIDADES_EXTRAS_LISTA,
   COMODIDADES_PADRAO_CAMPOS,
   ITENS_PARTICULARES,
   REFEICOES_EXTRAS,
+  MOEDAS_DINHEIRO,
   type ComodidadesExtras,
   type ComodidadesPadrao,
   type FormasPagamentoHospedagem,
@@ -170,6 +175,7 @@ export default function DrawerReservaHospedagem({
   const [erro, setErro] = useState<string | null>(null)
   const [painelVisivel, setPainelVisivel] = useState(false)
   const [painelAberto, setPainelAberto] = useState(false)
+  const touchFotoX = useRef<number | null>(null)
 
   useModalScrollLock(isOpen || painelVisivel)
 
@@ -592,25 +598,34 @@ export default function DrawerReservaHospedagem({
                   Nenhuma acomodação cadastrada ainda. Não é possível avançar.
                 </p>
               ) : (
-                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 snap-x">
+                <div className="-mx-4 flex gap-3 overflow-x-auto pl-6 pr-4 pb-2 snap-x">
                   {acomodacoes.map((a) => {
                     const st = statusMap[a.id] ?? 'disponivel'
                     const capa = a.fotos[0]
+                    const catAcomodacao =
+                      tipoCategoriaImovel(a.categoria_imovel) === 'particular'
+                        ? rotuloCategoriaParticularCurto(a.categoria_particular)
+                        : rotuloOpcaoCompartilhadaCurto(a.opcao_compartilhada)
                     return (
                       <article
                         key={a.id}
                         className="w-[78%] max-w-[280px] shrink-0 snap-start overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
                       >
-                        <div className="aspect-[4/3] bg-gray-100">
+                        <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">
+                          {rotuloCategoriaImovelCurto(a.categoria_imovel)}
+                        </p>
+                        <div className="mt-2 aspect-[4/3] bg-gray-100">
                           {capa ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={capa} alt="" className="h-full w-full object-cover" />
                           ) : null}
                         </div>
                         <div className="space-y-2 p-3">
-                          <p className="line-clamp-2 text-sm font-semibold text-[#001f3f]">
-                            {rotuloAcomodacaoResumo(a)}
-                          </p>
+                          {catAcomodacao ? (
+                            <p className="line-clamp-2 text-sm font-semibold text-[#001f3f]">
+                              {catAcomodacao}
+                            </p>
+                          ) : null}
                           <p className="text-sm font-bold" style={{ color: COR }}>
                             {formatarValorDiaria(a.valor_diaria)}
                             <span className="font-normal text-gray-500"> / diária</span>
@@ -647,14 +662,37 @@ export default function DrawerReservaHospedagem({
             </div>
           ) : passo === 2 && selecionada ? (
             <div className="space-y-4 p-4 pb-2">
-              <div className="relative mx-auto max-w-sm px-5">
-                <div className="aspect-square overflow-hidden rounded-2xl border-4 border-white bg-gray-100 shadow">
+              <p className="text-center text-sm font-semibold text-[#001f3f]">
+                {rotuloCategoriaImovel(selecionada.categoria_imovel)}
+              </p>
+              <div className="relative mx-auto max-w-sm">
+                <div
+                  className="mx-9 aspect-square touch-pan-y overflow-hidden rounded-2xl border-4 border-white bg-gray-100 shadow"
+                  onTouchStart={(e) => {
+                    touchFotoX.current = e.touches[0]?.clientX ?? null
+                  }}
+                  onTouchEnd={(e) => {
+                    const start = touchFotoX.current
+                    touchFotoX.current = null
+                    if (start == null || selecionada.fotos.length <= 1) return
+                    const end = e.changedTouches[0]?.clientX
+                    if (end == null) return
+                    const dx = end - start
+                    if (Math.abs(dx) < 40) return
+                    if (dx < 0) {
+                      setFotoIdx((i) => (i + 1) % selecionada.fotos.length)
+                    } else {
+                      setFotoIdx((i) => (i - 1 + selecionada.fotos.length) % selecionada.fotos.length)
+                    }
+                  }}
+                >
                   {selecionada.fotos[fotoIdx] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={selecionada.fotos[fotoIdx]}
                       alt=""
-                      className="h-full w-full object-cover"
+                      className="pointer-events-none h-full w-full object-cover"
+                      draggable={false}
                     />
                   ) : null}
                 </div>
@@ -662,42 +700,39 @@ export default function DrawerReservaHospedagem({
                   <>
                     <button
                       type="button"
-                      className="absolute left-5 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-2 shadow"
-                      style={{ color: COR }}
+                      className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full shadow"
+                      style={{ backgroundColor: COR }}
                       onClick={() =>
                         setFotoIdx((i) => (i - 1 + selecionada.fotos.length) % selecionada.fotos.length)
                       }
                       aria-label="Foto anterior"
                     >
-                      <ChevronLeft className="h-5 w-5" aria-hidden />
+                      <ChevronLeft className="h-4 w-4 text-white" aria-hidden />
                     </button>
                     <button
                       type="button"
-                      className="absolute right-5 top-1/2 z-10 translate-x-1/2 -translate-y-1/2 rounded-full bg-white p-2 shadow"
-                      style={{ color: COR }}
+                      className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full shadow"
+                      style={{ backgroundColor: COR }}
                       onClick={() => setFotoIdx((i) => (i + 1) % selecionada.fotos.length)}
                       aria-label="Próxima foto"
                     >
-                      <ChevronRight className="h-5 w-5" aria-hidden />
+                      <ChevronRight className="h-4 w-4 text-white" aria-hidden />
                     </button>
                   </>
                 ) : null}
               </div>
 
               <div>
-                <p className="text-lg font-bold" style={{ color: COR }}>
+                <p className="text-sm text-gray-800">
+                  {tipoCategoriaImovel(selecionada.categoria_imovel) === 'particular'
+                    ? rotuloCategoriaParticular(selecionada.categoria_particular)
+                    : rotuloOpcaoCompartilhada(selecionada.opcao_compartilhada)}
+                </p>
+                <p className="mt-1 text-lg font-bold" style={{ color: COR }}>
                   {formatarValorDiaria(selecionada.valor_diaria)}
                   {nota ? (
                     <span className="ml-2 text-sm font-semibold text-amber-500">★ {nota}</span>
                   ) : null}
-                </p>
-                <p className="mt-1 text-sm text-gray-800">
-                  {rotuloCategoriaImovel(selecionada.categoria_imovel)}
-                </p>
-                <p className="text-sm text-gray-600">
-                  {tipoCategoriaImovel(selecionada.categoria_imovel) === 'particular'
-                    ? rotuloCategoriaParticular(selecionada.categoria_particular)
-                    : rotuloOpcaoCompartilhada(selecionada.opcao_compartilhada)}
                 </p>
               </div>
 
@@ -760,7 +795,7 @@ export default function DrawerReservaHospedagem({
               </div>
             </div>
           ) : passo === 3 && selecionada ? (
-            <div className="space-y-4 p-4">
+            <div className="space-y-3 p-4 pb-2">
               <div className="flex gap-3 rounded-xl border border-gray-200 p-3">
                 <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
                   {selecionada.fotos[0] ? (
@@ -770,7 +805,7 @@ export default function DrawerReservaHospedagem({
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#001f3f]">
-                    {rotuloAcomodacaoResumo(selecionada)}
+                    {rotuloAcomodacaoResumoCurto(selecionada)}
                   </p>
                   <p className="text-sm font-bold" style={{ color: COR }}>
                     {formatarValorDiaria(selecionada.valor_diaria)} / diária
@@ -786,7 +821,7 @@ export default function DrawerReservaHospedagem({
                     <button
                       type="button"
                       onClick={() => setCalAberto(calAberto === 'checkin' ? null : 'checkin')}
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-left text-sm"
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left text-sm text-[#001f3f]"
                     >
                       {checkin ? formatarDataBr(checkin) : 'Selecionar data'}
                     </button>
@@ -797,6 +832,9 @@ export default function DrawerReservaHospedagem({
                           modoSelecao
                           selecao={checkin ? new Set([checkin]) : new Set()}
                           onToggleDia={(iso) => {
+                            const d = new Date()
+                            const hojeIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+                            if (iso < hojeIso) return
                             if (diaOcupado(periodosSel, iso)) return
                             setCheckin(iso)
                             setCheckout('')
@@ -812,7 +850,7 @@ export default function DrawerReservaHospedagem({
                     <button
                       type="button"
                       onClick={() => setCalAberto(calAberto === 'checkout' ? null : 'checkout')}
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-left text-sm"
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left text-sm text-[#001f3f] disabled:opacity-50"
                       disabled={!checkin}
                     >
                       {checkout ? formatarDataBr(checkout) : 'Selecionar data'}
@@ -840,7 +878,7 @@ export default function DrawerReservaHospedagem({
                     <select
                       value={numHospedes}
                       onChange={(e) => setNumHospedes(Number(e.target.value))}
-                      className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm"
+                      className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-[#001f3f]"
                     >
                       {Array.from({ length: selecionada.capacidade_pessoas }, (_, i) => i + 1).map(
                         (n) => (
@@ -865,14 +903,14 @@ export default function DrawerReservaHospedagem({
                             <button
                               type="button"
                               onClick={() => setFormaPagamento(f.value)}
-                              className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm ${
+                              className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm text-[#001f3f] ${
                                 formaPagamento === f.value
                                   ? 'border-[#0097b2] bg-[#0097b2]/10 font-semibold'
-                                  : 'border-gray-200'
+                                  : 'border-gray-200 bg-white'
                               }`}
                             >
                               <span
-                                className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
                                   formaPagamento === f.value
                                     ? 'border-[#0097b2] bg-[#0097b2]'
                                     : 'border-gray-300'
@@ -884,6 +922,24 @@ export default function DrawerReservaHospedagem({
                               </span>
                               {f.label}
                             </button>
+                            {f.value === 'dinheiro' &&
+                            formaPagamento === 'dinheiro' &&
+                            politicas?.formas_pagamento.moedas?.length ? (
+                              <div className="mt-1.5 flex flex-wrap gap-1.5 pl-6">
+                                {politicas.formas_pagamento.moedas.map((m) => {
+                                  const rotulo =
+                                    MOEDAS_DINHEIRO.find((x) => x.value === m)?.label ?? m
+                                  return (
+                                    <span
+                                      key={m}
+                                      className="rounded-full bg-[#0097b2]/15 px-2.5 py-1 text-xs font-semibold text-[#001f3f]"
+                                    >
+                                      {rotulo}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            ) : null}
                           </li>
                         ))}
                       </ul>
@@ -900,7 +956,7 @@ export default function DrawerReservaHospedagem({
                   <p className="mt-2 text-sm leading-relaxed text-gray-700">
                     Você reservou {noites} {noites === 1 ? 'diária' : 'diárias'} (check-in dia{' '}
                     {formatarDataBr(checkin)} e check-out dia {formatarDataBr(checkout)}) da
-                    acomodação &quot;{rotuloAcomodacaoResumo(selecionada)}&quot;, o valor total das
+                    acomodação &quot;{rotuloAcomodacaoResumoCurto(selecionada)}&quot;, o valor total das
                     reservas é de {formatarValorDiaria(total)} a ser pago direto para o anfitrião no
                     dia do check-in. Deseja confirmar a reserva?
                   </p>

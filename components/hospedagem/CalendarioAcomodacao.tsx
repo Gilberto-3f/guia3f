@@ -12,6 +12,14 @@ import {
 
 const DIAS_SEM = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
+function hojeIsoLocal(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 type Props = {
   periodos: PeriodoOcupacao[]
   /** Datas selecionadas para bloqueio (modo edição) */
@@ -91,22 +99,29 @@ export default function CalendarioAcomodacao({
           if (!iso) return <div key={`e-${idx}`} className="aspect-square" />
           const ocupado = diaOcupado(periodos, iso)
           const selecionado = selecao?.has(iso) ?? false
+          const hojeIso = hojeIsoLocal()
+          const passado = iso < hojeIso
           const bg = selecionado
             ? '#001f3f'
-            : ocupado
-              ? COR_AZUL_LOGO
-              : COR_VERDE_BOTAO
-          const clicavel = modoSelecao && onToggleDia
+            : passado
+              ? '#c4c4c4'
+              : ocupado
+                ? COR_AZUL_LOGO
+                : COR_VERDE_BOTAO
+          const clicavel = Boolean(modoSelecao && onToggleDia && !passado && !ocupado)
 
           return (
             <button
               key={iso}
               type="button"
               disabled={!clicavel}
-              onClick={() => onToggleDia?.(iso)}
+              onClick={() => {
+                if (!clicavel) return
+                onToggleDia?.(iso)
+              }}
               className="aspect-square rounded-md text-[11px] font-semibold text-white disabled:cursor-default"
               style={{ backgroundColor: bg }}
-              title={ocupado ? 'Ocupado' : 'Disponível'}
+              title={passado ? 'Passado' : ocupado ? 'Ocupado' : 'Disponível'}
             >
               {Number(iso.slice(8, 10))}
             </button>
@@ -122,6 +137,10 @@ export default function CalendarioAcomodacao({
         <span className="inline-flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COR_AZUL_LOGO }} />
           Ocupado
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="h-2.5 w-2.5 rounded-sm bg-[#c4c4c4]" />
+          Passado
         </span>
       </div>
     </div>

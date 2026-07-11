@@ -45,6 +45,18 @@ export function rotuloCategoriaImovel(value: string | null | undefined): string 
   return hit?.label ?? String(value ?? '')
 }
 
+/** Remove trecho auxiliar entre parênteses (ex.: "Kitnet (…)" → "Kitnet"). */
+export function rotuloPrincipalSemParenteses(label: string | null | undefined): string {
+  return String(label ?? '')
+    .replace(/\s*\([^)]*\)\s*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function rotuloCategoriaImovelCurto(value: string | null | undefined): string {
+  return rotuloPrincipalSemParenteses(rotuloCategoriaImovel(value))
+}
+
 export const CATEGORIAS_PARTICULAR = [
   { value: 'solteiro', label: 'Solteiro' },
   { value: 'casal', label: 'Casal (cama de casal para 1 ou 2 pessoas)' },
@@ -74,6 +86,14 @@ export type OpcaoCompartilhadaValue = (typeof OPCOES_COMPARTILHADA)[number]['val
 export function rotuloOpcaoCompartilhada(value: string | null | undefined): string {
   const hit = OPCOES_COMPARTILHADA.find((c) => c.value === value)
   return hit?.label ?? String(value ?? '')
+}
+
+export function rotuloCategoriaParticularCurto(value: string | null | undefined): string {
+  return rotuloPrincipalSemParenteses(rotuloCategoriaParticular(value))
+}
+
+export function rotuloOpcaoCompartilhadaCurto(value: string | null | undefined): string {
+  return rotuloPrincipalSemParenteses(rotuloOpcaoCompartilhada(value))
 }
 
 export type ComodidadesPadrao = {
@@ -321,6 +341,23 @@ export function rotuloAcomodacaoResumo(row: {
   }
   if (tipo === 'compartilhado' && row.opcao_compartilhada) {
     return `${base} · ${rotuloOpcaoCompartilhada(row.opcao_compartilhada)}`
+  }
+  return base
+}
+
+/** Resumo limpo: só nomes principais, sem auxiliares entre parênteses. */
+export function rotuloAcomodacaoResumoCurto(row: {
+  categoria_imovel: string
+  categoria_particular?: string | null
+  opcao_compartilhada?: string | null
+}): string {
+  const tipo = tipoCategoriaImovel(row.categoria_imovel)
+  const base = rotuloCategoriaImovelCurto(row.categoria_imovel)
+  if (tipo === 'particular' && row.categoria_particular) {
+    return `${base} · ${rotuloCategoriaParticularCurto(row.categoria_particular)}`
+  }
+  if (tipo === 'compartilhado' && row.opcao_compartilhada) {
+    return `${base} · ${rotuloOpcaoCompartilhadaCurto(row.opcao_compartilhada)}`
   }
   return base
 }
