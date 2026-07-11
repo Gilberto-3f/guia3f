@@ -977,12 +977,18 @@ function FeedPageInner() {
                   abrirComentariosInicial={postParam === post.id && Boolean(comentarioParam)}
                   destacarComentarioId={postParam === post.id ? comentarioParam : null}
                   onRepublicouPrepend={(raw) => {
+                    if (typeof window !== 'undefined') {
+                      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+                    }
                     void (async () => {
                       const mapped = mapRow(raw)
                       const [row] = (await sanearAutoresPostsEmpresaPreview(supabase, [mapped], email, modoAtivo)) as PostFeedRow[]
                       setPosts((prev) => {
                         if (prev.some((x) => x.id === row.id)) return prev
                         return ordenarListaFeed([row, ...prev])
+                      })
+                      requestAnimationFrame(() => {
+                        window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
                       })
                     })()
                   }}

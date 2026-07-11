@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -9,6 +10,7 @@ import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
 import { inserirRedeContato, removerRedeContato } from '@/lib/redeContatos'
 import AvatarImage from '@/components/AvatarImage'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
+import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 function chaveCurtidaLista(usuarioId, empresaInteratorId) {
   const uid = String(usuarioId ?? '').trim()
@@ -34,6 +36,8 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
   const [erroCarregar, setErroCarregar] = useState(false)
   const [seguindoMap, setSeguindoMap] = useState(/** @type {Record<string, boolean>} */ ({}))
   const seguirBusyRef = useRef(false)
+
+  useModalScrollLock(aberto && Boolean(postId))
 
   const carregar = useCallback(async () => {
     if (!postId) {
@@ -253,19 +257,32 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
 
   if (!aberto || !postId) return null
 
-  return (
-    <div className="fixed inset-0 z-[230] flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
+  const modal = (
+    <div
+      className="fixed inset-0 z-[230] flex items-end justify-center overscroll-none bg-black/50 sm:items-center sm:p-4"
+      onClick={onFechar}
+      role="presentation"
+    >
       <div
         className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
         style={{ height: 'min(70vh, 85vh)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-curtidas-titulo"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3">
-          <h3 className="font-bold text-black">Curtidas</h3>
+          <h3 id="modal-curtidas-titulo" className="font-bold text-black">
+            Curtidas
+          </h3>
           <button type="button" onClick={onFechar} className="p-1 text-black" aria-label="Fechar">
             <X size={22} />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black"
+          data-modal-scroll-lock-scrollable
+        >
           {carregando ? <p className="py-8 text-center text-sm text-gray-900">Carregando…</p> : null}
           {!carregando && erroCarregar ? (
             <p className="py-8 text-center text-sm text-gray-900">Não foi possível carregar as curtidas.</p>
@@ -326,4 +343,6 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
       </div>
     </div>
   )
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal
 }
