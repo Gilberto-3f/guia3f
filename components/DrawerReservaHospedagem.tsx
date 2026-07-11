@@ -168,8 +168,23 @@ export default function DrawerReservaHospedagem({
   const [chevronExtra, setChevronExtra] = useState(false)
   const [chevronPoliticas, setChevronPoliticas] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [painelVisivel, setPainelVisivel] = useState(false)
+  const [painelAberto, setPainelAberto] = useState(false)
 
-  useModalScrollLock(isOpen)
+  useModalScrollLock(isOpen || painelVisivel)
+
+  useEffect(() => {
+    if (isOpen) {
+      setPainelVisivel(true)
+      const id = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setPainelAberto(true))
+      })
+      return () => cancelAnimationFrame(id)
+    }
+    setPainelAberto(false)
+    const t = window.setTimeout(() => setPainelVisivel(false), 300)
+    return () => window.clearTimeout(t)
+  }, [isOpen])
 
   const selecionada = useMemo(
     () => acomodacoes.find((a) => a.id === selecionadaId) ?? null,
@@ -287,6 +302,7 @@ export default function DrawerReservaHospedagem({
       setChevronPadrao(false)
       setChevronExtra(false)
       setChevronPoliticas(false)
+      setAnfitriaoAberto(false)
       return
     }
     void carregar()
@@ -386,24 +402,28 @@ export default function DrawerReservaHospedagem({
     await enviarSolicitacao()
   }
 
-  if (!isOpen) return null
+  if (!painelVisivel) return null
 
   const avatarEmpresa = empresaFotoUrl
   const nota = notaMedia != null && Number(notaMedia) > 0 ? Number(notaMedia).toFixed(1) : null
+  const mostrarRodapePassos = !carregando && !sucesso && !reservaPendente && (passo === 2 || passo === 3)
 
   const Cabecalho = (
-    <header className="sticky top-0 z-10 border-b border-white/15 bg-[#0097b2] pt-safe">
-      <div className="flex items-center gap-3 px-4 py-3">
-        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-white bg-white/20">
+    <header
+      className="shrink-0 border-b border-white/15 bg-[#0097b2]"
+      style={{ paddingTop: 'max(0.35rem, env(safe-area-inset-top, 0px))' }}
+    >
+      <div className="flex items-start gap-3 px-4 pb-2.5 pt-1">
+        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 border-white bg-white/20">
           {avatarEmpresa ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
           ) : null}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-white">{empresaNome}</p>
+          <p className="truncate text-sm font-bold leading-tight text-white">{empresaNome}</p>
           {empresaUsername ? (
-            <p className="truncate text-xs text-white/80">@{empresaUsername}</p>
+            <p className="truncate text-xs leading-tight text-white/80">@{empresaUsername}</p>
           ) : null}
           <button
             type="button"
@@ -418,7 +438,7 @@ export default function DrawerReservaHospedagem({
           </button>
           {anfitriaoAberto && anfitriao ? (
             <div className="mt-2 flex items-center gap-2 rounded-lg bg-white/15 p-2">
-              <div className="h-8 w-8 overflow-hidden rounded-full border border-white bg-white/30">
+              <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border border-white bg-white/30">
                 {anfitriao.foto ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={anfitriao.foto} alt="" className="h-full w-full object-cover" />
@@ -436,7 +456,7 @@ export default function DrawerReservaHospedagem({
         <button
           type="button"
           onClick={handleFechar}
-          className="rounded-lg p-2 text-white hover:bg-white/15"
+          className="mt-0.5 shrink-0 rounded-lg p-2 text-white hover:bg-white/15"
           aria-label="Fechar"
         >
           <X className="h-5 w-5" aria-hidden />
@@ -527,10 +547,19 @@ export default function DrawerReservaHospedagem({
 
   return (
     <>
-      <div className="fixed inset-0 z-[70] flex flex-col bg-white" role="dialog" aria-modal="true">
+      <div
+        className={`fixed inset-0 z-[70] flex flex-col bg-white transition-transform duration-300 ease-out ${
+          painelAberto ? 'translate-x-0' : 'translate-x-full'
+        }`}
+        role="dialog"
+        aria-modal="true"
+      >
         {Cabecalho}
 
-        <div className="min-h-0 flex-1 overflow-y-auto pb-28" data-modal-scroll-lock-scrollable>
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto ${mostrarRodapePassos ? 'pb-28' : 'pb-4'}`}
+          data-modal-scroll-lock-scrollable
+        >
           {carregando ? (
             <p className="p-6 text-center text-sm text-gray-500">Carregando…</p>
           ) : reservaPendente && !sucesso ? (
@@ -883,8 +912,8 @@ export default function DrawerReservaHospedagem({
           {erro ? <p className="px-4 pb-2 text-sm text-rose-600">{erro}</p> : null}
         </div>
 
-        {!carregando && !sucesso && !reservaPendente ? (
-          <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-200 bg-white p-3 pb-safe">
+        {mostrarRodapePassos ? (
+          <div className="shrink-0 border-t border-gray-200 bg-white p-3 pb-safe">
             {passo === 2 ? (
               <div className="flex gap-2">
                 <button
@@ -930,29 +959,8 @@ export default function DrawerReservaHospedagem({
                 </button>
               </div>
             ) : null}
-            {passo === 1 ? (
-              <button
-                type="button"
-                onClick={handleFechar}
-                className="w-full rounded-xl py-3 text-sm font-bold text-white"
-                style={{ backgroundColor: COR }}
-              >
-                Fechar
-              </button>
-            ) : null}
           </div>
-        ) : (
-          <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-200 bg-white p-3 pb-safe">
-            <button
-              type="button"
-              onClick={handleFechar}
-              className="w-full rounded-xl py-3 text-sm font-bold text-white"
-              style={{ backgroundColor: COR }}
-            >
-              Fechar
-            </button>
-          </div>
-        )}
+        ) : null}
       </div>
 
       <PopupAvisoReservaHospedagemConflito
