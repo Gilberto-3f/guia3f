@@ -58,8 +58,23 @@ export function precisaDadosPaxManifesto(
   categoriasIndicado: string[] | null | undefined,
   placaVermelhaIndicado: boolean,
 ): boolean {
-  // Manifesto só para profissionais com placa vermelha
-  return Boolean(placaVermelhaIndicado)
+  // Manifesto: placa vermelha + Guia de Turismo ou Motorista de Van (não anfitrião).
+  if (!placaVermelhaIndicado) return false
+  const cats = normalizarCategoriasProfissional(categoriasIndicado)
+  return cats.includes('guia') || cats.includes('van')
+}
+
+/** Aviso de manifesto no canal financeiro (ocultar para anfitrião). */
+export function itemCanalFinanceiroEhAvisoManifesto(item: {
+  tipo?: string | null
+  titulo?: string | null
+  mensagem?: string | null
+}): boolean {
+  const tipo = String(item.tipo ?? '')
+  if (tipo === 'manifesto' || tipo === 'manifesto_indicacao') return true
+  const titulo = String(item.titulo ?? '').toLowerCase()
+  const mensagem = String(item.mensagem ?? '').toLowerCase()
+  return titulo.includes('manifesto') || mensagem.includes('manifesto')
 }
 
 export function hrefDestinoContratacao(destino: DestinoContratacaoRecomendacao): string | null {

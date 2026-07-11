@@ -14,6 +14,7 @@ import {
   itemCanalFinanceiroContaComoNaoLidoEmpresa,
   type CanalFinanceiroRowEmpresa,
 } from '@/lib/canaisEmpresaVisibilidade'
+import { itemCanalFinanceiroEhAvisoManifesto } from '@/lib/recomendacaoContratacaoDestino'
 
 export type CanalVisibilidadeRow = {
   id: string
@@ -160,9 +161,10 @@ async function contarFinanceiroEmpresaHospedagemAnfitriao(
     console.error('contarFinanceiroEmpresaHospedagemAnfitriao:', error)
     return 0
   }
-  return (rows ?? []).filter((r) =>
-    itemCanalFinanceiroContaComoNaoLidoEmpresa(r as CanalFinanceiroRowEmpresa, statusDeg),
-  ).length
+  return (rows ?? []).filter((r) => {
+    if (itemCanalFinanceiroEhAvisoManifesto(r)) return false
+    return itemCanalFinanceiroContaComoNaoLidoEmpresa(r as CanalFinanceiroRowEmpresa, statusDeg)
+  }).length
 }
 
 /**
@@ -173,17 +175,32 @@ export async function contarFinanceiroNaoLidasProfissional(
   usuarioId: string,
 ): Promise<number> {
   if (!usuarioId) return 0
-  const { data: prof } = await supabase.from('profissionais').select('id').eq('usuario_id', usuarioId).maybeSingle()
+  const { data: prof } = await supabase
+    .from('profissionais')
+    .select('id, categorias')
+    .eq('usuario_id', usuarioId)
+    .maybeSingle()
   const profissionalId = prof?.id != null ? String(prof.id) : ''
   if (!profissionalId) return 0
 
-  const [{ count, error }, mensageiro, { data: pendentesTpl, error: tplErr }, extraEmpresaHospedagem] =
+  const cats = Array.isArray(prof?.categorias)
+    ? prof.categorias.filter((c): c is string => typeof c === 'string')
+    : []
+  const ehAnfitriao = categoriasIncluemAnfitriao(cats)
+
+  let profQuery = supabase
+    .from('canal_financeiro')
+    .select('id, tipo, titulo, mensagem')
+    .eq('profissional_id', profissionalId)
+    .eq('lida_por_profissional', false)
+
+  if (ehAnfitriao) {
+    profQuery = profQuery.not('tipo', 'in', '(manifesto,manifesto_indicacao)')
+  }
+
+  const [{ data: rowsProf, error }, mensageiro, { data: pendentesTpl, error: tplErr }, extraEmpresaHospedagem] =
     await Promise.all([
-    supabase
-      .from('canal_financeiro')
-      .select('id', { count: 'exact', head: true })
-      .eq('profissional_id', profissionalId)
-      .eq('lida_por_profissional', false),
+    profQuery,
     contarMensageiroFinanceiroNaoLidas(supabase, usuarioId),
     supabase
       .from('turista_pre_liberacoes')
@@ -198,12 +215,16 @@ export async function contarFinanceiroNaoLidasProfissional(
     return mensageiro
   }
 
+  const countProf = (rowsProf ?? []).filter((r) =>
+    ehAnfitriao ? !itemCanalFinanceiroEhAvisoManifesto(r) : true,
+  ).length
+
   const extraTpl =
     tplErr || !pendentesTpl
       ? 0
       : pendentesTpl.filter((r) => r.canal_financeiro_id == null).length
 
-  return (count ?? 0) + extraTpl + mensageiro + extraEmpresaHospedagem
+  return countProf + extraTpl + mensageiro + extraEmpresaHospedagem
 }
 
 /** Marca todos os avisos financeiros do profissional como lidos (ao abrir o canal). */
@@ -212,7 +233,11 @@ export async function marcarFinanceiroLidoProfissional(
   usuarioId: string,
 ): Promise<void> {
   if (!usuarioId) return
-  const { data: prof } = await supabase.from('profissionais').select('id').eq('usuario_id', usuarioId).maybeSingle()
+  const { data: prof } = await supabase
+    .from('profissionais')
+    .select('id, categorias')
+    .eq('usuario_id', usuarioId)
+    .maybeSingle()
   const profissionalId = prof?.id != null ? String(prof.id) : ''
   if (!profissionalId) return
 
@@ -224,4 +249,27 @@ export async function marcarFinanceiroLidoProfissional(
     .neq('tipo', 'pre_liberacao_turista')
 
   if (error) console.error('marcarFinanceiroLidoProfissional:', error)
+
+  const cats = Array.isArray(prof?.categorias)
+    ? prof.categorias.filter((c): c is string => typeof c === 'string')
+    : []
+  if (!categoriasIncluemAnfitriao(cats)) return
+
+  // Legado: avisos de manifesto (por tipo ou texto) não devem permanecer como não lidos para anfitrião.
+  const { data: pendentes } = await supabase
+    .from('canal_financeiro')
+    .select('id, tipo, titulo, mensagem')
+    .eq('profissional_id', profissionalId)
+    .eq('lida_por_profissional', false)
+
+  const idsManifesto = (pendentes ?? [])
+    .filter((r) => itemCanalFinanceiroEhAvisoManifesto(r))
+    .map((r) => String(r.id))
+  if (idsManifesto.length === 0) return
+
+  const { error: errManifesto } = await supabase
+    .from('canal_financeiro')
+    .update({ lida_por_profissional: true })
+    .in('id', idsManifesto)
+  if (errManifesto) console.error('marcarFinanceiroLidoProfissional manifesto:', errManifesto)
 }

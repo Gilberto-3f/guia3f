@@ -4,8 +4,9 @@ import { NextResponse } from 'next/server'
 import { persistirLeituraCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresaLeitura.server'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { getUserFromCookieSession } from '@/lib/serverAuthSession'
+import { categoriasIncluemAnfitriao } from '@/lib/anfitriaoDualMode'
 
-/** Empresa marca aviso(s) do canal financeiro como lido(s) — persiste via service role. */
+/** Empresa (ou anfitrião dual mode) marca aviso(s) do canal financeiro como lido(s). */
 export async function POST(req: Request) {
   try {
     const cookieStore = await cookies()
@@ -29,12 +30,29 @@ export async function POST(req: Request) {
     }
 
     const { data: urow } = await supabase.from('usuarios').select('role').eq('id', user.id).maybeSingle()
-    if (String(urow?.role ?? '') !== 'empresa') {
+    const role = String(urow?.role ?? '')
+
+    let empresaId = ''
+    if (role === 'empresa') {
+      const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', user.id).maybeSingle()
+      empresaId = emp?.id != null ? String(emp.id) : ''
+    } else if (role === 'profissional') {
+      // Anfitrião em modo hospedagem: role continua profissional, mas gerencia empresa vinculada.
+      const { data: prof } = await supabase
+        .from('profissionais')
+        .select('categorias, empresa_hospedagem_id')
+        .eq('usuario_id', user.id)
+        .maybeSingle()
+      const cats = Array.isArray(prof?.categorias)
+        ? prof.categorias.filter((c): c is string => typeof c === 'string')
+        : []
+      if (categoriasIncluemAnfitriao(cats) && prof?.empresa_hospedagem_id) {
+        empresaId = String(prof.empresa_hospedagem_id)
+      }
+    } else {
       return NextResponse.json({ error: 'Apenas empresas podem marcar leitura.' }, { status: 403 })
     }
 
-    const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', user.id).maybeSingle()
-    const empresaId = emp?.id != null ? String(emp.id) : ''
     if (!empresaId) {
       return NextResponse.json({ error: 'Empresa não encontrada.' }, { status: 404 })
     }

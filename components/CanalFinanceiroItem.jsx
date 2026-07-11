@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { DollarSign, FileText, CheckCircle, Eye } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
+import { marcarFinanceiroItemLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 
 /**
  * @param {{
@@ -23,10 +24,12 @@ import { notificarBadgeCanais } from '@/lib/canais-badge-events'
  *   }
  *   userTipo: 'profissional' | 'empresa'
  *   destinoRotulo?: string | null
+ *   onItemLido?: (itemId: string) => void | Promise<void>
  * }} props
  */
-export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = null }) {
+export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = null, onItemLido }) {
   const [marcandoLida, setMarcandoLida] = useState(false)
+  const [lidaLocal, setLidaLocal] = useState(false)
 
   const getIcon = () => {
     switch (item.tipo) {
@@ -60,12 +63,23 @@ export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = nu
   const marcarComoLida = async () => {
     setMarcandoLida(true)
     try {
-      const patch =
-        userTipo === 'profissional' ? { lida_por_profissional: true } : { lida_por_empresa: true }
+      if (typeof onItemLido === 'function') {
+        await onItemLido(item.id)
+        setLidaLocal(true)
+        return
+      }
 
-      const { error } = await supabase.from('canal_financeiro').update(patch).eq('id', item.id)
-
-      if (error) throw error
+      if (userTipo === 'empresa') {
+        const ok = await marcarFinanceiroItemLidoEmpresa(supabase, '', item.id)
+        if (!ok) throw new Error('Falha ao marcar como lida')
+      } else {
+        const { error } = await supabase
+          .from('canal_financeiro')
+          .update({ lida_por_profissional: true })
+          .eq('id', item.id)
+        if (error) throw error
+      }
+      setLidaLocal(true)
       notificarBadgeCanais()
     } catch (e) {
       console.error('Erro ao marcar como lida:', e)
@@ -74,7 +88,9 @@ export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = nu
     }
   }
 
-  const estaLida = userTipo === 'profissional' ? item.lida_por_profissional : item.lida_por_empresa
+  const estaLida =
+    lidaLocal ||
+    (userTipo === 'profissional' ? item.lida_por_profissional : item.lida_por_empresa)
   const valorNum = item.valor != null ? Number(item.valor) : null
 
   return (

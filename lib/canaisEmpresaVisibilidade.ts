@@ -237,10 +237,12 @@ export async function marcarFinanceiroItemLidoEmpresa(
   usuarioId: string,
   itemId: string,
 ): Promise<boolean> {
-  if (!usuarioId || !itemId) return false
+  if (!itemId) return false
   if (typeof window !== 'undefined') {
     return marcarItemLidoViaApi(itemId)
   }
+
+  if (!usuarioId) return false
 
   const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', usuarioId).maybeSingle()
   const empresaId = emp?.id != null ? String(emp.id) : ''

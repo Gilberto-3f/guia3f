@@ -23,9 +23,14 @@ import {
 } from '@/lib/turistaPreLiberacao'
 import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
 import { notificarBadgeCanais, notificarBadgeCanaisAposLeitura } from '@/lib/canais-badge-events'
-import { rotuloDestinoNotificacaoFinanceira, rotuloDestinoNotificacaoFinanceiraTexto } from '@/lib/anfitriaoDualMode'
+import {
+  categoriasIncluemAnfitriao,
+  rotuloDestinoNotificacaoFinanceira,
+  rotuloDestinoNotificacaoFinanceiraTexto,
+} from '@/lib/anfitriaoDualMode'
 import { dedupeItensCanalReservaHospedagem } from '@/lib/reservaHospedagem'
 import { TITULO_PLANOS_CANAL } from '@/lib/canalFinanceiroPlanosEmpresa'
+import { itemCanalFinanceiroEhAvisoManifesto } from '@/lib/recomendacaoContratacaoDestino'
 
 /** Catálogo de planos fica na aba Planos; avisos de assinatura ativa aparecem em Relatórios. */
 function ocultarPlanoAssinaturaCatalogoRelatorios(item, userTipo) {
@@ -45,7 +50,8 @@ const abaCls = (ativo) =>
     ativo ? 'bg-[#00D443] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
   }`
 
-function itemRelatorioContaComoNaoLido(item, tipo, statusDegustacaoPorCanal, empresaHospedagemId) {
+function itemRelatorioContaComoNaoLido(item, tipo, statusDegustacaoPorCanal, empresaHospedagemId, ocultarManifesto) {
+  if (ocultarManifesto && itemCanalFinanceiroEhAvisoManifesto(item)) return false
   if (item.tipo === 'pre_liberacao_turista' && !item.metadata?.respondido) return true
   if (item.tipo === 'reserva_hospedagem') {
     const respondido = String(item.metadata?.respondido ?? '').trim()
@@ -84,27 +90,40 @@ function itemRelatorioContaComoNaoLido(item, tipo, statusDegustacaoPorCanal, emp
 
 /**
  * Canal financeiro do profissional ou empresa: relatórios do app + mensageiro ADM.
- * @param {{ usuarioId: string, tipo: 'profissional' | 'empresa', empresaHospedagemId?: string | null }} props
+ * @param {{ usuarioId: string, tipo: 'profissional' | 'empresa', empresaHospedagemId?: string | null, ehAnfitriao?: boolean }} props
  */
-export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospedagemId = null }) {
+export default function CanalFinanceiroUsuario({
+  usuarioId,
+  tipo,
+  empresaHospedagemId = null,
+  ehAnfitriao: ehAnfitriaoProp = false,
+}) {
   const modoAnfitriaoFinanceiro = tipo === 'profissional' && Boolean(empresaHospedagemId)
   const [aba, setAba] = useState(/** @type {'relatorios' | 'mensageiro' | 'planos'} */ ('relatorios'))
   const [itens, setItens] = useState([])
   const [loading, setLoading] = useState(true)
   const [naoLidas, setNaoLidas] = useState(0)
   const [naoLidasMensageiro, setNaoLidasMensageiro] = useState(0)
+  const [ehAnfitriao, setEhAnfitriao] = useState(Boolean(ehAnfitriaoProp))
   const [statusDegustacaoPorCanal, setStatusDegustacaoPorCanal] = useState(
     /** @type {Map<string, string>} */ (() => new Map()),
   )
+  const ocultarManifesto = tipo === 'profissional' && ehAnfitriao
+
+  useEffect(() => {
+    setEhAnfitriao(Boolean(ehAnfitriaoProp))
+  }, [ehAnfitriaoProp])
 
   const marcarItemRelatorioLido = useCallback(
     async (itemId) => {
       if (!usuarioId || !itemId) return
 
+      const alvo = itens.find((row) => row.id === itemId)
+      const viaEmpresa =
+        tipo === 'empresa' || (modoAnfitriaoFinanceiro && Boolean(alvo?.empresa_id))
+
       let persistiu = false
-      if (modoAnfitriaoFinanceiro && item.empresa_id) {
-        persistiu = await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, itemId)
-      } else if (tipo === 'empresa') {
+      if (viaEmpresa) {
         persistiu = await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, itemId)
       } else {
         const { data: prof } = await supabase
@@ -133,64 +152,108 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospeda
           item.id === itemId
             ? {
                 ...item,
-                lida_por_profissional: tipo === 'profissional' ? true : item.lida_por_profissional,
-                lida_por_empresa: tipo === 'empresa' ? true : item.lida_por_empresa,
+                lida_por_profissional:
+                  !viaEmpresa || tipo === 'profissional' ? true : item.lida_por_profissional,
+                lida_por_empresa: viaEmpresa ? true : item.lida_por_empresa,
                 metadata:
-                  tipo === 'empresa' && item.tipo === 'degustacao_plano'
+                  viaEmpresa && item.tipo === 'degustacao_plano'
                     ? { ...(item.metadata ?? {}), visualizado_em: visualizadoEm }
                     : item.metadata,
                 comprovante_detalhes:
-                  tipo === 'empresa' && item.tipo === 'degustacao_plano'
+                  viaEmpresa && item.tipo === 'degustacao_plano'
                     ? { ...(item.comprovante_detalhes ?? item.metadata ?? {}), visualizado_em: visualizadoEm }
                     : item.comprovante_detalhes,
               }
             : item,
         )
-        setNaoLidas(next.filter((row) => itemRelatorioContaComoNaoLido(row, tipo, statusDegustacaoPorCanal, empresaHospedagemId)).length)
+        setNaoLidas(
+          next.filter((row) =>
+            itemRelatorioContaComoNaoLido(
+              row,
+              tipo,
+              statusDegustacaoPorCanal,
+              empresaHospedagemId,
+              ocultarManifesto,
+            ),
+          ).length,
+        )
         return next
       })
       notificarBadgeCanaisAposLeitura()
     },
-    [tipo, usuarioId, statusDegustacaoPorCanal, empresaHospedagemId, modoAnfitriaoFinanceiro],
+    [
+      tipo,
+      usuarioId,
+      statusDegustacaoPorCanal,
+      empresaHospedagemId,
+      modoAnfitriaoFinanceiro,
+      itens,
+      ocultarManifesto,
+    ],
   )
 
   const marcarRelatoriosComoLidos = useCallback(async () => {
     if (!usuarioId) return false
-    let persistiu = false
+    let persistiuProf = false
+    let persistiuEmpresa = false
     if (tipo === 'profissional') {
       await marcarFinanceiroLidoProfissional(supabase, usuarioId)
-      persistiu = true
+      persistiuProf = true
       if (modoAnfitriaoFinanceiro) {
-        await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
+        persistiuEmpresa = await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
       }
     } else {
-      persistiu = await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
+      persistiuEmpresa = await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
     }
-    if (!persistiu) return false
+    if (!persistiuProf && !persistiuEmpresa) return false
 
-    setNaoLidas(0)
-    setItens((prev) =>
-      prev.map((item) => ({
-        ...item,
-        lida_por_profissional:
-          tipo === 'profissional' && (!modoAnfitriaoFinanceiro || !item.empresa_id)
-            ? true
-            : item.lida_por_profissional,
-        lida_por_empresa:
-          tipo === 'empresa' || (modoAnfitriaoFinanceiro && item.empresa_id) ? true : item.lida_por_empresa,
-        metadata:
-          tipo === 'empresa' && item.tipo === 'degustacao_plano'
-            ? { ...(item.metadata ?? {}), visualizado_em: new Date().toISOString() }
-            : item.metadata,
-        comprovante_detalhes:
-          tipo === 'empresa' && item.tipo === 'degustacao_plano'
-            ? { ...(item.comprovante_detalhes ?? item.metadata ?? {}), visualizado_em: new Date().toISOString() }
-            : item.comprovante_detalhes,
-      })),
-    )
+    setItens((prev) => {
+      const visualizadoEm = new Date().toISOString()
+      const next = prev.map((item) => {
+        const itemEmpresa = Boolean(item.empresa_id)
+        const marcarProf =
+          persistiuProf &&
+          tipo === 'profissional' &&
+          (!modoAnfitriaoFinanceiro || !itemEmpresa)
+        const marcarEmp =
+          persistiuEmpresa && (tipo === 'empresa' || (modoAnfitriaoFinanceiro && itemEmpresa))
+        return {
+          ...item,
+          lida_por_profissional: marcarProf ? true : item.lida_por_profissional,
+          lida_por_empresa: marcarEmp ? true : item.lida_por_empresa,
+          metadata:
+            marcarEmp && item.tipo === 'degustacao_plano'
+              ? { ...(item.metadata ?? {}), visualizado_em: visualizadoEm }
+              : item.metadata,
+          comprovante_detalhes:
+            marcarEmp && item.tipo === 'degustacao_plano'
+              ? { ...(item.comprovante_detalhes ?? item.metadata ?? {}), visualizado_em: visualizadoEm }
+              : item.comprovante_detalhes,
+        }
+      })
+      setNaoLidas(
+        next.filter((row) =>
+          itemRelatorioContaComoNaoLido(
+            row,
+            tipo,
+            statusDegustacaoPorCanal,
+            empresaHospedagemId,
+            ocultarManifesto,
+          ),
+        ).length,
+      )
+      return next
+    })
     notificarBadgeCanaisAposLeitura()
     return true
-  }, [usuarioId, tipo, modoAnfitriaoFinanceiro])
+  }, [
+    usuarioId,
+    tipo,
+    modoAnfitriaoFinanceiro,
+    statusDegustacaoPorCanal,
+    empresaHospedagemId,
+    ocultarManifesto,
+  ])
 
   useEffect(() => {
     if (aba !== 'relatorios' || loading || !usuarioId) return
@@ -204,10 +267,20 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospeda
     try {
       let profissionalId = /** @type {string | null} */ (null)
       let empresaId = /** @type {string | null} */ (null)
+      let anfitriaoDetectado = false
 
       if (tipo === 'profissional') {
-        const { data: p } = await supabase.from('profissionais').select('id').eq('usuario_id', usuarioId).maybeSingle()
+        const { data: p } = await supabase
+          .from('profissionais')
+          .select('id, categorias')
+          .eq('usuario_id', usuarioId)
+          .maybeSingle()
         profissionalId = p?.id != null ? String(p.id) : null
+        const cats = Array.isArray(p?.categorias)
+          ? p.categorias.filter((c) => typeof c === 'string')
+          : []
+        anfitriaoDetectado = categoriasIncluemAnfitriao(cats)
+        if (anfitriaoDetectado) setEhAnfitriao(true)
         if (modoAnfitriaoFinanceiro && empresaHospedagemId) {
           empresaId = String(empresaHospedagemId)
         }
@@ -341,6 +414,26 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospeda
 
       formatados = dedupeItensCanalReservaHospedagem(formatados)
 
+      const ocultarManifestoAgora =
+        tipo === 'profissional' && (ehAnfitriaoProp || anfitriaoDetectado)
+      if (ocultarManifestoAgora) {
+        const manifestoPendentes = formatados.filter(
+          (item) =>
+            itemCanalFinanceiroEhAvisoManifesto(item) &&
+            !item.lida_por_profissional &&
+            item.profissional_id,
+        )
+        if (manifestoPendentes.length > 0 && profissionalId) {
+          const ids = manifestoPendentes.map((i) => i.id)
+          await supabase
+            .from('canal_financeiro')
+            .update({ lida_por_profissional: true })
+            .in('id', ids)
+            .eq('profissional_id', profissionalId)
+        }
+        formatados = formatados.filter((item) => !itemCanalFinanceiroEhAvisoManifesto(item))
+      }
+
       formatados.sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       )
@@ -355,7 +448,13 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospeda
       setItens(formatados)
       setNaoLidas(
         formatados.filter((item) =>
-          itemRelatorioContaComoNaoLido(item, tipo, statusDegMap, modoAnfitriaoFinanceiro ? empresaHospedagemId : null),
+          itemRelatorioContaComoNaoLido(
+            item,
+            tipo,
+            statusDegMap,
+            modoAnfitriaoFinanceiro ? empresaHospedagemId : null,
+            ocultarManifestoAgora,
+          ),
         ).length,
       )
       const msgNaoLidas = await contarMensageiroFinanceiroNaoLidas(supabase, usuarioId)
@@ -365,7 +464,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospeda
     } finally {
       if (!silencioso) setLoading(false)
     }
-  }, [usuarioId, tipo, empresaHospedagemId, modoAnfitriaoFinanceiro])
+  }, [usuarioId, tipo, empresaHospedagemId, modoAnfitriaoFinanceiro, ehAnfitriaoProp])
 
   useEffect(() => {
     void carregar()
@@ -530,11 +629,19 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospeda
 
       {aba === 'relatorios' ? (
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-          {itens.filter((item) => !ocultarPlanoAssinaturaCatalogoRelatorios(item, tipo)).length === 0 ? (
+          {itens.filter(
+            (item) =>
+              !ocultarPlanoAssinaturaCatalogoRelatorios(item, tipo) &&
+              !(ocultarManifesto && itemCanalFinanceiroEhAvisoManifesto(item)),
+          ).length === 0 ? (
             <div className="py-8 text-center text-gray-400">Nenhuma movimentação financeira ainda</div>
           ) : (
             itens
-              .filter((item) => !ocultarPlanoAssinaturaCatalogoRelatorios(item, tipo))
+              .filter(
+                (item) =>
+                  !ocultarPlanoAssinaturaCatalogoRelatorios(item, tipo) &&
+                  !(ocultarManifesto && itemCanalFinanceiroEhAvisoManifesto(item)),
+              )
               .map((item) =>
                 item.tipo === 'pre_liberacao_turista' && tipo === 'profissional' ? (
                   <CanalFinanceiroItemPreLiberacao
@@ -566,6 +673,7 @@ export default function CanalFinanceiroUsuario({ usuarioId, tipo, empresaHospeda
                     item={item}
                     userTipo={modoAnfitriaoFinanceiro && item.empresa_id ? 'empresa' : tipo}
                     destinoRotulo={modoAnfitriaoFinanceiro ? item.destino_rotulo : null}
+                    onItemLido={marcarItemRelatorioLido}
                   />
                 ),
               )

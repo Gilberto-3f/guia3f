@@ -725,6 +725,7 @@ export default function CanalDetalhePage() {
               usuarioId={financeUid}
               tipo="profissional"
               empresaHospedagemId={ehAnfitriao ? empresaHospedagemId : null}
+              ehAnfitriao={ehAnfitriao}
             />
           ) : (
             <div className="min-h-0 flex-1 overflow-hidden">
