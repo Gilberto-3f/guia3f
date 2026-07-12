@@ -212,7 +212,7 @@ function itensMinhaConta(ctx) {
   const base = [
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
     { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
-    { Icon: Eye, label: 'Visitantes do meu Perfil', subpagina: 'visitantes-perfil' },
+    { Icon: Eye, label: 'Visitantes do Perfil', subpagina: 'visitantes-perfil' },
     { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
   ]
 
@@ -1172,7 +1172,7 @@ export default function MenuLateral({
         'anexar-documentos': 'Anexar Documentos',
         'anexar-documentos-turista': 'Anexar Documentos',
         'anexar-documentos-empresa': 'Anexar documentos',
-        'visitantes-perfil': 'Visitantes do meu Perfil',
+        'visitantes-perfil': 'Visitantes do Perfil',
       }
       const titulosProfissional = ['historico-compras', 'recomendacoes', 'historico-manifestos']
       const t =
@@ -1412,13 +1412,13 @@ export default function MenuLateral({
                 <Ico size={compact ? 16 : 20} strokeWidth={1.75} />
               </span>
               <span className="min-w-0 flex-1">{item.label}</span>
-              {badgeItem > 0 || (item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo) ? (
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-bold text-white ${
-                    item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo ? 'bg-amber-500' : 'bg-red-500'
-                  }`}
-                >
-                  {item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo ? 'ON' : badgeItem}
+              {item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo ? (
+                <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                  ON
+                </span>
+              ) : badgeItem > 0 ? (
+                <span className="flex min-h-[14px] min-w-[14px] max-w-[2rem] shrink-0 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
+                  {badgeItem > 99 ? '99+' : badgeItem}
                 </span>
               ) : null}
             </button>
@@ -1521,13 +1521,13 @@ export default function MenuLateral({
           </span>
         ) : null}
         <span className="min-w-0 flex-1">{item.label}</span>
-        {badgeItem > 0 || (item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo) ? (
-          <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-bold text-white ${
-              item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo ? 'bg-amber-500' : 'bg-red-500'
-            }`}
-          >
-            {item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo ? 'ON' : badgeItem}
+        {item.subpagina === 'modo-apresentacao' && modoApresentacaoAtivo ? (
+          <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">
+            ON
+          </span>
+        ) : badgeItem > 0 ? (
+          <span className="flex min-h-[14px] min-w-[14px] max-w-[2rem] shrink-0 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
+            {badgeItem > 99 ? '99+' : badgeItem}
           </span>
         ) : null}
       </button>

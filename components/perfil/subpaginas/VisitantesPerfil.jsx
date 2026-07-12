@@ -1,10 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
 import { supabase } from '@/lib/supabase'
-import { listarVisitasPerfil, marcarVisitasPerfilComoVistas } from '@/lib/perfilVisitas'
+import {
+  listarVisitasPerfil,
+  marcarVisitasPerfilComoVistas,
+  textoContagemVisitasDia,
+} from '@/lib/perfilVisitas'
 
 const AVATAR_VISITANTE = 'h-11 w-11 shrink-0 rounded-md object-cover'
 
@@ -24,7 +28,7 @@ export default function VisitantesPerfil({ usuarioId }) {
     }
     setLoading(true)
     try {
-      const lista = await listarVisitasPerfil(supabase, usuarioId, { limit: 60 })
+      const lista = await listarVisitasPerfil(supabase, usuarioId, { limit: 200 })
       setVisitas(lista)
     } finally {
       setLoading(false)
@@ -38,14 +42,23 @@ export default function VisitantesPerfil({ usuarioId }) {
     void carregar()
   }, [carregar])
 
-  const abrirPerfil = (visitanteId) => {
-    if (!visitanteId) return
-    router.push(`/perfil/${visitanteId}`)
+  const abrirVisitante = (v) => {
+    if (!v?.visitante_usuario_id) return
+    if (v.visitante_role === 'empresa' && v.visitante_empresa_id) {
+      router.push(`/empresa/${v.visitante_empresa_id}`)
+      return
+    }
+    router.push(`/perfil/${v.visitante_usuario_id}`)
+  }
+
+  const formatarData = (iso) => {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return ''
+    return d.toLocaleDateString('pt-BR')
   }
 
   return (
     <div className="space-y-4 text-gray-900">
-
       {loading ? (
         <ul className="space-y-2" aria-busy="true" aria-label="Carregando visitantes">
           {[1, 2, 3].map((i) => (
@@ -56,7 +69,8 @@ export default function VisitantesPerfil({ usuarioId }) {
               <div className={`${AVATAR_VISITANTE} bg-gray-200`} />
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="h-4 w-32 rounded bg-gray-200" />
-                <div className="h-3 w-24 rounded bg-gray-100" />
+                <div className="h-3 w-40 rounded bg-gray-100" />
+                <div className="h-3 w-48 rounded bg-gray-100" />
               </div>
             </li>
           ))}
@@ -71,9 +85,9 @@ export default function VisitantesPerfil({ usuarioId }) {
             <li key={v.id}>
               <button
                 type="button"
-                onClick={() => abrirPerfil(v.visitante_usuario_id)}
+                onClick={() => abrirVisitante(v)}
                 disabled={!v.visitante_usuario_id}
-                className="flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2.5 text-left shadow-sm transition hover:bg-gray-50 disabled:opacity-60"
+                className="flex w-full items-start gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2.5 text-left shadow-sm transition hover:bg-gray-50 disabled:opacity-60"
               >
                 <AvatarImage
                   src={v.visitante_foto_url}
@@ -83,22 +97,15 @@ export default function VisitantesPerfil({ usuarioId }) {
                   className={AVATAR_VISITANTE}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate font-semibold text-gray-900">{v.visitante_nome}</span>
-                    {v.pendente ? (
-                      <span className="rounded-full bg-[#00D443]/15 px-2 py-0.5 text-[10px] font-bold uppercase text-[#0097b2]">
-                        Nova
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="text-xs text-gray-500">
+                  <p className="truncate text-sm font-bold text-gray-900">{v.visitante_nome}</p>
+                  <p className="truncate text-xs text-gray-500">
                     {v.visitante_username}
                     {' · '}
-                    {v.tipo_alvo === 'empresa' ? 'Página da empresa' : 'Perfil social'}
-                  </div>
-                  <div className="text-[11px] text-gray-400">
-                    {new Date(v.visitado_em).toLocaleString('pt-BR')}
-                  </div>
+                    {formatarData(v.visitado_em)}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-snug text-gray-600">
+                    {textoContagemVisitasDia(v)}
+                  </p>
                 </div>
               </button>
             </li>
