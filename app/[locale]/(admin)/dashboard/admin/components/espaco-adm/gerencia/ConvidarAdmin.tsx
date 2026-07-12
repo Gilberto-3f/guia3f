@@ -110,7 +110,7 @@ export function ConvidarAdmin() {
         </label>
         <input
           id="convite-admin-termo"
-          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#0097b2]"
+          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-[#0097b2]"
           placeholder="Nome social ou @username (busca exata)"
           value={termo}
           onChange={(e) => setTermo(e.target.value)}
@@ -126,7 +126,7 @@ export function ConvidarAdmin() {
         </label>
         <select
           id="convite-admin-funcao"
-          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
           value={nivel}
           onChange={(e) => setNivel(Number(e.target.value) as 2 | 3 | 4)}
         >
@@ -149,7 +149,7 @@ export function ConvidarAdmin() {
             </label>
             <select
               id="convite-admin-comunidade"
-              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
               value={comunidade}
               onChange={(e) => setComunidade(e.target.value)}
             >
@@ -167,7 +167,7 @@ export function ConvidarAdmin() {
             </label>
             <select
               id="convite-admin-pais"
-              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
               value={pais}
               onChange={(e) => setPais(e.target.value)}
             >

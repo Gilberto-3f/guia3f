@@ -12,7 +12,7 @@ import { useComissaoOfertaAdm } from '../../../hooks/useComissaoOfertaAdm'
 export function EmpresasAdm() {
   const [busca, setBusca] = useState('')
   const [secoes, setSecoes] = useState({
-    analise: true,
+    analise: false,
     estatisticas: false,
     funil: false,
   })

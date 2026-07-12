@@ -8,6 +8,8 @@ export const DRAWER_INFO_TEXTO: Record<string, string> = {
     'Cadastre seu negócio de hospedagem vinculado ao perfil de Anfitrião. Após a aprovação do administrador, você poderá alternar entre os modos Anfitrião e Hospedagem no menu.',
   'calendario-reservas-hospedagem':
     'Veja a disponibilidade de cada acomodação e bloqueie datas reservadas em outros canais.',
+  'parcerias-prof':
+    'Parcerias formadas por recomendações e contratações. Acompanhe atrativos selecionados e benefícios 50/50.',
 }
 
 export function textoInfoDrawer(paginaId: string | undefined): string | null {

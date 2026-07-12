@@ -13,7 +13,7 @@ const COR_LOGO = '#0097b2'
 export function GerenciaAdm() {
   const { isAdminGeral } = useGerenciaAdm()
   const [novoAberto, setNovoAberto] = useState(false)
-  const [listaAberto, setListaAberto] = useState(true)
+  const [listaAberto, setListaAberto] = useState(false)
   const [auxiliarAberto, setAuxiliarAberto] = useState(false)
   const [advertenciasAberto, setAdvertenciasAberto] = useState(false)
 

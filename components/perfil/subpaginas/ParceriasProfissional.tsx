@@ -49,10 +49,6 @@ export default function ParceriasProfissional() {
 
   return (
     <div className="space-y-3 px-1 pb-4">
-      <p className="text-sm text-gray-600">
-        Parcerias formadas por recomendações e contratações. Acompanhe atrativos selecionados e benefícios 50/50.
-      </p>
-
       <div className="flex rounded-lg bg-gray-100 p-1">
         <button
           type="button"
