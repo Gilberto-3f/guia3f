@@ -129,6 +129,7 @@ import {
  *   empresaCidade?: string
  *   empresaServicos?: string[]
  *   somenteAnfitriao?: boolean
+ *   anfitriaoModoHospedagem?: boolean
  * }} MenuContext
  */
 
@@ -424,13 +425,19 @@ function secoesEmpresa(ctx) {
         Icon: Megaphone,
         label: 'Publicidade',
         href: '/empresa/menu/publicidade',
-        condicional: empresaMenuVisivel('publicidade'),
+        condicional: (ctx) =>
+          !ctx.somenteAnfitriao &&
+          !ctx.anfitriaoModoHospedagem &&
+          empresaMenuVisivel('publicidade')(ctx),
       },
       {
         Icon: Shield,
         label: 'Auxiliar ADM',
         href: '/empresa/menu/auxiliar-adm',
-        condicional: empresaMenuServico('auxiliar-adm'),
+        condicional: (ctx) =>
+          !ctx.somenteAnfitriao &&
+          !ctx.anfitriaoModoHospedagem &&
+          empresaMenuServico('auxiliar-adm')(ctx),
       },
       {
         Icon: DollarSign,
@@ -811,6 +818,9 @@ export default function MenuLateral({
     empresaCidade,
     empresaServicos,
     somenteAnfitriao: Boolean(empresaEfetiva?.somente_anfitriao),
+    anfitriaoModoHospedagem: Boolean(
+      ehAnfitriao && modoAnfitriao === 'hospedagem' && empresaHospedagemId && empresaHospedagemLiberada,
+    ),
   }
 
   const secoes = useMemo(() => {
@@ -826,6 +836,9 @@ export default function MenuLateral({
       ehAnfitriao,
       empresaHospedagemId,
       somenteAnfitriao: Boolean(empresaEfetiva?.somente_anfitriao),
+      anfitriaoModoHospedagem: Boolean(
+        ehAnfitriao && modoAnfitriao === 'hospedagem' && empresaHospedagemId && empresaHospedagemLiberada,
+      ),
     }
     const colabAdminOpts = { emModoAdm: emModoAdmColaborador, temModoDual: modoColaboradorDual }
     const mostrarPreLiberacaoTurista = !Boolean(turistaGate?.documentacao_validada_adm)

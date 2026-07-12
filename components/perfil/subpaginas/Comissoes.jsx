@@ -16,14 +16,9 @@ import {
   payloadFavoritoEmpresa,
 } from '@/lib/favoritosEmpresa'
 import { fetchComissoesOfertasData, getComissoesOfertasCache } from '@/lib/fetchComissoesOfertas'
+import BandeiraPais from '@/components/BandeiraPais'
 
 const SEM_PRAZO_DATA = '2099-12-31'
-
-const FILTROS_BANDEIRA = [
-  { id: 'foz', bandeira: '🇧🇷', label: 'Brasil — Foz do Iguaçu', match: ['foz do iguacu', 'foz do iguaçu'] },
-  { id: 'cde', bandeira: '🇵🇾', label: 'Paraguai — Ciudad del Este', match: ['ciudad del este'] },
-  { id: 'puerto', bandeira: '🇦🇷', label: 'Argentina — Puerto Iguazú', match: ['puerto iguazu', 'puerto iguazú'] },
-]
 
 function normalizarTexto(s) {
   return String(s ?? '')
@@ -31,13 +26,6 @@ function normalizarTexto(s) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
-}
-
-function cidadeCombinaFiltro(cidade, filtroId) {
-  const f = FILTROS_BANDEIRA.find((c) => c.id === filtroId)
-  if (!f?.match?.length) return true
-  const norm = normalizarTexto(cidade)
-  return f.match.some((m) => norm.includes(m))
 }
 
 /** @param {Record<string, unknown>} oferta */
@@ -86,7 +74,6 @@ export default function Comissoes({ usuarioId = null }) {
   const [pesquisaAberta, setPesquisaAberta] = useState(false)
   const [empresaSelecionadaId, setEmpresaSelecionadaId] = useState(/** @type {string | null} */ (null))
   const [listaResultadosAberta, setListaResultadosAberta] = useState(false)
-  const [filtroCidade, setFiltroCidade] = useState('foz')
   const [somenteFavoritos, setSomenteFavoritos] = useState(false)
   const [categoriaAba, setCategoriaAba] = useState(/** @type {string} */ (ORDEM_CATEGORIA_COMERCIO[0]))
   const [ofertas, setOfertas] = useState(/** @type {Array<Record<string, unknown>>} */ (cacheInicial?.ofertas ?? []))
@@ -218,7 +205,6 @@ export default function Comissoes({ usuarioId = null }) {
 
       const empresaId = String(empresa.id ?? oferta.empresa_id ?? '')
       if (somenteFavoritos && !favoritosEmpresaIds.has(empresaId)) return false
-      if (!cidadeCombinaFiltro(String(empresa.cidade ?? ''), filtroCidade)) return false
       if (!categoriaCombinaChaveComercio(String(empresa.categoria ?? ''), categoriaAba)) return false
 
       return true
@@ -227,7 +213,6 @@ export default function Comissoes({ usuarioId = null }) {
     ofertas,
     termoBusca,
     empresaSelecionadaId,
-    filtroCidade,
     somenteFavoritos,
     favoritosEmpresaIds,
     categoriaAba,
@@ -339,7 +324,10 @@ export default function Comissoes({ usuarioId = null }) {
                         >
                           <span className="text-sm font-semibold text-gray-900">{nome}</span>
                           {username ? (
-                            <span className="text-xs font-medium text-[#0097b2]">@{username}</span>
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-[#0097b2]">
+                              <BandeiraPais cidade={empresa.cidade != null ? String(empresa.cidade) : null} className="text-sm leading-none" />
+                              <span>@{username}</span>
+                            </span>
                           ) : null}
                         </button>
                       </li>
@@ -352,22 +340,6 @@ export default function Comissoes({ usuarioId = null }) {
         ) : null}
 
         <div className="flex min-h-11 items-center gap-2">
-          {FILTROS_BANDEIRA.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={bandeiraBtnCls(!somenteFavoritos && filtroCidade === c.id)}
-              onClick={() => {
-                setSomenteFavoritos(false)
-                setFiltroCidade(c.id)
-              }}
-              aria-label={c.label}
-              title={c.label}
-            >
-              <span aria-hidden>{c.bandeira}</span>
-            </button>
-          ))}
-
           <button
             type="button"
             className={`${bandeiraBtnCls(somenteFavoritos)} ml-auto`}
@@ -515,7 +487,13 @@ export default function Comissoes({ usuarioId = null }) {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-gray-900">{nomeFantasia}</p>
                       {username ? (
-                        <p className="truncate text-xs font-medium text-[#0097b2]">@{username}</p>
+                        <p className="flex items-center gap-1 truncate text-xs font-medium text-[#0097b2]">
+                          <BandeiraPais
+                            cidade={empresa.cidade != null ? String(empresa.cidade) : null}
+                            className="text-sm leading-none"
+                          />
+                          <span className="truncate">@{username}</span>
+                        </p>
                       ) : (
                         <p className="text-xs text-gray-400">—</p>
                       )}

@@ -7,27 +7,102 @@ import { resolverUrlAnexoMensagemCanal, urlPublicaAnexoMensagemCanal } from '@/l
 import { navegadorPrefereAudioMp4 } from '@/lib/canalAudioGravacao'
 
 /**
- * Player de mensagem de áudio no canal (toque em play para ouvir).
- * @param {{ src: string; isOwn?: boolean }} props
+ * Duração gravada no envio: `#d=12.5` na URL do anexo.
+ * @param {string} anexoUrl
  */
-export default function CanalMensagemAudio({ src, isOwn = false }) {
-  const urlPublica = useMemo(() => urlPublicaAnexoMensagemCanal(supabase, src), [src])
+export function extrairDuracaoAudioAnexo(anexoUrl) {
+  const raw = String(anexoUrl ?? '')
+  if (!raw) return 0
+  try {
+    const hash = raw.includes('#') ? raw.slice(raw.indexOf('#') + 1) : ''
+    const fromHash = /(?:^|&)d=([\d.]+)/.exec(hash)
+    if (fromHash) {
+      const n = Number(fromHash[1])
+      if (Number.isFinite(n) && n > 0) return n
+    }
+    const fromQuery = /[?&]d=([\d.]+)/.exec(raw)
+    if (fromQuery) {
+      const n = Number(fromQuery[1])
+      if (Number.isFinite(n) && n > 0) return n
+    }
+  } catch {
+    /* ignore */
+  }
+  return 0
+}
+
+/**
+ * @param {string} url
+ * @param {number} duracaoSec
+ */
+export function anexarDuracaoAudioUrl(url, duracaoSec) {
+  const base = String(url ?? '').split('#')[0]
+  if (!base || !Number.isFinite(duracaoSec) || duracaoSec <= 0) return base
+  return `${base}#d=${duracaoSec.toFixed(1)}`
+}
+
+/**
+ * @param {HTMLAudioElement} el
+ */
+function lerDuracaoMedia(el) {
+  if (Number.isFinite(el.duration) && el.duration > 0) return el.duration
+  try {
+    if (el.seekable?.length > 0) {
+      const end = el.seekable.end(el.seekable.length - 1)
+      if (Number.isFinite(end) && end > 0) return end
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (el.buffered?.length > 0) {
+      const end = el.buffered.end(el.buffered.length - 1)
+      if (Number.isFinite(end) && end > 0) return end
+    }
+  } catch {
+    /* ignore */
+  }
+  return 0
+}
+
+/**
+ * Player de mensagem de áudio no canal (toque em play para ouvir).
+ * @param {{ src: string; isOwn?: boolean; durationSec?: number }} props
+ */
+export default function CanalMensagemAudio({ src, isOwn = false, durationSec }) {
+  const duracaoEnviada = useMemo(() => {
+    const prop = Number(durationSec)
+    if (Number.isFinite(prop) && prop > 0) return prop
+    return extrairDuracaoAudioAnexo(src)
+  }, [src, durationSec])
+
+  const urlPublica = useMemo(() => {
+    const limpa = String(src ?? '').split('#')[0]
+    return urlPublicaAnexoMensagemCanal(supabase, limpa)
+  }, [src])
   const [url, setUrl] = useState(urlPublica)
   const [faseUrl, setFaseUrl] = useState(/** @type {'publica' | 'assinada'} */ ('publica'))
   const [playing, setPlaying] = useState(false)
-  const [duracao, setDuracao] = useState(0)
+  const [duracao, setDuracao] = useState(duracaoEnviada)
   const [progresso, setProgresso] = useState(0)
   const [erroPlayback, setErroPlayback] = useState(false)
   const audioRef = useRef(/** @type {HTMLAudioElement | null} */ (null))
+  const rafRef = useRef(0)
+  const duracaoRef = useRef(duracaoEnviada)
+
+  useEffect(() => {
+    duracaoRef.current = duracao
+  }, [duracao])
 
   useEffect(() => {
     setUrl(urlPublica)
     setFaseUrl('publica')
     setPlaying(false)
     setProgresso(0)
-    setDuracao(0)
+    setDuracao(duracaoEnviada)
+    duracaoRef.current = duracaoEnviada
     setErroPlayback(false)
-  }, [urlPublica])
+  }, [urlPublica, duracaoEnviada])
 
   useEffect(() => {
     const el = audioRef.current
@@ -36,7 +111,8 @@ export default function CanalMensagemAudio({ src, isOwn = false }) {
   }, [url])
 
   const tentarUrlAssinada = useCallback(async () => {
-    const signed = await resolverUrlAnexoMensagemCanal(supabase, src, { forceSigned: true })
+    const limpa = String(src ?? '').split('#')[0]
+    const signed = await resolverUrlAnexoMensagemCanal(supabase, limpa, { forceSigned: true })
     setUrl(signed)
     setFaseUrl('assinada')
   }, [src])
@@ -49,29 +125,48 @@ export default function CanalMensagemAudio({ src, isOwn = false }) {
     setErroPlayback(true)
   }, [faseUrl, tentarUrlAssinada])
 
+  const atualizarProgresso = useCallback(() => {
+    const el = audioRef.current
+    if (!el) return
+    const mediaDur = lerDuracaoMedia(el)
+    if (mediaDur > 0 && mediaDur !== duracaoRef.current) {
+      duracaoRef.current = mediaDur
+      setDuracao(mediaDur)
+    }
+    const total = duracaoRef.current > 0 ? duracaoRef.current : mediaDur
+    if (total > 0) {
+      setProgresso(Math.min(1, Math.max(0, el.currentTime / total)))
+    } else if (el.currentTime > 0) {
+      // Sem duração conhecida: avança a barra de forma aproximada até descobrir.
+      setProgresso((p) => Math.min(0.95, Math.max(p, el.currentTime / Math.max(el.currentTime + 1, 1))))
+    }
+  }, [])
+
   useEffect(() => {
     const el = audioRef.current
     if (!el) return
 
     const onLoaded = () => {
       setErroPlayback(false)
-      if (Number.isFinite(el.duration) && el.duration > 0) setDuracao(el.duration)
-    }
-    const onTime = () => {
-      if (Number.isFinite(el.duration) && el.duration > 0) {
-        setProgresso(el.currentTime / el.duration)
+      const d = lerDuracaoMedia(el)
+      if (d > 0) {
+        duracaoRef.current = d
+        setDuracao(d)
+      } else if (duracaoEnviada > 0) {
+        duracaoRef.current = duracaoEnviada
+        setDuracao(duracaoEnviada)
       }
     }
     const onEnded = () => {
       setPlaying(false)
-      setProgresso(0)
+      setProgresso(1)
+      window.setTimeout(() => setProgresso(0), 200)
     }
     const onPause = () => setPlaying(false)
     const onPlay = () => setPlaying(true)
 
     el.addEventListener('loadedmetadata', onLoaded)
     el.addEventListener('durationchange', onLoaded)
-    el.addEventListener('timeupdate', onTime)
     el.addEventListener('ended', onEnded)
     el.addEventListener('pause', onPause)
     el.addEventListener('play', onPlay)
@@ -79,12 +174,28 @@ export default function CanalMensagemAudio({ src, isOwn = false }) {
     return () => {
       el.removeEventListener('loadedmetadata', onLoaded)
       el.removeEventListener('durationchange', onLoaded)
-      el.removeEventListener('timeupdate', onTime)
       el.removeEventListener('ended', onEnded)
       el.removeEventListener('pause', onPause)
       el.removeEventListener('play', onPlay)
     }
-  }, [url])
+  }, [url, duracaoEnviada])
+
+  useEffect(() => {
+    if (!playing) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = 0
+      return
+    }
+    const tick = () => {
+      atualizarProgresso()
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = 0
+    }
+  }, [playing, atualizarProgresso])
 
   const togglePlay = useCallback(async () => {
     const el = audioRef.current
@@ -121,8 +232,9 @@ export default function CanalMensagemAudio({ src, isOwn = false }) {
     ? formatarTempo((duracao || 0) * progresso)
     : formatarTempo(duracao)
 
-  const btnClass = 'bg-[#0097b2]/15 text-[#0097b2] hover:bg-[#0097b2]/25'
+  void isOwn
 
+  const btnClass = 'bg-[#0097b2]/15 text-[#0097b2] hover:bg-[#0097b2]/25'
   const barTrack = 'bg-gray-300'
   const barFill = 'bg-[#0097b2]'
   const timeClass = 'text-gray-500'
@@ -140,7 +252,7 @@ export default function CanalMensagemAudio({ src, isOwn = false }) {
         <audio
           ref={audioRef}
           src={url}
-          preload="metadata"
+          preload="auto"
           playsInline
           onError={onError}
           className="hidden"
@@ -160,7 +272,7 @@ export default function CanalMensagemAudio({ src, isOwn = false }) {
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className={`h-1 w-full overflow-hidden rounded-full ${barTrack}`}>
             <div
-              className={`h-full rounded-full transition-[width] duration-100 ${barFill}`}
+              className={`h-full rounded-full ${barFill}`}
               style={{ width: `${Math.min(100, Math.max(0, progresso * 100))}%` }}
             />
           </div>

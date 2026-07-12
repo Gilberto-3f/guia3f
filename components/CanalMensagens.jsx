@@ -26,7 +26,7 @@ import { compressImageFileForStoryUpload } from '@/lib/compress-story-image'
 import { parseReacoesCanal, toggleReacaoMensagemCanal } from '@/lib/canalReacoes'
 import { EMOJIS_REACAO_CANAL } from '@/lib/canalReacoesEmojis'
 import CanalMensagemImagem from '@/components/CanalMensagemImagem'
-import CanalMensagemAudio from '@/components/CanalMensagemAudio'
+import CanalMensagemAudio, { anexarDuracaoAudioUrl } from '@/components/CanalMensagemAudio'
 import AvatarImage from '@/components/AvatarImage'
 import MenuMensagemCanal from '@/components/canal/MenuMensagemCanal'
 import ModalDenunciaCanal from '@/components/canal/ModalDenunciaCanal'
@@ -621,9 +621,10 @@ export default function CanalMensagens({
    * @param {string} textoEnviar
    * @param {File | null} anexoEnviar
    * @param {string | null} [anexoTipoForcado]
+   * @param {{ duracaoSec?: number }} [opts]
    */
   const enviarMensagemCanal = useCallback(
-    async (textoEnviar, anexoEnviar, anexoTipoForcado = null) => {
+    async (textoEnviar, anexoEnviar, anexoTipoForcado = null, opts = {}) => {
       if (!textoEnviar && !anexoEnviar) return
 
       const {
@@ -680,6 +681,13 @@ export default function CanalMensagens({
           anexoTipo = 'audio'
         } else {
           anexoTipo = 'documento'
+        }
+        if (
+          (anexoTipo === 'audio' || anexoTipoForcado === 'audio') &&
+          Number.isFinite(opts.duracaoSec) &&
+          Number(opts.duracaoSec) > 0
+        ) {
+          anexoUrl = anexarDuracaoAudioUrl(anexoUrl, Number(opts.duracaoSec))
         }
       }
 
@@ -889,7 +897,7 @@ export default function CanalMensagens({
 
       setEnviando(true)
       try {
-        await enviarMensagemCanal('', file, 'audio')
+        await enviarMensagemCanal('', file, 'audio', { duracaoSec: duracaoMs / 1000 })
       } catch (e) {
         console.error('Erro ao enviar áudio:', e)
       } finally {
