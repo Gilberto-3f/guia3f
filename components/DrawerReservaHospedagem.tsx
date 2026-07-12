@@ -700,11 +700,11 @@ export default function DrawerReservaHospedagem({
                     )
                   })}
                 </div>
-                <div className="pt-2">
+                <div className="pt-2 text-center">
                   <p className="text-sm font-bold text-gray-500">ATENÇÃO</p>
                   <p className="mt-1 text-sm leading-relaxed text-gray-500">
-                    Ao fazer uma reserva você concorda automaticamente com as regras e políticas do
-                    anfitrião.
+                    Ao reservar uma acomodação nesse estabelecimento você concorda automaticamente
+                    com as regras e políticas do anfitrião.
                   </p>
                 </div>
                 </>
@@ -715,7 +715,7 @@ export default function DrawerReservaHospedagem({
               <p className="text-center text-sm font-semibold text-[#001f3f]">
                 {rotuloCategoriaImovel(selecionada.categoria_imovel)}
               </p>
-              <div className="relative">
+              <div className="relative px-8">
                 <div
                   className="aspect-[16/10] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
                   onTouchStart={(e) => {
@@ -750,44 +750,41 @@ export default function DrawerReservaHospedagem({
                   <>
                     <button
                       type="button"
-                      className="absolute -left-3 top-1/2 z-10 -translate-y-1/2 p-0.5"
+                      className="absolute left-0 top-1/2 z-10 flex w-8 -translate-y-1/2 items-center justify-center"
                       style={{ color: COR }}
                       onClick={() =>
                         setFotoIdx((i) => (i - 1 + selecionada.fotos.length) % selecionada.fotos.length)
                       }
                       aria-label="Foto anterior"
                     >
-                      <ChevronLeft className="h-7 w-7 drop-shadow-sm" strokeWidth={2.5} aria-hidden />
+                      <ChevronLeft className="h-7 w-7" strokeWidth={2.5} aria-hidden />
                     </button>
                     <button
                       type="button"
-                      className="absolute -right-3 top-1/2 z-10 -translate-y-1/2 p-0.5"
+                      className="absolute right-0 top-1/2 z-10 flex w-8 -translate-y-1/2 items-center justify-center"
                       style={{ color: COR }}
                       onClick={() => setFotoIdx((i) => (i + 1) % selecionada.fotos.length)}
                       aria-label="Próxima foto"
                     >
-                      <ChevronRight className="h-7 w-7 drop-shadow-sm" strokeWidth={2.5} aria-hidden />
+                      <ChevronRight className="h-7 w-7" strokeWidth={2.5} aria-hidden />
                     </button>
                   </>
                 ) : null}
               </div>
 
-              <div>
+              <div className="text-center">
                 <p className="text-sm text-gray-800">
                   {tipoCategoriaImovel(selecionada.categoria_imovel) === 'particular'
                     ? rotuloCategoriaParticular(selecionada.categoria_particular)
                     : rotuloOpcaoCompartilhada(selecionada.opcao_compartilhada)}
                 </p>
-                <p className="mt-1 text-lg font-bold" style={{ color: COR }}>
-                  {formatarValorDiaria(selecionada.valor_diaria)}
-                  {nota ? (
-                    <span className="ml-2 text-sm font-semibold text-amber-500">★ {nota}</span>
-                  ) : null}
+                <p className="mt-1 flex flex-wrap items-center justify-center gap-x-3 text-lg font-bold" style={{ color: COR }}>
+                  <span>{formatarValorDiaria(selecionada.valor_diaria)}</span>
+                  {nota ? <span className="text-lg font-bold text-amber-500">★ {nota}</span> : null}
                 </p>
               </div>
 
               <div className="space-y-2 pb-0">
-                <p className="text-sm font-bold text-[#001f3f]">Informação da Hospedagem</p>
                 <ChevronPasta
                   titulo="Comodidades Padrão"
                   aberto={chevronPadrao}
@@ -853,9 +850,23 @@ export default function DrawerReservaHospedagem({
                     <img src={selecionada.fotos[0]} alt="" className="h-full w-full object-cover" />
                   ) : null}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="flex flex-wrap items-center gap-x-2 text-sm font-semibold text-[#001f3f]">
+                    <span>{rotuloCategoriaImovelCurto(selecionada.categoria_imovel)}</span>
+                    {nota ? <span className="font-bold text-amber-500">★ {nota}</span> : null}
+                  </p>
                   <p className="text-sm font-semibold text-[#001f3f]">
-                    {rotuloAcomodacaoResumoCurto(selecionada)}
+                    {(() => {
+                      const catAcomodacao =
+                        tipoCategoriaImovel(selecionada.categoria_imovel) === 'particular'
+                          ? rotuloCategoriaParticularCurto(selecionada.categoria_particular)
+                          : rotuloOpcaoCompartilhadaCurto(selecionada.opcao_compartilhada)
+                      const qtd = Number(selecionada.capacidade_pessoas) || 0
+                      if (catAcomodacao && qtd > 0) {
+                        return `${catAcomodacao} · ${qtd} ${qtd === 1 ? 'pessoa' : 'pessoas'}`
+                      }
+                      return catAcomodacao || (qtd > 0 ? `${qtd} ${qtd === 1 ? 'pessoa' : 'pessoas'}` : '—')
+                    })()}
                   </p>
                   <p className="text-sm font-bold" style={{ color: COR }}>
                     {formatarValorDiaria(selecionada.valor_diaria)} / diária
@@ -975,7 +986,7 @@ export default function DrawerReservaHospedagem({
                             {f.value === 'dinheiro' &&
                             formaPagamento === 'dinheiro' &&
                             politicas?.formas_pagamento.moedas?.length ? (
-                              <div className="mt-1.5 flex flex-wrap gap-1.5 pl-6">
+                              <div className="mt-1.5 flex flex-wrap justify-center gap-1.5">
                                 {politicas.formas_pagamento.moedas.map((m) => {
                                   const rotulo =
                                     MOEDAS_DINHEIRO.find((x) => x.value === m)?.label ?? m
@@ -999,16 +1010,16 @@ export default function DrawerReservaHospedagem({
               </div>
 
               {noites > 0 ? (
-                <div className="rounded-xl border border-gray-100 bg-[#f5f5f5] p-4">
-                  <h3 className="text-sm font-bold" style={{ color: COR }}>
-                    RESUMO DA RESERVA
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-gray-700">
+                <div className="rounded-xl p-4" style={{ backgroundColor: COR }}>
+                  <h3 className="text-center text-sm font-bold text-white">RESUMO DA RESERVA</h3>
+                  <p className="mt-2 text-center text-sm leading-relaxed text-white">
                     Você reservou {noites} {noites === 1 ? 'diária' : 'diárias'} (check-in dia{' '}
-                    {formatarDataBr(checkin)} e check-out dia {formatarDataBr(checkout)}) da
-                    acomodação &quot;{rotuloAcomodacaoResumoCurto(selecionada)}&quot;, o valor total das
-                    reservas é de {formatarValorDiaria(total)} a ser pago direto para o anfitrião no
-                    dia do check-in. Deseja confirmar a reserva?
+                    <strong>{formatarDataBr(checkin)}</strong> e check-out dia{' '}
+                    <strong>{formatarDataBr(checkout)}</strong>) da acomodação &quot;
+                    {rotuloAcomodacaoResumoCurto(selecionada)}
+                    &quot;, o valor total das reservas é de{' '}
+                    <strong>{formatarValorDiaria(total)}</strong> a ser pago direto para o anfitrião
+                    no dia do check-in. Deseja confirmar a reserva?
                   </p>
                 </div>
               ) : null}
