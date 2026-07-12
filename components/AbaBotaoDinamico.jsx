@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag, MessageCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import PopupCompraTicket from '@/components/PopupCompraTicket'
+import PopupCompraAtrativos from '@/components/PopupCompraAtrativos'
 import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
 import {
   openWhatsAppChat,
@@ -269,14 +269,12 @@ export default function AbaBotaoDinamico({
         mensagem={mensagemBloqueio}
       />
 
-      <PopupCompraTicket
+      <PopupCompraAtrativos
         isOpen={showTicketPopup}
         onClose={() => setShowTicketPopup(false)}
         empresaId={empresaId}
         empresaNome={empresaNome}
         whatsappDestino={whatsapp}
-        precoInteira={precoTicketInteira}
-        precoMeia={precoTicketMeia}
       />
 
       <DrawerReservaHospedagem

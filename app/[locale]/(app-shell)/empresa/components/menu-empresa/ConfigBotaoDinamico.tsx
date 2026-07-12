@@ -9,6 +9,8 @@ import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-e
 import { getRotuloAbaServico } from '@/lib/empresaCategoria'
 import AbaAcomodacoes from './hospedagem/AbaAcomodacoes'
 import AbaInformacoes from './hospedagem/AbaInformacoes'
+import AbaAtrativos from './atrativos/AbaAtrativos'
+import AbaInformacoesAtrativos from './atrativos/AbaInformacoesAtrativos'
 
 function asNumberOrNull(v: string) {
   const t = v.trim()
@@ -65,7 +67,7 @@ function descricaoSegmento(categoria: string, cidade: string) {
     return 'Visitantes reservam mesa pelo WhatsApp. Configure o número com DDD.'
   }
   if (isPasseios(categoria)) {
-    return 'Defina os preços dos tickets (inteira e meia) exibidos no popup de compra.'
+    return 'Cadastre experiências (tickets) e políticas. Cada atrativo tem título, fotos, descrição e preços.'
   }
   if (isHospedagem(categoria)) {
     return 'Cadastre acomodações e políticas da casa. O preço fica por acomodação.'
@@ -106,6 +108,8 @@ export default function ConfigBotaoDinamico() {
   const [cliquesMes, setCliquesMes] = useState<number | null>(null)
   const [infoAberto, setInfoAberto] = useState(false)
   const [abaHospedagem, setAbaHospedagem] = useState<'acomodacoes' | 'informacoes'>('acomodacoes')
+  const [abaAtrativos, setAbaAtrativos] = useState<'atrativos' | 'informacoes'>('atrativos')
+  const ehAtrativos = isPasseios(categoria)
 
   const rotuloAba = getRotuloAbaServico(categoria)
   const textoBotao = useMemo(() => textoBotaoPreview(categoria, cidade), [categoria, cidade])
@@ -114,9 +118,8 @@ export default function ConfigBotaoDinamico() {
   const precisaWhatsapp =
     isGastronomia(categoria) ||
     isServicosLocais(categoria) ||
-    isPasseios(categoria) ||
     isEventos(categoria)
-  const precisaTickets = isPasseios(categoria) || isEventos(categoria)
+  const precisaTickets = isEventos(categoria)
 
   useEffect(() => {
     if (!dados) return
@@ -143,7 +146,7 @@ export default function ConfigBotaoDinamico() {
     setMsg(null)
     try {
       const payload: Record<string, unknown> = {}
-      if (precisaWhatsapp) {
+      if (precisaWhatsapp || ehAtrativos) {
         payload.whatsapp = whatsapp.trim() || null
       }
       if (precisaTickets) {
@@ -215,6 +218,69 @@ export default function ConfigBotaoDinamico() {
         ) : (
           <div className="space-y-4">
             <AbaInformacoes empresaId={empresaId} />
+            {desempenhoCard}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (ehAtrativos && empresaId) {
+    return (
+      <div className="mt-4 space-y-4">
+        <div className="flex gap-2" role="tablist" aria-label="Seções do botão dinâmico">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaAtrativos === 'atrativos'}
+            className={abaVerdeCls(abaAtrativos === 'atrativos')}
+            onClick={() => setAbaAtrativos('atrativos')}
+          >
+            Atrativos
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaAtrativos === 'informacoes'}
+            className={abaVerdeCls(abaAtrativos === 'informacoes')}
+            onClick={() => setAbaAtrativos('informacoes')}
+          >
+            Informações
+          </button>
+        </div>
+
+        {abaAtrativos === 'atrativos' ? (
+          <AbaAtrativos empresaId={empresaId} />
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <label className={labelCls}>
+                WhatsApp (envio do comprovante)
+                <input
+                  type="tel"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                  placeholder="55 45 99999-9999"
+                  className={inputCls}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void salvar()}
+                disabled={salvando || !empresaId}
+                className="mt-3 w-full rounded-xl bg-[#00D443] py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {salvando ? 'Salvando…' : 'Salvar WhatsApp'}
+              </button>
+              {msg ? (
+                <p
+                  className={`mt-2 text-sm ${msg.includes('salvas') ? 'text-emerald-700' : 'text-rose-600'}`}
+                >
+                  {msg}
+                </p>
+              ) : null}
+            </div>
+            <AbaInformacoesAtrativos empresaId={empresaId} />
             {desempenhoCard}
           </div>
         )}
