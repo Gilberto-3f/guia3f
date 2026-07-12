@@ -607,7 +607,7 @@ export default function DrawerReservaHospedagem({
               </p>
             </div>
           ) : passo === 1 ? (
-            <div className="space-y-4 p-4">
+            <div className="space-y-2 p-4 pt-2">
               <h2 className="text-center text-lg font-bold uppercase tracking-wide" style={{ color: COR }}>
                 ESCOLHA SUA ACOMODAÇÃO
               </h2>
@@ -617,7 +617,7 @@ export default function DrawerReservaHospedagem({
                 </p>
               ) : (
                 <>
-                <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
+                <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
                   {acomodacoes.map((a, idx) => {
                     const st = statusMap[a.id] ?? 'disponivel'
                     const capa = a.fotos[0]
@@ -700,11 +700,11 @@ export default function DrawerReservaHospedagem({
                     )
                   })}
                 </div>
-                <div className="pt-2 text-center">
+                <div className="pt-1 text-center">
                   <p className="text-sm font-bold text-gray-500">ATENÇÃO</p>
-                  <p className="mt-1 text-sm leading-relaxed text-gray-500">
-                    Ao reservar uma acomodação nesse estabelecimento você concorda automaticamente
-                    com as regras e políticas do anfitrião.
+                  <p className="mt-0.5 text-sm leading-relaxed text-gray-500">
+                    Ao reservar uma acomodação aqui você concorda automaticamente com as regras e
+                    políticas desse anfitrião.
                   </p>
                 </div>
                 </>
@@ -715,7 +715,7 @@ export default function DrawerReservaHospedagem({
               <p className="text-center text-sm font-semibold text-[#001f3f]">
                 {rotuloCategoriaImovel(selecionada.categoria_imovel)}
               </p>
-              <div className="relative px-8">
+              <div className="relative px-6">
                 <div
                   className="aspect-[16/10] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
                   onTouchStart={(e) => {
@@ -750,23 +750,23 @@ export default function DrawerReservaHospedagem({
                   <>
                     <button
                       type="button"
-                      className="absolute left-0 top-1/2 z-10 flex w-8 -translate-y-1/2 items-center justify-center"
+                      className="absolute left-0 top-1/2 z-10 flex w-6 -translate-y-1/2 items-center justify-center"
                       style={{ color: COR }}
                       onClick={() =>
                         setFotoIdx((i) => (i - 1 + selecionada.fotos.length) % selecionada.fotos.length)
                       }
                       aria-label="Foto anterior"
                     >
-                      <ChevronLeft className="h-7 w-7" strokeWidth={2.5} aria-hidden />
+                      <ChevronLeft className="h-6 w-6" strokeWidth={2.5} aria-hidden />
                     </button>
                     <button
                       type="button"
-                      className="absolute right-0 top-1/2 z-10 flex w-8 -translate-y-1/2 items-center justify-center"
+                      className="absolute right-0 top-1/2 z-10 flex w-6 -translate-y-1/2 items-center justify-center"
                       style={{ color: COR }}
                       onClick={() => setFotoIdx((i) => (i + 1) % selecionada.fotos.length)}
                       aria-label="Próxima foto"
                     >
-                      <ChevronRight className="h-7 w-7" strokeWidth={2.5} aria-hidden />
+                      <ChevronRight className="h-6 w-6" strokeWidth={2.5} aria-hidden />
                     </button>
                   </>
                 ) : null}
