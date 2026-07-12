@@ -13,7 +13,7 @@ import {
   User,
   Building2,
   LayoutDashboard,
-  Car,
+  Star,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
@@ -23,7 +23,6 @@ import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 import { GUIA_FUNIL_BADGE_EVENT } from '@/lib/dashboard-funil-badge-events'
 import { contarMensagensNaoLidasCanais } from '@/lib/canalBadge'
 import { contarNaoLidasFunilEmpresa } from '@/lib/dashboardFunilBadge'
-import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
@@ -399,17 +398,8 @@ export default function BottomBar() {
           ? empresaId ?? perfilBarraCache?.empresaId ?? null
           : null
 
-  /** Turistas: Mobilidade no 2.º slot; demais perfis logados ou simulados: Canal. */
-  const segundoEhMobilidadeNaBarra = roleParaBarra === 'turista'
-  const {
-    podeComprarReservar,
-    avisarBloqueio,
-    avisoAberto,
-    fecharAvisoBloqueio,
-    mensagemBloqueio,
-    tituloBloqueio,
-    loading: gateComprasLoading,
-  } = useGateComprasReservas()
+  /** Turistas: Favoritos no 2.º slot; demais perfis logados ou simulados: Canal. */
+  const segundoEhFavoritosNaBarra = roleParaBarra === 'turista'
   const {
     podeInteragirFeedSocial,
     avisarBloqueioFeed,
@@ -504,28 +494,17 @@ export default function BottomBar() {
 
         {!barPronta ? (
           <BarraIconeCarregando
-            Icon={segundoEhMobilidadeNaBarra ? Car : MessageCircle}
+            Icon={segundoEhFavoritosNaBarra ? Star : MessageCircle}
             label={t('loadingBar')}
           />
-        ) : segundoEhMobilidadeNaBarra ? (
-          podeComprarReservar || gateComprasLoading ? (
-            <Link href="/mobilidade" className="flex flex-col items-center p-2" aria-label={t('mobility')}>
-              <Car
-                size={24}
-                className={matchPath('/mobilidade', pathname) ? 'text-[#0097b2]' : 'text-gray-400'}
-                aria-hidden
-              />
-            </Link>
-          ) : (
-            <button
-              type="button"
-              className="flex flex-col items-center p-2"
-              aria-label={t('mobility')}
-              onClick={() => avisarBloqueio()}
-            >
-              <Car size={24} className="text-gray-400" aria-hidden />
-            </button>
-          )
+        ) : segundoEhFavoritosNaBarra ? (
+          <Link href="/favoritos" className="flex flex-col items-center p-2" aria-label={t('favorites')}>
+            <Star
+              size={24}
+              className={matchPath('/favoritos', pathname) ? 'text-[#0097b2]' : 'text-gray-400'}
+              aria-hidden
+            />
+          </Link>
         ) : (
           <Link href="/canal" className="relative flex flex-col items-center p-2" aria-label={t('channel')}>
             <MessageCircle
@@ -641,14 +620,6 @@ export default function BottomBar() {
         )}
       </div>
 
-      {segundoEhMobilidadeNaBarra ? (
-        <PopupAvisoBloqueioConta
-          aberto={avisoAberto}
-          onFechar={fecharAvisoBloqueio}
-          titulo={tituloBloqueio}
-          mensagem={mensagemBloqueio}
-        />
-      ) : null}
       <PopupAvisoBloqueioConta
         aberto={avisoFeedAberto}
         onFechar={fecharAvisoBloqueioFeed}

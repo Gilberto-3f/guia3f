@@ -1,21 +1,17 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
-import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
-import { lerPerfilBarraCache } from '@/lib/perfilBarraCache'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { useTranslations } from 'next-intl'
 import { Car, MapPin } from 'lucide-react'
 import PublicidadeHome from '@/components/PublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
 
-function abaGuiaCls(ativo: boolean, unica: boolean, tituloMaior = false) {
-  const tamanho = tituloMaior ? 'text-lg sm:text-xl' : 'text-sm sm:text-base'
-  const padding = tituloMaior ? 'py-2' : 'py-3'
-  return `flex min-w-0 ${unica ? 'w-full flex-none' : 'flex-1'} items-center justify-center gap-2 border-b-[3px] ${padding} text-center ${tamanho} font-semibold tracking-wide transition-colors ${
+function abaGuiaCls(ativo: boolean) {
+  return `flex min-w-0 flex-1 items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
     ativo
       ? 'border-[#0097b2] text-[#0097b2]'
       : 'border-transparent text-gray-500'
@@ -26,13 +22,6 @@ export default function GuiaPage() {
   const tMobilidade = useTranslations('Mobilidade')
   const tGuia = useTranslations('Guia')
   const router = useRouter()
-  const { roleEfetivo, perfilEhTurista, loading: gateLoading } = useProfissionalGate()
-  const roleOtimista = useMemo(() => {
-    if (roleEfetivo) return roleEfetivo
-    if (typeof window === 'undefined') return null
-    return lerPerfilBarraCache()?.role ?? null
-  }, [roleEfetivo])
-
   const {
     podeComprarReservar,
     avisarBloqueio,
@@ -42,18 +31,7 @@ export default function GuiaPage() {
     tituloBloqueio,
   } = useGateComprasReservas()
 
-  /** Abas Guia | Mobilidade: perfis com Canal na barra (profissional, empresa, admin). Turista vê só "Guia Turístico". */
-  const perfilComCanalNaBarra =
-    roleOtimista === 'profissional' || roleOtimista === 'empresa' || roleOtimista === 'admin'
-  const mostrarAbaMobilidade = perfilComCanalNaBarra
-  const mostrarTituloGuiaTuristico = perfilEhTurista || (gateLoading && roleOtimista === 'turista')
   const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
-
-  useEffect(() => {
-    if (!mostrarAbaMobilidade && abaAtiva === 'mobilidade') {
-      setAbaAtiva('guia')
-    }
-  }, [mostrarAbaMobilidade, abaAtiva])
 
   const handleFiltroClick = (filtroId: string) => {
     if (filtroId === 'compras' && !podeComprarReservar) {
@@ -81,35 +59,24 @@ export default function GuiaPage() {
           />
         </div>
 
-        {mostrarTituloGuiaTuristico ? (
-          <div className="flex w-full border-b border-gray-200 bg-white">
-            <div className={abaGuiaCls(true, true, true)}>
-              <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
-              <span>{tGuia('title')}</span>
-            </div>
-          </div>
-        ) : (
-          <div className="flex w-full border-b border-gray-200 bg-white">
-            <button
-              type="button"
-              onClick={() => setAbaAtiva('guia')}
-              className={abaGuiaCls(abaAtiva === 'guia', !mostrarAbaMobilidade)}
-            >
-              <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
-              <span>{tGuia('tabGuia')}</span>
-            </button>
-            {mostrarAbaMobilidade ? (
-              <button
-                type="button"
-                onClick={() => setAbaAtiva('mobilidade')}
-                className={abaGuiaCls(abaAtiva === 'mobilidade', false)}
-              >
-                <Car className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
-                <span>{tGuia('tabMobilidade')}</span>
-              </button>
-            ) : null}
-          </div>
-        )}
+        <div className="flex w-full border-b border-gray-200 bg-white">
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('guia')}
+            className={abaGuiaCls(abaAtiva === 'guia')}
+          >
+            <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
+            <span>{tGuia('tabGuia')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('mobilidade')}
+            className={abaGuiaCls(abaAtiva === 'mobilidade')}
+          >
+            <Car className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
+            <span>{tGuia('tabMobilidade')}</span>
+          </button>
+        </div>
       </header>
 
       {abaAtiva === 'guia' ? (
