@@ -733,11 +733,11 @@ export default function DrawerReservaHospedagem({
               )}
             </div>
           ) : passo === 2 && selecionada ? (
-            <div className="space-y-4 p-4 pb-2">
-              <p className="text-center text-sm font-semibold text-[#001f3f]">
+            <div className="space-y-4 pb-2">
+              <p className="px-4 text-center text-sm font-semibold text-[#001f3f]">
                 {rotuloCategoriaImovel(selecionada.categoria_imovel)}
               </p>
-              <div className="relative px-5">
+              <div className="relative px-6">
                 <div
                   className="aspect-[16/10] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
                   onTouchStart={(e) => {
@@ -794,6 +794,7 @@ export default function DrawerReservaHospedagem({
                 ) : null}
               </div>
 
+              <div className="space-y-4 px-4">
               <div className="text-center">
                 <p className="text-sm text-gray-800">
                   {tipoCategoriaImovel(selecionada.categoria_imovel) === 'particular'
@@ -861,6 +862,7 @@ export default function DrawerReservaHospedagem({
                     <p className="text-sm text-gray-500">Políticas ainda não cadastradas.</p>
                   )}
                 </ChevronPasta>
+              </div>
               </div>
             </div>
           ) : passo === 3 && selecionada ? (

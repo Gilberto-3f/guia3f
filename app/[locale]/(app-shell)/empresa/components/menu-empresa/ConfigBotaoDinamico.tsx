@@ -68,7 +68,7 @@ function descricaoSegmento(categoria: string, cidade: string) {
     return 'Defina os preços dos tickets (inteira e meia) exibidos no popup de compra.'
   }
   if (isHospedagem(categoria)) {
-    return 'Cadastre acomodações, políticas da casa e WhatsApp para recomendações de parceiros. O preço fica por acomodação.'
+    return 'Cadastre acomodações e políticas da casa. O preço fica por acomodação.'
   }
   if (isServicosLocais(categoria)) {
     return 'O botão abre conversa no WhatsApp da empresa.'
@@ -113,7 +113,6 @@ export default function ConfigBotaoDinamico() {
 
   const precisaWhatsapp =
     isGastronomia(categoria) ||
-    ehHospedagem ||
     isServicosLocais(categoria) ||
     isPasseios(categoria) ||
     isEventos(categoria)
@@ -179,7 +178,11 @@ export default function ConfigBotaoDinamico() {
       <p className="mt-2 text-3xl font-bold text-[#0097b2]">
         {cliquesMes == null ? '—' : cliquesMes}
       </p>
-      <p className="mt-1 text-xs text-gray-600">Cliques no botão dinâmico (mês corrente)</p>
+      <p className="mt-1 text-xs text-gray-600">
+        {ehHospedagem
+          ? 'Aberturas do drawer de reservas (mês corrente)'
+          : 'Cliques no botão dinâmico (mês corrente)'}
+      </p>
     </div>
   )
 
@@ -211,35 +214,6 @@ export default function ConfigBotaoDinamico() {
           <AbaAcomodacoes empresaId={empresaId} />
         ) : (
           <div className="space-y-4">
-            {precisaWhatsapp ? (
-              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <label className={labelCls}>
-                  WhatsApp
-                  <input
-                    type="tel"
-                    value={whatsapp}
-                    onChange={(e) => setWhatsapp(e.target.value)}
-                    placeholder="55 45 99999-9999"
-                    className={inputCls}
-                  />
-                </label>
-                {msg ? (
-                  <p
-                    className={`mt-3 text-sm ${msg.includes('salvas') ? 'text-emerald-700' : 'text-rose-600'}`}
-                  >
-                    {msg}
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => void salvar()}
-                  disabled={salvando || !empresaId}
-                  className="mt-4 w-full rounded-xl bg-[#00D443] py-3 text-sm font-bold text-white disabled:opacity-50"
-                >
-                  {salvando ? 'Salvando…' : 'Salvar WhatsApp'}
-                </button>
-              </div>
-            ) : null}
             <AbaInformacoes empresaId={empresaId} />
             {desempenhoCard}
           </div>
