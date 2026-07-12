@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  BadgeCheck,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -13,6 +14,8 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from '@/i18n/navigation'
+import CheckVerificado from '@/components/CheckVerificado'
+import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
@@ -77,6 +80,7 @@ type AnfitriaoInfo = {
   username: string
   foto: string | null
   usuarioId: string | null
+  verificado: boolean
 }
 
 type PoliticasInfo = {
@@ -160,6 +164,7 @@ export default function DrawerReservaHospedagem({
   const [politicas, setPoliticas] = useState<PoliticasInfo | null>(null)
   const [anfitriao, setAnfitriao] = useState<AnfitriaoInfo | null>(null)
   const [anfitriaoAberto, setAnfitriaoAberto] = useState(false)
+  const [empresaVerificada, setEmpresaVerificada] = useState(false)
   const [selecionadaId, setSelecionadaId] = useState<string | null>(null)
   const [fotoIdx, setFotoIdx] = useState(0)
   const [checkin, setCheckin] = useState('')
@@ -209,14 +214,18 @@ export default function DrawerReservaHospedagem({
     try {
       const { data: emp } = await supabase
         .from('empresas')
-        .select('foto_url, nome_fantasia, nome_usuario, profissional_vinculado_id, nota_media')
+        .select(
+          'foto_url, nome_fantasia, nome_usuario, profissional_vinculado_id, nota_media, docs_verificado, status',
+        )
         .eq('id', empresaId)
         .maybeSingle()
+
+      setEmpresaVerificada(contaVerificadaDocumentacao('empresa', emp))
 
       if (emp?.profissional_vinculado_id) {
         const { data: prof } = await supabase
           .from('profissionais')
-          .select('nome_completo, nome_usuario, foto_perfil_url, foto_url, usuario_id')
+          .select('nome_completo, nome_usuario, foto_perfil_url, foto_url, usuario_id, docs_verificado, status')
           .eq('id', emp.profissional_vinculado_id)
           .maybeSingle()
         if (prof) {
@@ -230,6 +239,7 @@ export default function DrawerReservaHospedagem({
                   ? String(prof.foto_url)
                   : null,
             usuarioId: prof.usuario_id != null ? String(prof.usuario_id) : null,
+            verificado: contaVerificadaDocumentacao('profissional', prof),
           })
         }
       } else {
@@ -434,7 +444,19 @@ export default function DrawerReservaHospedagem({
           <div className="min-w-0 flex-1 pr-8">
             <p className="truncate text-base font-bold leading-tight text-white">{empresaNome}</p>
             {empresaUsername ? (
-              <p className="truncate text-sm leading-tight text-white/80">@{empresaUsername}</p>
+              <p className="inline-flex max-w-full items-center gap-1 truncate text-sm leading-tight text-white/80">
+                <span className="truncate">@{empresaUsername}</span>
+                {empresaVerificada ? (
+                  <BadgeCheck
+                    className="h-3.5 w-3.5 shrink-0 text-white"
+                    fill="currentColor"
+                    stroke="#0097b2"
+                    strokeWidth={2}
+                    aria-hidden
+                    title="Conta verificada"
+                  />
+                ) : null}
+              </p>
             ) : null}
             <button
               type="button"
@@ -478,8 +500,9 @@ export default function DrawerReservaHospedagem({
                 {anfitriao.nome}
               </p>
               {anfitriao.username ? (
-                <p className="mt-0.5 break-words text-sm leading-snug text-[#0097b2]/80">
-                  @{anfitriao.username}
+                <p className="mt-0.5 inline-flex max-w-full items-center gap-1 break-words text-sm leading-snug text-[#0097b2]/80">
+                  <span>@{anfitriao.username}</span>
+                  {anfitriao.verificado ? <CheckVerificado variant="profissional" /> : null}
                 </p>
               ) : null}
             </div>
@@ -715,7 +738,7 @@ export default function DrawerReservaHospedagem({
               <p className="text-center text-sm font-semibold text-[#001f3f]">
                 {rotuloCategoriaImovel(selecionada.categoria_imovel)}
               </p>
-              <div className="relative px-6">
+              <div className="relative px-5">
                 <div
                   className="aspect-[16/10] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
                   onTouchStart={(e) => {

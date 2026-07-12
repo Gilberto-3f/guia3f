@@ -7,7 +7,6 @@ import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empres
 import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
 import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-empresa'
 import { getRotuloAbaServico } from '@/lib/empresaCategoria'
-import ChevronPasta from './hospedagem/ChevronPasta'
 import AbaAcomodacoes from './hospedagem/AbaAcomodacoes'
 import AbaInformacoes from './hospedagem/AbaInformacoes'
 
@@ -86,6 +85,12 @@ function descricaoSegmento(categoria: string, cidade: string) {
   return 'Personalize as informações usadas pelo botão na sua página e no guia.'
 }
 
+function abaVerdeCls(ativa: boolean) {
+  return `flex-1 rounded-lg px-2 py-2.5 text-center text-xs font-semibold transition-colors sm:text-sm ${
+    ativa ? 'bg-[#00D443] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+  }`
+}
+
 export default function ConfigBotaoDinamico() {
   const { dados, refetch } = useDashboardEmpresa()
   const empresaId = dados?.id != null ? String(dados.id) : ''
@@ -100,8 +105,7 @@ export default function ConfigBotaoDinamico() {
   const [msg, setMsg] = useState<string | null>(null)
   const [cliquesMes, setCliquesMes] = useState<number | null>(null)
   const [infoAberto, setInfoAberto] = useState(false)
-  const [abaAcomodacoesAberta, setAbaAcomodacoesAberta] = useState(true)
-  const [abaInformacoesAberta, setAbaInformacoesAberta] = useState(false)
+  const [abaHospedagem, setAbaHospedagem] = useState<'acomodacoes' | 'informacoes'>('acomodacoes')
 
   const rotuloAba = getRotuloAbaServico(categoria)
   const textoBotao = useMemo(() => textoBotaoPreview(categoria, cidade), [categoria, cidade])
@@ -165,6 +169,84 @@ export default function ConfigBotaoDinamico() {
   const inputCls =
     'mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#0097b2]'
   const labelCls = 'block text-xs font-semibold uppercase tracking-wide text-gray-500'
+
+  const desempenhoCard = (
+    <div className="rounded-xl border border-gray-200 bg-[#f5f5f5] p-4">
+      <div className="flex items-center gap-2 text-[#001f3f]">
+        <BarChart3 className="h-5 w-5 text-[#0097b2]" aria-hidden />
+        <h2 className="text-sm font-bold">Desempenho no mês</h2>
+      </div>
+      <p className="mt-2 text-3xl font-bold text-[#0097b2]">
+        {cliquesMes == null ? '—' : cliquesMes}
+      </p>
+      <p className="mt-1 text-xs text-gray-600">Cliques no botão dinâmico (mês corrente)</p>
+    </div>
+  )
+
+  if (ehHospedagem && empresaId) {
+    return (
+      <div className="mt-4 space-y-4">
+        <div className="flex gap-2" role="tablist" aria-label="Seções do botão dinâmico">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaHospedagem === 'acomodacoes'}
+            className={abaVerdeCls(abaHospedagem === 'acomodacoes')}
+            onClick={() => setAbaHospedagem('acomodacoes')}
+          >
+            Acomodações
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaHospedagem === 'informacoes'}
+            className={abaVerdeCls(abaHospedagem === 'informacoes')}
+            onClick={() => setAbaHospedagem('informacoes')}
+          >
+            Informações
+          </button>
+        </div>
+
+        {abaHospedagem === 'acomodacoes' ? (
+          <AbaAcomodacoes empresaId={empresaId} />
+        ) : (
+          <div className="space-y-4">
+            {precisaWhatsapp ? (
+              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <label className={labelCls}>
+                  WhatsApp
+                  <input
+                    type="tel"
+                    value={whatsapp}
+                    onChange={(e) => setWhatsapp(e.target.value)}
+                    placeholder="55 45 99999-9999"
+                    className={inputCls}
+                  />
+                </label>
+                {msg ? (
+                  <p
+                    className={`mt-3 text-sm ${msg.includes('salvas') ? 'text-emerald-700' : 'text-rose-600'}`}
+                  >
+                    {msg}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => void salvar()}
+                  disabled={salvando || !empresaId}
+                  className="mt-4 w-full rounded-xl bg-[#00D443] py-3 text-sm font-bold text-white disabled:opacity-50"
+                >
+                  {salvando ? 'Salvando…' : 'Salvar WhatsApp'}
+                </button>
+              </div>
+            ) : null}
+            <AbaInformacoes empresaId={empresaId} />
+            {desempenhoCard}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="mt-4 space-y-4">
@@ -241,7 +323,7 @@ export default function ConfigBotaoDinamico() {
             </>
           ) : null}
 
-          {!precisaWhatsapp && !precisaTickets && !ehHospedagem ? (
+          {!precisaWhatsapp && !precisaTickets ? (
             <p className="text-sm text-gray-600">
               Para o seu segmento não há campos extras — o botão usa a lógica padrão do guia com os dados da sua
               página.
@@ -253,7 +335,7 @@ export default function ConfigBotaoDinamico() {
           <p className={`mt-4 text-sm ${msg.includes('salvas') ? 'text-emerald-700' : 'text-rose-600'}`}>{msg}</p>
         ) : null}
 
-        {(precisaWhatsapp || precisaTickets) && !ehHospedagem ? (
+        {precisaWhatsapp || precisaTickets ? (
           <button
             type="button"
             onClick={() => void salvar()}
@@ -263,48 +345,9 @@ export default function ConfigBotaoDinamico() {
             {salvando ? 'Salvando…' : 'Salvar configuração'}
           </button>
         ) : null}
-
-        {ehHospedagem && precisaWhatsapp ? (
-          <button
-            type="button"
-            onClick={() => void salvar()}
-            disabled={salvando || !empresaId}
-            className="mt-5 w-full rounded-xl bg-[#00D443] py-3 text-sm font-bold text-white disabled:opacity-50"
-          >
-            {salvando ? 'Salvando…' : 'Salvar WhatsApp'}
-          </button>
-        ) : null}
       </div>
 
-      {ehHospedagem && empresaId ? (
-        <div className="space-y-3">
-          <ChevronPasta
-            titulo="Acomodações"
-            aberto={abaAcomodacoesAberta}
-            onToggle={() => setAbaAcomodacoesAberta((v) => !v)}
-          >
-            <AbaAcomodacoes empresaId={empresaId} />
-          </ChevronPasta>
-          <ChevronPasta
-            titulo="Informações"
-            aberto={abaInformacoesAberta}
-            onToggle={() => setAbaInformacoesAberta((v) => !v)}
-          >
-            <AbaInformacoes empresaId={empresaId} />
-          </ChevronPasta>
-        </div>
-      ) : null}
-
-      <div className="rounded-xl border border-gray-200 bg-[#f5f5f5] p-4">
-        <div className="flex items-center gap-2 text-[#001f3f]">
-          <BarChart3 className="h-5 w-5 text-[#0097b2]" aria-hidden />
-          <h2 className="text-sm font-bold">Desempenho no mês</h2>
-        </div>
-        <p className="mt-2 text-3xl font-bold text-[#0097b2]">
-          {cliquesMes == null ? '—' : cliquesMes}
-        </p>
-        <p className="mt-1 text-xs text-gray-600">Cliques no botão dinâmico (mês corrente)</p>
-      </div>
+      {desempenhoCard}
     </div>
   )
 }
