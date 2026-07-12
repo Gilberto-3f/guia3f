@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from '@/i18n/navigation'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
@@ -75,6 +76,7 @@ type AnfitriaoInfo = {
   nome: string
   username: string
   foto: string | null
+  usuarioId: string | null
 }
 
 type PoliticasInfo = {
@@ -139,6 +141,7 @@ export default function DrawerReservaHospedagem({
   empresaFotoUrl = null,
   notaMedia = null,
 }: Props) {
+  const router = useRouter()
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const {
     podeComprarReservar,
@@ -213,7 +216,7 @@ export default function DrawerReservaHospedagem({
       if (emp?.profissional_vinculado_id) {
         const { data: prof } = await supabase
           .from('profissionais')
-          .select('nome_completo, nome_usuario, foto_perfil_url, foto_url')
+          .select('nome_completo, nome_usuario, foto_perfil_url, foto_url, usuario_id')
           .eq('id', emp.profissional_vinculado_id)
           .maybeSingle()
         if (prof) {
@@ -226,6 +229,7 @@ export default function DrawerReservaHospedagem({
                 : prof.foto_url != null
                   ? String(prof.foto_url)
                   : null,
+            usuarioId: prof.usuario_id != null ? String(prof.usuario_id) : null,
           })
         }
       } else {
@@ -454,7 +458,15 @@ export default function DrawerReservaHospedagem({
           </button>
         </div>
         {anfitriaoAberto && anfitriao ? (
-          <div className="mt-2.5 flex w-full items-center gap-3 rounded-xl bg-white px-3 py-2.5 shadow-sm">
+          <button
+            type="button"
+            onClick={() => {
+              if (!anfitriao.usuarioId) return
+              handleFechar()
+              router.push(`/perfil/${anfitriao.usuarioId}`)
+            }}
+            className="mt-2.5 flex w-full items-center gap-3 rounded-xl bg-white px-3 py-2.5 text-left shadow-sm transition-opacity hover:opacity-95"
+          >
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 border-[#0097b2] bg-[#0097b2]/10">
               {anfitriao.foto ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -471,7 +483,7 @@ export default function DrawerReservaHospedagem({
                 </p>
               ) : null}
             </div>
-          </div>
+          </button>
         ) : null}
       </div>
     </header>
@@ -596,14 +608,15 @@ export default function DrawerReservaHospedagem({
             </div>
           ) : passo === 1 ? (
             <div className="space-y-4 p-4">
-              <h2 className="text-center text-lg font-bold lowercase" style={{ color: COR }}>
-                escolha sua acomodação
+              <h2 className="text-center text-lg font-bold uppercase tracking-wide" style={{ color: COR }}>
+                ESCOLHA SUA ACOMODAÇÃO
               </h2>
               {acomodacoes.length === 0 ? (
                 <p className="text-sm text-gray-500">
                   Nenhuma acomodação cadastrada ainda. Não é possível avançar.
                 </p>
               ) : (
+                <>
                 <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
                   {acomodacoes.map((a, idx) => {
                     const st = statusMap[a.id] ?? 'disponivel'
@@ -647,18 +660,25 @@ export default function DrawerReservaHospedagem({
                             {formatarValorDiaria(a.valor_diaria)}
                             <span className="font-normal text-gray-500"> / diária</span>
                           </p>
-                          <p
-                            className={`inline-flex items-center gap-1 text-xs font-bold ${
-                              disponivel ? 'text-[#00D443]' : 'text-red-600'
-                            }`}
-                          >
-                            {disponivel ? (
-                              <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={3} aria-hidden />
-                            ) : (
-                              <X className="h-3.5 w-3.5 shrink-0" strokeWidth={3} aria-hidden />
-                            )}
-                            {disponivel ? 'Disponível' : 'Ocupado'}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <p
+                              className={`inline-flex items-center gap-1 text-xs font-bold ${
+                                disponivel ? 'text-[#00D443]' : 'text-red-600'
+                              }`}
+                            >
+                              {disponivel ? (
+                                <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={3} aria-hidden />
+                              ) : (
+                                <X className="h-3.5 w-3.5 shrink-0" strokeWidth={3} aria-hidden />
+                              )}
+                              {disponivel ? 'Disponível' : 'Ocupado'}
+                            </p>
+                            {nota ? (
+                              <p className="inline-flex items-center gap-1 text-xs font-bold text-amber-500">
+                                ★ {nota}
+                              </p>
+                            ) : null}
+                          </div>
                           <button
                             type="button"
                             onClick={() => {
@@ -680,6 +700,14 @@ export default function DrawerReservaHospedagem({
                     )
                   })}
                 </div>
+                <div className="pt-2">
+                  <p className="text-sm font-bold text-gray-500">ATENÇÃO</p>
+                  <p className="mt-1 text-sm leading-relaxed text-gray-500">
+                    Ao fazer uma reserva você concorda automaticamente com as regras e políticas do
+                    anfitrião.
+                  </p>
+                </div>
+                </>
               )}
             </div>
           ) : passo === 2 && selecionada ? (
@@ -687,9 +715,9 @@ export default function DrawerReservaHospedagem({
               <p className="text-center text-sm font-semibold text-[#001f3f]">
                 {rotuloCategoriaImovel(selecionada.categoria_imovel)}
               </p>
-              <div className="relative mx-auto max-w-sm">
+              <div className="relative">
                 <div
-                  className="mx-9 aspect-square touch-pan-y overflow-hidden rounded-2xl border-4 border-white bg-gray-100 shadow"
+                  className="aspect-[16/10] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
                   onTouchStart={(e) => {
                     touchFotoX.current = e.touches[0]?.clientX ?? null
                   }}
@@ -722,23 +750,23 @@ export default function DrawerReservaHospedagem({
                   <>
                     <button
                       type="button"
-                      className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full shadow"
-                      style={{ backgroundColor: COR }}
+                      className="absolute -left-3 top-1/2 z-10 -translate-y-1/2 p-0.5"
+                      style={{ color: COR }}
                       onClick={() =>
                         setFotoIdx((i) => (i - 1 + selecionada.fotos.length) % selecionada.fotos.length)
                       }
                       aria-label="Foto anterior"
                     >
-                      <ChevronLeft className="h-4 w-4 text-white" aria-hidden />
+                      <ChevronLeft className="h-7 w-7 drop-shadow-sm" strokeWidth={2.5} aria-hidden />
                     </button>
                     <button
                       type="button"
-                      className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full shadow"
-                      style={{ backgroundColor: COR }}
+                      className="absolute -right-3 top-1/2 z-10 -translate-y-1/2 p-0.5"
+                      style={{ color: COR }}
                       onClick={() => setFotoIdx((i) => (i + 1) % selecionada.fotos.length)}
                       aria-label="Próxima foto"
                     >
-                      <ChevronRight className="h-4 w-4 text-white" aria-hidden />
+                      <ChevronRight className="h-7 w-7 drop-shadow-sm" strokeWidth={2.5} aria-hidden />
                     </button>
                   </>
                 ) : null}
