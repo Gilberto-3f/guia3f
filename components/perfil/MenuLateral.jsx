@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -54,6 +54,12 @@ import { menuEmpresaLiberado, menuEmpresaVisivel } from '@/lib/planosEmpresaServ
 import { empresaEhLojasBrasilOuArgentina } from '@/lib/cidade-empresa'
 import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
 import { textoInfoDrawer } from '@/lib/drawerInfoTextos'
+import {
+  historyTemMenuLateralAberto,
+  limparFlagHistoryMenuLateral,
+  marcarReabrirMenuLateral,
+  MENU_LATERAL_HISTORY_FLAG,
+} from '@/lib/menuLateralHistory'
 import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
 import { GUIA_CHAT_ADM_BADGE_EVENT } from '@/lib/chat-adm-badge-events'
 
@@ -597,6 +603,9 @@ export default function MenuLateral({
   const [historicoNaoLido, setHistoricoNaoLido] = useState(0)
   const [chatAdmNaoLido, setChatAdmNaoLido] = useState(0)
   const [drawerEntered, setDrawerEntered] = useState(false)
+  const fechandoViaHistoryRef = useRef(false)
+  const onFecharRef = useRef(onFechar)
+  onFecharRef.current = onFechar
   const { historico: historicoDecisoes, fetchHistoricoUsuario } = useInfracoes()
   const { modoAtivo, perfilSimulado } = useModoApresentacao()
   const modoApresentacaoAtivo = modoAtivo
@@ -905,6 +914,35 @@ export default function MenuLateral({
     return () => cancelAnimationFrame(id)
   }, [aberto])
 
+  /** Empilha entry no History para o gesto back/swipe fechar só o menu (não sair da página). */
+  useEffect(() => {
+    if (!aberto || typeof window === 'undefined') return
+
+    if (!historyTemMenuLateralAberto()) {
+      const prev =
+        history.state && typeof history.state === 'object' ? { ...history.state } : {}
+      history.pushState({ ...prev, [MENU_LATERAL_HISTORY_FLAG]: true }, '')
+    }
+
+    const onPopState = () => {
+      fechandoViaHistoryRef.current = false
+      onFecharRef.current()
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => {
+      window.removeEventListener('popstate', onPopState)
+    }
+  }, [aberto])
+
+  const solicitarFechar = useCallback(() => {
+    if (typeof window !== 'undefined' && historyTemMenuLateralAberto()) {
+      fechandoViaHistoryRef.current = true
+      history.back()
+      return
+    }
+    onFecharRef.current()
+  }, [])
+
   useEffect(() => {
     if (!aberto) return
     if (!usuarioIdEfetivo) return
@@ -1049,11 +1087,13 @@ export default function MenuLateral({
       return
     }
     if (item.acao === 'alternar-modo-colaborador') {
+      limparFlagHistoryMenuLateral()
       alternarModoColaborador()
       onFechar()
       return
     }
     if (item.subpagina === 'anfitriao-modo-social') {
+      limparFlagHistoryMenuLateral()
       setModoAnfitriao('anfitriao')
       window.dispatchEvent(new Event('anfitriao-modo-change'))
       if (usuarioIdEfetivo) router.push(`/perfil/${usuarioIdEfetivo}`)
@@ -1078,6 +1118,7 @@ export default function MenuLateral({
       void recarregarAnfitriao()
       window.dispatchEvent(new Event('anfitriao-modo-change'))
       window.dispatchEvent(new Event('empresa-gate-refresh'))
+      limparFlagHistoryMenuLateral()
       if (empresaHospedagemId) {
         router.push(`/empresa/${empresaHospedagemId}`)
       }
@@ -1085,6 +1126,8 @@ export default function MenuLateral({
       return
     }
     if (item.href) {
+      marcarReabrirMenuLateral()
+      limparFlagHistoryMenuLateral()
       router.push(item.href)
       onFechar()
       return
@@ -1493,7 +1536,7 @@ export default function MenuLateral({
 
   return (
     <div className="fixed inset-0 z-[100] max-h-[100dvh]">
-      <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar menu" onClick={onFechar} />
+      <button type="button" className="absolute inset-0 bg-black/50" aria-label="Fechar menu" onClick={solicitarFechar} />
       <aside
         className={`absolute right-0 top-0 flex h-full max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-white text-gray-900 shadow-xl transition-transform duration-300 ease-out ${
           drawerEntered ? 'translate-x-0' : 'translate-x-full'
@@ -1523,7 +1566,7 @@ export default function MenuLateral({
           )}
           <button
             type="button"
-            onClick={mostrarVoltar ? voltarUmNivel : onFechar}
+            onClick={mostrarVoltar ? voltarUmNivel : solicitarFechar}
             className={[
               'flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white shadow-sm transition',
               mostrarVoltar

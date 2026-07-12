@@ -28,6 +28,7 @@ import { POST_DELETED_EVENT } from '@/components/MenuPost'
 import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { temParceriaFechadaEntreProfissionais } from '@/lib/parceriaProfissional'
+import { consumirReabrirMenuLateral } from '@/lib/menuLateralHistory'
 import { turistaContratouProfissional } from '@/lib/contratacaoProfissionalTurista'
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 import PerfilRecomendacaoContratarGate from '@/components/perfil/PerfilRecomendacaoContratarGate'
@@ -92,6 +93,15 @@ export default function PerfilSocialPage() {
   const [menuAberto, setMenuAberto] = useState(false)
   const [popFav, setPopFav] = useState(false)
   const [popSeg, setPopSeg] = useState(false)
+
+  useEffect(() => {
+    const tentarReabrir = () => {
+      if (consumirReabrirMenuLateral()) setMenuAberto(true)
+    }
+    tentarReabrir()
+    window.addEventListener('pageshow', tentarReabrir)
+    return () => window.removeEventListener('pageshow', tentarReabrir)
+  }, [])
   const [popAval, setPopAval] = useState(false)
   const [popAvalAba, setPopAvalAba] = useState<'empresa' | 'profissional' | 'feedback'>('empresa')
   const [popCartao, setPopCartao] = useState(false)

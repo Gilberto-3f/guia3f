@@ -28,6 +28,7 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 import { empresaElegivelGuiaPublico } from '@/lib/empresaGuiaVisibilidade'
+import { consumirReabrirMenuLateral } from '@/lib/menuLateralHistory'
 import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
 import { prefetchPlanosEmpresa, useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
@@ -87,6 +88,15 @@ export default function EmpresaPage() {
   const [reservaHospedagemConfirmada, setReservaHospedagemConfirmada] = useState(false)
   const [menuAberto, setMenuAberto] = useState(false)
   const { modoAtivo } = useModoApresentacao()
+
+  useEffect(() => {
+    const tentarReabrir = () => {
+      if (consumirReabrirMenuLateral()) setMenuAberto(true)
+    }
+    tentarReabrir()
+    window.addEventListener('pageshow', tentarReabrir)
+    return () => window.removeEventListener('pageshow', tentarReabrir)
+  }, [])
   const planoEmpresa =
     empresa && empresa.plano != null ? String(empresa.plano) : null
   const { featurePublicaLiberada, loading: planoLoading } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
