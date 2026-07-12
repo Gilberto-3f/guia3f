@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronRight, FileText, ScrollText, Shield, ArrowLeft } from 'lucide-react'
+import { ChevronRight, FileText, ScrollText, Shield, ArrowLeft, ChevronDown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { parseRegrasEcossistema } from '@/lib/regrasEcossistema'
 
 const APP_VERSION = '1.0.0'
 
@@ -16,6 +17,7 @@ export default function RegrasEcossistema() {
   const [loading, setLoading] = useState(true)
   const [config, setConfig] = useState(/** @type {Record<string, string>} */ ({}))
   const [secaoAtiva, setSecaoAtiva] = useState(/** @type {string | null} */ (null))
+  const [regraAbertaId, setRegraAbertaId] = useState(/** @type {string | null} */ (null))
 
   useEffect(() => {
     let ativo = true
@@ -29,7 +31,7 @@ export default function RegrasEcossistema() {
           .maybeSingle()
         if (!ativo) return
         setConfig({
-          regras_ecossistema: String(data?.regras_ecossistema ?? 'Conteúdo em atualização.'),
+          regras_ecossistema: String(data?.regras_ecossistema ?? ''),
           politicas_privacidade: String(data?.politicas_privacidade ?? 'Conteúdo em atualização.'),
           termos_uso: String(data?.termos_uso ?? 'Conteúdo em atualização.'),
         })
@@ -47,7 +49,62 @@ export default function RegrasEcossistema() {
   const secao = SECOES.find((s) => s.id === secaoAtiva)
 
   if (secaoAtiva && secao) {
-    const texto = config[secao.campo] ?? 'Conteúdo em atualização.'
+    if (secao.id === 'regras') {
+      const regras = parseRegrasEcossistema(config.regras_ecossistema)
+      return (
+        <div className="px-1 pb-4">
+          <div className="mb-3 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setSecaoAtiva(null)
+                setRegraAbertaId(null)
+              }}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#0097b2] text-white shadow-sm transition hover:bg-[#007a91] active:brightness-95"
+              aria-label="Voltar"
+            >
+              <ArrowLeft className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+            </button>
+            <h2 className="min-w-0 flex-1 truncate text-lg font-bold leading-tight text-gray-900">
+              {secao.titulo}
+            </h2>
+          </div>
+
+          {regras.length === 0 ? (
+            <p className="mt-4 text-center text-sm text-gray-500">Conteúdo em atualização.</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {regras.map((regra) => {
+                const aberta = regraAbertaId === regra.id
+                return (
+                  <li key={regra.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                    <button
+                      type="button"
+                      onClick={() => setRegraAbertaId(aberta ? null : regra.id)}
+                      className="flex w-full items-center justify-between gap-2 px-3 py-3 text-left hover:bg-gray-50"
+                      aria-expanded={aberta}
+                    >
+                      <span className="min-w-0 flex-1 text-sm font-medium text-gray-800">{regra.titulo}</span>
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${aberta ? 'rotate-180' : ''}`}
+                        aria-hidden
+                      />
+                    </button>
+                    {aberta ? (
+                      <div className="whitespace-pre-wrap border-t border-gray-100 px-3 py-3 text-sm leading-relaxed text-gray-700">
+                        {regra.texto.trim() || 'Sem texto.'}
+                      </div>
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+      )
+    }
+
+    const texto = config[secao.campo] || 'Conteúdo em atualização.'
     return (
       <div className="px-1 pb-4">
         <div className="mb-3 flex items-center gap-3">

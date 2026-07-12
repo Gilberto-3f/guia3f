@@ -5,12 +5,12 @@ import { FileText, ScrollText, Leaf } from 'lucide-react'
 import { AdminSecaoChevron } from '../shared/AdminSecaoChevron'
 import { useConfiguracoes } from '../../hooks/useConfiguracoes'
 import { ConfigPoliticaTexto, type CampoPolitica } from './sections/ConfigPoliticaTexto'
+import { ConfigRegrasEcossistema } from './sections/ConfigRegrasEcossistema'
 import type { ConfigGeral } from '../../types/admin.types'
 
 const POLITICAS: { chave: CampoPolitica; titulo: string; Icon: typeof FileText }[] = [
   { chave: 'politicas_privacidade', titulo: 'Políticas de privacidade', Icon: ScrollText },
   { chave: 'termos_uso', titulo: 'Termos de uso', Icon: FileText },
-  { chave: 'regras_ecossistema', titulo: 'Regras do ecossistema', Icon: Leaf },
 ]
 
 export function ConfigConformidadeAplicativo() {
@@ -18,8 +18,8 @@ export function ConfigConformidadeAplicativo() {
   const [localGeral, setLocalGeral] = useState<ConfigGeral | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null)
-  const [abertas, setAbertas] = useState<Record<CampoPolitica, boolean>>({
-    politicas_privacidade: true,
+  const [abertas, setAbertas] = useState({
+    politicas_privacidade: false,
     termos_uso: false,
     regras_ecossistema: false,
   })
@@ -28,12 +28,14 @@ export function ConfigConformidadeAplicativo() {
     if (geral) setLocalGeral({ ...geral })
   }, [geral])
 
-  const salvar = async () => {
-    if (!localGeral) return
+  const salvar = async (override?: ConfigGeral) => {
+    const payload = override ?? localGeral
+    if (!payload) return
+    if (override) setLocalGeral(override)
     setSalvando(true)
     setMensagem(null)
     try {
-      await salvarGeral(localGeral)
+      await salvarGeral(payload)
       setMensagem({ tipo: 'sucesso', texto: 'Texto salvo com sucesso!' })
       window.setTimeout(() => setMensagem(null), 3000)
     } catch {
@@ -93,10 +95,28 @@ export function ConfigConformidadeAplicativo() {
             setLocalGeral={setLocalGeral}
             podeEditar={podeEditarGeral}
             salvando={salvando}
-            onSalvar={salvar}
+            onSalvar={() => salvar()}
           />
         </AdminSecaoChevron>
       ))}
+
+      <AdminSecaoChevron
+        titulo="Regras do ecossistema"
+        aberta={abertas.regras_ecossistema}
+        onToggle={() =>
+          setAbertas((prev) => ({ ...prev, regras_ecossistema: !prev.regras_ecossistema }))
+        }
+        icone={Leaf}
+        corTitulo="#0097b2"
+      >
+        <ConfigRegrasEcossistema
+          localGeral={localGeral}
+          setLocalGeral={setLocalGeral}
+          podeEditar={podeEditarGeral}
+          salvando={salvando}
+          onSalvar={(override) => salvar(override)}
+        />
+      </AdminSecaoChevron>
     </div>
   )
 }

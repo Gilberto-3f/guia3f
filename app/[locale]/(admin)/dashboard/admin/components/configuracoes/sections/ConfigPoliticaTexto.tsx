@@ -1,9 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { Pencil, Save } from 'lucide-react'
 import type { ConfigGeral } from '../../../types/admin.types'
 
-export type CampoPolitica = 'politicas_privacidade' | 'termos_uso' | 'regras_ecossistema'
+export type CampoPolitica = 'politicas_privacidade' | 'termos_uso'
+
+const COR_AZUL = '#0097b2'
+const COR_VERDE = '#00D443'
 
 export function ConfigPoliticaTexto({
   chave,
@@ -21,53 +25,57 @@ export function ConfigPoliticaTexto({
   onSalvar: () => Promise<void>
 }) {
   const [editando, setEditando] = useState(false)
+  const bloqueado = !editando || !podeEditar
+  const salvarDisponivel = editando && podeEditar && !salvando
+
+  const handleSalvar = async () => {
+    if (!salvarDisponivel) return
+    try {
+      await onSalvar()
+      setEditando(false)
+    } catch {
+      /* mensagem tratada no pai */
+    }
+  }
 
   return (
-    <div>
-      {editando && podeEditar ? (
-        <div className="space-y-3">
-          <textarea
-            value={localGeral[chave]}
-            onChange={(e) => setLocalGeral({ ...localGeral, [chave]: e.target.value })}
-            className="w-full rounded-xl border border-gray-200 p-3 font-mono text-sm"
-            rows={12}
-          />
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setEditando(false)}
-              className="rounded-xl bg-gray-200 px-4 py-2 text-sm font-semibold"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={() => void onSalvar().then(() => setEditando(false))}
-              disabled={salvando}
-              className="rounded-xl bg-[#0097b2] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              {salvando ? 'Salvando...' : 'Salvar'}
-            </button>
-          </div>
+    <div className="space-y-3">
+      <textarea
+        value={localGeral[chave]}
+        onChange={(e) => setLocalGeral({ ...localGeral, [chave]: e.target.value })}
+        readOnly={bloqueado}
+        disabled={!podeEditar && bloqueado}
+        rows={12}
+        className={`w-full rounded-xl border border-gray-200 p-3 font-mono text-sm transition ${
+          bloqueado ? 'cursor-default bg-gray-50 text-gray-700' : 'bg-white text-gray-900'
+        }`}
+        aria-label="Texto da política"
+      />
+
+      {podeEditar ? (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            disabled={salvando}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            style={{ backgroundColor: COR_AZUL }}
+          >
+            <Pencil className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+            EDITAR
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSalvar()}
+            disabled={!salvarDisponivel}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-400"
+            style={salvarDisponivel ? { backgroundColor: COR_VERDE } : undefined}
+          >
+            <Save className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+            {salvando ? 'SALVANDO…' : 'SALVAR'}
+          </button>
         </div>
-      ) : (
-        <>
-          {podeEditar ? (
-            <div className="mb-3 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setEditando(true)}
-                className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white"
-              >
-                Editar
-              </button>
-            </div>
-          ) : null}
-          <pre className="whitespace-pre-wrap rounded-xl bg-gray-50 p-4 font-sans text-sm text-gray-700">
-            {localGeral[chave] || '(nenhum texto definido)'}
-          </pre>
-        </>
-      )}
+      ) : null}
     </div>
   )
 }

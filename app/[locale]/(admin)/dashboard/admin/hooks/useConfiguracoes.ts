@@ -62,7 +62,7 @@ const defaultApis = (): ConfigAPIs => ({
 const defaultGeral = (): ConfigGeral => ({
   politicas_privacidade: '## Políticas de Privacidade\n\nEm construção...',
   termos_uso: '## Termos de Uso\n\nEm construção...',
-  regras_ecossistema: '## Regras do Ecossistema\n\nEm construção...',
+  regras_ecossistema: '[]',
   prazo_pre_aprovacao_turista: 48,
   prazo_verificacao_documentos: 24,
   limite_fotos_empresa: 20,

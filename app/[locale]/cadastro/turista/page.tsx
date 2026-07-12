@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
@@ -8,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import GuiaAuthShell from '@/components/GuiaAuthShell'
 import CampoUsernameCadastro from '@/components/cadastro/CampoUsernameCadastro'
 import CampoWhatsappCadastro from '@/components/cadastro/CampoWhatsappCadastro'
+import { LinksAceitePoliticas } from '@/components/cadastro/LinksAceitePoliticas'
 import { useUsernameDisponivel } from '@/hooks/useUsernameDisponivel'
 import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
 
@@ -325,17 +325,12 @@ export default function CadastroTuristaPage() {
               onChange={(e) => setAceitePoliticas(e.target.checked)}
               className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300"
             />
-            <span>
-              {t('profissional.acceptPoliciesIntro')}{' '}
-              <Link href="/politicas" className="underline hover:text-[#0097b2]">
-                {t('turista.privacy')}
-              </Link>{' '}
-              {t('profissional.acceptPoliciesAnd')}{' '}
-              <Link href="/regras" className="underline hover:text-[#0097b2]">
-                {t('turista.terms')}
-              </Link>
-              .
-            </span>
+            <LinksAceitePoliticas
+              intro={t('profissional.acceptPoliciesIntro')}
+              privacyLabel={t('turista.privacy')}
+              andLabel={t('profissional.acceptPoliciesAnd')}
+              termsLabel={t('turista.terms')}
+            />
           </label>
 
           {erroEnvio && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erroEnvio}</p>}
