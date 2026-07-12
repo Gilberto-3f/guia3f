@@ -159,7 +159,9 @@ export default function DrawerReservaHospedagem({
   const [passo, setPasso] = useState(1)
   const [carregando, setCarregando] = useState(false)
   const [acomodacoes, setAcomodacoes] = useState<HospedagemAcomodacaoRow[]>([])
-  const [statusMap, setStatusMap] = useState<Record<string, 'disponivel' | 'ocupado'>>({})
+  const [statusMap, setStatusMap] = useState<
+    Record<string, 'disponivel' | 'ocupado' | 'indisponivel_em_breve'>
+  >({})
   const [periodosMap, setPeriodosMap] = useState<Record<string, PeriodoOcupacao[]>>({})
   const [politicas, setPoliticas] = useState<PoliticasInfo | null>(null)
   const [anfitriao, setAnfitriao] = useState<AnfitriaoInfo | null>(null)
@@ -656,6 +658,7 @@ export default function DrawerReservaHospedagem({
                         ? `${qtdPessoas} ${qtdPessoas === 1 ? 'pessoa' : 'pessoas'}`
                         : null
                     const disponivel = st === 'disponivel'
+                    const indisponivelEmBreve = st === 'indisponivel_em_breve'
                     return (
                       <article
                         key={a.id}
@@ -684,18 +687,28 @@ export default function DrawerReservaHospedagem({
                           </p>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                             <p
-                              className={`inline-flex items-center gap-1 text-xs font-bold ${
-                                disponivel ? 'text-[#00D443]' : 'text-red-600'
+                              className={`inline-flex max-w-full items-center gap-1 text-xs font-bold ${
+                                indisponivelEmBreve ? 'whitespace-nowrap' : ''
+                              } ${
+                                disponivel
+                                  ? 'text-[#00D443]'
+                                  : indisponivelEmBreve
+                                    ? 'text-[#0097b2]'
+                                    : 'text-red-600'
                               }`}
                             >
                               {disponivel ? (
                                 <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={3} aria-hidden />
-                              ) : (
+                              ) : indisponivelEmBreve ? null : (
                                 <X className="h-3.5 w-3.5 shrink-0" strokeWidth={3} aria-hidden />
                               )}
-                              {disponivel ? 'Disponível' : 'Ocupado'}
+                              {disponivel
+                                ? 'Disponível'
+                                : indisponivelEmBreve
+                                  ? 'Indisponível em breve'
+                                  : 'Ocupado'}
                             </p>
-                            {nota ? (
+                            {nota && !indisponivelEmBreve ? (
                               <p className="inline-flex items-center gap-1 text-xs font-bold text-amber-500">
                                 ★ {nota}
                               </p>

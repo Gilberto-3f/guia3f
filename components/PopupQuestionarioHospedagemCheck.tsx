@@ -155,7 +155,7 @@ export default function PopupQuestionarioHospedagemCheck({
                 Filtro de Busca
               </h2>
             </div>
-            <p className="mt-0.5 text-sm leading-snug text-gray-500">
+            <p className="mt-0.5 truncate whitespace-nowrap text-sm leading-snug text-gray-500">
               Refine a busca da sua acomodação
             </p>
           </div>

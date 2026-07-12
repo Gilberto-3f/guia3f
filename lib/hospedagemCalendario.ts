@@ -29,16 +29,40 @@ export function periodosSobrepoem(
   return reservasHospedagemDatasSobrepoem(inicioA, fimA, inicioB, fimB)
 }
 
-/** Status do card no Drawer 1: ocupado se há reserva/bloqueio vigente ou futuro. */
+/** Status do mini-card no Drawer 1. */
+export type StatusAcomodacaoCard = 'disponivel' | 'ocupado' | 'indisponivel_em_breve'
+
+function addDaysIso(iso: string, days: number): string {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  dt.setDate(dt.getDate() + days)
+  const yy = dt.getFullYear()
+  const mm = String(dt.getMonth() + 1).padStart(2, '0')
+  const dd = String(dt.getDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
+}
+
+/**
+ * Status do card no Drawer 1:
+ * - ocupado: há reserva/bloqueio cobrindo o dia de hoje
+ * - indisponivel_em_breve: check-in futuro em até 3 dias
+ * - disponivel: livre hoje (reservas mais distantes não ocupam o card)
+ */
 export function statusAcomodacaoHoje(
   periodos: PeriodoOcupacao[],
   hojeIso = hojeIsoLocal(),
-): 'disponivel' | 'ocupado' {
+): StatusAcomodacaoCard {
   const hoje = hojeIso.slice(0, 10)
-  // Qualquer período ainda não encerrado (pendente/confirmada/bloqueio) marca ocupado.
-  return periodos.some((p) => String(p.fim).slice(0, 10) > hoje || dataNoPeriodoOcupado(hoje, p.inicio, p.fim))
-    ? 'ocupado'
-    : 'disponivel'
+  if (periodos.some((p) => dataNoPeriodoOcupado(hoje, p.inicio, p.fim))) {
+    return 'ocupado'
+  }
+  const limite = addDaysIso(hoje, 3)
+  const checkinProximo = periodos.some((p) => {
+    const inicio = String(p.inicio).slice(0, 10)
+    return Boolean(inicio && inicio > hoje && inicio <= limite)
+  })
+  if (checkinProximo) return 'indisponivel_em_breve'
+  return 'disponivel'
 }
 
 function hojeIsoLocal(): string {
