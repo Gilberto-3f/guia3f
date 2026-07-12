@@ -58,6 +58,7 @@ import {
   periodoDisponivel,
   statusAcomodacaoHoje,
   type PeriodoOcupacao,
+  type StatusAcomodacaoCard,
 } from '@/lib/hospedagemCalendario'
 import CalendarioAcomodacao from '@/components/hospedagem/CalendarioAcomodacao'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
@@ -159,9 +160,7 @@ export default function DrawerReservaHospedagem({
   const [passo, setPasso] = useState(1)
   const [carregando, setCarregando] = useState(false)
   const [acomodacoes, setAcomodacoes] = useState<HospedagemAcomodacaoRow[]>([])
-  const [statusMap, setStatusMap] = useState<
-    Record<string, 'disponivel' | 'ocupado' | 'indisponivel_em_breve'>
-  >({})
+  const [statusMap, setStatusMap] = useState<Record<string, StatusAcomodacaoCard>>({})
   const [periodosMap, setPeriodosMap] = useState<Record<string, PeriodoOcupacao[]>>({})
   const [politicas, setPoliticas] = useState<PoliticasInfo | null>(null)
   const [anfitriao, setAnfitriao] = useState<AnfitriaoInfo | null>(null)
@@ -257,7 +256,7 @@ export default function DrawerReservaHospedagem({
       const lista = (acoms ?? []).map((r) => mapAcomodacao(r as Record<string, unknown>))
       setAcomodacoes(lista)
 
-      const st: Record<string, 'disponivel' | 'ocupado'> = {}
+      const st: Record<string, StatusAcomodacaoCard> = {}
       const pm: Record<string, PeriodoOcupacao[]> = {}
       await Promise.all(
         lista.map(async (a) => {
