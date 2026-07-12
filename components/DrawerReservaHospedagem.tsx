@@ -453,7 +453,6 @@ export default function DrawerReservaHospedagem({
                     stroke="#0097b2"
                     strokeWidth={2}
                     aria-hidden
-                    title="Conta verificada"
                   />
                 ) : null}
               </p>
