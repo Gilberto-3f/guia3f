@@ -604,20 +604,31 @@ export default function DrawerReservaHospedagem({
                   Nenhuma acomodação cadastrada ainda. Não é possível avançar.
                 </p>
               ) : (
-                <div className="-mx-4 flex gap-3 overflow-x-auto pl-8 pr-4 pb-2 snap-x">
-                  {acomodacoes.map((a) => {
+                <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
+                  {acomodacoes.map((a, idx) => {
                     const st = statusMap[a.id] ?? 'disponivel'
                     const capa = a.fotos[0]
                     const catAcomodacao =
                       tipoCategoriaImovel(a.categoria_imovel) === 'particular'
                         ? rotuloCategoriaParticularCurto(a.categoria_particular)
                         : rotuloOpcaoCompartilhadaCurto(a.opcao_compartilhada)
+                    const qtdPessoas = Number(a.capacidade_pessoas) || 0
+                    const rotuloAcomodacaoComCapacidade = catAcomodacao
+                      ? qtdPessoas > 0
+                        ? `${catAcomodacao} · ${qtdPessoas} ${qtdPessoas === 1 ? 'pessoa' : 'pessoas'}`
+                        : catAcomodacao
+                      : qtdPessoas > 0
+                        ? `${qtdPessoas} ${qtdPessoas === 1 ? 'pessoa' : 'pessoas'}`
+                        : null
+                    const disponivel = st === 'disponivel'
                     return (
                       <article
                         key={a.id}
-                        className="w-[78%] max-w-[280px] shrink-0 snap-start overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
+                        className={`w-[78%] max-w-[280px] shrink-0 snap-start overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ${
+                          idx === 0 ? 'ml-1' : ''
+                        }`}
                       >
-                        <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">
+                        <p className="px-3 pt-3 text-center text-sm font-semibold text-[#001f3f]">
                           {rotuloCategoriaImovelCurto(a.categoria_imovel)}
                         </p>
                         <div className="mt-2 aspect-[4/3] bg-gray-100">
@@ -627,9 +638,9 @@ export default function DrawerReservaHospedagem({
                           ) : null}
                         </div>
                         <div className="space-y-2 p-3">
-                          {catAcomodacao ? (
+                          {rotuloAcomodacaoComCapacidade ? (
                             <p className="line-clamp-2 text-sm font-semibold text-[#001f3f]">
-                              {catAcomodacao}
+                              {rotuloAcomodacaoComCapacidade}
                             </p>
                           ) : null}
                           <p className="text-sm font-bold" style={{ color: COR }}>
@@ -637,11 +648,16 @@ export default function DrawerReservaHospedagem({
                             <span className="font-normal text-gray-500"> / diária</span>
                           </p>
                           <p
-                            className={`text-xs font-bold ${
-                              st === 'disponivel' ? 'text-[#00D443]' : 'text-[#0097b2]'
+                            className={`inline-flex items-center gap-1 text-xs font-bold ${
+                              disponivel ? 'text-[#00D443]' : 'text-red-600'
                             }`}
                           >
-                            {st === 'disponivel' ? 'Disponível' : 'Ocupado'}
+                            {disponivel ? (
+                              <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={3} aria-hidden />
+                            ) : (
+                              <X className="h-3.5 w-3.5 shrink-0" strokeWidth={3} aria-hidden />
+                            )}
+                            {disponivel ? 'Disponível' : 'Ocupado'}
                           </p>
                           <button
                             type="button"
