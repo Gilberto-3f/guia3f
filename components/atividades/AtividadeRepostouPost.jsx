@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
+import GridFotos from '@/components/atividades/GridFotos'
 import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
 /**
@@ -13,6 +14,7 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  *   hrefInteractor: string
  *   postId: string
  *   previewUrl?: string | null
+ *   previewTexto?: string
  *   previewTipo?: 'foto' | 'texto' | 'story'
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
@@ -26,6 +28,7 @@ export default function AtividadeRepostouPost({
   hrefInteractor,
   postId,
   previewUrl = null,
+  previewTexto = '',
   previewTipo = 'texto',
   tempoInteracao = '',
   modoMinhaConta = false,
@@ -35,13 +38,15 @@ export default function AtividadeRepostouPost({
   const router = useRouter()
   const [modal, setModal] = useState(false)
 
+  const ehFoto = previewTipo === 'foto' || previewTipo === 'story'
   const rotuloConteudo =
     previewTipo === 'foto' ? 'sua foto' : previewTipo === 'story' ? 'seu story' : 'seu post'
+  const resumoModal = modoMinhaConta ? `repostou ${rotuloConteudo}` : 'repostou um conteúdo'
 
   return (
     <>
       <div className="min-w-0">
-        <div className="grid min-w-0 grid-cols-[2.5rem_1fr_auto] items-start gap-x-2">
+        <div className="grid min-w-0 grid-cols-[2.5rem_1fr] items-start gap-x-2">
           <div className="flex flex-col items-center gap-0.5">
             <button
               type="button"
@@ -56,7 +61,7 @@ export default function AtividadeRepostouPost({
               </span>
             ) : null}
           </div>
-          <div className="min-w-0 self-center pt-0.5">
+          <div className="min-w-0">
             <p className="text-sm leading-snug text-gray-800">
               <UsuarioHandleVerificado
                 username={interactorUsername}
@@ -64,32 +69,24 @@ export default function AtividadeRepostouPost({
                 verificadoTipo={interactorVerificadoTipo}
                 onClick={() => router.push(hrefInteractor)}
               />{' '}
-              {modoMinhaConta ? (
-                <>repostou {rotuloConteudo}</>
-              ) : (
-                <>repostou um conteúdo</>
-              )}
+              {modoMinhaConta ? <>repostou {rotuloConteudo}</> : <>repostou um conteúdo</>}
             </p>
-          </div>
-          <div className="shrink-0 self-center">
-            {previewUrl ? (
+            {ehFoto && previewUrl ? (
+              <div className="mt-1.5">
+                <GridFotos urls={[previewUrl]} onClickFoto={() => setModal(true)} />
+              </div>
+            ) : null}
+            {!ehFoto ? (
               <button
                 type="button"
                 onClick={() => setModal(true)}
-                className="relative h-12 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100 transition hover:opacity-90"
-                aria-label="Abrir publicação"
+                className="mt-1.5 block min-h-0 w-full text-left"
               >
-                <AvatarImage src={previewUrl} alt="" fill className="object-cover" sizes="36px" />
+                <p className="line-clamp-2 whitespace-pre-wrap text-sm text-gray-800">
+                  {String(previewTexto || '').trimEnd() || '—'}
+                </p>
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setModal(true)}
-                className="text-left text-xs font-medium text-[#0097b2] hover:underline"
-              >
-                Ver
-              </button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -99,7 +96,7 @@ export default function AtividadeRepostouPost({
           onFechar={() => setModal(false)}
           postIds={[postId]}
           interacaoUsuario={interactorUsername}
-          interacaoResumo={modoMinhaConta ? `repostou ${rotuloConteudo}` : 'repostou um conteúdo'}
+          interacaoResumo={resumoModal}
         />
       ) : null}
     </>

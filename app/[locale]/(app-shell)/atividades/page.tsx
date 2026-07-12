@@ -2303,6 +2303,7 @@ export default function AtividadesPage() {
           hrefInteractor={hrefPerfilInteractor(r)}
           postId={origId}
           previewUrl={prevUrl}
+          previewTexto={prevTexto}
           previewTipo={previewTipo}
           tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}

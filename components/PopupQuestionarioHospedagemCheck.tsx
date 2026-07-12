@@ -143,17 +143,19 @@ export default function PopupQuestionarioHospedagemCheck({
         aria-modal="true"
         aria-labelledby="popup-check-hospedagem-titulo"
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-gray-100 bg-white p-4">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <BotaoInfoPopup texto={TEXTO_INFO} ariaLabel="Informação sobre o filtro" />
-            <h2
-              id="popup-check-hospedagem-titulo"
-              className="shrink-0 text-lg font-bold"
-              style={{ color: COR }}
-            >
-              Filtro de Busca
-            </h2>
-            <p className="min-w-0 truncate text-sm text-gray-500">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-2 border-b border-gray-100 bg-white p-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <BotaoInfoPopup texto={TEXTO_INFO} ariaLabel="Informação sobre o filtro" />
+              <h2
+                id="popup-check-hospedagem-titulo"
+                className="text-lg font-bold"
+                style={{ color: COR }}
+              >
+                Filtro de Busca
+              </h2>
+            </div>
+            <p className="mt-0.5 text-sm leading-snug text-gray-500">
               Refine a busca da sua acomodação
             </p>
           </div>
