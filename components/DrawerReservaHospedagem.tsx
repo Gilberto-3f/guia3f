@@ -445,7 +445,6 @@ export default function DrawerReservaHospedagem({
             <p className="truncate text-base font-bold leading-tight text-white">{empresaNome}</p>
             {empresaUsername ? (
               <p className="inline-flex max-w-full items-center gap-1 truncate text-sm leading-tight text-white/80">
-                <span className="truncate">@{empresaUsername}</span>
                 {empresaVerificada ? (
                   <BadgeCheck
                     className="h-3.5 w-3.5 shrink-0 text-white"
@@ -455,6 +454,7 @@ export default function DrawerReservaHospedagem({
                     aria-hidden
                   />
                 ) : null}
+                <span className="truncate">@{empresaUsername}</span>
               </p>
             ) : null}
             <button
@@ -500,8 +500,8 @@ export default function DrawerReservaHospedagem({
               </p>
               {anfitriao.username ? (
                 <p className="mt-0.5 inline-flex max-w-full items-center gap-1 break-words text-sm leading-snug text-[#0097b2]/80">
-                  <span>@{anfitriao.username}</span>
                   {anfitriao.verificado ? <CheckVerificado variant="profissional" /> : null}
+                  <span>@{anfitriao.username}</span>
                 </p>
               ) : null}
             </div>
@@ -734,7 +734,7 @@ export default function DrawerReservaHospedagem({
             </div>
           ) : passo === 2 && selecionada ? (
             <div className="space-y-4 pb-2">
-              <p className="px-4 text-center text-sm font-semibold text-[#001f3f]">
+              <p className="px-4 pt-3 text-center text-sm font-semibold text-[#001f3f]">
                 {rotuloCategoriaImovel(selecionada.categoria_imovel)}
               </p>
               <div className="relative px-6">
