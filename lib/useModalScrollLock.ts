@@ -15,6 +15,11 @@ type ScrollLockSnapshot = {
 let activeLocks = 0
 let snapshot: ScrollLockSnapshot | null = null
 
+/** True enquanto ao menos um modal/popup com scroll lock está aberto. */
+export function isModalScrollLocked() {
+  return activeLocks > 0
+}
+
 const blockTouchMove = (e: TouchEvent) => {
   const target = e.target
   if (!(target instanceof Element)) {

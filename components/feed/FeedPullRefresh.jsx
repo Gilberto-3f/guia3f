@@ -1,12 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { isModalScrollLocked } from '@/lib/useModalScrollLock'
 
 const PULL_MAX = 88
 const PULL_TRIGGER = 56
 
 /**
  * Pull-to-refresh no topo do feed (touch). Não marca posts — só chama `onRefresh`.
+ * Bloqueado enquanto popup/modal do feed estiver aberto (curtidas, comentários, etc.).
  * @param {{ onRefresh: () => void | Promise<void>, disabled?: boolean, children: import('react').ReactNode }} props
  */
 export default function FeedPullRefresh({ onRefresh, disabled = false, children }) {
@@ -17,7 +19,7 @@ export default function FeedPullRefresh({ onRefresh, disabled = false, children 
   const pullDistRef = useRef(0)
 
   const runRefresh = useCallback(async () => {
-    if (disabled || refreshing) return
+    if (disabled || refreshing || isModalScrollLocked()) return
     setRefreshing(true)
     try {
       await onRefresh()
@@ -31,10 +33,22 @@ export default function FeedPullRefresh({ onRefresh, disabled = false, children 
   useEffect(() => {
     if (disabled) return
 
-    const scrollNoTopo = () => (typeof window !== 'undefined' ? window.scrollY : 0) <= 4
+    const scrollNoTopo = () => {
+      if (typeof window === 'undefined') return false
+      // Com modal aberto o body fica `position: fixed` e scrollY ≈ 0 — não tratar como topo do feed.
+      if (isModalScrollLocked()) return false
+      if (document.body.style.position === 'fixed') return false
+      return window.scrollY <= 4
+    }
+
+    const resetPull = () => {
+      pullingRef.current = false
+      pullDistRef.current = 0
+      setPull(0)
+    }
 
     const onTouchStart = (e) => {
-      if (refreshing || !scrollNoTopo()) return
+      if (refreshing || isModalScrollLocked() || !scrollNoTopo()) return
       startYRef.current = e.touches[0]?.clientY ?? 0
       pullingRef.current = true
       pullDistRef.current = 0
@@ -42,10 +56,8 @@ export default function FeedPullRefresh({ onRefresh, disabled = false, children 
 
     const onTouchMove = (e) => {
       if (!pullingRef.current || refreshing) return
-      if (!scrollNoTopo()) {
-        pullingRef.current = false
-        setPull(0)
-        pullDistRef.current = 0
+      if (isModalScrollLocked() || !scrollNoTopo()) {
+        resetPull()
         return
       }
       const y = e.touches[0]?.clientY ?? 0
@@ -60,6 +72,10 @@ export default function FeedPullRefresh({ onRefresh, disabled = false, children 
     const onTouchEnd = () => {
       if (!pullingRef.current) return
       pullingRef.current = false
+      if (isModalScrollLocked()) {
+        resetPull()
+        return
+      }
       const dist = pullDistRef.current
       if (dist >= PULL_TRIGGER) {
         void runRefresh()

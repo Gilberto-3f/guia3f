@@ -213,12 +213,16 @@ function FeedPageInner() {
   }, [])
 
   const enriquecerComVisualizacoes = useCallback(
-    async (lista: PostFeedRow[]): Promise<PostFeedRow[]> => {
-      if (!meuId || lista.length === 0) return ordenarListaFeed(lista)
+    async (
+      lista: PostFeedRow[],
+      opts?: { reordenar?: boolean },
+    ): Promise<PostFeedRow[]> => {
+      const reordenar = opts?.reordenar !== false
+      if (!meuId || lista.length === 0) return reordenar ? ordenarListaFeed(lista) : lista
       const ids = lista.map((p) => p.id).filter(Boolean)
       const fetched = await fetchPostIdsVisualizadosFeed(supabase, meuId, ids)
       for (const id of fetched) postsVistosRef.current.add(id)
-      return ordenarListaFeed(lista)
+      return reordenar ? ordenarListaFeed(lista) : lista
     },
     [meuId, ordenarListaFeed],
   )
@@ -400,7 +404,10 @@ function FeedPageInner() {
   }, [])
 
   const rebuildMergedPosts = useCallback(
-    async (generation: number): Promise<PostFeedRow[]> => {
+    async (
+      generation: number,
+      opts?: { reordenar?: boolean },
+    ): Promise<PostFeedRow[]> => {
       const { seguidos, ready, meuId: uidRef } = feedRedeRef.current as {
         seguidos: string[]
         ready: boolean
@@ -450,7 +457,7 @@ function FeedPageInner() {
         email,
         modoAtivo
       )
-      return enriquecerComVisualizacoes(saneados as PostFeedRow[])
+      return enriquecerComVisualizacoes(saneados as PostFeedRow[], opts)
     },
     [mapRow, meuId, email, modoAtivo, enriquecerComVisualizacoes]
   )
@@ -576,17 +583,25 @@ function FeedPageInner() {
     setLoadingMore(true)
     try {
       mergeGenRef.current += 1
-      const merged = await rebuildMergedPosts(mergeGenRef.current)
-      const nextTotal = posts.length + PAGE_SIZE
-      setPosts(merged.slice(0, nextTotal))
-      setHasMore(merged.length > nextTotal)
+      // Sem reordenar: mantém a sequência já vista; só acrescenta posts novos no fim.
+      const merged = await rebuildMergedPosts(mergeGenRef.current, { reordenar: false })
+      let aindaTemMais = false
+      setPosts((prev) => {
+        const vistos = new Set(prev.map((p) => p.id))
+        const novos = merged.filter((p) => !vistos.has(p.id))
+        const toAdd = novos.slice(0, PAGE_SIZE)
+        aindaTemMais = novos.length > toAdd.length
+        if (toAdd.length === 0) return prev
+        return [...prev, ...toAdd]
+      })
+      setHasMore(aindaTemMais)
       pageRef.current += 1
     } catch (e) {
       console.error(e)
     } finally {
       setLoadingMore(false)
     }
-  }, [rebuildMergedPosts, hasMore, loadingMore, posts.length, bloqueioEmpresaFeed])
+  }, [rebuildMergedPosts, hasMore, loadingMore, bloqueioEmpresaFeed])
 
   /** Pull-to-refresh e reentrada: rebusca posts e reordena com base em visualizações (sem marcar novos). */
   const atualizarFeedComVisualizacao = useCallback(async () => {
