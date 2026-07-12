@@ -1,28 +1,20 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter } from '@/i18n/navigation'
 import MediaFillImage from '@/components/MediaFillImage'
 import { Heart } from 'lucide-react'
 import BotaoDinamico from '@/components/BotaoDinamico'
 import BotaoRecomendar from '@/components/BotaoRecomendar'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
+import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
+import BandeiraPais from '@/components/BandeiraPais'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import { normalizarPlanoSlug } from '@/lib/planosEmpresaServicosGate'
-
-const BANDEIRA_POR_CIDADE = {
-  'Foz do Iguaçu': '🇧🇷',
-  'Foz do Iguacu': '🇧🇷',
-  'Ciudad del Este': '🇵🇾',
-  'Puerto Iguazu': '🇦🇷',
-  'Puerto Iguazú': '🇦🇷',
-}
-
-function bandeiraPorCidade(cidade) {
-  if (!cidade) return ''
-  return BANDEIRA_POR_CIDADE[cidade] ?? ''
-}
+import { supabase } from '@/lib/supabase'
+import { usuarioTemFavorito } from '@/lib/favoritosTurista'
 
 /**
  * @param {{
@@ -68,6 +60,26 @@ export default function CardAtrativo({
   const { perfilEhProfissional, recursosProfissionaisLiberados, loading: gateLoading } =
     useProfissionalGate()
   const { podeComprarReservar } = useGateComprasReservas()
+  const [usuarioId, setUsuarioId] = useState(/** @type {string | null} */ (null))
+  const [favEmpresa, setFavEmpresa] = useState(Boolean(empresa.is_seguindo))
+
+  useEffect(() => {
+    let ativo = true
+    void (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id ?? null
+      if (!ativo) return
+      setUsuarioId(uid)
+      if (!uid || !empresa.id) return
+      const salvo = await usuarioTemFavorito(supabase, uid, empresa.id, 'empresa')
+      if (ativo) setFavEmpresa(salvo)
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [empresa.id])
 
   const empresaVerificada = contaVerificadaDocumentacao('empresa', empresa)
   const planoSlug = normalizarPlanoSlug(empresa.plano ?? '')
@@ -88,27 +100,24 @@ export default function CardAtrativo({
       : empresa.descricao_curta || ''
 
   const username = (empresa?.nome_usuario ?? '').toString().replace(/^@+/, '').trim()
-  const bandeira = bandeiraPorCidade(empresa?.cidade)
 
   return (
     <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-      {/* RODADA 2: username maior e centralizado */}
-      <div className="px-4 pt-4 text-center">
-        {username ? (
-          <div className="flex items-center justify-center gap-1.5 text-lg font-extrabold text-[#0097b2]">
-            {bandeira ? (
-              <span className="text-lg leading-none" aria-hidden>
-                {bandeira}
-              </span>
-            ) : null}
-            <span>@{username}</span>
-          </div>
-        ) : (
-          <div className="h-5" aria-hidden />
-        )}
+      <div className="flex items-center gap-2 px-4 pt-4">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 text-lg font-extrabold text-[#0097b2]">
+          <BandeiraPais cidade={empresa?.cidade} className="text-lg leading-none" />
+          {username ? <span className="truncate">@{username}</span> : <span className="h-5" aria-hidden />}
+        </div>
+        <BotaoEstrelaFavorito
+          usuarioId={usuarioId}
+          alvoId={empresa.id}
+          tipo="empresa"
+          inicial={favEmpresa}
+          size={22}
+          onChange={setFavEmpresa}
+        />
       </div>
 
-      {/* RODADA 2: foto quadrada (alinhada à hero quadrada da página da empresa) */}
       <div className="relative mt-2 aspect-square w-full min-w-0 bg-gray-100">
         {empresa.foto_url ? (
           <MediaFillImage
@@ -122,7 +131,6 @@ export default function CardAtrativo({
       </div>
 
       <div className="px-4 pb-4 pt-3">
-        {/* FIX: nome cor #001f3f */}
         <h3 className="line-clamp-1 text-base font-extrabold text-[#001f3f]">
           <NomeComVerificacao
             nome={String(empresa.nome_fantasia ?? '')}
@@ -132,10 +140,8 @@ export default function CardAtrativo({
           />
         </h3>
 
-        {/* FIX: descrição até 170 chars */}
         {desc ? <p className="mt-1 text-sm text-gray-600">{desc}</p> : null}
 
-        {/* RODADA 2: dois botões lado a lado, mesma largura; texto pode quebrar em 2 linhas */}
         <div className="mt-4 flex min-w-0 gap-2">
           <button
             type="button"

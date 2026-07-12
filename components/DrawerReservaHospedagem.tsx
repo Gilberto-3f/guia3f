@@ -62,6 +62,8 @@ import {
 } from '@/lib/hospedagemCalendario'
 import CalendarioAcomodacao from '@/components/hospedagem/CalendarioAcomodacao'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
+import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
+import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
@@ -184,6 +186,8 @@ export default function DrawerReservaHospedagem({
   const [erro, setErro] = useState<string | null>(null)
   const [painelVisivel, setPainelVisivel] = useState(false)
   const [painelAberto, setPainelAberto] = useState(false)
+  const [visitanteId, setVisitanteId] = useState<string | null>(null)
+  const [favAcomodacoes, setFavAcomodacoes] = useState<Set<string>>(() => new Set())
   const touchFotoX = useRef<number | null>(null)
 
   useModalScrollLock(isOpen || painelVisivel)
@@ -267,6 +271,23 @@ export default function DrawerReservaHospedagem({
       )
       setPeriodosMap(pm)
       setStatusMap(st)
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id ?? null
+      setVisitanteId(uid)
+      if (uid && lista.length > 0) {
+        const favs = await filtrarFavoritoIdsPorUsuario(
+          supabase,
+          uid,
+          'acomodacao',
+          lista.map((a) => a.id),
+        )
+        setFavAcomodacoes(favs)
+      } else {
+        setFavAcomodacoes(new Set())
+      }
 
       const { data: pol } = await supabase
         .from('hospedagem_politicas')
@@ -665,9 +686,26 @@ export default function DrawerReservaHospedagem({
                           idx === 0 ? 'ml-1' : ''
                         }`}
                       >
-                        <p className="px-3 pt-3 text-center text-sm font-semibold text-[#001f3f]">
-                          {rotuloCategoriaImovelCurto(a.categoria_imovel)}
-                        </p>
+                        <div className="flex items-center gap-2 px-3 pt-3">
+                          <BotaoEstrelaFavorito
+                            usuarioId={visitanteId}
+                            alvoId={a.id}
+                            tipo="acomodacao"
+                            inicial={favAcomodacoes.has(a.id)}
+                            size={18}
+                            onChange={(salvo) => {
+                              setFavAcomodacoes((prev) => {
+                                const next = new Set(prev)
+                                if (salvo) next.add(a.id)
+                                else next.delete(a.id)
+                                return next
+                              })
+                            }}
+                          />
+                          <p className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-[#001f3f]">
+                            {rotuloCategoriaImovelCurto(a.categoria_imovel)}
+                          </p>
+                        </div>
                         <div className="mt-2 aspect-[4/3] bg-gray-100">
                           {capa ? (
                             // eslint-disable-next-line @next/next/no-img-element
