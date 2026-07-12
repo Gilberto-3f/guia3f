@@ -123,7 +123,7 @@ export default function PopupQuestionarioHospedagemCheck({
 
   const labelCls = 'block text-xs font-semibold uppercase tracking-wide text-gray-500'
   const inputCls =
-    'mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#0097b2]'
+    'mt-1.5 box-border h-10 w-full rounded-lg border border-gray-200 px-3 text-sm leading-none text-gray-900 outline-none focus:border-[#0097b2]'
 
   return (
     <div
@@ -143,15 +143,20 @@ export default function PopupQuestionarioHospedagemCheck({
       >
         <div className="sticky top-0 z-10 flex items-start justify-between gap-2 border-b border-gray-100 bg-white p-4">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <BotaoInfoPopup texto={TEXTO_INFO} ariaLabel="Informação sobre o questionário" />
-              <h2
-                id="popup-check-hospedagem-titulo"
-                className="text-lg font-bold"
-                style={{ color: COR }}
-              >
-                Procura uma acomodação?
-              </h2>
+            <div className="flex items-start gap-2">
+              <BotaoInfoPopup texto={TEXTO_INFO} ariaLabel="Informação sobre o filtro" />
+              <div className="min-w-0">
+                <h2
+                  id="popup-check-hospedagem-titulo"
+                  className="text-lg font-bold"
+                  style={{ color: COR }}
+                >
+                  Filtro
+                </h2>
+                <p className="mt-0.5 text-sm text-gray-500">
+                  Refine a busca da sua acomodação
+                </p>
+              </div>
             </div>
           </div>
           <button
@@ -166,7 +171,7 @@ export default function PopupQuestionarioHospedagemCheck({
 
         <div className="space-y-4 p-4">
           <label className={labelCls}>
-            Para qual data?
+            Check-in
             <input
               type="date"
               min={hoje}
@@ -214,7 +219,7 @@ export default function PopupQuestionarioHospedagemCheck({
                           <button
                             type="button"
                             onClick={() => toggleComodidade(op.value)}
-                            className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs ${
+                            className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs text-gray-900 ${
                               ativo
                                 ? 'border-[#0097b2] bg-[#0097b2]/10 font-semibold'
                                 : 'border-gray-200 bg-white'

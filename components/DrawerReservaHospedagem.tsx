@@ -435,7 +435,7 @@ export default function DrawerReservaHospedagem({
     >
       <div className="relative px-5 pb-3 pt-1.5 pr-3">
         <div className="flex items-start gap-3.5">
-          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 border-white bg-white/20">
+          <div className="h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-md border-2 border-white bg-white/20">
             {avatarEmpresa ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
@@ -733,7 +733,7 @@ export default function DrawerReservaHospedagem({
               )}
             </div>
           ) : passo === 2 && selecionada ? (
-            <div className="space-y-4 pb-2">
+            <div className="space-y-2 pb-2">
               <p className="px-4 pt-3 text-center text-sm font-semibold text-[#001f3f]">
                 {rotuloCategoriaImovel(selecionada.categoria_imovel)}
               </p>
