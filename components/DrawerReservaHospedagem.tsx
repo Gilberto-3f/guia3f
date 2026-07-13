@@ -314,12 +314,11 @@ export default function DrawerReservaHospedagem({
         setPoliticas(null)
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (session?.user?.id) {
-        const pendente = await buscarReservaPendenteEmpresa(supabase, session.user.id, empresaId)
+      if (uid) {
+        const pendente = await buscarReservaPendenteEmpresa(supabase, uid, empresaId)
         setReservaPendente(Boolean(pendente))
+      } else {
+        setReservaPendente(false)
       }
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao carregar.')
