@@ -10,10 +10,11 @@ import {
   parseTourConfig,
   preloadPanorama,
   sincronizarTourComFotos,
-  tourTemNavegacao,
 } from '@/lib/pannellumTour'
 
 /**
+ * Visitante: panoramas 360° com carrossel de miniaturas (sem hotspots/setas).
+ *
  * @param {{
  *   fotos360Url: string[]
  *   tourConfig: import('@/lib/tour360Types').TourConfig | unknown
@@ -31,17 +32,30 @@ export default function TourPlayer({
 }) {
   const urls = useMemo(
     () => (Array.isArray(fotos360Url) ? fotos360Url.filter((u) => typeof u === 'string' && u.trim()) : []),
-    [fotos360Url]
+    [fotos360Url],
   )
-  const tour = useMemo(() => sincronizarTourComFotos(urls, parseTourConfig(tourConfigRaw)), [tourConfigRaw, urls])
+  const tour = useMemo(
+    () => sincronizarTourComFotos(urls, parseTourConfig(tourConfigRaw)),
+    [tourConfigRaw, urls],
+  )
 
-  const temTour = tour.cenas.length > 0
-  const temNavegacao = tourTemNavegacao(tour)
+  /** Playback simplificado: cada foto 360 é uma cena, sem setas de tour. */
+  const tourPlayback = useMemo(
+    () => ({
+      firstScene: tour.firstScene,
+      cenas: tour.cenas.map((c) => ({ ...c, hotspots: [] })),
+    }),
+    [tour],
+  )
+
+  const temTour = tourPlayback.cenas.length > 0
+  const temVariasCenas = tourPlayback.cenas.length > 1
   const reactDomId = useId().replace(/:/g, '')
   const containerElId = `pannellum-tour-${reactDomId}`
   const viewerRef = useRef(/** @type {import('@/lib/pannellumTour').PannellumViewer | null} */ (null))
   const [fechado, setFechado] = useState(false)
   const [erro, setErro] = useState('')
+  const [cenaAtivaId, setCenaAtivaId] = useState(() => getPrimeiraCena(tourPlayback)?.id ?? null)
 
   const mostrarFullscreen = temTour && !fechado
 
@@ -55,9 +69,20 @@ export default function TourPlayer({
     setErro('')
   }, [])
 
+  const irParaCena = useCallback((cenaId) => {
+    if (!cenaId) return
+    setCenaAtivaId(cenaId)
+    viewerRef.current?.loadScene?.(cenaId)
+    requestAnimationFrame(() => viewerRef.current?.resize?.())
+  }, [])
+
   useEffect(() => {
     if (autoOpen && temTour) setFechado(false)
-  }, [autoOpen, temTour, tour])
+  }, [autoOpen, temTour, tourPlayback])
+
+  useEffect(() => {
+    setCenaAtivaId(getPrimeiraCena(tourPlayback)?.id ?? null)
+  }, [tourPlayback])
 
   useEffect(() => {
     if (!mostrarFullscreen) return
@@ -67,7 +92,7 @@ export default function TourPlayer({
     const run = async () => {
       setErro('')
       try {
-        const primeira = getPrimeiraCena(tour)
+        const primeira = getPrimeiraCena(tourPlayback)
         if (primeira?.url) {
           try {
             await preloadPanorama(primeira.url)
@@ -78,7 +103,7 @@ export default function TourPlayer({
         await loadPannellumAssets()
         if (cancelado) return
         const Pannellum = getPannellum()
-        const config = buildPannellumTourConfig(tour)
+        const config = buildPannellumTourConfig(tourPlayback)
         if (!Pannellum || !config) {
           setErro('Visualizador 360° indisponível.')
           return
@@ -96,15 +121,21 @@ export default function TourPlayer({
         el.innerHTML = ''
         const viewer = Pannellum.viewer(containerElId, config)
         viewerRef.current = viewer
+        setCenaAtivaId(primeira?.id ?? null)
 
         const aposCenaCarregada = () => {
           viewer.resize?.()
         }
+        const onSceneChange = (sceneId) => {
+          if (typeof sceneId === 'string' && sceneId) setCenaAtivaId(sceneId)
+          aposCenaCarregada()
+        }
 
         viewer.on?.('load', aposCenaCarregada)
-        viewer.on?.('scenechange', aposCenaCarregada)
+        viewer.on?.('scenechange', onSceneChange)
+        requestAnimationFrame(() => viewer.resize?.())
       } catch {
-        if (!cancelado) setErro('Não foi possível carregar o tour virtual.')
+        if (!cancelado) setErro('Não foi possível carregar as fotos 360°.')
       }
     }
 
@@ -123,14 +154,14 @@ export default function TourPlayer({
       const el = document.getElementById(containerElId)
       if (el) el.innerHTML = ''
     }
-  }, [mostrarFullscreen, tour, containerElId])
+  }, [mostrarFullscreen, tourPlayback, containerElId])
 
   if (!urls.length) {
     return <p className="py-10 text-center text-sm text-gray-500">Nenhuma imagem 360° cadastrada</p>
   }
 
   if (!temTour) {
-    return <p className="py-10 text-center text-sm text-gray-500">Nenhum tour virtual cadastrado</p>
+    return <p className="py-10 text-center text-sm text-gray-500">Nenhuma foto 360° disponível</p>
   }
 
   if (fechado) {
@@ -138,13 +169,13 @@ export default function TourPlayer({
       <div className="px-3 py-4">
         {painelAntesIniciar}
         <div className="text-center">
-          <p className="mb-3 text-sm font-medium text-[#001f3f]">{temNavegacao ? 'Tour Virtual' : 'Vista 360°'}</p>
+          <p className="mb-3 text-sm font-medium text-[#001f3f]">Fotos 360°</p>
           <button
             type="button"
             onClick={reabrir}
             className="rounded-lg bg-[#0097b2] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95"
           >
-            {temNavegacao ? 'Iniciar Tour Virtual' : 'Abrir Vista 360°'}
+            Abrir Fotos 360°
           </button>
         </div>
       </div>
@@ -156,7 +187,7 @@ export default function TourPlayer({
       className="fixed inset-0 z-[140] flex flex-col bg-black"
       role="dialog"
       aria-modal="true"
-      aria-label="Tour virtual 360 graus"
+      aria-label="Fotos 360 graus"
     >
       <button
         type="button"
@@ -173,10 +204,39 @@ export default function TourPlayer({
       ) : (
         <>
           <div id={containerElId} className="h-full w-full min-h-0 flex-1" />
-          {temNavegacao ? (
-            <p className="pointer-events-none absolute bottom-4 left-0 right-0 z-20 px-4 text-center text-xs text-white/90 drop-shadow">
-              Toque nas setas para ir ao próximo ambiente
-            </p>
+          {temVariasCenas ? (
+            <div className="z-20 shrink-0 border-t border-white/15 bg-black/95 pb-safe">
+              <p className="px-3 pt-2 text-center text-[11px] font-medium text-white/70">
+                Toque em uma foto para navegar
+              </p>
+              <div
+                className="flex gap-2 overflow-x-auto px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                role="listbox"
+                aria-label="Outras fotos 360"
+              >
+                {tourPlayback.cenas.map((cena, index) => {
+                  const ativa = cena.id === cenaAtivaId
+                  return (
+                    <button
+                      key={cena.id}
+                      type="button"
+                      role="option"
+                      aria-selected={ativa}
+                      onClick={() => irParaCena(cena.id)}
+                      className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border-2 transition ${
+                        ativa
+                          ? 'border-[#00D443] opacity-100'
+                          : 'border-white/30 opacity-80 hover:opacity-100'
+                      }`}
+                      aria-label={cena.label?.trim() || `Foto 360 ${index + 1}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={cena.url} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           ) : null}
         </>
       )}
