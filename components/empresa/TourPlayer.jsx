@@ -184,7 +184,7 @@ export default function TourPlayer({
 
   return (
     <div
-      className="fixed inset-0 z-[140] flex flex-col bg-black"
+      className="tour-player-fullscreen fixed inset-0 z-[140] flex flex-col bg-black"
       role="dialog"
       aria-modal="true"
       aria-label="Fotos 360 graus"
@@ -192,7 +192,8 @@ export default function TourPlayer({
       <button
         type="button"
         onClick={fechar}
-        className="absolute right-3 top-3 z-20 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
+        className="absolute right-3 z-20 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
+        style={{ top: 'max(2.75rem, calc(env(safe-area-inset-top, 0px) + 0.75rem))' }}
         aria-label="Fechar"
       >
         <X className="h-6 w-6" aria-hidden />
@@ -205,12 +206,15 @@ export default function TourPlayer({
         <>
           <div id={containerElId} className="h-full w-full min-h-0 flex-1" />
           {temVariasCenas ? (
-            <div className="z-20 shrink-0 border-t border-white/15 bg-black/95 pb-safe">
-              <p className="px-3 pt-2 text-center text-[11px] font-medium text-white/70">
+            <div
+              className="z-20 shrink-0 border-t border-white/15 bg-black/95 pt-1"
+              style={{ paddingBottom: 'max(0.35rem, env(safe-area-inset-bottom, 0px))' }}
+            >
+              <p className="px-3 pb-0.5 text-center text-[10px] font-medium leading-tight text-white/65">
                 Toque em uma foto para navegar
               </p>
               <div
-                className="flex gap-2 overflow-x-auto px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className="flex gap-1.5 overflow-x-auto px-3 pb-1 pt-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 role="listbox"
                 aria-label="Outras fotos 360"
               >
@@ -223,7 +227,7 @@ export default function TourPlayer({
                       role="option"
                       aria-selected={ativa}
                       onClick={() => irParaCena(cena.id)}
-                      className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border-2 transition ${
+                      className={`relative h-10 w-14 shrink-0 overflow-hidden rounded-md border-2 transition ${
                         ativa
                           ? 'border-[#00D443] opacity-100'
                           : 'border-white/30 opacity-80 hover:opacity-100'

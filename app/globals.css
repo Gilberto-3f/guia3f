@@ -143,6 +143,11 @@ body {
   }
 }
 
+/* Fotos 360 visitante: controles (+/−/bússola) abaixo da status bar nativa */
+.tour-player-fullscreen .pnlm-controls-container {
+  top: max(2.75rem, calc(env(safe-area-inset-top, 0px) + 0.75rem)) !important;
+}
+
 /* Pannellum: pnlm-hotspot-base + tour-nav-hotspot (cssClass custom) */
 .pnlm-hotspot-base.tour-nav-hotspot,
 .pnlm-hotspot.tour-nav-hotspot {
