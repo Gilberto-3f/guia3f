@@ -17,9 +17,27 @@ export type AcomodacaoFavoritaCard = {
   categoria_imovel: string | null
   categoria_particular: string | null
   opcao_compartilhada: string | null
+  capacidade_pessoas: number | null
   valor_diaria: number | null
   foto_url: string | null
   empresa_nome: string | null
+}
+
+export type ProdutoFavoritoCard = {
+  id: string
+  titulo: string
+  foto_url: string | null
+  preco: number | null
+}
+
+export type TicketFavoritoCard = {
+  id: string
+  titulo: string
+  foto_url: string | null
+  empresa_id: string | null
+  empresa_nome: string | null
+  preco_inteira: number | null
+  preco_meia: number | null
 }
 
 function payloadAlvo(usuarioId: string, alvoId: string, tipo: FavoritoAlvoTipo) {
@@ -173,7 +191,11 @@ export async function listarEmpresasFavoritas(
     .select('id, nome_fantasia, nome_usuario, foto_url, cidade')
     .in('id', ids)
 
-  if (error || !data?.length) return []
+  if (error) {
+    console.error('[favoritosTurista] listarEmpresasFavoritas:', error.message)
+    return []
+  }
+  if (!data?.length) return []
 
   const byId = new Map(data.map((e) => [String(e.id), e]))
   return ids
@@ -198,35 +220,121 @@ export async function listarAcomodacoesFavoritas(
   const { data, error } = await supabase
     .from('hospedagem_acomodacoes')
     .select(
-      'id, empresa_id, categoria_imovel, categoria_particular, opcao_compartilhada, valor_diaria, fotos, empresas ( nome_fantasia )',
+      'id, empresa_id, categoria_imovel, categoria_particular, opcao_compartilhada, capacidade_pessoas, valor_diaria, fotos',
     )
     .in('id', ids)
 
-  if (error || !data?.length) return []
+  if (error) {
+    console.error('[favoritosTurista] listarAcomodacoesFavoritas:', error.message)
+    return []
+  }
+  if (!data?.length) return []
+
+  const empresaIds = [
+    ...new Set(data.map((a) => String(a.empresa_id ?? '').trim()).filter(Boolean)),
+  ]
+  const nomePorEmpresa = new Map<string, string>()
+  if (empresaIds.length) {
+    const { data: emps } = await supabase
+      .from('empresas')
+      .select('id, nome_fantasia')
+      .in('id', empresaIds)
+    for (const e of emps ?? []) {
+      nomePorEmpresa.set(String(e.id), String(e.nome_fantasia ?? ''))
+    }
+  }
 
   const byId = new Map(data.map((a) => [String(a.id), a]))
   return ids
     .map((id) => byId.get(id))
     .filter(Boolean)
     .map((a) => {
-      const empRaw = a!.empresas as
-        | { nome_fantasia?: string }
-        | { nome_fantasia?: string }[]
-        | null
-      const emp = Array.isArray(empRaw) ? empRaw[0] : empRaw
       const fotos = Array.isArray(a!.fotos) ? a!.fotos : []
       const foto = fotos.find((f) => typeof f === 'string' && f.trim()) ?? null
+      const empId = String(a!.empresa_id ?? '')
       return {
         id: String(a!.id),
-        empresa_id: String(a!.empresa_id ?? ''),
+        empresa_id: empId,
         categoria_imovel: a!.categoria_imovel != null ? String(a!.categoria_imovel) : null,
         categoria_particular:
           a!.categoria_particular != null ? String(a!.categoria_particular) : null,
         opcao_compartilhada:
           a!.opcao_compartilhada != null ? String(a!.opcao_compartilhada) : null,
+        capacidade_pessoas:
+          a!.capacidade_pessoas != null ? Number(a!.capacidade_pessoas) : null,
         valor_diaria: a!.valor_diaria != null ? Number(a!.valor_diaria) : null,
         foto_url: foto != null ? String(foto) : null,
-        empresa_nome: emp?.nome_fantasia != null ? String(emp.nome_fantasia) : null,
+        empresa_nome: nomePorEmpresa.get(empId) || null,
+      }
+    })
+}
+
+/** Base pronta — Compras Paraguai (produtos). */
+export async function listarProdutosFavoritos(
+  supabase: SupabaseClient,
+  usuarioId: string,
+): Promise<ProdutoFavoritoCard[]> {
+  const ids = await listarAlvoIdsFavoritos(supabase, usuarioId, 'produto')
+  if (!ids.length) return []
+  // Módulo Compras Paraguai ainda não popula cards; IDs ficam salvos para wire depois.
+  void supabase
+  return ids.map((id) => ({
+    id,
+    titulo: 'Produto',
+    foto_url: null,
+    preco: null,
+  }))
+}
+
+/** Base pronta — tickets de atrativos (experiências). */
+export async function listarTicketsFavoritos(
+  supabase: SupabaseClient,
+  usuarioId: string,
+): Promise<TicketFavoritoCard[]> {
+  const ids = await listarAlvoIdsFavoritos(supabase, usuarioId, 'ticket')
+  if (!ids.length) return []
+
+  const { data, error } = await supabase
+    .from('atrativos_experiencias')
+    .select('id, empresa_id, titulo, fotos, preco_inteira, preco_meia')
+    .in('id', ids)
+
+  if (error) {
+    console.error('[favoritosTurista] listarTicketsFavoritos:', error.message)
+    return []
+  }
+  if (!data?.length) return []
+
+  const empresaIds = [
+    ...new Set(data.map((t) => String(t.empresa_id ?? '').trim()).filter(Boolean)),
+  ]
+  const nomePorEmpresa = new Map<string, string>()
+  if (empresaIds.length) {
+    const { data: emps } = await supabase
+      .from('empresas')
+      .select('id, nome_fantasia')
+      .in('id', empresaIds)
+    for (const e of emps ?? []) {
+      nomePorEmpresa.set(String(e.id), String(e.nome_fantasia ?? ''))
+    }
+  }
+
+  const byId = new Map(data.map((t) => [String(t.id), t]))
+  return ids
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+    .map((t) => {
+      const fotos = Array.isArray(t!.fotos) ? t!.fotos : []
+      const foto = fotos.find((f) => typeof f === 'string' && f.trim()) ?? null
+      const empId = t!.empresa_id != null ? String(t!.empresa_id) : null
+      return {
+        id: String(t!.id),
+        titulo: String(t!.titulo ?? 'Atrativo'),
+        foto_url: foto != null ? String(foto) : null,
+        empresa_id: empId,
+        empresa_nome: empId ? nomePorEmpresa.get(empId) || null : null,
+        preco_inteira: t!.preco_inteira != null ? Number(t!.preco_inteira) : null,
+        preco_meia: t!.preco_meia != null ? Number(t!.preco_meia) : null,
       }
     })
 }

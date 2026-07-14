@@ -8,6 +8,8 @@ export function payloadFavoritoEmpresa(usuarioId: string, empresaId: string) {
     usuario_id: usuarioId,
     alvo_id: empresaId,
     alvo_tipo: TIPO_EMPRESA,
+    // Compatível com schema legado que ainda exige empresa_id preenchido.
+    empresa_id: empresaId,
   }
 }
 

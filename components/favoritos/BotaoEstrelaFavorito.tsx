@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 import { Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { toggleFavorito, type FavoritoAlvoTipo } from '@/lib/favoritosTurista'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 
 type Props = {
   usuarioId: string | null
@@ -15,7 +16,7 @@ type Props = {
   onChange?: (salvo: boolean) => void
 }
 
-/** Estrela de favorito (azul logo). Clique salva/remove no guia do turista. */
+/** Estrela de favorito (azul logo). Só para perfil turista — página /favoritos. */
 export default function BotaoEstrelaFavorito({
   usuarioId,
   alvoId,
@@ -25,6 +26,7 @@ export default function BotaoEstrelaFavorito({
   size = 20,
   onChange,
 }: Props) {
+  const { perfilEhTurista, loading: gateLoading } = useProfissionalGate()
   const [salvo, setSalvo] = useState(inicial)
   const [busy, setBusy] = useState(false)
 
@@ -36,7 +38,7 @@ export default function BotaoEstrelaFavorito({
     async (e: MouseEvent) => {
       e.preventDefault()
       e.stopPropagation()
-      if (!usuarioId || !alvoId || busy) return
+      if (!usuarioId || !alvoId || busy || !perfilEhTurista) return
       setBusy(true)
       const prev = salvo
       setSalvo(!prev)
@@ -51,10 +53,10 @@ export default function BotaoEstrelaFavorito({
         setBusy(false)
       }
     },
-    [usuarioId, alvoId, tipo, busy, salvo, onChange],
+    [usuarioId, alvoId, tipo, busy, salvo, onChange, perfilEhTurista],
   )
 
-  if (!usuarioId) return null
+  if (gateLoading || !perfilEhTurista || !usuarioId) return null
 
   return (
     <button

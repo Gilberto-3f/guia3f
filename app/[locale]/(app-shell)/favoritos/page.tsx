@@ -9,10 +9,20 @@ import { supabase } from '@/lib/supabase'
 import {
   listarAcomodacoesFavoritas,
   listarEmpresasFavoritas,
+  listarProdutosFavoritos,
+  listarTicketsFavoritos,
   type AcomodacaoFavoritaCard,
   type EmpresaFavoritaCard,
+  type ProdutoFavoritoCard,
+  type TicketFavoritoCard,
 } from '@/lib/favoritosTurista'
-import { rotuloCategoriaImovelCurto } from '@/lib/hospedagemAcomodacoesCatalogo'
+import {
+  rotuloCategoriaImovelCurto,
+  rotuloCategoriaParticularCurto,
+  rotuloOpcaoCompartilhadaCurto,
+  tipoCategoriaImovel,
+} from '@/lib/hospedagemAcomodacoesCatalogo'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 
 const COR = '#0097b2'
 
@@ -23,12 +33,30 @@ type Pastas = {
   empresas: boolean
 }
 
+function rotuloAcomodacaoFavorita(a: AcomodacaoFavoritaCard): string | null {
+  const tipo = tipoCategoriaImovel(String(a.categoria_imovel ?? ''))
+  const cat =
+    tipo === 'particular'
+      ? rotuloCategoriaParticularCurto(a.categoria_particular)
+      : tipo === 'compartilhado'
+        ? rotuloOpcaoCompartilhadaCurto(a.opcao_compartilhada)
+        : ''
+  const qtd = Number(a.capacidade_pessoas) || 0
+  if (cat && qtd > 0) return `${cat} · ${qtd} ${qtd === 1 ? 'pessoa' : 'pessoas'}`
+  if (cat) return cat
+  if (qtd > 0) return `${qtd} ${qtd === 1 ? 'pessoa' : 'pessoas'}`
+  return null
+}
+
 export default function FavoritosPage() {
   const router = useRouter()
+  const { perfilEhTurista, loading: gateLoading } = useProfissionalGate()
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [empresas, setEmpresas] = useState<EmpresaFavoritaCard[]>([])
   const [acomodacoes, setAcomodacoes] = useState<AcomodacaoFavoritaCard[]>([])
+  const [produtos, setProdutos] = useState<ProdutoFavoritoCard[]>([])
+  const [tickets, setTickets] = useState<TicketFavoritoCard[]>([])
   const [pastas, setPastas] = useState<Pastas>({
     compras: false,
     tickets: false,
@@ -51,14 +79,20 @@ export default function FavoritosPage() {
       if (!uid) {
         setEmpresas([])
         setAcomodacoes([])
+        setProdutos([])
+        setTickets([])
         return
       }
-      const [emps, acoms] = await Promise.all([
+      const [emps, acoms, prods, ticks] = await Promise.all([
         listarEmpresasFavoritas(supabase, uid),
         listarAcomodacoesFavoritas(supabase, uid),
+        listarProdutosFavoritos(supabase, uid),
+        listarTicketsFavoritos(supabase, uid),
       ])
       setEmpresas(emps)
       setAcomodacoes(acoms)
+      setProdutos(prods)
+      setTickets(ticks)
     } finally {
       setLoading(false)
     }
@@ -70,8 +104,15 @@ export default function FavoritosPage() {
 
   useEffect(() => {
     const onFocus = () => void carregar()
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void carregar()
+    }
     window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [carregar])
 
   return (
@@ -81,10 +122,14 @@ export default function FavoritosPage() {
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 pb-24">
-        {loading ? (
+        {loading || gateLoading ? (
           <p className="py-10 text-center text-sm text-gray-500">Carregando favoritos…</p>
         ) : !usuarioId ? (
           <p className="py-10 text-center text-sm text-gray-500">Faça login para ver seus favoritos.</p>
+        ) : !perfilEhTurista ? (
+          <p className="py-10 text-center text-sm text-gray-500">
+            Favoritos está disponível apenas para o perfil turista.
+          </p>
         ) : (
           <>
             <ChevronPasta
@@ -94,9 +139,22 @@ export default function FavoritosPage() {
               aberto={pastas.compras}
               onToggle={() => toggle('compras')}
             >
-              <p className="text-center text-sm text-gray-500">
-                Em breve: produtos salvos em Compras Paraguai.
-              </p>
+              {produtos.length === 0 ? (
+                <p className="text-center text-sm text-gray-500">
+                  Em breve: produtos salvos em Compras Paraguai.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {produtos.map((p) => (
+                    <li
+                      key={p.id}
+                      className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm font-semibold text-[#001f3f]"
+                    >
+                      {p.titulo}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </ChevronPasta>
 
             <ChevronPasta
@@ -106,9 +164,35 @@ export default function FavoritosPage() {
               aberto={pastas.tickets}
               onToggle={() => toggle('tickets')}
             >
-              <p className="text-center text-sm text-gray-500">
-                Em breve: atrativos salvos no botão dinâmico.
-              </p>
+              {tickets.length === 0 ? (
+                <p className="text-center text-sm text-gray-500">
+                  Em breve: atrativos salvos no botão dinâmico.
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {tickets.map((t) => (
+                    <li
+                      key={t.id}
+                      className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                    >
+                      <div className="flex gap-3 p-3">
+                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                          {t.foto_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={t.foto_url} alt="" className="h-full w-full object-cover" />
+                          ) : null}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-[#001f3f]">{t.titulo}</p>
+                          {t.empresa_nome ? (
+                            <p className="truncate text-xs text-gray-500">{t.empresa_nome}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </ChevronPasta>
 
             <ChevronPasta
@@ -124,45 +208,51 @@ export default function FavoritosPage() {
                 </p>
               ) : (
                 <ul className="space-y-3">
-                  {acomodacoes.map((a) => (
-                    <li
-                      key={a.id}
-                      className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
-                    >
-                      <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">
-                        {rotuloCategoriaImovelCurto(a.categoria_imovel) || 'Acomodação'}
-                        {a.empresa_nome ? (
-                          <span className="font-normal text-gray-500"> · {a.empresa_nome}</span>
-                        ) : null}
-                      </p>
-                      <div className="mt-2 aspect-[4/3] bg-gray-100">
-                        {a.foto_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={a.foto_url} alt="" className="h-full w-full object-cover" />
-                        ) : null}
-                      </div>
-                      <div className="p-3">
-                        {a.valor_diaria != null ? (
-                          <p className="text-sm font-bold text-[#0097b2]">
-                            {a.valor_diaria.toLocaleString('pt-BR', {
-                              style: 'currency',
-                              currency: 'BRL',
-                            })}
-                            <span className="font-normal text-gray-500"> / diária</span>
-                          </p>
-                        ) : null}
-                        {a.empresa_id ? (
-                          <button
-                            type="button"
-                            onClick={() => router.push(`/empresa/${a.empresa_id}`)}
-                            className="mt-2 w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
-                          >
-                            Ver empresa
-                          </button>
-                        ) : null}
-                      </div>
-                    </li>
-                  ))}
+                  {acomodacoes.map((a) => {
+                    const sub = rotuloAcomodacaoFavorita(a)
+                    return (
+                      <li
+                        key={a.id}
+                        className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                      >
+                        <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">
+                          {rotuloCategoriaImovelCurto(a.categoria_imovel) || 'Acomodação'}
+                        </p>
+                        <div className="mt-2 aspect-[4/3] bg-gray-100">
+                          {a.foto_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={a.foto_url} alt="" className="h-full w-full object-cover" />
+                          ) : null}
+                        </div>
+                        <div className="space-y-2 p-3">
+                          {sub ? (
+                            <p className="text-sm font-semibold text-[#001f3f]">{sub}</p>
+                          ) : null}
+                          {a.empresa_nome ? (
+                            <p className="truncate text-xs text-gray-500">{a.empresa_nome}</p>
+                          ) : null}
+                          {a.valor_diaria != null ? (
+                            <p className="text-sm font-bold text-[#0097b2]">
+                              {a.valor_diaria.toLocaleString('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              })}
+                              <span className="font-normal text-gray-500"> / diária</span>
+                            </p>
+                          ) : null}
+                          {a.empresa_id ? (
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/empresa/${a.empresa_id}`)}
+                              className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
+                            >
+                              Ver empresa
+                            </button>
+                          ) : null}
+                        </div>
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </ChevronPasta>
@@ -196,7 +286,7 @@ export default function FavoritosPage() {
                               />
                             ) : null}
                           </div>
-                          <div className="min-w-0 flex-1 pr-1">
+                          <div className="min-w-0 flex-1 overflow-hidden pr-1">
                             <p className="truncate text-sm font-bold leading-tight text-white">
                               {e.nome_fantasia}
                             </p>
