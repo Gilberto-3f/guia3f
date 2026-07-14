@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { payloadFavoritoEmpresa, deletarFavoritoEmpresa } from '@/lib/favoritosEmpresa'
+import { deletarFavoritoEmpresa } from '@/lib/favoritosEmpresa'
 
 export type FavoritoAlvoTipo = 'empresa' | 'acomodacao' | 'produto' | 'ticket'
 
@@ -104,15 +104,14 @@ export async function adicionarFavorito(
   alvoId: string,
   tipo: FavoritoAlvoTipo,
 ): Promise<void> {
-  if (tipo === 'empresa') {
-    const { error } = await supabase
-      .from('favoritos')
-      .insert(payloadFavoritoEmpresa(usuarioId, alvoId))
-    if (error) throw error
-    return
+  const payload = payloadAlvo(usuarioId, alvoId, tipo)
+  const { error } = await supabase.from('favoritos').insert(payload)
+  if (error) {
+    // Duplicata: trata como já favoritado
+    if (error.code === '23505') return
+    console.error('[favoritosTurista] adicionarFavorito:', error.message, payload)
+    throw error
   }
-  const { error } = await supabase.from('favoritos').insert(payloadAlvo(usuarioId, alvoId, tipo))
-  if (error) throw error
 }
 
 export async function removerFavorito(

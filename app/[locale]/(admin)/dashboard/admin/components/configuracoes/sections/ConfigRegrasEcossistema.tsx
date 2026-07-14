@@ -167,7 +167,7 @@ export function ConfigRegrasEcossistema({
   return (
     <div className="space-y-3">
       {podeEditar ? (
-        <div className="flex justify-end">
+        <div className="flex justify-center">
           <button
             type="button"
             onClick={criar}

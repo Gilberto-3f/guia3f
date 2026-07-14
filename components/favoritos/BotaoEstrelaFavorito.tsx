@@ -49,6 +49,8 @@ export default function BotaoEstrelaFavorito({
       } catch (err) {
         console.error('[BotaoEstrelaFavorito]', err)
         setSalvo(prev)
+        const msg = err instanceof Error ? err.message : 'Não foi possível salvar o favorito.'
+        window.alert(msg)
       } finally {
         setBusy(false)
       }

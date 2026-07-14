@@ -2,14 +2,12 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 const TIPO_EMPRESA = 'empresa'
 
-/** Payload de insert: schema `favoritos` com `alvo_id` + `alvo_tipo` (sem `empresa_id`). */
+/** Payload de insert: schema remoto usa só `alvo_id` + `alvo_tipo` (sem `empresa_id`). */
 export function payloadFavoritoEmpresa(usuarioId: string, empresaId: string) {
   return {
     usuario_id: usuarioId,
     alvo_id: empresaId,
     alvo_tipo: TIPO_EMPRESA,
-    // Compatível com schema legado que ainda exige empresa_id preenchido.
-    empresa_id: empresaId,
   }
 }
 
