@@ -686,6 +686,9 @@ export default function DrawerReservaHospedagem({
                         }`}
                       >
                         <div className="flex items-center gap-2 px-3 pt-3">
+                          <p className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-[#001f3f]">
+                            {rotuloCategoriaImovelCurto(a.categoria_imovel)}
+                          </p>
                           <BotaoEstrelaFavorito
                             usuarioId={visitanteId}
                             alvoId={a.id}
@@ -701,9 +704,6 @@ export default function DrawerReservaHospedagem({
                               })
                             }}
                           />
-                          <p className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-[#001f3f]">
-                            {rotuloCategoriaImovelCurto(a.categoria_imovel)}
-                          </p>
                         </div>
                         <div className="mt-2 aspect-[4/3] bg-gray-100">
                           {capa ? (
@@ -744,7 +744,7 @@ export default function DrawerReservaHospedagem({
                                   ? 'Indisponível em breve'
                                   : 'Ocupado'}
                             </p>
-                            {nota && !indisponivelEmBreve ? (
+                            {nota ? (
                               <p className="inline-flex items-center gap-1 text-xs font-bold text-amber-500">
                                 ★ {nota}
                               </p>
