@@ -169,7 +169,7 @@ export default function FavoritosPage() {
             >
               {tickets.length === 0 ? (
                 <p className="text-center text-sm text-gray-500">
-                  Em breve: atrativos salvos no botão dinâmico.
+                  Nenhum ticket salvo ainda.
                 </p>
               ) : (
                 <ul className="space-y-3">

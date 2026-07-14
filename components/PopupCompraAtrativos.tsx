@@ -7,6 +7,8 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
+import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
+import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import {
@@ -17,6 +19,14 @@ import {
   type FormasPagamentoHospedagem,
   type TipoTicketAtrativo,
 } from '@/lib/atrativosCatalogo'
+
+function rotuloEntrada(q: number): string {
+  return q === 1 ? '1 entrada' : `${q} entradas`
+}
+
+function rotuloMeiaEntrada(q: number): string {
+  return q === 1 ? '1 meia-entrada' : `${q} meia-entradas`
+}
 
 type ItemCarrinho = {
   key: string
@@ -58,10 +68,16 @@ function formasDisponiveis(fp: FormasPagamentoHospedagem): { key: string; label:
 function MiniCardCompra({
   item,
   regrasMeia,
+  visitanteId,
+  favoritoInicial,
+  onFavoritoChange,
   onAdd,
 }: {
   item: AtrativoExperienciaRow
   regrasMeia: string
+  visitanteId: string | null
+  favoritoInicial: boolean
+  onFavoritoChange: (salvo: boolean) => void
   onAdd: (tipo: TipoTicketAtrativo, qty: number) => void
 }) {
   const tipos = useMemo(() => {
@@ -71,21 +87,54 @@ function MiniCardCompra({
     return t
   }, [item.oferece_inteira, item.oferece_meia])
   const [tipo, setTipo] = useState<TipoTicketAtrativo>(tipos[0] ?? 'inteira')
-  const [qty, setQty] = useState(1)
+  const [qtyInteira, setQtyInteira] = useState(item.oferece_inteira ? 1 : 0)
+  const [qtyMeia, setQtyMeia] = useState(item.oferece_inteira ? 0 : item.oferece_meia ? 1 : 0)
   const [fotoIdx, setFotoIdx] = useState(0)
 
   useEffect(() => {
     if (!tipos.includes(tipo) && tipos[0]) setTipo(tipos[0])
   }, [item.id, tipos, tipo])
 
-  const preco =
-    tipo === 'inteira' ? Number(item.preco_inteira) || 0 : Number(item.preco_meia) || 0
+  useEffect(() => {
+    setQtyInteira(item.oferece_inteira ? 1 : 0)
+    setQtyMeia(item.oferece_inteira ? 0 : item.oferece_meia ? 1 : 0)
+    setFotoIdx(0)
+  }, [item.id, item.oferece_inteira, item.oferece_meia])
+
+  const qtyAtual = tipo === 'inteira' ? qtyInteira : qtyMeia
+  const setQtyAtual = (next: number) => {
+    if (tipo === 'inteira') setQtyInteira(next)
+    else setQtyMeia(next)
+  }
+
+  const valorCompra =
+    (Number(item.preco_inteira) || 0) * qtyInteira + (Number(item.preco_meia) || 0) * qtyMeia
+  const totalTickets = qtyInteira + qtyMeia
   const fotos = item.fotos.length ? item.fotos : []
 
+  const handleAdd = () => {
+    if (qtyInteira > 0) onAdd('inteira', qtyInteira)
+    if (qtyMeia > 0) onAdd('meia', qtyMeia)
+  }
+
   return (
-    <article className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="flex items-center gap-2 px-3 pt-3">
+        <p className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-[#001f3f]">
+          {item.titulo}
+        </p>
+        <BotaoEstrelaFavorito
+          usuarioId={visitanteId}
+          alvoId={item.id}
+          tipo="ticket"
+          inicial={favoritoInicial}
+          size={18}
+          onChange={onFavoritoChange}
+        />
+      </div>
+
       {fotos.length > 0 ? (
-        <div className="relative aspect-[16/10] bg-gray-100">
+        <div className="relative mt-2 aspect-[4/3] bg-gray-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={fotos[fotoIdx] ?? fotos[0]}
@@ -106,11 +155,11 @@ function MiniCardCompra({
             </div>
           ) : null}
         </div>
-      ) : null}
+      ) : (
+        <div className="mt-2 aspect-[4/3] bg-gray-100" />
+      )}
 
-      <div className="space-y-3 p-4">
-        <h3 className="text-base font-bold text-[#001f3f]">{item.titulo}</h3>
-
+      <div className="space-y-3 p-3">
         {tipos.length > 0 ? (
           <div className="flex gap-2">
             {tipos.map((t) => {
@@ -145,18 +194,21 @@ function MiniCardCompra({
         ) : null}
 
         <div className="flex items-center justify-center gap-3">
+          <span className="text-sm font-semibold text-[#001f3f]">Tickets</span>
           <button
             type="button"
-            onClick={() => setQty((q) => Math.max(1, q - 1))}
+            onClick={() => setQtyAtual(Math.max(0, qtyAtual - 1))}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-bold text-[#0097b2]"
             aria-label="Diminuir"
           >
             −
           </button>
-          <span className="min-w-[2rem] text-center text-lg font-bold text-[#0097b2]">{qty}</span>
+          <span className="min-w-[2rem] text-center text-lg font-bold text-[#0097b2]">
+            {qtyAtual}
+          </span>
           <button
             type="button"
-            onClick={() => setQty((q) => q + 1)}
+            onClick={() => setQtyAtual(qtyAtual + 1)}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-bold text-[#0097b2]"
             aria-label="Aumentar"
           >
@@ -164,14 +216,24 @@ function MiniCardCompra({
           </button>
         </div>
 
+        {totalTickets > 0 ? (
+          <div className="text-center text-sm font-medium text-gray-700">
+            {qtyInteira > 0 ? <p>{rotuloEntrada(qtyInteira)}</p> : null}
+            {qtyMeia > 0 ? <p>{rotuloMeiaEntrada(qtyMeia)}</p> : null}
+          </div>
+        ) : (
+          <p className="text-center text-sm text-gray-400">Nenhum ingresso selecionado</p>
+        )}
+
         <p className="text-center text-sm font-semibold text-[#0097b2]">
-          Subtotal: {formatarPrecoTicket(preco * qty)}
+          Valor da Compra: {formatarPrecoTicket(valorCompra)}
         </p>
 
         <button
           type="button"
-          onClick={() => onAdd(tipo, qty)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0097b2] py-3 text-sm font-bold text-white"
+          disabled={totalTickets === 0}
+          onClick={handleAdd}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0097b2] py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-400"
         >
           <ShoppingCart className="h-4 w-4" aria-hidden />
           ADICIONAR NO CARRINHO
@@ -207,6 +269,8 @@ export default function PopupCompraAtrativos({
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
   const [formaPagamento, setFormaPagamento] = useState<string>('')
   const [toast, setToast] = useState<string | null>(null)
+  const [visitanteId, setVisitanteId] = useState<string | null>(null)
+  const [favTickets, setFavTickets] = useState<Set<string>>(() => new Set())
 
   useModalScrollLock(isOpen)
 
@@ -223,14 +287,33 @@ export default function PopupCompraAtrativos({
         supabase.from('atrativos_politicas').select('*').eq('empresa_id', empresaId).maybeSingle(),
       ])
       if (expRes.error) throw expRes.error
-      setLista((expRes.data ?? []).map((r) => mapExperienciaRow(r as Record<string, unknown>)))
+      const mapped = (expRes.data ?? []).map((r) => mapExperienciaRow(r as Record<string, unknown>))
+      setLista(mapped)
       const fp = parseFormasPagamento(polRes.data?.formas_pagamento)
       setFormas(fp)
       setRegrasMeia(String(polRes.data?.regras_meia_entrada ?? ''))
       const disponiveis = formasDisponiveis(fp)
       setFormaPagamento(disponiveis[0]?.key ?? '')
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id ?? null
+      setVisitanteId(uid)
+      if (uid && mapped.length > 0) {
+        const favs = await filtrarFavoritoIdsPorUsuario(
+          supabase,
+          uid,
+          'ticket',
+          mapped.map((a) => a.id),
+        )
+        setFavTickets(favs)
+      } else {
+        setFavTickets(new Set())
+      }
     } catch {
       setLista([])
+      setFavTickets(new Set())
     } finally {
       setLoading(false)
     }
@@ -396,6 +479,16 @@ export default function PopupCompraAtrativos({
                         <MiniCardCompra
                           item={item}
                           regrasMeia={regrasMeia}
+                          visitanteId={visitanteId}
+                          favoritoInicial={favTickets.has(item.id)}
+                          onFavoritoChange={(salvo) => {
+                            setFavTickets((prev) => {
+                              const next = new Set(prev)
+                              if (salvo) next.add(item.id)
+                              else next.delete(item.id)
+                              return next
+                            })
+                          }}
                           onAdd={(tipo, qty) => addAoCarrinho(item, tipo, qty)}
                         />
                       </li>
