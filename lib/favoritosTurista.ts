@@ -143,9 +143,15 @@ export async function toggleFavorito(
   const ja = await usuarioTemFavorito(supabase, usuarioId, alvoId, tipo)
   if (ja) {
     await removerFavorito(supabase, usuarioId, alvoId, tipo)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('favoritos-turista-atualizados'))
+    }
     return false
   }
   await adicionarFavorito(supabase, usuarioId, alvoId, tipo)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('favoritos-turista-atualizados'))
+  }
   return true
 }
 
@@ -154,15 +160,18 @@ export async function listarAlvoIdsFavoritos(
   usuarioId: string,
   tipo: FavoritoAlvoTipo,
 ): Promise<string[]> {
+  // Sem order por salvo_em: coluna pode não existir / quebrar a query no remoto.
   const { data, error } = await supabase
     .from('favoritos')
     .select('alvo_id')
     .eq('usuario_id', String(usuarioId))
     .eq('alvo_tipo', tipo)
-    .order('salvo_em', { ascending: false })
 
   if (error) {
-    console.error('[favoritosTurista] listarAlvoIdsFavoritos:', error.message)
+    console.error('[favoritosTurista] listarAlvoIdsFavoritos:', error.message, {
+      usuarioId,
+      tipo,
+    })
     return []
   }
 

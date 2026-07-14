@@ -72,9 +72,9 @@ export default function FavoritosPage() {
     setLoading(true)
     try {
       const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      const uid = session?.user?.id ?? null
+        data: { user },
+      } = await supabase.auth.getUser()
+      const uid = user?.id ?? null
       setUsuarioId(uid)
       if (!uid) {
         setEmpresas([])
@@ -107,11 +107,14 @@ export default function FavoritosPage() {
     const onVis = () => {
       if (document.visibilityState === 'visible') void carregar()
     }
+    const onFav = () => void carregar()
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVis)
+    window.addEventListener('favoritos-turista-atualizados', onFav)
     return () => {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVis)
+      window.removeEventListener('favoritos-turista-atualizados', onFav)
     }
   }, [carregar])
 
