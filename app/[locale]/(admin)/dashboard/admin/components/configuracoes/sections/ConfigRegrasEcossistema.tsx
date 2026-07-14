@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Pencil, Plus, Save, Trash2 } from 'lucide-react'
+import { ChevronDown, Pencil, Plus, Save, Trash2 } from 'lucide-react'
 import {
   criarRegraEcossistemaVazia,
   parseRegrasEcossistema,
@@ -29,6 +29,7 @@ function CardRegra({
   onRemover: () => void
 }) {
   const [editando, setEditando] = useState(() => !regra.texto.trim())
+  const [aberto, setAberto] = useState(() => !regra.texto.trim())
   const bloqueado = !editando || !podeEditar
   const salvarDisponivel = editando && podeEditar && !salvando
 
@@ -37,69 +38,96 @@ function CardRegra({
     try {
       await onSalvar()
       setEditando(false)
+      setAberto(false)
     } catch {
       /* pai */
     }
   }
 
+  const handleEditar = () => {
+    setEditando(true)
+    setAberto(true)
+  }
+
   return (
     <div className="space-y-3 rounded-xl border border-gray-200 bg-[#f5f5f5] p-3">
-      <input
-        type="text"
-        value={regra.titulo}
-        onChange={(e) => onChange({ ...regra, titulo: e.target.value })}
-        readOnly={bloqueado}
-        placeholder="Título da regra"
-        className={`w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold transition ${
-          bloqueado ? 'cursor-default bg-gray-100 text-gray-700' : 'bg-white text-gray-900'
-        }`}
-        aria-label="Título da regra"
-      />
-      <textarea
-        value={regra.texto}
-        onChange={(e) => onChange({ ...regra, texto: e.target.value })}
-        readOnly={bloqueado}
-        rows={6}
-        placeholder="Texto da regra"
-        className={`w-full rounded-lg border border-gray-200 p-3 text-sm transition ${
-          bloqueado ? 'cursor-default bg-gray-100 text-gray-700' : 'bg-white text-gray-900'
-        }`}
-        aria-label="Texto da regra"
-      />
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={regra.titulo}
+          onChange={(e) => onChange({ ...regra, titulo: e.target.value })}
+          readOnly={bloqueado}
+          placeholder="Título da regra"
+          className={`min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold transition ${
+            bloqueado ? 'cursor-default bg-gray-100 text-gray-700' : 'bg-white text-gray-900'
+          }`}
+          aria-label="Título da regra"
+        />
+        <button
+          type="button"
+          onClick={() => setAberto((v) => !v)}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200/70"
+          aria-expanded={aberto}
+          aria-label={aberto ? 'Recolher regra' : 'Expandir regra'}
+          title={aberto ? 'Recolher' : 'Expandir'}
+        >
+          <ChevronDown
+            className={`h-5 w-5 transition-transform ${aberto ? 'rotate-180' : ''}`}
+            strokeWidth={2.25}
+            aria-hidden
+          />
+        </button>
+      </div>
 
-      {podeEditar ? (
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setEditando(true)}
-            disabled={salvando}
-            className="inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-            style={{ backgroundColor: COR_AZUL }}
-          >
-            <Pencil className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
-            EDITAR
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSalvar()}
-            disabled={!salvarDisponivel}
-            className="inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-400"
-            style={salvarDisponivel ? { backgroundColor: COR_VERDE } : undefined}
-          >
-            <Save className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
-            {salvando ? 'SALVANDO…' : 'SALVAR'}
-          </button>
-          <button
-            type="button"
-            onClick={onRemover}
-            disabled={salvando}
-            className="inline-flex items-center justify-center rounded-xl bg-white px-3 py-2.5 text-rose-600 ring-1 ring-rose-200 hover:bg-rose-50 disabled:opacity-50"
-            aria-label="Remover regra"
-            title="Remover"
-          >
-            <Trash2 className="h-4 w-4" strokeWidth={2.25} aria-hidden />
-          </button>
-        </div>
+      {aberto ? (
+        <>
+          <textarea
+            value={regra.texto}
+            onChange={(e) => onChange({ ...regra, texto: e.target.value })}
+            readOnly={bloqueado}
+            rows={6}
+            placeholder="Texto da regra"
+            className={`w-full rounded-lg border border-gray-200 p-3 text-sm transition ${
+              bloqueado ? 'cursor-default bg-gray-100 text-gray-700' : 'bg-white text-gray-900'
+            }`}
+            aria-label="Texto da regra"
+          />
+
+          {podeEditar ? (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleEditar}
+                disabled={salvando}
+                className="inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                style={{ backgroundColor: COR_AZUL }}
+              >
+                <Pencil className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+                EDITAR
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSalvar()}
+                disabled={!salvarDisponivel}
+                className="inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-400"
+                style={salvarDisponivel ? { backgroundColor: COR_VERDE } : undefined}
+              >
+                <Save className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+                {salvando ? 'SALVANDO…' : 'SALVAR'}
+              </button>
+              <button
+                type="button"
+                onClick={onRemover}
+                disabled={salvando}
+                className="inline-flex items-center justify-center rounded-xl bg-white px-3 py-2.5 text-rose-600 ring-1 ring-rose-200 hover:bg-rose-50 disabled:opacity-50"
+                aria-label="Remover regra"
+                title="Remover"
+              >
+                <Trash2 className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+              </button>
+            </div>
+          ) : null}
+        </>
       ) : null}
     </div>
   )
