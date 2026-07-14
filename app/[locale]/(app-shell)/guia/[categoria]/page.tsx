@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Check, MapPin, Star } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import CardAtrativo from '@/components/CardAtrativo'
 import BuscadorGuiaSegmento from '@/components/guia/BuscadorGuiaSegmento'
@@ -100,6 +100,7 @@ export default function ListagemCategoriaPage() {
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null)
   const [termoBusca, setTermoBusca] = useState('')
   const [buscando, setBuscando] = useState(false)
+  const [buscaAberta, setBuscaAberta] = useState(false)
   const [popupCheckAberto, setPopupCheckAberto] = useState(false)
   const [checkAtivo, setCheckAtivo] = useState(false)
   const [checkPesquisando, setCheckPesquisando] = useState(false)
@@ -361,23 +362,38 @@ export default function ListagemCategoriaPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 z-20 border-b border-white/20 bg-[#0097b2] pt-safe shadow-sm">
-        <div className="flex flex-col gap-2 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 px-4 py-2">
           <div className="flex min-w-0 items-center gap-2">
             <button type="button" onClick={() => router.back()} className="-ml-1 shrink-0 p-1" aria-label="Voltar">
               <ArrowLeft size={22} className="text-white" />
             </button>
-            <h1 className="truncate text-lg font-bold text-white">{titulo}</h1>
+            <h1 className="min-w-0 flex-1 truncate text-lg font-bold text-white">{titulo}</h1>
+            <button
+              type="button"
+              onClick={() => setBuscaAberta((v) => !v)}
+              className="shrink-0 rounded-full p-1 text-white transition hover:bg-white/15"
+              aria-label={buscaAberta ? 'Ocultar busca' : 'Mostrar busca'}
+              aria-expanded={buscaAberta}
+            >
+              <ChevronDown
+                size={22}
+                className={`transition-transform duration-200 ${buscaAberta ? 'rotate-180' : ''}`}
+                aria-hidden
+              />
+            </button>
           </div>
 
-          <div className="w-full sm:max-w-xl">
-            <BuscadorGuiaSegmento
-              placeholder={`Buscar em ${titulo}…`}
-              onBuscar={(t) => void handleBuscar(t)}
-              buscando={buscando}
-            />
-          </div>
+          {buscaAberta ? (
+            <div className="w-full">
+              <BuscadorGuiaSegmento
+                placeholder={`Buscar em ${titulo}…`}
+                onBuscar={(t) => void handleBuscar(t)}
+                buscando={buscando}
+              />
+            </div>
+          ) : null}
 
-          <div className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-2 sm:flex-1">
+          <div className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-2">
             <div className="flex items-center gap-4">
               {(
                 [

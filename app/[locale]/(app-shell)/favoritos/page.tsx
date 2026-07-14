@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Building2, Hotel, ShoppingBag, Ticket } from 'lucide-react'
+import { Building2, Hotel, ShoppingBag, Star, Ticket } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
@@ -121,7 +121,10 @@ export default function FavoritosPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
       <header className="shrink-0 border-b border-white/15 bg-[#0097b2] px-4 py-4 pt-safe">
-        <h1 className="text-center text-lg font-bold uppercase tracking-wide text-white">Favoritos</h1>
+        <h1 className="flex items-center justify-center gap-2 text-lg font-bold tracking-wide text-white">
+          <Star className="fill-white text-white" size={22} strokeWidth={2} aria-hidden />
+          Meus Favoritos
+        </h1>
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 pb-24">
