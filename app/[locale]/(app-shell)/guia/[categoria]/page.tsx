@@ -82,6 +82,12 @@ export default function ListagemCategoriaPage() {
   const router = useRouter()
   const slug = typeof params.categoria === 'string' ? params.categoria : params.categoria?.[0] ?? ''
 
+  useEffect(() => {
+    if (slug === 'compras') {
+      router.replace('/compras-cde')
+    }
+  }, [slug, router])
+
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [planosResumo, setPlanosResumo] = useState<PlanoResumoServicos[]>([])
   const [degustacaoPlanoPorEmpresa, setDegustacaoPlanoPorEmpresa] = useState<Map<string, string | null>>(
@@ -358,6 +364,14 @@ export default function ListagemCategoriaPage() {
   const iconPinWrapCls = filtrosApoioCompactos
     ? 'relative inline-flex h-5 w-5 shrink-0 items-center justify-center'
     : 'relative inline-flex h-6 w-6 shrink-0 items-center justify-center'
+
+  if (slug === 'compras') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <p className="text-sm text-gray-500">Redirecionando para Compras CDE…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

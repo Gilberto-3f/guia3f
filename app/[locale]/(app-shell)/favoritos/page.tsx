@@ -139,7 +139,7 @@ export default function FavoritosPage() {
         ) : (
           <>
             <ChevronPasta
-              titulo="Compras Paraguai"
+              titulo="Compras CDE"
               icone={ShoppingBag}
               corTitulo={COR}
               aberto={pastas.compras}
@@ -147,7 +147,7 @@ export default function FavoritosPage() {
             >
               {produtos.length === 0 ? (
                 <p className="text-center text-sm text-gray-500">
-                  Em breve: produtos salvos em Compras Paraguai.
+                  Nenhum produto salvo ainda.
                 </p>
               ) : (
                 <ul className="space-y-2">

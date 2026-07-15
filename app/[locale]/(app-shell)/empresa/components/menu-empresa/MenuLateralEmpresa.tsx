@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { signOutCurrentDevice } from '@/lib/authCookieSync'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
-import { empresaEhLojasBrasilOuArgentina, empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
+import { empresaEhLojasBrasilOuArgentina } from '@/lib/cidade-empresa'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import type { MenuEmpresaId } from '@/lib/planosEmpresaServicosGate'
 import { supabase } from '@/lib/supabase'
@@ -27,7 +27,6 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'publicidade', icon: '📢', label: 'Publicidade', href: '/empresa/menu/publicidade' },
   { id: 'chat-adm', icon: '💬', label: 'Chat ADM', href: '/chat-adm' },
   { id: 'denuncias', icon: '⚠️', label: 'Denúncias', href: '/empresa/menu/denuncias' },
-  { id: 'compras-paraguai', icon: '🛍️', label: 'Compras Paraguai', href: '/empresa/menu/compras-paraguai' },
 ]
 
 export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolean; onClose: () => void }) {
@@ -121,11 +120,6 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
   }, [aberto, refreshChatAdmBadge])
 
   const itensVisiveis = MENU_ITEMS.filter((item) => {
-    if (item.id === 'compras-paraguai') {
-      return (
-        empresaEhSegmentoLojasParaguai(dados?.categoria, dados?.cidade) && menuVisivel(item.id)
-      )
-    }
     if (item.id === 'botao-dinamico') {
       if (empresaEhLojasBrasilOuArgentina(dados?.categoria, dados?.cidade)) return false
     }

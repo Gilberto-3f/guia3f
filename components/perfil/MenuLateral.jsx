@@ -27,7 +27,6 @@ import {
   Settings,
   Shield,
   ShoppingBag,
-  ShoppingCart,
   Speaker,
   Star,
   Table,
@@ -160,17 +159,6 @@ const ICONE_SUBGRUPO = {
   'aplic-prof-hist': Star,
 }
 
-function empresaComprasParaguaiVisivel(ctx) {
-  const cat = String(ctx.empresaCategoria ?? '').toLowerCase()
-  const cidade = String(ctx.empresaCidade ?? '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-  const segmentoOk = cat === 'lojas' && cidade.includes('ciudad del este')
-  return segmentoOk && menuEmpresaLiberado('compras-paraguai', ctx.empresaServicos ?? [])
-}
-
-/** Menu Disponibilidade — apenas segmento Hospedagem. */
 function empresaMenuHospedagemVisivel(ctx) {
   if (Boolean(ctx.somenteAnfitriao)) return true
   return String(ctx.empresaCategoria ?? '').trim() === 'Hospedagem'
@@ -450,12 +438,6 @@ function secoesEmpresa(ctx) {
         label: 'Cadastrar Comissão',
         href: '/empresa/menu/cadastrar-comissao',
         condicional: empresaMenuServico('cadastrar-comissao'),
-      },
-      {
-        Icon: ShoppingCart,
-        label: 'Compras Paraguai',
-        href: '/empresa/menu/compras-paraguai',
-        condicional: empresaComprasParaguaiVisivel,
       },
       {
         Icon: MessageSquare,

@@ -5,12 +5,14 @@ import { BarChart3, Info } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
-import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-empresa'
+import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu, empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
 import { getRotuloAbaServico } from '@/lib/empresaCategoria'
 import AbaAcomodacoes from './hospedagem/AbaAcomodacoes'
 import AbaInformacoes from './hospedagem/AbaInformacoes'
 import AbaAtrativos from './atrativos/AbaAtrativos'
 import AbaInformacoesAtrativos from './atrativos/AbaInformacoesAtrativos'
+import AbaProdutos from './compras-cde/AbaProdutos'
+import AbaContatos from './compras-cde/AbaContatos'
 
 function asNumberOrNull(v: string) {
   const t = v.trim()
@@ -76,7 +78,7 @@ function descricaoSegmento(categoria: string, cidade: string) {
     return 'O botão abre conversa no WhatsApp da empresa.'
   }
   if (isLojas(categoria) && cidadeEhCiudadDelEste(cidade)) {
-    return 'Em Ciudad del Este o botão leva à vitrine de produtos (Compras Paraguai).'
+    return 'Cadastre produtos (USD) e o WhatsApp comercial. O botão VER PRODUTOS abre o catálogo no Compras CDE.'
   }
   if (isLojas(categoria) && cidadeEhFozOuPuertoIguazu(cidade)) {
     return 'Em Foz ou Puerto Iguazú o botão chama corrida na Mobilidade.'
@@ -109,7 +111,9 @@ export default function ConfigBotaoDinamico() {
   const [infoAberto, setInfoAberto] = useState(false)
   const [abaHospedagem, setAbaHospedagem] = useState<'acomodacoes' | 'informacoes'>('acomodacoes')
   const [abaAtrativos, setAbaAtrativos] = useState<'atrativos' | 'informacoes'>('atrativos')
+  const [abaComprasCde, setAbaComprasCde] = useState<'produtos' | 'contatos'>('produtos')
   const ehAtrativos = isPasseios(categoria)
+  const ehLojasCde = empresaEhSegmentoLojasParaguai(categoria, cidade)
 
   const rotuloAba = getRotuloAbaServico(categoria)
   const textoBotao = useMemo(() => textoBotaoPreview(categoria, cidade), [categoria, cidade])
@@ -220,6 +224,46 @@ export default function ConfigBotaoDinamico() {
             <AbaInformacoes empresaId={empresaId} />
             {desempenhoCard}
           </div>
+        )}
+      </div>
+    )
+  }
+
+  if (ehLojasCde && empresaId) {
+    return (
+      <div className="mt-4 space-y-4">
+        <div className="flex gap-2" role="tablist" aria-label="Seções do botão dinâmico">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaComprasCde === 'produtos'}
+            className={abaVerdeCls(abaComprasCde === 'produtos')}
+            onClick={() => setAbaComprasCde('produtos')}
+          >
+            Produtos
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaComprasCde === 'contatos'}
+            className={abaVerdeCls(abaComprasCde === 'contatos')}
+            onClick={() => setAbaComprasCde('contatos')}
+          >
+            Contatos
+          </button>
+        </div>
+
+        {abaComprasCde === 'produtos' ? (
+          <AbaProdutos empresaId={empresaId} />
+        ) : (
+          <AbaContatos
+            empresaId={empresaId}
+            whatsappGeral={dados?.whatsapp != null ? String(dados.whatsapp) : null}
+            whatsappComercialInicial={
+              dados?.whatsapp_comercial != null ? String(dados.whatsapp_comercial) : null
+            }
+            onSalvo={() => void refetch()}
+          />
         )}
       </div>
     )
