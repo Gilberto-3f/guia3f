@@ -277,22 +277,46 @@ export async function listarAcomodacoesFavoritas(
     })
 }
 
-/** Base pronta — Compras Paraguai (produtos). */
+/** Produtos Compras CDE favoritos. */
 export async function listarProdutosFavoritos(
   supabase: SupabaseClient,
   usuarioId: string,
 ): Promise<ProdutoFavoritoCard[]> {
   const ids = await listarAlvoIdsFavoritos(supabase, usuarioId, 'produto')
   if (!ids.length) return []
-  // Módulo Compras Paraguai ainda não popula cards; IDs ficam salvos para wire depois.
-  void supabase
-  return ids.map((id) => ({
-    id,
-    titulo: 'Produto',
-    foto_url: null,
-    preco: null,
-  }))
+
+  const { data, error } = await supabase
+    .from('produtos')
+    .select('id, nome, fotos, foto_url, preco_usd, percentual_desconto')
+    .in('id', ids)
+
+  if (error) {
+    console.error('[favoritosTurista] listarProdutosFavoritos:', error.message)
+    return []
+  }
+  if (!data?.length) return []
+
+  const byId = new Map(data.map((p) => [String(p.id), p]))
+  return ids
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+    .map((p) => {
+      const fotos = Array.isArray(p!.fotos) ? p!.fotos : []
+      const foto =
+        (fotos.find((f) => typeof f === 'string' && String(f).trim()) as string | undefined) ??
+        (p!.foto_url != null ? String(p!.foto_url) : null)
+      const pct = Number(p!.percentual_desconto) || 0
+      const bruto = Number(p!.preco_usd) || 0
+      const final = Math.round(bruto * (1 - pct / 100) * 100) / 100
+      return {
+        id: String(p!.id),
+        titulo: String(p!.nome ?? 'Produto'),
+        foto_url: foto,
+        preco: final > 0 ? final : null,
+      }
+    })
 }
+
 
 /** Base pronta — tickets de atrativos (experiências). */
 export async function listarTicketsFavoritos(

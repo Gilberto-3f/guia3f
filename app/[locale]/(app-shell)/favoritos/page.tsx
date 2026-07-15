@@ -150,13 +150,32 @@ export default function FavoritosPage() {
                   Nenhum produto salvo ainda.
                 </p>
               ) : (
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {produtos.map((p) => (
                     <li
                       key={p.id}
-                      className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm font-semibold text-[#001f3f]"
+                      className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
                     >
-                      {p.titulo}
+                      <div className="flex gap-3 p-3">
+                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                          {p.foto_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.foto_url} alt="" className="h-full w-full object-cover" />
+                          ) : null}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-[#001f3f]">{p.titulo}</p>
+                          {p.preco != null ? (
+                            <p className="mt-1 text-sm font-bold text-[#00D443]">
+                              US${' '}
+                              {p.preco.toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
                     </li>
                   ))}
                 </ul>

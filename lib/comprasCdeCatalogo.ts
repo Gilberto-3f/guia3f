@@ -47,6 +47,7 @@ export type ProdutoCdeRow = {
   marca_id: string | null
   palavras_chave: string[]
   categoria_nome?: string | null
+  categoria_ordem?: number
   subcategoria_nome?: string | null
   marca_nome?: string | null
   created_at?: string
@@ -71,6 +72,19 @@ export function precoFinalUsd(precoUsd: number, percentualDesconto: number): num
 export function formatarUsd(valor: number): string {
   return `US$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
+
+/** Cotação: quantidade da moeda estrangeira por 1 BRL → BRL = usd / taxa. */
+export function usdParaBrl(usd: number, taxaUsdPorBrl: number): number {
+  const u = Math.max(0, Number(usd) || 0)
+  const t = Number(taxaUsdPorBrl) || 0
+  if (t <= 0) return 0
+  return Math.round((u / t) * 100) / 100
+}
+
+export function formatarBrl(valor: number): string {
+  return `R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
 
 export function montarPalavrasChave(opts: {
   nome: string
@@ -126,6 +140,10 @@ export function mapProdutoRow(raw: Record<string, unknown>): ProdutoCdeRow {
       cat && typeof cat === 'object' && !Array.isArray(cat) && (cat as { nome?: unknown }).nome != null
         ? String((cat as { nome: unknown }).nome)
         : null,
+    categoria_ordem:
+      cat && typeof cat === 'object' && !Array.isArray(cat) && (cat as { ordem?: unknown }).ordem != null
+        ? Number((cat as { ordem: unknown }).ordem)
+        : 999,
     subcategoria_nome:
       sub && typeof sub === 'object' && !Array.isArray(sub) && (sub as { nome?: unknown }).nome != null
         ? String((sub as { nome: unknown }).nome)

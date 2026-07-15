@@ -5,6 +5,7 @@ import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag, MessageCi
 import { useRouter } from 'next/navigation'
 import PopupCompraAtrativos from '@/components/PopupCompraAtrativos'
 import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
+import DrawerProdutosCde from '@/components/DrawerProdutosCde'
 import {
   openWhatsAppChat,
   mensagemWhatsappReservaMesa,
@@ -92,12 +93,14 @@ export default function AbaBotaoDinamico({
   } = useGateComprasReservas()
   const [showTicketPopup, setShowTicketPopup] = useState(false)
   const [showReservaPopup, setShowReservaPopup] = useState(false)
+  const [showProdutosPopup, setShowProdutosPopup] = useState(false)
   const [showReservaMesaModal, setShowReservaMesaModal] = useState(false)
   const [dataMesa, setDataMesa] = useState('')
   const [horaMesa, setHoraMesa] = useState('')
   const [nPessoasMesa, setNPessoasMesa] = useState(2)
 
-  const popupDinamicoAberto = showReservaMesaModal || showTicketPopup || showReservaPopup
+  const popupDinamicoAberto =
+    showReservaMesaModal || showTicketPopup || showReservaPopup || showProdutosPopup
   useModalScrollLock(popupDinamicoAberto)
 
   useEffect(() => {
@@ -218,7 +221,7 @@ export default function AbaBotaoDinamico({
         setShowTicketPopup(true)
         break
       case 'produtos':
-        router.push(`/compras-paraguai/${empresaId}`)
+        setShowProdutosPopup(true)
         break
       case 'corrida':
         irMobilidadeEmpresa()
@@ -280,6 +283,16 @@ export default function AbaBotaoDinamico({
       <DrawerReservaHospedagem
         isOpen={showReservaPopup}
         onClose={() => setShowReservaPopup(false)}
+        empresaId={empresaId}
+        empresaNome={empresaNome}
+        empresaUsername={empresaUsername}
+        empresaFotoUrl={empresaFotoUrl}
+        notaMedia={notaMedia}
+      />
+
+      <DrawerProdutosCde
+        isOpen={showProdutosPopup}
+        onClose={() => setShowProdutosPopup(false)}
         empresaId={empresaId}
         empresaNome={empresaNome}
         empresaUsername={empresaUsername}

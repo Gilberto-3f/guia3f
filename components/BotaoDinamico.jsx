@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import PopupCompraAtrativos from '@/components/PopupCompraAtrativos'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
+import DrawerProdutosCde from '@/components/DrawerProdutosCde'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
@@ -102,12 +103,14 @@ export default function BotaoDinamico({
   } = useGateComprasReservas()
   const [showTicketPopup, setShowTicketPopup] = useState(false)
   const [showReservaPopup, setShowReservaPopup] = useState(false)
+  const [showProdutosPopup, setShowProdutosPopup] = useState(false)
   const [showReservaMesaModal, setShowReservaMesaModal] = useState(false)
   const [reservaData, setReservaData] = useState('')
   const [reservaHora, setReservaHora] = useState('')
   const [reservaPessoas, setReservaPessoas] = useState(2)
 
-  const popupDinamicoAberto = showReservaMesaModal || showTicketPopup || showReservaPopup
+  const popupDinamicoAberto =
+    showReservaMesaModal || showTicketPopup || showReservaPopup || showProdutosPopup
   useModalScrollLock(popupDinamicoAberto)
 
   // FIX: somente texto e ícone mudam por categoria/cidade
@@ -189,7 +192,7 @@ export default function BotaoDinamico({
         setShowTicketPopup(true)
         break
       case 'produtos':
-        router.push(`/compras-paraguai/${empresaId}`)
+        setShowProdutosPopup(true)
         break
       case 'corrida':
         void registrarUsoPreLiberacao({
@@ -342,6 +345,15 @@ export default function BotaoDinamico({
           <DrawerReservaHospedagem
             isOpen={showReservaPopup}
             onClose={() => setShowReservaPopup(false)}
+            empresaId={empresaId}
+            empresaNome={empresaNome}
+            empresaUsername={empresaUsername}
+            empresaFotoUrl={empresaFotoUrl}
+            notaMedia={notaMedia}
+          />
+          <DrawerProdutosCde
+            isOpen={showProdutosPopup}
+            onClose={() => setShowProdutosPopup(false)}
             empresaId={empresaId}
             empresaNome={empresaNome}
             empresaUsername={empresaUsername}
