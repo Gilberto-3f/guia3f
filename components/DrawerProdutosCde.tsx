@@ -74,7 +74,7 @@ export default function DrawerProdutosCde({
 }: Props) {
   useModalScrollLock(isOpen)
 
-  const [passo, setPasso] = useState<1 | 2>(1)
+  const [passo, setPasso] = useState<1 | 2>(() => (produtoIdInicial ? 2 : 1))
   const [carregando, setCarregando] = useState(true)
   const [secoes, setSecoes] = useState<SecaoCategoria[]>([])
   const [selecionado, setSelecionado] = useState<ProdutoCdeRow | null>(null)
@@ -86,14 +86,16 @@ export default function DrawerProdutosCde({
   const [favProdutos, setFavProdutos] = useState<Set<string>>(() => new Set())
   const [infoAberto, setInfoAberto] = useState(false)
   const [verMaisAberto, setVerMaisAberto] = useState(false)
+  /** Hub Compras CDE abre direto no detalhe — evita flash do cabeçalho do catálogo. */
+  const abrirDiretoNoDetalhe = Boolean(produtoIdInicial)
 
   const reset = useCallback(() => {
-    setPasso(1)
+    setPasso(abrirDiretoNoDetalhe ? 2 : 1)
     setSelecionado(null)
     setFotoIdx(0)
     setVerMaisAberto(false)
     setInfoAberto(false)
-  }, [])
+  }, [abrirDiretoNoDetalhe])
 
   const handleFechar = useCallback(() => {
     reset()
@@ -240,7 +242,7 @@ export default function DrawerProdutosCde({
       aria-modal="true"
       aria-label="Catálogo de produtos"
     >
-      {passo === 1 ? (
+      {passo === 1 && !abrirDiretoNoDetalhe ? (
         <header
           className="shrink-0 border-b border-white/15 bg-[#0097b2]"
           style={{ paddingTop: 'max(0.15rem, env(safe-area-inset-top, 0px))' }}
@@ -286,20 +288,24 @@ export default function DrawerProdutosCde({
           className="flex shrink-0 items-center gap-2 border-b border-gray-100 bg-white px-3 pb-2"
           style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0px))' }}
         >
-          <button
-            type="button"
-            onClick={() => {
-              setPasso(1)
-              setSelecionado(null)
-              setVerMaisAberto(false)
-            }}
-            className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
-            aria-label="Voltar"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden />
-          </button>
-          <p className="min-w-0 flex-1 truncate text-sm font-bold text-[#001f3f]">
-            {selecionado?.nome ?? 'Produto'}
+          {!abrirDiretoNoDetalhe ? (
+            <button
+              type="button"
+              onClick={() => {
+                setPasso(1)
+                setSelecionado(null)
+                setVerMaisAberto(false)
+              }}
+              className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
+              aria-label="Voltar"
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden />
+            </button>
+          ) : (
+            <span className="w-2 shrink-0" aria-hidden />
+          )}
+          <p className="min-w-0 flex-1 truncate text-center text-sm font-bold text-[#001f3f]">
+            {selecionado?.categoria_nome || (carregando ? '…' : 'Produto')}
           </p>
           <button
             type="button"
@@ -315,7 +321,7 @@ export default function DrawerProdutosCde({
       <div className="min-h-0 flex-1 overflow-y-auto" data-modal-scroll-lock-scrollable>
         {carregando ? (
           <p className="py-12 text-center text-sm text-gray-400">Carregando produtos…</p>
-        ) : passo === 1 ? (
+        ) : passo === 1 && !abrirDiretoNoDetalhe ? (
           <div className="space-y-6 pb-8 pt-4">
             <h2 className="px-4 text-center text-sm font-bold uppercase tracking-wide text-[#001f3f]">
               Escolha o produto
@@ -418,22 +424,10 @@ export default function DrawerProdutosCde({
             </div>
 
             <dl className="space-y-1.5 text-sm text-gray-700">
-              {selecionado.categoria_nome ? (
-                <div>
-                  <dt className="inline font-semibold text-gray-500">Categoria: </dt>
-                  <dd className="inline">{selecionado.categoria_nome}</dd>
-                </div>
-              ) : null}
-              {selecionado.subcategoria_nome ? (
-                <div>
-                  <dt className="inline font-semibold text-gray-500">Subcategoria: </dt>
-                  <dd className="inline">{selecionado.subcategoria_nome}</dd>
-                </div>
-              ) : null}
               {selecionado.marca_nome ? (
                 <div>
                   <dt className="inline font-semibold text-gray-500">Marca: </dt>
-                  <dd className="inline">{selecionado.marca_nome}</dd>
+                  <dd className="inline text-gray-900">{selecionado.marca_nome}</dd>
                 </div>
               ) : null}
             </dl>
@@ -443,17 +437,28 @@ export default function DrawerProdutosCde({
             ) : null}
 
             {mostrarEmpresaNoDetalhe ? (
-              <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-[#f5f5f5] p-3">
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-200">
+              <div className="flex items-center gap-3 rounded-xl bg-[#0097b2] p-3 shadow-sm">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 border-white/40 bg-white/20">
                   {avatarEmpresa ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
                   ) : null}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-[#001f3f]">{empresaNome}</p>
+                  <p className="truncate text-sm font-bold text-white">{empresaNome}</p>
                   {empresaUsername ? (
-                    <p className="truncate text-xs text-gray-500">@{empresaUsername}</p>
+                    <p className="inline-flex max-w-full items-center gap-1 truncate text-xs text-white/90">
+                      {empresaVerificada ? (
+                        <BadgeCheck
+                          className="h-3.5 w-3.5 shrink-0 text-white"
+                          fill="currentColor"
+                          stroke="#0097b2"
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                      ) : null}
+                      <span className="truncate">@{empresaUsername}</span>
+                    </p>
                   ) : null}
                 </div>
               </div>
@@ -475,15 +480,17 @@ export default function DrawerProdutosCde({
                   <MessageCircle className="h-7 w-7" aria-hidden />
                   <span className="text-[10px] font-semibold text-gray-600">WhatsApp</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={abrirSite}
-                  className="flex flex-col items-center gap-1 text-[#0097b2]"
-                  aria-label="Ver no site"
-                >
-                  <ExternalLink className="h-7 w-7" aria-hidden />
-                  <span className="text-[10px] font-semibold text-gray-600">Site</span>
-                </button>
+                {selecionado.site_url?.trim() ? (
+                  <button
+                    type="button"
+                    onClick={abrirSite}
+                    className="flex flex-col items-center gap-1 text-[#0097b2]"
+                    aria-label="Ver no site"
+                  >
+                    <ExternalLink className="h-7 w-7" aria-hidden />
+                    <span className="text-[10px] font-semibold text-gray-600">Site</span>
+                  </button>
+                ) : null}
                 <div className="flex flex-col items-center gap-1">
                   <BotaoEstrelaFavorito
                     usuarioId={visitanteId}
@@ -491,6 +498,7 @@ export default function DrawerProdutosCde({
                     tipo="produto"
                     inicial={favProdutos.has(selecionado.id)}
                     size={28}
+                    className="!opacity-100"
                     onChange={(salvo) => {
                       setFavProdutos((prev) => {
                         const next = new Set(prev)

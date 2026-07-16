@@ -58,19 +58,44 @@ export default function BotaoEstrelaFavorito({
     [usuarioId, alvoId, tipo, busy, salvo, onChange, perfilEhTurista],
   )
 
-  if (gateLoading || !perfilEhTurista || !usuarioId) return null
+  if (gateLoading) {
+    if (inicial) {
+      return (
+        <span className={`hidden shrink-0 md:inline-flex ${className}`} aria-hidden>
+          <Star className="fill-[#0097b2] text-[#0097b2]" size={size} strokeWidth={2.25} />
+        </span>
+      )
+    }
+    return null
+  }
+
+  if (!perfilEhTurista || !usuarioId) {
+    // Desktop: mostra estrela preenchida quando já marcado (estado visível sem interação)
+    if (inicial) {
+      return (
+        <span
+          className={`hidden shrink-0 md:inline-flex ${className}`}
+          title="Favorito"
+          aria-hidden
+        >
+          <Star className="fill-[#0097b2] text-[#0097b2]" size={size} strokeWidth={2.25} />
+        </span>
+      )
+    }
+    return null
+  }
 
   return (
     <button
       type="button"
       onClick={(e) => void onClick(e)}
       disabled={busy}
-      className={`shrink-0 rounded-md p-0.5 text-[#0097b2] transition hover:opacity-80 disabled:opacity-50 ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-md p-0.5 text-[#0097b2] transition hover:opacity-80 disabled:opacity-50 ${className}`}
       aria-label={salvo ? 'Remover dos favoritos' : 'Salvar nos favoritos'}
       aria-pressed={salvo}
     >
       <Star
-        className={salvo ? 'fill-[#0097b2] text-[#0097b2]' : 'text-[#0097b2]'}
+        className={salvo ? 'fill-[#0097b2] text-[#0097b2]' : 'fill-none text-[#0097b2]'}
         size={size}
         strokeWidth={2.25}
         aria-hidden
