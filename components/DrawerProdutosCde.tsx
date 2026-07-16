@@ -245,23 +245,23 @@ export default function DrawerProdutosCde({
       {passo === 1 && !abrirDiretoNoDetalhe ? (
         <header
           className="shrink-0 border-b border-white/15 bg-[#0097b2]"
-          style={{ paddingTop: 'max(0.15rem, env(safe-area-inset-top, 0px))' }}
+          style={{ paddingTop: 'max(0.1rem, env(safe-area-inset-top, 0px))' }}
         >
-          <div className="relative px-5 pb-3 pt-1.5 pr-3">
-            <div className="flex items-start gap-3.5">
-              <div className="h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-md border-2 border-white bg-white/20">
+          <div className="relative px-4 pb-2 pt-1 pr-2">
+            <div className="flex items-center gap-2.5">
+              <div className="h-11 w-11 shrink-0 overflow-hidden rounded-md border border-white/80 bg-white/20">
                 {avatarEmpresa ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
                 ) : null}
               </div>
-              <div className="min-w-0 flex-1 pr-8">
-                <p className="truncate text-base font-bold leading-tight text-white">{empresaNome}</p>
+              <div className="min-w-0 flex-1 pr-7">
+                <p className="truncate text-sm font-bold leading-tight text-white">{empresaNome}</p>
                 {empresaUsername ? (
-                  <p className="inline-flex max-w-full items-center gap-1 truncate text-sm leading-tight text-white/80">
+                  <p className="inline-flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
                     {empresaVerificada ? (
                       <BadgeCheck
-                        className="h-3.5 w-3.5 shrink-0 text-white"
+                        className="h-3 w-3 shrink-0 text-white"
                         fill="currentColor"
                         stroke="#0097b2"
                         strokeWidth={2}
@@ -275,7 +275,7 @@ export default function DrawerProdutosCde({
               <button
                 type="button"
                 onClick={handleFechar}
-                className="absolute right-1 top-0.5 shrink-0 rounded-lg p-1.5 text-white hover:bg-white/15"
+                className="absolute right-0.5 top-0 shrink-0 rounded-lg p-1.5 text-white hover:bg-white/15"
                 aria-label="Fechar"
               >
                 <X className="h-5 w-5" aria-hidden />
@@ -322,43 +322,43 @@ export default function DrawerProdutosCde({
         {carregando ? (
           <p className="py-12 text-center text-sm text-gray-400">Carregando produtos…</p>
         ) : passo === 1 && !abrirDiretoNoDetalhe ? (
-          <div className="space-y-6 pb-8 pt-4">
-            <h2 className="px-4 text-center text-sm font-bold uppercase tracking-wide text-[#001f3f]">
-              Escolha o produto
-            </h2>
+          <div className="space-y-5 pb-8 pt-3">
             {totalProdutos === 0 ? (
               <p className="px-4 text-center text-sm text-gray-500">Nenhum produto disponível no momento.</p>
             ) : (
               secoes.map((sec) => (
                 <section key={sec.categoriaId} className="space-y-2">
-                  <h3 className="px-4 text-left text-sm font-bold text-[#0097b2]">{sec.categoriaNome}</h3>
-                  <div className="flex gap-3 overflow-x-auto px-4 pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {sec.produtos.map((p, idx) => (
-                      <div key={p.id} className={idx === 0 ? 'ml-0' : ''}>
-                        <MiniCardProdutoVisitante
-                          item={p}
-                          taxaUsd={taxaUsd}
-                          notaMediaEmpresa={notaMedia ?? null}
-                          visitanteId={visitanteId}
-                          favoritoInicial={favProdutos.has(p.id)}
-                          onFavoritoChange={(salvo) => {
-                            setFavProdutos((prev) => {
-                              const next = new Set(prev)
-                              if (salvo) next.add(p.id)
-                              else next.delete(p.id)
-                              return next
-                            })
-                          }}
-                          onInfo={() => setInfoAberto(true)}
-                          onVerProduto={() => {
-                            setSelecionado(p)
-                            setFotoIdx(0)
-                            setVerMaisAberto(false)
-                            setPasso(2)
-                          }}
-                        />
-                      </div>
+                  <h3 className="px-4 text-center text-sm font-bold text-[#0097b2]">{sec.categoriaNome}</h3>
+                  <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="w-[11%] shrink-0 snap-none" aria-hidden />
+                    {sec.produtos.map((p) => (
+                      <MiniCardProdutoVisitante
+                        key={p.id}
+                        item={p}
+                        taxaUsd={taxaUsd}
+                        notaMediaEmpresa={notaMedia ?? null}
+                        visitanteId={visitanteId}
+                        favoritoInicial={favProdutos.has(p.id)}
+                        tamanhoUniforme
+                        className="w-[78%] max-w-[280px] shrink-0 snap-center"
+                        onFavoritoChange={(salvo) => {
+                          setFavProdutos((prev) => {
+                            const next = new Set(prev)
+                            if (salvo) next.add(p.id)
+                            else next.delete(p.id)
+                            return next
+                          })
+                        }}
+                        onInfo={() => setInfoAberto(true)}
+                        onVerProduto={() => {
+                          setSelecionado(p)
+                          setFotoIdx(0)
+                          setVerMaisAberto(false)
+                          setPasso(2)
+                        }}
+                      />
                     ))}
+                    <div className="w-[11%] shrink-0 snap-none" aria-hidden />
                   </div>
                 </section>
               ))

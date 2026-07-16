@@ -24,6 +24,8 @@ type Props = {
   onVerProduto: () => void
   /** Classes extras no article (hub grid vs carrossel). */
   className?: string
+  /** Carrossel do drawer: altura fixa nas linhas opcionais. */
+  tamanhoUniforme?: boolean
 }
 
 export default function MiniCardProdutoVisitante({
@@ -36,6 +38,7 @@ export default function MiniCardProdutoVisitante({
   onInfo,
   onVerProduto,
   className = 'w-[78%] max-w-[280px] shrink-0 snap-start',
+  tamanhoUniforme = false,
 }: Props) {
   const pct = Number(item.percentual_desconto) || 0
   const finalUsd = precoFinalUsd(item.preco_usd, pct)
@@ -44,7 +47,7 @@ export default function MiniCardProdutoVisitante({
 
   return (
     <article
-      className={`overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ${className}`}
+      className={`flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ${tamanhoUniforme ? 'min-h-[22.5rem]' : ''} ${className}`}
     >
       <div className="flex items-center gap-1.5 px-3 pt-3">
         <button
@@ -74,12 +77,18 @@ export default function MiniCardProdutoVisitante({
       </div>
 
       <div className="space-y-2 p-3">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <div
+          className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${tamanhoUniforme ? 'min-h-[1.375rem]' : ''}`}
+        >
           <p className="text-sm font-bold" style={{ color: VERDE }}>
             {formatarUsd(finalUsd)}
           </p>
           {pct > 0 ? (
             <span className="rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
+              Em oferta
+            </span>
+          ) : tamanhoUniforme ? (
+            <span className="invisible rounded px-1.5 py-0.5 text-[10px] font-bold" aria-hidden>
               Em oferta
             </span>
           ) : null}
@@ -88,6 +97,11 @@ export default function MiniCardProdutoVisitante({
               <Star className="h-3 w-3 fill-current" aria-hidden />
               {notaMediaEmpresa.toFixed(1)}
             </p>
+          ) : tamanhoUniforme ? (
+            <span className="invisible inline-flex items-center gap-0.5 text-xs font-bold" aria-hidden>
+              <Star className="h-3 w-3" />
+              0.0
+            </span>
           ) : null}
         </div>
 
@@ -98,14 +112,20 @@ export default function MiniCardProdutoVisitante({
           </p>
         ) : null}
 
-        {item.subcategoria_nome ? (
-          <p className="text-xs text-gray-500">{item.subcategoria_nome}</p>
-        ) : null}
+        <div className={tamanhoUniforme ? 'min-h-[1.25rem]' : ''}>
+          {item.subcategoria_nome ? (
+            <p className="text-xs text-gray-500">{item.subcategoria_nome}</p>
+          ) : tamanhoUniforme ? (
+            <p className="invisible text-xs" aria-hidden>
+              —
+            </p>
+          ) : null}
+        </div>
 
         <button
           type="button"
           onClick={onVerProduto}
-          className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white"
+          className={`mt-auto flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white`}
           style={{ backgroundColor: VERDE }}
         >
           <Eye className="h-4 w-4" aria-hidden />
