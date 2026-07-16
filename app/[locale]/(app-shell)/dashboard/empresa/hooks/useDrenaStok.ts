@@ -2,251 +2,259 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import type {
-  MarcaRanking,
-  Produto,
-  ProdutoRanking,
-  SegmentoAlta,
-  Tendencia,
-} from '../types/dashboard.types'
+import { normalizarTextoTaxonomia } from '@/lib/comprasCdeCatalogo'
+import {
+  agregarPizzaCategorias,
+  agregarRankingTermos,
+  inicioPeriodoIso,
+  labelMes,
+  serieHistoricoTermo,
+  type FatiaCategoria,
+  type PeriodoDrena,
+  type PontoHistorico,
+  type SnapshotMensalRow,
+  type TermoRanking,
+} from '@/lib/drenaAnalytics'
 
 type DesempenhoItem = { nome: string; buscas: number; posicao: number }
 
-function asRecord(v: unknown) {
-  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null
-}
-
-function asString(v: unknown, fallback = '') {
-  return v != null ? String(v) : fallback
-}
-
-function asNumber(v: unknown, fallback = 0) {
-  const n = typeof v === 'number' ? v : Number(v)
-  return Number.isFinite(n) ? n : fallback
-}
-
-function getSegmentoLabel(segmento: string): string {
-  const labels: Record<string, string> = {
-    smartphones: 'Smartphones',
-    perfumaria: 'Perfumaria',
-    eletronicos: 'Eletrônicos',
-    vestuario: 'Vestuário',
-    bebidas: 'Bebidas',
-    brinquedos: 'Brinquedos',
-  }
-  return labels[segmento] || segmento
-}
-
-function randomVariacao() {
-  return Math.floor(Math.random() * 60) - 30
-}
-
 export function useDrenaStok(empresaId: string | null, isCDE: boolean) {
-  const [produtos, setProdutos] = useState<Produto[]>([])
+  const [periodo, setPeriodo] = useState<PeriodoDrena>('7d')
+  const [aba, setAba] = useState<'graficos' | 'historico'>('graficos')
+
   const [totalProdutos, setTotalProdutos] = useState(0)
   const [totalBuscasProdutos, setTotalBuscasProdutos] = useState(0)
   const [desempenho, setDesempenho] = useState<DesempenhoItem[]>([])
-  const [rankingProdutos, setRankingProdutos] = useState<ProdutoRanking[]>([])
-  const [rankingMarcas, setRankingMarcas] = useState<MarcaRanking[]>([])
-  const [segmentosAlta, setSegmentosAlta] = useState<SegmentoAlta[]>([])
-  const [tendencias, setTendencias] = useState<Tendencia[]>([])
+  const [rankingTermos, setRankingTermos] = useState<TermoRanking[]>([])
+  const [pizzaCategorias, setPizzaCategorias] = useState<FatiaCategoria[]>([])
+
+  const agora = new Date()
+  const [histAno, setHistAno] = useState(agora.getFullYear())
+  const [histMes, setHistMes] = useState(agora.getMonth() + 1)
+  const [histTermo, setHistTermo] = useState('')
+  const [snapshotMes, setSnapshotMes] = useState<SnapshotMensalRow[]>([])
+  const [serieLinha, setSerieLinha] = useState<PontoHistorico[]>([])
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+
+  const fetchGraficos = useCallback(async () => {
+    if (!empresaId || !isCDE) return
+
+    const desde = inicioPeriodoIso(periodo)
+
+    const { data: produtosData, error: pErr } = await supabase
+      .from('produtos')
+      .select('id, nome')
+      .eq('empresa_id', empresaId)
+    if (pErr) throw pErr
+
+    const meus = (produtosData ?? []) as { id: string; nome: string }[]
+    setTotalProdutos(meus.length)
+    const produtoIds = meus.map((p) => p.id).filter(Boolean)
+
+    let buscasMeu = 0
+    const porProduto: Record<string, number> = {}
+    if (produtoIds.length) {
+      const { data: minhasBuscas, error: bErr } = await supabase
+        .from('buscas_produto')
+        .select('produto_id')
+        .in('produto_id', produtoIds)
+        .gte('created_at', desde)
+        .limit(8000)
+      if (bErr) throw bErr
+      for (const b of minhasBuscas ?? []) {
+        const pid = b.produto_id ? String(b.produto_id) : ''
+        if (!pid) continue
+        buscasMeu += 1
+        porProduto[pid] = (porProduto[pid] ?? 0) + 1
+      }
+    }
+    setTotalBuscasProdutos(buscasMeu)
+    setDesempenho(
+      produtoIds
+        .map((id) => {
+          const p = meus.find((x) => x.id === id)
+          return { nome: p?.nome ?? '', buscas: porProduto[id] ?? 0, posicao: 0 }
+        })
+        .filter((x) => x.buscas > 0)
+        .sort((a, b) => b.buscas - a.buscas)
+        .slice(0, 5),
+    )
+
+    const { data: buscasPeriodo, error: rErr } = await supabase
+      .from('buscas_produto')
+      .select('termo_busca, categoria_id')
+      .gte('created_at', desde)
+      .order('created_at', { ascending: false })
+      .limit(8000)
+    if (rErr) throw rErr
+
+    const rows = (buscasPeriodo ?? []) as { termo_busca?: string | null; categoria_id?: string | null }[]
+    setRankingTermos(agregarRankingTermos(rows, 50))
+
+    const catIds = [...new Set(rows.map((r) => r.categoria_id).filter(Boolean).map(String))]
+    const nomePorId = new Map<string, string>()
+    if (catIds.length) {
+      const { data: cats } = await supabase
+        .from('produto_categorias')
+        .select('id, nome')
+        .in('id', catIds)
+      for (const c of cats ?? []) {
+        if (c.id) nomePorId.set(String(c.id), String(c.nome ?? 'Categoria'))
+      }
+    }
+
+    setPizzaCategorias(
+      agregarPizzaCategorias(
+        rows.map((r) => {
+          const id = r.categoria_id ? String(r.categoria_id) : ''
+          return {
+            categoria_id: id || null,
+            categorias: id ? { id, nome: nomePorId.get(id) ?? 'Categoria' } : null,
+          }
+        }),
+      ),
+    )
+  }, [empresaId, isCDE, periodo])
+
+  const fetchHistorico = useCallback(async () => {
+    if (!empresaId || !isCDE) return
+
+    // Snapshot do mês selecionado
+    const { data: snap, error: sErr } = await supabase
+      .from('drena_intencao_mensal')
+      .select('termo, termo_normalizado, tipo, total_buscas')
+      .eq('ano', histAno)
+      .eq('mes', histMes)
+      .order('total_buscas', { ascending: false })
+      .limit(50)
+
+    if (sErr) {
+      // Fallback: agrega live do mês se tabela/migration ainda não existir
+      const inicio = new Date(Date.UTC(histAno, histMes - 1, 1)).toISOString()
+      const fim = new Date(Date.UTC(histAno, histMes, 1)).toISOString()
+      const { data: live, error: lErr } = await supabase
+        .from('buscas_produto')
+        .select('termo_busca')
+        .gte('created_at', inicio)
+        .lt('created_at', fim)
+        .limit(8000)
+      if (lErr) throw lErr
+      const ranking = agregarRankingTermos(live ?? [], 50)
+      setSnapshotMes(
+        ranking.map((r) => ({
+          termo: r.termo,
+          termo_normalizado: r.termo_normalizado,
+          tipo: 'busca',
+          total_buscas: r.total,
+        })),
+      )
+    } else if (!snap?.length) {
+      const inicio = new Date(Date.UTC(histAno, histMes - 1, 1)).toISOString()
+      const fim = new Date(Date.UTC(histAno, histMes, 1)).toISOString()
+      const { data: live } = await supabase
+        .from('buscas_produto')
+        .select('termo_busca')
+        .gte('created_at', inicio)
+        .lt('created_at', fim)
+        .limit(8000)
+      const ranking = agregarRankingTermos(live ?? [], 50)
+      setSnapshotMes(
+        ranking.map((r) => ({
+          termo: r.termo,
+          termo_normalizado: r.termo_normalizado,
+          tipo: 'busca',
+          total_buscas: r.total,
+        })),
+      )
+    } else {
+      setSnapshotMes(
+        (snap as SnapshotMensalRow[]).map((r) => ({
+          termo: String(r.termo),
+          termo_normalizado: String(r.termo_normalizado),
+          tipo: String(r.tipo ?? 'busca'),
+          total_buscas: Number(r.total_buscas) || 0,
+        })),
+      )
+    }
+
+    const termoQ = histTermo.trim()
+    if (termoQ.length >= 2) {
+      const norm = normalizarTextoTaxonomia(termoQ)
+      const { data: serie } = await supabase
+        .from('drena_intencao_mensal')
+        .select('ano, mes, total_buscas')
+        .eq('termo_normalizado', norm)
+        .order('ano', { ascending: true })
+        .order('mes', { ascending: true })
+        .limit(36)
+
+      if (serie?.length) {
+        setSerieLinha(
+          serieHistoricoTermo(
+            (serie as { ano: number; mes: number; total_buscas: number }[]).map((s) => ({
+              ano: Number(s.ano),
+              mes: Number(s.mes),
+              total_buscas: Number(s.total_buscas) || 0,
+            })),
+            12,
+          ),
+        )
+      } else {
+        // Fallback live últimos 12 meses (agrega no client)
+        const pontos: { ano: number; mes: number; total_buscas: number }[] = []
+        const agoraUtc = new Date()
+        for (let i = 11; i >= 0; i--) {
+          const d = new Date(Date.UTC(agoraUtc.getUTCFullYear(), agoraUtc.getUTCMonth() - i, 1))
+          const ano = d.getUTCFullYear()
+          const mes = d.getUTCMonth() + 1
+          const inicio = new Date(Date.UTC(ano, mes - 1, 1)).toISOString()
+          const fim = new Date(Date.UTC(ano, mes, 1)).toISOString()
+          const { data: live } = await supabase
+            .from('buscas_produto')
+            .select('termo_busca')
+            .gte('created_at', inicio)
+            .lt('created_at', fim)
+            .ilike('termo_busca', `%${termoQ}%`)
+            .limit(3000)
+          const total = (live ?? []).filter(
+            (r) => normalizarTextoTaxonomia(String(r.termo_busca ?? '')) === norm,
+          ).length
+          pontos.push({ ano, mes, total_buscas: total })
+        }
+        setSerieLinha(serieHistoricoTermo(pontos, 12))
+      }
+    } else {
+      setSerieLinha([])
+    }
+  }, [empresaId, isCDE, histAno, histMes, histTermo])
 
   const fetchDados = useCallback(async () => {
     if (!empresaId || !isCDE) {
       setLoading(false)
       setError(null)
-      setProdutos([])
       setTotalProdutos(0)
       setTotalBuscasProdutos(0)
       setDesempenho([])
-      setRankingProdutos([])
-      setRankingMarcas([])
-      setSegmentosAlta([])
-      setTendencias([])
+      setRankingTermos([])
+      setPizzaCategorias([])
+      setSnapshotMes([])
+      setSerieLinha([])
       return
     }
 
     setLoading(true)
     setError(null)
-
     try {
-      // 1) Produtos da empresa
-      const { data: produtosData, error: pErr } = await supabase
-        .from('produtos')
-        .select('id, nome, descricao, categoria_drena, marca, preco_brl, foto_url, created_at')
-        .eq('empresa_id', empresaId)
-        .order('created_at', { ascending: false })
-      if (pErr) throw pErr
-
-      const meusProdutos: Produto[] = (produtosData ?? []).map((r) => {
-        const row = asRecord(r) ?? {}
-        return {
-          id: asString(row.id),
-          nome: asString(row.nome),
-          descricao: row.descricao != null ? String(row.descricao) : null,
-          categoria_drena: asString(row.categoria_drena),
-          marca: row.marca != null ? String(row.marca) : null,
-          preco_brl: row.preco_brl != null ? asNumber(row.preco_brl, 0) : null,
-          foto_url: row.foto_url != null ? String(row.foto_url) : null,
-        }
-      })
-
-      setProdutos(meusProdutos)
-      setTotalProdutos(meusProdutos.length)
-
-      const produtoIds = meusProdutos.map((p) => p.id).filter(Boolean)
-
-      // 2) Total buscas nos meus produtos
-      let buscasMeuTotal = 0
-      const buscasPorProduto: Record<string, number> = {}
-      if (produtoIds.length > 0) {
-        const { data: buscasData, error: bErr } = await supabase
-          .from('buscas_produto')
-          .select('produto_id')
-          .in('produto_id', produtoIds)
-        if (bErr) throw bErr
-        for (const b of (buscasData ?? []) as unknown[]) {
-          const row = asRecord(b) ?? {}
-          const pid = asString(row.produto_id)
-          if (!pid) continue
-          buscasMeuTotal += 1
-          buscasPorProduto[pid] = (buscasPorProduto[pid] ?? 0) + 1
-        }
-      }
-      setTotalBuscasProdutos(buscasMeuTotal)
-
-      // 3) Ranking geral de produtos (por volume de buscas)
-      const { data: rankingData, error: rErr } = await supabase
-        .from('buscas_produto')
-        .select(
-          `
-          produto_id,
-          produtos:produto_id (id, nome, categoria_drena, marca)
-        `
-        )
-        .not('produto_id', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(5000)
-      if (rErr) throw rErr
-
-      const rankingAgg: Record<string, { nome: string; categoria_drena: string; marca: string | null; total: number }> = {}
-      for (const item of (rankingData ?? []) as unknown[]) {
-        const row = asRecord(item) ?? {}
-        const pid = asString(row.produto_id)
-        if (!pid) continue
-        const prod = asRecord(row.produtos)
-        const nome = prod?.nome != null ? String(prod.nome) : 'Produto'
-        const categoria_drena = prod?.categoria_drena != null ? String(prod.categoria_drena) : 'outros'
-        const marca = prod?.marca != null ? String(prod.marca) : null
-        if (!rankingAgg[pid]) rankingAgg[pid] = { nome, categoria_drena, marca, total: 0 }
-        rankingAgg[pid].total += 1
-      }
-
-      const rankingArray: ProdutoRanking[] = Object.entries(rankingAgg)
-        .map(([id, d]) => ({
-          id,
-          nome: d.nome,
-          categoria_drena: d.categoria_drena,
-          marca: d.marca,
-          total_buscas: d.total,
-          variacao: randomVariacao(),
-        }))
-        .sort((a, b) => b.total_buscas - a.total_buscas)
-        .slice(0, 30)
-
-      setRankingProdutos(rankingArray)
-
-      // 4) Desempenho (top 3 dos meus produtos)
-      const desempenhoArray: DesempenhoItem[] = produtoIds
-        .map((id) => {
-          const pos = rankingArray.findIndex((r) => r.id === id)
-          const p = meusProdutos.find((x) => x.id === id)
-          return { nome: p?.nome ?? '', buscas: buscasPorProduto[id] ?? 0, posicao: pos !== -1 ? pos + 1 : 0 }
-        })
-        .filter((x) => x.buscas > 0)
-        .sort((a, b) => b.buscas - a.buscas)
-      setDesempenho(desempenhoArray)
-
-      // 5) Ranking de marcas (a partir do ranking de produtos)
-      const marcasAgg: Record<string, { total: number; principal_produto: string }> = {}
-      for (const prod of rankingArray) {
-        if (!prod.marca) continue
-        if (!marcasAgg[prod.marca]) marcasAgg[prod.marca] = { total: 0, principal_produto: prod.nome }
-        marcasAgg[prod.marca].total += prod.total_buscas
-      }
-
-      const marcasArray: MarcaRanking[] = Object.entries(marcasAgg)
-        .map(([marca, d]) => ({
-          marca,
-          principal_produto: d.principal_produto,
-          total_buscas: d.total,
-          variacao: randomVariacao(),
-        }))
-        .sort((a, b) => b.total_buscas - a.total_buscas)
-        .slice(0, 20)
-
-      setRankingMarcas(marcasArray)
-
-      // 6) Segmentos em alta (top 5)
-      const segAgg: Record<string, number> = {}
-      for (const prod of rankingArray) {
-        const k = prod.categoria_drena || 'outros'
-        segAgg[k] = (segAgg[k] ?? 0) + prod.total_buscas
-      }
-      const totalBuscasGeral = Object.values(segAgg).reduce((a, b) => a + b, 0)
-      const segArray: SegmentoAlta[] = Object.entries(segAgg)
-        .map(([segmento, total]) => ({
-          segmento: getSegmentoLabel(segmento),
-          percentual: totalBuscasGeral ? (total / totalBuscasGeral) * 100 : 0,
-          total_buscas: total,
-        }))
-        .sort((a, b) => b.percentual - a.percentual)
-        .slice(0, 5)
-      setSegmentosAlta(segArray)
-
-      // 7) Tendências em tempo real (últimas 24h)
-      const umDiaAtras = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-      const { data: buscas24hData, error: tErr } = await supabase
-        .from('buscas_produto')
-        .select(
-          `
-          produto_id,
-          produtos:produto_id (id, nome)
-        `
-        )
-        .gte('created_at', umDiaAtras)
-        .not('produto_id', 'is', null)
-        .limit(5000)
-      if (tErr) throw tErr
-
-      const b24Agg: Record<string, { nome: string; total: number }> = {}
-      for (const row of (buscas24hData ?? []) as unknown[]) {
-        const r = asRecord(row) ?? {}
-        const pid = asString(r.produto_id)
-        if (!pid) continue
-        const prod = asRecord(r.produtos)
-        const nome = prod?.nome != null ? String(prod.nome) : 'Produto'
-        if (!b24Agg[pid]) b24Agg[pid] = { nome, total: 0 }
-        b24Agg[pid].total += 1
-      }
-
-      const tendenciasArray: Tendencia[] = Object.values(b24Agg)
-        .map((d) => ({
-          nome: d.nome,
-          crescimento: Math.floor(Math.random() * 200) + 50,
-          buscas: d.total,
-        }))
-        .sort((a, b) => b.crescimento - a.crescimento)
-        .slice(0, 10)
-      setTendencias(tendenciasArray)
+      if (aba === 'graficos') await fetchGraficos()
+      else await fetchHistorico()
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Erro ao carregar Drena-Stok'))
     } finally {
       setLoading(false)
     }
-  }, [empresaId, isCDE])
+  }, [empresaId, isCDE, aba, fetchGraficos, fetchHistorico])
 
   useEffect(() => {
     void fetchDados()
@@ -254,31 +262,44 @@ export function useDrenaStok(empresaId: string | null, isCDE: boolean) {
 
   return useMemo(
     () => ({
-      produtos,
+      aba,
+      setAba,
+      periodo,
+      setPeriodo,
       totalProdutos,
       totalBuscasProdutos,
       desempenho,
-      rankingProdutos,
-      rankingMarcas,
-      segmentosAlta,
-      tendencias,
+      rankingTermos,
+      pizzaCategorias,
+      histAno,
+      setHistAno,
+      histMes,
+      setHistMes,
+      histTermo,
+      setHistTermo,
+      snapshotMes,
+      serieLinha,
+      labelMes,
       loading,
       error,
       refetch: fetchDados,
     }),
     [
-      produtos,
+      aba,
+      periodo,
       totalProdutos,
       totalBuscasProdutos,
       desempenho,
-      rankingProdutos,
-      rankingMarcas,
-      segmentosAlta,
-      tendencias,
+      rankingTermos,
+      pizzaCategorias,
+      histAno,
+      histMes,
+      histTermo,
+      snapshotMes,
+      serieLinha,
       loading,
       error,
       fetchDados,
-    ]
+    ],
   )
 }
-

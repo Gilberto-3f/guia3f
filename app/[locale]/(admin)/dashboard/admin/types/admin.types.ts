@@ -333,6 +333,8 @@ export type DadosFunil = {
 
 export type ConfigAmbienteAPI = 'teste' | 'producao'
 
+export type CotacaoModoConfig = 'api' | 'manual'
+
 export type ConfigAPIs = {
   id?: string
   gateway: string
@@ -343,6 +345,10 @@ export type ConfigAPIs = {
   moedas: string[]
   api_mobilidade_url: string
   api_mobilidade_key: string
+  cotacoes_modo: CotacaoModoConfig
+  cotacoes_fonte_url: string
+  cotacoes_manual: Record<string, number>
+  cotacoes_sync_em?: string | null
 }
 
 export type ConfigGeral = {

@@ -18,6 +18,16 @@ function parseMoedas(v: unknown): string[] {
   return []
 }
 
+function parseCotacoesManual(v: unknown): Record<string, number> {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
+  const out: Record<string, number> = {}
+  for (const [k, raw] of Object.entries(v as Record<string, unknown>)) {
+    const n = Number(raw)
+    if (k && Number.isFinite(n) && n > 0) out[k.toUpperCase()] = n
+  }
+  return out
+}
+
 function mapRowToApis(row: Record<string, unknown>): ConfigAPIs {
   const amb = String(row.ambiente ?? 'teste')
   const ambiente: ConfigAmbienteAPI = amb === 'producao' ? 'producao' : 'teste'
@@ -31,6 +41,13 @@ function mapRowToApis(row: Record<string, unknown>): ConfigAPIs {
     moedas: parseMoedas(row.moedas),
     api_mobilidade_url: String(row.api_mobilidade_url ?? ''),
     api_mobilidade_key: String(row.api_mobilidade_key ?? ''),
+    cotacoes_modo: row.cotacoes_modo === 'manual' ? 'manual' : 'api',
+    cotacoes_fonte_url: String(
+      row.cotacoes_fonte_url ??
+        'https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,ARS-BRL,PYG-BRL',
+    ),
+    cotacoes_manual: parseCotacoesManual(row.cotacoes_manual),
+    cotacoes_sync_em: row.cotacoes_sync_em != null ? String(row.cotacoes_sync_em) : null,
   }
 }
 
@@ -57,6 +74,11 @@ const defaultApis = (): ConfigAPIs => ({
   moedas: ['BRL', 'PYG', 'ARS'],
   api_mobilidade_url: '',
   api_mobilidade_key: '',
+  cotacoes_modo: 'api',
+  cotacoes_fonte_url:
+    'https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,ARS-BRL,PYG-BRL',
+  cotacoes_manual: {},
+  cotacoes_sync_em: null,
 })
 
 const defaultGeral = (): ConfigGeral => ({
@@ -126,6 +148,9 @@ export function useConfiguracoes() {
         moedas: novasConfig.moedas,
         api_mobilidade_url: novasConfig.api_mobilidade_url || null,
         api_mobilidade_key: novasConfig.api_mobilidade_key || null,
+        cotacoes_modo: novasConfig.cotacoes_modo,
+        cotacoes_fonte_url: novasConfig.cotacoes_fonte_url || null,
+        cotacoes_manual: novasConfig.cotacoes_manual ?? {},
         atualizado_por: admin.id,
         atualizado_em: new Date().toISOString(),
       }

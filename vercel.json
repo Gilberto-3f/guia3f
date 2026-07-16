@@ -14,6 +14,14 @@
     {
       "path": "/api/assinaturas-empresa/processar",
       "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/cotacoes",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/drena-snapshot",
+      "schedule": "15 12 1 * *"
     }
   ]
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { ConfigAPIs } from '../../types/admin.types'
 import { useConfiguracoes } from '../../hooks/useConfiguracoes'
+import { SecaoCotacoes } from './sections/SecaoCotacoes'
 
 export function GestaoAPIs() {
   const { apis, loading, salvarAPIs, podeEditarAPIs, error: hookError } = useConfiguracoes()
@@ -165,6 +166,13 @@ export function GestaoAPIs() {
           </label>
         </div>
       </div>
+
+      <SecaoCotacoes
+        localApis={localApis}
+        setLocalApis={setLocalApis}
+        podeEditar={podeEditarAPIs}
+        onMensagem={setMensagem}
+      />
 
       {podeEditarAPIs ? (
         <div className="flex justify-end">

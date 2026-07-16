@@ -9,6 +9,7 @@ import { podeAcessar } from '../../utils/permissoes'
 import { ConfigApiPagamentos } from './sections/ConfigApiPagamentos'
 import { ConfigApiMobilidade } from './sections/ConfigApiMobilidade'
 import { ConfigPrazosLimites } from './sections/ConfigPrazosLimites'
+import { SecaoCotacoes } from './sections/SecaoCotacoes'
 import type { ConfigAPIs, ConfigGeral } from '../../types/admin.types'
 
 function MensagemFeedback({ mensagem }: { mensagem: { tipo: 'sucesso' | 'erro'; texto: string } | null }) {
@@ -37,6 +38,7 @@ export function ConfigGeralPastas() {
 
   const [abertaPagamentos, setAbertaPagamentos] = useState(true)
   const [abertaMobilidade, setAbertaMobilidade] = useState(false)
+  const [abertaCotacoes, setAbertaCotacoes] = useState(false)
   const [abertaPrazos, setAbertaPrazos] = useState(false)
 
   useEffect(() => {
@@ -140,6 +142,33 @@ export function ConfigGeralPastas() {
                   className="rounded-xl bg-[#0097b2] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   {salvandoApis ? 'Salvando...' : 'Salvar mobilidade'}
+                </button>
+              </div>
+            ) : null}
+          </AdminSecaoChevron>
+
+          <AdminSecaoChevron
+            titulo="Cotações Compras CDE"
+            aberta={abertaCotacoes}
+            onToggle={() => setAbertaCotacoes((v) => !v)}
+            icone={CreditCard}
+            corTitulo="#0097b2"
+          >
+            <SecaoCotacoes
+              localApis={localApis}
+              setLocalApis={setLocalApis}
+              podeEditar={podeEditarAPIs}
+              onMensagem={setMensagem}
+            />
+            {podeEditarAPIs ? (
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => void salvarApis()}
+                  disabled={salvandoApis}
+                  className="rounded-xl bg-[#0097b2] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {salvandoApis ? 'Salvando...' : 'Salvar cotações'}
                 </button>
               </div>
             ) : null}
