@@ -25,9 +25,11 @@ type Props = {
 }
 
 const btnCls = (ativo: boolean) =>
-  `flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-[9px] font-bold uppercase leading-tight sm:text-[10px] ${
+  `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2.5 text-[9px] font-bold uppercase leading-tight sm:gap-0.5 sm:py-2 sm:text-[10px] ${
     ativo ? 'bg-[#0097b2] text-white' : 'bg-white text-[#0097b2] border border-gray-200'
   }`
+
+const iconCls = 'h-6 w-6 shrink-0 sm:h-5 sm:w-5'
 
 export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props) {
   const [popupCat, setPopupCat] = useState(false)
@@ -74,18 +76,26 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
   return (
     <div className="space-y-2 px-3 py-2">
       <div className="flex gap-1.5">
-        <button type="button" className={btnCls(Boolean(filtros.categoriaId))} onClick={abrirCategoria}>
-          <ShoppingCart className="h-5 w-5 shrink-0" aria-hidden />
-          <span>Categoria</span>
+        <button
+          type="button"
+          className={btnCls(Boolean(filtros.categoriaId))}
+          onClick={abrirCategoria}
+          aria-label="Categoria"
+        >
+          <ShoppingCart className={iconCls} aria-hidden />
+          <span className="hidden sm:inline">Categoria</span>
         </button>
         <button
           type="button"
           className={btnCls(filtros.ordenarPreco)}
           onClick={() => onChange({ ...filtros, ordenarPreco: !filtros.ordenarPreco, destaque: false })}
           title="Do menor valor para o maior"
+          aria-label="Comparador"
         >
-          <span className="text-base font-black leading-none">$</span>
-          <span>Comparador</span>
+          <span className="text-xl font-black leading-none sm:text-base" aria-hidden>
+            $
+          </span>
+          <span className="hidden sm:inline">Comparador</span>
         </button>
         <button
           type="button"
@@ -98,9 +108,10 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
               soOfertas: false,
             })
           }
+          aria-label="Destaque"
         >
-          <Heart className="h-5 w-5 shrink-0" aria-hidden />
-          <span>Destaque</span>
+          <Heart className={iconCls} aria-hidden />
+          <span className="hidden sm:inline">Destaque</span>
         </button>
         <button
           type="button"
@@ -112,17 +123,19 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
               destaque: false,
             })
           }
+          aria-label="Oferta"
         >
-          <Percent className="h-5 w-5 shrink-0" aria-hidden />
-          <span>Oferta</span>
+          <Percent className={iconCls} aria-hidden />
+          <span className="hidden sm:inline">Oferta</span>
         </button>
         <button
           type="button"
           className={btnCls(filtros.buscaAberta)}
           onClick={() => onChange({ ...filtros, buscaAberta: !filtros.buscaAberta })}
+          aria-label="Busca"
         >
-          <Search className="h-5 w-5 shrink-0" aria-hidden />
-          <span>Busca</span>
+          <Search className={iconCls} aria-hidden />
+          <span className="hidden sm:inline">Busca</span>
         </button>
       </div>
 
@@ -165,14 +178,14 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
           role="presentation"
         >
           <div
-            className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white sm:rounded-2xl"
+            className="flex h-[min(85dvh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white sm:rounded-2xl"
             role="dialog"
             aria-modal="true"
-            aria-label="Filtrar categoria"
+            aria-label={fase === 1 ? 'Escolha uma Categoria' : 'Subcategorias Disponíveis'}
           >
-            <div className="flex items-center justify-between border-b px-4 py-3">
+            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
               <h3 className="text-sm font-bold text-[#001f3f]">
-                {fase === 1 ? 'Categoria' : 'Subcategorias'}
+                {fase === 1 ? 'Escolha uma Categoria' : 'Subcategorias Disponíveis'}
               </h3>
               <button type="button" onClick={() => setPopupCat(false)} aria-label="Fechar">
                 <X className="h-5 w-5 text-gray-500" aria-hidden />
@@ -192,18 +205,18 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
                             setSubsTemp([])
                             setFase(2)
                           }}
-                          className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm ${
-                            ativo ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200'
+                          className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-medium text-gray-900 ${
+                            ativo ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white'
                           }`}
                         >
                           <span
-                            className={`flex h-4 w-4 items-center justify-center rounded border ${
-                              ativo ? 'border-[#0097b2] bg-[#0097b2]' : 'border-gray-300'
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                              ativo ? 'border-[#0097b2] bg-[#0097b2]' : 'border-gray-300 bg-white'
                             }`}
                           >
                             {ativo ? <Check className="h-2.5 w-2.5 text-white" aria-hidden /> : null}
                           </span>
-                          {c.nome}
+                          <span className="text-gray-900">{c.nome}</span>
                         </button>
                       </li>
                     )
@@ -212,7 +225,7 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
               ) : (
                 <ul className="space-y-1.5">
                   {subcats.length === 0 ? (
-                    <p className="py-4 text-center text-sm text-gray-500">
+                    <p className="py-4 text-center text-sm text-gray-600">
                       Nenhuma subcategoria ainda — busque só pela categoria.
                     </p>
                   ) : (
@@ -227,18 +240,18 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
                                 ativo ? prev.filter((id) => id !== s.id) : [...prev, s.id],
                               )
                             }}
-                            className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm ${
-                              ativo ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200'
+                            className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-medium text-gray-900 ${
+                              ativo ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white'
                             }`}
                           >
                             <span
-                              className={`flex h-4 w-4 items-center justify-center rounded border ${
-                                ativo ? 'border-[#0097b2] bg-[#0097b2]' : 'border-gray-300'
+                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                                ativo ? 'border-[#0097b2] bg-[#0097b2]' : 'border-gray-300 bg-white'
                               }`}
                             >
                               {ativo ? <Check className="h-2.5 w-2.5 text-white" aria-hidden /> : null}
                             </span>
-                            {s.nome}
+                            <span className="text-gray-900">{s.nome}</span>
                           </button>
                         </li>
                       )
@@ -247,7 +260,7 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
                 </ul>
               )}
             </div>
-            <div className="flex gap-2 border-t p-4">
+            <div className="flex shrink-0 gap-2 border-t p-4">
               {fase === 2 ? (
                 <button
                   type="button"

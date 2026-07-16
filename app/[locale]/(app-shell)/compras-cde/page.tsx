@@ -162,18 +162,12 @@ export default function ComprasCdePage() {
       <header className="shrink-0 bg-[#0097b2] pt-safe">
         <div className="px-4 py-3">
           <h1 className="flex items-center justify-center gap-2 text-lg font-bold tracking-wide text-white">
-            <span
-              className="inline-flex overflow-hidden rounded-sm border-2 border-white text-xl leading-none"
-              aria-hidden
-            >
+            <span className="text-xl leading-none" aria-hidden>
               🇵🇾
             </span>
             Compras CDE
-            <span
-              className="inline-flex overflow-hidden rounded-sm border-2 border-white text-xl leading-none"
-              aria-hidden
-            >
-              🇵🇾
+            <span className="text-xl leading-none" aria-hidden>
+              🇧🇷
             </span>
           </h1>
         </div>

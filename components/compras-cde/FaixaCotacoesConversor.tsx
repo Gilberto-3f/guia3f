@@ -53,44 +53,43 @@ export default function FaixaCotacoesConversor({
 
   return (
     <div className="space-y-0 border-b border-white/10 bg-[#0088a0]/40">
-      <div className="flex items-stretch">
-        <div className="min-w-0 flex-1 overflow-x-auto px-2 py-2">
-          {loading ? (
-            <p className="px-2 text-xs text-white/70">Carregando cotações…</p>
-          ) : (
-            <div className="flex min-w-max gap-2 sm:gap-3">
-              {MOEDAS_ORDEM.map((m) => {
-                const brl = brlPorUnidade(m, cotacoes)
-                return (
-                  <div
-                    key={m}
-                    className="flex min-w-[4.5rem] flex-col items-center rounded-lg bg-white/10 px-2 py-1.5 text-white"
-                  >
-                    <span className="text-base leading-none" aria-hidden>
-                      {FLAG[m]}
-                    </span>
-                    <span className="mt-0.5 text-[10px] font-semibold opacity-90">{LABEL[m]}</span>
-                    <span className="text-[11px] font-bold tabular-nums">
-                      {m === 'BRL' ? 'R$ 1,00' : `R$ ${brl.toFixed(2)}`}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={onToggleConversor}
-          className="flex shrink-0 items-center border-l border-white/15 px-3 text-white hover:bg-white/10"
-          aria-expanded={conversorAberto}
-          aria-label={conversorAberto ? 'Fechar conversor' : 'Abrir conversor'}
-        >
-          <ChevronDown
-            className={`h-5 w-5 transition-transform ${conversorAberto ? 'rotate-180' : ''}`}
-            aria-hidden
-          />
-        </button>
+      <div className="overflow-x-auto px-2 py-2">
+        {loading ? (
+          <p className="px-2 text-xs text-white/70">Carregando cotações…</p>
+        ) : (
+          <div className="flex min-w-max items-stretch gap-2 sm:gap-3">
+            {MOEDAS_ORDEM.map((m) => {
+              const brl = brlPorUnidade(m, cotacoes)
+              return (
+                <div
+                  key={m}
+                  className="flex min-w-[4.5rem] flex-col items-center rounded-lg bg-white/10 px-2 py-1.5 text-white"
+                >
+                  <span className="text-base leading-none" aria-hidden>
+                    {FLAG[m]}
+                  </span>
+                  <span className="mt-0.5 text-[10px] font-semibold opacity-90">{LABEL[m]}</span>
+                  <span className="text-[11px] font-bold tabular-nums">
+                    {m === 'BRL' ? 'R$ 1,00' : `R$ ${brl.toFixed(2)}`}
+                  </span>
+                </div>
+              )
+            })}
+            <button
+              type="button"
+              onClick={onToggleConversor}
+              className="flex w-7 shrink-0 items-center justify-center self-stretch rounded-lg bg-white/10 text-white hover:bg-white/15"
+              aria-expanded={conversorAberto}
+              aria-label={conversorAberto ? 'Fechar conversor' : 'Abrir conversor'}
+            >
+              <ChevronDown
+                className={`h-4 w-3 transition-transform ${conversorAberto ? 'rotate-180' : ''}`}
+                strokeWidth={1.75}
+                aria-hidden
+              />
+            </button>
+          </div>
+        )}
       </div>
 
       {conversorAberto ? (
