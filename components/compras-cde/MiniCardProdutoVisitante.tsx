@@ -22,6 +22,8 @@ type Props = {
   onFavoritoChange: (salvo: boolean) => void
   onInfo: () => void
   onVerProduto: () => void
+  /** Classes extras no article (hub grid vs carrossel). */
+  className?: string
 }
 
 export default function MiniCardProdutoVisitante({
@@ -33,6 +35,7 @@ export default function MiniCardProdutoVisitante({
   onFavoritoChange,
   onInfo,
   onVerProduto,
+  className = 'w-[78%] max-w-[280px] shrink-0 snap-start',
 }: Props) {
   const pct = Number(item.percentual_desconto) || 0
   const finalUsd = precoFinalUsd(item.preco_usd, pct)
@@ -40,7 +43,9 @@ export default function MiniCardProdutoVisitante({
   const capa = item.fotos[0] ?? item.foto_url
 
   return (
-    <article className="w-[78%] max-w-[280px] shrink-0 snap-start overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <article
+      className={`overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ${className}`}
+    >
       <div className="flex items-center gap-1.5 px-3 pt-3">
         <button
           type="button"
