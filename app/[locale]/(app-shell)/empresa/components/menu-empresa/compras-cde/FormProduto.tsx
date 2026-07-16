@@ -8,6 +8,7 @@ import {
   DESCRICAO_MAX,
   FOTOS_MAX,
   FOTOS_MIN,
+  NOME_PRODUTO_MAX,
   type ProdutoCategoriaRow,
   type ProdutoCdeRow,
 } from '@/lib/comprasCdeCatalogo'
@@ -66,7 +67,11 @@ export function formProdutoFromRow(row: ProdutoCdeRow): FormProdutoState {
 }
 
 export function validarFormProduto(form: FormProdutoState): string | null {
-  if (!form.nome.trim()) return 'Informe o nome do produto.'
+  const nome = form.nome.trim()
+  if (!nome) return 'Informe o nome do produto.'
+  if (nome.length > NOME_PRODUTO_MAX) {
+    return `O nome do produto pode ter no máximo ${NOME_PRODUTO_MAX} caracteres.`
+  }
   const preco = Number(form.preco_usd.replace(',', '.'))
   if (!Number.isFinite(preco) || preco <= 0) return 'Informe o valor em dólar (maior que zero).'
   if (form.lancarOferta) {
@@ -104,6 +109,8 @@ type Props = {
   onCancelar: () => void
   salvando?: boolean
   titulo: string
+  /** Mensagem de validação / falha — exibida acima do botão Salvar. */
+  erro?: string | null
 }
 
 export default function FormProduto({
@@ -114,6 +121,7 @@ export default function FormProduto({
   onCancelar,
   salvando = false,
   titulo,
+  erro = null,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
@@ -173,10 +181,13 @@ export default function FormProduto({
           <input
             type="text"
             value={form.nome}
-            onChange={(e) => onChange({ ...form, nome: e.target.value })}
+            onChange={(e) => onChange({ ...form, nome: e.target.value.slice(0, NOME_PRODUTO_MAX) })}
             className={inputCls}
-            maxLength={200}
+            maxLength={NOME_PRODUTO_MAX}
           />
+          <span className="mt-1 block text-right text-[10px] text-gray-400">
+            {form.nome.length}/{NOME_PRODUTO_MAX}
+          </span>
         </label>
 
         <div>
@@ -357,6 +368,10 @@ export default function FormProduto({
           />
         </label>
       </div>
+
+      {erro ? (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{erro}</div>
+      ) : null}
 
       <div className="mt-5 flex gap-2">
         <button

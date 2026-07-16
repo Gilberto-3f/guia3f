@@ -5,7 +5,8 @@ export const COR_VERDE_BOTAO = '#00D443'
 
 export const FOTOS_MIN = 1
 export const FOTOS_MAX = 3
-export const DESCRICAO_MAX = 400
+export const DESCRICAO_MAX = 1200
+export const NOME_PRODUTO_MAX = 25
 
 export const CATEGORIAS_PRODUTO_FIXAS = [
   { slug: 'smartphones', nome: 'Smartphones' },
@@ -14,11 +15,11 @@ export const CATEGORIAS_PRODUTO_FIXAS = [
   { slug: 'perfumaria-cosmeticos', nome: 'Perfumaria e Cosméticos' },
   { slug: 'bebidas-alimentos', nome: 'Bebidas e Alimentos' },
   { slug: 'vestuario-calcados', nome: 'Vestuário e Calçados' },
-  { slug: 'brinquedos', nome: 'Brinquedos' },
+  { slug: 'brinquedos', nome: 'Brinquedos e Colecionáveis' },
   { slug: 'artigos-automotivo', nome: 'Artigos Automotivo' },
   { slug: 'artigos-esportivos', nome: 'Artigos esportivos' },
   { slug: 'ferramentas', nome: 'Ferramentas' },
-  { slug: 'produtos-farmaceuticos', nome: 'Produtos farmacêuticos' },
+  { slug: 'produtos-farmaceuticos', nome: 'Farmácia e Suplementos' },
   { slug: 'departamento-geral', nome: 'Departamento / Geral' },
 ] as const
 

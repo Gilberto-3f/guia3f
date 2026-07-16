@@ -58,6 +58,7 @@ export default function AbaProdutos({ empresaId }: Props) {
           .from('produtos')
           .select(SELECT_PRODUTO)
           .eq('empresa_id', empresaId)
+          .eq('ativo', true)
           .order('created_at', { ascending: false }),
       ])
       setCategorias(cats)
@@ -106,6 +107,7 @@ export default function AbaProdutos({ empresaId }: Props) {
 
     setSalvando(true)
     setErro(null)
+    let rascunhoId: string | null = null
     try {
       const sub = await resolverOuCriarSubcategoria(supabase, form.categoria_id, form.subcategoria)
       const marca = await resolverOuCriarMarca(supabase, form.marca)
@@ -125,7 +127,13 @@ export default function AbaProdutos({ empresaId }: Props) {
         let fotos = [...form.fotosExistentes]
         if (form.fotosNovas.length) {
           const novas = await uploadFotosProduto(supabase, empresaId, form.id, form.fotosNovas)
+          if (novas.length !== form.fotosNovas.length) {
+            throw new Error('Uma ou mais fotos não foram aceitas. Corrija e salve novamente.')
+          }
           fotos = [...fotos, ...novas]
+        }
+        if (fotos.length < 1) {
+          throw new Error('Envie no mínimo 1 foto.')
         }
         const { error } = await supabase
           .from('produtos')
@@ -150,6 +158,7 @@ export default function AbaProdutos({ empresaId }: Props) {
           .eq('empresa_id', empresaId)
         if (error) throw error
       } else {
+        // Rascunho só vira produto definitivo após fotos aceitas.
         const { data: novo, error: errIns } = await supabase
           .from('produtos')
           .insert({
@@ -166,22 +175,41 @@ export default function AbaProdutos({ empresaId }: Props) {
             categoria_drena: cat.slug,
             marca: marca.nome,
             palavras_chave: palavras,
-            ativo: true,
+            ativo: false,
           })
           .select('id')
           .single()
         if (errIns) throw errIns
         const novoId = String(novo.id)
-        const fotos = await uploadFotosProduto(supabase, empresaId, novoId, form.fotosNovas)
+        rascunhoId = novoId
+
+        let fotos: string[]
+        try {
+          fotos = await uploadFotosProduto(supabase, empresaId, novoId, form.fotosNovas)
+        } catch (upErr) {
+          const motivo =
+            upErr instanceof Error && upErr.message
+              ? upErr.message
+              : 'Foto não aceita. Troque a imagem e salve novamente.'
+          throw new Error(motivo)
+        }
+
+        if (!fotos.length || fotos.length < form.fotosNovas.length) {
+          throw new Error('Uma ou mais fotos não foram aceitas. Corrija e salve novamente.')
+        }
+
         const { error: errUp } = await supabase
           .from('produtos')
           .update({
             fotos,
             foto_url: fotos[0] ?? null,
+            ativo: true,
             updated_at: new Date().toISOString(),
           })
           .eq('id', novoId)
+          .eq('empresa_id', empresaId)
         if (errUp) throw errUp
+        rascunhoId = null
       }
 
       setFormAberto(false)
@@ -189,6 +217,10 @@ export default function AbaProdutos({ empresaId }: Props) {
       await carregar()
     } catch (e) {
       console.error('[AbaProdutos] salvar', e)
+      if (rascunhoId) {
+        await supabase.from('produtos').delete().eq('id', rascunhoId).eq('empresa_id', empresaId)
+        rascunhoId = null
+      }
       setErro(e instanceof Error ? e.message : 'Não foi possível salvar o produto.')
     } finally {
       setSalvando(false)
@@ -216,7 +248,7 @@ export default function AbaProdutos({ empresaId }: Props) {
 
   return (
     <div className="space-y-4">
-      {erro ? (
+      {!formAberto && erro ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{erro}</div>
       ) : null}
 
@@ -233,6 +265,7 @@ export default function AbaProdutos({ empresaId }: Props) {
           }}
           salvando={salvando}
           titulo={form.id ? 'Editar produto' : 'Cadastrar produto'}
+          erro={erro}
         />
       ) : (
         <button

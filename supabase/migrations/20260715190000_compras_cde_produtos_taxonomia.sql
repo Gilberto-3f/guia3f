@@ -21,11 +21,11 @@ VALUES
   ('perfumaria-cosmeticos', 'Perfumaria e Cosméticos', 4),
   ('bebidas-alimentos', 'Bebidas e Alimentos', 5),
   ('vestuario-calcados', 'Vestuário e Calçados', 6),
-  ('brinquedos', 'Brinquedos', 7),
+  ('brinquedos', 'Brinquedos e Colecionáveis', 7),
   ('artigos-automotivo', 'Artigos Automotivo', 8),
   ('artigos-esportivos', 'Artigos esportivos', 9),
   ('ferramentas', 'Ferramentas', 10),
-  ('produtos-farmaceuticos', 'Produtos farmacêuticos', 11),
+  ('produtos-farmaceuticos', 'Farmácia e Suplementos', 11),
   ('departamento-geral', 'Departamento / Geral', 12)
 ON CONFLICT (slug) DO UPDATE
 SET
