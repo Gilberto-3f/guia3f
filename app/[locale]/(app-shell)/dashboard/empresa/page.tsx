@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { BarChart3, Crown, Filter } from 'lucide-react'
+import { BarChart3, Crown, Filter, Warehouse } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
@@ -283,7 +283,10 @@ function DashboardEmpresaConteudo({
             ) : null}
             {mostrarDrenaStok ? (
               <button type="button" onClick={() => setAbaAtiva('drena')} className={abaCls(abaAtiva === 'drena')}>
-                Drena-Stok
+                <Warehouse className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
+                <span className="flex flex-col items-center gap-0 leading-none">
+                  <span>Drena-Stok</span>
+                </span>
               </button>
             ) : null}
           </div>
