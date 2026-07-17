@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { normalizarTextoTaxonomia } from '@/lib/comprasCdeCatalogo'
+import { upsertArquivoMensal } from '@/lib/drenaArquivoMensal'
 
 function parseCronAuth(request: Request): boolean {
   const secret = process.env.CRON_SECRET
@@ -9,8 +10,10 @@ function parseCronAuth(request: Request): boolean {
 }
 
 /**
- * Materializa intenções do mês anterior em drena_intencao_mensal.
- * Rodar no dia 1 de cada mês (ou sob demanda com ?ano=&mes=).
+ * Materializa intenções do mês em:
+ * - drena_intencao_mensal (termos)
+ * - drena_arquivo_mensal (JSON completo para Histórico → Arquivo)
+ * Rodar no dia 1 (mês anterior) ou sob demanda com ?ano=&mes=.
  */
 export async function GET(request: Request) {
   if (!parseCronAuth(request)) {
@@ -22,7 +25,6 @@ export async function GET(request: Request) {
   let ano = Number(url.searchParams.get('ano'))
   let mes = Number(url.searchParams.get('mes'))
   if (!Number.isFinite(ano) || !Number.isFinite(mes) || mes < 1 || mes > 12) {
-    // Mês anterior
     const prev = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() - 1, 1))
     ano = prev.getUTCFullYear()
     mes = prev.getUTCMonth() + 1
@@ -72,12 +74,24 @@ export async function GET(request: Request) {
       if (!uErr) upserts += 1
     }
 
+    let arquivoOk = false
+    let arquivoErro: string | null = null
+    try {
+      await upsertArquivoMensal(admin, ano, mes)
+      arquivoOk = true
+    } catch (ae) {
+      arquivoErro = ae instanceof Error ? ae.message : 'erro_arquivo'
+      console.error('[api/cron/drena-snapshot] arquivo:', arquivoErro)
+    }
+
     return NextResponse.json({
       ok: true,
       ano,
       mes,
       termos: agg.size,
       upserts,
+      arquivo: arquivoOk,
+      arquivoErro,
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro interno'
