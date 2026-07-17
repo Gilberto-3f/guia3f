@@ -14,7 +14,9 @@ export type ProdutoHubCard = ProdutoCdeRow & {
   empresa_nota: number | null
 }
 
-export type TipoIntencaoCde = 'busca' | 'filtro' | 'tendencia' | 'clique'
+export type TipoIntencaoCde = 'busca' | 'filtro' | 'tendencia' | 'clique' | 'impressao'
+
+export type PerfilIntencaoCde = 'turista' | 'profissional' | 'empresa' | 'anon'
 
 const SELECT_HUB = `
   id, empresa_id, nome, descricao, preco_usd, percentual_desconto,
@@ -173,6 +175,19 @@ export async function listarDestaquesHub(
     .slice(0, opts?.limite ?? 40)
 }
 
+async function resolverPerfilIntencao(
+  supabase: SupabaseClient,
+  usuarioId: string | null,
+): Promise<PerfilIntencaoCde> {
+  if (!usuarioId) return 'anon'
+  const { data } = await supabase.from('usuarios').select('role').eq('id', usuarioId).maybeSingle()
+  const role = String(data?.role ?? '').toLowerCase()
+  if (role === 'turista') return 'turista'
+  if (role === 'profissional') return 'profissional'
+  if (role === 'empresa') return 'empresa'
+  return 'anon'
+}
+
 export async function registrarIntencaoCde(
   supabase: SupabaseClient,
   payload: {
@@ -180,21 +195,43 @@ export async function registrarIntencaoCde(
     termo?: string
     produtoId?: string | null
     categoriaId?: string | null
+    subcategoriaId?: string | null
+    marcaId?: string | null
   },
 ): Promise<void> {
   try {
     const {
       data: { session },
     } = await supabase.auth.getSession()
+    const uid = session?.user?.id ?? null
+    const perfil = await resolverPerfilIntencao(supabase, uid)
     const row: Record<string, unknown> = {
       termo_busca: (payload.termo ?? payload.tipo).trim() || payload.tipo,
       tipo: payload.tipo,
       produto_id: payload.produtoId ?? null,
       categoria_id: payload.categoriaId ?? null,
+      subcategoria_id: payload.subcategoriaId ?? null,
+      marca_id: payload.marcaId ?? null,
+      perfil,
     }
-    if (session?.user?.id) row.usuario_id = session.user.id
+    if (uid) row.usuario_id = uid
     const { error } = await supabase.from('buscas_produto').insert(row)
-    if (error) console.error('[comprasCdeHub] intencao:', error.message)
+    if (error) {
+      const msg = String(error.message ?? '').toLowerCase()
+      if (msg.includes('subcategoria') || msg.includes('marca_id') || msg.includes('perfil')) {
+        const legado: Record<string, unknown> = {
+          termo_busca: row.termo_busca,
+          tipo: row.tipo,
+          produto_id: row.produto_id,
+          categoria_id: row.categoria_id,
+        }
+        if (uid) legado.usuario_id = uid
+        const { error: e2 } = await supabase.from('buscas_produto').insert(legado)
+        if (e2) console.error('[comprasCdeHub] intencao:', e2.message)
+        return
+      }
+      console.error('[comprasCdeHub] intencao:', error.message)
+    }
   } catch (e) {
     console.error('[comprasCdeHub] intencao', e)
   }

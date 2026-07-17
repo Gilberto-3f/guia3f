@@ -1,13 +1,15 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Info } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import FaixaCotacoesConversor from '@/components/compras-cde/FaixaCotacoesConversor'
 import FiltrosComprasCde, { type FiltrosHubState } from '@/components/compras-cde/FiltrosComprasCde'
 import MiniCardProdutoVisitante from '@/components/compras-cde/MiniCardProdutoVisitante'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
+import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
+import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import {
   carregarCotacoesMap,
   listarDestaquesHub,
@@ -33,6 +35,16 @@ const TEXTO_INFO_HUB =
   'O Compras CDE é um comparador de preços (não um e-commerce). Aqui você pode pesquisar preços de produtos e identificar ofertas exclusivas, entre vários outros benefícios. OBS: Se atente às regras de compras das empresas participantes nas suas respectivas páginas desse guia turístico.'
 
 export default function ComprasCdePage() {
+  const {
+    podeComprarReservar,
+    loading: gateLoading,
+    mensagemBloqueio,
+    tituloBloqueio,
+    avisoAberto,
+    avisarBloqueio,
+    fecharAvisoBloqueio,
+  } = useGateComprasReservas()
+
   const [cotacoes, setCotacoes] = useState<CotacaoMap>({ USD: 0.2, EUR: 0.18, ARS: 180, PYG: 1500 })
   const [cotLoading, setCotLoading] = useState(true)
   const [conversorAberto, setConversorAberto] = useState(false)
@@ -51,6 +63,9 @@ export default function ComprasCdePage() {
     nota: number | null
     produtoId: string
   } | null>(null)
+  const impressoesSessao = useRef<Set<string>>(new Set())
+
+  const hubLiberado = !gateLoading && podeComprarReservar
 
   useEffect(() => {
     void (async () => {
@@ -62,6 +77,11 @@ export default function ComprasCdePage() {
       }
     })()
   }, [])
+
+  useEffect(() => {
+    if (gateLoading) return
+    if (!podeComprarReservar) avisarBloqueio()
+  }, [gateLoading, podeComprarReservar, avisarBloqueio])
 
   const carregarFeed = useCallback(async (f: FiltrosHubState) => {
     setLoading(true)
@@ -81,7 +101,6 @@ export default function ComprasCdePage() {
           ordenarPrecoAsc: f.ordenarPreco,
         })
         if (f.destaque && f.categoriaId) {
-          // Destaque com categoria: reordena por tendências 24h
           const dest = await listarDestaquesHub(supabase, {
             categoriaId: f.categoriaId,
             subcategoriaIds: f.subcategoriaIds.length ? f.subcategoriaIds : undefined,
@@ -108,17 +127,26 @@ export default function ComprasCdePage() {
   }, [])
 
   useEffect(() => {
+    if (!hubLiberado) {
+      setLista([])
+      setLoading(false)
+      return
+    }
     void carregarFeed(filtros)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- recarrega sob demanda via handlers
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- feed sob demanda + gate
+  }, [hubLiberado])
 
   const aplicarFiltros = (next: FiltrosHubState) => {
-    // Abrir busca fecha conversor
+    if (!hubLiberado) {
+      avisarBloqueio()
+      return
+    }
     if (next.buscaAberta && !filtros.buscaAberta) {
       setConversorAberto(false)
     }
     setFiltros(next)
     void carregarFeed(next)
+
     if (next.categoriaId && next.categoriaId !== filtros.categoriaId) {
       void registrarIntencaoCde(supabase, {
         tipo: 'filtro',
@@ -126,9 +154,25 @@ export default function ComprasCdePage() {
         categoriaId: next.categoriaId,
       })
     }
+
+    const novasSubs = next.subcategoriaIds.filter((id) => !filtros.subcategoriaIds.includes(id))
+    for (const subId of novasSubs) {
+      const idx = next.subcategoriaIds.indexOf(subId)
+      const nome = next.subcategoriaNomes[idx] ?? 'subcategoria'
+      void registrarIntencaoCde(supabase, {
+        tipo: 'filtro',
+        termo: nome,
+        categoriaId: next.categoriaId,
+        subcategoriaId: subId,
+      })
+    }
   }
 
   const onBuscar = (termo: string) => {
+    if (!hubLiberado) {
+      avisarBloqueio()
+      return
+    }
     const t = termo.trim()
     const next = {
       ...filtros,
@@ -151,11 +195,17 @@ export default function ComprasCdePage() {
   }
 
   const abrirProduto = (p: ProdutoHubCard) => {
+    if (!hubLiberado) {
+      avisarBloqueio()
+      return
+    }
     void registrarIntencaoCde(supabase, {
       tipo: 'clique',
       termo: p.nome,
       produtoId: p.id,
       categoriaId: p.categoria_id,
+      subcategoriaId: p.subcategoria_id,
+      marcaId: p.marca_id,
     })
     setDrawerEmpresa({
       id: p.empresa_id,
@@ -167,7 +217,58 @@ export default function ComprasCdePage() {
     })
   }
 
+  const registrarImpressao = (p: ProdutoHubCard) => {
+    if (!hubLiberado) return
+    if (impressoesSessao.current.has(p.id)) return
+    impressoesSessao.current.add(p.id)
+    void registrarIntencaoCde(supabase, {
+      tipo: 'impressao',
+      termo: p.nome,
+      produtoId: p.id,
+      categoriaId: p.categoria_id,
+      subcategoriaId: p.subcategoria_id,
+      marcaId: p.marca_id,
+    })
+  }
+
   const taxaUsd = cotacoes.USD || 0.2
+
+  if (gateLoading) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-gray-50">
+        <p className="text-sm text-gray-500">Carregando Compras CDE…</p>
+      </div>
+    )
+  }
+
+  if (!podeComprarReservar) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
+        <header className="shrink-0 bg-[#0097b2] px-4 py-3 pt-safe">
+          <h1 className="text-center text-lg font-bold tracking-wide text-white">Compras CDE</h1>
+        </header>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 pb-24 text-center">
+          <p className="text-sm leading-relaxed text-gray-600">
+            {mensagemBloqueio ||
+              'O Compras CDE está disponível após verificação completa ou pré-liberação da conta.'}
+          </p>
+          <button
+            type="button"
+            onClick={avisarBloqueio}
+            className="rounded-xl bg-[#0097b2] px-5 py-2.5 text-sm font-bold text-white"
+          >
+            Ver detalhes
+          </button>
+        </div>
+        <PopupAvisoBloqueioConta
+          aberto={avisoAberto}
+          onFechar={fecharAvisoBloqueio}
+          titulo={tituloBloqueio}
+          mensagem={mensagemBloqueio}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
@@ -196,7 +297,7 @@ export default function ComprasCdePage() {
         />
       </header>
 
-      <div className={`shrink-0 border-b border-gray-100 bg-[#f5f5f5] ${conversorAberto ? '' : ''}`}>
+      <div className="shrink-0 border-b border-gray-100 bg-[#f5f5f5]">
         <FiltrosComprasCde
           filtros={filtros}
           filtrosPadrao={filtrosIniciais}
@@ -233,6 +334,7 @@ export default function ComprasCdePage() {
                   }}
                   onInfo={() => setInfoAberto(true)}
                   onVerProduto={() => abrirProduto(p)}
+                  onImpressao={() => registrarImpressao(p)}
                 />
               </li>
             ))}
@@ -305,6 +407,13 @@ export default function ComprasCdePage() {
           </div>
         </div>
       ) : null}
+
+      <PopupAvisoBloqueioConta
+        aberto={avisoAberto}
+        onFechar={fecharAvisoBloqueio}
+        titulo={tituloBloqueio}
+        mensagem={mensagemBloqueio}
+      />
     </div>
   )
 }

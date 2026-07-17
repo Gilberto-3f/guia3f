@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { Info, Eye, Star } from 'lucide-react'
 import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
 import {
@@ -22,6 +23,8 @@ type Props = {
   onFavoritoChange: (salvo: boolean) => void
   onInfo: () => void
   onVerProduto: () => void
+  /** Dispara 1x por montagem quando o card entra na viewport (≥40%). */
+  onImpressao?: () => void
   /** Classes extras no article (hub grid vs carrossel). */
   className?: string
   /** Carrossel do drawer: altura fixa nas linhas opcionais. */
@@ -37,6 +40,7 @@ export default function MiniCardProdutoVisitante({
   onFavoritoChange,
   onInfo,
   onVerProduto,
+  onImpressao,
   className = 'w-[78%] max-w-[280px] shrink-0 snap-start',
   tamanhoUniforme = false,
 }: Props) {
@@ -44,9 +48,35 @@ export default function MiniCardProdutoVisitante({
   const finalUsd = precoFinalUsd(item.preco_usd, pct)
   const brl = usdParaBrl(finalUsd, taxaUsd)
   const capa = item.fotos[0] ?? item.foto_url
+  const rootRef = useRef<HTMLElement | null>(null)
+  const impressaoEnviada = useRef(false)
+
+  useEffect(() => {
+    impressaoEnviada.current = false
+  }, [item.id])
+
+  useEffect(() => {
+    if (!onImpressao) return
+    const el = rootRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const hit = entries.some((e) => e.isIntersecting && e.intersectionRatio >= 0.4)
+        if (!hit || impressaoEnviada.current) return
+        impressaoEnviada.current = true
+        onImpressao()
+        obs.disconnect()
+      },
+      { threshold: [0.4] },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [onImpressao, item.id])
 
   return (
     <article
+      ref={rootRef}
       className={`flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ${tamanhoUniforme ? 'min-h-[22.5rem]' : ''} ${className}`}
     >
       <div className="flex items-center gap-1.5 px-3 pt-3">

@@ -22,6 +22,7 @@ import MiniCardProdutoVisitante from '@/components/compras-cde/MiniCardProdutoVi
 import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { openWhatsAppChat, mensagemWhatsappProduto } from '@/lib/whatsapp-empresa'
+import { registrarIntencaoCde } from '@/lib/comprasCdeHub'
 import { iconeCategoriaProduto } from '@/lib/comprasCdeCategoriaIcone'
 import {
   formatarBrl,
@@ -94,7 +95,6 @@ export default function DrawerProdutosCde({
   const [infoAberto, setInfoAberto] = useState(false)
   const [verMaisAberto, setVerMaisAberto] = useState(false)
   const [recomendarAberto, setRecomendarAberto] = useState(false)
-  const [empresaCategoria, setEmpresaCategoria] = useState<string | null>(null)
   /** Hub Compras CDE abre direto no detalhe — evita flash do cabeçalho do catálogo. */
   const abrirDiretoNoDetalhe = Boolean(produtoIdInicial)
 
@@ -119,7 +119,7 @@ export default function DrawerProdutosCde({
       const [empRes, prodRes, cotRes, sess] = await Promise.all([
         supabase
           .from('empresas')
-          .select('whatsapp_comercial, whatsapp, docs_verificado, status, foto_url, nome_usuario, categoria')
+          .select('whatsapp_comercial, whatsapp, docs_verificado, status, foto_url, nome_usuario')
           .eq('id', empresaId)
           .maybeSingle(),
         supabase
@@ -141,7 +141,6 @@ export default function DrawerProdutosCde({
             : null
       setWhatsappComercial(waCom)
       setEmpresaVerificada(contaVerificadaDocumentacao('empresa', emp))
-      setEmpresaCategoria(emp?.categoria != null ? String(emp.categoria) : null)
 
       if (cotRes.data?.valor_brl != null) {
         const t = Number(cotRes.data.valor_brl)
@@ -372,14 +371,32 @@ export default function DrawerProdutosCde({
                               return next
                             })
                           }}
-                          onInfo={() => setInfoAberto(true)}
-                          onVerProduto={() => {
-                            setSelecionado(p)
-                            setFotoIdx(0)
-                            setVerMaisAberto(false)
-                            setPasso(2)
-                          }}
-                        />
+                        onInfo={() => setInfoAberto(true)}
+                        onVerProduto={() => {
+                          void registrarIntencaoCde(supabase, {
+                            tipo: 'clique',
+                            termo: p.nome,
+                            produtoId: p.id,
+                            categoriaId: p.categoria_id,
+                            subcategoriaId: p.subcategoria_id,
+                            marcaId: p.marca_id,
+                          })
+                          setSelecionado(p)
+                          setFotoIdx(0)
+                          setVerMaisAberto(false)
+                          setPasso(2)
+                        }}
+                        onImpressao={() => {
+                          void registrarIntencaoCde(supabase, {
+                            tipo: 'impressao',
+                            termo: p.nome,
+                            produtoId: p.id,
+                            categoriaId: p.categoria_id,
+                            subcategoriaId: p.subcategoria_id,
+                            marcaId: p.marca_id,
+                          })
+                        }}
+                      />
                       ))}
                       <div className="w-[11%] shrink-0 snap-none" aria-hidden />
                     </div>
@@ -616,7 +633,9 @@ export default function DrawerProdutosCde({
             empresaId,
             empresaNome,
             empresaUsername,
-            empresaCategoria,
+            categoriaId: selecionado.categoria_id,
+            subcategoriaId: selecionado.subcategoria_id,
+            marcaId: selecionado.marca_id,
           }}
         />
       ) : null}

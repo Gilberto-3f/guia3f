@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ChevronDown, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { registrarRecomendacaoEmpresa } from '@/lib/recomendarEmpresa'
+import { registrarRecomendacaoProduto } from '@/lib/recomendarProduto'
 import {
   montarTelefoneComDdi,
   PAISES_TELEFONE_RECOMENDACAO,
@@ -19,7 +19,9 @@ export type ProdutoRecomendacaoInfo = {
   empresaId: string
   empresaNome?: string | null
   empresaUsername?: string | null
-  empresaCategoria?: string | null
+  categoriaId?: string | null
+  subcategoriaId?: string | null
+  marcaId?: string | null
 }
 
 type Props = {
@@ -34,7 +36,7 @@ function urlProdutoRecomendacao(produtoId: string): string {
   return `${window.location.origin}${path}`
 }
 
-/** Recomendação de produto do Compras CDE (perfil profissional). */
+/** Recomendação de produto do Compras CDE (perfil profissional) — fora do funil. */
 export default function PopupRecomendarProduto({ aberto, onFechar, produto }: Props) {
   const [paisId, setPaisId] = useState('br')
   const [paisMenuAberto, setPaisMenuAberto] = useState(false)
@@ -86,9 +88,12 @@ export default function PopupRecomendarProduto({ aberto, onFechar, produto }: Pr
           return
         }
 
-        const { profissionalUsername } = await registrarRecomendacaoEmpresa(supabase, {
+        const { profissionalUsername } = await registrarRecomendacaoProduto(supabase, {
+          produtoId: produto.id,
           empresaId: produto.empresaId,
-          categoriaEmpresa: produto.empresaCategoria,
+          categoriaId: produto.categoriaId,
+          subcategoriaId: produto.subcategoriaId,
+          marcaId: produto.marcaId,
           emailTurista: email,
         })
 
@@ -108,9 +113,12 @@ export default function PopupRecomendarProduto({ aberto, onFechar, produto }: Pr
         return
       }
 
-      const { profissionalUsername } = await registrarRecomendacaoEmpresa(supabase, {
+      const { profissionalUsername } = await registrarRecomendacaoProduto(supabase, {
+        produtoId: produto.id,
         empresaId: produto.empresaId,
-        categoriaEmpresa: produto.empresaCategoria,
+        categoriaId: produto.categoriaId,
+        subcategoriaId: produto.subcategoriaId,
+        marcaId: produto.marcaId,
         whatsappTurista: phone,
       })
 
