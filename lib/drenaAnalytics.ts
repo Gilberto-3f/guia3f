@@ -89,6 +89,13 @@ export function agregarPizzaCategorias(
     if (cur) cur.total += 1
     else map.set(id, { nome, total: 1 })
   }
+  return pizzaFromContagens(map)
+}
+
+/** Monta fatias de pizza a partir de totais já agregados por id. */
+export function pizzaFromContagens(
+  map: Map<string, { nome: string; total: number }>,
+): FatiaCategoria[] {
   const totalGeral = [...map.values()].reduce((a, b) => a + b.total, 0)
   return [...map.entries()]
     .map(([id, d], i) => ({
@@ -99,6 +106,28 @@ export function agregarPizzaCategorias(
       cor: CORES_PIZZA[i % CORES_PIZZA.length],
     }))
     .sort((a, b) => b.total - a.total)
+}
+
+export type ProdutoRankingItem = {
+  id: string
+  nome: string
+  fotoUrl: string | null
+  categoriaId: string | null
+  categoriaNome: string
+  subcategoriaNome: string | null
+  marcaNome: string | null
+  cliques: number
+  impressoes: number
+  recomendacoes: number
+}
+
+export type SecaoCategoriaRanking = {
+  categoriaId: string
+  categoriaNome: string
+  ordem: number
+  produtos: ProdutoRankingItem[]
+  totalCliques: number
+  totalRecomendacoes: number
 }
 
 export function serieHistoricoTermo(

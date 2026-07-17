@@ -73,7 +73,7 @@ export default function DrenaStok() {
         })}
       </div>
 
-      {aba === 'catalogo' ? <AbaCatalogo /> : null}
+      {aba === 'catalogo' ? <AbaCatalogo empresaId={empresa?.id != null ? String(empresa.id) : null} /> : null}
       {aba === 'compras' ? <AbaComprasCde /> : null}
       {aba === 'historico' ? <AbaHistorico /> : null}
 
