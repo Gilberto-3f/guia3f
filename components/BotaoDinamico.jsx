@@ -128,7 +128,7 @@ export default function BotaoDinamico({
       const c = norm(cidade)
       const ehCde = c.includes('ciudad del este')
       return ehCde
-        ? { texto: 'Catálogo', icon: ShoppingBag, acao: 'produtos' }
+        ? { texto: 'CATÁLOGO', icon: ShoppingBag, acao: 'produtos' }
         : { texto: 'CHAMAR CORRIDA', icon: Car, acao: 'corrida', textoUmaLinha: true }
     }
 

@@ -362,7 +362,7 @@ export default function DrawerProdutosCde({
                           visitanteId={visitanteId}
                           favoritoInicial={favProdutos.has(p.id)}
                           tamanhoUniforme
-                          className="w-[78%] max-w-[280px] shrink-0 snap-center"
+                          className="box-border w-[78%] max-w-[280px] shrink-0 snap-center"
                           onFavoritoChange={(salvo) => {
                             setFavProdutos((prev) => {
                               const next = new Set(prev)

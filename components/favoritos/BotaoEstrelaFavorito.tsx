@@ -16,7 +16,7 @@ type Props = {
   onChange?: (salvo: boolean) => void
 }
 
-/** Estrela de favorito (azul logo). Só para perfil turista — página /favoritos. */
+/** Estrela de favorito (azul logo). Só turista interage — página /favoritos. Sempre visível. */
 export default function BotaoEstrelaFavorito({
   usuarioId,
   alvoId,
@@ -58,31 +58,26 @@ export default function BotaoEstrelaFavorito({
     [usuarioId, alvoId, tipo, busy, salvo, onChange, perfilEhTurista],
   )
 
+  const starCls = salvo || inicial ? 'fill-[#0097b2] text-[#0097b2]' : 'fill-none text-[#0097b2]'
+
   if (gateLoading) {
-    if (inicial) {
-      return (
-        <span className={`hidden shrink-0 md:inline-flex ${className}`} aria-hidden>
-          <Star className="fill-[#0097b2] text-[#0097b2]" size={size} strokeWidth={2.25} />
-        </span>
-      )
-    }
-    return null
+    return (
+      <span className={`inline-flex shrink-0 items-center justify-center ${className}`} aria-hidden>
+        <Star className={starCls} size={size} strokeWidth={2.25} />
+      </span>
+    )
   }
 
   if (!perfilEhTurista || !usuarioId) {
-    // Desktop: mostra estrela preenchida quando já marcado (estado visível sem interação)
-    if (inicial) {
-      return (
-        <span
-          className={`hidden shrink-0 md:inline-flex ${className}`}
-          title="Favorito"
-          aria-hidden
-        >
-          <Star className="fill-[#0097b2] text-[#0097b2]" size={size} strokeWidth={2.25} />
-        </span>
-      )
-    }
-    return null
+    return (
+      <span
+        className={`inline-flex shrink-0 items-center justify-center ${className}`}
+        title="Favorito"
+        aria-hidden
+      >
+        <Star className={starCls} size={size} strokeWidth={2.25} />
+      </span>
+    )
   }
 
   return (

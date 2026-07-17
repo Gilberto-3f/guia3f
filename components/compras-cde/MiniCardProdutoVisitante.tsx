@@ -99,10 +99,10 @@ export default function MiniCardProdutoVisitante({
         />
       </div>
 
-      <div className="mt-2 aspect-[4/3] bg-gray-100">
+      <div className="relative mt-2 aspect-[4/3] w-full shrink-0 overflow-hidden bg-gray-100">
         {capa ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={capa} alt="" className="h-full w-full object-cover" />
+          <img src={capa} alt="" className="absolute inset-0 h-full w-full object-cover" />
         ) : null}
       </div>
 

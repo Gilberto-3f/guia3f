@@ -57,7 +57,7 @@ function textoBotaoPreview(categoria: string, cidade: string) {
   if (isHospedagem(categoria)) return 'FAZER RESERVA'
   if (isServicosLocais(categoria)) return 'WhatsApp'
   if (isLojas(categoria)) {
-    if (cidadeEhCiudadDelEste(cidade)) return 'Catálogo'
+    if (cidadeEhCiudadDelEste(cidade)) return 'CATÁLOGO'
     if (cidadeEhFozOuPuertoIguazu(cidade)) return 'CHAMAR CORRIDA'
   }
   if (isEventos(categoria)) return 'COMPRAR INGRESSO'
@@ -90,7 +90,7 @@ function descricaoSegmento(categoria: string, cidade: string) {
 }
 
 function abaVerdeCls(ativa: boolean) {
-  return `flex-1 rounded-lg px-2 py-2.5 text-center text-xs font-semibold transition-colors sm:text-sm ${
+  return `flex-1 rounded-lg px-2 py-2.5 text-center text-sm font-semibold transition-colors ${
     ativa ? 'bg-[#00D443] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
   }`
 }
@@ -240,7 +240,7 @@ export default function ConfigBotaoDinamico() {
             className={abaVerdeCls(abaComprasCde === 'produtos')}
             onClick={() => setAbaComprasCde('produtos')}
           >
-            Catálogo
+            CATÁLOGO
           </button>
           <button
             type="button"
