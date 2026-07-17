@@ -215,3 +215,26 @@ export async function listarSubcategoriasDaCategoria(
   }
   return (data ?? []).map((r) => ({ id: String(r.id), nome: String(r.nome) }))
 }
+
+/** Contagem de produtos ativos por categoria_id (popup de filtros). */
+export async function contarProdutosPorCategoria(
+  supabase: SupabaseClient,
+): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('produtos')
+    .select('categoria_id')
+    .eq('ativo', true)
+    .not('categoria_id', 'is', null)
+    .limit(5000)
+  if (error) {
+    console.error('[comprasCdeHub] contarPorCategoria:', error.message)
+    return {}
+  }
+  const map: Record<string, number> = {}
+  for (const row of data ?? []) {
+    const id = row.categoria_id ? String(row.categoria_id) : ''
+    if (!id) continue
+    map[id] = (map[id] ?? 0) + 1
+  }
+  return map
+}

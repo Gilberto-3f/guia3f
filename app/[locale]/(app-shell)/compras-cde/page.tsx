@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { Info } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import FaixaCotacoesConversor from '@/components/compras-cde/FaixaCotacoesConversor'
 import FiltrosComprasCde, { type FiltrosHubState } from '@/components/compras-cde/FiltrosComprasCde'
@@ -20,12 +21,16 @@ const filtrosIniciais: FiltrosHubState = {
   categoriaId: null,
   categoriaNome: null,
   subcategoriaIds: [],
+  subcategoriaNomes: [],
   ordenarPreco: false,
   destaque: true,
   soOfertas: false,
   buscaAberta: false,
   termoBusca: '',
 }
+
+const TEXTO_INFO_HUB =
+  'O Compras CDE é um comparador de preços (não um e-commerce). Aqui você pode pesquisar preços de produtos e identificar ofertas exclusivas, entre vários outros benefícios. OBS: Se atente às regras de compras das empresas participantes nas suas respectivas páginas desse guia turístico.'
 
 export default function ComprasCdePage() {
   const [cotacoes, setCotacoes] = useState<CotacaoMap>({ USD: 0.2, EUR: 0.18, ARS: 180, PYG: 1500 })
@@ -37,6 +42,7 @@ export default function ComprasCdePage() {
   const [visitanteId, setVisitanteId] = useState<string | null>(null)
   const [favIds, setFavIds] = useState<Set<string>>(() => new Set())
   const [infoAberto, setInfoAberto] = useState(false)
+  const [infoHubAberto, setInfoHubAberto] = useState(false)
   const [drawerEmpresa, setDrawerEmpresa] = useState<{
     id: string
     nome: string
@@ -129,12 +135,18 @@ export default function ComprasCdePage() {
       termoBusca: t,
       buscaAberta: true,
       destaque: false,
+      ordenarPreco: false,
+      soOfertas: false,
+      categoriaId: null,
+      categoriaNome: null,
+      subcategoriaIds: [],
+      subcategoriaNomes: [],
     }
     setFiltros(next)
     setConversorAberto(false)
     void carregarFeed(next)
     if (t) {
-      void registrarIntencaoCde(supabase, { tipo: 'busca', termo: t, categoriaId: next.categoriaId })
+      void registrarIntencaoCde(supabase, { tipo: 'busca', termo: t, categoriaId: null })
     }
   }
 
@@ -166,9 +178,14 @@ export default function ComprasCdePage() {
               🇵🇾
             </span>
             Compras CDE
-            <span className="text-xl leading-none" aria-hidden>
-              🇧🇷
-            </span>
+            <button
+              type="button"
+              onClick={() => setInfoHubAberto(true)}
+              className="inline-flex items-center justify-center rounded-full p-0.5 text-white hover:bg-white/15"
+              aria-label="Informações sobre o Compras CDE"
+            >
+              <Info className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+            </button>
           </h1>
         </div>
         <FaixaCotacoesConversor
@@ -182,6 +199,7 @@ export default function ComprasCdePage() {
       <div className={`shrink-0 border-b border-gray-100 bg-[#f5f5f5] ${conversorAberto ? '' : ''}`}>
         <FiltrosComprasCde
           filtros={filtros}
+          filtrosPadrao={filtrosIniciais}
           onChange={aplicarFiltros}
           onBuscar={onBuscar}
         />
@@ -234,6 +252,34 @@ export default function ComprasCdePage() {
           mostrarEmpresaNoDetalhe
           produtoIdInicial={drawerEmpresa.produtoId}
         />
+      ) : null}
+
+      {infoHubAberto ? (
+        <div
+          className="fixed inset-0 z-[160] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setInfoHubAberto(false)
+          }}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-md rounded-t-2xl border border-gray-200 bg-white p-5 shadow-lg sm:rounded-2xl"
+            role="dialog"
+            aria-labelledby="info-hub-cde-titulo"
+          >
+            <h3 id="info-hub-cde-titulo" className="text-base font-bold text-black">
+              ATENÇÃO
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-black">{TEXTO_INFO_HUB}</p>
+            <button
+              type="button"
+              onClick={() => setInfoHubAberto(false)}
+              className="mt-5 w-full rounded-xl border border-gray-200 bg-white py-2.5 text-sm font-bold text-[#001f3f] hover:bg-gray-50"
+            >
+              Entendi
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {infoAberto ? (

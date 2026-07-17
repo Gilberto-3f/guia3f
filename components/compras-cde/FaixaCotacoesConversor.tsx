@@ -58,6 +58,19 @@ export default function FaixaCotacoesConversor({
           <p className="px-2 text-xs text-white/70">Carregando cotações…</p>
         ) : (
           <div className="flex min-w-max items-stretch gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={onToggleConversor}
+              className="flex w-10 shrink-0 items-center justify-center self-stretch rounded-lg bg-white/10 text-white hover:bg-white/15"
+              aria-expanded={conversorAberto}
+              aria-label={conversorAberto ? 'Fechar conversor' : 'Abrir conversor'}
+            >
+              <ChevronDown
+                className={`h-6 w-5 transition-transform ${conversorAberto ? 'rotate-180' : ''}`}
+                strokeWidth={2}
+                aria-hidden
+              />
+            </button>
             {MOEDAS_ORDEM.map((m) => {
               const brl = brlPorUnidade(m, cotacoes)
               return (
@@ -75,19 +88,6 @@ export default function FaixaCotacoesConversor({
                 </div>
               )
             })}
-            <button
-              type="button"
-              onClick={onToggleConversor}
-              className="flex w-7 shrink-0 items-center justify-center self-stretch rounded-lg bg-white/10 text-white hover:bg-white/15"
-              aria-expanded={conversorAberto}
-              aria-label={conversorAberto ? 'Fechar conversor' : 'Abrir conversor'}
-            >
-              <ChevronDown
-                className={`h-4 w-3 transition-transform ${conversorAberto ? 'rotate-180' : ''}`}
-                strokeWidth={1.75}
-                aria-hidden
-              />
-            </button>
           </div>
         )}
       </div>

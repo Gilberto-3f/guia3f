@@ -1,16 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, Heart, Percent, Search, ShoppingCart, X } from 'lucide-react'
+import { Check, FilterX, Heart, Percent, Search, ShoppingCart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { listarCategoriasProduto } from '@/lib/comprasCdeTaxonomia'
-import { listarSubcategoriasDaCategoria } from '@/lib/comprasCdeHub'
+import { contarProdutosPorCategoria, listarSubcategoriasDaCategoria } from '@/lib/comprasCdeHub'
 import type { ProdutoCategoriaRow } from '@/lib/comprasCdeCatalogo'
 
 export type FiltrosHubState = {
   categoriaId: string | null
   categoriaNome: string | null
   subcategoriaIds: string[]
+  subcategoriaNomes: string[]
   ordenarPreco: boolean
   destaque: boolean
   soOfertas: boolean
@@ -20,6 +21,7 @@ export type FiltrosHubState = {
 
 type Props = {
   filtros: FiltrosHubState
+  filtrosPadrao: FiltrosHubState
   onChange: (next: FiltrosHubState) => void
   onBuscar: (termo: string) => void
 }
@@ -31,10 +33,11 @@ const btnCls = (ativo: boolean) =>
 
 const iconCls = 'h-6 w-6 shrink-0 sm:h-5 sm:w-5'
 
-export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props) {
+export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, onBuscar }: Props) {
   const [popupCat, setPopupCat] = useState(false)
   const [fase, setFase] = useState<1 | 2>(1)
   const [categorias, setCategorias] = useState<ProdutoCategoriaRow[]>([])
+  const [contagemCat, setContagemCat] = useState<Record<string, number>>({})
   const [subcats, setSubcats] = useState<{ id: string; nome: string }[]>([])
   const [catTemp, setCatTemp] = useState<string | null>(null)
   const [subsTemp, setSubsTemp] = useState<string[]>([])
@@ -46,7 +49,18 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
 
   useEffect(() => {
     if (!popupCat) return
-    void listarCategoriasProduto(supabase).then(setCategorias).catch(() => setCategorias([]))
+    void Promise.all([
+      listarCategoriasProduto(supabase),
+      contarProdutosPorCategoria(supabase),
+    ])
+      .then(([cats, cont]) => {
+        setCategorias(cats)
+        setContagemCat(cont)
+      })
+      .catch(() => {
+        setCategorias([])
+        setContagemCat({})
+      })
   }, [popupCat])
 
   useEffect(() => {
@@ -59,19 +73,79 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
     setCatTemp(filtros.categoriaId)
     setSubsTemp([...filtros.subcategoriaIds])
     setPopupCat(true)
+    if (filtros.buscaAberta || filtros.termoBusca.trim()) {
+      onChange({
+        ...filtros,
+        buscaAberta: false,
+        termoBusca: '',
+      })
+      setTermoLocal('')
+    }
   }
 
   const confirmarCategoria = () => {
     const cat = categorias.find((c) => c.id === catTemp)
+    const nomesSubs = subcats.filter((s) => subsTemp.includes(s.id)).map((s) => s.nome)
     onChange({
       ...filtros,
       categoriaId: catTemp,
       categoriaNome: cat?.nome ?? null,
       subcategoriaIds: [...subsTemp],
+      subcategoriaNomes: nomesSubs,
+      buscaAberta: false,
+      termoBusca: '',
       destaque: Boolean(catTemp),
+      ordenarPreco: false,
+      soOfertas: false,
     })
+    setTermoLocal('')
     setPopupCat(false)
   }
+
+  const limparCategoriasPopup = () => {
+    setCatTemp(null)
+    setSubsTemp([])
+    setFase(1)
+    onChange({ ...filtrosPadrao })
+    setTermoLocal('')
+    setPopupCat(false)
+  }
+
+  const toggleBusca = () => {
+    const abrindo = !filtros.buscaAberta
+    onChange({
+      ...filtros,
+      buscaAberta: abrindo,
+      categoriaId: null,
+      categoriaNome: null,
+      subcategoriaIds: [],
+      subcategoriaNomes: [],
+      termoBusca: abrindo ? filtros.termoBusca : '',
+      destaque: abrindo ? false : filtros.destaque,
+    })
+    if (!abrindo) setTermoLocal('')
+  }
+
+  const textoPrincipalEsquerda = (() => {
+    if (filtros.termoBusca.trim()) {
+      return `"${filtros.termoBusca.trim()}"`
+    }
+    if (filtros.categoriaNome) {
+      const subs =
+        filtros.subcategoriaNomes.length > 0
+          ? ` · ${filtros.subcategoriaNomes.join(', ')}`
+          : ''
+      return `${filtros.categoriaNome}${subs}`
+    }
+    return null
+  })()
+
+  const textosApoioDireita: string[] = []
+  if (filtros.ordenarPreco) textosApoioDireita.push('Comparador de Preços')
+  if (filtros.destaque) textosApoioDireita.push('Tendências da Categoria')
+  if (filtros.soOfertas) textosApoioDireita.push('Produtos em Ofertas')
+
+  const mostrarLinhaResumo = Boolean(textoPrincipalEsquerda || textosApoioDireita.length)
 
   return (
     <div className="space-y-2 px-3 py-2">
@@ -88,7 +162,14 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
         <button
           type="button"
           className={btnCls(filtros.ordenarPreco)}
-          onClick={() => onChange({ ...filtros, ordenarPreco: !filtros.ordenarPreco, destaque: false })}
+          onClick={() =>
+            onChange({
+              ...filtros,
+              ordenarPreco: !filtros.ordenarPreco,
+              destaque: false,
+              soOfertas: false,
+            })
+          }
           title="Do menor valor para o maior"
           aria-label="Comparador"
         >
@@ -121,6 +202,7 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
               ...filtros,
               soOfertas: !filtros.soOfertas,
               destaque: false,
+              ordenarPreco: false,
             })
           }
           aria-label="Oferta"
@@ -131,7 +213,7 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
         <button
           type="button"
           className={btnCls(filtros.buscaAberta)}
-          onClick={() => onChange({ ...filtros, buscaAberta: !filtros.buscaAberta })}
+          onClick={toggleBusca}
           aria-label="Busca"
         >
           <Search className={iconCls} aria-hidden />
@@ -162,11 +244,17 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
         </div>
       ) : null}
 
-      {filtros.categoriaNome ? (
-        <p className="text-center text-[11px] text-gray-500">
-          Filtro: <span className="font-semibold text-[#001f3f]">{filtros.categoriaNome}</span>
-          {filtros.subcategoriaIds.length > 0 ? ` · ${filtros.subcategoriaIds.length} subcategoria(s)` : ''}
-        </p>
+      {mostrarLinhaResumo ? (
+        <div className="flex items-start justify-between gap-3 px-0.5 text-[11px] leading-snug text-gray-600">
+          <p className="min-w-0 flex-1 text-left font-semibold text-[#001f3f]">
+            {textoPrincipalEsquerda ?? ''}
+          </p>
+          {textosApoioDireita.length ? (
+            <p className="shrink-0 text-right font-semibold text-[#001f3f]">
+              {textosApoioDireita.join(' · ')}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {popupCat ? (
@@ -183,19 +271,36 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
             aria-modal="true"
             aria-label={fase === 1 ? 'Escolha uma Categoria' : 'Subcategorias Disponíveis'}
           >
-            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
-              <h3 className="text-sm font-bold text-[#001f3f]">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3">
+              <h3 className="min-w-0 flex-1 text-sm font-bold text-[#001f3f]">
                 {fase === 1 ? 'Escolha uma Categoria' : 'Subcategorias Disponíveis'}
               </h3>
-              <button type="button" onClick={() => setPopupCat(false)} aria-label="Fechar">
-                <X className="h-5 w-5 text-gray-500" aria-hidden />
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={limparCategoriasPopup}
+                  className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+                  aria-label="Limpar filtros de categoria"
+                  title="Limpar"
+                >
+                  <FilterX className="h-5 w-5" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPopupCat(false)}
+                  className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+                  aria-label="Fechar"
+                >
+                  <X className="h-5 w-5" aria-hidden />
+                </button>
+              </div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
               {fase === 1 ? (
                 <ul className="space-y-1.5">
                   {categorias.map((c) => {
                     const ativo = catTemp === c.id
+                    const qtd = contagemCat[c.id] ?? 0
                     return (
                       <li key={c.id}>
                         <button
@@ -216,7 +321,10 @@ export default function FiltrosComprasCde({ filtros, onChange, onBuscar }: Props
                           >
                             {ativo ? <Check className="h-2.5 w-2.5 text-white" aria-hidden /> : null}
                           </span>
-                          <span className="text-gray-900">{c.nome}</span>
+                          <span className="min-w-0 flex-1 truncate text-gray-900">{c.nome}</span>
+                          <span className="shrink-0 tabular-nums text-xs font-semibold text-gray-400">
+                            {qtd}
+                          </span>
                         </button>
                       </li>
                     )
