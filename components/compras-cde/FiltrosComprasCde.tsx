@@ -1,10 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, FilterX, Heart, Percent, Search, ShoppingCart, X } from 'lucide-react'
+import { Check, Heart, Percent, Search, ShoppingCart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { listarCategoriasProduto } from '@/lib/comprasCdeTaxonomia'
-import { contarProdutosPorCategoria, listarSubcategoriasDaCategoria } from '@/lib/comprasCdeHub'
+import {
+  contarProdutosPorCategoria,
+  contarProdutosPorSubcategoria,
+  listarSubcategoriasDaCategoria,
+} from '@/lib/comprasCdeHub'
 import type { ProdutoCategoriaRow } from '@/lib/comprasCdeCatalogo'
 
 export type FiltrosHubState = {
@@ -26,6 +30,8 @@ type Props = {
   onBuscar: (termo: string) => void
 }
 
+type BlocoResumo = { titulo: string; subtitulo: string }
+
 const btnCls = (ativo: boolean) =>
   `flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2.5 text-[9px] font-bold uppercase leading-tight sm:gap-0.5 sm:py-2 sm:text-[10px] ${
     ativo ? 'bg-[#0097b2] text-white' : 'bg-white text-[#0097b2] border border-gray-200'
@@ -33,11 +39,46 @@ const btnCls = (ativo: boolean) =>
 
 const iconCls = 'h-6 w-6 shrink-0 sm:h-5 sm:w-5'
 
+/** Ícone de vassoura (limpar filtro) — Lucide 0.468 não tem broom. */
+function IconeVassoura({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M5 22h14" />
+      <path d="M9 14l-3 3" />
+      <path d="M12 14v5" />
+      <path d="M15 14l3 3" />
+      <path d="M12 3v7" />
+      <path d="M9 10h6l1 4H8l1-4z" />
+    </svg>
+  )
+}
+
+function BlocoTexto({ bloco, align }: { bloco: BlocoResumo; align: 'left' | 'center' | 'right' }) {
+  const alignCls =
+    align === 'left' ? 'text-left' : align === 'right' ? 'text-right' : 'text-center'
+  return (
+    <div className={`min-w-0 ${alignCls}`}>
+      <p className="font-semibold text-[#001f3f]">{bloco.titulo}</p>
+      <p className="text-[10px] font-medium text-gray-500">{bloco.subtitulo}</p>
+    </div>
+  )
+}
+
 export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, onBuscar }: Props) {
   const [popupCat, setPopupCat] = useState(false)
   const [fase, setFase] = useState<1 | 2>(1)
   const [categorias, setCategorias] = useState<ProdutoCategoriaRow[]>([])
   const [contagemCat, setContagemCat] = useState<Record<string, number>>({})
+  const [contagemSub, setContagemSub] = useState<Record<string, number>>({})
   const [subcats, setSubcats] = useState<{ id: string; nome: string }[]>([])
   const [catTemp, setCatTemp] = useState<string | null>(null)
   const [subsTemp, setSubsTemp] = useState<string[]>([])
@@ -65,7 +106,18 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
 
   useEffect(() => {
     if (!catTemp || fase !== 2) return
-    void listarSubcategoriasDaCategoria(supabase, catTemp).then(setSubcats).catch(() => setSubcats([]))
+    void Promise.all([
+      listarSubcategoriasDaCategoria(supabase, catTemp),
+      contarProdutosPorSubcategoria(supabase, catTemp),
+    ])
+      .then(([subs, cont]) => {
+        setSubcats(subs)
+        setContagemSub(cont)
+      })
+      .catch(() => {
+        setSubcats([])
+        setContagemSub({})
+      })
   }, [catTemp, fase])
 
   const abrirCategoria = () => {
@@ -102,13 +154,21 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
     setPopupCat(false)
   }
 
+  /** Limpa só os checkboxes do popup — mantém o popup aberto. */
   const limparCategoriasPopup = () => {
     setCatTemp(null)
     setSubsTemp([])
     setFase(1)
-    onChange({ ...filtrosPadrao })
-    setTermoLocal('')
-    setPopupCat(false)
+    setContagemSub({})
+    const semApoioAtivo = !filtros.ordenarPreco && !filtros.soOfertas
+    onChange({
+      ...filtros,
+      categoriaId: null,
+      categoriaNome: null,
+      subcategoriaIds: [],
+      subcategoriaNomes: [],
+      destaque: semApoioAtivo ? filtrosPadrao.destaque : false,
+    })
   }
 
   const toggleBusca = () => {
@@ -126,26 +186,38 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
     if (!abrindo) setTermoLocal('')
   }
 
-  const textoPrincipalEsquerda = (() => {
-    if (filtros.termoBusca.trim()) {
-      return `"${filtros.termoBusca.trim()}"`
+  const blocoPrincipal: BlocoResumo | null = (() => {
+    const termo = filtros.termoBusca.trim()
+    if (termo) {
+      return { titulo: `"${termo}"`, subtitulo: 'sua busca' }
     }
     if (filtros.categoriaNome) {
-      const subs =
-        filtros.subcategoriaNomes.length > 0
-          ? ` · ${filtros.subcategoriaNomes.join(', ')}`
-          : ''
-      return `${filtros.categoriaNome}${subs}`
+      if (filtros.subcategoriaNomes.length > 0) {
+        return {
+          titulo: filtros.categoriaNome,
+          subtitulo: filtros.subcategoriaNomes.join(', '),
+        }
+      }
+      return { titulo: filtros.categoriaNome, subtitulo: 'categoria' }
     }
     return null
   })()
 
-  const textosApoioDireita: string[] = []
-  if (filtros.ordenarPreco) textosApoioDireita.push('Comparador de Preços')
-  if (filtros.destaque) textosApoioDireita.push('Tendências da Categoria')
-  if (filtros.soOfertas) textosApoioDireita.push('Produtos em Ofertas')
+  const blocoApoio: BlocoResumo | null = (() => {
+    if (filtros.ordenarPreco) {
+      return { titulo: 'Comparador de Preços', subtitulo: 'do menor para o maior' }
+    }
+    if (filtros.destaque) {
+      return { titulo: 'Tendências da Categoria', subtitulo: 'mais pesquisados' }
+    }
+    if (filtros.soOfertas) {
+      return { titulo: 'Produtos em Ofertas', subtitulo: 'em promoção' }
+    }
+    return null
+  })()
 
-  const mostrarLinhaResumo = Boolean(textoPrincipalEsquerda || textosApoioDireita.length)
+  const mostrarLinhaResumo = Boolean(blocoPrincipal || blocoApoio)
+  const layoutSplit = Boolean(blocoPrincipal && blocoApoio)
 
   return (
     <div className="space-y-2 px-3 py-2">
@@ -245,16 +317,16 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
       ) : null}
 
       {mostrarLinhaResumo ? (
-        <div className="flex items-start justify-between gap-3 px-0.5 text-[11px] leading-snug text-gray-600">
-          <p className="min-w-0 flex-1 text-left font-semibold text-[#001f3f]">
-            {textoPrincipalEsquerda ?? ''}
-          </p>
-          {textosApoioDireita.length ? (
-            <p className="shrink-0 text-right font-semibold text-[#001f3f]">
-              {textosApoioDireita.join(' · ')}
-            </p>
-          ) : null}
-        </div>
+        layoutSplit ? (
+          <div className="flex items-start justify-between gap-3 px-0.5 text-[11px] leading-snug">
+            {blocoPrincipal ? <BlocoTexto bloco={blocoPrincipal} align="left" /> : null}
+            {blocoApoio ? <BlocoTexto bloco={blocoApoio} align="right" /> : null}
+          </div>
+        ) : (
+          <div className="flex justify-center px-0.5 text-[11px] leading-snug">
+            <BlocoTexto bloco={(blocoPrincipal ?? blocoApoio)!} align="center" />
+          </div>
+        )
       ) : null}
 
       {popupCat ? (
@@ -283,7 +355,7 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
                   aria-label="Limpar filtros de categoria"
                   title="Limpar"
                 >
-                  <FilterX className="h-5 w-5" aria-hidden />
+                  <IconeVassoura className="h-5 w-5" />
                 </button>
                 <button
                   type="button"
@@ -339,6 +411,7 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
                   ) : (
                     subcats.map((s) => {
                       const ativo = subsTemp.includes(s.id)
+                      const qtd = contagemSub[s.id] ?? 0
                       return (
                         <li key={s.id}>
                           <button
@@ -359,7 +432,10 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
                             >
                               {ativo ? <Check className="h-2.5 w-2.5 text-white" aria-hidden /> : null}
                             </span>
-                            <span className="text-gray-900">{s.nome}</span>
+                            <span className="min-w-0 flex-1 truncate text-gray-900">{s.nome}</span>
+                            <span className="shrink-0 tabular-nums text-xs font-semibold text-gray-400">
+                              {qtd}
+                            </span>
                           </button>
                         </li>
                       )

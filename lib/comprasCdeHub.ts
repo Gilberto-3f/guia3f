@@ -275,3 +275,29 @@ export async function contarProdutosPorCategoria(
   }
   return map
 }
+
+/** Contagem de produtos ativos por subcategoria_id (popup fase 2). */
+export async function contarProdutosPorSubcategoria(
+  supabase: SupabaseClient,
+  categoriaId?: string | null,
+): Promise<Record<string, number>> {
+  let q = supabase
+    .from('produtos')
+    .select('subcategoria_id')
+    .eq('ativo', true)
+    .not('subcategoria_id', 'is', null)
+    .limit(5000)
+  if (categoriaId) q = q.eq('categoria_id', categoriaId)
+  const { data, error } = await q
+  if (error) {
+    console.error('[comprasCdeHub] contarPorSubcategoria:', error.message)
+    return {}
+  }
+  const map: Record<string, number> = {}
+  for (const row of data ?? []) {
+    const id = row.subcategoria_id ? String(row.subcategoria_id) : ''
+    if (!id) continue
+    map[id] = (map[id] ?? 0) + 1
+  }
+  return map
+}

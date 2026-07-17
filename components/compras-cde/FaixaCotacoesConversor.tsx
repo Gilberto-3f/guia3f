@@ -61,7 +61,7 @@ export default function FaixaCotacoesConversor({
             <button
               type="button"
               onClick={onToggleConversor}
-              className="flex w-10 shrink-0 items-center justify-center self-stretch rounded-lg bg-white/10 text-white hover:bg-white/15"
+              className="flex w-6 shrink-0 items-center justify-center self-stretch rounded-md bg-white/10 text-white hover:bg-white/15"
               aria-expanded={conversorAberto}
               aria-label={conversorAberto ? 'Fechar conversor' : 'Abrir conversor'}
             >

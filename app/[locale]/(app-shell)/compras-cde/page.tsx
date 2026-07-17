@@ -32,7 +32,10 @@ const filtrosIniciais: FiltrosHubState = {
 }
 
 const TEXTO_INFO_HUB =
-  'O Compras CDE é um comparador de preços (não um e-commerce). Aqui você pode pesquisar preços de produtos e identificar ofertas exclusivas, entre vários outros benefícios. OBS: Se atente às regras de compras das empresas participantes nas suas respectivas páginas desse guia turístico.'
+  'O Compras CDE é um comparador de preços (não um e-commerce), aqui você pode pesquisar preços de produtos e identificar ofertas exclusivas, entre vários outros benefícios.'
+
+const TEXTO_INFO_HUB_OBS =
+  'OBS: Se atente às regras de compras das empresas participantes nas suas respectivas páginas desse guia turístico.'
 
 export default function ComprasCdePage() {
   const {
@@ -369,10 +372,11 @@ export default function ComprasCdePage() {
             role="dialog"
             aria-labelledby="info-hub-cde-titulo"
           >
-            <h3 id="info-hub-cde-titulo" className="text-base font-bold text-black">
+            <h3 id="info-hub-cde-titulo" className="text-center text-base font-bold text-black">
               ATENÇÃO
             </h3>
             <p className="mt-3 text-sm leading-relaxed text-black">{TEXTO_INFO_HUB}</p>
+            <p className="mt-2 text-sm leading-relaxed text-black">{TEXTO_INFO_HUB_OBS}</p>
             <button
               type="button"
               onClick={() => setInfoHubAberto(false)}
