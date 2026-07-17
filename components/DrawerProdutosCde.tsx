@@ -22,6 +22,7 @@ import MiniCardProdutoVisitante from '@/components/compras-cde/MiniCardProdutoVi
 import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { openWhatsAppChat, mensagemWhatsappProduto } from '@/lib/whatsapp-empresa'
+import { iconeCategoriaProduto } from '@/lib/comprasCdeCategoriaIcone'
 import {
   formatarBrl,
   formatarUsd,
@@ -38,7 +39,7 @@ const SELECT_PRODUTOS = `
   id, empresa_id, nome, descricao, preco_usd, percentual_desconto,
   fotos, foto_url, site_url, ativo, categoria_id, subcategoria_id, marca_id,
   palavras_chave, created_at,
-  produto_categorias ( id, nome, ordem ),
+  produto_categorias ( id, nome, ordem, slug ),
   produto_subcategorias ( nome ),
   produto_marcas ( nome )
 `
@@ -46,6 +47,7 @@ const SELECT_PRODUTOS = `
 type SecaoCategoria = {
   categoriaId: string
   categoriaNome: string
+  categoriaSlug: string | null
   ordem: number
   produtos: ProdutoCdeRow[]
 }
@@ -154,6 +156,7 @@ export default function DrawerProdutosCde({
           map.set(key, {
             categoriaId: key,
             categoriaNome: p.categoria_nome || 'Outros',
+            categoriaSlug: p.categoria_slug ?? null,
             ordem: p.categoria_ordem ?? 999,
             produtos: [],
           })
@@ -217,11 +220,17 @@ export default function DrawerProdutosCde({
 
   const abrirWhatsapp = () => {
     if (!selecionado) return
+    const origin =
+      typeof window !== 'undefined' ? window.location.origin : ''
+    const produtoUrl = origin
+      ? `${origin}/compras-cde/produto/${selecionado.id}?ref=whatsapp`
+      : `/compras-cde/produto/${selecionado.id}?ref=whatsapp`
     const ok = openWhatsAppChat(
       whatsappComercial,
       mensagemWhatsappProduto({
         nomeProduto: selecionado.nome,
         username: empresaUsername,
+        produtoUrl,
       }),
     )
     if (!ok) window.alert('WhatsApp comercial da loja não configurado.')
@@ -335,42 +344,48 @@ export default function DrawerProdutosCde({
             {totalProdutos === 0 ? (
               <p className="px-4 text-center text-sm text-gray-500">Nenhum produto disponível no momento.</p>
             ) : (
-              secoes.map((sec) => (
-                <section key={sec.categoriaId} className="space-y-2">
-                  <h3 className="px-4 text-center text-sm font-bold text-[#0097b2]">{sec.categoriaNome}</h3>
-                  <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    <div className="w-[11%] shrink-0 snap-none" aria-hidden />
-                    {sec.produtos.map((p) => (
-                      <MiniCardProdutoVisitante
-                        key={p.id}
-                        item={p}
-                        taxaUsd={taxaUsd}
-                        notaMediaEmpresa={notaMedia ?? null}
-                        visitanteId={visitanteId}
-                        favoritoInicial={favProdutos.has(p.id)}
-                        tamanhoUniforme
-                        className="w-[78%] max-w-[280px] shrink-0 snap-center"
-                        onFavoritoChange={(salvo) => {
-                          setFavProdutos((prev) => {
-                            const next = new Set(prev)
-                            if (salvo) next.add(p.id)
-                            else next.delete(p.id)
-                            return next
-                          })
-                        }}
-                        onInfo={() => setInfoAberto(true)}
-                        onVerProduto={() => {
-                          setSelecionado(p)
-                          setFotoIdx(0)
-                          setVerMaisAberto(false)
-                          setPasso(2)
-                        }}
-                      />
-                    ))}
-                    <div className="w-[11%] shrink-0 snap-none" aria-hidden />
-                  </div>
-                </section>
-              ))
+              secoes.map((sec) => {
+                const IconeCat = iconeCategoriaProduto(sec.categoriaSlug || sec.categoriaNome)
+                return (
+                  <section key={sec.categoriaId} className="space-y-2">
+                    <h3 className="flex items-center justify-center gap-2 px-4 text-center text-sm font-bold text-[#0097b2]">
+                      <IconeCat className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+                      {sec.categoriaNome}
+                    </h3>
+                    <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      <div className="w-[11%] shrink-0 snap-none" aria-hidden />
+                      {sec.produtos.map((p) => (
+                        <MiniCardProdutoVisitante
+                          key={p.id}
+                          item={p}
+                          taxaUsd={taxaUsd}
+                          notaMediaEmpresa={notaMedia ?? null}
+                          visitanteId={visitanteId}
+                          favoritoInicial={favProdutos.has(p.id)}
+                          tamanhoUniforme
+                          className="w-[78%] max-w-[280px] shrink-0 snap-center"
+                          onFavoritoChange={(salvo) => {
+                            setFavProdutos((prev) => {
+                              const next = new Set(prev)
+                              if (salvo) next.add(p.id)
+                              else next.delete(p.id)
+                              return next
+                            })
+                          }}
+                          onInfo={() => setInfoAberto(true)}
+                          onVerProduto={() => {
+                            setSelecionado(p)
+                            setFotoIdx(0)
+                            setVerMaisAberto(false)
+                            setPasso(2)
+                          }}
+                        />
+                      ))}
+                      <div className="w-[11%] shrink-0 snap-none" aria-hidden />
+                    </div>
+                  </section>
+                )
+              })
             )}
           </div>
         ) : selecionado ? (

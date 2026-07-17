@@ -25,6 +25,19 @@ export const CATEGORIAS_PRODUTO_FIXAS = [
 
 export type CategoriaProdutoSlug = (typeof CATEGORIAS_PRODUTO_FIXAS)[number]['slug']
 
+export function slugCategoriaProdutoPorNome(nome: string | null | undefined): CategoriaProdutoSlug | null {
+  const n = normalizarTextoTaxonomia(String(nome ?? ''))
+  if (!n) return null
+  for (const c of CATEGORIAS_PRODUTO_FIXAS) {
+    if (normalizarTextoTaxonomia(c.nome) === n || c.slug === n) return c.slug
+  }
+  // aliases legados / parciais
+  if (n.includes('brinquedo')) return 'brinquedos'
+  if (n.includes('farmac') || n.includes('suplement')) return 'produtos-farmaceuticos'
+  if (n.includes('smartphone') || n.includes('celular')) return 'smartphones'
+  return null
+}
+
 export type ProdutoCategoriaRow = {
   id: string
   slug: string
@@ -48,6 +61,7 @@ export type ProdutoCdeRow = {
   marca_id: string | null
   palavras_chave: string[]
   categoria_nome?: string | null
+  categoria_slug?: string | null
   categoria_ordem?: number
   subcategoria_nome?: string | null
   marca_nome?: string | null
@@ -140,6 +154,10 @@ export function mapProdutoRow(raw: Record<string, unknown>): ProdutoCdeRow {
     categoria_nome:
       cat && typeof cat === 'object' && !Array.isArray(cat) && (cat as { nome?: unknown }).nome != null
         ? String((cat as { nome: unknown }).nome)
+        : null,
+    categoria_slug:
+      cat && typeof cat === 'object' && !Array.isArray(cat) && (cat as { slug?: unknown }).slug != null
+        ? String((cat as { slug: unknown }).slug)
         : null,
     categoria_ordem:
       cat && typeof cat === 'object' && !Array.isArray(cat) && (cat as { ordem?: unknown }).ordem != null

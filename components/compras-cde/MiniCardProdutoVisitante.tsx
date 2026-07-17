@@ -83,6 +83,12 @@ export default function MiniCardProdutoVisitante({
           <p className="text-sm font-bold" style={{ color: VERDE }}>
             {formatarUsd(finalUsd)}
           </p>
+          {brl > 0 ? (
+            <p className="text-sm font-medium text-black">
+              <span aria-hidden>🇧🇷 </span>
+              {formatarBrl(brl)}
+            </p>
+          ) : null}
           {pct > 0 ? (
             <span className="rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
               Em oferta
@@ -105,16 +111,16 @@ export default function MiniCardProdutoVisitante({
           ) : null}
         </div>
 
-        {brl > 0 ? (
-          <p className="text-sm font-medium text-black">
-            <span aria-hidden>🇧🇷 </span>
-            {formatarBrl(brl)}
-          </p>
-        ) : null}
-
-        <div className={tamanhoUniforme ? 'min-h-[1.25rem]' : ''}>
+        <div className={tamanhoUniforme ? 'min-h-[2.5rem]' : ''}>
           {item.subcategoria_nome ? (
             <p className="text-xs text-gray-500">{item.subcategoria_nome}</p>
+          ) : tamanhoUniforme ? (
+            <p className="invisible text-xs" aria-hidden>
+              —
+            </p>
+          ) : null}
+          {item.marca_nome ? (
+            <p className="text-xs font-medium text-gray-700">{item.marca_nome}</p>
           ) : tamanhoUniforme ? (
             <p className="invisible text-xs" aria-hidden>
               —
@@ -125,7 +131,7 @@ export default function MiniCardProdutoVisitante({
         <button
           type="button"
           onClick={onVerProduto}
-          className={`mt-auto flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white`}
+          className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white"
           style={{ backgroundColor: VERDE }}
         >
           <Eye className="h-4 w-4" aria-hidden />

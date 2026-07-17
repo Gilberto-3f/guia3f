@@ -57,7 +57,7 @@ function textoBotaoPreview(categoria: string, cidade: string) {
   if (isHospedagem(categoria)) return 'FAZER RESERVA'
   if (isServicosLocais(categoria)) return 'WhatsApp'
   if (isLojas(categoria)) {
-    if (cidadeEhCiudadDelEste(cidade)) return 'VER PRODUTOS'
+    if (cidadeEhCiudadDelEste(cidade)) return 'Catálogo'
     if (cidadeEhFozOuPuertoIguazu(cidade)) return 'CHAMAR CORRIDA'
   }
   if (isEventos(categoria)) return 'COMPRAR INGRESSO'
@@ -78,7 +78,7 @@ function descricaoSegmento(categoria: string, cidade: string) {
     return 'O botão abre conversa no WhatsApp da empresa.'
   }
   if (isLojas(categoria) && cidadeEhCiudadDelEste(cidade)) {
-    return 'Cadastre produtos (USD) e o WhatsApp comercial. O botão VER PRODUTOS abre o catálogo no Compras CDE.'
+    return 'Cadastre produtos (USD) e o WhatsApp comercial. O botão Catálogo abre o catálogo no Compras CDE.'
   }
   if (isLojas(categoria) && cidadeEhFozOuPuertoIguazu(cidade)) {
     return 'Em Foz ou Puerto Iguazú o botão chama corrida na Mobilidade.'

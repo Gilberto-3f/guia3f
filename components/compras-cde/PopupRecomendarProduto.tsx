@@ -28,8 +28,8 @@ type Props = {
   produto: ProdutoRecomendacaoInfo
 }
 
-function urlProdutoRecomendacao(empresaId: string): string {
-  const path = `/compras-paraguai/${empresaId}?ref=recomendacao`
+function urlProdutoRecomendacao(produtoId: string): string {
+  const path = `/compras-cde/produto/${produtoId}?ref=recomendacao`
   if (typeof window === 'undefined') return path
   return `${window.location.origin}${path}`
 }
@@ -66,7 +66,7 @@ export default function PopupRecomendarProduto({ aberto, onFechar, produto }: Pr
   const montarMensagem = (profissionalUsername: string | null) =>
     mensagemWhatsappRecomendacaoProduto({
       produtoNome: produto.nome,
-      produtoUrl: urlProdutoRecomendacao(produto.empresaId),
+      produtoUrl: urlProdutoRecomendacao(produto.id),
       precoUsd: produto.precoUsd,
       precoBrl: produto.precoBrl,
       empresaNome: produto.empresaNome,
