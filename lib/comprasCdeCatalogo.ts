@@ -6,7 +6,7 @@ export const COR_VERDE_BOTAO = '#00D443'
 export const FOTOS_MIN = 1
 export const FOTOS_MAX = 3
 export const DESCRICAO_MAX = 1200
-export const NOME_PRODUTO_MAX = 25
+export const NOME_PRODUTO_MAX = 30
 
 export const CATEGORIAS_PRODUTO_FIXAS = [
   { slug: 'smartphones', nome: 'Smartphones' },

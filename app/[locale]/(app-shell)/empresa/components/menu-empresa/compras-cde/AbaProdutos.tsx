@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CirclePlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { uploadFotosProduto } from '@/lib/comprasCdeFotos'
@@ -11,11 +11,13 @@ import {
   type ProdutoCategoriaRow,
   type ProdutoCdeRow,
 } from '@/lib/comprasCdeCatalogo'
+import { iconeCategoriaProduto } from '@/lib/comprasCdeCategoriaIcone'
 import {
   listarCategoriasProduto,
   resolverOuCriarMarca,
   resolverOuCriarSubcategoria,
 } from '@/lib/comprasCdeTaxonomia'
+import ChevronPasta from '../hospedagem/ChevronPasta'
 import FormProduto, {
   formProdutoFromRow,
   formProdutoVazio,
@@ -28,11 +30,19 @@ type Props = {
   empresaId: string
 }
 
+type SecaoCategoria = {
+  categoriaId: string
+  categoriaNome: string
+  categoriaSlug: string | null
+  ordem: number
+  produtos: ProdutoCdeRow[]
+}
+
 const SELECT_PRODUTO = `
   id, empresa_id, nome, descricao, preco_usd, percentual_desconto,
   fotos, foto_url, site_url, ativo, categoria_id, subcategoria_id, marca_id,
   palavras_chave, created_at,
-  produto_categorias ( nome ),
+  produto_categorias ( id, nome, ordem, slug ),
   produto_subcategorias ( nome ),
   produto_marcas ( nome )
 `
@@ -46,6 +56,7 @@ export default function AbaProdutos({ empresaId }: Props) {
   const [salvando, setSalvando] = useState(false)
   const [excluindoId, setExcluindoId] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [abertos, setAbertos] = useState<Record<string, boolean>>({})
 
   const carregar = useCallback(async () => {
     if (!empresaId) return
@@ -80,6 +91,37 @@ export default function AbaProdutos({ empresaId }: Props) {
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  /** Apenas categorias em que a empresa já cadastrou produtos. */
+  const secoes = useMemo((): SecaoCategoria[] => {
+    const map = new Map<string, SecaoCategoria>()
+    for (const p of lista) {
+      const key = p.categoria_id ?? 'outros'
+      if (!map.has(key)) {
+        map.set(key, {
+          categoriaId: key,
+          categoriaNome: p.categoria_nome || 'Outros',
+          categoriaSlug: p.categoria_slug ?? null,
+          ordem: p.categoria_ordem ?? 999,
+          produtos: [],
+        })
+      }
+      map.get(key)!.produtos.push(p)
+    }
+    return [...map.values()].sort(
+      (a, b) => a.ordem - b.ordem || a.categoriaNome.localeCompare(b.categoriaNome),
+    )
+  }, [lista])
+
+  useEffect(() => {
+    setAbertos((prev) => {
+      const next = { ...prev }
+      for (const s of secoes) {
+        if (next[s.categoriaId] === undefined) next[s.categoriaId] = true
+      }
+      return next
+    })
+  }, [secoes])
 
   const abrirNovo = () => {
     setForm(formProdutoVazio())
@@ -158,7 +200,6 @@ export default function AbaProdutos({ empresaId }: Props) {
           .eq('empresa_id', empresaId)
         if (error) throw error
       } else {
-        // Rascunho só vira produto definitivo após fotos aceitas.
         const { data: novo, error: errIns } = await supabase
           .from('produtos')
           .insert({
@@ -283,18 +324,36 @@ export default function AbaProdutos({ empresaId }: Props) {
         lista.length === 0 ? (
           <p className="py-6 text-center text-sm text-gray-500">Nenhum produto cadastrado.</p>
         ) : (
-          <ul className="space-y-3">
-            {lista.map((item) => (
-              <li key={item.id}>
-                <MiniCardProdutoConfig
-                  item={item}
-                  onEditar={() => abrirEditar(item)}
-                  onExcluir={() => void excluir(item.id)}
-                  excluindo={excluindoId === item.id}
-                />
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-3">
+            {secoes.map((sec) => {
+              const Icone = iconeCategoriaProduto(sec.categoriaSlug || sec.categoriaNome)
+              return (
+                <ChevronPasta
+                  key={sec.categoriaId}
+                  titulo={`${sec.categoriaNome} (${sec.produtos.length})`}
+                  icone={Icone}
+                  corTitulo={COR_AZUL_LOGO}
+                  aberto={Boolean(abertos[sec.categoriaId])}
+                  onToggle={() =>
+                    setAbertos((a) => ({ ...a, [sec.categoriaId]: !a[sec.categoriaId] }))
+                  }
+                >
+                  <ul className="space-y-3">
+                    {sec.produtos.map((item) => (
+                      <li key={item.id}>
+                        <MiniCardProdutoConfig
+                          item={item}
+                          onEditar={() => abrirEditar(item)}
+                          onExcluir={() => void excluir(item.id)}
+                          excluindo={excluindoId === item.id}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </ChevronPasta>
+              )
+            })}
+          </div>
         )
       ) : null}
     </div>

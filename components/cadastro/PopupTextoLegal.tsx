@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 
 export type CampoLegalPopup = 'politicas_privacidade' | 'termos_uso'
 
@@ -26,10 +25,11 @@ export function PopupTextoLegal({
     void (async () => {
       setLoading(true)
       try {
-        const { data } = await supabase.from('config_geral').select(campo).limit(1).maybeSingle()
+        const res = await fetch(`/api/legal/conteudo?campo=${encodeURIComponent(campo)}`)
+        const json = (await res.json().catch(() => ({}))) as { texto?: string }
         if (!ativo) return
-        const raw = data && typeof data === 'object' ? (data as Record<string, unknown>)[campo] : null
-        setTexto(String(raw ?? '').trim() || 'Conteúdo em atualização.')
+        const t = String(json.texto ?? '').trim()
+        setTexto(t || 'Conteúdo em atualização.')
       } catch {
         if (ativo) setTexto('Conteúdo em atualização.')
       } finally {

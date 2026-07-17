@@ -240,7 +240,7 @@ export default function ConfigBotaoDinamico() {
             className={abaVerdeCls(abaComprasCde === 'produtos')}
             onClick={() => setAbaComprasCde('produtos')}
           >
-            Produtos
+            Catálogo
           </button>
           <button
             type="button"
