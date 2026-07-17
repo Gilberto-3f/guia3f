@@ -10,10 +10,13 @@ import {
   MessageCircle,
   X,
 } from 'lucide-react'
+import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
 import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
+import PopupRecomendarProduto from '@/components/compras-cde/PopupRecomendarProduto'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import MiniCardProdutoVisitante from '@/components/compras-cde/MiniCardProdutoVisitante'
 import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
@@ -73,6 +76,8 @@ export default function DrawerProdutosCde({
   produtoIdInicial = null,
 }: Props) {
   useModalScrollLock(isOpen)
+  const router = useRouter()
+  const { perfilEhProfissional } = useProfissionalGate()
 
   const [passo, setPasso] = useState<1 | 2>(() => (produtoIdInicial ? 2 : 1))
   const [carregando, setCarregando] = useState(true)
@@ -86,6 +91,8 @@ export default function DrawerProdutosCde({
   const [favProdutos, setFavProdutos] = useState<Set<string>>(() => new Set())
   const [infoAberto, setInfoAberto] = useState(false)
   const [verMaisAberto, setVerMaisAberto] = useState(false)
+  const [recomendarAberto, setRecomendarAberto] = useState(false)
+  const [empresaCategoria, setEmpresaCategoria] = useState<string | null>(null)
   /** Hub Compras CDE abre direto no detalhe — evita flash do cabeçalho do catálogo. */
   const abrirDiretoNoDetalhe = Boolean(produtoIdInicial)
 
@@ -95,6 +102,7 @@ export default function DrawerProdutosCde({
     setFotoIdx(0)
     setVerMaisAberto(false)
     setInfoAberto(false)
+    setRecomendarAberto(false)
   }, [abrirDiretoNoDetalhe])
 
   const handleFechar = useCallback(() => {
@@ -109,7 +117,7 @@ export default function DrawerProdutosCde({
       const [empRes, prodRes, cotRes, sess] = await Promise.all([
         supabase
           .from('empresas')
-          .select('whatsapp_comercial, whatsapp, docs_verificado, status, foto_url, nome_usuario')
+          .select('whatsapp_comercial, whatsapp, docs_verificado, status, foto_url, nome_usuario, categoria')
           .eq('id', empresaId)
           .maybeSingle(),
         supabase
@@ -131,6 +139,7 @@ export default function DrawerProdutosCde({
             : null
       setWhatsappComercial(waCom)
       setEmpresaVerificada(contaVerificadaDocumentacao('empresa', emp))
+      setEmpresaCategoria(emp?.categoria != null ? String(emp.categoria) : null)
 
       if (cotRes.data?.valor_brl != null) {
         const t = Number(cotRes.data.valor_brl)
@@ -430,37 +439,18 @@ export default function DrawerProdutosCde({
                   <dd className="inline text-gray-900">{selecionado.marca_nome}</dd>
                 </div>
               ) : null}
+              {selecionado.subcategoria_nome ? (
+                <div>
+                  <dt className="inline font-semibold text-gray-500">Subcategoria: </dt>
+                  <dd className="inline text-gray-900">{selecionado.subcategoria_nome}</dd>
+                </div>
+              ) : null}
             </dl>
 
             {selecionado.descricao ? (
-              <p className="text-sm leading-relaxed text-gray-600">{selecionado.descricao}</p>
-            ) : null}
-
-            {mostrarEmpresaNoDetalhe ? (
-              <div className="flex items-center gap-3 rounded-xl bg-[#0097b2] p-3 shadow-sm">
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 border-white/40 bg-white/20">
-                  {avatarEmpresa ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
-                  ) : null}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-white">{empresaNome}</p>
-                  {empresaUsername ? (
-                    <p className="inline-flex max-w-full items-center gap-1 truncate text-xs text-white/90">
-                      {empresaVerificada ? (
-                        <BadgeCheck
-                          className="h-3.5 w-3.5 shrink-0 text-white"
-                          fill="currentColor"
-                          stroke="#0097b2"
-                          strokeWidth={2}
-                          aria-hidden
-                        />
-                      ) : null}
-                      <span className="truncate">@{empresaUsername}</span>
-                    </p>
-                  ) : null}
-                </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-500">Descrição</p>
+                <p className="mt-1 text-sm leading-relaxed text-gray-600">{selecionado.descricao}</p>
               </div>
             ) : null}
 
@@ -513,7 +503,57 @@ export default function DrawerProdutosCde({
               </div>
             </ChevronPasta>
 
-            <BotaoChamarCorrida variant="empresa" empresaId={empresaId} />
+            {mostrarEmpresaNoDetalhe ? (
+              <div className="flex items-center gap-3 rounded-xl bg-[#0097b2] p-3 shadow-sm">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 border-white/40 bg-white/20">
+                  {avatarEmpresa ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
+                  ) : null}
+                </div>
+                <div className="min-w-0 flex-1 overflow-hidden pr-1">
+                  <p className="truncate text-sm font-bold text-white">{empresaNome}</p>
+                  {empresaUsername ? (
+                    <p className="inline-flex max-w-full items-center gap-1 truncate text-xs text-white/90">
+                      {empresaVerificada ? (
+                        <BadgeCheck
+                          className="h-3.5 w-3.5 shrink-0 text-white"
+                          fill="currentColor"
+                          stroke="#0097b2"
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                      ) : null}
+                      <span className="truncate">@{empresaUsername}</span>
+                    </p>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleFechar()
+                    router.push(`/empresa/${empresaId}`)
+                  }}
+                  className="flex h-11 w-[4.5rem] shrink-0 flex-col items-center justify-center rounded-lg bg-white px-1 text-center text-[10px] font-bold leading-tight text-[#0097b2]"
+                >
+                  <span>VISITAR</span>
+                  <span>PÁGINA</span>
+                </button>
+              </div>
+            ) : null}
+
+            {perfilEhProfissional ? (
+              <button
+                type="button"
+                onClick={() => setRecomendarAberto(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#00D443] py-3 text-base font-bold text-white shadow-sm transition-opacity hover:opacity-95"
+              >
+                <MessageCircle size={20} className="text-white" aria-hidden />
+                RECOMENDAR
+              </button>
+            ) : (
+              <BotaoChamarCorrida variant="empresa" empresaId={empresaId} />
+            )}
           </div>
         ) : null}
       </div>
@@ -547,6 +587,23 @@ export default function DrawerProdutosCde({
             </button>
           </div>
         </div>
+      ) : null}
+
+      {selecionado ? (
+        <PopupRecomendarProduto
+          aberto={recomendarAberto}
+          onFechar={() => setRecomendarAberto(false)}
+          produto={{
+            id: selecionado.id,
+            nome: selecionado.nome,
+            precoUsd: precoFinal,
+            precoBrl: precoBrl > 0 ? precoBrl : null,
+            empresaId,
+            empresaNome,
+            empresaUsername,
+            empresaCategoria,
+          }}
+        />
       ) : null}
     </div>
   )
