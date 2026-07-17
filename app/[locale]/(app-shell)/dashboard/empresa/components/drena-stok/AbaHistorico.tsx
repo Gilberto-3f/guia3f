@@ -7,10 +7,16 @@ import {
   CalendarRange,
   FileSearch,
   Hash,
+  Search,
   Tags,
   type LucideIcon,
 } from 'lucide-react'
 import { useDrenaHistoricoArquivo } from '../../hooks/useDrenaHistoricoArquivo'
+import {
+  useDrenaLinhaTempo,
+  type PontoMesLinha,
+  type TipoFiltroLinha,
+} from '../../hooks/useDrenaLinhaTempo'
 import Ranking100Grupos from './Ranking100Grupos'
 import ListaRankingNome from './ListaRankingNome'
 import PizzaCategorias from './PizzaCategorias'
@@ -18,12 +24,20 @@ import type { TermoRanking } from '@/lib/drenaAnalytics'
 
 const VERDE = '#00D443'
 const AZUL = '#0097b2'
+const CINZA = '#666666'
 
 type SubAba = 'arquivo' | 'linha'
 
 const SUBS: { id: SubAba; label: string; Icon: LucideIcon }[] = [
   { id: 'arquivo', label: 'Arquivo', Icon: Archive },
   { id: 'linha', label: 'Linha do Tempo', Icon: CalendarRange },
+]
+
+const TIPOS_FILTRO: { id: TipoFiltroLinha; label: string }[] = [
+  { id: 'palavra', label: 'Palavra-chave' },
+  { id: 'categoria', label: 'Categoria' },
+  { id: 'subcategoria', label: 'Subcategoria' },
+  { id: 'marca', label: 'Marca' },
 ]
 
 function chunkTermos(ranking: TermoRanking[], tamanho = 20): TermoRanking[][] {
@@ -33,6 +47,52 @@ function chunkTermos(ranking: TermoRanking[], tamanho = 20): TermoRanking[][] {
   }
   while (grupos.length < 5) grupos.push([])
   return grupos.slice(0, 5)
+}
+
+function SerieTriplaSvg({ serie }: { serie: PontoMesLinha[] }) {
+  if (!serie.length) return null
+
+  const w = 360
+  const h = 140
+  const pad = 18
+  const max = Math.max(
+    1,
+    ...serie.flatMap((p) => [p.filtro, p.motor, p.recomendacoes]),
+  )
+
+  const pontos = (chave: 'filtro' | 'motor' | 'recomendacoes') =>
+    serie
+      .map((p, i) => {
+        const x = pad + (i * (w - pad * 2)) / Math.max(serie.length - 1, 1)
+        const y = h - pad - (p[chave] / max) * (h - pad * 2)
+        return `${x},${y}`
+      })
+      .join(' ')
+
+  return (
+    <div>
+      <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} className="max-w-full">
+        <polyline fill="none" stroke={CINZA} strokeWidth="2" points={pontos('filtro')} />
+        <polyline fill="none" stroke={AZUL} strokeWidth="2.5" points={pontos('motor')} />
+        <polyline fill="none" stroke={VERDE} strokeWidth="2.5" points={pontos('recomendacoes')} />
+      </svg>
+      <div className="mt-1 flex justify-between text-[10px] text-gray-400">
+        <span>{serie[0]?.label}</span>
+        <span>{serie[serie.length - 1]?.label}</span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-3 text-[10px] font-semibold uppercase tracking-wide">
+        <span className="inline-flex items-center gap-1.5" style={{ color: CINZA }}>
+          <span className="inline-block h-2 w-2 rounded-full bg-[#666666]" /> Filtro
+        </span>
+        <span className="inline-flex items-center gap-1.5" style={{ color: AZUL }}>
+          <span className="inline-block h-2 w-2 rounded-full bg-[#0097b2]" /> Motor
+        </span>
+        <span className="inline-flex items-center gap-1.5" style={{ color: VERDE }}>
+          <span className="inline-block h-2 w-2 rounded-full bg-[#00D443]" /> Recomendações
+        </span>
+      </div>
+    </div>
+  )
 }
 
 function PainelArquivo() {
@@ -183,6 +243,217 @@ function PainelArquivo() {
   )
 }
 
+function PainelLinhaTempo() {
+  const lt = useDrenaLinhaTempo()
+  const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
+
+  const opcoesValor =
+    lt.tipo === 'categoria'
+      ? lt.categorias
+      : lt.tipo === 'subcategoria'
+        ? lt.subcategorias
+        : lt.tipo === 'marca'
+          ? lt.marcas
+          : []
+
+  return (
+    <div className="space-y-4">
+      <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <header className="flex items-center gap-2 border-b border-gray-100 bg-[#f5f5f5] px-4 py-3">
+          <FileSearch className="h-5 w-5 shrink-0" style={{ color: AZUL }} strokeWidth={2.25} aria-hidden />
+          <h2 className="text-sm font-bold text-[#001f3f]">Motor de busca</h2>
+        </header>
+        <div className="space-y-4 p-4">
+          <p className="text-xs text-gray-500">
+            Escolha um filtro por vez (palavra-chave, categoria, subcategoria ou marca) e o mês/ano de
+            início. O relatório cobre até os últimos 12 meses até hoje.
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            {TIPOS_FILTRO.map((t) => {
+              const ativa = lt.tipo === t.id
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    lt.setTipo(t.id)
+                    lt.setValorId('')
+                    lt.setValorTexto('')
+                  }}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    ativa
+                      ? 'bg-[#0097b2] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="flex flex-wrap items-end gap-3">
+            {lt.tipo === 'palavra' ? (
+              <label className="min-w-[200px] flex-1 text-xs font-semibold text-gray-600">
+                Palavra-chave
+                <input
+                  type="search"
+                  value={lt.valorTexto}
+                  onChange={(e) => lt.setValorTexto(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void lt.buscar()
+                  }}
+                  placeholder="Ex: iphone"
+                  className="mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-[#001f3f]"
+                />
+              </label>
+            ) : (
+              <label className="min-w-[200px] flex-1 text-xs font-semibold text-gray-600">
+                {TIPOS_FILTRO.find((t) => t.id === lt.tipo)?.label}
+                <select
+                  value={lt.valorId}
+                  onChange={(e) => lt.setValorId(e.target.value)}
+                  className="mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-[#001f3f]"
+                >
+                  <option value="">Selecione…</option>
+                  {opcoesValor.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            <label className="text-xs font-semibold text-gray-600">
+              Mês início
+              <select
+                value={lt.mesIni}
+                onChange={(e) => lt.setMesIni(Number(e.target.value))}
+                className="mt-1 block rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-[#001f3f]"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <option key={m} value={m}>
+                    {lt.labelMes(m)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-xs font-semibold text-gray-600">
+              Ano início
+              <select
+                value={lt.anoIni}
+                onChange={(e) => lt.setAnoIni(Number(e.target.value))}
+                className="mt-1 block rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-[#001f3f]"
+              >
+                {anos.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void lt.buscar()}
+              disabled={lt.buscando}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white shadow-sm disabled:opacity-50"
+              style={{ backgroundColor: VERDE }}
+            >
+              <Search className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+              {lt.buscando ? 'Buscando…' : 'Buscar'}
+            </button>
+          </div>
+
+          {lt.erro ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              {lt.erro}
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {lt.buscando ? (
+        <div className="h-40 animate-pulse rounded-xl bg-gray-100" />
+      ) : lt.relatorio ? (
+        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <header className="flex flex-wrap items-center gap-2 border-b border-gray-100 bg-[#f5f5f5] px-4 py-3">
+            <BarChart3 className="h-5 w-5 shrink-0" style={{ color: VERDE }} strokeWidth={2.25} aria-hidden />
+            <h2 className="text-sm font-bold text-[#001f3f]">Relatório de Pesquisa</h2>
+            <span className="ml-auto rounded-full bg-white px-2.5 py-0.5 text-[10px] font-bold uppercase text-gray-600 ring-1 ring-gray-200">
+              {lt.relatorio.rotulo}
+            </span>
+          </header>
+          <div className="space-y-4 p-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg bg-[#f5f5f5] px-3 py-3 text-center">
+                <p className="text-[10px] font-bold uppercase text-gray-500">Filtro</p>
+                <p className="mt-1 text-xl font-bold tabular-nums text-[#666666]">
+                  {lt.relatorio.resumo.filtro.toLocaleString('pt-BR')}
+                </p>
+              </div>
+              <div className="rounded-lg bg-[#f5f5f5] px-3 py-3 text-center">
+                <p className="text-[10px] font-bold uppercase text-gray-500">Motor</p>
+                <p className="mt-1 text-xl font-bold tabular-nums" style={{ color: AZUL }}>
+                  {lt.relatorio.resumo.motor.toLocaleString('pt-BR')}
+                </p>
+              </div>
+              <div className="rounded-lg bg-[#f5f5f5] px-3 py-3 text-center">
+                <p className="text-[10px] font-bold uppercase text-gray-500">Recomendações</p>
+                <p className="mt-1 text-xl font-bold tabular-nums" style={{ color: VERDE }}>
+                  {lt.relatorio.resumo.recomendacoes.toLocaleString('pt-BR')}
+                </p>
+              </div>
+            </div>
+
+            <SerieTriplaSvg serie={lt.relatorio.serie} />
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[320px] text-left text-xs">
+                <thead>
+                  <tr className="border-b border-gray-100 text-[10px] uppercase text-gray-400">
+                    <th className="py-2 pr-2 font-semibold">Mês</th>
+                    <th className="py-2 px-2 text-right font-semibold">Filtro</th>
+                    <th className="py-2 px-2 text-right font-semibold">Motor</th>
+                    <th className="py-2 pl-2 text-right font-semibold">Rec.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lt.relatorio.serie.map((p) => (
+                    <tr key={p.label} className="border-b border-gray-50 text-[#001f3f]">
+                      <td className="py-1.5 pr-2 font-medium">{p.label}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums text-gray-600">
+                        {p.filtro.toLocaleString('pt-BR')}
+                      </td>
+                      <td className="py-1.5 px-2 text-right tabular-nums" style={{ color: AZUL }}>
+                        {p.motor.toLocaleString('pt-BR')}
+                      </td>
+                      <td className="py-1.5 pl-2 text-right tabular-nums" style={{ color: VERDE }}>
+                        {p.recomendacoes.toLocaleString('pt-BR')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-10 text-center">
+          <FileSearch className="mx-auto h-8 w-8 text-gray-300" strokeWidth={1.75} aria-hidden />
+          <p className="mt-2 text-sm font-medium text-gray-600">Relatório de Pesquisa</p>
+          <p className="mt-1 text-xs text-gray-400">
+            Defina o filtro e clique em Buscar para ver a evolução (máx. 12 meses).
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Histórico — Arquivo mensal + Linha do Tempo. */
 export default function AbaHistorico() {
   const [sub, setSub] = useState<SubAba>('arquivo')
@@ -211,27 +482,7 @@ export default function AbaHistorico() {
         })}
       </div>
 
-      {sub === 'arquivo' ? (
-        <PainelArquivo />
-      ) : (
-        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <header className="flex items-center gap-2 border-b border-gray-100 bg-[#f5f5f5] px-4 py-3">
-            <FileSearch className="h-5 w-5 shrink-0 text-[#0097b2]" strokeWidth={2.25} aria-hidden />
-            <h2 className="text-sm font-bold text-[#001f3f]">Linha do Tempo</h2>
-          </header>
-          <div className="space-y-3 p-4">
-            <p className="text-xs text-gray-500">
-              Filtro exclusivo: Palavra-chave · Categoria · Subcategoria · Marca + intervalo de datas →
-              Relatório dos últimos 12 meses (Filtro / Motor / Recomendações).
-            </p>
-            <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-8 text-center">
-              <FileSearch className="mx-auto h-8 w-8 text-gray-300" strokeWidth={1.75} aria-hidden />
-              <p className="mt-2 text-sm font-medium text-gray-600">Motor de busca + Relatório de Pesquisa</p>
-              <p className="mt-1 text-xs text-gray-400">Próxima fase.</p>
-            </div>
-          </div>
-        </section>
-      )}
+      {sub === 'arquivo' ? <PainelArquivo /> : <PainelLinhaTempo />}
     </div>
   )
 }
