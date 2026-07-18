@@ -31,9 +31,6 @@ const filtrosIniciais: FiltrosHubState = {
   termoBusca: '',
 }
 
-const TEXTO_INFO_HUB =
-  'O Compras CDE é um comparador de preços (não um e-commerce), aqui você pode pesquisar preços de produtos e identificar ofertas exclusivas, entre vários outros benefícios.'
-
 const TEXTO_INFO_HUB_OBS =
   'OBS: Se atente às regras de compras das empresas participantes nas suas respectivas páginas desse guia turístico.'
 
@@ -376,7 +373,11 @@ export default function ComprasCdePage() {
             <h3 id="info-hub-cde-titulo" className="text-center text-base font-bold text-black">
               ATENÇÃO
             </h3>
-            <p className="mt-3 text-sm leading-relaxed text-black">{TEXTO_INFO_HUB}</p>
+            <p className="mt-3 text-sm leading-relaxed text-black">
+              O <strong>Compras CDE</strong> é um comparador de preços (não um e-commerce), aqui você
+              pode pesquisar preços de produtos e identificar ofertas exclusivas, entre vários outros
+              benefícios.
+            </p>
             <p className="mt-2 text-sm leading-relaxed text-black">{TEXTO_INFO_HUB_OBS}</p>
             <button
               type="button"

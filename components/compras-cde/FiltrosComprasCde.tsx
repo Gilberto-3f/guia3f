@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, Heart, Percent, Search, ShoppingCart, X } from 'lucide-react'
+import { Check, Heart, Percent, RotateCcw, Search, ShoppingCart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { listarCategoriasProduto } from '@/lib/comprasCdeTaxonomia'
 import {
@@ -38,29 +38,6 @@ const btnCls = (ativo: boolean) =>
   }`
 
 const iconCls = 'h-6 w-6 shrink-0 sm:h-5 sm:w-5'
-
-/** Ícone de vassoura (limpar filtro) — Lucide 0.468 não tem broom. */
-function IconeVassoura({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <path d="M5 22h14" />
-      <path d="M9 14l-3 3" />
-      <path d="M12 14v5" />
-      <path d="M15 14l3 3" />
-      <path d="M12 3v7" />
-      <path d="M9 10h6l1 4H8l1-4z" />
-    </svg>
-  )
-}
 
 function BlocoTexto({ bloco, align }: { bloco: BlocoResumo; align: 'left' | 'center' | 'right' }) {
   const alignCls =
@@ -205,7 +182,7 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
 
   const blocoApoio: BlocoResumo | null = (() => {
     if (filtros.ordenarPreco) {
-      return { titulo: 'Comparador de Preços', subtitulo: 'do menor para o maior' }
+      return { titulo: 'Comparador de Preços', subtitulo: 'do menor $ para o maior' }
     }
     if (filtros.destaque) {
       return { titulo: 'Tendências da Categoria', subtitulo: 'mais pesquisados' }
@@ -352,10 +329,10 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
                   type="button"
                   onClick={limparCategoriasPopup}
                   className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
-                  aria-label="Limpar filtros de categoria"
-                  title="Limpar"
+                  aria-label="Reiniciar filtros de categoria"
+                  title="Reiniciar"
                 >
-                  <IconeVassoura className="h-5 w-5" />
+                  <RotateCcw className="h-5 w-5" aria-hidden />
                 </button>
                 <button
                   type="button"
