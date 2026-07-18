@@ -23,7 +23,12 @@ import PrecoProdutoCde from '@/components/compras-cde/PrecoProdutoCde'
 import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { openWhatsAppChat, mensagemWhatsappProduto } from '@/lib/whatsapp-empresa'
-import { registrarIntencaoCde, carregarCotacoesMap, type CotacaoMap } from '@/lib/comprasCdeHub'
+import {
+  registrarIntencaoCde,
+  carregarCotacoesMap,
+  converterMoedas,
+  type CotacaoMap,
+} from '@/lib/comprasCdeHub'
 import { iconeCategoriaProduto } from '@/lib/comprasCdeCategoriaIcone'
 import {
   mapProdutoRow,
@@ -213,6 +218,7 @@ export default function DrawerProdutosCde({
   const precoFinal = selecionado
     ? precoFinalUsd(selecionado.preco_usd, selecionado.percentual_desconto)
     : 0
+  const precoBrl = precoFinal > 0 ? converterMoedas(precoFinal, 'USD', 'BRL', cotacoes) : 0
   const pct = selecionado ? Number(selecionado.percentual_desconto) || 0 : 0
 
   const avatarEmpresa = empresaFotoUrl

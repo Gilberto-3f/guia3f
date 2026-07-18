@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CirclePlus } from 'lucide-react'
+import { CirclePlus, Pencil, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { uploadFotosProduto } from '@/lib/comprasCdeFotos'
 import {
@@ -17,6 +17,10 @@ import {
   resolverOuCriarMarca,
   resolverOuCriarSubcategoria,
 } from '@/lib/comprasCdeTaxonomia'
+import {
+  publicarCatalogoProdutosFeed,
+  snapshotProdutosParaFeed,
+} from '@/lib/publicarCatalogoProdutosFeed'
 import ChevronPasta from '../hospedagem/ChevronPasta'
 import FormProduto, {
   formProdutoFromRow,
@@ -49,21 +53,30 @@ const SELECT_PRODUTO = `
 
 export default function AbaProdutos({ empresaId }: Props) {
   const [lista, setLista] = useState<ProdutoCdeRow[]>([])
+  const [pendentes, setPendentes] = useState<ProdutoCdeRow[]>([])
   const [categorias, setCategorias] = useState<ProdutoCategoriaRow[]>([])
   const [carregando, setCarregando] = useState(true)
   const [formAberto, setFormAberto] = useState(false)
   const [form, setForm] = useState<FormProdutoState>(formProdutoVazio())
   const [salvando, setSalvando] = useState(false)
+  const [publicando, setPublicando] = useState(false)
   const [excluindoId, setExcluindoId] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [abertos, setAbertos] = useState<Record<string, boolean>>({})
+  /** Modo edição: mostra botão Cadastrar. */
+  const [modoEdicao, setModoEdicao] = useState(false)
+  const [msgCadastro, setMsgCadastro] = useState<string | null>(null)
+  const [empresaMeta, setEmpresaMeta] = useState<{
+    usuario_id: string | null
+    nome_usuario: string | null
+  }>({ usuario_id: null, nome_usuario: null })
 
   const carregar = useCallback(async () => {
     if (!empresaId) return
     setCarregando(true)
     setErro(null)
     try {
-      const [cats, prodRes] = await Promise.all([
+      const [cats, pubRes, penRes, empRes] = await Promise.all([
         listarCategoriasProduto(supabase),
         supabase
           .from('produtos')
@@ -71,10 +84,27 @@ export default function AbaProdutos({ empresaId }: Props) {
           .eq('empresa_id', empresaId)
           .eq('ativo', true)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('produtos')
+          .select(SELECT_PRODUTO)
+          .eq('empresa_id', empresaId)
+          .eq('ativo', false)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('empresas')
+          .select('usuario_id, nome_usuario')
+          .eq('id', empresaId)
+          .maybeSingle(),
       ])
       setCategorias(cats)
-      if (prodRes.error) throw prodRes.error
-      setLista((prodRes.data ?? []).map((r) => mapProdutoRow(r as Record<string, unknown>)))
+      if (pubRes.error) throw pubRes.error
+      if (penRes.error) throw penRes.error
+      setLista((pubRes.data ?? []).map((r) => mapProdutoRow(r as Record<string, unknown>)))
+      setPendentes((penRes.data ?? []).map((r) => mapProdutoRow(r as Record<string, unknown>)))
+      setEmpresaMeta({
+        usuario_id: empRes.data?.usuario_id != null ? String(empRes.data.usuario_id) : null,
+        nome_usuario: empRes.data?.nome_usuario != null ? String(empRes.data.nome_usuario) : null,
+      })
     } catch (e) {
       console.error('[AbaProdutos]', e)
       setErro(
@@ -83,6 +113,7 @@ export default function AbaProdutos({ empresaId }: Props) {
           : 'Não foi possível carregar os produtos. Verifique se a migration Compras CDE foi aplicada.',
       )
       setLista([])
+      setPendentes([])
     } finally {
       setCarregando(false)
     }
@@ -92,7 +123,7 @@ export default function AbaProdutos({ empresaId }: Props) {
     void carregar()
   }, [carregar])
 
-  /** Apenas categorias em que a empresa já cadastrou produtos. */
+  /** Apenas categorias com produtos já publicados. */
   const secoes = useMemo((): SecaoCategoria[] => {
     const map = new Map<string, SecaoCategoria>()
     for (const p of lista) {
@@ -117,11 +148,14 @@ export default function AbaProdutos({ empresaId }: Props) {
     setAbertos((prev) => {
       const next = { ...prev }
       for (const s of secoes) {
-        if (next[s.categoriaId] === undefined) next[s.categoriaId] = true
+        if (next[s.categoriaId] === undefined) next[s.categoriaId] = false
       }
       return next
     })
   }, [secoes])
+
+  const temPendentes = pendentes.length > 0
+  const botaoPrincipalPublicar = temPendentes
 
   const abrirNovo = () => {
     setForm(formProdutoVazio())
@@ -150,6 +184,9 @@ export default function AbaProdutos({ empresaId }: Props) {
     setSalvando(true)
     setErro(null)
     let rascunhoId: string | null = null
+    const eraNovo = !form.id
+    const editandoPendente = Boolean(form.id && pendentes.some((p) => p.id === form.id))
+
     try {
       const sub = await resolverOuCriarSubcategoria(supabase, form.categoria_id, form.subcategoria)
       const marca = await resolverOuCriarMarca(supabase, form.marca)
@@ -188,7 +225,8 @@ export default function AbaProdutos({ empresaId }: Props) {
             categoria_drena: cat.slug,
             marca: marca.nome,
             palavras_chave: palavras,
-            ativo: true,
+            // Pendente continua inativo; publicado permanece ativo.
+            ativo: !editandoPendente,
             updated_at: new Date().toISOString(),
           })
           .eq('id', form.id)
@@ -239,7 +277,7 @@ export default function AbaProdutos({ empresaId }: Props) {
           .update({
             fotos,
             foto_url: fotos[0] ?? null,
-            ativo: true,
+            ativo: false,
             updated_at: new Date().toISOString(),
           })
           .eq('id', novoId)
@@ -251,6 +289,10 @@ export default function AbaProdutos({ empresaId }: Props) {
       setFormAberto(false)
       setForm(formProdutoVazio())
       await carregar()
+      if (eraNovo) {
+        setModoEdicao(true)
+        setMsgCadastro(null)
+      }
     } catch (e) {
       console.error('[AbaProdutos] salvar', e)
       if (rascunhoId) {
@@ -278,6 +320,57 @@ export default function AbaProdutos({ empresaId }: Props) {
     }
   }
 
+  const onBotaoPrincipal = async () => {
+    if (botaoPrincipalPublicar) {
+      if (!empresaMeta.usuario_id) {
+        setErro('Não foi possível identificar o usuário da empresa para publicar no feed.')
+        return
+      }
+      setPublicando(true)
+      setErro(null)
+      try {
+        const ids = pendentes.map((p) => p.id)
+        const snaps = snapshotProdutosParaFeed(pendentes)
+        const res = await publicarCatalogoProdutosFeed(supabase, {
+          empresaId,
+          autorId: empresaMeta.usuario_id,
+          username: empresaMeta.nome_usuario ?? '',
+          produtoIds: ids,
+          snapshots: snaps,
+        })
+        if (!res.ok) throw new Error(res.error)
+        const n = ids.length
+        setMsgCadastro(
+          n === 1
+            ? 'Você cadastrou 1 novo produto (já publicado no catálogo e no feed).'
+            : `Você cadastrou ${n} novos produtos (já publicados no catálogo e no feed).`,
+        )
+        setModoEdicao(false)
+        setFormAberto(false)
+        await carregar()
+        window.setTimeout(() => setMsgCadastro(null), 6000)
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : 'Não foi possível publicar o catálogo.')
+      } finally {
+        setPublicando(false)
+      }
+      return
+    }
+
+    setModoEdicao(true)
+    setMsgCadastro(null)
+  }
+
+  useEffect(() => {
+    if (!temPendentes) return
+    const n = pendentes.length
+    setMsgCadastro(
+      n === 1
+        ? 'Você cadastrou 1 novo produto (eles serão mostrados quando você atualizar o catálogo).'
+        : `Você cadastrou ${n} novos produtos (eles serão mostrados quando você atualizar o catálogo).`,
+    )
+  }, [temPendentes, pendentes.length])
+
   if (carregando) {
     return <p className="py-8 text-center text-sm text-gray-500">Carregando produtos…</p>
   }
@@ -304,53 +397,103 @@ export default function AbaProdutos({ empresaId }: Props) {
           erro={erro}
         />
       ) : (
-        <button
-          type="button"
-          onClick={abrirNovo}
-          className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white"
-          style={{ backgroundColor: COR_AZUL_LOGO }}
-        >
-          <CirclePlus className="h-5 w-5" aria-hidden />
-          + CADASTRAR
-        </button>
-      )}
+        <>
+          <button
+            type="button"
+            onClick={() => void onBotaoPrincipal()}
+            disabled={publicando}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50"
+            style={{ backgroundColor: COR_AZUL_LOGO }}
+          >
+            {botaoPrincipalPublicar ? (
+              <>
+                <Send className="h-5 w-5" aria-hidden />
+                {publicando ? 'Publicando…' : 'PUBLICAR'}
+              </>
+            ) : (
+              <>
+                <Pencil className="h-5 w-5" aria-hidden />
+                EDITAR CATÁLOGO
+              </>
+            )}
+          </button>
 
-      {!formAberto ? (
-        lista.length === 0 ? (
-          <p className="py-6 text-center text-sm text-gray-500">Nenhum produto cadastrado.</p>
-        ) : (
-          <div className="space-y-3">
-            {secoes.map((sec) => {
-              const Icone = iconeCategoriaProduto(sec.categoriaSlug || sec.categoriaNome)
-              return (
-                <ChevronPasta
-                  key={sec.categoriaId}
-                  titulo={`${sec.categoriaNome} (${sec.produtos.length})`}
-                  icone={Icone}
-                  corTitulo={COR_AZUL_LOGO}
-                  aberto={Boolean(abertos[sec.categoriaId])}
-                  onToggle={() =>
-                    setAbertos((a) => ({ ...a, [sec.categoriaId]: !a[sec.categoriaId] }))
-                  }
-                >
-                  <ul className="space-y-3">
-                    {sec.produtos.map((item) => (
-                      <li key={item.id}>
-                        <MiniCardProdutoConfig
-                          item={item}
-                          onEditar={() => abrirEditar(item)}
-                          onExcluir={() => void excluir(item.id)}
-                          excluindo={excluindoId === item.id}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </ChevronPasta>
-              )
-            })}
-          </div>
-        )
-      ) : null}
+          {modoEdicao || temPendentes ? (
+            <button
+              type="button"
+              onClick={abrirNovo}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#0097b2]/40 bg-[#0097b2]/5 py-3 text-sm font-bold text-[#0097b2]"
+            >
+              <CirclePlus className="h-5 w-5" aria-hidden />
+              + CADASTRAR
+            </button>
+          ) : null}
+
+          {msgCadastro ? (
+            <p className="rounded-lg bg-[#0097b2]/10 px-3 py-2 text-center text-sm font-medium text-[#001f3f]">
+              {msgCadastro}
+            </p>
+          ) : null}
+
+          {pendentes.length > 0 ? (
+            <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                Recém cadastrados (aguardando publicação)
+              </p>
+              <ul className="space-y-3">
+                {pendentes.map((item) => (
+                  <li key={item.id}>
+                    <MiniCardProdutoConfig
+                      item={item}
+                      onEditar={() => abrirEditar(item)}
+                      onExcluir={() => void excluir(item.id)}
+                      excluindo={excluindoId === item.id}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {lista.length === 0 && pendentes.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-500">Nenhum produto cadastrado.</p>
+          ) : lista.length === 0 ? null : (
+            <div className="space-y-3">
+              {secoes.map((sec) => {
+                const Icone = iconeCategoriaProduto(sec.categoriaSlug || sec.categoriaNome)
+                return (
+                  <ChevronPasta
+                    key={sec.categoriaId}
+                    titulo={`${sec.categoriaNome} (${sec.produtos.length})`}
+                    icone={Icone}
+                    corTitulo={COR_AZUL_LOGO}
+                    aberto={Boolean(abertos[sec.categoriaId])}
+                    onToggle={() =>
+                      setAbertos((a) => ({ ...a, [sec.categoriaId]: !a[sec.categoriaId] }))
+                    }
+                  >
+                    <ul className="space-y-3">
+                      {sec.produtos.map((item) => (
+                        <li key={item.id}>
+                          <MiniCardProdutoConfig
+                            item={item}
+                            onEditar={() => {
+                              setModoEdicao(true)
+                              abrirEditar(item)
+                            }}
+                            onExcluir={() => void excluir(item.id)}
+                            excluindo={excluindoId === item.id}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </ChevronPasta>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
