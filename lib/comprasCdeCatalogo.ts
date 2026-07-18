@@ -121,6 +121,56 @@ export function montarPalavrasChave(opts: {
   return out
 }
 
+const METATAGS_PRODUTO = 5
+
+/** Preenche array de metatags com exatamente 5 slots (UI do formulário). */
+export function metatagsFormFromPalavras(raw: unknown): string[] {
+  const lista = Array.isArray(raw) ? raw.map((x) => String(x ?? '')) : []
+  const out = [...lista.slice(0, METATAGS_PRODUTO)]
+  while (out.length < METATAGS_PRODUTO) out.push('')
+  return out
+}
+
+/**
+ * Motor de busca Compras CDE: nome, marca, categoria, subcategoria e metatags (palavras_chave).
+ * Cada palavra do termo (≥2 letras) precisa bater em algum campo.
+ */
+export function produtoCorrespondeBuscaCde(
+  p: {
+    nome?: string | null
+    marca?: string | null
+    marca_nome?: string | null
+    categoria_nome?: string | null
+    subcategoria_nome?: string | null
+    palavras_chave?: string[] | null
+  },
+  termoBusca: string,
+): boolean {
+  const termo = normalizarTextoTaxonomia(termoBusca)
+  if (!termo) return true
+
+  const campos = [
+    p.nome,
+    p.marca_nome,
+    p.marca,
+    p.categoria_nome,
+    p.subcategoria_nome,
+    ...(Array.isArray(p.palavras_chave) ? p.palavras_chave : []),
+  ]
+    .map((x) => normalizarTextoTaxonomia(String(x ?? '')))
+    .filter(Boolean)
+
+  if (!campos.length) return false
+
+  if (campos.some((c) => c.includes(termo) || termo.includes(c))) return true
+
+  const parts = termo.split(/\s+/).filter((part) => part.length >= 2)
+  if (!parts.length) return false
+  return parts.every((part) => campos.some((c) => c.includes(part) || part.includes(c)))
+}
+
+export { METATAGS_PRODUTO }
+
 export function mapProdutoRow(raw: Record<string, unknown>): ProdutoCdeRow {
   const fotosRaw = raw.fotos
   let fotos: string[] = []

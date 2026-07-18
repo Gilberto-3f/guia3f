@@ -7,10 +7,10 @@ import { uploadFotosProduto } from '@/lib/comprasCdeFotos'
 import {
   COR_AZUL_LOGO,
   mapProdutoRow,
-  montarPalavrasChave,
   type ProdutoCategoriaRow,
   type ProdutoCdeRow,
 } from '@/lib/comprasCdeCatalogo'
+import { sanitizarPalavrasChave } from '@/lib/palavrasChaveGuia'
 import { iconeCategoriaProduto } from '@/lib/comprasCdeCategoriaIcone'
 import {
   listarCategoriasProduto,
@@ -158,12 +158,7 @@ export default function AbaProdutos({ empresaId }: Props) {
       let site = form.site_url.trim()
       if (site && !/^https?:\/\//i.test(site)) site = `https://${site}`
 
-      const palavras = montarPalavrasChave({
-        nome: form.nome.trim(),
-        categoriaNome: cat.nome,
-        subcategoriaNome: sub.nome,
-        marcaNome: marca.nome,
-      })
+      const palavras = sanitizarPalavrasChave(form.metatags)
 
       if (form.id) {
         let fotos = [...form.fotosExistentes]

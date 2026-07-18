@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   mapProdutoRow,
   precoFinalUsd,
+  produtoCorrespondeBuscaCde,
   type ProdutoCdeRow,
 } from '@/lib/comprasCdeCatalogo'
 
@@ -104,16 +105,13 @@ export async function listarProdutosHub(
 
   const termo = opts?.termo?.trim()
   if (termo) {
-    const parts = termo.split(/\s+/).filter(Boolean).slice(0, 6)
-    // PostgREST: OR em nome / palavras_chave via ilike no nome e marca texto legado
-    const orParts = parts.flatMap((p) => {
-      const esc = p.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
-      return [`nome.ilike.%${esc}%`, `marca.ilike.%${esc}%`]
-    })
-    if (orParts.length) q = q.or(orParts.join(','))
+    // Pool amplo: match fino no cliente (metatags + nomes de cat/sub).
+    q = q.limit(800)
+  } else {
+    q = q.limit(120)
   }
 
-  const { data, error } = await q.limit(120)
+  const { data, error } = await q
   if (error) {
     console.error('[comprasCdeHub] listarProdutosHub:', error.message)
     return []
@@ -122,6 +120,10 @@ export async function listarProdutosHub(
   let lista = (data ?? [])
     .map((r) => mapHubRow(r as Record<string, unknown>))
     .filter((x): x is ProdutoHubCard => x != null)
+
+  if (termo) {
+    lista = lista.filter((p) => produtoCorrespondeBuscaCde(p, termo))
+  }
 
   if (opts?.ordenarPrecoAsc) {
     lista = [...lista].sort(

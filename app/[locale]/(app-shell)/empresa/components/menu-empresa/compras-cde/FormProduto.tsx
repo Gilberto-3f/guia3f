@@ -1,14 +1,18 @@
 'use client'
 
-import { useRef } from 'react'
-import { ImagePlus, Save, X } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { ImagePlus, Save, Tags, X } from 'lucide-react'
+import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
+import { sanitizarPalavrasChave, MAX_PALAVRAS_CHAVE } from '@/lib/palavrasChaveGuia'
 import {
   COR_AZUL_LOGO,
   COR_VERDE_BOTAO,
   DESCRICAO_MAX,
   FOTOS_MAX,
   FOTOS_MIN,
+  METATAGS_PRODUTO,
   NOME_PRODUTO_MAX,
+  metatagsFormFromPalavras,
   type ProdutoCategoriaRow,
   type ProdutoCdeRow,
 } from '@/lib/comprasCdeCatalogo'
@@ -22,6 +26,8 @@ export type FormProdutoState = {
   categoria_id: string
   subcategoria: string
   marca: string
+  /** Até 5 metatags extras para o motor de busca. */
+  metatags: string[]
   descricao: string
   site_url: string
   fotosExistentes: string[]
@@ -39,6 +45,7 @@ export function formProdutoVazio(): FormProdutoState {
     categoria_id: '',
     subcategoria: '',
     marca: '',
+    metatags: metatagsFormFromPalavras([]),
     descricao: '',
     site_url: '',
     fotosExistentes: [],
@@ -58,6 +65,7 @@ export function formProdutoFromRow(row: ProdutoCdeRow): FormProdutoState {
     categoria_id: row.categoria_id ?? '',
     subcategoria: row.subcategoria_nome ?? '',
     marca: row.marca_nome ?? '',
+    metatags: metatagsFormFromPalavras(row.palavras_chave),
     descricao: row.descricao ?? '',
     site_url: row.site_url ?? '',
     fotosExistentes: [...row.fotos],
@@ -83,6 +91,10 @@ export function validarFormProduto(form: FormProdutoState): string | null {
   if (!form.categoria_id) return 'Selecione a categoria principal.'
   if (!form.subcategoria.trim()) return 'Informe a subcategoria.'
   if (!form.marca.trim()) return 'Informe a marca do produto.'
+  const tags = sanitizarPalavrasChave(form.metatags)
+  if (tags.length < METATAGS_PRODUTO) {
+    return `Informe ${METATAGS_PRODUTO} metatags (palavras-chave) para facilitar a busca do produto.`
+  }
   if (form.descricao.length > DESCRICAO_MAX) {
     return `A descrição pode ter no máximo ${DESCRICAO_MAX} caracteres.`
   }
@@ -124,8 +136,10 @@ export default function FormProduto({
   erro = null,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const [metatagsAberto, setMetatagsAberto] = useState(true)
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
   const podeAddFoto = totalFotos < FOTOS_MAX
+  const tagsPreenchidas = sanitizarPalavrasChave(form.metatags).length
 
   const inputCls =
     'mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#0097b2]'
@@ -159,6 +173,12 @@ export default function FormProduto({
       fotosNovas: form.fotosNovas.filter((_, i) => i !== idx),
       fotosNovasPreview: form.fotosNovasPreview.filter((_, i) => i !== idx),
     })
+  }
+
+  const setMetatag = (idx: number, valor: string) => {
+    const next = [...form.metatags]
+    next[idx] = valor.slice(0, 60)
+    onChange({ ...form, metatags: next })
   }
 
   return (
@@ -342,6 +362,35 @@ export default function FormProduto({
             maxLength={100}
           />
         </label>
+
+        <ChevronPasta
+          titulo={`Metatags * (${tagsPreenchidas}/${MAX_PALAVRAS_CHAVE})`}
+          aberto={metatagsAberto}
+          onToggle={() => setMetatagsAberto((v) => !v)}
+          icone={Tags}
+          corTitulo="#0097b2"
+        >
+          <p className="mb-3 text-xs leading-relaxed text-gray-500">
+            Até {MAX_PALAVRAS_CHAVE} termos extras (não aparecem no card público). Ajudam turistas a
+            encontrar o produto no motor de busca do Compras CDE — além do nome, categoria, subcategoria
+            e marca.
+          </p>
+          <div className="space-y-2">
+            {form.metatags.map((valor, idx) => (
+              <label key={`metatag-${idx}`} className={labelCls}>
+                Metatag {idx + 1}
+                <input
+                  type="text"
+                  value={valor}
+                  onChange={(e) => setMetatag(idx, e.target.value)}
+                  className={inputCls}
+                  placeholder={`Ex.: termo relacionado ${idx + 1}`}
+                  maxLength={60}
+                />
+              </label>
+            ))}
+          </div>
+        </ChevronPasta>
 
         <label className={labelCls}>
           Descrição (opcional)
