@@ -46,7 +46,7 @@ export default function DrenaStok() {
   return (
     <div className="space-y-5">
       <div
-        className="flex gap-2 rounded-2xl bg-gray-100 p-1.5"
+        className="flex gap-1.5 rounded-2xl bg-gray-100 p-1.5 sm:gap-2"
         role="tablist"
         aria-label="Seções Drena-Stok"
       >
@@ -61,8 +61,10 @@ export default function DrenaStok() {
               aria-label={label}
               title={label}
               onClick={() => setAba(id)}
-              className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-2 py-3 text-sm font-bold text-white transition ${
-                ativa ? 'shadow-md' : 'opacity-80 hover:opacity-100'
+              className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold text-white transition sm:gap-2 sm:py-3 ${
+                ativa
+                  ? 'min-w-0 flex-1 px-2.5 shadow-md sm:px-3'
+                  : 'w-10 shrink-0 px-0 opacity-80 hover:opacity-100 sm:w-12'
               }`}
               style={{ backgroundColor: VERDE }}
             >

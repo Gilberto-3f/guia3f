@@ -1,6 +1,16 @@
 'use client'
 
-import { Award, MousePointerClick, Eye, PieChart, ThumbsUp } from 'lucide-react'
+import { useState } from 'react'
+import {
+  Award,
+  Eye,
+  MessageSquareQuote,
+  MousePointerClick,
+  Package,
+  PieChart,
+  ThumbsUp,
+} from 'lucide-react'
+import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import { useDrenaCatalogo } from '../../hooks/useDrenaCatalogo'
 import type { PeriodoDrena } from '@/lib/drenaAnalytics'
 import { iconeCategoriaProduto } from '@/lib/comprasCdeCategoriaIcone'
@@ -23,40 +33,27 @@ type Props = {
 /** Catálogo — desempenho dos produtos da empresa. */
 export default function AbaCatalogo({ empresaId }: Props) {
   const cat = useDrenaCatalogo(empresaId)
+  const [feedbackAberto, setFeedbackAberto] = useState(true)
+  const [rankingAberto, setRankingAberto] = useState(true)
+  const [recsAberto, setRecsAberto] = useState(true)
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          {PERIODOS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => cat.setPeriodo(p.id)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
-                cat.periodo === p.id
-                  ? 'bg-[#0097b2] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-3 text-xs text-gray-600">
-          <span className="inline-flex items-center gap-1">
-            <MousePointerClick className="h-3.5 w-3.5 text-[#0097b2]" aria-hidden />
-            <strong>{cat.totalCliques}</strong> cliques
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Eye className="h-3.5 w-3.5 text-gray-400" aria-hidden />
-            <strong>{cat.totalImpressoes}</strong> impressões
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <ThumbsUp className="h-3.5 w-3.5 text-[#00D443]" aria-hidden />
-            <strong>{cat.totalRecomendacoes}</strong> indicações
-          </span>
-        </div>
+      <div className="flex flex-wrap justify-center gap-2">
+        {PERIODOS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => cat.setPeriodo(p.id)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
+              cat.periodo === p.id
+                ? 'bg-[#0097b2] text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
 
       {cat.loading ? (
@@ -70,12 +67,54 @@ export default function AbaCatalogo({ empresaId }: Props) {
         </div>
       ) : (
         <>
-          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <header className="flex items-center gap-2 border-b border-gray-100 bg-[#f5f5f5] px-4 py-3">
-              <Award className="h-5 w-5 shrink-0" style={{ color: AZUL }} strokeWidth={2.25} aria-hidden />
-              <h2 className="text-sm font-bold text-[#001f3f]">Ranking do Catálogo</h2>
-            </header>
-            <div className="space-y-5 p-4">
+          <ChevronPasta
+            titulo="Feedback"
+            aberto={feedbackAberto}
+            onToggle={() => setFeedbackAberto((v) => !v)}
+            icone={MessageSquareQuote}
+            corTitulo={AZUL}
+          >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-lg bg-[#f5f5f5] px-3 py-3 text-center">
+                <Package className="mx-auto h-4 w-4 text-[#0097b2]" aria-hidden />
+                <p className="mt-1 text-[10px] font-bold uppercase text-gray-500">Catálogo</p>
+                <p className="mt-0.5 text-lg font-bold tabular-nums text-[#001f3f]">
+                  {cat.produtos.length}
+                </p>
+                <p className="text-[10px] text-gray-400">produtos</p>
+              </div>
+              <div className="rounded-lg bg-[#f5f5f5] px-3 py-3 text-center">
+                <MousePointerClick className="mx-auto h-4 w-4 text-[#0097b2]" aria-hidden />
+                <p className="mt-1 text-[10px] font-bold uppercase text-gray-500">Cliques</p>
+                <p className="mt-0.5 text-lg font-bold tabular-nums text-[#001f3f]">
+                  {cat.totalCliques}
+                </p>
+              </div>
+              <div className="rounded-lg bg-[#f5f5f5] px-3 py-3 text-center">
+                <Eye className="mx-auto h-4 w-4 text-gray-400" aria-hidden />
+                <p className="mt-1 text-[10px] font-bold uppercase text-gray-500">Impressões</p>
+                <p className="mt-0.5 text-lg font-bold tabular-nums text-[#001f3f]">
+                  {cat.totalImpressoes}
+                </p>
+              </div>
+              <div className="rounded-lg bg-[#f5f5f5] px-3 py-3 text-center">
+                <ThumbsUp className="mx-auto h-4 w-4 text-[#00D443]" aria-hidden />
+                <p className="mt-1 text-[10px] font-bold uppercase text-gray-500">Indicações</p>
+                <p className="mt-0.5 text-lg font-bold tabular-nums text-[#001f3f]">
+                  {cat.totalRecomendacoes}
+                </p>
+              </div>
+            </div>
+          </ChevronPasta>
+
+          <ChevronPasta
+            titulo="Ranking do Catálogo"
+            aberto={rankingAberto}
+            onToggle={() => setRankingAberto((v) => !v)}
+            icone={Award}
+            corTitulo={AZUL}
+          >
+            <div className="space-y-5">
               <div>
                 <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-500">
                   <MousePointerClick className="h-3.5 w-3.5" aria-hidden />
@@ -123,19 +162,16 @@ export default function AbaCatalogo({ empresaId }: Props) {
                 />
               </div>
             </div>
-          </section>
+          </ChevronPasta>
 
-          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <header className="flex items-center gap-2 border-b border-gray-100 bg-[#f5f5f5] px-4 py-3">
-              <ThumbsUp
-                className="h-5 w-5 shrink-0"
-                style={{ color: VERDE }}
-                strokeWidth={2.25}
-                aria-hidden
-              />
-              <h2 className="text-sm font-bold text-[#001f3f]">Ranking de Recomendações</h2>
-            </header>
-            <div className="space-y-5 p-4">
+          <ChevronPasta
+            titulo="Ranking de Recomendações"
+            aberto={recsAberto}
+            onToggle={() => setRecsAberto((v) => !v)}
+            icone={ThumbsUp}
+            corTitulo={VERDE}
+          >
+            <div className="space-y-5">
               <div>
                 <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-500">
                   <ThumbsUp className="h-3.5 w-3.5" aria-hidden />
@@ -187,7 +223,7 @@ export default function AbaCatalogo({ empresaId }: Props) {
                 />
               </div>
             </div>
-          </section>
+          </ChevronPasta>
         </>
       )}
     </div>

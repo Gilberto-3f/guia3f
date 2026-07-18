@@ -5,6 +5,8 @@ import type { TermoRanking } from '@/lib/drenaAnalytics'
 
 type Props = {
   titulo: string
+  /** Esconde o h4 interno (quando o título já está nas abas Turistas/Profissionais). */
+  ocultarTitulo?: boolean
   grupos: TermoRanking[][]
   gruposLiberados: number
   onLiberarProximo: () => void
@@ -13,6 +15,7 @@ type Props = {
 /** Ranking 100+ fracionado em grupos de 20. */
 export default function Ranking100Grupos({
   titulo,
+  ocultarTitulo = false,
   grupos,
   gruposLiberados,
   onLiberarProximo,
@@ -27,7 +30,7 @@ export default function Ranking100Grupos({
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-      <h4 className="mb-2 text-sm font-bold text-[#001f3f]">{titulo}</h4>
+      {ocultarTitulo ? null : <h4 className="mb-2 text-sm font-bold text-[#001f3f]">{titulo}</h4>}
       {!temAlgum ? (
         <p className="py-4 text-center text-xs text-gray-400">Nenhuma busca neste período.</p>
       ) : (

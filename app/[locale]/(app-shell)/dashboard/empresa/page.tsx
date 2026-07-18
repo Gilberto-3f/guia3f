@@ -30,8 +30,15 @@ type GateState =
   | { status: 'sim_sem_empresa' }
   | { status: 'allowed'; userId: string; empresaInicial: DadosEmpresa | null }
 
-function abaCls(ativo: boolean) {
-  return `flex min-w-0 flex-1 items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
+function abaCls(ativo: boolean, modoCompacto: boolean) {
+  const base =
+    'flex items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base'
+  if (modoCompacto) {
+    return ativo
+      ? `${base} min-w-0 flex-1 border-[#0097b2] px-2 text-[#0097b2]`
+      : `${base} w-12 shrink-0 border-transparent px-1 text-gray-500 hover:text-gray-700 sm:w-14`
+  }
+  return `${base} min-w-0 flex-1 ${
     ativo ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500 hover:text-gray-700'
   }`
 }
@@ -227,6 +234,8 @@ function DashboardEmpresaConteudo({
 
   const mostrarFunil = abaLiberada('funil')
   const mostrarMercado = abaLiberada('mercado')
+  /** Lojas CDE com 3 analíticos: abas inativas só ícone. */
+  const abasCompactas = Boolean(mostrarFunil && mostrarMercado && mostrarDrenaStok)
 
   useEffect(() => {
     if (aguardandoPlano) return
@@ -264,29 +273,56 @@ function DashboardEmpresaConteudo({
           ) : (
           <div className="mx-auto flex w-full max-w-7xl">
             {mostrarFunil ? (
-              <button type="button" onClick={() => setAbaAtiva('funil')} className={abaCls(abaAtiva === 'funil')}>
+              <button
+                type="button"
+                onClick={() => setAbaAtiva('funil')}
+                className={abaCls(abaAtiva === 'funil', abasCompactas)}
+                aria-label="Funil de Conversão"
+              >
                 <Filter className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
-                <span className="flex flex-col items-center gap-0 leading-none">
-                  <span>Funil de</span>
-                  <span>Conversão</span>
-                </span>
+                {abaAtiva === 'funil' || !abasCompactas ? (
+                  <span className="flex flex-col items-center gap-0 leading-none">
+                    <span>Funil de</span>
+                    <span>Conversão</span>
+                  </span>
+                ) : (
+                  <span className="sr-only">Funil de Conversão</span>
+                )}
               </button>
             ) : null}
             {mostrarMercado ? (
-              <button type="button" onClick={() => setAbaAtiva('mercado')} className={abaCls(abaAtiva === 'mercado')}>
+              <button
+                type="button"
+                onClick={() => setAbaAtiva('mercado')}
+                className={abaCls(abaAtiva === 'mercado', abasCompactas)}
+                aria-label="Estatísticas de Mercado"
+              >
                 <BarChart3 className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
-                <span className="flex flex-col items-center gap-0 leading-none">
-                  <span>Estatísticas</span>
-                  <span>de Mercado</span>
-                </span>
+                {abaAtiva === 'mercado' || !abasCompactas ? (
+                  <span className="flex flex-col items-center gap-0 leading-none">
+                    <span>Estatísticas</span>
+                    <span>de Mercado</span>
+                  </span>
+                ) : (
+                  <span className="sr-only">Estatísticas de Mercado</span>
+                )}
               </button>
             ) : null}
             {mostrarDrenaStok ? (
-              <button type="button" onClick={() => setAbaAtiva('drena')} className={abaCls(abaAtiva === 'drena')}>
+              <button
+                type="button"
+                onClick={() => setAbaAtiva('drena')}
+                className={abaCls(abaAtiva === 'drena', abasCompactas)}
+                aria-label="Drena-Stok"
+              >
                 <Warehouse className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
-                <span className="flex flex-col items-center gap-0 leading-none">
-                  <span>Drena-Stok</span>
-                </span>
+                {abaAtiva === 'drena' || !abasCompactas ? (
+                  <span className="flex flex-col items-center gap-0 leading-none">
+                    <span>Drena-Stok</span>
+                  </span>
+                ) : (
+                  <span className="sr-only">Drena-Stok</span>
+                )}
               </button>
             ) : null}
           </div>
