@@ -3,20 +3,18 @@
 import { useEffect, useRef } from 'react'
 import { Info, Eye, Star } from 'lucide-react'
 import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
-import {
-  formatarBrl,
-  formatarUsd,
-  precoFinalUsd,
-  usdParaBrl,
-  type ProdutoCdeRow,
-} from '@/lib/comprasCdeCatalogo'
+import PrecoProdutoCde from '@/components/compras-cde/PrecoProdutoCde'
+import { precoFinalUsd, type ProdutoCdeRow } from '@/lib/comprasCdeCatalogo'
+import type { CotacaoMap } from '@/lib/comprasCdeHub'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
 
 type Props = {
   item: ProdutoCdeRow
-  taxaUsd: number
+  /** @deprecated Prefira `cotacoes`. Mantido para compatibilidade. */
+  taxaUsd?: number
+  cotacoes?: CotacaoMap
   notaMediaEmpresa: number | null
   visitanteId: string | null
   favoritoInicial: boolean
@@ -33,7 +31,8 @@ type Props = {
 
 export default function MiniCardProdutoVisitante({
   item,
-  taxaUsd,
+  taxaUsd = 0.2,
+  cotacoes,
   notaMediaEmpresa,
   visitanteId,
   favoritoInicial,
@@ -46,7 +45,7 @@ export default function MiniCardProdutoVisitante({
 }: Props) {
   const pct = Number(item.percentual_desconto) || 0
   const finalUsd = precoFinalUsd(item.preco_usd, pct)
-  const brl = usdParaBrl(finalUsd, taxaUsd)
+  const mapCotacoes: CotacaoMap = cotacoes ?? { USD: taxaUsd, EUR: 0.18, ARS: 180, PYG: 1500 }
   const capa = item.fotos[0] ?? item.foto_url
   const rootRef = useRef<HTMLElement | null>(null)
   const impressaoEnviada = useRef(false)
@@ -108,17 +107,9 @@ export default function MiniCardProdutoVisitante({
 
       <div className="space-y-2 p-3">
         <div
-          className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${tamanhoUniforme ? 'min-h-[1.375rem]' : ''}`}
+          className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${tamanhoUniforme ? 'min-h-[1.75rem]' : ''}`}
         >
-          <p className="text-sm font-bold" style={{ color: VERDE }}>
-            {formatarUsd(finalUsd)}
-          </p>
-          {brl > 0 ? (
-            <p className="text-sm font-medium text-black">
-              <span aria-hidden>🇧🇷 </span>
-              {formatarBrl(brl)}
-            </p>
-          ) : null}
+          <PrecoProdutoCde precoUsd={finalUsd} cotacoes={mapCotacoes} destacarUsd />
           {pct > 0 ? (
             <span className="rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
               Em oferta

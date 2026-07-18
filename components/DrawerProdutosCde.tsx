@@ -19,22 +19,19 @@ import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
 import PopupRecomendarProduto from '@/components/compras-cde/PopupRecomendarProduto'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import MiniCardProdutoVisitante from '@/components/compras-cde/MiniCardProdutoVisitante'
+import PrecoProdutoCde from '@/components/compras-cde/PrecoProdutoCde'
 import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { openWhatsAppChat, mensagemWhatsappProduto } from '@/lib/whatsapp-empresa'
-import { registrarIntencaoCde } from '@/lib/comprasCdeHub'
+import { registrarIntencaoCde, carregarCotacoesMap, type CotacaoMap } from '@/lib/comprasCdeHub'
 import { iconeCategoriaProduto } from '@/lib/comprasCdeCategoriaIcone'
 import {
-  formatarBrl,
-  formatarUsd,
   mapProdutoRow,
   precoFinalUsd,
-  usdParaBrl,
   type ProdutoCdeRow,
 } from '@/lib/comprasCdeCatalogo'
 
 const COR = '#0097b2'
-const VERDE = '#00D443'
 
 const SELECT_PRODUTOS = `
   id, empresa_id, nome, descricao, preco_usd, percentual_desconto,
@@ -88,6 +85,12 @@ export default function DrawerProdutosCde({
   const [selecionado, setSelecionado] = useState<ProdutoCdeRow | null>(null)
   const [fotoIdx, setFotoIdx] = useState(0)
   const [taxaUsd, setTaxaUsd] = useState(0.2)
+  const [cotacoes, setCotacoes] = useState<CotacaoMap>({
+    USD: 0.2,
+    EUR: 0.18,
+    ARS: 180,
+    PYG: 1500,
+  })
   const [whatsappComercial, setWhatsappComercial] = useState<string | null>(null)
   const [empresaVerificada, setEmpresaVerificada] = useState(false)
   const [visitanteId, setVisitanteId] = useState<string | null>(null)
@@ -116,7 +119,7 @@ export default function DrawerProdutosCde({
     if (!empresaId) return
     setCarregando(true)
     try {
-      const [empRes, prodRes, cotRes, sess] = await Promise.all([
+      const [empRes, prodRes, cotMap, sess] = await Promise.all([
         supabase
           .from('empresas')
           .select('whatsapp_comercial, whatsapp, docs_verificado, status, foto_url, nome_usuario')
@@ -128,7 +131,7 @@ export default function DrawerProdutosCde({
           .eq('empresa_id', empresaId)
           .eq('ativo', true)
           .order('created_at', { ascending: false }),
-        supabase.from('cotacoes').select('moeda, valor_brl').eq('moeda', 'USD').maybeSingle(),
+        carregarCotacoesMap(supabase),
         supabase.auth.getSession(),
       ])
 
@@ -142,10 +145,8 @@ export default function DrawerProdutosCde({
       setWhatsappComercial(waCom)
       setEmpresaVerificada(contaVerificadaDocumentacao('empresa', emp))
 
-      if (cotRes.data?.valor_brl != null) {
-        const t = Number(cotRes.data.valor_brl)
-        if (t > 0) setTaxaUsd(t)
-      }
+      setCotacoes(cotMap)
+      if (cotMap.USD > 0) setTaxaUsd(cotMap.USD)
 
       const produtos = (prodRes.data ?? []).map((r) => mapProdutoRow(r as Record<string, unknown>))
       const map = new Map<string, SecaoCategoria>()
@@ -212,7 +213,6 @@ export default function DrawerProdutosCde({
   const precoFinal = selecionado
     ? precoFinalUsd(selecionado.preco_usd, selecionado.percentual_desconto)
     : 0
-  const precoBrl = usdParaBrl(precoFinal, taxaUsd)
   const pct = selecionado ? Number(selecionado.percentual_desconto) || 0 : 0
 
   const avatarEmpresa = empresaFotoUrl
@@ -358,6 +358,7 @@ export default function DrawerProdutosCde({
                           key={p.id}
                           item={p}
                           taxaUsd={taxaUsd}
+                          cotacoes={cotacoes}
                           notaMediaEmpresa={notaMedia ?? null}
                           visitanteId={visitanteId}
                           favoritoInicial={favProdutos.has(p.id)}
@@ -446,22 +447,18 @@ export default function DrawerProdutosCde({
 
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-xl font-bold" style={{ color: VERDE }}>
-                  {formatarUsd(precoFinal)}
-                </p>
+                <PrecoProdutoCde
+                  precoUsd={precoFinal}
+                  cotacoes={cotacoes}
+                  variante="detalhe"
+                  sufixoConvertido=" (cotação do dia)"
+                />
                 {pct > 0 ? (
                   <span className="rounded bg-[#00D443]/15 px-2 py-0.5 text-xs font-bold uppercase text-[#00D443]">
                     Em oferta −{pct}%
                   </span>
                 ) : null}
               </div>
-              {precoBrl > 0 ? (
-                <p className="mt-1 text-sm font-medium text-black">
-                  <span aria-hidden>🇧🇷 </span>
-                  {formatarBrl(precoBrl)}
-                  <span className="font-normal text-gray-500"> (cotação do dia)</span>
-                </p>
-              ) : null}
             </div>
 
             <dl className="space-y-1.5 text-sm text-gray-700">

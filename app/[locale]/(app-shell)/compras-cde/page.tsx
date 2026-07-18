@@ -324,6 +324,7 @@ export default function ComprasCdePage() {
                   className="w-full max-w-sm"
                   item={p}
                   taxaUsd={taxaUsd}
+                  cotacoes={cotacoes}
                   notaMediaEmpresa={p.empresa_nota}
                   visitanteId={visitanteId}
                   favoritoInicial={favIds.has(p.id)}
