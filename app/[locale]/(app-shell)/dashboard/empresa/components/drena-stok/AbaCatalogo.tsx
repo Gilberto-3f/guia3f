@@ -114,18 +114,40 @@ export default function AbaCatalogo({ empresaId }: Props) {
                 icone={Package}
                 titulo="Catálogo"
                 valor={cat.produtos.length}
-                sufixo="produtos"
+                sufixo="produtos cadastrados"
               />
-              <FeedbackLinha icone={MousePointerClick} titulo="Cliques" valor={cat.totalCliques} />
-              <FeedbackLinha icone={Eye} corIcone="#9ca3af" titulo="Impressões" valor={cat.totalImpressoes} />
+              <FeedbackLinha
+                icone={MousePointerClick}
+                titulo="Cliques"
+                valor={cat.totalCliques}
+                sufixo="nos produtos"
+              />
+              <FeedbackLinha
+                icone={Eye}
+                corIcone="#9ca3af"
+                titulo="Impressões"
+                valor={cat.totalImpressoes}
+                sufixo="visualizações"
+              />
               <FeedbackLinha
                 icone={ThumbsUp}
                 corIcone={VERDE}
                 titulo="Indicações"
                 valor={cat.totalRecomendacoes}
+                sufixo="de produtos"
               />
-              <FeedbackLinha icone={Bookmark} titulo="Favoritos" valor={cat.totalFavoritos} />
-              <FeedbackLinha icone={Repeat2} titulo="Repostados" valor={cat.totalRepostados} />
+              <FeedbackLinha
+                icone={Bookmark}
+                titulo="Favoritos"
+                valor={cat.totalFavoritos}
+                sufixo="produtos salvos"
+              />
+              <FeedbackLinha
+                icone={Repeat2}
+                titulo="Repostados"
+                valor={cat.totalRepostados}
+                sufixo="no feed"
+              />
             </div>
           </ChevronPasta>
 
