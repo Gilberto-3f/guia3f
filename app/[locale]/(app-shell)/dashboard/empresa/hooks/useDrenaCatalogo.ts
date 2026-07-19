@@ -37,12 +37,16 @@ export function useDrenaCatalogo(empresaId: string | null) {
   const [produtos, setProdutos] = useState<ProdutoRankingItem[]>([])
   const [pizzaCliques, setPizzaCliques] = useState<FatiaCategoria[]>([])
   const [pizzaRecomendacoes, setPizzaRecomendacoes] = useState<FatiaCategoria[]>([])
+  const [totalFavoritos, setTotalFavoritos] = useState(0)
+  const [totalRepostados, setTotalRepostados] = useState(0)
 
   const fetchDados = useCallback(async () => {
     if (!empresaId) {
       setProdutos([])
       setPizzaCliques([])
       setPizzaRecomendacoes([])
+      setTotalFavoritos(0)
+      setTotalRepostados(0)
       setLoading(false)
       setError(null)
       return
@@ -150,11 +154,29 @@ export function useDrenaCatalogo(empresaId: string | null) {
       }
       setPizzaCliques(pizzaFromContagens(mapCliques))
       setPizzaRecomendacoes(pizzaFromContagens(mapRecs))
+
+      let fav = 0
+      let rep = 0
+      const { data: eng, error: engErr } = await supabase.rpc('drena_metricas_catalogo_engajamento', {
+        p_empresa_id: empresaId,
+        p_desde: desde,
+      })
+      if (engErr) {
+        console.warn('[useDrenaCatalogo] drena_metricas_catalogo_engajamento:', engErr.message)
+      } else if (eng && typeof eng === 'object' && !Array.isArray(eng)) {
+        const o = eng as { favoritos?: unknown; repostados?: unknown }
+        fav = Number(o.favoritos) || 0
+        rep = Number(o.repostados) || 0
+      }
+      setTotalFavoritos(fav)
+      setTotalRepostados(rep)
     } catch (e) {
       setError(e instanceof Error ? e : new Error('Erro ao carregar Catálogo Drena'))
       setProdutos([])
       setPizzaCliques([])
       setPizzaRecomendacoes([])
+      setTotalFavoritos(0)
+      setTotalRepostados(0)
     } finally {
       setLoading(false)
     }
@@ -239,6 +261,8 @@ export function useDrenaCatalogo(empresaId: string | null) {
     totalCliques,
     totalImpressoes,
     totalRecomendacoes,
+    totalFavoritos,
+    totalRepostados,
     refetch: fetchDados,
   }
 }

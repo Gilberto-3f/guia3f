@@ -33,10 +33,10 @@ export default function AbaComprasCde() {
   const [gruposTur, setGruposTur] = useState(1)
   const [gruposProf, setGruposProf] = useState(1)
   const [abaRanking, setAbaRanking] = useState<AbaRanking100>('turistas')
-  const [rankingAberto, setRankingAberto] = useState(true)
-  const [recsAberto, setRecsAberto] = useState(true)
-  const [catsAberto, setCatsAberto] = useState(true)
-  const [graficosAberto, setGraficosAberto] = useState(true)
+  const [rankingAberto, setRankingAberto] = useState(false)
+  const [recsAberto, setRecsAberto] = useState(false)
+  const [catsAberto, setCatsAberto] = useState(false)
+  const [graficosAberto, setGraficosAberto] = useState(false)
 
   return (
     <div className="space-y-5">

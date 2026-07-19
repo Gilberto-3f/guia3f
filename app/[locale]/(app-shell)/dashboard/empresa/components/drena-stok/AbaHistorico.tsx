@@ -11,6 +11,7 @@ import {
   Tags,
   type LucideIcon,
 } from 'lucide-react'
+import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import { useDrenaHistoricoArquivo } from '../../hooks/useDrenaHistoricoArquivo'
 import {
   useDrenaLinhaTempo,
@@ -99,6 +100,10 @@ function PainelArquivo() {
   const arq = useDrenaHistoricoArquivo()
   const [gruposTur, setGruposTur] = useState(1)
   const [gruposProf, setGruposProf] = useState(1)
+  const [r100Aberto, setR100Aberto] = useState(false)
+  const [recsAberto, setRecsAberto] = useState(false)
+  const [catsAberto, setCatsAberto] = useState(false)
+  const [grafAberto, setGrafAberto] = useState(false)
 
   const p = arq.payload
 
@@ -147,12 +152,14 @@ function PainelArquivo() {
         <p className="py-8 text-center text-sm text-gray-400">Sem dados para este mês.</p>
       ) : (
         <>
-          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <header className="flex items-center gap-2 border-b border-gray-100 bg-[#f5f5f5] px-4 py-3">
-              <Hash className="h-5 w-5 shrink-0" style={{ color: AZUL }} strokeWidth={2.25} aria-hidden />
-              <h2 className="text-sm font-bold text-[#001f3f]">1 · Ranking 100+</h2>
-            </header>
-            <div className="grid gap-3 p-4 lg:grid-cols-2">
+          <ChevronPasta
+            titulo="1 · Ranking 100+"
+            aberto={r100Aberto}
+            onToggle={() => setR100Aberto((v) => !v)}
+            icone={Hash}
+            corTitulo={AZUL}
+          >
+            <div className="space-y-3">
               <Ranking100Grupos
                 titulo="Turistas"
                 grupos={chunkTermos(p.ranking100?.turistas ?? [])}
@@ -166,41 +173,59 @@ function PainelArquivo() {
                 onLiberarProximo={() => setGruposProf((n) => Math.min(5, n + 1))}
               />
             </div>
-          </section>
+          </ChevronPasta>
 
-          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <header className="flex items-center gap-2 border-b border-gray-100 bg-[#f5f5f5] px-4 py-3">
-              <Tags className="h-5 w-5 shrink-0" style={{ color: VERDE }} strokeWidth={2.25} aria-hidden />
-              <h2 className="text-sm font-bold text-[#001f3f]">2 · Ranking de Recomendações</h2>
-            </header>
-            <div className="grid gap-4 p-4 md:grid-cols-3">
+          <ChevronPasta
+            titulo="2 · Ranking de Recomendações"
+            aberto={recsAberto}
+            onToggle={() => setRecsAberto((v) => !v)}
+            icone={Tags}
+            corTitulo={VERDE}
+          >
+            <div className="space-y-4">
               <div>
                 <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Categorias</h3>
-                <ListaRankingNome itens={p.recomendacoes?.categorias ?? []} rotuloTotal="ind." corPosicao={VERDE} />
+                <ListaRankingNome
+                  itens={p.recomendacoes?.categorias ?? []}
+                  rotuloTotal="ind."
+                  corPosicao={VERDE}
+                />
               </div>
               <div>
                 <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Subcategorias</h3>
-                <ListaRankingNome itens={p.recomendacoes?.subcategorias ?? []} rotuloTotal="ind." corPosicao={VERDE} />
+                <ListaRankingNome
+                  itens={p.recomendacoes?.subcategorias ?? []}
+                  rotuloTotal="ind."
+                  corPosicao={VERDE}
+                />
               </div>
               <div>
                 <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Marcas</h3>
-                <ListaRankingNome itens={p.recomendacoes?.marcas ?? []} rotuloTotal="ind." corPosicao={VERDE} />
+                <ListaRankingNome
+                  itens={p.recomendacoes?.marcas ?? []}
+                  rotuloTotal="ind."
+                  corPosicao={VERDE}
+                />
               </div>
             </div>
-          </section>
+          </ChevronPasta>
 
-          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <header className="flex items-center gap-2 border-b border-gray-100 bg-[#f5f5f5] px-4 py-3">
-              <BarChart3 className="h-5 w-5 shrink-0" style={{ color: AZUL }} strokeWidth={2.25} aria-hidden />
-              <h2 className="text-sm font-bold text-[#001f3f]">3 · Ranking de Categorias</h2>
-            </header>
-            <div className="grid gap-4 p-4 md:grid-cols-2">
+          <ChevronPasta
+            titulo="3 · Ranking de Categorias"
+            aberto={catsAberto}
+            onToggle={() => setCatsAberto((v) => !v)}
+            icone={BarChart3}
+            corTitulo={AZUL}
+          >
+            <div className="space-y-4">
               <div>
                 <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Filtro · Categorias</h3>
                 <ListaRankingNome itens={p.categorias?.filtroCategorias ?? []} />
               </div>
               <div>
-                <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Filtro · Subcategorias</h3>
+                <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">
+                  Filtro · Subcategorias
+                </h3>
                 <ListaRankingNome itens={p.categorias?.filtroSubcategorias ?? []} />
               </div>
               <div>
@@ -208,18 +233,22 @@ function PainelArquivo() {
                 <ListaRankingNome itens={p.categorias?.motorCategorias ?? []} />
               </div>
               <div>
-                <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Motor · Subcategorias</h3>
+                <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">
+                  Motor · Subcategorias
+                </h3>
                 <ListaRankingNome itens={p.categorias?.motorSubcategorias ?? []} />
               </div>
             </div>
-          </section>
+          </ChevronPasta>
 
-          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <header className="flex items-center gap-2 border-b border-gray-100 bg-[#f5f5f5] px-4 py-3">
-              <BarChart3 className="h-5 w-5 shrink-0" style={{ color: VERDE }} strokeWidth={2.25} aria-hidden />
-              <h2 className="text-sm font-bold text-[#001f3f]">4 · Gráficos</h2>
-            </header>
-            <div className="grid gap-4 p-4 lg:grid-cols-2">
+          <ChevronPasta
+            titulo="4 · Gráficos"
+            aberto={grafAberto}
+            onToggle={() => setGrafAberto((v) => !v)}
+            icone={BarChart3}
+            corTitulo={VERDE}
+          >
+            <div className="space-y-4">
               <div>
                 <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Pizza</h3>
                 <PizzaCategorias fatias={p.graficos?.pizza ?? []} />
@@ -229,7 +258,7 @@ function PainelArquivo() {
                 <ListaRankingNome itens={p.graficos?.listaDesempenho ?? []} rotuloTotal="evt." />
               </div>
             </div>
-          </section>
+          </ChevronPasta>
 
           {p.gerado_em ? (
             <p className="text-center text-[10px] text-gray-400">
@@ -245,6 +274,8 @@ function PainelArquivo() {
 
 function PainelLinhaTempo() {
   const lt = useDrenaLinhaTempo()
+  const [motorAberto, setMotorAberto] = useState(false)
+  const [relAberto, setRelAberto] = useState(false)
   const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
 
   const opcoesValor =
@@ -258,12 +289,14 @@ function PainelLinhaTempo() {
 
   return (
     <div className="space-y-4">
-      <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <header className="flex items-center gap-2 border-b border-gray-100 bg-[#f5f5f5] px-4 py-3">
-          <FileSearch className="h-5 w-5 shrink-0" style={{ color: AZUL }} strokeWidth={2.25} aria-hidden />
-          <h2 className="text-sm font-bold text-[#001f3f]">Motor de busca</h2>
-        </header>
-        <div className="space-y-4 p-4">
+      <ChevronPasta
+        titulo="Motor de busca"
+        aberto={motorAberto}
+        onToggle={() => setMotorAberto((v) => !v)}
+        icone={FileSearch}
+        corTitulo={AZUL}
+      >
+        <div className="space-y-4">
           <p className="text-xs text-gray-500">
             Escolha um filtro por vez (palavra-chave, categoria, subcategoria ou marca) e o mês/ano de
             início. O relatório cobre até os últimos 12 meses até hoje.
@@ -374,36 +407,35 @@ function PainelLinhaTempo() {
             </div>
           ) : null}
         </div>
-      </section>
+      </ChevronPasta>
 
       {lt.buscando ? (
         <div className="h-40 animate-pulse rounded-xl bg-gray-100" />
       ) : lt.relatorio ? (
-        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <header className="flex flex-wrap items-center gap-2 border-b border-gray-100 bg-[#f5f5f5] px-4 py-3">
-            <BarChart3 className="h-5 w-5 shrink-0" style={{ color: VERDE }} strokeWidth={2.25} aria-hidden />
-            <h2 className="text-sm font-bold text-[#001f3f]">Relatório de Pesquisa</h2>
-            <span className="ml-auto rounded-full bg-white px-2.5 py-0.5 text-[10px] font-bold uppercase text-gray-600 ring-1 ring-gray-200">
-              {lt.relatorio.rotulo}
-            </span>
-          </header>
-          <div className="space-y-4 p-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-lg bg-[#f5f5f5] px-3 py-3 text-center">
+        <ChevronPasta
+          titulo={`Relatório de Pesquisa · ${lt.relatorio.rotulo}`}
+          aberto={relAberto}
+          onToggle={() => setRelAberto((v) => !v)}
+          icone={BarChart3}
+          corTitulo={VERDE}
+        >
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between rounded-lg bg-[#f5f5f5] px-3 py-3">
                 <p className="text-[10px] font-bold uppercase text-gray-500">Filtro</p>
-                <p className="mt-1 text-xl font-bold tabular-nums text-[#666666]">
+                <p className="text-xl font-bold tabular-nums text-[#666666]">
                   {lt.relatorio.resumo.filtro.toLocaleString('pt-BR')}
                 </p>
               </div>
-              <div className="rounded-lg bg-[#f5f5f5] px-3 py-3 text-center">
+              <div className="flex items-center justify-between rounded-lg bg-[#f5f5f5] px-3 py-3">
                 <p className="text-[10px] font-bold uppercase text-gray-500">Motor</p>
-                <p className="mt-1 text-xl font-bold tabular-nums" style={{ color: AZUL }}>
+                <p className="text-xl font-bold tabular-nums" style={{ color: AZUL }}>
                   {lt.relatorio.resumo.motor.toLocaleString('pt-BR')}
                 </p>
               </div>
-              <div className="rounded-lg bg-[#f5f5f5] px-3 py-3 text-center">
+              <div className="flex items-center justify-between rounded-lg bg-[#f5f5f5] px-3 py-3">
                 <p className="text-[10px] font-bold uppercase text-gray-500">Recomendações</p>
-                <p className="mt-1 text-xl font-bold tabular-nums" style={{ color: VERDE }}>
+                <p className="text-xl font-bold tabular-nums" style={{ color: VERDE }}>
                   {lt.relatorio.resumo.recomendacoes.toLocaleString('pt-BR')}
                 </p>
               </div>
@@ -440,7 +472,7 @@ function PainelLinhaTempo() {
               </table>
             </div>
           </div>
-        </section>
+        </ChevronPasta>
       ) : (
         <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-10 text-center">
           <FileSearch className="mx-auto h-8 w-8 text-gray-300" strokeWidth={1.75} aria-hidden />
