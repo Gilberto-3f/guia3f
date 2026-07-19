@@ -172,16 +172,30 @@ export async function toggleFavorito(
   const ja = await usuarioTemFavorito(supabase, usuarioId, alvoId, tipo)
   if (ja) {
     await removerFavorito(supabase, usuarioId, alvoId, tipo)
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('favoritos-turista-atualizados'))
-    }
+    notificarFavoritosAtualizados({ alvoId, tipo, salvo: false })
     return false
   }
   await adicionarFavorito(supabase, usuarioId, alvoId, tipo)
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('favoritos-turista-atualizados'))
-  }
+  notificarFavoritosAtualizados({ alvoId, tipo, salvo: true })
   return true
+}
+
+export const FAVORITOS_ATUALIZADOS_EVENT = 'favoritos-turista-atualizados'
+
+export type FavoritosAtualizadosDetail = {
+  alvoId?: string
+  tipo?: FavoritoAlvoTipo
+  salvo?: boolean
+}
+
+/** Notifica UI (estrelas, listas) após salvar/remover favorito. */
+export function notificarFavoritosAtualizados(detail?: FavoritosAtualizadosDetail) {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(
+    new CustomEvent(FAVORITOS_ATUALIZADOS_EVENT, {
+      detail: detail ?? {},
+    }),
+  )
 }
 
 export async function listarAlvoIdsFavoritos(

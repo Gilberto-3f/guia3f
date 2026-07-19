@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 import { Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { toggleFavorito, type FavoritoAlvoTipo } from '@/lib/favoritosTurista'
+import {
+  FAVORITOS_ATUALIZADOS_EVENT,
+  toggleFavorito,
+  type FavoritoAlvoTipo,
+  type FavoritosAtualizadosDetail,
+} from '@/lib/favoritosTurista'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 
 type Props = {
@@ -21,6 +26,7 @@ type Props = {
  * Turista → página /favoritos.
  * Profissional / ADM → Publicações Salvas (menu lateral).
  * Empresa → não salva mini-cards (botão oculto).
+ * Instâncias do mesmo alvo ficam sincronizadas via evento global.
  */
 export default function BotaoEstrelaFavorito({
   usuarioId,
@@ -39,6 +45,20 @@ export default function BotaoEstrelaFavorito({
     setSalvo(inicial)
   }, [inicial, alvoId])
 
+  // Sincroniza com outras estrelas do mesmo produto (mini-card ↔ drawer ↔ hub).
+  useEffect(() => {
+    const onFav = (e: Event) => {
+      const detail = (e as CustomEvent<FavoritosAtualizadosDetail>).detail
+      if (!detail?.alvoId || detail.alvoId !== String(alvoId)) return
+      if (detail.tipo != null && detail.tipo !== tipo) return
+      if (typeof detail.salvo !== 'boolean') return
+      setSalvo(detail.salvo)
+      onChange?.(detail.salvo)
+    }
+    window.addEventListener(FAVORITOS_ATUALIZADOS_EVENT, onFav)
+    return () => window.removeEventListener(FAVORITOS_ATUALIZADOS_EVENT, onFav)
+  }, [alvoId, tipo, onChange])
+
   const onClick = useCallback(
     async (e: MouseEvent) => {
       e.preventDefault()
@@ -51,9 +71,6 @@ export default function BotaoEstrelaFavorito({
         const next = await toggleFavorito(supabase, usuarioId, alvoId, tipo)
         setSalvo(next)
         onChange?.(next)
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('favoritos-turista-atualizados'))
-        }
       } catch (err) {
         console.error('[BotaoEstrelaFavorito]', err)
         setSalvo(prev)
