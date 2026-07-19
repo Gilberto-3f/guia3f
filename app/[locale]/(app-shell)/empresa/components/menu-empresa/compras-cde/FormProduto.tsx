@@ -10,7 +10,6 @@ import {
   DESCRICAO_MAX,
   FOTOS_MAX,
   FOTOS_MIN,
-  METATAGS_PRODUTO,
   NOME_PRODUTO_MAX,
   metatagsFormFromPalavras,
   type ProdutoCategoriaRow,
@@ -91,10 +90,6 @@ export function validarFormProduto(form: FormProdutoState): string | null {
   if (!form.categoria_id) return 'Selecione a categoria principal.'
   if (!form.subcategoria.trim()) return 'Informe a subcategoria.'
   if (!form.marca.trim()) return 'Informe a marca do produto.'
-  const tags = sanitizarPalavrasChave(form.metatags)
-  if (tags.length < METATAGS_PRODUTO) {
-    return `Informe ${METATAGS_PRODUTO} metatags (palavras-chave) para facilitar a busca do produto.`
-  }
   if (form.descricao.length > DESCRICAO_MAX) {
     return `A descrição pode ter no máximo ${DESCRICAO_MAX} caracteres.`
   }
@@ -136,7 +131,7 @@ export default function FormProduto({
   erro = null,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [metatagsAberto, setMetatagsAberto] = useState(true)
+  const [metatagsAberto, setMetatagsAberto] = useState(false)
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
   const podeAddFoto = totalFotos < FOTOS_MAX
   const tagsPreenchidas = sanitizarPalavrasChave(form.metatags).length
@@ -364,7 +359,7 @@ export default function FormProduto({
         </label>
 
         <ChevronPasta
-          titulo={`Metatags * (${tagsPreenchidas}/${MAX_PALAVRAS_CHAVE})`}
+          titulo={`Metatags (opcional · ${tagsPreenchidas}/${MAX_PALAVRAS_CHAVE})`}
           aberto={metatagsAberto}
           onToggle={() => setMetatagsAberto((v) => !v)}
           icone={Tags}
@@ -373,7 +368,7 @@ export default function FormProduto({
           <p className="mb-3 text-xs leading-relaxed text-gray-500">
             Até {MAX_PALAVRAS_CHAVE} termos extras (não aparecem no card público). Ajudam turistas a
             encontrar o produto no motor de busca do Compras CDE — além do nome, categoria, subcategoria
-            e marca.
+            e marca. Preenchimento opcional.
           </p>
           <div className="space-y-2">
             {form.metatags.map((valor, idx) => (

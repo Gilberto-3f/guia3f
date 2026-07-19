@@ -140,7 +140,10 @@ export default function AbaProdutos({ empresaId }: Props) {
       map.get(key)!.produtos.push(p)
     }
     return [...map.values()].sort(
-      (a, b) => a.ordem - b.ordem || a.categoriaNome.localeCompare(b.categoriaNome),
+      (a, b) =>
+        b.produtos.length - a.produtos.length ||
+        a.ordem - b.ordem ||
+        a.categoriaNome.localeCompare(b.categoriaNome),
     )
   }, [lista])
 
@@ -156,6 +159,8 @@ export default function AbaProdutos({ empresaId }: Props) {
 
   const temPendentes = pendentes.length > 0
   const botaoPrincipalPublicar = temPendentes
+  const totalCategoriasComProduto = secoes.length
+  const mostrarResumoCatalogo = !modoEdicao && !temPendentes && !formAberto && lista.length > 0
 
   const abrirNovo = () => {
     setForm(formProdutoVazio())
@@ -417,6 +422,15 @@ export default function AbaProdutos({ empresaId }: Props) {
               </>
             )}
           </button>
+
+          {mostrarResumoCatalogo ? (
+            <p className="text-center text-sm font-medium text-gray-600">
+              {lista.length} {lista.length === 1 ? 'Produto cadastrado' : 'Produtos cadastrados'}
+              {' / '}
+              {totalCategoriasComProduto}{' '}
+              {totalCategoriasComProduto === 1 ? 'categoria' : 'categorias'}
+            </p>
+          ) : null}
 
           {modoEdicao || temPendentes ? (
             <button

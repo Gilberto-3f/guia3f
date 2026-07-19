@@ -25,9 +25,13 @@ export type AcomodacaoFavoritaCard = {
 
 export type ProdutoFavoritoCard = {
   id: string
+  empresa_id: string | null
   titulo: string
   foto_url: string | null
   preco: number | null
+  percentual_desconto: number
+  empresa_nome: string | null
+  marca_nome: string | null
 }
 
 export type TicketFavoritoCard = {
@@ -287,7 +291,12 @@ export async function listarProdutosFavoritos(
 
   const { data, error } = await supabase
     .from('produtos')
-    .select('id, nome, fotos, foto_url, preco_usd, percentual_desconto')
+    .select(
+      `
+      id, empresa_id, nome, fotos, foto_url, preco_usd, percentual_desconto,
+      produto_marcas ( nome )
+    `,
+    )
     .in('id', ids)
 
   if (error) {
@@ -295,6 +304,20 @@ export async function listarProdutosFavoritos(
     return []
   }
   if (!data?.length) return []
+
+  const empresaIds = [
+    ...new Set(data.map((p) => String(p.empresa_id ?? '').trim()).filter(Boolean)),
+  ]
+  const nomePorEmpresa = new Map<string, string>()
+  if (empresaIds.length) {
+    const { data: emps } = await supabase
+      .from('empresas')
+      .select('id, nome_fantasia')
+      .in('id', empresaIds)
+    for (const e of emps ?? []) {
+      nomePorEmpresa.set(String(e.id), String(e.nome_fantasia ?? ''))
+    }
+  }
 
   const byId = new Map(data.map((p) => [String(p.id), p]))
   return ids
@@ -308,11 +331,17 @@ export async function listarProdutosFavoritos(
       const pct = Number(p!.percentual_desconto) || 0
       const bruto = Number(p!.preco_usd) || 0
       const final = Math.round(bruto * (1 - pct / 100) * 100) / 100
+      const empId = p!.empresa_id != null ? String(p!.empresa_id) : null
+      const marcaRel = p!.produto_marcas as { nome?: string } | null
       return {
         id: String(p!.id),
+        empresa_id: empId,
         titulo: String(p!.nome ?? 'Produto'),
         foto_url: foto,
         preco: final > 0 ? final : null,
+        percentual_desconto: pct,
+        empresa_nome: empId ? nomePorEmpresa.get(empId) || null : null,
+        marca_nome: marcaRel?.nome ? String(marcaRel.nome) : null,
       }
     })
 }

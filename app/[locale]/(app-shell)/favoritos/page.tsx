@@ -5,6 +5,8 @@ import { Building2, Hotel, ShoppingBag, Star, Ticket } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
+import DrawerProdutosCde from '@/components/DrawerProdutosCde'
+import PopupCompraAtrativos from '@/components/PopupCompraAtrativos'
 import { supabase } from '@/lib/supabase'
 import {
   listarAcomodacoesFavoritas,
@@ -23,6 +25,8 @@ import {
   tipoCategoriaImovel,
 } from '@/lib/hospedagemAcomodacoesCatalogo'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { formatarUsd } from '@/lib/comprasCdeCatalogo'
+import { formatarPrecoTicket } from '@/lib/atrativosCatalogo'
 
 const COR = '#0097b2'
 
@@ -32,6 +36,17 @@ type Pastas = {
   hospedagem: boolean
   empresas: boolean
 }
+
+type DrawerProdutoState = {
+  empresaId: string
+  empresaNome: string
+  produtoId: string
+} | null
+
+type PopupTicketState = {
+  empresaId: string
+  empresaNome: string
+} | null
 
 function rotuloAcomodacaoFavorita(a: AcomodacaoFavoritaCard): string | null {
   const tipo = tipoCategoriaImovel(String(a.categoria_imovel ?? ''))
@@ -63,6 +78,8 @@ export default function FavoritosPage() {
     hospedagem: false,
     empresas: false,
   })
+  const [drawerProduto, setDrawerProduto] = useState<DrawerProdutoState>(null)
+  const [popupTicket, setPopupTicket] = useState<PopupTicketState>(null)
 
   const toggle = (key: keyof Pastas) => {
     setPastas((p) => ({ ...p, [key]: !p[key] }))
@@ -146,9 +163,7 @@ export default function FavoritosPage() {
               onToggle={() => toggle('compras')}
             >
               {produtos.length === 0 ? (
-                <p className="text-center text-sm text-gray-500">
-                  Nenhum produto salvo ainda.
-                </p>
+                <p className="text-center text-sm text-gray-500">Nenhum produto salvo ainda.</p>
               ) : (
                 <ul className="space-y-3">
                   {produtos.map((p) => (
@@ -156,25 +171,45 @@ export default function FavoritosPage() {
                       key={p.id}
                       className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
                     >
-                      <div className="flex gap-3 p-3">
-                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                          {p.foto_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={p.foto_url} alt="" className="h-full w-full object-cover" />
-                          ) : null}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-[#001f3f]">{p.titulo}</p>
-                          {p.preco != null ? (
-                            <p className="mt-1 text-sm font-bold text-[#00D443]">
-                              US${' '}
-                              {p.preco.toLocaleString('pt-BR', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </p>
-                          ) : null}
-                        </div>
+                      <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">{p.titulo}</p>
+                      <div className="mt-2 aspect-[4/3] bg-gray-100">
+                        {p.foto_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.foto_url} alt="" className="h-full w-full object-cover" />
+                        ) : null}
+                      </div>
+                      <div className="space-y-2 p-3">
+                        {p.marca_nome ? (
+                          <p className="text-sm font-semibold text-[#001f3f]">{p.marca_nome}</p>
+                        ) : null}
+                        {p.empresa_nome ? (
+                          <p className="truncate text-xs text-gray-500">{p.empresa_nome}</p>
+                        ) : null}
+                        {p.preco != null ? (
+                          <p className="text-sm font-bold text-[#0097b2]">
+                            {formatarUsd(p.preco)}
+                            {p.percentual_desconto > 0 ? (
+                              <span className="ml-1.5 rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
+                                −{p.percentual_desconto}%
+                              </span>
+                            ) : null}
+                          </p>
+                        ) : null}
+                        {p.empresa_id ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDrawerProduto({
+                                empresaId: p.empresa_id!,
+                                empresaNome: p.empresa_nome || 'Empresa',
+                                produtoId: p.id,
+                              })
+                            }
+                            className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
+                          >
+                            Ver produto
+                          </button>
+                        ) : null}
                       </div>
                     </li>
                   ))}
@@ -190,9 +225,7 @@ export default function FavoritosPage() {
               onToggle={() => toggle('tickets')}
             >
               {tickets.length === 0 ? (
-                <p className="text-center text-sm text-gray-500">
-                  Nenhum ticket salvo ainda.
-                </p>
+                <p className="text-center text-sm text-gray-500">Nenhum ticket salvo ainda.</p>
               ) : (
                 <ul className="space-y-3">
                   {tickets.map((t) => (
@@ -200,19 +233,42 @@ export default function FavoritosPage() {
                       key={t.id}
                       className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
                     >
-                      <div className="flex gap-3 p-3">
-                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                          {t.foto_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={t.foto_url} alt="" className="h-full w-full object-cover" />
-                          ) : null}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-[#001f3f]">{t.titulo}</p>
-                          {t.empresa_nome ? (
-                            <p className="truncate text-xs text-gray-500">{t.empresa_nome}</p>
-                          ) : null}
-                        </div>
+                      <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">{t.titulo}</p>
+                      <div className="mt-2 aspect-[4/3] bg-gray-100">
+                        {t.foto_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={t.foto_url} alt="" className="h-full w-full object-cover" />
+                        ) : null}
+                      </div>
+                      <div className="space-y-2 p-3">
+                        {t.empresa_nome ? (
+                          <p className="truncate text-xs text-gray-500">{t.empresa_nome}</p>
+                        ) : null}
+                        {t.preco_inteira != null ? (
+                          <p className="text-sm font-bold text-[#0097b2]">
+                            {formatarPrecoTicket(t.preco_inteira)}
+                            <span className="font-normal text-gray-500"> / inteira</span>
+                          </p>
+                        ) : null}
+                        {t.preco_meia != null ? (
+                          <p className="text-xs font-semibold text-gray-600">
+                            Meia: {formatarPrecoTicket(t.preco_meia)}
+                          </p>
+                        ) : null}
+                        {t.empresa_id ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPopupTicket({
+                                empresaId: t.empresa_id!,
+                                empresaNome: t.empresa_nome || 'Empresa',
+                              })
+                            }
+                            className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
+                          >
+                            Ver tickets
+                          </button>
+                        ) : null}
                       </div>
                     </li>
                   ))}
@@ -339,6 +395,26 @@ export default function FavoritosPage() {
           </>
         )}
       </main>
+
+      {drawerProduto ? (
+        <DrawerProdutosCde
+          isOpen
+          onClose={() => setDrawerProduto(null)}
+          empresaId={drawerProduto.empresaId}
+          empresaNome={drawerProduto.empresaNome}
+          produtoIdInicial={drawerProduto.produtoId}
+          mostrarEmpresaNoDetalhe
+        />
+      ) : null}
+
+      {popupTicket ? (
+        <PopupCompraAtrativos
+          isOpen
+          onClose={() => setPopupTicket(null)}
+          empresaId={popupTicket.empresaId}
+          empresaNome={popupTicket.empresaNome}
+        />
+      ) : null}
     </div>
   )
 }
