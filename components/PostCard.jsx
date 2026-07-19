@@ -17,6 +17,7 @@ import AvatarImage from '@/components/AvatarImage'
 import MediaFillImage from '@/components/MediaFillImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { notificarEngajamentoAtividades } from '@/lib/atividades-events'
@@ -156,6 +157,7 @@ export default function PostCard({
 
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const bloqueioApresentacao = !podeInteragir
+  const { perfilEhEmpresa } = useProfissionalGate()
   const {
     podeInteragirFeedSocial,
     avisarBloqueioFeed,
@@ -165,6 +167,8 @@ export default function PostCard({
     tituloBloqueioFeed,
   } = useGateFeedSocial()
   const bloqueioFeedSocial = !podeInteragirFeedSocial
+  /** Empresa não salva publicações do feed. */
+  const ocultarSalvarPost = Boolean(perfilEhEmpresa)
   const empresaInteratorId = useEmpresaInteratorSocial()
   const [comentAberto, setComentAberto] = useState(false)
   const [curtidasAberto, setCurtidasAberto] = useState(false)
@@ -814,7 +818,7 @@ export default function PostCard({
     onSeguiuEmpresa: () => setTickSeguir((t) => t + 1),
     onSeguiuUsuario: () => setTickSeguir((t) => t + 1),
     onEditar: handleEditarPost,
-    onSalvar: () => void handleSalvar(),
+    onSalvar: ocultarSalvarPost ? undefined : () => void handleSalvar(),
     onRepublicar: ehAvaliacao ? undefined : () => void handleRepostar(),
     bloqueado: bloqueioApresentacao || bloqueioFeedSocial,
   }
@@ -957,15 +961,17 @@ export default function PostCard({
           <span>{repostTotal}</span>
         </button>
       ) : null}
-      <button
-        type="button"
-        onClick={() => void handleSalvar()}
-        disabled={!meuUsuarioId || bloqueioApresentacao}
-        className="flex items-center gap-1 text-gray-600 disabled:opacity-50"
-        aria-label="Salvar"
-      >
-        <Bookmark className={`h-5 w-5 ${salvo ? 'fill-[#0097b2] text-[#0097b2]' : 'text-gray-500'}`} aria-hidden />
-      </button>
+      {!ocultarSalvarPost ? (
+        <button
+          type="button"
+          onClick={() => void handleSalvar()}
+          disabled={!meuUsuarioId || bloqueioApresentacao}
+          className="flex items-center gap-1 text-gray-600 disabled:opacity-50"
+          aria-label="Salvar"
+        >
+          <Bookmark className={`h-5 w-5 ${salvo ? 'fill-[#0097b2] text-[#0097b2]' : 'text-gray-500'}`} aria-hidden />
+        </button>
+      ) : null}
     </div>
   )
 

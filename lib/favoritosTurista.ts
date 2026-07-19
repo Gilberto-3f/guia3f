@@ -51,7 +51,7 @@ export type TicketFavoritoCard = {
   preco_meia: number | null
 }
 
-/** Item de catálogo salvo — para Publicações Salvas (não-turistas). */
+/** Item de catálogo salvo — para Publicações Salvas (profissional / ADM). */
 export type ItemCatalogoSalvo = {
   kind: 'produto' | 'acomodacao' | 'ticket'
   id: string
@@ -61,6 +61,12 @@ export type ItemCatalogoSalvo = {
   empresa_nome: string | null
   salvo_em: string
   subtitulo: string | null
+  marca_nome?: string | null
+  preco?: number | null
+  percentual_desconto?: number
+  preco_inteira?: number | null
+  preco_meia?: number | null
+  valor_diaria?: number | null
 }
 
 function payloadAlvo(usuarioId: string, alvoId: string, tipo: FavoritoAlvoTipo) {
@@ -425,23 +431,44 @@ export async function listarTicketsFavoritos(
 
 /**
  * Produtos / acomodações / tickets salvos (tabela favoritos).
- * Usado em Publicações Salvas para perfis que não têm a página /favoritos.
+ * Usado em Publicações Salvas para profissional e ADM (sem página /favoritos).
  */
 export async function listarItensCatalogoSalvos(
   supabase: SupabaseClient,
   usuarioId: string,
 ): Promise<ItemCatalogoSalvo[]> {
   const uid = String(usuarioId)
-  const { data: favRows, error } = await supabase
-    .from('favoritos')
-    .select('alvo_id, alvo_tipo, salvo_em')
-    .eq('usuario_id', uid)
-    .in('alvo_tipo', ['produto', 'acomodacao', 'ticket'])
 
-  if (error) {
-    console.error('[favoritosTurista] listarItensCatalogoSalvos:', error.message)
-    return []
+  let favRows: { alvo_id?: unknown; alvo_tipo?: unknown; salvo_em?: unknown }[] | null = null
+  {
+    const res = await supabase
+      .from('favoritos')
+      .select('alvo_id, alvo_tipo, salvo_em')
+      .eq('usuario_id', uid)
+      .in('alvo_tipo', ['produto', 'acomodacao', 'ticket'])
+
+    if (res.error) {
+      const msg = String(res.error.message ?? '').toLowerCase()
+      if (msg.includes('salvo_em') || (msg.includes('column') && msg.includes('does not exist'))) {
+        const res2 = await supabase
+          .from('favoritos')
+          .select('alvo_id, alvo_tipo')
+          .eq('usuario_id', uid)
+          .in('alvo_tipo', ['produto', 'acomodacao', 'ticket'])
+        if (res2.error) {
+          console.error('[favoritosTurista] listarItensCatalogoSalvos:', res2.error.message)
+          return []
+        }
+        favRows = res2.data ?? []
+      } else {
+        console.error('[favoritosTurista] listarItensCatalogoSalvos:', res.error.message)
+        return []
+      }
+    } else {
+      favRows = res.data ?? []
+    }
   }
+
   if (!favRows?.length) return []
 
   const dateByKey = new Map<string, string>()
@@ -473,6 +500,9 @@ export async function listarItensCatalogoSalvos(
       empresa_nome: p.empresa_nome,
       salvo_em: dateByKey.get(`produto:${p.id}`) ?? '',
       subtitulo: p.marca_nome || p.empresa_nome,
+      marca_nome: p.marca_nome,
+      preco: p.preco,
+      percentual_desconto: p.percentual_desconto,
     })
   }
 
@@ -484,17 +514,23 @@ export async function listarItensCatalogoSalvos(
         : tipo === 'compartilhado'
           ? rotuloOpcaoCompartilhadaCurto(a.opcao_compartilhada)
           : ''
+    const qtd = Number(a.capacidade_pessoas) || 0
     const tituloBase = rotuloCategoriaImovelCurto(a.categoria_imovel) || 'Acomodação'
-    const titulo = cat ? `${tituloBase} · ${cat}` : tituloBase
+    let subtitulo: string | null = a.empresa_nome
+    if (cat && qtd > 0) subtitulo = `${cat} · ${qtd} ${qtd === 1 ? 'pessoa' : 'pessoas'}`
+    else if (cat) subtitulo = cat
+    else if (qtd > 0) subtitulo = `${qtd} ${qtd === 1 ? 'pessoa' : 'pessoas'}`
+
     items.push({
       kind: 'acomodacao',
       id: a.id,
-      titulo,
+      titulo: tituloBase,
       foto_url: a.foto_url,
       empresa_id: a.empresa_id || null,
       empresa_nome: a.empresa_nome,
       salvo_em: dateByKey.get(`acomodacao:${a.id}`) ?? '',
-      subtitulo: a.empresa_nome,
+      subtitulo,
+      valor_diaria: a.valor_diaria,
     })
   }
 
@@ -508,6 +544,8 @@ export async function listarItensCatalogoSalvos(
       empresa_nome: t.empresa_nome,
       salvo_em: dateByKey.get(`ticket:${t.id}`) ?? '',
       subtitulo: t.empresa_nome,
+      preco_inteira: t.preco_inteira,
+      preco_meia: t.preco_meia,
     })
   }
 

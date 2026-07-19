@@ -8,6 +8,8 @@ import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import { useRouter } from '@/i18n/navigation'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { listarItensCatalogoSalvos } from '@/lib/favoritosTurista'
+import { formatarUsd } from '@/lib/comprasCdeCatalogo'
+import { formatarPrecoTicket } from '@/lib/atrativosCatalogo'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
 import PopupCompraAtrativos from '@/components/PopupCompraAtrativos'
 
@@ -19,7 +21,14 @@ import PopupCompraAtrativos from '@/components/PopupCompraAtrativos'
  */
 export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
   const router = useRouter()
-  const { perfilEhTurista, loading: gateLoading } = useProfissionalGate()
+  const {
+    perfilEhTurista,
+    perfilEhEmpresa,
+    loading: gateLoading,
+  } = useProfissionalGate()
+  /** Profissional / ADM: misturam mini-cards com posts. Turista e empresa: não. */
+  const misturarCatalogo = !perfilEhTurista && !perfilEhEmpresa
+
   /** @type {[Array<LinhaSalvo>, Function]} */
   const [linhas, setLinhas] = useState([])
   const [loading, setLoading] = useState(true)
@@ -84,8 +93,7 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
       /** @type {LinhaSalvo[]} */
       let misturado = [...postsLinhas]
 
-      // Turista: catálogo só em /favoritos. Demais: misturar em Publicações Salvas.
-      if (!perfilEhTurista) {
+      if (misturarCatalogo) {
         const catalogo = await listarItensCatalogoSalvos(supabase, uid)
         const catalogoLinhas = catalogo.map((item) => ({
           kind: 'catalogo',
@@ -101,7 +109,7 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
 
       setLinhas(misturado)
     },
-    [perfilEhTurista],
+    [misturarCatalogo],
   )
 
   useEffect(() => {
@@ -117,11 +125,11 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
   }, [usuarioId, carregar, gateLoading])
 
   useEffect(() => {
-    if (!usuarioId || perfilEhTurista) return
+    if (!usuarioId || !misturarCatalogo) return
     const onFav = () => void carregar(usuarioId)
     window.addEventListener('favoritos-turista-atualizados', onFav)
     return () => window.removeEventListener('favoritos-turista-atualizados', onFav)
-  }, [usuarioId, perfilEhTurista, carregar])
+  }, [usuarioId, misturarCatalogo, carregar])
 
   const abrirPost = useCallback(
     (postId) => {
@@ -134,30 +142,6 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
     [onAbrirPublicacao, router],
   )
 
-  const abrirCatalogo = useCallback(
-    (item) => {
-      if (item.kind === 'produto' && item.empresa_id) {
-        setDrawerProduto({
-          empresaId: item.empresa_id,
-          empresaNome: item.empresa_nome || 'Empresa',
-          produtoId: item.id,
-        })
-        return
-      }
-      if (item.kind === 'ticket' && item.empresa_id) {
-        setPopupTicket({
-          empresaId: item.empresa_id,
-          empresaNome: item.empresa_nome || 'Empresa',
-        })
-        return
-      }
-      if (item.kind === 'acomodacao' && item.empresa_id) {
-        router.push(`/empresa/${item.empresa_id}`)
-      }
-    },
-    [router],
-  )
-
   if (!usuarioId) {
     return <p className="px-1 text-sm text-gray-500">Entre na conta para ver as publicações salvas.</p>
   }
@@ -166,61 +150,148 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
     <div className="px-1 pb-4">
       {loading || gateLoading ? <p className="py-6 text-center text-sm text-gray-400">Carregando…</p> : null}
       {!loading && !gateLoading ? (
-        <ul className="divide-y divide-gray-100">
+        <ul className="space-y-3">
           {linhas.length === 0 ? (
             <li className="py-8 text-center text-sm text-gray-500">Nenhuma publicação salva ainda.</li>
           ) : (
             linhas.map((linha) => {
               if (linha.kind === 'catalogo') {
-                const { item, salvoEm } = linha
-                const rotuloTipo =
-                  item.kind === 'produto'
-                    ? 'Produto'
-                    : item.kind === 'ticket'
-                      ? 'Ticket'
-                      : 'Acomodação'
-                const url = item.foto_url
-                const mostrarThumb = url != null && String(url).trim() !== ''
-                const cardBase =
-                  'w-full cursor-pointer rounded-lg border border-gray-100 p-2 text-left transition hover:bg-gray-50'
-
-                return (
-                  <li key={`cat-${item.kind}-${item.id}`} className="min-w-0 py-2 first:pt-0">
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => abrirCatalogo(item)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          abrirCatalogo(item)
-                        }
-                      }}
-                      className={mostrarThumb ? `flex flex-col gap-1 ${cardBase}` : `flex ${cardBase}`}
-                      aria-label={`${rotuloTipo} salvo — abrir`}
+                const { item } = linha
+                if (item.kind === 'produto') {
+                  return (
+                    <li
+                      key={`cat-produto-${item.id}`}
+                      className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
                     >
-                      <p className="w-full min-w-0 text-xs text-gray-400">
-                        <span className="font-medium text-[#0097b2]">Salvou · {rotuloTipo}</span>
-                        {' · '}
-                        {salvoEm ? formatarDataRelativaPublicacao(salvoEm) : ''}
-                      </p>
-                      <div className="flex min-w-0 gap-3">
-                        {mostrarThumb ? (
-                          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                            <Image src={String(url)} alt="" fill className="object-cover" sizes="56px" />
-                          </div>
-                        ) : (
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-[10px] font-bold text-gray-400">
-                            {rotuloTipo.slice(0, 3).toUpperCase()}
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="line-clamp-2 text-sm font-medium text-gray-800">{item.titulo}</p>
-                          {item.subtitulo ? (
-                            <p className="mt-0.5 truncate text-xs text-gray-500">{item.subtitulo}</p>
-                          ) : null}
-                        </div>
+                      <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">{item.titulo}</p>
+                      <div className="mt-2 aspect-[4/3] bg-gray-100">
+                        {item.foto_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.foto_url} alt="" className="h-full w-full object-cover" />
+                        ) : null}
                       </div>
+                      <div className="space-y-2 p-3">
+                        {item.marca_nome ? (
+                          <p className="text-sm font-semibold text-[#001f3f]">{item.marca_nome}</p>
+                        ) : null}
+                        {item.empresa_nome ? (
+                          <p className="truncate text-xs text-gray-500">{item.empresa_nome}</p>
+                        ) : null}
+                        {item.preco != null ? (
+                          <p className="text-sm font-bold text-[#0097b2]">
+                            {formatarUsd(item.preco)}
+                            {(item.percentual_desconto ?? 0) > 0 ? (
+                              <span className="ml-1.5 rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
+                                −{item.percentual_desconto}%
+                              </span>
+                            ) : null}
+                          </p>
+                        ) : null}
+                        {item.empresa_id ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDrawerProduto({
+                                empresaId: item.empresa_id,
+                                empresaNome: item.empresa_nome || 'Empresa',
+                                produtoId: item.id,
+                              })
+                            }
+                            className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
+                          >
+                            Ver produto
+                          </button>
+                        ) : null}
+                      </div>
+                    </li>
+                  )
+                }
+
+                if (item.kind === 'ticket') {
+                  return (
+                    <li
+                      key={`cat-ticket-${item.id}`}
+                      className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                    >
+                      <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">{item.titulo}</p>
+                      <div className="mt-2 aspect-[4/3] bg-gray-100">
+                        {item.foto_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.foto_url} alt="" className="h-full w-full object-cover" />
+                        ) : null}
+                      </div>
+                      <div className="space-y-2 p-3">
+                        {item.empresa_nome ? (
+                          <p className="truncate text-xs text-gray-500">{item.empresa_nome}</p>
+                        ) : null}
+                        {item.preco_inteira != null ? (
+                          <p className="text-sm font-bold text-[#0097b2]">
+                            {formatarPrecoTicket(item.preco_inteira)}
+                            <span className="font-normal text-gray-500"> / inteira</span>
+                          </p>
+                        ) : null}
+                        {item.preco_meia != null ? (
+                          <p className="text-xs font-semibold text-gray-600">
+                            Meia: {formatarPrecoTicket(item.preco_meia)}
+                          </p>
+                        ) : null}
+                        {item.empresa_id ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPopupTicket({
+                                empresaId: item.empresa_id,
+                                empresaNome: item.empresa_nome || 'Empresa',
+                              })
+                            }
+                            className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
+                          >
+                            Ver tickets
+                          </button>
+                        ) : null}
+                      </div>
+                    </li>
+                  )
+                }
+
+                // acomodacao
+                return (
+                  <li
+                    key={`cat-acomodacao-${item.id}`}
+                    className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                  >
+                    <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">{item.titulo}</p>
+                    <div className="mt-2 aspect-[4/3] bg-gray-100">
+                      {item.foto_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.foto_url} alt="" className="h-full w-full object-cover" />
+                      ) : null}
+                    </div>
+                    <div className="space-y-2 p-3">
+                      {item.subtitulo ? (
+                        <p className="text-sm font-semibold text-[#001f3f]">{item.subtitulo}</p>
+                      ) : null}
+                      {item.empresa_nome ? (
+                        <p className="truncate text-xs text-gray-500">{item.empresa_nome}</p>
+                      ) : null}
+                      {item.valor_diaria != null ? (
+                        <p className="text-sm font-bold text-[#0097b2]">
+                          {item.valor_diaria.toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL',
+                          })}
+                          <span className="font-normal text-gray-500"> / diária</span>
+                        </p>
+                      ) : null}
+                      {item.empresa_id ? (
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/empresa/${item.empresa_id}`)}
+                          className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
+                        >
+                          Ver empresa
+                        </button>
+                      ) : null}
                     </div>
                   </li>
                 )
@@ -253,7 +324,7 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
               )
 
               return (
-                <li key={`post-${post.id}`} className="min-w-0 py-2 first:pt-0">
+                <li key={`post-${post.id}`} className="min-w-0">
                   <div
                     role="button"
                     tabIndex={0}

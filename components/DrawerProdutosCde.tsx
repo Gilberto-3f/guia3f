@@ -82,7 +82,7 @@ export default function DrawerProdutosCde({
 }: Props) {
   useModalScrollLock(isOpen)
   const router = useRouter()
-  const { perfilEhProfissional } = useProfissionalGate()
+  const { perfilEhProfissional, perfilEhEmpresa } = useProfissionalGate()
 
   const [passo, setPasso] = useState<1 | 2>(() => (produtoIdInicial ? 2 : 1))
   const [carregando, setCarregando] = useState(true)
@@ -540,25 +540,27 @@ export default function DrawerProdutosCde({
                     <span className="text-[10px] font-semibold text-gray-600">Site</span>
                   </button>
                 ) : null}
-                <div className="flex flex-col items-center gap-1">
-                  <BotaoEstrelaFavorito
-                    usuarioId={visitanteId}
-                    alvoId={selecionado.id}
-                    tipo="produto"
-                    inicial={favProdutos.has(selecionado.id)}
-                    size={28}
-                    className="!opacity-100"
-                    onChange={(salvo) => {
-                      setFavProdutos((prev) => {
-                        const next = new Set(prev)
-                        if (salvo) next.add(selecionado.id)
-                        else next.delete(selecionado.id)
-                        return next
-                      })
-                    }}
-                  />
-                  <span className="text-[10px] font-semibold text-gray-600">Favorito</span>
-                </div>
+                {!perfilEhEmpresa ? (
+                  <div className="flex flex-col items-center gap-1">
+                    <BotaoEstrelaFavorito
+                      usuarioId={visitanteId}
+                      alvoId={selecionado.id}
+                      tipo="produto"
+                      inicial={favProdutos.has(selecionado.id)}
+                      size={28}
+                      className="!opacity-100"
+                      onChange={(salvo) => {
+                        setFavProdutos((prev) => {
+                          const next = new Set(prev)
+                          if (salvo) next.add(selecionado.id)
+                          else next.delete(selecionado.id)
+                          return next
+                        })
+                      }}
+                    />
+                    <span className="text-[10px] font-semibold text-gray-600">Favorito</span>
+                  </div>
+                ) : null}
               </div>
             </ChevronPasta>
 

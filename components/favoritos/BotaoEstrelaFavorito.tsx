@@ -19,7 +19,8 @@ type Props = {
 /**
  * Estrela de salvar item do catálogo.
  * Turista → página /favoritos.
- * Demais perfis logados → item aparece em Publicações Salvas (menu lateral).
+ * Profissional / ADM → Publicações Salvas (menu lateral).
+ * Empresa → não salva mini-cards (botão oculto).
  */
 export default function BotaoEstrelaFavorito({
   usuarioId,
@@ -30,7 +31,7 @@ export default function BotaoEstrelaFavorito({
   size = 20,
   onChange,
 }: Props) {
-  const { perfilEhTurista, loading: gateLoading } = useProfissionalGate()
+  const { perfilEhTurista, perfilEhEmpresa, loading: gateLoading } = useProfissionalGate()
   const [salvo, setSalvo] = useState(inicial)
   const [busy, setBusy] = useState(false)
 
@@ -42,7 +43,7 @@ export default function BotaoEstrelaFavorito({
     async (e: MouseEvent) => {
       e.preventDefault()
       e.stopPropagation()
-      if (!usuarioId || !alvoId || busy) return
+      if (!usuarioId || !alvoId || busy || perfilEhEmpresa) return
       setBusy(true)
       const prev = salvo
       setSalvo(!prev)
@@ -62,7 +63,7 @@ export default function BotaoEstrelaFavorito({
         setBusy(false)
       }
     },
-    [usuarioId, alvoId, tipo, busy, salvo, onChange],
+    [usuarioId, alvoId, tipo, busy, salvo, onChange, perfilEhEmpresa],
   )
 
   const starCls = salvo || inicial ? 'fill-[#0097b2] text-[#0097b2]' : 'fill-none text-[#0097b2]'
@@ -76,6 +77,9 @@ export default function BotaoEstrelaFavorito({
       </span>
     )
   }
+
+  // Empresa: não salva mini-cards de outras empresas.
+  if (perfilEhEmpresa) return null
 
   if (!usuarioId) {
     return (

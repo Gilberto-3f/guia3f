@@ -194,18 +194,20 @@ export default function MenuPost({
                   <span>{usuarioAlvo.jaSegue ? 'Deixar de seguir' : 'Seguir'}</span>
                 </button>
               ) : null}
-              <button
-                type="button"
-                onClick={() => {
-                  setAberto(false)
-                  onSalvar?.()
-                }}
-                disabled={!meuUsuarioId}
-                className={`${itemClass} disabled:opacity-50`}
-              >
-                <Bookmark size={16} className="text-white" aria-hidden />
-                <span>{salvo ? 'Remover dos salvos' : 'Salvar'}</span>
-              </button>
+              {typeof onSalvar === 'function' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAberto(false)
+                    onSalvar()
+                  }}
+                  disabled={!meuUsuarioId}
+                  className={`${itemClass} disabled:opacity-50`}
+                >
+                  <Bookmark size={16} className="text-white" aria-hidden />
+                  <span>{salvo ? 'Remover dos salvos' : 'Salvar'}</span>
+                </button>
+              ) : null}
               {podeRepublicar ? (
                 <button
                   type="button"

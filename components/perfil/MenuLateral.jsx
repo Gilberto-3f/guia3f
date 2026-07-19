@@ -201,7 +201,13 @@ function itensMinhaConta(ctx) {
     { Icon: Activity, label: 'Minhas Atividades', subpagina: 'minhas-atividades' },
     { Icon: History, label: 'Histórico de Stories', subpagina: 'historico-stories' },
     { Icon: Eye, label: 'Visitantes do Perfil', subpagina: 'visitantes-perfil' },
-    { Icon: Bookmark, label: 'Publicações Salvas', subpagina: 'salvos' },
+    {
+      Icon: Bookmark,
+      label: 'Publicações Salvas',
+      subpagina: 'salvos',
+      /** Empresa não tem feed nem salva mini-cards. */
+      condicional: (c) => c.variant !== 'empresa',
+    },
   ]
 
   return ctx ? filtrarMenu(base, ctx) : base
