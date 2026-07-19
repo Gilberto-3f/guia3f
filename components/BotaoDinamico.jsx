@@ -340,6 +340,9 @@ export default function BotaoDinamico({
             onClose={() => setShowTicketPopup(false)}
             empresaId={empresaId}
             empresaNome={empresaNome}
+            empresaUsername={empresaUsername}
+            empresaFotoUrl={empresaFotoUrl}
+            notaMedia={notaMedia}
             whatsappDestino={whatsapp}
           />
           <DrawerReservaHospedagem

@@ -105,6 +105,7 @@ export default function DrawerProdutosCde({
   const [recomendarAberto, setRecomendarAberto] = useState(false)
   const [notaEmpresaLive, setNotaEmpresaLive] = useState<number | null>(null)
   const [fotoEmpresaLive, setFotoEmpresaLive] = useState<string | null>(null)
+  const [usernameEmpresaLive, setUsernameEmpresaLive] = useState<string | null>(null)
   /** Hub Compras CDE abre direto no detalhe — evita flash do cabeçalho do catálogo. */
   const abrirDiretoNoDetalhe = Boolean(produtoIdInicial)
 
@@ -117,6 +118,7 @@ export default function DrawerProdutosCde({
     setRecomendarAberto(false)
     setNotaEmpresaLive(null)
     setFotoEmpresaLive(null)
+    setUsernameEmpresaLive(null)
   }, [abrirDiretoNoDetalhe])
 
   const handleFechar = useCallback(() => {
@@ -158,6 +160,11 @@ export default function DrawerProdutosCde({
       const fotoEmp =
         emp?.foto_url != null && String(emp.foto_url).trim() !== '' ? String(emp.foto_url) : null
       setFotoEmpresaLive(fotoEmp)
+      const userEmp =
+        emp?.nome_usuario != null && String(emp.nome_usuario).trim() !== ''
+          ? String(emp.nome_usuario).replace(/^@+/, '').trim()
+          : null
+      setUsernameEmpresaLive(userEmp || null)
 
       setCotacoes(cotMap)
       if (cotMap.USD > 0) setTaxaUsd(cotMap.USD)
@@ -231,6 +238,13 @@ export default function DrawerProdutosCde({
   const pct = selecionado ? Number(selecionado.percentual_desconto) || 0 : 0
 
   const avatarEmpresa = empresaFotoUrl || fotoEmpresaLive
+  const usernameExibir = (() => {
+    const fromProp =
+      empresaUsername != null && String(empresaUsername).trim() !== ''
+        ? String(empresaUsername).replace(/^@+/, '').trim()
+        : ''
+    return fromProp || usernameEmpresaLive || null
+  })()
   const notaEmpresaExibir =
     notaEmpresaLive != null && notaEmpresaLive > 0
       ? notaEmpresaLive
@@ -251,7 +265,7 @@ export default function DrawerProdutosCde({
       whatsappComercial,
       mensagemWhatsappProduto({
         nomeProduto: selecionado.nome,
-        username: empresaUsername,
+        username: usernameExibir,
         produtoUrl,
       }),
     )
@@ -297,28 +311,26 @@ export default function DrawerProdutosCde({
               </div>
               <div className="min-w-0 flex-1 pr-7">
                 <p className="truncate text-sm font-bold leading-tight text-white">{empresaNome}</p>
-                <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-                  {empresaUsername ? (
-                    <p className="inline-flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
-                      {empresaVerificada ? (
-                        <BadgeCheck
-                          className="h-3 w-3 shrink-0 text-white"
-                          fill="currentColor"
-                          stroke="#0097b2"
-                          strokeWidth={2}
-                          aria-hidden
-                        />
-                      ) : null}
-                      <span className="truncate">@{empresaUsername}</span>
-                    </p>
-                  ) : null}
-                  {notaEmpresaTexto ? (
-                    <p className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
-                      <span aria-hidden>★</span>
-                      {notaEmpresaTexto}
-                    </p>
-                  ) : null}
-                </div>
+                {usernameExibir ? (
+                  <p className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
+                    {empresaVerificada ? (
+                      <BadgeCheck
+                        className="h-3 w-3 shrink-0 text-white"
+                        fill="currentColor"
+                        stroke="#0097b2"
+                        strokeWidth={2}
+                        aria-hidden
+                      />
+                    ) : null}
+                    <span className="truncate">@{usernameExibir}</span>
+                  </p>
+                ) : null}
+                {notaEmpresaTexto ? (
+                  <p className="mt-0.5 inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                    <span aria-hidden>★</span>
+                    {notaEmpresaTexto}
+                  </p>
+                ) : null}
               </div>
               <button
                 type="button"
@@ -380,7 +392,7 @@ export default function DrawerProdutosCde({
                   <section key={sec.categoriaId} className="space-y-2">
                     <h3 className="flex items-center justify-center gap-2 px-4 text-center text-sm font-bold text-[#0097b2]">
                       <IconeCat className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
-                      {sec.categoriaNome}
+                      {sec.categoriaNome} • {sec.produtos.length}
                     </h3>
                     <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <div className="w-[11%] shrink-0 snap-none" aria-hidden />
@@ -390,7 +402,7 @@ export default function DrawerProdutosCde({
                           item={p}
                           taxaUsd={taxaUsd}
                           cotacoes={cotacoes}
-                          notaMediaEmpresa={notaEmpresaExibir}
+                          notaMediaEmpresa={null}
                           visitanteId={visitanteId}
                           favoritoInicial={favProdutos.has(p.id)}
                           tamanhoUniforme
@@ -573,28 +585,26 @@ export default function DrawerProdutosCde({
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden pr-1">
                   <p className="truncate text-sm font-bold text-white">{empresaNome}</p>
-                  <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-                    {empresaUsername ? (
-                      <p className="inline-flex max-w-full items-center gap-1 truncate text-xs text-white/90">
-                        {empresaVerificada ? (
-                          <BadgeCheck
-                            className="h-3.5 w-3.5 shrink-0 text-white"
-                            fill="currentColor"
-                            stroke="#0097b2"
-                            strokeWidth={2}
-                            aria-hidden
-                          />
-                        ) : null}
-                        <span className="truncate">@{empresaUsername}</span>
-                      </p>
-                    ) : null}
-                    {notaEmpresaTexto ? (
-                      <p className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
-                        <span aria-hidden>★</span>
-                        {notaEmpresaTexto}
-                      </p>
-                    ) : null}
-                  </div>
+                  {usernameExibir ? (
+                    <p className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-xs text-white/90">
+                      {empresaVerificada ? (
+                        <BadgeCheck
+                          className="h-3.5 w-3.5 shrink-0 text-white"
+                          fill="currentColor"
+                          stroke="#0097b2"
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                      ) : null}
+                      <span className="truncate">@{usernameExibir}</span>
+                    </p>
+                  ) : null}
+                  {notaEmpresaTexto ? (
+                    <p className="mt-0.5 inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                      <span aria-hidden>★</span>
+                      {notaEmpresaTexto}
+                    </p>
+                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -667,7 +677,7 @@ export default function DrawerProdutosCde({
             precoBrl: precoBrl > 0 ? precoBrl : null,
             empresaId,
             empresaNome,
-            empresaUsername,
+            empresaUsername: usernameExibir,
             categoriaId: selecionado.categoria_id,
             subcategoriaId: selecionado.subcategoria_id,
             marcaId: selecionado.marca_id,

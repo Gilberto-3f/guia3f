@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Check, ShoppingCart, Ticket, X } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, Check, ShoppingCart, Ticket, X } from 'lucide-react'
+import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
@@ -11,6 +12,7 @@ import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
 import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import {
   formatarPrecoTicket,
   mapExperienciaRow,
@@ -43,6 +45,9 @@ type Props = {
   onClose: () => void
   empresaId: string
   empresaNome: string
+  empresaUsername?: string | null
+  empresaFotoUrl?: string | null
+  notaMedia?: number | null
   whatsappDestino?: string | null
 }
 
@@ -248,8 +253,12 @@ export default function PopupCompraAtrativos({
   onClose,
   empresaId,
   empresaNome,
+  empresaUsername = null,
+  empresaFotoUrl = null,
+  notaMedia = null,
   whatsappDestino,
 }: Props) {
+  const router = useRouter()
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const {
     podeComprarReservar,
@@ -267,6 +276,13 @@ export default function PopupCompraAtrativos({
   const [regrasMeia, setRegrasMeia] = useState('')
   const [formas, setFormas] = useState<FormasPagamentoHospedagem>(parseFormasPagamento(null))
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([])
+  const [nomeLive, setNomeLive] = useState(empresaNome)
+  const [usernameLive, setUsernameLive] = useState(empresaUsername)
+  const [fotoLive, setFotoLive] = useState(empresaFotoUrl)
+  const [notaLive, setNotaLive] = useState<number | null>(
+    typeof notaMedia === 'number' && Number.isFinite(notaMedia) ? notaMedia : null
+  )
+  const [verificadaLive, setVerificadaLive] = useState(false)
   const [formaPagamento, setFormaPagamento] = useState<string>('')
   const [toast, setToast] = useState<string | null>(null)
   const [visitanteId, setVisitanteId] = useState<string | null>(null)
@@ -278,13 +294,18 @@ export default function PopupCompraAtrativos({
     if (!empresaId) return
     setLoading(true)
     try {
-      const [expRes, polRes] = await Promise.all([
+      const [expRes, polRes, empRes] = await Promise.all([
         supabase
           .from('atrativos_experiencias')
           .select('*')
           .eq('empresa_id', empresaId)
           .order('created_at', { ascending: true }),
         supabase.from('atrativos_politicas').select('*').eq('empresa_id', empresaId).maybeSingle(),
+        supabase
+          .from('empresas')
+          .select('nome_fantasia, nome_usuario, foto_url, nota_media, docs_verificado, status')
+          .eq('id', empresaId)
+          .maybeSingle(),
       ])
       if (expRes.error) throw expRes.error
       const mapped = (expRes.data ?? []).map((r) => mapExperienciaRow(r as Record<string, unknown>))
@@ -294,6 +315,34 @@ export default function PopupCompraAtrativos({
       setRegrasMeia(String(polRes.data?.regras_meia_entrada ?? ''))
       const disponiveis = formasDisponiveis(fp)
       setFormaPagamento(disponiveis[0]?.key ?? '')
+
+      const emp = empRes.data as Record<string, unknown> | null
+      if (emp) {
+        const nomeFantasia =
+          emp.nome_fantasia != null && String(emp.nome_fantasia).trim() !== ''
+            ? String(emp.nome_fantasia).trim()
+            : ''
+        setNomeLive(nomeFantasia || empresaNome)
+        const userEmp =
+          emp.nome_usuario != null && String(emp.nome_usuario).trim() !== ''
+            ? String(emp.nome_usuario).replace(/^@+/, '').trim()
+            : ''
+        setUsernameLive(userEmp || empresaUsername || null)
+        const fotoEmp =
+          emp.foto_url != null && String(emp.foto_url).trim() !== ''
+            ? String(emp.foto_url).trim()
+            : null
+        setFotoLive(fotoEmp || empresaFotoUrl || null)
+        const notaRaw = emp.nota_media != null ? Number(emp.nota_media) : NaN
+        setNotaLive(
+          Number.isFinite(notaRaw) && notaRaw > 0
+            ? notaRaw
+            : typeof notaMedia === 'number' && Number.isFinite(notaMedia) && notaMedia > 0
+              ? notaMedia
+              : null,
+        )
+        setVerificadaLive(contaVerificadaDocumentacao('empresa', emp))
+      }
 
       const {
         data: { session },
@@ -317,15 +366,24 @@ export default function PopupCompraAtrativos({
     } finally {
       setLoading(false)
     }
-  }, [empresaId])
+  }, [empresaId, empresaNome, empresaUsername, empresaFotoUrl, notaMedia])
 
   useEffect(() => {
     if (!isOpen) return
     setEtapa(1)
     setCarrinho([])
     setToast(null)
+    setNomeLive(empresaNome)
+    setUsernameLive(empresaUsername)
+    setFotoLive(empresaFotoUrl)
+    setNotaLive(
+      typeof notaMedia === 'number' && Number.isFinite(notaMedia) && notaMedia > 0
+        ? notaMedia
+        : null,
+    )
+    setVerificadaLive(false)
     void carregar()
-  }, [isOpen, carregar])
+  }, [isOpen, carregar, empresaNome, empresaUsername, empresaFotoUrl, notaMedia])
 
   const totalCarrinho = useMemo(
     () => carrinho.reduce((acc, i) => acc + i.precoUnit * i.quantidade, 0),
@@ -334,6 +392,57 @@ export default function PopupCompraAtrativos({
 
   const temMeiaNoCarrinho = carrinho.some((i) => i.tipo === 'meia')
   const opcoesPagamento = useMemo(() => formasDisponiveis(formas), [formas])
+
+  const usernameExibir = (() => {
+    const raw =
+      usernameLive != null && String(usernameLive).trim() !== ''
+        ? String(usernameLive).replace(/^@+/, '').trim()
+        : ''
+    return raw || null
+  })()
+  const notaTexto =
+    notaLive != null && notaLive > 0 ? notaLive.toFixed(1).replace(/\.0$/, '') : null
+
+  const cardEmpresaAzul = (
+    <button
+      type="button"
+      onClick={() => {
+        onClose()
+        router.push(`/empresa/${empresaId}`)
+      }}
+      className="flex w-full items-center gap-3 rounded-xl bg-[#0097b2] p-3 text-left shadow-sm transition-opacity hover:opacity-95"
+    >
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 border-white/40 bg-white/20">
+        {fotoLive ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={fotoLive} alt="" className="h-full w-full object-cover" />
+        ) : null}
+      </div>
+      <div className="min-w-0 flex-1 overflow-hidden pr-1">
+        <p className="truncate text-sm font-bold text-white">{nomeLive || empresaNome}</p>
+        {usernameExibir ? (
+          <p className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-xs text-white/90">
+            {verificadaLive ? (
+              <BadgeCheck
+                className="h-3.5 w-3.5 shrink-0 text-white"
+                fill="currentColor"
+                stroke="#0097b2"
+                strokeWidth={2}
+                aria-hidden
+              />
+            ) : null}
+            <span className="truncate">@{usernameExibir}</span>
+          </p>
+        ) : null}
+        {notaTexto ? (
+          <p className="mt-0.5 inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
+            <span aria-hidden>★</span>
+            {notaTexto}
+          </p>
+        ) : null}
+      </div>
+    </button>
+  )
 
   const addAoCarrinho = (exp: AtrativoExperienciaRow, tipo: TipoTicketAtrativo, qty: number) => {
     const precoUnit =
@@ -467,7 +576,7 @@ export default function PopupCompraAtrativos({
               <p className="p-6 text-center text-sm text-gray-400">Carregando…</p>
             ) : etapa === 1 ? (
               <div className="space-y-4 p-4">
-                <p className="text-center text-sm font-semibold text-[#001f3f]">{empresaNome}</p>
+                {cardEmpresaAzul}
                 {lista.length === 0 ? (
                   <p className="text-center text-sm text-gray-500">
                     Nenhum atrativo disponível no momento.

@@ -28,8 +28,8 @@ const botoesPorCategoria = {
   Restaurantes: { texto: 'RESERVAR MESA', icon: Utensils, cor: '#FF6B6B', acao: 'reserva' },
   passeios: { texto: 'Comprar Ticket', icon: Ticket, cor: '#4ECDC4', acao: 'ticket', textoCompacto: true },
   Atrativos: { texto: 'Comprar Ticket', icon: Ticket, cor: '#4ECDC4', acao: 'ticket', textoCompacto: true },
-  lojas: { texto: 'CATÁLOGO', icon: ShoppingBag, cor: '#96CEB4', acao: 'produtos' },
-  Lojas: { texto: 'CATÁLOGO', icon: ShoppingBag, cor: '#96CEB4', acao: 'produtos' },
+  lojas: { texto: 'CATÁLOGO', icon: ShoppingBag, cor: '#00D443', acao: 'produtos' },
+  Lojas: { texto: 'CATÁLOGO', icon: ShoppingBag, cor: '#00D443', acao: 'produtos' },
   hospedagem: { texto: 'FAZER RESERVA', icon: Hotel, cor: '#45B7D1', acao: 'reserva' },
   Hospedagem: { texto: 'FAZER RESERVA', icon: Hotel, cor: '#45B7D1', acao: 'reserva' },
   mobilidade: { texto: 'CHAMAR CORRIDA', icon: Car, cor: '#FFEAA7', acao: 'corrida' },
@@ -129,7 +129,7 @@ export default function AbaBotaoDinamico({
     const loja = cat === 'Lojas' || cat === 'lojas'
     if (loja) {
       if (cidadeEhCiudadDelEste(cidade)) {
-        return { ...base, texto: 'CATÁLOGO', icon: ShoppingBag, cor: '#96CEB4', acao: 'produtos' }
+        return { ...base, texto: 'CATÁLOGO', icon: ShoppingBag, cor: '#00D443', acao: 'produtos' }
       }
       if (cidadeEhFozOuPuertoIguazu(cidade)) {
         return {
@@ -277,6 +277,9 @@ export default function AbaBotaoDinamico({
         onClose={() => setShowTicketPopup(false)}
         empresaId={empresaId}
         empresaNome={empresaNome}
+        empresaUsername={empresaUsername}
+        empresaFotoUrl={empresaFotoUrl}
+        notaMedia={notaMedia}
         whatsappDestino={whatsapp}
       />
 

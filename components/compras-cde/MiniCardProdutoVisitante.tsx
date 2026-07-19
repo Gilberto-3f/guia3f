@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Info, Eye, Star } from 'lucide-react'
+import { Info, Eye } from 'lucide-react'
 import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
 import PrecoProdutoCde from '@/components/compras-cde/PrecoProdutoCde'
 import { precoFinalUsd, type ProdutoCdeRow } from '@/lib/comprasCdeCatalogo'
@@ -15,7 +15,8 @@ type Props = {
   /** @deprecated Prefira `cotacoes`. Mantido para compatibilidade. */
   taxaUsd?: number
   cotacoes?: CotacaoMap
-  notaMediaEmpresa: number | null
+  /** Mantido por compatibilidade — nota fica só no card azul da empresa. */
+  notaMediaEmpresa?: number | null
   visitanteId: string | null
   favoritoInicial: boolean
   onFavoritoChange: (salvo: boolean) => void
@@ -33,7 +34,7 @@ export default function MiniCardProdutoVisitante({
   item,
   taxaUsd = 0.2,
   cotacoes,
-  notaMediaEmpresa,
+  notaMediaEmpresa: _notaMediaEmpresa = null,
   visitanteId,
   favoritoInicial,
   onFavoritoChange,
@@ -117,17 +118,6 @@ export default function MiniCardProdutoVisitante({
           ) : tamanhoUniforme ? (
             <span className="invisible rounded px-1.5 py-0.5 text-[10px] font-bold" aria-hidden>
               Em oferta
-            </span>
-          ) : null}
-          {notaMediaEmpresa != null && notaMediaEmpresa > 0 ? (
-            <p className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-500">
-              <Star className="h-3 w-3 fill-current" aria-hidden />
-              {notaMediaEmpresa.toFixed(1)}
-            </p>
-          ) : tamanhoUniforme ? (
-            <span className="invisible inline-flex items-center gap-0.5 text-xs font-bold" aria-hidden>
-              <Star className="h-3 w-3" />
-              0.0
             </span>
           ) : null}
         </div>

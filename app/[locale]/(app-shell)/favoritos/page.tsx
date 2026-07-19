@@ -371,19 +371,17 @@ export default function FavoritosPage() {
                             <p className="truncate text-sm font-bold leading-tight text-white">
                               {e.nome_fantasia}
                             </p>
-                            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-                              {username ? (
-                                <p className="truncate text-xs leading-tight text-white/90">
-                                  @{username}
-                                </p>
-                              ) : null}
-                              {e.nota_media != null && e.nota_media > 0 ? (
-                                <p className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
-                                  <span aria-hidden>★</span>
-                                  {e.nota_media.toFixed(1).replace(/\.0$/, '')}
-                                </p>
-                              ) : null}
-                            </div>
+                            {username ? (
+                              <p className="mt-0.5 truncate text-xs leading-tight text-white/90">
+                                @{username}
+                              </p>
+                            ) : null}
+                            {e.nota_media != null && e.nota_media > 0 ? (
+                              <p className="mt-0.5 inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                                <span aria-hidden>★</span>
+                                {e.nota_media.toFixed(1).replace(/\.0$/, '')}
+                              </p>
+                            ) : null}
                           </div>
                           <button
                             type="button"
