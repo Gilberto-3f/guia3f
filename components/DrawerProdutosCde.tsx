@@ -77,7 +77,7 @@ export default function DrawerProdutosCde({
   empresaUsername = null,
   empresaFotoUrl = null,
   notaMedia = null,
-  mostrarEmpresaNoDetalhe = false,
+  mostrarEmpresaNoDetalhe: _mostrarEmpresaNoDetalhe = false,
   produtoIdInicial = null,
 }: Props) {
   useModalScrollLock(isOpen)
@@ -103,6 +103,8 @@ export default function DrawerProdutosCde({
   const [infoAberto, setInfoAberto] = useState(false)
   const [verMaisAberto, setVerMaisAberto] = useState(false)
   const [recomendarAberto, setRecomendarAberto] = useState(false)
+  const [notaEmpresaLive, setNotaEmpresaLive] = useState<number | null>(null)
+  const [fotoEmpresaLive, setFotoEmpresaLive] = useState<string | null>(null)
   /** Hub Compras CDE abre direto no detalhe — evita flash do cabeçalho do catálogo. */
   const abrirDiretoNoDetalhe = Boolean(produtoIdInicial)
 
@@ -113,6 +115,8 @@ export default function DrawerProdutosCde({
     setVerMaisAberto(false)
     setInfoAberto(false)
     setRecomendarAberto(false)
+    setNotaEmpresaLive(null)
+    setFotoEmpresaLive(null)
   }, [abrirDiretoNoDetalhe])
 
   const handleFechar = useCallback(() => {
@@ -127,7 +131,7 @@ export default function DrawerProdutosCde({
       const [empRes, prodRes, cotMap, sess] = await Promise.all([
         supabase
           .from('empresas')
-          .select('whatsapp_comercial, whatsapp, docs_verificado, status, foto_url, nome_usuario')
+          .select('whatsapp_comercial, whatsapp, docs_verificado, status, foto_url, nome_usuario, nota_media')
           .eq('id', empresaId)
           .maybeSingle(),
         supabase
@@ -149,6 +153,11 @@ export default function DrawerProdutosCde({
             : null
       setWhatsappComercial(waCom)
       setEmpresaVerificada(contaVerificadaDocumentacao('empresa', emp))
+      const notaRaw = emp?.nota_media != null ? Number(emp.nota_media) : NaN
+      setNotaEmpresaLive(Number.isFinite(notaRaw) && notaRaw > 0 ? notaRaw : null)
+      const fotoEmp =
+        emp?.foto_url != null && String(emp.foto_url).trim() !== '' ? String(emp.foto_url) : null
+      setFotoEmpresaLive(fotoEmp)
 
       setCotacoes(cotMap)
       if (cotMap.USD > 0) setTaxaUsd(cotMap.USD)
@@ -221,7 +230,15 @@ export default function DrawerProdutosCde({
   const precoBrl = precoFinal > 0 ? converterMoedas(precoFinal, 'USD', 'BRL', cotacoes) : 0
   const pct = selecionado ? Number(selecionado.percentual_desconto) || 0 : 0
 
-  const avatarEmpresa = empresaFotoUrl
+  const avatarEmpresa = empresaFotoUrl || fotoEmpresaLive
+  const notaEmpresaExibir =
+    notaEmpresaLive != null && notaEmpresaLive > 0
+      ? notaEmpresaLive
+      : notaMedia != null && Number(notaMedia) > 0
+        ? Number(notaMedia)
+        : null
+  const notaEmpresaTexto =
+    notaEmpresaExibir != null ? notaEmpresaExibir.toFixed(1).replace(/\.0$/, '') : null
 
   const abrirWhatsapp = () => {
     if (!selecionado) return
@@ -280,20 +297,28 @@ export default function DrawerProdutosCde({
               </div>
               <div className="min-w-0 flex-1 pr-7">
                 <p className="truncate text-sm font-bold leading-tight text-white">{empresaNome}</p>
-                {empresaUsername ? (
-                  <p className="inline-flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
-                    {empresaVerificada ? (
-                      <BadgeCheck
-                        className="h-3 w-3 shrink-0 text-white"
-                        fill="currentColor"
-                        stroke="#0097b2"
-                        strokeWidth={2}
-                        aria-hidden
-                      />
-                    ) : null}
-                    <span className="truncate">@{empresaUsername}</span>
-                  </p>
-                ) : null}
+                <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                  {empresaUsername ? (
+                    <p className="inline-flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
+                      {empresaVerificada ? (
+                        <BadgeCheck
+                          className="h-3 w-3 shrink-0 text-white"
+                          fill="currentColor"
+                          stroke="#0097b2"
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                      ) : null}
+                      <span className="truncate">@{empresaUsername}</span>
+                    </p>
+                  ) : null}
+                  {notaEmpresaTexto ? (
+                    <p className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                      <span aria-hidden>★</span>
+                      {notaEmpresaTexto}
+                    </p>
+                  ) : null}
+                </div>
               </div>
               <button
                 type="button"
@@ -365,7 +390,7 @@ export default function DrawerProdutosCde({
                           item={p}
                           taxaUsd={taxaUsd}
                           cotacoes={cotacoes}
-                          notaMediaEmpresa={notaMedia ?? null}
+                          notaMediaEmpresa={notaEmpresaExibir}
                           visitanteId={visitanteId}
                           favoritoInicial={favProdutos.has(p.id)}
                           tamanhoUniforme
@@ -457,7 +482,6 @@ export default function DrawerProdutosCde({
                   precoUsd={precoFinal}
                   cotacoes={cotacoes}
                   variante="detalhe"
-                  sufixoConvertido=" (cotação do dia)"
                 />
                 {pct > 0 ? (
                   <span className="rounded bg-[#00D443]/15 px-2 py-0.5 text-xs font-bold uppercase text-[#00D443]">
@@ -538,8 +562,7 @@ export default function DrawerProdutosCde({
               </div>
             </ChevronPasta>
 
-            {mostrarEmpresaNoDetalhe ? (
-              <div className="flex items-center gap-3 rounded-xl bg-[#0097b2] p-3 shadow-sm">
+            <div className="flex items-center gap-3 rounded-xl bg-[#0097b2] p-3 shadow-sm">
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 border-white/40 bg-white/20">
                   {avatarEmpresa ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -548,20 +571,28 @@ export default function DrawerProdutosCde({
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden pr-1">
                   <p className="truncate text-sm font-bold text-white">{empresaNome}</p>
-                  {empresaUsername ? (
-                    <p className="inline-flex max-w-full items-center gap-1 truncate text-xs text-white/90">
-                      {empresaVerificada ? (
-                        <BadgeCheck
-                          className="h-3.5 w-3.5 shrink-0 text-white"
-                          fill="currentColor"
-                          stroke="#0097b2"
-                          strokeWidth={2}
-                          aria-hidden
-                        />
-                      ) : null}
-                      <span className="truncate">@{empresaUsername}</span>
-                    </p>
-                  ) : null}
+                  <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                    {empresaUsername ? (
+                      <p className="inline-flex max-w-full items-center gap-1 truncate text-xs text-white/90">
+                        {empresaVerificada ? (
+                          <BadgeCheck
+                            className="h-3.5 w-3.5 shrink-0 text-white"
+                            fill="currentColor"
+                            stroke="#0097b2"
+                            strokeWidth={2}
+                            aria-hidden
+                          />
+                        ) : null}
+                        <span className="truncate">@{empresaUsername}</span>
+                      </p>
+                    ) : null}
+                    {notaEmpresaTexto ? (
+                      <p className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                        <span aria-hidden>★</span>
+                        {notaEmpresaTexto}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -575,7 +606,6 @@ export default function DrawerProdutosCde({
                   <span>PÁGINA</span>
                 </button>
               </div>
-            ) : null}
 
             {perfilEhProfissional ? (
               <button

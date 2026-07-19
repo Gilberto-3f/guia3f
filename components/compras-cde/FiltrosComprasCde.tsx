@@ -279,16 +279,16 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
             onKeyDown={(e) => {
               if (e.key === 'Enter') onBuscar(termoLocal)
             }}
-            placeholder="Produto, Marca..."
+            placeholder="Produto, marca, categoria..."
             className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400"
           />
           <button
             type="button"
             onClick={() => onBuscar(termoLocal)}
-            className="inline-flex items-center gap-1 rounded-lg bg-[#00D443] px-3 py-2 text-sm font-bold text-white"
+            className="inline-flex h-[2.375rem] w-[2.375rem] shrink-0 items-center justify-center rounded-lg bg-[#00D443] text-white"
+            aria-label="Buscar"
           >
-            <Search className="h-4 w-4" aria-hidden />
-            Buscar
+            <Search className="h-5 w-5" aria-hidden />
           </button>
         </div>
       ) : null}

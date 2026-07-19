@@ -1,5 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { deletarFavoritoEmpresa } from '@/lib/favoritosEmpresa'
+import {
+  rotuloCategoriaImovelCurto,
+  rotuloCategoriaParticularCurto,
+  rotuloOpcaoCompartilhadaCurto,
+  tipoCategoriaImovel,
+} from '@/lib/hospedagemAcomodacoesCatalogo'
 
 export type FavoritoAlvoTipo = 'empresa' | 'acomodacao' | 'produto' | 'ticket'
 
@@ -9,6 +15,7 @@ export type EmpresaFavoritaCard = {
   nome_usuario: string | null
   foto_url: string | null
   cidade: string | null
+  nota_media: number | null
 }
 
 export type AcomodacaoFavoritaCard = {
@@ -42,6 +49,18 @@ export type TicketFavoritoCard = {
   empresa_nome: string | null
   preco_inteira: number | null
   preco_meia: number | null
+}
+
+/** Item de catálogo salvo — para Publicações Salvas (não-turistas). */
+export type ItemCatalogoSalvo = {
+  kind: 'produto' | 'acomodacao' | 'ticket'
+  id: string
+  titulo: string
+  foto_url: string | null
+  empresa_id: string | null
+  empresa_nome: string | null
+  salvo_em: string
+  subtitulo: string | null
 }
 
 function payloadAlvo(usuarioId: string, alvoId: string, tipo: FavoritoAlvoTipo) {
@@ -200,7 +219,7 @@ export async function listarEmpresasFavoritas(
 
   const { data, error } = await supabase
     .from('empresas')
-    .select('id, nome_fantasia, nome_usuario, foto_url, cidade')
+    .select('id, nome_fantasia, nome_usuario, foto_url, cidade, nota_media')
     .in('id', ids)
 
   if (error) {
@@ -213,13 +232,17 @@ export async function listarEmpresasFavoritas(
   return ids
     .map((id) => byId.get(id))
     .filter(Boolean)
-    .map((e) => ({
-      id: String(e!.id),
-      nome_fantasia: String(e!.nome_fantasia ?? 'Empresa'),
-      nome_usuario: e!.nome_usuario != null ? String(e!.nome_usuario) : null,
-      foto_url: e!.foto_url != null ? String(e!.foto_url) : null,
-      cidade: e!.cidade != null ? String(e!.cidade) : null,
-    }))
+    .map((e) => {
+      const notaRaw = e!.nota_media != null ? Number(e!.nota_media) : NaN
+      return {
+        id: String(e!.id),
+        nome_fantasia: String(e!.nome_fantasia ?? 'Empresa'),
+        nome_usuario: e!.nome_usuario != null ? String(e!.nome_usuario) : null,
+        foto_url: e!.foto_url != null ? String(e!.foto_url) : null,
+        cidade: e!.cidade != null ? String(e!.cidade) : null,
+        nota_media: Number.isFinite(notaRaw) && notaRaw > 0 ? notaRaw : null,
+      }
+    })
 }
 
 export async function listarAcomodacoesFavoritas(
@@ -398,4 +421,100 @@ export async function listarTicketsFavoritos(
         preco_meia: t!.preco_meia != null ? Number(t!.preco_meia) : null,
       }
     })
+}
+
+/**
+ * Produtos / acomodações / tickets salvos (tabela favoritos).
+ * Usado em Publicações Salvas para perfis que não têm a página /favoritos.
+ */
+export async function listarItensCatalogoSalvos(
+  supabase: SupabaseClient,
+  usuarioId: string,
+): Promise<ItemCatalogoSalvo[]> {
+  const uid = String(usuarioId)
+  const { data: favRows, error } = await supabase
+    .from('favoritos')
+    .select('alvo_id, alvo_tipo, salvo_em')
+    .eq('usuario_id', uid)
+    .in('alvo_tipo', ['produto', 'acomodacao', 'ticket'])
+
+  if (error) {
+    console.error('[favoritosTurista] listarItensCatalogoSalvos:', error.message)
+    return []
+  }
+  if (!favRows?.length) return []
+
+  const dateByKey = new Map<string, string>()
+  for (const row of favRows) {
+    const tipo = String(row.alvo_tipo ?? '').trim()
+    const id = row.alvo_id != null ? String(row.alvo_id).trim() : ''
+    if (!tipo || !id) continue
+    const key = `${tipo}:${id}`
+    if (!dateByKey.has(key)) {
+      dateByKey.set(key, row.salvo_em != null ? String(row.salvo_em) : '')
+    }
+  }
+
+  const [prods, acoms, ticks] = await Promise.all([
+    listarProdutosFavoritos(supabase, uid),
+    listarAcomodacoesFavoritas(supabase, uid),
+    listarTicketsFavoritos(supabase, uid),
+  ])
+
+  const items: ItemCatalogoSalvo[] = []
+
+  for (const p of prods) {
+    items.push({
+      kind: 'produto',
+      id: p.id,
+      titulo: p.titulo,
+      foto_url: p.foto_url,
+      empresa_id: p.empresa_id,
+      empresa_nome: p.empresa_nome,
+      salvo_em: dateByKey.get(`produto:${p.id}`) ?? '',
+      subtitulo: p.marca_nome || p.empresa_nome,
+    })
+  }
+
+  for (const a of acoms) {
+    const tipo = tipoCategoriaImovel(String(a.categoria_imovel ?? ''))
+    const cat =
+      tipo === 'particular'
+        ? rotuloCategoriaParticularCurto(a.categoria_particular)
+        : tipo === 'compartilhado'
+          ? rotuloOpcaoCompartilhadaCurto(a.opcao_compartilhada)
+          : ''
+    const tituloBase = rotuloCategoriaImovelCurto(a.categoria_imovel) || 'Acomodação'
+    const titulo = cat ? `${tituloBase} · ${cat}` : tituloBase
+    items.push({
+      kind: 'acomodacao',
+      id: a.id,
+      titulo,
+      foto_url: a.foto_url,
+      empresa_id: a.empresa_id || null,
+      empresa_nome: a.empresa_nome,
+      salvo_em: dateByKey.get(`acomodacao:${a.id}`) ?? '',
+      subtitulo: a.empresa_nome,
+    })
+  }
+
+  for (const t of ticks) {
+    items.push({
+      kind: 'ticket',
+      id: t.id,
+      titulo: t.titulo,
+      foto_url: t.foto_url,
+      empresa_id: t.empresa_id,
+      empresa_nome: t.empresa_nome,
+      salvo_em: dateByKey.get(`ticket:${t.id}`) ?? '',
+      subtitulo: t.empresa_nome,
+    })
+  }
+
+  items.sort((a, b) => {
+    const ta = a.salvo_em ? Date.parse(a.salvo_em) : 0
+    const tb = b.salvo_em ? Date.parse(b.salvo_em) : 0
+    return tb - ta
+  })
+  return items
 }

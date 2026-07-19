@@ -478,7 +478,7 @@ export default function AbaProdutos({ empresaId }: Props) {
                 return (
                   <ChevronPasta
                     key={sec.categoriaId}
-                    titulo={`${sec.categoriaNome} (${sec.produtos.length})`}
+                    titulo={`${sec.categoriaNome} • ${sec.produtos.length}`}
                     icone={Icone}
                     corTitulo={COR_AZUL_LOGO}
                     aberto={Boolean(abertos[sec.categoriaId])}

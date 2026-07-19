@@ -16,7 +16,11 @@ type Props = {
   onChange?: (salvo: boolean) => void
 }
 
-/** Estrela de favorito (azul logo). Só turista interage — página /favoritos. Sempre visível. */
+/**
+ * Estrela de salvar item do catálogo.
+ * Turista → página /favoritos.
+ * Demais perfis logados → item aparece em Publicações Salvas (menu lateral).
+ */
 export default function BotaoEstrelaFavorito({
   usuarioId,
   alvoId,
@@ -38,7 +42,7 @@ export default function BotaoEstrelaFavorito({
     async (e: MouseEvent) => {
       e.preventDefault()
       e.stopPropagation()
-      if (!usuarioId || !alvoId || busy || !perfilEhTurista) return
+      if (!usuarioId || !alvoId || busy) return
       setBusy(true)
       const prev = salvo
       setSalvo(!prev)
@@ -46,19 +50,24 @@ export default function BotaoEstrelaFavorito({
         const next = await toggleFavorito(supabase, usuarioId, alvoId, tipo)
         setSalvo(next)
         onChange?.(next)
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('favoritos-turista-atualizados'))
+        }
       } catch (err) {
         console.error('[BotaoEstrelaFavorito]', err)
         setSalvo(prev)
-        const msg = err instanceof Error ? err.message : 'Não foi possível salvar o favorito.'
+        const msg = err instanceof Error ? err.message : 'Não foi possível salvar.'
         window.alert(msg)
       } finally {
         setBusy(false)
       }
     },
-    [usuarioId, alvoId, tipo, busy, salvo, onChange, perfilEhTurista],
+    [usuarioId, alvoId, tipo, busy, salvo, onChange],
   )
 
   const starCls = salvo || inicial ? 'fill-[#0097b2] text-[#0097b2]' : 'fill-none text-[#0097b2]'
+  const rotuloSalvo = perfilEhTurista ? 'Remover dos favoritos' : 'Remover das publicações salvas'
+  const rotuloSalvar = perfilEhTurista ? 'Salvar nos favoritos' : 'Salvar em Publicações Salvas'
 
   if (gateLoading) {
     return (
@@ -68,11 +77,11 @@ export default function BotaoEstrelaFavorito({
     )
   }
 
-  if (!perfilEhTurista || !usuarioId) {
+  if (!usuarioId) {
     return (
       <span
         className={`inline-flex shrink-0 items-center justify-center ${className}`}
-        title="Favorito"
+        title="Faça login para salvar"
         aria-hidden
       >
         <Star className={starCls} size={size} strokeWidth={2.25} />
@@ -86,8 +95,9 @@ export default function BotaoEstrelaFavorito({
       onClick={(e) => void onClick(e)}
       disabled={busy}
       className={`inline-flex shrink-0 items-center justify-center rounded-md p-0.5 text-[#0097b2] transition hover:opacity-80 disabled:opacity-50 ${className}`}
-      aria-label={salvo ? 'Remover dos favoritos' : 'Salvar nos favoritos'}
+      aria-label={salvo ? rotuloSalvo : rotuloSalvar}
       aria-pressed={salvo}
+      title={salvo ? rotuloSalvo : rotuloSalvar}
     >
       <Star
         className={salvo ? 'fill-[#0097b2] text-[#0097b2]' : 'fill-none text-[#0097b2]'}
