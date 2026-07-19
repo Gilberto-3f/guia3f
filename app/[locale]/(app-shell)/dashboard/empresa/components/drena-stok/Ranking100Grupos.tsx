@@ -7,6 +7,8 @@ type Props = {
   titulo: string
   /** Esconde o h4 interno (quando o título já está nas abas Turistas/Profissionais). */
   ocultarTitulo?: boolean
+  /** Esconde o rótulo "Grupo N · 1–20" acima de cada bloco. */
+  ocultarRotuloGrupo?: boolean
   grupos: TermoRanking[][]
   gruposLiberados: number
   onLiberarProximo: () => void
@@ -16,6 +18,7 @@ type Props = {
 export default function Ranking100Grupos({
   titulo,
   ocultarTitulo = false,
+  ocultarRotuloGrupo = false,
   grupos,
   gruposLiberados,
   onLiberarProximo,
@@ -39,9 +42,11 @@ export default function Ranking100Grupos({
             if (!grupo.length) return null
             return (
               <div key={gi}>
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  Grupo {gi + 1} · {gi * 20 + 1}–{gi * 20 + grupo.length}
-                </p>
+                {ocultarRotuloGrupo ? null : (
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Grupo {gi + 1} · {gi * 20 + 1}–{gi * 20 + grupo.length}
+                  </p>
+                )}
                 <ol className="space-y-1 text-sm">
                   {grupo.map((t, i) => (
                     <li

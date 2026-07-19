@@ -80,9 +80,6 @@ export default function AbaComprasCde() {
             corTitulo={AZUL}
           >
             <div className="space-y-3">
-              <p className="text-xs text-gray-500">
-                Top 100 palavras-chave do motor de busca · 5 grupos de 20.
-              </p>
               <div className="flex gap-1 rounded-lg bg-gray-100 p-1" role="tablist" aria-label="Perfil ranking">
                 <button
                   type="button"
@@ -111,10 +108,16 @@ export default function AbaComprasCde() {
                   Profissionais
                 </button>
               </div>
+              <p className="text-sm font-semibold text-[#001f3f]">
+                {abaRanking === 'turistas'
+                  ? 'Termos mais pesquisados por turistas'
+                  : 'Termos mais pesquisados por profissionais'}
+              </p>
               {abaRanking === 'turistas' ? (
                 <Ranking100Grupos
                   titulo="Turistas"
                   ocultarTitulo
+                  ocultarRotuloGrupo
                   grupos={d.gruposTuristas}
                   gruposLiberados={gruposTur}
                   onLiberarProximo={() => setGruposTur((n) => Math.min(5, n + 1))}
@@ -123,6 +126,7 @@ export default function AbaComprasCde() {
                 <Ranking100Grupos
                   titulo="Profissionais"
                   ocultarTitulo
+                  ocultarRotuloGrupo
                   grupos={d.gruposProfissionais}
                   gruposLiberados={gruposProf}
                   onLiberarProximo={() => setGruposProf((n) => Math.min(5, n + 1))}
