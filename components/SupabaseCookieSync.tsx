@@ -13,7 +13,7 @@ async function syncCookies(session: { access_token: string; refresh_token: strin
 
 /**
  * Mantém cookies de sessão alinhados com o client em localStorage (PWA/Safari).
- * O middleware continua usando cookies; o JWT nas queries REST vem do client.
+ * Só sincroniza no boot e em SIGNED_IN / TOKEN_REFRESHED (evita rajada em Auth).
  */
 export default function SupabaseCookieSync() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -25,7 +25,7 @@ export default function SupabaseCookieSync() {
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null
         void syncCookies(session)
-      }, 200)
+      }, 250)
     }
 
     void supabase.auth.getSession().then(({ data: { session } }) => {
@@ -39,6 +39,8 @@ export default function SupabaseCookieSync() {
         void clearSessionCookiesOnServer()
         return
       }
+      // INITIAL_SESSION já é coberto pelo getSession do mount (evita POST duplo).
+      if (event !== 'SIGNED_IN' && event !== 'TOKEN_REFRESHED') return
       if (!session) return
       schedule(session)
     })

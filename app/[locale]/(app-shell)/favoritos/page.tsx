@@ -72,9 +72,9 @@ export default function FavoritosPage() {
     setLoading(true)
     try {
       const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      const uid = user?.id ?? null
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id ?? null
       setUsuarioId(uid)
       if (!uid) {
         setEmpresas([])

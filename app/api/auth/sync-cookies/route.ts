@@ -2,9 +2,27 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+function jwtAindaValido(accessToken: string, margemSec = 60): boolean {
+  try {
+    const payload = accessToken.split('.')[1]
+    if (!payload) return false
+    const pad = payload.length % 4 === 0 ? '' : '='.repeat(4 - (payload.length % 4))
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/') + pad)) as {
+      exp?: number
+    }
+    const exp = Number(json.exp)
+    return Number.isFinite(exp) && exp * 1000 > Date.now() + margemSec * 1000
+  } catch {
+    return false
+  }
+}
+
 /**
  * Replica a sessão do browser (localStorage) nos cookies HttpOnly do domínio,
  * para o middleware e o createServerClient enxergarem a mesma sessão (Safari / PWA).
+ *
+ * Evita `setSession` (que pode bater em Auth `/token` ou `/user`) quando os cookies
+ * já têm os mesmos tokens e o access JWT ainda é válido.
  */
 export async function POST(request: Request) {
   let body: unknown
@@ -47,8 +65,21 @@ export async function POST(request: Request) {
           }
         },
       },
-    }
+    },
   )
+
+  // Leitura local dos cookies — sem rede Auth.
+  const {
+    data: { session: existing },
+  } = await supabase.auth.getSession()
+
+  if (
+    existing?.access_token === access_token &&
+    existing?.refresh_token === refresh_token &&
+    jwtAindaValido(access_token)
+  ) {
+    return NextResponse.json({ ok: true, skipped: true })
+  }
 
   const { error } = await supabase.auth.setSession({ access_token, refresh_token })
   if (error) {
@@ -80,7 +111,7 @@ export async function DELETE() {
           }
         },
       },
-    }
+    },
   )
 
   await supabase.auth.signOut({ scope: 'local' })
