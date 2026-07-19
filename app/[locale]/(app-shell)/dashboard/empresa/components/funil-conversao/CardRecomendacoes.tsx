@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Package, Users, type LucideIcon } from 'lucide-react'
+import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 import type {
   RecomendacaoProdutoProfissional,
   RecomendacaoProfissional,
 } from '../../types/dashboard.types'
+import { contarNovosEventos } from './contarNovosFunil'
 import LinhaProfissionalRecomendacao from './LinhaProfissionalRecomendacao'
 import LinhaProfissionalRecomendacaoProduto from './LinhaProfissionalRecomendacaoProduto'
 import RelatorioPastasCategoria from './RelatorioPastasCategoria'
@@ -29,6 +31,22 @@ const ABAS: { id: AbaRec; label: string; Icon: LucideIcon }[] = [
   { id: 'produtos', label: 'PRODUTOS', Icon: Package },
 ]
 
+function contarNaoLidasAba(
+  items: { profissional_id: string; detalhes: { created_at: string }[] }[],
+  vistoEm: string | null | undefined,
+  profissionaisVistos: Set<string> | undefined,
+  prefixProf = '',
+): number {
+  if (!vistoEm) return 0
+  let total = 0
+  for (const item of items) {
+    const key = `${prefixProf}${item.profissional_id}`
+    if (profissionaisVistos?.has(key)) continue
+    total += contarNovosEventos(item.detalhes, vistoEm)
+  }
+  return total
+}
+
 export default function CardRecomendacoes({
   recomendacoes,
   recomendacoesProduto = [],
@@ -45,12 +63,24 @@ export default function CardRecomendacoes({
     if (!temProdutos && aba === 'produtos') setAba('pagina')
   }, [temProdutos, aba])
 
+  const naoLidasPagina = useMemo(
+    () => contarNaoLidasAba(recomendacoes, referenciaVistoEm, profissionaisVistos),
+    [recomendacoes, referenciaVistoEm, profissionaisVistos],
+  )
+
+  const naoLidasProdutos = useMemo(
+    () =>
+      contarNaoLidasAba(recomendacoesProduto, referenciaVistoEm, profissionaisVistos, 'prod:'),
+    [recomendacoesProduto, referenciaVistoEm, profissionaisVistos],
+  )
+
   return (
     <div className="space-y-3">
       {temProdutos ? (
         <div className="flex gap-1.5 rounded-2xl bg-gray-100 p-1.5" role="tablist" aria-label="Tipo de recomendação">
           {ABAS.map(({ id, label, Icon }) => {
             const ativa = aba === id
+            const naoLidas = id === 'pagina' ? naoLidasPagina : naoLidasProdutos
             return (
               <button
                 key={id}
@@ -58,13 +88,19 @@ export default function CardRecomendacoes({
                 role="tab"
                 aria-selected={ativa}
                 onClick={() => setAba(id)}
-                className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold text-white transition sm:text-sm ${
+                className={`relative flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold text-white transition sm:text-sm ${
                   ativa ? 'shadow-md' : 'opacity-80 hover:opacity-100'
                 }`}
                 style={{ backgroundColor: VERDE }}
               >
                 <Icon className="h-4 w-4 shrink-0 text-white sm:h-5 sm:w-5" strokeWidth={2.25} aria-hidden />
                 <span className="truncate">{label}</span>
+                {naoLidas > 0 ? (
+                  <CanalNaoLidasBadge
+                    count={naoLidas}
+                    className="!absolute !right-1.5 !top-1 !min-h-[16px] !min-w-[16px] !text-[10px] ring-2 ring-white"
+                  />
+                ) : null}
               </button>
             )
           })}
