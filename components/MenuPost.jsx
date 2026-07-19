@@ -133,8 +133,11 @@ export default function MenuPost({
 
   if (bloqueado) return null
 
-  // FIX: Avaliações compartilhadas no feed não devem ter "Editar" (edição é na página da empresa/perfil alvo).
-  const podeEditar = meuPost && String(postTipo ?? '').toLowerCase() !== 'avaliacao'
+  // FIX: Avaliações e reposts de conteúdo alheio não devem ter "Editar"
+  // (só o autor do post original edita o texto).
+  const ehRepost = postParentId != null && String(postParentId).trim() !== ''
+  const podeEditar =
+    meuPost && !ehRepost && String(postTipo ?? '').toLowerCase() !== 'avaliacao'
   const podeRepublicar = typeof onRepublicar === 'function' && String(postTipo ?? '').toLowerCase() !== 'avaliacao'
 
   return (

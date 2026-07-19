@@ -484,6 +484,8 @@ export default function PostCard({
       return
     }
     if (!meuUsuarioId) return
+    // Repost: só o autor do post original pode editar o texto.
+    if (postOriginalId) return
     setTextoEditado(post.texto ?? '')
     setEditando(true)
   }
@@ -497,7 +499,7 @@ export default function PostCard({
       avisarBloqueioFeed()
       return
     }
-    if (!meuUsuarioId) return
+    if (!meuUsuarioId || postOriginalId) return
     const texto = textoEditado.trim() ? textoEditado.trim() : null
     const { error } = await supabase.from('posts').update({ texto }).eq('id', post.id).eq('autor_id', meuUsuarioId)
     if (error) {
