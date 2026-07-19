@@ -68,13 +68,22 @@ export async function contarNaoLidasFunilEmpresa(
   const leitura = await obterLeituraFunilEmpresa(supabase, empresaId, usuarioId)
 
   const [recomendacoes, pax, vendas] = await Promise.all([
-    contarApos(
-      supabase
-        .from('recomendacoes')
-        .select('*', { count: 'exact', head: true })
-        .eq('empresa_id', empresaId)
-        .gt('created_at', leitura.recomendacoes_visto_em),
-    ),
+    Promise.all([
+      contarApos(
+        supabase
+          .from('recomendacoes')
+          .select('*', { count: 'exact', head: true })
+          .eq('empresa_id', empresaId)
+          .gt('created_at', leitura.recomendacoes_visto_em),
+      ),
+      contarApos(
+        supabase
+          .from('recomendacoes_produto')
+          .select('*', { count: 'exact', head: true })
+          .eq('empresa_id', empresaId)
+          .gt('created_at', leitura.recomendacoes_visto_em),
+      ),
+    ]).then(([pagina, produtos]) => pagina + produtos),
     contarApos(
       supabase
         .from('manifesto')

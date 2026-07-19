@@ -131,6 +131,16 @@ export function useFunilNotificacoes(empresaId: string | null) {
         {
           event: 'INSERT',
           schema: 'public',
+          table: 'recomendacoes_produto',
+          filter: `empresa_id=eq.${empresaId}`,
+        },
+        onBadgeRealtime,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
           table: 'manifesto',
           filter: `empresa_destino_id=eq.${empresaId}`,
         },

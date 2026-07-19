@@ -10,6 +10,8 @@ import type {
   PaxProfissional,
   Periodo,
   RecomendacaoDetalhe,
+  RecomendacaoProdutoDetalhe,
+  RecomendacaoProdutoProfissional,
   RecomendacaoProfissional,
   VendaDetalhe,
   VendaProfissional,
@@ -199,7 +201,15 @@ async function contarInteracoesPaginaEmpresa(
 async function contarRecomendacoes(empresaId: string, dataLimite: string | null): Promise<number> {
   let qRec = supabase.from('recomendacoes').select('*', { count: 'exact', head: true }).eq('empresa_id', empresaId)
   if (dataLimite) qRec = qRec.gte('created_at', dataLimite)
-  return contar(qRec)
+
+  let qProd = supabase
+    .from('recomendacoes_produto')
+    .select('*', { count: 'exact', head: true })
+    .eq('empresa_id', empresaId)
+  if (dataLimite) qProd = qProd.gte('created_at', dataLimite)
+
+  const [pagina, produtos] = await Promise.all([contar(qRec), contar(qProd)])
+  return pagina + produtos
 }
 
 async function contarPax(empresaId: string, dataLimite: string | null): Promise<number> {
@@ -353,6 +363,115 @@ async function buscarRecomendacoesPorProfissional(
   return Object.values(recAgrupadas).sort((a, b) => b.total - a.total)
 }
 
+function pickFotoProduto(prod: Record<string, unknown> | null): string | null {
+  if (!prod) return null
+  const fotos = Array.isArray(prod.fotos) ? prod.fotos : []
+  const capa = fotos.find((f) => typeof f === 'string' && String(f).trim())
+  if (capa) return String(capa)
+  const leg = prod.foto_url != null ? String(prod.foto_url).trim() : ''
+  return leg || null
+}
+
+async function buscarRecomendacoesProdutoPorProfissional(
+  empresaId: string,
+  dataLimite: string | null,
+): Promise<RecomendacaoProdutoProfissional[]> {
+  const selectCompleto = `
+      id,
+      created_at,
+      produto_id,
+      turista_canal,
+      turista_email_prefix,
+      turista_whatsapp_final,
+      turista_whatsapp_ddd,
+      profissional_id,
+      profissionais:profissional_id (${PROF_JOIN_FIELDS}),
+      produtos:produto_id ( id, nome, fotos, foto_url )
+    `
+  const selectBase = `
+      id,
+      created_at,
+      produto_id,
+      profissional_id,
+      profissionais:profissional_id (${PROF_JOIN_FIELDS}),
+      produtos:produto_id ( id, nome, fotos, foto_url )
+    `
+
+  const queryRec = (select: string) => {
+    let q = supabase
+      .from('recomendacoes_produto')
+      .select(select)
+      .eq('empresa_id', empresaId)
+      .order('created_at', { ascending: false })
+    if (dataLimite) q = q.gte('created_at', dataLimite)
+    return q
+  }
+
+  let recData: unknown[] | null = null
+  let recErr: unknown = null
+
+  for (const select of [selectCompleto, selectBase]) {
+    const res = await queryRec(select)
+    recData = res.data ?? null
+    recErr = res.error
+    if (!recErr) break
+    if (!isColunaInexistente(recErr) && !isTabelaInexistente(recErr)) {
+      const msg = String((recErr as { message?: string })?.message ?? '').toLowerCase()
+      if (!msg.includes('turista_')) break
+    }
+    if (isTabelaInexistente(recErr)) break
+  }
+
+  if (recErr && !isTabelaInexistente(recErr) && !isColunaInexistente(recErr)) {
+    const msg = String((recErr as { message?: string })?.message ?? '').toLowerCase()
+    if (!msg.includes('turista_')) throw recErr
+  }
+  if (recErr && isTabelaInexistente(recErr)) return []
+
+  const recAgrupadas: Record<string, RecomendacaoProdutoProfissional> = {}
+  if (!recErr && recData) {
+    for (const rec of recData as unknown[]) {
+      const row = rec as Record<string, unknown>
+      const pid = row.profissional_id != null ? String(row.profissional_id) : ''
+      if (!pid) continue
+
+      const prof = asProfRow(row.profissionais)
+      const categorias = prof ? asCategorias(prof.categorias) : []
+      const categoria = resolverCategoriaProfissional(categorias)
+      const prod = asProfRow(row.produtos)
+      const produtoId = row.produto_id != null ? String(row.produto_id) : prod?.id != null ? String(prod.id) : ''
+
+      const emailPrefix = normalizarEmailPrefix(row.turista_email_prefix)
+      const canal = normalizarCanalRecomendacao(row.turista_canal) ?? (emailPrefix ? 'email' : 'whatsapp')
+
+      const detalhe: RecomendacaoProdutoDetalhe = {
+        id: row.id != null ? String(row.id) : `${pid}-${recAgrupadas[pid]?.detalhes.length ?? 0}`,
+        created_at: row.created_at != null ? String(row.created_at) : new Date().toISOString(),
+        turista_canal: canal,
+        turista_email_prefix: emailPrefix,
+        turista_whatsapp_final: normalizarWhatsappFinal(row.turista_whatsapp_final),
+        turista_whatsapp_ddd: normalizarWhatsappDdd(row.turista_whatsapp_ddd),
+        produto_id: produtoId,
+        produto_nome: prod?.nome != null ? String(prod.nome) : 'Produto',
+        produto_foto_url: pickFotoProduto(prod),
+      }
+
+      if (!recAgrupadas[pid]) {
+        recAgrupadas[pid] = {
+          ...dadosCabecalhoProfissional(prof, pid),
+          categoria,
+          total: 0,
+          detalhes: [],
+        }
+      }
+      recAgrupadas[pid].total += 1
+      recAgrupadas[pid].detalhes.push(detalhe)
+    }
+  }
+
+  return Object.values(recAgrupadas).sort((a, b) => b.total - a.total)
+}
+
 async function buscarPaxPorProfissional(empresaId: string, dataLimite: string | null): Promise<PaxProfissional[]> {
   let qPaxProf = supabase
     .from('manifesto')
@@ -483,6 +602,9 @@ export function useFunilConversao(
 ) {
   const [dados, setDados] = useState<DadosFunil | null>(null)
   const [recomendacoesPorProfissional, setRecomendacoesPorProfissional] = useState<RecomendacaoProfissional[]>([])
+  const [recomendacoesProdutoPorProfissional, setRecomendacoesProdutoPorProfissional] = useState<
+    RecomendacaoProdutoProfissional[]
+  >([])
   const [paxPorProfissional, setPaxPorProfissional] = useState<PaxProfissional[]>([])
   const [vendasPorProfissional, setVendasPorProfissional] = useState<VendaProfissional[]>([])
   const [vendasSemProfissional, setVendasSemProfissional] = useState(0)
@@ -504,7 +626,11 @@ export function useFunilConversao(
       const resultados = await Promise.all(
         faltam.map(async (etapa) => {
           if (etapa === 'recomendacoes') {
-            return { etapa, data: await buscarRecomendacoesPorProfissional(empresaId, dataLimite) }
+            const [pagina, produtos] = await Promise.all([
+              buscarRecomendacoesPorProfissional(empresaId, dataLimite),
+              buscarRecomendacoesProdutoPorProfissional(empresaId, dataLimite),
+            ])
+            return { etapa, data: { pagina, produtos } }
           }
           if (etapa === 'pax') {
             return { etapa, data: await buscarPaxPorProfissional(empresaId, dataLimite) }
@@ -516,7 +642,12 @@ export function useFunilConversao(
 
       for (const res of resultados) {
         if (res.etapa === 'recomendacoes') {
-          setRecomendacoesPorProfissional(res.data as RecomendacaoProfissional[])
+          const payload = res.data as {
+            pagina: RecomendacaoProfissional[]
+            produtos: RecomendacaoProdutoProfissional[]
+          }
+          setRecomendacoesPorProfissional(payload.pagina)
+          setRecomendacoesProdutoPorProfissional(payload.produtos)
         } else if (res.etapa === 'pax') {
           setPaxPorProfissional(res.data as PaxProfissional[])
         } else {
@@ -537,6 +668,7 @@ export function useFunilConversao(
     detalhesCarregados.current.clear()
     prefetchEmAndamento.current = false
     setRecomendacoesPorProfissional([])
+    setRecomendacoesProdutoPorProfissional([])
     setPaxPorProfissional([])
     setVendasPorProfissional([])
     setVendasSemProfissional(0)
@@ -582,8 +714,12 @@ export function useFunilConversao(
       setDetalhesLoading(etapa)
       try {
         if (etapa === 'recomendacoes') {
-          const lista = await buscarRecomendacoesPorProfissional(empresaId, dataLimite)
-          setRecomendacoesPorProfissional(lista)
+          const [pagina, produtos] = await Promise.all([
+            buscarRecomendacoesPorProfissional(empresaId, dataLimite),
+            buscarRecomendacoesProdutoPorProfissional(empresaId, dataLimite),
+          ])
+          setRecomendacoesPorProfissional(pagina)
+          setRecomendacoesProdutoPorProfissional(produtos)
         } else if (etapa === 'pax') {
           const lista = await buscarPaxPorProfissional(empresaId, dataLimite)
           setPaxPorProfissional(lista)
@@ -604,13 +740,15 @@ export function useFunilConversao(
 
   const obterDadosExportacao = useCallback(async () => {
     if (!empresaId) return {}
-    const [recomendacoes, pax, vendasRes] = await Promise.all([
+    const [recomendacoes, recomendacoesProduto, pax, vendasRes] = await Promise.all([
       buscarRecomendacoesPorProfissional(empresaId, dataLimite),
+      buscarRecomendacoesProdutoPorProfissional(empresaId, dataLimite),
       buscarPaxPorProfissional(empresaId, dataLimite),
       buscarVendasPorProfissional(empresaId, dataLimite),
     ])
     return {
       recomendacoes_detalhe: recomendacoes,
+      recomendacoes_produto_detalhe: recomendacoesProduto,
       pax_detalhe: pax,
       vendas_detalhe: vendasRes.vendas,
       vendas_sem_profissional: vendasRes.semProfissional,
@@ -624,6 +762,7 @@ export function useFunilConversao(
   return {
     dados,
     recomendacoesPorProfissional,
+    recomendacoesProdutoPorProfissional,
     paxPorProfissional,
     vendasPorProfissional,
     vendasSemProfissional,

@@ -36,7 +36,7 @@ function urlProdutoRecomendacao(produtoId: string): string {
   return `${window.location.origin}${path}`
 }
 
-/** Recomendação de produto do Compras CDE (perfil profissional) — fora do funil. */
+/** Recomendação de produto do Compras CDE (perfil profissional) — conta no funil (aba PRODUTOS). */
 export default function PopupRecomendarProduto({ aberto, onFechar, produto }: Props) {
   const [paisId, setPaisId] = useState('br')
   const [paisMenuAberto, setPaisMenuAberto] = useState(false)

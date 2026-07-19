@@ -16,8 +16,8 @@ export type ProdutoRecomendacaoPersistencia = {
 }
 
 /**
- * Registra indicação de produto do Compras CDE.
- * Usa `recomendacoes_produto` — NÃO grava em `recomendacoes` (funil de conversão).
+ * Registra indicação de produto do Compras CDE em `recomendacoes_produto`.
+ * Conta no funil de conversão da empresa (recomendação indireta) e no Drena-Stok.
  */
 export async function registrarRecomendacaoProduto(
   supabase: SupabaseClient,

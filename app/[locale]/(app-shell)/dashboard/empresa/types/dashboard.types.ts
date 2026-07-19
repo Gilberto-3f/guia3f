@@ -28,6 +28,24 @@ export interface RecomendacaoProfissional {
   detalhes: RecomendacaoDetalhe[]
 }
 
+/** Detalhe de recomendação indireta (produto do catálogo). */
+export interface RecomendacaoProdutoDetalhe extends RecomendacaoDetalhe {
+  produto_id: string
+  produto_nome: string
+  produto_foto_url: string | null
+}
+
+export interface RecomendacaoProdutoProfissional {
+  profissional_id: string
+  profissional_nome: string
+  profissional_username: string
+  profissional_foto_url: string | null
+  profissional_verificado?: boolean
+  categoria: string
+  total: number
+  detalhes: RecomendacaoProdutoDetalhe[]
+}
+
 export interface PaxDetalhe {
   id: string
   created_at: string

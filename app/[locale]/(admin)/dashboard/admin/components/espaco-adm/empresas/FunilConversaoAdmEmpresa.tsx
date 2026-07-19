@@ -53,6 +53,7 @@ export function FunilConversaoAdmEmpresa({
   const {
     dados,
     recomendacoesPorProfissional,
+    recomendacoesProdutoPorProfissional,
     paxPorProfissional,
     vendasPorProfissional,
     vendasSemProfissional,
@@ -192,6 +193,7 @@ export function FunilConversaoAdmEmpresa({
           {detalheAberto === 'recomendacoes' && detalhesLoading !== 'recomendacoes' ? (
             <CardRecomendacoes
               recomendacoes={recomendacoesPorProfissional}
+              recomendacoesProduto={recomendacoesProdutoPorProfissional}
               referenciaVistoEm={null}
               pastasVistas={new Set()}
               profissionaisVistos={new Set()}

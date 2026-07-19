@@ -49,6 +49,7 @@ export default function FunilConversao({ periodo }: Props) {
   const {
     dados,
     recomendacoesPorProfissional,
+    recomendacoesProdutoPorProfissional,
     paxPorProfissional,
     vendasPorProfissional,
     vendasSemProfissional,
@@ -127,11 +128,21 @@ export default function FunilConversao({ periodo }: Props) {
         vendas: dados?.vendas ?? 0,
       },
       recomendacoes_detalhe: recomendacoesPorProfissional,
+      recomendacoes_produto_detalhe: recomendacoesProdutoPorProfissional,
       pax_detalhe: paxPorProfissional,
       vendas_detalhe: vendasPorProfissional,
       vendas_sem_profissional: vendasSemProfissional,
     }),
-    [dados, empresa, periodo, recomendacoesPorProfissional, paxPorProfissional, vendasPorProfissional, vendasSemProfissional],
+    [
+      dados,
+      empresa,
+      periodo,
+      recomendacoesPorProfissional,
+      recomendacoesProdutoPorProfissional,
+      paxPorProfissional,
+      vendasPorProfissional,
+      vendasSemProfissional,
+    ],
   )
 
   if ((empresaLoading && !empresaId) || (loading && !dados)) {
@@ -251,6 +262,7 @@ export default function FunilConversao({ periodo }: Props) {
           {detalheAberto === 'recomendacoes' && detalhesLoading !== 'recomendacoes' ? (
             <CardRecomendacoes
               recomendacoes={recomendacoesPorProfissional}
+              recomendacoesProduto={recomendacoesProdutoPorProfissional}
               referenciaVistoEm={referenciaVistoEm}
               pastasVistas={pastasVistas}
               profissionaisVistos={profissionaisVistos}
