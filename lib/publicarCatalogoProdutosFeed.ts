@@ -49,14 +49,10 @@ export async function publicarCatalogoProdutosFeed(
   if (errUp) return { ok: false, error: errUp.message }
 
   const qtd = ids.length
-  const user = String(opts.username ?? '')
-    .trim()
-    .replace(/^@+/, '')
-  const handle = user ? `@${user}` : 'A empresa'
   const texto =
     qtd === 1
-      ? `${handle} cadastrou 1 novo produto em seu catálogo`
-      : `${handle} cadastrou ${qtd} novos produtos em seu catálogo`
+      ? 'cadastramos 1 novo produto em nosso catálogo, venha conferir.'
+      : `cadastramos ${qtd} novos produtos em nosso catálogo, venha conferir.`
 
   const { data: post, error: errPost } = await supabase
     .from('posts')

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Bookmark, Heart, MessageCircle, Plus, Repeat2, Share2, ShieldCheck, Star } from 'lucide-react'
+import { Bookmark, Heart, MessageCircle, Repeat2, Share2, ShieldCheck, ShoppingBag, Star } from 'lucide-react'
 import ModalComentarios from '@/components/ModalComentarios'
 import ModalCurtidas from '@/components/ModalCurtidas'
 import ModalCompartilhar from '@/components/ModalCompartilhar'
@@ -1056,13 +1056,17 @@ export default function PostCard({
         ? String(meta.empresa_id)
         : empresaId
     const produtosSnap = Array.isArray(meta.produtos) ? meta.produtos.slice(0, 3) : []
-    const mostrarMais = Boolean(empresaCatalogoId)
+    const qtdMeta = Number(meta.quantidade) || produtosSnap.length || 0
+    const textoCatalogo =
+      qtdMeta === 1
+        ? 'cadastramos 1 novo produto em nosso catálogo, venha conferir.'
+        : `cadastramos ${qtdMeta > 0 ? qtdMeta : 'XX'} novos produtos em nosso catálogo, venha conferir.`
 
     return (
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
         {cabecalhoAutorFeed}
         <div className="px-4 pb-3 pt-1">
-          <p className="text-[15px] leading-snug text-gray-900">{post.texto}</p>
+          <p className="text-[15px] leading-snug text-gray-900">{textoCatalogo}</p>
           {produtosSnap.length > 0 ? (
             <div className="mt-3 flex items-stretch gap-2 overflow-x-auto pb-1">
               {produtosSnap.map((raw) => {
@@ -1101,25 +1105,18 @@ export default function PostCard({
                   </div>
                 )
               })}
-              {mostrarMais ? (
-                <button
-                  type="button"
-                  onClick={() => setDrawerCatalogoAberto(true)}
-                  className="flex w-[72px] shrink-0 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-[#0097b2]/50 bg-[#0097b2]/5 text-[#0097b2]"
-                  aria-label="Ver catálogo completo"
-                >
-                  <Plus className="h-7 w-7" aria-hidden />
-                </button>
-              ) : null}
             </div>
-          ) : empresaCatalogoId ? (
+          ) : null}
+          {empresaCatalogoId ? (
             <button
               type="button"
               onClick={() => setDrawerCatalogoAberto(true)}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#0097b2]/40 bg-[#0097b2]/5 py-3 text-sm font-bold text-[#0097b2]"
+              className="mt-3 flex w-full min-h-[3.25rem] flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center text-white transition-opacity hover:opacity-95"
+              style={{ backgroundColor: '#0097b2' }}
+              aria-label="Abrir catálogo"
             >
-              <Plus className="h-5 w-5" aria-hidden />
-              Ver catálogo
+              <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />
+              <span className="text-[11px] font-bold uppercase leading-tight tracking-wide">CATÁLOGO</span>
             </button>
           ) : null}
         </div>

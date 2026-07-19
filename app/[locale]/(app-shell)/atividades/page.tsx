@@ -20,6 +20,7 @@ import AtividadeRepostouPost from '@/components/atividades/AtividadeRepostouPost
 import AtividadeComentario from '@/components/atividades/AtividadeComentario'
 import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
 import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
+import AtividadeCatalogo from '@/components/atividades/AtividadeCatalogo'
 import StoryViewer from '@/components/StoryViewer'
 import AvatarImage from '@/components/AvatarImage'
 import {
@@ -48,6 +49,9 @@ import {
   postMetaEhConteudoEmpresa,
   empresaInteratorIdDeAtividade,
   enriquecerAtividadesEmpresaInterator,
+  postEhCatalogoProdutos,
+  produtosSnapCatalogoPost,
+  empresaIdCatalogoPost,
 } from '@/lib/atividades-feed'
 import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
@@ -2126,19 +2130,27 @@ export default function AtividadesPage() {
         )
       }
 
-      if (item.categoria === 'texto') {
+      if (item.categoria === 'catalogo_produtos') {
+        const catPost = canonPost ?? post
+        const produtos = produtosSnapCatalogoPost(catPost)
+        const empId = empresaIdCatalogoPost(catPost)
         return (
-          <AtividadeCurtiuPost
+          <AtividadeCatalogo
             key={r.id}
+            variante="curtiu"
             interactorUsername={inter?.username ?? 'usuario'}
             interactorFoto={inter?.foto_perfil_url ?? null}
             donorUsername={donorProps.donorUsername}
             hrefInteractor={hrefI}
             hrefDonor={hrefD}
-            texto={textoPost}
             postId={postIdExibir}
+            produtos={produtos}
+            empresaId={empId}
+            empresaNome={donorProps.donorUsername}
+            empresaFotoUrl={null}
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
+            mostrarBotaoCatalogo={!modoMinhaConta}
             {...propsInteractor(inter)}
             donorVerificado={donorProps.donorVerificado}
             donorVerificadoTipo={donorProps.donorVerificadoTipo}
@@ -2173,13 +2185,50 @@ export default function AtividadesPage() {
       }
 
       if (item.categoria === 'repost') {
-        const origId = canonId || post?.post_original_id
-        const orig = origId ? postMetaMap[String(origId)] : canonPost
-        const prevUrl = urlFotoPost(orig)
-        const prevTexto = orig?.texto != null ? String(orig.texto) : ''
-        const tipoOrig = (orig?.tipo ?? 'texto').toLowerCase()
+        const origId =
+          canonPost?.post_original_id != null
+            ? String(canonPost.post_original_id)
+            : post?.post_original_id != null
+              ? String(post.post_original_id)
+              : canonId || null
+        const orig = origId ? postMetaMap[String(origId)] : null
+        if (postEhCatalogoProdutos(orig) || postEhCatalogoProdutos(canonPost)) {
+          const catPost = postEhCatalogoProdutos(orig) ? orig : canonPost
+          const donoCat = resolverDonoPostAtividade(catPost, r.usuario_id)
+          const donorCat = propsDonorDeCurtida({
+            usuario_dono_id: donoCat.usuario_id,
+            empresa_dono_id: donoCat.empresa_id,
+            donor_tipo: donoCat.donor_tipo,
+          })
+          return (
+            <AtividadeCatalogo
+              key={r.id}
+              variante="curtiu_repost"
+              interactorUsername={inter?.username ?? 'usuario'}
+              interactorFoto={inter?.foto_perfil_url ?? null}
+              donorUsername={donorCat.donorUsername}
+              hrefInteractor={hrefI}
+              hrefDonor={donorCat.hrefDonor}
+              postId={postIdExibir}
+              produtos={produtosSnapCatalogoPost(catPost)}
+              empresaId={empresaIdCatalogoPost(catPost)}
+              empresaNome={donorCat.donorUsername}
+              tempoInteracao={formatarDataAtividades(r.created_at)}
+              modoMinhaConta={modoMinhaConta}
+              mostrarBotaoCatalogo={!modoMinhaConta}
+              {...propsInteractor(inter)}
+              donorVerificado={donorCat.donorVerificado}
+              donorVerificadoTipo={donorCat.donorVerificadoTipo}
+            />
+          )
+        }
+        const prevUrl = urlFotoPost(orig ?? canonPost)
+        const prevTexto = orig?.texto != null ? String(orig.texto) : textoPost
+        const tipoOrig = ((orig ?? canonPost)?.tipo ?? 'texto').toLowerCase()
         const previewTipo: 'foto' | 'texto' =
-          tipoOrig === 'foto' || tipoOrig === 'misto' || (Boolean(prevUrl) && !prevTexto.trim()) ? 'foto' : 'texto'
+          tipoOrig === 'foto' || tipoOrig === 'misto' || (Boolean(prevUrl) && !prevTexto.trim())
+            ? 'foto'
+            : 'texto'
 
         return (
           <AtividadeCurtiuRepost
@@ -2202,10 +2251,27 @@ export default function AtividadesPage() {
         )
       }
 
-      if (process.env.NODE_ENV === 'development') {
-        // eslint-disable-next-line no-console
-        console.warn('[Atividades][renderItem] curtiu_post_solo sem UI para categoria:', item.categoria, 'row id:', item.row?.id)
+      if (item.categoria === 'texto') {
+        return (
+          <AtividadeCurtiuPost
+            key={r.id}
+            interactorUsername={inter?.username ?? 'usuario'}
+            interactorFoto={inter?.foto_perfil_url ?? null}
+            donorUsername={donorProps.donorUsername}
+            hrefInteractor={hrefI}
+            hrefDonor={hrefD}
+            texto={textoPost}
+            postId={postIdExibir}
+            tempoInteracao={formatarDataAtividades(r.created_at)}
+            modoMinhaConta={modoMinhaConta}
+            {...propsInteractor(inter)}
+            donorVerificado={donorProps.donorVerificado}
+            donorVerificadoTipo={donorProps.donorVerificadoTipo}
+          />
+        )
       }
+
+      console.warn('[Atividades][renderItem] curtiu_post_solo sem UI para categoria:', item.categoria, 'row id:', item.row?.id)
       return null
     }
 
@@ -2283,6 +2349,36 @@ export default function AtividadesPage() {
           : postCanonicoId(postMetaMap, r.alvo_id) || String(r.alvo_id ?? '').trim()
       if (!origId) return null
       const post = postMetaCanonico(postMetaMap, r.alvo_id) ?? postMetaMap[origId] ?? null
+      if (postEhCatalogoProdutos(post) || postEhCatalogoProdutos(postMetaMap[origId])) {
+        const catPost = postEhCatalogoProdutos(post) ? post : postMetaMap[origId]
+        const donoCat = resolverDonoPostAtividade(catPost, r.usuario_id)
+        const donorCat = propsDonorDeCurtida({
+          usuario_dono_id: donoCat.usuario_id,
+          empresa_dono_id: donoCat.empresa_id,
+          donor_tipo: donoCat.donor_tipo,
+        })
+        return (
+          <AtividadeCatalogo
+            key={r.id}
+            variante="repostou"
+            interactorUsername={ator?.username ?? 'usuario'}
+            interactorFoto={ator?.foto_perfil_url ?? null}
+            donorUsername={donorCat.donorUsername}
+            hrefInteractor={hrefPerfilInteractor(r)}
+            hrefDonor={donorCat.hrefDonor}
+            postId={origId}
+            produtos={produtosSnapCatalogoPost(catPost)}
+            empresaId={empresaIdCatalogoPost(catPost)}
+            empresaNome={donorCat.donorUsername}
+            tempoInteracao={formatarDataAtividades(r.created_at)}
+            modoMinhaConta={modoMinhaConta}
+            mostrarBotaoCatalogo={!modoMinhaConta}
+            {...propsInteractor(ator)}
+            donorVerificado={donorCat.donorVerificado}
+            donorVerificadoTipo={donorCat.donorVerificadoTipo}
+          />
+        )
+      }
       const prevUrl =
         post?.foto_url != null && String(post.foto_url).trim() !== ''
           ? String(post.foto_url)
@@ -2381,7 +2477,37 @@ export default function AtividadesPage() {
       if (!texto.trim()) return null
       const postId = typeof ex.post_id === 'string' ? ex.post_id : r.alvo_id
       const comentarioId = typeof ex.comentario_id === 'string' ? ex.comentario_id : null
-      const pm = postMetaMap[postId]
+      const pm = postMetaMap[postId] ?? postMetaCanonico(postMetaMap, postId)
+      if (postEhCatalogoProdutos(pm)) {
+        const donoCat = resolverDonoPostAtividade(pm, r.usuario_id)
+        const donorCat = propsDonorDeCurtida({
+          usuario_dono_id: donoCat.usuario_id,
+          empresa_dono_id: donoCat.empresa_id,
+          donor_tipo: donoCat.donor_tipo,
+        })
+        return (
+          <AtividadeCatalogo
+            key={r.id}
+            variante="comentou"
+            interactorUsername={ator?.username ?? 'usuario'}
+            interactorFoto={ator?.foto_perfil_url ?? null}
+            donorUsername={donorCat.donorUsername}
+            hrefInteractor={hrefPerfilInteractor(r)}
+            hrefDonor={donorCat.hrefDonor}
+            postId={postId}
+            produtos={produtosSnapCatalogoPost(pm)}
+            empresaId={empresaIdCatalogoPost(pm)}
+            empresaNome={donorCat.donorUsername}
+            textoComentario={texto}
+            tempoInteracao={formatarDataAtividades(r.created_at)}
+            modoMinhaConta={modoMinhaConta}
+            mostrarBotaoCatalogo={!modoMinhaConta}
+            {...propsInteractor(ator)}
+            donorVerificado={donorCat.donorVerificado}
+            donorVerificadoTipo={donorCat.donorVerificadoTipo}
+          />
+        )
+      }
       const t = (pm?.tipo ?? 'texto').toLowerCase()
       const emFoto =
         t === 'foto' ||
