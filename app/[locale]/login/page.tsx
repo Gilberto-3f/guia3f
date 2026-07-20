@@ -8,6 +8,7 @@ import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import type { Session } from "@supabase/supabase-js";
 import { syncSessionCookiesToServer } from "@/lib/authCookieSync";
+import { resumirSessaoAposIdle } from "@/lib/authResume";
 import { signInWithPasswordResilient } from "@/lib/resilientSignIn";
 import { supabase } from "@/lib/supabase";
 import { getSafeCadastroNext } from "@/lib/cadastroNextRedirect";
@@ -33,27 +34,37 @@ export default function LoginPage() {
 
   useEffect(() => {
     let ativo = true;
+    const timeoutId = window.setTimeout(() => {
+      if (ativo) setBootSessao(false);
+    }, 10_000);
+
     const run = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!ativo) return;
-      if (session?.user?.id && session.access_token && session.refresh_token) {
-        await syncSessionCookiesToServer(session);
-        const nextCadastro = getSafeCadastroNext(searchParams.get("next"));
-        if (nextCadastro) {
-          router.replace(nextCadastro);
+      try {
+        await resumirSessaoAposIdle();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!ativo) return;
+        if (session?.user?.id && session.access_token && session.refresh_token) {
+          await syncSessionCookiesToServer(session);
+          const nextCadastro = getSafeCadastroNext(searchParams.get("next"));
+          if (nextCadastro) {
+            router.replace(nextCadastro);
+            return;
+          }
+          const path = await getPostAuthRedirectPath(supabase, session.user.id);
+          router.replace(path);
           return;
         }
-        const path = await getPostAuthRedirectPath(supabase, session.user.id);
-        router.replace(path);
-        return;
+      } catch {
+        /* segue para formulário de login */
       }
-      setBootSessao(false);
+      if (ativo) setBootSessao(false);
     };
     void run();
     return () => {
       ativo = false;
+      window.clearTimeout(timeoutId);
     };
   }, [router, searchParams]);
 

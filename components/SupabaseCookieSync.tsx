@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { clearSessionCookiesOnServer, syncSessionCookiesToServer } from '@/lib/authCookieSync'
+import { registrarResumoSessaoAoVoltar } from '@/lib/authResume'
 import { supabase } from '@/lib/supabase'
 
 async function syncCookies(session: { access_token: string; refresh_token: string }) {
@@ -50,6 +51,8 @@ export default function SupabaseCookieSync() {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [])
+
+  useEffect(() => registrarResumoSessaoAoVoltar(), [])
 
   return null
 }

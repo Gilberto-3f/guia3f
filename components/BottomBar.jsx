@@ -28,6 +28,7 @@ import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 import { lerPerfilBarraCache } from '@/lib/perfilBarraCache'
+import { resumirSessaoAposIdle } from '@/lib/authResume'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import AvatarImage from '@/components/AvatarImage'
 
@@ -77,18 +78,6 @@ const CANAIS_BADGE_POLL_MS = 90_000
 const ATIVIDADES_BADGE_POLL_MS = 120_000
 const FUNIL_BADGE_POLL_MS = 120_000
 
-/**
- * @param {{ Icon: import('lucide-react').LucideIcon, label: string, className?: string, children?: import('react').ReactNode }} props
- */
-function BarraIconeCarregando({ Icon, label, className = '', children = null }) {
-  return (
-    <div className="relative flex flex-col items-center p-2 opacity-50" aria-busy="true" aria-label={label}>
-      <Icon size={24} className={`text-gray-300 ${className}`} aria-hidden />
-      {children}
-    </div>
-  )
-}
-
 export default function BottomBar() {
   const t = useTranslations('BottomBar')
   const pathname = usePathname()
@@ -97,9 +86,11 @@ export default function BottomBar() {
   const { userRole, fotoPerfilBarra, empresaIdBarra } = useProfissionalGate()
   const { ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada, empresaHospedagem } = useAnfitriaoModo()
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
-  const [authUserId, setAuthUserId] = useState(/** @type {string | null} */ (null))
-  const [authPronto, setAuthPronto] = useState(false)
-  const [fotoPerfilCache, setFotoPerfilCache] = useState(/** @type {string | null} */ (null))
+  const [authUserId, setAuthUserId] = useState(() => lerPerfilBarraCache()?.userId ?? null)
+  const [fotoPerfilCache, setFotoPerfilCache] = useState(/** @type {string | null} */ (() => {
+    const c = lerPerfilBarraCache()
+    return c?.fotoProfSocialUrl ?? c?.fotoUrl ?? null
+  }))
   const [naoLidasAtividades, setNaoLidasAtividades] = useState(0)
   const [naoLidasCanais, setNaoLidasCanais] = useState(0)
   const [naoLidasFunil, setNaoLidasFunil] = useState(0)
@@ -126,21 +117,34 @@ export default function BottomBar() {
           setFotoPerfilCache(cached.fotoProfSocialUrl ?? cached.fotoUrl ?? null)
         }
       }
-      setAuthPronto(true)
     }
 
     void syncAuth()
 
+    const onResume = () => {
+      if (document.visibilityState !== 'visible') return
+      void resumirSessaoAposIdle().then(() => syncAuth())
+    }
+    document.addEventListener('visibilitychange', onResume)
+    window.addEventListener('pageshow', onResume)
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+      if (
+        event === 'SIGNED_IN' ||
+        event === 'SIGNED_OUT' ||
+        event === 'USER_UPDATED' ||
+        event === 'TOKEN_REFRESHED'
+      ) {
         void syncAuth()
       }
     })
 
     return () => {
       ativo = false
+      document.removeEventListener('visibilitychange', onResume)
+      window.removeEventListener('pageshow', onResume)
       subscription.unsubscribe()
     }
   }, [])
@@ -435,8 +439,6 @@ export default function BottomBar() {
     return pathname === '/perfil' || (pathname != null && pathname.startsWith('/perfil/'))
   }
 
-  const barPronta = authPronto
-
   const fotoExibidaBarra = (() => {
     const fotoProfSocial =
       perfilBarraCache?.fotoProfSocialUrl ??
@@ -478,27 +480,32 @@ export default function BottomBar() {
     return <User size={24} className={active ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
   }
 
+  const antesDeNavegar = () => {
+    void resumirSessaoAposIdle()
+  }
+
   return (
     <div
       ref={rootRef}
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-lg will-change-transform"
     >
       <div className="flex items-center justify-around py-2">
-        {!barPronta ? (
-          <BarraIconeCarregando Icon={Home} label={t('loadingBar')} />
-        ) : (
-          <Link href="/guia" className="flex flex-col items-center p-2" aria-label={t('home')}>
-            <Home size={24} className={matchPath('/guia', pathname) ? 'text-[#0097b2]' : 'text-gray-400'} />
-          </Link>
-        )}
+        <Link
+          href="/guia"
+          onPointerDown={antesDeNavegar}
+          className="flex flex-col items-center p-2"
+          aria-label={t('home')}
+        >
+          <Home size={24} className={matchPath('/guia', pathname) ? 'text-[#0097b2]' : 'text-gray-400'} />
+        </Link>
 
-        {!barPronta ? (
-          <BarraIconeCarregando
-            Icon={segundoEhFavoritosNaBarra ? Star : MessageCircle}
-            label={t('loadingBar')}
-          />
-        ) : segundoEhFavoritosNaBarra ? (
-          <Link href="/favoritos" className="flex flex-col items-center p-2" aria-label={t('favorites')}>
+        {segundoEhFavoritosNaBarra ? (
+          <Link
+            href="/favoritos"
+            onPointerDown={antesDeNavegar}
+            className="flex flex-col items-center p-2"
+            aria-label={t('favorites')}
+          >
             <Star
               size={24}
               className={matchPath('/favoritos', pathname) ? 'text-[#0097b2]' : 'text-gray-400'}
@@ -506,7 +513,12 @@ export default function BottomBar() {
             />
           </Link>
         ) : (
-          <Link href="/canal" className="relative flex flex-col items-center p-2" aria-label={t('channel')}>
+          <Link
+            href="/canal"
+            onPointerDown={antesDeNavegar}
+            className="relative flex flex-col items-center p-2"
+            aria-label={t('channel')}
+          >
             <MessageCircle
               size={24}
               className={matchPath('/canal', pathname) ? 'text-[#0097b2]' : 'text-gray-400'}
@@ -520,20 +532,10 @@ export default function BottomBar() {
           </Link>
         )}
 
-        {!barPronta ? (
-          isFeedPage && roleParaBarra !== 'empresa' ? (
-            <div className="flex flex-col items-center p-0 opacity-50" aria-busy="true" aria-label={t('loadingBar')}>
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200" aria-hidden />
-            </div>
-          ) : (
-            <BarraIconeCarregando
-              Icon={roleParaBarra === 'empresa' ? LayoutDashboard : Menu}
-              label={t('loadingBar')}
-            />
-          )
-        ) : isEmpresaBar ? (
+        {isEmpresaBar ? (
           <Link
             href="/dashboard/empresa"
+            onPointerDown={antesDeNavegar}
             className="relative flex flex-col items-center p-2"
             aria-label={t('dashboard')}
           >
@@ -572,6 +574,7 @@ export default function BottomBar() {
         ) : (
           <Link
             href={getTerceiroHref()}
+            onPointerDown={antesDeNavegar}
             onClick={(e) => {
               if (!podeInteragir && isFeedPage) {
                 e.preventDefault()
@@ -593,31 +596,29 @@ export default function BottomBar() {
           </Link>
         )}
 
-        {!barPronta ? (
-          <BarraIconeCarregando Icon={Heart} label={t('loadingBar')} />
-        ) : (
-          <Link href="/atividades" className="relative flex flex-col items-center p-2" aria-label={t('activities')}>
-            <Heart size={24} className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
-            {naoLidasAtividades > 0 ? (
-              <span className="absolute right-0 top-0 flex min-h-[14px] min-w-[14px] max-w-[2rem] translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
-                {naoLidasAtividades > 99 ? '99+' : naoLidasAtividades}
-              </span>
-            ) : null}
-          </Link>
-        )}
+        <Link
+          href="/atividades"
+          onPointerDown={antesDeNavegar}
+          className="relative flex flex-col items-center p-2"
+          aria-label={t('activities')}
+        >
+          <Heart size={24} className={isQuartoActive() ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
+          {naoLidasAtividades > 0 ? (
+            <span className="absolute right-0 top-0 flex min-h-[14px] min-w-[14px] max-w-[2rem] translate-x-1/4 -translate-y-1/4 items-center justify-center rounded-full bg-[#F44336] px-0.5 text-[9px] font-bold leading-none text-white tabular-nums">
+              {naoLidasAtividades > 99 ? '99+' : naoLidasAtividades}
+            </span>
+          ) : null}
+        </Link>
 
-        {!barPronta ? (
-          <BarraIconeCarregando Icon={User} label={t('loadingBar')} />
-        ) : (
-          <Link
-            href={getQuintoHref()}
-            prefetch={false}
-            className="flex flex-col items-center p-2"
-            aria-label={isEmpresaBar ? t('companyGuia') : t('profile')}
-          >
-            {getQuintoIcone()}
-          </Link>
-        )}
+        <Link
+          href={getQuintoHref()}
+          onPointerDown={antesDeNavegar}
+          prefetch={false}
+          className="flex flex-col items-center p-2"
+          aria-label={isEmpresaBar ? t('companyGuia') : t('profile')}
+        >
+          {getQuintoIcone()}
+        </Link>
       </div>
 
       <PopupAvisoBloqueioConta
