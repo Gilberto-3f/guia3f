@@ -586,7 +586,11 @@ export default function DrawerTicketsAtrativos({
 
   if (!isOpen) return null
 
-  const cabecalhoEmpresa = (
+  const cabecalhoEmpresa = ({
+    acaoDireita,
+  }: {
+    acaoDireita: 'fechar' | 'voltar'
+  }) => (
     <header
       className="shrink-0 border-b border-white/15 bg-[#0097b2]"
       style={{ paddingTop: 'max(0.1rem, env(safe-area-inset-top, 0px))' }}
@@ -607,7 +611,7 @@ export default function DrawerTicketsAtrativos({
               <img src={fotoLive} alt="" className="h-full w-full object-cover" />
             ) : null}
           </button>
-          <div className="min-w-0 flex-1 pr-7">
+          <div className="min-w-0 flex-1 pr-9">
             <p className="truncate text-sm font-bold leading-tight text-white">
               {nomeLive || empresaNome}
             </p>
@@ -632,14 +636,25 @@ export default function DrawerTicketsAtrativos({
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={handleFechar}
-            className="absolute right-0.5 top-0 shrink-0 rounded-lg p-1.5 text-white hover:bg-white/15"
-            aria-label="Fechar"
-          >
-            <X className="h-5 w-5" aria-hidden />
-          </button>
+          {acaoDireita === 'fechar' ? (
+            <button
+              type="button"
+              onClick={handleFechar}
+              className="absolute right-0.5 top-0 shrink-0 rounded-lg p-1.5 text-white hover:bg-white/15"
+              aria-label="Fechar"
+            >
+              <X className="h-5 w-5" aria-hidden />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={voltarDoDetalhe}
+              className="absolute right-0.5 top-0 shrink-0 rounded-lg p-1.5 text-white hover:bg-white/15"
+              aria-label="Voltar"
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden />
+            </button>
+          )}
         </div>
       </div>
     </header>
@@ -658,15 +673,9 @@ export default function DrawerTicketsAtrativos({
       >
         <ArrowLeft className="h-5 w-5" aria-hidden />
       </button>
-      <p className="min-w-0 flex-1 truncate text-center text-sm font-bold text-[#001f3f]">{titulo}</p>
-      <button
-        type="button"
-        onClick={handleFechar}
-        className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
-        aria-label="Fechar"
-      >
-        <X className="h-5 w-5" aria-hidden />
-      </button>
+      <p className="min-w-0 flex-1 truncate pr-10 text-center text-sm font-bold text-[#001f3f]">
+        {titulo}
+      </p>
     </header>
   )
 
@@ -680,23 +689,10 @@ export default function DrawerTicketsAtrativos({
         data-modal-scroll-lock-scrollable
       >
         {passo === 1 && !abrirDiretoNoDetalhe
-          ? cabecalhoEmpresa
+          ? cabecalhoEmpresa({ acaoDireita: 'fechar' })
           : passo === 2
-            ? cabecalhoEmpresa
+            ? cabecalhoEmpresa({ acaoDireita: 'voltar' })
             : cabecalhoSecundario('Pagamento', voltarDoPagamento)}
-
-        {passo === 2 && !abrirDiretoNoDetalhe ? (
-          <div className="flex shrink-0 items-center gap-1 border-b border-gray-100 bg-white px-2 py-1">
-            <button
-              type="button"
-              onClick={voltarDoDetalhe}
-              className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-[#0097b2] hover:bg-gray-50"
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden />
-              Tickets
-            </button>
-          </div>
-        ) : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {loading ? (
@@ -805,12 +801,12 @@ export default function DrawerTicketsAtrativos({
                             <button
                               type="button"
                               onClick={() => setFormaPagamento(op.key)}
-                              className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm ${
-                                ativo ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200'
+                              className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm text-gray-900 ${
+                                ativo ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white'
                               }`}
                             >
                               <span
-                                className={`flex h-4 w-4 items-center justify-center rounded border ${
+                                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                                   ativo ? 'border-[#0097b2] bg-[#0097b2]' : 'border-gray-300'
                                 }`}
                               >
@@ -818,7 +814,7 @@ export default function DrawerTicketsAtrativos({
                                   <Check className="h-2.5 w-2.5 text-white" aria-hidden />
                                 ) : null}
                               </span>
-                              {op.label}
+                              <span className="text-gray-900">{op.label}</span>
                             </button>
                           </li>
                         )
