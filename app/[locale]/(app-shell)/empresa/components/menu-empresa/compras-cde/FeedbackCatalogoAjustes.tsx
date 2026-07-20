@@ -60,7 +60,7 @@ type Props = {
  */
 export default function FeedbackCatalogoAjustes({
   empresaId,
-  abertoInicial = true,
+  abertoInicial = false,
 }: Props) {
   const cat = useDrenaCatalogo(empresaId)
   const [feedbackAberto, setFeedbackAberto] = useState(abertoInicial)

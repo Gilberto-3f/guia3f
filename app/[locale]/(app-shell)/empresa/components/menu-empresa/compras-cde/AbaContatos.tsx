@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { BarChart3, Link2 } from 'lucide-react'
+import { BarChart3, Coins, Link2, MessageCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
 import { COR_AZUL_LOGO, COR_VERDE_BOTAO } from '@/lib/comprasCdeCatalogo'
@@ -12,7 +12,10 @@ import {
   normalizarMoedaPadrao,
   type MoedaPadraoLoja,
 } from '@/lib/comprasCdeMoedaPadrao'
+import ChevronPasta from '../hospedagem/ChevronPasta'
 import FeedbackCatalogoAjustes from './FeedbackCatalogoAjustes'
+
+const COR = '#0097b2'
 
 type Props = {
   empresaId: string
@@ -41,6 +44,8 @@ export default function AbaContatos({
   const [msg, setMsg] = useState<string | null>(null)
   const [msgMoeda, setMsgMoeda] = useState<string | null>(null)
   const [cliquesMes, setCliquesMes] = useState<number | null>(null)
+  const [moedaAberta, setMoedaAberta] = useState(false)
+  const [whatsappAberto, setWhatsappAberto] = useState(false)
 
   useEffect(() => {
     setWhatsappComercial(whatsappComercialInicial ?? '')
@@ -75,7 +80,7 @@ export default function AbaContatos({
         .update({ whatsapp_comercial: valor })
         .eq('id', empresaId)
       if (error) throw error
-      setMsg('WhatsApp Comercial salvo.')
+      setMsg('Salvo com sucesso!')
       onSalvo?.()
       window.dispatchEvent(new Event('perfil-atualizado'))
     } catch (e) {
@@ -94,7 +99,7 @@ export default function AbaContatos({
         .update({ moeda_padrao: moedaPadrao })
         .eq('id', empresaId)
       if (error) throw error
-      setMsgMoeda('Moeda padrão salva.')
+      setMsgMoeda('Salvo com sucesso!')
       onSalvo?.()
       window.dispatchEvent(new Event('perfil-atualizado'))
     } catch (e) {
@@ -117,110 +122,119 @@ export default function AbaContatos({
   const inputCls =
     'mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#0097b2]'
   const labelCls = 'block text-xs font-semibold uppercase tracking-wide text-gray-500'
+  const msgOk = (m: string) =>
+    m.includes('sucesso') || m.includes('salvo') || m.includes('Salvo') || m.includes('salva')
 
   return (
     <div className="space-y-4">
       {mostrarFeedbackCatalogo ? (
-        <FeedbackCatalogoAjustes empresaId={empresaId} abertoInicial />
+        <FeedbackCatalogoAjustes empresaId={empresaId} abertoInicial={false} />
       ) : null}
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-bold text-[#001f3f]">Moeda padrão</h2>
-        <p className="mt-1 text-xs text-gray-500">
-          Moeda principal dos preços no cadastro e nos mini-cards do catálogo. O conversor do visitante
-          mostra apenas as demais moedas.
-        </p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {MOEDAS_PADRAO_LOJA.map((m) => {
-            const ativo = moedaPadrao === m
-            return (
-              <button
-                key={m}
-                type="button"
-                onClick={() => {
-                  setMoedaPadrao(m)
-                  setMsgMoeda(null)
-                }}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
-                  ativo
-                    ? 'border-[#0097b2] bg-[#0097b2]/10 text-[#0097b2]'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                }`}
-                aria-pressed={ativo}
-              >
-                <span className="text-base leading-none" aria-hidden>
-                  {FLAG_MOEDA_PADRAO[m]}
-                </span>
-                {LABEL_MOEDA_PADRAO[m]}
-              </button>
-            )
-          })}
+      <ChevronPasta
+        titulo="Moeda padrão"
+        aberto={moedaAberta}
+        onToggle={() => setMoedaAberta((v) => !v)}
+        icone={Coins}
+        corTitulo={COR}
+      >
+        <div className="space-y-3 px-1 pb-1">
+          <p className="text-xs text-gray-500">
+            Moeda principal dos preços no cadastro e nos mini-cards do catálogo. O conversor do
+            visitante mostra apenas as demais moedas.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {MOEDAS_PADRAO_LOJA.map((m) => {
+              const ativo = moedaPadrao === m
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => {
+                    setMoedaPadrao(m)
+                    setMsgMoeda(null)
+                  }}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
+                    ativo
+                      ? 'border-[#0097b2] bg-[#0097b2]/10 text-[#0097b2]'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  }`}
+                  aria-pressed={ativo}
+                >
+                  <span className="text-base leading-none" aria-hidden>
+                    {FLAG_MOEDA_PADRAO[m]}
+                  </span>
+                  {LABEL_MOEDA_PADRAO[m]}
+                </button>
+              )
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => void salvarMoeda()}
+            disabled={salvandoMoeda}
+            className="w-full rounded-xl py-2.5 text-sm font-bold text-white disabled:opacity-50"
+            style={{ backgroundColor: COR_VERDE_BOTAO }}
+          >
+            {salvandoMoeda ? 'Salvando…' : 'SALVAR'}
+          </button>
+          {msgMoeda ? (
+            <p className={`text-sm font-medium ${msgOk(msgMoeda) ? 'text-emerald-700' : 'text-rose-600'}`}>
+              {msgMoeda}
+            </p>
+          ) : null}
         </div>
-        <button
-          type="button"
-          onClick={() => void salvarMoeda()}
-          disabled={salvandoMoeda}
-          className="mt-3 w-full rounded-xl py-2.5 text-sm font-bold text-white disabled:opacity-50"
-          style={{ backgroundColor: COR_VERDE_BOTAO }}
-        >
-          {salvandoMoeda ? 'Salvando…' : 'Salvar moeda padrão'}
-        </button>
-        {msgMoeda ? (
-          <p
-            className={`mt-2 text-sm ${
-              msgMoeda.includes('salva') || msgMoeda.includes('Salva')
-                ? 'text-emerald-700'
-                : 'text-rose-600'
-            }`}
-          >
-            {msgMoeda}
-          </p>
-        ) : null}
-      </div>
+      </ChevronPasta>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-bold text-[#001f3f]">WhatsApp Comercial *</h2>
-        <p className="mt-1 text-xs text-gray-500">
-          Número do setor comercial (usado no catálogo e no Compras CDE). Não substitui o WhatsApp geral da
-          página.
-        </p>
-        <label className={`${labelCls} mt-4`}>
-          Número
-          <input
-            type="tel"
-            value={whatsappComercial}
-            onChange={(e) => setWhatsappComercial(e.target.value)}
-            placeholder="55 595 XXX XXX"
-            className={inputCls}
-          />
-        </label>
-        <button
-          type="button"
-          onClick={sincronizarComGeral}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[#0097b2]/40 bg-[#0097b2]/5 py-2 text-xs font-semibold text-[#0097b2]"
-        >
-          <Link2 className="h-4 w-4" aria-hidden />
-          Usar o mesmo número do WhatsApp geral
-        </button>
-        <button
-          type="button"
-          onClick={() => void salvar()}
-          disabled={salvando}
-          className="mt-3 w-full rounded-xl py-2.5 text-sm font-bold text-white disabled:opacity-50"
-          style={{ backgroundColor: COR_VERDE_BOTAO }}
-        >
-          {salvando ? 'Salvando…' : 'Salvar WhatsApp Comercial'}
-        </button>
-        {msg ? (
-          <p
-            className={`mt-2 text-sm ${
-              msg.includes('salvo') || msg.includes('Salvo') ? 'text-emerald-700' : 'text-rose-600'
-            }`}
-          >
-            {msg}
+      <ChevronPasta
+        titulo="WhatsApp Comercial"
+        aberto={whatsappAberto}
+        onToggle={() => setWhatsappAberto((v) => !v)}
+        icone={MessageCircle}
+        corTitulo={COR}
+      >
+        <div className="space-y-3 px-1 pb-1">
+          <p className="text-xs text-gray-500">
+            Número do setor comercial (usado no catálogo e no Compras CDE). Não substitui o WhatsApp
+            geral da página.
           </p>
-        ) : null}
-      </div>
+          <label className={labelCls}>
+            Número *
+            <input
+              type="tel"
+              value={whatsappComercial}
+              onChange={(e) => {
+                setWhatsappComercial(e.target.value)
+                setMsg(null)
+              }}
+              placeholder="55 595 XXX XXX"
+              className={inputCls}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={sincronizarComGeral}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0097b2]/40 bg-[#0097b2]/5 py-2 text-xs font-semibold text-[#0097b2]"
+          >
+            <Link2 className="h-4 w-4" aria-hidden />
+            Usar o mesmo número do WhatsApp geral
+          </button>
+          <button
+            type="button"
+            onClick={() => void salvar()}
+            disabled={salvando}
+            className="w-full rounded-xl py-2.5 text-sm font-bold text-white disabled:opacity-50"
+            style={{ backgroundColor: COR_VERDE_BOTAO }}
+          >
+            {salvando ? 'Salvando…' : 'SALVAR'}
+          </button>
+          {msg ? (
+            <p className={`text-sm font-medium ${msgOk(msg) ? 'text-emerald-700' : 'text-rose-600'}`}>
+              {msg}
+            </p>
+          ) : null}
+        </div>
+      </ChevronPasta>
 
       {!mostrarFeedbackCatalogo ? (
         <div className="rounded-xl border border-gray-200 bg-[#f5f5f5] p-4">
