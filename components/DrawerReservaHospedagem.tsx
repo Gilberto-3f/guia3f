@@ -194,6 +194,8 @@ export default function DrawerReservaHospedagem({
   const [fotoEmpresaLive, setFotoEmpresaLive] = useState<string | null>(null)
   const [usernameEmpresaLive, setUsernameEmpresaLive] = useState<string | null>(null)
   const [notaEmpresaLive, setNotaEmpresaLive] = useState<number | null>(null)
+  /** Evita flash: username/check só após carregar meta da empresa. */
+  const [metaCabecalhoPronto, setMetaCabecalhoPronto] = useState(false)
   const touchFotoX = useRef<number | null>(null)
 
   useModalScrollLock(isOpen || painelVisivel)
@@ -243,6 +245,7 @@ export default function DrawerReservaHospedagem({
       setUsernameEmpresaLive(userEmp || null)
       const notaEmpRaw = emp?.nota_media != null ? Number(emp.nota_media) : NaN
       setNotaEmpresaLive(Number.isFinite(notaEmpRaw) && notaEmpRaw > 0 ? notaEmpRaw : null)
+      setMetaCabecalhoPronto(true)
 
       if (emp?.profissional_vinculado_id) {
         const { data: prof } = await supabase
@@ -370,6 +373,11 @@ export default function DrawerReservaHospedagem({
       setChevronExtra(false)
       setChevronPoliticas(false)
       setAnfitriaoAberto(false)
+      setMetaCabecalhoPronto(false)
+      setFotoEmpresaLive(null)
+      setUsernameEmpresaLive(null)
+      setNotaEmpresaLive(null)
+      setEmpresaVerificada(false)
       return
     }
     void carregar()
@@ -475,11 +483,17 @@ export default function DrawerReservaHospedagem({
     (empresaFotoUrl != null && String(empresaFotoUrl).trim() !== '' ? String(empresaFotoUrl) : null) ||
     fotoEmpresaLive
   const usernameExibir = (() => {
+    if (!metaCabecalhoPronto) return null
+    const fromLive =
+      usernameEmpresaLive != null && String(usernameEmpresaLive).trim() !== ''
+        ? String(usernameEmpresaLive).replace(/^@+/, '').trim()
+        : ''
+    if (fromLive) return fromLive
     const fromProp =
       empresaUsername != null && String(empresaUsername).trim() !== ''
         ? String(empresaUsername).replace(/^@+/, '').trim()
         : ''
-    return fromProp || usernameEmpresaLive || null
+    return fromProp || null
   })()
   const nota =
     (notaMedia != null && Number(notaMedia) > 0 ? Number(notaMedia) : null) ??
@@ -500,26 +514,32 @@ export default function DrawerReservaHospedagem({
               <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
             ) : null}
           </div>
-          <div className="min-w-0 flex-1 pr-8">
+          <div className="min-w-0 flex-1 space-y-0.5 pr-8">
             <p className="truncate text-base font-bold leading-tight text-white">{empresaNome}</p>
-            {usernameExibir ? (
-              <p className="inline-flex max-w-full items-center gap-1 truncate text-sm leading-tight text-white/80">
-                {empresaVerificada ? (
-                  <BadgeCheck
-                    className="h-3.5 w-3.5 shrink-0 text-white"
-                    fill="currentColor"
-                    stroke="#0097b2"
-                    strokeWidth={2}
-                    aria-hidden
-                  />
-                ) : null}
+            {!metaCabecalhoPronto ? (
+              <div className="h-5 w-28 animate-pulse rounded bg-white/20" aria-hidden />
+            ) : usernameExibir ? (
+              <p className="flex min-h-5 max-w-full items-center gap-1 truncate text-sm leading-tight text-white/80">
+                {/* Slot fixo do check — evita flash/deslocamento quando a verificação chega. */}
+                <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center" aria-hidden>
+                  {empresaVerificada ? (
+                    <BadgeCheck
+                      className="h-3.5 w-3.5 text-white"
+                      fill="currentColor"
+                      stroke="#0097b2"
+                      strokeWidth={2}
+                    />
+                  ) : null}
+                </span>
                 <span className="truncate">@{usernameExibir}</span>
               </p>
-            ) : null}
+            ) : (
+              <div className="h-5" aria-hidden />
+            )}
             <button
               type="button"
               onClick={() => setAnfitriaoAberto((v) => !v)}
-              className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-white"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold leading-tight text-white"
             >
               Anfitrião
               <ChevronDown

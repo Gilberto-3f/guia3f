@@ -95,7 +95,7 @@ function abaVerdeCls(ativa: boolean) {
 }
 
 export default function ConfigBotaoDinamico() {
-  const { dados, refetch } = useDashboardEmpresa()
+  const { dados, loading, refetch } = useDashboardEmpresa()
   const empresaId = dados?.id != null ? String(dados.id) : ''
   const categoria = dados?.categoria != null ? String(dados.categoria) : ''
   const cidade = dados?.cidade != null ? String(dados.cidade) : ''
@@ -193,6 +193,20 @@ export default function ConfigBotaoDinamico() {
       </p>
     </div>
   )
+
+  /** Evita flash da UI genérica antiga antes de saber o segmento (lojas → CATÁLOGO/AJUSTES). */
+  if (loading || !dados?.id || !categoria) {
+    return (
+      <div className="mt-4 space-y-4" aria-busy="true" aria-label="Carregando botão dinâmico">
+        <div className="flex gap-2">
+          <div className="h-11 flex-1 animate-pulse rounded-lg bg-gray-200" />
+          <div className="h-11 flex-1 animate-pulse rounded-lg bg-gray-200" />
+        </div>
+        <div className="h-40 animate-pulse rounded-xl bg-gray-200" />
+        <div className="h-28 animate-pulse rounded-xl bg-gray-200" />
+      </div>
+    )
+  }
 
   if (ehHospedagem && empresaId) {
     return (
