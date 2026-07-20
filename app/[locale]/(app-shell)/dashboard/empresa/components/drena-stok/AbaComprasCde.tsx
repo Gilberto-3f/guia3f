@@ -15,6 +15,7 @@ import { useDrenaComprasCde } from '../../hooks/useDrenaComprasCde'
 import Ranking100Grupos from './Ranking100Grupos'
 import ListaRankingNome from './ListaRankingNome'
 import PizzaCategorias from './PizzaCategorias'
+import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 const AZUL = '#0097b2'
 const VERDE = '#00D443'
@@ -37,6 +38,8 @@ export default function AbaComprasCde() {
   const [recsAberto, setRecsAberto] = useState(false)
   const [catsAberto, setCatsAberto] = useState(false)
   const [graficosAberto, setGraficosAberto] = useState(false)
+  const [infoDesempenhoAberto, setInfoDesempenhoAberto] = useState(false)
+  useModalScrollLock(infoDesempenhoAberto)
 
   return (
     <div className="space-y-5">
@@ -228,36 +231,61 @@ export default function AbaComprasCde() {
           </ChevronPasta>
 
           <ChevronPasta
-            titulo="Gráficos"
+            titulo="Desempenho Geral"
             aberto={graficosAberto}
             onToggle={() => setGraficosAberto((v) => !v)}
             icone={PieChart}
             corTitulo={VERDE}
+            onInfo={() => setInfoDesempenhoAberto(true)}
+            infoAriaLabel="Sobre o Desempenho Geral"
           >
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div>
-                <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">
-                  Pizza — % por categoria
-                </h3>
-                <PizzaCategorias
-                  fatias={d.pizzaBuscas}
-                  vazio="Sem atividade por categoria neste período."
-                />
-              </div>
-              <div>
-                <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">
-                  Lista — desempenho geral
-                </h3>
-                <ListaRankingNome
-                  itens={d.listaDesempenhoCat}
-                  rotuloTotal="evt."
-                  vazio="Sem desempenho agregado."
-                />
-              </div>
+            <div>
+              <h3 className="mb-3 text-xs font-bold uppercase text-gray-500">
+                Categorias com mais presença
+              </h3>
+              <PizzaCategorias
+                fatias={d.pizzaBuscas}
+                tamanho={220}
+                vazio="Sem atividade por categoria neste período."
+              />
             </div>
           </ChevronPasta>
         </>
       )}
+
+      {infoDesempenhoAberto ? (
+        <div
+          className="fixed inset-0 z-[160] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setInfoDesempenhoAberto(false)
+          }}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-md rounded-t-2xl border border-gray-200 bg-white p-5 shadow-lg sm:rounded-2xl"
+            role="dialog"
+            aria-labelledby="info-desempenho-titulo"
+            data-modal-scroll-lock-scrollable
+          >
+            <h3 id="info-desempenho-titulo" className="text-center text-base font-bold text-[#001f3f]">
+              Desempenho Geral
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-gray-700">
+              Gráfico apresenta a somatória de todas as pesquisas feitas nas buscas na{' '}
+              <strong>barra de pesquisa</strong> e nos <strong>filtros das categorias</strong> (OBS: O
+              ciclo de análise desse gráfico é mensal, acompanhando as buscas do primeiro dia do mês
+              até o último.
+            </p>
+            <button
+              type="button"
+              onClick={() => setInfoDesempenhoAberto(false)}
+              className="mt-4 w-full rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white"
+            >
+              Entendi
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

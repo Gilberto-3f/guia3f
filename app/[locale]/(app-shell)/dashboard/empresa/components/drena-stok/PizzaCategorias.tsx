@@ -5,12 +5,15 @@ import type { FatiaCategoria } from '@/lib/drenaAnalytics'
 type Props = {
   fatias: FatiaCategoria[]
   vazio?: string
+  /** Diâmetro visual do SVG (padrão 140). */
+  tamanho?: number
 }
 
 /** Pizza SVG + legenda (Drena-Stok). */
 export default function PizzaCategorias({
   fatias,
   vazio = 'Sem dados de categoria no período',
+  tamanho = 140,
 }: Props) {
   if (!fatias.length) {
     return (
@@ -18,9 +21,10 @@ export default function PizzaCategorias({
     )
   }
 
-  const r = 60
-  const cx = 70
-  const cy = 70
+  const size = Math.max(120, tamanho)
+  const cx = size / 2
+  const cy = size / 2
+  const r = size * 0.43
   let ang = -Math.PI / 2
   const total = fatias.reduce((a, f) => a + f.total, 0) || 1
 
@@ -37,13 +41,13 @@ export default function PizzaCategorias({
   })
 
   return (
-    <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
-      <svg width="140" height="140" viewBox="0 0 140 140" aria-hidden>
+    <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-center">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden className="shrink-0">
         {paths.map((p) => (
-          <path key={p.id} d={p.d} fill={p.cor} stroke="#fff" strokeWidth="1" />
+          <path key={p.id} d={p.d} fill={p.cor} stroke="#fff" strokeWidth="1.5" />
         ))}
       </svg>
-      <ul className="w-full space-y-1.5 text-xs text-gray-700">
+      <ul className="w-full max-w-md space-y-1.5 text-xs text-gray-700 sm:text-sm">
         {fatias.map((f, i) => (
           <li key={f.id} className="flex items-center gap-2">
             <span className="w-4 shrink-0 text-right text-[10px] text-gray-400">{i + 1}.</span>
