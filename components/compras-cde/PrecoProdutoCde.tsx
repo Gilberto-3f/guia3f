@@ -92,6 +92,11 @@ type Props = {
   cotacoes: CotacaoMap
   /** Moeda padrão da loja — destaque principal nos cards. */
   moedaPadrao?: MoedaPadraoLoja | string | null
+  /**
+   * Preço cheio em USD (antes do desconto). Se informado e maior que `precoUsd`,
+   * exibe riscado ao lado do valor reajustado.
+   */
+  precoUsdCheio?: number | null
   /** @deprecated Mantido por compatibilidade; o destaque agora segue moedaPadrao. */
   destacarUsd?: boolean
   /** Detalhe do produto: valor principal maior. */
@@ -107,6 +112,7 @@ export default function PrecoProdutoCde({
   precoUsd,
   cotacoes,
   moedaPadrao: moedaPadraoProp = 'USD',
+  precoUsdCheio = null,
   destacarUsd = false,
   variante = 'card',
   className = '',
@@ -116,15 +122,25 @@ export default function PrecoProdutoCde({
   const { moeda, ciclarMoeda, flag, label, pool } = useMoedaConversor(moedaPadrao)
 
   const destaque = usdParaMoedaPadrao(precoUsd, moedaPadrao, cotacoes)
+  const cheio =
+    precoUsdCheio != null && Number(precoUsdCheio) > Number(precoUsd)
+      ? usdParaMoedaPadrao(Number(precoUsdCheio), moedaPadrao, cotacoes)
+      : null
   const convertido = usdParaMoedaConversor(precoUsd, moeda, cotacoes)
   const mostrarConvertido =
     pool.length > 0 && Number.isFinite(convertido) && convertido > 0
 
   const destaqueCls =
     variante === 'detalhe' ? 'text-xl' : destacarUsd ? 'text-base' : 'text-sm'
+  const cheioCls = variante === 'detalhe' ? 'text-sm' : 'text-xs'
 
   return (
     <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${className}`}>
+      {cheio != null ? (
+        <p className={`tabular-nums text-gray-400 line-through ${cheioCls}`}>
+          {formatarPrecoMoedaPadrao(cheio, moedaPadrao)}
+        </p>
+      ) : null}
       <p className={`font-bold tabular-nums ${destaqueCls}`} style={{ color: VERDE }}>
         {formatarPrecoMoedaPadrao(destaque, moedaPadrao)}
       </p>

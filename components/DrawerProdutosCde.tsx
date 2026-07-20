@@ -514,6 +514,7 @@ export default function DrawerProdutosCde({
               <div className="flex flex-wrap items-center gap-2">
                 <PrecoProdutoCde
                   precoUsd={precoFinal}
+                  precoUsdCheio={pct > 0 ? selecionado.preco_usd : null}
                   cotacoes={cotacoes}
                   moedaPadrao={moedaPadrao}
                   variante="detalhe"

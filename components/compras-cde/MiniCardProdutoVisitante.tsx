@@ -114,13 +114,14 @@ export default function MiniCardProdutoVisitante({
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <PrecoProdutoCde
             precoUsd={finalUsd}
+            precoUsdCheio={pct > 0 ? item.preco_usd : null}
             cotacoes={mapCotacoes}
             moedaPadrao={moedaPadrao}
             destacarUsd
           />
           {pct > 0 ? (
             <span className="rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
-              Em oferta
+              Em oferta −{pct}%
             </span>
           ) : null}
         </div>

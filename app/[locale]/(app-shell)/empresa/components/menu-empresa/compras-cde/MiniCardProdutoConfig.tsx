@@ -31,6 +31,8 @@ export default function MiniCardProdutoConfig({
   const finalUsd = precoFinalUsd(item.preco_usd, pct)
   const map: CotacaoMap = cotacoes ?? { USD: 0.2, EUR: 0.18, ARS: 180, PYG: 1500 }
   const finalExibicao = usdParaMoedaPadrao(finalUsd, moedaPadrao, map)
+  const cheioExibicao =
+    pct > 0 ? usdParaMoedaPadrao(item.preco_usd, moedaPadrao, map) : null
 
   return (
     <article className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -53,6 +55,11 @@ export default function MiniCardProdutoConfig({
             </p>
           ) : null}
           <div className="mt-1 flex flex-wrap items-center gap-2">
+            {cheioExibicao != null ? (
+              <p className="text-xs tabular-nums text-gray-400 line-through">
+                {formatarPrecoMoedaPadrao(cheioExibicao, moedaPadrao)}
+              </p>
+            ) : null}
             <p className="text-sm font-bold text-[#00D443]">
               {formatarPrecoMoedaPadrao(finalExibicao, moedaPadrao)}
             </p>

@@ -18,6 +18,7 @@ import {
 import type { CotacaoMap } from '@/lib/comprasCdeHub'
 import {
   labelValorFormProduto,
+  formatarPrecoMoedaPadrao,
   usdParaMoedaPadrao,
   type MoedaPadraoLoja,
 } from '@/lib/comprasCdeMoedaPadrao'
@@ -160,6 +161,18 @@ export default function FormProduto({
   const podeAddFoto = totalFotos < FOTOS_MAX
   const tagsPreenchidas = sanitizarPalavrasChave(form.metatags).length
 
+  const precoCheio = Number(String(form.preco_usd).replace(',', '.'))
+  const temPrecoValido = Number.isFinite(precoCheio) && precoCheio > 0
+  const pctOferta = Number(String(form.percentual_desconto).replace(',', '.'))
+  const valorReajustado =
+    temPrecoValido &&
+    form.lancarOferta &&
+    Number.isFinite(pctOferta) &&
+    pctOferta > 0 &&
+    pctOferta <= 100
+      ? Math.round(precoCheio * (1 - pctOferta / 100) * 100) / 100
+      : null
+
   const inputCls =
     'mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#0097b2]'
   const labelCls = 'block text-xs font-semibold uppercase tracking-wide text-gray-500'
@@ -293,17 +306,33 @@ export default function FormProduto({
             min={0}
             step={0.01}
             value={form.preco_usd}
-            onChange={(e) => onChange({ ...form, preco_usd: e.target.value })}
+            onChange={(e) => {
+              const next = e.target.value
+              const n = Number(String(next).replace(',', '.'))
+              const temPreco = Number.isFinite(n) && n > 0
+              onChange({
+                ...form,
+                preco_usd: next,
+                ...(temPreco
+                  ? {}
+                  : { lancarOferta: false, percentual_desconto: '' }),
+              })
+            }}
             className={inputCls}
             placeholder="0.00"
           />
         </label>
 
         <div className="rounded-lg border border-gray-100 bg-[#f5f5f5] p-3">
-          <label className="flex items-center gap-2 text-sm font-semibold text-[#001f3f]">
+          <label
+            className={`flex items-center gap-2 text-sm font-semibold ${
+              temPrecoValido ? 'text-[#001f3f]' : 'cursor-not-allowed text-gray-400'
+            }`}
+          >
             <input
               type="checkbox"
-              checked={form.lancarOferta}
+              checked={form.lancarOferta && temPrecoValido}
+              disabled={!temPrecoValido}
               onChange={(e) =>
                 onChange({
                   ...form,
@@ -311,24 +340,48 @@ export default function FormProduto({
                   percentual_desconto: e.target.checked ? form.percentual_desconto : '',
                 })
               }
-              className="h-4 w-4 accent-[#0097b2]"
+              className="h-4 w-4 accent-[#0097b2] disabled:opacity-40"
             />
             Lançar oferta
           </label>
-          {form.lancarOferta ? (
-            <label className={`${labelCls} mt-3`}>
-              Desconto (%)
-              <input
-                type="number"
-                min={1}
-                max={100}
-                step={1}
-                value={form.percentual_desconto}
-                onChange={(e) => onChange({ ...form, percentual_desconto: e.target.value })}
-                className={inputCls}
-                placeholder="Ex: 15"
-              />
-            </label>
+          {!temPrecoValido ? (
+            <p className="mt-1.5 text-[11px] text-gray-500">
+              Informe o valor do produto para liberar o desconto.
+            </p>
+          ) : null}
+          {form.lancarOferta && temPrecoValido ? (
+            <div className="mt-3 space-y-3">
+              <label className={labelCls}>
+                Desconto (%)
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={form.percentual_desconto}
+                  onChange={(e) => onChange({ ...form, percentual_desconto: e.target.value })}
+                  className={inputCls}
+                  placeholder="Ex: 15"
+                />
+              </label>
+              <label className={labelCls}>
+                Valor reajustado
+                <input
+                  type="text"
+                  readOnly
+                  value={
+                    valorReajustado != null
+                      ? formatarPrecoMoedaPadrao(valorReajustado, moedaPadrao)
+                      : '—'
+                  }
+                  className={`${inputCls} cursor-default bg-white font-semibold text-[#00D443]`}
+                  aria-live="polite"
+                />
+              </label>
+              <p className="text-[11px] text-gray-500">
+                Calculado automaticamente a partir do valor e da porcentagem de desconto.
+              </p>
+            </div>
           ) : null}
         </div>
 
