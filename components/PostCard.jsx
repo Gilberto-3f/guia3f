@@ -1119,12 +1119,11 @@ export default function PostCard({
             <button
               type="button"
               onClick={() => setDrawerCatalogoAberto(true)}
-              className="mt-3 flex w-full min-h-[3.25rem] flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center text-white transition-opacity hover:opacity-95"
-              style={{ backgroundColor: '#0097b2' }}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[#00D443] px-3 py-2.5 text-white transition-opacity hover:opacity-95"
               aria-label="Abrir catálogo"
             >
-              <ShoppingBag className="h-5 w-5 shrink-0" aria-hidden />
-              <span className="text-[11px] font-bold uppercase leading-tight tracking-wide">CATÁLOGO</span>
+              <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden />
+              <span className="text-sm font-bold uppercase tracking-wide">CATÁLOGO</span>
             </button>
           ) : null}
         </div>

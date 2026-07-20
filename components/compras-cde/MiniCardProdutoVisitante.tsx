@@ -77,7 +77,7 @@ export default function MiniCardProdutoVisitante({
   return (
     <article
       ref={rootRef}
-      className={`flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ${tamanhoUniforme ? 'min-h-[22.5rem]' : ''} ${className}`}
+      className={`flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ${tamanhoUniforme ? 'min-h-[20rem]' : ''} ${className}`}
     >
       <div className="flex items-center gap-1.5 px-3 pt-3">
         <button
@@ -106,43 +106,29 @@ export default function MiniCardProdutoVisitante({
         ) : null}
       </div>
 
-      <div className="space-y-2 p-3">
-        <div
-          className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${tamanhoUniforme ? 'min-h-[1.75rem]' : ''}`}
-        >
+      <div className={`flex flex-col gap-1 p-3 ${tamanhoUniforme ? 'flex-1' : ''}`}>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <PrecoProdutoCde precoUsd={finalUsd} cotacoes={mapCotacoes} destacarUsd />
           {pct > 0 ? (
             <span className="rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
               Em oferta
             </span>
-          ) : tamanhoUniforme ? (
-            <span className="invisible rounded px-1.5 py-0.5 text-[10px] font-bold" aria-hidden>
-              Em oferta
-            </span>
           ) : null}
         </div>
 
-        <div className={tamanhoUniforme ? 'min-h-[2.5rem]' : ''}>
+        <div className="leading-tight">
           {item.subcategoria_nome ? (
             <p className="text-xs text-gray-500">{item.subcategoria_nome}</p>
-          ) : tamanhoUniforme ? (
-            <p className="invisible text-xs" aria-hidden>
-              —
-            </p>
           ) : null}
           {item.marca_nome ? (
             <p className="text-xs font-medium text-gray-700">{item.marca_nome}</p>
-          ) : tamanhoUniforme ? (
-            <p className="invisible text-xs" aria-hidden>
-              —
-            </p>
           ) : null}
         </div>
 
         <button
           type="button"
           onClick={onVerProduto}
-          className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white"
+          className={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white ${tamanhoUniforme ? 'mt-auto' : 'mt-1'}`}
           style={{ backgroundColor: VERDE }}
         >
           <Eye className="h-4 w-4" aria-hidden />
