@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { Ticket, Calendar, Car, Package, Utensils, ShoppingBag, MessageCircle, X } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
-import PopupCompraAtrativos from '@/components/PopupCompraAtrativos'
+import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
@@ -335,7 +335,7 @@ export default function BotaoDinamico({
             </div>
           ) : null}
 
-          <PopupCompraAtrativos
+          <DrawerTicketsAtrativos
             isOpen={showTicketPopup}
             onClose={() => setShowTicketPopup(false)}
             empresaId={empresaId}

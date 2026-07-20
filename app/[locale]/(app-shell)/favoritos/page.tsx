@@ -6,7 +6,7 @@ import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
-import PopupCompraAtrativos from '@/components/PopupCompraAtrativos'
+import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
 import { supabase } from '@/lib/supabase'
 import {
   listarAcomodacoesFavoritas,
@@ -43,9 +43,10 @@ type DrawerProdutoState = {
   produtoId: string
 } | null
 
-type PopupTicketState = {
+type DrawerTicketState = {
   empresaId: string
   empresaNome: string
+  ticketId: string
 } | null
 
 function rotuloAcomodacaoFavorita(a: AcomodacaoFavoritaCard): string | null {
@@ -79,7 +80,7 @@ export default function FavoritosPage() {
     empresas: false,
   })
   const [drawerProduto, setDrawerProduto] = useState<DrawerProdutoState>(null)
-  const [popupTicket, setPopupTicket] = useState<PopupTicketState>(null)
+  const [drawerTicket, setDrawerTicket] = useState<DrawerTicketState>(null)
 
   const toggle = (key: keyof Pastas) => {
     setPastas((p) => ({ ...p, [key]: !p[key] }))
@@ -259,14 +260,15 @@ export default function FavoritosPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              setPopupTicket({
+                              setDrawerTicket({
                                 empresaId: t.empresa_id!,
                                 empresaNome: t.empresa_nome || 'Empresa',
+                                ticketId: t.id,
                               })
                             }
                             className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
                           >
-                            Ver tickets
+                            Ver ticket
                           </button>
                         ) : null}
                       </div>
@@ -413,12 +415,13 @@ export default function FavoritosPage() {
         />
       ) : null}
 
-      {popupTicket ? (
-        <PopupCompraAtrativos
+      {drawerTicket ? (
+        <DrawerTicketsAtrativos
           isOpen
-          onClose={() => setPopupTicket(null)}
-          empresaId={popupTicket.empresaId}
-          empresaNome={popupTicket.empresaNome}
+          onClose={() => setDrawerTicket(null)}
+          empresaId={drawerTicket.empresaId}
+          empresaNome={drawerTicket.empresaNome}
+          ticketIdInicial={drawerTicket.ticketId}
         />
       ) : null}
     </div>

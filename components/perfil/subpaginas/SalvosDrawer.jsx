@@ -11,7 +11,7 @@ import { listarItensCatalogoSalvos } from '@/lib/favoritosTurista'
 import { formatarUsd } from '@/lib/comprasCdeCatalogo'
 import { formatarPrecoTicket } from '@/lib/atrativosCatalogo'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
-import PopupCompraAtrativos from '@/components/PopupCompraAtrativos'
+import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
 
 /**
  * @param {{
@@ -34,8 +34,8 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
   const [loading, setLoading] = useState(true)
   /** @type {[null | { empresaId: string, empresaNome: string, produtoId: string }, Function]} */
   const [drawerProduto, setDrawerProduto] = useState(null)
-  /** @type {[null | { empresaId: string, empresaNome: string }, Function]} */
-  const [popupTicket, setPopupTicket] = useState(null)
+  /** @type {[null | { empresaId: string, empresaNome: string, ticketId: string }, Function]} */
+  const [drawerTicket, setDrawerTicket] = useState(null)
 
   const carregar = useCallback(
     async (uid) => {
@@ -239,14 +239,15 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
                           <button
                             type="button"
                             onClick={() =>
-                              setPopupTicket({
+                              setDrawerTicket({
                                 empresaId: item.empresa_id,
                                 empresaNome: item.empresa_nome || 'Empresa',
+                                ticketId: item.id,
                               })
                             }
                             className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
                           >
-                            Ver tickets
+                            Ver ticket
                           </button>
                         ) : null}
                       </div>
@@ -373,12 +374,13 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
         />
       ) : null}
 
-      {popupTicket ? (
-        <PopupCompraAtrativos
+      {drawerTicket ? (
+        <DrawerTicketsAtrativos
           isOpen
-          onClose={() => setPopupTicket(null)}
-          empresaId={popupTicket.empresaId}
-          empresaNome={popupTicket.empresaNome}
+          onClose={() => setDrawerTicket(null)}
+          empresaId={drawerTicket.empresaId}
+          empresaNome={drawerTicket.empresaNome}
+          ticketIdInicial={drawerTicket.ticketId}
         />
       ) : null}
     </div>

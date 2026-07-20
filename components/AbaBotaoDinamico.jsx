@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag, MessageCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import PopupCompraAtrativos from '@/components/PopupCompraAtrativos'
+import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
 import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
 import {
@@ -272,7 +272,7 @@ export default function AbaBotaoDinamico({
         mensagem={mensagemBloqueio}
       />
 
-      <PopupCompraAtrativos
+      <DrawerTicketsAtrativos
         isOpen={showTicketPopup}
         onClose={() => setShowTicketPopup(false)}
         empresaId={empresaId}
