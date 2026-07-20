@@ -17,6 +17,8 @@ export interface DadosEmpresa {
   verificado: boolean
   whatsapp?: string | null
   whatsapp_comercial?: string | null
+  /** Moeda de cadastro/exibição do catálogo (USD|BRL|ARS|PYG). */
+  moeda_padrao?: string | null
   preco_ticket_inteira?: number | null
   preco_ticket_meia?: number | null
   preco_diaria?: number | null
@@ -24,7 +26,7 @@ export interface DadosEmpresa {
 }
 
 export const EMPRESA_SELECT =
-  'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, plano, nota_media, total_avaliacoes, docs_verificado, status, whatsapp, whatsapp_comercial, preco_ticket_inteira, preco_ticket_meia, preco_diaria, somente_anfitriao'
+  'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, plano, nota_media, total_avaliacoes, docs_verificado, status, whatsapp, whatsapp_comercial, moeda_padrao, preco_ticket_inteira, preco_ticket_meia, preco_diaria, somente_anfitriao'
 
 export type DashboardEmpresaCtx = {
   dados: DadosEmpresa | null
@@ -59,6 +61,7 @@ export function mapEmpresaRow(data: Record<string, unknown>): DadosEmpresa {
     verificado: Boolean(data.docs_verificado) || status === 'ativo',
     whatsapp: data.whatsapp != null ? asString(data.whatsapp) : null,
     whatsapp_comercial: data.whatsapp_comercial != null ? asString(data.whatsapp_comercial) : null,
+    moeda_padrao: data.moeda_padrao != null ? asString(data.moeda_padrao) : 'USD',
     preco_ticket_inteira:
       data.preco_ticket_inteira != null ? asNumber(data.preco_ticket_inteira, 0) : null,
     preco_ticket_meia: data.preco_ticket_meia != null ? asNumber(data.preco_ticket_meia, 0) : null,

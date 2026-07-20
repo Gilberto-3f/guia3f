@@ -1,17 +1,21 @@
 'use client'
 
 import { Pencil, Trash2 } from 'lucide-react'
+import { precoFinalUsd, type ProdutoCdeRow } from '@/lib/comprasCdeCatalogo'
+import type { CotacaoMap } from '@/lib/comprasCdeHub'
 import {
-  formatarUsd,
-  precoFinalUsd,
-  type ProdutoCdeRow,
-} from '@/lib/comprasCdeCatalogo'
+  formatarPrecoMoedaPadrao,
+  usdParaMoedaPadrao,
+  type MoedaPadraoLoja,
+} from '@/lib/comprasCdeMoedaPadrao'
 
 type Props = {
   item: ProdutoCdeRow
   onEditar: () => void
   onExcluir: () => void
   excluindo?: boolean
+  moedaPadrao?: MoedaPadraoLoja
+  cotacoes?: CotacaoMap
 }
 
 export default function MiniCardProdutoConfig({
@@ -19,10 +23,14 @@ export default function MiniCardProdutoConfig({
   onEditar,
   onExcluir,
   excluindo = false,
+  moedaPadrao = 'USD',
+  cotacoes,
 }: Props) {
   const capa = item.fotos[0] ?? item.foto_url
   const pct = Number(item.percentual_desconto) || 0
-  const final = precoFinalUsd(item.preco_usd, pct)
+  const finalUsd = precoFinalUsd(item.preco_usd, pct)
+  const map: CotacaoMap = cotacoes ?? { USD: 0.2, EUR: 0.18, ARS: 180, PYG: 1500 }
+  const finalExibicao = usdParaMoedaPadrao(finalUsd, moedaPadrao, map)
 
   return (
     <article className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -45,7 +53,9 @@ export default function MiniCardProdutoConfig({
             </p>
           ) : null}
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <p className="text-sm font-bold text-[#00D443]">{formatarUsd(final)}</p>
+            <p className="text-sm font-bold text-[#00D443]">
+              {formatarPrecoMoedaPadrao(finalExibicao, moedaPadrao)}
+            </p>
             {pct > 0 ? (
               <span className="rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
                 Em oferta −{pct}%

@@ -5,11 +5,19 @@ import { BarChart3, Link2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
 import { COR_AZUL_LOGO, COR_VERDE_BOTAO } from '@/lib/comprasCdeCatalogo'
+import {
+  FLAG_MOEDA_PADRAO,
+  LABEL_MOEDA_PADRAO,
+  MOEDAS_PADRAO_LOJA,
+  normalizarMoedaPadrao,
+  type MoedaPadraoLoja,
+} from '@/lib/comprasCdeMoedaPadrao'
 
 type Props = {
   empresaId: string
   whatsappGeral: string | null
   whatsappComercialInicial: string | null
+  moedaPadraoInicial?: string | null
   onSalvo?: () => void
 }
 
@@ -17,16 +25,26 @@ export default function AbaContatos({
   empresaId,
   whatsappGeral,
   whatsappComercialInicial,
+  moedaPadraoInicial = 'USD',
   onSalvo,
 }: Props) {
   const [whatsappComercial, setWhatsappComercial] = useState(whatsappComercialInicial ?? '')
+  const [moedaPadrao, setMoedaPadrao] = useState<MoedaPadraoLoja>(() =>
+    normalizarMoedaPadrao(moedaPadraoInicial),
+  )
   const [salvando, setSalvando] = useState(false)
+  const [salvandoMoeda, setSalvandoMoeda] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const [msgMoeda, setMsgMoeda] = useState<string | null>(null)
   const [cliquesMes, setCliquesMes] = useState<number | null>(null)
 
   useEffect(() => {
     setWhatsappComercial(whatsappComercialInicial ?? '')
   }, [whatsappComercialInicial])
+
+  useEffect(() => {
+    setMoedaPadrao(normalizarMoedaPadrao(moedaPadraoInicial))
+  }, [moedaPadraoInicial])
 
   const carregarCliques = useCallback(async () => {
     if (!empresaId) return
@@ -62,6 +80,25 @@ export default function AbaContatos({
     }
   }
 
+  const salvarMoeda = async () => {
+    setSalvandoMoeda(true)
+    setMsgMoeda(null)
+    try {
+      const { error } = await supabase
+        .from('empresas')
+        .update({ moeda_padrao: moedaPadrao })
+        .eq('id', empresaId)
+      if (error) throw error
+      setMsgMoeda('Moeda padrão salva.')
+      onSalvo?.()
+      window.dispatchEvent(new Event('perfil-atualizado'))
+    } catch (e) {
+      setMsgMoeda(e instanceof Error ? e.message : 'Não foi possível salvar a moeda.')
+    } finally {
+      setSalvandoMoeda(false)
+    }
+  }
+
   const sincronizarComGeral = () => {
     const g = String(whatsappGeral ?? '').trim()
     if (!g) {
@@ -78,6 +115,60 @@ export default function AbaContatos({
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-bold text-[#001f3f]">Moeda padrão</h2>
+        <p className="mt-1 text-xs text-gray-500">
+          Moeda principal dos preços no cadastro e nos mini-cards do catálogo. O conversor do visitante
+          mostra apenas as demais moedas.
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {MOEDAS_PADRAO_LOJA.map((m) => {
+            const ativo = moedaPadrao === m
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setMoedaPadrao(m)
+                  setMsgMoeda(null)
+                }}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
+                  ativo
+                    ? 'border-[#0097b2] bg-[#0097b2]/10 text-[#0097b2]'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                }`}
+                aria-pressed={ativo}
+              >
+                <span className="text-base leading-none" aria-hidden>
+                  {FLAG_MOEDA_PADRAO[m]}
+                </span>
+                {LABEL_MOEDA_PADRAO[m]}
+              </button>
+            )
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => void salvarMoeda()}
+          disabled={salvandoMoeda}
+          className="mt-3 w-full rounded-xl py-2.5 text-sm font-bold text-white disabled:opacity-50"
+          style={{ backgroundColor: COR_VERDE_BOTAO }}
+        >
+          {salvandoMoeda ? 'Salvando…' : 'Salvar moeda padrão'}
+        </button>
+        {msgMoeda ? (
+          <p
+            className={`mt-2 text-sm ${
+              msgMoeda.includes('salva') || msgMoeda.includes('Salva')
+                ? 'text-emerald-700'
+                : 'text-rose-600'
+            }`}
+          >
+            {msgMoeda}
+          </p>
+        ) : null}
+      </div>
+
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-bold text-[#001f3f]">WhatsApp Comercial *</h2>
         <p className="mt-1 text-xs text-gray-500">

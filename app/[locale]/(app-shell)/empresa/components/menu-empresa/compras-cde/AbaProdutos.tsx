@@ -21,6 +21,15 @@ import {
   publicarCatalogoProdutosFeed,
   snapshotProdutosParaFeed,
 } from '@/lib/publicarCatalogoProdutosFeed'
+import {
+  carregarCotacoesMap,
+  type CotacaoMap,
+} from '@/lib/comprasCdeHub'
+import {
+  moedaPadraoParaUsd,
+  normalizarMoedaPadrao,
+  type MoedaPadraoLoja,
+} from '@/lib/comprasCdeMoedaPadrao'
 import ChevronPasta from '../hospedagem/ChevronPasta'
 import FormProduto, {
   formProdutoFromRow,
@@ -72,13 +81,20 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
     usuario_id: string | null
     nome_usuario: string | null
   }>({ usuario_id: null, nome_usuario: null })
+  const [moedaPadrao, setMoedaPadrao] = useState<MoedaPadraoLoja>('USD')
+  const [cotacoes, setCotacoes] = useState<CotacaoMap>({
+    USD: 0.2,
+    EUR: 0.18,
+    ARS: 180,
+    PYG: 1500,
+  })
 
   const carregar = useCallback(async () => {
     if (!empresaId) return
     setCarregando(true)
     setErro(null)
     try {
-      const [cats, pubRes, penRes, empRes] = await Promise.all([
+      const [cats, pubRes, penRes, empRes, cotMap] = await Promise.all([
         listarCategoriasProduto(supabase),
         supabase
           .from('produtos')
@@ -94,11 +110,13 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
           .order('created_at', { ascending: false }),
         supabase
           .from('empresas')
-          .select('usuario_id, nome_usuario')
+          .select('usuario_id, nome_usuario, moeda_padrao')
           .eq('id', empresaId)
           .maybeSingle(),
+        carregarCotacoesMap(supabase),
       ])
       setCategorias(cats)
+      setCotacoes(cotMap)
       if (pubRes.error) throw pubRes.error
       if (penRes.error) throw penRes.error
       setLista((pubRes.data ?? []).map((r) => mapProdutoRow(r as Record<string, unknown>)))
@@ -107,6 +125,7 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
         usuario_id: empRes.data?.usuario_id != null ? String(empRes.data.usuario_id) : null,
         nome_usuario: empRes.data?.nome_usuario != null ? String(empRes.data.nome_usuario) : null,
       })
+      setMoedaPadrao(normalizarMoedaPadrao(empRes.data?.moeda_padrao))
     } catch (e) {
       console.error('[AbaProdutos]', e)
       setErro(
@@ -171,7 +190,7 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
   }
 
   const abrirEditar = (row: ProdutoCdeRow) => {
-    setForm(formProdutoFromRow(row))
+    setForm(formProdutoFromRow(row, moedaPadrao, cotacoes))
     setFormAberto(true)
     setErro(null)
   }
@@ -197,7 +216,11 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
     try {
       const sub = await resolverOuCriarSubcategoria(supabase, form.categoria_id, form.subcategoria)
       const marca = await resolverOuCriarMarca(supabase, form.marca)
-      const precoUsd = Number(form.preco_usd.replace(',', '.'))
+      const valorDigitado = Number(form.preco_usd.replace(',', '.'))
+      const precoUsd = moedaPadraoParaUsd(valorDigitado, moedaPadrao, cotacoes)
+      if (!Number.isFinite(precoUsd) || precoUsd <= 0) {
+        throw new Error('Não foi possível converter o valor para dólar. Verifique as cotações.')
+      }
       const pct = form.lancarOferta ? Number(form.percentual_desconto.replace(',', '.')) : 0
       let site = form.site_url.trim()
       if (site && !/^https?:\/\//i.test(site)) site = `https://${site}`
@@ -403,6 +426,7 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
           titulo={form.id ? 'Editar produto' : 'Cadastrar produto'}
           erro={erro}
           mostrarMetatags={mostrarMetatags}
+          moedaPadrao={moedaPadrao}
         />
       ) : (
         <>
@@ -465,6 +489,8 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
                       onEditar={() => abrirEditar(item)}
                       onExcluir={() => void excluir(item.id)}
                       excluindo={excluindoId === item.id}
+                      moedaPadrao={moedaPadrao}
+                      cotacoes={cotacoes}
                     />
                   </li>
                 ))}
@@ -500,6 +526,8 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
                             }}
                             onExcluir={() => void excluir(item.id)}
                             excluindo={excluindoId === item.id}
+                            moedaPadrao={moedaPadrao}
+                            cotacoes={cotacoes}
                           />
                         </li>
                       ))}

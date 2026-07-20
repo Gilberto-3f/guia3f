@@ -15,6 +15,12 @@ import {
   type ProdutoCategoriaRow,
   type ProdutoCdeRow,
 } from '@/lib/comprasCdeCatalogo'
+import type { CotacaoMap } from '@/lib/comprasCdeHub'
+import {
+  labelValorFormProduto,
+  usdParaMoedaPadrao,
+  type MoedaPadraoLoja,
+} from '@/lib/comprasCdeMoedaPadrao'
 
 export type FormProdutoState = {
   id: string | null
@@ -53,12 +59,24 @@ export function formProdutoVazio(): FormProdutoState {
   }
 }
 
-export function formProdutoFromRow(row: ProdutoCdeRow): FormProdutoState {
+export function formProdutoFromRow(
+  row: ProdutoCdeRow,
+  moedaPadrao: MoedaPadraoLoja = 'USD',
+  cotacoes?: CotacaoMap,
+): FormProdutoState {
   const pct = Number(row.percentual_desconto) || 0
+  const precoExibicao =
+    moedaPadrao === 'USD' || !cotacoes
+      ? row.preco_usd
+      : usdParaMoedaPadrao(row.preco_usd, moedaPadrao, cotacoes)
+  const precoStr =
+    precoExibicao > 0
+      ? String(moedaPadrao === 'PYG' ? Math.round(precoExibicao) : Number(precoExibicao.toFixed(2)))
+      : ''
   return {
     id: row.id,
     nome: row.nome,
-    preco_usd: row.preco_usd > 0 ? String(row.preco_usd) : '',
+    preco_usd: precoStr,
     lancarOferta: pct > 0,
     percentual_desconto: pct > 0 ? String(pct) : '',
     categoria_id: row.categoria_id ?? '',
@@ -80,7 +98,7 @@ export function validarFormProduto(form: FormProdutoState): string | null {
     return `O nome do produto pode ter no máximo ${NOME_PRODUTO_MAX} caracteres.`
   }
   const preco = Number(form.preco_usd.replace(',', '.'))
-  if (!Number.isFinite(preco) || preco <= 0) return 'Informe o valor em dólar (maior que zero).'
+  if (!Number.isFinite(preco) || preco <= 0) return 'Informe o valor (maior que zero).'
   if (form.lancarOferta) {
     const pct = Number(form.percentual_desconto.replace(',', '.'))
     if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
@@ -120,6 +138,8 @@ type Props = {
   erro?: string | null
   /** Só lojas CDE (motor de busca Compras CDE). */
   mostrarMetatags?: boolean
+  /** Moeda do input de preço (padrão da empresa). */
+  moedaPadrao?: MoedaPadraoLoja
 }
 
 export default function FormProduto({
@@ -132,6 +152,7 @@ export default function FormProduto({
   titulo,
   erro = null,
   mostrarMetatags = true,
+  moedaPadrao = 'USD',
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [metatagsAberto, setMetatagsAberto] = useState(false)
@@ -266,7 +287,7 @@ export default function FormProduto({
         </div>
 
         <label className={labelCls}>
-          Valor (USD) *
+          {labelValorFormProduto(moedaPadrao)}
           <input
             type="number"
             min={0}

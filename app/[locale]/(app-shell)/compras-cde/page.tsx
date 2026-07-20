@@ -314,6 +314,7 @@ export default function ComprasCdePage() {
                   item={p}
                   taxaUsd={taxaUsd}
                   cotacoes={cotacoes}
+                  moedaPadrao={p.empresa_moeda_padrao}
                   notaMediaEmpresa={p.empresa_nota}
                   visitanteId={visitanteId}
                   favoritoInicial={favIds.has(p.id)}

@@ -6,6 +6,7 @@ import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
 import PrecoProdutoCde from '@/components/compras-cde/PrecoProdutoCde'
 import { precoFinalUsd, type ProdutoCdeRow } from '@/lib/comprasCdeCatalogo'
 import type { CotacaoMap } from '@/lib/comprasCdeHub'
+import type { MoedaPadraoLoja } from '@/lib/comprasCdeMoedaPadrao'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
@@ -15,6 +16,8 @@ type Props = {
   /** @deprecated Prefira `cotacoes`. Mantido para compatibilidade. */
   taxaUsd?: number
   cotacoes?: CotacaoMap
+  /** Moeda padrão da loja (destaque no preço). */
+  moedaPadrao?: MoedaPadraoLoja | string | null
   /** Mantido por compatibilidade — nota fica só no card azul da empresa. */
   notaMediaEmpresa?: number | null
   visitanteId: string | null
@@ -34,6 +37,7 @@ export default function MiniCardProdutoVisitante({
   item,
   taxaUsd = 0.2,
   cotacoes,
+  moedaPadrao = 'USD',
   notaMediaEmpresa: _notaMediaEmpresa = null,
   visitanteId,
   favoritoInicial,
@@ -108,7 +112,12 @@ export default function MiniCardProdutoVisitante({
 
       <div className={`flex flex-col gap-1 p-3 ${tamanhoUniforme ? 'flex-1' : ''}`}>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <PrecoProdutoCde precoUsd={finalUsd} cotacoes={mapCotacoes} destacarUsd />
+          <PrecoProdutoCde
+            precoUsd={finalUsd}
+            cotacoes={mapCotacoes}
+            moedaPadrao={moedaPadrao}
+            destacarUsd
+          />
           {pct > 0 ? (
             <span className="rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
               Em oferta

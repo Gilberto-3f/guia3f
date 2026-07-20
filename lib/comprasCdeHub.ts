@@ -6,6 +6,7 @@ import {
   produtoCorrespondeBuscaCde,
   type ProdutoCdeRow,
 } from '@/lib/comprasCdeCatalogo'
+import { normalizarMoedaPadrao, type MoedaPadraoLoja } from '@/lib/comprasCdeMoedaPadrao'
 
 export type CotacaoMap = Record<string, number>
 
@@ -14,6 +15,7 @@ export type ProdutoHubCard = ProdutoCdeRow & {
   empresa_username: string | null
   empresa_foto: string | null
   empresa_nota: number | null
+  empresa_moeda_padrao: MoedaPadraoLoja
 }
 
 export type TipoIntencaoCde = 'busca' | 'filtro' | 'tendencia' | 'clique' | 'impressao'
@@ -28,7 +30,7 @@ const SELECT_HUB = `
   produto_subcategorias ( id, nome ),
   produto_marcas ( id, nome ),
   empresas!inner (
-    id, nome_fantasia, nome_usuario, foto_url, nota_media, cidade, categoria, status
+    id, nome_fantasia, nome_usuario, foto_url, nota_media, cidade, categoria, status, moeda_padrao
   )
 `
 
@@ -94,6 +96,7 @@ function mapHubRow(raw: Record<string, unknown>): ProdutoHubCard | null {
     empresa_username: emp.nome_usuario != null ? String(emp.nome_usuario) : null,
     empresa_foto: emp.foto_url != null ? String(emp.foto_url) : null,
     empresa_nota: emp.nota_media != null ? Number(emp.nota_media) : null,
+    empresa_moeda_padrao: normalizarMoedaPadrao(emp.moeda_padrao),
   }
 }
 

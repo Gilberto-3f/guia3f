@@ -29,6 +29,7 @@ import {
   converterMoedas,
   type CotacaoMap,
 } from '@/lib/comprasCdeHub'
+import { normalizarMoedaPadrao, type MoedaPadraoLoja } from '@/lib/comprasCdeMoedaPadrao'
 import { iconeCategoriaProduto } from '@/lib/comprasCdeCategoriaIcone'
 import {
   mapProdutoRow,
@@ -106,6 +107,7 @@ export default function DrawerProdutosCde({
   const [notaEmpresaLive, setNotaEmpresaLive] = useState<number | null>(null)
   const [fotoEmpresaLive, setFotoEmpresaLive] = useState<string | null>(null)
   const [usernameEmpresaLive, setUsernameEmpresaLive] = useState<string | null>(null)
+  const [moedaPadrao, setMoedaPadrao] = useState<MoedaPadraoLoja>('USD')
   /** Hub Compras CDE abre direto no detalhe — evita flash do cabeçalho do catálogo. */
   const abrirDiretoNoDetalhe = Boolean(produtoIdInicial)
   /** Evita duplicar visita na mesma abertura do detalhe; libera ao voltar ao catálogo. */
@@ -135,7 +137,9 @@ export default function DrawerProdutosCde({
       const [empRes, prodRes, cotMap, sess] = await Promise.all([
         supabase
           .from('empresas')
-          .select('whatsapp_comercial, whatsapp, docs_verificado, status, foto_url, nome_usuario, nota_media')
+          .select(
+            'whatsapp_comercial, whatsapp, docs_verificado, status, foto_url, nome_usuario, nota_media, moeda_padrao',
+          )
           .eq('id', empresaId)
           .maybeSingle(),
         supabase
@@ -167,6 +171,7 @@ export default function DrawerProdutosCde({
           ? String(emp.nome_usuario).replace(/^@+/, '').trim()
           : null
       setUsernameEmpresaLive(userEmp || null)
+      setMoedaPadrao(normalizarMoedaPadrao(emp?.moeda_padrao))
 
       setCotacoes(cotMap)
       if (cotMap.USD > 0) setTaxaUsd(cotMap.USD)
@@ -426,6 +431,7 @@ export default function DrawerProdutosCde({
                           item={p}
                           taxaUsd={taxaUsd}
                           cotacoes={cotacoes}
+                          moedaPadrao={moedaPadrao}
                           notaMediaEmpresa={null}
                           visitanteId={visitanteId}
                           favoritoInicial={favProdutos.has(p.id)}
@@ -509,6 +515,7 @@ export default function DrawerProdutosCde({
                 <PrecoProdutoCde
                   precoUsd={precoFinal}
                   cotacoes={cotacoes}
+                  moedaPadrao={moedaPadrao}
                   variante="detalhe"
                 />
                 {pct > 0 ? (

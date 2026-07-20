@@ -249,7 +249,7 @@ export default function ConfigBotaoDinamico() {
             className={abaVerdeCls(abaComprasCde === 'contatos')}
             onClick={() => setAbaComprasCde('contatos')}
           >
-            Contatos
+            AJUSTES
           </button>
         </div>
 
@@ -262,6 +262,7 @@ export default function ConfigBotaoDinamico() {
             whatsappComercialInicial={
               dados?.whatsapp_comercial != null ? String(dados.whatsapp_comercial) : null
             }
+            moedaPadraoInicial={dados?.moeda_padrao != null ? String(dados.moeda_padrao) : 'USD'}
             onSalvo={() => void refetch()}
           />
         )}
