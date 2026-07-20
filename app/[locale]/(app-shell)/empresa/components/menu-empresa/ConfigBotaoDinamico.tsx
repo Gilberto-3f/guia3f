@@ -5,7 +5,7 @@ import { BarChart3, Info } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
-import { cidadeEhCiudadDelEste, empresaEhLojaComCatalogo, empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
+import { cidadeEhCiudadDelEste, empresaEhLojaComCatalogo, empresaEhLojasBrasilOuArgentina, empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
 import { getRotuloAbaServico } from '@/lib/empresaCategoria'
 import AbaAcomodacoes from './hospedagem/AbaAcomodacoes'
 import AbaInformacoes from './hospedagem/AbaInformacoes'
@@ -114,6 +114,7 @@ export default function ConfigBotaoDinamico() {
   const ehAtrativos = isPasseios(categoria)
   const ehLojaComCatalogo = empresaEhLojaComCatalogo(categoria, cidade)
   const ehLojasCde = empresaEhSegmentoLojasParaguai(categoria, cidade)
+  const ehLojasBrAr = empresaEhLojasBrasilOuArgentina(categoria, cidade)
 
   const rotuloAba = getRotuloAbaServico(categoria)
   const textoBotao = useMemo(() => textoBotaoPreview(categoria, cidade), [categoria, cidade])
@@ -263,6 +264,7 @@ export default function ConfigBotaoDinamico() {
               dados?.whatsapp_comercial != null ? String(dados.whatsapp_comercial) : null
             }
             moedaPadraoInicial={dados?.moeda_padrao != null ? String(dados.moeda_padrao) : 'USD'}
+            mostrarFeedbackCatalogo={ehLojasBrAr}
             onSalvo={() => void refetch()}
           />
         )}

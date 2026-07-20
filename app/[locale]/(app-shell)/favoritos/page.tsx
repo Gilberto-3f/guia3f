@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { Building2, Hotel, ShoppingBag, Star, Ticket } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Building2, Hotel, ShoppingBag, Store, Star, Ticket } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
 import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
+import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
 import { supabase } from '@/lib/supabase'
 import {
   listarAcomodacoesFavoritas,
@@ -18,6 +19,10 @@ import {
   type ProdutoFavoritoCard,
   type TicketFavoritoCard,
 } from '@/lib/favoritosTurista'
+import {
+  empresaEhLojasBrasilOuArgentina,
+  empresaEhSegmentoLojasParaguai,
+} from '@/lib/cidade-empresa'
 import {
   rotuloCategoriaImovelCurto,
   rotuloCategoriaParticularCurto,
@@ -31,7 +36,8 @@ import { formatarPrecoTicket } from '@/lib/atrativosCatalogo'
 const COR = '#0097b2'
 
 type Pastas = {
-  compras: boolean
+  comprasCde: boolean
+  lojasBrAr: boolean
   tickets: boolean
   hospedagem: boolean
   empresas: boolean
@@ -49,6 +55,12 @@ type DrawerTicketState = {
   ticketId: string
 } | null
 
+type DrawerAcomodacaoState = {
+  empresaId: string
+  empresaNome: string
+  acomodacaoId: string
+} | null
+
 function rotuloAcomodacaoFavorita(a: AcomodacaoFavoritaCard): string | null {
   const tipo = tipoCategoriaImovel(String(a.categoria_imovel ?? ''))
   const cat =
@@ -64,6 +76,53 @@ function rotuloAcomodacaoFavorita(a: AcomodacaoFavoritaCard): string | null {
   return null
 }
 
+function CardProdutoFavorito({
+  p,
+  onVer,
+}: {
+  p: ProdutoFavoritoCard
+  onVer: () => void
+}) {
+  return (
+    <li className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">{p.titulo}</p>
+      <div className="mt-2 aspect-[4/3] bg-gray-100">
+        {p.foto_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={p.foto_url} alt="" className="h-full w-full object-cover" />
+        ) : null}
+      </div>
+      <div className="space-y-2 p-3">
+        {p.marca_nome ? (
+          <p className="text-sm font-semibold text-[#001f3f]">{p.marca_nome}</p>
+        ) : null}
+        {p.empresa_nome ? (
+          <p className="truncate text-xs text-gray-500">{p.empresa_nome}</p>
+        ) : null}
+        {p.preco != null ? (
+          <p className="text-sm font-bold text-[#0097b2]">
+            {formatarUsd(p.preco)}
+            {p.percentual_desconto > 0 ? (
+              <span className="ml-1.5 rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
+                −{p.percentual_desconto}%
+              </span>
+            ) : null}
+          </p>
+        ) : null}
+        {p.empresa_id ? (
+          <button
+            type="button"
+            onClick={onVer}
+            className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
+          >
+            Ver produto
+          </button>
+        ) : null}
+      </div>
+    </li>
+  )
+}
+
 export default function FavoritosPage() {
   const router = useRouter()
   const { perfilEhTurista, loading: gateLoading } = useProfissionalGate()
@@ -74,17 +133,35 @@ export default function FavoritosPage() {
   const [produtos, setProdutos] = useState<ProdutoFavoritoCard[]>([])
   const [tickets, setTickets] = useState<TicketFavoritoCard[]>([])
   const [pastas, setPastas] = useState<Pastas>({
-    compras: false,
+    comprasCde: false,
+    lojasBrAr: false,
     tickets: false,
     hospedagem: false,
     empresas: false,
   })
   const [drawerProduto, setDrawerProduto] = useState<DrawerProdutoState>(null)
   const [drawerTicket, setDrawerTicket] = useState<DrawerTicketState>(null)
+  const [drawerAcomodacao, setDrawerAcomodacao] = useState<DrawerAcomodacaoState>(null)
 
   const toggle = (key: keyof Pastas) => {
     setPastas((p) => ({ ...p, [key]: !p[key] }))
   }
+
+  const { produtosCde, produtosLojasBrAr } = useMemo(() => {
+    const cde: ProdutoFavoritoCard[] = []
+    const brAr: ProdutoFavoritoCard[] = []
+    for (const p of produtos) {
+      if (empresaEhSegmentoLojasParaguai(p.empresa_categoria, p.empresa_cidade)) {
+        cde.push(p)
+      } else if (empresaEhLojasBrasilOuArgentina(p.empresa_categoria, p.empresa_cidade)) {
+        brAr.push(p)
+      } else {
+        // Fallback: sem meta de cidade → pasta CDE (legado)
+        cde.push(p)
+      }
+    }
+    return { produtosCde: cde, produtosLojasBrAr: brAr }
+  }, [produtos])
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -136,6 +213,15 @@ export default function FavoritosPage() {
     }
   }, [carregar])
 
+  const abrirProduto = (p: ProdutoFavoritoCard) => {
+    if (!p.empresa_id) return
+    setDrawerProduto({
+      empresaId: p.empresa_id,
+      empresaNome: p.empresa_nome || 'Empresa',
+      produtoId: p.id,
+    })
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
       <header className="shrink-0 border-b border-white/15 bg-[#0097b2] px-4 py-4 pt-safe">
@@ -160,59 +246,35 @@ export default function FavoritosPage() {
               titulo="Compras CDE"
               icone={ShoppingBag}
               corTitulo={COR}
-              aberto={pastas.compras}
-              onToggle={() => toggle('compras')}
+              aberto={pastas.comprasCde}
+              onToggle={() => toggle('comprasCde')}
             >
-              {produtos.length === 0 ? (
+              {produtosCde.length === 0 ? (
                 <p className="text-center text-sm text-gray-500">Nenhum produto salvo ainda.</p>
               ) : (
                 <ul className="space-y-3">
-                  {produtos.map((p) => (
-                    <li
-                      key={p.id}
-                      className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
-                    >
-                      <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">{p.titulo}</p>
-                      <div className="mt-2 aspect-[4/3] bg-gray-100">
-                        {p.foto_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.foto_url} alt="" className="h-full w-full object-cover" />
-                        ) : null}
-                      </div>
-                      <div className="space-y-2 p-3">
-                        {p.marca_nome ? (
-                          <p className="text-sm font-semibold text-[#001f3f]">{p.marca_nome}</p>
-                        ) : null}
-                        {p.empresa_nome ? (
-                          <p className="truncate text-xs text-gray-500">{p.empresa_nome}</p>
-                        ) : null}
-                        {p.preco != null ? (
-                          <p className="text-sm font-bold text-[#0097b2]">
-                            {formatarUsd(p.preco)}
-                            {p.percentual_desconto > 0 ? (
-                              <span className="ml-1.5 rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
-                                −{p.percentual_desconto}%
-                              </span>
-                            ) : null}
-                          </p>
-                        ) : null}
-                        {p.empresa_id ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setDrawerProduto({
-                                empresaId: p.empresa_id!,
-                                empresaNome: p.empresa_nome || 'Empresa',
-                                produtoId: p.id,
-                              })
-                            }
-                            className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
-                          >
-                            Ver produto
-                          </button>
-                        ) : null}
-                      </div>
-                    </li>
+                  {produtosCde.map((p) => (
+                    <CardProdutoFavorito key={p.id} p={p} onVer={() => abrirProduto(p)} />
+                  ))}
+                </ul>
+              )}
+            </ChevronPasta>
+
+            <ChevronPasta
+              titulo="Lojas (Brasil e Argentina)"
+              icone={Store}
+              corTitulo={COR}
+              aberto={pastas.lojasBrAr}
+              onToggle={() => toggle('lojasBrAr')}
+            >
+              {produtosLojasBrAr.length === 0 ? (
+                <p className="text-center text-sm text-gray-500">
+                  Nenhum produto de lojas de Foz ou Puerto salvo ainda.
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {produtosLojasBrAr.map((p) => (
+                    <CardProdutoFavorito key={p.id} p={p} onVer={() => abrirProduto(p)} />
                   ))}
                 </ul>
               )}
@@ -326,10 +388,16 @@ export default function FavoritosPage() {
                           {a.empresa_id ? (
                             <button
                               type="button"
-                              onClick={() => router.push(`/empresa/${a.empresa_id}`)}
+                              onClick={() =>
+                                setDrawerAcomodacao({
+                                  empresaId: a.empresa_id,
+                                  empresaNome: a.empresa_nome || 'Empresa',
+                                  acomodacaoId: a.id,
+                                })
+                              }
                               className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
                             >
-                              Ver empresa
+                              VER ACOMODAÇÃO
                             </button>
                           ) : null}
                         </div>
@@ -422,6 +490,16 @@ export default function FavoritosPage() {
           empresaId={drawerTicket.empresaId}
           empresaNome={drawerTicket.empresaNome}
           ticketIdInicial={drawerTicket.ticketId}
+        />
+      ) : null}
+
+      {drawerAcomodacao ? (
+        <DrawerReservaHospedagem
+          isOpen
+          onClose={() => setDrawerAcomodacao(null)}
+          empresaId={drawerAcomodacao.empresaId}
+          empresaNome={drawerAcomodacao.empresaNome}
+          acomodacaoIdInicial={drawerAcomodacao.acomodacaoId}
         />
       ) : null}
     </div>

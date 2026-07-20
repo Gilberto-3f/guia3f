@@ -12,12 +12,15 @@ import {
   normalizarMoedaPadrao,
   type MoedaPadraoLoja,
 } from '@/lib/comprasCdeMoedaPadrao'
+import FeedbackCatalogoAjustes from './FeedbackCatalogoAjustes'
 
 type Props = {
   empresaId: string
   whatsappGeral: string | null
   whatsappComercialInicial: string | null
   moedaPadraoInicial?: string | null
+  /** Lojas BR/AR: Feedback do catálogo (sem Drena-Stok). */
+  mostrarFeedbackCatalogo?: boolean
   onSalvo?: () => void
 }
 
@@ -26,6 +29,7 @@ export default function AbaContatos({
   whatsappGeral,
   whatsappComercialInicial,
   moedaPadraoInicial = 'USD',
+  mostrarFeedbackCatalogo = false,
   onSalvo,
 }: Props) {
   const [whatsappComercial, setWhatsappComercial] = useState(whatsappComercialInicial ?? '')
@@ -53,8 +57,9 @@ export default function AbaContatos({
   }, [empresaId])
 
   useEffect(() => {
+    if (mostrarFeedbackCatalogo) return
     void carregarCliques()
-  }, [carregarCliques])
+  }, [carregarCliques, mostrarFeedbackCatalogo])
 
   const salvar = async () => {
     const valor = whatsappComercial.trim()
@@ -115,6 +120,10 @@ export default function AbaContatos({
 
   return (
     <div className="space-y-4">
+      {mostrarFeedbackCatalogo ? (
+        <FeedbackCatalogoAjustes empresaId={empresaId} abertoInicial />
+      ) : null}
+
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-bold text-[#001f3f]">Moeda padrão</h2>
         <p className="mt-1 text-xs text-gray-500">
@@ -213,16 +222,18 @@ export default function AbaContatos({
         ) : null}
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-[#f5f5f5] p-4">
-        <div className="flex items-center gap-2 text-[#001f3f]">
-          <BarChart3 className="h-5 w-5" style={{ color: COR_AZUL_LOGO }} aria-hidden />
-          <h2 className="text-sm font-bold">Desempenho no mês</h2>
+      {!mostrarFeedbackCatalogo ? (
+        <div className="rounded-xl border border-gray-200 bg-[#f5f5f5] p-4">
+          <div className="flex items-center gap-2 text-[#001f3f]">
+            <BarChart3 className="h-5 w-5" style={{ color: COR_AZUL_LOGO }} aria-hidden />
+            <h2 className="text-sm font-bold">Desempenho no mês</h2>
+          </div>
+          <p className="mt-2 text-3xl font-bold" style={{ color: COR_AZUL_LOGO }}>
+            {cliquesMes == null ? '—' : cliquesMes}
+          </p>
+          <p className="mt-1 text-xs text-gray-600">Cliques no botão dinâmico (mês corrente)</p>
         </div>
-        <p className="mt-2 text-3xl font-bold" style={{ color: COR_AZUL_LOGO }}>
-          {cliquesMes == null ? '—' : cliquesMes}
-        </p>
-        <p className="mt-1 text-xs text-gray-600">Cliques no botão dinâmico (mês corrente)</p>
-      </div>
+      ) : null}
     </div>
   )
 }

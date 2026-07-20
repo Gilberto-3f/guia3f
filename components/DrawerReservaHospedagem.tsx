@@ -76,6 +76,8 @@ type Props = {
   empresaUsername?: string | null
   empresaFotoUrl?: string | null
   notaMedia?: number | null
+  /** Abrir já no detalhe desta acomodação (favoritos). */
+  acomodacaoIdInicial?: string | null
 }
 
 type AnfitriaoInfo = {
@@ -147,6 +149,7 @@ export default function DrawerReservaHospedagem({
   empresaUsername = null,
   empresaFotoUrl = null,
   notaMedia = null,
+  acomodacaoIdInicial = null,
 }: Props) {
   const router = useRouter()
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
@@ -159,7 +162,7 @@ export default function DrawerReservaHospedagem({
     tituloBloqueio,
   } = useGateComprasReservas()
 
-  const [passo, setPasso] = useState(1)
+  const [passo, setPasso] = useState(() => (acomodacaoIdInicial ? 2 : 1))
   const [carregando, setCarregando] = useState(false)
   const [acomodacoes, setAcomodacoes] = useState<HospedagemAcomodacaoRow[]>([])
   const [statusMap, setStatusMap] = useState<Record<string, StatusAcomodacaoCard>>({})
@@ -168,7 +171,7 @@ export default function DrawerReservaHospedagem({
   const [anfitriao, setAnfitriao] = useState<AnfitriaoInfo | null>(null)
   const [anfitriaoAberto, setAnfitriaoAberto] = useState(false)
   const [empresaVerificada, setEmpresaVerificada] = useState(false)
-  const [selecionadaId, setSelecionadaId] = useState<string | null>(null)
+  const [selecionadaId, setSelecionadaId] = useState<string | null>(() => acomodacaoIdInicial)
   const [fotoIdx, setFotoIdx] = useState(0)
   const [checkin, setCheckin] = useState('')
   const [checkout, setCheckout] = useState('')
@@ -320,17 +323,26 @@ export default function DrawerReservaHospedagem({
       } else {
         setReservaPendente(false)
       }
+
+      if (acomodacaoIdInicial) {
+        const found = lista.some((a) => a.id === acomodacaoIdInicial)
+        if (found) {
+          setSelecionadaId(acomodacaoIdInicial)
+          setFotoIdx(0)
+          setPasso(2)
+        }
+      }
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao carregar.')
     } finally {
       setCarregando(false)
     }
-  }, [isOpen, empresaId])
+  }, [isOpen, empresaId, acomodacaoIdInicial])
 
   useEffect(() => {
     if (!isOpen) {
-      setPasso(1)
-      setSelecionadaId(null)
+      setPasso(acomodacaoIdInicial ? 2 : 1)
+      setSelecionadaId(acomodacaoIdInicial)
       setFotoIdx(0)
       setCheckin('')
       setCheckout('')
@@ -347,7 +359,7 @@ export default function DrawerReservaHospedagem({
       return
     }
     void carregar()
-  }, [isOpen, carregar])
+  }, [isOpen, carregar, acomodacaoIdInicial])
 
   const noites = useMemo(() => {
     if (!checkin || !checkout) return 0

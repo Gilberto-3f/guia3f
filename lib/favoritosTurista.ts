@@ -39,6 +39,9 @@ export type ProdutoFavoritoCard = {
   percentual_desconto: number
   empresa_nome: string | null
   marca_nome: string | null
+  /** Para separar pasta Compras CDE vs Lojas BR/AR nos favoritos do turista. */
+  empresa_categoria: string | null
+  empresa_cidade: string | null
 }
 
 export type TicketFavoritoCard = {
@@ -352,13 +355,18 @@ export async function listarProdutosFavoritos(
     ...new Set(data.map((p) => String(p.empresa_id ?? '').trim()).filter(Boolean)),
   ]
   const nomePorEmpresa = new Map<string, string>()
+  const metaPorEmpresa = new Map<string, { categoria: string | null; cidade: string | null }>()
   if (empresaIds.length) {
     const { data: emps } = await supabase
       .from('empresas')
-      .select('id, nome_fantasia')
+      .select('id, nome_fantasia, categoria, cidade')
       .in('id', empresaIds)
     for (const e of emps ?? []) {
       nomePorEmpresa.set(String(e.id), String(e.nome_fantasia ?? ''))
+      metaPorEmpresa.set(String(e.id), {
+        categoria: e.categoria != null ? String(e.categoria) : null,
+        cidade: e.cidade != null ? String(e.cidade) : null,
+      })
     }
   }
 
@@ -376,6 +384,7 @@ export async function listarProdutosFavoritos(
       const final = Math.round(bruto * (1 - pct / 100) * 100) / 100
       const empId = p!.empresa_id != null ? String(p!.empresa_id) : null
       const marcaRel = p!.produto_marcas as { nome?: string } | null
+      const meta = empId ? metaPorEmpresa.get(empId) : undefined
       return {
         id: String(p!.id),
         empresa_id: empId,
@@ -385,6 +394,8 @@ export async function listarProdutosFavoritos(
         percentual_desconto: pct,
         empresa_nome: empId ? nomePorEmpresa.get(empId) || null : null,
         marca_nome: marcaRel?.nome ? String(marcaRel.nome) : null,
+        empresa_categoria: meta?.categoria ?? null,
+        empresa_cidade: meta?.cidade ?? null,
       }
     })
 }
