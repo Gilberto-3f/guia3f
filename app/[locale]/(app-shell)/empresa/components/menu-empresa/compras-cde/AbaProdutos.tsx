@@ -32,6 +32,8 @@ import MiniCardProdutoConfig from './MiniCardProdutoConfig'
 
 type Props = {
   empresaId: string
+  /** Metatags só para lojas CDE (busca no Compras CDE). */
+  mostrarMetatags?: boolean
 }
 
 type SecaoCategoria = {
@@ -51,7 +53,7 @@ const SELECT_PRODUTO = `
   produto_marcas ( nome )
 `
 
-export default function AbaProdutos({ empresaId }: Props) {
+export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props) {
   const [lista, setLista] = useState<ProdutoCdeRow[]>([])
   const [pendentes, setPendentes] = useState<ProdutoCdeRow[]>([])
   const [categorias, setCategorias] = useState<ProdutoCategoriaRow[]>([])
@@ -200,7 +202,7 @@ export default function AbaProdutos({ empresaId }: Props) {
       let site = form.site_url.trim()
       if (site && !/^https?:\/\//i.test(site)) site = `https://${site}`
 
-      const palavras = sanitizarPalavrasChave(form.metatags)
+      const palavras = mostrarMetatags ? sanitizarPalavrasChave(form.metatags) : []
 
       if (form.id) {
         let fotos = [...form.fotosExistentes]
@@ -400,6 +402,7 @@ export default function AbaProdutos({ empresaId }: Props) {
           salvando={salvando}
           titulo={form.id ? 'Editar produto' : 'Cadastrar produto'}
           erro={erro}
+          mostrarMetatags={mostrarMetatags}
         />
       ) : (
         <>

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
 import {
   mapProdutoRow,
   precoFinalUsd,
@@ -73,6 +74,15 @@ export function converterMoedas(
 function mapHubRow(raw: Record<string, unknown>): ProdutoHubCard | null {
   const emp = raw.empresas as Record<string, unknown> | null
   if (!emp) return null
+  /** Comparador COMPRAS CDE: exclusivo lojas de Ciudad del Este. */
+  if (
+    !empresaEhSegmentoLojasParaguai(
+      emp.categoria != null ? String(emp.categoria) : null,
+      emp.cidade != null ? String(emp.cidade) : null,
+    )
+  ) {
+    return null
+  }
   const status = emp.status != null ? String(emp.status) : ''
   if (status && status !== 'ativo' && status !== 'aprovado') {
     // mantém se docs_verificado/ativo fluxo antigo sem status estrito
@@ -255,13 +265,13 @@ export async function listarSubcategoriasDaCategoria(
   return (data ?? []).map((r) => ({ id: String(r.id), nome: String(r.nome) }))
 }
 
-/** Contagem de produtos ativos por categoria_id (popup de filtros). */
+/** Contagem de produtos ativos por categoria_id (popup de filtros) — só lojas CDE. */
 export async function contarProdutosPorCategoria(
   supabase: SupabaseClient,
 ): Promise<Record<string, number>> {
   const { data, error } = await supabase
     .from('produtos')
-    .select('categoria_id')
+    .select('categoria_id, empresas!inner ( cidade, categoria )')
     .eq('ativo', true)
     .not('categoria_id', 'is', null)
     .limit(5000)
@@ -271,6 +281,16 @@ export async function contarProdutosPorCategoria(
   }
   const map: Record<string, number> = {}
   for (const row of data ?? []) {
+    const emp = (row as { empresas?: { cidade?: string | null; categoria?: string | null } })
+      .empresas
+    if (
+      !empresaEhSegmentoLojasParaguai(
+        emp?.categoria != null ? String(emp.categoria) : null,
+        emp?.cidade != null ? String(emp.cidade) : null,
+      )
+    ) {
+      continue
+    }
     const id = row.categoria_id ? String(row.categoria_id) : ''
     if (!id) continue
     map[id] = (map[id] ?? 0) + 1
@@ -278,14 +298,14 @@ export async function contarProdutosPorCategoria(
   return map
 }
 
-/** Contagem de produtos ativos por subcategoria_id (popup fase 2). */
+/** Contagem de produtos ativos por subcategoria_id (popup fase 2) — só lojas CDE. */
 export async function contarProdutosPorSubcategoria(
   supabase: SupabaseClient,
   categoriaId?: string | null,
 ): Promise<Record<string, number>> {
   let q = supabase
     .from('produtos')
-    .select('subcategoria_id')
+    .select('subcategoria_id, empresas!inner ( cidade, categoria )')
     .eq('ativo', true)
     .not('subcategoria_id', 'is', null)
     .limit(5000)
@@ -297,6 +317,16 @@ export async function contarProdutosPorSubcategoria(
   }
   const map: Record<string, number> = {}
   for (const row of data ?? []) {
+    const emp = (row as { empresas?: { cidade?: string | null; categoria?: string | null } })
+      .empresas
+    if (
+      !empresaEhSegmentoLojasParaguai(
+        emp?.categoria != null ? String(emp.categoria) : null,
+        emp?.cidade != null ? String(emp.cidade) : null,
+      )
+    ) {
+      continue
+    }
     const id = row.subcategoria_id ? String(row.subcategoria_id) : ''
     if (!id) continue
     map[id] = (map[id] ?? 0) + 1

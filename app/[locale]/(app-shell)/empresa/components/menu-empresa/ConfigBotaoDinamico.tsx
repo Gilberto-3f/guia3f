@@ -5,7 +5,7 @@ import { BarChart3, Info } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
-import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu, empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
+import { cidadeEhCiudadDelEste, empresaEhLojaComCatalogo, empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
 import { getRotuloAbaServico } from '@/lib/empresaCategoria'
 import AbaAcomodacoes from './hospedagem/AbaAcomodacoes'
 import AbaInformacoes from './hospedagem/AbaInformacoes'
@@ -57,8 +57,7 @@ function textoBotaoPreview(categoria: string, cidade: string) {
   if (isHospedagem(categoria)) return 'FAZER RESERVA'
   if (isServicosLocais(categoria)) return 'WhatsApp'
   if (isLojas(categoria)) {
-    if (cidadeEhCiudadDelEste(cidade)) return 'CATÁLOGO'
-    if (cidadeEhFozOuPuertoIguazu(cidade)) return 'CHAMAR CORRIDA'
+    return 'CATÁLOGO'
   }
   if (isEventos(categoria)) return 'COMPRAR INGRESSO'
   return 'VER MAIS'
@@ -78,10 +77,10 @@ function descricaoSegmento(categoria: string, cidade: string) {
     return 'O botão abre conversa no WhatsApp da empresa.'
   }
   if (isLojas(categoria) && cidadeEhCiudadDelEste(cidade)) {
-    return 'Cadastre produtos (USD) e o WhatsApp comercial. O botão Catálogo abre o catálogo no Compras CDE.'
+    return 'Cadastre produtos (USD) e o WhatsApp comercial. O botão Catálogo abre o catálogo; produtos entram no comparador Compras CDE.'
   }
-  if (isLojas(categoria) && cidadeEhFozOuPuertoIguazu(cidade)) {
-    return 'Em Foz ou Puerto Iguazú o botão chama corrida na Mobilidade.'
+  if (isLojas(categoria)) {
+    return 'Cadastre produtos e o WhatsApp comercial. O botão Catálogo abre o catálogo na sua página (fora do comparador Compras CDE).'
   }
   if (isEventos(categoria)) {
     return 'Configure preços de ingresso e WhatsApp para vendas.'
@@ -113,6 +112,7 @@ export default function ConfigBotaoDinamico() {
   const [abaAtrativos, setAbaAtrativos] = useState<'atrativos' | 'informacoes'>('atrativos')
   const [abaComprasCde, setAbaComprasCde] = useState<'produtos' | 'contatos'>('produtos')
   const ehAtrativos = isPasseios(categoria)
+  const ehLojaComCatalogo = empresaEhLojaComCatalogo(categoria, cidade)
   const ehLojasCde = empresaEhSegmentoLojasParaguai(categoria, cidade)
 
   const rotuloAba = getRotuloAbaServico(categoria)
@@ -229,7 +229,7 @@ export default function ConfigBotaoDinamico() {
     )
   }
 
-  if (ehLojasCde && empresaId) {
+  if (ehLojaComCatalogo && empresaId) {
     return (
       <div className="mt-4 space-y-4">
         <div className="flex gap-2" role="tablist" aria-label="Seções do botão dinâmico">
@@ -254,7 +254,7 @@ export default function ConfigBotaoDinamico() {
         </div>
 
         {abaComprasCde === 'produtos' ? (
-          <AbaProdutos empresaId={empresaId} />
+          <AbaProdutos empresaId={empresaId} mostrarMetatags={ehLojasCde} />
         ) : (
           <AbaContatos
             empresaId={empresaId}

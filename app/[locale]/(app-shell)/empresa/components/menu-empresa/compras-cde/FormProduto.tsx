@@ -118,6 +118,8 @@ type Props = {
   titulo: string
   /** Mensagem de validação / falha — exibida acima do botão Salvar. */
   erro?: string | null
+  /** Só lojas CDE (motor de busca Compras CDE). */
+  mostrarMetatags?: boolean
 }
 
 export default function FormProduto({
@@ -129,6 +131,7 @@ export default function FormProduto({
   salvando = false,
   titulo,
   erro = null,
+  mostrarMetatags = true,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [metatagsAberto, setMetatagsAberto] = useState(false)
@@ -358,34 +361,36 @@ export default function FormProduto({
           />
         </label>
 
-        <ChevronPasta
-          titulo={`Metatags (opcional · ${tagsPreenchidas}/${MAX_PALAVRAS_CHAVE})`}
-          aberto={metatagsAberto}
-          onToggle={() => setMetatagsAberto((v) => !v)}
-          icone={Tags}
-          corTitulo="#0097b2"
-        >
-          <p className="mb-3 text-xs leading-relaxed text-gray-500">
-            Até {MAX_PALAVRAS_CHAVE} termos extras (não aparecem no card público). Ajudam turistas a
-            encontrar o produto no motor de busca do Compras CDE — além do nome, categoria, subcategoria
-            e marca. Preenchimento opcional.
-          </p>
-          <div className="space-y-2">
-            {form.metatags.map((valor, idx) => (
-              <label key={`metatag-${idx}`} className={labelCls}>
-                Metatag {idx + 1}
-                <input
-                  type="text"
-                  value={valor}
-                  onChange={(e) => setMetatag(idx, e.target.value)}
-                  className={inputCls}
-                  placeholder={`Ex.: termo relacionado ${idx + 1}`}
-                  maxLength={60}
-                />
-              </label>
-            ))}
-          </div>
-        </ChevronPasta>
+        {mostrarMetatags ? (
+          <ChevronPasta
+            titulo={`Metatags (opcional · ${tagsPreenchidas}/${MAX_PALAVRAS_CHAVE})`}
+            aberto={metatagsAberto}
+            onToggle={() => setMetatagsAberto((v) => !v)}
+            icone={Tags}
+            corTitulo="#0097b2"
+          >
+            <p className="mb-3 text-xs leading-relaxed text-gray-500">
+              Até {MAX_PALAVRAS_CHAVE} termos extras (não aparecem no card público). Ajudam turistas a
+              encontrar o produto no motor de busca do Compras CDE — além do nome, categoria, subcategoria
+              e marca. Preenchimento opcional.
+            </p>
+            <div className="space-y-2">
+              {form.metatags.map((valor, idx) => (
+                <label key={`metatag-${idx}`} className={labelCls}>
+                  Metatag {idx + 1}
+                  <input
+                    type="text"
+                    value={valor}
+                    onChange={(e) => setMetatag(idx, e.target.value)}
+                    className={inputCls}
+                    placeholder={`Ex.: termo relacionado ${idx + 1}`}
+                    maxLength={60}
+                  />
+                </label>
+              ))}
+            </div>
+          </ChevronPasta>
+        ) : null}
 
         <label className={labelCls}>
           Descrição (opcional)

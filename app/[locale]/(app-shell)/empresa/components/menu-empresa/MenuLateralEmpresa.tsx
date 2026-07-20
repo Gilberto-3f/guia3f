@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { signOutCurrentDevice } from '@/lib/authCookieSync'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
-import { empresaEhLojasBrasilOuArgentina } from '@/lib/cidade-empresa'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import type { MenuEmpresaId } from '@/lib/planosEmpresaServicosGate'
 import { supabase } from '@/lib/supabase'
@@ -120,9 +119,6 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
   }, [aberto, refreshChatAdmBadge])
 
   const itensVisiveis = MENU_ITEMS.filter((item) => {
-    if (item.id === 'botao-dinamico') {
-      if (empresaEhLojasBrasilOuArgentina(dados?.categoria, dados?.cidade)) return false
-    }
     return menuVisivel(item.id)
   })
 

@@ -50,7 +50,6 @@ import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { empresaDocumentosEnviados } from '@/lib/faseVerificacaoConta'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import { menuEmpresaLiberado, menuEmpresaVisivel } from '@/lib/planosEmpresaServicosGate'
-import { empresaEhLojasBrasilOuArgentina } from '@/lib/cidade-empresa'
 import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
 import { textoInfoDrawer } from '@/lib/drawerInfoTextos'
 import {
@@ -164,9 +163,8 @@ function empresaMenuHospedagemVisivel(ctx) {
   return String(ctx.empresaCategoria ?? '').trim() === 'Hospedagem'
 }
 
-/** Lojas BR/AR: endereço já é destino na mobilidade — oculta configuração do botão dinâmico. */
+/** Botão Dinâmico: liberado pelo plano (lojas CDE e BR/AR usam catálogo). */
 function empresaBotaoDinamicoVisivel(ctx) {
-  if (empresaEhLojasBrasilOuArgentina(ctx.empresaCategoria, ctx.empresaCidade)) return false
   return menuEmpresaLiberado('botao-dinamico', ctx.empresaServicos ?? [])
 }
 

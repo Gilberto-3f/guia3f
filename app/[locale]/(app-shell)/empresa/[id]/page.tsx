@@ -35,7 +35,6 @@ import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBl
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { empresaEhHospedagemAnfitriao, turistaTemReservaHospedagemConfirmada } from '@/lib/reservaHospedagem'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
-import { empresaEhLojasBrasilOuArgentina } from '@/lib/cidade-empresa'
 
 function debugEmpresa(...args: unknown[]) {
   if (process.env.NODE_ENV === 'development') {
@@ -421,11 +420,8 @@ export default function EmpresaPage() {
   const locacaoEnderecoBloqueada =
     enderecoExigeReservaConfirmada && (!usuarioId || !reservaHospedagemConfirmada)
 
-  /** Lojas Foz / Puerto Iguazú: mobilidade só no botão dinâmico (evita duplicar com Endereço). */
-  const ocultarChamarCorridaEndereco = empresaEhLojasBrasilOuArgentina(
-    empresa.categoria != null ? String(empresa.categoria) : null,
-    empresa.cidade != null ? String(empresa.cidade) : null,
-  )
+  /** Corrida no Endereço liberada para lojas BR/AR (botão dinâmico agora é catálogo). */
+  const ocultarChamarCorridaEndereco = false
 
   return (
     <div className="bg-gray-50">

@@ -9,6 +9,13 @@ export function normalizarCidade(cidade: string | null | undefined): string {
     .trim()
 }
 
+function categoriaEhLojas(categoria: string | null | undefined): boolean {
+  const cat = normalizarCidade(categoria).replace(/\s+/g, ' ')
+  return (
+    cat === 'lojas' || cat === 'compras paraguai' || cat.replace(/\s+/g, '') === 'comprasparaguai'
+  )
+}
+
 /** Loja em Ciudad del Este → fluxo produtos / compras Paraguai */
 export function cidadeEhCiudadDelEste(cidade: string | null | undefined): boolean {
   const n = normalizarCidade(cidade)
@@ -16,18 +23,15 @@ export function cidadeEhCiudadDelEste(cidade: string | null | undefined): boolea
   return n.includes('ciudad') && n.includes('este')
 }
 
-/** Segmento Lojas do Paraguai (Drena-Stok e aba extra no dashboard). */
+/** Segmento Lojas do Paraguai (Drena-Stok, comparador COMPRAS CDE e metatags). */
 export function empresaEhSegmentoLojasParaguai(
   categoria: string | null | undefined,
   cidade: string | null | undefined,
 ): boolean {
-  const cat = normalizarCidade(categoria).replace(/\s+/g, ' ')
-  const categoriaOk =
-    cat === 'lojas' || cat === 'compras paraguai' || cat.replace(/\s+/g, '') === 'comprasparaguai'
-  return categoriaOk && cidadeEhCiudadDelEste(cidade)
+  return categoriaEhLojas(categoria) && cidadeEhCiudadDelEste(cidade)
 }
 
-/** Loja em Foz do Iguaçu ou Puerto Iguazú → fluxo chamar corrida */
+/** Loja em Foz do Iguaçu ou Puerto Iguazú */
 export function cidadeEhFozOuPuertoIguazu(cidade: string | null | undefined): boolean {
   const n = normalizarCidade(cidade)
   if (!n) return false
@@ -36,11 +40,24 @@ export function cidadeEhFozOuPuertoIguazu(cidade: string | null | undefined): bo
   return foz || puerto
 }
 
-/** Lojas em Foz ou Puerto Iguazú — mobilidade via botão dinâmico (sem duplicar na aba Endereço). */
+/** Lojas em Foz ou Puerto Iguazú (catálogo próprio; fora do comparador CDE). */
 export function empresaEhLojasBrasilOuArgentina(
   categoria: string | null | undefined,
   cidade: string | null | undefined,
 ): boolean {
-  const cat = normalizarCidade(categoria).replace(/\s+/g, ' ')
-  return cat === 'lojas' && cidadeEhFozOuPuertoIguazu(cidade)
+  return categoriaEhLojas(categoria) && cidadeEhFozOuPuertoIguazu(cidade)
+}
+
+/**
+ * Qualquer loja com catálogo de produtos (CDE + Foz + Puerto Iguazú).
+ * CDE entra no COMPRAS CDE; BR/AR só divulgação/recomendação.
+ */
+export function empresaEhLojaComCatalogo(
+  categoria: string | null | undefined,
+  cidade: string | null | undefined,
+): boolean {
+  return (
+    empresaEhSegmentoLojasParaguai(categoria, cidade) ||
+    empresaEhLojasBrasilOuArgentina(categoria, cidade)
+  )
 }

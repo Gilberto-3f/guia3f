@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Ticket, Calendar, Car, Package, Utensils, ShoppingBag, MessageCircle, X } from 'lucide-react'
+import { Ticket, Calendar, Package, Utensils, ShoppingBag, MessageCircle, X } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
@@ -18,6 +18,7 @@ import {
   mensagemWhatsappContatoGuia,
 } from '@/lib/whatsapp-empresa'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { empresaEhLojaComCatalogo } from '@/lib/cidade-empresa'
 
 // Cards de filtros: botão dinâmico sempre verde (página da empresa usa AbaBotaoDinamico com cores por segmento)
 const COR_PADRAO = '#00D443'
@@ -125,11 +126,9 @@ export default function BotaoDinamico({
     }
 
     if (isLojas(categoria)) {
-      const c = norm(cidade)
-      const ehCde = c.includes('ciudad del este')
-      return ehCde
+      return empresaEhLojaComCatalogo(categoria, cidade)
         ? { texto: 'CATÁLOGO', icon: ShoppingBag, acao: 'produtos' }
-        : { texto: 'CHAMAR CORRIDA', icon: Car, acao: 'corrida', textoUmaLinha: true }
+        : { texto: 'VER MAIS', icon: Package, acao: 'detalhes' }
     }
 
     return { texto: 'VER MAIS', icon: Package, acao: 'detalhes' }

@@ -17,7 +17,7 @@ import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { registrarCliqueBotaoDinamico } from '@/lib/botaoDinamicoCliques'
 import { supabase } from '@/lib/supabase'
-import { cidadeEhCiudadDelEste, cidadeEhFozOuPuertoIguazu } from '@/lib/cidade-empresa'
+import { empresaEhLojaComCatalogo } from '@/lib/cidade-empresa'
 import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
@@ -128,18 +128,8 @@ export default function AbaBotaoDinamico({
     const cat = String(categoria || '')
     const loja = cat === 'Lojas' || cat === 'lojas'
     if (loja) {
-      if (cidadeEhCiudadDelEste(cidade)) {
+      if (empresaEhLojaComCatalogo(cat, cidade)) {
         return { ...base, texto: 'CATÁLOGO', icon: ShoppingBag, cor: '#00D443', acao: 'produtos' }
-      }
-      if (cidadeEhFozOuPuertoIguazu(cidade)) {
-        return {
-          ...base,
-          texto: 'CHAMAR CORRIDA',
-          icon: Car,
-          cor: COR_BOTAO_CHAMAR_CORRIDA,
-          acao: 'corrida',
-          textoCompacto: true,
-        }
       }
       return { texto: 'VER MAIS', icon: Package, cor: '#0097b2', acao: 'detalhes' }
     }
