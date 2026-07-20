@@ -63,7 +63,7 @@ type Props = {
   empresaUsername?: string | null
   empresaFotoUrl?: string | null
   notaMedia?: number | null
-  /** No hub Compras CDE, mostra avatar da empresa no detalhe (acima do Ver mais). */
+  /** Comparador / hub / favoritos: mostra card azul da empresa no detalhe. Catálogo (botão dinâmico) não precisa — já tem cabeçalho. */
   mostrarEmpresaNoDetalhe?: boolean
   /** Abrir já no detalhe deste produto. */
   produtoIdInicial?: string | null
@@ -77,7 +77,7 @@ export default function DrawerProdutosCde({
   empresaUsername = null,
   empresaFotoUrl = null,
   notaMedia = null,
-  mostrarEmpresaNoDetalhe: _mostrarEmpresaNoDetalhe = false,
+  mostrarEmpresaNoDetalhe = false,
   produtoIdInicial = null,
 }: Props) {
   useModalScrollLock(isOpen)
@@ -576,7 +576,8 @@ export default function DrawerProdutosCde({
               </div>
             </ChevronPasta>
 
-            <div className="flex items-center gap-3 rounded-xl bg-[#0097b2] p-3 shadow-sm">
+            {mostrarEmpresaNoDetalhe ? (
+              <div className="flex items-center gap-3 rounded-xl bg-[#0097b2] p-3 shadow-sm">
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 border-white/40 bg-white/20">
                   {avatarEmpresa ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -618,6 +619,7 @@ export default function DrawerProdutosCde({
                   <span>PÁGINA</span>
                 </button>
               </div>
+            ) : null}
 
             {perfilEhProfissional ? (
               <button
