@@ -13,7 +13,7 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  */
 
 /**
- * Engajamento em post de cat?logo (curtida / coment?rio / repost).
+ * Engajamento em post de catálogo (curtida / comentário / repost).
  * @param {{
  *   variante: 'curtiu' | 'comentou' | 'repostou' | 'curtiu_repost'
  *   interactorUsername: string
@@ -66,14 +66,14 @@ export default function AtividadeCatalogo({
     .map((p) => (p?.foto_url != null && String(p.foto_url).trim() !== '' ? String(p.foto_url) : ''))
     .filter(Boolean)
 
-  /** Coment?rio no cat?logo (Minha Conta): s? o texto, sem carrossel de produtos. */
+  /** Comentário no catálogo (Minha Conta): só o texto, sem carrossel de produtos. */
   const ocultarCarrosselProdutos = variante === 'comentou'
 
   let frase = null
   if (modoMinhaConta) {
-    if (variante === 'curtiu' || variante === 'curtiu_repost') frase = 'curtiu seu cat?logo.'
-    else if (variante === 'comentou') frase = 'comentou no seu cat?logo.'
-    else if (variante === 'repostou') frase = 'repostou seu cat?logo.'
+    if (variante === 'curtiu' || variante === 'curtiu_repost') frase = 'curtiu seu catálogo.'
+    else if (variante === 'comentou') frase = 'comentou no seu catálogo.'
+    else if (variante === 'repostou') frase = 'repostou seu catálogo.'
   } else if (variante === 'curtiu') {
     frase = (
       <>
@@ -89,7 +89,7 @@ export default function AtividadeCatalogo({
   } else if (variante === 'comentou') {
     frase = (
       <>
-        comentou no cat?logo de{' '}
+        comentou no catálogo de{' '}
         <UsuarioHandleVerificado
           username={donorUsername}
           verificado={donorVerificado}
@@ -101,7 +101,7 @@ export default function AtividadeCatalogo({
   } else if (variante === 'curtiu_repost') {
     frase = (
       <>
-        curtiu um cat?logo repostado de{' '}
+        curtiu um catálogo repostado de{' '}
         <UsuarioHandleVerificado
           username={donorUsername}
           verificado={donorVerificado}
@@ -113,7 +113,7 @@ export default function AtividadeCatalogo({
   } else if (variante === 'repostou') {
     frase = (
       <>
-        repostou o cat?logo de{' '}
+        repostou o catálogo de{' '}
         <UsuarioHandleVerificado
           username={donorUsername}
           verificado={donorVerificado}
@@ -126,16 +126,16 @@ export default function AtividadeCatalogo({
 
   const resumoModal = modoMinhaConta
     ? variante === 'comentou'
-      ? 'comentou no seu cat?logo'
+      ? 'comentou no seu catálogo'
       : variante === 'repostou'
-        ? 'repostou seu cat?logo'
-        : 'curtiu seu cat?logo'
+        ? 'repostou seu catálogo'
+        : 'curtiu seu catálogo'
     : variante === 'comentou'
-      ? `comentou no cat?logo de @${donorUsername}`
+      ? `comentou no catálogo de @${donorUsername}`
       : variante === 'curtiu_repost'
-        ? `curtiu um cat?logo repostado de @${donorUsername}`
+        ? `curtiu um catálogo repostado de @${donorUsername}`
         : variante === 'repostou'
-          ? `repostou o cat?logo de @${donorUsername}`
+          ? `repostou o catálogo de @${donorUsername}`
           : `curtiu os novos produtos de @${donorUsername}`
 
   const mostrarSnaps = !ocultarCarrosselProdutos && snaps.length > 0
@@ -189,7 +189,7 @@ export default function AtividadeCatalogo({
                     type="button"
                     onClick={() => setModal(true)}
                     className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto"
-                    aria-label="Ver cat?logo no feed"
+                    aria-label="Ver catálogo no feed"
                   >
                     {snaps.map((p, i) => {
                       const foto =
@@ -217,7 +217,7 @@ export default function AtividadeCatalogo({
                     type="button"
                     onClick={() => setDrawerAberto(true)}
                     className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#00D443] text-white shadow-sm"
-                    aria-label="Abrir cat?logo"
+                    aria-label="Abrir catálogo"
                   >
                     <ShoppingBag className="h-5 w-5" aria-hidden />
                   </button>
@@ -229,7 +229,7 @@ export default function AtividadeCatalogo({
                 onClick={() => setModal(true)}
                 className="mt-1.5 text-xs font-semibold text-[#0097b2]"
               >
-                Ver publica??o
+                Ver publicação
               </button>
             ) : null}
           </div>

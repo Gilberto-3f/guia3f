@@ -312,7 +312,7 @@ export default function DrawerProdutosCde({
               <div className="min-w-0 flex-1 pr-7">
                 <p className="truncate text-sm font-bold leading-tight text-white">{empresaNome}</p>
                 {usernameExibir ? (
-                  <p className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
+                  <p className="mt-0.5 flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
                     {empresaVerificada ? (
                       <BadgeCheck
                         className="h-3 w-3 shrink-0 text-white"
@@ -326,7 +326,7 @@ export default function DrawerProdutosCde({
                   </p>
                 ) : null}
                 {notaEmpresaTexto ? (
-                  <p className="mt-0.5 inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                  <p className="mt-0.5 flex items-center gap-0.5 text-xs font-bold text-amber-300">
                     <span aria-hidden>★</span>
                     {notaEmpresaTexto}
                   </p>
@@ -586,7 +586,7 @@ export default function DrawerProdutosCde({
                 <div className="min-w-0 flex-1 overflow-hidden pr-1">
                   <p className="truncate text-sm font-bold text-white">{empresaNome}</p>
                   {usernameExibir ? (
-                    <p className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-xs text-white/90">
+                    <p className="mt-0.5 flex max-w-full items-center gap-1 truncate text-xs text-white/90">
                       {empresaVerificada ? (
                         <BadgeCheck
                           className="h-3.5 w-3.5 shrink-0 text-white"
@@ -600,7 +600,7 @@ export default function DrawerProdutosCde({
                     </p>
                   ) : null}
                   {notaEmpresaTexto ? (
-                    <p className="mt-0.5 inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                    <p className="mt-0.5 flex items-center gap-0.5 text-xs font-bold text-amber-300">
                       <span aria-hidden>★</span>
                       {notaEmpresaTexto}
                     </p>
