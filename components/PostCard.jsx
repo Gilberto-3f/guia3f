@@ -1408,22 +1408,23 @@ export default function PostCard({
                   ) : (
                     <span className="font-medium text-gray-700">{nomeFantasiaAlvo}</span>
                   )}
+                  <time suppressHydrationWarning className="text-xs font-normal text-gray-400">
+                    {' '}
+                    · {formatarDataRelativaPublicacao(post.created_at)}
+                  </time>
                 </p>
-                <time suppressHydrationWarning className="mt-0.5 block text-xs text-gray-400">
-                  {formatarDataRelativaPublicacao(post.created_at)}
-                </time>
               </div>
             </div>
             <MenuPost {...menuProps} />
           </div>
         ) : null}
         <div className="px-4 pb-3 pt-0">
-          <div className="flex items-center gap-1.5" aria-label={`Nota ${notaVal} de 5`}>
+          <div className="flex items-center justify-center gap-1.5" aria-label={`Nota ${notaVal} de 5`}>
             <div className="flex flex-wrap items-center gap-0.5">
               {[1, 2, 3, 4, 5].map((s) => (
                 <Star
                   key={s}
-                  className={`h-5 w-5 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                  className={`h-7 w-7 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
                   aria-hidden
                 />
               ))}
@@ -1437,7 +1438,7 @@ export default function PostCard({
                 aria-label={avaliacaoFeedbackAberto ? 'Ocultar feedback' : 'Mostrar feedback'}
               >
                 <ChevronDown
-                  className={`h-5 w-5 transition-transform ${avaliacaoFeedbackAberto ? 'rotate-180' : ''}`}
+                  className={`h-6 w-6 transition-transform ${avaliacaoFeedbackAberto ? 'rotate-180' : ''}`}
                   aria-hidden
                 />
               </button>

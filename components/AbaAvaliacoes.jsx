@@ -766,8 +766,8 @@ export default function AbaAvaliacoes({
                 ) : null}
               </div>
 
-              <div className="mb-2">
-                <Estrelas nota={av.nota} tamanho={14} />
+              <div className="mb-2 flex justify-center">
+                <Estrelas nota={av.nota} tamanho={22} />
               </div>
 
               {av.feedback ? (

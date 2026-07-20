@@ -2165,6 +2165,11 @@ export default function AtividadesPage() {
             ? { ...(rawMeta as Record<string, unknown>) }
             : null
         if (meta && typeof meta.comentario === 'string' && meta.feedback == null) meta.feedback = meta.comentario
+        const empresaIdAvaliacao =
+          meta?.empresa_id != null && String(meta.empresa_id).trim() !== ''
+            ? String(meta.empresa_id).trim()
+            : ''
+        const empresaAvaliacaoCurtiu = empresaIdAvaliacao ? empresaAvaliacaoMap[empresaIdAvaliacao] : undefined
         return (
           <AtividadeCurtiuAvaliacao
             key={r.id}
@@ -2180,6 +2185,9 @@ export default function AtividadesPage() {
             {...propsInteractor(inter)}
             donorVerificado={donorProps.donorVerificado}
             donorVerificadoTipo={donorProps.donorVerificadoTipo}
+            empresaUsername={empresaAvaliacaoCurtiu?.username ?? ''}
+            hrefEmpresa={empresaIdAvaliacao ? `/empresa/${encodeURIComponent(empresaIdAvaliacao)}` : ''}
+            empresaVerificada={Boolean(empresaAvaliacaoCurtiu?.verificado)}
           />
         )
       }

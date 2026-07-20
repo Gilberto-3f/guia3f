@@ -94,13 +94,13 @@ export default function AtividadeAvaliacao({
             <button
               type="button"
               onClick={() => setModal(true)}
-              className="mt-1.5 flex items-center gap-0.5 rounded-md py-0.5 text-left hover:opacity-90"
+              className="mt-2 flex w-full items-center justify-center gap-0.5 rounded-md py-0.5 hover:opacity-90"
               aria-label={`Nota ${notaVal} de 5 — ver avaliação`}
             >
               {[1, 2, 3, 4, 5].map((s) => (
                 <Star
                   key={s}
-                  className={`h-5 w-5 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                  className={`h-7 w-7 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
                   aria-hidden
                 />
               ))}
