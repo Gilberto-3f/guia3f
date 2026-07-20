@@ -46,7 +46,7 @@ BEGIN
     )
     AND (
       p_desde IS NULL
-      OR COALESCE(f.salvo_em, TIMESTAMPTZ '-infinity') >= p_desde
+      OR COALESCE(f.created_at, TIMESTAMPTZ '-infinity') >= p_desde
     );
 
   -- Publicações Salvas (menu lateral) em posts de catálogo da empresa

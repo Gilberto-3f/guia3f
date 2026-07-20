@@ -1,6 +1,6 @@
--- Drena Catálogo Feedback: regras de Favoritos e Repostados.
--- Favoritos: produtos do catálogo salvos por outros usuários e mantidos > 1 minuto.
--- Repostados: apenas reposts de posts tipo catalogo_produtos no feed (sem curtidas/comentários/salvos).
+-- Fix Drena Catálogo Feedback: favoritos.salvo_em não existe no remoto (usa created_at).
+-- Favoritos: produtos salvos por outros usuários e mantidos > 1 minuto.
+-- Repostados: só reposts de posts catalogo_produtos (sem curtidas/comentários/salvos).
 
 CREATE OR REPLACE FUNCTION public.drena_metricas_catalogo_engajamento(
   p_empresa_id UUID,
@@ -42,28 +42,27 @@ BEGIN
   FROM public.empresas e
   WHERE e.id = p_empresa_id;
 
-  -- Favoritos: produtos do catálogo salvos por turistas / profissionais / ADMs
-  -- (não pelo dono da empresa) e que permaneceram salvos por mais de 1 minuto.
+  -- Favoritos: produtos ainda salvos (>1 min) por outros usuários.
+  -- Remoto usa created_at (coluna salvo_em não existe na tabela favoritos polimórfica).
   SELECT COUNT(*)::bigint INTO v_favoritos
   FROM public.favoritos f
   INNER JOIN public.produtos p ON p.id = f.alvo_id
   WHERE COALESCE(f.alvo_tipo, '') = 'produto'
     AND p.empresa_id = p_empresa_id
     AND (v_empresa_usuario IS NULL OR f.usuario_id IS DISTINCT FROM v_empresa_usuario)
-    -- Remoto: favoritos polimórficos usam created_at (não há salvo_em).
     AND COALESCE(f.created_at, TIMESTAMPTZ '-infinity') <= (NOW() - INTERVAL '1 minute')
     AND (
       p_desde IS NULL
       OR COALESCE(f.created_at, TIMESTAMPTZ '-infinity') >= p_desde
     );
 
-  -- Repostados: vezes que posts de catálogo da empresa foram repostados no feed
-  -- por outros usuários (não conta curtidas, comentários, compartilhamentos nem salvos).
+  -- Repostados: vezes que posts de catálogo da empresa foram repostados no feed.
   SELECT COUNT(*)::bigint INTO v_reposts
   FROM public.posts r
   INNER JOIN public.posts po ON po.id = r.post_original_id
   WHERE r.deleted_at IS NULL
     AND po.deleted_at IS NULL
+    AND r.post_original_id IS NOT NULL
     AND lower(COALESCE(po.tipo, '')) = 'catalogo_produtos'
     AND (
       po.empresa_id = p_empresa_id
@@ -84,6 +83,6 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.drena_metricas_catalogo_engajamento(UUID, TIMESTAMPTZ) IS
-  'Drena Catálogo Feedback: favoritos de produtos (salvos >1 min por outros usuários) + reposts de posts catalogo_produtos no feed.';
+  'Drena Catálogo Feedback: favoritos de produtos (created_at >1 min, outros usuários) + reposts de catalogo_produtos.';
 
 GRANT EXECUTE ON FUNCTION public.drena_metricas_catalogo_engajamento(UUID, TIMESTAMPTZ) TO authenticated;
