@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { useDashboardEmpresa } from '../../../dashboard/empresa/hooks/useDashboardEmpresa'
 import EmpresaPaginaServicoGate from '@/components/empresa/EmpresaPaginaServicoGate'

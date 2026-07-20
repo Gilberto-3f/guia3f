@@ -76,6 +76,8 @@ type Props = {
   empresaUsername?: string | null
   empresaFotoUrl?: string | null
   notaMedia?: number | null
+  /** Verificação já conhecida (favoritos) — evita flash do check. `undefined` = buscar no fetch. */
+  empresaVerificadaInicial?: boolean
   /** Abrir já no detalhe desta acomodação (favoritos). */
   acomodacaoIdInicial?: string | null
 }
@@ -149,6 +151,7 @@ export default function DrawerReservaHospedagem({
   empresaUsername = null,
   empresaFotoUrl = null,
   notaMedia = null,
+  empresaVerificadaInicial,
   acomodacaoIdInicial = null,
 }: Props) {
   const router = useRouter()
@@ -170,7 +173,9 @@ export default function DrawerReservaHospedagem({
   const [politicas, setPoliticas] = useState<PoliticasInfo | null>(null)
   const [anfitriao, setAnfitriao] = useState<AnfitriaoInfo | null>(null)
   const [anfitriaoAberto, setAnfitriaoAberto] = useState(false)
-  const [empresaVerificada, setEmpresaVerificada] = useState(false)
+  const [empresaVerificada, setEmpresaVerificada] = useState(() =>
+    empresaVerificadaInicial != null ? Boolean(empresaVerificadaInicial) : false,
+  )
   const [selecionadaId, setSelecionadaId] = useState<string | null>(() => acomodacaoIdInicial)
   const [fotoIdx, setFotoIdx] = useState(0)
   const [checkin, setCheckin] = useState('')
@@ -191,11 +196,16 @@ export default function DrawerReservaHospedagem({
   const [painelAberto, setPainelAberto] = useState(false)
   const [visitanteId, setVisitanteId] = useState<string | null>(null)
   const [favAcomodacoes, setFavAcomodacoes] = useState<Set<string>>(() => new Set())
-  const [fotoEmpresaLive, setFotoEmpresaLive] = useState<string | null>(null)
-  const [usernameEmpresaLive, setUsernameEmpresaLive] = useState<string | null>(null)
-  const [notaEmpresaLive, setNotaEmpresaLive] = useState<number | null>(null)
-  /** Evita flash: username/check só após carregar meta da empresa. */
-  const [metaCabecalhoPronto, setMetaCabecalhoPronto] = useState(false)
+  const [fotoEmpresaLive, setFotoEmpresaLive] = useState<string | null>(
+    () => (empresaFotoUrl != null && String(empresaFotoUrl).trim() !== '' ? String(empresaFotoUrl) : null),
+  )
+  const [usernameEmpresaLive, setUsernameEmpresaLive] = useState<string | null>(() => {
+    if (empresaUsername == null || String(empresaUsername).trim() === '') return null
+    return String(empresaUsername).replace(/^@+/, '').trim() || null
+  })
+  const [notaEmpresaLive, setNotaEmpresaLive] = useState<number | null>(
+    () => (notaMedia != null && Number(notaMedia) > 0 ? Number(notaMedia) : null),
+  )
   const touchFotoX = useRef<number | null>(null)
 
   useModalScrollLock(isOpen || painelVisivel)
@@ -233,19 +243,23 @@ export default function DrawerReservaHospedagem({
         .eq('id', empresaId)
         .maybeSingle()
 
-      setEmpresaVerificada(contaVerificadaDocumentacao('empresa', emp))
+      setEmpresaVerificada(() => {
+        // Props do favoritos já trazem a verificação — não apagar/repor (evita flash do check).
+        if (empresaVerificadaInicial != null) return Boolean(empresaVerificadaInicial)
+        return contaVerificadaDocumentacao('empresa', emp)
+      })
 
       const fotoEmp =
         emp?.foto_url != null && String(emp.foto_url).trim() !== '' ? String(emp.foto_url) : null
-      setFotoEmpresaLive(fotoEmp)
+      setFotoEmpresaLive((prev) => fotoEmp ?? prev)
       const userEmp =
         emp?.nome_usuario != null && String(emp.nome_usuario).trim() !== ''
           ? String(emp.nome_usuario).replace(/^@+/, '').trim()
           : null
-      setUsernameEmpresaLive(userEmp || null)
+      setUsernameEmpresaLive((prev) => userEmp ?? prev)
       const notaEmpRaw = emp?.nota_media != null ? Number(emp.nota_media) : NaN
-      setNotaEmpresaLive(Number.isFinite(notaEmpRaw) && notaEmpRaw > 0 ? notaEmpRaw : null)
-      setMetaCabecalhoPronto(true)
+      const notaEmp = Number.isFinite(notaEmpRaw) && notaEmpRaw > 0 ? notaEmpRaw : null
+      setNotaEmpresaLive((prev) => notaEmp ?? prev)
 
       if (emp?.profissional_vinculado_id) {
         const { data: prof } = await supabase
@@ -354,7 +368,7 @@ export default function DrawerReservaHospedagem({
     } finally {
       setCarregando(false)
     }
-  }, [isOpen, empresaId, acomodacaoIdInicial])
+  }, [isOpen, empresaId, acomodacaoIdInicial, empresaVerificadaInicial])
 
   useEffect(() => {
     if (!isOpen) {
@@ -373,15 +387,34 @@ export default function DrawerReservaHospedagem({
       setChevronExtra(false)
       setChevronPoliticas(false)
       setAnfitriaoAberto(false)
-      setMetaCabecalhoPronto(false)
-      setFotoEmpresaLive(null)
-      setUsernameEmpresaLive(null)
-      setNotaEmpresaLive(null)
-      setEmpresaVerificada(false)
+      setEmpresaVerificada(
+        empresaVerificadaInicial != null ? Boolean(empresaVerificadaInicial) : false,
+      )
+      setFotoEmpresaLive(
+        empresaFotoUrl != null && String(empresaFotoUrl).trim() !== ''
+          ? String(empresaFotoUrl)
+          : null,
+      )
+      setUsernameEmpresaLive(
+        empresaUsername != null && String(empresaUsername).trim() !== ''
+          ? String(empresaUsername).replace(/^@+/, '').trim() || null
+          : null,
+      )
+      setNotaEmpresaLive(
+        notaMedia != null && Number(notaMedia) > 0 ? Number(notaMedia) : null,
+      )
       return
     }
     void carregar()
-  }, [isOpen, carregar, acomodacaoIdInicial])
+  }, [
+    isOpen,
+    carregar,
+    acomodacaoIdInicial,
+    empresaVerificadaInicial,
+    empresaFotoUrl,
+    empresaUsername,
+    notaMedia,
+  ])
 
   const noites = useMemo(() => {
     if (!checkin || !checkout) return 0
@@ -480,10 +513,9 @@ export default function DrawerReservaHospedagem({
   if (!painelVisivel) return null
 
   const avatarEmpresa =
-    (empresaFotoUrl != null && String(empresaFotoUrl).trim() !== '' ? String(empresaFotoUrl) : null) ||
-    fotoEmpresaLive
+    fotoEmpresaLive ||
+    (empresaFotoUrl != null && String(empresaFotoUrl).trim() !== '' ? String(empresaFotoUrl) : null)
   const usernameExibir = (() => {
-    if (!metaCabecalhoPronto) return null
     const fromLive =
       usernameEmpresaLive != null && String(usernameEmpresaLive).trim() !== ''
         ? String(usernameEmpresaLive).replace(/^@+/, '').trim()
@@ -496,8 +528,8 @@ export default function DrawerReservaHospedagem({
     return fromProp || null
   })()
   const nota =
-    (notaMedia != null && Number(notaMedia) > 0 ? Number(notaMedia) : null) ??
-    notaEmpresaLive
+    (notaEmpresaLive != null && notaEmpresaLive > 0 ? notaEmpresaLive : null) ??
+    (notaMedia != null && Number(notaMedia) > 0 ? Number(notaMedia) : null)
   const notaTexto = nota != null ? nota.toFixed(1).replace(/\.0$/, '') : null
   const mostrarRodapePassos = !carregando && !sucesso && !reservaPendente && (passo === 2 || passo === 3)
 
@@ -507,39 +539,42 @@ export default function DrawerReservaHospedagem({
       style={{ paddingTop: 'max(0.15rem, env(safe-area-inset-top, 0px))' }}
     >
       <div className="relative px-5 pb-3 pt-1.5 pr-3">
-        <div className="flex items-start gap-3.5">
+        <div className="flex items-start gap-2.5">
           <div className="h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-md border-2 border-white bg-white/20">
             {avatarEmpresa ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
             ) : null}
           </div>
-          <div className="min-w-0 flex-1 space-y-0.5 pr-8">
-            <p className="truncate text-base font-bold leading-tight text-white">{empresaNome}</p>
-            {!metaCabecalhoPronto ? (
-              <div className="h-5 w-28 animate-pulse rounded bg-white/20" aria-hidden />
-            ) : usernameExibir ? (
-              <p className="flex min-h-5 max-w-full items-center gap-1 truncate text-sm leading-tight text-white/80">
-                {/* Slot fixo do check — evita flash/deslocamento quando a verificação chega. */}
-                <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center" aria-hidden>
-                  {empresaVerificada ? (
-                    <BadgeCheck
-                      className="h-3.5 w-3.5 text-white"
-                      fill="currentColor"
-                      stroke="#0097b2"
-                      strokeWidth={2}
-                    />
-                  ) : null}
-                </span>
-                <span className="truncate">@{usernameExibir}</span>
-              </p>
+          {/* Coluna do check alinhada à linha do @username — espaço sempre reservado */}
+          <div
+            className="grid w-3.5 shrink-0 grid-rows-[1.35rem_1.25rem_1.25rem] items-center gap-0.5"
+            aria-hidden
+          >
+            <span />
+            <span className="inline-flex h-[1.25rem] items-center justify-center">
+              <BadgeCheck
+                className={`h-3.5 w-3.5 text-white ${
+                  empresaVerificada && usernameExibir ? 'visible' : 'invisible'
+                }`}
+                fill="currentColor"
+                stroke="#0097b2"
+                strokeWidth={2}
+              />
+            </span>
+            <span />
+          </div>
+          <div className="grid min-w-0 flex-1 grid-rows-[1.35rem_1.25rem_1.25rem] items-center gap-0.5 pr-8">
+            <p className="truncate text-base font-bold leading-[1.35rem] text-white">{empresaNome}</p>
+            {usernameExibir ? (
+              <p className="truncate text-sm leading-[1.25rem] text-white/80">@{usernameExibir}</p>
             ) : (
-              <div className="h-5" aria-hidden />
+              <span className="block h-[1.25rem]" aria-hidden />
             )}
             <button
               type="button"
               onClick={() => setAnfitriaoAberto((v) => !v)}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold leading-tight text-white"
+              className="inline-flex h-[1.25rem] items-center gap-1.5 text-sm font-semibold leading-[1.25rem] text-white"
             >
               Anfitrião
               <ChevronDown

@@ -5,7 +5,7 @@ import { BarChart3, Info } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
-import { cidadeEhCiudadDelEste, empresaEhLojaComCatalogo, empresaEhLojasBrasilOuArgentina, empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
+import { cidadeEhCiudadDelEste, empresaCategoriaEhLojas, empresaEhLojaComCatalogo, empresaEhLojasBrasilOuArgentina, empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
 import { getRotuloAbaServico } from '@/lib/empresaCategoria'
 import AbaAcomodacoes from './hospedagem/AbaAcomodacoes'
 import AbaInformacoes from './hospedagem/AbaInformacoes'
@@ -208,6 +208,22 @@ export default function ConfigBotaoDinamico() {
     )
   }
 
+  /** Lojas: nunca cair na UI genérica legada (Pré-visualização), mesmo se cidade ainda não casar. */
+  const mostrarCatalogoLojas = ehLojaComCatalogo || empresaCategoriaEhLojas(categoria)
+
+  // Categoria Lojas sem id ainda — skeleton (nunca Pré-visualização).
+  if (mostrarCatalogoLojas && !empresaId) {
+    return (
+      <div className="mt-4 space-y-4" aria-busy="true" aria-label="Carregando catálogo">
+        <div className="flex gap-2">
+          <div className="h-11 flex-1 animate-pulse rounded-lg bg-gray-200" />
+          <div className="h-11 flex-1 animate-pulse rounded-lg bg-gray-200" />
+        </div>
+        <div className="h-40 animate-pulse rounded-xl bg-gray-200" />
+      </div>
+    )
+  }
+
   if (ehHospedagem && empresaId) {
     return (
       <div className="mt-4 space-y-4">
@@ -244,7 +260,7 @@ export default function ConfigBotaoDinamico() {
     )
   }
 
-  if (ehLojaComCatalogo && empresaId) {
+  if (mostrarCatalogoLojas && empresaId) {
     return (
       <div className="mt-4 space-y-4">
         <div className="flex gap-2" role="tablist" aria-label="Seções do botão dinâmico">

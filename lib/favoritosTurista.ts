@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { deletarFavoritoEmpresa } from '@/lib/favoritosEmpresa'
+import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import {
   rotuloCategoriaImovelCurto,
   rotuloCategoriaParticularCurto,
@@ -31,6 +32,7 @@ export type AcomodacaoFavoritaCard = {
   empresa_username: string | null
   empresa_foto_url: string | null
   empresa_nota: number | null
+  empresa_verificada: boolean
 }
 
 export type ProdutoFavoritoCard = {
@@ -296,12 +298,18 @@ export async function listarAcomodacoesFavoritas(
   ]
   const nomePorEmpresa = new Map<
     string,
-    { nome: string; username: string | null; foto: string | null; nota: number | null }
+    {
+      nome: string
+      username: string | null
+      foto: string | null
+      nota: number | null
+      verificada: boolean
+    }
   >()
   if (empresaIds.length) {
     const { data: emps } = await supabase
       .from('empresas')
-      .select('id, nome_fantasia, nome_usuario, foto_url, nota_media')
+      .select('id, nome_fantasia, nome_usuario, foto_url, nota_media, docs_verificado, status')
       .in('id', empresaIds)
     for (const e of emps ?? []) {
       const notaRaw = e.nota_media != null ? Number(e.nota_media) : NaN
@@ -310,6 +318,7 @@ export async function listarAcomodacoesFavoritas(
         username: e.nome_usuario != null ? String(e.nome_usuario).replace(/^@+/, '').trim() || null : null,
         foto: e.foto_url != null && String(e.foto_url).trim() !== '' ? String(e.foto_url) : null,
         nota: Number.isFinite(notaRaw) && notaRaw > 0 ? notaRaw : null,
+        verificada: contaVerificadaDocumentacao('empresa', e),
       })
     }
   }
@@ -339,6 +348,7 @@ export async function listarAcomodacoesFavoritas(
         empresa_username: meta?.username ?? null,
         empresa_foto_url: meta?.foto ?? null,
         empresa_nota: meta?.nota ?? null,
+        empresa_verificada: Boolean(meta?.verificada),
       }
     })
 }

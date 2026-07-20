@@ -16,6 +16,11 @@ function categoriaEhLojas(categoria: string | null | undefined): boolean {
   )
 }
 
+/** Categoria Lojas / Compras Paraguai (qualquer cidade). */
+export function empresaCategoriaEhLojas(categoria: string | null | undefined): boolean {
+  return categoriaEhLojas(categoria)
+}
+
 /** Loja em Ciudad del Este → fluxo produtos / compras Paraguai */
 export function cidadeEhCiudadDelEste(cidade: string | null | undefined): boolean {
   const n = normalizarCidade(cidade)
