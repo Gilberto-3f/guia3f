@@ -71,7 +71,8 @@ export default function AtividadeCatalogo({
 
   let frase = null
   if (modoMinhaConta) {
-    if (variante === 'curtiu' || variante === 'curtiu_repost') frase = 'curtiu seu catálogo.'
+    if (variante === 'curtiu_repost') frase = 'curtiu um catálogo que você repostou.'
+    else if (variante === 'curtiu') frase = 'curtiu seu catálogo.'
     else if (variante === 'comentou') frase = 'comentou no seu catálogo.'
     else if (variante === 'repostou') frase = 'repostou seu catálogo.'
   } else if (variante === 'curtiu') {
@@ -101,7 +102,7 @@ export default function AtividadeCatalogo({
   } else if (variante === 'curtiu_repost') {
     frase = (
       <>
-        curtiu um catálogo repostado de{' '}
+        curtiu um catálogo repostado por{' '}
         <UsuarioHandleVerificado
           username={donorUsername}
           verificado={donorVerificado}
@@ -129,11 +130,13 @@ export default function AtividadeCatalogo({
       ? 'comentou no seu catálogo'
       : variante === 'repostou'
         ? 'repostou seu catálogo'
-        : 'curtiu seu catálogo'
+        : variante === 'curtiu_repost'
+          ? 'curtiu um catálogo que você repostou'
+          : 'curtiu seu catálogo'
     : variante === 'comentou'
       ? `comentou no catálogo de @${donorUsername}`
       : variante === 'curtiu_repost'
-        ? `curtiu um catálogo repostado de @${donorUsername}`
+        ? `curtiu um catálogo repostado por @${donorUsername}`
         : variante === 'repostou'
           ? `repostou o catálogo de @${donorUsername}`
           : `curtiu os novos produtos de @${donorUsername}`

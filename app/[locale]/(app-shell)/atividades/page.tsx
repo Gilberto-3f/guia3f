@@ -2194,11 +2194,13 @@ export default function AtividadesPage() {
         const orig = origId ? postMetaMap[String(origId)] : null
         if (postEhCatalogoProdutos(orig) || postEhCatalogoProdutos(canonPost)) {
           const catPost = postEhCatalogoProdutos(orig) ? orig : canonPost
-          const donoCat = resolverDonoPostAtividade(catPost, r.usuario_id)
-          const donorCat = propsDonorDeCurtida({
-            usuario_dono_id: donoCat.usuario_id,
-            empresa_dono_id: donoCat.empresa_id,
-            donor_tipo: donoCat.donor_tipo,
+          /** Doador = quem republicou (autor do post curtido), não a empresa do catálogo. */
+          const likedPost = post ?? canonPost
+          const donoRepost = resolverDonoPostAtividade(likedPost, r.usuario_id)
+          const donorRepost = propsDonorDeCurtida({
+            usuario_dono_id: donoRepost.usuario_id,
+            empresa_dono_id: donoRepost.empresa_id,
+            donor_tipo: donoRepost.donor_tipo,
           })
           return (
             <AtividadeCatalogo
@@ -2206,19 +2208,19 @@ export default function AtividadesPage() {
               variante="curtiu_repost"
               interactorUsername={inter?.username ?? 'usuario'}
               interactorFoto={inter?.foto_perfil_url ?? null}
-              donorUsername={donorCat.donorUsername}
+              donorUsername={donorRepost.donorUsername}
               hrefInteractor={hrefI}
-              hrefDonor={donorCat.hrefDonor}
+              hrefDonor={donorRepost.hrefDonor}
               postId={postIdExibir}
               produtos={produtosSnapCatalogoPost(catPost)}
               empresaId={empresaIdCatalogoPost(catPost)}
-              empresaNome={donorCat.donorUsername}
+              empresaNome={donorRepost.donorUsername}
               tempoInteracao={formatarDataAtividades(r.created_at)}
               modoMinhaConta={modoMinhaConta}
               mostrarBotaoCatalogo={!modoMinhaConta}
               {...propsInteractor(inter)}
-              donorVerificado={donorCat.donorVerificado}
-              donorVerificadoTipo={donorCat.donorVerificadoTipo}
+              donorVerificado={donorRepost.donorVerificado}
+              donorVerificadoTipo={donorRepost.donorVerificadoTipo}
             />
           )
         }
