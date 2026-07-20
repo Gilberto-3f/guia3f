@@ -199,14 +199,6 @@ export default function ComprasCdePage() {
       avisarBloqueio()
       return
     }
-    void registrarIntencaoCde(supabase, {
-      tipo: 'clique',
-      termo: p.nome,
-      produtoId: p.id,
-      categoriaId: p.categoria_id,
-      subcategoriaId: p.subcategoria_id,
-      marcaId: p.marca_id,
-    })
     setDrawerEmpresa({
       id: p.empresa_id,
       nome: p.empresa_nome,

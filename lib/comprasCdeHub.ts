@@ -146,7 +146,7 @@ export async function listarProdutosHub(
   return lista
 }
 
-/** Produtos mais buscados nas últimas 24h (rolling). */
+/** Tendências: produtos mais vistos no drawer (tipo clique) nas últimas 24h. */
 export async function listarDestaquesHub(
   supabase: SupabaseClient,
   opts?: { categoriaId?: string | null; subcategoriaIds?: string[]; limite?: number },
@@ -154,9 +154,11 @@ export async function listarDestaquesHub(
   const desde = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const { data: buscas, error } = await supabase
     .from('buscas_produto')
-    .select('produto_id, termo_busca, created_at')
+    .select('produto_id, created_at')
+    .eq('tipo', 'clique')
+    .not('produto_id', 'is', null)
     .gte('created_at', desde)
-    .limit(500)
+    .limit(5000)
 
   if (error) {
     console.error('[comprasCdeHub] destaques:', error.message)

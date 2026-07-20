@@ -185,7 +185,7 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
       return { titulo: 'Comparador de Preços', subtitulo: 'do menor $ para o maior' }
     }
     if (filtros.destaque) {
-      return { titulo: 'Tendências da Categoria', subtitulo: 'mais pesquisados' }
+      return { titulo: 'Tendências da Categoria', subtitulo: 'mais visualizados' }
     }
     if (filtros.soOfertas) {
       return { titulo: 'Produtos em Ofertas', subtitulo: 'em promoção' }

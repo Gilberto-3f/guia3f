@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   BadgeCheck,
@@ -108,6 +108,8 @@ export default function DrawerProdutosCde({
   const [usernameEmpresaLive, setUsernameEmpresaLive] = useState<string | null>(null)
   /** Hub Compras CDE abre direto no detalhe — evita flash do cabeçalho do catálogo. */
   const abrirDiretoNoDetalhe = Boolean(produtoIdInicial)
+  /** Evita duplicar visita na mesma abertura do detalhe; libera ao voltar ao catálogo. */
+  const visitaDetalheRegistradaRef = useRef<string | null>(null)
 
   const reset = useCallback(() => {
     setPasso(abrirDiretoNoDetalhe ? 2 : 1)
@@ -224,6 +226,28 @@ export default function DrawerProdutosCde({
     reset()
     void carregar()
   }, [isOpen, carregar, reset])
+
+  useEffect(() => {
+    if (!isOpen) visitaDetalheRegistradaRef.current = null
+  }, [isOpen])
+
+  useEffect(() => {
+    if (passo === 1) visitaDetalheRegistradaRef.current = null
+  }, [passo])
+
+  useEffect(() => {
+    if (!isOpen || passo !== 2 || !selecionado || carregando) return
+    if (visitaDetalheRegistradaRef.current === selecionado.id) return
+    visitaDetalheRegistradaRef.current = selecionado.id
+    void registrarIntencaoCde(supabase, {
+      tipo: 'clique',
+      termo: selecionado.nome,
+      produtoId: selecionado.id,
+      categoriaId: selecionado.categoria_id,
+      subcategoriaId: selecionado.subcategoria_id,
+      marcaId: selecionado.marca_id,
+    })
+  }, [isOpen, passo, selecionado, carregando])
 
   const fotos = selecionado?.fotos?.length
     ? selecionado.fotos
@@ -417,14 +441,6 @@ export default function DrawerProdutosCde({
                           }}
                         onInfo={() => setInfoAberto(true)}
                         onVerProduto={() => {
-                          void registrarIntencaoCde(supabase, {
-                            tipo: 'clique',
-                            termo: p.nome,
-                            produtoId: p.id,
-                            categoriaId: p.categoria_id,
-                            subcategoriaId: p.subcategoria_id,
-                            marcaId: p.marca_id,
-                          })
                           setSelecionado(p)
                           setFotoIdx(0)
                           setVerMaisAberto(false)
