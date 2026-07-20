@@ -2150,7 +2150,7 @@ export default function AtividadesPage() {
             empresaFotoUrl={null}
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
-            mostrarBotaoCatalogo={!modoMinhaConta}
+            mostrarBotaoCatalogo={false}
             {...propsInteractor(inter)}
             donorVerificado={donorProps.donorVerificado}
             donorVerificadoTipo={donorProps.donorVerificadoTipo}
@@ -2225,7 +2225,7 @@ export default function AtividadesPage() {
               empresaNome={donorRepost.donorUsername}
               tempoInteracao={formatarDataAtividades(r.created_at)}
               modoMinhaConta={modoMinhaConta}
-              mostrarBotaoCatalogo={!modoMinhaConta}
+              mostrarBotaoCatalogo={false}
               {...propsInteractor(inter)}
               donorVerificado={donorRepost.donorVerificado}
               donorVerificadoTipo={donorRepost.donorVerificadoTipo}
@@ -2382,7 +2382,7 @@ export default function AtividadesPage() {
             empresaNome={donorCat.donorUsername}
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
-            mostrarBotaoCatalogo={!modoMinhaConta}
+            mostrarBotaoCatalogo={false}
             {...propsInteractor(ator)}
             donorVerificado={donorCat.donorVerificado}
             donorVerificadoTipo={donorCat.donorVerificadoTipo}
@@ -2511,7 +2511,7 @@ export default function AtividadesPage() {
             textoComentario={texto}
             tempoInteracao={formatarDataAtividades(r.created_at)}
             modoMinhaConta={modoMinhaConta}
-            mostrarBotaoCatalogo={!modoMinhaConta}
+            mostrarBotaoCatalogo={false}
             {...propsInteractor(ator)}
             donorVerificado={donorCat.donorVerificado}
             donorVerificadoTipo={donorCat.donorVerificadoTipo}

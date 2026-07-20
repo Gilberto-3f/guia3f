@@ -142,7 +142,13 @@ export default function AtividadeCatalogo({
           : `curtiu os novos produtos de @${donorUsername}`
 
   const mostrarSnaps = !ocultarCarrosselProdutos && snaps.length > 0
-  const mostrarBotao = !ocultarCarrosselProdutos && mostrarBotaoCatalogo && empresaId
+  /** Botão verde do catálogo da empresa: não nas curtidas — clique abre o post do feed. */
+  const mostrarBotao =
+    !ocultarCarrosselProdutos &&
+    mostrarBotaoCatalogo &&
+    Boolean(empresaId) &&
+    variante !== 'curtiu' &&
+    variante !== 'curtiu_repost'
 
   return (
     <>
@@ -186,12 +192,12 @@ export default function AtividadeCatalogo({
             ) : null}
 
             {mostrarSnaps || mostrarBotao ? (
-              <div className="mt-2 flex items-center gap-2">
+              <div className={`mt-2 flex items-center gap-2 ${mostrarSnaps && !mostrarBotao && snaps.length === 1 ? 'justify-center' : ''}`}>
                 {mostrarSnaps ? (
                   <button
                     type="button"
                     onClick={() => setModal(true)}
-                    className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto"
+                    className={`flex min-w-0 items-center gap-1.5 overflow-x-auto ${mostrarBotao ? 'flex-1' : snaps.length === 1 ? '' : 'w-full'} ${!mostrarBotao && snaps.length === 1 ? 'justify-center' : ''}`}
                     aria-label="Ver catálogo no feed"
                   >
                     {snaps.map((p, i) => {

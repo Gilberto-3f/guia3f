@@ -1079,7 +1079,11 @@ export default function PostCard({
         <div className="px-4 pb-3 pt-1">
           <p className="text-[15px] leading-snug text-gray-900">{textoCatalogo}</p>
           {produtosSnap.length > 0 ? (
-            <div className="mt-3 flex items-stretch gap-2 overflow-x-auto pb-1">
+            <div
+              className={`mt-3 flex items-stretch gap-2 overflow-x-auto pb-1 ${
+                produtosSnap.length === 1 ? 'justify-center' : ''
+              }`}
+            >
               {produtosSnap.map((raw) => {
                 const snap =
                   raw && typeof raw === 'object' && !Array.isArray(raw)
