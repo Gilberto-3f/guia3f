@@ -702,9 +702,6 @@ export default function AbaAvaliacoes({
                     {identidadeEl}
                   </>
                 )}
-                <div className="shrink-0">
-                  <Estrelas nota={av.nota} tamanho={14} />
-                </div>
                 {usuarioId && av.usuario_id === usuarioId ? (
                   <div className="relative shrink-0">
                     <button
@@ -767,6 +764,10 @@ export default function AbaAvaliacoes({
                     ) : null}
                   </div>
                 ) : null}
+              </div>
+
+              <div className="mb-2">
+                <Estrelas nota={av.nota} tamanho={14} />
               </div>
 
               {av.feedback ? (

@@ -42,18 +42,7 @@ export default function AtividadeCurtiuAvaliacao({
   const router = useRouter()
   const [modal, setModal] = useState(false)
   const nota = meta && typeof meta.nota === 'number' ? meta.nota : Number(meta?.nota) || 0
-  const feedback =
-    meta && typeof meta.feedback === 'string'
-      ? meta.feedback
-      : meta && typeof meta.comentario === 'string'
-        ? meta.comentario
-        : ''
   const notaVal = Math.min(5, Math.max(0, Math.round(Number(nota)) || 0))
-  const nomeEmpresa =
-    meta?.nome_fantasia != null && String(meta.nome_fantasia).trim() !== ''
-      ? String(meta.nome_fantasia).trim()
-      : 'Estabelecimento'
-  const fotoEmpresa = meta?.foto_url != null && String(meta.foto_url).trim() !== '' ? String(meta.foto_url) : null
   const resumoModal = modoMinhaConta ? 'curtiu sua avaliação' : `curtiu avaliação de @${donorUsername}`
 
   return (
@@ -97,30 +86,16 @@ export default function AtividadeCurtiuAvaliacao({
             <button
               type="button"
               onClick={() => setModal(true)}
-              className="mt-2 w-full rounded-lg bg-white p-4 text-left shadow-sm hover:bg-gray-50"
+              className="mt-1.5 flex items-center gap-0.5 rounded-md py-0.5 text-left hover:opacity-90"
+              aria-label={`Nota ${notaVal} de 5 — ver avaliação`}
             >
-              <span className="flex min-w-0 items-start gap-3">
-                <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                  <AvatarImage src={fotoEmpresa} alt="" fill className="object-cover" sizes="40px" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block max-w-full truncate font-semibold text-gray-900">{nomeEmpresa}</span>
-                  <span className="mt-1 flex items-center gap-0.5" aria-label={`Nota ${notaVal} de 5`}>
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star
-                        key={s}
-                        className={`h-5 w-5 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
-                        aria-hidden
-                      />
-                    ))}
-                  </span>
-                </span>
-              </span>
-              {feedback ? (
-                <span className="mt-3 block line-clamp-3 text-center text-sm leading-relaxed text-gray-700">
-                  {String(feedback).trimEnd()}
-                </span>
-              ) : null}
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star
+                  key={s}
+                  className={`h-5 w-5 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                  aria-hidden
+                />
+              ))}
             </button>
           </div>
         </div>

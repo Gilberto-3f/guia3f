@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Bookmark, Heart, MessageCircle, Repeat2, Share2, ShieldCheck, ShoppingBag, Star } from 'lucide-react'
+import { Bookmark, ChevronDown, Heart, MessageCircle, Repeat2, Share2, ShieldCheck, ShoppingBag, Star } from 'lucide-react'
 import ModalComentarios from '@/components/ModalComentarios'
 import ModalCurtidas from '@/components/ModalCurtidas'
 import ModalCompartilhar from '@/components/ModalCompartilhar'
@@ -193,6 +193,8 @@ export default function PostCard({
   const [mediaAspectRatio, setMediaAspectRatio] = useState(/** @type {number | null} */ (null))
   const [compositorAberto, setCompositorAberto] = useState(false)
   const [drawerCatalogoAberto, setDrawerCatalogoAberto] = useState(false)
+  /** Feedback da avaliação no feed: fechado por padrão; abre só pelo chevron. */
+  const [avaliacaoFeedbackAberto, setAvaliacaoFeedbackAberto] = useState(false)
 
   const empresaId = post.autor?.empresa_id || ''
   const autorId = post.autor?.usuario_id || ''
@@ -254,6 +256,7 @@ export default function PostCard({
     setAvaliacaoAlvoEmpresaLive(null)
     setAvaliacaoConteudoDadosProntos(false)
     setAvaliacaoAlvoLive(null)
+    setAvaliacaoFeedbackAberto(false)
   }, [avaliacaoAlvoEmpresaId, post.id])
 
   useEffect(() => {
@@ -1272,7 +1275,6 @@ export default function PostCard({
       meta.nome_usuario != null && String(meta.nome_usuario).trim() !== ''
         ? String(meta.nome_usuario).trim().replace(/^@+/, '')
         : ''
-    const fotoAlvoMeta = meta.foto_url != null && String(meta.foto_url).trim() !== '' ? String(meta.foto_url) : null
 
     const aguardandoEmpresaAoVivo =
       Boolean(empresaAlvoId) && (!avaliacaoEmpresaDadosProntos || !avaliacaoConteudoDadosProntos)
@@ -1282,7 +1284,6 @@ export default function PostCard({
       avaliacaoAlvoLive?.nota != null ? Math.min(5, Math.max(0, Number(avaliacaoAlvoLive.nota) || 0)) : null
     const notaNum = notaNumLive != null ? notaNumLive : notaNumMeta
     const notaVal = Math.min(5, Math.max(0, Math.round(notaNum)))
-    const notaTexto = notaNum > 0 ? (Number.isInteger(notaNum) ? String(notaNum) : notaNum.toFixed(1)) : null
 
     const feedbackTextMeta =
       meta.feedback != null && String(meta.feedback).trim() !== ''
@@ -1308,96 +1309,142 @@ export default function PostCard({
         : ''
     const nomeUsuarioAlvo = nomeUsuarioAlvoLive !== '' ? nomeUsuarioAlvoLive : nomeUsuarioAlvoMeta
 
-    const fotoAlvoLive = live?.foto_url != null && String(live.foto_url).trim() !== '' ? String(live.foto_url) : null
-    const fotoAlvo = fotoAlvoLive ?? fotoAlvoMeta
+    const handleEmpresa =
+      nomeUsuarioAlvo !== ''
+        ? nomeUsuarioAlvo
+        : nomeFantasiaAlvo !== 'Estabelecimento'
+          ? nomeFantasiaAlvo
+          : ''
+    const hrefEmpresaAlvo = empresaAlvoId ? `/empresa/${empresaAlvoId}` : ''
 
     return (
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
-        {cabecalhoAutorFeed}
-        <div className="px-4 pb-3 pt-0">
-          <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-gray-500">avaliação</p>
-          <div className="mb-3 flex justify-center">
-            <div
-              className="flex w-full max-w-sm items-center gap-3 rounded-lg bg-gray-50 p-3"
-              aria-busy={aguardandoEmpresaAoVivo}
-            >
-              {aguardandoEmpresaAoVivo ? (
-                <>
-                  <div
-                    className="h-10 w-10 shrink-0 animate-pulse rounded-md bg-gray-200"
-                    aria-hidden
-                  />
-                  <div className="min-w-0 flex-1 space-y-2 py-0.5">
-                    <div className="h-4 max-w-[12rem] animate-pulse rounded bg-gray-200" aria-hidden />
-                    <div className="h-3 max-w-[8rem] animate-pulse rounded bg-gray-200" aria-hidden />
-                  </div>
-                </>
-              ) : (
-                <>
-                  {fotoAlvo ? (
-                    empresaAlvoId ? (
-                      <Link
-                        href={`/empresa/${empresaAlvoId}`}
-                        className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
-                        aria-label={`Ver empresa ${nomeFantasiaAlvo}`}
-                      >
-                        <AvatarImage src={fotoAlvo} alt="" width={40} height={40} className="h-full w-full object-cover" />
-                      </Link>
-                    ) : (
-                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                        <AvatarImage src={fotoAlvo} alt="" width={40} height={40} className="h-full w-full object-cover" />
-                      </div>
-                    )
-                  ) : (
-                    <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gray-200 text-xs font-medium text-gray-500"
-                      aria-hidden
+        {!ocultarCabecalhoCard ? (
+          <div className="flex items-start justify-between gap-2 p-4 pb-2">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              {temStoryNoAutor ? (
+                <div
+                  className={`relative shrink-0 rounded-md p-[2px] ${storyDoAutorVisto ? 'bg-gray-300' : ''}`}
+                  style={!storyDoAutorVisto ? { background: STORY_RING_GRADIENT } : undefined}
+                >
+                  <div className="rounded-md bg-white p-[2px]">
+                    <button
+                      type="button"
+                      onClick={() => storyAtivo?.id && onAbrirStory?.(storyAtivo.id)}
+                      className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                      aria-label={`Ver story de ${post.autor?.nome ?? 'autor'}`}
                     >
-                      …
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    {empresaAlvoId ? (
-                      <Link
-                        href={`/empresa/${empresaAlvoId}`}
-                        className="block truncate font-semibold text-gray-900 hover:underline"
-                      >
-                        {nomeFantasiaAlvo}
-                      </Link>
-                    ) : (
-                      <div className="truncate font-semibold text-gray-900">{nomeFantasiaAlvo}</div>
-                    )}
-                    {nomeUsuarioAlvo ? (
-                      empresaAlvoId ? (
-                        <Link
-                          href={`/empresa/${empresaAlvoId}`}
-                          className="mt-0.5 block truncate text-sm text-gray-500 hover:text-[#0097b2] hover:underline"
-                        >
-                          @{nomeUsuarioAlvo}
-                        </Link>
-                      ) : (
-                        <span className="mt-0.5 block truncate text-sm text-gray-500">@{nomeUsuarioAlvo}</span>
-                      )
-                    ) : null}
+                      <AvatarImage
+                        src={post.autor?.foto_perfil_url}
+                        alt=""
+                        width={40}
+                        height={40}
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
                   </div>
-                </>
+                </div>
+              ) : autorId ? (
+                <Link
+                  href={hrefAutor}
+                  className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                  aria-label={`Perfil de @${post.autor?.username ?? 'usuario'}`}
+                >
+                  <AvatarImage src={post.autor?.foto_perfil_url} alt="" width={40} height={40} className="object-cover" />
+                </Link>
+              ) : (
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  <AvatarImage
+                    src={post.autor?.foto_perfil_url}
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="object-cover"
+                  />
+                </div>
               )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm leading-snug text-gray-800">
+                  {autorId ? (
+                    <Link href={hrefAutor} className="font-semibold text-gray-800 hover:text-[#0097b2]">
+                      <UsuarioHandleVerificado
+                        username={post.autor?.username ?? ''}
+                        verificado={Boolean(post.autor?.verificado)}
+                        verificadoTipo={post.autor?.role === 'empresa' ? 'empresa' : 'profissional'}
+                        asButton={false}
+                        className="font-semibold text-gray-800 hover:text-[#0097b2]"
+                      />
+                    </Link>
+                  ) : (
+                    <UsuarioHandleVerificado
+                      username={post.autor?.username ?? ''}
+                      verificado={Boolean(post.autor?.verificado)}
+                      verificadoTipo={post.autor?.role === 'empresa' ? 'empresa' : 'profissional'}
+                      asButton={false}
+                      className="font-semibold text-gray-800"
+                    />
+                  )}{' '}
+                  avaliou{' '}
+                  {aguardandoEmpresaAoVivo ? (
+                    <span className="inline-block h-3.5 w-20 animate-pulse rounded bg-gray-200 align-middle" aria-hidden />
+                  ) : hrefEmpresaAlvo && handleEmpresa ? (
+                    <Link href={hrefEmpresaAlvo} className="font-semibold text-[#0097b2] hover:underline">
+                      <UsuarioHandleVerificado
+                        username={handleEmpresa}
+                        verificado={false}
+                        verificadoTipo="empresa"
+                        asButton={false}
+                        className="font-semibold text-[#0097b2] hover:underline"
+                      />
+                    </Link>
+                  ) : handleEmpresa ? (
+                    <UsuarioHandleVerificado
+                      username={handleEmpresa}
+                      verificado={false}
+                      verificadoTipo="empresa"
+                      asButton={false}
+                      className="font-semibold text-gray-700"
+                    />
+                  ) : (
+                    <span className="font-medium text-gray-700">{nomeFantasiaAlvo}</span>
+                  )}
+                </p>
+                <time suppressHydrationWarning className="mt-0.5 block text-xs text-gray-400">
+                  {formatarDataRelativaPublicacao(post.created_at)}
+                </time>
+              </div>
             </div>
+            <MenuPost {...menuProps} />
           </div>
-          <div className="mb-3 flex items-center justify-center gap-2" aria-label={`Nota ${notaVal} de 5`}>
+        ) : null}
+        <div className="px-4 pb-3 pt-0">
+          <div className="flex items-center gap-1.5" aria-label={`Nota ${notaVal} de 5`}>
             <div className="flex flex-wrap items-center gap-0.5">
               {[1, 2, 3, 4, 5].map((s) => (
                 <Star
                   key={s}
-                  className={`h-6 w-6 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                  className={`h-5 w-5 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
                   aria-hidden
                 />
               ))}
             </div>
-            {notaTexto ? <span className="text-sm font-semibold text-gray-800">{notaTexto}</span> : null}
+            {feedbackText ? (
+              <button
+                type="button"
+                onClick={() => setAvaliacaoFeedbackAberto((v) => !v)}
+                className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                aria-expanded={avaliacaoFeedbackAberto}
+                aria-label={avaliacaoFeedbackAberto ? 'Ocultar feedback' : 'Mostrar feedback'}
+              >
+                <ChevronDown
+                  className={`h-5 w-5 transition-transform ${avaliacaoFeedbackAberto ? 'rotate-180' : ''}`}
+                  aria-hidden
+                />
+              </button>
+            ) : null}
           </div>
-          {feedbackText ? (
-            <p className="whitespace-pre-wrap text-center text-sm leading-relaxed text-gray-800">{feedbackText}</p>
+          {feedbackText && avaliacaoFeedbackAberto ? (
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{feedbackText}</p>
           ) : null}
         </div>
         <div className="border-t border-gray-100">{acoesPost}</div>
