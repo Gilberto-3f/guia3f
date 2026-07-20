@@ -192,12 +192,12 @@ export default function AtividadeCatalogo({
             ) : null}
 
             {mostrarSnaps || mostrarBotao ? (
-              <div className={`mt-2 flex items-center gap-2 ${mostrarSnaps && !mostrarBotao && snaps.length === 1 ? 'justify-center' : ''}`}>
+              <div className="mt-2 flex items-center gap-2">
                 {mostrarSnaps ? (
                   <button
                     type="button"
                     onClick={() => setModal(true)}
-                    className={`flex min-w-0 items-center gap-1.5 overflow-x-auto ${mostrarBotao ? 'flex-1' : snaps.length === 1 ? '' : 'w-full'} ${!mostrarBotao && snaps.length === 1 ? 'justify-center' : ''}`}
+                    className={`flex min-w-0 items-center gap-1.5 overflow-x-auto ${mostrarBotao ? 'flex-1' : 'w-full'}`}
                     aria-label="Ver catálogo no feed"
                   >
                     {snaps.map((p, i) => {

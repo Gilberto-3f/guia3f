@@ -59,6 +59,9 @@ type DrawerAcomodacaoState = {
   empresaId: string
   empresaNome: string
   acomodacaoId: string
+  empresaUsername: string | null
+  empresaFotoUrl: string | null
+  notaMedia: number | null
 } | null
 
 function rotuloAcomodacaoFavorita(a: AcomodacaoFavoritaCard): string | null {
@@ -393,6 +396,9 @@ export default function FavoritosPage() {
                                   empresaId: a.empresa_id,
                                   empresaNome: a.empresa_nome || 'Empresa',
                                   acomodacaoId: a.id,
+                                  empresaUsername: a.empresa_username,
+                                  empresaFotoUrl: a.empresa_foto_url,
+                                  notaMedia: a.empresa_nota,
                                 })
                               }
                               className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
@@ -499,6 +505,9 @@ export default function FavoritosPage() {
           onClose={() => setDrawerAcomodacao(null)}
           empresaId={drawerAcomodacao.empresaId}
           empresaNome={drawerAcomodacao.empresaNome}
+          empresaUsername={drawerAcomodacao.empresaUsername}
+          empresaFotoUrl={drawerAcomodacao.empresaFotoUrl}
+          notaMedia={drawerAcomodacao.notaMedia}
           acomodacaoIdInicial={drawerAcomodacao.acomodacaoId}
         />
       ) : null}

@@ -28,6 +28,9 @@ export type AcomodacaoFavoritaCard = {
   valor_diaria: number | null
   foto_url: string | null
   empresa_nome: string | null
+  empresa_username: string | null
+  empresa_foto_url: string | null
+  empresa_nota: number | null
 }
 
 export type ProdutoFavoritoCard = {
@@ -291,14 +294,23 @@ export async function listarAcomodacoesFavoritas(
   const empresaIds = [
     ...new Set(data.map((a) => String(a.empresa_id ?? '').trim()).filter(Boolean)),
   ]
-  const nomePorEmpresa = new Map<string, string>()
+  const nomePorEmpresa = new Map<
+    string,
+    { nome: string; username: string | null; foto: string | null; nota: number | null }
+  >()
   if (empresaIds.length) {
     const { data: emps } = await supabase
       .from('empresas')
-      .select('id, nome_fantasia')
+      .select('id, nome_fantasia, nome_usuario, foto_url, nota_media')
       .in('id', empresaIds)
     for (const e of emps ?? []) {
-      nomePorEmpresa.set(String(e.id), String(e.nome_fantasia ?? ''))
+      const notaRaw = e.nota_media != null ? Number(e.nota_media) : NaN
+      nomePorEmpresa.set(String(e.id), {
+        nome: String(e.nome_fantasia ?? ''),
+        username: e.nome_usuario != null ? String(e.nome_usuario).replace(/^@+/, '').trim() || null : null,
+        foto: e.foto_url != null && String(e.foto_url).trim() !== '' ? String(e.foto_url) : null,
+        nota: Number.isFinite(notaRaw) && notaRaw > 0 ? notaRaw : null,
+      })
     }
   }
 
@@ -310,6 +322,7 @@ export async function listarAcomodacoesFavoritas(
       const fotos = Array.isArray(a!.fotos) ? a!.fotos : []
       const foto = fotos.find((f) => typeof f === 'string' && f.trim()) ?? null
       const empId = String(a!.empresa_id ?? '')
+      const meta = nomePorEmpresa.get(empId)
       return {
         id: String(a!.id),
         empresa_id: empId,
@@ -322,7 +335,10 @@ export async function listarAcomodacoesFavoritas(
           a!.capacidade_pessoas != null ? Number(a!.capacidade_pessoas) : null,
         valor_diaria: a!.valor_diaria != null ? Number(a!.valor_diaria) : null,
         foto_url: foto != null ? String(foto) : null,
-        empresa_nome: nomePorEmpresa.get(empId) || null,
+        empresa_nome: meta?.nome || null,
+        empresa_username: meta?.username ?? null,
+        empresa_foto_url: meta?.foto ?? null,
+        empresa_nota: meta?.nota ?? null,
       }
     })
 }

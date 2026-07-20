@@ -191,6 +191,9 @@ export default function DrawerReservaHospedagem({
   const [painelAberto, setPainelAberto] = useState(false)
   const [visitanteId, setVisitanteId] = useState<string | null>(null)
   const [favAcomodacoes, setFavAcomodacoes] = useState<Set<string>>(() => new Set())
+  const [fotoEmpresaLive, setFotoEmpresaLive] = useState<string | null>(null)
+  const [usernameEmpresaLive, setUsernameEmpresaLive] = useState<string | null>(null)
+  const [notaEmpresaLive, setNotaEmpresaLive] = useState<number | null>(null)
   const touchFotoX = useRef<number | null>(null)
 
   useModalScrollLock(isOpen || painelVisivel)
@@ -229,6 +232,17 @@ export default function DrawerReservaHospedagem({
         .maybeSingle()
 
       setEmpresaVerificada(contaVerificadaDocumentacao('empresa', emp))
+
+      const fotoEmp =
+        emp?.foto_url != null && String(emp.foto_url).trim() !== '' ? String(emp.foto_url) : null
+      setFotoEmpresaLive(fotoEmp)
+      const userEmp =
+        emp?.nome_usuario != null && String(emp.nome_usuario).trim() !== ''
+          ? String(emp.nome_usuario).replace(/^@+/, '').trim()
+          : null
+      setUsernameEmpresaLive(userEmp || null)
+      const notaEmpRaw = emp?.nota_media != null ? Number(emp.nota_media) : NaN
+      setNotaEmpresaLive(Number.isFinite(notaEmpRaw) && notaEmpRaw > 0 ? notaEmpRaw : null)
 
       if (emp?.profissional_vinculado_id) {
         const { data: prof } = await supabase
@@ -457,8 +471,20 @@ export default function DrawerReservaHospedagem({
 
   if (!painelVisivel) return null
 
-  const avatarEmpresa = empresaFotoUrl
-  const nota = notaMedia != null && Number(notaMedia) > 0 ? Number(notaMedia).toFixed(1) : null
+  const avatarEmpresa =
+    (empresaFotoUrl != null && String(empresaFotoUrl).trim() !== '' ? String(empresaFotoUrl) : null) ||
+    fotoEmpresaLive
+  const usernameExibir = (() => {
+    const fromProp =
+      empresaUsername != null && String(empresaUsername).trim() !== ''
+        ? String(empresaUsername).replace(/^@+/, '').trim()
+        : ''
+    return fromProp || usernameEmpresaLive || null
+  })()
+  const nota =
+    (notaMedia != null && Number(notaMedia) > 0 ? Number(notaMedia) : null) ??
+    notaEmpresaLive
+  const notaTexto = nota != null ? nota.toFixed(1).replace(/\.0$/, '') : null
   const mostrarRodapePassos = !carregando && !sucesso && !reservaPendente && (passo === 2 || passo === 3)
 
   const Cabecalho = (
@@ -476,7 +502,7 @@ export default function DrawerReservaHospedagem({
           </div>
           <div className="min-w-0 flex-1 pr-8">
             <p className="truncate text-base font-bold leading-tight text-white">{empresaNome}</p>
-            {empresaUsername ? (
+            {usernameExibir ? (
               <p className="inline-flex max-w-full items-center gap-1 truncate text-sm leading-tight text-white/80">
                 {empresaVerificada ? (
                   <BadgeCheck
@@ -487,7 +513,7 @@ export default function DrawerReservaHospedagem({
                     aria-hidden
                   />
                 ) : null}
-                <span className="truncate">@{empresaUsername}</span>
+                <span className="truncate">@{usernameExibir}</span>
               </p>
             ) : null}
             <button
@@ -758,7 +784,7 @@ export default function DrawerReservaHospedagem({
                             </p>
                             {nota ? (
                               <p className="inline-flex items-center gap-1 text-xs font-bold text-amber-500">
-                                ★ {nota}
+                                ★ {notaTexto}
                               </p>
                             ) : null}
                           </div>
@@ -864,7 +890,7 @@ export default function DrawerReservaHospedagem({
                 </p>
                 <p className="mt-1 flex flex-wrap items-center justify-center gap-x-3 text-lg font-bold" style={{ color: COR }}>
                   <span>{formatarValorDiaria(selecionada.valor_diaria)}</span>
-                  {nota ? <span className="text-lg font-bold text-amber-500">★ {nota}</span> : null}
+                  {notaTexto ? <span className="text-lg font-bold text-amber-500">★ {notaTexto}</span> : null}
                 </p>
               </div>
 
@@ -938,7 +964,7 @@ export default function DrawerReservaHospedagem({
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <p className="flex flex-wrap items-center gap-x-2 text-sm font-semibold text-[#001f3f]">
                     <span>{rotuloCategoriaImovelCurto(selecionada.categoria_imovel)}</span>
-                    {nota ? <span className="font-bold text-amber-500">★ {nota}</span> : null}
+                    {notaTexto ? <span className="font-bold text-amber-500">★ {notaTexto}</span> : null}
                   </p>
                   <p className="text-sm font-semibold text-[#001f3f]">
                     {(() => {
