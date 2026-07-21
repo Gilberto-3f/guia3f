@@ -246,58 +246,30 @@ export default function EmpresaPage() {
       } = await supabase.auth.getSession()
       const viewerUid = session?.user?.id ?? null
 
-      const { data: empresaData, error } = await supabase
+      const { data: empresaRaw, error } = await supabase
         .from('empresas')
         .select(
-          [
-            'id',
-            'usuario_id',
-            'nome_fantasia',
-            'nome_usuario',
-            'categoria',
-            'cidade',
-            'bairro',
-            'endereco',
-            'foto_url',
-            'fotos_url',
-            'fotos_360_url',
-            'tour_config',
-            'descricao',
-            'whatsapp',
-            'whatsapp_comercial',
-            'horarios',
-            'nota_media',
-            'total_avaliacoes',
-            'plano',
-            'status',
-            'docs_verificado',
-            'aprovado_em',
-            'verificado_em',
-            'somente_anfitriao',
-            'somente_modo_apresentacao',
-            'moeda_padrao',
-            'preco_ticket_inteira',
-            'preco_ticket_meia',
-            'preco_diaria',
-            'bandeira_pais',
-            'pais',
-          ].join(', '),
+          'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, bairro, endereco, foto_url, fotos_url, fotos_360_url, tour_config, descricao, whatsapp, whatsapp_comercial, horarios, nota_media, total_avaliacoes, plano, status, docs_verificado, aprovado_em, verificado_em, somente_anfitriao, somente_modo_apresentacao, moeda_padrao, preco_ticket_inteira, preco_ticket_meia, preco_diaria, bandeira_pais, pais',
         )
         .eq('id', empresaId)
         .single()
 
-      if (error || !empresaData) {
+      if (error || !empresaRaw) {
         setEmpresa(null)
         router.replace('/guia')
         return
       }
 
-      const isPreview = Boolean((empresaData as { somente_modo_apresentacao?: boolean } | null)?.somente_modo_apresentacao)
-      const somenteAnfitriao = Boolean((empresaData as { somente_anfitriao?: boolean } | null)?.somente_anfitriao)
-      const donoId = (empresaData as { usuario_id?: string } | null)?.usuario_id ?? null
+      const empresaData = empresaRaw as Record<string, unknown>
+      const isPreview = Boolean(empresaData.somente_modo_apresentacao)
+      const somenteAnfitriao = Boolean(empresaData.somente_anfitriao)
+      const donoId = empresaData.usuario_id != null ? String(empresaData.usuario_id) : null
       const viewerEmail = session?.user?.email ?? meuEmail ?? null
       const ehDono = Boolean(viewerUid && donoId && String(viewerUid) === String(donoId))
-      const liberadaAnfitriao = empresaRecursosLiberados('ativo', empresaData as Parameters<typeof empresaRecursosLiberados>[1])
+      const liberadaAnfitriao = empresaRecursosLiberados(
+        'ativo',
+        empresaData as Parameters<typeof empresaRecursosLiberados>[1],
+      )
 
       if (
         isPreview &&
@@ -316,7 +288,7 @@ export default function EmpresaPage() {
         return
       }
 
-      if (!ehDono && !empresaElegivelGuiaPublico(empresaData)) {
+      if (!ehDono && !empresaElegivelGuiaPublico(empresaData as Parameters<typeof empresaElegivelGuiaPublico>[0])) {
         setEmpresa(null)
         router.replace('/guia')
         return
