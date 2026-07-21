@@ -65,44 +65,57 @@ export async function contarNaoLidasFunilEmpresa(
   empresaId: string,
   usuarioId: string,
 ): Promise<ContagemNaoLidasFunil> {
-  const leitura = await obterLeituraFunilEmpresa(supabase, empresaId, usuarioId)
+  const vazio: ContagemNaoLidasFunil = { total: 0, recomendacoes: 0, pax: 0, vendas: 0 }
+  try {
+    const leitura = await obterLeituraFunilEmpresa(supabase, empresaId, usuarioId)
 
-  const [recomendacoes, pax, vendas] = await Promise.all([
-    Promise.all([
+    const [recomendacoes, pax, vendas] = await Promise.all([
+      Promise.all([
+        contarApos(
+          supabase
+            .from('recomendacoes')
+            .select('*', { count: 'exact', head: true })
+            .eq('empresa_id', empresaId)
+            .gt('created_at', leitura.recomendacoes_visto_em),
+        ),
+        contarApos(
+          supabase
+            .from('recomendacoes_produto')
+            .select('*', { count: 'exact', head: true })
+            .eq('empresa_id', empresaId)
+            .gt('created_at', leitura.recomendacoes_visto_em),
+        ),
+        contarApos(
+          supabase
+            .from('recomendacoes_prato')
+            .select('*', { count: 'exact', head: true })
+            .eq('empresa_id', empresaId)
+            .gt('created_at', leitura.recomendacoes_visto_em),
+        ).catch(() => 0),
+      ]).then(([pagina, produtos, pratos]) => pagina + produtos + pratos),
       contarApos(
         supabase
-          .from('recomendacoes')
+          .from('manifesto')
           .select('*', { count: 'exact', head: true })
-          .eq('empresa_id', empresaId)
-          .gt('created_at', leitura.recomendacoes_visto_em),
+          .eq('empresa_destino_id', empresaId)
+          .eq('status', 'confirmado')
+          .gt('created_at', leitura.pax_visto_em),
       ),
       contarApos(
         supabase
-          .from('recomendacoes_produto')
+          .from('comissao')
           .select('*', { count: 'exact', head: true })
           .eq('empresa_id', empresaId)
-          .gt('created_at', leitura.recomendacoes_visto_em),
+          .eq('tipo', 'venda_direta')
+          .gt('created_at', leitura.vendas_visto_em),
       ),
-    ]).then(([pagina, produtos]) => pagina + produtos),
-    contarApos(
-      supabase
-        .from('manifesto')
-        .select('*', { count: 'exact', head: true })
-        .eq('empresa_destino_id', empresaId)
-        .eq('status', 'confirmado')
-        .gt('created_at', leitura.pax_visto_em),
-    ),
-    contarApos(
-      supabase
-        .from('comissao')
-        .select('*', { count: 'exact', head: true })
-        .eq('empresa_id', empresaId)
-        .eq('tipo', 'venda_direta')
-        .gt('created_at', leitura.vendas_visto_em),
-    ),
-  ])
+    ])
 
-  return { recomendacoes, pax, vendas, total: recomendacoes + pax + vendas }
+    return { recomendacoes, pax, vendas, total: recomendacoes + pax + vendas }
+  } catch (err) {
+    console.warn('[dashboardFunilBadge] contarNaoLidasFunilEmpresa:', err)
+    return vazio
+  }
 }
 
 export async function marcarEtapaFunilLida(

@@ -72,11 +72,28 @@ function matchPath(path, pathname) {
 }
 
 /** Badges pesados não bloqueiam a liberação da barra. */
-const BADGE_DEFER_MS = 600
+const BADGE_DEFER_MS = 1200
 /** Fallback leve quando o utilizador não está em /canal (evita postgres_changes sem filtro). */
-const CANAIS_BADGE_POLL_MS = 90_000
-const ATIVIDADES_BADGE_POLL_MS = 120_000
-const FUNIL_BADGE_POLL_MS = 120_000
+const CANAIS_BADGE_POLL_MS = 180_000
+const ATIVIDADES_BADGE_POLL_MS = 180_000
+const FUNIL_BADGE_POLL_MS = 180_000
+/** Timeout para badges — não segurar conexão do pool se o Postgres estiver saturado. */
+const BADGE_QUERY_TIMEOUT_MS = 6_000
+
+/**
+ * @template T
+ * @param {Promise<T>} promise
+ * @param {T} fallback
+ * @param {number} [ms]
+ */
+function withTimeout(promise, fallback, ms = BADGE_QUERY_TIMEOUT_MS) {
+  return Promise.race([
+    promise.catch(() => fallback),
+    new Promise((resolve) => {
+      setTimeout(() => resolve(fallback), ms)
+    }),
+  ])
+}
 
 export default function BottomBar() {
   const t = useTranslations('BottomBar')
@@ -123,7 +140,9 @@ export default function BottomBar() {
 
     const onResume = () => {
       if (document.visibilityState !== 'visible') return
-      void resumirSessaoAposIdle().then(() => syncAuth())
+      // Não espera o refresh — evita travar a barra se Auth/DB estiver lento
+      void resumirSessaoAposIdle()
+      void syncAuth()
     }
     document.addEventListener('visibilitychange', onResume)
     window.addEventListener('pageshow', onResume)
@@ -194,11 +213,14 @@ export default function BottomBar() {
 
       let total = 0
       if (roleContagem === 'empresa') {
-        total = await contarAtividadesMinhaContaNaoLidasLocal(usuarioIdContagemAtividades, {
-          modoHospedagem: true,
-        })
+        total = await withTimeout(
+          contarAtividadesMinhaContaNaoLidasLocal(usuarioIdContagemAtividades, {
+            modoHospedagem: true,
+          }),
+          0,
+        )
       } else if (userRole != null) {
-        total = await contarAtividadesMinhaContaNaoLidasLocal(authUserId)
+        total = await withTimeout(contarAtividadesMinhaContaNaoLidasLocal(authUserId), 0)
       }
       if (ativo) setNaoLidasAtividades(total)
     }
@@ -238,7 +260,7 @@ export default function BottomBar() {
     let debounceId = null
 
     const refreshCanais = async () => {
-      const n = await contarMensagensNaoLidasCanais(supabase, authUserId)
+      const n = await withTimeout(contarMensagensNaoLidasCanais(supabase, authUserId), 0)
       if (!cancelled) setNaoLidasCanais(n)
     }
 
@@ -299,7 +321,10 @@ export default function BottomBar() {
 
     let cancelled = false
     const refresh = async () => {
-      const c = await contarNaoLidasFunilEmpresa(supabase, empId, authUserId)
+      const c = await withTimeout(
+        contarNaoLidasFunilEmpresa(supabase, empId, authUserId),
+        { total: 0, recomendacoes: 0, pax: 0, vendas: 0 },
+      )
       if (!cancelled) setNaoLidasFunil(c.total)
     }
 
@@ -341,7 +366,9 @@ export default function BottomBar() {
       prev != null && /\/canal\/[^/]+/.test(prev) && (pathname == null || !/\/canal\/[^/]+/.test(pathname))
 
     const refresh = () => {
-      void contarMensagensNaoLidasCanais(supabase, authUserId).then((n) => setNaoLidasCanais(n))
+      void withTimeout(contarMensagensNaoLidasCanais(supabase, authUserId), 0).then((n) =>
+        setNaoLidasCanais(n),
+      )
     }
 
     if (saiuDoDetalheCanal) {

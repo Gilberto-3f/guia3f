@@ -80,8 +80,24 @@ export function ProfissionalGateProvider({ children }) {
   const [fotoPerfilBarra, setFotoPerfilBarra] = useState(/** @type {string | null} */ (gateInicial.fotoPerfilBarra))
   const [empresaIdBarra, setEmpresaIdBarra] = useState(/** @type {string | null} */ (gateInicial.empresaIdBarra))
   const gateCarregadoUmaVez = useRef(false)
+  /** @type {React.MutableRefObject<Promise<void> | null>} */
+  const inflightGateRef = useRef(null)
+  const lastGateAtRef = useRef(0)
 
-  const refreshGate = useCallback(async () => {
+  const refreshGate = useCallback(async (opts = {}) => {
+    const force = Boolean(opts && typeof opts === 'object' && 'force' in opts && opts.force)
+    const now = Date.now()
+    // Visibility/poll: no máximo 1 refresh completo a cada 45s (evita saturar Auth/REST no idle)
+    if (!force && inflightGateRef.current) {
+      await inflightGateRef.current
+      return
+    }
+    if (!force && now - lastGateAtRef.current < 45_000 && gateCarregadoUmaVez.current) {
+      return
+    }
+
+    const run = async () => {
+    lastGateAtRef.current = Date.now()
     if (!gateCarregadoUmaVez.current && !lerPerfilBarraCache()) setLoading(true)
     const {
       data: { session },
@@ -255,10 +271,16 @@ export function ProfissionalGateProvider({ children }) {
     })
     gateCarregadoUmaVez.current = true
     setLoading(false)
+    }
+
+    inflightGateRef.current = run().finally(() => {
+      inflightGateRef.current = null
+    })
+    await inflightGateRef.current
   }, [])
 
   useEffect(() => {
-    void refreshGate()
+    void refreshGate({ force: true })
   }, [refreshGate])
 
   useEffect(() => {
@@ -271,14 +293,14 @@ export function ProfissionalGateProvider({ children }) {
         event === 'USER_UPDATED' ||
         event === 'TOKEN_REFRESHED'
       ) {
-        void refreshGate()
+        void refreshGate({ force: true })
       }
     })
     return () => subscription.unsubscribe()
   }, [refreshGate])
 
   useEffect(() => {
-    const onRef = () => void refreshGate()
+    const onRef = () => void refreshGate({ force: true })
     window.addEventListener('profissional-gate-refresh', onRef)
     window.addEventListener('empresa-gate-refresh', onRef)
     window.addEventListener('turista-gate-refresh', onRef)
@@ -299,7 +321,7 @@ export function ProfissionalGateProvider({ children }) {
     document.addEventListener('visibilitychange', onVisible)
     const pollId = setInterval(() => {
       if (document.visibilityState === 'visible') void refreshGate()
-    }, 120_000)
+    }, 180_000)
 
     return () => {
       document.removeEventListener('visibilitychange', onVisible)

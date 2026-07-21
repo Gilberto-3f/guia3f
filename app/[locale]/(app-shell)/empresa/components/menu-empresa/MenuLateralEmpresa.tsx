@@ -118,7 +118,8 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
   }, [usuarioId, refreshChatAdmBadge])
 
   useEffect(() => {
-    if (aberto) void refreshChatAdmBadge()
+    if (!aberto) return
+    void refreshChatAdmBadge()
   }, [aberto, refreshChatAdmBadge])
 
   const itensVisiveis = MENU_ITEMS.filter((item) => {
