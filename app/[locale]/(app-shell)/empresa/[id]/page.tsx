@@ -86,6 +86,7 @@ export default function EmpresaPage() {
   const [meuEmail, setMeuEmail] = useState<string | null>(null)
   const [reservaHospedagemConfirmada, setReservaHospedagemConfirmada] = useState(false)
   const [menuAberto, setMenuAberto] = useState(false)
+  const falhaCarregarRef = useRef(false)
   const { modoAtivo } = useModoApresentacao()
 
   useEffect(() => {
@@ -235,8 +236,12 @@ export default function EmpresaPage() {
     setAbaExpandida('dinamico')
   }, [searchParams, mostrarBotaoDinamico])
 
+  useEffect(() => {
+    falhaCarregarRef.current = false
+  }, [empresaId])
+
   const carregarEmpresa = useCallback(async (opts?: { silent?: boolean }) => {
-    if (!empresaId) return
+    if (!empresaId || falhaCarregarRef.current) return
     const silent = Boolean(opts?.silent)
     debugEmpresa('[Empresa] carregarEmpresa início', { empresaId, silent, usuarioId })
     if (!silent) setLoading(true)
@@ -249,13 +254,15 @@ export default function EmpresaPage() {
       const { data: empresaRaw, error } = await supabase
         .from('empresas')
         .select(
-          'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, bairro, endereco, foto_url, fotos_url, fotos_360_url, tour_config, descricao, whatsapp, whatsapp_comercial, horarios, nota_media, total_avaliacoes, plano, status, docs_verificado, aprovado_em, verificado_em, somente_anfitriao, somente_modo_apresentacao, moeda_padrao, preco_ticket_inteira, preco_ticket_meia, preco_diaria, bandeira_pais, pais',
+          'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, bairro, endereco, foto_url, fotos_url, fotos_360_url, tour_config, descricao_longa, whatsapp, whatsapp_comercial, horarios, nota_media, total_avaliacoes, plano, status, docs_verificado, aprovado_em, verificado_em, somente_anfitriao, somente_modo_apresentacao, moeda_padrao, preco_ticket_inteira, preco_ticket_meia, preco_diaria, latitude, longitude, telefone, website, redes_sociais',
         )
         .eq('id', empresaId)
         .single()
 
       if (error || !empresaRaw) {
         setEmpresa(null)
+        // Evita tempestade de 400 se o select/RLS falhar (ex.: coluna inexistente).
+        falhaCarregarRef.current = true
         router.replace('/guia')
         return
       }
