@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Camera, ChevronDown, ChevronUp, FileText, Globe2, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -246,7 +246,45 @@ export default function EmpresaPage() {
       } = await supabase.auth.getSession()
       const viewerUid = session?.user?.id ?? null
 
-      const { data: empresaData, error } = await supabase.from('empresas').select('*').eq('id', empresaId).single()
+      const { data: empresaData, error } = await supabase
+        .from('empresas')
+        .select(
+          [
+            'id',
+            'usuario_id',
+            'nome_fantasia',
+            'nome_usuario',
+            'categoria',
+            'cidade',
+            'bairro',
+            'endereco',
+            'foto_url',
+            'fotos_url',
+            'fotos_360_url',
+            'tour_config',
+            'descricao',
+            'whatsapp',
+            'whatsapp_comercial',
+            'horarios',
+            'nota_media',
+            'total_avaliacoes',
+            'plano',
+            'status',
+            'docs_verificado',
+            'aprovado_em',
+            'verificado_em',
+            'somente_anfitriao',
+            'somente_modo_apresentacao',
+            'moeda_padrao',
+            'preco_ticket_inteira',
+            'preco_ticket_meia',
+            'preco_diaria',
+            'bandeira_pais',
+            'pais',
+          ].join(', '),
+        )
+        .eq('id', empresaId)
+        .single()
 
       if (error || !empresaData) {
         setEmpresa(null)
@@ -300,9 +338,16 @@ export default function EmpresaPage() {
     void carregarEmpresa()
   }, [carregarEmpresa])
 
-  /** Após login na mesma aba, `usuarioId` hidrata — refrescar follow/contadores sem depender só do primeiro load. */
+  /** Após login na mesma aba, `usuarioId` hidrata — um único silent refresh (sem duplicar no boot). */
+  const usuarioIdInicialRef = useRef<string | null>(null)
   useEffect(() => {
     if (!empresaId || !usuarioId) return
+    if (usuarioIdInicialRef.current === null) {
+      usuarioIdInicialRef.current = usuarioId
+      return
+    }
+    if (usuarioIdInicialRef.current === usuarioId) return
+    usuarioIdInicialRef.current = usuarioId
     void carregarEmpresa({ silent: true })
   }, [usuarioId, empresaId, carregarEmpresa])
 

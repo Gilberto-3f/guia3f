@@ -21,6 +21,13 @@ import {
 } from '@/lib/canalAbasPaisColetivo'
 import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
 
+/** Janela curta — badge não precisa varrer 4 meses (causava statement timeout / 503). */
+const BADGE_JANELA_DIAS = 21
+/** Teto de linhas por contagem — evita saturar o pool. */
+const BADGE_MSG_LIMIT = 250
+/** Cache em memória entre polls da BottomBar. */
+const BADGE_CACHE_MS = 50_000
+
 type CanalPaisRow = {
   id: string
   nome?: string | null
@@ -28,6 +35,16 @@ type CanalPaisRow = {
   categoria?: string | null
   comunidade_prof?: string | null
   empresa_id?: string | null
+}
+
+/** @type {{ userId: string; at: number; value: number } | null} */
+let badgeCountCache: { userId: string; at: number; value: number } | null = null
+/** @type {Promise<number> | null} */
+let badgeCountInflight: Promise<number> | null = null
+let badgeCountInflightUserId: string | null = null
+
+export function invalidarCacheBadgeCanais(userId?: string | null) {
+  if (!userId || badgeCountCache?.userId === userId) badgeCountCache = null
 }
 
 async function carregarMapaCanaisPorIds(
@@ -211,107 +228,152 @@ export async function contarMensagensNaoLidasCanais(
 ): Promise<number> {
   if (!userId) return 0
 
-  const { data: userRow } = await buscarUsuarioCached(supabase, userId, 'role')
-  const role = userRow?.role != null ? String(userRow.role) : ''
-
-  const desde = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString()
-
-  /** Filtra mensagens aos canais visíveis por perfil (+ avisos financeiros em tabela própria). */
-  let canalIdsPermitidos: Set<string> | null = null
-  let extraFinanceiro = 0
-  let paisTabLeitura = 'geral'
-  let canalPorId = new Map<string, CanalPaisRow>()
-
-  if (role === 'profissional') {
-    canalIdsPermitidos = await obterIdsCanaisMensagensProfissional(supabase, userId)
-    extraFinanceiro = await contarFinanceiroNaoLidasProfissional(supabase, userId)
-    const { data: prof } = await supabase
-      .from('profissionais')
-      .select('pais, cidade_atuacao')
-      .eq('usuario_id', userId)
-      .maybeSingle()
-    paisTabLeitura = profissionalPaisParaAba(
-      prof?.pais != null ? String(prof.pais) : null,
-      prof?.cidade_atuacao,
-    )
-    canalPorId = await carregarMapaCanaisPorIds(supabase, Array.from(canalIdsPermitidos))
-  } else if (role === 'empresa') {
-    canalIdsPermitidos = await obterIdsCanaisMensagensEmpresa(supabase, userId)
-    extraFinanceiro = await contarFinanceiroNaoLidasEmpresa(supabase, userId)
-    const { data: emp } = await supabase.from('empresas').select('cidade').eq('usuario_id', userId).maybeSingle()
-    paisTabLeitura = empresaPaisParaAba(emp?.cidade != null ? String(emp.cidade) : null)
-    canalPorId = await carregarMapaCanaisPorIds(supabase, Array.from(canalIdsPermitidos))
-  } else if (role === 'admin') {
-    const [inbox, { data: adminRow }] = await Promise.all([
-      contarMensagensNaoLidasInboxAdmin(supabase, userId),
-      buscarUsuarioCached(supabase, userId, 'admin_level, admin_permissoes'),
-    ])
-    const hub = await contarAvisosFinanceiroHubNaoLidos(supabase, userId, adminRow ?? {})
-    return inbox + hub
+  const agora = Date.now()
+  if (badgeCountCache && badgeCountCache.userId === userId && agora - badgeCountCache.at < BADGE_CACHE_MS) {
+    return badgeCountCache.value
+  }
+  if (badgeCountInflight && badgeCountInflightUserId === userId) {
+    return badgeCountInflight
   }
 
-  if (canalIdsPermitidos != null && canalIdsPermitidos.size === 0) {
-    return extraFinanceiro
-  }
+  badgeCountInflightUserId = userId
+  badgeCountInflight = (async () => {
+    try {
+      const { data: userRow } = await buscarUsuarioCached(supabase, userId, 'role')
+      const role = userRow?.role != null ? String(userRow.role).trim() : ''
 
-  let msgQuery = supabase
-    .from('mensagens_canal')
-    .select('remetente_id, canal_id, created_at, pais')
-    .neq('remetente_id', userId)
-    .gte('created_at', desde)
+      // Sem role (Auth/REST lento ou 503): NÃO varrer mensagens_canal — isso saturava o Postgres.
+      if (!role) {
+        return badgeCountCache?.userId === userId ? badgeCountCache.value : 0
+      }
 
-  if (canalIdsPermitidos != null) {
-    msgQuery = msgQuery.in('canal_id', Array.from(canalIdsPermitidos))
-  } else {
-    msgQuery = msgQuery.limit(800)
-  }
+      const desde = new Date(Date.now() - BADGE_JANELA_DIAS * 24 * 60 * 60 * 1000).toISOString()
 
-  const [{ data: mensagens, error: msgErr }, { data: leituras, error: leitErr }] = await Promise.all([
-    msgQuery,
-    supabase.from('canal_leitura_profissional').select('canal_id, visto_em').eq('usuario_id', userId),
-  ])
+      let canalIdsPermitidos: Set<string> | null = null
+      let extraFinanceiro = 0
+      let paisTabLeitura = 'geral'
+      let canalPorId = new Map<string, CanalPaisRow>()
 
-  if (msgErr) {
-    console.error('contarMensagensNaoLidasCanais mensagens:', msgErr)
-    return 0
-  }
-  if (leitErr) {
-    console.error('contarMensagensNaoLidasCanais leituras:', leitErr)
-  }
+      if (role === 'profissional') {
+        canalIdsPermitidos = await obterIdsCanaisMensagensProfissional(supabase, userId)
+        extraFinanceiro = await contarFinanceiroNaoLidasProfissional(supabase, userId)
+        const { data: prof } = await supabase
+          .from('profissionais')
+          .select('pais, cidade_atuacao')
+          .eq('usuario_id', userId)
+          .maybeSingle()
+        paisTabLeitura = profissionalPaisParaAba(
+          prof?.pais != null ? String(prof.pais) : null,
+          prof?.cidade_atuacao,
+        )
+        canalPorId = await carregarMapaCanaisPorIds(supabase, Array.from(canalIdsPermitidos))
+      } else if (role === 'empresa') {
+        canalIdsPermitidos = await obterIdsCanaisMensagensEmpresa(supabase, userId)
+        extraFinanceiro = await contarFinanceiroNaoLidasEmpresa(supabase, userId)
+        const { data: emp } = await supabase
+          .from('empresas')
+          .select('cidade')
+          .eq('usuario_id', userId)
+          .maybeSingle()
+        paisTabLeitura = empresaPaisParaAba(emp?.cidade != null ? String(emp.cidade) : null)
+        canalPorId = await carregarMapaCanaisPorIds(supabase, Array.from(canalIdsPermitidos))
+      } else if (role === 'admin') {
+        const [inbox, { data: adminRow }] = await Promise.all([
+          contarMensagensNaoLidasInboxAdmin(supabase, userId),
+          buscarUsuarioCached(supabase, userId, 'admin_level, admin_permissoes'),
+        ])
+        const hub = await contarAvisosFinanceiroHubNaoLidos(supabase, userId, adminRow ?? {})
+        const total = inbox + hub
+        badgeCountCache = { userId, at: Date.now(), value: total }
+        return total
+      } else {
+        // turista / outros — sem inbox de canais coletivos
+        badgeCountCache = { userId, at: Date.now(), value: 0 }
+        return 0
+      }
 
-  const vistoPorCanal = new Map<string, number>()
-  for (const row of leituras ?? []) {
-    const cid = String(row.canal_id)
-    const t = new Date(String(row.visto_em ?? 0)).getTime()
-    if (!Number.isNaN(t)) vistoPorCanal.set(cid, t)
-  }
+      if (canalIdsPermitidos != null && canalIdsPermitidos.size === 0) {
+        const total = extraFinanceiro
+        badgeCountCache = { userId, at: Date.now(), value: total }
+        return total
+      }
 
-  let n = 0
-  for (const row of mensagens ?? []) {
-    const rid = row.remetente_id != null ? String(row.remetente_id) : ''
-    if (!rid || rid === userId) continue
+      const ids = canalIdsPermitidos != null ? Array.from(canalIdsPermitidos) : []
 
-    const cid = row.canal_id != null ? String(row.canal_id) : ''
-    if (!cid) continue
-    if (canalIdsPermitidos != null && !canalIdsPermitidos.has(cid)) continue
+      const [{ data: mensagens, error: msgErr }, { data: leituras, error: leitErr }] =
+        await Promise.all([
+          supabase
+            .from('mensagens_canal')
+            .select('remetente_id, canal_id, created_at, pais')
+            .neq('remetente_id', userId)
+            .gte('created_at', desde)
+            .in('canal_id', ids)
+            .order('created_at', { ascending: false })
+            .limit(BADGE_MSG_LIMIT),
+          supabase
+            .from('canal_leitura_profissional')
+            .select('canal_id, visto_em')
+            .eq('usuario_id', userId)
+            .in('canal_id', ids),
+        ])
 
-    if (
-      !mensagemContaParaLeituraColetiva(canalPorId.get(cid), row.pais != null ? String(row.pais) : null, {
-        role,
-        paisTabLeitura,
-      })
-    ) {
-      continue
+      if (msgErr) {
+        console.error('contarMensagensNaoLidasCanais mensagens:', msgErr)
+        return badgeCountCache?.userId === userId ? badgeCountCache.value : 0
+      }
+      if (leitErr) {
+        console.error('contarMensagensNaoLidasCanais leituras:', leitErr)
+      }
+
+      const vistoPorCanal = new Map<string, number>()
+      for (const row of leituras ?? []) {
+        const cid = String(row.canal_id)
+        const t = new Date(String(row.visto_em ?? 0)).getTime()
+        if (!Number.isNaN(t)) vistoPorCanal.set(cid, t)
+      }
+
+      let n = 0
+      for (const row of mensagens ?? []) {
+        const rid = row.remetente_id != null ? String(row.remetente_id) : ''
+        if (!rid || rid === userId) continue
+
+        const cid = row.canal_id != null ? String(row.canal_id) : ''
+        if (!cid) continue
+        if (canalIdsPermitidos != null && !canalIdsPermitidos.has(cid)) continue
+
+        if (
+          !mensagemContaParaLeituraColetiva(
+            canalPorId.get(cid),
+            row.pais != null ? String(row.pais) : null,
+            {
+              role,
+              paisTabLeitura,
+            },
+          )
+        ) {
+          continue
+        }
+
+        const created = new Date(String(row.created_at ?? 0)).getTime()
+        if (Number.isNaN(created)) continue
+
+        const visto = vistoPorCanal.get(cid) ?? 0
+        if (created > visto) n += 1
+      }
+
+      const total = n + extraFinanceiro
+      badgeCountCache = { userId, at: Date.now(), value: total }
+      return total
+    } catch (err) {
+      console.error('contarMensagensNaoLidasCanais:', err)
+      return badgeCountCache?.userId === userId ? badgeCountCache.value : 0
+    } finally {
+      badgeCountInflight = null
+      badgeCountInflightUserId = null
     }
+  })()
 
-    const created = new Date(String(row.created_at ?? 0)).getTime()
-    if (Number.isNaN(created)) continue
-
-    const visto = vistoPorCanal.get(cid) ?? 0
-    if (created > visto) n += 1
-  }
-
-  return n + extraFinanceiro
+  return badgeCountInflight
 }
 
 /**
@@ -365,13 +427,15 @@ export async function contarNaoLidasPorCanalIds(
     if (!Number.isNaN(t)) vistoPorCanal.set(String(row.canal_id), t)
   }
 
-  const desde = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString()
+  const desde = new Date(Date.now() - BADGE_JANELA_DIAS * 24 * 60 * 60 * 1000).toISOString()
   const { data: mensagens, error } = await supabase
     .from('mensagens_canal')
     .select('canal_id, remetente_id, created_at, pais')
     .in('canal_id', canalIds)
     .neq('remetente_id', userId)
     .gte('created_at', desde)
+    .order('created_at', { ascending: false })
+    .limit(BADGE_MSG_LIMIT)
 
   if (error) {
     console.error('contarNaoLidasPorCanalIds:', error)

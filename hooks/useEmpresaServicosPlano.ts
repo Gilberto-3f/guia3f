@@ -137,13 +137,15 @@ export function useEmpresaServicosPlano(
 
         const temAssinatura = Boolean(assinatura)
         const vigente = assinaturaContratadaVigente(assinatura)
-        setTemAssinaturaAtivaRegistro(temAssinatura)
+        // Assinatura com status ativo mas ciclo vencido NÃO exige renovação via flag "tem registro"
+        // (evita UI bloqueada + refetch em loop). Só conta se ainda vigente.
+        setTemAssinaturaAtivaRegistro(temAssinatura && vigente)
         setAssinaturaContratadaVigenteFlag(vigente)
         setPlanoContratadoId(
           vigente && assinatura?.plano_id != null ? String(assinatura.plano_id) : null,
         )
         setAssinaturaVencimentoEm(
-          assinatura?.vencimento_em != null ? String(assinatura.vencimento_em) : null,
+          vigente && assinatura?.vencimento_em != null ? String(assinatura.vencimento_em) : null,
         )
 
         const ativa = Boolean(deg?.id)

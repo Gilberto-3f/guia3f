@@ -21,7 +21,7 @@ import { contarAtividadesMinhaContaNaoLidas } from '@/lib/atividades-feed'
 import { GUIA_ATIVIDADES_BADGE_EVENT } from '@/lib/atividades-events'
 import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 import { GUIA_FUNIL_BADGE_EVENT } from '@/lib/dashboard-funil-badge-events'
-import { contarMensagensNaoLidasCanais } from '@/lib/canalBadge'
+import { contarMensagensNaoLidasCanais, invalidarCacheBadgeCanais } from '@/lib/canalBadge'
 import { contarNaoLidasFunilEmpresa } from '@/lib/dashboardFunilBadge'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
@@ -277,6 +277,7 @@ export default function BottomBar() {
     }, BADGE_DEFER_MS)
 
     const onCanaisBadge = () => {
+      invalidarCacheBadgeCanais(authUserId)
       scheduleRefresh()
     }
     window.addEventListener(GUIA_CANAIS_BADGE_EVENT, onCanaisBadge)
