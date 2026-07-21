@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { ShoppingBag } from 'lucide-react'
+import { ShoppingBag, Utensils } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
+import DrawerCardapio from '@/components/DrawerCardapio'
 import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
 /**
@@ -16,6 +17,7 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  * Engajamento em post de catálogo (curtida / comentário / repost).
  * @param {{
  *   variante: 'curtiu' | 'comentou' | 'repostou' | 'curtiu_repost'
+ *   kind?: 'produtos' | 'cardapio'
  *   interactorUsername: string
  *   interactorFoto: string | null
  *   donorUsername: string
@@ -38,6 +40,7 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  */
 export default function AtividadeCatalogo({
   variante,
+  kind = 'produtos',
   interactorUsername,
   interactorFoto,
   donorUsername,
@@ -66,19 +69,24 @@ export default function AtividadeCatalogo({
     .map((p) => (p?.foto_url != null && String(p.foto_url).trim() !== '' ? String(p.foto_url) : ''))
     .filter(Boolean)
 
-  /** Comentário no catálogo (Minha Conta): só o texto, sem carrossel de produtos. */
+  const ehCardapio = kind === 'cardapio'
+  const rotuloCatalogo = ehCardapio ? 'cardápio' : 'catálogo'
+  const rotuloItens = ehCardapio ? 'os novos pratos' : 'os novos produtos'
+  const IconeCatalogo = ehCardapio ? Utensils : ShoppingBag
+
+  /** Comentário no catálogo (Minha Conta): só o texto, sem carrossel de produtos/pratos. */
   const ocultarCarrosselProdutos = variante === 'comentou'
 
   let frase = null
   if (modoMinhaConta) {
-    if (variante === 'curtiu_repost') frase = 'curtiu um catálogo que você repostou.'
-    else if (variante === 'curtiu') frase = 'curtiu seu catálogo.'
-    else if (variante === 'comentou') frase = 'comentou no seu catálogo.'
-    else if (variante === 'repostou') frase = 'repostou seu catálogo.'
+    if (variante === 'curtiu_repost') frase = `curtiu um ${rotuloCatalogo} que você repostou.`
+    else if (variante === 'curtiu') frase = `curtiu seu ${rotuloCatalogo}.`
+    else if (variante === 'comentou') frase = `comentou no seu ${rotuloCatalogo}.`
+    else if (variante === 'repostou') frase = `repostou seu ${rotuloCatalogo}.`
   } else if (variante === 'curtiu') {
     frase = (
       <>
-        curtiu os novos produtos de{' '}
+        curtiu {rotuloItens} de{' '}
         <UsuarioHandleVerificado
           username={donorUsername}
           verificado={donorVerificado}
@@ -90,7 +98,7 @@ export default function AtividadeCatalogo({
   } else if (variante === 'comentou') {
     frase = (
       <>
-        comentou no catálogo de{' '}
+        comentou no {rotuloCatalogo} de{' '}
         <UsuarioHandleVerificado
           username={donorUsername}
           verificado={donorVerificado}
@@ -102,7 +110,7 @@ export default function AtividadeCatalogo({
   } else if (variante === 'curtiu_repost') {
     frase = (
       <>
-        curtiu um catálogo repostado por{' '}
+        curtiu um {rotuloCatalogo} repostado por{' '}
         <UsuarioHandleVerificado
           username={donorUsername}
           verificado={donorVerificado}
@@ -114,7 +122,7 @@ export default function AtividadeCatalogo({
   } else if (variante === 'repostou') {
     frase = (
       <>
-        repostou o catálogo de{' '}
+        repostou o {rotuloCatalogo} de{' '}
         <UsuarioHandleVerificado
           username={donorUsername}
           verificado={donorVerificado}
@@ -127,19 +135,19 @@ export default function AtividadeCatalogo({
 
   const resumoModal = modoMinhaConta
     ? variante === 'comentou'
-      ? 'comentou no seu catálogo'
+      ? `comentou no seu ${rotuloCatalogo}`
       : variante === 'repostou'
-        ? 'repostou seu catálogo'
+        ? `repostou seu ${rotuloCatalogo}`
         : variante === 'curtiu_repost'
-          ? 'curtiu um catálogo que você repostou'
-          : 'curtiu seu catálogo'
+          ? `curtiu um ${rotuloCatalogo} que você repostou`
+          : `curtiu seu ${rotuloCatalogo}`
     : variante === 'comentou'
-      ? `comentou no catálogo de @${donorUsername}`
+      ? `comentou no ${rotuloCatalogo} de @${donorUsername}`
       : variante === 'curtiu_repost'
-        ? `curtiu um catálogo repostado por @${donorUsername}`
+        ? `curtiu um ${rotuloCatalogo} repostado por @${donorUsername}`
         : variante === 'repostou'
-          ? `repostou o catálogo de @${donorUsername}`
-          : `curtiu os novos produtos de @${donorUsername}`
+          ? `repostou o ${rotuloCatalogo} de @${donorUsername}`
+          : `curtiu ${rotuloItens} de @${donorUsername}`
 
   const mostrarSnaps = !ocultarCarrosselProdutos && snaps.length > 0
   /** Botão verde do catálogo da empresa: não nas curtidas — clique abre o post do feed. */
@@ -226,9 +234,9 @@ export default function AtividadeCatalogo({
                     type="button"
                     onClick={() => setDrawerAberto(true)}
                     className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#00D443] text-white shadow-sm"
-                    aria-label="Abrir catálogo"
+                    aria-label={`Abrir ${rotuloCatalogo}`}
                   >
-                    <ShoppingBag className="h-5 w-5" aria-hidden />
+                    <IconeCatalogo className="h-5 w-5" aria-hidden />
                   </button>
                 ) : null}
               </div>
@@ -254,14 +262,25 @@ export default function AtividadeCatalogo({
       />
 
       {empresaId ? (
-        <DrawerProdutosCde
-          isOpen={drawerAberto}
-          onClose={() => setDrawerAberto(false)}
-          empresaId={empresaId}
-          empresaNome={empresaNome || donorUsername || 'Empresa'}
-          empresaUsername={donorUsername}
-          empresaFotoUrl={empresaFotoUrl}
-        />
+        ehCardapio ? (
+          <DrawerCardapio
+            isOpen={drawerAberto}
+            onClose={() => setDrawerAberto(false)}
+            empresaId={empresaId}
+            empresaNome={empresaNome || donorUsername || 'Empresa'}
+            empresaUsername={donorUsername}
+            empresaFotoUrl={empresaFotoUrl}
+          />
+        ) : (
+          <DrawerProdutosCde
+            isOpen={drawerAberto}
+            onClose={() => setDrawerAberto(false)}
+            empresaId={empresaId}
+            empresaNome={empresaNome || donorUsername || 'Empresa'}
+            empresaUsername={donorUsername}
+            empresaFotoUrl={empresaFotoUrl}
+          />
+        )
       ) : null}
     </>
   )

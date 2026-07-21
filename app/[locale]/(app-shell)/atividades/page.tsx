@@ -50,6 +50,7 @@ import {
   empresaInteratorIdDeAtividade,
   enriquecerAtividadesEmpresaInterator,
   postEhCatalogoProdutos,
+  postEhCatalogoCardapio,
   produtosSnapCatalogoPost,
   empresaIdCatalogoPost,
 } from '@/lib/atividades-feed'
@@ -2130,7 +2131,7 @@ export default function AtividadesPage() {
         )
       }
 
-      if (item.categoria === 'catalogo_produtos') {
+      if (item.categoria === 'catalogo_produtos' || item.categoria === 'catalogo_cardapio') {
         const catPost = canonPost ?? post
         const produtos = produtosSnapCatalogoPost(catPost)
         const empId = empresaIdCatalogoPost(catPost)
@@ -2138,6 +2139,7 @@ export default function AtividadesPage() {
           <AtividadeCatalogo
             key={r.id}
             variante="curtiu"
+            kind={item.categoria === 'catalogo_cardapio' ? 'cardapio' : 'produtos'}
             interactorUsername={inter?.username ?? 'usuario'}
             interactorFoto={inter?.foto_perfil_url ?? null}
             donorUsername={donorProps.donorUsername}
@@ -2200,8 +2202,15 @@ export default function AtividadesPage() {
               ? String(post.post_original_id)
               : canonId || null
         const orig = origId ? postMetaMap[String(origId)] : null
-        if (postEhCatalogoProdutos(orig) || postEhCatalogoProdutos(canonPost)) {
-          const catPost = postEhCatalogoProdutos(orig) ? orig : canonPost
+        if (
+          postEhCatalogoProdutos(orig) ||
+          postEhCatalogoProdutos(canonPost) ||
+          postEhCatalogoCardapio(orig) ||
+          postEhCatalogoCardapio(canonPost)
+        ) {
+          const catPost =
+            postEhCatalogoProdutos(orig) || postEhCatalogoCardapio(orig) ? orig : canonPost
+          const ehCardapioRepost = postEhCatalogoCardapio(catPost)
           /** Doador = quem republicou (autor do post curtido), não a empresa do catálogo. */
           const likedPost = post ?? canonPost
           const donoRepost = resolverDonoPostAtividade(likedPost, r.usuario_id)
@@ -2214,6 +2223,7 @@ export default function AtividadesPage() {
             <AtividadeCatalogo
               key={r.id}
               variante="curtiu_repost"
+              kind={ehCardapioRepost ? 'cardapio' : 'produtos'}
               interactorUsername={inter?.username ?? 'usuario'}
               interactorFoto={inter?.foto_perfil_url ?? null}
               donorUsername={donorRepost.donorUsername}
@@ -2359,8 +2369,14 @@ export default function AtividadesPage() {
           : postCanonicoId(postMetaMap, r.alvo_id) || String(r.alvo_id ?? '').trim()
       if (!origId) return null
       const post = postMetaCanonico(postMetaMap, r.alvo_id) ?? postMetaMap[origId] ?? null
-      if (postEhCatalogoProdutos(post) || postEhCatalogoProdutos(postMetaMap[origId])) {
-        const catPost = postEhCatalogoProdutos(post) ? post : postMetaMap[origId]
+      if (
+        postEhCatalogoProdutos(post) ||
+        postEhCatalogoProdutos(postMetaMap[origId]) ||
+        postEhCatalogoCardapio(post) ||
+        postEhCatalogoCardapio(postMetaMap[origId])
+      ) {
+        const catPost =
+          postEhCatalogoProdutos(post) || postEhCatalogoCardapio(post) ? post : postMetaMap[origId]
         const donoCat = resolverDonoPostAtividade(catPost, r.usuario_id)
         const donorCat = propsDonorDeCurtida({
           usuario_dono_id: donoCat.usuario_id,
@@ -2371,6 +2387,7 @@ export default function AtividadesPage() {
           <AtividadeCatalogo
             key={r.id}
             variante="repostou"
+            kind={postEhCatalogoCardapio(catPost) ? 'cardapio' : 'produtos'}
             interactorUsername={ator?.username ?? 'usuario'}
             interactorFoto={ator?.foto_perfil_url ?? null}
             donorUsername={donorCat.donorUsername}
@@ -2488,7 +2505,7 @@ export default function AtividadesPage() {
       const postId = typeof ex.post_id === 'string' ? ex.post_id : r.alvo_id
       const comentarioId = typeof ex.comentario_id === 'string' ? ex.comentario_id : null
       const pm = postMetaMap[postId] ?? postMetaCanonico(postMetaMap, postId)
-      if (postEhCatalogoProdutos(pm)) {
+      if (postEhCatalogoProdutos(pm) || postEhCatalogoCardapio(pm)) {
         const donoCat = resolverDonoPostAtividade(pm, r.usuario_id)
         const donorCat = propsDonorDeCurtida({
           usuario_dono_id: donoCat.usuario_id,
@@ -2499,6 +2516,7 @@ export default function AtividadesPage() {
           <AtividadeCatalogo
             key={r.id}
             variante="comentou"
+            kind={postEhCatalogoCardapio(pm) ? 'cardapio' : 'produtos'}
             interactorUsername={ator?.username ?? 'usuario'}
             interactorFoto={ator?.foto_perfil_url ?? null}
             donorUsername={donorCat.donorUsername}

@@ -6,6 +6,7 @@ import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useFunilConversao } from '../../hooks/useFunilConversao'
 import { useFunilNotificacoes } from '../../hooks/useFunilNotificacoes'
 import { vistoEmEtapa } from '@/lib/dashboardFunilBadge'
+import { empresaEhGastronomia } from '@/lib/empresaCategoria'
 import type { Periodo } from '../../types/dashboard.types'
 
 import EtapaFunil from './EtapaFunil'
@@ -50,6 +51,7 @@ export default function FunilConversao({ periodo }: Props) {
     dados,
     recomendacoesPorProfissional,
     recomendacoesProdutoPorProfissional,
+    recomendacoesPratoPorProfissional,
     paxPorProfissional,
     vendasPorProfissional,
     vendasSemProfissional,
@@ -59,6 +61,8 @@ export default function FunilConversao({ periodo }: Props) {
     carregarDetalhes,
     obterDadosExportacao,
   } = useFunilConversao(empresaId, empresa?.usuario_id ?? null, periodo)
+
+  const ehGastronomia = empresaEhGastronomia(empresa?.categoria)
 
   const usuarioId = empresa?.usuario_id ?? null
   const { contagens, leitura, marcarEtapaLida } = useFunilNotificacoes(empresaId)
@@ -129,6 +133,7 @@ export default function FunilConversao({ periodo }: Props) {
       },
       recomendacoes_detalhe: recomendacoesPorProfissional,
       recomendacoes_produto_detalhe: recomendacoesProdutoPorProfissional,
+      recomendacoes_prato_detalhe: recomendacoesPratoPorProfissional,
       pax_detalhe: paxPorProfissional,
       vendas_detalhe: vendasPorProfissional,
       vendas_sem_profissional: vendasSemProfissional,
@@ -139,6 +144,7 @@ export default function FunilConversao({ periodo }: Props) {
       periodo,
       recomendacoesPorProfissional,
       recomendacoesProdutoPorProfissional,
+      recomendacoesPratoPorProfissional,
       paxPorProfissional,
       vendasPorProfissional,
       vendasSemProfissional,
@@ -263,6 +269,8 @@ export default function FunilConversao({ periodo }: Props) {
             <CardRecomendacoes
               recomendacoes={recomendacoesPorProfissional}
               recomendacoesProduto={recomendacoesProdutoPorProfissional}
+              recomendacoesPrato={recomendacoesPratoPorProfissional}
+              empresaEhGastronomia={ehGastronomia}
               referenciaVistoEm={referenciaVistoEm}
               pastasVistas={pastasVistas}
               profissionaisVistos={profissionaisVistos}

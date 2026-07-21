@@ -1,22 +1,19 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Ticket, Calendar, Package, Utensils, ShoppingBag, MessageCircle, X } from 'lucide-react'
+import { Ticket, Calendar, Package, Utensils, ShoppingBag, MessageCircle } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
+import DrawerCardapio from '@/components/DrawerCardapio'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { registrarCliqueBotaoDinamico } from '@/lib/botaoDinamicoCliques'
-import {
-  openWhatsAppChat,
-  mensagemWhatsappReservaMesa,
-  mensagemWhatsappContatoGuia,
-} from '@/lib/whatsapp-empresa'
+import { openWhatsAppChat, mensagemWhatsappContatoGuia } from '@/lib/whatsapp-empresa'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { empresaEhLojaComCatalogo } from '@/lib/cidade-empresa'
 
@@ -105,18 +102,14 @@ export default function BotaoDinamico({
   const [showTicketPopup, setShowTicketPopup] = useState(false)
   const [showReservaPopup, setShowReservaPopup] = useState(false)
   const [showProdutosPopup, setShowProdutosPopup] = useState(false)
-  const [showReservaMesaModal, setShowReservaMesaModal] = useState(false)
-  const [reservaData, setReservaData] = useState('')
-  const [reservaHora, setReservaHora] = useState('')
-  const [reservaPessoas, setReservaPessoas] = useState(2)
+  const [showCardapioPopup, setShowCardapioPopup] = useState(false)
 
-  const popupDinamicoAberto =
-    showReservaMesaModal || showTicketPopup || showReservaPopup || showProdutosPopup
+  const popupDinamicoAberto = showCardapioPopup || showTicketPopup || showReservaPopup || showProdutosPopup
   useModalScrollLock(popupDinamicoAberto)
 
   // FIX: somente texto e ícone mudam por categoria/cidade
   const config = useMemo(() => {
-    if (isGastronomia(categoria)) return { texto: 'RESERVAR MESA', icon: Utensils, acao: 'reserva_mesa' }
+    if (isGastronomia(categoria)) return { texto: 'CARDÁPIO', icon: Utensils, acao: 'cardapio' }
     if (isPasseios(categoria)) {
       return { texto: 'Comprar Ticket', icon: Ticket, acao: 'ticket', textoUmaLinha: true }
     }
@@ -136,31 +129,6 @@ export default function BotaoDinamico({
 
   const Icon = config.icon
   const corBotao = COR_PADRAO
-
-  const enviarWhatsappReservaMesa = () => {
-    const d = reservaData.trim()
-    const h = reservaHora.trim()
-    if (!d || !h) {
-      alert('Preencha data e horário.')
-      return
-    }
-    const texto = mensagemWhatsappReservaMesa({
-      username: empresaUsername,
-      data: d,
-      horario: h,
-      pessoas: reservaPessoas,
-    })
-    if (!openWhatsAppChat(whatsapp, texto)) {
-      alert('WhatsApp da empresa não configurado.')
-      return
-    }
-    void registrarUsoPreLiberacao({
-      tipo: 'reserva_mesa',
-      descricao: `Reserva mesa ${empresaNome}`,
-      empresaId,
-    })
-    setShowReservaMesaModal(false)
-  }
 
   const abrirWhatsappServicosLocais = () => {
     if (!openWhatsAppChat(whatsapp, mensagemWhatsappContatoGuia())) {
@@ -184,8 +152,8 @@ export default function BotaoDinamico({
     void registrarCliqueBotaoDinamico(supabase, empresaId)
 
     switch (config.acao) {
-      case 'reserva_mesa':
-        setShowReservaMesaModal(true)
+      case 'cardapio':
+        setShowCardapioPopup(true)
         break
       case 'ticket':
         setShowTicketPopup(true)
@@ -238,101 +206,15 @@ export default function BotaoDinamico({
 
       {empresaId ? (
         <>
-          {/* ADD: modal de reserva (gastronomia) */}
-          {showReservaMesaModal ? (
-            <div
-              className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4"
-              role="dialog"
-              aria-modal="true"
-              onClick={(e) => {
-                if (e.target === e.currentTarget) setShowReservaMesaModal(false)
-              }}
-            >
-              <div
-                className="w-full min-w-0 max-w-sm overflow-hidden rounded-2xl bg-white p-5 shadow-xl [color-scheme:light]"
-                data-modal-scroll-lock-scrollable
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-lg font-extrabold text-gray-900">Reservar Mesa</h3>
-                    <p className="mt-1 text-xs text-gray-500">Reserva será feita pelo WhatsApp</p>
-                  </div>
-                  <button
-                    type="button"
-                    className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100"
-                    onClick={() => setShowReservaMesaModal(false)}
-                    aria-label="Fechar"
-                  >
-                    <X size={18} aria-hidden />
-                  </button>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <div className="flex flex-col items-center">
-                    <label className="block text-center text-xs font-semibold text-gray-700">Data</label>
-                    <input
-                      type="date"
-                      value={reservaData}
-                      onChange={(e) => setReservaData(e.target.value)}
-                      className="reserva-mesa-input mt-1 box-border w-[10rem] max-w-full rounded-lg border border-gray-300 bg-white py-2 text-center text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
-                    />
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <label className="block text-center text-xs font-semibold text-gray-700">Horário</label>
-                    <input
-                      type="time"
-                      value={reservaHora}
-                      onChange={(e) => setReservaHora(e.target.value)}
-                      className="reserva-mesa-input mt-1 box-border w-[10rem] max-w-full rounded-lg border border-gray-300 bg-white py-2 text-center text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-center text-xs font-semibold text-gray-700">
-                      Mesa para quantas pessoas?
-                    </label>
-                    <div className="mt-1 flex items-center justify-center gap-3">
-                      <button
-                        type="button"
-                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-lg font-bold text-gray-700"
-                        onClick={() => setReservaPessoas((n) => Math.max(1, n - 1))}
-                        aria-label="Menos pessoas"
-                      >
-                        −
-                      </button>
-                      <span className="min-w-[2rem] text-center text-lg font-bold text-gray-900">{reservaPessoas}</span>
-                      <button
-                        type="button"
-                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-lg font-bold text-gray-700"
-                        onClick={() => setReservaPessoas((n) => Math.min(30, n + 1))}
-                        aria-label="Mais pessoas"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex gap-2">
-                  <button
-                    type="button"
-                    className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                    onClick={() => setShowReservaMesaModal(false)}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#00D443] py-2.5 text-sm font-extrabold text-white hover:opacity-95"
-                    onClick={enviarWhatsappReservaMesa}
-                  >
-                    <MessageCircle size={18} className="shrink-0 text-white" aria-hidden />
-                    WhatsApp
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
+          <DrawerCardapio
+            isOpen={showCardapioPopup}
+            onClose={() => setShowCardapioPopup(false)}
+            empresaId={empresaId}
+            empresaNome={empresaNome}
+            empresaUsername={empresaUsername}
+            empresaFotoUrl={empresaFotoUrl}
+            notaMedia={notaMedia}
+          />
 
           <DrawerTicketsAtrativos
             isOpen={showTicketPopup}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { Briefcase, ShoppingBag, Bed, Ticket, UtensilsCrossed, Car } from 'lucide-react'
+import { Briefcase, ShoppingBag, Bed, Ticket, Car } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
   listarComprasTurista,
@@ -20,7 +20,6 @@ const STATUS_ROTULO = {
 function iconeCompra(tipo) {
   if (tipo === 'reserva_hospedagem') return Bed
   if (tipo === 'compra_ticket') return Ticket
-  if (tipo === 'reserva_mesa') return UtensilsCrossed
   if (tipo === 'mobilidade' || tipo === 'mobilidade_corrida') return Car
   return ShoppingBag
 }

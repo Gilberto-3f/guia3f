@@ -3,7 +3,6 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export type TuristaCompraTipo =
   | 'reserva_hospedagem'
   | 'compra_ticket'
-  | 'reserva_mesa'
   | 'mobilidade'
   | 'mobilidade_corrida'
 
@@ -25,7 +24,7 @@ export type TuristaCompraRow = {
 }
 
 const TIPOS_SERVICOS = new Set(['mobilidade', 'mobilidade_corrida'])
-const TIPOS_COMPRAS = new Set(['reserva_hospedagem', 'compra_ticket', 'reserva_mesa'])
+const TIPOS_COMPRAS = new Set(['reserva_hospedagem', 'compra_ticket'])
 
 function normalizarTipoMobilidade(tipo: string): string {
   if (tipo === 'mobilidade_corrida') return 'mobilidade'
@@ -175,7 +174,6 @@ export async function registrarCompraTuristaUso(
   let titulo = params.descricao
   if (tipoNorm === 'mobilidade') titulo = `Mobilidade — ${params.descricao}`
   else if (tipoRaw === 'compra_ticket') titulo = `Ticket — ${params.descricao}`
-  else if (tipoRaw === 'reserva_mesa') titulo = `Reserva de mesa — ${params.descricao}`
   else if (tipoRaw === 'reserva_hospedagem') titulo = `Hospedagem — ${params.descricao}`
 
   await upsertCompraTurista(supabase, {

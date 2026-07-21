@@ -1,35 +1,34 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Package, Users, type LucideIcon } from 'lucide-react'
+import { Package, Users, Utensils, type LucideIcon } from 'lucide-react'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 import type {
+  RecomendacaoPratoProfissional,
   RecomendacaoProdutoProfissional,
   RecomendacaoProfissional,
 } from '../../types/dashboard.types'
 import { contarNovosEventos } from './contarNovosFunil'
 import LinhaProfissionalRecomendacao from './LinhaProfissionalRecomendacao'
 import LinhaProfissionalRecomendacaoProduto from './LinhaProfissionalRecomendacaoProduto'
+import LinhaProfissionalRecomendacaoPrato from './LinhaProfissionalRecomendacaoPrato'
 import RelatorioPastasCategoria from './RelatorioPastasCategoria'
 
 const VERDE = '#00D443'
 
-type AbaRec = 'pagina' | 'produtos'
+type AbaRec = 'pagina' | 'produtos' | 'cardapio'
 
 interface Props {
   recomendacoes: RecomendacaoProfissional[]
   recomendacoesProduto?: RecomendacaoProdutoProfissional[]
+  recomendacoesPrato?: RecomendacaoPratoProfissional[]
+  empresaEhGastronomia?: boolean
   referenciaVistoEm?: string | null
   pastasVistas?: Set<string>
   profissionaisVistos?: Set<string>
   onPastaVista?: (categoria: string) => void
   onProfissionalVisto?: (profissionalId: string) => void
 }
-
-const ABAS: { id: AbaRec; label: string; Icon: LucideIcon }[] = [
-  { id: 'pagina', label: 'PÁGINA', Icon: Users },
-  { id: 'produtos', label: 'PRODUTOS', Icon: Package },
-]
 
 function contarNaoLidasAba(
   items: { profissional_id: string; detalhes: { created_at: string }[] }[],
@@ -50,6 +49,8 @@ function contarNaoLidasAba(
 export default function CardRecomendacoes({
   recomendacoes,
   recomendacoesProduto = [],
+  recomendacoesPrato = [],
+  empresaEhGastronomia = false,
   referenciaVistoEm,
   pastasVistas,
   profissionaisVistos,
@@ -57,11 +58,23 @@ export default function CardRecomendacoes({
   onProfissionalVisto,
 }: Props) {
   const temProdutos = recomendacoesProduto.length > 0
+  const temCardapio = empresaEhGastronomia || recomendacoesPrato.length > 0
+  const temAbasExtra = temProdutos || temCardapio
   const [aba, setAba] = useState<AbaRec>('pagina')
 
   useEffect(() => {
-    if (!temProdutos && aba === 'produtos') setAba('pagina')
-  }, [temProdutos, aba])
+    if (aba === 'produtos' && !temProdutos) setAba('pagina')
+    if (aba === 'cardapio' && !temCardapio) setAba('pagina')
+  }, [temProdutos, temCardapio, aba])
+
+  const abas = useMemo(() => {
+    const lista: { id: AbaRec; label: string; Icon: LucideIcon }[] = [
+      { id: 'pagina', label: 'PÁGINA', Icon: Users },
+    ]
+    if (temProdutos) lista.push({ id: 'produtos', label: 'PRODUTOS', Icon: Package })
+    if (temCardapio) lista.push({ id: 'cardapio', label: 'CARDÁPIO', Icon: Utensils })
+    return lista
+  }, [temProdutos, temCardapio])
 
   const naoLidasPagina = useMemo(
     () => contarNaoLidasAba(recomendacoes, referenciaVistoEm, profissionaisVistos),
@@ -74,13 +87,19 @@ export default function CardRecomendacoes({
     [recomendacoesProduto, referenciaVistoEm, profissionaisVistos],
   )
 
+  const naoLidasCardapio = useMemo(
+    () =>
+      contarNaoLidasAba(recomendacoesPrato, referenciaVistoEm, profissionaisVistos, 'prato:'),
+    [recomendacoesPrato, referenciaVistoEm, profissionaisVistos],
+  )
+
   return (
     <div className="space-y-3">
-      {temProdutos ? (
+      {temAbasExtra ? (
         <div className="flex gap-1.5 rounded-2xl bg-gray-100 p-1.5" role="tablist" aria-label="Tipo de recomendação">
-          {ABAS.map(({ id, label, Icon }) => {
+          {abas.map(({ id, label, Icon }) => {
             const ativa = aba === id
-            const naoLidas = id === 'pagina' ? naoLidasPagina : naoLidasProdutos
+            const naoLidas = id === 'pagina' ? naoLidasPagina : id === 'produtos' ? naoLidasProdutos : naoLidasCardapio
             return (
               <button
                 key={id}
@@ -107,7 +126,7 @@ export default function CardRecomendacoes({
         </div>
       ) : null}
 
-      {!temProdutos || aba === 'pagina' ? (
+      {!temAbasExtra || aba === 'pagina' ? (
         <RelatorioPastasCategoria
           prefixoId="rec"
           items={recomendacoes}
@@ -160,6 +179,45 @@ export default function CardRecomendacoes({
           renderLinha={(prof, naoLidas, onVisto, posicao) => (
             <LinhaProfissionalRecomendacaoProduto
               key={`prod-${prof.profissional_id}`}
+              profissional={prof}
+              naoLidas={naoLidas}
+              onAberto={onVisto}
+              posicao={posicao}
+            />
+          )}
+        />
+      ) : null}
+
+      {temCardapio && aba === 'cardapio' ? (
+        <RelatorioPastasCategoria
+          prefixoId="rec-prato"
+          items={recomendacoesPrato}
+          referenciaVistoEm={referenciaVistoEm}
+          pastasVistas={
+            pastasVistas
+              ? new Set(
+                  [...pastasVistas]
+                    .filter((k) => k.startsWith('prato:'))
+                    .map((k) => k.slice('prato:'.length)),
+                )
+              : undefined
+          }
+          profissionaisVistos={
+            profissionaisVistos
+              ? new Set(
+                  [...profissionaisVistos]
+                    .filter((k) => k.startsWith('prato:'))
+                    .map((k) => k.slice('prato:'.length)),
+                )
+              : undefined
+          }
+          onPastaVista={(cat) => onPastaVista?.(`prato:${cat}`)}
+          onProfissionalVisto={(id) => onProfissionalVisto?.(`prato:${id}`)}
+          rotuloBloco="pratos recomendados"
+          vazioCategoria="Nenhuma recomendação de prato nesta categoria"
+          renderLinha={(prof, naoLidas, onVisto, posicao) => (
+            <LinhaProfissionalRecomendacaoPrato
+              key={`prato-${prof.profissional_id}`}
               profissional={prof}
               naoLidas={naoLidas}
               onAberto={onVisto}

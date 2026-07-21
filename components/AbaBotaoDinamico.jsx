@@ -2,16 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag, MessageCircle } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
 import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
-import {
-  openWhatsAppChat,
-  mensagemWhatsappReservaMesa,
-  mensagemWhatsappReservaMesaSimples,
-  mensagemWhatsappContatoGuia,
-} from '@/lib/whatsapp-empresa'
+import DrawerCardapio from '@/components/DrawerCardapio'
+import { openWhatsAppChat, mensagemWhatsappContatoGuia } from '@/lib/whatsapp-empresa'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
@@ -24,8 +20,8 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
 const COR_BOTAO_CHAMAR_CORRIDA = '#00D443'
 
 const botoesPorCategoria = {
-  gastronomia: { texto: 'RESERVAR MESA', icon: Utensils, cor: '#FF6B6B', acao: 'reserva' },
-  Restaurantes: { texto: 'RESERVAR MESA', icon: Utensils, cor: '#FF6B6B', acao: 'reserva' },
+  gastronomia: { texto: 'CARDÁPIO', icon: Utensils, cor: '#FF6B6B', acao: 'cardapio' },
+  Restaurantes: { texto: 'CARDÁPIO', icon: Utensils, cor: '#FF6B6B', acao: 'cardapio' },
   passeios: { texto: 'Comprar Ticket', icon: Ticket, cor: '#4ECDC4', acao: 'ticket', textoCompacto: true },
   Atrativos: { texto: 'Comprar Ticket', icon: Ticket, cor: '#4ECDC4', acao: 'ticket', textoCompacto: true },
   lojas: { texto: 'CATÁLOGO', icon: ShoppingBag, cor: '#00D443', acao: 'produtos' },
@@ -42,11 +38,12 @@ const botoesPorCategoria = {
 }
 
 function isHospedagem(cat) {
-  return cat === 'Hospedagem' || cat === 'hospedagem'
+  return String(cat ?? '').toLowerCase().trim() === 'hospedagem'
 }
 
 function isGastronomia(cat) {
-  return cat === 'Restaurantes' || cat === 'gastronomia'
+  const c = String(cat ?? '').toLowerCase().trim()
+  return c === 'restaurantes' || c === 'gastronomia'
 }
 
 /**
@@ -94,13 +91,9 @@ export default function AbaBotaoDinamico({
   const [showTicketPopup, setShowTicketPopup] = useState(false)
   const [showReservaPopup, setShowReservaPopup] = useState(false)
   const [showProdutosPopup, setShowProdutosPopup] = useState(false)
-  const [showReservaMesaModal, setShowReservaMesaModal] = useState(false)
-  const [dataMesa, setDataMesa] = useState('')
-  const [horaMesa, setHoraMesa] = useState('')
-  const [nPessoasMesa, setNPessoasMesa] = useState(2)
+  const [showCardapioPopup, setShowCardapioPopup] = useState(false)
 
-  const popupDinamicoAberto =
-    showReservaMesaModal || showTicketPopup || showReservaPopup || showProdutosPopup
+  const popupDinamicoAberto = showCardapioPopup || showTicketPopup || showReservaPopup || showProdutosPopup
   useModalScrollLock(popupDinamicoAberto)
 
   useEffect(() => {
@@ -110,14 +103,10 @@ export default function AbaBotaoDinamico({
     setShowReservaPopup(true)
   }, [abrirReservaAuto, categoria, podeComprarReservar, gateLoading])
 
-  useEffect(() => {
-    if (!showReservaMesaModal) return
-    const hoje = new Date().toISOString().slice(0, 10)
-    setDataMesa((d) => (d ? d : hoje))
-    setHoraMesa((t) => (t ? t : '12:00'))
-  }, [showReservaMesaModal])
-
   const config = useMemo(() => {
+    if (isGastronomia(categoria)) {
+      return { texto: 'CARDÁPIO', icon: Utensils, cor: '#FF6B6B', acao: 'cardapio' }
+    }
     const base =
       botoesPorCategoria[categoria] || {
         texto: 'VER MAIS',
@@ -153,38 +142,6 @@ export default function AbaBotaoDinamico({
     router.push(`/mobilidade?destino_empresa=${encodeURIComponent(empresaId)}`)
   }
 
-  const abrirWhatsappGastronomiaSimples = () => {
-    if (!openWhatsAppChat(whatsapp, mensagemWhatsappReservaMesaSimples(empresaUsername))) {
-      alert('WhatsApp da empresa não configurado.')
-    }
-  }
-
-  const confirmarReservaMesaWhatsapp = () => {
-    const n = Math.max(1, Number(nPessoasMesa) || 1)
-    const dataFmt = dataMesa?.trim() || ''
-    const horaFmt = horaMesa?.trim() || ''
-    if (!dataFmt || !horaFmt) {
-      alert('Preencha data e horário.')
-      return
-    }
-    const texto = mensagemWhatsappReservaMesa({
-      username: empresaUsername,
-      data: dataFmt,
-      horario: horaFmt,
-      pessoas: n,
-    })
-    if (!openWhatsAppChat(whatsapp, texto)) {
-      alert('WhatsApp da empresa não configurado.')
-      return
-    }
-    void registrarUsoPreLiberacao({
-      tipo: 'reserva_mesa',
-      descricao: `Reserva mesa ${empresaNome}`,
-      empresaId,
-    })
-    setShowReservaMesaModal(false)
-  }
-
   const abrirWhatsappServicosLocais = () => {
     if (!openWhatsAppChat(whatsapp, mensagemWhatsappContatoGuia())) {
       alert('WhatsApp da empresa não configurado.')
@@ -198,14 +155,11 @@ export default function AbaBotaoDinamico({
     }
     void registrarCliqueBotaoDinamico(supabase, empresaId)
     switch (config.acao) {
+      case 'cardapio':
+        setShowCardapioPopup(true)
+        break
       case 'reserva':
-        if (isHospedagem(categoria)) {
-          setShowReservaPopup(true)
-        } else if (isGastronomia(categoria)) {
-          setShowReservaMesaModal(true)
-        } else {
-          abrirWhatsappGastronomiaSimples()
-        }
+        setShowReservaPopup(true)
         break
       case 'ticket':
         setShowTicketPopup(true)
@@ -293,93 +247,15 @@ export default function AbaBotaoDinamico({
         notaMedia={notaMedia}
       />
 
-      {showReservaMesaModal ? (
-        <div
-          className="fixed inset-0 z-[250] flex items-center justify-center bg-black/50 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowReservaMesaModal(false)
-          }}
-          role="presentation"
-        >
-          <div
-            className="w-full max-w-sm min-w-0 overflow-hidden rounded-xl bg-white p-4 text-gray-900 shadow-xl [color-scheme:light]"
-            data-modal-scroll-lock-scrollable
-            onClick={(ev) => ev.stopPropagation()}
-            role="dialog"
-            aria-labelledby="reserva-mesa-titulo"
-          >
-            <h3 id="reserva-mesa-titulo" className="text-lg font-bold text-gray-900">
-              Dados da reserva
-            </h3>
-            <p className="mt-1 text-sm text-gray-700">Serão enviados no WhatsApp para a empresa.</p>
-            <div className="mt-4 min-w-0 max-w-full space-y-4">
-              <div className="min-w-0 max-w-full">
-                <label htmlFor="reserva-mesa-data" className="mb-1 block text-sm font-medium text-gray-700">
-                  Data
-                </label>
-                <input
-                  id="reserva-mesa-data"
-                  type="date"
-                  value={dataMesa}
-                  onChange={(e) => setDataMesa(e.target.value)}
-                  className="box-border w-44 max-w-full rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900"
-                />
-              </div>
-              <div className="min-w-0 max-w-full">
-                <label htmlFor="reserva-mesa-hora" className="mb-1 block text-sm font-medium text-gray-700">
-                  Hora
-                </label>
-                <input
-                  id="reserva-mesa-hora"
-                  type="time"
-                  value={horaMesa}
-                  onChange={(e) => setHoraMesa(e.target.value)}
-                  className="box-border w-44 max-w-full rounded-lg border border-gray-300 bg-white p-2 text-sm text-gray-900"
-                />
-              </div>
-              <div className="min-w-0 max-w-full">
-                <span className="mb-1 block text-sm font-medium text-gray-700">Mesa para</span>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-lg font-bold"
-                    onClick={() => setNPessoasMesa((n) => Math.max(1, n - 1))}
-                    aria-label="Menos pessoas"
-                  >
-                    −
-                  </button>
-                  <span className="min-w-[2rem] text-center text-lg font-bold">{nPessoasMesa}</span>
-                  <span className="text-sm text-gray-600">pessoas</span>
-                  <button
-                    type="button"
-                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-lg font-bold"
-                    onClick={() => setNPessoasMesa((n) => Math.min(30, n + 1))}
-                    aria-label="Mais pessoas"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowReservaMesaModal(false)}
-                className="rounded-lg bg-gray-200 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-300"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={confirmarReservaMesaWhatsapp}
-                className="rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:opacity-95"
-              >
-                Abrir WhatsApp
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <DrawerCardapio
+        isOpen={showCardapioPopup}
+        onClose={() => setShowCardapioPopup(false)}
+        empresaId={empresaId}
+        empresaNome={empresaNome}
+        empresaUsername={empresaUsername}
+        empresaFotoUrl={empresaFotoUrl}
+        notaMedia={notaMedia}
+      />
     </>
   )
 }

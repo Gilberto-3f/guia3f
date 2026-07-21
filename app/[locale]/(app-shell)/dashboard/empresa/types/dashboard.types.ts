@@ -46,6 +46,24 @@ export interface RecomendacaoProdutoProfissional {
   detalhes: RecomendacaoProdutoDetalhe[]
 }
 
+/** Detalhe de recomendação indireta (prato do cardápio digital / gastronomia). */
+export interface RecomendacaoPratoDetalhe extends RecomendacaoDetalhe {
+  prato_id: string
+  prato_nome: string
+  prato_foto_url: string | null
+}
+
+export interface RecomendacaoPratoProfissional {
+  profissional_id: string
+  profissional_nome: string
+  profissional_username: string
+  profissional_foto_url: string | null
+  profissional_verificado?: boolean
+  categoria: string
+  total: number
+  detalhes: RecomendacaoPratoDetalhe[]
+}
+
 export interface PaxDetalhe {
   id: string
   created_at: string

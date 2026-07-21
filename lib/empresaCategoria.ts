@@ -2,8 +2,8 @@ import type { LucideIcon } from 'lucide-react'
 import { Calendar, Car, Hotel, MessageCircle, Package, ShoppingBag, Ticket, Utensils } from 'lucide-react'
 
 export const ROTULO_ABA_SERVICO: Record<string, string> = {
-  gastronomia: 'Reservar',
-  Restaurantes: 'Reservar',
+  gastronomia: 'Cardápio',
+  Restaurantes: 'Cardápio',
   passeios: 'Tickets',
   Atrativos: 'Tickets',
   lojas: 'Produtos',
@@ -44,5 +44,11 @@ export function getRotuloAbaServico(categoria: string) {
 
 export function getIconeAbaServico(categoria: string): LucideIcon {
   return ICONE_BA_SERVICO[categoria] ?? Package
+}
+
+/** Empresa de gastronomia (cardápio digital) — alinhado a `isGastronomia` em BotaoDinamico/AbaBotaoDinamico. */
+export function empresaEhGastronomia(categoria: string | null | undefined): boolean {
+  const c = String(categoria ?? '').toLowerCase().trim()
+  return c === 'restaurantes' || c === 'gastronomia'
 }
 

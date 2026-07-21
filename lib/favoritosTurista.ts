@@ -8,7 +8,7 @@ import {
   tipoCategoriaImovel,
 } from '@/lib/hospedagemAcomodacoesCatalogo'
 
-export type FavoritoAlvoTipo = 'empresa' | 'acomodacao' | 'produto' | 'ticket'
+export type FavoritoAlvoTipo = 'empresa' | 'acomodacao' | 'produto' | 'ticket' | 'prato'
 
 export type EmpresaFavoritaCard = {
   id: string
@@ -57,6 +57,17 @@ export type TicketFavoritoCard = {
   empresa_nome: string | null
   preco_inteira: number | null
   preco_meia: number | null
+}
+
+export type PratoFavoritoCard = {
+  id: string
+  empresa_id: string | null
+  titulo: string
+  foto_url: string | null
+  preco: number | null
+  percentual_desconto: number
+  empresa_nome: string | null
+  categoria_nome: string | null
 }
 
 /** Item de catálogo salvo — para Publicações Salvas (profissional / ADM). */
@@ -426,6 +437,71 @@ export async function listarProdutosFavoritos(
     })
 }
 
+
+/** Pratos do cardápio digital (gastronomia) favoritos. */
+export async function listarPratosFavoritos(
+  supabase: SupabaseClient,
+  usuarioId: string,
+): Promise<PratoFavoritoCard[]> {
+  const ids = await listarAlvoIdsFavoritos(supabase, usuarioId, 'prato')
+  if (!ids.length) return []
+
+  const { data, error } = await supabase
+    .from('cardapio_pratos')
+    .select(
+      `
+      id, empresa_id, nome, fotos, foto_url, preco_usd, percentual_desconto,
+      cardapio_categorias ( nome )
+    `,
+    )
+    .in('id', ids)
+
+  if (error) {
+    console.error('[favoritosTurista] listarPratosFavoritos:', error.message)
+    return []
+  }
+  if (!data?.length) return []
+
+  const empresaIds = [
+    ...new Set(data.map((p) => String(p.empresa_id ?? '').trim()).filter(Boolean)),
+  ]
+  const nomePorEmpresa = new Map<string, string>()
+  if (empresaIds.length) {
+    const { data: emps } = await supabase
+      .from('empresas')
+      .select('id, nome_fantasia')
+      .in('id', empresaIds)
+    for (const e of emps ?? []) {
+      nomePorEmpresa.set(String(e.id), String(e.nome_fantasia ?? ''))
+    }
+  }
+
+  const byId = new Map(data.map((p) => [String(p.id), p]))
+  return ids
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+    .map((p) => {
+      const fotos = Array.isArray(p!.fotos) ? p!.fotos : []
+      const foto =
+        (fotos.find((f) => typeof f === 'string' && String(f).trim()) as string | undefined) ??
+        (p!.foto_url != null ? String(p!.foto_url) : null)
+      const pct = Number(p!.percentual_desconto) || 0
+      const bruto = Number(p!.preco_usd) || 0
+      const final = Math.round(bruto * (1 - pct / 100) * 100) / 100
+      const empId = p!.empresa_id != null ? String(p!.empresa_id) : null
+      const catRel = p!.cardapio_categorias as { nome?: string } | null
+      return {
+        id: String(p!.id),
+        empresa_id: empId,
+        titulo: String(p!.nome ?? 'Prato'),
+        foto_url: foto,
+        preco: final > 0 ? final : null,
+        percentual_desconto: pct,
+        empresa_nome: empId ? nomePorEmpresa.get(empId) || null : null,
+        categoria_nome: catRel?.nome ? String(catRel.nome) : null,
+      }
+    })
+}
 
 /** Base pronta — tickets de atrativos (experiências). */
 export async function listarTicketsFavoritos(

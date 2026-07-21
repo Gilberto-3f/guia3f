@@ -13,6 +13,7 @@ import AbaAtrativos from './atrativos/AbaAtrativos'
 import AbaInformacoesAtrativos from './atrativos/AbaInformacoesAtrativos'
 import AbaProdutos from './compras-cde/AbaProdutos'
 import AbaContatos from './compras-cde/AbaContatos'
+import AbaCardapio from './gastronomia/AbaCardapio'
 
 function asNumberOrNull(v: string) {
   const t = v.trim()
@@ -52,7 +53,7 @@ function isEventos(cat: string) {
 }
 
 function textoBotaoPreview(categoria: string, cidade: string) {
-  if (isGastronomia(categoria)) return 'RESERVAR MESA'
+  if (isGastronomia(categoria)) return 'CARDÁPIO'
   if (isPasseios(categoria)) return 'Comprar Ticket'
   if (isHospedagem(categoria)) return 'FAZER RESERVA'
   if (isServicosLocais(categoria)) return 'WhatsApp'
@@ -65,7 +66,7 @@ function textoBotaoPreview(categoria: string, cidade: string) {
 
 function descricaoSegmento(categoria: string, cidade: string) {
   if (isGastronomia(categoria)) {
-    return 'Visitantes reservam mesa pelo WhatsApp. Configure o número com DDD.'
+    return 'Cadastre pratos do cardápio digital (sessões, preços e ofertas). O botão CARDÁPIO abre o drawer para visitantes.'
   }
   if (isPasseios(categoria)) {
     return 'Cadastre experiências (tickets) e políticas. Cada atrativo tem título, fotos, descrição e preços.'
@@ -111,7 +112,9 @@ export default function ConfigBotaoDinamico() {
   const [abaHospedagem, setAbaHospedagem] = useState<'acomodacoes' | 'informacoes'>('acomodacoes')
   const [abaAtrativos, setAbaAtrativos] = useState<'atrativos' | 'informacoes'>('atrativos')
   const [abaComprasCde, setAbaComprasCde] = useState<'produtos' | 'contatos'>('produtos')
+  const [abaGastronomia, setAbaGastronomia] = useState<'cardapio' | 'ajustes'>('cardapio')
   const ehAtrativos = isPasseios(categoria)
+  const ehGastronomia = isGastronomia(categoria)
   const ehLojaComCatalogo = empresaEhLojaComCatalogo(categoria, cidade)
   const ehLojasCde = empresaEhSegmentoLojasParaguai(categoria, cidade)
   const ehLojasBrAr = empresaEhLojasBrasilOuArgentina(categoria, cidade)
@@ -120,10 +123,7 @@ export default function ConfigBotaoDinamico() {
   const textoBotao = useMemo(() => textoBotaoPreview(categoria, cidade), [categoria, cidade])
   const descricao = useMemo(() => descricaoSegmento(categoria, cidade), [categoria, cidade])
 
-  const precisaWhatsapp =
-    isGastronomia(categoria) ||
-    isServicosLocais(categoria) ||
-    isEventos(categoria)
+  const precisaWhatsapp = isServicosLocais(categoria) || isEventos(categoria)
   const precisaTickets = isEventos(categoria)
 
   useEffect(() => {
@@ -255,6 +255,48 @@ export default function ConfigBotaoDinamico() {
             <AbaInformacoes empresaId={empresaId} />
             {desempenhoCard}
           </div>
+        )}
+      </div>
+    )
+  }
+
+  if (ehGastronomia && empresaId) {
+    return (
+      <div className="mt-4 space-y-4">
+        <div className="flex gap-2" role="tablist" aria-label="Seções do botão dinâmico">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaGastronomia === 'cardapio'}
+            className={abaVerdeCls(abaGastronomia === 'cardapio')}
+            onClick={() => setAbaGastronomia('cardapio')}
+          >
+            CARDÁPIO
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaGastronomia === 'ajustes'}
+            className={abaVerdeCls(abaGastronomia === 'ajustes')}
+            onClick={() => setAbaGastronomia('ajustes')}
+          >
+            AJUSTES
+          </button>
+        </div>
+
+        {abaGastronomia === 'cardapio' ? (
+          <AbaCardapio empresaId={empresaId} />
+        ) : (
+          <AbaContatos
+            empresaId={empresaId}
+            whatsappGeral={dados?.whatsapp != null ? String(dados.whatsapp) : null}
+            whatsappComercialInicial={
+              dados?.whatsapp_comercial != null ? String(dados.whatsapp_comercial) : null
+            }
+            moedaPadraoInicial={dados?.moeda_padrao != null ? String(dados.moeda_padrao) : 'USD'}
+            mostrarFeedbackCardapio
+            onSalvo={() => void refetch()}
+          />
         )}
       </div>
     )

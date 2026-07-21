@@ -335,7 +335,7 @@ export function itemCanalFinanceiroPreLiberacao(p: {
   }
 }
 
-const TIPOS_EMPRESA_PRE_LIB = new Set(['compra_ticket', 'reserva_hospedagem', 'reserva_mesa'])
+const TIPOS_EMPRESA_PRE_LIB = new Set(['compra_ticket', 'reserva_hospedagem'])
 const TIPOS_MOBILIDADE_PRE_LIB = new Set(['mobilidade', 'mobilidade_corrida', 'contratacao_mobilidade', 'corrida'])
 
 export type EventoContratacaoPreLiberada = {
@@ -456,7 +456,6 @@ async function notificarNegocioPreLiberacao24h(
 function rotuloTipoNegocio(tipo: string): string {
   if (tipo === 'compra_ticket') return 'compra de ticket'
   if (tipo === 'reserva_hospedagem') return 'reserva de hospedagem'
-  if (tipo === 'reserva_mesa') return 'reserva de mesa'
   return 'contratação'
 }
 
