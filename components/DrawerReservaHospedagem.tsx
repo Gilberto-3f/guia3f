@@ -539,35 +539,30 @@ export default function DrawerReservaHospedagem({
       style={{ paddingTop: 'max(0.15rem, env(safe-area-inset-top, 0px))' }}
     >
       <div className="relative px-5 pb-3 pt-1.5 pr-3">
-        <div className="flex items-start gap-2.5">
+        <div className="flex items-start gap-3.5">
           <div className="h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-md border-2 border-white bg-white/20">
             {avatarEmpresa ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
             ) : null}
           </div>
-          {/* Coluna do check alinhada à linha do @username — espaço sempre reservado */}
-          <div
-            className="grid w-3.5 shrink-0 grid-rows-[1.35rem_1.25rem_1.25rem] items-center gap-0.5"
-            aria-hidden
-          >
-            <span />
-            <span className="inline-flex h-[1.25rem] items-center justify-center">
-              <BadgeCheck
-                className={`h-3.5 w-3.5 text-white ${
-                  empresaVerificada && usernameExibir ? 'visible' : 'invisible'
-                }`}
-                fill="currentColor"
-                stroke="#0097b2"
-                strokeWidth={2}
-              />
-            </span>
-            <span />
-          </div>
+          {/* Nome, check e Anfitrião compartilham a mesma margem esquerda */}
           <div className="grid min-w-0 flex-1 grid-rows-[1.35rem_1.25rem_1.25rem] items-center gap-0.5 pr-8">
             <p className="truncate text-base font-bold leading-[1.35rem] text-white">{empresaNome}</p>
             {usernameExibir ? (
-              <p className="truncate text-sm leading-[1.25rem] text-white/80">@{usernameExibir}</p>
+              <p className="flex max-w-full items-center gap-1 truncate text-sm leading-[1.25rem] text-white/80">
+                <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center" aria-hidden>
+                  <BadgeCheck
+                    className={`h-3.5 w-3.5 text-white ${
+                      empresaVerificada ? 'visible' : 'invisible'
+                    }`}
+                    fill="currentColor"
+                    stroke="#0097b2"
+                    strokeWidth={2}
+                  />
+                </span>
+                <span className="truncate">@{usernameExibir}</span>
+              </p>
             ) : (
               <span className="block h-[1.25rem]" aria-hidden />
             )}
