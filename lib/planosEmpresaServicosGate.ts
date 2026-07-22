@@ -189,7 +189,8 @@ export function resolverServicosEmpresaComDegustacao(
       servicos: planoDeg?.servicos?.length ? planoDeg.servicos : null,
     })
   }
-  return resolverServicosDoPlano(planoEmpresa, planos, { planoId: opts?.planoContratadoId })
+  // Ciclo vencido: mesmos serviços bloqueados no público e no menu interno.
+  return resolverServicosEmpresa(planoEmpresa, planos, { ativa: false }, opts)
 }
 
 /** Mesma regra do card do guia turístico (degustação ou plano contratado). */
@@ -198,14 +199,17 @@ export function empresaTemBotaoDinamicoPublico(
   planos: PlanoResumoServicos[],
   degustacao: { ativa: boolean; planoId?: string | null } | null | undefined,
   planoContratadoId: string | null | undefined,
-  opts?: { somenteAnfitriao?: boolean },
+  opts?: { somenteAnfitriao?: boolean; assinaturaContratadaVigente?: boolean },
 ): boolean {
   if (opts?.somenteAnfitriao) return true
   const servicos = resolverServicosEmpresaComDegustacao(
     planoEmpresa,
     planos,
     degustacao?.ativa ? { ativa: true, planoId: degustacao.planoId ?? null } : null,
-    { planoContratadoId: planoContratadoId ?? null },
+    {
+      planoContratadoId: planoContratadoId ?? null,
+      assinaturaContratadaVigente: opts?.assinaturaContratadaVigente,
+    },
   )
   return empresaTemServico(servicos, 'botao_dinamico')
 }

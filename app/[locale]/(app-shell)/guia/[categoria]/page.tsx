@@ -11,10 +11,12 @@ import { empresaCorrespondeBusca } from '@/lib/palavrasChaveGuia'
 import { registrarBuscaGuia } from '@/lib/buscasGuia'
 import {
   empresaTemBotaoDinamicoPublico,
+  planoEmpresaReconhecidoNoCatalogo,
   type PlanoResumoServicos,
 } from '@/lib/planosEmpresaServicosGate'
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import { buscarMapaDegustacaoAtivaPorEmpresas } from '@/lib/degustacaoEmpresa'
+import { assinaturaContratadaVigente } from '@/lib/empresaAssinatura'
 import { buscarEmpresasListagemGuia } from '@/lib/empresaGuiaVisibilidade'
 import {
   filtrarEmpresasPorQuestionarioHospedagem,
@@ -94,6 +96,9 @@ export default function ListagemCategoriaPage() {
     new Map(),
   )
   const [planoContratadoPorEmpresa, setPlanoContratadoPorEmpresa] = useState<Map<string, string>>(
+    new Map(),
+  )
+  const [assinaturaVigentePorEmpresa, setAssinaturaVigentePorEmpresa] = useState<Map<string, boolean>>(
     new Map(),
   )
   const [degustacaoCarregando, setDegustacaoCarregando] = useState(true)
@@ -182,23 +187,38 @@ export default function ListagemCategoriaPage() {
   }, [])
 
   const empresaTemBotaoDinamico = useCallback(
-    (empresa: Empresa) =>
-      empresaTemBotaoDinamicoPublico(
+    (empresa: Empresa) => {
+      const emDegustacao = degustacaoPlanoPorEmpresa.has(empresa.id)
+      const vigenteMap = assinaturaVigentePorEmpresa.get(empresa.id)
+      const planoPago = Boolean(planoEmpresaReconhecidoNoCatalogo(empresa.plano, planosResumo))
+      const somenteAnfitriao = empresa.somente_anfitriao === true
+      let vigencia: boolean | undefined
+      if (emDegustacao || somenteAnfitriao) {
+        vigencia = undefined
+      } else if (vigenteMap === true) {
+        vigencia = true
+      } else if (vigenteMap === false || planoPago) {
+        // Ciclo vencido OU plano pago sem assinatura vigente → bloqueia no guia.
+        vigencia = false
+      }
+      return empresaTemBotaoDinamicoPublico(
         empresa.plano,
         planosResumo,
-        degustacaoPlanoPorEmpresa.has(empresa.id)
+        emDegustacao
           ? { ativa: true, planoId: degustacaoPlanoPorEmpresa.get(empresa.id) ?? null }
           : null,
         planoContratadoPorEmpresa.get(empresa.id) ?? null,
-        { somenteAnfitriao: empresa.somente_anfitriao === true },
-      ),
-    [degustacaoPlanoPorEmpresa, planoContratadoPorEmpresa, planosResumo],
+        { somenteAnfitriao, assinaturaContratadaVigente: vigencia },
+      )
+    },
+    [assinaturaVigentePorEmpresa, degustacaoPlanoPorEmpresa, planoContratadoPorEmpresa, planosResumo],
   )
 
   useEffect(() => {
     if (empresas.length === 0) {
       setDegustacaoPlanoPorEmpresa(new Map())
       setPlanoContratadoPorEmpresa(new Map())
+      setAssinaturaVigentePorEmpresa(new Map())
       setDegustacaoCarregando(false)
       return
     }
@@ -210,19 +230,25 @@ export default function ListagemCategoriaPage() {
         buscarMapaDegustacaoAtivaPorEmpresas(supabase, ids),
         supabase
           .from('empresa_assinaturas')
-          .select('empresa_id, plano_id')
+          .select('empresa_id, plano_id, status, vencimento_em')
           .in('empresa_id', ids)
           .eq('status', 'ativo'),
       ])
       const mapaPlano = new Map<string, string>()
+      const mapaVigente = new Map<string, boolean>()
       for (const row of assinaturasRes.data ?? []) {
         const empId = row.empresa_id != null ? String(row.empresa_id) : ''
         const pid = row.plano_id != null ? String(row.plano_id) : ''
-        if (empId && pid) mapaPlano.set(empId, pid)
+        const vigente = assinaturaContratadaVigente(row)
+        if (!empId) continue
+        // Preferir true se houver várias linhas
+        if (vigente || !mapaVigente.has(empId)) mapaVigente.set(empId, vigente)
+        if (pid && vigente) mapaPlano.set(empId, pid)
       }
       if (ativo) {
         setDegustacaoPlanoPorEmpresa(mapa)
         setPlanoContratadoPorEmpresa(mapaPlano)
+        setAssinaturaVigentePorEmpresa(mapaVigente)
         setDegustacaoCarregando(false)
       }
     })()

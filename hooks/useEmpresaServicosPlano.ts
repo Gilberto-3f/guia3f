@@ -13,7 +13,6 @@ import {
   publicidadeExternaLiberada,
   publicidadeHomeLiberada,
   resolverServicosEmpresa,
-  resolverServicosEmpresaComDegustacao,
   type AbaDashboardEmpresa,
   type FeatureEmpresaId,
   type MenuEmpresaId,
@@ -249,16 +248,38 @@ export function useEmpresaServicosPlano(
     somenteAnfitriao,
   ])
 
-  /** Visibilidade pública (guia + página da empresa): degustação ou plano, sem bloqueio de vencimento. */
+  /**
+   * Visibilidade pública (guia + página da empresa): mesmos serviços do menu interno.
+   * Ciclo vencido → bloqueia até renovar / contratar outro plano (exceto degustação ativa).
+   */
   const servicosPublicos = useMemo(() => {
     if (somenteAnfitriao) return [...TODOS_SERVICOS_EMPRESA]
-    return resolverServicosEmpresaComDegustacao(
+    return resolverServicosEmpresa(
       planoEmpresa,
       planos,
-      degustacaoAtiva ? { ativa: true, planoId: degustacaoPlanoId } : null,
-      { planoContratadoId },
+      {
+        ativa: degustacaoAtiva,
+        servicos: degustacaoServicos,
+      },
+      {
+        planoContratadoId,
+        assinaturaContratadaVigente: degustacaoAtiva
+          ? undefined
+          : exigeAssinaturaVigente
+            ? assinaturaContratadaVigenteFlag
+            : undefined,
+      },
     )
-  }, [somenteAnfitriao, planoEmpresa, planos, degustacaoAtiva, degustacaoPlanoId, planoContratadoId])
+  }, [
+    assinaturaContratadaVigenteFlag,
+    degustacaoAtiva,
+    degustacaoServicos,
+    exigeAssinaturaVigente,
+    planoContratadoId,
+    planoEmpresa,
+    planos,
+    somenteAnfitriao,
+  ])
 
   const temServico = useCallback(
     (servico: ServicoPlanoId) => servicos.includes(servico),

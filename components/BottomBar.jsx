@@ -72,13 +72,13 @@ function matchPath(path, pathname) {
 }
 
 /** Badges pesados não bloqueiam a liberação da barra. */
-const BADGE_DEFER_MS = 1200
+const BADGE_DEFER_MS = 2500
 /** Fallback leve quando o utilizador não está em /canal (evita postgres_changes sem filtro). */
 const CANAIS_BADGE_POLL_MS = 180_000
 const ATIVIDADES_BADGE_POLL_MS = 180_000
 const FUNIL_BADGE_POLL_MS = 180_000
-/** Timeout para badges — não segurar conexão do pool se o Postgres estiver saturado. */
-const BADGE_QUERY_TIMEOUT_MS = 6_000
+/** Timeout curto — se o Postgres estiver saturado, desiste sem segurar a UI. */
+const BADGE_QUERY_TIMEOUT_MS = 4_000
 
 /**
  * @template T
@@ -355,7 +355,7 @@ export default function BottomBar() {
     }
   }, [authUserId, userRole, empresaId, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada])
 
-  /** Ao navegar entre telas, reconta (fallback se Realtime ainda não estiver na publication). */
+  /** Ao sair do detalhe do canal, reconta (não em toda navegação — evita tempestade em 503). */
   const prevPathnameRef = useRef(/** @type {string | null} */ (null))
   useEffect(() => {
     if (!authUserId) return
@@ -366,18 +366,14 @@ export default function BottomBar() {
     const saiuDoDetalheCanal =
       prev != null && /\/canal\/[^/]+/.test(prev) && (pathname == null || !/\/canal\/[^/]+/.test(pathname))
 
-    const refresh = () => {
+    if (!saiuDoDetalheCanal) return
+
+    const t = setTimeout(() => {
       void withTimeout(contarMensagensNaoLidasCanais(supabase, authUserId), 0).then((n) =>
         setNaoLidasCanais(n),
       )
-    }
-
-    if (saiuDoDetalheCanal) {
-      const t = setTimeout(refresh, 700)
-      return () => clearTimeout(t)
-    }
-
-    refresh()
+    }, 700)
+    return () => clearTimeout(t)
   }, [pathname, authUserId])
 
   /**

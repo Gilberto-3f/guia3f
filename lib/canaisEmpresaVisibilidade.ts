@@ -126,6 +126,7 @@ function slugComunidadeCanalEmpresa(c: {
 
 /**
  * IDs de canais cujas mensagens entram no badge / lista da empresa.
+ * Não varre canais de outras empresas (isso saturava o pool / 500 no boot).
  */
 export async function obterIdsCanaisMensagensEmpresa(
   supabase: SupabaseClient,
@@ -138,41 +139,56 @@ export async function obterIdsCanaisMensagensEmpresa(
 
   const segmentosSlugs = await buscarSegmentoSlugEmpresa(supabase, usuarioId)
 
-  const { data: canais, error } = await supabase
-    .from('canais')
-    .select('id, nome, tipo_publico, categoria, empresa_id, comunidade_prof')
-    .eq('ativo', true)
-    .eq('tipo_publico', 'empresa')
+  const selectCols = 'id, nome, tipo_publico, categoria, empresa_id, comunidade_prof'
+  const [globaisRes, propriosRes] = await Promise.all([
+    supabase
+      .from('canais')
+      .select(selectCols)
+      .eq('ativo', true)
+      .eq('tipo_publico', 'empresa')
+      .is('empresa_id', null),
+    empresaId
+      ? supabase
+          .from('canais')
+          .select(selectCols)
+          .eq('ativo', true)
+          .eq('tipo_publico', 'empresa')
+          .eq('empresa_id', empresaId)
+      : Promise.resolve({ data: [] as Record<string, unknown>[], error: null }),
+  ])
 
-  if (error) {
-    console.error('obterIdsCanaisMensagensEmpresa:', error)
-    return new Set()
+  if (globaisRes.error) {
+    console.error('obterIdsCanaisMensagensEmpresa globais:', globaisRes.error)
+  }
+  if (propriosRes.error) {
+    console.error('obterIdsCanaisMensagensEmpresa proprios:', propriosRes.error)
   }
 
   const ids = new Set<string>()
-  for (const c of canais ?? []) {
+  for (const c of globaisRes.data ?? []) {
     const id = String(c.id)
-    if (c.empresa_id == null) {
-      const n = nomeNormCanalEmpresa(c.nome)
-      if (n === 'ADM' || n === 'FINANCEIRO') {
-        ids.add(id)
-        continue
-      }
-      const slug = slugCanalSegmentoEmpresa(
-        c.categoria != null ? String(c.categoria) : null,
-        c.nome != null ? String(c.nome) : null
-      )
-      if (slug && segmentosSlugs.includes(slug)) ids.add(id)
-    } else if (empresaId && String(c.empresa_id) === empresaId) {
-      const slug =
-        slugComunidadeCanalEmpresa({
-          nome: c.nome != null ? String(c.nome) : null,
-          categoria: c.categoria != null ? String(c.categoria) : null,
-          comunidade_prof: c.comunidade_prof != null ? String(c.comunidade_prof) : null,
-        }) || toSlugComunidade(c.comunidade_prof != null ? String(c.comunidade_prof) : '')
-      if (slug && (COMUNIDADES_PROFISSIONAIS_SLUG as readonly string[]).includes(slug)) {
-        ids.add(id)
-      }
+    const n = nomeNormCanalEmpresa(c.nome)
+    if (n === 'ADM' || n === 'FINANCEIRO') {
+      ids.add(id)
+      continue
+    }
+    const slug = slugCanalSegmentoEmpresa(
+      c.categoria != null ? String(c.categoria) : null,
+      c.nome != null ? String(c.nome) : null,
+    )
+    if (slug && segmentosSlugs.includes(slug)) ids.add(id)
+  }
+
+  for (const c of propriosRes.data ?? []) {
+    const id = String(c.id)
+    const slug =
+      slugComunidadeCanalEmpresa({
+        nome: c.nome != null ? String(c.nome) : null,
+        categoria: c.categoria != null ? String(c.categoria) : null,
+        comunidade_prof: c.comunidade_prof != null ? String(c.comunidade_prof) : null,
+      }) || toSlugComunidade(c.comunidade_prof != null ? String(c.comunidade_prof) : '')
+    if (slug && (COMUNIDADES_PROFISSIONAIS_SLUG as readonly string[]).includes(slug)) {
+      ids.add(id)
     }
   }
   return ids
@@ -191,7 +207,10 @@ export async function contarFinanceiroNaoLidasEmpresa(
     supabase
       .from('canal_financeiro')
       .select('id, tipo, lida_por_empresa, metadata, comprovante_detalhes')
-      .eq('empresa_id', empresaId),
+      .eq('empresa_id', empresaId)
+      .eq('lida_por_empresa', false)
+      .order('created_at', { ascending: false })
+      .limit(80),
     contarMensageiroFinanceiroNaoLidas(supabase, usuarioId),
     buscarMapaStatusDegustacaoCanalEmpresa(supabase, empresaId),
   ])

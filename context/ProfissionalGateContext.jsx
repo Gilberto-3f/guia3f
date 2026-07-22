@@ -128,8 +128,24 @@ export function ProfissionalGateProvider({ children }) {
       return
     }
 
-    const { data: u } = await carregarUsuarioGate(uid)
+    const { data: u, error: gateUserErr } = await carregarUsuarioGate(uid)
     const ur = u && typeof u === 'object' ? u : null
+
+    // 503 / timeout: não apaga role/empresa da barra (cache) — evita 2+ min com ícones de turista.
+    if (!ur && gateUserErr) {
+      const cached = lerPerfilBarraCache()
+      if (cached?.userId === uid && cached.role) {
+        setUserRole(cached.role)
+        if (cached.empresaId) setEmpresaIdBarra(cached.empresaId)
+        const fotoBarra =
+          cached.role === 'profissional' ? cached.fotoProfSocialUrl ?? cached.fotoUrl : cached.fotoUrl
+        if (fotoBarra) setFotoPerfilBarra(fotoBarra)
+      }
+      gateCarregadoUmaVez.current = true
+      setLoading(false)
+      return
+    }
+
     setUsuarioStatus(ur && 'status' in ur && ur.status != null ? String(ur.status) : null)
     setUserRole(ur && 'role' in ur && ur.role != null ? String(ur.role) : null)
 
@@ -187,7 +203,7 @@ export function ProfissionalGateProvider({ children }) {
           empH?.foto_url != null && String(empH.foto_url).trim() !== '' ? String(empH.foto_url) : null
       }
     } else if (role === 'empresa') {
-      const { data: e } = await supabase
+      const { data: e, error: empErr } = await supabase
         .from('empresas')
         .select('id, status, docs_verificado, aprovado_em, verificado_em, foto_url')
         .eq('usuario_id', uid)
@@ -195,20 +211,30 @@ export function ProfissionalGateProvider({ children }) {
       setProfRow(null)
       setTuristaGate(null)
       setTuristaDocsRow(null)
-      setEmpRow(
-        e && typeof e === 'object'
-          ? {
-              status: e.status != null ? String(e.status) : null,
-              docs_verificado: Boolean(e.docs_verificado),
-              aprovado_em: e.aprovado_em != null ? String(e.aprovado_em) : null,
-              verificado_em: e.verificado_em != null ? String(e.verificado_em) : null,
-            }
-          : null,
-      )
-      empresaIdCache = e?.id != null ? String(e.id) : null
-      fotoCache = e?.foto_url != null && String(e.foto_url).trim() !== '' ? String(e.foto_url) : null
-      setEmpresaIdBarra(empresaIdCache)
-      setFotoPerfilBarra(fotoCache)
+      if (!e && empErr) {
+        const cached = lerPerfilBarraCache()
+        if (cached?.userId === uid && cached.empresaId) {
+          setEmpresaIdBarra(cached.empresaId)
+          if (cached.fotoUrl) setFotoPerfilBarra(cached.fotoUrl)
+          empresaIdCache = cached.empresaId
+          fotoCache = cached.fotoUrl
+        }
+      } else {
+        setEmpRow(
+          e && typeof e === 'object'
+            ? {
+                status: e.status != null ? String(e.status) : null,
+                docs_verificado: Boolean(e.docs_verificado),
+                aprovado_em: e.aprovado_em != null ? String(e.aprovado_em) : null,
+                verificado_em: e.verificado_em != null ? String(e.verificado_em) : null,
+              }
+            : null,
+        )
+        empresaIdCache = e?.id != null ? String(e.id) : null
+        fotoCache = e?.foto_url != null && String(e.foto_url).trim() !== '' ? String(e.foto_url) : null
+        setEmpresaIdBarra(empresaIdCache)
+        setFotoPerfilBarra(fotoCache)
+      }
     } else if (role === 'turista') {
       setProfRow(null)
       setEmpRow(null)
