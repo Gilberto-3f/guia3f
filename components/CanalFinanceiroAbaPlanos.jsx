@@ -11,6 +11,10 @@ import {
 } from '@/lib/contratarPlanoEmpresa'
 import { normalizarPlanoSlug, planoEmpresaReconhecidoNoCatalogo } from '@/lib/planosEmpresaServicosGate'
 import { assinaturaContratadaVigente } from '@/lib/empresaAssinatura'
+import {
+  calcularCobrancaProporcional,
+  textoExtratoProporcional,
+} from '@/lib/planoProporcionalEmpresa'
 import PopupPagamentoPlanoEmpresa from '@/components/empresa/PopupPagamentoPlanoEmpresa'
 
 /** @typedef {'mensal' | 'trimestral' | 'anual'} ModalidadePlanoEmpresa */
@@ -35,6 +39,11 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
   const [planos, setPlanos] = useState(/** @type {import('@/lib/contratarPlanoEmpresa').PlanoEmpresaCatalogo[]} */ ([]))
   const [planoEmpresa, setPlanoEmpresa] = useState(/** @type {string | null} */ (null))
   const [modalidadeAtual, setModalidadeAtual] = useState(/** @type {ModalidadePlanoEmpresa | null} */ (null))
+  const [assinaturaAtual, setAssinaturaAtual] = useState(
+    /** @type {null | { id: string, plano_id: string | null, plano_titulo: string, modalidade: ModalidadePlanoEmpresa, valor: number, vencimento_em: string | null }} */ (
+      null
+    ),
+  )
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [degustacaoPlanoTitulo, setDegustacaoPlanoTitulo] = useState(/** @type {string | null} */ (null))
   const [loading, setLoading] = useState(true)
@@ -65,6 +74,11 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
       setPlanoEmpresa(emp?.plano != null ? String(emp.plano) : null)
       setEmpresaId(emp?.id != null ? String(emp.id) : null)
       setPlanos(lista)
+      if (!emp?.id) {
+        setAssinaturaAtual(null)
+        setModalidadeAtual(null)
+        setDegustacaoPlanoTitulo(null)
+      }
 
       if (emp?.id) {
         const agora = new Date().toISOString()
@@ -79,7 +93,7 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
             .maybeSingle(),
           supabase
             .from('empresa_assinaturas')
-            .select('modalidade, status, vencimento_em')
+            .select('id, plano_id, plano_titulo, modalidade, valor, status, vencimento_em')
             .eq('empresa_id', String(emp.id))
             .eq('status', 'ativo')
             .order('assinado_em', { ascending: false })
@@ -89,11 +103,22 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
 
         if (assinaturaContratadaVigente(assinatura)) {
           const mod = String(assinatura?.modalidade ?? '')
+          const modalidadeOk =
+            mod === 'mensal' || mod === 'trimestral' || mod === 'anual' ? mod : /** @type {ModalidadePlanoEmpresa} */ ('mensal')
           setModalidadeAtual(
             mod === 'mensal' || mod === 'trimestral' || mod === 'anual' ? mod : null,
           )
+          setAssinaturaAtual({
+            id: String(assinatura.id),
+            plano_id: assinatura.plano_id != null ? String(assinatura.plano_id) : null,
+            plano_titulo: String(assinatura.plano_titulo ?? 'Plano'),
+            modalidade: modalidadeOk,
+            valor: Number(assinatura.valor) || 0,
+            vencimento_em: assinatura.vencimento_em != null ? String(assinatura.vencimento_em) : null,
+          })
         } else {
           setModalidadeAtual(null)
+          setAssinaturaAtual(null)
         }
 
         if (deg?.id) {
@@ -106,10 +131,12 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
       } else {
         setDegustacaoPlanoTitulo(null)
         setModalidadeAtual(null)
+        setAssinaturaAtual(null)
       }
     } catch {
       setErro('Não foi possível carregar os planos.')
       setPlanos([])
+      setAssinaturaAtual(null)
     } finally {
       setLoading(false)
     }
@@ -118,6 +145,19 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  /**
+   * @param {import('@/lib/contratarPlanoEmpresa').PlanoEmpresaCatalogo} plano
+   * @param {ModalidadePlanoEmpresa} mod
+   */
+  const cobrancaPara = (plano, mod) =>
+    calcularCobrancaProporcional({
+      assinaturaAtual,
+      planoNovoId: plano.id,
+      planoNovoTitulo: plano.titulo,
+      modalidadeNova: mod,
+      precoNovoCheio: precoModalidadePlano(plano, mod),
+    })
 
   const planoContratadoTitulo = useMemo(() => {
     const match = planoEmpresaReconhecidoNoCatalogo(planoEmpresa, planos)
@@ -275,7 +315,11 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
                     <div className="mt-2 flex gap-2">
                       {MODALIDADES.map((mod) => {
                         const selecionada = modalidade === mod
-                        const preco = precoModalidadePlano(plano, mod)
+                        const cob = cobrancaPara(plano, mod)
+                        const preco = cob.valorAPagar
+                        const precoCheio = cob.valorCheioNovo
+                        const mostraProporcional =
+                          cob.tipo === 'upgrade' || cob.tipo === 'downgrade' || cob.tipo === 'troca'
                         return (
                           <button
                             key={mod}
@@ -294,10 +338,21 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
                             <span className="mt-1 block text-[11px] font-bold leading-tight">
                               R$ {preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </span>
+                            {mostraProporcional && precoCheio !== preco ? (
+                              <span className="mt-0.5 block text-[9px] font-medium leading-tight opacity-90">
+                                proporcional
+                              </span>
+                            ) : null}
                           </button>
                         )
                       })}
                     </div>
+
+                    {modalidade && !ehAtual ? (
+                      <p className="mt-3 text-xs leading-relaxed text-gray-600">
+                        {textoExtratoProporcional(cobrancaPara(plano, modalidade), plano.titulo)}
+                      </p>
+                    ) : null}
 
                     <button
                       type="button"
@@ -323,7 +378,7 @@ export default function CanalFinanceiroAbaPlanos({ usuarioId }) {
         modalidade={popupPagamento.modalidade}
         preco={
           popupPagamento.plano && popupPagamento.modalidade
-            ? precoModalidadePlano(popupPagamento.plano, popupPagamento.modalidade)
+            ? cobrancaPara(popupPagamento.plano, popupPagamento.modalidade).valorAPagar
             : 0
         }
         empresaId={empresaId}

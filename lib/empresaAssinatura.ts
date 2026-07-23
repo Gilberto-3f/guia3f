@@ -12,6 +12,11 @@ import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroE
 import { encerrarDegustacaoCanalAposAssinatura } from '@/lib/degustacaoEmpresa'
 import { enviarMensagemPagamentoPlanoAdm, montarMensagemPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { inserirAvisoAgendamentoAssinaturaDinheiroHub, inserirAvisoNovaAssinaturaHub, type EmpresaPerfilAvisoHub } from '@/lib/financeiroAvisosAdmHub'
+import {
+  calcularCobrancaProporcional,
+  textoExtratoProporcional,
+  type AssinaturaAtualProporcional,
+} from '@/lib/planoProporcionalEmpresa'
 
 export type StatusAssinaturaEmpresa = 'pendente' | 'ativo' | 'inativo' | 'cancelado'
 
@@ -212,11 +217,61 @@ export async function registrarAssinaturaPlanoEmpresa(
   if (!planoNome) return { ok: false, error: 'Plano inválido.' }
 
   const empresaId = String(emp.id)
-  const valor = precoModalidadePlano(plano, modalidade)
+  const valorCheio = precoModalidadePlano(plano, modalidade)
   const agora = new Date()
   const agoraIso = agora.toISOString()
   const autoAtivo = forma === 'pix' || forma === 'cartao'
-  const vencimento = autoAtivo ? calcularVencimentoAssinatura(modalidade, agora).toISOString() : null
+
+  const { data: assAtualRow } = await supabase
+    .from('empresa_assinaturas')
+    .select('id, plano_id, plano_titulo, modalidade, valor, status, vencimento_em')
+    .eq('empresa_id', empresaId)
+    .eq('status', 'ativo')
+    .order('assinado_em', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const assAtual: AssinaturaAtualProporcional | null =
+    assAtualRow && assinaturaContratadaVigente(assAtualRow)
+      ? {
+          id: String(assAtualRow.id),
+          plano_id: assAtualRow.plano_id != null ? String(assAtualRow.plano_id) : null,
+          plano_titulo: String(assAtualRow.plano_titulo ?? 'Plano'),
+          modalidade: (String(assAtualRow.modalidade) as ModalidadePlanoEmpresa) || 'mensal',
+          valor: Number(assAtualRow.valor) || 0,
+          vencimento_em: assAtualRow.vencimento_em != null ? String(assAtualRow.vencimento_em) : null,
+        }
+      : null
+
+  const proporcional = calcularCobrancaProporcional({
+    assinaturaAtual: assAtual,
+    planoNovoId: planoId,
+    planoNovoTitulo: planoTitulo,
+    modalidadeNova: modalidade,
+    precoNovoCheio: valorCheio,
+    agora,
+  })
+
+  const valor = proporcional.valorAPagar
+  let vencimento: string | null = null
+  if (autoAtivo) {
+    if (
+      proporcional.manterVencimentoEm &&
+      (proporcional.tipo === 'upgrade' ||
+        proporcional.tipo === 'downgrade' ||
+        proporcional.tipo === 'troca')
+    ) {
+      vencimento = proporcional.manterVencimentoEm
+    } else if (proporcional.tipo === 'renovacao_mesmo_plano' && assAtual?.vencimento_em) {
+      // Estende a partir do vencimento atual.
+      vencimento = calcularVencimentoAssinatura(
+        modalidade,
+        new Date(assAtual.vencimento_em),
+      ).toISOString()
+    } else {
+      vencimento = calcularVencimentoAssinatura(modalidade, agora).toISOString()
+    }
+  }
 
   const visitaInsert =
     forma === 'dinheiro' && params.visitaDinheiro
@@ -226,6 +281,15 @@ export async function registrarAssinaturaPlanoEmpresa(
           visita_responsavel_whatsapp: params.visitaDinheiro.responsavelWhatsapp.trim(),
         }
       : {}
+
+  // Inativa assinatura vigente anterior (troca / renovação).
+  if (autoAtivo && assAtual?.id) {
+    await supabase
+      .from('empresa_assinaturas')
+      .update({ status: 'inativo', updated_at: agoraIso })
+      .eq('id', assAtual.id)
+      .eq('empresa_id', empresaId)
+  }
 
   const { data: ins, error: insErr } = await supabase
     .from('empresa_assinaturas')
@@ -277,9 +341,18 @@ export async function registrarAssinaturaPlanoEmpresa(
 
     try {
       const diasPeriodo = diasParaVencimento(vencimento, agora)
+      const extrato = textoExtratoProporcional(proporcional, planoTitulo)
+      const titulo =
+        proporcional.tipo === 'upgrade'
+          ? 'Upgrade de plano'
+          : proporcional.tipo === 'downgrade'
+            ? 'Downgrade de plano'
+            : proporcional.tipo === 'renovacao_mesmo_plano'
+              ? 'Renovação de plano'
+              : 'Plano ativo'
       const diasTexto =
         diasPeriodo != null && diasPeriodo > 0
-          ? `${diasPeriodo} dias`
+          ? `${diasPeriodo} dias restantes no ciclo`
           : modalidade === 'trimestral'
             ? '90 dias'
             : modalidade === 'anual'
@@ -288,15 +361,28 @@ export async function registrarAssinaturaPlanoEmpresa(
       await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
         empresaUsuarioId: uid,
         tipo: 'plano_assinatura',
-        titulo: 'Plano ativo',
-        mensagem: `Parabéns, seu plano está ativo pelo período de ${diasTexto}, boa sorte nos seus negócios.`,
+        titulo,
+        mensagem:
+          proporcional.tipo === 'nova'
+            ? `Parabéns, seu plano está ativo pelo período de ${diasTexto}, boa sorte nos seus negócios.`
+            : `${extrato} Ciclo: ${diasTexto}.`,
         valor,
         comprovanteDetalhes: {
-          variant: 'assinatura_ativa_imediata',
+          variant:
+            proporcional.tipo === 'nova'
+              ? 'assinatura_ativa_imediata'
+              : 'troca_proporcional',
+          tipo_troca: proporcional.tipo,
           assinatura_id: String(ins.id),
           plano_titulo: planoTitulo,
+          plano_anterior: proporcional.planoAnteriorTitulo,
           modalidade,
           vencimento_em: vencimento,
+          credito: proporcional.credito,
+          debito_proporcional: proporcional.debitoProporcional,
+          valor_cheio: proporcional.valorCheioNovo,
+          dias_restantes: proporcional.diasRestantes,
+          extrato,
         },
       })
     } catch {

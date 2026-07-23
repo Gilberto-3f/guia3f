@@ -8,6 +8,7 @@ import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import { useRouter } from '@/i18n/navigation'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { listarItensCatalogoSalvos } from '@/lib/favoritosTurista'
+import { buscarUsuarioIdsEmpresaPresencaPublicaVigente } from '@/lib/empresaPresencaPublica'
 import { formatarUsd } from '@/lib/comprasCdeCatalogo'
 import { formatarPrecoTicket } from '@/lib/atrativosCatalogo'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
@@ -86,6 +87,32 @@ export default function SalvosDrawer({ usuarioId, onAbrirPublicacao }) {
               salvoEm: salvoEmById.get(id) ?? '',
               post: mapViewRow(raw),
             })
+          }
+
+          // Posts de empresa irregular (ciclo vencido): invisíveis nos salvos.
+          const autorIds = [
+            ...new Set(
+              postsLinhas.map((l) => String(l.post?.autor?.usuario_id ?? '').trim()).filter(Boolean),
+            ),
+          ]
+          if (autorIds.length > 0) {
+            const [{ data: empRows }, vigentesUsuarios] = await Promise.all([
+              supabase.from('empresas').select('usuario_id').in('usuario_id', autorIds),
+              buscarUsuarioIdsEmpresaPresencaPublicaVigente(supabase),
+            ])
+            const gestoresEmpresa = new Set(
+              (empRows ?? [])
+                .map((e) => (e.usuario_id != null ? String(e.usuario_id) : ''))
+                .filter(Boolean),
+            )
+            const vigentesSet = new Set(vigentesUsuarios)
+            const filtrados = postsLinhas.filter((l) => {
+              const aid = String(l.post?.autor?.usuario_id ?? '').trim()
+              if (!aid || !gestoresEmpresa.has(aid)) return true
+              return vigentesSet.has(aid)
+            })
+            postsLinhas.length = 0
+            postsLinhas.push(...filtrados)
           }
         }
       }

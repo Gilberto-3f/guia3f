@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { deletarFavoritoEmpresa } from '@/lib/favoritosEmpresa'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
+import { buscarIdsEmpresaPresencaPublicaVigente } from '@/lib/empresaPresencaPublica'
 import {
   rotuloCategoriaImovelCurto,
   rotuloCategoriaParticularCurto,
@@ -94,6 +95,24 @@ function payloadAlvo(usuarioId: string, alvoId: string, tipo: FavoritoAlvoTipo) 
     alvo_id: String(alvoId),
     alvo_tipo: tipo,
   }
+}
+
+/** Ciclo vencido / irregular: some da listagem (favorito permanece no DB). */
+async function filtrarItensPorEmpresaVigente<T extends { empresa_id?: string | null; id?: string }>(
+  supabase: SupabaseClient,
+  items: T[],
+  opts?: { idEhEmpresa?: boolean },
+): Promise<T[]> {
+  if (!items.length) return []
+  const vigentes = await buscarIdsEmpresaPresencaPublicaVigente(supabase)
+  if (vigentes.size === 0) return []
+  return items.filter((item) => {
+    const empId = opts?.idEhEmpresa
+      ? String(item.id ?? '').trim()
+      : String(item.empresa_id ?? '').trim()
+    if (!empId) return false
+    return vigentes.has(empId)
+  })
 }
 
 export async function usuarioTemFavorito(
@@ -268,7 +287,7 @@ export async function listarEmpresasFavoritas(
   if (!data?.length) return []
 
   const byId = new Map(data.map((e) => [String(e.id), e]))
-  return ids
+  const mapped = ids
     .map((id) => byId.get(id))
     .filter(Boolean)
     .map((e) => {
@@ -282,6 +301,7 @@ export async function listarEmpresasFavoritas(
         nota_media: Number.isFinite(notaRaw) && notaRaw > 0 ? notaRaw : null,
       }
     })
+  return filtrarItensPorEmpresaVigente(supabase, mapped, { idEhEmpresa: true })
 }
 
 export async function listarAcomodacoesFavoritas(
@@ -335,7 +355,7 @@ export async function listarAcomodacoesFavoritas(
   }
 
   const byId = new Map(data.map((a) => [String(a.id), a]))
-  return ids
+  const mapped = ids
     .map((id) => byId.get(id))
     .filter(Boolean)
     .map((a) => {
@@ -362,6 +382,7 @@ export async function listarAcomodacoesFavoritas(
         empresa_verificada: Boolean(meta?.verificada),
       }
     })
+  return filtrarItensPorEmpresaVigente(supabase, mapped)
 }
 
 /** Produtos Compras CDE favoritos. */
@@ -408,7 +429,7 @@ export async function listarProdutosFavoritos(
   }
 
   const byId = new Map(data.map((p) => [String(p.id), p]))
-  return ids
+  const mapped = ids
     .map((id) => byId.get(id))
     .filter(Boolean)
     .map((p) => {
@@ -435,6 +456,7 @@ export async function listarProdutosFavoritos(
         empresa_cidade: meta?.cidade ?? null,
       }
     })
+  return filtrarItensPorEmpresaVigente(supabase, mapped)
 }
 
 
@@ -477,7 +499,7 @@ export async function listarPratosFavoritos(
   }
 
   const byId = new Map(data.map((p) => [String(p.id), p]))
-  return ids
+  const mapped = ids
     .map((id) => byId.get(id))
     .filter(Boolean)
     .map((p) => {
@@ -501,6 +523,7 @@ export async function listarPratosFavoritos(
         categoria_nome: catRel?.nome ? String(catRel.nome) : null,
       }
     })
+  return filtrarItensPorEmpresaVigente(supabase, mapped)
 }
 
 /** Base pronta — tickets de atrativos (experiências). */
@@ -537,7 +560,7 @@ export async function listarTicketsFavoritos(
   }
 
   const byId = new Map(data.map((t) => [String(t.id), t]))
-  return ids
+  const mapped = ids
     .map((id) => byId.get(id))
     .filter(Boolean)
     .map((t) => {
@@ -554,6 +577,7 @@ export async function listarTicketsFavoritos(
         preco_meia: t!.preco_meia != null ? Number(t!.preco_meia) : null,
       }
     })
+  return filtrarItensPorEmpresaVigente(supabase, mapped)
 }
 
 /**
