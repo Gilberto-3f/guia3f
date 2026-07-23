@@ -54,13 +54,15 @@ export async function buscarUsuarioIdsEmpresaPresencaPublicaVigente(
   const ids = [...empIds]
   const { data, error } = await supabase.from('empresas').select('usuario_id').in('id', ids)
   if (error || !data?.length) return []
-  return [
-    ...new Set(
-      data
-        .map((r: { usuario_id?: unknown }) => (r.usuario_id != null ? String(r.usuario_id) : ''))
-        .filter(Boolean),
-    ),
-  ]
+  const usuarioIds: string[] = []
+  const seen = new Set<string>()
+  for (const row of data as { usuario_id?: unknown }[]) {
+    const uid = row.usuario_id != null ? String(row.usuario_id).trim() : ''
+    if (!uid || seen.has(uid)) continue
+    seen.add(uid)
+    usuarioIds.push(uid)
+  }
+  return usuarioIds
 }
 
 /**
