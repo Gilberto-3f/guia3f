@@ -23,6 +23,7 @@ import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 import { GUIA_FUNIL_BADGE_EVENT } from '@/lib/dashboard-funil-badge-events'
 import { contarMensagensNaoLidasCanais, invalidarCacheBadgeCanais } from '@/lib/canalBadge'
 import { contarNaoLidasFunilEmpresa } from '@/lib/dashboardFunilBadge'
+import { empresaGestorTemPresencaVigenteCached } from '@/lib/empresaPresencaPublica'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
@@ -322,6 +323,12 @@ export default function BottomBar() {
 
     let cancelled = false
     const refresh = async () => {
+      // Ciclo vencido: dashboard funil bloqueado — não gasta pool com counts.
+      const vigente = await withTimeout(empresaGestorTemPresencaVigenteCached(supabase, authUserId), false)
+      if (!vigente) {
+        if (!cancelled) setNaoLidasFunil(0)
+        return
+      }
       const c = await withTimeout(
         contarNaoLidasFunilEmpresa(supabase, empId, authUserId),
         { total: 0, recomendacoes: 0, pax: 0, vendas: 0 },

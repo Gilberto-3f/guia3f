@@ -306,7 +306,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     })
   }, [gruposIniciais])
 
-  const idsMonitor = useMemo(() => canais.map((c) => c.id), [canais])
+  const idsMonitor = useMemo(() => {
+    const visiveis = [...administracaoExibicao, ...profissionaisExibicao]
+    return visiveis.map((c) => c.id).filter((id) => id && !String(id).startsWith('__placeholder'))
+  }, [administracaoExibicao, profissionaisExibicao])
 
   const recarregarContagens = useCallback(async () => {
     const {
@@ -479,7 +482,8 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   }, [carregar])
 
   useEffect(() => {
-    if (idsMonitor.length === 0) return
+    // Ciclo vencido (só Financeiro): sem Realtime — badge via REST no boot/poll.
+    if (!temCanaisComunidade || idsMonitor.length === 0) return
 
     const ch = supabase.channel('lista-canais-empresa-mensagens')
     for (const canalId of idsMonitor) {
@@ -501,7 +505,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       if (contagensTimerRef.current) clearTimeout(contagensTimerRef.current)
       void supabase.removeChannel(ch)
     }
-  }, [idsMonitor, agendarRecarregarContagens])
+  }, [idsMonitor, temCanaisComunidade, agendarRecarregarContagens])
 
   /**
    * Não lidas do canal de segmento incluem mensagens legadas no canal ADM global.

@@ -102,9 +102,12 @@ export async function buscarEmpresasListagemGuia(
   const ordenar = (q: any) =>
     q.order('nota_media', { ascending: false }).order('total_avaliacoes', { ascending: false })
 
-  async function queryPadrao(select: string, comPreview: boolean) {
+  /** Anfitrião verificado — sem exigir assinatura paga. */
+  async function queryAnfitriao(select: string, comPreview: boolean) {
     return ordenar(
-      aplicarFiltroEmpresasGuiaPublico(base(select), { comPreviewFilter: comPreview }),
+      aplicarFiltroEmpresasGuiaPublico(base(select).eq('somente_anfitriao', true), {
+        comPreviewFilter: comPreview,
+      }),
     )
   }
 
@@ -127,31 +130,31 @@ export async function buscarEmpresasListagemGuia(
   }
 
   let select = COLUNAS_EMPRESA_GUIA
-  let padraoRes = await queryPadrao(select, true)
+  let anfRes = await queryAnfitriao(select, true)
   let degRes = await queryDegustacao(select, true)
   let assRes = await queryAssinaturaAtiva(select, true)
 
-  const msg = String(padraoRes.error?.message ?? '').toLowerCase()
+  const msg = String(anfRes.error?.message ?? '').toLowerCase()
   if (msg.includes('palavras_chave') && (msg.includes('column') || msg.includes('does not exist'))) {
     select = COLUNAS_EMPRESA_GUIA_SEM_PALAVRAS
-    padraoRes = await queryPadrao(select, true)
+    anfRes = await queryAnfitriao(select, true)
     degRes = await queryDegustacao(select, true)
     assRes = await queryAssinaturaAtiva(select, true)
   }
 
-  const previewMsg = String(padraoRes.error?.message ?? degRes.error?.message ?? assRes.error?.message ?? '').toLowerCase()
+  const previewMsg = String(anfRes.error?.message ?? degRes.error?.message ?? assRes.error?.message ?? '').toLowerCase()
   if (previewMsg.includes('somente_modo_apresentacao')) {
-    padraoRes = await queryPadrao(select, false)
+    anfRes = await queryAnfitriao(select, false)
     degRes = await queryDegustacao(select, false)
     assRes = await queryAssinaturaAtiva(select, false)
   }
 
-  if (padraoRes.error) {
-    return { lista: [], error: String(padraoRes.error.message) }
+  if (anfRes.error) {
+    return { lista: [], error: String(anfRes.error.message) }
   }
 
   const byId = new Map<string, Record<string, unknown>>()
-  for (const row of [...(padraoRes.data ?? []), ...(degRes.data ?? []), ...(assRes.data ?? [])]) {
+  for (const row of [...(anfRes.data ?? []), ...(degRes.data ?? []), ...(assRes.data ?? [])]) {
     const id = String((row as { id: unknown }).id ?? '')
     if (id) byId.set(id, row as Record<string, unknown>)
   }

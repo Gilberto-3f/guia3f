@@ -28,6 +28,7 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 import { empresaElegivelGuiaPublico } from '@/lib/empresaGuiaVisibilidade'
+import { empresaTemPresencaPublicaVigente } from '@/lib/empresaPresencaPublica'
 import { consumirReabrirMenuLateral } from '@/lib/menuLateralHistory'
 import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
 import { prefetchPlanosEmpresa, useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
@@ -301,6 +302,24 @@ export default function EmpresaPage() {
         return
       }
 
+      // Turista/pro: ciclo vencido / sem degustação → página fora do acesso público (dono e ADM veem).
+      let roleViewer = meuRole
+      if (viewerUid && !ehDono && roleViewer !== 'admin') {
+        const { data: uRole } = await supabase.from('usuarios').select('role').eq('id', viewerUid).maybeSingle()
+        if (uRole?.role != null) roleViewer = String(uRole.role)
+      }
+      const ehAdmin = roleViewer === 'admin'
+      if (!ehDono && !ehAdmin && !somenteAnfitriao) {
+        const vigente = await empresaTemPresencaPublicaVigente(supabase, empresaId, {
+          somenteAnfitriao,
+        })
+        if (!vigente) {
+          setEmpresa(null)
+          router.replace('/guia')
+          return
+        }
+      }
+
       setEmpresa({
         ...empresaData,
         horarios: asHorarios(empresaData.horarios),
@@ -311,7 +330,7 @@ export default function EmpresaPage() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [empresaId, router, modoAtivo, meuEmail])
+  }, [empresaId, router, modoAtivo, meuEmail, meuRole])
 
   useEffect(() => {
     void carregarEmpresa()

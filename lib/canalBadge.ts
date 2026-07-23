@@ -20,6 +20,7 @@ import {
   profissionalPaisParaAba,
 } from '@/lib/canalAbasPaisColetivo'
 import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
+import { empresaGestorTemPresencaVigenteCached } from '@/lib/empresaPresencaPublica'
 
 /** Janela curta — badge não precisa varrer 4 meses (causava statement timeout / 503). */
 const BADGE_JANELA_DIAS = 21
@@ -268,6 +269,13 @@ export async function contarMensagensNaoLidasCanais(
         )
         canalPorId = await carregarMapaCanaisPorIds(supabase, Array.from(canalIdsPermitidos))
       } else if (role === 'empresa') {
+        // Ciclo vencido: só Financeiro no badge (sem varrer canais/comunidade — alivia o pool).
+        const vigente = await empresaGestorTemPresencaVigenteCached(supabase, userId)
+        if (!vigente) {
+          extraFinanceiro = await contarFinanceiroNaoLidasEmpresa(supabase, userId)
+          badgeCountCache = { userId, at: Date.now(), value: extraFinanceiro }
+          return extraFinanceiro
+        }
         canalIdsPermitidos = await obterIdsCanaisMensagensEmpresa(supabase, userId)
         extraFinanceiro = await contarFinanceiroNaoLidasEmpresa(supabase, userId)
         const { data: emp } = await supabase

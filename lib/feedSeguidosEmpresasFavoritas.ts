@@ -1,5 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { aplicarFiltroEmpresasGuiaPublico } from '@/lib/empresaGuiaVisibilidade'
+import {
+  buscarIdsEmpresaPresencaPublicaVigente,
+  buscarUsuarioIdsEmpresaPresencaPublicaVigente,
+} from '@/lib/empresaPresencaPublica'
 
 function usuarioIdDeRow(row: unknown): string {
   if (row == null || typeof row !== 'object') return ''
@@ -15,14 +19,18 @@ type EmpresasGuiaOpts = {
 }
 
 /**
- * Empresas elegíveis no guia: verificadas pelo ADM e com página pública.
- * Mesmo critério do guia turístico (inclui degustação ativa com cadastro verificado).
+ * Empresas com presença pública vigente (assinatura, degustação ou anfitrião).
+ * Ciclo vencido → fora do feed/stories/atividades.
  */
 function queryEmpresasGuiaAprovadas(
   supabase: SupabaseClient,
-  opts?: EmpresasGuiaOpts,
+  opts?: EmpresasGuiaOpts & { empresaIds?: string[] },
 ) {
   let q = supabase.from('empresas').select(opts?.select ?? 'usuario_id')
+  const ids = opts?.empresaIds ?? []
+  if (ids.length > 0) {
+    q = q.in('id', ids)
+  }
 
   if (!opts?.incluirModoApresentacao) {
     q = aplicarFiltroEmpresasGuiaPublico(q)
@@ -41,20 +49,18 @@ export async function fetchUsuarioIdsTodasEmpresasGuia(
   opts?: { incluirModoApresentacao?: boolean },
 ): Promise<string[]> {
   if (opts?.incluirModoApresentacao) {
-    const [aprovadasRes, previewRes] = await Promise.all([
-      queryEmpresasGuiaAprovadas(supabase, { incluirModoApresentacao: false }),
+    const [vigentes, previewRes] = await Promise.all([
+      buscarUsuarioIdsEmpresaPresencaPublicaVigente(supabase),
       supabase.from('empresas').select('usuario_id').eq('somente_modo_apresentacao', true),
     ])
     const ids = [
-      ...(aprovadasRes.data ?? []),
-      ...(previewRes.data ?? []),
-    ].map(usuarioIdDeRow).filter(Boolean)
+      ...vigentes,
+      ...(previewRes.data ?? []).map(usuarioIdDeRow).filter(Boolean),
+    ]
     return [...new Set(ids)]
   }
 
-  const { data, error } = await queryEmpresasGuiaAprovadas(supabase)
-  if (error || !data?.length) return []
-  return [...new Set(data.map(usuarioIdDeRow).filter(Boolean))]
+  return buscarUsuarioIdsEmpresaPresencaPublicaVigente(supabase)
 }
 
 /**
@@ -65,14 +71,19 @@ export async function fetchEmpresasGuiaRows<T extends Record<string, unknown> = 
   opts?: EmpresasGuiaOpts & { usuarioIds?: string[] },
 ): Promise<T[]> {
   const select = opts?.select ?? 'usuario_id'
-  const ids = (opts?.usuarioIds ?? []).map((id) => String(id).trim()).filter(Boolean)
+  const filterUsuarioIds = (opts?.usuarioIds ?? []).map((id) => String(id).trim()).filter(Boolean)
+  const empIdsVigentes = [...(await buscarIdsEmpresaPresencaPublicaVigente(supabase))]
 
   if (opts?.incluirModoApresentacao) {
-    const aprovadasQ = queryEmpresasGuiaAprovadas(supabase, { select, incluirModoApresentacao: false })
+    const aprovadasQ = queryEmpresasGuiaAprovadas(supabase, {
+      select,
+      incluirModoApresentacao: false,
+      empresaIds: empIdsVigentes,
+    })
     const previewQ = supabase.from('empresas').select(select).eq('somente_modo_apresentacao', true)
     const [aprovadasRes, previewRes] = await Promise.all([
-      ids.length > 0 ? aprovadasQ.in('usuario_id', ids) : aprovadasQ,
-      ids.length > 0 ? previewQ.in('usuario_id', ids) : previewQ,
+      filterUsuarioIds.length > 0 ? aprovadasQ.in('usuario_id', filterUsuarioIds) : aprovadasQ,
+      filterUsuarioIds.length > 0 ? previewQ.in('usuario_id', filterUsuarioIds) : previewQ,
     ])
     const merged = [...(aprovadasRes.data ?? []), ...(previewRes.data ?? [])] as unknown as T[]
     const seen = new Set<string>()
@@ -84,9 +95,11 @@ export async function fetchEmpresasGuiaRows<T extends Record<string, unknown> = 
     })
   }
 
-  let q = queryEmpresasGuiaAprovadas(supabase, { select })
-  if (ids.length > 0) {
-    q = q.in('usuario_id', ids)
+  if (empIdsVigentes.length === 0) return []
+
+  let q = queryEmpresasGuiaAprovadas(supabase, { select, empresaIds: empIdsVigentes })
+  if (filterUsuarioIds.length > 0) {
+    q = q.in('usuario_id', filterUsuarioIds)
   }
   const { data, error } = await q
   if (error || !data?.length) return []
