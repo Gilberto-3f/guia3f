@@ -24,7 +24,7 @@ import {
   deveExibirLembreteVencimentoPlano,
   diasParaVencimento,
 } from '@/lib/empresaAssinatura'
-import { invalidarCachePresencaVigenteEmpresa } from '@/lib/empresaPresencaPublica'
+import { invalidarCachePresencaPublicaGlobal } from '@/lib/empresaPresencaPublica'
 import { TODOS_SERVICOS_EMPRESA } from '@/lib/planosEmpresaCatalogo'
 
 let planosCacheGlobal: PlanoResumoServicos[] | null = null
@@ -205,7 +205,7 @@ export function useEmpresaServicosPlano(
 
   useEffect(() => {
     const onRef = () => {
-      invalidarCachePresencaVigenteEmpresa()
+      invalidarCachePresencaPublicaGlobal()
       void carregar()
     }
     window.addEventListener('empresa-gate-refresh', onRef)

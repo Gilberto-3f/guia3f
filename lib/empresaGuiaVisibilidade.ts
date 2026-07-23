@@ -79,7 +79,11 @@ export async function buscarEmpresasListagemGuia(
       .select('empresa_id')
       .eq('status', 'ativa')
       .gt('expira_em', agora),
-    supabase.from('empresa_assinaturas').select('empresa_id, status, vencimento_em').eq('status', 'ativo'),
+    supabase
+      .from('empresa_assinaturas')
+      .select('empresa_id, status, vencimento_em')
+      .eq('status', 'ativo')
+      .or(`vencimento_em.is.null,vencimento_em.gte.${agora}`),
   ])
 
   const degIds = [...new Set((degRows ?? []).map((r: { empresa_id: string }) => String(r.empresa_id)).filter(Boolean))]
