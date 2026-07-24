@@ -92,7 +92,14 @@ export async function contarNaoLidasFunilEmpresa(
             .eq('empresa_id', empresaId)
             .gt('created_at', leitura.recomendacoes_visto_em),
         ).catch(() => 0),
-      ]).then(([pagina, produtos, pratos]) => pagina + produtos + pratos),
+        contarApos(
+          supabase
+            .from('recomendacoes_servico')
+            .select('*', { count: 'exact', head: true })
+            .eq('empresa_id', empresaId)
+            .gt('created_at', leitura.recomendacoes_visto_em),
+        ).catch(() => 0),
+      ]).then(([pagina, produtos, pratos, servicos]) => pagina + produtos + pratos + servicos),
       contarApos(
         supabase
           .from('manifesto')

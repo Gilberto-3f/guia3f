@@ -64,6 +64,24 @@ export interface RecomendacaoPratoProfissional {
   detalhes: RecomendacaoPratoDetalhe[]
 }
 
+/** Detalhe de recomendação indireta (serviço local). */
+export interface RecomendacaoServicoDetalhe extends RecomendacaoDetalhe {
+  servico_id: string
+  servico_nome: string
+  servico_foto_url: string | null
+}
+
+export interface RecomendacaoServicoProfissional {
+  profissional_id: string
+  profissional_nome: string
+  profissional_username: string
+  profissional_foto_url: string | null
+  profissional_verificado?: boolean
+  categoria: string
+  total: number
+  detalhes: RecomendacaoServicoDetalhe[]
+}
+
 export interface PaxDetalhe {
   id: string
   created_at: string

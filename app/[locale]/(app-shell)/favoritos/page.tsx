@@ -1,12 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Building2, Hotel, ShoppingBag, Store, Star, Ticket, Utensils } from 'lucide-react'
+import { Building2, Hotel, ShoppingBag, Store, Star, Ticket, Utensils, Wrench } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
 import DrawerCardapio from '@/components/DrawerCardapio'
+import DrawerServicosLocais from '@/components/DrawerServicosLocais'
 import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
 import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
 import { supabase } from '@/lib/supabase'
@@ -15,11 +16,13 @@ import {
   listarEmpresasFavoritas,
   listarProdutosFavoritos,
   listarPratosFavoritos,
+  listarServicosFavoritos,
   listarTicketsFavoritos,
   type AcomodacaoFavoritaCard,
   type EmpresaFavoritaCard,
   type ProdutoFavoritoCard,
   type PratoFavoritoCard,
+  type ServicoFavoritoCard,
   type TicketFavoritoCard,
 } from '@/lib/favoritosTurista'
 import {
@@ -42,6 +45,7 @@ type Pastas = {
   comprasCde: boolean
   lojasBrAr: boolean
   gastronomia: boolean
+  servicosLocais: boolean
   tickets: boolean
   hospedagem: boolean
   empresas: boolean
@@ -57,6 +61,12 @@ type DrawerPratoState = {
   empresaId: string
   empresaNome: string
   pratoId: string
+} | null
+
+type DrawerServicoState = {
+  empresaId: string
+  empresaNome: string
+  servicoId: string
 } | null
 
 type DrawerTicketState = {
@@ -184,6 +194,53 @@ function CardPratoFavorito({
   )
 }
 
+function CardServicoFavorito({
+  p,
+  onVer,
+}: {
+  p: ServicoFavoritoCard
+  onVer: () => void
+}) {
+  return (
+    <li className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">{p.titulo}</p>
+      <div className="mt-2 aspect-[4/3] bg-gray-100">
+        {p.foto_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={p.foto_url} alt="" className="h-full w-full object-cover" />
+        ) : null}
+      </div>
+      <div className="space-y-2 p-3">
+        {p.categoria_nome ? (
+          <p className="text-sm font-semibold text-[#001f3f]">{p.categoria_nome}</p>
+        ) : null}
+        {p.empresa_nome ? (
+          <p className="truncate text-xs text-gray-500">{p.empresa_nome}</p>
+        ) : null}
+        {p.preco != null ? (
+          <p className="text-sm font-bold text-[#0097b2]">
+            {formatarUsd(p.preco)}
+            {p.percentual_desconto > 0 ? (
+              <span className="ml-1.5 rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
+                −{p.percentual_desconto}%
+              </span>
+            ) : null}
+          </p>
+        ) : null}
+        {p.empresa_id ? (
+          <button
+            type="button"
+            onClick={onVer}
+            className="w-full rounded-lg bg-[#0097b2] py-2 text-xs font-bold text-white"
+          >
+            VER SERVIÇO
+          </button>
+        ) : null}
+      </div>
+    </li>
+  )
+}
+
 export default function FavoritosPage() {
   const router = useRouter()
   const { perfilEhTurista, loading: gateLoading } = useProfissionalGate()
@@ -193,17 +250,20 @@ export default function FavoritosPage() {
   const [acomodacoes, setAcomodacoes] = useState<AcomodacaoFavoritaCard[]>([])
   const [produtos, setProdutos] = useState<ProdutoFavoritoCard[]>([])
   const [pratos, setPratos] = useState<PratoFavoritoCard[]>([])
+  const [servicos, setServicos] = useState<ServicoFavoritoCard[]>([])
   const [tickets, setTickets] = useState<TicketFavoritoCard[]>([])
   const [pastas, setPastas] = useState<Pastas>({
     comprasCde: false,
     lojasBrAr: false,
     gastronomia: false,
+    servicosLocais: false,
     tickets: false,
     hospedagem: false,
     empresas: false,
   })
   const [drawerProduto, setDrawerProduto] = useState<DrawerProdutoState>(null)
   const [drawerPrato, setDrawerPrato] = useState<DrawerPratoState>(null)
+  const [drawerServico, setDrawerServico] = useState<DrawerServicoState>(null)
   const [drawerTicket, setDrawerTicket] = useState<DrawerTicketState>(null)
   const [drawerAcomodacao, setDrawerAcomodacao] = useState<DrawerAcomodacaoState>(null)
 
@@ -240,20 +300,23 @@ export default function FavoritosPage() {
         setAcomodacoes([])
         setProdutos([])
         setPratos([])
+        setServicos([])
         setTickets([])
         return
       }
-      const [emps, acoms, prods, prts, ticks] = await Promise.all([
+      const [emps, acoms, prods, prts, servs, ticks] = await Promise.all([
         listarEmpresasFavoritas(supabase, uid),
         listarAcomodacoesFavoritas(supabase, uid),
         listarProdutosFavoritos(supabase, uid),
         listarPratosFavoritos(supabase, uid),
+        listarServicosFavoritos(supabase, uid),
         listarTicketsFavoritos(supabase, uid),
       ])
       setEmpresas(emps)
       setAcomodacoes(acoms)
       setProdutos(prods)
       setPratos(prts)
+      setServicos(servs)
       setTickets(ticks)
     } finally {
       setLoading(false)
@@ -295,6 +358,15 @@ export default function FavoritosPage() {
       empresaId: p.empresa_id,
       empresaNome: p.empresa_nome || 'Empresa',
       pratoId: p.id,
+    })
+  }
+
+  const abrirServico = (p: ServicoFavoritoCard) => {
+    if (!p.empresa_id) return
+    setDrawerServico({
+      empresaId: p.empresa_id,
+      empresaNome: p.empresa_nome || 'Empresa',
+      servicoId: p.id,
     })
   }
 
@@ -369,6 +441,24 @@ export default function FavoritosPage() {
                 <ul className="space-y-3">
                   {pratos.map((p) => (
                     <CardPratoFavorito key={p.id} p={p} onVer={() => abrirPrato(p)} />
+                  ))}
+                </ul>
+              )}
+            </ChevronPasta>
+
+            <ChevronPasta
+              titulo="Serviços Locais"
+              icone={Wrench}
+              corTitulo={COR}
+              aberto={pastas.servicosLocais}
+              onToggle={() => toggle('servicosLocais')}
+            >
+              {servicos.length === 0 ? (
+                <p className="text-center text-sm text-gray-500">Nenhum serviço salvo ainda.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {servicos.map((p) => (
+                    <CardServicoFavorito key={p.id} p={p} onVer={() => abrirServico(p)} />
                   ))}
                 </ul>
               )}
@@ -588,6 +678,17 @@ export default function FavoritosPage() {
           empresaId={drawerPrato.empresaId}
           empresaNome={drawerPrato.empresaNome}
           pratoIdInicial={drawerPrato.pratoId}
+          mostrarEmpresaNoDetalhe
+        />
+      ) : null}
+
+      {drawerServico ? (
+        <DrawerServicosLocais
+          isOpen
+          onClose={() => setDrawerServico(null)}
+          empresaId={drawerServico.empresaId}
+          empresaNome={drawerServico.empresaNome}
+          servicoIdInicial={drawerServico.servicoId}
           mostrarEmpresaNoDetalhe
         />
       ) : null}

@@ -8,7 +8,7 @@ import {
   tipoCategoriaImovel,
 } from '@/lib/hospedagemAcomodacoesCatalogo'
 
-export type FavoritoAlvoTipo = 'empresa' | 'acomodacao' | 'produto' | 'ticket' | 'prato'
+export type FavoritoAlvoTipo = 'empresa' | 'acomodacao' | 'produto' | 'ticket' | 'prato' | 'servico'
 
 export type EmpresaFavoritaCard = {
   id: string
@@ -70,9 +70,20 @@ export type PratoFavoritoCard = {
   categoria_nome: string | null
 }
 
+export type ServicoFavoritoCard = {
+  id: string
+  empresa_id: string | null
+  titulo: string
+  foto_url: string | null
+  preco: number | null
+  percentual_desconto: number
+  empresa_nome: string | null
+  categoria_nome: string | null
+}
+
 /** Item de catálogo salvo — para Publicações Salvas (profissional / ADM). */
 export type ItemCatalogoSalvo = {
-  kind: 'produto' | 'acomodacao' | 'ticket'
+  kind: 'produto' | 'acomodacao' | 'ticket' | 'servico'
   id: string
   titulo: string
   foto_url: string | null
@@ -516,6 +527,72 @@ export async function listarPratosFavoritos(
   return mapped
 }
 
+/** Serviços locais favoritos. */
+export async function listarServicosFavoritos(
+  supabase: SupabaseClient,
+  usuarioId: string,
+): Promise<ServicoFavoritoCard[]> {
+  const ids = await listarAlvoIdsFavoritos(supabase, usuarioId, 'servico')
+  if (!ids.length) return []
+
+  const { data, error } = await supabase
+    .from('servicos_locais_itens')
+    .select(
+      `
+      id, empresa_id, nome, fotos, foto_url, preco_usd, percentual_desconto,
+      servicos_locais_categorias ( nome )
+    `,
+    )
+    .in('id', ids)
+
+  if (error) {
+    console.error('[favoritosTurista] listarServicosFavoritos:', error.message)
+    return []
+  }
+  if (!data?.length) return []
+
+  const empresaIds = [
+    ...new Set(data.map((p) => String(p.empresa_id ?? '').trim()).filter(Boolean)),
+  ]
+  const nomePorEmpresa = new Map<string, string>()
+  if (empresaIds.length) {
+    const { data: emps } = await supabase
+      .from('empresas')
+      .select('id, nome_fantasia')
+      .in('id', empresaIds)
+    for (const e of emps ?? []) {
+      nomePorEmpresa.set(String(e.id), String(e.nome_fantasia ?? ''))
+    }
+  }
+
+  const byId = new Map(data.map((p) => [String(p.id), p]))
+  const mapped = ids
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+    .map((p) => {
+      const fotos = Array.isArray(p!.fotos) ? p!.fotos : []
+      const foto =
+        (fotos.find((f) => typeof f === 'string' && String(f).trim()) as string | undefined) ??
+        (p!.foto_url != null ? String(p!.foto_url) : null)
+      const pct = Number(p!.percentual_desconto) || 0
+      const bruto = Number(p!.preco_usd) || 0
+      const final = Math.round(bruto * (1 - pct / 100) * 100) / 100
+      const empId = p!.empresa_id != null ? String(p!.empresa_id) : null
+      const catRel = p!.servicos_locais_categorias as { nome?: string } | null
+      return {
+        id: String(p!.id),
+        empresa_id: empId,
+        titulo: String(p!.nome ?? 'Serviço'),
+        foto_url: foto,
+        preco: final > 0 ? final : null,
+        percentual_desconto: pct,
+        empresa_nome: empId ? nomePorEmpresa.get(empId) || null : null,
+        categoria_nome: catRel?.nome ? String(catRel.nome) : null,
+      }
+    })
+  return mapped
+}
+
 /** Base pronta — tickets de atrativos (experiências). */
 export async function listarTicketsFavoritos(
   supabase: SupabaseClient,
@@ -586,7 +663,7 @@ export async function listarItensCatalogoSalvos(
       .from('favoritos')
       .select('alvo_id, alvo_tipo, salvo_em')
       .eq('usuario_id', uid)
-      .in('alvo_tipo', ['produto', 'acomodacao', 'ticket'])
+      .in('alvo_tipo', ['produto', 'acomodacao', 'ticket', 'servico'])
 
     if (res.error) {
       const msg = String(res.error.message ?? '').toLowerCase()
@@ -595,7 +672,7 @@ export async function listarItensCatalogoSalvos(
           .from('favoritos')
           .select('alvo_id, alvo_tipo')
           .eq('usuario_id', uid)
-          .in('alvo_tipo', ['produto', 'acomodacao', 'ticket'])
+          .in('alvo_tipo', ['produto', 'acomodacao', 'ticket', 'servico'])
         if (res2.error) {
           console.error('[favoritosTurista] listarItensCatalogoSalvos:', res2.error.message)
           return []
@@ -623,10 +700,11 @@ export async function listarItensCatalogoSalvos(
     }
   }
 
-  const [prods, acoms, ticks] = await Promise.all([
+  const [prods, acoms, ticks, servs] = await Promise.all([
     listarProdutosFavoritos(supabase, uid),
     listarAcomodacoesFavoritas(supabase, uid),
     listarTicketsFavoritos(supabase, uid),
+    listarServicosFavoritos(supabase, uid),
   ])
 
   const items: ItemCatalogoSalvo[] = []
@@ -687,6 +765,21 @@ export async function listarItensCatalogoSalvos(
       subtitulo: t.empresa_nome,
       preco_inteira: t.preco_inteira,
       preco_meia: t.preco_meia,
+    })
+  }
+
+  for (const s of servs) {
+    items.push({
+      kind: 'servico',
+      id: s.id,
+      titulo: s.titulo,
+      foto_url: s.foto_url,
+      empresa_id: s.empresa_id,
+      empresa_nome: s.empresa_nome,
+      salvo_em: dateByKey.get(`servico:${s.id}`) ?? '',
+      subtitulo: s.categoria_nome || s.empresa_nome,
+      preco: s.preco,
+      percentual_desconto: s.percentual_desconto,
     })
   }
 

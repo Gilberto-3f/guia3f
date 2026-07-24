@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { Calendar, Car, Hotel, MessageCircle, Package, ShoppingBag, Ticket, Utensils } from 'lucide-react'
+import { Calendar, Car, Hotel, Package, ShoppingBag, Ticket, Utensils, Wrench } from 'lucide-react'
 
 export const ROTULO_ABA_SERVICO: Record<string, string> = {
   gastronomia: 'Cardápio',
@@ -10,8 +10,8 @@ export const ROTULO_ABA_SERVICO: Record<string, string> = {
   Lojas: 'Produtos',
   hospedagem: 'Reservar',
   Hospedagem: 'Reservar',
-  servicos_locais: 'WhatsApp',
-  'Serviços Locais': 'WhatsApp',
+  servicos_locais: 'Serviços',
+  'Serviços Locais': 'Serviços',
   'Compras Paraguai': 'Ofertas',
   eventos: 'Ingressos',
   Eventos: 'Ingressos',
@@ -29,8 +29,8 @@ const ICONE_BA_SERVICO: Record<string, LucideIcon> = {
   Lojas: ShoppingBag,
   hospedagem: Hotel,
   Hospedagem: Hotel,
-  servicos_locais: MessageCircle,
-  'Serviços Locais': MessageCircle,
+  servicos_locais: Wrench,
+  'Serviços Locais': Wrench,
   'Compras Paraguai': ShoppingBag,
   eventos: Calendar,
   Eventos: Calendar,
@@ -50,5 +50,11 @@ export function getIconeAbaServico(categoria: string): LucideIcon {
 export function empresaEhGastronomia(categoria: string | null | undefined): boolean {
   const c = String(categoria ?? '').toLowerCase().trim()
   return c === 'restaurantes' || c === 'gastronomia'
+}
+
+/** Empresa de serviços locais (catálogo SERVIÇOS). */
+export function empresaEhServicosLocais(categoria: string | null | undefined): boolean {
+  const c = String(categoria ?? '').toLowerCase().trim()
+  return c === 'servicos_locais' || c === 'serviços locais' || c === 'servicos locais'
 }
 

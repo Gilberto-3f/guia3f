@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Ticket, Calendar, Package, Utensils, ShoppingBag, MessageCircle } from 'lucide-react'
+import { Ticket, Calendar, Package, Utensils, ShoppingBag, Wrench } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
@@ -9,11 +9,11 @@ import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
 import DrawerCardapio from '@/components/DrawerCardapio'
+import DrawerServicosLocais from '@/components/DrawerServicosLocais'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { registrarCliqueBotaoDinamico } from '@/lib/botaoDinamicoCliques'
-import { openWhatsAppChat, mensagemWhatsappContatoGuia } from '@/lib/whatsapp-empresa'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { empresaEhLojaComCatalogo } from '@/lib/cidade-empresa'
 
@@ -26,9 +26,6 @@ const CLASSE_BOTAO_TEXTO =
 /** Mesmo tamanho, forçando uma linha (ex.: Comprar Ticket). */
 const CLASSE_BOTAO_TEXTO_UMA_LINHA =
   'text-xs font-extrabold leading-tight text-white whitespace-nowrap sm:text-sm'
-/** Serviços Locais — rótulo WhatsApp um pouco maior. */
-const CLASSE_BOTAO_TEXTO_WHATSAPP =
-  'text-sm font-extrabold leading-tight text-white whitespace-nowrap sm:text-base'
 
 function norm(s) {
   return String(s ?? '').toLowerCase().trim()
@@ -103,8 +100,10 @@ export default function BotaoDinamico({
   const [showReservaPopup, setShowReservaPopup] = useState(false)
   const [showProdutosPopup, setShowProdutosPopup] = useState(false)
   const [showCardapioPopup, setShowCardapioPopup] = useState(false)
+  const [showServicosPopup, setShowServicosPopup] = useState(false)
 
-  const popupDinamicoAberto = showCardapioPopup || showTicketPopup || showReservaPopup || showProdutosPopup
+  const popupDinamicoAberto =
+    showCardapioPopup || showTicketPopup || showReservaPopup || showProdutosPopup || showServicosPopup
   useModalScrollLock(popupDinamicoAberto)
 
   // FIX: somente texto e ícone mudam por categoria/cidade
@@ -115,7 +114,7 @@ export default function BotaoDinamico({
     }
     if (isHospedagem(categoria)) return { texto: 'FAZER RESERVA', icon: Calendar, acao: 'hospedagem' }
     if (isServicosLocais(categoria)) {
-      return { texto: 'WhatsApp', icon: MessageCircle, acao: 'whatsapp', textoWhatsapp: true }
+      return { texto: 'SERVIÇOS', icon: Wrench, acao: 'servicos' }
     }
 
     if (isLojas(categoria)) {
@@ -129,12 +128,6 @@ export default function BotaoDinamico({
 
   const Icon = config.icon
   const corBotao = COR_PADRAO
-
-  const abrirWhatsappServicosLocais = () => {
-    if (!openWhatsAppChat(whatsapp, mensagemWhatsappContatoGuia())) {
-      alert('WhatsApp da empresa não configurado.')
-    }
-  }
 
   const executarAcao = () => {
     if (!podeInteragir) {
@@ -155,6 +148,9 @@ export default function BotaoDinamico({
       case 'cardapio':
         setShowCardapioPopup(true)
         break
+      case 'servicos':
+        setShowServicosPopup(true)
+        break
       case 'ticket':
         setShowTicketPopup(true)
         break
@@ -171,9 +167,6 @@ export default function BotaoDinamico({
         break
       case 'hospedagem':
         setShowReservaPopup(true)
-        break
-      case 'whatsapp':
-        abrirWhatsappServicosLocais()
         break
       default:
         if (empresaId) router.push(`/empresa/${empresaId}`)
@@ -192,11 +185,7 @@ export default function BotaoDinamico({
         type="button"
         onClick={handleClick}
         className={`flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-center transition-opacity hover:opacity-95 ${
-          config.textoWhatsapp
-            ? CLASSE_BOTAO_TEXTO_WHATSAPP
-            : config.textoUmaLinha
-              ? CLASSE_BOTAO_TEXTO_UMA_LINHA
-              : CLASSE_BOTAO_TEXTO
+          config.textoUmaLinha ? CLASSE_BOTAO_TEXTO_UMA_LINHA : CLASSE_BOTAO_TEXTO
         }`}
         style={{ backgroundColor: corBotao }}
       >
@@ -209,6 +198,16 @@ export default function BotaoDinamico({
           <DrawerCardapio
             isOpen={showCardapioPopup}
             onClose={() => setShowCardapioPopup(false)}
+            empresaId={empresaId}
+            empresaNome={empresaNome}
+            empresaUsername={empresaUsername}
+            empresaFotoUrl={empresaFotoUrl}
+            notaMedia={notaMedia}
+          />
+
+          <DrawerServicosLocais
+            isOpen={showServicosPopup}
+            onClose={() => setShowServicosPopup(false)}
             empresaId={empresaId}
             empresaNome={empresaNome}
             empresaUsername={empresaUsername}

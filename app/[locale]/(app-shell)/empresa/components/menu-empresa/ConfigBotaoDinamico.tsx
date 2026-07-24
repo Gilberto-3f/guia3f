@@ -14,6 +14,7 @@ import AbaInformacoesAtrativos from './atrativos/AbaInformacoesAtrativos'
 import AbaProdutos from './compras-cde/AbaProdutos'
 import AbaContatos from './compras-cde/AbaContatos'
 import AbaCardapio from './gastronomia/AbaCardapio'
+import AbaServicos from './servicos-locais/AbaServicos'
 
 function asNumberOrNull(v: string) {
   const t = v.trim()
@@ -56,7 +57,7 @@ function textoBotaoPreview(categoria: string, cidade: string) {
   if (isGastronomia(categoria)) return 'CARDÁPIO'
   if (isPasseios(categoria)) return 'Comprar Ticket'
   if (isHospedagem(categoria)) return 'FAZER RESERVA'
-  if (isServicosLocais(categoria)) return 'WhatsApp'
+  if (isServicosLocais(categoria)) return 'SERVIÇOS'
   if (isLojas(categoria)) {
     return 'CATÁLOGO'
   }
@@ -75,7 +76,7 @@ function descricaoSegmento(categoria: string, cidade: string) {
     return 'Cadastre acomodações e políticas da casa. O preço fica por acomodação.'
   }
   if (isServicosLocais(categoria)) {
-    return 'O botão abre conversa no WhatsApp da empresa.'
+    return 'Cadastre serviços (sessões, preços e ofertas). O botão SERVIÇOS abre o drawer para visitantes.'
   }
   if (isLojas(categoria) && cidadeEhCiudadDelEste(cidade)) {
     return 'Cadastre produtos (USD) e o WhatsApp comercial. O botão Catálogo abre o catálogo; produtos entram no comparador Compras CDE.'
@@ -113,8 +114,10 @@ export default function ConfigBotaoDinamico() {
   const [abaAtrativos, setAbaAtrativos] = useState<'atrativos' | 'informacoes'>('atrativos')
   const [abaComprasCde, setAbaComprasCde] = useState<'produtos' | 'contatos'>('produtos')
   const [abaGastronomia, setAbaGastronomia] = useState<'cardapio' | 'ajustes'>('cardapio')
+  const [abaServicosLocais, setAbaServicosLocais] = useState<'servicos' | 'ajustes'>('servicos')
   const ehAtrativos = isPasseios(categoria)
   const ehGastronomia = isGastronomia(categoria)
+  const ehServicosLocais = isServicosLocais(categoria)
   const ehLojaComCatalogo = empresaEhLojaComCatalogo(categoria, cidade)
   const ehLojasCde = empresaEhSegmentoLojasParaguai(categoria, cidade)
   const ehLojasBrAr = empresaEhLojasBrasilOuArgentina(categoria, cidade)
@@ -123,7 +126,7 @@ export default function ConfigBotaoDinamico() {
   const textoBotao = useMemo(() => textoBotaoPreview(categoria, cidade), [categoria, cidade])
   const descricao = useMemo(() => descricaoSegmento(categoria, cidade), [categoria, cidade])
 
-  const precisaWhatsapp = isServicosLocais(categoria) || isEventos(categoria)
+  const precisaWhatsapp = isEventos(categoria)
   const precisaTickets = isEventos(categoria)
 
   useEffect(() => {
@@ -295,6 +298,48 @@ export default function ConfigBotaoDinamico() {
             }
             moedaPadraoInicial={dados?.moeda_padrao != null ? String(dados.moeda_padrao) : 'USD'}
             mostrarFeedbackCardapio
+            onSalvo={() => void refetch()}
+          />
+        )}
+      </div>
+    )
+  }
+
+  if (ehServicosLocais && empresaId) {
+    return (
+      <div className="mt-4 space-y-4">
+        <div className="flex gap-2" role="tablist" aria-label="Seções do botão dinâmico">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaServicosLocais === 'servicos'}
+            className={abaVerdeCls(abaServicosLocais === 'servicos')}
+            onClick={() => setAbaServicosLocais('servicos')}
+          >
+            SERVIÇOS
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaServicosLocais === 'ajustes'}
+            className={abaVerdeCls(abaServicosLocais === 'ajustes')}
+            onClick={() => setAbaServicosLocais('ajustes')}
+          >
+            AJUSTES
+          </button>
+        </div>
+
+        {abaServicosLocais === 'servicos' ? (
+          <AbaServicos empresaId={empresaId} />
+        ) : (
+          <AbaContatos
+            empresaId={empresaId}
+            whatsappGeral={dados?.whatsapp != null ? String(dados.whatsapp) : null}
+            whatsappComercialInicial={
+              dados?.whatsapp_comercial != null ? String(dados.whatsapp_comercial) : null
+            }
+            moedaPadraoInicial={dados?.moeda_padrao != null ? String(dados.moeda_padrao) : 'USD'}
+            mostrarFeedbackServicos
             onSalvo={() => void refetch()}
           />
         )}

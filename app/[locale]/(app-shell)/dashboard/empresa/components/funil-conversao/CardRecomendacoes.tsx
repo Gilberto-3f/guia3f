@@ -1,28 +1,32 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Package, Users, Utensils, type LucideIcon } from 'lucide-react'
+import { Package, Users, Utensils, Wrench, type LucideIcon } from 'lucide-react'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 import type {
   RecomendacaoPratoProfissional,
   RecomendacaoProdutoProfissional,
   RecomendacaoProfissional,
+  RecomendacaoServicoProfissional,
 } from '../../types/dashboard.types'
 import { contarNovosEventos } from './contarNovosFunil'
 import LinhaProfissionalRecomendacao from './LinhaProfissionalRecomendacao'
 import LinhaProfissionalRecomendacaoProduto from './LinhaProfissionalRecomendacaoProduto'
 import LinhaProfissionalRecomendacaoPrato from './LinhaProfissionalRecomendacaoPrato'
+import LinhaProfissionalRecomendacaoServico from './LinhaProfissionalRecomendacaoServico'
 import RelatorioPastasCategoria from './RelatorioPastasCategoria'
 
 const VERDE = '#00D443'
 
-type AbaRec = 'pagina' | 'produtos' | 'cardapio'
+type AbaRec = 'pagina' | 'produtos' | 'cardapio' | 'servicos'
 
 interface Props {
   recomendacoes: RecomendacaoProfissional[]
   recomendacoesProduto?: RecomendacaoProdutoProfissional[]
   recomendacoesPrato?: RecomendacaoPratoProfissional[]
+  recomendacoesServico?: RecomendacaoServicoProfissional[]
   empresaEhGastronomia?: boolean
+  empresaEhServicosLocais?: boolean
   referenciaVistoEm?: string | null
   pastasVistas?: Set<string>
   profissionaisVistos?: Set<string>
@@ -50,7 +54,9 @@ export default function CardRecomendacoes({
   recomendacoes,
   recomendacoesProduto = [],
   recomendacoesPrato = [],
+  recomendacoesServico = [],
   empresaEhGastronomia = false,
+  empresaEhServicosLocais = false,
   referenciaVistoEm,
   pastasVistas,
   profissionaisVistos,
@@ -59,13 +65,15 @@ export default function CardRecomendacoes({
 }: Props) {
   const temProdutos = recomendacoesProduto.length > 0
   const temCardapio = empresaEhGastronomia || recomendacoesPrato.length > 0
-  const temAbasExtra = temProdutos || temCardapio
+  const temServicos = empresaEhServicosLocais || recomendacoesServico.length > 0
+  const temAbasExtra = temProdutos || temCardapio || temServicos
   const [aba, setAba] = useState<AbaRec>('pagina')
 
   useEffect(() => {
     if (aba === 'produtos' && !temProdutos) setAba('pagina')
     if (aba === 'cardapio' && !temCardapio) setAba('pagina')
-  }, [temProdutos, temCardapio, aba])
+    if (aba === 'servicos' && !temServicos) setAba('pagina')
+  }, [temProdutos, temCardapio, temServicos, aba])
 
   const abas = useMemo(() => {
     const lista: { id: AbaRec; label: string; Icon: LucideIcon }[] = [
@@ -73,8 +81,9 @@ export default function CardRecomendacoes({
     ]
     if (temProdutos) lista.push({ id: 'produtos', label: 'PRODUTOS', Icon: Package })
     if (temCardapio) lista.push({ id: 'cardapio', label: 'CARDÁPIO', Icon: Utensils })
+    if (temServicos) lista.push({ id: 'servicos', label: 'SERVIÇOS', Icon: Wrench })
     return lista
-  }, [temProdutos, temCardapio])
+  }, [temProdutos, temCardapio, temServicos])
 
   const naoLidasPagina = useMemo(
     () => contarNaoLidasAba(recomendacoes, referenciaVistoEm, profissionaisVistos),
@@ -93,13 +102,26 @@ export default function CardRecomendacoes({
     [recomendacoesPrato, referenciaVistoEm, profissionaisVistos],
   )
 
+  const naoLidasServicos = useMemo(
+    () =>
+      contarNaoLidasAba(recomendacoesServico, referenciaVistoEm, profissionaisVistos, 'servico:'),
+    [recomendacoesServico, referenciaVistoEm, profissionaisVistos],
+  )
+
+  const naoLidasAba = (id: AbaRec) => {
+    if (id === 'pagina') return naoLidasPagina
+    if (id === 'produtos') return naoLidasProdutos
+    if (id === 'cardapio') return naoLidasCardapio
+    return naoLidasServicos
+  }
+
   return (
     <div className="space-y-3">
       {temAbasExtra ? (
         <div className="flex gap-1.5 rounded-2xl bg-gray-100 p-1.5" role="tablist" aria-label="Tipo de recomendação">
           {abas.map(({ id, label, Icon }) => {
             const ativa = aba === id
-            const naoLidas = id === 'pagina' ? naoLidasPagina : id === 'produtos' ? naoLidasProdutos : naoLidasCardapio
+            const naoLidas = naoLidasAba(id)
             return (
               <button
                 key={id}
@@ -218,6 +240,45 @@ export default function CardRecomendacoes({
           renderLinha={(prof, naoLidas, onVisto, posicao) => (
             <LinhaProfissionalRecomendacaoPrato
               key={`prato-${prof.profissional_id}`}
+              profissional={prof}
+              naoLidas={naoLidas}
+              onAberto={onVisto}
+              posicao={posicao}
+            />
+          )}
+        />
+      ) : null}
+
+      {temServicos && aba === 'servicos' ? (
+        <RelatorioPastasCategoria
+          prefixoId="rec-servico"
+          items={recomendacoesServico}
+          referenciaVistoEm={referenciaVistoEm}
+          pastasVistas={
+            pastasVistas
+              ? new Set(
+                  [...pastasVistas]
+                    .filter((k) => k.startsWith('servico:'))
+                    .map((k) => k.slice('servico:'.length)),
+                )
+              : undefined
+          }
+          profissionaisVistos={
+            profissionaisVistos
+              ? new Set(
+                  [...profissionaisVistos]
+                    .filter((k) => k.startsWith('servico:'))
+                    .map((k) => k.slice('servico:'.length)),
+                )
+              : undefined
+          }
+          onPastaVista={(cat) => onPastaVista?.(`servico:${cat}`)}
+          onProfissionalVisto={(id) => onProfissionalVisto?.(`servico:${id}`)}
+          rotuloBloco="serviços recomendados"
+          vazioCategoria="Nenhuma recomendação de serviço nesta categoria"
+          renderLinha={(prof, naoLidas, onVisto, posicao) => (
+            <LinhaProfissionalRecomendacaoServico
+              key={`servico-${prof.profissional_id}`}
               profissional={prof}
               naoLidas={naoLidas}
               onAberto={onVisto}

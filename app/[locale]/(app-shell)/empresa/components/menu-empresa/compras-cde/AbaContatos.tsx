@@ -15,6 +15,7 @@ import {
 import ChevronPasta from '../hospedagem/ChevronPasta'
 import FeedbackCatalogoAjustes from './FeedbackCatalogoAjustes'
 import FeedbackCardapioAjustes from '../gastronomia/FeedbackCardapioAjustes'
+import FeedbackServicosAjustes from '../servicos-locais/FeedbackServicosAjustes'
 
 const COR = '#0097b2'
 
@@ -27,6 +28,8 @@ type Props = {
   mostrarFeedbackCatalogo?: boolean
   /** Gastronomia: Feedback do cardápio. */
   mostrarFeedbackCardapio?: boolean
+  /** Serviços Locais: Feedback do catálogo de serviços. */
+  mostrarFeedbackServicos?: boolean
   onSalvo?: () => void
 }
 
@@ -37,6 +40,7 @@ export default function AbaContatos({
   moedaPadraoInicial = 'USD',
   mostrarFeedbackCatalogo = false,
   mostrarFeedbackCardapio = false,
+  mostrarFeedbackServicos = false,
   onSalvo,
 }: Props) {
   const [whatsappComercial, setWhatsappComercial] = useState(whatsappComercialInicial ?? '')
@@ -66,9 +70,9 @@ export default function AbaContatos({
   }, [empresaId])
 
   useEffect(() => {
-    if (mostrarFeedbackCatalogo || mostrarFeedbackCardapio) return
+    if (mostrarFeedbackCatalogo || mostrarFeedbackCardapio || mostrarFeedbackServicos) return
     void carregarCliques()
-  }, [carregarCliques, mostrarFeedbackCatalogo, mostrarFeedbackCardapio])
+  }, [carregarCliques, mostrarFeedbackCatalogo, mostrarFeedbackCardapio, mostrarFeedbackServicos])
 
   const salvar = async () => {
     const valor = whatsappComercial.trim()
@@ -133,6 +137,8 @@ export default function AbaContatos({
     <div className="space-y-4">
       {mostrarFeedbackCardapio ? (
         <FeedbackCardapioAjustes empresaId={empresaId} abertoInicial={false} />
+      ) : mostrarFeedbackServicos ? (
+        <FeedbackServicosAjustes empresaId={empresaId} abertoInicial={false} />
       ) : mostrarFeedbackCatalogo ? (
         <FeedbackCatalogoAjustes empresaId={empresaId} abertoInicial={false} />
       ) : null}

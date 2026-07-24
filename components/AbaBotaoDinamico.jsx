@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag, MessageCircle } from 'lucide-react'
+import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag, Wrench } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
 import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
 import DrawerCardapio from '@/components/DrawerCardapio'
-import { openWhatsAppChat, mensagemWhatsappContatoGuia } from '@/lib/whatsapp-empresa'
+import DrawerServicosLocais from '@/components/DrawerServicosLocais'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
@@ -33,8 +33,8 @@ const botoesPorCategoria = {
   Eventos: { texto: 'COMPRAR INGRESSO', icon: Calendar, cor: '#DDA0DD', acao: 'ticket' },
   Mobilidade: { texto: 'CHAMAR CORRIDA', icon: Car, cor: '#FFEAA7', acao: 'corrida' },
   'Compras Paraguai': { texto: 'VER OFERTAS', icon: ShoppingBag, cor: '#F1C40F', acao: 'produtos' },
-  servicos_locais: { texto: 'WhatsApp', icon: MessageCircle, cor: '#25D366', acao: 'whatsapp' },
-  'Serviços Locais': { texto: 'WhatsApp', icon: MessageCircle, cor: '#25D366', acao: 'whatsapp' },
+  servicos_locais: { texto: 'SERVIÇOS', icon: Wrench, cor: '#00D443', acao: 'servicos' },
+  'Serviços Locais': { texto: 'SERVIÇOS', icon: Wrench, cor: '#00D443', acao: 'servicos' },
 }
 
 function isHospedagem(cat) {
@@ -92,8 +92,10 @@ export default function AbaBotaoDinamico({
   const [showReservaPopup, setShowReservaPopup] = useState(false)
   const [showProdutosPopup, setShowProdutosPopup] = useState(false)
   const [showCardapioPopup, setShowCardapioPopup] = useState(false)
+  const [showServicosPopup, setShowServicosPopup] = useState(false)
 
-  const popupDinamicoAberto = showCardapioPopup || showTicketPopup || showReservaPopup || showProdutosPopup
+  const popupDinamicoAberto =
+    showCardapioPopup || showTicketPopup || showReservaPopup || showProdutosPopup || showServicosPopup
   useModalScrollLock(popupDinamicoAberto)
 
   useEffect(() => {
@@ -142,12 +144,6 @@ export default function AbaBotaoDinamico({
     router.push(`/mobilidade?destino_empresa=${encodeURIComponent(empresaId)}`)
   }
 
-  const abrirWhatsappServicosLocais = () => {
-    if (!openWhatsAppChat(whatsapp, mensagemWhatsappContatoGuia())) {
-      alert('WhatsApp da empresa não configurado.')
-    }
-  }
-
   const handleClick = () => {
     if (!podeComprarReservar) {
       avisarBloqueio()
@@ -157,6 +153,9 @@ export default function AbaBotaoDinamico({
     switch (config.acao) {
       case 'cardapio':
         setShowCardapioPopup(true)
+        break
+      case 'servicos':
+        setShowServicosPopup(true)
         break
       case 'reserva':
         setShowReservaPopup(true)
@@ -169,9 +168,6 @@ export default function AbaBotaoDinamico({
         break
       case 'corrida':
         irMobilidadeEmpresa()
-        break
-      case 'whatsapp':
-        abrirWhatsappServicosLocais()
         break
       default:
         router.push(`/empresa/${empresaId}`)
@@ -250,6 +246,16 @@ export default function AbaBotaoDinamico({
       <DrawerCardapio
         isOpen={showCardapioPopup}
         onClose={() => setShowCardapioPopup(false)}
+        empresaId={empresaId}
+        empresaNome={empresaNome}
+        empresaUsername={empresaUsername}
+        empresaFotoUrl={empresaFotoUrl}
+        notaMedia={notaMedia}
+      />
+
+      <DrawerServicosLocais
+        isOpen={showServicosPopup}
+        onClose={() => setShowServicosPopup(false)}
         empresaId={empresaId}
         empresaNome={empresaNome}
         empresaUsername={empresaUsername}
