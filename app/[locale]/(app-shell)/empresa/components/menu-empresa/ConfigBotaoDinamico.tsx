@@ -55,8 +55,8 @@ function isEventos(cat: string) {
 
 function textoBotaoPreview(categoria: string, cidade: string) {
   if (isGastronomia(categoria)) return 'CARDÁPIO'
-  if (isPasseios(categoria)) return 'Comprar Ticket'
-  if (isHospedagem(categoria)) return 'FAZER RESERVA'
+  if (isPasseios(categoria)) return 'TICKETS'
+  if (isHospedagem(categoria)) return 'RESERVAS'
   if (isServicosLocais(categoria)) return 'SERVIÇOS'
   if (isLojas(categoria)) {
     return 'CATÁLOGO'

@@ -23,7 +23,7 @@ const COR_PADRAO = '#00D443'
 /** Mesmas classes do botão "VISITAR PÁGINA" em CardAtrativo. */
 const CLASSE_BOTAO_TEXTO =
   'text-xs font-extrabold leading-tight text-white whitespace-normal sm:text-sm'
-/** Mesmo tamanho, forçando uma linha (ex.: Comprar Ticket). */
+/** Variante em uma linha (rótulos mais longos). */
 const CLASSE_BOTAO_TEXTO_UMA_LINHA =
   'text-xs font-extrabold leading-tight text-white whitespace-nowrap sm:text-sm'
 
@@ -110,9 +110,9 @@ export default function BotaoDinamico({
   const config = useMemo(() => {
     if (isGastronomia(categoria)) return { texto: 'CARDÁPIO', icon: Utensils, acao: 'cardapio' }
     if (isPasseios(categoria)) {
-      return { texto: 'Comprar Ticket', icon: Ticket, acao: 'ticket', textoUmaLinha: true }
+      return { texto: 'TICKETS', icon: Ticket, acao: 'ticket' }
     }
-    if (isHospedagem(categoria)) return { texto: 'FAZER RESERVA', icon: Calendar, acao: 'hospedagem' }
+    if (isHospedagem(categoria)) return { texto: 'RESERVAS', icon: Calendar, acao: 'hospedagem' }
     if (isServicosLocais(categoria)) {
       return { texto: 'SERVIÇOS', icon: Wrench, acao: 'servicos' }
     }
