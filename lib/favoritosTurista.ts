@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { deletarFavoritoEmpresa } from '@/lib/favoritosEmpresa'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
-import { buscarIdsEmpresaPresencaPublicaVigente } from '@/lib/empresaPresencaPublica'
 import {
   rotuloCategoriaImovelCurto,
   rotuloCategoriaParticularCurto,
@@ -97,23 +96,14 @@ function payloadAlvo(usuarioId: string, alvoId: string, tipo: FavoritoAlvoTipo) 
   }
 }
 
-/** Ciclo vencido / irregular: some da listagem (favorito permanece no DB). */
-async function filtrarItensPorEmpresaVigente<T extends { empresa_id?: string | null; id?: string }>(
-  supabase: SupabaseClient,
-  items: T[],
-  opts?: { idEhEmpresa?: boolean },
-): Promise<T[]> {
-  if (!items.length) return []
-  const vigentes = await buscarIdsEmpresaPresencaPublicaVigente(supabase)
-  if (vigentes.size === 0) return []
-  return items.filter((item) => {
-    const empId = opts?.idEhEmpresa
-      ? String(item.id ?? '').trim()
-      : String(item.empresa_id ?? '').trim()
-    if (!empId) return false
-    return vigentes.has(empId)
-  })
-}
+/**
+ * Favoritos pessoais NÃO filtram por presença pública (assinatura/degustação).
+ * Motivo: `empresa_assinaturas` só é legível pelo dono/admin (RLS) — turista via
+ * `buscarIdsEmpresaPresencaPublicaVigente` recebia conjunto incompleto/vazio e a
+ * pasta Compras CDE (e demais) ficava vazia mesmo com rows em `favoritos`.
+ * Feed/guia continuam usando presença; aqui mostramos o que o usuário salvou
+ * enquanto o item existir no catálogo.
+ */
 
 export async function usuarioTemFavorito(
   supabase: SupabaseClient,
@@ -301,7 +291,7 @@ export async function listarEmpresasFavoritas(
         nota_media: Number.isFinite(notaRaw) && notaRaw > 0 ? notaRaw : null,
       }
     })
-  return filtrarItensPorEmpresaVigente(supabase, mapped, { idEhEmpresa: true })
+  return mapped
 }
 
 export async function listarAcomodacoesFavoritas(
@@ -382,7 +372,7 @@ export async function listarAcomodacoesFavoritas(
         empresa_verificada: Boolean(meta?.verificada),
       }
     })
-  return filtrarItensPorEmpresaVigente(supabase, mapped)
+  return mapped
 }
 
 /** Produtos Compras CDE favoritos. */
@@ -456,7 +446,7 @@ export async function listarProdutosFavoritos(
         empresa_cidade: meta?.cidade ?? null,
       }
     })
-  return filtrarItensPorEmpresaVigente(supabase, mapped)
+  return mapped
 }
 
 
@@ -523,7 +513,7 @@ export async function listarPratosFavoritos(
         categoria_nome: catRel?.nome ? String(catRel.nome) : null,
       }
     })
-  return filtrarItensPorEmpresaVigente(supabase, mapped)
+  return mapped
 }
 
 /** Base pronta — tickets de atrativos (experiências). */
@@ -577,7 +567,7 @@ export async function listarTicketsFavoritos(
         preco_meia: t!.preco_meia != null ? Number(t!.preco_meia) : null,
       }
     })
-  return filtrarItensPorEmpresaVigente(supabase, mapped)
+  return mapped
 }
 
 /**
