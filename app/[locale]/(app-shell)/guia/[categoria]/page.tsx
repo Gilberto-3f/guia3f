@@ -383,13 +383,18 @@ export default function ListagemCategoriaPage() {
 
   const titulo = TITULO_CATEGORIA_EXTRA[slug] ?? TITULO_SLUG_GUIA[slug] ?? slug
   const filtrosApoioCompactos = ehPaginaHospedagem
-  const btnFiltroApoioCls = filtrosApoioCompactos
-    ? 'inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-1.5 transition hover:bg-gray-50'
-    : 'inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-2 transition hover:bg-gray-50'
+  const btnFiltroApoioBase = filtrosApoioCompactos
+    ? 'inline-flex items-center justify-center rounded-none border bg-transparent p-1.5 transition'
+    : 'inline-flex items-center justify-center rounded-none border bg-transparent p-2 transition'
+  const btnFiltroApoioCls = (ativo: boolean) =>
+    `${btnFiltroApoioBase} ${
+      ativo ? 'border-2 border-[#0097b2]' : 'border border-gray-400/80 hover:border-[#0097b2]/60'
+    }`
   const iconFiltroApoioCls = filtrosApoioCompactos ? 'h-5 w-5 shrink-0' : 'h-6 w-6 shrink-0'
   const iconPinWrapCls = filtrosApoioCompactos
     ? 'relative inline-flex h-5 w-5 shrink-0 items-center justify-center'
     : 'relative inline-flex h-6 w-6 shrink-0 items-center justify-center'
+  const strokeFiltro = (ativo: boolean) => (ativo ? 2.75 : 1.75)
 
   if (slug === 'compras') {
     return (
@@ -474,13 +479,13 @@ export default function ListagemCategoriaPage() {
                   aria-label="Filtrar acomodações com questionário"
                   aria-pressed={checkAtivo}
                   onClick={() => setPopupCheckAberto(true)}
-                  className={btnFiltroApoioCls}
+                  className={btnFiltroApoioCls(checkAtivo)}
                 >
                   <Check
                     className={`${iconFiltroApoioCls} text-[#0097b2]`}
                     fill={checkAtivo ? 'currentColor' : 'none'}
                     stroke="currentColor"
-                    strokeWidth={checkAtivo ? 3.25 : 1.75}
+                    strokeWidth={strokeFiltro(checkAtivo)}
                     aria-hidden
                   />
                 </button>
@@ -490,13 +495,15 @@ export default function ListagemCategoriaPage() {
                 type="button"
                 title="Ordenar por avaliação"
                 aria-label="Ordenar por avaliação"
+                aria-pressed={ordenacao === 'avaliacao'}
                 onClick={() => setOrdenacao('avaliacao')}
-                className={btnFiltroApoioCls}
+                className={btnFiltroApoioCls(ordenacao === 'avaliacao')}
               >
                 <Star
                   className={`${iconFiltroApoioCls} text-[#0097b2]`}
                   fill={ordenacao === 'avaliacao' ? 'currentColor' : 'none'}
                   stroke="currentColor"
+                  strokeWidth={strokeFiltro(ordenacao === 'avaliacao')}
                   aria-hidden
                 />
               </button>
@@ -505,6 +512,7 @@ export default function ListagemCategoriaPage() {
                 type="button"
                 title="Ordenar por proximidade"
                 aria-label="Ordenar por proximidade"
+                aria-pressed={ordenacao === 'localizacao'}
                 onClick={() => {
                   setOrdenacao('localizacao')
                   if (userPos || geoCarregando) return
@@ -525,13 +533,14 @@ export default function ListagemCategoriaPage() {
                     { enableHighAccuracy: true, timeout: 8000 }
                   )
                 }}
-                className={btnFiltroApoioCls}
+                className={btnFiltroApoioCls(ordenacao === 'localizacao')}
               >
                 <span className={`${iconPinWrapCls} ${geoCarregando ? 'animate-pulse' : ''}`}>
                   <MapPin
                     className={`${iconFiltroApoioCls} text-[#0097b2]`}
                     fill={ordenacao === 'localizacao' ? 'currentColor' : 'none'}
                     stroke="currentColor"
+                    strokeWidth={strokeFiltro(ordenacao === 'localizacao')}
                     aria-hidden
                   />
                   {ordenacao === 'localizacao' ? (

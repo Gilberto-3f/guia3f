@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Camera, ChevronDown, ChevronUp, FileText, Globe2, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import BotaoVoltar from '@/components/BotaoVoltar'
+import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
 import Username from '@/components/Username'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { bandeiraProfissionalRegistro } from '@/lib/bandeiraProfissional'
@@ -36,6 +37,7 @@ import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBl
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { empresaEhHospedagemAnfitriao, turistaTemReservaHospedagemConfirmada } from '@/lib/reservaHospedagem'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 
 function debugEmpresa(...args: unknown[]) {
   if (process.env.NODE_ENV === 'development') {
@@ -87,6 +89,7 @@ export default function EmpresaPage() {
   const [meuEmail, setMeuEmail] = useState<string | null>(null)
   const [reservaHospedagemConfirmada, setReservaHospedagemConfirmada] = useState(false)
   const [menuAberto, setMenuAberto] = useState(false)
+  const [favEmpresa, setFavEmpresa] = useState(false)
   const falhaCarregarRef = useRef(false)
   const { modoAtivo } = useModoApresentacao()
 
@@ -121,6 +124,21 @@ export default function EmpresaPage() {
     (ehDonoEmpresa || (empresaVerificada && podeComprarReservar))
   const mostrarChamarCorrida =
     !aguardandoPlanoRede && featurePublicaLiberada('botao_chamar_corrida')
+
+  useEffect(() => {
+    if (!empresaId || !usuarioId || meuRole !== 'turista') {
+      setFavEmpresa(false)
+      return
+    }
+    let cancelado = false
+    void (async () => {
+      const ids = await filtrarFavoritoIdsPorUsuario(supabase, usuarioId, 'empresa', [empresaId])
+      if (!cancelado) setFavEmpresa(ids.has(empresaId))
+    })()
+    return () => {
+      cancelado = true
+    }
+  }, [empresaId, usuarioId, meuRole])
 
   useEffect(() => {
     if (empresaId && ehDonoEmpresa && !empresa?.somente_anfitriao) {
@@ -486,7 +504,17 @@ export default function EmpresaPage() {
               )}
             </div>
           </div>
-          <div className="flex shrink-0 justify-end">
+          <div className="flex shrink-0 items-center justify-end gap-1">
+            {authCarregado && meuRole === 'turista' ? (
+              <BotaoEstrelaFavorito
+                usuarioId={usuarioId}
+                alvoId={empresaId}
+                tipo="empresa"
+                inicial={favEmpresa}
+                size={22}
+                onChange={setFavEmpresa}
+              />
+            ) : null}
             {podeAbrirMenu ? <BotaoAbrirMenuLateral onClick={() => setMenuAberto(true)} /> : null}
           </div>
         </div>
