@@ -1,6 +1,9 @@
 /** Status de empresa elegível no guia turístico (verificadas / operacionais). */
 import { aliasesCategoriaDbGuia, aliasesCidadeGuia } from '@/lib/segmentosEmpresaGuia'
-import { assinaturaContratadaVigente } from '@/lib/empresaAssinatura'
+import {
+  assinaturaContratadaVigente,
+  buscarAssinaturasPresencaPublica,
+} from '@/lib/empresaAssinatura'
 
 export const STATUS_EMPRESA_GUIA_PUBLICO = ['aprovado', 'ativo'] as const
 
@@ -73,28 +76,23 @@ export async function buscarEmpresasListagemGuia(
     return { lista: [], error: null }
   }
 
-  const [{ data: degRows }, { data: assRows }] = await Promise.all([
+  const [{ data: degRows }, assRows] = await Promise.all([
     supabase
       .from('empresa_degustacoes')
       .select('empresa_id')
       .eq('status', 'ativa')
       .gt('expira_em', agora),
-    supabase
-      .from('empresa_assinaturas')
-      .select('empresa_id, status, vencimento_em')
-      .eq('status', 'ativo')
-      .or(`vencimento_em.is.null,vencimento_em.gte.${agora}`),
+    // RPC: turista/pro veem empresas com ciclo regular (RLS direto só libera dono/admin).
+    buscarAssinaturasPresencaPublica(supabase),
   ])
 
   const degIds = [...new Set((degRows ?? []).map((r: { empresa_id: string }) => String(r.empresa_id)).filter(Boolean))]
 
   const assIds = [
     ...new Set(
-      (assRows ?? [])
-        .filter((r: { status?: string | null; vencimento_em?: string | null }) =>
-          assinaturaContratadaVigente(r),
-        )
-        .map((r: { empresa_id: string }) => String(r.empresa_id))
+      assRows
+        .filter((r) => assinaturaContratadaVigente(r))
+        .map((r) => r.empresa_id)
         .filter(Boolean),
     ),
   ]

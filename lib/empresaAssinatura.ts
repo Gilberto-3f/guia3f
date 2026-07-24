@@ -137,6 +137,48 @@ export function assinaturaContratadaVigente(
   return new Date(venc).getTime() >= agora.getTime()
 }
 
+/** Linha mínima de assinatura vigente (RPC pública — sem dados financeiros). */
+export type AssinaturaPresencaPublicaRow = {
+  empresa_id: string
+  plano_id: string | null
+  status: string
+  vencimento_em: string | null
+}
+
+/**
+ * Assinaturas no ciclo regular (ativo + não vencido).
+ * Usa RPC SECURITY DEFINER — turista/profissional enxergam IDs vigentes
+ * sem SELECT direto em `empresa_assinaturas` (RLS só dono/admin).
+ */
+export async function buscarAssinaturasPresencaPublica(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient | any,
+  empresaIds?: string[] | null,
+): Promise<AssinaturaPresencaPublicaRow[]> {
+  const ids = (empresaIds ?? [])
+    .map((id) => String(id ?? '').trim())
+    .filter(Boolean)
+  const { data, error } = await supabase.rpc('empresa_assinaturas_presenca_publica', {
+    p_empresa_ids: ids.length ? ids : null,
+  })
+  if (error) {
+    console.warn('[empresaAssinatura] buscarAssinaturasPresencaPublica:', error.message)
+    return []
+  }
+  const out: AssinaturaPresencaPublicaRow[] = []
+  for (const row of data ?? []) {
+    const empId = row?.empresa_id != null ? String(row.empresa_id).trim() : ''
+    if (!empId) continue
+    out.push({
+      empresa_id: empId,
+      plano_id: row?.plano_id != null ? String(row.plano_id) : null,
+      status: row?.status != null ? String(row.status) : 'ativo',
+      vencimento_em: row?.vencimento_em != null ? String(row.vencimento_em) : null,
+    })
+  }
+  return out
+}
+
 /** Empresa deve ver lembrete de renovação (5 dias antes do vencimento). */
 export function deveExibirLembreteVencimentoPlano(
   vencimentoIso: string | null | undefined,

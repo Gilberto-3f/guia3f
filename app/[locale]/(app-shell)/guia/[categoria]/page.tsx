@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { ArrowLeft, Check, ChevronDown, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import CardAtrativo from '@/components/CardAtrativo'
@@ -16,7 +17,10 @@ import {
 } from '@/lib/planosEmpresaServicosGate'
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
 import { buscarMapaDegustacaoAtivaPorEmpresas } from '@/lib/degustacaoEmpresa'
-import { assinaturaContratadaVigente } from '@/lib/empresaAssinatura'
+import {
+  assinaturaContratadaVigente,
+  buscarAssinaturasPresencaPublica,
+} from '@/lib/empresaAssinatura'
 import { buscarEmpresasListagemGuia } from '@/lib/empresaGuiaVisibilidade'
 import {
   filtrarEmpresasPorQuestionarioHospedagem,
@@ -125,7 +129,7 @@ export default function ListagemCategoriaPage() {
   const cidadeDb = useMemo(() => cidadeGuiaPorPais(pais), [pais])
 
   const cacheKey = useMemo(
-    () => `guia:listagem:v2:${String(slug)}:${String(categoriaDb)}:${String(cidadeDb)}`,
+    () => `guia:listagem:v3:${String(slug)}:${String(categoriaDb)}:${String(cidadeDb)}`,
     [slug, categoriaDb, cidadeDb]
   )
 
@@ -226,19 +230,15 @@ export default function ListagemCategoriaPage() {
     setDegustacaoCarregando(true)
     void (async () => {
       const ids = empresas.map((e) => e.id)
-      const [mapa, assinaturasRes] = await Promise.all([
+      const [mapa, assRows] = await Promise.all([
         buscarMapaDegustacaoAtivaPorEmpresas(supabase, ids),
-        supabase
-          .from('empresa_assinaturas')
-          .select('empresa_id, plano_id, status, vencimento_em')
-          .in('empresa_id', ids)
-          .eq('status', 'ativo'),
+        buscarAssinaturasPresencaPublica(supabase, ids),
       ])
       const mapaPlano = new Map<string, string>()
       const mapaVigente = new Map<string, boolean>()
-      for (const row of assinaturasRes.data ?? []) {
-        const empId = row.empresa_id != null ? String(row.empresa_id) : ''
-        const pid = row.plano_id != null ? String(row.plano_id) : ''
+      for (const row of assRows) {
+        const empId = row.empresa_id
+        const pid = row.plano_id
         const vigente = assinaturaContratadaVigente(row)
         if (!empId) continue
         // Preferir true se houver várias linhas
@@ -404,22 +404,29 @@ export default function ListagemCategoriaPage() {
       <header className="sticky top-0 z-20 border-b border-white/20 bg-[#0097b2] pt-safe shadow-sm">
         <div className="flex flex-col gap-2 px-4 py-2">
           <div className="flex min-w-0 items-center gap-2">
-            <button type="button" onClick={() => router.back()} className="-ml-1 shrink-0 p-1" aria-label="Voltar">
-              <ArrowLeft size={22} className="text-white" />
-            </button>
-            <h1 className="min-w-0 flex-1 truncate text-lg font-bold text-white">{titulo}</h1>
+            <div className="flex min-w-0 flex-1 items-center gap-0.5">
+              <h1 className="min-w-0 truncate text-lg font-bold text-white">{titulo}</h1>
+              <button
+                type="button"
+                onClick={() => setBuscaAberta((v) => !v)}
+                className="shrink-0 rounded-full p-1 text-white transition hover:bg-white/15"
+                aria-label={buscaAberta ? 'Ocultar busca' : 'Mostrar busca'}
+                aria-expanded={buscaAberta}
+              >
+                <ChevronDown
+                  size={22}
+                  className={`transition-transform duration-200 ${buscaAberta ? 'rotate-180' : ''}`}
+                  aria-hidden
+                />
+              </button>
+            </div>
             <button
               type="button"
-              onClick={() => setBuscaAberta((v) => !v)}
-              className="shrink-0 rounded-full p-1 text-white transition hover:bg-white/15"
-              aria-label={buscaAberta ? 'Ocultar busca' : 'Mostrar busca'}
-              aria-expanded={buscaAberta}
+              onClick={() => router.back()}
+              className="-mr-1 shrink-0 p-1"
+              aria-label="Voltar"
             >
-              <ChevronDown
-                size={22}
-                className={`transition-transform duration-200 ${buscaAberta ? 'rotate-180' : ''}`}
-                aria-hidden
-              />
+              <ArrowLeft size={22} className="text-white" />
             </button>
           </div>
 

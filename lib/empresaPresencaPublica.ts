@@ -6,7 +6,10 @@
  * sem isso o pool do Postgres satura para TODOS os perfis.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { assinaturaContratadaVigente } from '@/lib/empresaAssinatura'
+import {
+  assinaturaContratadaVigente,
+  buscarAssinaturasPresencaPublica,
+} from '@/lib/empresaAssinatura'
 
 const PRESENCA_CACHE_MS = 60_000
 
@@ -24,47 +27,37 @@ function agoraIso(d = new Date()): string {
   return d.toISOString()
 }
 
-/**
- * Assinaturas ativas ainda no ciclo (filtro no SQL — não traz vencidas com status='ativo').
- */
-function queryAssinaturasVigentes(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  iso: string,
-) {
-  return supabase
-    .from('empresa_assinaturas')
-    .select('empresa_id, status, vencimento_em')
-    .eq('status', 'ativo')
-    .or(`vencimento_em.is.null,vencimento_em.gte.${iso}`)
-}
-
 async function carregarPresencaPublicaRaw(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient | any,
   agora = new Date(),
 ): Promise<PresencaIdsCache> {
   const iso = agoraIso(agora)
-  const [{ data: degRows, error: degErr }, { data: assRows, error: assErr }, { data: anfRows, error: anfErr }] =
-    await Promise.all([
-      supabase
-        .from('empresa_degustacoes')
-        .select('empresa_id')
-        .eq('status', 'ativa')
-        .gt('expira_em', iso),
-      queryAssinaturasVigentes(supabase, iso),
-      supabase
-        .from('empresas')
-        .select('id')
-        .eq('somente_anfitriao', true)
-        .eq('docs_verificado', true)
-        .in('status', ['aprovado', 'ativo'])
-        .eq('somente_modo_apresentacao', false)
-        .not('foto_url', 'is', null),
-    ])
+  const [degRes, assRows, anfRes] = await Promise.all([
+    supabase
+      .from('empresa_degustacoes')
+      .select('empresa_id')
+      .eq('status', 'ativa')
+      .gt('expira_em', iso),
+    // RPC: bypass RLS dono/admin — turista vê só empresas com ciclo regular.
+    buscarAssinaturasPresencaPublica(supabase),
+    supabase
+      .from('empresas')
+      .select('id')
+      .eq('somente_anfitriao', true)
+      .eq('docs_verificado', true)
+      .in('status', ['aprovado', 'ativo'])
+      .eq('somente_modo_apresentacao', false)
+      .not('foto_url', 'is', null),
+  ])
 
-  if (degErr || assErr || anfErr) {
-    console.warn('[empresaPresencaPublica] falha parcial:', degErr?.message ?? assErr?.message ?? anfErr?.message)
+  const degErr = degRes.error
+  const anfErr = anfRes.error
+  const degRows = degRes.data
+  const anfRows = anfRes.data
+
+  if (degErr || anfErr) {
+    console.warn('[empresaPresencaPublica] falha parcial:', degErr?.message ?? anfErr?.message)
     // Fail-soft: se já havia cache, devolve; senão conjunto vazio (não trava o feed).
     if (presencaCache) return presencaCache
     return { at: Date.now(), empIds: [], usuarioIds: [] }
@@ -74,9 +67,9 @@ async function carregarPresencaPublicaRaw(
   for (const r of degRows ?? []) {
     if (r?.empresa_id != null) empSet.add(String(r.empresa_id))
   }
-  for (const r of assRows ?? []) {
-    // Dupla checagem cliente (calendário) — SQL já filtrou a maioria.
-    if (assinaturaContratadaVigente(r, agora) && r?.empresa_id != null) {
+  for (const r of assRows) {
+    // Dupla checagem cliente (calendário) — RPC já filtrou a maioria.
+    if (assinaturaContratadaVigente(r, agora) && r.empresa_id) {
       empSet.add(String(r.empresa_id))
     }
   }
