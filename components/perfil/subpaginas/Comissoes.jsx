@@ -64,9 +64,9 @@ function textoValidadeOferta(oferta) {
 }
 
 /**
- * @param {{ usuarioId?: string | null }} props
+ * @param {{ usuarioId?: string | null, ferramentasAbertas?: boolean }} props
  */
-export default function Comissoes({ usuarioId = null }) {
+export default function Comissoes({ usuarioId = null, ferramentasAbertas = false }) {
   const cacheInicial = usuarioId ? getComissoesOfertasCache(usuarioId) : null
   const filtrosRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const inputBuscaRef = useRef(/** @type {HTMLInputElement | null} */ (null))
@@ -248,6 +248,10 @@ export default function Comissoes({ usuarioId = null }) {
   }, [pesquisaAberta])
 
   useEffect(() => {
+    if (!ferramentasAbertas) fecharPesquisa()
+  }, [ferramentasAbertas, fecharPesquisa])
+
+  useEffect(() => {
     if (!pesquisaAberta) return
     const onPointerDown = (e) => {
       const el = filtrosRef.current
@@ -271,6 +275,7 @@ export default function Comissoes({ usuarioId = null }) {
   return (
     <div className="space-y-4 px-1 pb-2">
 
+      {ferramentasAbertas ? (
       <div ref={filtrosRef} className="space-y-2">
         {pesquisaAberta ? (
           <div className="relative">
@@ -386,6 +391,7 @@ export default function Comissoes({ usuarioId = null }) {
           </button>
         </div>
       </div>
+      ) : null}
 
       <div
         className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"

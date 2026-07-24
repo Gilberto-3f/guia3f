@@ -586,6 +586,7 @@ export default function MenuLateral({
   /** @type {[HistoricoEntry[], (h: HistoricoEntry[]) => void]} */
   const [historico, setHistorico] = useState(/** @type {HistoricoEntry[]} */ ([]))
   const [modalLogout, setModalLogout] = useState(false)
+  const [comissoesFerramentasAbertas, setComissoesFerramentasAbertas] = useState(false)
   const [historicoNaoLido, setHistoricoNaoLido] = useState(0)
   const [chatAdmNaoLido, setChatAdmNaoLido] = useState(0)
   const [drawerEntered, setDrawerEntered] = useState(false)
@@ -1059,6 +1060,10 @@ export default function MenuLateral({
 
   const topo = historico.length ? historico[historico.length - 1] : null
 
+  useEffect(() => {
+    if (topo?.id !== 'comissoes') setComissoesFerramentasAbertas(false)
+  }, [topo?.id])
+
   const abrirSubmenu = (titulo, itens) => {
     setHistorico((h) => [...h, { tipo: 'menu', titulo, itens }])
   }
@@ -1283,7 +1288,13 @@ export default function MenuLateral({
     if (id === 'regras-ecossistema') return <RegrasEcossistema />
     if (id === 'historico-compras') return <HistoricoCompras usuarioId={usuarioIdEfetivo} />
     if (id === 'docs-prof-bloqueado') return <AvisoDocsProfissionalBloqueado />
-    if (id === 'comissoes') return <Comissoes usuarioId={usuarioIdEfetivo} />
+    if (id === 'comissoes')
+      return (
+        <Comissoes
+          usuarioId={usuarioIdEfetivo}
+          ferramentasAbertas={comissoesFerramentasAbertas}
+        />
+      )
     if (id === 'agendamento') return <AgendamentoAutomatico />
     if (id === 'tabela') return <TabelaValores usuarioId={usuarioIdEfetivo} placaVermelha={placaVermelha} />
     if (id === 'manifestos') return <MeusManifestos />
@@ -1540,6 +1551,27 @@ export default function MenuLateral({
                   texto={textoInfoDrawer(topo.id)}
                   ariaLabel={`Informações sobre ${topo.titulo}`}
                 />
+              ) : null}
+              {topo.tipo === 'pagina' && topo.id === 'comissoes' ? (
+                <button
+                  type="button"
+                  onClick={() => setComissoesFerramentasAbertas((v) => !v)}
+                  className="shrink-0 rounded-full p-1 text-[#0097b2] transition hover:bg-[#0097b2]/10"
+                  aria-label={
+                    comissoesFerramentasAbertas
+                      ? 'Ocultar busca e favoritos'
+                      : 'Mostrar busca e favoritos'
+                  }
+                  aria-expanded={comissoesFerramentasAbertas}
+                >
+                  <ChevronDown
+                    size={22}
+                    className={`transition-transform duration-200 ${
+                      comissoesFerramentasAbertas ? 'rotate-180' : ''
+                    }`}
+                    aria-hidden
+                  />
+                </button>
               ) : null}
               <h2 className="min-w-0 flex-1 truncate text-lg font-bold leading-tight text-[#001f3f]">
                 {topo.titulo}
