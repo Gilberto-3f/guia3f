@@ -273,7 +273,7 @@ export default function EmpresaPage() {
       const { data: empresaRaw, error } = await supabase
         .from('empresas')
         .select(
-          'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, bairro, endereco, foto_url, fotos_url, fotos_360_url, tour_config, descricao_longa, whatsapp, whatsapp_comercial, horarios, nota_media, total_avaliacoes, plano, status, docs_verificado, aprovado_em, verificado_em, somente_anfitriao, somente_modo_apresentacao, moeda_padrao, preco_ticket_inteira, preco_ticket_meia, preco_diaria, latitude, longitude, telefone, website, redes_sociais',
+          'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, bairro, endereco, foto_url, fotos_url, fotos_360_url, tour_config, descricao_curta, descricao_longa, palavras_chave, whatsapp, whatsapp_comercial, horarios, nota_media, total_avaliacoes, plano, status, docs_verificado, aprovado_em, verificado_em, somente_anfitriao, somente_modo_apresentacao, moeda_padrao, preco_ticket_inteira, preco_ticket_meia, preco_diaria, latitude, longitude, telefone, website, redes_sociais',
         )
         .eq('id', empresaId)
         .single()

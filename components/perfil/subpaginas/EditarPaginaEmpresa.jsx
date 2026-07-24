@@ -38,6 +38,73 @@ function padHhMm(t) {
   return `${m[1].padStart(2, '0')}:${m[2]}`
 }
 
+const SELECT_EDITAR_PAGINA =
+  'nome_fantasia, nome_usuario, cidade, endereco, bairro, telefone, whatsapp, website, descricao_curta, descricao_longa, redes_sociais, horarios, palavras_chave, foto_url, fotos_url'
+
+/**
+ * Mensagens amigáveis a partir de erros do Postgres/PostgREST.
+ * @param {unknown} error
+ */
+function mensagemErroSalvarEmpresa(error) {
+  const e = /** @type {{ message?: string, details?: string, hint?: string, code?: string }} */ (error || {})
+  const full = `${e.message ?? ''} ${e.details ?? ''} ${e.hint ?? ''}`.toLowerCase()
+
+  /** @type {[string, string][]} */
+  const colunas = [
+    ['descricao_curta', 'Preencha o campo de Descrição Curta.'],
+    ['descricao_longa', 'Preencha o campo de Descrição Longa.'],
+    ['nome_fantasia', 'Preencha o campo de Nome social.'],
+    ['nome_usuario', 'Preencha o campo de username.'],
+    ['cidade', 'Selecione a cidade.'],
+    ['endereco', 'Preencha o campo de Endereço.'],
+    ['bairro', 'Preencha o campo de Bairro.'],
+    ['telefone', 'Preencha o campo de Telefone.'],
+    ['whatsapp', 'Preencha o campo de WhatsApp.'],
+  ]
+  for (const [col, texto] of colunas) {
+    if (full.includes(col)) return texto
+  }
+  if (full.includes('not-null') || full.includes('null value') || e.code === '23502') {
+    return 'Preencha todos os campos obrigatórios.'
+  }
+  if (full.includes('duplicate') || full.includes('unique') || e.code === '23505') {
+    if (full.includes('nome_usuario')) return 'Este username já está em uso. Escolha outro.'
+    return 'Já existe um registro com esses dados.'
+  }
+  return 'Não foi possível salvar. Verifique os campos e tente novamente.'
+}
+
+/**
+ * @param {Record<string, unknown>} empresa
+ */
+function formFromEmpresa(empresa) {
+  const redesIn =
+    (empresa.redes_sociais &&
+    typeof empresa.redes_sociais === 'object' &&
+    !Array.isArray(empresa.redes_sociais)
+      ? /** @type {Record<string, string>} */ (empresa.redes_sociais)
+      : {}) || {}
+  return {
+    nome: String(empresa.nome_fantasia ?? ''),
+    username: String(empresa.nome_usuario ?? '')
+      .replace(/^@+/, '')
+      .replace(/\s/g, ''),
+    cidade: String(empresa.cidade ?? CIDADES[0]),
+    endereco: String(empresa.endereco ?? ''),
+    bairro: String(empresa.bairro ?? ''),
+    telefone: String(empresa.telefone ?? ''),
+    whatsapp: String(empresa.whatsapp ?? ''),
+    website: String(empresa.website ?? ''),
+    descricaoCurta: String(empresa.descricao_curta ?? '').slice(0, 170),
+    descricaoLonga: String(empresa.descricao_longa ?? '').slice(0, 350),
+    redes: {
+      facebook: redesIn.facebook ?? '',
+      instagram: redesIn.instagram ?? '',
+      tiktok: redesIn.tiktok ?? '',
+    },
+  }
+}
+
 /**
  * @param {unknown} raw
  * @returns {Record<string, { abre: string, fecha: string, fechado: boolean, pausa_almoco: boolean, almoco_inicio: string, almoco_fim: string }>}
@@ -133,50 +200,21 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
     const f = empresa.fotos_url
     return Array.isArray(f) ? f.filter((x) => typeof x === 'string') : []
   }, [empresa.fotos_url])
-  const redesIn = (empresa.redes_sociais && typeof empresa.redes_sociais === 'object' && !Array.isArray(empresa.redes_sociais)
-    ? /** @type {Record<string, string>} */ (empresa.redes_sociais)
-    : {}) || {}
 
-  const [formData, setFormData] = useState({
-    nome: String(empresa.nome_fantasia ?? ''),
-    username: String(empresa.nome_usuario ?? '')
-      .replace(/^@+/, '')
-      .replace(/\s/g, ''),
-    cidade: String(empresa.cidade ?? CIDADES[0]),
-    endereco: String(empresa.endereco ?? ''),
-    bairro: String(empresa.bairro ?? ''),
-    telefone: String(empresa.telefone ?? ''),
-    whatsapp: String(empresa.whatsapp ?? ''),
-    website: String(empresa.website ?? ''),
-    descricaoCurta: String(empresa.descricao_curta ?? empresa.descricao ?? '').slice(0, 170),
-    descricaoLonga: String(empresa.descricao_longa ?? '').slice(0, 350),
-    redes: {
-      facebook: redesIn.facebook ?? '',
-      instagram: redesIn.instagram ?? '',
-      tiktok: redesIn.tiktok ?? '',
-    },
-  })
+  const [formData, setFormData] = useState(() => formFromEmpresa(empresa))
+  const [carregandoDados, setCarregandoDados] = useState(true)
 
   const [salvando, setSalvando] = useState(false)
   const [msg, setMsg] = useState(/** @type {string | null} */ (null))
+  const [msgErro, setMsgErro] = useState(/** @type {string | null} */ (null))
 
-  const horariosInicial = useMemo(() => parseHorariosFromEmpresa(empresa.horarios), [empresa.horarios])
-  const [horariosEdit, setHorariosEdit] = useState(horariosInicial)
+  const [horariosEdit, setHorariosEdit] = useState(() => parseHorariosFromEmpresa(empresa.horarios))
 
-  const palavrasInicial = useMemo(() => {
+  const [palavrasChave, setPalavrasChave] = useState(() => {
     const base = sanitizarPalavrasChave(empresa.palavras_chave)
     while (base.length < MAX_PALAVRAS_CHAVE) base.push('')
     return base.slice(0, MAX_PALAVRAS_CHAVE)
-  }, [empresa.palavras_chave])
-  const [palavrasChave, setPalavrasChave] = useState(palavrasInicial)
-
-  useEffect(() => {
-    setPalavrasChave(palavrasInicial)
-  }, [palavrasInicial])
-
-  useEffect(() => {
-    setHorariosEdit(horariosInicial)
-  }, [horariosInicial])
+  })
 
   const fotoInicial = useMemo(() => {
     const u = empresa.foto_url != null && String(empresa.foto_url).trim() !== '' ? String(empresa.foto_url).trim() : null
@@ -200,9 +238,51 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
   const [aplicandoCrop, setAplicandoCrop] = useState(false)
   const galeriaInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
 
+  /** Carrega dados completos ao abrir (inclui descricao_curta mesmo se o pai não trouxe o campo). */
   useEffect(() => {
-    setFotoAtual(fotoInicial)
-  }, [fotoInicial])
+    if (!empresaId) {
+      setCarregandoDados(false)
+      return
+    }
+    let cancelado = false
+    setCarregandoDados(true)
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('empresas')
+          .select(SELECT_EDITAR_PAGINA)
+          .eq('id', empresaId)
+          .maybeSingle()
+        if (cancelado) return
+        if (error || !data) {
+          setFormData(formFromEmpresa(empresa))
+          setHorariosEdit(parseHorariosFromEmpresa(empresa.horarios))
+          const base = sanitizarPalavrasChave(empresa.palavras_chave)
+          while (base.length < MAX_PALAVRAS_CHAVE) base.push('')
+          setPalavrasChave(base.slice(0, MAX_PALAVRAS_CHAVE))
+          return
+        }
+        const row = /** @type {Record<string, unknown>} */ (data)
+        setFormData(formFromEmpresa(row))
+        setHorariosEdit(parseHorariosFromEmpresa(row.horarios))
+        const base = sanitizarPalavrasChave(row.palavras_chave)
+        while (base.length < MAX_PALAVRAS_CHAVE) base.push('')
+        setPalavrasChave(base.slice(0, MAX_PALAVRAS_CHAVE))
+        const u = row.foto_url != null && String(row.foto_url).trim() !== '' ? String(row.foto_url).trim() : null
+        const fotosRow = Array.isArray(row.fotos_url)
+          ? row.fotos_url.filter((x) => typeof x === 'string')
+          : []
+        setFotoAtual(u || fotosRow[0] || null)
+      } finally {
+        if (!cancelado) setCarregandoDados(false)
+      }
+    })()
+    return () => {
+      cancelado = true
+    }
+    // Só ao abrir / trocar empresa — evita zerar edições locais.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional
+  }, [empresaId])
 
   useEffect(() => {
     if (!novaFotoArquivo) {
@@ -317,22 +397,44 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
   const salvar = async () => {
     setSalvando(true)
     setMsg(null)
+    setMsgErro(null)
     setErroFoto(null)
     try {
+      const nome = formData.nome.trim()
+      const username = formData.username.trim().replace(/^@/, '')
+      const descricaoCurta = formData.descricaoCurta.trim()
+
+      if (!nome) {
+        setMsgErro('Preencha o campo de Nome social.')
+        return
+      }
+      if (!username) {
+        setMsgErro('Preencha o campo de username.')
+        return
+      }
+      if (!formData.cidade.trim()) {
+        setMsgErro('Selecione a cidade.')
+        return
+      }
+      if (!descricaoCurta) {
+        setMsgErro('Preencha o campo de Descrição Curta.')
+        return
+      }
+
       let publicUrlPerfil = /** @type {string | null} */ (null)
       if (novaFotoArquivo) {
         try {
           publicUrlPerfil = await uploadFotoPerfilEmpresa(novaFotoArquivo)
         } catch (e) {
           const erroMsg = e instanceof Error ? e.message : 'Erro ao enviar foto.'
-          setMsg(erroMsg)
+          setMsgErro(erroMsg)
           return
         }
       }
 
       const payload = {
-        nome_fantasia: formData.nome.trim(),
-        nome_usuario: formData.username.trim().replace(/^@/, ''),
+        nome_fantasia: nome,
+        nome_usuario: username,
         cidade: formData.cidade,
         endereco: formData.endereco.trim() || null,
         bairro: formData.bairro.trim() || null,
@@ -340,7 +442,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
         telefone: formData.telefone.trim() || null,
         whatsapp: formData.whatsapp.trim() || null,
         website: formData.website.trim() || null,
-        descricao_curta: formData.descricaoCurta.trim() || null,
+        descricao_curta: descricaoCurta,
         descricao_longa: formData.descricaoLonga.trim() || null,
         redes_sociais: formData.redes,
         palavras_chave: sanitizarPalavrasChave(palavrasChave),
@@ -354,7 +456,7 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
       const { error } = await supabase.from('empresas').update(payload).eq('id', empresaId)
 
       if (error) {
-        setMsg(error.message)
+        setMsgErro(mensagemErroSalvarEmpresa(error))
         return
       }
 
@@ -374,7 +476,11 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
 
   return (
     <div className="space-y-6 px-1 pb-2">
-      <section className="space-y-3">
+      {carregandoDados ? (
+        <p className="py-6 text-center text-sm text-gray-400">Carregando dados da página…</p>
+      ) : null}
+
+      <section className={`space-y-3 ${carregandoDados ? 'pointer-events-none opacity-60' : ''}`}>
         <h3 className="text-lg font-bold text-gray-900">Informações básicas</h3>
 
         <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-100 bg-white p-3">
@@ -682,11 +788,12 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
         />
       </section>
 
+      {msgErro ? <p className="text-sm font-medium text-red-600">{msgErro}</p> : null}
       {msg ? <p className="text-sm text-[#0097b2]">{msg}</p> : null}
 
       <button
         type="button"
-        disabled={salvando}
+        disabled={salvando || carregandoDados}
         onClick={() => void salvar()}
         className="w-full rounded-xl bg-[#0097b2] py-3 text-sm font-bold text-white disabled:opacity-50"
       >
