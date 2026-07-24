@@ -36,7 +36,6 @@ import { prefetchPlanosEmpresa, useEmpresaServicosPlano } from '@/hooks/useEmpre
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import { empresaEhHospedagemAnfitriao, turistaTemReservaHospedagemConfirmada } from '@/lib/reservaHospedagem'
-import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 
 function debugEmpresa(...args: unknown[]) {
@@ -103,12 +102,10 @@ export default function EmpresaPage() {
   }, [])
   const planoEmpresa =
     empresa && empresa.plano != null ? String(empresa.plano) : null
-  const { featurePublicaLiberada, loading: planoLoading } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
+  const { featurePublicaLiberada } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
     aguardarEmpresa: loading,
     somenteAnfitriao: Boolean(empresa?.somente_anfitriao),
   })
-  const { podeComprarReservar, loading: gateLoading } = useGateComprasReservas()
-  const aguardandoPlanoRede = loading || planoLoading
   const empresaVerificada =
     empresa != null && contaVerificadaDocumentacao('empresa', empresa as { docs_verificado?: boolean | null; status?: string | null })
   const ehDonoEmpresa =
@@ -117,13 +114,17 @@ export default function EmpresaPage() {
     String(empresa.usuario_id ?? '') === usuarioId &&
     (meuRole === 'empresa' ||
       (meuRole === 'profissional' && Boolean(empresa.somente_anfitriao)))
+  /**
+   * Aba do botão dinâmico: só depende do plano da empresa (e página carregada).
+   * Não usa gate de compra/verificação do visitante — a ação dentro do drawer já bloqueia se preciso.
+   * Dono vê sempre que o plano incluir o recurso.
+   */
   const mostrarBotaoDinamico =
-    !aguardandoPlanoRede &&
-    !gateLoading &&
+    !loading &&
+    empresa != null &&
     featurePublicaLiberada('botao_dinamico') &&
-    (ehDonoEmpresa || (empresaVerificada && podeComprarReservar))
-  const mostrarChamarCorrida =
-    !aguardandoPlanoRede && featurePublicaLiberada('botao_chamar_corrida')
+    (ehDonoEmpresa || empresaVerificada)
+  const mostrarChamarCorrida = !loading && empresa != null && featurePublicaLiberada('botao_chamar_corrida')
 
   useEffect(() => {
     if (!empresaId || !usuarioId || meuRole !== 'turista') {
@@ -145,7 +146,8 @@ export default function EmpresaPage() {
       prefetchPlanosEmpresa()
     }
   }, [empresaId, ehDonoEmpresa, empresa?.somente_anfitriao])
-  const mostrarConteudoRede = !aguardandoPlanoRede && empresaVerificada
+  /** Fotos / posts / tour: visíveis com conta verificada; não some ao refrescar o plano. */
+  const mostrarConteudoRede = !loading && empresa != null && empresaVerificada
 
   useEffect(() => {
     if (!mostrarBotaoDinamico && abaExpandida === 'dinamico') {
@@ -624,7 +626,7 @@ export default function EmpresaPage() {
       ) : null}
 
       {abaExpandida == null ? (
-        aguardandoPlanoRede && donoEmpresa ? (
+        loading && donoEmpresa ? (
           <div className="border-b border-gray-100 bg-white px-4 py-8">
             <div className="h-24 animate-pulse rounded-lg bg-gray-100" aria-busy="true" aria-label="A carregar conteúdo" />
           </div>

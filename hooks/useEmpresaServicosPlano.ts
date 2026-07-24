@@ -253,8 +253,9 @@ export function useEmpresaServicosPlano(
   ])
 
   /**
-   * Visibilidade pública (guia + página da empresa): mesmos serviços do menu interno.
-   * Ciclo vencido → bloqueia até renovar / contratar outro plano (exceto degustação ativa).
+   * Visibilidade pública (guia + página da empresa): serviços do plano da empresa.
+   * Ciclo irregular já retira a empresa do guia (presença pública) — não bloqueia
+   * de novo recursos na página (visitantes muitas vezes não leem empresa_assinaturas via RLS).
    */
   const servicosPublicos = useMemo(() => {
     if (somenteAnfitriao) return [...TODOS_SERVICOS_EMPRESA]
@@ -267,23 +268,9 @@ export function useEmpresaServicosPlano(
       },
       {
         planoContratadoId,
-        assinaturaContratadaVigente: degustacaoAtiva
-          ? undefined
-          : exigeAssinaturaVigente
-            ? assinaturaContratadaVigenteFlag
-            : undefined,
       },
     )
-  }, [
-    assinaturaContratadaVigenteFlag,
-    degustacaoAtiva,
-    degustacaoServicos,
-    exigeAssinaturaVigente,
-    planoContratadoId,
-    planoEmpresa,
-    planos,
-    somenteAnfitriao,
-  ])
+  }, [degustacaoAtiva, degustacaoServicos, planoContratadoId, planoEmpresa, planos, somenteAnfitriao])
 
   const temServico = useCallback(
     (servico: ServicoPlanoId) => servicos.includes(servico),
