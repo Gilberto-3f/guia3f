@@ -331,17 +331,17 @@ export default function DrawerProdutosCde({
           style={{ paddingTop: 'max(0.1rem, env(safe-area-inset-top, 0px))' }}
         >
           <div className="relative px-4 pb-2 pt-1 pr-2">
-            <div className="flex items-center gap-2.5">
-              <div className="h-11 w-11 shrink-0 overflow-hidden rounded-md border border-white/80 bg-white/20">
+            <div className="flex items-center gap-3">
+              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border border-white/80 bg-white/20">
                 {avatarEmpresa ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
                 ) : null}
               </div>
-              <div className="min-w-0 flex-1 pr-7">
+              <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 pr-7">
                 <p className="truncate text-sm font-bold leading-tight text-white">{empresaNome}</p>
                 {usernameExibir ? (
-                  <p className="mt-0.5 flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
+                  <p className="flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
                     {empresaVerificada ? (
                       <BadgeCheck
                         className="h-3 w-3 shrink-0 text-white"
@@ -355,7 +355,7 @@ export default function DrawerProdutosCde({
                   </p>
                 ) : null}
                 {notaEmpresaTexto ? (
-                  <p className="mt-0.5 flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                  <p className="flex items-center gap-0.5 text-xs font-bold leading-tight text-amber-300">
                     <span aria-hidden>★</span>
                     {notaEmpresaTexto}
                   </p>
@@ -511,20 +511,16 @@ export default function DrawerProdutosCde({
             </div>
 
             <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <PrecoProdutoCde
-                  precoUsd={precoFinal}
-                  precoUsdCheio={pct > 0 ? selecionado.preco_usd : null}
-                  cotacoes={cotacoes}
-                  moedaPadrao={moedaPadrao}
-                  variante="detalhe"
-                />
-                {pct > 0 ? (
-                  <span className="rounded bg-[#00D443]/15 px-2 py-0.5 text-xs font-bold uppercase text-[#00D443]">
-                    Em oferta −{pct}%
-                  </span>
-                ) : null}
-              </div>
+              <PrecoProdutoCde
+                precoUsd={precoFinal}
+                precoUsdCheio={pct > 0 ? selecionado.preco_usd : null}
+                cotacoes={cotacoes}
+                moedaPadrao={moedaPadrao}
+                variante="detalhe"
+              />
+              {pct > 0 ? (
+                <p className="mt-1 text-xs font-bold uppercase text-[#00D443]">Em oferta −{pct}%</p>
+              ) : null}
             </div>
 
             <dl className="space-y-1.5 text-sm text-gray-700">

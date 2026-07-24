@@ -93,6 +93,11 @@ export default function MiniCardProdutoVisitante({
           <Info className="h-4 w-4" aria-hidden />
         </button>
         <p className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-[#001f3f]">{item.nome}</p>
+        {pct > 0 ? (
+          <span className="shrink-0 text-sm font-bold text-[#00D443]" aria-label={`Em oferta −${pct}%`}>
+            %
+          </span>
+        ) : null}
         <BotaoEstrelaFavorito
           usuarioId={visitanteId}
           alvoId={item.id}
@@ -111,20 +116,13 @@ export default function MiniCardProdutoVisitante({
       </div>
 
       <div className={`flex flex-col gap-1 p-3 ${tamanhoUniforme ? 'flex-1' : ''}`}>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <PrecoProdutoCde
-            precoUsd={finalUsd}
-            precoUsdCheio={pct > 0 ? item.preco_usd : null}
-            cotacoes={mapCotacoes}
-            moedaPadrao={moedaPadrao}
-            destacarUsd
-          />
-          {pct > 0 ? (
-            <span className="rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
-              Em oferta −{pct}%
-            </span>
-          ) : null}
-        </div>
+        <PrecoProdutoCde
+          precoUsd={finalUsd}
+          precoUsdCheio={pct > 0 ? item.preco_usd : null}
+          cotacoes={mapCotacoes}
+          moedaPadrao={moedaPadrao}
+          destacarUsd
+        />
 
         <div className="leading-tight">
           {item.subcategoria_nome ? (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BadgeCheck, ChevronLeft, ChevronRight, ExternalLink, Eye, MessageCircle, X } from 'lucide-react'
+import { ArrowRight, BadgeCheck, ChevronLeft, ChevronRight, ExternalLink, Eye, MessageCircle, X } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
@@ -261,17 +261,17 @@ export default function DrawerServicosLocais({
           style={{ paddingTop: 'max(0.1rem, env(safe-area-inset-top, 0px))' }}
         >
           <div className="relative px-4 pb-2 pt-1 pr-2">
-            <div className="flex items-center gap-2.5">
-              <div className="h-11 w-11 shrink-0 overflow-hidden rounded-md border border-white/80 bg-white/20">
+            <div className="flex items-center gap-3">
+              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border border-white/80 bg-white/20">
                 {avatarEmpresa ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
                 ) : null}
               </div>
-              <div className="min-w-0 flex-1 pr-7">
+              <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 pr-7">
                 <p className="truncate text-sm font-bold leading-tight text-white">{empresaNome}</p>
                 {usernameExibir ? (
-                  <p className="mt-0.5 flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
+                  <p className="flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
                     {empresaVerificada ? (
                       <BadgeCheck
                         className="h-3 w-3 shrink-0 text-white"
@@ -285,7 +285,7 @@ export default function DrawerServicosLocais({
                   </p>
                 ) : null}
                 {notaEmpresaTexto ? (
-                  <p className="mt-0.5 flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                  <p className="flex items-center gap-0.5 text-xs font-bold leading-tight text-amber-300">
                     <span aria-hidden>★</span>
                     {notaEmpresaTexto}
                   </p>
@@ -307,31 +307,23 @@ export default function DrawerServicosLocais({
           className="flex shrink-0 items-center gap-2 border-b border-gray-100 bg-white px-3 pb-2"
           style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0px))' }}
         >
-          {!abrirDiretoNoDetalhe ? (
-            <button
-              type="button"
-              onClick={() => {
-                setPasso(1)
-                setSelecionado(null)
-              }}
-              className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
-              aria-label="Voltar"
-            >
-              <ArrowLeft className="h-5 w-5" aria-hidden />
-            </button>
-          ) : (
-            <span className="w-2 shrink-0" aria-hidden />
-          )}
-          <p className="min-w-0 flex-1 truncate text-center text-sm font-bold text-[#001f3f]">
-            {selecionado?.categoria_nome || (carregando ? '…' : 'Servico')}
+          <p className="min-w-0 flex-1 truncate text-sm font-bold text-[#001f3f]">
+            {selecionado?.categoria_nome || (carregando ? '…' : 'Serviço')}
           </p>
           <button
             type="button"
-            onClick={handleFechar}
+            onClick={() => {
+              if (abrirDiretoNoDetalhe) {
+                handleFechar()
+                return
+              }
+              setPasso(1)
+              setSelecionado(null)
+            }}
             className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
-            aria-label="Fechar"
+            aria-label={abrirDiretoNoDetalhe ? 'Fechar' : 'Voltar'}
           >
-            <X className="h-5 w-5" aria-hidden />
+            <ArrowRight className="h-5 w-5" aria-hidden />
           </button>
         </header>
       )}
@@ -360,9 +352,36 @@ export default function DrawerServicosLocais({
                           key={p.id}
                           className="box-border flex w-[78%] max-w-[280px] shrink-0 snap-center flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
                         >
-                          <p className="truncate px-3 pt-3 text-left text-sm font-semibold text-[#001f3f]">
-                            {p.nome}
-                          </p>
+                          <div className="flex items-center gap-1.5 px-3 pt-3">
+                            <p className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-[#001f3f]">
+                              {p.nome}
+                            </p>
+                            {pctP > 0 ? (
+                              <span
+                                className="shrink-0 text-sm font-bold text-[#00D443]"
+                                aria-label={`Em oferta −${pctP}%`}
+                              >
+                                %
+                              </span>
+                            ) : null}
+                            {!perfilEhEmpresa ? (
+                              <BotaoEstrelaFavorito
+                                usuarioId={visitanteId}
+                                alvoId={p.id}
+                                tipo="servico"
+                                inicial={favServicos.has(p.id)}
+                                size={18}
+                                onChange={(salvo) => {
+                                  setFavServicos((prev) => {
+                                    const next = new Set(prev)
+                                    if (salvo) next.add(p.id)
+                                    else next.delete(p.id)
+                                    return next
+                                  })
+                                }}
+                              />
+                            ) : null}
+                          </div>
                           <div className="relative mt-2 aspect-[4/3] w-full shrink-0 overflow-hidden bg-gray-100">
                             {capa ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -370,20 +389,13 @@ export default function DrawerServicosLocais({
                             ) : null}
                           </div>
                           <div className="flex flex-col gap-1 p-3">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                              <PrecoProdutoCde
-                                precoUsd={finalUsd}
-                                precoUsdCheio={pctP > 0 ? p.preco_usd : null}
-                                cotacoes={cotacoes}
-                                moedaPadrao={moedaPadrao}
-                                destacarUsd
-                              />
-                              {pctP > 0 ? (
-                                <span className="rounded bg-[#00D443]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#00D443]">
-                                  Em oferta −{pctP}%
-                                </span>
-                              ) : null}
-                            </div>
+                            <PrecoProdutoCde
+                              precoUsd={finalUsd}
+                              precoUsdCheio={pctP > 0 ? p.preco_usd : null}
+                              cotacoes={cotacoes}
+                              moedaPadrao={moedaPadrao}
+                              destacarUsd
+                            />
                             <button
                               type="button"
                               onClick={() => {
@@ -446,7 +458,7 @@ export default function DrawerServicosLocais({
               ) : null}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div>
               <PrecoProdutoCde
                 precoUsd={precoFinal}
                 precoUsdCheio={pct > 0 ? selecionado.preco_usd : null}
@@ -455,9 +467,7 @@ export default function DrawerServicosLocais({
                 variante="detalhe"
               />
               {pct > 0 ? (
-                <span className="rounded bg-[#00D443]/15 px-2 py-0.5 text-xs font-bold uppercase text-[#00D443]">
-                  Em oferta −{pct}%
-                </span>
+                <p className="mt-1 text-xs font-bold uppercase text-[#00D443]">Em oferta −{pct}%</p>
               ) : null}
             </div>
 
