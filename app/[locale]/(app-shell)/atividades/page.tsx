@@ -18,6 +18,7 @@ import AtividadeCurtiuStory from '@/components/atividades/AtividadeCurtiuStory'
 import AtividadeRepostouStory from '@/components/atividades/AtividadeRepostouStory'
 import AtividadeRepostouPost from '@/components/atividades/AtividadeRepostouPost'
 import AtividadeComentario from '@/components/atividades/AtividadeComentario'
+import AtividadeComentouAvaliacao from '@/components/atividades/AtividadeComentouAvaliacao'
 import AtividadeSeguidor from '@/components/atividades/AtividadeSeguidor'
 import AtividadeAvaliacao from '@/components/atividades/AtividadeAvaliacao'
 import AtividadeCatalogo from '@/components/atividades/AtividadeCatalogo'
@@ -2190,6 +2191,7 @@ export default function AtividadesPage() {
             empresaUsername={empresaAvaliacaoCurtiu?.username ?? ''}
             hrefEmpresa={empresaIdAvaliacao ? `/empresa/${encodeURIComponent(empresaIdAvaliacao)}` : ''}
             empresaVerificada={Boolean(empresaAvaliacaoCurtiu?.verificado)}
+            empresaFoto={empresaAvaliacaoCurtiu?.foto_url ?? null}
           />
         )
       }
@@ -2537,6 +2539,49 @@ export default function AtividadesPage() {
         )
       }
       const t = (pm?.tipo ?? 'texto').toLowerCase()
+      if (t === 'avaliacao') {
+        const rawMeta = pm?.avaliacao_meta
+        const meta =
+          rawMeta && typeof rawMeta === 'object' && !Array.isArray(rawMeta)
+            ? { ...(rawMeta as Record<string, unknown>) }
+            : null
+        if (meta && typeof meta.comentario === 'string' && meta.feedback == null) {
+          meta.feedback = meta.comentario
+        }
+        const empresaIdAvaliacao =
+          meta?.empresa_id != null && String(meta.empresa_id).trim() !== ''
+            ? String(meta.empresa_id).trim()
+            : ''
+        const empresaAvaliacaoComentou = empresaIdAvaliacao
+          ? empresaAvaliacaoMap[empresaIdAvaliacao]
+          : undefined
+        const donorIdAv = r.usuario_id
+        const donorAv = perfilMap[donorIdAv]
+        return (
+          <AtividadeComentouAvaliacao
+            key={r.id}
+            usernameAtor={ator?.username ?? 'usuario'}
+            interactorFoto={ator?.foto_perfil_url ?? null}
+            usernameDono={donorAv?.username ?? 'usuario'}
+            {...propsAtor(ator)}
+            {...propsDono(donorAv)}
+            hrefInteractor={hrefPerfilInteractor(r)}
+            hrefDono={hrefUsuario(donorIdAv)}
+            textoComentario={texto}
+            postId={postId}
+            comentarioId={comentarioId}
+            meta={meta}
+            tempoInteracao={formatarDataAtividades(r.created_at)}
+            modoMinhaConta={modoMinhaConta}
+            empresaUsername={empresaAvaliacaoComentou?.username ?? ''}
+            hrefEmpresa={
+              empresaIdAvaliacao ? `/empresa/${encodeURIComponent(empresaIdAvaliacao)}` : ''
+            }
+            empresaVerificada={Boolean(empresaAvaliacaoComentou?.verificado)}
+            empresaFoto={empresaAvaliacaoComentou?.foto_url ?? null}
+          />
+        )
+      }
       const emFoto =
         t === 'foto' ||
         t === 'misto' ||

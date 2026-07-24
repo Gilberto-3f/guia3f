@@ -9,39 +9,43 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
 /**
  * @param {{
- *   interactorUsername: string
+ *   usernameAtor: string
  *   interactorFoto: string | null
- *   donorUsername: string
+ *   usernameDono: string
  *   hrefInteractor: string
- *   hrefDonor: string
+ *   hrefDono: string
+ *   textoComentario: string
  *   postId: string
- *   meta: Record<string, unknown> | null
+ *   comentarioId?: string | null
+ *   meta?: Record<string, unknown> | null
  *   tempoInteracao?: string
  *   modoMinhaConta?: boolean
- *   interactorVerificado?: boolean
- *   interactorVerificadoTipo?: 'profissional' | 'empresa'
- *   donorVerificado?: boolean
- *   donorVerificadoTipo?: 'profissional' | 'empresa'
+ *   atorVerificado?: boolean
+ *   atorVerificadoTipo?: 'profissional' | 'empresa'
+ *   donoVerificado?: boolean
+ *   donoVerificadoTipo?: 'profissional' | 'empresa'
  *   empresaUsername?: string
  *   hrefEmpresa?: string
  *   empresaVerificada?: boolean
  *   empresaFoto?: string | null
  * }} props
  */
-export default function AtividadeCurtiuAvaliacao({
-  interactorUsername,
+export default function AtividadeComentouAvaliacao({
+  usernameAtor,
   interactorFoto,
-  donorUsername,
+  usernameDono,
   hrefInteractor,
-  hrefDonor,
+  hrefDono,
+  textoComentario,
   postId,
-  meta,
+  comentarioId = null,
+  meta = null,
   tempoInteracao = '',
   modoMinhaConta = false,
-  interactorVerificado = false,
-  interactorVerificadoTipo = 'profissional',
-  donorVerificado = false,
-  donorVerificadoTipo = 'profissional',
+  atorVerificado = false,
+  atorVerificadoTipo = 'profissional',
+  donoVerificado = false,
+  donoVerificadoTipo = 'profissional',
   empresaUsername: empresaUsernameProp = '',
   hrefEmpresa: hrefEmpresaProp = '',
   empresaVerificada = false,
@@ -54,14 +58,11 @@ export default function AtividadeCurtiuAvaliacao({
 
   const empresaIdMeta =
     meta?.empresa_id != null && String(meta.empresa_id).trim() !== '' ? String(meta.empresa_id).trim() : ''
-  const usernameEmpresaMeta =
-    meta?.nome_usuario != null && String(meta.nome_usuario).trim() !== ''
-      ? String(meta.nome_usuario).trim().replace(/^@+/, '')
-      : meta?.nome_fantasia != null && String(meta.nome_fantasia).trim() !== ''
-        ? String(meta.nome_fantasia).trim()
-        : ''
   const usernameEmpresa =
-    String(empresaUsernameProp ?? '').trim().replace(/^@+/, '') || usernameEmpresaMeta
+    String(empresaUsernameProp ?? '').trim().replace(/^@+/, '') ||
+    (meta?.nome_usuario != null && String(meta.nome_usuario).trim() !== ''
+      ? String(meta.nome_usuario).trim().replace(/^@+/, '')
+      : '')
   const hrefEmpresa =
     String(hrefEmpresaProp ?? '').trim() ||
     (empresaIdMeta ? `/empresa/${encodeURIComponent(empresaIdMeta)}` : '')
@@ -73,12 +74,12 @@ export default function AtividadeCurtiuAvaliacao({
         : null
 
   const resumoModal = modoMinhaConta
-    ? 'curtiu sua avaliação'
-    : `curtiu avaliação de @${donorUsername}`
+    ? 'comentou sua avaliação'
+    : `comentou avaliação de @${usernameDono}`
 
   return (
     <>
-      <div className="min-w-0">
+      <div className="block min-w-0">
         <div className="grid min-w-0 grid-cols-[2.5rem_1fr] items-start gap-x-2">
           <div className="flex flex-col items-center gap-0.5">
             <button
@@ -95,24 +96,25 @@ export default function AtividadeCurtiuAvaliacao({
           <div className="min-w-0">
             <p className="text-sm leading-snug text-gray-800">
               <UsuarioHandleVerificado
-                username={interactorUsername}
-                verificado={interactorVerificado}
-                verificadoTipo={interactorVerificadoTipo}
+                username={usernameAtor}
+                verificado={atorVerificado}
+                verificadoTipo={atorVerificadoTipo}
                 onClick={() => router.push(hrefInteractor)}
               />{' '}
               {modoMinhaConta ? (
-                <>curtiu sua avaliação</>
+                <>comentou sua avaliação</>
               ) : (
                 <>
-                  curtiu avaliação de{' '}
+                  comentou avaliação de{' '}
                   <UsuarioHandleVerificado
-                    username={donorUsername}
-                    verificado={donorVerificado}
-                    verificadoTipo={donorVerificadoTipo}
-                    onClick={() => router.push(hrefDonor)}
+                    username={usernameDono}
+                    verificado={donoVerificado}
+                    verificadoTipo={donoVerificadoTipo}
+                    onClick={() => router.push(hrefDono)}
                   />
                 </>
               )}
+              :
             </p>
             <button
               type="button"
@@ -157,6 +159,17 @@ export default function AtividadeCurtiuAvaliacao({
                 ))}
               </span>
             </button>
+            {String(textoComentario || '').trim() ? (
+              <button
+                type="button"
+                onClick={() => setModal(true)}
+                className="mt-1.5 block min-h-0 w-full text-left"
+              >
+                <p className="line-clamp-3 text-sm italic text-gray-600">
+                  &ldquo;{String(textoComentario || '').trimEnd()}&rdquo;
+                </p>
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -164,7 +177,8 @@ export default function AtividadeCurtiuAvaliacao({
         aberto={modal}
         onFechar={() => setModal(false)}
         postIds={[postId]}
-        interacaoUsuario={interactorUsername}
+        comentarioId={comentarioId}
+        interacaoUsuario={usernameAtor}
         interacaoResumo={resumoModal}
       />
     </>

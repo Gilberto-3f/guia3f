@@ -1444,6 +1444,12 @@ export default function PostCard({
           ? nomeFantasiaAlvo
           : ''
     const hrefEmpresaAlvo = empresaAlvoId ? `/empresa/${empresaAlvoId}` : ''
+    const fotoEmpresaAlvo =
+      !aguardandoEmpresaAoVivo && live?.foto_url != null && String(live.foto_url).trim() !== ''
+        ? String(live.foto_url).trim()
+        : meta.foto_url != null && String(meta.foto_url).trim() !== ''
+          ? String(meta.foto_url).trim()
+          : null
 
     return (
       <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
@@ -1547,15 +1553,34 @@ export default function PostCard({
           </div>
         ) : null}
         <div className="px-4 pb-3 pt-0">
-          <div className="flex items-center justify-center gap-1.5" aria-label={`Nota ${notaVal} de 5`}>
-            <div className="flex flex-wrap items-center gap-0.5">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star
-                  key={s}
-                  className={`h-7 w-7 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
-                  aria-hidden
-                />
-              ))}
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="flex items-center justify-center gap-2.5" aria-label={`Nota ${notaVal} de 5`}>
+              {aguardandoEmpresaAoVivo ? (
+                <span className="h-10 w-10 shrink-0 animate-pulse rounded-md bg-gray-200" aria-hidden />
+              ) : fotoEmpresaAlvo || hrefEmpresaAlvo ? (
+                hrefEmpresaAlvo ? (
+                  <Link
+                    href={hrefEmpresaAlvo}
+                    className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                    aria-label={handleEmpresa ? `Ver @${handleEmpresa}` : 'Ver empresa'}
+                  >
+                    <AvatarImage src={fotoEmpresaAlvo} alt="" width={40} height={40} className="object-cover" />
+                  </Link>
+                ) : (
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                    <AvatarImage src={fotoEmpresaAlvo} alt="" width={40} height={40} className="object-cover" />
+                  </div>
+                )
+              ) : null}
+              <div className="flex flex-wrap items-center gap-0.5">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    className={`h-7 w-7 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                    aria-hidden
+                  />
+                ))}
+              </div>
             </div>
             {feedbackText ? (
               <button
@@ -1571,10 +1596,10 @@ export default function PostCard({
                 />
               </button>
             ) : null}
+            {feedbackText && avaliacaoFeedbackAberto ? (
+              <p className="w-full whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{feedbackText}</p>
+            ) : null}
           </div>
-          {feedbackText && avaliacaoFeedbackAberto ? (
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{feedbackText}</p>
-          ) : null}
         </div>
         <div className="border-t border-gray-100">{acoesPost}</div>
         <ModalComentarios

@@ -94,16 +94,45 @@ export default function AtividadeAvaliacao({
             <button
               type="button"
               onClick={() => setModal(true)}
-              className="mt-2 flex w-full items-center justify-center gap-0.5 rounded-md py-0.5 hover:opacity-90"
+              className="mt-2 flex w-full items-center justify-center gap-2.5 rounded-md py-0.5 hover:opacity-90"
               aria-label={`Nota ${notaVal} de 5 — ver avaliação`}
             >
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star
-                  key={s}
-                  className={`h-7 w-7 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
-                  aria-hidden
-                />
-              ))}
+              {empresaFoto || hrefEmpresa ? (
+                hrefEmpresa ? (
+                  <span
+                    role="link"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      router.push(hrefEmpresa)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        router.push(hrefEmpresa)
+                      }
+                    }}
+                    className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100"
+                    aria-label={usernameEmpresa ? `Ver @${usernameEmpresa}` : 'Ver empresa'}
+                  >
+                    <AvatarImage src={empresaFoto} alt="" fill className="object-cover" sizes="36px" />
+                  </span>
+                ) : (
+                  <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                    <AvatarImage src={empresaFoto} alt="" fill className="object-cover" sizes="36px" />
+                  </span>
+                )
+              ) : null}
+              <span className="flex items-center gap-0.5">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    className={`h-7 w-7 shrink-0 ${s <= notaVal ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+                    aria-hidden
+                  />
+                ))}
+              </span>
             </button>
           </div>
         </div>

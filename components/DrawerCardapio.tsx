@@ -11,9 +11,12 @@ import { carregarCotacoesMap, converterMoedas, type CotacaoMap } from '@/lib/com
 import { normalizarMoedaPadrao, type MoedaPadraoLoja } from '@/lib/comprasCdeMoedaPadrao'
 import PrecoProdutoCde from '@/components/compras-cde/PrecoProdutoCde'
 import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
+import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
+import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import PopupRecomendarPrato from '@/components/gastronomia/PopupRecomendarPrato'
 import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 import { mapPratoRow, precoFinalUsd, SELECT_PRATO, type PratoCardapioRow } from '@/lib/cardapioCatalogo'
+import { openWhatsAppChat, mensagemWhatsappPrato } from '@/lib/whatsapp-empresa'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
@@ -51,7 +54,7 @@ export default function DrawerCardapio({
 }: Props) {
   useModalScrollLock(isOpen)
   const router = useRouter()
-  const { perfilEhProfissional } = useProfissionalGate()
+  const { perfilEhProfissional, perfilEhEmpresa } = useProfissionalGate()
 
   const [passo, setPasso] = useState<1 | 2>(() => (pratoIdInicial ? 2 : 1))
   const [carregando, setCarregando] = useState(true)
@@ -63,10 +66,12 @@ export default function DrawerCardapio({
   const [notaEmpresaLive, setNotaEmpresaLive] = useState<number | null>(null)
   const [fotoEmpresaLive, setFotoEmpresaLive] = useState<string | null>(null)
   const [usernameEmpresaLive, setUsernameEmpresaLive] = useState<string | null>(null)
+  const [whatsappComercial, setWhatsappComercial] = useState<string | null>(null)
   const [moedaPadrao, setMoedaPadrao] = useState<MoedaPadraoLoja>('USD')
   const [visitanteId, setVisitanteId] = useState<string | null>(null)
   const [favPratos, setFavPratos] = useState<Set<string>>(() => new Set())
   const [recomendarAberto, setRecomendarAberto] = useState(false)
+  const [verMaisAberto, setVerMaisAberto] = useState(false)
 
   /** Hub/favoritos abrem direto no detalhe — evita flash do cabeçalho da lista. */
   const abrirDiretoNoDetalhe = Boolean(pratoIdInicial)
@@ -78,7 +83,9 @@ export default function DrawerCardapio({
     setNotaEmpresaLive(null)
     setFotoEmpresaLive(null)
     setUsernameEmpresaLive(null)
+    setWhatsappComercial(null)
     setRecomendarAberto(false)
+    setVerMaisAberto(false)
   }, [abrirDiretoNoDetalhe])
 
   const handleFechar = useCallback(() => {
@@ -93,7 +100,9 @@ export default function DrawerCardapio({
       const [empRes, pratosRes, cotMap, sess] = await Promise.all([
         supabase
           .from('empresas')
-          .select('docs_verificado, status, foto_url, nome_usuario, nota_media, moeda_padrao')
+          .select(
+            'whatsapp_comercial, whatsapp, docs_verificado, status, foto_url, nome_usuario, nota_media, moeda_padrao',
+          )
           .eq('id', empresaId)
           .maybeSingle(),
         supabase
@@ -118,6 +127,13 @@ export default function DrawerCardapio({
           ? String(emp.nome_usuario).replace(/^@+/, '').trim()
           : null
       setUsernameEmpresaLive(userEmp || null)
+      const wa =
+        emp?.whatsapp_comercial != null && String(emp.whatsapp_comercial).trim()
+          ? String(emp.whatsapp_comercial)
+          : emp?.whatsapp != null
+            ? String(emp.whatsapp)
+            : null
+      setWhatsappComercial(wa)
       setMoedaPadrao(normalizarMoedaPadrao(emp?.moeda_padrao))
 
       setCotacoes(cotMap)
@@ -209,6 +225,23 @@ export default function DrawerCardapio({
     }
     const href = /^https?:\/\//i.test(url) ? url : `https://${url}`
     window.open(href, '_blank', 'noopener,noreferrer')
+  }
+
+  const abrirWhatsapp = () => {
+    if (!selecionado) return
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const pratoUrl = origin
+      ? `${origin}/cardapio/prato/${selecionado.id}?ref=whatsapp`
+      : `/cardapio/prato/${selecionado.id}?ref=whatsapp`
+    const ok = openWhatsAppChat(
+      whatsappComercial,
+      mensagemWhatsappPrato({
+        nomePrato: selecionado.nome,
+        username: usernameExibir,
+        pratoUrl,
+      }),
+    )
+    if (!ok) window.alert('WhatsApp comercial da loja não configurado.')
   }
 
   const totalPratos = useMemo(() => secoes.reduce((acc, s) => acc + s.pratos.length, 0), [secoes])
@@ -426,21 +459,6 @@ export default function DrawerCardapio({
                   Em oferta −{pct}%
                 </span>
               ) : null}
-              <BotaoEstrelaFavorito
-                usuarioId={visitanteId}
-                alvoId={selecionado.id}
-                tipo="prato"
-                inicial={favPratos.has(selecionado.id)}
-                size={22}
-                onChange={(salvo) => {
-                  setFavPratos((prev) => {
-                    const next = new Set(prev)
-                    if (salvo) next.add(selecionado.id)
-                    else next.delete(selecionado.id)
-                    return next
-                  })
-                }}
-              />
             </div>
 
             {selecionado.descricao ? (
@@ -450,16 +468,56 @@ export default function DrawerCardapio({
               </div>
             ) : null}
 
-            {selecionado.site_url?.trim() ? (
-              <button
-                type="button"
-                onClick={abrirSite}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0097b2] py-2.5 text-sm font-bold text-[#0097b2] hover:bg-[#0097b2]/5"
-              >
-                <ExternalLink className="h-4 w-4" aria-hidden />
-                VER NO SITE
-              </button>
-            ) : null}
+            <ChevronPasta
+              titulo="VER MAIS"
+              aberto={verMaisAberto}
+              onToggle={() => setVerMaisAberto((v) => !v)}
+              corTitulo={COR}
+            >
+              <div className="flex items-center justify-around gap-2 py-1">
+                <button
+                  type="button"
+                  onClick={abrirWhatsapp}
+                  className="flex flex-col items-center gap-1 text-[#25D366]"
+                  aria-label="WhatsApp"
+                >
+                  <MessageCircle className="h-7 w-7" aria-hidden />
+                  <span className="text-[10px] font-semibold text-gray-600">WhatsApp</span>
+                </button>
+                {selecionado.site_url?.trim() ? (
+                  <button
+                    type="button"
+                    onClick={abrirSite}
+                    className="flex flex-col items-center gap-1 text-[#0097b2]"
+                    aria-label="Ver no site"
+                  >
+                    <ExternalLink className="h-7 w-7" aria-hidden />
+                    <span className="text-[10px] font-semibold text-gray-600">Site</span>
+                  </button>
+                ) : null}
+                {!perfilEhEmpresa ? (
+                  <div className="flex flex-col items-center gap-1">
+                    <BotaoEstrelaFavorito
+                      usuarioId={visitanteId}
+                      alvoId={selecionado.id}
+                      tipo="prato"
+                      inicial={favPratos.has(selecionado.id)}
+                      size={28}
+                      className="!opacity-100"
+                      onChange={(salvo) => {
+                        setFavPratos((prev) => {
+                          const next = new Set(prev)
+                          if (salvo) next.add(selecionado.id)
+                          else next.delete(selecionado.id)
+                          return next
+                        })
+                      }}
+                    />
+                    <span className="text-[10px] font-semibold text-gray-600">Favorito</span>
+                  </div>
+                ) : null}
+              </div>
+            </ChevronPasta>
 
             {mostrarEmpresaNoDetalhe ? (
               <div className="flex items-center gap-3 rounded-xl bg-[#0097b2] p-3 shadow-sm">
@@ -515,7 +573,9 @@ export default function DrawerCardapio({
                 <MessageCircle size={20} className="text-white" aria-hidden />
                 RECOMENDAR
               </button>
-            ) : null}
+            ) : (
+              <BotaoChamarCorrida variant="empresa" empresaId={empresaId} />
+            )}
           </div>
         ) : null}
       </div>
