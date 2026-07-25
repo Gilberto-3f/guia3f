@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
+import { empresaTemPresencaPublicaVigente } from '@/lib/empresaPresencaPublica'
 
 /**
  * Deep link `/compras-cde/produto/[produtoId]` — OG preview (WhatsApp) + abre drawer no detalhe.
@@ -36,6 +37,12 @@ export default function ProdutoCdeDeepLinkPage() {
       if (cancelado) return
       const empresaId = prod?.empresa_id != null ? String(prod.empresa_id) : ''
       if (!empresaId || prod?.ativo === false) {
+        router.replace('/compras-cde')
+        return
+      }
+      const presente = await empresaTemPresencaPublicaVigente(supabase, empresaId)
+      if (cancelado) return
+      if (!presente) {
         router.replace('/compras-cde')
         return
       }

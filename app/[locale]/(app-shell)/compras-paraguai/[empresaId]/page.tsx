@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
+import { empresaTemPresencaPublicaVigente } from '@/lib/empresaPresencaPublica'
 
 /**
  * Deep link legado `/compras-paraguai/[empresaId]` — abre o drawer de catálogo.
@@ -27,6 +28,12 @@ export default function CatalogoEmpresaRedirectPage() {
     if (!empresaId) return
     let cancelado = false
     void (async () => {
+      const presente = await empresaTemPresencaPublicaVigente(supabase, empresaId)
+      if (cancelado) return
+      if (!presente) {
+        router.replace('/compras-cde')
+        return
+      }
       const { data } = await supabase
         .from('empresas')
         .select('nome_fantasia, nome_usuario, foto_url, nota_media')
@@ -43,7 +50,7 @@ export default function CatalogoEmpresaRedirectPage() {
     return () => {
       cancelado = true
     }
-  }, [empresaId])
+  }, [empresaId, router])
 
   return (
     <div className="min-h-screen bg-gray-50">
