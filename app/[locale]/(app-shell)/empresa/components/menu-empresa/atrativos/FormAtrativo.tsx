@@ -172,10 +172,6 @@ export default function FormAtrativo({
         </button>
       </div>
 
-      {erro ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{erro}</div>
-      ) : null}
-
       <label className={labelCls}>
         Nome ({form.titulo.length}/{TITULO_ATRATO_MAX})
         <input
@@ -349,6 +345,9 @@ export default function FormAtrativo({
           {salvando ? 'Salvando…' : 'Salvar'}
         </button>
       </div>
+      {erro ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{erro}</div>
+      ) : null}
       <p className="text-center text-[11px]" style={{ color: COR_AZUL_LOGO }}>
         Novos cadastros ficam como rascunho até você tocar em PUBLICAR.
       </p>

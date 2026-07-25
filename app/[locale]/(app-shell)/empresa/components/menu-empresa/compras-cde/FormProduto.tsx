@@ -135,7 +135,7 @@ type Props = {
   onCancelar: () => void
   salvando?: boolean
   titulo: string
-  /** Mensagem de validação / falha — exibida acima do botão Salvar. */
+  /** Mensagem de validação / falha — exibida abaixo dos botões Cancelar/Salvar. */
   erro?: string | null
   /** Só lojas CDE (motor de busca Compras CDE). */
   mostrarMetatags?: boolean
@@ -492,10 +492,6 @@ export default function FormProduto({
         </label>
       </div>
 
-      {erro ? (
-        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{erro}</div>
-      ) : null}
-
       <div className="mt-5 flex gap-2">
         <button
           type="button"
@@ -515,6 +511,9 @@ export default function FormProduto({
           {salvando ? 'Salvando…' : 'Salvar'}
         </button>
       </div>
+      {erro ? (
+        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{erro}</div>
+      ) : null}
       <p className="mt-2 text-center text-[10px] text-gray-400" style={{ color: COR_AZUL_LOGO }}>
         * Campos obrigatórios
       </p>

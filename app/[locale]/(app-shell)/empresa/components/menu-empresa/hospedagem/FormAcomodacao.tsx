@@ -272,10 +272,6 @@ export default function FormAcomodacao({
         </button>
       </div>
 
-      {erro ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{erro}</div>
-      ) : null}
-
       <ChevronPasta
         titulo="1. Categoria do Imóvel"
         aberto={abertos.imovel}
@@ -709,6 +705,9 @@ export default function FormAcomodacao({
           {salvando ? 'Salvando…' : 'Salvar'}
         </button>
       </div>
+      {erro ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{erro}</div>
+      ) : null}
       <p className="text-center text-[10px]" style={{ color: COR_AZUL_LOGO }}>
         Novos cadastros ficam como rascunho até você tocar em PUBLICAR.
       </p>
