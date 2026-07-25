@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, BadgeCheck, ChevronLeft, ChevronRight, ExternalLink, Eye, MessageCircle, X } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
@@ -64,6 +64,7 @@ export default function DrawerCardapio({
   const [secoes, setSecoes] = useState<SecaoCategoria[]>([])
   const [selecionado, setSelecionado] = useState<PratoCardapioRow | null>(null)
   const [fotoIdx, setFotoIdx] = useState(0)
+  const touchFotoX = useRef<number | null>(null)
   const [cotacoes, setCotacoes] = useState<CotacaoMap>({ USD: 0.2, EUR: 0.18, ARS: 180, PYG: 1500 })
   const [empresaVerificada, setEmpresaVerificada] = useState(() =>
     empresaVerificadaProp != null ? Boolean(empresaVerificadaProp) : false,
@@ -431,37 +432,57 @@ export default function DrawerCardapio({
           <div className="space-y-4 px-4 py-4 pb-8">
             <p className="text-left text-base font-bold text-[#001f3f]">{selecionado.nome}</p>
 
-            <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-gray-100">
-              {fotos[fotoIdx] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={fotos[fotoIdx]} alt="" className="h-full w-full object-cover" />
-              ) : null}
+            <div className="relative px-6">
+              <div
+                className="aspect-[4/3] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
+                onTouchStart={(e) => {
+                  touchFotoX.current = e.touches[0]?.clientX ?? null
+                }}
+                onTouchEnd={(e) => {
+                  const start = touchFotoX.current
+                  touchFotoX.current = null
+                  if (start == null || fotos.length <= 1) return
+                  const end = e.changedTouches[0]?.clientX
+                  if (end == null) return
+                  const dx = end - start
+                  if (Math.abs(dx) < 40) return
+                  if (dx < 0) {
+                    setFotoIdx((i) => (i + 1) % fotos.length)
+                  } else {
+                    setFotoIdx((i) => (i - 1 + fotos.length) % fotos.length)
+                  }
+                }}
+              >
+                {fotos[fotoIdx] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={fotos[fotoIdx]}
+                    alt=""
+                    className="pointer-events-none h-full w-full object-cover"
+                    draggable={false}
+                  />
+                ) : null}
+              </div>
               {fotos.length > 1 ? (
                 <>
                   <button
                     type="button"
+                    className="absolute left-0 top-1/2 z-10 flex w-6 -translate-y-1/2 items-center justify-center"
+                    style={{ color: COR }}
                     onClick={() => setFotoIdx((i) => (i - 1 + fotos.length) % fotos.length)}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/45 p-2 text-white"
                     aria-label="Foto anterior"
                   >
-                    <ChevronLeft className="h-5 w-5" aria-hidden />
+                    <ChevronLeft className="h-6 w-6" strokeWidth={2.5} aria-hidden />
                   </button>
                   <button
                     type="button"
+                    className="absolute right-0 top-1/2 z-10 flex w-6 -translate-y-1/2 items-center justify-center"
+                    style={{ color: COR }}
                     onClick={() => setFotoIdx((i) => (i + 1) % fotos.length)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/45 p-2 text-white"
                     aria-label="Próxima foto"
                   >
-                    <ChevronRight className="h-5 w-5" aria-hidden />
+                    <ChevronRight className="h-6 w-6" strokeWidth={2.5} aria-hidden />
                   </button>
-                  <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
-                    {fotos.map((_, i) => (
-                      <span
-                        key={i}
-                        className={`h-1.5 w-1.5 rounded-full ${i === fotoIdx ? 'bg-white' : 'bg-white/50'}`}
-                      />
-                    ))}
-                  </div>
                 </>
               ) : null}
             </div>

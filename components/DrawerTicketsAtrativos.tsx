@@ -251,7 +251,7 @@ function DetalheTicket({
       <p className="px-1 text-left text-base font-semibold text-[#001f3f]">{item.titulo}</p>
 
       {fotos.length > 0 ? (
-        <div className="relative">
+        <div className="relative px-6">
           <div
             className="aspect-[4/3] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
             onTouchStart={(e) => {
@@ -284,28 +284,22 @@ function DetalheTicket({
             <>
               <button
                 type="button"
+                className="absolute left-0 top-1/2 z-10 flex w-6 -translate-y-1/2 items-center justify-center"
+                style={{ color: COR }}
                 onClick={() => setFotoIdx((i) => (i - 1 + fotos.length) % fotos.length)}
-                className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/45 p-2 text-white"
                 aria-label="Foto anterior"
               >
-                <ChevronLeft className="h-5 w-5" aria-hidden />
+                <ChevronLeft className="h-6 w-6" strokeWidth={2.5} aria-hidden />
               </button>
               <button
                 type="button"
+                className="absolute right-0 top-1/2 z-10 flex w-6 -translate-y-1/2 items-center justify-center"
+                style={{ color: COR }}
                 onClick={() => setFotoIdx((i) => (i + 1) % fotos.length)}
-                className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/45 p-2 text-white"
                 aria-label="Próxima foto"
               >
-                <ChevronRight className="h-5 w-5" aria-hidden />
+                <ChevronRight className="h-6 w-6" strokeWidth={2.5} aria-hidden />
               </button>
-              <div className="pointer-events-none absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
-                {fotos.map((_, i) => (
-                  <span
-                    key={i}
-                    className={`h-1.5 w-1.5 rounded-full ${i === fotoIdx ? 'bg-white' : 'bg-white/50'}`}
-                  />
-                ))}
-              </div>
             </>
           ) : null}
         </div>
