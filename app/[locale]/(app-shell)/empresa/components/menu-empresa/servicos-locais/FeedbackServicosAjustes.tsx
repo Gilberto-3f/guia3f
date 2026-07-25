@@ -53,17 +53,10 @@ function FeedbackLinha({
 type Props = {
   empresaId: string
   abertoInicial?: boolean
-  rotuloBotaoDinamico?: string
 }
 
-/**
- * Feedback dos serviços (AJUSTES) — espelho do Feedback do catálogo.
- */
-export default function FeedbackServicosAjustes({
-  empresaId,
-  abertoInicial = false,
-  rotuloBotaoDinamico = 'SERVIÇOS',
-}: Props) {
+/** Feedback dos serviços (AJUSTES). */
+export default function FeedbackServicosAjustes({ empresaId, abertoInicial = false }: Props) {
   const [periodo, setPeriodo] = useState<PeriodoDrena>('7d')
   const [feedbackAberto, setFeedbackAberto] = useState(abertoInicial)
   const [loading, setLoading] = useState(true)
@@ -89,7 +82,6 @@ export default function FeedbackServicosAjustes({
       const ids = (servicos ?? []).map((p) => String(p.id)).filter(Boolean)
       setTotalItens(ids.length)
 
-      // Cliques/impressões por serviço ainda sem tabela dedicada — mantém slot alinhado (0).
       setTotalCliques(0)
       setTotalImpressoes(0)
 
@@ -151,40 +143,46 @@ export default function FeedbackServicosAjustes({
   }, [carregar])
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap justify-center gap-2">
-        {PERIODOS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => setPeriodo(p.id)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
-              periodo === p.id
-                ? 'bg-[#0097b2] text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+    <ChevronPasta
+      titulo="Feedback"
+      aberto={feedbackAberto}
+      onToggle={() => setFeedbackAberto((v) => !v)}
+      icone={MessageSquareQuote}
+      corTitulo={AZUL}
+    >
+      <div className="space-y-3">
+        <div className="flex flex-wrap justify-center gap-2">
+          {PERIODOS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setPeriodo(p.id)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
+                periodo === p.id
+                  ? 'bg-[#0097b2] text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
 
-      {loading ? (
-        <div className="h-40 animate-pulse rounded-xl bg-gray-100" />
-      ) : (
-        <ChevronPasta
-          titulo="Feedback"
-          aberto={feedbackAberto}
-          onToggle={() => setFeedbackAberto((v) => !v)}
-          icone={MessageSquareQuote}
-          corTitulo={AZUL}
-        >
+        {loading ? (
+          <div className="h-40 animate-pulse rounded-xl bg-gray-100" />
+        ) : (
           <div className="space-y-2">
             <FeedbackLinha
               icone={Package}
               titulo="Itens cadastrados"
               valor={totalItens}
               sufixo="serviços cadastrados"
+            />
+            <FeedbackLinha
+              icone={BarChart3}
+              titulo="Desempenho"
+              valor={cliquesMes == null ? '—' : cliquesMes}
+              sufixo="Cliques no botão de SERVIÇOS"
             />
             <FeedbackLinha
               icone={MousePointerClick}
@@ -218,15 +216,9 @@ export default function FeedbackServicosAjustes({
               valor={totalReposts}
               sufixo="no feed"
             />
-            <FeedbackLinha
-              icone={BarChart3}
-              titulo="Desempenho"
-              valor={cliquesMes == null ? '—' : cliquesMes}
-              sufixo={`Cliques no botão dinâmico "${rotuloBotaoDinamico}" (mês corrente)`}
-            />
           </div>
-        </ChevronPasta>
-      )}
-    </div>
+        )}
+      </div>
+    </ChevronPasta>
   )
 }

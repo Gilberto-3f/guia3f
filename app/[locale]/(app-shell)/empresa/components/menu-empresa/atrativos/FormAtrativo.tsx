@@ -15,6 +15,7 @@ import {
   labelValorFormProduto,
   type MoedaPadraoLoja,
 } from '@/lib/comprasCdeMoedaPadrao'
+import { faltouCampo } from '@/lib/mensagensCadastroEmpresa'
 
 export type FormAtrativoState = {
   id: string | null
@@ -67,24 +68,24 @@ export function formFromRow(row: AtrativoExperienciaRow): FormAtrativoState {
 
 export function validarFormAtrativo(form: FormAtrativoState): string | null {
   const titulo = form.titulo.trim()
-  if (!titulo) return 'Informe o nome do atrativo.'
+  if (!titulo) return faltouCampo('Nome')
   if (titulo.length > TITULO_ATRATO_MAX) {
     return `O nome pode ter no máximo ${TITULO_ATRATO_MAX} caracteres.`
   }
-  if (!form.categoria.trim()) return 'Informe a categoria (sessão) do atrativo.'
+  if (!form.categoria.trim()) return faltouCampo('Categoria')
   if (form.descricao.length > DESCRICAO_MAX) {
     return `A descrição pode ter no máximo ${DESCRICAO_MAX} caracteres.`
   }
   if (!form.oferece_inteira && !form.oferece_meia) {
-    return 'Selecione ao menos um tipo de ticket (inteira ou meia).'
+    return faltouCampo('Valor do ticket')
   }
   if (form.oferece_inteira) {
     const n = Number(String(form.preco_inteira).replace(',', '.'))
-    if (!Number.isFinite(n) || n < 0) return 'Informe o valor do ticket inteira.'
+    if (!Number.isFinite(n) || n < 0) return faltouCampo('Inteira')
   }
   if (form.oferece_meia) {
     const n = Number(String(form.preco_meia).replace(',', '.'))
-    if (!Number.isFinite(n) || n < 0) return 'Informe o valor do ticket meia-entrada.'
+    if (!Number.isFinite(n) || n < 0) return faltouCampo('Meia entrada')
   }
   const site = form.site_url.trim()
   if (site) {
@@ -96,7 +97,7 @@ export function validarFormAtrativo(form: FormAtrativoState): string | null {
     }
   }
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
-  if (totalFotos < FOTOS_MIN) return `Envie no mínimo ${FOTOS_MIN} foto.`
+  if (totalFotos < FOTOS_MIN) return faltouCampo('Foto')
   if (totalFotos > FOTOS_MAX) return `No máximo ${FOTOS_MAX} fotos.`
   return null
 }
@@ -109,6 +110,8 @@ type Props = {
   salvando?: boolean
   titulo: string
   erro?: string | null
+  fotoRejeitadaIndice?: number | null
+  onLimparFotoRejeitada?: () => void
   moedaPadrao?: MoedaPadraoLoja
 }
 
@@ -120,6 +123,8 @@ export default function FormAtrativo({
   salvando = false,
   titulo,
   erro = null,
+  fotoRejeitadaIndice = null,
+  onLimparFotoRejeitada,
   moedaPadrao = 'BRL',
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -135,6 +140,7 @@ export default function FormAtrativo({
     const selecionados = Array.from(files).slice(0, restam)
     if (!selecionados.length) return
     const previews = selecionados.map((f) => URL.createObjectURL(f))
+    onLimparFotoRejeitada?.()
     patch({
       fotosNovas: [...form.fotosNovas, ...selecionados],
       fotosNovasPreview: [...form.fotosNovasPreview, ...previews],
@@ -148,6 +154,7 @@ export default function FormAtrativo({
   const removerNova = (idx: number) => {
     const url = form.fotosNovasPreview[idx]
     if (url) URL.revokeObjectURL(url)
+    if (fotoRejeitadaIndice === idx) onLimparFotoRejeitada?.()
     patch({
       fotosNovas: form.fotosNovas.filter((_, i) => i !== idx),
       fotosNovasPreview: form.fotosNovasPreview.filter((_, i) => i !== idx),
@@ -203,7 +210,12 @@ export default function FormAtrativo({
             </div>
           ))}
           {form.fotosNovasPreview.map((url, i) => (
-            <div key={`n-${i}`} className="relative h-20 w-20 overflow-hidden rounded-lg bg-gray-200">
+            <div
+              key={`n-${i}`}
+              className={`relative h-20 w-20 overflow-hidden rounded-lg bg-gray-200 ${
+                fotoRejeitadaIndice === i ? 'ring-2 ring-red-500 ring-offset-2' : ''
+              }`}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt="" className="h-full w-full object-cover" />
               <button

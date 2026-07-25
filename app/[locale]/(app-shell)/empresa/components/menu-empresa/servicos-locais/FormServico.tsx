@@ -18,6 +18,7 @@ import {
   usdParaMoedaPadrao,
   type MoedaPadraoLoja,
 } from '@/lib/comprasCdeMoedaPadrao'
+import { faltouCampo } from '@/lib/mensagensCadastroEmpresa'
 
 export type FormServicoState = {
   id: string | null
@@ -81,19 +82,19 @@ export function formServicoFromRow(
 
 export function validarFormServico(form: FormServicoState): string | null {
   const nome = form.nome.trim()
-  if (!nome) return 'Informe o nome do serviço.'
+  if (!nome) return faltouCampo('Nome')
   if (nome.length > NOME_SERVICO_MAX) {
     return `O nome do serviço pode ter no máximo ${NOME_SERVICO_MAX} caracteres.`
   }
   const preco = Number(form.preco_usd.replace(',', '.'))
-  if (!Number.isFinite(preco) || preco <= 0) return 'Informe o valor (maior que zero).'
+  if (!Number.isFinite(preco) || preco <= 0) return faltouCampo('Valor')
   if (form.lancarOferta) {
     const pct = Number(form.percentual_desconto.replace(',', '.'))
     if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
-      return 'Informe o percentual de desconto (1 a 100).'
+      return faltouCampo('Percentual de desconto')
     }
   }
-  if (!form.categoria.trim()) return 'Informe a categoria (sessão) do serviço.'
+  if (!form.categoria.trim()) return faltouCampo('Categoria')
   if (form.descricao.length > DESCRICAO_SERVICO_MAX) {
     return `A descrição pode ter no máximo ${DESCRICAO_SERVICO_MAX} caracteres.`
   }
@@ -107,7 +108,7 @@ export function validarFormServico(form: FormServicoState): string | null {
     }
   }
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
-  if (totalFotos < FOTOS_MIN) return `Envie no mínimo ${FOTOS_MIN} foto.`
+  if (totalFotos < FOTOS_MIN) return faltouCampo('Foto')
   if (totalFotos > FOTOS_MAX) return `No máximo ${FOTOS_MAX} fotos.`
   return null
 }
@@ -120,6 +121,8 @@ type Props = {
   salvando?: boolean
   titulo: string
   erro?: string | null
+  fotoRejeitadaIndice?: number | null
+  onLimparFotoRejeitada?: () => void
   moedaPadrao?: MoedaPadraoLoja
 }
 
@@ -131,6 +134,8 @@ export default function FormServico({
   salvando = false,
   titulo,
   erro = null,
+  fotoRejeitadaIndice = null,
+  onLimparFotoRejeitada,
   moedaPadrao = 'USD',
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -159,6 +164,7 @@ export default function FormServico({
     const chosen = Array.from(files).slice(0, room)
     if (!chosen.length) return
     const previews = chosen.map((f) => URL.createObjectURL(f))
+    onLimparFotoRejeitada?.()
     onChange({
       ...form,
       fotosNovas: [...form.fotosNovas, ...chosen],
@@ -176,6 +182,7 @@ export default function FormServico({
   const removerNova = (idx: number) => {
     const prev = form.fotosNovasPreview[idx]
     if (prev) URL.revokeObjectURL(prev)
+    if (fotoRejeitadaIndice === idx) onLimparFotoRejeitada?.()
     onChange({
       ...form,
       fotosNovas: form.fotosNovas.filter((_, i) => i !== idx),
@@ -232,7 +239,12 @@ export default function FormServico({
               </div>
             ))}
             {form.fotosNovasPreview.map((url, i) => (
-              <div key={`nova-${i}`} className="relative h-20 w-20 overflow-hidden rounded-lg bg-gray-100">
+              <div
+                key={`nova-${i}`}
+                className={`relative h-20 w-20 overflow-hidden rounded-lg bg-gray-100 ${
+                  fotoRejeitadaIndice === i ? 'ring-2 ring-red-500 ring-offset-2' : ''
+                }`}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="" className="h-full w-full object-cover" />
                 <button

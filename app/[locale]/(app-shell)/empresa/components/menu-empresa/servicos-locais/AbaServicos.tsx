@@ -18,6 +18,7 @@ import {
   normalizarMoedaPadrao,
   type MoedaPadraoLoja,
 } from '@/lib/comprasCdeMoedaPadrao'
+import { normalizarErroCadastroEmpresa, indiceFotoRejeitada } from '@/lib/mensagensCadastroEmpresa'
 import ChevronPasta from '../hospedagem/ChevronPasta'
 import FormServico, {
   formServicoFromRow,
@@ -47,6 +48,7 @@ export default function AbaServicos({ empresaId }: Props) {
   const [publicando, setPublicando] = useState(false)
   const [excluindoId, setExcluindoId] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [fotoRejeitadaIndice, setFotoRejeitadaIndice] = useState<number | null>(null)
   const [abertos, setAbertos] = useState<Record<string, boolean>>({})
   const [modoEdicao, setModoEdicao] = useState(false)
   const [msgCadastro, setMsgCadastro] = useState<string | null>(null)
@@ -164,12 +166,14 @@ export default function AbaServicos({ empresaId }: Props) {
   const salvar = async () => {
     const msg = validarFormServico(form)
     if (msg) {
+      setFotoRejeitadaIndice(null)
       setErro(msg)
       return
     }
 
     setSalvando(true)
     setErro(null)
+    setFotoRejeitadaIndice(null)
     let rascunhoId: string | null = null
     const eraNovo = !form.id
     const editandoPendente = Boolean(form.id && pendentes.some((p) => p.id === form.id))
@@ -274,7 +278,8 @@ export default function AbaServicos({ empresaId }: Props) {
         await supabase.from('servicos_locais_itens').delete().eq('id', rascunhoId).eq('empresa_id', empresaId)
         rascunhoId = null
       }
-      setErro(e instanceof Error ? e.message : 'Não foi possível salvar o serviço.')
+      setFotoRejeitadaIndice(indiceFotoRejeitada(e))
+      setErro(normalizarErroCadastroEmpresa(e, 'Não foi possível salvar o serviço.'))
     } finally {
       setSalvando(false)
     }
@@ -369,10 +374,13 @@ export default function AbaServicos({ empresaId }: Props) {
             setFormAberto(false)
             setForm(formServicoVazio())
             setErro(null)
+            setFotoRejeitadaIndice(null)
           }}
           salvando={salvando}
           titulo={form.id ? 'Editar servico' : 'Cadastrar servico'}
           erro={erro}
+          fotoRejeitadaIndice={fotoRejeitadaIndice}
+          onLimparFotoRejeitada={() => setFotoRejeitadaIndice(null)}
           moedaPadrao={moedaPadrao}
         />
       ) : (

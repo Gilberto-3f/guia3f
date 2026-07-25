@@ -30,6 +30,7 @@ import {
   normalizarMoedaPadrao,
   type MoedaPadraoLoja,
 } from '@/lib/comprasCdeMoedaPadrao'
+import { normalizarErroCadastroEmpresa, indiceFotoRejeitada } from '@/lib/mensagensCadastroEmpresa'
 import ChevronPasta from '../hospedagem/ChevronPasta'
 import FormProduto, {
   formProdutoFromRow,
@@ -73,6 +74,7 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
   const [publicando, setPublicando] = useState(false)
   const [excluindoId, setExcluindoId] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [fotoRejeitadaIndice, setFotoRejeitadaIndice] = useState<number | null>(null)
   const [abertos, setAbertos] = useState<Record<string, boolean>>({})
   /** Modo edição: mostra botão Cadastrar. */
   const [modoEdicao, setModoEdicao] = useState(false)
@@ -198,17 +200,20 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
   const salvar = async () => {
     const msg = validarFormProduto(form)
     if (msg) {
+      setFotoRejeitadaIndice(null)
       setErro(msg)
       return
     }
     const cat = categorias.find((c) => c.id === form.categoria_id)
     if (!cat) {
+      setFotoRejeitadaIndice(null)
       setErro('Categoria inválida.')
       return
     }
 
     setSalvando(true)
     setErro(null)
+    setFotoRejeitadaIndice(null)
     let rascunhoId: string | null = null
     const eraNovo = !form.id
     const editandoPendente = Boolean(form.id && pendentes.some((p) => p.id === form.id))
@@ -329,7 +334,8 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
         await supabase.from('produtos').delete().eq('id', rascunhoId).eq('empresa_id', empresaId)
         rascunhoId = null
       }
-      setErro(e instanceof Error ? e.message : 'Não foi possível salvar o produto.')
+      setFotoRejeitadaIndice(indiceFotoRejeitada(e))
+      setErro(normalizarErroCadastroEmpresa(e, 'Não foi possível salvar o produto.'))
     } finally {
       setSalvando(false)
     }
@@ -421,10 +427,13 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
             setFormAberto(false)
             setForm(formProdutoVazio())
             setErro(null)
+            setFotoRejeitadaIndice(null)
           }}
           salvando={salvando}
           titulo={form.id ? 'Editar produto' : 'Cadastrar produto'}
           erro={erro}
+          fotoRejeitadaIndice={fotoRejeitadaIndice}
+          onLimparFotoRejeitada={() => setFotoRejeitadaIndice(null)}
           mostrarMetatags={mostrarMetatags}
           moedaPadrao={moedaPadrao}
         />

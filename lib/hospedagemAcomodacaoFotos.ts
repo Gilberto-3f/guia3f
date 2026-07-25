@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { erroUploadFotoAmigavel, relancarErroFotoComIndice } from '@/lib/mensagensCadastroEmpresa'
 
 const BUCKET = 'empresas'
 
@@ -33,7 +34,7 @@ export async function uploadFotoAcomodacao(
     upsert: false,
     contentType: file.type || 'image/jpeg',
   })
-  if (error) throw error
+  if (error) throw erroUploadFotoAmigavel(error)
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
   return data.publicUrl
 }
@@ -45,8 +46,12 @@ export async function uploadFotosAcomodacao(
   files: File[],
 ): Promise<string[]> {
   const urls: string[] = []
-  for (const file of files) {
-    urls.push(await uploadFotoAcomodacao(supabase, empresaId, acomodacaoId, file))
+  for (let i = 0; i < files.length; i++) {
+    try {
+      urls.push(await uploadFotoAcomodacao(supabase, empresaId, acomodacaoId, files[i]))
+    } catch (e) {
+      relancarErroFotoComIndice(e, i)
+    }
   }
   return urls
 }

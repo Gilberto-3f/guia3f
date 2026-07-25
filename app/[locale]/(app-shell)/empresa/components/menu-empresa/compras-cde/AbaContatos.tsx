@@ -126,23 +126,11 @@ export default function AbaContatos({
   return (
     <div className="space-y-4">
       {mostrarFeedbackCardapio ? (
-        <FeedbackCardapioAjustes
-          empresaId={empresaId}
-          abertoInicial={false}
-          rotuloBotaoDinamico={rotuloBotaoDinamico}
-        />
+        <FeedbackCardapioAjustes empresaId={empresaId} abertoInicial={false} />
       ) : mostrarFeedbackServicos ? (
-        <FeedbackServicosAjustes
-          empresaId={empresaId}
-          abertoInicial={false}
-          rotuloBotaoDinamico={rotuloBotaoDinamico}
-        />
+        <FeedbackServicosAjustes empresaId={empresaId} abertoInicial={false} />
       ) : mostrarFeedbackCatalogo ? (
-        <FeedbackCatalogoAjustes
-          empresaId={empresaId}
-          abertoInicial={false}
-          rotuloBotaoDinamico={rotuloBotaoDinamico}
-        />
+        <FeedbackCatalogoAjustes empresaId={empresaId} abertoInicial={false} />
       ) : null}
 
       <ChevronPasta

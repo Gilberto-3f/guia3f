@@ -21,6 +21,7 @@ import {
   type HospedagemAcomodacaoRow,
 } from '@/lib/hospedagemAcomodacoesCatalogo'
 import ChevronPasta from './ChevronPasta'
+import { faltouCampo } from '@/lib/mensagensCadastroEmpresa'
 
 export type FormAcomodacaoState = {
   id: string | null
@@ -89,18 +90,18 @@ export function formDuplicarDe(row: HospedagemAcomodacaoRow): FormAcomodacaoStat
 }
 
 export function validarFormAcomodacao(form: FormAcomodacaoState): string | null {
-  if (!form.categoria_imovel) return 'Selecione a categoria do imóvel.'
+  if (!form.categoria_imovel) return faltouCampo('Categoria do Imóvel')
   const tipo = tipoCategoriaImovel(form.categoria_imovel)
   if (tipo === 'particular' && !form.categoria_particular) {
-    return 'Selecione a categoria da acomodação particular.'
+    return faltouCampo('Categoria da Acomodação')
   }
   if (tipo === 'compartilhado' && !form.opcao_compartilhada) {
-    return 'Selecione a opção de acomodação compartilhada.'
+    return faltouCampo('Opção de Acomodação')
   }
   const cap = Number(form.capacidade_pessoas)
-  if (!Number.isFinite(cap) || cap < 1) return 'Informe quantas pessoas cabem nesta acomodação.'
+  if (!Number.isFinite(cap) || cap < 1) return faltouCampo('Diária para até quantas pessoas?')
   const valor = Number(form.valor_diaria)
-  if (!Number.isFinite(valor) || valor < 0) return 'Informe o valor da diária.'
+  if (!Number.isFinite(valor) || valor < 0) return faltouCampo('Valor da diária')
   const site = form.site_url.trim()
   if (site) {
     try {
@@ -111,7 +112,7 @@ export function validarFormAcomodacao(form: FormAcomodacaoState): string | null 
     }
   }
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
-  if (totalFotos < 2) return 'Envie no mínimo 2 fotos da acomodação.'
+  if (totalFotos < 2) return faltouCampo('Foto')
   if (totalFotos > 5) return 'Máximo de 5 fotos por acomodação.'
   const errPadrao = validarComodidadesPadrao(form.comodidades_padrao)
   if (errPadrao) return errPadrao
@@ -129,6 +130,8 @@ type Props = {
   salvando: boolean
   titulo?: string
   erro?: string | null
+  fotoRejeitadaIndice?: number | null
+  onLimparFotoRejeitada?: () => void
 }
 
 function RadioLista({
@@ -213,6 +216,8 @@ export default function FormAcomodacao({
   salvando,
   titulo = 'Nova acomodação',
   erro = null,
+  fotoRejeitadaIndice = null,
+  onLimparFotoRejeitada,
 }: Props) {
   const [abertos, setAbertos] = useState({
     imovel: true,
@@ -235,6 +240,7 @@ export default function FormAcomodacao({
     const escolhidos = Array.from(files).slice(0, restantes)
     if (!escolhidos.length) return
     const previews = escolhidos.map((f) => URL.createObjectURL(f))
+    onLimparFotoRejeitada?.()
     patch({
       fotosNovas: [...form.fotosNovas, ...escolhidos],
       fotosNovasPreview: [...form.fotosNovasPreview, ...previews],
@@ -248,6 +254,7 @@ export default function FormAcomodacao({
   const removerFotoNova = (idx: number) => {
     const preview = form.fotosNovasPreview[idx]
     if (preview) URL.revokeObjectURL(preview)
+    if (fotoRejeitadaIndice === idx) onLimparFotoRejeitada?.()
     patch({
       fotosNovas: form.fotosNovas.filter((_, i) => i !== idx),
       fotosNovasPreview: form.fotosNovasPreview.filter((_, i) => i !== idx),
@@ -371,7 +378,12 @@ export default function FormAcomodacao({
             </div>
           ))}
           {form.fotosNovasPreview.map((url, idx) => (
-            <div key={`new-${idx}`} className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
+            <div
+              key={`new-${idx}`}
+              className={`relative aspect-square overflow-hidden rounded-lg bg-gray-100 ${
+                fotoRejeitadaIndice === idx ? 'ring-2 ring-red-500 ring-offset-2' : ''
+              }`}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt="" className="h-full w-full object-cover" />
               <button

@@ -325,17 +325,17 @@ export function validarComodidadesPadrao(c: ComodidadesPadrao): string | null {
   for (const campo of COMODIDADES_PADRAO_CAMPOS) {
     if (campo.tipo === 'texto') {
       if (!String(c.capacidade_maxima_hospedes ?? '').trim()) {
-        return 'Informe a capacidade máxima de hóspedes.'
+        return `Faltou preencher o campo "${campo.label}"`
       }
       continue
     }
     if (campo.tipo === 'pet') {
-      if (c.pet_friendly === null) return 'Informe se é Pet Friendly.'
+      if (c.pet_friendly === null) return `Faltou preencher o campo "${campo.label}"`
       continue
     }
     const v = c[campo.key]
     if (v === null || v === undefined || v === '') {
-      return `Preencha: ${campo.label}.`
+      return `Faltou preencher o campo "${campo.label}"`
     }
   }
   return null

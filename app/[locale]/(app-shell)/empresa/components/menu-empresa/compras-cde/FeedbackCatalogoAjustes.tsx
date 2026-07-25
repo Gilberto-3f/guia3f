@@ -54,18 +54,13 @@ function FeedbackLinha({
 type Props = {
   empresaId: string
   abertoInicial?: boolean
-  rotuloBotaoDinamico?: string
 }
 
 /**
  * Feedback do catálogo (mesmo modelo da aba Catálogo do Drena-Stok).
  * Usado na aba AJUSTES do Botão Dinâmico para lojas.
  */
-export default function FeedbackCatalogoAjustes({
-  empresaId,
-  abertoInicial = false,
-  rotuloBotaoDinamico = 'CATÁLOGO',
-}: Props) {
+export default function FeedbackCatalogoAjustes({ empresaId, abertoInicial = false }: Props) {
   const cat = useDrenaCatalogo(empresaId)
   const [feedbackAberto, setFeedbackAberto] = useState(abertoInicial)
   const [cliquesMes, setCliquesMes] = useState<number | null>(null)
@@ -83,44 +78,50 @@ export default function FeedbackCatalogoAjustes({
   }, [empresaId])
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap justify-center gap-2">
-        {PERIODOS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => cat.setPeriodo(p.id)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
-              cat.periodo === p.id
-                ? 'bg-[#0097b2] text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      {cat.loading ? (
-        <div className="h-40 animate-pulse rounded-xl bg-gray-100" />
-      ) : cat.error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          {cat.error.message}
+    <ChevronPasta
+      titulo="Feedback"
+      aberto={feedbackAberto}
+      onToggle={() => setFeedbackAberto((v) => !v)}
+      icone={MessageSquareQuote}
+      corTitulo={AZUL}
+    >
+      <div className="space-y-3">
+        <div className="flex flex-wrap justify-center gap-2">
+          {PERIODOS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => cat.setPeriodo(p.id)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
+                cat.periodo === p.id
+                  ? 'bg-[#0097b2] text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
-      ) : (
-        <ChevronPasta
-          titulo="Feedback"
-          aberto={feedbackAberto}
-          onToggle={() => setFeedbackAberto((v) => !v)}
-          icone={MessageSquareQuote}
-          corTitulo={AZUL}
-        >
+
+        {cat.loading ? (
+          <div className="h-40 animate-pulse rounded-xl bg-gray-100" />
+        ) : cat.error ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            {cat.error.message}
+          </div>
+        ) : (
           <div className="space-y-2">
             <FeedbackLinha
               icone={Package}
               titulo="Itens cadastrados"
               valor={cat.produtos.length}
               sufixo="produtos cadastrados"
+            />
+            <FeedbackLinha
+              icone={BarChart3}
+              titulo="Desempenho"
+              valor={cliquesMes == null ? '—' : cliquesMes}
+              sufixo="Cliques no CATÁLOGO"
             />
             <FeedbackLinha
               icone={MousePointerClick}
@@ -154,15 +155,9 @@ export default function FeedbackCatalogoAjustes({
               valor={cat.totalRepostados}
               sufixo="no feed"
             />
-            <FeedbackLinha
-              icone={BarChart3}
-              titulo="Desempenho"
-              valor={cliquesMes == null ? '—' : cliquesMes}
-              sufixo={`Cliques no botão dinâmico "${rotuloBotaoDinamico}" (mês corrente)`}
-            />
           </div>
-        </ChevronPasta>
-      )}
-    </div>
+        )}
+      </div>
+    </ChevronPasta>
   )
 }

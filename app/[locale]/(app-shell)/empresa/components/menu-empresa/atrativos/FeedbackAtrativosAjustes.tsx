@@ -53,17 +53,10 @@ function FeedbackLinha({
 type Props = {
   empresaId: string
   abertoInicial?: boolean
-  rotuloBotaoDinamico?: string
 }
 
-/**
- * Feedback dos atrativos (AJUSTES) — espelho do Feedback de cardápio/catálogo.
- */
-export default function FeedbackAtrativosAjustes({
-  empresaId,
-  abertoInicial = false,
-  rotuloBotaoDinamico = 'TICKETS',
-}: Props) {
+/** Feedback dos atrativos (AJUSTES). */
+export default function FeedbackAtrativosAjustes({ empresaId, abertoInicial = false }: Props) {
   const [periodo, setPeriodo] = useState<PeriodoDrena>('7d')
   const [feedbackAberto, setFeedbackAberto] = useState(abertoInicial)
   const [loading, setLoading] = useState(true)
@@ -89,7 +82,6 @@ export default function FeedbackAtrativosAjustes({
       const ids = (tickets ?? []).map((p) => String(p.id)).filter(Boolean)
       setTotalItens(ids.length)
 
-      // Cliques/impressões por ticket ainda sem tabela dedicada — slots alinhados.
       setTotalCliques(0)
       setTotalImpressoes(0)
 
@@ -151,46 +143,52 @@ export default function FeedbackAtrativosAjustes({
   }, [carregar])
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap justify-center gap-2">
-        {PERIODOS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => setPeriodo(p.id)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
-              periodo === p.id
-                ? 'bg-[#0097b2] text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+    <ChevronPasta
+      titulo="Feedback"
+      aberto={feedbackAberto}
+      onToggle={() => setFeedbackAberto((v) => !v)}
+      icone={MessageSquareQuote}
+      corTitulo={AZUL}
+    >
+      <div className="space-y-3">
+        <div className="flex flex-wrap justify-center gap-2">
+          {PERIODOS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setPeriodo(p.id)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
+                periodo === p.id
+                  ? 'bg-[#0097b2] text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
 
-      {loading ? (
-        <div className="h-40 animate-pulse rounded-xl bg-gray-100" />
-      ) : (
-        <ChevronPasta
-          titulo="Feedback"
-          aberto={feedbackAberto}
-          onToggle={() => setFeedbackAberto((v) => !v)}
-          icone={MessageSquareQuote}
-          corTitulo={AZUL}
-        >
+        {loading ? (
+          <div className="h-40 animate-pulse rounded-xl bg-gray-100" />
+        ) : (
           <div className="space-y-2">
             <FeedbackLinha
               icone={Package}
               titulo="Itens cadastrados"
               valor={totalItens}
-              sufixo="atrativos cadastrados"
+              sufixo="tickets cadastrados"
+            />
+            <FeedbackLinha
+              icone={BarChart3}
+              titulo="Desempenho"
+              valor={cliquesMes == null ? '—' : cliquesMes}
+              sufixo="Cliques no botão de TICKETS"
             />
             <FeedbackLinha
               icone={MousePointerClick}
               titulo="Cliques"
               valor={totalCliques}
-              sufixo="nos atrativos"
+              sufixo="nos tickets"
             />
             <FeedbackLinha
               icone={Eye}
@@ -204,7 +202,7 @@ export default function FeedbackAtrativosAjustes({
               corIcone={VERDE}
               titulo="Indicações"
               valor={totalRecs}
-              sufixo="de atrativos"
+              sufixo="de tickets"
             />
             <FeedbackLinha
               icone={Bookmark}
@@ -218,15 +216,9 @@ export default function FeedbackAtrativosAjustes({
               valor={totalReposts}
               sufixo="no feed"
             />
-            <FeedbackLinha
-              icone={BarChart3}
-              titulo="Desempenho"
-              valor={cliquesMes == null ? '—' : cliquesMes}
-              sufixo={`Cliques no botão dinâmico "${rotuloBotaoDinamico}" (mês corrente)`}
-            />
           </div>
-        </ChevronPasta>
-      )}
-    </div>
+        )}
+      </div>
+    </ChevronPasta>
   )
 }

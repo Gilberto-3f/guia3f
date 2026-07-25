@@ -11,6 +11,7 @@ import {
   type HospedagemAcomodacaoRow,
 } from '@/lib/hospedagemAcomodacoesCatalogo'
 import { publicarAcomodacoesFeed, snapshotAcomodacoesParaFeed } from '@/lib/publicarAcomodacoesFeed'
+import { normalizarErroCadastroEmpresa, indiceFotoRejeitada } from '@/lib/mensagensCadastroEmpresa'
 import FormAcomodacao, {
   formAcomodacaoVazio,
   formFromRow,
@@ -33,6 +34,7 @@ export default function AbaAcomodacoes({ empresaId }: Props) {
   const [publicando, setPublicando] = useState(false)
   const [excluindoId, setExcluindoId] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [fotoRejeitadaIndice, setFotoRejeitadaIndice] = useState<number | null>(null)
   const [modoEdicao, setModoEdicao] = useState(false)
   const [msgCadastro, setMsgCadastro] = useState<string | null>(null)
   const [empresaMeta, setEmpresaMeta] = useState<{
@@ -109,12 +111,14 @@ export default function AbaAcomodacoes({ empresaId }: Props) {
   const salvar = async () => {
     const msg = validarFormAcomodacao(form)
     if (msg) {
+      setFotoRejeitadaIndice(null)
       setErro(msg)
       return
     }
 
     setSalvando(true)
     setErro(null)
+    setFotoRejeitadaIndice(null)
     let rascunhoId: string | null = null
     const eraNovo = !form.id
     const editandoPendente = Boolean(form.id && pendentes.some((p) => p.id === form.id))
@@ -218,7 +222,8 @@ export default function AbaAcomodacoes({ empresaId }: Props) {
           .eq('empresa_id', empresaId)
         rascunhoId = null
       }
-      setErro(e instanceof Error ? e.message : 'Não foi possível salvar a acomodação.')
+      setFotoRejeitadaIndice(indiceFotoRejeitada(e))
+      setErro(normalizarErroCadastroEmpresa(e, 'Não foi possível salvar a acomodação.'))
     } finally {
       setSalvando(false)
     }
@@ -313,10 +318,13 @@ export default function AbaAcomodacoes({ empresaId }: Props) {
             setFormAberto(false)
             setForm(formAcomodacaoVazio())
             setErro(null)
+            setFotoRejeitadaIndice(null)
           }}
           salvando={salvando}
           titulo={form.id ? 'Editar acomodação' : 'Cadastrar acomodação'}
           erro={erro}
+          fotoRejeitadaIndice={fotoRejeitadaIndice}
+          onLimparFotoRejeitada={() => setFotoRejeitadaIndice(null)}
         />
       ) : (
         <>

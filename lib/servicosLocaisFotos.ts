@@ -1,4 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import {
+  MSG_FOTO_INCOMPATIVEL,
+  erroUploadFotoAmigavel,
+  relancarErroFotoComIndice,
+} from '@/lib/mensagensCadastroEmpresa'
 
 const BUCKET = 'empresas'
 
@@ -23,7 +28,7 @@ export async function uploadFotoServicoLocal(
   file: File,
 ): Promise<string> {
   if (!file || file.size <= 0) {
-    throw new Error('Arquivo de imagem inválido. Escolha outra foto.')
+    throw new Error(MSG_FOTO_INCOMPATIVEL)
   }
   const nome = `${Date.now()}_${nomeSeguroArquivo(file)}`
   const path = pathFotoServicoLocal(empresaId, servicoId, nome)
@@ -32,13 +37,7 @@ export async function uploadFotoServicoLocal(
     upsert: false,
     contentType: file.type || 'image/jpeg',
   })
-  if (error) {
-    throw new Error(
-      error.message?.includes('mime') || error.message?.includes('type')
-        ? 'Esta foto não foi aceita. Use JPG ou PNG e tente novamente.'
-        : `Foto não aceita: ${error.message}`,
-    )
-  }
+  if (error) throw erroUploadFotoAmigavel(error)
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
   return data.publicUrl
 }
@@ -50,8 +49,12 @@ export async function uploadFotosServicoLocal(
   files: File[],
 ): Promise<string[]> {
   const urls: string[] = []
-  for (const file of files) {
-    urls.push(await uploadFotoServicoLocal(supabase, empresaId, servicoId, file))
+  for (let i = 0; i < files.length; i++) {
+    try {
+      urls.push(await uploadFotoServicoLocal(supabase, empresaId, servicoId, files[i]))
+    } catch (e) {
+      relancarErroFotoComIndice(e, i)
+    }
   }
   return urls
 }

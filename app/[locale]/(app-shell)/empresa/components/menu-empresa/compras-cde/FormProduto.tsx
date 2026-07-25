@@ -22,6 +22,7 @@ import {
   usdParaMoedaPadrao,
   type MoedaPadraoLoja,
 } from '@/lib/comprasCdeMoedaPadrao'
+import { faltouCampo } from '@/lib/mensagensCadastroEmpresa'
 
 export type FormProdutoState = {
   id: string | null
@@ -94,21 +95,21 @@ export function formProdutoFromRow(
 
 export function validarFormProduto(form: FormProdutoState): string | null {
   const nome = form.nome.trim()
-  if (!nome) return 'Informe o nome do produto.'
+  if (!nome) return faltouCampo('Nome')
   if (nome.length > NOME_PRODUTO_MAX) {
     return `O nome do produto pode ter no máximo ${NOME_PRODUTO_MAX} caracteres.`
   }
   const preco = Number(form.preco_usd.replace(',', '.'))
-  if (!Number.isFinite(preco) || preco <= 0) return 'Informe o valor (maior que zero).'
+  if (!Number.isFinite(preco) || preco <= 0) return faltouCampo('Valor')
   if (form.lancarOferta) {
     const pct = Number(form.percentual_desconto.replace(',', '.'))
     if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
-      return 'Informe o percentual de desconto (1 a 100).'
+      return faltouCampo('Percentual de desconto')
     }
   }
-  if (!form.categoria_id) return 'Selecione a categoria principal.'
-  if (!form.subcategoria.trim()) return 'Informe a subcategoria.'
-  if (!form.marca.trim()) return 'Informe a marca do produto.'
+  if (!form.categoria_id) return faltouCampo('Categoria Principal')
+  if (!form.subcategoria.trim()) return faltouCampo('Subcategoria')
+  if (!form.marca.trim()) return faltouCampo('Marca do Produto')
   if (form.descricao.length > DESCRICAO_MAX) {
     return `A descrição pode ter no máximo ${DESCRICAO_MAX} caracteres.`
   }
@@ -122,7 +123,7 @@ export function validarFormProduto(form: FormProdutoState): string | null {
     }
   }
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
-  if (totalFotos < FOTOS_MIN) return `Envie no mínimo ${FOTOS_MIN} foto.`
+  if (totalFotos < FOTOS_MIN) return faltouCampo('Foto')
   if (totalFotos > FOTOS_MAX) return `No máximo ${FOTOS_MAX} fotos.`
   return null
 }
@@ -137,6 +138,8 @@ type Props = {
   titulo: string
   /** Mensagem de validação / falha — exibida abaixo dos botões Cancelar/Salvar. */
   erro?: string | null
+  fotoRejeitadaIndice?: number | null
+  onLimparFotoRejeitada?: () => void
   /** Só lojas CDE (motor de busca Compras CDE). */
   mostrarMetatags?: boolean
   /** Moeda do input de preço (padrão da empresa). */
@@ -152,6 +155,8 @@ export default function FormProduto({
   salvando = false,
   titulo,
   erro = null,
+  fotoRejeitadaIndice = null,
+  onLimparFotoRejeitada,
   mostrarMetatags = true,
   moedaPadrao = 'USD',
 }: Props) {
@@ -183,6 +188,7 @@ export default function FormProduto({
     const chosen = Array.from(files).slice(0, room)
     if (!chosen.length) return
     const previews = chosen.map((f) => URL.createObjectURL(f))
+    onLimparFotoRejeitada?.()
     onChange({
       ...form,
       fotosNovas: [...form.fotosNovas, ...chosen],
@@ -200,6 +206,7 @@ export default function FormProduto({
   const removerNova = (idx: number) => {
     const prev = form.fotosNovasPreview[idx]
     if (prev) URL.revokeObjectURL(prev)
+    if (fotoRejeitadaIndice === idx) onLimparFotoRejeitada?.()
     onChange({
       ...form,
       fotosNovas: form.fotosNovas.filter((_, i) => i !== idx),
@@ -262,7 +269,12 @@ export default function FormProduto({
               </div>
             ))}
             {form.fotosNovasPreview.map((url, i) => (
-              <div key={`nova-${i}`} className="relative h-20 w-20 overflow-hidden rounded-lg bg-gray-100">
+              <div
+                key={`nova-${i}`}
+                className={`relative h-20 w-20 overflow-hidden rounded-lg bg-gray-100 ${
+                  fotoRejeitadaIndice === i ? 'ring-2 ring-red-500 ring-offset-2' : ''
+                }`}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="" className="h-full w-full object-cover" />
                 <button
