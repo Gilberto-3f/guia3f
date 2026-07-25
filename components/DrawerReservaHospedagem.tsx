@@ -176,6 +176,8 @@ export default function DrawerReservaHospedagem({
   const [loading, setLoading] = useState(false)
   const [sucesso, setSucesso] = useState(false)
   const [reservaPendente, setReservaPendente] = useState(false)
+  /** Só exibe "Reserva Enviada" após tentar reservar com pendência — não ao abrir o drawer. */
+  const [exibirMsgPendente, setExibirMsgPendente] = useState(false)
   const [mostrarAvisoConflito, setMostrarAvisoConflito] = useState(false)
   const [conflitoReconhecido, setConflitoReconhecido] = useState(false)
   const [chevronPadrao, setChevronPadrao] = useState(false)
@@ -378,6 +380,7 @@ export default function DrawerReservaHospedagem({
       setNumHospedes(1)
       setFormaPagamento('')
       setSucesso(false)
+      setExibirMsgPendente(false)
       setMostrarAvisoConflito(false)
       setConflitoReconhecido(false)
       setChevronPadrao(false)
@@ -474,7 +477,11 @@ export default function DrawerReservaHospedagem({
       avisarBloqueio()
       return
     }
-    if (reservaPendente || !selecionada) return
+    if (!selecionada) return
+    if (reservaPendente) {
+      setExibirMsgPendente(true)
+      return
+    }
     if (!checkin || !checkout || noites <= 0) {
       setErro('Selecione check-in e check-out válidos.')
       return
@@ -530,7 +537,8 @@ export default function DrawerReservaHospedagem({
     (notaEmpresaLive != null && notaEmpresaLive > 0 ? notaEmpresaLive : null) ??
     (notaMedia != null && Number(notaMedia) > 0 ? Number(notaMedia) : null)
   const notaTexto = nota != null ? nota.toFixed(1).replace(/\.0$/, '') : null
-  const mostrarRodapePassos = !carregando && !sucesso && !reservaPendente && (passo === 2 || passo === 3)
+  const mostrarRodapePassos =
+    !carregando && !sucesso && !exibirMsgPendente && (passo === 2 || passo === 3)
 
   const Cabecalho = (
     <header
@@ -721,16 +729,6 @@ export default function DrawerReservaHospedagem({
         >
           {carregando ? (
             <p className="p-6 text-center text-sm text-gray-500">Carregando…</p>
-          ) : reservaPendente && !sucesso ? (
-            <div className="space-y-3 p-6 text-center">
-              <p className="text-lg font-bold" style={{ color: COR }}>
-                Reserva Enviada
-              </p>
-              <p className="text-sm text-gray-700">
-                Você já possui uma solicitação pendente nesta hospedagem. Aguarde a confirmação do
-                anfitrião.
-              </p>
-            </div>
           ) : sucesso ? (
             <div className="space-y-3 p-6 text-center">
               <p className="text-lg font-bold" style={{ color: COR }}>
@@ -739,6 +737,16 @@ export default function DrawerReservaHospedagem({
               <p className="text-sm text-gray-700">
                 Sua reserva foi enviada para <strong>{empresaNome}</strong>. As datas ficam
                 bloqueadas até a confirmação do anfitrião.
+              </p>
+            </div>
+          ) : exibirMsgPendente ? (
+            <div className="space-y-3 p-6 text-center">
+              <p className="text-lg font-bold" style={{ color: COR }}>
+                Reserva Enviada
+              </p>
+              <p className="text-sm text-gray-700">
+                Você já possui uma solicitação pendente nesta hospedagem. Aguarde a confirmação do
+                anfitrião.
               </p>
             </div>
           ) : passo === 1 ? (
