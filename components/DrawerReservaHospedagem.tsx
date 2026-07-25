@@ -189,6 +189,7 @@ export default function DrawerReservaHospedagem({
   const [fotoEmpresaLive, setFotoEmpresaLive] = useState<string | null>(
     () => (empresaFotoUrl != null && String(empresaFotoUrl).trim() !== '' ? String(empresaFotoUrl) : null),
   )
+  const [nomeEmpresaLive, setNomeEmpresaLive] = useState(empresaNome)
   const [usernameEmpresaLive, setUsernameEmpresaLive] = useState<string | null>(() => {
     if (empresaUsername == null || String(empresaUsername).trim() === '') return null
     return String(empresaUsername).replace(/^@+/, '').trim() || null
@@ -242,6 +243,11 @@ export default function DrawerReservaHospedagem({
       const fotoEmp =
         emp?.foto_url != null && String(emp.foto_url).trim() !== '' ? String(emp.foto_url) : null
       setFotoEmpresaLive((prev) => fotoEmp ?? prev)
+      const nomeFantasia =
+        emp?.nome_fantasia != null && String(emp.nome_fantasia).trim() !== ''
+          ? String(emp.nome_fantasia).trim()
+          : ''
+      if (nomeFantasia) setNomeEmpresaLive(nomeFantasia)
       const userEmp =
         emp?.nome_usuario != null && String(emp.nome_usuario).trim() !== ''
           ? String(emp.nome_usuario).replace(/^@+/, '').trim()
@@ -386,6 +392,7 @@ export default function DrawerReservaHospedagem({
           ? String(empresaFotoUrl)
           : null,
       )
+      setNomeEmpresaLive(empresaNome)
       setUsernameEmpresaLive(
         empresaUsername != null && String(empresaUsername).trim() !== ''
           ? String(empresaUsername).replace(/^@+/, '').trim() || null
@@ -404,6 +411,7 @@ export default function DrawerReservaHospedagem({
     empresaVerificadaInicial,
     empresaFotoUrl,
     empresaUsername,
+    empresaNome,
     notaMedia,
   ])
 
@@ -527,26 +535,33 @@ export default function DrawerReservaHospedagem({
   const Cabecalho = (
     <header
       className="shrink-0 border-b border-white/15 bg-[#0097b2]"
-      style={{ paddingTop: 'max(0.15rem, env(safe-area-inset-top, 0px))' }}
+      style={{ paddingTop: 'max(0.1rem, env(safe-area-inset-top, 0px))' }}
     >
-      <div className="relative px-5 pb-3 pt-1.5 pr-3">
-        <div className="flex items-start gap-3.5">
-          <div className="h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-md border-2 border-white bg-white/20">
+      <div className="relative px-4 pb-2 pt-1 pr-2">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              handleFechar()
+              router.push(`/empresa/${empresaId}`)
+            }}
+            className="h-14 w-14 shrink-0 overflow-hidden rounded-md border border-white/80 bg-white/20"
+            aria-label={`Ver página de ${nomeEmpresaLive || empresaNome}`}
+          >
             {avatarEmpresa ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarEmpresa} alt="" className="h-full w-full object-cover" />
             ) : null}
-          </div>
-          {/* Nome, check e Anfitrião compartilham a mesma margem esquerda */}
-          <div className="grid min-w-0 flex-1 grid-rows-[1.35rem_1.25rem_1.25rem] items-center gap-0.5 pr-8">
-            <p className="truncate text-base font-bold leading-[1.35rem] text-white">{empresaNome}</p>
+          </button>
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 pr-7">
+            <p className="truncate text-sm font-bold leading-tight text-white">
+              {nomeEmpresaLive || empresaNome}
+            </p>
             {usernameExibir ? (
-              <p className="flex max-w-full items-center gap-1 truncate text-sm leading-[1.25rem] text-white/80">
-                <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center" aria-hidden>
+              <p className="flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
+                <span className="inline-flex h-3 w-3 shrink-0 items-center justify-center" aria-hidden>
                   <BadgeCheck
-                    className={`h-3.5 w-3.5 text-white ${
-                      empresaVerificada ? 'visible' : 'invisible'
-                    }`}
+                    className={`h-3 w-3 text-white ${empresaVerificada ? 'visible' : 'invisible'}`}
                     fill="currentColor"
                     stroke="#0097b2"
                     strokeWidth={2}
@@ -554,17 +569,15 @@ export default function DrawerReservaHospedagem({
                 </span>
                 <span className="truncate">@{usernameExibir}</span>
               </p>
-            ) : (
-              <span className="block h-[1.25rem]" aria-hidden />
-            )}
+            ) : null}
             <button
               type="button"
               onClick={() => setAnfitriaoAberto((v) => !v)}
-              className="inline-flex h-[1.25rem] items-center gap-1.5 text-sm font-semibold leading-[1.25rem] text-white"
+              className="inline-flex items-center gap-1 self-start text-xs font-semibold leading-tight text-white"
             >
               Anfitrião
               <ChevronDown
-                className={`h-4 w-4 transition-transform ${anfitriaoAberto ? 'rotate-180' : ''}`}
+                className={`h-3.5 w-3.5 transition-transform ${anfitriaoAberto ? 'rotate-180' : ''}`}
                 aria-hidden
               />
             </button>
@@ -572,7 +585,7 @@ export default function DrawerReservaHospedagem({
           <button
             type="button"
             onClick={handleFechar}
-            className="absolute right-1 top-0.5 shrink-0 rounded-lg p-1.5 text-white hover:bg-white/15"
+            className="absolute right-0.5 top-0 shrink-0 rounded-lg p-1.5 text-white hover:bg-white/15"
             aria-label="Fechar"
           >
             <X className="h-5 w-5" aria-hidden />
@@ -730,8 +743,8 @@ export default function DrawerReservaHospedagem({
             </div>
           ) : passo === 1 ? (
             <div className="space-y-2 p-4 pt-2">
-              <h2 className="text-center text-lg font-bold uppercase tracking-wide" style={{ color: COR }}>
-                ESCOLHA SUA ACOMODAÇÃO
+              <h2 className="text-center text-lg font-bold" style={{ color: COR }}>
+                Escolha sua Acomodação
               </h2>
               {acomodacoes.length === 0 ? (
                 <p className="text-sm text-gray-500">
