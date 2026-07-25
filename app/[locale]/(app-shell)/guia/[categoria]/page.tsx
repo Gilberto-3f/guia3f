@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
 import { ArrowLeft, Check, ChevronDown, MapPin, Star } from 'lucide-react'
@@ -12,7 +12,6 @@ import { empresaCorrespondeBusca } from '@/lib/palavrasChaveGuia'
 import { registrarBuscaGuia } from '@/lib/buscasGuia'
 import {
   empresaTemBotaoDinamicoPublico,
-  planoEmpresaReconhecidoNoCatalogo,
   type PlanoResumoServicos,
 } from '@/lib/planosEmpresaServicosGate'
 import type { ServicoPlanoId } from '@/lib/planosEmpresaCatalogo'
@@ -102,11 +101,10 @@ export default function ListagemCategoriaPage() {
   const [planoContratadoPorEmpresa, setPlanoContratadoPorEmpresa] = useState<Map<string, string>>(
     new Map(),
   )
-  const [assinaturaVigentePorEmpresa, setAssinaturaVigentePorEmpresa] = useState<Map<string, boolean>>(
-    new Map(),
-  )
   const [degustacaoCarregando, setDegustacaoCarregando] = useState(true)
   const [planosCarregando, setPlanosCarregando] = useState(true)
+  /** Evita reocultar botões quando a lista de empresas atualiza (cache → rede). */
+  const degustacaoJaResolvidaRef = useRef(false)
   const [loading, setLoading] = useState(true)
   const [erroLista, setErroLista] = useState('')
   const [pais, setPais] = useState<PaisGuiaFiltro>('br')
@@ -193,18 +191,8 @@ export default function ListagemCategoriaPage() {
   const empresaTemBotaoDinamico = useCallback(
     (empresa: Empresa) => {
       const emDegustacao = degustacaoPlanoPorEmpresa.has(empresa.id)
-      const vigenteMap = assinaturaVigentePorEmpresa.get(empresa.id)
-      const planoPago = Boolean(planoEmpresaReconhecidoNoCatalogo(empresa.plano, planosResumo))
       const somenteAnfitriao = empresa.somente_anfitriao === true
-      let vigencia: boolean | undefined
-      if (emDegustacao || somenteAnfitriao) {
-        vigencia = undefined
-      } else if (vigenteMap === true) {
-        vigencia = true
-      } else if (vigenteMap === false || planoPago) {
-        // Ciclo vencido OU plano pago sem assinatura vigente → bloqueia no guia.
-        vigencia = false
-      }
+      // Presença no guia já filtra ciclo irregular — não rebloqueia o botão por assinatura (evita flash).
       return empresaTemBotaoDinamicoPublico(
         empresa.plano,
         planosResumo,
@@ -212,22 +200,26 @@ export default function ListagemCategoriaPage() {
           ? { ativa: true, planoId: degustacaoPlanoPorEmpresa.get(empresa.id) ?? null }
           : null,
         planoContratadoPorEmpresa.get(empresa.id) ?? null,
-        { somenteAnfitriao, assinaturaContratadaVigente: vigencia },
+        { somenteAnfitriao },
       )
     },
-    [assinaturaVigentePorEmpresa, degustacaoPlanoPorEmpresa, planoContratadoPorEmpresa, planosResumo],
+    [degustacaoPlanoPorEmpresa, planoContratadoPorEmpresa, planosResumo],
   )
+
+  useEffect(() => {
+    degustacaoJaResolvidaRef.current = false
+    setDegustacaoCarregando(true)
+  }, [slug])
 
   useEffect(() => {
     if (empresas.length === 0) {
       setDegustacaoPlanoPorEmpresa(new Map())
       setPlanoContratadoPorEmpresa(new Map())
-      setAssinaturaVigentePorEmpresa(new Map())
-      setDegustacaoCarregando(false)
+      if (!degustacaoJaResolvidaRef.current) setDegustacaoCarregando(false)
       return
     }
     let ativo = true
-    setDegustacaoCarregando(true)
+    if (!degustacaoJaResolvidaRef.current) setDegustacaoCarregando(true)
     void (async () => {
       const ids = empresas.map((e) => e.id)
       const [mapa, assRows] = await Promise.all([
@@ -235,20 +227,17 @@ export default function ListagemCategoriaPage() {
         buscarAssinaturasPresencaPublica(supabase, ids),
       ])
       const mapaPlano = new Map<string, string>()
-      const mapaVigente = new Map<string, boolean>()
       for (const row of assRows) {
         const empId = row.empresa_id
         const pid = row.plano_id
         const vigente = assinaturaContratadaVigente(row)
         if (!empId) continue
-        // Preferir true se houver várias linhas
-        if (vigente || !mapaVigente.has(empId)) mapaVigente.set(empId, vigente)
         if (pid && vigente) mapaPlano.set(empId, pid)
       }
       if (ativo) {
         setDegustacaoPlanoPorEmpresa(mapa)
         setPlanoContratadoPorEmpresa(mapaPlano)
-        setAssinaturaVigentePorEmpresa(mapaVigente)
+        degustacaoJaResolvidaRef.current = true
         setDegustacaoCarregando(false)
       }
     })()

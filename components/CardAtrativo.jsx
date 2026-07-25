@@ -11,8 +11,6 @@ import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
 import BandeiraPais from '@/components/BandeiraPais'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
-import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
-import { normalizarPlanoSlug } from '@/lib/planosEmpresaServicosGate'
 import { supabase } from '@/lib/supabase'
 import { usuarioTemFavorito } from '@/lib/favoritosTurista'
 
@@ -59,9 +57,9 @@ export default function CardAtrativo({
   const router = useRouter()
   const { perfilEhProfissional, recursosProfissionaisLiberados, loading: gateLoading } =
     useProfissionalGate()
-  const { podeComprarReservar } = useGateComprasReservas()
   const [usuarioId, setUsuarioId] = useState(/** @type {string | null} */ (null))
   const [favEmpresa, setFavEmpresa] = useState(Boolean(empresa.is_seguindo))
+  const [botoesLiberados, setBotoesLiberados] = useState(false)
 
   useEffect(() => {
     let ativo = true
@@ -82,17 +80,13 @@ export default function CardAtrativo({
   }, [empresa.id])
 
   const empresaVerificada = contaVerificadaDocumentacao('empresa', empresa)
-  const planoSlug = normalizarPlanoSlug(empresa.plano ?? '')
-  const empresaPodeTerBotaoPlano = Boolean(
-    temBotaoDinamico || (planoSlug && planoSlug !== 'gratuito'),
-  )
-  const exibirBotaoDinamico =
-    empresaVerificada &&
-    (temBotaoDinamico ||
-      emDegustacao ||
-      degustacaoCarregando ||
-      (planosCarregando && empresaPodeTerBotaoPlano))
-  const aguardandoSlot = gateLoading || planosCarregando || degustacaoCarregando
+  const aguardandoBotoes = gateLoading || planosCarregando || degustacaoCarregando
+  useEffect(() => {
+    if (!aguardandoBotoes) setBotoesLiberados(true)
+  }, [aguardandoBotoes])
+  const mostrarBotaoDinamico = empresaVerificada && (temBotaoDinamico || emDegustacao)
+  const mostrarRecomendar = perfilEhProfissional && recursosProfissionaisLiberados
+  const exibirBotoes = botoesLiberados || !aguardandoBotoes
 
   const desc =
     empresa.descricao_curta && empresa.descricao_curta.length > 170
@@ -134,7 +128,7 @@ export default function CardAtrativo({
         <h3 className="line-clamp-1 text-base font-extrabold text-[#001f3f]">
           <NomeComVerificacao
             nome={String(empresa.nome_fantasia ?? '')}
-            verificado={contaVerificadaDocumentacao('empresa', empresa)}
+            verificado={empresaVerificada}
             verificadoTipo="empresa"
             nomeClassName="line-clamp-1"
           />
@@ -142,38 +136,38 @@ export default function CardAtrativo({
 
         {desc ? <p className="mt-1 text-sm text-gray-600">{desc}</p> : null}
 
-        <div className="mt-4 flex min-w-0 gap-2">
-          <button
-            type="button"
-            onClick={() => router.push(`/empresa/${empresa.id}`)}
-            className="flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-1 rounded-lg bg-[#0097b2] px-2 py-2 text-center text-xs font-extrabold leading-tight text-white whitespace-normal hover:opacity-95 sm:text-sm"
-          >
-            <Heart size={20} className="shrink-0 text-white" aria-hidden />
-            <span>VISITAR PÁGINA</span>
-          </button>
-          {perfilEhProfissional && recursosProfissionaisLiberados ? (
-            <BotaoRecomendar empresa={empresa} segmentoGuiaSlug={segmentoGuiaSlug} />
-          ) : exibirBotaoDinamico && aguardandoSlot ? (
-            <div
-              className="min-h-[3.25rem] flex-1 animate-pulse rounded-lg bg-[#00D443]/35"
-              aria-busy="true"
-              aria-label="A carregar botão de serviço"
-            />
-          ) : exibirBotaoDinamico && (temBotaoDinamico || emDegustacao) && podeComprarReservar ? (
-            <BotaoDinamico
-              categoria={empresa.categoria}
-              cidade={empresa.cidade}
-              empresaId={empresa.id}
-              empresaNome={empresa.nome_fantasia}
-              empresaUsername={empresa.nome_usuario ?? null}
-              empresaFotoUrl={empresa.foto_url ?? null}
-              notaMedia={empresa.nota_media != null ? Number(empresa.nota_media) : null}
-              whatsapp={empresa.whatsapp ?? null}
-              precoTicketInteira={Number(empresa.preco_ticket_inteira) || 0}
-              precoTicketMeia={Number(empresa.preco_ticket_meia) || 0}
-              palavrasChave={empresa.palavras_chave}
-            />
-          ) : null}
+        <div className="mt-4 flex min-h-[3.25rem] min-w-0 gap-2">
+          {!exibirBotoes ? (
+            <div className="w-full" aria-busy="true" aria-label="A carregar botões" />
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => router.push(`/empresa/${empresa.id}`)}
+                className="flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-1 rounded-lg bg-[#0097b2] px-2 py-2 text-center text-xs font-extrabold leading-tight text-white whitespace-normal hover:opacity-95 sm:text-sm"
+              >
+                <Heart size={20} className="shrink-0 text-white" aria-hidden />
+                <span>VISITAR PÁGINA</span>
+              </button>
+              {mostrarRecomendar ? (
+                <BotaoRecomendar empresa={empresa} segmentoGuiaSlug={segmentoGuiaSlug} />
+              ) : mostrarBotaoDinamico ? (
+                <BotaoDinamico
+                  categoria={empresa.categoria}
+                  cidade={empresa.cidade}
+                  empresaId={empresa.id}
+                  empresaNome={empresa.nome_fantasia}
+                  empresaUsername={empresa.nome_usuario ?? null}
+                  empresaFotoUrl={empresa.foto_url ?? null}
+                  notaMedia={empresa.nota_media != null ? Number(empresa.nota_media) : null}
+                  whatsapp={empresa.whatsapp ?? null}
+                  precoTicketInteira={Number(empresa.preco_ticket_inteira) || 0}
+                  precoTicketMeia={Number(empresa.preco_ticket_meia) || 0}
+                  palavrasChave={empresa.palavras_chave}
+                />
+              ) : null}
+            </>
+          )}
         </div>
       </div>
     </div>

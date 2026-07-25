@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowLeft,
+  ArrowRight,
   BadgeCheck,
   ChevronLeft,
   ChevronRight,
@@ -377,32 +377,24 @@ export default function DrawerProdutosCde({
           className="flex shrink-0 items-center gap-2 border-b border-gray-100 bg-white px-3 pb-2"
           style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0px))' }}
         >
-          {!abrirDiretoNoDetalhe ? (
-            <button
-              type="button"
-              onClick={() => {
-                setPasso(1)
-                setSelecionado(null)
-                setVerMaisAberto(false)
-              }}
-              className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
-              aria-label="Voltar"
-            >
-              <ArrowLeft className="h-5 w-5" aria-hidden />
-            </button>
-          ) : (
-            <span className="w-2 shrink-0" aria-hidden />
-          )}
-          <p className="min-w-0 flex-1 truncate text-center text-sm font-bold text-[#001f3f]">
+          <p className="min-w-0 flex-1 truncate text-sm font-bold text-[#001f3f]">
             {selecionado?.categoria_nome || (carregando ? '…' : 'Produto')}
           </p>
           <button
             type="button"
-            onClick={handleFechar}
+            onClick={() => {
+              if (abrirDiretoNoDetalhe) {
+                handleFechar()
+                return
+              }
+              setPasso(1)
+              setSelecionado(null)
+              setVerMaisAberto(false)
+            }}
             className="rounded-lg p-2 text-gray-600 hover:bg-gray-100"
-            aria-label="Fechar"
+            aria-label={abrirDiretoNoDetalhe ? 'Fechar' : 'Voltar'}
           >
-            <X className="h-5 w-5" aria-hidden />
+            <ArrowRight className="h-5 w-5" aria-hidden />
           </button>
         </header>
       )}
