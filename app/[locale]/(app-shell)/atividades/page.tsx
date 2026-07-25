@@ -1516,8 +1516,10 @@ export default function AtividadesPage() {
       console.error('[Atividades][Amigos] erro ao carregar atividades de amigos:', amigosRes.error)
     }
 
+    const amigosPaginaRaw = (amigosRes.data ?? []) as AtividadeRow[]
+    const amigosPaginaLen = amigosPaginaRaw.length
     const amigosRaw = mergeAtividadesPorId(
-      (amigosRes.data ?? []) as AtividadeRow[],
+      amigosPaginaRaw,
       (outboundRes.data ?? []) as AtividadeRow[],
     )
     const minhaRaw = ((minhaRes.data ?? []) as AtividadeRow[]).filter((row) =>
@@ -1532,11 +1534,12 @@ export default function AtividadesPage() {
 
     setListaAmigos(amigos)
     setListaMinha(minha)
-    offsetAmigosRef.current = amigos.length
-    setOffsetAmigos(amigos.length)
+    /* Offset / temMais só da query paginada de amigos (não do merge com outbound). */
+    offsetAmigosRef.current = amigosPaginaLen
+    setOffsetAmigos(amigosPaginaLen)
     setOffsetMinha(minha.length)
-    temMaisAmigosRef.current = amigos.length === lim
-    setTemMaisAmigos(amigos.length === lim)
+    temMaisAmigosRef.current = amigosPaginaLen === lim
+    setTemMaisAmigos(amigosPaginaLen === lim)
     setTemMaisMinha(false)
 
     const todos = [...amigos, ...minha]
@@ -3043,36 +3046,34 @@ export default function AtividadesPage() {
               : 'Nenhuma atividade por aqui ainda.'}
           </p>
         ) : (
-          <>
-            <div className="flex flex-col gap-6">
-              {itensAgrupados.map((it: (typeof itensAgrupados)[number], i: number) => {
-                const rowKey =
-                  it.kind === 'curtiu_post_fotos'
-                    ? `cf-${it.persona_key}-${it.usuario_dono_id}-${it.created_at}`
-                    : it.kind === 'curtiu_post_fotos_multi'
-                      ? `cfm-${it.persona_key}-${it.created_at}`
-                    : it.kind === 'curtiu_post_solo'
-                      ? it.row.id
-                      : `row-${it.row.id}`
-                const conteudo = renderItem(it, i)
-                if (!conteudo) return null
-                return (
-                  <div key={rowKey} className="min-w-0">
-                    {conteudo}
-                  </div>
-                )
-              })}
-            </div>
-            {(aba === 'amigos' ? temMaisAmigos : temMaisMinha) ? (
-              <div ref={sentinelRef} className="h-4 w-full" aria-hidden />
-            ) : null}
-            {carregandoMais ? (
-              <div className="flex justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-[#0097b2]" aria-label="Carregando mais atividades" />
-              </div>
-            ) : null}
-          </>
+          <div className="flex flex-col gap-6">
+            {itensAgrupados.map((it: (typeof itensAgrupados)[number], i: number) => {
+              const rowKey =
+                it.kind === 'curtiu_post_fotos'
+                  ? `cf-${it.persona_key}-${it.usuario_dono_id}-${it.created_at}`
+                  : it.kind === 'curtiu_post_fotos_multi'
+                    ? `cfm-${it.persona_key}-${it.created_at}`
+                  : it.kind === 'curtiu_post_solo'
+                    ? it.row.id
+                    : `row-${it.row.id}`
+              const conteudo = renderItem(it, i)
+              if (!conteudo) return null
+              return (
+                <div key={rowKey} className="min-w-0">
+                  {conteudo}
+                </div>
+              )
+            })}
+          </div>
         )}
+        {(aba === 'amigos' ? temMaisAmigos : temMaisMinha) ? (
+          <div ref={sentinelRef} className="h-4 w-full" aria-hidden />
+        ) : null}
+        {carregandoMais ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-[#0097b2]" aria-label="Carregando mais atividades" />
+          </div>
+        ) : null}
       </div>
       {storyModal ? (
         <StoryViewer

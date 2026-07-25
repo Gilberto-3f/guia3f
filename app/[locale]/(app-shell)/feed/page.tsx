@@ -169,6 +169,8 @@ function FeedPageInner() {
   const [hasMore, setHasMore] = useState(true)
   const pageRef = useRef(0)
   const mergeGenRef = useRef(0)
+  const postsRef = useRef<PostFeedRow[]>([])
+  const loadingMoreRef = useRef(false)
   const postsVistosRef = useRef<Set<string>>(new Set())
   const sentinelRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const fetchPostAttempted = useRef<string | null>(null)
@@ -192,6 +194,10 @@ function FeedPageInner() {
     ready: false,
     meuId: null as string | null,
   })
+  useEffect(() => {
+    postsRef.current = posts
+  }, [posts])
+
   useEffect(() => {
     postsVistosRef.current = new Set()
   }, [meuId])
@@ -407,13 +413,13 @@ function FeedPageInner() {
     async (
       generation: number,
       opts?: { reordenar?: boolean },
-    ): Promise<PostFeedRow[]> => {
+    ): Promise<{ posts: PostFeedRow[]; fetchCheio: boolean }> => {
       const { seguidos, ready, meuId: uidRef } = feedRedeRef.current as {
         seguidos: string[]
         ready: boolean
         meuId?: string | null
       }
-      if (!ready) return []
+      if (!ready) return { posts: [], fetchCheio: false }
 
       const meu = uidRef ?? meuId
       const [autoresEmpresas, gestoresAnfitriao] = await Promise.all([
@@ -440,6 +446,10 @@ function FeedPageInner() {
               .limit(limit)
           : { data: [] as unknown[] }
 
+      const rawLen = (dFeed ?? []).length
+      /** Ainda pode haver posts mais antigos no banco se a janela veio cheia. */
+      const fetchCheio = allowedAutorIds.length > 0 && rawLen >= limit
+
       const gestoresSet = new Set(gestoresAnfitriao)
       const rows = (dFeed ?? [])
         .filter((row) => !(row as { deleted_at?: string | null }).deleted_at)
@@ -457,7 +467,8 @@ function FeedPageInner() {
         email,
         modoAtivo
       )
-      return enriquecerComVisualizacoes(saneados as PostFeedRow[], opts)
+      const posts = await enriquecerComVisualizacoes(saneados as PostFeedRow[], opts)
+      return { posts, fetchCheio }
     },
     [mapRow, meuId, email, modoAtivo, enriquecerComVisualizacoes]
   )
@@ -465,10 +476,10 @@ function FeedPageInner() {
   const refetchPostsFeed = useCallback(async () => {
     if (!feedRedeRef.current.ready || bloqueioEmpresaFeed) return
     try {
-      const merged = await rebuildMergedPosts(mergeGenRef.current)
+      const { posts: merged, fetchCheio } = await rebuildMergedPosts(mergeGenRef.current)
       const visiveis = Math.max(PAGE_SIZE, PAGE_SIZE * Math.max(1, pageRef.current))
       setPosts(merged.slice(0, visiveis))
-      setHasMore(merged.length > visiveis)
+      setHasMore(fetchCheio || merged.length > visiveis)
     } catch (e) {
       console.error(e)
     }
@@ -500,9 +511,9 @@ function FeedPageInner() {
       setHasMore(true)
       try {
         await tentarProcessarPublicacoesAgendadas()
-        const merged = await rebuildMergedPosts(0)
+        const { posts: merged, fetchCheio } = await rebuildMergedPosts(0)
         setPosts(merged.slice(0, PAGE_SIZE))
-        setHasMore(merged.length > PAGE_SIZE)
+        setHasMore(fetchCheio || merged.length > PAGE_SIZE)
         pageRef.current = 1
       } catch (e) {
         console.error(e)
@@ -579,29 +590,55 @@ function FeedPageInner() {
   }, [postParam, posts])
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore || bloqueioEmpresaFeed) return
+    if (loadingMoreRef.current || !hasMore || bloqueioEmpresaFeed) return
+    loadingMoreRef.current = true
     setLoadingMore(true)
+    let precisaContinuar = false
     try {
-      mergeGenRef.current += 1
-      // Sem reordenar: mantém a sequência já vista; só acrescenta posts novos no fim.
-      const merged = await rebuildMergedPosts(mergeGenRef.current, { reordenar: false })
-      let aindaTemMais = false
-      setPosts((prev) => {
-        const vistos = new Set(prev.map((p) => p.id))
+      const idsJaExibidos = new Set(postsRef.current.map((p) => p.id))
+      const acumulados: PostFeedRow[] = []
+      let fetchCheio = true
+      let sobraNaJanela = false
+      let attempts = 0
+      const MAX_ATTEMPTS = 15
+
+      while (acumulados.length < PAGE_SIZE && fetchCheio && attempts < MAX_ATTEMPTS) {
+        mergeGenRef.current += 1
+        attempts += 1
+        const { posts: merged, fetchCheio: cheio } = await rebuildMergedPosts(mergeGenRef.current, {
+          reordenar: false,
+        })
+        fetchCheio = cheio
+        const vistos = new Set([...idsJaExibidos, ...acumulados.map((p) => p.id)])
         const novos = merged.filter((p) => !vistos.has(p.id))
-        const toAdd = novos.slice(0, PAGE_SIZE)
-        aindaTemMais = novos.length > toAdd.length
-        if (toAdd.length === 0) return prev
-        return [...prev, ...toAdd]
-      })
-      setHasMore(aindaTemMais)
+        const need = PAGE_SIZE - acumulados.length
+        const toAdd = novos.slice(0, need)
+        acumulados.push(...toAdd)
+        sobraNaJanela = novos.length > toAdd.length
+        if (sobraNaJanela) break
+        if (!fetchCheio) break
+      }
+
+      if (acumulados.length > 0) {
+        setPosts((prev) => [...prev, ...acumulados])
+      }
+      const aindaTem = sobraNaJanela || fetchCheio
+      setHasMore(aindaTem)
+      /* Janela cheia no DB mas filtros zeram a página: amplia sozinho sem esperar novo scroll. */
+      precisaContinuar = aindaTem && acumulados.length === 0
       pageRef.current += 1
     } catch (e) {
       console.error(e)
     } finally {
+      loadingMoreRef.current = false
       setLoadingMore(false)
+      if (precisaContinuar) {
+        requestAnimationFrame(() => {
+          void loadMore()
+        })
+      }
     }
-  }, [rebuildMergedPosts, hasMore, loadingMore, bloqueioEmpresaFeed])
+  }, [rebuildMergedPosts, hasMore, bloqueioEmpresaFeed])
 
   /** Pull-to-refresh e reentrada: rebusca posts e reordena com base em visualizações (sem marcar novos). */
   const atualizarFeedComVisualizacao = useCallback(async () => {
@@ -612,9 +649,9 @@ function FeedPageInner() {
     fetchPostAttempted.current = null
     try {
       await tentarProcessarPublicacoesAgendadas()
-      const merged = await rebuildMergedPosts(0)
+      const { posts: merged, fetchCheio } = await rebuildMergedPosts(0)
       setPosts(merged.slice(0, PAGE_SIZE))
-      setHasMore(merged.length > PAGE_SIZE)
+      setHasMore(fetchCheio || merged.length > PAGE_SIZE)
       pageRef.current = 1
     } catch (e) {
       console.error(e)
@@ -631,9 +668,9 @@ function FeedPageInner() {
     setHasMore(true)
     fetchPostAttempted.current = null
     try {
-      const merged = await rebuildMergedPosts(0)
+      const { posts: merged, fetchCheio } = await rebuildMergedPosts(0)
       setPosts(merged.slice(0, PAGE_SIZE))
-      setHasMore(merged.length > PAGE_SIZE)
+      setHasMore(fetchCheio || merged.length > PAGE_SIZE)
       pageRef.current = 1
     } catch (e) {
       console.error(e)
