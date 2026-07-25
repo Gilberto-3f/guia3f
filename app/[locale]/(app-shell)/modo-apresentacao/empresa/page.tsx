@@ -359,6 +359,9 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               precoTicketInteira={precoTicketInteira}
               precoTicketMeia={precoTicketMeia}
               palavrasChave={empresaMerged.palavras_chave}
+              empresaVerificada={
+                Boolean(empresaMerged.docs_verificado) || String(empresaMerged.status ?? '') === 'ativo'
+              }
             />
           ) : null}
         </div>

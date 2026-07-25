@@ -377,6 +377,7 @@ export default function FavoritosPage() {
           <Star className="fill-white text-white" size={22} strokeWidth={2} aria-hidden />
           Meus Favoritos
         </h1>
+        <p className="mt-0.5 text-center text-xs font-medium text-white/85">do Guia Turístico</p>
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 pb-24">

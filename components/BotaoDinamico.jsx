@@ -68,6 +68,7 @@ function isServicosLocais(cat) {
  *   precoTicketMeia?: number
  *   empresaFotoUrl?: string | null
  *   notaMedia?: number | null
+ *   empresaVerificada?: boolean | null
  *   palavrasChave?: unknown
  *   onClick?: (e: { stopPropagation: () => void }) => void
  * }} props
@@ -80,6 +81,7 @@ export default function BotaoDinamico({
   empresaUsername = null,
   empresaFotoUrl = null,
   notaMedia = null,
+  empresaVerificada = null,
   whatsapp = null,
   precoTicketInteira = 0,
   precoTicketMeia,
@@ -203,6 +205,7 @@ export default function BotaoDinamico({
             empresaUsername={empresaUsername}
             empresaFotoUrl={empresaFotoUrl}
             notaMedia={notaMedia}
+            empresaVerificada={empresaVerificada}
           />
 
           <DrawerServicosLocais
@@ -213,6 +216,7 @@ export default function BotaoDinamico({
             empresaUsername={empresaUsername}
             empresaFotoUrl={empresaFotoUrl}
             notaMedia={notaMedia}
+            empresaVerificada={empresaVerificada}
           />
 
           <DrawerTicketsAtrativos
@@ -223,6 +227,7 @@ export default function BotaoDinamico({
             empresaUsername={empresaUsername}
             empresaFotoUrl={empresaFotoUrl}
             notaMedia={notaMedia}
+            empresaVerificada={empresaVerificada}
             whatsappDestino={whatsapp}
           />
           <DrawerReservaHospedagem
@@ -233,6 +238,7 @@ export default function BotaoDinamico({
             empresaUsername={empresaUsername}
             empresaFotoUrl={empresaFotoUrl}
             notaMedia={notaMedia}
+            empresaVerificadaInicial={empresaVerificada}
           />
           <DrawerProdutosCde
             isOpen={showProdutosPopup}
@@ -242,6 +248,7 @@ export default function BotaoDinamico({
             empresaUsername={empresaUsername}
             empresaFotoUrl={empresaFotoUrl}
             notaMedia={notaMedia}
+            empresaVerificada={empresaVerificada}
           />
         </>
       ) : null}

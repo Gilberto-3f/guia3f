@@ -59,6 +59,7 @@ function isGastronomia(cat) {
  *   precoTicketMeia?: number
  *   empresaFotoUrl?: string | null
  *   notaMedia?: number | null
+ *   empresaVerificada?: boolean | null
  *   palavrasChave?: unknown
  *   abrirReservaAuto?: boolean
  * }} props
@@ -70,6 +71,7 @@ export default function AbaBotaoDinamico({
   empresaUsername = null,
   empresaFotoUrl = null,
   notaMedia = null,
+  empresaVerificada = null,
   cidade = '',
   horarios = {},
   whatsapp = null,
@@ -220,6 +222,7 @@ export default function AbaBotaoDinamico({
         empresaUsername={empresaUsername}
         empresaFotoUrl={empresaFotoUrl}
         notaMedia={notaMedia}
+        empresaVerificada={empresaVerificada}
         whatsappDestino={whatsapp}
       />
 
@@ -231,6 +234,7 @@ export default function AbaBotaoDinamico({
         empresaUsername={empresaUsername}
         empresaFotoUrl={empresaFotoUrl}
         notaMedia={notaMedia}
+        empresaVerificadaInicial={empresaVerificada}
       />
 
       <DrawerProdutosCde
@@ -241,6 +245,7 @@ export default function AbaBotaoDinamico({
         empresaUsername={empresaUsername}
         empresaFotoUrl={empresaFotoUrl}
         notaMedia={notaMedia}
+        empresaVerificada={empresaVerificada}
       />
 
       <DrawerCardapio
@@ -251,6 +256,7 @@ export default function AbaBotaoDinamico({
         empresaUsername={empresaUsername}
         empresaFotoUrl={empresaFotoUrl}
         notaMedia={notaMedia}
+        empresaVerificada={empresaVerificada}
       />
 
       <DrawerServicosLocais
@@ -261,6 +267,7 @@ export default function AbaBotaoDinamico({
         empresaUsername={empresaUsername}
         empresaFotoUrl={empresaFotoUrl}
         notaMedia={notaMedia}
+        empresaVerificada={empresaVerificada}
       />
     </>
   )

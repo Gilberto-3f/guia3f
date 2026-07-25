@@ -48,6 +48,8 @@ type Props = {
   empresaUsername?: string | null
   empresaFotoUrl?: string | null
   notaMedia?: number | null
+  /** Se já conhecido pelo card/página — evita flash do check no cabeçalho. */
+  empresaVerificada?: boolean | null
   whatsappDestino?: string | null
   /** Favoritos / salvos: abre direto no ticket selecionado. */
   ticketIdInicial?: string | null
@@ -315,6 +317,7 @@ export default function DrawerTicketsAtrativos({
   empresaUsername = null,
   empresaFotoUrl = null,
   notaMedia = null,
+  empresaVerificada: empresaVerificadaProp = null,
   whatsappDestino,
   ticketIdInicial = null,
 }: Props) {
@@ -344,7 +347,9 @@ export default function DrawerTicketsAtrativos({
   const [notaLive, setNotaLive] = useState<number | null>(
     typeof notaMedia === 'number' && Number.isFinite(notaMedia) ? notaMedia : null,
   )
-  const [verificadaLive, setVerificadaLive] = useState(false)
+  const [verificadaLive, setVerificadaLive] = useState(() =>
+    empresaVerificadaProp != null ? Boolean(empresaVerificadaProp) : false,
+  )
   const [formaPagamento, setFormaPagamento] = useState<string>('')
   const [visitanteId, setVisitanteId] = useState<string | null>(null)
   const [favTickets, setFavTickets] = useState<Set<string>>(() => new Set())
@@ -363,8 +368,10 @@ export default function DrawerTicketsAtrativos({
         ? notaMedia
         : null,
     )
-    setVerificadaLive(false)
-  }, [abrirDiretoNoDetalhe, empresaNome, empresaUsername, empresaFotoUrl, notaMedia])
+    setVerificadaLive(
+      empresaVerificadaProp != null ? Boolean(empresaVerificadaProp) : false,
+    )
+  }, [abrirDiretoNoDetalhe, empresaNome, empresaUsername, empresaFotoUrl, notaMedia, empresaVerificadaProp])
 
   const handleFechar = useCallback(() => {
     reset()
@@ -422,7 +429,10 @@ export default function DrawerTicketsAtrativos({
               ? notaMedia
               : null,
         )
-        setVerificadaLive(contaVerificadaDocumentacao('empresa', emp))
+        setVerificadaLive(() => {
+          if (empresaVerificadaProp != null) return Boolean(empresaVerificadaProp)
+          return contaVerificadaDocumentacao('empresa', emp)
+        })
       }
 
       const {
@@ -457,13 +467,14 @@ export default function DrawerTicketsAtrativos({
     } finally {
       setLoading(false)
     }
-  }, [empresaId, empresaNome, empresaUsername, empresaFotoUrl, notaMedia, ticketIdInicial])
+  }, [empresaId, empresaNome, empresaUsername, empresaFotoUrl, notaMedia, ticketIdInicial, empresaVerificadaProp])
 
   useEffect(() => {
     if (!isOpen) return
+    if (empresaVerificadaProp != null) setVerificadaLive(Boolean(empresaVerificadaProp))
     reset()
     void carregar()
-  }, [isOpen, carregar, reset])
+  }, [isOpen, carregar, reset, empresaVerificadaProp])
 
   const totalCarrinho = useMemo(
     () => carrinho.reduce((acc, i) => acc + i.precoUnit * i.quantidade, 0),
@@ -617,15 +628,14 @@ export default function DrawerTicketsAtrativos({
             </p>
             {usernameExibir ? (
               <p className="mt-0.5 flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
-                {verificadaLive ? (
+                <span className="inline-flex h-3 w-3 shrink-0 items-center justify-center" aria-hidden>
                   <BadgeCheck
-                    className="h-3 w-3 shrink-0 text-white"
+                    className={`h-3 w-3 text-white ${verificadaLive ? 'visible' : 'invisible'}`}
                     fill="currentColor"
                     stroke="#0097b2"
                     strokeWidth={2}
-                    aria-hidden
                   />
-                ) : null}
+                </span>
                 <span className="truncate">@{usernameExibir}</span>
               </p>
             ) : null}

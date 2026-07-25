@@ -64,6 +64,8 @@ type Props = {
   empresaUsername?: string | null
   empresaFotoUrl?: string | null
   notaMedia?: number | null
+  /** Se já conhecido pelo card/página — evita flash do check no cabeçalho. */
+  empresaVerificada?: boolean | null
   /** Comparador / hub / favoritos: mostra card azul da empresa no detalhe. Catálogo (botão dinâmico) não precisa — já tem cabeçalho. */
   mostrarEmpresaNoDetalhe?: boolean
   /** Abrir já no detalhe deste produto. */
@@ -78,6 +80,7 @@ export default function DrawerProdutosCde({
   empresaUsername = null,
   empresaFotoUrl = null,
   notaMedia = null,
+  empresaVerificada: empresaVerificadaProp = null,
   mostrarEmpresaNoDetalhe = false,
   produtoIdInicial = null,
 }: Props) {
@@ -98,7 +101,9 @@ export default function DrawerProdutosCde({
     PYG: 1500,
   })
   const [whatsappComercial, setWhatsappComercial] = useState<string | null>(null)
-  const [empresaVerificada, setEmpresaVerificada] = useState(false)
+  const [empresaVerificada, setEmpresaVerificada] = useState(() =>
+    empresaVerificadaProp != null ? Boolean(empresaVerificadaProp) : false,
+  )
   const [visitanteId, setVisitanteId] = useState<string | null>(null)
   const [favProdutos, setFavProdutos] = useState<Set<string>>(() => new Set())
   const [infoAberto, setInfoAberto] = useState(false)
@@ -160,7 +165,10 @@ export default function DrawerProdutosCde({
             ? String(emp.whatsapp)
             : null
       setWhatsappComercial(waCom)
-      setEmpresaVerificada(contaVerificadaDocumentacao('empresa', emp))
+      setEmpresaVerificada(() => {
+        if (empresaVerificadaProp != null) return Boolean(empresaVerificadaProp)
+        return contaVerificadaDocumentacao('empresa', emp)
+      })
       const notaRaw = emp?.nota_media != null ? Number(emp.nota_media) : NaN
       setNotaEmpresaLive(Number.isFinite(notaRaw) && notaRaw > 0 ? notaRaw : null)
       const fotoEmp =
@@ -224,13 +232,14 @@ export default function DrawerProdutosCde({
     } finally {
       setCarregando(false)
     }
-  }, [empresaId, produtoIdInicial])
+  }, [empresaId, produtoIdInicial, empresaVerificadaProp])
 
   useEffect(() => {
     if (!isOpen) return
+    if (empresaVerificadaProp != null) setEmpresaVerificada(Boolean(empresaVerificadaProp))
     reset()
     void carregar()
-  }, [isOpen, carregar, reset])
+  }, [isOpen, carregar, reset, empresaVerificadaProp])
 
   useEffect(() => {
     if (!isOpen) visitaDetalheRegistradaRef.current = null
@@ -342,15 +351,14 @@ export default function DrawerProdutosCde({
                 <p className="truncate text-sm font-bold leading-tight text-white">{empresaNome}</p>
                 {usernameExibir ? (
                   <p className="flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
-                    {empresaVerificada ? (
+                    <span className="inline-flex h-3 w-3 shrink-0 items-center justify-center" aria-hidden>
                       <BadgeCheck
-                        className="h-3 w-3 shrink-0 text-white"
+                        className={`h-3 w-3 text-white ${empresaVerificada ? 'visible' : 'invisible'}`}
                         fill="currentColor"
                         stroke="#0097b2"
                         strokeWidth={2}
-                        aria-hidden
                       />
-                    ) : null}
+                    </span>
                     <span className="truncate">@{usernameExibir}</span>
                   </p>
                 ) : null}
@@ -600,15 +608,14 @@ export default function DrawerProdutosCde({
                   <p className="truncate text-sm font-bold text-white">{empresaNome}</p>
                   {usernameExibir ? (
                     <p className="mt-0.5 flex max-w-full items-center gap-1 truncate text-xs text-white/90">
-                      {empresaVerificada ? (
+                      <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center" aria-hidden>
                         <BadgeCheck
-                          className="h-3.5 w-3.5 shrink-0 text-white"
+                          className={`h-3.5 w-3.5 text-white ${empresaVerificada ? 'visible' : 'invisible'}`}
                           fill="currentColor"
                           stroke="#0097b2"
                           strokeWidth={2}
-                          aria-hidden
                         />
-                      ) : null}
+                      </span>
                       <span className="truncate">@{usernameExibir}</span>
                     </p>
                   ) : null}

@@ -613,6 +613,7 @@ export default function EmpresaPage() {
               empresaUsername={empresa.nome_usuario != null ? String(empresa.nome_usuario) : null}
               empresaFotoUrl={fotoUrl}
               notaMedia={notaMedia}
+              empresaVerificada={empresaVerificada}
               cidade={String(empresa.cidade ?? '')}
               horarios={horariosParsed}
               whatsapp={empresa.whatsapp != null ? String(empresa.whatsapp) : null}

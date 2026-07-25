@@ -35,6 +35,8 @@ type Props = {
   empresaUsername?: string | null
   empresaFotoUrl?: string | null
   notaMedia?: number | null
+  /** Se já conhecido pelo card/página — evita flash do check no cabeçalho. */
+  empresaVerificada?: boolean | null
   /** Abrir já no detalhe deste servico. */
   servicoIdInicial?: string | null
   /** Mostra card azul da empresa no detalhe (ex.: hub/favoritos). Catálogo (botão dinâmico) já tem cabeçalho. */
@@ -49,6 +51,7 @@ export default function DrawerServicosLocais({
   empresaUsername = null,
   empresaFotoUrl = null,
   notaMedia = null,
+  empresaVerificada: empresaVerificadaProp = null,
   servicoIdInicial = null,
   mostrarEmpresaNoDetalhe = false,
 }: Props) {
@@ -62,7 +65,9 @@ export default function DrawerServicosLocais({
   const [selecionado, setSelecionado] = useState<ServicoLocalRow | null>(null)
   const [fotoIdx, setFotoIdx] = useState(0)
   const [cotacoes, setCotacoes] = useState<CotacaoMap>({ USD: 0.2, EUR: 0.18, ARS: 180, PYG: 1500 })
-  const [empresaVerificada, setEmpresaVerificada] = useState(false)
+  const [empresaVerificada, setEmpresaVerificada] = useState(() =>
+    empresaVerificadaProp != null ? Boolean(empresaVerificadaProp) : false,
+  )
   const [notaEmpresaLive, setNotaEmpresaLive] = useState<number | null>(null)
   const [fotoEmpresaLive, setFotoEmpresaLive] = useState<string | null>(null)
   const [usernameEmpresaLive, setUsernameEmpresaLive] = useState<string | null>(null)
@@ -116,7 +121,10 @@ export default function DrawerServicosLocais({
       ])
 
       const emp = empRes.data as Record<string, unknown> | null
-      setEmpresaVerificada(contaVerificadaDocumentacao('empresa', emp))
+      setEmpresaVerificada(() => {
+        if (empresaVerificadaProp != null) return Boolean(empresaVerificadaProp)
+        return contaVerificadaDocumentacao('empresa', emp)
+      })
       const notaRaw = emp?.nota_media != null ? Number(emp.nota_media) : NaN
       setNotaEmpresaLive(Number.isFinite(notaRaw) && notaRaw > 0 ? notaRaw : null)
       const fotoEmp =
@@ -182,13 +190,14 @@ export default function DrawerServicosLocais({
     } finally {
       setCarregando(false)
     }
-  }, [empresaId, servicoIdInicial])
+  }, [empresaId, servicoIdInicial, empresaVerificadaProp])
 
   useEffect(() => {
     if (!isOpen) return
+    if (empresaVerificadaProp != null) setEmpresaVerificada(Boolean(empresaVerificadaProp))
     reset()
     void carregar()
-  }, [isOpen, carregar, reset])
+  }, [isOpen, carregar, reset, empresaVerificadaProp])
 
   const fotos = selecionado?.fotos?.length
     ? selecionado.fotos
@@ -272,15 +281,14 @@ export default function DrawerServicosLocais({
                 <p className="truncate text-sm font-bold leading-tight text-white">{empresaNome}</p>
                 {usernameExibir ? (
                   <p className="flex max-w-full items-center gap-1 truncate text-xs leading-tight text-white/85">
-                    {empresaVerificada ? (
+                    <span className="inline-flex h-3 w-3 shrink-0 items-center justify-center" aria-hidden>
                       <BadgeCheck
-                        className="h-3 w-3 shrink-0 text-white"
+                        className={`h-3 w-3 text-white ${empresaVerificada ? 'visible' : 'invisible'}`}
                         fill="currentColor"
                         stroke="#0097b2"
                         strokeWidth={2}
-                        aria-hidden
                       />
-                    ) : null}
+                    </span>
                     <span className="truncate">@{usernameExibir}</span>
                   </p>
                 ) : null}
@@ -541,15 +549,14 @@ export default function DrawerServicosLocais({
                   <p className="truncate text-sm font-bold text-white">{empresaNome}</p>
                   {usernameExibir ? (
                     <p className="mt-0.5 flex max-w-full items-center gap-1 truncate text-xs text-white/90">
-                      {empresaVerificada ? (
+                      <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center" aria-hidden>
                         <BadgeCheck
-                          className="h-3.5 w-3.5 shrink-0 text-white"
+                          className={`h-3.5 w-3.5 text-white ${empresaVerificada ? 'visible' : 'invisible'}`}
                           fill="currentColor"
                           stroke="#0097b2"
                           strokeWidth={2}
-                          aria-hidden
                         />
-                      ) : null}
+                      </span>
                       <span className="truncate">@{usernameExibir}</span>
                     </p>
                   ) : null}
