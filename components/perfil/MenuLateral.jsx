@@ -278,9 +278,9 @@ function pastaAnfitriao(ctx) {
   }
 }
 
-/** Pasta Anfitrião fixa + seções de empresa (modo Hospedagem). */
+/** Pasta Anfitrião fixa + seções de empresa (modo Hospedagem). Sem “Sair”: logout só no perfil social. */
 function secoesAnfitriaoComEmpresa(ctx) {
-  const emp = secoesEmpresa(ctx)
+  const emp = secoesEmpresa(ctx).filter((s) => s.tipo !== 'sair')
   const idxEmp = emp.findIndex((s) => s.tipo === 'grupo' && s.key === 'empresa')
   if (idxEmp >= 0) {
     return [pastaAnfitriao(ctx), ...emp.slice(0, idxEmp), ...emp.slice(idxEmp)]
