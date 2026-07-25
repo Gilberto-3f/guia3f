@@ -1,10 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { BarChart3, Coins, Link2, MessageCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Coins, Link2, MessageCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
-import { COR_AZUL_LOGO, COR_VERDE_BOTAO } from '@/lib/comprasCdeCatalogo'
+import { COR_VERDE_BOTAO } from '@/lib/comprasCdeCatalogo'
 import {
   FLAG_MOEDA_PADRAO,
   LABEL_MOEDA_PADRAO,
@@ -24,12 +23,14 @@ type Props = {
   whatsappGeral: string | null
   whatsappComercialInicial: string | null
   moedaPadraoInicial?: string | null
-  /** Lojas BR/AR: Feedback do catálogo (sem Drena-Stok). */
+  /** Lojas: Feedback do catálogo. */
   mostrarFeedbackCatalogo?: boolean
   /** Gastronomia: Feedback do cardápio. */
   mostrarFeedbackCardapio?: boolean
   /** Serviços Locais: Feedback do catálogo de serviços. */
   mostrarFeedbackServicos?: boolean
+  /** Rótulo do botão dinâmico (CATÁLOGO / CARDÁPIO / SERVIÇOS) para a métrica Desempenho. */
+  rotuloBotaoDinamico?: string
   onSalvo?: () => void
 }
 
@@ -41,6 +42,7 @@ export default function AbaContatos({
   mostrarFeedbackCatalogo = false,
   mostrarFeedbackCardapio = false,
   mostrarFeedbackServicos = false,
+  rotuloBotaoDinamico = 'CATÁLOGO',
   onSalvo,
 }: Props) {
   const [whatsappComercial, setWhatsappComercial] = useState(whatsappComercialInicial ?? '')
@@ -51,7 +53,6 @@ export default function AbaContatos({
   const [salvandoMoeda, setSalvandoMoeda] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [msgMoeda, setMsgMoeda] = useState<string | null>(null)
-  const [cliquesMes, setCliquesMes] = useState<number | null>(null)
   const [moedaAberta, setMoedaAberta] = useState(false)
   const [whatsappAberto, setWhatsappAberto] = useState(false)
 
@@ -62,17 +63,6 @@ export default function AbaContatos({
   useEffect(() => {
     setMoedaPadrao(normalizarMoedaPadrao(moedaPadraoInicial))
   }, [moedaPadraoInicial])
-
-  const carregarCliques = useCallback(async () => {
-    if (!empresaId) return
-    const total = await contarCliquesBotaoDinamicoMes(supabase, empresaId)
-    setCliquesMes(total)
-  }, [empresaId])
-
-  useEffect(() => {
-    if (mostrarFeedbackCatalogo || mostrarFeedbackCardapio || mostrarFeedbackServicos) return
-    void carregarCliques()
-  }, [carregarCliques, mostrarFeedbackCatalogo, mostrarFeedbackCardapio, mostrarFeedbackServicos])
 
   const salvar = async () => {
     const valor = whatsappComercial.trim()
@@ -136,11 +126,23 @@ export default function AbaContatos({
   return (
     <div className="space-y-4">
       {mostrarFeedbackCardapio ? (
-        <FeedbackCardapioAjustes empresaId={empresaId} abertoInicial={false} />
+        <FeedbackCardapioAjustes
+          empresaId={empresaId}
+          abertoInicial={false}
+          rotuloBotaoDinamico={rotuloBotaoDinamico}
+        />
       ) : mostrarFeedbackServicos ? (
-        <FeedbackServicosAjustes empresaId={empresaId} abertoInicial={false} />
+        <FeedbackServicosAjustes
+          empresaId={empresaId}
+          abertoInicial={false}
+          rotuloBotaoDinamico={rotuloBotaoDinamico}
+        />
       ) : mostrarFeedbackCatalogo ? (
-        <FeedbackCatalogoAjustes empresaId={empresaId} abertoInicial={false} />
+        <FeedbackCatalogoAjustes
+          empresaId={empresaId}
+          abertoInicial={false}
+          rotuloBotaoDinamico={rotuloBotaoDinamico}
+        />
       ) : null}
 
       <ChevronPasta
@@ -247,19 +249,6 @@ export default function AbaContatos({
           ) : null}
         </div>
       </ChevronPasta>
-
-      {!mostrarFeedbackCatalogo ? (
-        <div className="rounded-xl border border-gray-200 bg-[#f5f5f5] p-4">
-          <div className="flex items-center gap-2 text-[#001f3f]">
-            <BarChart3 className="h-5 w-5" style={{ color: COR_AZUL_LOGO }} aria-hidden />
-            <h2 className="text-sm font-bold">Desempenho no mês</h2>
-          </div>
-          <p className="mt-2 text-3xl font-bold" style={{ color: COR_AZUL_LOGO }}>
-            {cliquesMes == null ? '—' : cliquesMes}
-          </p>
-          <p className="mt-1 text-xs text-gray-600">Cliques no botão dinâmico (mês corrente)</p>
-        </div>
-      ) : null}
     </div>
   )
 }

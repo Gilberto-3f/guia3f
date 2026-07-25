@@ -2,13 +2,17 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import {
+  BarChart3,
   Bookmark,
+  Eye,
   MessageSquareQuote,
+  MousePointerClick,
+  Package,
   Repeat2,
   ThumbsUp,
-  Utensils,
 } from 'lucide-react'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
+import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
 import { supabase } from '@/lib/supabase'
 import { inicioPeriodoIso, type PeriodoDrena } from '@/lib/drenaAnalytics'
 
@@ -28,7 +32,7 @@ function FeedbackLinha({
   valor,
   sufixo,
 }: {
-  icone: typeof Utensils
+  icone: typeof Package
   corIcone?: string
   titulo: string
   valor: number | string
@@ -49,6 +53,7 @@ function FeedbackLinha({
 type Props = {
   empresaId: string
   abertoInicial?: boolean
+  rotuloBotaoDinamico?: string
 }
 
 /**
@@ -57,14 +62,18 @@ type Props = {
 export default function FeedbackCardapioAjustes({
   empresaId,
   abertoInicial = false,
+  rotuloBotaoDinamico = 'CARDÁPIO',
 }: Props) {
   const [periodo, setPeriodo] = useState<PeriodoDrena>('7d')
   const [feedbackAberto, setFeedbackAberto] = useState(abertoInicial)
   const [loading, setLoading] = useState(true)
-  const [totalPratos, setTotalPratos] = useState(0)
+  const [totalItens, setTotalItens] = useState(0)
+  const [totalCliques, setTotalCliques] = useState(0)
+  const [totalImpressoes, setTotalImpressoes] = useState(0)
   const [totalRecs, setTotalRecs] = useState(0)
   const [totalFavs, setTotalFavs] = useState(0)
   const [totalReposts, setTotalReposts] = useState(0)
+  const [cliquesMes, setCliquesMes] = useState<number | null>(null)
 
   const carregar = useCallback(async () => {
     if (!empresaId) return
@@ -78,7 +87,11 @@ export default function FeedbackCardapioAjustes({
         .eq('empresa_id', empresaId)
         .eq('ativo', true)
       const ids = (pratos ?? []).map((p) => String(p.id)).filter(Boolean)
-      setTotalPratos(ids.length)
+      setTotalItens(ids.length)
+
+      // Cliques/impressões por prato ainda sem tabela dedicada — mantém slot alinhado (0).
+      setTotalCliques(0)
+      setTotalImpressoes(0)
 
       const { count: recCount } = await supabase
         .from('recomendacoes_prato')
@@ -116,12 +129,18 @@ export default function FeedbackCardapioAjustes({
         rep = count ?? 0
       }
       setTotalReposts(rep)
+
+      const mes = await contarCliquesBotaoDinamicoMes(supabase, empresaId)
+      setCliquesMes(mes)
     } catch (e) {
       console.warn('[FeedbackCardapioAjustes]', e)
-      setTotalPratos(0)
+      setTotalItens(0)
+      setTotalCliques(0)
+      setTotalImpressoes(0)
       setTotalRecs(0)
       setTotalFavs(0)
       setTotalReposts(0)
+      setCliquesMes(0)
     } finally {
       setLoading(false)
     }
@@ -162,10 +181,23 @@ export default function FeedbackCardapioAjustes({
         >
           <div className="space-y-2">
             <FeedbackLinha
-              icone={Utensils}
-              titulo="Cardápio"
-              valor={totalPratos}
+              icone={Package}
+              titulo="Itens cadastrados"
+              valor={totalItens}
               sufixo="pratos cadastrados"
+            />
+            <FeedbackLinha
+              icone={MousePointerClick}
+              titulo="Cliques"
+              valor={totalCliques}
+              sufixo="nos pratos"
+            />
+            <FeedbackLinha
+              icone={Eye}
+              corIcone="#9ca3af"
+              titulo="Impressões"
+              valor={totalImpressoes}
+              sufixo="visualizações"
             />
             <FeedbackLinha
               icone={ThumbsUp}
@@ -185,6 +217,12 @@ export default function FeedbackCardapioAjustes({
               titulo="Repostados"
               valor={totalReposts}
               sufixo="no feed"
+            />
+            <FeedbackLinha
+              icone={BarChart3}
+              titulo="Desempenho"
+              valor={cliquesMes == null ? '—' : cliquesMes}
+              sufixo={`Cliques no botão dinâmico "${rotuloBotaoDinamico}" (mês corrente)`}
             />
           </div>
         </ChevronPasta>

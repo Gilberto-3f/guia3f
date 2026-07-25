@@ -5,7 +5,7 @@ import { BarChart3, Info } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDashboardEmpresa'
 import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
-import { cidadeEhCiudadDelEste, empresaCategoriaEhLojas, empresaEhLojaComCatalogo, empresaEhLojasBrasilOuArgentina, empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
+import { cidadeEhCiudadDelEste, empresaCategoriaEhLojas, empresaEhLojaComCatalogo, empresaEhSegmentoLojasParaguai } from '@/lib/cidade-empresa'
 import { getRotuloAbaServico } from '@/lib/empresaCategoria'
 import AbaAcomodacoes from './hospedagem/AbaAcomodacoes'
 import AbaInformacoes from './hospedagem/AbaInformacoes'
@@ -110,17 +110,16 @@ export default function ConfigBotaoDinamico() {
   const [msg, setMsg] = useState<string | null>(null)
   const [cliquesMes, setCliquesMes] = useState<number | null>(null)
   const [infoAberto, setInfoAberto] = useState(false)
-  const [abaHospedagem, setAbaHospedagem] = useState<'acomodacoes' | 'informacoes'>('acomodacoes')
-  const [abaAtrativos, setAbaAtrativos] = useState<'atrativos' | 'informacoes'>('atrativos')
-  const [abaComprasCde, setAbaComprasCde] = useState<'produtos' | 'contatos'>('produtos')
-  const [abaGastronomia, setAbaGastronomia] = useState<'cardapio' | 'ajustes'>('cardapio')
-  const [abaServicosLocais, setAbaServicosLocais] = useState<'servicos' | 'ajustes'>('servicos')
+  const [abaHospedagem, setAbaHospedagem] = useState<'acomodacoes' | 'informacoes'>('informacoes')
+  const [abaAtrativos, setAbaAtrativos] = useState<'atrativos' | 'informacoes'>('informacoes')
+  const [abaComprasCde, setAbaComprasCde] = useState<'produtos' | 'contatos'>('contatos')
+  const [abaGastronomia, setAbaGastronomia] = useState<'cardapio' | 'ajustes'>('ajustes')
+  const [abaServicosLocais, setAbaServicosLocais] = useState<'servicos' | 'ajustes'>('ajustes')
   const ehAtrativos = isPasseios(categoria)
   const ehGastronomia = isGastronomia(categoria)
   const ehServicosLocais = isServicosLocais(categoria)
   const ehLojaComCatalogo = empresaEhLojaComCatalogo(categoria, cidade)
   const ehLojasCde = empresaEhSegmentoLojasParaguai(categoria, cidade)
-  const ehLojasBrAr = empresaEhLojasBrasilOuArgentina(categoria, cidade)
 
   const rotuloAba = getRotuloAbaServico(categoria)
   const textoBotao = useMemo(() => textoBotaoPreview(categoria, cidade), [categoria, cidade])
@@ -197,8 +196,8 @@ export default function ConfigBotaoDinamico() {
     </div>
   )
 
-  /** Evita flash da UI genérica antiga antes de saber o segmento (lojas → CATÁLOGO/AJUSTES). */
-  if (loading || !dados?.id || !categoria) {
+  /** Evita flash da UI genérica antiga antes de saber o segmento (lojas → AJUSTES/CATÁLOGO). */
+  if ((loading && !dados) || !dados?.id || !categoria) {
     return (
       <div className="mt-4 space-y-4" aria-busy="true" aria-label="Carregando botão dinâmico">
         <div className="flex gap-2">
@@ -234,20 +233,20 @@ export default function ConfigBotaoDinamico() {
           <button
             type="button"
             role="tab"
+            aria-selected={abaHospedagem === 'informacoes'}
+            className={abaVerdeCls(abaHospedagem === 'informacoes')}
+            onClick={() => setAbaHospedagem('informacoes')}
+          >
+            AJUSTES
+          </button>
+          <button
+            type="button"
+            role="tab"
             aria-selected={abaHospedagem === 'acomodacoes'}
             className={abaVerdeCls(abaHospedagem === 'acomodacoes')}
             onClick={() => setAbaHospedagem('acomodacoes')}
           >
             Acomodações
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={abaHospedagem === 'informacoes'}
-            className={abaVerdeCls(abaHospedagem === 'informacoes')}
-            onClick={() => setAbaHospedagem('informacoes')}
-          >
-            Informações
           </button>
         </div>
 
@@ -270,20 +269,20 @@ export default function ConfigBotaoDinamico() {
           <button
             type="button"
             role="tab"
-            aria-selected={abaGastronomia === 'cardapio'}
-            className={abaVerdeCls(abaGastronomia === 'cardapio')}
-            onClick={() => setAbaGastronomia('cardapio')}
-          >
-            CARDÁPIO
-          </button>
-          <button
-            type="button"
-            role="tab"
             aria-selected={abaGastronomia === 'ajustes'}
             className={abaVerdeCls(abaGastronomia === 'ajustes')}
             onClick={() => setAbaGastronomia('ajustes')}
           >
             AJUSTES
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaGastronomia === 'cardapio'}
+            className={abaVerdeCls(abaGastronomia === 'cardapio')}
+            onClick={() => setAbaGastronomia('cardapio')}
+          >
+            CARDÁPIO
           </button>
         </div>
 
@@ -298,6 +297,7 @@ export default function ConfigBotaoDinamico() {
             }
             moedaPadraoInicial={dados?.moeda_padrao != null ? String(dados.moeda_padrao) : 'USD'}
             mostrarFeedbackCardapio
+            rotuloBotaoDinamico="CARDÁPIO"
             onSalvo={() => void refetch()}
           />
         )}
@@ -312,20 +312,20 @@ export default function ConfigBotaoDinamico() {
           <button
             type="button"
             role="tab"
-            aria-selected={abaServicosLocais === 'servicos'}
-            className={abaVerdeCls(abaServicosLocais === 'servicos')}
-            onClick={() => setAbaServicosLocais('servicos')}
-          >
-            SERVIÇOS
-          </button>
-          <button
-            type="button"
-            role="tab"
             aria-selected={abaServicosLocais === 'ajustes'}
             className={abaVerdeCls(abaServicosLocais === 'ajustes')}
             onClick={() => setAbaServicosLocais('ajustes')}
           >
             AJUSTES
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaServicosLocais === 'servicos'}
+            className={abaVerdeCls(abaServicosLocais === 'servicos')}
+            onClick={() => setAbaServicosLocais('servicos')}
+          >
+            SERVIÇOS
           </button>
         </div>
 
@@ -340,6 +340,7 @@ export default function ConfigBotaoDinamico() {
             }
             moedaPadraoInicial={dados?.moeda_padrao != null ? String(dados.moeda_padrao) : 'USD'}
             mostrarFeedbackServicos
+            rotuloBotaoDinamico="SERVIÇOS"
             onSalvo={() => void refetch()}
           />
         )}
@@ -354,20 +355,20 @@ export default function ConfigBotaoDinamico() {
           <button
             type="button"
             role="tab"
-            aria-selected={abaComprasCde === 'produtos'}
-            className={abaVerdeCls(abaComprasCde === 'produtos')}
-            onClick={() => setAbaComprasCde('produtos')}
-          >
-            CATÁLOGO
-          </button>
-          <button
-            type="button"
-            role="tab"
             aria-selected={abaComprasCde === 'contatos'}
             className={abaVerdeCls(abaComprasCde === 'contatos')}
             onClick={() => setAbaComprasCde('contatos')}
           >
             AJUSTES
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaComprasCde === 'produtos'}
+            className={abaVerdeCls(abaComprasCde === 'produtos')}
+            onClick={() => setAbaComprasCde('produtos')}
+          >
+            CATÁLOGO
           </button>
         </div>
 
@@ -381,7 +382,8 @@ export default function ConfigBotaoDinamico() {
               dados?.whatsapp_comercial != null ? String(dados.whatsapp_comercial) : null
             }
             moedaPadraoInicial={dados?.moeda_padrao != null ? String(dados.moeda_padrao) : 'USD'}
-            mostrarFeedbackCatalogo={ehLojasBrAr}
+            mostrarFeedbackCatalogo
+            rotuloBotaoDinamico="CATÁLOGO"
             onSalvo={() => void refetch()}
           />
         )}
@@ -396,20 +398,20 @@ export default function ConfigBotaoDinamico() {
           <button
             type="button"
             role="tab"
+            aria-selected={abaAtrativos === 'informacoes'}
+            className={abaVerdeCls(abaAtrativos === 'informacoes')}
+            onClick={() => setAbaAtrativos('informacoes')}
+          >
+            AJUSTES
+          </button>
+          <button
+            type="button"
+            role="tab"
             aria-selected={abaAtrativos === 'atrativos'}
             className={abaVerdeCls(abaAtrativos === 'atrativos')}
             onClick={() => setAbaAtrativos('atrativos')}
           >
             Atrativos
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={abaAtrativos === 'informacoes'}
-            className={abaVerdeCls(abaAtrativos === 'informacoes')}
-            onClick={() => setAbaAtrativos('informacoes')}
-          >
-            Informações
           </button>
         </div>
 

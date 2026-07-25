@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 
@@ -75,11 +75,17 @@ export function useEmpresaState(initialData?: DadosEmpresa | null, enabled = tru
   const [loading, setLoading] = useState(enabled && !initialData)
   const [error, setError] = useState<Error | null>(null)
   const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
+  const temDadosRef = useRef(Boolean(enabled && initialData))
+
+  useEffect(() => {
+    temDadosRef.current = dados != null
+  }, [dados])
 
   const fetchEmpresa = useCallback(async () => {
     if (!enabled) return
 
-    setLoading(true)
+    // Soft refetch: não reativa skeleton se já há dados (preserva abas do Botão Dinâmico).
+    if (!temDadosRef.current) setLoading(true)
     setError(null)
 
     try {

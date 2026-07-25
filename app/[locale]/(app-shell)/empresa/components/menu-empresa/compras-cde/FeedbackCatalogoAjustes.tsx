@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
+  BarChart3,
   Bookmark,
   Eye,
   MessageSquareQuote,
@@ -12,7 +13,9 @@ import {
 } from 'lucide-react'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import { useDrenaCatalogo } from '@/app/[locale]/(app-shell)/dashboard/empresa/hooks/useDrenaCatalogo'
+import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
 import type { PeriodoDrena } from '@/lib/drenaAnalytics'
+import { supabase } from '@/lib/supabase'
 
 const VERDE = '#00D443'
 const AZUL = '#0097b2'
@@ -50,20 +53,34 @@ function FeedbackLinha({
 
 type Props = {
   empresaId: string
-  /** Pasta Feedback aberta por padrão. */
   abertoInicial?: boolean
+  rotuloBotaoDinamico?: string
 }
 
 /**
  * Feedback do catálogo (mesmo modelo da aba Catálogo do Drena-Stok).
- * Usado na aba AJUSTES do Botão Dinâmico para lojas fora de CDE.
+ * Usado na aba AJUSTES do Botão Dinâmico para lojas.
  */
 export default function FeedbackCatalogoAjustes({
   empresaId,
   abertoInicial = false,
+  rotuloBotaoDinamico = 'CATÁLOGO',
 }: Props) {
   const cat = useDrenaCatalogo(empresaId)
   const [feedbackAberto, setFeedbackAberto] = useState(abertoInicial)
+  const [cliquesMes, setCliquesMes] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!empresaId) return
+    let ativo = true
+    void (async () => {
+      const total = await contarCliquesBotaoDinamicoMes(supabase, empresaId)
+      if (ativo) setCliquesMes(total)
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [empresaId])
 
   return (
     <div className="space-y-3">
@@ -101,7 +118,7 @@ export default function FeedbackCatalogoAjustes({
           <div className="space-y-2">
             <FeedbackLinha
               icone={Package}
-              titulo="Catálogo"
+              titulo="Itens cadastrados"
               valor={cat.produtos.length}
               sufixo="produtos cadastrados"
             />
@@ -136,6 +153,12 @@ export default function FeedbackCatalogoAjustes({
               titulo="Repostados"
               valor={cat.totalRepostados}
               sufixo="no feed"
+            />
+            <FeedbackLinha
+              icone={BarChart3}
+              titulo="Desempenho"
+              valor={cliquesMes == null ? '—' : cliquesMes}
+              sufixo={`Cliques no botão dinâmico "${rotuloBotaoDinamico}" (mês corrente)`}
             />
           </div>
         </ChevronPasta>

@@ -2,13 +2,17 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import {
+  BarChart3,
   Bookmark,
+  Eye,
   MessageSquareQuote,
+  MousePointerClick,
+  Package,
   Repeat2,
   ThumbsUp,
-  Wrench,
 } from 'lucide-react'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
+import { contarCliquesBotaoDinamicoMes } from '@/lib/botaoDinamicoCliques'
 import { supabase } from '@/lib/supabase'
 import { inicioPeriodoIso, type PeriodoDrena } from '@/lib/drenaAnalytics'
 
@@ -28,7 +32,7 @@ function FeedbackLinha({
   valor,
   sufixo,
 }: {
-  icone: typeof Wrench
+  icone: typeof Package
   corIcone?: string
   titulo: string
   valor: number | string
@@ -49,22 +53,27 @@ function FeedbackLinha({
 type Props = {
   empresaId: string
   abertoInicial?: boolean
+  rotuloBotaoDinamico?: string
 }
 
 /**
- * Feedback dos serviços (AJUSTES) — espelho do Feedback do cardápio.
+ * Feedback dos serviços (AJUSTES) — espelho do Feedback do catálogo.
  */
 export default function FeedbackServicosAjustes({
   empresaId,
   abertoInicial = false,
+  rotuloBotaoDinamico = 'SERVIÇOS',
 }: Props) {
   const [periodo, setPeriodo] = useState<PeriodoDrena>('7d')
   const [feedbackAberto, setFeedbackAberto] = useState(abertoInicial)
   const [loading, setLoading] = useState(true)
-  const [totalServicos, setTotalServicos] = useState(0)
+  const [totalItens, setTotalItens] = useState(0)
+  const [totalCliques, setTotalCliques] = useState(0)
+  const [totalImpressoes, setTotalImpressoes] = useState(0)
   const [totalRecs, setTotalRecs] = useState(0)
   const [totalFavs, setTotalFavs] = useState(0)
   const [totalReposts, setTotalReposts] = useState(0)
+  const [cliquesMes, setCliquesMes] = useState<number | null>(null)
 
   const carregar = useCallback(async () => {
     if (!empresaId) return
@@ -78,7 +87,11 @@ export default function FeedbackServicosAjustes({
         .eq('empresa_id', empresaId)
         .eq('ativo', true)
       const ids = (servicos ?? []).map((p) => String(p.id)).filter(Boolean)
-      setTotalServicos(ids.length)
+      setTotalItens(ids.length)
+
+      // Cliques/impressões por serviço ainda sem tabela dedicada — mantém slot alinhado (0).
+      setTotalCliques(0)
+      setTotalImpressoes(0)
 
       const { count: recCount } = await supabase
         .from('recomendacoes_servico')
@@ -116,12 +129,18 @@ export default function FeedbackServicosAjustes({
         rep = count ?? 0
       }
       setTotalReposts(rep)
+
+      const mes = await contarCliquesBotaoDinamicoMes(supabase, empresaId)
+      setCliquesMes(mes)
     } catch (e) {
       console.warn('[FeedbackServicosAjustes]', e)
-      setTotalServicos(0)
+      setTotalItens(0)
+      setTotalCliques(0)
+      setTotalImpressoes(0)
       setTotalRecs(0)
       setTotalFavs(0)
       setTotalReposts(0)
+      setCliquesMes(0)
     } finally {
       setLoading(false)
     }
@@ -162,10 +181,23 @@ export default function FeedbackServicosAjustes({
         >
           <div className="space-y-2">
             <FeedbackLinha
-              icone={Wrench}
-              titulo="Serviços"
-              valor={totalServicos}
+              icone={Package}
+              titulo="Itens cadastrados"
+              valor={totalItens}
               sufixo="serviços cadastrados"
+            />
+            <FeedbackLinha
+              icone={MousePointerClick}
+              titulo="Cliques"
+              valor={totalCliques}
+              sufixo="nos serviços"
+            />
+            <FeedbackLinha
+              icone={Eye}
+              corIcone="#9ca3af"
+              titulo="Impressões"
+              valor={totalImpressoes}
+              sufixo="visualizações"
             />
             <FeedbackLinha
               icone={ThumbsUp}
@@ -185,6 +217,12 @@ export default function FeedbackServicosAjustes({
               titulo="Repostados"
               valor={totalReposts}
               sufixo="no feed"
+            />
+            <FeedbackLinha
+              icone={BarChart3}
+              titulo="Desempenho"
+              valor={cliquesMes == null ? '—' : cliquesMes}
+              sufixo={`Cliques no botão dinâmico "${rotuloBotaoDinamico}" (mês corrente)`}
             />
           </div>
         </ChevronPasta>

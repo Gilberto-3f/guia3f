@@ -112,7 +112,7 @@ export default function AbaCatalogo({ empresaId }: Props) {
             <div className="space-y-2">
               <FeedbackLinha
                 icone={Package}
-                titulo="Catálogo"
+                titulo="Itens cadastrados"
                 valor={cat.produtos.length}
                 sufixo="produtos cadastrados"
               />
