@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { ShoppingBag, Utensils, Wrench } from 'lucide-react'
+import { ShoppingBag, Ticket, Utensils, Wrench } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import DrawerProdutosCde from '@/components/DrawerProdutosCde'
 import DrawerCardapio from '@/components/DrawerCardapio'
 import DrawerServicosLocais from '@/components/DrawerServicosLocais'
+import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
 import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
 
 /**
@@ -18,7 +19,7 @@ import ModalVisualizacao from '@/components/atividades/ModalVisualizacao'
  * Engajamento em post de catálogo (curtida / comentário / repost).
  * @param {{
  *   variante: 'curtiu' | 'comentou' | 'repostou' | 'curtiu_repost'
- *   kind?: 'produtos' | 'cardapio' | 'servicos'
+ *   kind?: 'produtos' | 'cardapio' | 'servicos' | 'atrativos'
  *   interactorUsername: string
  *   interactorFoto: string | null
  *   donorUsername: string
@@ -72,13 +73,28 @@ export default function AtividadeCatalogo({
 
   const ehCardapio = kind === 'cardapio'
   const ehServicos = kind === 'servicos'
-  const rotuloCatalogo = ehServicos ? 'serviços' : ehCardapio ? 'cardápio' : 'catálogo'
-  const rotuloItens = ehServicos
-    ? 'os novos serviços'
-    : ehCardapio
-      ? 'os novos pratos'
-      : 'os novos produtos'
-  const IconeCatalogo = ehServicos ? Wrench : ehCardapio ? Utensils : ShoppingBag
+  const ehAtrativos = kind === 'atrativos'
+  const rotuloCatalogo = ehAtrativos
+    ? 'tickets'
+    : ehServicos
+      ? 'serviços'
+      : ehCardapio
+        ? 'cardápio'
+        : 'catálogo'
+  const rotuloItens = ehAtrativos
+    ? 'os novos atrativos'
+    : ehServicos
+      ? 'os novos serviços'
+      : ehCardapio
+        ? 'os novos pratos'
+        : 'os novos produtos'
+  const IconeCatalogo = ehAtrativos
+    ? Ticket
+    : ehServicos
+      ? Wrench
+      : ehCardapio
+        ? Utensils
+        : ShoppingBag
 
   /** Comentário no catálogo (Minha Conta): só o texto, sem carrossel de produtos/pratos. */
   const ocultarCarrosselProdutos = variante === 'comentou'
@@ -268,7 +284,16 @@ export default function AtividadeCatalogo({
       />
 
       {empresaId ? (
-        ehServicos ? (
+        ehAtrativos ? (
+          <DrawerTicketsAtrativos
+            isOpen={drawerAberto}
+            onClose={() => setDrawerAberto(false)}
+            empresaId={empresaId}
+            empresaNome={empresaNome || donorUsername || 'Empresa'}
+            empresaUsername={donorUsername}
+            empresaFotoUrl={empresaFotoUrl}
+          />
+        ) : ehServicos ? (
           <DrawerServicosLocais
             isOpen={drawerAberto}
             onClose={() => setDrawerAberto(false)}

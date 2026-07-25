@@ -1,22 +1,23 @@
 'use client'
 
-import { Copy, Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { resumoPrecosAtrativo, type AtrativoExperienciaRow } from '@/lib/atrativosCatalogo'
+import type { MoedaPadraoLoja } from '@/lib/comprasCdeMoedaPadrao'
 
 type Props = {
   item: AtrativoExperienciaRow
   onEditar: () => void
-  onDuplicar: () => void
   onExcluir: () => void
   excluindo?: boolean
+  moedaPadrao?: MoedaPadraoLoja
 }
 
 export default function MiniCardAtrativoConfig({
   item,
   onEditar,
-  onDuplicar,
   onExcluir,
   excluindo = false,
+  moedaPadrao = 'BRL',
 }: Props) {
   const capa = item.fotos[0] ?? null
 
@@ -35,7 +36,14 @@ export default function MiniCardAtrativoConfig({
         </div>
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-sm font-semibold text-[#001f3f]">{item.titulo}</p>
-          <p className="mt-1 text-sm font-bold text-[#0097b2]">{resumoPrecosAtrativo(item)}</p>
+          {item.categoria_nome ? (
+            <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+              {item.categoria_nome}
+            </p>
+          ) : null}
+          <p className="mt-1 text-sm font-bold text-[#0097b2]">
+            {resumoPrecosAtrativo(item, moedaPadrao)}
+          </p>
           {item.descricao ? (
             <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{item.descricao}</p>
           ) : null}
@@ -49,14 +57,6 @@ export default function MiniCardAtrativoConfig({
         >
           <Pencil className="h-3.5 w-3.5" aria-hidden />
           Editar
-        </button>
-        <button
-          type="button"
-          onClick={onDuplicar}
-          className="flex flex-1 items-center justify-center gap-1.5 border-l border-gray-100 py-2.5 text-xs font-semibold text-[#001f3f] hover:bg-gray-50"
-        >
-          <Copy className="h-3.5 w-3.5" aria-hidden />
-          Replicar
         </button>
         <button
           type="button"

@@ -604,6 +604,7 @@ export async function listarTicketsFavoritos(
   const { data, error } = await supabase
     .from('atrativos_experiencias')
     .select('id, empresa_id, titulo, fotos, preco_inteira, preco_meia')
+    .eq('ativo', true)
     .in('id', ids)
 
   if (error) {

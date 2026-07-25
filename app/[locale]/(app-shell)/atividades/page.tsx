@@ -53,6 +53,7 @@ import {
   postEhCatalogoProdutos,
   postEhCatalogoCardapio,
   postEhCatalogoServicos,
+  postEhCatalogoAtrativos,
   produtosSnapCatalogoPost,
   empresaIdCatalogoPost,
 } from '@/lib/atividades-feed'
@@ -2175,17 +2176,20 @@ export default function AtividadesPage() {
       if (
         item.categoria === 'catalogo_produtos' ||
         item.categoria === 'catalogo_cardapio' ||
-        item.categoria === 'catalogo_servicos'
+        item.categoria === 'catalogo_servicos' ||
+        item.categoria === 'catalogo_atrativos'
       ) {
         const catPost = canonPost ?? post
         const produtos = produtosSnapCatalogoPost(catPost)
         const empId = empresaIdCatalogoPost(catPost)
         const kindCat =
-          item.categoria === 'catalogo_servicos'
-            ? 'servicos'
-            : item.categoria === 'catalogo_cardapio'
-              ? 'cardapio'
-              : 'produtos'
+          item.categoria === 'catalogo_atrativos'
+            ? 'atrativos'
+            : item.categoria === 'catalogo_servicos'
+              ? 'servicos'
+              : item.categoria === 'catalogo_cardapio'
+                ? 'cardapio'
+                : 'produtos'
         return (
           <AtividadeCatalogo
             key={r.id}
@@ -2260,19 +2264,24 @@ export default function AtividadesPage() {
           postEhCatalogoCardapio(orig) ||
           postEhCatalogoCardapio(canonPost) ||
           postEhCatalogoServicos(orig) ||
-          postEhCatalogoServicos(canonPost)
+          postEhCatalogoServicos(canonPost) ||
+          postEhCatalogoAtrativos(orig) ||
+          postEhCatalogoAtrativos(canonPost)
         ) {
           const catPost =
             postEhCatalogoProdutos(orig) ||
             postEhCatalogoCardapio(orig) ||
-            postEhCatalogoServicos(orig)
+            postEhCatalogoServicos(orig) ||
+            postEhCatalogoAtrativos(orig)
               ? orig
               : canonPost
-          const kindRepost = postEhCatalogoServicos(catPost)
-            ? 'servicos'
-            : postEhCatalogoCardapio(catPost)
-              ? 'cardapio'
-              : 'produtos'
+          const kindRepost = postEhCatalogoAtrativos(catPost)
+            ? 'atrativos'
+            : postEhCatalogoServicos(catPost)
+              ? 'servicos'
+              : postEhCatalogoCardapio(catPost)
+                ? 'cardapio'
+                : 'produtos'
           /** Doador = quem republicou (autor do post curtido), não a empresa do catálogo. */
           const likedPost = post ?? canonPost
           const donoRepost = resolverDonoPostAtividade(likedPost, r.usuario_id)
@@ -2437,19 +2446,24 @@ export default function AtividadesPage() {
         postEhCatalogoCardapio(post) ||
         postEhCatalogoCardapio(postMetaMap[origId]) ||
         postEhCatalogoServicos(post) ||
-        postEhCatalogoServicos(postMetaMap[origId])
+        postEhCatalogoServicos(postMetaMap[origId]) ||
+        postEhCatalogoAtrativos(post) ||
+        postEhCatalogoAtrativos(postMetaMap[origId])
       ) {
         const catPost =
           postEhCatalogoProdutos(post) ||
           postEhCatalogoCardapio(post) ||
-          postEhCatalogoServicos(post)
+          postEhCatalogoServicos(post) ||
+          postEhCatalogoAtrativos(post)
             ? post
             : postMetaMap[origId]
-        const kindRepost = postEhCatalogoServicos(catPost)
-          ? 'servicos'
-          : postEhCatalogoCardapio(catPost)
-            ? 'cardapio'
-            : 'produtos'
+        const kindRepost = postEhCatalogoAtrativos(catPost)
+          ? 'atrativos'
+          : postEhCatalogoServicos(catPost)
+            ? 'servicos'
+            : postEhCatalogoCardapio(catPost)
+              ? 'cardapio'
+              : 'produtos'
         const donoCat = resolverDonoPostAtividade(catPost, r.usuario_id)
         const donorCat = propsDonorDeCurtida({
           usuario_dono_id: donoCat.usuario_id,
@@ -2578,18 +2592,25 @@ export default function AtividadesPage() {
       const postId = typeof ex.post_id === 'string' ? ex.post_id : r.alvo_id
       const comentarioId = typeof ex.comentario_id === 'string' ? ex.comentario_id : null
       const pm = postMetaMap[postId] ?? postMetaCanonico(postMetaMap, postId)
-      if (postEhCatalogoProdutos(pm) || postEhCatalogoCardapio(pm) || postEhCatalogoServicos(pm)) {
+      if (
+        postEhCatalogoProdutos(pm) ||
+        postEhCatalogoCardapio(pm) ||
+        postEhCatalogoServicos(pm) ||
+        postEhCatalogoAtrativos(pm)
+      ) {
         const donoCat = resolverDonoPostAtividade(pm, r.usuario_id)
         const donorCat = propsDonorDeCurtida({
           usuario_dono_id: donoCat.usuario_id,
           empresa_dono_id: donoCat.empresa_id,
           donor_tipo: donoCat.donor_tipo,
         })
-        const kindComent = postEhCatalogoServicos(pm)
-          ? 'servicos'
-          : postEhCatalogoCardapio(pm)
-            ? 'cardapio'
-            : 'produtos'
+        const kindComent = postEhCatalogoAtrativos(pm)
+          ? 'atrativos'
+          : postEhCatalogoServicos(pm)
+            ? 'servicos'
+            : postEhCatalogoCardapio(pm)
+              ? 'cardapio'
+              : 'produtos'
         return (
           <AtividadeCatalogo
             key={r.id}

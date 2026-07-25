@@ -387,6 +387,7 @@ export default function DrawerTicketsAtrativos({
           .from('atrativos_experiencias')
           .select('*')
           .eq('empresa_id', empresaId)
+          .eq('ativo', true)
           .order('created_at', { ascending: true }),
         supabase.from('atrativos_politicas').select('*').eq('empresa_id', empresaId).maybeSingle(),
         supabase

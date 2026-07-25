@@ -8,13 +8,20 @@ import {
   DESCRICAO_MAX,
   FOTOS_MAX,
   FOTOS_MIN,
+  TITULO_ATRATO_MAX,
   type AtrativoExperienciaRow,
 } from '@/lib/atrativosCatalogo'
+import {
+  labelValorFormProduto,
+  type MoedaPadraoLoja,
+} from '@/lib/comprasCdeMoedaPadrao'
 
 export type FormAtrativoState = {
   id: string | null
   titulo: string
+  categoria: string
   descricao: string
+  site_url: string
   oferece_inteira: boolean
   preco_inteira: string
   oferece_meia: boolean
@@ -28,7 +35,9 @@ export function formAtrativoVazio(): FormAtrativoState {
   return {
     id: null,
     titulo: '',
+    categoria: '',
     descricao: '',
+    site_url: '',
     oferece_inteira: true,
     preco_inteira: '',
     oferece_meia: false,
@@ -42,8 +51,10 @@ export function formAtrativoVazio(): FormAtrativoState {
 export function formFromRow(row: AtrativoExperienciaRow): FormAtrativoState {
   return {
     id: row.id,
-    titulo: row.titulo,
+    titulo: row.titulo.slice(0, TITULO_ATRATO_MAX),
+    categoria: row.categoria_nome ?? '',
     descricao: row.descricao,
+    site_url: row.site_url ?? '',
     oferece_inteira: row.oferece_inteira,
     preco_inteira: row.preco_inteira != null ? String(row.preco_inteira) : '',
     oferece_meia: row.oferece_meia,
@@ -54,19 +65,13 @@ export function formFromRow(row: AtrativoExperienciaRow): FormAtrativoState {
   }
 }
 
-export function formDuplicarDe(row: AtrativoExperienciaRow): FormAtrativoState {
-  return {
-    ...formFromRow(row),
-    id: null,
-    titulo: `${row.titulo} (cópia)`,
-    fotosExistentes: [...row.fotos],
-    fotosNovas: [],
-    fotosNovasPreview: [],
-  }
-}
-
 export function validarFormAtrativo(form: FormAtrativoState): string | null {
-  if (!form.titulo.trim()) return 'Informe o título do mini-card.'
+  const titulo = form.titulo.trim()
+  if (!titulo) return 'Informe o nome do atrativo.'
+  if (titulo.length > TITULO_ATRATO_MAX) {
+    return `O nome pode ter no máximo ${TITULO_ATRATO_MAX} caracteres.`
+  }
+  if (!form.categoria.trim()) return 'Informe a categoria (sessão) do atrativo.'
   if (form.descricao.length > DESCRICAO_MAX) {
     return `A descrição pode ter no máximo ${DESCRICAO_MAX} caracteres.`
   }
@@ -74,12 +79,21 @@ export function validarFormAtrativo(form: FormAtrativoState): string | null {
     return 'Selecione ao menos um tipo de ticket (inteira ou meia).'
   }
   if (form.oferece_inteira) {
-    const n = Number(form.preco_inteira)
+    const n = Number(String(form.preco_inteira).replace(',', '.'))
     if (!Number.isFinite(n) || n < 0) return 'Informe o valor do ticket inteira.'
   }
   if (form.oferece_meia) {
-    const n = Number(form.preco_meia)
+    const n = Number(String(form.preco_meia).replace(',', '.'))
     if (!Number.isFinite(n) || n < 0) return 'Informe o valor do ticket meia-entrada.'
+  }
+  const site = form.site_url.trim()
+  if (site) {
+    try {
+      // eslint-disable-next-line no-new
+      new URL(site.startsWith('http') ? site : `https://${site}`)
+    } catch {
+      return 'Informe um link válido em Ver no Site.'
+    }
   }
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
   if (totalFotos < FOTOS_MIN) return `Envie no mínimo ${FOTOS_MIN} foto.`
@@ -94,6 +108,8 @@ type Props = {
   onCancelar: () => void
   salvando?: boolean
   titulo: string
+  erro?: string | null
+  moedaPadrao?: MoedaPadraoLoja
 }
 
 export default function FormAtrativo({
@@ -103,10 +119,13 @@ export default function FormAtrativo({
   onCancelar,
   salvando = false,
   titulo,
+  erro = null,
+  moedaPadrao = 'BRL',
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
   const podeAddFoto = totalFotos < FOTOS_MAX
+  const labelPreco = labelValorFormProduto(moedaPadrao).replace(' *', '')
 
   const patch = (partial: Partial<FormAtrativoState>) => onChange({ ...form, ...partial })
 
@@ -153,15 +172,19 @@ export default function FormAtrativo({
         </button>
       </div>
 
+      {erro ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{erro}</div>
+      ) : null}
+
       <label className={labelCls}>
-        Título do mini-card
+        Nome ({form.titulo.length}/{TITULO_ATRATO_MAX})
         <input
           type="text"
           value={form.titulo}
-          onChange={(e) => patch({ titulo: e.target.value })}
+          onChange={(e) => patch({ titulo: e.target.value.slice(0, TITULO_ATRATO_MAX) })}
           className={inputCls}
-          maxLength={120}
-          placeholder="Ex.: Cataratas — passeio completo"
+          maxLength={TITULO_ATRATO_MAX}
+          placeholder="Ex.: Cataratas — passeio"
         />
       </label>
 
@@ -231,6 +254,17 @@ export default function FormAtrativo({
         />
       </label>
 
+      <label className={labelCls}>
+        Categoria (sessão dos atrativos) *
+        <input
+          type="text"
+          value={form.categoria}
+          onChange={(e) => patch({ categoria: e.target.value })}
+          className={inputCls}
+          placeholder="Ex.: Passeios, Parques, Shows"
+        />
+      </label>
+
       <div>
         <p className={labelCls}>Valor do ticket</p>
         <div className="mt-2 flex gap-2">
@@ -259,7 +293,7 @@ export default function FormAtrativo({
         </div>
         {form.oferece_inteira ? (
           <label className={`${labelCls} mt-2`}>
-            Preço inteira (R$)
+            Preço inteira — {labelPreco}
             <input
               type="number"
               min={0}
@@ -272,7 +306,7 @@ export default function FormAtrativo({
         ) : null}
         {form.oferece_meia ? (
           <label className={`${labelCls} mt-2`}>
-            Preço meia (R$)
+            Preço meia — {labelPreco}
             <input
               type="number"
               min={0}
@@ -285,18 +319,38 @@ export default function FormAtrativo({
         ) : null}
       </div>
 
-      <button
-        type="button"
-        onClick={onSalvar}
-        disabled={salvando}
-        className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50"
-        style={{ backgroundColor: COR_VERDE_BOTAO }}
-      >
-        <Save className="h-4 w-4" aria-hidden />
-        {salvando ? 'Salvando…' : 'Salvar'}
-      </button>
-      <p className="text-center text-[11px] text-gray-400" style={{ color: COR_AZUL_LOGO }}>
-        Após salvar, use Editar / Replicar / Excluir no card abaixo.
+      <label className={labelCls}>
+        Ver no Site (opcional)
+        <input
+          type="url"
+          value={form.site_url}
+          onChange={(e) => patch({ site_url: e.target.value })}
+          className={inputCls}
+          placeholder="https://..."
+        />
+      </label>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onCancelar}
+          className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-700"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={onSalvar}
+          disabled={salvando}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50"
+          style={{ backgroundColor: COR_VERDE_BOTAO }}
+        >
+          <Save className="h-4 w-4" aria-hidden />
+          {salvando ? 'Salvando…' : 'Salvar'}
+        </button>
+      </div>
+      <p className="text-center text-[11px]" style={{ color: COR_AZUL_LOGO }}>
+        Novos cadastros ficam como rascunho até você tocar em PUBLICAR.
       </p>
     </div>
   )

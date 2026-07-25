@@ -85,6 +85,7 @@ export default function FeedbackAtrativosAjustes({
         .from('atrativos_experiencias')
         .select('id')
         .eq('empresa_id', empresaId)
+        .eq('ativo', true)
       const ids = (tickets ?? []).map((p) => String(p.id)).filter(Boolean)
       setTotalItens(ids.length)
 
@@ -105,8 +106,23 @@ export default function FeedbackAtrativosAjustes({
       }
       setTotalFavs(favs)
 
-      // Sem tipo de post de catálogo de tickets ainda — mantém slot.
-      setTotalReposts(0)
+      const { data: posts } = await supabase
+        .from('posts')
+        .select('id')
+        .eq('empresa_id', empresaId)
+        .eq('tipo', 'catalogo_atrativos')
+        .gte('created_at', desde)
+      const postIds = (posts ?? []).map((p) => String(p.id)).filter(Boolean)
+      let rep = 0
+      if (postIds.length) {
+        const { count } = await supabase
+          .from('reposts')
+          .select('id', { count: 'exact', head: true })
+          .in('post_id', postIds)
+          .gte('created_at', desde)
+        rep = count ?? 0
+      }
+      setTotalReposts(rep)
 
       const mes = await contarCliquesBotaoDinamicoMes(supabase, empresaId)
       setCliquesMes(mes)
