@@ -1,14 +1,28 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BadgeCheck, Check, ShoppingBag, Ticket, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ArrowLeft,
+  BadgeCheck,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  MessageCircle,
+  ShoppingBag,
+  Ticket,
+  X,
+} from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
-import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { openWhatsAppChat, mensagemWhatsappTicket } from '@/lib/whatsapp-empresa'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
+import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
+import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
@@ -21,6 +35,8 @@ import {
   type FormasPagamentoHospedagem,
   type TipoTicketAtrativo,
 } from '@/lib/atrativosCatalogo'
+
+const COR = '#0097b2'
 
 function rotuloEntrada(q: number): string {
   return q === 1 ? '1 entrada' : `${q} entradas`
@@ -147,6 +163,11 @@ function DetalheTicket({
   favoritoInicial,
   onFavoritoChange,
   onComprar,
+  whatsappComercial,
+  usernameExibir,
+  empresaId,
+  perfilEhEmpresa,
+  perfilEhProfissional,
 }: {
   item: AtrativoExperienciaRow
   regrasMeia: string
@@ -154,6 +175,11 @@ function DetalheTicket({
   favoritoInicial: boolean
   onFavoritoChange: (salvo: boolean) => void
   onComprar: (qtyInteira: number, qtyMeia: number) => void
+  whatsappComercial: string | null
+  usernameExibir: string | null
+  empresaId: string
+  perfilEhEmpresa: boolean
+  perfilEhProfissional: boolean
 }) {
   const tipos = useMemo(() => {
     const t: TipoTicketAtrativo[] = []
@@ -165,6 +191,8 @@ function DetalheTicket({
   const [qtyInteira, setQtyInteira] = useState(item.oferece_inteira ? 1 : 0)
   const [qtyMeia, setQtyMeia] = useState(item.oferece_inteira ? 0 : item.oferece_meia ? 1 : 0)
   const [fotoIdx, setFotoIdx] = useState(0)
+  const [verMaisAberto, setVerMaisAberto] = useState(false)
+  const touchFotoX = useRef<number | null>(null)
 
   useEffect(() => {
     if (!tipos.includes(tipo) && tipos[0]) setTipo(tipos[0])
@@ -174,6 +202,7 @@ function DetalheTicket({
     setQtyInteira(item.oferece_inteira ? 1 : 0)
     setQtyMeia(item.oferece_inteira ? 0 : item.oferece_meia ? 1 : 0)
     setFotoIdx(0)
+    setVerMaisAberto(false)
   }, [item.id, item.oferece_inteira, item.oferece_meia])
 
   const qtyAtual = tipo === 'inteira' ? qtyInteira : qtyMeia
@@ -187,42 +216,93 @@ function DetalheTicket({
   const totalTickets = qtyInteira + qtyMeia
   const fotos = item.fotos.length ? item.fotos : []
 
+  const abrirSite = () => {
+    const url = item.site_url?.trim()
+    if (!url) {
+      window.alert('Link do site não cadastrado para este atrativo.')
+      return
+    }
+    const href = /^https?:\/\//i.test(url) ? url : `https://${url}`
+    window.open(href, '_blank', 'noopener,noreferrer')
+  }
+
+  const abrirWhatsapp = () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const ticketUrl = origin
+      ? `${origin}/tickets/${item.id}?ref=whatsapp`
+      : `/tickets/${item.id}?ref=whatsapp`
+    const ok = openWhatsAppChat(
+      whatsappComercial,
+      mensagemWhatsappTicket({
+        nomeTicket: item.titulo,
+        username: usernameExibir,
+        ticketUrl,
+      }),
+    )
+    if (!ok) window.alert('WhatsApp comercial da empresa não configurado.')
+  }
+
   return (
     <div className="space-y-4 pb-6">
-      <div className="flex items-center gap-2 px-1">
-        <p className="min-w-0 flex-1 truncate text-left text-base font-semibold text-[#001f3f]">
-          {item.titulo}
-        </p>
-        <BotaoEstrelaFavorito
-          usuarioId={visitanteId}
-          alvoId={item.id}
-          tipo="ticket"
-          inicial={favoritoInicial}
-          size={20}
-          onChange={onFavoritoChange}
-        />
-      </div>
+      <p className="px-1 text-left text-base font-semibold text-[#001f3f]">{item.titulo}</p>
 
       {fotos.length > 0 ? (
-        <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-gray-100">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={fotos[fotoIdx] ?? fotos[0]}
-            alt=""
-            className="h-full w-full object-cover"
-          />
+        <div className="relative">
+          <div
+            className="aspect-[4/3] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
+            onTouchStart={(e) => {
+              touchFotoX.current = e.touches[0]?.clientX ?? null
+            }}
+            onTouchEnd={(e) => {
+              const start = touchFotoX.current
+              touchFotoX.current = null
+              if (start == null || fotos.length <= 1) return
+              const end = e.changedTouches[0]?.clientX
+              if (end == null) return
+              const dx = end - start
+              if (Math.abs(dx) < 40) return
+              if (dx < 0) {
+                setFotoIdx((i) => (i + 1) % fotos.length)
+              } else {
+                setFotoIdx((i) => (i - 1 + fotos.length) % fotos.length)
+              }
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={fotos[fotoIdx] ?? fotos[0]}
+              alt=""
+              className="pointer-events-none h-full w-full object-cover"
+              draggable={false}
+            />
+          </div>
           {fotos.length > 1 ? (
-            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
-              {fotos.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setFotoIdx(i)}
-                  className={`h-2 w-2 rounded-full ${i === fotoIdx ? 'bg-white' : 'bg-white/50'}`}
-                  aria-label={`Foto ${i + 1}`}
-                />
-              ))}
-            </div>
+            <>
+              <button
+                type="button"
+                onClick={() => setFotoIdx((i) => (i - 1 + fotos.length) % fotos.length)}
+                className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/45 p-2 text-white"
+                aria-label="Foto anterior"
+              >
+                <ChevronLeft className="h-5 w-5" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => setFotoIdx((i) => (i + 1) % fotos.length)}
+                className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/45 p-2 text-white"
+                aria-label="Próxima foto"
+              >
+                <ChevronRight className="h-5 w-5" aria-hidden />
+              </button>
+              <div className="pointer-events-none absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+                {fotos.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`h-1.5 w-1.5 rounded-full ${i === fotoIdx ? 'bg-white' : 'bg-white/50'}`}
+                  />
+                ))}
+              </div>
+            </>
           ) : null}
         </div>
       ) : (
@@ -305,6 +385,54 @@ function DetalheTicket({
         <ShoppingBag className="h-4 w-4 shrink-0 text-white" aria-hidden />
         COMPRAR
       </button>
+
+      <ChevronPasta
+        titulo="VER MAIS"
+        aberto={verMaisAberto}
+        onToggle={() => setVerMaisAberto((v) => !v)}
+        corTitulo={COR}
+      >
+        <div className="flex items-center justify-around gap-2 py-1">
+          <button
+            type="button"
+            onClick={abrirWhatsapp}
+            className="flex flex-col items-center gap-1 text-[#25D366]"
+            aria-label="WhatsApp"
+          >
+            <MessageCircle className="h-7 w-7" aria-hidden />
+            <span className="text-[10px] font-semibold text-gray-600">WhatsApp</span>
+          </button>
+          {item.site_url?.trim() ? (
+            <button
+              type="button"
+              onClick={abrirSite}
+              className="flex flex-col items-center gap-1 text-[#0097b2]"
+              aria-label="Ver no site"
+            >
+              <ExternalLink className="h-7 w-7" aria-hidden />
+              <span className="text-[10px] font-semibold text-gray-600">Site</span>
+            </button>
+          ) : null}
+          {!perfilEhEmpresa ? (
+            <div className="flex flex-col items-center gap-1">
+              <BotaoEstrelaFavorito
+                usuarioId={visitanteId}
+                alvoId={item.id}
+                tipo="ticket"
+                inicial={favoritoInicial}
+                size={28}
+                className="!opacity-100"
+                onChange={onFavoritoChange}
+              />
+              <span className="text-[10px] font-semibold text-gray-600">Favorito</span>
+            </div>
+          ) : null}
+        </div>
+      </ChevronPasta>
+
+      {!perfilEhEmpresa && !perfilEhProfissional ? (
+        <BotaoChamarCorrida variant="empresa" empresaId={empresaId} />
+      ) : null}
     </div>
   )
 }
@@ -323,6 +451,7 @@ export default function DrawerTicketsAtrativos({
 }: Props) {
   const router = useRouter()
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
+  const { perfilEhProfissional, perfilEhEmpresa } = useProfissionalGate()
   const {
     podeComprarReservar,
     avisarBloqueio,
@@ -353,6 +482,11 @@ export default function DrawerTicketsAtrativos({
   const [formaPagamento, setFormaPagamento] = useState<string>('')
   const [visitanteId, setVisitanteId] = useState<string | null>(null)
   const [favTickets, setFavTickets] = useState<Set<string>>(() => new Set())
+  const [whatsappLive, setWhatsappLive] = useState<string | null>(
+    whatsappDestino != null && String(whatsappDestino).trim() !== ''
+      ? String(whatsappDestino).trim()
+      : null,
+  )
 
   useModalScrollLock(isOpen)
 
@@ -392,7 +526,9 @@ export default function DrawerTicketsAtrativos({
         supabase.from('atrativos_politicas').select('*').eq('empresa_id', empresaId).maybeSingle(),
         supabase
           .from('empresas')
-          .select('nome_fantasia, nome_usuario, foto_url, nota_media, docs_verificado, status')
+          .select(
+            'nome_fantasia, nome_usuario, foto_url, nota_media, docs_verificado, status, whatsapp_comercial, whatsapp',
+          )
           .eq('id', empresaId)
           .maybeSingle(),
       ])
@@ -434,6 +570,19 @@ export default function DrawerTicketsAtrativos({
           if (empresaVerificadaProp != null) return Boolean(empresaVerificadaProp)
           return contaVerificadaDocumentacao('empresa', emp)
         })
+        const waComercial =
+          emp.whatsapp_comercial != null && String(emp.whatsapp_comercial).trim() !== ''
+            ? String(emp.whatsapp_comercial).trim()
+            : emp.whatsapp != null && String(emp.whatsapp).trim() !== ''
+              ? String(emp.whatsapp).trim()
+              : null
+        setWhatsappLive(
+          whatsappDestino != null && String(whatsappDestino).trim() !== ''
+            ? String(whatsappDestino).trim()
+            : waComercial,
+        )
+      } else if (whatsappDestino != null && String(whatsappDestino).trim() !== '') {
+        setWhatsappLive(String(whatsappDestino).trim())
       }
 
       const {
@@ -468,7 +617,7 @@ export default function DrawerTicketsAtrativos({
     } finally {
       setLoading(false)
     }
-  }, [empresaId, empresaNome, empresaUsername, empresaFotoUrl, notaMedia, ticketIdInicial, empresaVerificadaProp])
+  }, [empresaId, empresaNome, empresaUsername, empresaFotoUrl, notaMedia, ticketIdInicial, empresaVerificadaProp, whatsappDestino])
 
   useEffect(() => {
     if (!isOpen) return
@@ -559,7 +708,7 @@ export default function DrawerTicketsAtrativos({
       const formaLabel = (FORMAS_LABEL[formaPagamento] ?? formaPagamento) || 'a combinar'
       const texto = `Olá! Gostaria de confirmar a compra de tickets em ${empresaNome}.\n\n${linhas}\n\nTotal: R$ ${totalCarrinho.toFixed(2)}\nForma de pagamento: ${formaLabel}\n(empresa: ${empresaId})\n\nPor favor, encaminhe o comprovante/orientação via WhatsApp.`
 
-      if (!openWhatsAppChat(whatsappDestino, texto)) {
+      if (!openWhatsAppChat(whatsappLive ?? whatsappDestino, texto)) {
         alert('WhatsApp da empresa não configurado.')
         return
       }
@@ -742,6 +891,11 @@ export default function DrawerTicketsAtrativos({
                 favoritoInicial={favTickets.has(selecionado.id)}
                 onFavoritoChange={(salvo) => onFavoritoChange(selecionado.id, salvo)}
                 onComprar={(qi, qm) => montarCarrinhoDoTicket(selecionado, qi, qm)}
+                whatsappComercial={whatsappLive}
+                usernameExibir={usernameExibir}
+                empresaId={empresaId}
+                perfilEhEmpresa={perfilEhEmpresa}
+                perfilEhProfissional={perfilEhProfissional}
               />
             </div>
           ) : passo === 2 && !selecionado && !loading ? (
