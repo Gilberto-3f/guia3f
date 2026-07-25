@@ -253,10 +253,11 @@ export default function ConfigBotaoDinamico() {
         {abaHospedagem === 'acomodacoes' ? (
           <AbaAcomodacoes empresaId={empresaId} />
         ) : (
-          <div className="space-y-4">
-            <AbaInformacoes empresaId={empresaId} />
-            {desempenhoCard}
-          </div>
+          <AbaInformacoes
+            empresaId={empresaId}
+            moedaPadraoInicial={dados?.moeda_padrao != null ? String(dados.moeda_padrao) : 'BRL'}
+            onSalvo={() => void refetch()}
+          />
         )}
       </div>
     )
