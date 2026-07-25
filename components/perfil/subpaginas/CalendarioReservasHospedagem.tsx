@@ -5,8 +5,7 @@ import { ChevronDown, Ban } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
   formatarValorDiaria,
-  parseComodidadesExtras,
-  parseComodidadesPadrao,
+  mapAcomodacaoRow,
   rotuloAcomodacaoResumo,
   type HospedagemAcomodacaoRow,
 } from '@/lib/hospedagemAcomodacoesCatalogo'
@@ -18,21 +17,6 @@ import CalendarioAcomodacao from '@/components/hospedagem/CalendarioAcomodacao'
 
 type Props = {
   empresaId: string
-}
-
-function mapRow(raw: Record<string, unknown>): HospedagemAcomodacaoRow {
-  return {
-    id: String(raw.id),
-    empresa_id: String(raw.empresa_id),
-    categoria_imovel: String(raw.categoria_imovel),
-    categoria_particular: raw.categoria_particular != null ? String(raw.categoria_particular) : null,
-    opcao_compartilhada: raw.opcao_compartilhada != null ? String(raw.opcao_compartilhada) : null,
-    capacidade_pessoas: Number(raw.capacidade_pessoas) || 1,
-    valor_diaria: Number(raw.valor_diaria) || 0,
-    fotos: Array.isArray(raw.fotos) ? raw.fotos.map(String) : [],
-    comodidades_padrao: parseComodidadesPadrao(raw.comodidades_padrao),
-    comodidades_extras: parseComodidadesExtras(raw.comodidades_extras),
-  }
 }
 
 export default function CalendarioReservasHospedagem({ empresaId }: Props) {
@@ -57,7 +41,7 @@ export default function CalendarioReservasHospedagem({ empresaId }: Props) {
         .eq('empresa_id', empresaId)
         .order('created_at', { ascending: true })
       if (error) throw error
-      const rows = (data ?? []).map((r) => mapRow(r as Record<string, unknown>))
+      const rows = (data ?? []).map((r) => mapAcomodacaoRow(r as Record<string, unknown>))
       setLista(rows)
       const pm: Record<string, PeriodoOcupacao[]> = {}
       await Promise.all(

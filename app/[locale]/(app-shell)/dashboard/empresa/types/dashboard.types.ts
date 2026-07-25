@@ -82,6 +82,24 @@ export interface RecomendacaoServicoProfissional {
   detalhes: RecomendacaoServicoDetalhe[]
 }
 
+/** Detalhe de recomendação indireta (ticket / atrativo). */
+export interface RecomendacaoTicketDetalhe extends RecomendacaoDetalhe {
+  experiencia_id: string
+  experiencia_nome: string
+  experiencia_foto_url: string | null
+}
+
+export interface RecomendacaoTicketProfissional {
+  profissional_id: string
+  profissional_nome: string
+  profissional_username: string
+  profissional_foto_url: string | null
+  profissional_verificado?: boolean
+  categoria: string
+  total: number
+  detalhes: RecomendacaoTicketDetalhe[]
+}
+
 export interface PaxDetalhe {
   id: string
   created_at: string

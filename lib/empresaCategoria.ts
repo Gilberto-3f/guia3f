@@ -58,3 +58,9 @@ export function empresaEhServicosLocais(categoria: string | null | undefined): b
   return c === 'servicos_locais' || c === 'serviços locais' || c === 'servicos locais'
 }
 
+/** Empresa de atrativos / passeios (botão TICKETS). */
+export function empresaEhAtrativos(categoria: string | null | undefined): boolean {
+  const c = String(categoria ?? '').toLowerCase().trim()
+  return c === 'passeios' || c === 'atrativos'
+}
+

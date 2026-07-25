@@ -6,7 +6,7 @@ import { useDashboardEmpresa } from '../../hooks/useDashboardEmpresa'
 import { useFunilConversao } from '../../hooks/useFunilConversao'
 import { useFunilNotificacoes } from '../../hooks/useFunilNotificacoes'
 import { vistoEmEtapa } from '@/lib/dashboardFunilBadge'
-import { empresaEhGastronomia, empresaEhServicosLocais } from '@/lib/empresaCategoria'
+import { empresaEhAtrativos, empresaEhGastronomia, empresaEhServicosLocais } from '@/lib/empresaCategoria'
 import type { Periodo } from '../../types/dashboard.types'
 
 import EtapaFunil from './EtapaFunil'
@@ -53,6 +53,7 @@ export default function FunilConversao({ periodo }: Props) {
     recomendacoesProdutoPorProfissional,
     recomendacoesPratoPorProfissional,
     recomendacoesServicoPorProfissional,
+    recomendacoesTicketPorProfissional,
     paxPorProfissional,
     vendasPorProfissional,
     vendasSemProfissional,
@@ -65,6 +66,7 @@ export default function FunilConversao({ periodo }: Props) {
 
   const ehGastronomia = empresaEhGastronomia(empresa?.categoria)
   const ehServicosLocais = empresaEhServicosLocais(empresa?.categoria)
+  const ehAtrativos = empresaEhAtrativos(empresa?.categoria)
 
   const usuarioId = empresa?.usuario_id ?? null
   const { contagens, leitura, marcarEtapaLida } = useFunilNotificacoes(empresaId)
@@ -137,6 +139,7 @@ export default function FunilConversao({ periodo }: Props) {
       recomendacoes_produto_detalhe: recomendacoesProdutoPorProfissional,
       recomendacoes_prato_detalhe: recomendacoesPratoPorProfissional,
       recomendacoes_servico_detalhe: recomendacoesServicoPorProfissional,
+      recomendacoes_ticket_detalhe: recomendacoesTicketPorProfissional,
       pax_detalhe: paxPorProfissional,
       vendas_detalhe: vendasPorProfissional,
       vendas_sem_profissional: vendasSemProfissional,
@@ -149,6 +152,7 @@ export default function FunilConversao({ periodo }: Props) {
       recomendacoesProdutoPorProfissional,
       recomendacoesPratoPorProfissional,
       recomendacoesServicoPorProfissional,
+      recomendacoesTicketPorProfissional,
       paxPorProfissional,
       vendasPorProfissional,
       vendasSemProfissional,
@@ -275,8 +279,10 @@ export default function FunilConversao({ periodo }: Props) {
               recomendacoesProduto={recomendacoesProdutoPorProfissional}
               recomendacoesPrato={recomendacoesPratoPorProfissional}
               recomendacoesServico={recomendacoesServicoPorProfissional}
+              recomendacoesTicket={recomendacoesTicketPorProfissional}
               empresaEhGastronomia={ehGastronomia}
               empresaEhServicosLocais={ehServicosLocais}
+              empresaEhAtrativos={ehAtrativos}
               referenciaVistoEm={referenciaVistoEm}
               pastasVistas={pastasVistas}
               profissionaisVistos={profissionaisVistos}

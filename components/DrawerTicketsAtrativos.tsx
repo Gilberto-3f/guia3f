@@ -22,6 +22,7 @@ import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
 import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
+import PopupRecomendarTicket from '@/components/atrativos/PopupRecomendarTicket'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
@@ -166,6 +167,7 @@ function DetalheTicket({
   whatsappComercial,
   usernameExibir,
   empresaId,
+  empresaNome,
   perfilEhEmpresa,
   perfilEhProfissional,
 }: {
@@ -178,6 +180,7 @@ function DetalheTicket({
   whatsappComercial: string | null
   usernameExibir: string | null
   empresaId: string
+  empresaNome: string
   perfilEhEmpresa: boolean
   perfilEhProfissional: boolean
 }) {
@@ -192,6 +195,7 @@ function DetalheTicket({
   const [qtyMeia, setQtyMeia] = useState(item.oferece_inteira ? 0 : item.oferece_meia ? 1 : 0)
   const [fotoIdx, setFotoIdx] = useState(0)
   const [verMaisAberto, setVerMaisAberto] = useState(false)
+  const [recomendarAberto, setRecomendarAberto] = useState(false)
   const touchFotoX = useRef<number | null>(null)
 
   useEffect(() => {
@@ -430,9 +434,35 @@ function DetalheTicket({
         </div>
       </ChevronPasta>
 
+      {!perfilEhEmpresa && perfilEhProfissional ? (
+        <button
+          type="button"
+          onClick={() => setRecomendarAberto(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#00D443] py-3 text-base font-bold text-white shadow-sm transition-opacity hover:opacity-95"
+        >
+          <MessageCircle size={20} className="text-white" aria-hidden />
+          RECOMENDAR
+        </button>
+      ) : null}
+
       {!perfilEhEmpresa && !perfilEhProfissional ? (
         <BotaoChamarCorrida variant="empresa" empresaId={empresaId} />
       ) : null}
+
+      <PopupRecomendarTicket
+        aberto={recomendarAberto}
+        onFechar={() => setRecomendarAberto(false)}
+        ticket={{
+          id: item.id,
+          nome: item.titulo,
+          precoInteira: item.preco_inteira,
+          precoMeia: item.preco_meia,
+          empresaId,
+          empresaNome,
+          empresaUsername: usernameExibir,
+          categoriaId: item.categoria_id,
+        }}
+      />
     </div>
   )
 }
@@ -894,6 +924,7 @@ export default function DrawerTicketsAtrativos({
                 whatsappComercial={whatsappLive}
                 usernameExibir={usernameExibir}
                 empresaId={empresaId}
+                empresaNome={nomeLive}
                 perfilEhEmpresa={perfilEhEmpresa}
                 perfilEhProfissional={perfilEhProfissional}
               />

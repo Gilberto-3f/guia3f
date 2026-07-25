@@ -1,32 +1,36 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Package, Users, Utensils, Wrench, type LucideIcon } from 'lucide-react'
+import { Package, Ticket, Users, Utensils, Wrench, type LucideIcon } from 'lucide-react'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 import type {
   RecomendacaoPratoProfissional,
   RecomendacaoProdutoProfissional,
   RecomendacaoProfissional,
   RecomendacaoServicoProfissional,
+  RecomendacaoTicketProfissional,
 } from '../../types/dashboard.types'
 import { contarNovosEventos } from './contarNovosFunil'
 import LinhaProfissionalRecomendacao from './LinhaProfissionalRecomendacao'
 import LinhaProfissionalRecomendacaoProduto from './LinhaProfissionalRecomendacaoProduto'
 import LinhaProfissionalRecomendacaoPrato from './LinhaProfissionalRecomendacaoPrato'
 import LinhaProfissionalRecomendacaoServico from './LinhaProfissionalRecomendacaoServico'
+import LinhaProfissionalRecomendacaoTicket from './LinhaProfissionalRecomendacaoTicket'
 import RelatorioPastasCategoria from './RelatorioPastasCategoria'
 
 const VERDE = '#00D443'
 
-type AbaRec = 'pagina' | 'produtos' | 'cardapio' | 'servicos'
+type AbaRec = 'pagina' | 'produtos' | 'cardapio' | 'servicos' | 'tickets'
 
 interface Props {
   recomendacoes: RecomendacaoProfissional[]
   recomendacoesProduto?: RecomendacaoProdutoProfissional[]
   recomendacoesPrato?: RecomendacaoPratoProfissional[]
   recomendacoesServico?: RecomendacaoServicoProfissional[]
+  recomendacoesTicket?: RecomendacaoTicketProfissional[]
   empresaEhGastronomia?: boolean
   empresaEhServicosLocais?: boolean
+  empresaEhAtrativos?: boolean
   referenciaVistoEm?: string | null
   pastasVistas?: Set<string>
   profissionaisVistos?: Set<string>
@@ -55,8 +59,10 @@ export default function CardRecomendacoes({
   recomendacoesProduto = [],
   recomendacoesPrato = [],
   recomendacoesServico = [],
+  recomendacoesTicket = [],
   empresaEhGastronomia = false,
   empresaEhServicosLocais = false,
+  empresaEhAtrativos = false,
   referenciaVistoEm,
   pastasVistas,
   profissionaisVistos,
@@ -66,14 +72,16 @@ export default function CardRecomendacoes({
   const temProdutos = recomendacoesProduto.length > 0
   const temCardapio = empresaEhGastronomia || recomendacoesPrato.length > 0
   const temServicos = empresaEhServicosLocais || recomendacoesServico.length > 0
-  const temAbasExtra = temProdutos || temCardapio || temServicos
+  const temTickets = empresaEhAtrativos || recomendacoesTicket.length > 0
+  const temAbasExtra = temProdutos || temCardapio || temServicos || temTickets
   const [aba, setAba] = useState<AbaRec>('pagina')
 
   useEffect(() => {
     if (aba === 'produtos' && !temProdutos) setAba('pagina')
     if (aba === 'cardapio' && !temCardapio) setAba('pagina')
     if (aba === 'servicos' && !temServicos) setAba('pagina')
-  }, [temProdutos, temCardapio, temServicos, aba])
+    if (aba === 'tickets' && !temTickets) setAba('pagina')
+  }, [temProdutos, temCardapio, temServicos, temTickets, aba])
 
   const abas = useMemo(() => {
     const lista: { id: AbaRec; label: string; Icon: LucideIcon }[] = [
@@ -82,8 +90,9 @@ export default function CardRecomendacoes({
     if (temProdutos) lista.push({ id: 'produtos', label: 'PRODUTOS', Icon: Package })
     if (temCardapio) lista.push({ id: 'cardapio', label: 'CARDÁPIO', Icon: Utensils })
     if (temServicos) lista.push({ id: 'servicos', label: 'SERVIÇOS', Icon: Wrench })
+    if (temTickets) lista.push({ id: 'tickets', label: 'TICKETS', Icon: Ticket })
     return lista
-  }, [temProdutos, temCardapio, temServicos])
+  }, [temProdutos, temCardapio, temServicos, temTickets])
 
   const naoLidasPagina = useMemo(
     () => contarNaoLidasAba(recomendacoes, referenciaVistoEm, profissionaisVistos),
@@ -108,11 +117,18 @@ export default function CardRecomendacoes({
     [recomendacoesServico, referenciaVistoEm, profissionaisVistos],
   )
 
+  const naoLidasTickets = useMemo(
+    () =>
+      contarNaoLidasAba(recomendacoesTicket, referenciaVistoEm, profissionaisVistos, 'ticket:'),
+    [recomendacoesTicket, referenciaVistoEm, profissionaisVistos],
+  )
+
   const naoLidasAba = (id: AbaRec) => {
     if (id === 'pagina') return naoLidasPagina
     if (id === 'produtos') return naoLidasProdutos
     if (id === 'cardapio') return naoLidasCardapio
-    return naoLidasServicos
+    if (id === 'servicos') return naoLidasServicos
+    return naoLidasTickets
   }
 
   return (
@@ -279,6 +295,45 @@ export default function CardRecomendacoes({
           renderLinha={(prof, naoLidas, onVisto, posicao) => (
             <LinhaProfissionalRecomendacaoServico
               key={`servico-${prof.profissional_id}`}
+              profissional={prof}
+              naoLidas={naoLidas}
+              onAberto={onVisto}
+              posicao={posicao}
+            />
+          )}
+        />
+      ) : null}
+
+      {temTickets && aba === 'tickets' ? (
+        <RelatorioPastasCategoria
+          prefixoId="rec-ticket"
+          items={recomendacoesTicket}
+          referenciaVistoEm={referenciaVistoEm}
+          pastasVistas={
+            pastasVistas
+              ? new Set(
+                  [...pastasVistas]
+                    .filter((k) => k.startsWith('ticket:'))
+                    .map((k) => k.slice('ticket:'.length)),
+                )
+              : undefined
+          }
+          profissionaisVistos={
+            profissionaisVistos
+              ? new Set(
+                  [...profissionaisVistos]
+                    .filter((k) => k.startsWith('ticket:'))
+                    .map((k) => k.slice('ticket:'.length)),
+                )
+              : undefined
+          }
+          onPastaVista={(cat) => onPastaVista?.(`ticket:${cat}`)}
+          onProfissionalVisto={(id) => onProfissionalVisto?.(`ticket:${id}`)}
+          rotuloBloco="tickets recomendados"
+          vazioCategoria="Nenhuma recomendação de ticket nesta categoria"
+          renderLinha={(prof, naoLidas, onVisto, posicao) => (
+            <LinhaProfissionalRecomendacaoTicket
+              key={`ticket-${prof.profissional_id}`}
               profissional={prof}
               naoLidas={naoLidas}
               onAberto={onVisto}

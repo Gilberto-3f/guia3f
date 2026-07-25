@@ -16,6 +16,8 @@ import type {
   RecomendacaoPratoProfissional,
   RecomendacaoServicoDetalhe,
   RecomendacaoServicoProfissional,
+  RecomendacaoTicketDetalhe,
+  RecomendacaoTicketProfissional,
   RecomendacaoProfissional,
   VendaDetalhe,
   VendaProfissional,
@@ -224,13 +226,20 @@ async function contarRecomendacoes(empresaId: string, dataLimite: string | null)
     .eq('empresa_id', empresaId)
   if (dataLimite) qServico = qServico.gte('created_at', dataLimite)
 
-  const [pagina, produtos, pratos, servicos] = await Promise.all([
+  let qTicket = supabase
+    .from('recomendacoes_ticket')
+    .select('*', { count: 'exact', head: true })
+    .eq('empresa_id', empresaId)
+  if (dataLimite) qTicket = qTicket.gte('created_at', dataLimite)
+
+  const [pagina, produtos, pratos, servicos, tickets] = await Promise.all([
     contar(qRec),
     contar(qProd),
     contar(qPrato),
     contar(qServico),
+    contar(qTicket).catch(() => 0),
   ])
-  return pagina + produtos + pratos + servicos
+  return pagina + produtos + pratos + servicos + tickets
 }
 
 async function contarPax(empresaId: string, dataLimite: string | null): Promise<number> {
@@ -703,6 +712,111 @@ async function buscarRecomendacoesServicoPorProfissional(
   return Object.values(recAgrupadas).sort((a, b) => b.total - a.total)
 }
 
+async function buscarRecomendacoesTicketPorProfissional(
+  empresaId: string,
+  dataLimite: string | null,
+): Promise<RecomendacaoTicketProfissional[]> {
+  const selectCompleto = `
+      id,
+      created_at,
+      experiencia_id,
+      turista_canal,
+      turista_email_prefix,
+      turista_whatsapp_final,
+      turista_whatsapp_ddd,
+      profissional_id,
+      profissionais:profissional_id (${PROF_JOIN_FIELDS}),
+      atrativos_experiencias:experiencia_id ( id, titulo, fotos )
+    `
+  const selectBase = `
+      id,
+      created_at,
+      experiencia_id,
+      profissional_id,
+      profissionais:profissional_id (${PROF_JOIN_FIELDS}),
+      atrativos_experiencias:experiencia_id ( id, titulo, fotos )
+    `
+
+  const queryRec = (select: string) => {
+    let q = supabase
+      .from('recomendacoes_ticket')
+      .select(select)
+      .eq('empresa_id', empresaId)
+      .order('created_at', { ascending: false })
+    if (dataLimite) q = q.gte('created_at', dataLimite)
+    return q
+  }
+
+  let recData: unknown[] | null = null
+  let recErr: unknown = null
+
+  for (const select of [selectCompleto, selectBase]) {
+    const res = await queryRec(select)
+    recData = res.data ?? null
+    recErr = res.error
+    if (!recErr) break
+    if (!isColunaInexistente(recErr) && !isTabelaInexistente(recErr)) {
+      const msg = String((recErr as { message?: string })?.message ?? '').toLowerCase()
+      if (!msg.includes('turista_')) break
+    }
+    if (isTabelaInexistente(recErr)) break
+  }
+
+  if (recErr && !isTabelaInexistente(recErr) && !isColunaInexistente(recErr)) {
+    const msg = String((recErr as { message?: string })?.message ?? '').toLowerCase()
+    if (!msg.includes('turista_')) throw recErr
+  }
+  if (recErr && isTabelaInexistente(recErr)) return []
+
+  const recAgrupadas: Record<string, RecomendacaoTicketProfissional> = {}
+  if (!recErr && recData) {
+    for (const rec of recData as unknown[]) {
+      const row = rec as Record<string, unknown>
+      const pid = row.profissional_id != null ? String(row.profissional_id) : ''
+      if (!pid) continue
+
+      const prof = asProfRow(row.profissionais)
+      const categorias = prof ? asCategorias(prof.categorias) : []
+      const categoria = resolverCategoriaProfissional(categorias)
+      const experiencia = asProfRow(row.atrativos_experiencias)
+      const experienciaId =
+        row.experiencia_id != null
+          ? String(row.experiencia_id)
+          : experiencia?.id != null
+            ? String(experiencia.id)
+            : ''
+
+      const emailPrefix = normalizarEmailPrefix(row.turista_email_prefix)
+      const canal = normalizarCanalRecomendacao(row.turista_canal) ?? (emailPrefix ? 'email' : 'whatsapp')
+
+      const detalhe: RecomendacaoTicketDetalhe = {
+        id: row.id != null ? String(row.id) : `${pid}-${recAgrupadas[pid]?.detalhes.length ?? 0}`,
+        created_at: row.created_at != null ? String(row.created_at) : new Date().toISOString(),
+        turista_canal: canal,
+        turista_email_prefix: emailPrefix,
+        turista_whatsapp_final: normalizarWhatsappFinal(row.turista_whatsapp_final),
+        turista_whatsapp_ddd: normalizarWhatsappDdd(row.turista_whatsapp_ddd),
+        experiencia_id: experienciaId,
+        experiencia_nome: experiencia?.titulo != null ? String(experiencia.titulo) : 'Ticket',
+        experiencia_foto_url: pickFotoPrato(experiencia),
+      }
+
+      if (!recAgrupadas[pid]) {
+        recAgrupadas[pid] = {
+          ...dadosCabecalhoProfissional(prof, pid),
+          categoria,
+          total: 0,
+          detalhes: [],
+        }
+      }
+      recAgrupadas[pid].total += 1
+      recAgrupadas[pid].detalhes.push(detalhe)
+    }
+  }
+
+  return Object.values(recAgrupadas).sort((a, b) => b.total - a.total)
+}
+
 async function buscarPaxPorProfissional(empresaId: string, dataLimite: string | null): Promise<PaxProfissional[]> {
   let qPaxProf = supabase
     .from('manifesto')
@@ -842,6 +956,9 @@ export function useFunilConversao(
   const [recomendacoesServicoPorProfissional, setRecomendacoesServicoPorProfissional] = useState<
     RecomendacaoServicoProfissional[]
   >([])
+  const [recomendacoesTicketPorProfissional, setRecomendacoesTicketPorProfissional] = useState<
+    RecomendacaoTicketProfissional[]
+  >([])
   const [paxPorProfissional, setPaxPorProfissional] = useState<PaxProfissional[]>([])
   const [vendasPorProfissional, setVendasPorProfissional] = useState<VendaProfissional[]>([])
   const [vendasSemProfissional, setVendasSemProfissional] = useState(0)
@@ -863,13 +980,14 @@ export function useFunilConversao(
       const resultados = await Promise.all(
         faltam.map(async (etapa) => {
           if (etapa === 'recomendacoes') {
-            const [pagina, produtos, pratos, servicos] = await Promise.all([
+            const [pagina, produtos, pratos, servicos, tickets] = await Promise.all([
               buscarRecomendacoesPorProfissional(empresaId, dataLimite),
               buscarRecomendacoesProdutoPorProfissional(empresaId, dataLimite),
               buscarRecomendacoesPratoPorProfissional(empresaId, dataLimite),
               buscarRecomendacoesServicoPorProfissional(empresaId, dataLimite),
+              buscarRecomendacoesTicketPorProfissional(empresaId, dataLimite),
             ])
-            return { etapa, data: { pagina, produtos, pratos, servicos } }
+            return { etapa, data: { pagina, produtos, pratos, servicos, tickets } }
           }
           if (etapa === 'pax') {
             return { etapa, data: await buscarPaxPorProfissional(empresaId, dataLimite) }
@@ -886,11 +1004,13 @@ export function useFunilConversao(
             produtos: RecomendacaoProdutoProfissional[]
             pratos: RecomendacaoPratoProfissional[]
             servicos: RecomendacaoServicoProfissional[]
+            tickets: RecomendacaoTicketProfissional[]
           }
           setRecomendacoesPorProfissional(payload.pagina)
           setRecomendacoesProdutoPorProfissional(payload.produtos)
           setRecomendacoesPratoPorProfissional(payload.pratos)
           setRecomendacoesServicoPorProfissional(payload.servicos)
+          setRecomendacoesTicketPorProfissional(payload.tickets)
         } else if (res.etapa === 'pax') {
           setPaxPorProfissional(res.data as PaxProfissional[])
         } else {
@@ -914,6 +1034,7 @@ export function useFunilConversao(
     setRecomendacoesProdutoPorProfissional([])
     setRecomendacoesPratoPorProfissional([])
     setRecomendacoesServicoPorProfissional([])
+    setRecomendacoesTicketPorProfissional([])
     setPaxPorProfissional([])
     setVendasPorProfissional([])
     setVendasSemProfissional(0)
@@ -959,16 +1080,18 @@ export function useFunilConversao(
       setDetalhesLoading(etapa)
       try {
         if (etapa === 'recomendacoes') {
-          const [pagina, produtos, pratos, servicos] = await Promise.all([
+          const [pagina, produtos, pratos, servicos, tickets] = await Promise.all([
             buscarRecomendacoesPorProfissional(empresaId, dataLimite),
             buscarRecomendacoesProdutoPorProfissional(empresaId, dataLimite),
             buscarRecomendacoesPratoPorProfissional(empresaId, dataLimite),
             buscarRecomendacoesServicoPorProfissional(empresaId, dataLimite),
+            buscarRecomendacoesTicketPorProfissional(empresaId, dataLimite),
           ])
           setRecomendacoesPorProfissional(pagina)
           setRecomendacoesProdutoPorProfissional(produtos)
           setRecomendacoesPratoPorProfissional(pratos)
           setRecomendacoesServicoPorProfissional(servicos)
+          setRecomendacoesTicketPorProfissional(tickets)
         } else if (etapa === 'pax') {
           const lista = await buscarPaxPorProfissional(empresaId, dataLimite)
           setPaxPorProfissional(lista)
@@ -989,20 +1112,29 @@ export function useFunilConversao(
 
   const obterDadosExportacao = useCallback(async () => {
     if (!empresaId) return {}
-    const [recomendacoes, recomendacoesProduto, recomendacoesPrato, recomendacoesServico, pax, vendasRes] =
-      await Promise.all([
-        buscarRecomendacoesPorProfissional(empresaId, dataLimite),
-        buscarRecomendacoesProdutoPorProfissional(empresaId, dataLimite),
-        buscarRecomendacoesPratoPorProfissional(empresaId, dataLimite),
-        buscarRecomendacoesServicoPorProfissional(empresaId, dataLimite),
-        buscarPaxPorProfissional(empresaId, dataLimite),
-        buscarVendasPorProfissional(empresaId, dataLimite),
-      ])
+    const [
+      recomendacoes,
+      recomendacoesProduto,
+      recomendacoesPrato,
+      recomendacoesServico,
+      recomendacoesTicket,
+      pax,
+      vendasRes,
+    ] = await Promise.all([
+      buscarRecomendacoesPorProfissional(empresaId, dataLimite),
+      buscarRecomendacoesProdutoPorProfissional(empresaId, dataLimite),
+      buscarRecomendacoesPratoPorProfissional(empresaId, dataLimite),
+      buscarRecomendacoesServicoPorProfissional(empresaId, dataLimite),
+      buscarRecomendacoesTicketPorProfissional(empresaId, dataLimite),
+      buscarPaxPorProfissional(empresaId, dataLimite),
+      buscarVendasPorProfissional(empresaId, dataLimite),
+    ])
     return {
       recomendacoes_detalhe: recomendacoes,
       recomendacoes_produto_detalhe: recomendacoesProduto,
       recomendacoes_prato_detalhe: recomendacoesPrato,
       recomendacoes_servico_detalhe: recomendacoesServico,
+      recomendacoes_ticket_detalhe: recomendacoesTicket,
       pax_detalhe: pax,
       vendas_detalhe: vendasRes.vendas,
       vendas_sem_profissional: vendasRes.semProfissional,
@@ -1019,6 +1151,7 @@ export function useFunilConversao(
     recomendacoesProdutoPorProfissional,
     recomendacoesPratoPorProfissional,
     recomendacoesServicoPorProfissional,
+    recomendacoesTicketPorProfissional,
     paxPorProfissional,
     vendasPorProfissional,
     vendasSemProfissional,

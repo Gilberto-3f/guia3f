@@ -89,10 +89,16 @@ export default function FeedbackAtrativosAjustes({
       const ids = (tickets ?? []).map((p) => String(p.id)).filter(Boolean)
       setTotalItens(ids.length)
 
-      // Cliques/impressões/indicações por ticket ainda sem tabela dedicada — slots alinhados.
+      // Cliques/impressões por ticket ainda sem tabela dedicada — slots alinhados.
       setTotalCliques(0)
       setTotalImpressoes(0)
-      setTotalRecs(0)
+
+      const { count: recCount } = await supabase
+        .from('recomendacoes_ticket')
+        .select('id', { count: 'exact', head: true })
+        .eq('empresa_id', empresaId)
+        .gte('created_at', desde)
+      setTotalRecs(recCount ?? 0)
 
       let favs = 0
       if (ids.length) {
