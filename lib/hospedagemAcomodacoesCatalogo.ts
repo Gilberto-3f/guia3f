@@ -231,8 +231,30 @@ export type HospedagemAcomodacaoRow = {
   fotos: string[]
   comodidades_padrao: ComodidadesPadrao
   comodidades_extras: ComodidadesExtras
+  ativo: boolean
+  site_url: string | null
   created_at?: string
   updated_at?: string
+}
+
+export function mapAcomodacaoRow(raw: Record<string, unknown>): HospedagemAcomodacaoRow {
+  return {
+    id: String(raw.id),
+    empresa_id: String(raw.empresa_id),
+    categoria_imovel: String(raw.categoria_imovel),
+    categoria_particular: raw.categoria_particular != null ? String(raw.categoria_particular) : null,
+    opcao_compartilhada: raw.opcao_compartilhada != null ? String(raw.opcao_compartilhada) : null,
+    capacidade_pessoas: Number(raw.capacidade_pessoas) || 1,
+    valor_diaria: Number(raw.valor_diaria) || 0,
+    fotos: Array.isArray(raw.fotos) ? raw.fotos.map(String) : [],
+    comodidades_padrao: parseComodidadesPadrao(raw.comodidades_padrao),
+    comodidades_extras: parseComodidadesExtras(raw.comodidades_extras),
+    ativo: raw.ativo == null ? true : Boolean(raw.ativo),
+    site_url:
+      raw.site_url != null && String(raw.site_url).trim() !== '' ? String(raw.site_url).trim() : null,
+    created_at: raw.created_at != null ? String(raw.created_at) : undefined,
+    updated_at: raw.updated_at != null ? String(raw.updated_at) : undefined,
+  }
 }
 
 export type HospedagemPoliticasRow = {

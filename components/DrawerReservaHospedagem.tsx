@@ -30,6 +30,7 @@ import {
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import {
   formatarValorDiaria,
+  mapAcomodacaoRow,
   parseComodidadesExtras,
   parseComodidadesPadrao,
   parseFormasPagamento,
@@ -104,18 +105,7 @@ type PoliticasInfo = {
 }
 
 function mapAcomodacao(raw: Record<string, unknown>): HospedagemAcomodacaoRow {
-  return {
-    id: String(raw.id),
-    empresa_id: String(raw.empresa_id),
-    categoria_imovel: String(raw.categoria_imovel),
-    categoria_particular: raw.categoria_particular != null ? String(raw.categoria_particular) : null,
-    opcao_compartilhada: raw.opcao_compartilhada != null ? String(raw.opcao_compartilhada) : null,
-    capacidade_pessoas: Number(raw.capacidade_pessoas) || 1,
-    valor_diaria: Number(raw.valor_diaria) || 0,
-    fotos: Array.isArray(raw.fotos) ? raw.fotos.map(String) : [],
-    comodidades_padrao: parseComodidadesPadrao(raw.comodidades_padrao),
-    comodidades_extras: parseComodidadesExtras(raw.comodidades_extras),
-  }
+  return mapAcomodacaoRow(raw)
 }
 
 function formatarHora(h: string): string {
@@ -289,6 +279,7 @@ export default function DrawerReservaHospedagem({
         .from('hospedagem_acomodacoes')
         .select('*')
         .eq('empresa_id', empresaId)
+        .eq('ativo', true)
         .order('created_at', { ascending: true })
 
       const lista = (acoms ?? []).map((r) => mapAcomodacao(r as Record<string, unknown>))

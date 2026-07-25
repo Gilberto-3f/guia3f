@@ -151,6 +151,7 @@ export async function filtrarEmpresasPorQuestionarioHospedagem(
   const { data: acoms, error } = await supabase
     .from('hospedagem_acomodacoes')
     .select('id, empresa_id, capacidade_pessoas, valor_diaria, comodidades_padrao, comodidades_extras')
+    .eq('ativo', true)
     .in('empresa_id', ids)
 
   if (error || !acoms?.length) return { empresaIds: [], precoMinPorEmpresa: {} }

@@ -29,6 +29,7 @@ export type FormAcomodacaoState = {
   opcao_compartilhada: string
   capacidade_pessoas: string
   valor_diaria: string
+  site_url: string
   fotosExistentes: string[]
   fotosNovas: File[]
   fotosNovasPreview: string[]
@@ -44,6 +45,7 @@ export function formAcomodacaoVazio(): FormAcomodacaoState {
     opcao_compartilhada: '',
     capacidade_pessoas: '',
     valor_diaria: '',
+    site_url: '',
     fotosExistentes: [],
     fotosNovas: [],
     fotosNovasPreview: [],
@@ -60,6 +62,7 @@ export function formFromRow(row: HospedagemAcomodacaoRow): FormAcomodacaoState {
     opcao_compartilhada: row.opcao_compartilhada ?? '',
     capacidade_pessoas: String(row.capacidade_pessoas),
     valor_diaria: String(row.valor_diaria),
+    site_url: row.site_url ?? '',
     fotosExistentes: [...(row.fotos ?? [])],
     fotosNovas: [],
     fotosNovasPreview: [],
@@ -98,6 +101,15 @@ export function validarFormAcomodacao(form: FormAcomodacaoState): string | null 
   if (!Number.isFinite(cap) || cap < 1) return 'Informe quantas pessoas cabem nesta acomodação.'
   const valor = Number(form.valor_diaria)
   if (!Number.isFinite(valor) || valor < 0) return 'Informe o valor da diária.'
+  const site = form.site_url.trim()
+  if (site) {
+    try {
+      // eslint-disable-next-line no-new
+      new URL(site.startsWith('http') ? site : `https://${site}`)
+    } catch {
+      return 'Informe um link válido em Ver no Site.'
+    }
+  }
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
   if (totalFotos < 2) return 'Envie no mínimo 2 fotos da acomodação.'
   if (totalFotos > 5) return 'Máximo de 5 fotos por acomodação.'
@@ -116,6 +128,7 @@ type Props = {
   onCancelar: () => void
   salvando: boolean
   titulo?: string
+  erro?: string | null
 }
 
 function RadioLista({
@@ -199,6 +212,7 @@ export default function FormAcomodacao({
   onCancelar,
   salvando,
   titulo = 'Nova acomodação',
+  erro = null,
 }: Props) {
   const [abertos, setAbertos] = useState({
     imovel: true,
@@ -257,6 +271,10 @@ export default function FormAcomodacao({
           <X className="h-4 w-4" aria-hidden />
         </button>
       </div>
+
+      {erro ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{erro}</div>
+      ) : null}
 
       <ChevronPasta
         titulo="1. Categoria do Imóvel"
@@ -661,18 +679,38 @@ export default function FormAcomodacao({
         </label>
       </ChevronPasta>
 
-      <button
-        type="button"
-        onClick={onSalvar}
-        disabled={salvando}
-        className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50"
-        style={{ backgroundColor: COR_VERDE_BOTAO }}
-      >
-        <Save className="h-4 w-4" aria-hidden />
-        {salvando ? 'Salvando…' : 'SALVAR'}
-      </button>
-      <p className="text-center text-[10px] text-gray-400" style={{ color: COR_AZUL_LOGO }}>
-        Todos os campos obrigatórios devem estar preenchidos.
+      <label className={labelCls}>
+        Ver no Site (opcional)
+        <input
+          type="url"
+          value={form.site_url}
+          onChange={(e) => patch({ site_url: e.target.value })}
+          className={inputCls}
+          placeholder="https://..."
+        />
+      </label>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onCancelar}
+          className="flex-1 rounded-xl border border-gray-300 bg-white py-3 text-sm font-bold text-gray-700"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={onSalvar}
+          disabled={salvando}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50"
+          style={{ backgroundColor: COR_VERDE_BOTAO }}
+        >
+          <Save className="h-4 w-4" aria-hidden />
+          {salvando ? 'Salvando…' : 'Salvar'}
+        </button>
+      </div>
+      <p className="text-center text-[10px]" style={{ color: COR_AZUL_LOGO }}>
+        Novos cadastros ficam como rascunho até você tocar em PUBLICAR.
       </p>
     </div>
   )

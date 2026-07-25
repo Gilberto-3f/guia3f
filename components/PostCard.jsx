@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Bookmark, ChevronDown, Heart, MessageCircle, Repeat2, Share2, ShieldCheck, ShoppingBag, Star, Ticket, Utensils, Wrench } from 'lucide-react'
+import { Bookmark, ChevronDown, Heart, MessageCircle, Repeat2, Share2, ShieldCheck, ShoppingBag, Star, BedDouble, Ticket, Utensils, Wrench } from 'lucide-react'
 import ModalComentarios from '@/components/ModalComentarios'
 import ModalCurtidas from '@/components/ModalCurtidas'
 import ModalCompartilhar from '@/components/ModalCompartilhar'
@@ -11,8 +11,10 @@ import DrawerProdutosCde from '@/components/DrawerProdutosCde'
 import DrawerCardapio from '@/components/DrawerCardapio'
 import DrawerServicosLocais from '@/components/DrawerServicosLocais'
 import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
+import DrawerReservaHospedagem from '@/components/DrawerReservaHospedagem'
 import { formatarUsd, precoFinalUsd } from '@/lib/comprasCdeCatalogo'
 import { formatarPrecoTicket } from '@/lib/atrativosCatalogo'
+import { formatarValorDiaria } from '@/lib/hospedagemAcomodacoesCatalogo'
 import { supabase } from '@/lib/supabase'
 import { isTipoVideoPost } from '@/lib/feedFiltroSeguidos'
 import { STORY_RING_GRADIENT, emailVisualizouStory, pickAutorDisplay } from '@/lib/feed-autor'
@@ -200,6 +202,7 @@ export default function PostCard({
   const [drawerCardapioAberto, setDrawerCardapioAberto] = useState(false)
   const [drawerServicosAberto, setDrawerServicosAberto] = useState(false)
   const [drawerAtrativosAberto, setDrawerAtrativosAberto] = useState(false)
+  const [drawerAcomodacoesAberto, setDrawerAcomodacoesAberto] = useState(false)
   /** Feedback da avaliação no feed: fechado por padrão; abre só pelo chevron. */
   const [avaliacaoFeedbackAberto, setAvaliacaoFeedbackAberto] = useState(false)
 
@@ -1424,6 +1427,126 @@ export default function PostCard({
             isOpen={drawerAtrativosAberto}
             onClose={() => setDrawerAtrativosAberto(false)}
             empresaId={empresaAtrativosId}
+            empresaNome={post.autor?.nome ?? post.autor?.username ?? 'Empresa'}
+            empresaUsername={post.autor?.username ?? null}
+            empresaFotoUrl={post.autor?.foto_perfil_url ?? null}
+          />
+        ) : null}
+      </article>
+    )
+  }
+
+  if (tipoNorm === 'catalogo_acomodacoes') {
+    const meta =
+      post.avaliacao_meta && typeof post.avaliacao_meta === 'object' && !Array.isArray(post.avaliacao_meta)
+        ? /** @type {Record<string, unknown>} */ (post.avaliacao_meta)
+        : {}
+    const empresaAcomodacoesId =
+      meta.empresa_id != null && String(meta.empresa_id).trim() !== ''
+        ? String(meta.empresa_id)
+        : empresaId
+    const acomodacoesSnap = Array.isArray(meta.acomodacoes) ? meta.acomodacoes.slice(0, 3) : []
+    const qtdMeta = Number(meta.quantidade) || acomodacoesSnap.length || 0
+    const textoAcomodacoes =
+      qtdMeta === 1
+        ? 'cadastramos 1 nova acomodação em nosso catálogo, venha conferir.'
+        : `cadastramos ${qtdMeta > 0 ? qtdMeta : 'XX'} novas acomodações em nosso catálogo, venha conferir.`
+
+    return (
+      <article id={`feed-post-${post.id}`} className="rounded-xl bg-white shadow-sm">
+        {cabecalhoAutorFeed}
+        <div className="px-4 pb-3 pt-1">
+          <p className="text-[15px] leading-snug text-gray-900">{textoAcomodacoes}</p>
+          {acomodacoesSnap.length > 0 ? (
+            <div
+              className={`mt-3 flex items-stretch gap-2 overflow-x-auto pb-1 ${
+                acomodacoesSnap.length === 1 ? 'justify-center' : ''
+              }`}
+            >
+              {acomodacoesSnap.map((raw) => {
+                const snap =
+                  raw && typeof raw === 'object' && !Array.isArray(raw)
+                    ? /** @type {Record<string, unknown>} */ (raw)
+                    : {}
+                const nome = typeof snap.nome === 'string' ? snap.nome : 'Acomodação'
+                const foto =
+                  snap.foto_url != null && String(snap.foto_url).trim() !== ''
+                    ? String(snap.foto_url)
+                    : null
+                const diaria = Number(snap.valor_diaria) || 0
+                const idSnap = snap.id != null ? String(snap.id) : nome
+                return (
+                  <div
+                    key={idSnap}
+                    className="w-[108px] shrink-0 overflow-hidden rounded-lg border border-gray-100 bg-gray-50"
+                  >
+                    <div className="relative aspect-square bg-gray-200">
+                      {foto ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={foto} alt="" className="h-full w-full object-cover" />
+                      ) : null}
+                    </div>
+                    <div className="p-1.5">
+                      <p className="line-clamp-2 text-[11px] font-semibold leading-tight text-gray-800">
+                        {nome}
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-bold text-[#0097b2]">
+                        {formatarValorDiaria(diaria)}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : null}
+          {empresaAcomodacoesId ? (
+            <button
+              type="button"
+              onClick={() => setDrawerAcomodacoesAberto(true)}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[#00D443] px-3 py-2.5 text-white transition-opacity hover:opacity-95"
+              aria-label="Abrir reservas"
+            >
+              <BedDouble className="h-4 w-4 shrink-0" aria-hidden />
+              <span className="text-sm font-bold uppercase tracking-wide">RESERVAS</span>
+            </button>
+          ) : null}
+        </div>
+        <div className="border-t border-gray-100">{acoesPost}</div>
+        <ModalComentarios
+          postId={post.id}
+          variant={comentariosInline ? 'inline' : 'modal'}
+          aberto={comentariosInline ? true : comentAberto}
+          onFechar={() => setComentAberto(false)}
+          usuarioId={meuUsuarioId}
+          onComentou={() =>
+            setNComent((n) => {
+              const v = n + 1
+              onEngagementChange?.(post.id, { total_comentarios: v })
+              return v
+            })
+          }
+          onTotalComentariosSync={(total) => {
+            setNComent(total)
+            onEngagementChange?.(post.id, { total_comentarios: total })
+          }}
+          destacarComentarioId={destacarComentarioId}
+          totalComentariosVisual={nComent}
+          somenteLeitura={comentariosSomenteLeitura || bloqueioApresentacao || bloqueioFeedSocial}
+          mostrarCompositor={mostrarCompositorInline}
+        />
+        <ModalCurtidas
+          postId={post.id}
+          aberto={curtidasAberto}
+          onFechar={() => setCurtidasAberto(false)}
+          meuUsuarioId={meuUsuarioId}
+        />
+        {shareModal}
+        {modalEditar}
+        {empresaAcomodacoesId ? (
+          <DrawerReservaHospedagem
+            isOpen={drawerAcomodacoesAberto}
+            onClose={() => setDrawerAcomodacoesAberto(false)}
+            empresaId={empresaAcomodacoesId}
             empresaNome={post.autor?.nome ?? post.autor?.username ?? 'Empresa'}
             empresaUsername={post.autor?.username ?? null}
             empresaFotoUrl={post.autor?.foto_perfil_url ?? null}

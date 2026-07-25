@@ -1,6 +1,6 @@
 'use client'
 
-import { Copy, Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import {
   formatarValorDiaria,
   rotuloAcomodacaoResumo,
@@ -10,7 +10,6 @@ import {
 type Props = {
   item: HospedagemAcomodacaoRow
   onEditar: () => void
-  onDuplicar: () => void
   onExcluir: () => void
   excluindo?: boolean
 }
@@ -18,7 +17,6 @@ type Props = {
 export default function MiniCardAcomodacao({
   item,
   onEditar,
-  onDuplicar,
   onExcluir,
   excluindo = false,
 }: Props) {
@@ -56,14 +54,6 @@ export default function MiniCardAcomodacao({
         >
           <Pencil className="h-3.5 w-3.5" aria-hidden />
           Editar
-        </button>
-        <button
-          type="button"
-          onClick={onDuplicar}
-          className="flex flex-1 items-center justify-center gap-1.5 border-l border-gray-100 py-2.5 text-xs font-semibold text-[#001f3f] hover:bg-gray-50"
-        >
-          <Copy className="h-3.5 w-3.5" aria-hidden />
-          Duplicar
         </button>
         <button
           type="button"

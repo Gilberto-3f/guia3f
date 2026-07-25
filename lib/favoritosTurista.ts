@@ -317,6 +317,7 @@ export async function listarAcomodacoesFavoritas(
     .select(
       'id, empresa_id, categoria_imovel, categoria_particular, opcao_compartilhada, capacidade_pessoas, valor_diaria, fotos',
     )
+    .eq('ativo', true)
     .in('id', ids)
 
   if (error) {

@@ -1,19 +1,18 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CirclePlus } from 'lucide-react'
+import { CirclePlus, Pencil, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { uploadFotosAcomodacao } from '@/lib/hospedagemAcomodacaoFotos'
 import {
   COR_AZUL_LOGO,
-  parseComodidadesExtras,
-  parseComodidadesPadrao,
+  mapAcomodacaoRow,
   tipoCategoriaImovel,
   type HospedagemAcomodacaoRow,
 } from '@/lib/hospedagemAcomodacoesCatalogo'
+import { publicarAcomodacoesFeed, snapshotAcomodacoesParaFeed } from '@/lib/publicarAcomodacoesFeed'
 import FormAcomodacao, {
   formAcomodacaoVazio,
-  formDuplicarDe,
   formFromRow,
   validarFormAcomodacao,
   type FormAcomodacaoState,
@@ -24,46 +23,64 @@ type Props = {
   empresaId: string
 }
 
-function mapRow(raw: Record<string, unknown>): HospedagemAcomodacaoRow {
-  return {
-    id: String(raw.id),
-    empresa_id: String(raw.empresa_id),
-    categoria_imovel: String(raw.categoria_imovel),
-    categoria_particular: raw.categoria_particular != null ? String(raw.categoria_particular) : null,
-    opcao_compartilhada: raw.opcao_compartilhada != null ? String(raw.opcao_compartilhada) : null,
-    capacidade_pessoas: Number(raw.capacidade_pessoas) || 1,
-    valor_diaria: Number(raw.valor_diaria) || 0,
-    fotos: Array.isArray(raw.fotos) ? raw.fotos.map(String) : [],
-    comodidades_padrao: parseComodidadesPadrao(raw.comodidades_padrao),
-    comodidades_extras: parseComodidadesExtras(raw.comodidades_extras),
-    created_at: raw.created_at != null ? String(raw.created_at) : undefined,
-    updated_at: raw.updated_at != null ? String(raw.updated_at) : undefined,
-  }
-}
-
 export default function AbaAcomodacoes({ empresaId }: Props) {
   const [lista, setLista] = useState<HospedagemAcomodacaoRow[]>([])
+  const [pendentes, setPendentes] = useState<HospedagemAcomodacaoRow[]>([])
   const [carregando, setCarregando] = useState(true)
   const [formAberto, setFormAberto] = useState(false)
   const [form, setForm] = useState<FormAcomodacaoState>(formAcomodacaoVazio())
   const [salvando, setSalvando] = useState(false)
+  const [publicando, setPublicando] = useState(false)
   const [excluindoId, setExcluindoId] = useState<string | null>(null)
-  const [msg, setMsg] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [modoEdicao, setModoEdicao] = useState(false)
+  const [msgCadastro, setMsgCadastro] = useState<string | null>(null)
+  const [empresaMeta, setEmpresaMeta] = useState<{
+    usuario_id: string | null
+    nome_usuario: string | null
+  }>({ usuario_id: null, nome_usuario: null })
 
   const carregar = useCallback(async () => {
     if (!empresaId) return
     setCarregando(true)
+    setErro(null)
     try {
-      const { data, error } = await supabase
-        .from('hospedagem_acomodacoes')
-        .select('*')
-        .eq('empresa_id', empresaId)
-        .order('created_at', { ascending: true })
-      if (error) throw error
-      setLista((data ?? []).map((r) => mapRow(r as Record<string, unknown>)))
+      const [pubRes, penRes, empRes] = await Promise.all([
+        supabase
+          .from('hospedagem_acomodacoes')
+          .select('*')
+          .eq('empresa_id', empresaId)
+          .eq('ativo', true)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('hospedagem_acomodacoes')
+          .select('*')
+          .eq('empresa_id', empresaId)
+          .eq('ativo', false)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('empresas')
+          .select('usuario_id, nome_usuario')
+          .eq('id', empresaId)
+          .maybeSingle(),
+      ])
+      if (pubRes.error) throw pubRes.error
+      if (penRes.error) throw penRes.error
+      setLista((pubRes.data ?? []).map((r) => mapAcomodacaoRow(r as Record<string, unknown>)))
+      setPendentes((penRes.data ?? []).map((r) => mapAcomodacaoRow(r as Record<string, unknown>)))
+      setEmpresaMeta({
+        usuario_id: empRes.data?.usuario_id != null ? String(empRes.data.usuario_id) : null,
+        nome_usuario: empRes.data?.nome_usuario != null ? String(empRes.data.nome_usuario) : null,
+      })
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar acomodações.')
+      console.error('[AbaAcomodacoes]', e)
+      setErro(
+        e instanceof Error
+          ? e.message
+          : 'Não foi possível carregar as acomodações. Verifique se a migration foi aplicada.',
+      )
+      setLista([])
+      setPendentes([])
     } finally {
       setCarregando(false)
     }
@@ -73,45 +90,52 @@ export default function AbaAcomodacoes({ empresaId }: Props) {
     void carregar()
   }, [carregar])
 
-  const abrirCriar = () => {
+  const temPendentes = pendentes.length > 0
+  const botaoPrincipalPublicar = temPendentes
+  const mostrarResumo = !modoEdicao && !temPendentes && !formAberto && lista.length > 0
+
+  const abrirNovo = () => {
     setForm(formAcomodacaoVazio())
     setFormAberto(true)
     setErro(null)
-    setMsg(null)
   }
 
   const abrirEditar = (row: HospedagemAcomodacaoRow) => {
     setForm(formFromRow(row))
     setFormAberto(true)
     setErro(null)
-    setMsg(null)
-  }
-
-  const abrirDuplicar = (row: HospedagemAcomodacaoRow) => {
-    setForm(formDuplicarDe(row))
-    setFormAberto(true)
-    setErro(null)
-    setMsg('Acomodação duplicada — ajuste e salve como nova.')
-  }
-
-  const fecharForm = () => {
-    setFormAberto(false)
-    setForm(formAcomodacaoVazio())
   }
 
   const salvar = async () => {
-    const validacao = validarFormAcomodacao(form)
-    if (validacao) {
-      setErro(validacao)
+    const msg = validarFormAcomodacao(form)
+    if (msg) {
+      setErro(msg)
       return
     }
+
     setSalvando(true)
     setErro(null)
-    setMsg(null)
+    let rascunhoId: string | null = null
+    const eraNovo = !form.id
+    const editandoPendente = Boolean(form.id && pendentes.some((p) => p.id === form.id))
+
     try {
       const tipo = tipoCategoriaImovel(form.categoria_imovel)
       const capacidade = Math.max(1, Math.floor(Number(form.capacidade_pessoas)))
       const valor = Number(form.valor_diaria)
+      let site = form.site_url.trim()
+      if (site && !/^https?:\/\//i.test(site)) site = `https://${site}`
+
+      const payloadBase = {
+        categoria_imovel: form.categoria_imovel,
+        categoria_particular: tipo === 'particular' ? form.categoria_particular : null,
+        opcao_compartilhada: tipo === 'compartilhado' ? form.opcao_compartilhada : null,
+        capacidade_pessoas: capacidade,
+        valor_diaria: valor,
+        comodidades_padrao: form.comodidades_padrao,
+        comodidades_extras: form.comodidades_extras,
+        site_url: site || null,
+      }
 
       if (form.id) {
         let fotos = [...form.fotosExistentes]
@@ -130,60 +154,70 @@ export default function AbaAcomodacoes({ empresaId }: Props) {
         const { error } = await supabase
           .from('hospedagem_acomodacoes')
           .update({
-            categoria_imovel: form.categoria_imovel,
-            categoria_particular: tipo === 'particular' ? form.categoria_particular : null,
-            opcao_compartilhada: tipo === 'compartilhado' ? form.opcao_compartilhada : null,
-            capacidade_pessoas: capacidade,
-            valor_diaria: valor,
+            ...payloadBase,
             fotos,
-            comodidades_padrao: form.comodidades_padrao,
-            comodidades_extras: form.comodidades_extras,
+            ativo: !editandoPendente,
           })
           .eq('id', form.id)
           .eq('empresa_id', empresaId)
         if (error) throw error
-        setMsg('Acomodação atualizada.')
       } else {
         const { data: criada, error: insErr } = await supabase
           .from('hospedagem_acomodacoes')
           .insert({
             empresa_id: empresaId,
-            categoria_imovel: form.categoria_imovel,
-            categoria_particular: tipo === 'particular' ? form.categoria_particular : null,
-            opcao_compartilhada: tipo === 'compartilhado' ? form.opcao_compartilhada : null,
-            capacidade_pessoas: capacidade,
-            valor_diaria: valor,
-            fotos: form.fotosExistentes.length > 0 ? form.fotosExistentes.slice(0, 5) : [],
-            comodidades_padrao: form.comodidades_padrao,
-            comodidades_extras: form.comodidades_extras,
+            ...payloadBase,
+            fotos: [],
+            ativo: false,
           })
           .select('id')
           .single()
         if (insErr) throw insErr
         const novoId = String(criada.id)
+        rascunhoId = novoId
 
-        let fotos = [...form.fotosExistentes]
-        if (form.fotosNovas.length > 0) {
-          const novas = await uploadFotosAcomodacao(supabase, empresaId, novoId, form.fotosNovas)
-          fotos = [...fotos, ...novas]
+        let fotos: string[]
+        try {
+          fotos = await uploadFotosAcomodacao(supabase, empresaId, novoId, form.fotosNovas)
+        } catch (upErr) {
+          throw new Error(
+            upErr instanceof Error && upErr.message
+              ? upErr.message
+              : 'Foto não aceita. Troque a imagem e salve novamente.',
+          )
         }
+
         if (fotos.length < 2) {
-          await supabase.from('hospedagem_acomodacoes').delete().eq('id', novoId)
           throw new Error('Envie no mínimo 2 fotos da acomodação.')
         }
         if (fotos.length > 5) fotos = fotos.slice(0, 5)
 
         const { error: upErr } = await supabase
           .from('hospedagem_acomodacoes')
-          .update({ fotos })
+          .update({ fotos, ativo: false })
           .eq('id', novoId)
+          .eq('empresa_id', empresaId)
         if (upErr) throw upErr
-        setMsg('Acomodação criada.')
+        rascunhoId = null
       }
 
-      fecharForm()
+      setFormAberto(false)
+      setForm(formAcomodacaoVazio())
       await carregar()
+      if (eraNovo) {
+        setModoEdicao(true)
+        setMsgCadastro(null)
+      }
     } catch (e) {
+      console.error('[AbaAcomodacoes] salvar', e)
+      if (rascunhoId) {
+        await supabase
+          .from('hospedagem_acomodacoes')
+          .delete()
+          .eq('id', rascunhoId)
+          .eq('empresa_id', empresaId)
+        rascunhoId = null
+      }
       setErro(e instanceof Error ? e.message : 'Não foi possível salvar a acomodação.')
     } finally {
       setSalvando(false)
@@ -201,8 +235,6 @@ export default function AbaAcomodacoes({ empresaId }: Props) {
         .eq('id', id)
         .eq('empresa_id', empresaId)
       if (error) throw error
-      setMsg('Acomodação excluída.')
-      if (form.id === id) fecharForm()
       await carregar()
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível excluir.')
@@ -211,18 +243,65 @@ export default function AbaAcomodacoes({ empresaId }: Props) {
     }
   }
 
+  const onBotaoPrincipal = async () => {
+    if (botaoPrincipalPublicar) {
+      if (!empresaMeta.usuario_id) {
+        setErro('Não foi possível identificar o usuário da empresa para publicar no feed.')
+        return
+      }
+      setPublicando(true)
+      setErro(null)
+      try {
+        const ids = pendentes.map((p) => p.id)
+        const snaps = snapshotAcomodacoesParaFeed(pendentes)
+        const res = await publicarAcomodacoesFeed(supabase, {
+          empresaId,
+          autorId: empresaMeta.usuario_id,
+          username: empresaMeta.nome_usuario ?? '',
+          acomodacaoIds: ids,
+          snapshots: snaps,
+        })
+        if (!res.ok) throw new Error(res.error)
+        const n = ids.length
+        setMsgCadastro(
+          n === 1
+            ? 'Você cadastrou 1 nova acomodação (já publicada na lista e no feed).'
+            : `Você cadastrou ${n} novas acomodações (já publicadas na lista e no feed).`,
+        )
+        setModoEdicao(false)
+        setFormAberto(false)
+        await carregar()
+        window.setTimeout(() => setMsgCadastro(null), 6000)
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : 'Não foi possível publicar as acomodações.')
+      } finally {
+        setPublicando(false)
+      }
+      return
+    }
+
+    setModoEdicao(true)
+    setMsgCadastro(null)
+  }
+
+  useEffect(() => {
+    if (!temPendentes) return
+    const n = pendentes.length
+    setMsgCadastro(
+      n === 1
+        ? 'Você cadastrou 1 nova acomodação (ela será mostrada quando você atualizar a lista).'
+        : `Você cadastrou ${n} novas acomodações (elas serão mostradas quando você atualizar a lista).`,
+    )
+  }, [temPendentes, pendentes.length])
+
+  if (carregando) {
+    return <p className="py-8 text-center text-sm text-gray-500">Carregando acomodações…</p>
+  }
+
   return (
     <div className="space-y-4">
-      {!formAberto ? (
-        <button
-          type="button"
-          onClick={abrirCriar}
-          className="mx-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white"
-          style={{ backgroundColor: COR_AZUL_LOGO }}
-        >
-          <CirclePlus className="h-5 w-5" aria-hidden />
-          CRIAR ACOMODAÇÃO
-        </button>
+      {!formAberto && erro ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{erro}</div>
       ) : null}
 
       {formAberto ? (
@@ -230,35 +309,100 @@ export default function AbaAcomodacoes({ empresaId }: Props) {
           form={form}
           onChange={setForm}
           onSalvar={() => void salvar()}
-          onCancelar={fecharForm}
+          onCancelar={() => {
+            setFormAberto(false)
+            setForm(formAcomodacaoVazio())
+            setErro(null)
+          }}
           salvando={salvando}
-          titulo={form.id ? 'Editar acomodação' : 'Nova acomodação'}
+          titulo={form.id ? 'Editar acomodação' : 'Cadastrar acomodação'}
+          erro={erro}
         />
-      ) : null}
-
-      {erro ? <p className="text-sm text-rose-600">{erro}</p> : null}
-      {msg ? <p className="text-sm text-emerald-700">{msg}</p> : null}
-
-      {carregando ? (
-        <p className="text-sm text-gray-500">Carregando acomodações…</p>
-      ) : lista.length === 0 && !formAberto ? (
-        <p className="text-center text-sm text-gray-500">
-          Nenhuma acomodação cadastrada. Crie a primeira para alimentar o botão dinâmico.
-        </p>
       ) : (
-        <ul className="space-y-3">
-          {lista.map((item) => (
-            <li key={item.id}>
-              <MiniCardAcomodacao
-                item={item}
-                onEditar={() => abrirEditar(item)}
-                onDuplicar={() => abrirDuplicar(item)}
-                onExcluir={() => void excluir(item.id)}
-                excluindo={excluindoId === item.id}
-              />
-            </li>
-          ))}
-        </ul>
+        <>
+          <button
+            type="button"
+            onClick={() => void onBotaoPrincipal()}
+            disabled={publicando}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50"
+            style={{ backgroundColor: COR_AZUL_LOGO }}
+          >
+            {botaoPrincipalPublicar ? (
+              <>
+                <Send className="h-5 w-5" aria-hidden />
+                {publicando ? 'Publicando…' : 'PUBLICAR'}
+              </>
+            ) : (
+              <>
+                <Pencil className="h-5 w-5" aria-hidden />
+                EDITAR ACOMODAÇÕES
+              </>
+            )}
+          </button>
+
+          {mostrarResumo ? (
+            <p className="text-center text-sm font-medium text-gray-600">
+              {lista.length} {lista.length === 1 ? 'acomodação cadastrada' : 'acomodações cadastradas'}
+            </p>
+          ) : null}
+
+          {modoEdicao || temPendentes ? (
+            <button
+              type="button"
+              onClick={abrirNovo}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#0097b2]/40 bg-[#0097b2]/5 py-3 text-sm font-bold text-[#0097b2]"
+            >
+              <CirclePlus className="h-5 w-5" aria-hidden />
+              + CADASTRAR
+            </button>
+          ) : null}
+
+          {msgCadastro ? (
+            <p className="rounded-lg bg-[#0097b2]/10 px-3 py-2 text-center text-sm font-medium text-[#001f3f]">
+              {msgCadastro}
+            </p>
+          ) : null}
+
+          {pendentes.length > 0 ? (
+            <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                Recém cadastradas (aguardando publicação)
+              </p>
+              <ul className="space-y-3">
+                {pendentes.map((item) => (
+                  <li key={item.id}>
+                    <MiniCardAcomodacao
+                      item={item}
+                      onEditar={() => abrirEditar(item)}
+                      onExcluir={() => void excluir(item.id)}
+                      excluindo={excluindoId === item.id}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {lista.length === 0 && pendentes.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-500">Nenhuma acomodação cadastrada.</p>
+          ) : lista.length === 0 ? null : (
+            <ul className="space-y-3">
+              {lista.map((item) => (
+                <li key={item.id}>
+                  <MiniCardAcomodacao
+                    item={item}
+                    onEditar={() => {
+                      setModoEdicao(true)
+                      abrirEditar(item)
+                    }}
+                    onExcluir={() => void excluir(item.id)}
+                    excluindo={excluindoId === item.id}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   )

@@ -86,6 +86,7 @@ export default function FeedbackHospedagemAjustes({
         .from('hospedagem_acomodacoes')
         .select('id')
         .eq('empresa_id', empresaId)
+        .eq('ativo', true)
       const ids = (acoms ?? []).map((p) => String(p.id)).filter(Boolean)
       setTotalItens(ids.length)
 
@@ -105,7 +106,23 @@ export default function FeedbackHospedagemAjustes({
       }
       setTotalFavs(favs)
 
-      setTotalReposts(0)
+      const { data: posts } = await supabase
+        .from('posts')
+        .select('id')
+        .eq('empresa_id', empresaId)
+        .eq('tipo', 'catalogo_acomodacoes')
+        .gte('created_at', desde)
+      const postIds = (posts ?? []).map((p) => String(p.id)).filter(Boolean)
+      let rep = 0
+      if (postIds.length) {
+        const { count } = await supabase
+          .from('reposts')
+          .select('id', { count: 'exact', head: true })
+          .in('post_id', postIds)
+          .gte('created_at', desde)
+        rep = count ?? 0
+      }
+      setTotalReposts(rep)
 
       const mes = await contarCliquesBotaoDinamicoMes(supabase, empresaId)
       setCliquesMes(mes)
