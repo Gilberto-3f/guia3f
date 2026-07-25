@@ -461,25 +461,6 @@ export default function ListagemCategoriaPage() {
             </div>
 
             <div className={`flex shrink-0 items-center ${filtrosApoioCompactos ? 'gap-1' : 'gap-2'}`}>
-              {ehPaginaHospedagem ? (
-                <button
-                  type="button"
-                  title="Filtrar acomodações (Check)"
-                  aria-label="Filtrar acomodações com questionário"
-                  aria-pressed={checkAtivo}
-                  onClick={() => setPopupCheckAberto(true)}
-                  className={btnFiltroApoioCls(checkAtivo)}
-                >
-                  <Check
-                    className={iconFiltroApoioCls}
-                    fill={checkAtivo ? 'currentColor' : 'none'}
-                    stroke="currentColor"
-                    strokeWidth={strokeFiltro(checkAtivo)}
-                    aria-hidden
-                  />
-                </button>
-              ) : null}
-
               <button
                 type="button"
                 title="Ordenar por avaliação"
@@ -540,6 +521,25 @@ export default function ListagemCategoriaPage() {
                   ) : null}
                 </span>
               </button>
+
+              {ehPaginaHospedagem ? (
+                <button
+                  type="button"
+                  title="Filtrar acomodações (Check)"
+                  aria-label="Filtrar acomodações com questionário"
+                  aria-pressed={checkAtivo}
+                  onClick={() => setPopupCheckAberto(true)}
+                  className={btnFiltroApoioCls(checkAtivo)}
+                >
+                  <Check
+                    className={iconFiltroApoioCls}
+                    fill={checkAtivo ? 'currentColor' : 'none'}
+                    stroke="currentColor"
+                    strokeWidth={strokeFiltro(checkAtivo)}
+                    aria-hidden
+                  />
+                </button>
+              ) : null}
             </div>
           </div>
         </div>

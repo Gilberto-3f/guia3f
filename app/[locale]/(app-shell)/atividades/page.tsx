@@ -267,6 +267,24 @@ export default function AtividadesPage() {
   const seguindoRef = useRef<string[]>([])
   const seguindoRedeRef = useRef<string[]>([])
   const gestoresAnfitriaoRef = useRef<Set<string>>(new Set())
+  const offsetAmigosRef = useRef(0)
+  const temMaisAmigosRef = useRef(false)
+  const carregandoMaisRef = useRef(false)
+  const abaRef = useRef(aba)
+
+  useEffect(() => {
+    abaRef.current = aba
+  }, [aba])
+  useEffect(() => {
+    offsetAmigosRef.current = offsetAmigos
+  }, [offsetAmigos])
+  useEffect(() => {
+    temMaisAmigosRef.current = temMaisAmigos
+  }, [temMaisAmigos])
+  useEffect(() => {
+    carregandoMaisRef.current = carregandoMais
+  }, [carregandoMais])
+
   const [perfilMap, setPerfilMap] = useState<PerfilMap>({})
   const [postMetaMap, setPostMetaMap] = useState<
     Record<
@@ -1512,8 +1530,10 @@ export default function AtividadesPage() {
 
     setListaAmigos(amigos)
     setListaMinha(minha)
+    offsetAmigosRef.current = amigos.length
     setOffsetAmigos(amigos.length)
     setOffsetMinha(minha.length)
+    temMaisAmigosRef.current = amigos.length === lim
     setTemMaisAmigos(amigos.length === lim)
     setTemMaisMinha(false)
 
@@ -1554,17 +1574,20 @@ export default function AtividadesPage() {
   ])
 
   const carregarMaisAtividades = useCallback(async () => {
-    if (carregandoMais) return
+    if (carregandoMaisRef.current) return
     const uid = meuId
     if (!uid) return
-    /* Minha conta: só as últimas N em `recarregar`; scroll infinito só na aba Amigos. */
-    if (aba !== 'amigos') return
+    /* Scroll infinito só na aba Seguindo (amigos). */
+    if (abaRef.current !== 'amigos') return
+    const seg = seguindoRef.current
+    if (seg.length === 0 || !temMaisAmigosRef.current) return
+
+    carregandoMaisRef.current = true
     setCarregandoMais(true)
     const lim = ATIVIDADES_LIMITE_PAGINA
+    let agendarRefill = false
     try {
-      const seg = seguindoRef.current
-      if (seg.length === 0 || !temMaisAmigos) return
-      const start = offsetAmigos
+      const start = offsetAmigosRef.current
       const { data, error } = await supabase
         .from('atividades')
         .select('*')
@@ -1583,12 +1606,18 @@ export default function AtividadesPage() {
       const novasRaw = (data ?? []) as AtividadeRow[]
       const novas = (await enriquecerAtividadesEmpresaInterator(supabase, novasRaw)) as AtividadeRow[]
       if (novas.length === 0) {
+        temMaisAmigosRef.current = false
         setTemMaisAmigos(false)
         return
       }
       setListaAmigos((prev) => mergeAtividadesPorId(prev, novas))
-      setOffsetAmigos(start + novas.length)
-      setTemMaisAmigos(novas.length === lim)
+      const nextOffset = start + novas.length
+      offsetAmigosRef.current = nextOffset
+      setOffsetAmigos(nextOffset)
+      const aindaTem = novas.length === lim
+      temMaisAmigosRef.current = aindaTem
+      setTemMaisAmigos(aindaTem)
+      agendarRefill = aindaTem
 
       const postIds: string[] = []
       for (const r of novas) {
@@ -1607,9 +1636,23 @@ export default function AtividadesPage() {
         carregarStoriesMeta(novas, { merge: true }),
       ]).then(() => carregarStoriesRepostAtivos(novas, { merge: true }))
     } finally {
+      carregandoMaisRef.current = false
       setCarregandoMais(false)
+      // Se o sentinela ainda está na viewport (lista curta / filtros), pede a próxima página.
+      if (agendarRefill) {
+        requestAnimationFrame(() => {
+          if (abaRef.current !== 'amigos' || !temMaisAmigosRef.current || carregandoMaisRef.current) return
+          const el = sentinelRef.current
+          if (!el) return
+          const rect = el.getBoundingClientRect()
+          const margem = 160
+          if (rect.top < (typeof window !== 'undefined' ? window.innerHeight : 0) + margem) {
+            void carregarMaisAtividades()
+          }
+        })
+      }
     }
-  }, [aba, meuId, offsetAmigos, temMaisAmigos, carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesMeta, carregarStoriesRepostAtivos, carregandoMais])
+  }, [meuId, carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesMeta, carregarStoriesRepostAtivos])
 
   useEffect(() => {
     void recarregar()
@@ -1993,28 +2036,24 @@ export default function AtividadesPage() {
   }, [listaAtividadesFiltrada, postMetaMap, aba])
 
   useEffect(() => {
+    if (aba !== 'amigos' || !temMaisAmigos) return
     const el = sentinelRef.current
     if (!el) return
     const obs = new IntersectionObserver(
       (entries) => {
         if (!entries[0]?.isIntersecting) return
-        if (carregandoMais) return
-        const temMais = aba === 'amigos' ? temMaisAmigos : temMaisMinha
-        if (!temMais) return
         void carregarMaisAtividades()
       },
-      { rootMargin: '120px' }
+      { root: null, rootMargin: '200px', threshold: 0 },
     )
     obs.observe(el)
+    // Dispara já na montagem se o sentinela já está visível (lista curta).
+    const rect = el.getBoundingClientRect()
+    if (rect.top < (typeof window !== 'undefined' ? window.innerHeight : 0) + 200) {
+      void carregarMaisAtividades()
+    }
     return () => obs.disconnect()
-  }, [
-    aba,
-    carregarMaisAtividades,
-    carregandoMais,
-    temMaisAmigos,
-    temMaisMinha,
-    itensAgrupados.length,
-  ])
+  }, [aba, temMaisAmigos, itensAgrupados.length, offsetAmigos, carregarMaisAtividades])
 
   const renderItem = (item: (typeof itensAgrupados)[number], idx: number) => {
     const modoMinhaConta = aba === 'minha'
