@@ -248,12 +248,12 @@ function DetalheTicket({
 
   return (
     <div className="space-y-4 pb-6">
-      <p className="px-1 text-left text-base font-semibold text-[#001f3f]">{item.titulo}</p>
+      <p className="px-4 pt-1 text-left text-base font-semibold text-[#001f3f]">{item.titulo}</p>
 
       {fotos.length > 0 ? (
         <div className="relative px-6">
           <div
-            className="aspect-[4/3] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
+            className="aspect-[16/10] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
             onTouchStart={(e) => {
               touchFotoX.current = e.touches[0]?.clientX ?? null
             }}
@@ -304,9 +304,10 @@ function DetalheTicket({
           ) : null}
         </div>
       ) : (
-        <div className="aspect-[4/3] rounded-xl bg-gray-100" />
+        <div className="mx-6 aspect-[16/10] rounded-xl bg-gray-100" />
       )}
 
+      <div className="space-y-4 px-4">
       {tipos.length > 0 ? (
         <div className="flex gap-2">
           {tipos.map((t) => {
@@ -442,6 +443,7 @@ function DetalheTicket({
       {!perfilEhEmpresa && !perfilEhProfissional ? (
         <BotaoChamarCorrida variant="empresa" empresaId={empresaId} />
       ) : null}
+      </div>
 
       <PopupRecomendarTicket
         aberto={recomendarAberto}
@@ -907,7 +909,7 @@ export default function DrawerTicketsAtrativos({
               )}
             </div>
           ) : passo === 2 && selecionado ? (
-            <div className="p-4">
+            <div className="pb-2">
               <DetalheTicket
                 item={selecionado}
                 regrasMeia={regrasMeia}

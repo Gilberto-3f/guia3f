@@ -429,12 +429,12 @@ export default function DrawerCardapio({
             )}
           </div>
         ) : selecionado ? (
-          <div className="space-y-4 px-4 py-4 pb-8">
-            <p className="text-left text-base font-bold text-[#001f3f]">{selecionado.nome}</p>
+          <div className="space-y-4 pb-8 pt-3">
+            <p className="px-4 text-left text-base font-bold text-[#001f3f]">{selecionado.nome}</p>
 
             <div className="relative px-6">
               <div
-                className="aspect-[4/3] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
+                className="aspect-[16/10] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
                 onTouchStart={(e) => {
                   touchFotoX.current = e.touches[0]?.clientX ?? null
                 }}
@@ -487,6 +487,7 @@ export default function DrawerCardapio({
               ) : null}
             </div>
 
+            <div className="space-y-4 px-4">
             <div>
               <PrecoProdutoCde
                 precoUsd={precoFinal}
@@ -614,6 +615,7 @@ export default function DrawerCardapio({
             ) : (
               <BotaoChamarCorrida variant="empresa" empresaId={empresaId} />
             )}
+            </div>
           </div>
         ) : null}
       </div>
