@@ -180,12 +180,12 @@ export default function AbaAcomodacoes({ empresaId }: Props) {
         const novoId = String(criada.id)
         rascunhoId = novoId
 
-        const fotos = await uploadFotosAcomodacao(supabase, empresaId, novoId, form.fotosNovas)
+        const fotosUpload = await uploadFotosAcomodacao(supabase, empresaId, novoId, form.fotosNovas)
 
-        if (fotos.length < 2) {
+        if (fotosUpload.length < 2) {
           throw new Error('Envie no mínimo 2 fotos da acomodação.')
         }
-        if (fotos.length > 5) fotos = fotos.slice(0, 5)
+        const fotos = fotosUpload.length > 5 ? fotosUpload.slice(0, 5) : fotosUpload
 
         const { error: upErr } = await supabase
           .from('hospedagem_acomodacoes')

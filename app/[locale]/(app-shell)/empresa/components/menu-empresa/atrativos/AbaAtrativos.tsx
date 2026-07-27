@@ -221,12 +221,13 @@ export default function AbaAtrativos({ empresaId }: Props) {
         const novoId = String(novo.id)
         rascunhoId = novoId
 
-        const fotos = await uploadFotosAtrativo(supabase, empresaId, novoId, form.fotosNovas)
+        const fotosUpload = await uploadFotosAtrativo(supabase, empresaId, novoId, form.fotosNovas)
 
-        if (!fotos.length || fotos.length < form.fotosNovas.length) {
+        if (!fotosUpload.length || fotosUpload.length < form.fotosNovas.length) {
           throw new Error('Uma ou mais fotos não foram aceitas. Corrija e salve novamente.')
         }
-        if (fotos.length > FOTOS_MAX) fotos = fotos.slice(0, FOTOS_MAX)
+        const fotos =
+          fotosUpload.length > FOTOS_MAX ? fotosUpload.slice(0, FOTOS_MAX) : fotosUpload
 
         const { error: errUp } = await supabase
           .from('atrativos_experiencias')
