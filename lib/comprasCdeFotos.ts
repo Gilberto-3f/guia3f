@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   MSG_FOTO_INCOMPATIVEL,
+  assertFotosNovasCompativeis,
   erroUploadFotoAmigavel,
   relancarErroFotoComIndice,
 } from '@/lib/mensagensCadastroEmpresa'
@@ -48,6 +49,7 @@ export async function uploadFotosProduto(
   produtoId: string,
   files: File[],
 ): Promise<string[]> {
+  assertFotosNovasCompativeis(files)
   const urls: string[] = []
   for (let i = 0; i < files.length; i++) {
     try {

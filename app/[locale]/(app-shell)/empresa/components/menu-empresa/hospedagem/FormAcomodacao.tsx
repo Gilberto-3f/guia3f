@@ -21,7 +21,7 @@ import {
   type HospedagemAcomodacaoRow,
 } from '@/lib/hospedagemAcomodacoesCatalogo'
 import ChevronPasta from './ChevronPasta'
-import { faltouCampo } from '@/lib/mensagensCadastroEmpresa'
+import { faltouCampo, faltouFotosMinimas, CLS_FOTO_REJEITADA } from '@/lib/mensagensCadastroEmpresa'
 
 export type FormAcomodacaoState = {
   id: string | null
@@ -112,7 +112,8 @@ export function validarFormAcomodacao(form: FormAcomodacaoState): string | null 
     }
   }
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
-  if (totalFotos < 2) return faltouCampo('Foto')
+  if (totalFotos === 0) return faltouCampo('Foto')
+  if (totalFotos < 2) return faltouFotosMinimas(2)
   if (totalFotos > 5) return 'Máximo de 5 fotos por acomodação.'
   const errPadrao = validarComodidadesPadrao(form.comodidades_padrao)
   if (errPadrao) return errPadrao
@@ -131,7 +132,8 @@ type Props = {
   titulo?: string
   erro?: string | null
   fotoRejeitadaIndice?: number | null
-  onLimparFotoRejeitada?: () => void
+  /** null = limpar destaque/erro; número = novo índice após remoção de foto anterior. */
+  onFotoRejeitadaIndiceChange?: (indice: number | null) => void
 }
 
 function RadioLista({
@@ -217,7 +219,7 @@ export default function FormAcomodacao({
   titulo = 'Nova acomodação',
   erro = null,
   fotoRejeitadaIndice = null,
-  onLimparFotoRejeitada,
+  onFotoRejeitadaIndiceChange,
 }: Props) {
   const [abertos, setAbertos] = useState({
     imovel: true,
@@ -240,7 +242,7 @@ export default function FormAcomodacao({
     const escolhidos = Array.from(files).slice(0, restantes)
     if (!escolhidos.length) return
     const previews = escolhidos.map((f) => URL.createObjectURL(f))
-    onLimparFotoRejeitada?.()
+    onFotoRejeitadaIndiceChange?.(null)
     patch({
       fotosNovas: [...form.fotosNovas, ...escolhidos],
       fotosNovasPreview: [...form.fotosNovasPreview, ...previews],
@@ -254,7 +256,10 @@ export default function FormAcomodacao({
   const removerFotoNova = (idx: number) => {
     const preview = form.fotosNovasPreview[idx]
     if (preview) URL.revokeObjectURL(preview)
-    if (fotoRejeitadaIndice === idx) onLimparFotoRejeitada?.()
+    if (fotoRejeitadaIndice != null) {
+      if (fotoRejeitadaIndice === idx) onFotoRejeitadaIndiceChange?.(null)
+      else if (idx < fotoRejeitadaIndice) onFotoRejeitadaIndiceChange?.(fotoRejeitadaIndice - 1)
+    }
     patch({
       fotosNovas: form.fotosNovas.filter((_, i) => i !== idx),
       fotosNovasPreview: form.fotosNovasPreview.filter((_, i) => i !== idx),
@@ -381,7 +386,7 @@ export default function FormAcomodacao({
             <div
               key={`new-${idx}`}
               className={`relative aspect-square overflow-hidden rounded-lg bg-gray-100 ${
-                fotoRejeitadaIndice === idx ? 'ring-2 ring-red-500 ring-offset-2' : ''
+                fotoRejeitadaIndice === idx ? CLS_FOTO_REJEITADA : ''
               }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

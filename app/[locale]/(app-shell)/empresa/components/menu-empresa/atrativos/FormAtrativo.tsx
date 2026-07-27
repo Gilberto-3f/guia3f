@@ -15,7 +15,7 @@ import {
   labelValorFormProduto,
   type MoedaPadraoLoja,
 } from '@/lib/comprasCdeMoedaPadrao'
-import { faltouCampo } from '@/lib/mensagensCadastroEmpresa'
+import { faltouCampo, faltouFotosMinimas, CLS_FOTO_REJEITADA } from '@/lib/mensagensCadastroEmpresa'
 
 export type FormAtrativoState = {
   id: string | null
@@ -97,7 +97,8 @@ export function validarFormAtrativo(form: FormAtrativoState): string | null {
     }
   }
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
-  if (totalFotos < FOTOS_MIN) return faltouCampo('Foto')
+  if (totalFotos === 0) return faltouCampo('Foto')
+  if (totalFotos < FOTOS_MIN) return faltouFotosMinimas(FOTOS_MIN)
   if (totalFotos > FOTOS_MAX) return `No máximo ${FOTOS_MAX} fotos.`
   return null
 }
@@ -111,7 +112,7 @@ type Props = {
   titulo: string
   erro?: string | null
   fotoRejeitadaIndice?: number | null
-  onLimparFotoRejeitada?: () => void
+  onFotoRejeitadaIndiceChange?: (indice: number | null) => void
   moedaPadrao?: MoedaPadraoLoja
 }
 
@@ -124,7 +125,7 @@ export default function FormAtrativo({
   titulo,
   erro = null,
   fotoRejeitadaIndice = null,
-  onLimparFotoRejeitada,
+  onFotoRejeitadaIndiceChange,
   moedaPadrao = 'BRL',
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -140,7 +141,7 @@ export default function FormAtrativo({
     const selecionados = Array.from(files).slice(0, restam)
     if (!selecionados.length) return
     const previews = selecionados.map((f) => URL.createObjectURL(f))
-    onLimparFotoRejeitada?.()
+    onFotoRejeitadaIndiceChange?.(null)
     patch({
       fotosNovas: [...form.fotosNovas, ...selecionados],
       fotosNovasPreview: [...form.fotosNovasPreview, ...previews],
@@ -154,7 +155,10 @@ export default function FormAtrativo({
   const removerNova = (idx: number) => {
     const url = form.fotosNovasPreview[idx]
     if (url) URL.revokeObjectURL(url)
-    if (fotoRejeitadaIndice === idx) onLimparFotoRejeitada?.()
+    if (fotoRejeitadaIndice != null) {
+      if (fotoRejeitadaIndice === idx) onFotoRejeitadaIndiceChange?.(null)
+      else if (idx < fotoRejeitadaIndice) onFotoRejeitadaIndiceChange?.(fotoRejeitadaIndice - 1)
+    }
     patch({
       fotosNovas: form.fotosNovas.filter((_, i) => i !== idx),
       fotosNovasPreview: form.fotosNovasPreview.filter((_, i) => i !== idx),
@@ -213,7 +217,7 @@ export default function FormAtrativo({
             <div
               key={`n-${i}`}
               className={`relative h-20 w-20 overflow-hidden rounded-lg bg-gray-200 ${
-                fotoRejeitadaIndice === i ? 'ring-2 ring-red-500 ring-offset-2' : ''
+                fotoRejeitadaIndice === i ? CLS_FOTO_REJEITADA : ''
               }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

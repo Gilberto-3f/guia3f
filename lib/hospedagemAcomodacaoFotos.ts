@@ -1,5 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { erroUploadFotoAmigavel, relancarErroFotoComIndice } from '@/lib/mensagensCadastroEmpresa'
+import {
+  assertFotosNovasCompativeis,
+  erroUploadFotoAmigavel,
+  relancarErroFotoComIndice,
+} from '@/lib/mensagensCadastroEmpresa'
 
 const BUCKET = 'empresas'
 
@@ -45,6 +49,7 @@ export async function uploadFotosAcomodacao(
   acomodacaoId: string,
   files: File[],
 ): Promise<string[]> {
+  assertFotosNovasCompativeis(files)
   const urls: string[] = []
   for (let i = 0; i < files.length; i++) {
     try {

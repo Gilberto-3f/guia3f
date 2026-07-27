@@ -2,8 +2,47 @@
 
 export const MSG_FOTO_INCOMPATIVEL = 'Formato de foto incompatível, troque ou exclua.'
 
+/** Destaque visual da foto rejeitada (border — ring some com overflow-hidden). */
+export const CLS_FOTO_REJEITADA = 'border-2 border-red-500'
+
+const MIME_FOTO_ACEITOS = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+])
+const EXT_FOTO_ACEITAS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif'])
+
 export function faltouCampo(nomeCampo: string): string {
   return `Faltou preencher o campo "${nomeCampo}"`
+}
+
+/** Mensagem quando há foto(s) mas ainda falta atingir o mínimo. */
+export function faltouFotosMinimas(min: number): string {
+  return min <= 1
+    ? faltouCampo('Foto')
+    : `Envie no mínimo ${min} fotos.`
+}
+
+/** Valida se o arquivo é um formato de imagem aceito pelo storage. */
+export function fotoArquivoCompativel(file: File): boolean {
+  if (!file || file.size <= 0) return false
+  const type = String(file.type ?? '').toLowerCase().trim()
+  const ext = (file.name.split('.').pop() || '').toLowerCase()
+  if (
+    type.includes('avif') ||
+    type.includes('heic') ||
+    type.includes('heif') ||
+    ext === 'avif' ||
+    ext === 'heic' ||
+    ext === 'heif'
+  ) {
+    return false
+  }
+  if (type && MIME_FOTO_ACEITOS.has(type)) return true
+  if (EXT_FOTO_ACEITAS.has(ext)) return true
+  return false
 }
 
 export function ehErroFormatoFoto(mensagem: string | null | undefined): boolean {
@@ -29,6 +68,15 @@ export class ErroFotoIncompativel extends Error {
     super(MSG_FOTO_INCOMPATIVEL)
     this.name = 'ErroFotoIncompativel'
     this.indiceNova = indiceNova
+  }
+}
+
+/** Lança ErroFotoIncompativel no primeiro arquivo incompatível (antes de qualquer upload). */
+export function assertFotosNovasCompativeis(files: File[]): void {
+  for (let i = 0; i < files.length; i++) {
+    if (!fotoArquivoCompativel(files[i])) {
+      throw new ErroFotoIncompativel(i)
+    }
   }
 }
 

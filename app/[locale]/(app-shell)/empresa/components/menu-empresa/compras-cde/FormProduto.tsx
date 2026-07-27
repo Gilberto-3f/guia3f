@@ -22,7 +22,7 @@ import {
   usdParaMoedaPadrao,
   type MoedaPadraoLoja,
 } from '@/lib/comprasCdeMoedaPadrao'
-import { faltouCampo } from '@/lib/mensagensCadastroEmpresa'
+import { faltouCampo, faltouFotosMinimas, CLS_FOTO_REJEITADA } from '@/lib/mensagensCadastroEmpresa'
 
 export type FormProdutoState = {
   id: string | null
@@ -123,7 +123,8 @@ export function validarFormProduto(form: FormProdutoState): string | null {
     }
   }
   const totalFotos = form.fotosExistentes.length + form.fotosNovas.length
-  if (totalFotos < FOTOS_MIN) return faltouCampo('Foto')
+  if (totalFotos === 0) return faltouCampo('Foto')
+  if (totalFotos < FOTOS_MIN) return faltouFotosMinimas(FOTOS_MIN)
   if (totalFotos > FOTOS_MAX) return `No máximo ${FOTOS_MAX} fotos.`
   return null
 }
@@ -139,7 +140,7 @@ type Props = {
   /** Mensagem de validação / falha — exibida abaixo dos botões Cancelar/Salvar. */
   erro?: string | null
   fotoRejeitadaIndice?: number | null
-  onLimparFotoRejeitada?: () => void
+  onFotoRejeitadaIndiceChange?: (indice: number | null) => void
   /** Só lojas CDE (motor de busca Compras CDE). */
   mostrarMetatags?: boolean
   /** Moeda do input de preço (padrão da empresa). */
@@ -156,7 +157,7 @@ export default function FormProduto({
   titulo,
   erro = null,
   fotoRejeitadaIndice = null,
-  onLimparFotoRejeitada,
+  onFotoRejeitadaIndiceChange,
   mostrarMetatags = true,
   moedaPadrao = 'USD',
 }: Props) {
@@ -188,7 +189,7 @@ export default function FormProduto({
     const chosen = Array.from(files).slice(0, room)
     if (!chosen.length) return
     const previews = chosen.map((f) => URL.createObjectURL(f))
-    onLimparFotoRejeitada?.()
+    onFotoRejeitadaIndiceChange?.(null)
     onChange({
       ...form,
       fotosNovas: [...form.fotosNovas, ...chosen],
@@ -206,7 +207,10 @@ export default function FormProduto({
   const removerNova = (idx: number) => {
     const prev = form.fotosNovasPreview[idx]
     if (prev) URL.revokeObjectURL(prev)
-    if (fotoRejeitadaIndice === idx) onLimparFotoRejeitada?.()
+    if (fotoRejeitadaIndice != null) {
+      if (fotoRejeitadaIndice === idx) onFotoRejeitadaIndiceChange?.(null)
+      else if (idx < fotoRejeitadaIndice) onFotoRejeitadaIndiceChange?.(fotoRejeitadaIndice - 1)
+    }
     onChange({
       ...form,
       fotosNovas: form.fotosNovas.filter((_, i) => i !== idx),
@@ -272,7 +276,7 @@ export default function FormProduto({
               <div
                 key={`nova-${i}`}
                 className={`relative h-20 w-20 overflow-hidden rounded-lg bg-gray-100 ${
-                  fotoRejeitadaIndice === i ? 'ring-2 ring-red-500 ring-offset-2' : ''
+                  fotoRejeitadaIndice === i ? CLS_FOTO_REJEITADA : ''
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}

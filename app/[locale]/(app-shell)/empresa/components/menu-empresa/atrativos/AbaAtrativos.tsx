@@ -221,16 +221,7 @@ export default function AbaAtrativos({ empresaId }: Props) {
         const novoId = String(novo.id)
         rascunhoId = novoId
 
-        let fotos: string[]
-        try {
-          fotos = await uploadFotosAtrativo(supabase, empresaId, novoId, form.fotosNovas)
-        } catch (upErr) {
-          throw new Error(
-            upErr instanceof Error && upErr.message
-              ? upErr.message
-              : 'Foto não aceita. Troque a imagem e salve novamente.',
-          )
-        }
+        const fotos = await uploadFotosAtrativo(supabase, empresaId, novoId, form.fotosNovas)
 
         if (!fotos.length || fotos.length < form.fotosNovas.length) {
           throw new Error('Uma ou mais fotos não foram aceitas. Corrija e salve novamente.')
@@ -365,7 +356,10 @@ export default function AbaAtrativos({ empresaId }: Props) {
           titulo={form.id ? 'Editar atrativo' : 'Cadastrar atrativo'}
           erro={erro}
           fotoRejeitadaIndice={fotoRejeitadaIndice}
-          onLimparFotoRejeitada={() => setFotoRejeitadaIndice(null)}
+          onFotoRejeitadaIndiceChange={(i) => {
+            setFotoRejeitadaIndice(i)
+            if (i == null) setErro(null)
+          }}
           moedaPadrao={moedaPadrao}
         />
       ) : (

@@ -292,16 +292,7 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
         const novoId = String(novo.id)
         rascunhoId = novoId
 
-        let fotos: string[]
-        try {
-          fotos = await uploadFotosProduto(supabase, empresaId, novoId, form.fotosNovas)
-        } catch (upErr) {
-          const motivo =
-            upErr instanceof Error && upErr.message
-              ? upErr.message
-              : 'Foto não aceita. Troque a imagem e salve novamente.'
-          throw new Error(motivo)
-        }
+        const fotos = await uploadFotosProduto(supabase, empresaId, novoId, form.fotosNovas)
 
         if (!fotos.length || fotos.length < form.fotosNovas.length) {
           throw new Error('Uma ou mais fotos não foram aceitas. Corrija e salve novamente.')
@@ -433,7 +424,10 @@ export default function AbaProdutos({ empresaId, mostrarMetatags = true }: Props
           titulo={form.id ? 'Editar produto' : 'Cadastrar produto'}
           erro={erro}
           fotoRejeitadaIndice={fotoRejeitadaIndice}
-          onLimparFotoRejeitada={() => setFotoRejeitadaIndice(null)}
+          onFotoRejeitadaIndiceChange={(i) => {
+            setFotoRejeitadaIndice(i)
+            if (i == null) setErro(null)
+          }}
           mostrarMetatags={mostrarMetatags}
           moedaPadrao={moedaPadrao}
         />

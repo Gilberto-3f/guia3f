@@ -180,16 +180,7 @@ export default function AbaAcomodacoes({ empresaId }: Props) {
         const novoId = String(criada.id)
         rascunhoId = novoId
 
-        let fotos: string[]
-        try {
-          fotos = await uploadFotosAcomodacao(supabase, empresaId, novoId, form.fotosNovas)
-        } catch (upErr) {
-          throw new Error(
-            upErr instanceof Error && upErr.message
-              ? upErr.message
-              : 'Foto não aceita. Troque a imagem e salve novamente.',
-          )
-        }
+        const fotos = await uploadFotosAcomodacao(supabase, empresaId, novoId, form.fotosNovas)
 
         if (fotos.length < 2) {
           throw new Error('Envie no mínimo 2 fotos da acomodação.')
@@ -324,7 +315,10 @@ export default function AbaAcomodacoes({ empresaId }: Props) {
           titulo={form.id ? 'Editar acomodação' : 'Cadastrar acomodação'}
           erro={erro}
           fotoRejeitadaIndice={fotoRejeitadaIndice}
-          onLimparFotoRejeitada={() => setFotoRejeitadaIndice(null)}
+          onFotoRejeitadaIndiceChange={(i) => {
+            setFotoRejeitadaIndice(i)
+            if (i == null) setErro(null)
+          }}
         />
       ) : (
         <>
