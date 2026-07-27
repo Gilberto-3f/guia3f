@@ -283,9 +283,7 @@ export default function AtividadesPage() {
   useEffect(() => {
     temMaisAmigosRef.current = temMaisAmigos
   }, [temMaisAmigos])
-  useEffect(() => {
-    carregandoMaisRef.current = carregandoMais
-  }, [carregandoMais])
+  /* Não sincronizar carregandoMaisRef via useEffect — race com setState pode deixar o ref em true e bloquear o load more. */
 
   const [perfilMap, setPerfilMap] = useState<PerfilMap>({})
   const [postMetaMap, setPostMetaMap] = useState<
@@ -1609,19 +1607,22 @@ export default function AtividadesPage() {
       }
       setErroAmigos(null)
       const novasRaw = (data ?? []) as AtividadeRow[]
-      const novas = (await enriquecerAtividadesEmpresaInterator(supabase, novasRaw)) as AtividadeRow[]
-      if (novas.length === 0) {
+      const fetchLen = novasRaw.length
+      if (fetchLen === 0) {
         temMaisAmigosRef.current = false
         setTemMaisAmigos(false)
         return
       }
+      const novas = (await enriquecerAtividadesEmpresaInterator(supabase, novasRaw)) as AtividadeRow[]
       setListaAmigos((prev) => mergeAtividadesPorId(prev, novas))
-      const nextOffset = start + novas.length
+      /* Offset avança pelo tamanho do fetch bruto (não pelo que passou nos filtros de UI). */
+      const nextOffset = start + fetchLen
       offsetAmigosRef.current = nextOffset
       setOffsetAmigos(nextOffset)
-      const aindaTem = novas.length === lim
+      const aindaTem = fetchLen === lim
       temMaisAmigosRef.current = aindaTem
       setTemMaisAmigos(aindaTem)
+      /* Continua se ainda há páginas e o sentinela segue na tela (lista filtrada curta). */
       agendarRefill = aindaTem
 
       const postIds: string[] = []
@@ -1640,24 +1641,51 @@ export default function AtividadesPage() {
         carregarPostsMeta(postIds, { merge: true }),
         carregarStoriesMeta(novas, { merge: true }),
       ]).then(() => carregarStoriesRepostAtivos(novas, { merge: true }))
+
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.log('[Atividades][Amigos] carregarMais', {
+          start,
+          fetchLen,
+          nextOffset,
+          aindaTem,
+        })
+      }
     } finally {
       carregandoMaisRef.current = false
       setCarregandoMais(false)
       // Se o sentinela ainda está na viewport (lista curta / filtros), pede a próxima página.
       if (agendarRefill) {
         requestAnimationFrame(() => {
-          if (abaRef.current !== 'amigos' || !temMaisAmigosRef.current || carregandoMaisRef.current) return
-          const el = sentinelRef.current
-          if (!el) return
-          const rect = el.getBoundingClientRect()
-          const margem = 160
-          if (rect.top < (typeof window !== 'undefined' ? window.innerHeight : 0) + margem) {
-            void carregarMaisAtividades()
-          }
+          requestAnimationFrame(() => {
+            if (abaRef.current !== 'amigos' || !temMaisAmigosRef.current || carregandoMaisRef.current) {
+              return
+            }
+            const el = sentinelRef.current
+            if (!el) return
+            const rect = el.getBoundingClientRect()
+            const margem = 280
+            if (rect.top < (typeof window !== 'undefined' ? window.innerHeight : 0) + margem) {
+              void carregarMaisAtividades()
+            }
+          })
         })
       }
     }
   }, [meuId, carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesMeta, carregarStoriesRepostAtivos])
+
+  /** Dispara load more quando o sentinela entra na área visível (IO + scroll, pois IO sozinho falha em alguns casos). */
+  const tentarCarregarMaisSeSentinelaVisivel = useCallback(() => {
+    if (abaRef.current !== 'amigos') return
+    if (!temMaisAmigosRef.current || carregandoMaisRef.current) return
+    const el = sentinelRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const margem = 280
+    if (rect.top < window.innerHeight + margem && rect.bottom > -margem) {
+      void carregarMaisAtividades()
+    }
+  }, [carregarMaisAtividades])
 
   useEffect(() => {
     void recarregar()
@@ -2042,23 +2070,42 @@ export default function AtividadesPage() {
 
   useEffect(() => {
     if (aba !== 'amigos' || !temMaisAmigos) return
-    const el = sentinelRef.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (!entries[0]?.isIntersecting) return
-        void carregarMaisAtividades()
-      },
-      { root: null, rootMargin: '200px', threshold: 0 },
-    )
-    obs.observe(el)
-    // Dispara já na montagem se o sentinela já está visível (lista curta).
-    const rect = el.getBoundingClientRect()
-    if (rect.top < (typeof window !== 'undefined' ? window.innerHeight : 0) + 200) {
+
+    const onIntersect: IntersectionObserverCallback = (entries) => {
+      if (!entries[0]?.isIntersecting) return
       void carregarMaisAtividades()
     }
-    return () => obs.disconnect()
-  }, [aba, temMaisAmigos, itensAgrupados.length, offsetAmigos, carregarMaisAtividades])
+
+    const obs = new IntersectionObserver(onIntersect, {
+      root: null,
+      rootMargin: '280px',
+      threshold: 0,
+    })
+
+    const el = sentinelRef.current
+    if (el) obs.observe(el)
+
+    const onScrollOrResize = () => {
+      tentarCarregarMaisSeSentinelaVisivel()
+    }
+    window.addEventListener('scroll', onScrollOrResize, { passive: true })
+    window.addEventListener('resize', onScrollOrResize)
+    // Dispara já na montagem se o sentinela já está visível (lista curta).
+    tentarCarregarMaisSeSentinelaVisivel()
+
+    return () => {
+      obs.disconnect()
+      window.removeEventListener('scroll', onScrollOrResize)
+      window.removeEventListener('resize', onScrollOrResize)
+    }
+  }, [
+    aba,
+    temMaisAmigos,
+    itensAgrupados.length,
+    offsetAmigos,
+    carregarMaisAtividades,
+    tentarCarregarMaisSeSentinelaVisivel,
+  ])
 
   const renderItem = (item: (typeof itensAgrupados)[number], idx: number) => {
     const modoMinhaConta = aba === 'minha'
@@ -3067,7 +3114,12 @@ export default function AtividadesPage() {
           </div>
         )}
         {(aba === 'amigos' ? temMaisAmigos : temMaisMinha) ? (
-          <div ref={sentinelRef} className="h-4 w-full" aria-hidden />
+          <div
+            ref={sentinelRef}
+            className="h-8 w-full shrink-0"
+            aria-hidden
+            data-atividades-sentinel
+          />
         ) : null}
         {carregandoMais ? (
           <div className="flex justify-center py-4">
