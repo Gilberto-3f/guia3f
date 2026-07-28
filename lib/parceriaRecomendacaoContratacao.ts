@@ -8,8 +8,23 @@ import {
   mapParceiroFinanceiroMeta,
   notificarAnfitriaoPropostaParceriaBase,
 } from '@/lib/recomendacaoAnfitriaoFinanceiro'
+import {
+  listarBeneficiosOferta,
+  type BeneficiosOfertaRecord,
+} from '@/lib/comissoesBeneficiosInfo'
 import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
 import { registrarTuristaNoManifesto, filtrarEmpresaIds, type DadosPaxManifesto } from '@/lib/manifestoDiario'
+
+function rotuloComissaoOferta(beneficios: unknown, categoriaProfissional: string): string {
+  const raw =
+    beneficios && typeof beneficios === 'object' && !Array.isArray(beneficios)
+      ? (beneficios as BeneficiosOfertaRecord)
+      : ({} as BeneficiosOfertaRecord)
+  const itens = listarBeneficiosOferta(raw)
+  if (itens.length > 0) return itens.map((i) => `${i.label} ${i.valor}`).join(', ')
+  const cat = String(categoriaProfissional ?? '').trim()
+  return cat || 'benefício'
+}
 
 export type DadosAtendimentoManifesto = {
   nome_completo: string
@@ -281,7 +296,9 @@ export async function notificarEmpresasParceriaComissaoDividida(
 
   const { data: ofertas } = await supabase
     .from('comissao_oferta')
-    .select('id, empresa_id, categoria, beneficio, empresas:empresa_id (usuario_id, nome_fantasia)')
+    .select(
+      'id, empresa_id, categoria_profissional, beneficios, empresas:empresa_id (usuario_id, nome_fantasia)',
+    )
     .limit(50)
 
   const vistos = new Set<string>()
@@ -292,11 +309,15 @@ export async function notificarEmpresasParceriaComissaoDividida(
     vistos.add(empresaUsuarioId)
 
     const nomeEmp = String(emp?.nome_fantasia ?? 'Empresa')
+    const rotuloBeneficio = rotuloComissaoOferta(
+      row.beneficios,
+      String(row.categoria_profissional ?? ''),
+    )
     await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
       empresaUsuarioId,
       tipo: 'relatorio_parceria',
       titulo: 'Parceria entre profissionais — comissão dividida',
-      mensagem: `Parceria formada por recomendação no app. Ao concluir atendimento, ${pctRegular}% da comissão cadastrada (${String(row.beneficio ?? 'benefício')}) deve ser paga ao profissional que executou o serviço e ${pctIndicador}% ao profissional que prospectou o turista.`,
+      mensagem: `Parceria formada por recomendação no app. Ao concluir atendimento, ${pctRegular}% da comissão cadastrada (${rotuloBeneficio}) deve ser paga ao profissional que executou o serviço e ${pctIndicador}% ao profissional que prospectou o turista.`,
       comprovanteDetalhes: {
         recomendacao_id: params.recomendacaoId,
         turista_usuario_id: params.turistaUsuarioId,
@@ -305,6 +326,7 @@ export async function notificarEmpresasParceriaComissaoDividida(
         split_regular_pct: pctRegular,
         split_indicador_pct: pctIndicador,
         empresa_nome: nomeEmp,
+        categoria_profissional: String(row.categoria_profissional ?? ''),
       },
     })
   }

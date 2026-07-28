@@ -109,7 +109,10 @@ export function useGerenciaAdm() {
       if (ids.length > 0) {
         const [{ data: profs }, { data: turistas }] = await Promise.all([
           supabase.from('profissionais').select('usuario_id, nome_completo, nome_usuario, foto_perfil_url').in('usuario_id', ids),
-          supabase.from('turistas').select('usuario_id, nome, nome_usuario, foto_url').in('usuario_id', ids),
+          supabase
+            .from('turistas')
+            .select('usuario_id, nome_completo, nome_usuario, foto_url')
+            .in('usuario_id', ids),
         ])
         for (const p of profs ?? []) {
           const uid = String(p.usuario_id)
@@ -123,7 +126,7 @@ export function useGerenciaAdm() {
           const uid = String(t.usuario_id)
           if (!perfilMap.has(uid)) {
             perfilMap.set(uid, {
-              nome: String(t.nome ?? t.nome_usuario ?? ''),
+              nome: String(t.nome_completo ?? t.nome_usuario ?? ''),
               username: String(t.nome_usuario ?? '').replace(/^@+/, ''),
               foto: t.foto_url != null ? String(t.foto_url) : null,
             })

@@ -45,14 +45,14 @@ export async function GET(req: Request) {
     if (!usuario) {
       const { data: tur } = await adminDb
         .from('turistas')
-        .select('usuario_id, nome, nome_usuario')
-        .or(`nome_usuario.ilike.${q},nome.ilike.${q}`)
+        .select('usuario_id, nome_completo, nome_usuario')
+        .or(`nome_usuario.ilike.${q},nome_completo.ilike.${q}`)
         .limit(5)
 
       const turHit = (tur ?? []).find(
         (t) =>
           norm(String(t.nome_usuario ?? '')).toLowerCase() === q.toLowerCase() ||
-          norm(String(t.nome ?? '')).toLowerCase() === q.toLowerCase(),
+          norm(String(t.nome_completo ?? '')).toLowerCase() === q.toLowerCase(),
       )
       if (turHit?.usuario_id) {
         const { data: u } = await adminDb
@@ -115,11 +115,11 @@ export async function GET(req: Request) {
     } else {
       const { data: tur } = await adminDb
         .from('turistas')
-        .select('nome, nome_usuario, foto_url')
+        .select('nome_completo, nome_usuario, foto_url')
         .eq('usuario_id', uid)
         .maybeSingle()
       if (tur) {
-        nomeSocial = String(tur.nome ?? nomeSocial).trim()
+        nomeSocial = String(tur.nome_completo ?? nomeSocial).trim()
         username = norm(String(tur.nome_usuario ?? username)) || username
         fotoUrl = tur.foto_url != null ? String(tur.foto_url) : null
       }

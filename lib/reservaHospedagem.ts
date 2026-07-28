@@ -639,14 +639,18 @@ export async function carregarTuristaReservaMeta(
 
   const [{ data: u }, { data: t }] = await Promise.all([
     supabase.from('usuarios').select('username').eq('id', uid).maybeSingle(),
-    supabase.from('turistas').select('nome, nome_usuario, foto_perfil_url, foto_url').eq('usuario_id', uid).maybeSingle(),
+    supabase
+      .from('turistas')
+      .select('nome_completo, nome_usuario, foto_perfil_url, foto_url')
+      .eq('usuario_id', uid)
+      .maybeSingle(),
   ])
 
   const username =
     String(u?.username ?? '').trim().replace(/^@+/, '') ||
     String(t?.nome_usuario ?? '').trim().replace(/^@+/, '') ||
     'turista'
-  const nome = String(t?.nome ?? '').trim() || 'Turista'
+  const nome = String(t?.nome_completo ?? '').trim() || 'Turista'
   const fotoUrl = pickFotoTurista(t)
 
   return { username, nome, fotoUrl }
