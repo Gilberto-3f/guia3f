@@ -5,6 +5,7 @@ import { DollarSign, FileText, CheckCircle, Eye } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { marcarFinanceiroItemLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
+import { marcarFinanceiroItemLidoProfissional } from '@/lib/canaisProfissionalVisibilidade'
 
 /**
  * @param {{
@@ -73,11 +74,12 @@ export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = nu
         const ok = await marcarFinanceiroItemLidoEmpresa(supabase, '', item.id)
         if (!ok) throw new Error('Falha ao marcar como lida')
       } else {
-        const { error } = await supabase
-          .from('canal_financeiro')
-          .update({ lida_por_profissional: true })
-          .eq('id', item.id)
-        if (error) throw error
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        const uid = session?.user?.id ?? ''
+        const ok = await marcarFinanceiroItemLidoProfissional(supabase, uid, item.id)
+        if (!ok) throw new Error('Falha ao marcar como lida')
       }
       setLidaLocal(true)
       notificarBadgeCanais()

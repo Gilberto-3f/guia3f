@@ -227,19 +227,74 @@ export async function contarFinanceiroNaoLidasProfissional(
   return countProf + extraTpl + mensageiro + extraEmpresaHospedagem
 }
 
+async function marcarFinanceiroProfissionalViaApi(itemId?: string): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  try {
+    const res = await fetch('/api/profissional/canal-financeiro/marcar-lido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(itemId ? { item_id: itemId } : {}),
+    })
+    const json = (await res.json()) as { ok?: boolean }
+    return res.ok && json.ok === true
+  } catch {
+    return false
+  }
+}
+
+/** Marca um aviso financeiro do profissional como lido. */
+export async function marcarFinanceiroItemLidoProfissional(
+  supabase: SupabaseClient,
+  usuarioId: string,
+  itemId: string,
+): Promise<boolean> {
+  if (!itemId) return false
+  if (typeof window !== 'undefined') {
+    return marcarFinanceiroProfissionalViaApi(itemId)
+  }
+  if (!usuarioId) return false
+
+  const { data: prof } = await supabase
+    .from('profissionais')
+    .select('id')
+    .eq('usuario_id', usuarioId)
+    .maybeSingle()
+  const profissionalId = prof?.id != null ? String(prof.id) : ''
+  if (!profissionalId) return false
+
+  const { data, error } = await supabase
+    .from('canal_financeiro')
+    .update({ lida_por_profissional: true })
+    .eq('id', itemId)
+    .eq('profissional_id', profissionalId)
+    .neq('tipo', 'pre_liberacao_turista')
+    .select('id')
+    .maybeSingle()
+
+  if (error) {
+    console.error('marcarFinanceiroItemLidoProfissional:', error)
+    return false
+  }
+  return Boolean(data?.id)
+}
+
 /** Marca todos os avisos financeiros do profissional como lidos (ao abrir o canal). */
 export async function marcarFinanceiroLidoProfissional(
   supabase: SupabaseClient,
   usuarioId: string,
-): Promise<void> {
-  if (!usuarioId) return
+): Promise<boolean> {
+  if (!usuarioId) return false
+  if (typeof window !== 'undefined') {
+    return marcarFinanceiroProfissionalViaApi()
+  }
+
   const { data: prof } = await supabase
     .from('profissionais')
     .select('id, categorias')
     .eq('usuario_id', usuarioId)
     .maybeSingle()
   const profissionalId = prof?.id != null ? String(prof.id) : ''
-  if (!profissionalId) return
+  if (!profissionalId) return false
 
   const { error } = await supabase
     .from('canal_financeiro')
@@ -248,12 +303,15 @@ export async function marcarFinanceiroLidoProfissional(
     .eq('lida_por_profissional', false)
     .neq('tipo', 'pre_liberacao_turista')
 
-  if (error) console.error('marcarFinanceiroLidoProfissional:', error)
+  if (error) {
+    console.error('marcarFinanceiroLidoProfissional:', error)
+    return false
+  }
 
   const cats = Array.isArray(prof?.categorias)
     ? prof.categorias.filter((c): c is string => typeof c === 'string')
     : []
-  if (!categoriasIncluemAnfitriao(cats)) return
+  if (!categoriasIncluemAnfitriao(cats)) return true
 
   // Legado: avisos de manifesto (por tipo ou texto) não devem permanecer como não lidos para anfitrião.
   const { data: pendentes } = await supabase
@@ -265,11 +323,15 @@ export async function marcarFinanceiroLidoProfissional(
   const idsManifesto = (pendentes ?? [])
     .filter((r) => itemCanalFinanceiroEhAvisoManifesto(r))
     .map((r) => String(r.id))
-  if (idsManifesto.length === 0) return
+  if (idsManifesto.length === 0) return true
 
   const { error: errManifesto } = await supabase
     .from('canal_financeiro')
     .update({ lida_por_profissional: true })
     .in('id', idsManifesto)
-  if (errManifesto) console.error('marcarFinanceiroLidoProfissional manifesto:', errManifesto)
+  if (errManifesto) {
+    console.error('marcarFinanceiroLidoProfissional manifesto:', errManifesto)
+    return false
+  }
+  return true
 }

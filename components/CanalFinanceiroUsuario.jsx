@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import CanalFinanceiroItem from '@/components/CanalFinanceiroItem'
 import CanalFinanceiroItemDegustacao from '@/components/CanalFinanceiroItemDegustacao'
@@ -15,7 +15,10 @@ import {
   marcarFinanceiroItemLidoEmpresa,
   marcarFinanceiroLidoEmpresa,
 } from '@/lib/canaisEmpresaVisibilidade'
-import { marcarFinanceiroLidoProfissional } from '@/lib/canaisProfissionalVisibilidade'
+import {
+  marcarFinanceiroItemLidoProfissional,
+  marcarFinanceiroLidoProfissional,
+} from '@/lib/canaisProfissionalVisibilidade'
 import {
   itemCanalFinanceiroPreLiberacao,
   listarPreLiberacoesHistoricoProfissional,
@@ -109,10 +112,46 @@ export default function CanalFinanceiroUsuario({
     /** @type {Map<string, string>} */ (() => new Map()),
   )
   const ocultarManifesto = tipo === 'profissional' && ehAnfitriao
+  const abaRef = useRef(aba)
+  const marcandoLeituraRef = useRef(false)
+  const carregarSeqRef = useRef(0)
+
+  useEffect(() => {
+    abaRef.current = aba
+  }, [aba])
 
   useEffect(() => {
     setEhAnfitriao(Boolean(ehAnfitriaoProp))
   }, [ehAnfitriaoProp])
+
+  const aplicarLeituraLocalNosItens = useCallback(
+    (lista, persistiuProf, persistiuEmpresa) => {
+      const visualizadoEm = new Date().toISOString()
+      return lista.map((item) => {
+        const itemEmpresa = Boolean(item.empresa_id)
+        const marcarProf =
+          persistiuProf &&
+          tipo === 'profissional' &&
+          (!modoAnfitriaoFinanceiro || !itemEmpresa)
+        const marcarEmp =
+          persistiuEmpresa && (tipo === 'empresa' || (modoAnfitriaoFinanceiro && itemEmpresa))
+        return {
+          ...item,
+          lida_por_profissional: marcarProf ? true : item.lida_por_profissional,
+          lida_por_empresa: marcarEmp ? true : item.lida_por_empresa,
+          metadata:
+            marcarEmp && item.tipo === 'degustacao_plano'
+              ? { ...(item.metadata ?? {}), visualizado_em: visualizadoEm }
+              : item.metadata,
+          comprovante_detalhes:
+            marcarEmp && item.tipo === 'degustacao_plano'
+              ? { ...(item.comprovante_detalhes ?? item.metadata ?? {}), visualizado_em: visualizadoEm }
+              : item.comprovante_detalhes,
+        }
+      })
+    },
+    [tipo, modoAnfitriaoFinanceiro],
+  )
 
   const marcarItemRelatorioLido = useCallback(
     async (itemId) => {
@@ -126,22 +165,7 @@ export default function CanalFinanceiroUsuario({
       if (viaEmpresa) {
         persistiu = await marcarFinanceiroItemLidoEmpresa(supabase, usuarioId, itemId)
       } else {
-        const { data: prof } = await supabase
-          .from('profissionais')
-          .select('id')
-          .eq('usuario_id', usuarioId)
-          .maybeSingle()
-        const profissionalId = prof?.id != null ? String(prof.id) : ''
-        if (profissionalId) {
-          const { data, error } = await supabase
-            .from('canal_financeiro')
-            .update({ lida_por_profissional: true })
-            .eq('id', itemId)
-            .eq('profissional_id', profissionalId)
-            .select('id')
-            .maybeSingle()
-          persistiu = !error && Boolean(data?.id)
-        }
+        persistiu = await marcarFinanceiroItemLidoProfissional(supabase, usuarioId, itemId)
       }
 
       if (!persistiu) return
@@ -193,59 +217,41 @@ export default function CanalFinanceiroUsuario({
   )
 
   const marcarRelatoriosComoLidos = useCallback(async () => {
-    if (!usuarioId) return false
-    let persistiuProf = false
-    let persistiuEmpresa = false
-    if (tipo === 'profissional') {
-      await marcarFinanceiroLidoProfissional(supabase, usuarioId)
-      persistiuProf = true
-      if (modoAnfitriaoFinanceiro) {
+    if (!usuarioId || marcandoLeituraRef.current) return false
+    marcandoLeituraRef.current = true
+    try {
+      let persistiuProf = false
+      let persistiuEmpresa = false
+      if (tipo === 'profissional') {
+        persistiuProf = await marcarFinanceiroLidoProfissional(supabase, usuarioId)
+        if (modoAnfitriaoFinanceiro) {
+          persistiuEmpresa = await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
+        }
+      } else {
         persistiuEmpresa = await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
       }
-    } else {
-      persistiuEmpresa = await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
-    }
-    if (!persistiuProf && !persistiuEmpresa) return false
+      if (!persistiuProf && !persistiuEmpresa) return false
 
-    setItens((prev) => {
-      const visualizadoEm = new Date().toISOString()
-      const next = prev.map((item) => {
-        const itemEmpresa = Boolean(item.empresa_id)
-        const marcarProf =
-          persistiuProf &&
-          tipo === 'profissional' &&
-          (!modoAnfitriaoFinanceiro || !itemEmpresa)
-        const marcarEmp =
-          persistiuEmpresa && (tipo === 'empresa' || (modoAnfitriaoFinanceiro && itemEmpresa))
-        return {
-          ...item,
-          lida_por_profissional: marcarProf ? true : item.lida_por_profissional,
-          lida_por_empresa: marcarEmp ? true : item.lida_por_empresa,
-          metadata:
-            marcarEmp && item.tipo === 'degustacao_plano'
-              ? { ...(item.metadata ?? {}), visualizado_em: visualizadoEm }
-              : item.metadata,
-          comprovante_detalhes:
-            marcarEmp && item.tipo === 'degustacao_plano'
-              ? { ...(item.comprovante_detalhes ?? item.metadata ?? {}), visualizado_em: visualizadoEm }
-              : item.comprovante_detalhes,
-        }
+      setItens((prev) => {
+        const next = aplicarLeituraLocalNosItens(prev, persistiuProf, persistiuEmpresa)
+        setNaoLidas(
+          next.filter((row) =>
+            itemRelatorioContaComoNaoLido(
+              row,
+              tipo,
+              statusDegustacaoPorCanal,
+              empresaHospedagemId,
+              ocultarManifesto,
+            ),
+          ).length,
+        )
+        return next
       })
-      setNaoLidas(
-        next.filter((row) =>
-          itemRelatorioContaComoNaoLido(
-            row,
-            tipo,
-            statusDegustacaoPorCanal,
-            empresaHospedagemId,
-            ocultarManifesto,
-          ),
-        ).length,
-      )
-      return next
-    })
-    notificarBadgeCanaisAposLeitura()
-    return true
+      notificarBadgeCanaisAposLeitura()
+      return true
+    } finally {
+      marcandoLeituraRef.current = false
+    }
   }, [
     usuarioId,
     tipo,
@@ -253,6 +259,7 @@ export default function CanalFinanceiroUsuario({
     statusDegustacaoPorCanal,
     empresaHospedagemId,
     ocultarManifesto,
+    aplicarLeituraLocalNosItens,
   ])
 
   useEffect(() => {
@@ -263,6 +270,7 @@ export default function CanalFinanceiroUsuario({
   const carregar = useCallback(async (opts = {}) => {
     const silencioso = opts.silencioso === true
     if (!usuarioId) return
+    const seq = ++carregarSeqRef.current
     if (!silencioso) setLoading(true)
     try {
       let profissionalId = /** @type {string | null} */ (null)
@@ -445,6 +453,35 @@ export default function CanalFinanceiroUsuario({
         setStatusDegustacaoPorCanal(statusDegMap)
       }
 
+      // Ao visualizar Relatórios, persiste leitura antes de calcular o badge (evita race com realtime).
+      if (abaRef.current === 'relatorios') {
+        while (marcandoLeituraRef.current) {
+          await new Promise((r) => setTimeout(r, 40))
+          if (seq !== carregarSeqRef.current) return
+        }
+        marcandoLeituraRef.current = true
+        try {
+          let persistiuProf = false
+          let persistiuEmpresa = false
+          if (tipo === 'profissional') {
+            persistiuProf = await marcarFinanceiroLidoProfissional(supabase, usuarioId)
+            if (modoAnfitriaoFinanceiro) {
+              persistiuEmpresa = await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
+            }
+          } else {
+            persistiuEmpresa = await marcarFinanceiroLidoEmpresa(supabase, usuarioId)
+          }
+          if (persistiuProf || persistiuEmpresa) {
+            formatados = aplicarLeituraLocalNosItens(formatados, persistiuProf, persistiuEmpresa)
+            notificarBadgeCanaisAposLeitura()
+          }
+        } finally {
+          marcandoLeituraRef.current = false
+        }
+      }
+
+      if (seq !== carregarSeqRef.current) return
+
       setItens(formatados)
       setNaoLidas(
         formatados.filter((item) =>
@@ -458,13 +495,14 @@ export default function CanalFinanceiroUsuario({
         ).length,
       )
       const msgNaoLidas = await contarMensageiroFinanceiroNaoLidas(supabase, usuarioId)
+      if (seq !== carregarSeqRef.current) return
       setNaoLidasMensageiro(msgNaoLidas)
     } catch (e) {
       console.error('Erro ao carregar canal financeiro:', e)
     } finally {
-      if (!silencioso) setLoading(false)
+      if (!silencioso && seq === carregarSeqRef.current) setLoading(false)
     }
-  }, [usuarioId, tipo, empresaHospedagemId, modoAnfitriaoFinanceiro, ehAnfitriaoProp])
+  }, [usuarioId, tipo, empresaHospedagemId, modoAnfitriaoFinanceiro, ehAnfitriaoProp, aplicarLeituraLocalNosItens])
 
   useEffect(() => {
     void carregar()
