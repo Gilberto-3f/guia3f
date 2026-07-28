@@ -51,13 +51,15 @@ function CardProf({ prof }: { prof: ProfPopup }) {
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold text-white">{prof.nome}</p>
         <p className="truncate text-sm text-white/90">{handle}</p>
-        <p className="text-xs text-white/80">{prof.categorias}</p>
-        {prof.total_avaliacoes > 0 ? (
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-amber-200">
-            <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300" aria-hidden />
-            {prof.nota_media.toFixed(1)} ({prof.total_avaliacoes})
-          </p>
-        ) : null}
+        <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-white/80">
+          <span className="min-w-0 truncate">{prof.categorias}</span>
+          {prof.total_avaliacoes > 0 ? (
+            <span className="inline-flex shrink-0 items-center gap-1 text-amber-200">
+              <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300" aria-hidden />
+              {prof.nota_media.toFixed(1)} ({prof.total_avaliacoes})
+            </span>
+          ) : null}
+        </p>
       </div>
     </div>
   )
@@ -182,7 +184,7 @@ export default function PopupContratarProfissionalRecomendado({
           <div className="flex min-w-0 items-center gap-2">
             <Briefcase className="h-5 w-5 shrink-0" style={{ color: COR }} aria-hidden />
             <h2 id="popup-contratar-rec-titulo" className="text-lg font-bold" style={{ color: COR }}>
-              Indicação Profissional
+              Indicação
             </h2>
           </div>
           <button
