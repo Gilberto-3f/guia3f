@@ -232,6 +232,10 @@ export default function Publicidade() {
                       <span className="font-medium text-gray-700">CTR:</span>{' '}
                       {formatCtr(anuncioAtivo.impressoes_exibidas, anuncioAtivo.cliques)}
                     </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      CTR = taxa de cliques (cliques ÷ visualizações × 100). Conta após ~1s de exibição na
+                      Home; clique ao tocar no anúncio.
+                    </p>
                     <button
                       type="button"
                       onClick={() => setConfirmarFinalizacaoId(anuncioAtivo.id)}

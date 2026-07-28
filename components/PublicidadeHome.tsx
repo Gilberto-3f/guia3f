@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 
@@ -14,6 +14,7 @@ type AnuncioSlide = {
   id: string
   imagem_url: string
   link_url: string | null
+  empresa_id: string | null
 }
 
 const SWIPE_MIN_PX = 48
@@ -39,6 +40,7 @@ function slidesDesdeCache(raw: string | null): AnuncioSlide[] | null {
         id,
         imagem_url: String(o.imagem_url ?? ''),
         link_url: o.link_url != null ? String(o.link_url) : null,
+        empresa_id: o.empresa_id != null ? String(o.empresa_id) : null,
       })
     }
     return out.length > 0 ? out : null
@@ -116,25 +118,44 @@ function linkEhRotaInterna(url: string): boolean {
 }
 
 function SlideEnvoltorio({ anuncio, children }: { anuncio: AnuncioSlide; children: ReactNode }) {
-  const raw = anuncio.link_url
+  const hrefResolvido = (() => {
+    const raw = anuncio.link_url != null ? String(anuncio.link_url).trim() : ''
+    if (raw) return raw
+    const empId = anuncio.empresa_id != null ? String(anuncio.empresa_id).trim() : ''
+    return empId ? `/empresa/${empId}` : ''
+  })()
+
   const registrarClique = useCallback(() => {
-    void supabase.rpc('registrar_clique_anuncio_home', { p_anuncio_id: anuncio.id })
+    void supabase.rpc('registrar_clique_anuncio_home', { p_anuncio_id: anuncio.id }).then(({ error }) => {
+      if (error) console.warn('[PublicidadeHome] clique:', error.message)
+    })
   }, [anuncio.id])
 
-  if (!raw) {
-    return <div className="block h-full w-full overflow-hidden rounded-lg">{children}</div>
-  }
-  const url = raw.trim()
-  if (linkEhRotaInterna(url)) {
+  if (!hrefResolvido) {
     return (
-      <Link href={url} className="block h-full w-full overflow-hidden rounded-lg" onClick={registrarClique}>
+      <button
+        type="button"
+        className="block h-full w-full overflow-hidden rounded-lg text-left"
+        onClick={registrarClique}
+      >
+        {children}
+      </button>
+    )
+  }
+  if (linkEhRotaInterna(hrefResolvido)) {
+    return (
+      <Link
+        href={hrefResolvido}
+        className="block h-full w-full overflow-hidden rounded-lg"
+        onClick={registrarClique}
+      >
         {children}
       </Link>
     )
   }
   return (
     <a
-      href={url}
+      href={hrefResolvido}
       target="_blank"
       rel="noopener noreferrer"
       className="block h-full w-full overflow-hidden rounded-lg"
@@ -185,7 +206,7 @@ export default function PublicidadeHome() {
       const hoje = isoDate(new Date())
       const { data, error } = await supabase
         .from('anuncios')
-        .select('id, imagem_url, link_url')
+        .select('id, empresa_id, imagem_url, link_url')
         .eq('tipo', 'home')
         .eq('status', 'ativo')
         .lte('periodo_inicio', hoje)
@@ -201,6 +222,7 @@ export default function PublicidadeHome() {
           id: String(row.id),
           imagem_url: String(row.imagem_url ?? ''),
           link_url: row.link_url != null ? String(row.link_url) : null,
+          empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
         }))
         gravarCacheHome(slides)
         const idx = indiceInicialRotacao(slides)
@@ -241,8 +263,10 @@ export default function PublicidadeHome() {
     const id = anuncios[indice]?.id
     if (!id) return
     const t = setTimeout(() => {
-      void supabase.rpc('registrar_impressao_anuncio_home', { p_anuncio_id: id })
-    }, 3000)
+      void supabase.rpc('registrar_impressao_anuncio_home', { p_anuncio_id: id }).then(({ error }) => {
+        if (error) console.warn('[PublicidadeHome] impressão:', error.message)
+      })
+    }, 1000)
     return () => clearTimeout(t)
   }, [anuncios, indice, n])
 

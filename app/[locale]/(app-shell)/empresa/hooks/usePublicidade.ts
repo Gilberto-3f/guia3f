@@ -168,10 +168,12 @@ export function usePublicidade(empresaId: string | null) {
           tipo: 'home',
           localizacao: null,
           imagem_url: imagemUrl,
-          link_url: null,
+          link_url: `/empresa/${empresaId}`,
           periodo_inicio: isoDate(inicio),
           periodo_fim: isoDate(fim),
           status: 'ativo',
+          impressoes_exibidas: 0,
+          cliques: 0,
         })
         .select('id')
         .single()

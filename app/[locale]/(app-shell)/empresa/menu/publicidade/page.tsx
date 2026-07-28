@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { useDashboardEmpresa } from '../../../dashboard/empresa/hooks/useDashboardEmpresa'
 import EmpresaPaginaServicoGate from '@/components/empresa/EmpresaPaginaServicoGate'
@@ -20,7 +20,7 @@ export default function PublicidadePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <header className="sticky top-0 z-20 border-b border-white/15 bg-[#0097b2] pt-safe">
+      <header className="border-b border-white/15 bg-[#0097b2] pt-safe">
         <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-4">
           <button
             type="button"
