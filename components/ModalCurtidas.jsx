@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { X } from 'lucide-react'
+import { Eye, Heart, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { buscarPerfisSociaisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { fetchVerificadoPorUsuarioIds } from '@/lib/contaVerificada'
@@ -18,15 +18,38 @@ function chaveCurtidaLista(usuarioId, empresaInteratorId) {
   return emp ? `${uid}:emp:${emp}` : `${uid}:prof`
 }
 
+/** Formata contagens no estilo BR (ex.: 9785 → 9.785, 273000 → 273 mil). */
+export function formatarContagemEngajamento(n) {
+  const v = Math.max(0, Math.floor(Number(n) || 0))
+  if (v < 1000) return String(v)
+  if (v < 1_000_000) {
+    const mil = v / 1000
+    if (mil >= 100) return `${Math.round(mil)} mil`
+    if (Number.isInteger(mil)) return `${mil} mil`
+    const s = mil.toFixed(1).replace('.', ',')
+    return `${s} mil`
+  }
+  const mi = v / 1_000_000
+  if (Number.isInteger(mi)) return `${mi} mi`
+  return `${mi.toFixed(1).replace('.', ',')} mi`
+}
+
 /**
  * @param {{
  *   postId: string | null
  *   aberto: boolean
  *   onFechar: () => void
  *   meuUsuarioId: string | null
+ *   totalCurtidas?: number | null
  * }} props
  */
-export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }) {
+export default function ModalCurtidas({
+  postId,
+  aberto,
+  onFechar,
+  meuUsuarioId,
+  totalCurtidas = null,
+}) {
   const [lista, setLista] = useState(
     /** @type {{ chave: string, id: string, nome: string, username: string, foto: string | null, role: string, empresaId: string, verificado: boolean }[]} */ (
       []
@@ -35,6 +58,7 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
   const [carregando, setCarregando] = useState(false)
   const [erroCarregar, setErroCarregar] = useState(false)
   const [seguindoMap, setSeguindoMap] = useState(/** @type {Record<string, boolean>} */ ({}))
+  const [visualizacoes, setVisualizacoes] = useState(0)
   const seguirBusyRef = useRef(false)
 
   useModalScrollLock(aberto && Boolean(postId))
@@ -43,17 +67,27 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
     if (!postId) {
       setLista([])
       setErroCarregar(false)
+      setVisualizacoes(0)
       return
     }
     setCarregando(true)
     setErroCarregar(false)
     try {
-      const { data: rows, error } = await supabase
-        .from('curtidas')
-        .select('id, usuario_id, empresa_interator_id, created_at')
-        .eq('post_id', postId)
-        .is('comentario_id', null)
-        .order('created_at', { ascending: false })
+      const [{ data: rows, error }, visRes] = await Promise.all([
+        supabase
+          .from('curtidas')
+          .select('id, usuario_id, empresa_interator_id, created_at')
+          .eq('post_id', postId)
+          .is('comentario_id', null)
+          .order('created_at', { ascending: false }),
+        fetch(`/api/feed/visualizacoes?post_id=${encodeURIComponent(postId)}`, {
+          credentials: 'include',
+        })
+          .then((r) => r.json().catch(() => ({})))
+          .catch(() => ({})),
+      ])
+
+      setVisualizacoes(Number(visRes?.visualizacoes) || 0)
 
       if (error) {
         console.error('ModalCurtidas curtidas:', error)
@@ -257,6 +291,11 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
 
   if (!aberto || !postId) return null
 
+  const qtdCurtidas =
+    totalCurtidas != null && Number.isFinite(Number(totalCurtidas))
+      ? Math.max(Number(totalCurtidas), lista.length)
+      : lista.length
+
   const modal = (
     <div
       className="fixed inset-0 z-[230] flex items-end justify-center overscroll-none bg-black/50 sm:items-center sm:p-4"
@@ -271,14 +310,35 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
         aria-labelledby="modal-curtidas-titulo"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3">
-          <h3 id="modal-curtidas-titulo" className="font-bold text-black">
-            Curtidas
-          </h3>
-          <button type="button" onClick={onFechar} className="p-1 text-black" aria-label="Fechar">
+        <div className="relative flex shrink-0 flex-col items-center border-b border-gray-100 px-4 pb-3 pt-2">
+          <div className="mb-2 h-1 w-10 rounded-full bg-gray-300" aria-hidden />
+          <button
+            type="button"
+            onClick={onFechar}
+            className="absolute right-3 top-3 p-1 text-gray-600"
+            aria-label="Fechar"
+          >
             <X size={22} />
           </button>
+          <h3 id="modal-curtidas-titulo" className="text-center text-base font-bold text-gray-900">
+            Curtidas e visualizações
+          </h3>
+          <div className="mt-3 flex items-center justify-center gap-6 text-sm text-gray-800">
+            <span className="inline-flex items-center gap-1.5 font-semibold">
+              <Heart className="h-4 w-4 fill-current text-gray-800" aria-hidden />
+              {formatarContagemEngajamento(qtdCurtidas)}
+            </span>
+            <span className="inline-flex items-center gap-1.5 font-semibold">
+              <Eye className="h-4 w-4 text-gray-800" aria-hidden />
+              {formatarContagemEngajamento(visualizacoes)}
+            </span>
+          </div>
         </div>
+
+        <div className="shrink-0 border-b border-gray-100 px-4 py-2.5">
+          <p className="text-sm font-semibold text-gray-900">Curtido por</p>
+        </div>
+
         <div
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 text-black"
           data-modal-scroll-lock-scrollable
@@ -301,20 +361,34 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
                 empresa_id: u.empresaId || null,
               })
               return (
-                <div key={u.chave} className="flex items-center justify-between gap-2 border-b border-gray-100 py-3 last:border-0">
+                <div
+                  key={u.chave}
+                  className="flex items-center justify-between gap-2 border-b border-gray-100 py-3 last:border-0"
+                >
                   <Link
                     href={hrefPerfil}
                     className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-0.5 hover:bg-gray-50"
                   >
-                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100">
                       {u.foto ? (
-                        <AvatarImage src={u.foto} alt="" width={40} height={40} className="h-full w-full object-cover" />
+                        <AvatarImage
+                          src={u.foto}
+                          alt=""
+                          width={40}
+                          height={40}
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">?</div>
+                        <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
+                          ?
+                        </div>
                       )}
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-gray-900">
+                        @{u.username}
+                      </p>
+                      <p className="truncate text-xs text-gray-500">
                         <NomeComVerificacao
                           nome={u.nome}
                           verificado={Boolean(u.verificado)}
@@ -322,15 +396,16 @@ export default function ModalCurtidas({ postId, aberto, onFechar, meuUsuarioId }
                           nomeClassName="truncate"
                         />
                       </p>
-                      <p className="truncate text-xs text-gray-500">@{u.username}</p>
                     </div>
                   </Link>
                   {!ehEu && meuUsuarioId && u.role !== 'empresa' ? (
                     <button
                       type="button"
                       onClick={() => void toggleSeguir(u)}
-                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
-                        seguindo ? 'border border-gray-200 bg-gray-100 text-gray-700' : 'bg-[#0097b2] text-white'
+                      className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                        seguindo
+                          ? 'border border-gray-200 bg-gray-100 text-gray-700'
+                          : 'bg-[#0097b2] text-white'
                       }`}
                     >
                       {seguindo ? 'Seguindo' : 'Seguir'}

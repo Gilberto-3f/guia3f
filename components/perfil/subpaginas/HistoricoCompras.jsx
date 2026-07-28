@@ -2,18 +2,19 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { Briefcase, ShoppingBag, Bed, Ticket, Car } from 'lucide-react'
+import { Briefcase, ShoppingBag, Bed, Ticket, Car, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
   listarComprasTurista,
   marcarComprasTuristaComoVistas,
 } from '@/lib/turistaCompras'
 import { rotuloFormaPagamentoReservaHospedagem } from '@/lib/reservaHospedagem'
+import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 
 const STATUS_ROTULO = {
   pendente: 'Aguardando anfitrião',
   confirmada: 'Confirmada',
-  cancelada: 'Recusada',
+  cancelada: 'Cancelada',
   registrada: 'Registrada',
 }
 
@@ -38,6 +39,12 @@ function formatarData(iso) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+function podeCancelarReserva(item) {
+  if (String(item.tipo) !== 'reserva_hospedagem') return false
+  const status = String(item.status ?? '')
+  return status === 'pendente' || status === 'confirmada'
+}
+
 /**
  * @param {{ usuarioId: string | null }} props
  */
@@ -47,6 +54,8 @@ export default function HistoricoCompras({ usuarioId }) {
   const [loading, setLoading] = useState(true)
   const [itens, setItens] = useState(/** @type {import('@/lib/turistaCompras').TuristaCompraRow[]} */ ([]))
   const [mobilidadeExtra, setMobilidadeExtra] = useState([])
+  const [abertoId, setAbertoId] = useState(/** @type {string | null} */ (null))
+  const [cancelandoId, setCancelandoId] = useState(/** @type {string | null} */ (null))
 
   const carregar = useCallback(async () => {
     if (!usuarioId) {
@@ -123,6 +132,35 @@ export default function HistoricoCompras({ usuarioId }) {
     router.push(`/empresa/${empresaId}`)
   }
 
+  const cancelarReserva = async (item) => {
+    const reservaId = item.referencia_id != null ? String(item.referencia_id).trim() : ''
+    if (!reservaId || cancelandoId) return
+    const ok = window.confirm('Deseja cancelar esta reserva? O anfitrião será notificado.')
+    if (!ok) return
+
+    setCancelandoId(item.id)
+    try {
+      const res = await fetch('/api/reservas-hospedagem/cancelar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reserva_id: reservaId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json.ok) {
+        window.alert(json.error ?? 'Não foi possível cancelar a reserva.')
+        return
+      }
+      notificarBadgeCanais()
+      setAbertoId(null)
+      await carregar()
+    } catch {
+      window.alert('Erro de conexão.')
+    } finally {
+      setCancelandoId(null)
+    }
+  }
+
   return (
     <div className="px-1 pb-4">
       <div className="mb-1 flex border-b border-gray-200">
@@ -168,44 +206,77 @@ export default function HistoricoCompras({ usuarioId }) {
                 item.metadata && typeof item.metadata === 'object' ? item.metadata : {}
               const formaPag = rotuloFormaPagamentoReservaHospedagem(meta.forma_pagamento)
               const motivoRecusa = meta.motivo_recusa != null ? String(meta.motivo_recusa) : null
+              const expandivel = podeCancelarReserva(item)
+              const expandido = abertoId === item.id
 
               return (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => abrirEmpresa(item.empresa_id)}
-                    disabled={!item.empresa_id}
-                    className="flex w-full items-start gap-3 rounded-xl border border-gray-100 bg-white px-3 py-3 text-left shadow-sm transition hover:bg-gray-50 disabled:cursor-default disabled:hover:bg-white"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0097b2]/10 text-[#0097b2]">
-                      <Ico className="h-5 w-5" strokeWidth={1.75} aria-hidden />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-900">{item.titulo}</span>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusCls(status)}`}
-                        >
-                          {STATUS_ROTULO[status] ?? status}
+                <li key={item.id} className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                  <div className="flex w-full items-start gap-3 px-3 py-3 text-left">
+                    <button
+                      type="button"
+                      onClick={() => abrirEmpresa(item.empresa_id)}
+                      disabled={!item.empresa_id}
+                      className="flex min-w-0 flex-1 items-start gap-3 disabled:cursor-default"
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0097b2]/10 text-[#0097b2]">
+                        <Ico className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-gray-900">{item.titulo}</span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusCls(status)}`}
+                          >
+                            {STATUS_ROTULO[status] ?? status}
+                          </span>
+                          {item.pendente ? (
+                            <span className="h-2 w-2 shrink-0 rounded-full bg-[#00D443]" aria-label="Novo" />
+                          ) : null}
                         </span>
-                        {item.pendente ? (
-                          <span className="h-2 w-2 shrink-0 rounded-full bg-[#00D443]" aria-label="Novo" />
+                        {item.descricao ? (
+                          <span className="mt-0.5 block text-xs text-gray-600">{item.descricao}</span>
                         ) : null}
+                        {formaPag ? (
+                          <span className="mt-0.5 block text-xs text-gray-500">Pagamento: {formaPag}</span>
+                        ) : null}
+                        {motivoRecusa ? (
+                          <span className="mt-0.5 block text-xs text-red-600">Motivo: {motivoRecusa}</span>
+                        ) : null}
+                        <span className="mt-1 block text-[11px] text-gray-400">
+                          {formatarData(item.registrado_em)}
+                        </span>
                       </span>
-                      {item.descricao ? (
-                        <span className="mt-0.5 block text-xs text-gray-600">{item.descricao}</span>
-                      ) : null}
-                      {formaPag ? (
-                        <span className="mt-0.5 block text-xs text-gray-500">Pagamento: {formaPag}</span>
-                      ) : null}
-                      {motivoRecusa ? (
-                        <span className="mt-0.5 block text-xs text-red-600">Motivo: {motivoRecusa}</span>
-                      ) : null}
-                      <span className="mt-1 block text-[11px] text-gray-400">
-                        {formatarData(item.registrado_em)}
-                      </span>
-                    </span>
-                  </button>
+                    </button>
+
+                    {expandivel ? (
+                      <button
+                        type="button"
+                        onClick={() => setAbertoId(expandido ? null : item.id)}
+                        className="mt-1 shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                        aria-expanded={expandido}
+                        aria-label={expandido ? 'Recolher opções' : 'Expandir opções'}
+                      >
+                        {expandido ? (
+                          <ChevronUp className="h-5 w-5" aria-hidden />
+                        ) : (
+                          <ChevronDown className="h-5 w-5" aria-hidden />
+                        )}
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {expandivel && expandido ? (
+                    <div className="border-t border-gray-100 px-3 py-3">
+                      <button
+                        type="button"
+                        disabled={cancelandoId === item.id}
+                        onClick={() => void cancelarReserva(item)}
+                        className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                      >
+                        {cancelandoId === item.id ? 'Cancelando…' : 'Cancelar reserva'}
+                      </button>
+                    </div>
+                  ) : null}
                 </li>
               )
             })}

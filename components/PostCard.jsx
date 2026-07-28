@@ -1172,6 +1172,7 @@ export default function PostCard({
           aberto={curtidasAberto}
           onFechar={() => setCurtidasAberto(false)}
           meuUsuarioId={meuUsuarioId}
+          totalCurtidas={curtTotal}
         />
         {shareModal}
         {modalEditar}
@@ -1294,6 +1295,7 @@ export default function PostCard({
           aberto={curtidasAberto}
           onFechar={() => setCurtidasAberto(false)}
           meuUsuarioId={meuUsuarioId}
+          totalCurtidas={curtTotal}
         />
         {shareModal}
         {modalEditar}
@@ -1419,6 +1421,7 @@ export default function PostCard({
           aberto={curtidasAberto}
           onFechar={() => setCurtidasAberto(false)}
           meuUsuarioId={meuUsuarioId}
+          totalCurtidas={curtTotal}
         />
         {shareModal}
         {modalEditar}
@@ -1539,6 +1542,7 @@ export default function PostCard({
           aberto={curtidasAberto}
           onFechar={() => setCurtidasAberto(false)}
           meuUsuarioId={meuUsuarioId}
+          totalCurtidas={curtTotal}
         />
         {shareModal}
         {modalEditar}
@@ -1661,6 +1665,7 @@ export default function PostCard({
           aberto={curtidasAberto}
           onFechar={() => setCurtidasAberto(false)}
           meuUsuarioId={meuUsuarioId}
+          totalCurtidas={curtTotal}
         />
         {shareModal}
         {modalEditar}
@@ -1759,6 +1764,7 @@ export default function PostCard({
           aberto={curtidasAberto}
           onFechar={() => setCurtidasAberto(false)}
           meuUsuarioId={meuUsuarioId}
+          totalCurtidas={curtTotal}
         />
         {shareModal}
         {modalEditar}
@@ -2004,6 +2010,7 @@ export default function PostCard({
           aberto={curtidasAberto}
           onFechar={() => setCurtidasAberto(false)}
           meuUsuarioId={meuUsuarioId}
+          totalCurtidas={curtTotal}
         />
         {shareModal}
         {modalEditar}
@@ -2120,6 +2127,7 @@ export default function PostCard({
         aberto={curtidasAberto}
         onFechar={() => setCurtidasAberto(false)}
         meuUsuarioId={meuUsuarioId}
+        totalCurtidas={curtTotal}
       />
       {shareModal}
       {modalEditar}
