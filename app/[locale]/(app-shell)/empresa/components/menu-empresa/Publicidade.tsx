@@ -11,6 +11,7 @@ import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empres
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
 import SecaoChevron from './SecaoChevron'
+import PublicidadeExternaCatalogo from './PublicidadeExternaCatalogo'
 
 function formatDate(value: string) {
   const d = new Date(value)
@@ -316,9 +317,7 @@ export default function Publicidade() {
             onToggle={() => setSecExterna((v) => !v)}
           >
             {externaLiberada ? (
-              <p className="text-sm text-gray-600">
-                O catálogo de publicidade externa estará disponível em breve para empresas com plano contratado.
-              </p>
+              <PublicidadeExternaCatalogo />
             ) : (
               <AvisoPlanoEmpresaBloqueado
                 compact

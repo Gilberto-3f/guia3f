@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CreditCard, Car, Clock } from 'lucide-react'
+import { CreditCard, Car, Clock, Megaphone } from 'lucide-react'
 import { AdminSecaoChevron } from '../shared/AdminSecaoChevron'
 import { useConfiguracoes } from '../../hooks/useConfiguracoes'
 import { useSharedAdminGate } from '../../context/AdminPermissaoContext'
@@ -10,6 +10,7 @@ import { ConfigApiPagamentos } from './sections/ConfigApiPagamentos'
 import { ConfigApiMobilidade } from './sections/ConfigApiMobilidade'
 import { ConfigPrazosLimites } from './sections/ConfigPrazosLimites'
 import { SecaoCotacoes } from './sections/SecaoCotacoes'
+import { ConfigPublicidadeExterna } from './sections/ConfigPublicidadeExterna'
 import type { ConfigAPIs, ConfigGeral } from '../../types/admin.types'
 
 function MensagemFeedback({ mensagem }: { mensagem: { tipo: 'sucesso' | 'erro'; texto: string } | null }) {
@@ -40,6 +41,7 @@ export function ConfigGeralPastas() {
   const [abertaMobilidade, setAbertaMobilidade] = useState(false)
   const [abertaCotacoes, setAbertaCotacoes] = useState(false)
   const [abertaPrazos, setAbertaPrazos] = useState(false)
+  const [abertaPublicidadeExterna, setAbertaPublicidadeExterna] = useState(false)
 
   useEffect(() => {
     if (apis) setLocalApis({ ...apis })
@@ -51,6 +53,11 @@ export function ConfigGeralPastas() {
 
   const podeApis = gate.status === 'ok' && podeAcessar(gate.admin, 'configuracoes.apis')
   const podePrazos = gate.status === 'ok' && podeAcessar(gate.admin, 'configuracoes.geral')
+  /** ADM Geral + ADM Financeiro com acesso a Configurações. */
+  const podePublicidadeExterna = podeApis || podePrazos
+  const podeEditarPublicidade =
+    gate.status === 'ok' &&
+    (podeEditarAPIs || podeEditarGeral || podeAcessar(gate.admin, 'configuracoes.apis'))
 
   const salvarApis = async () => {
     if (!localApis) return
@@ -190,6 +197,22 @@ export function ConfigGeralPastas() {
             podeEditar={podeEditarGeral}
             salvando={salvandoPrazos}
             onSalvar={() => void salvarPrazos()}
+          />
+        </AdminSecaoChevron>
+      ) : null}
+
+      {podePublicidadeExterna ? (
+        <AdminSecaoChevron
+          titulo="Publicidade Externa"
+          aberta={abertaPublicidadeExterna}
+          onToggle={() => setAbertaPublicidadeExterna((v) => !v)}
+          icone={Megaphone}
+          corTitulo="#0097b2"
+          descricao="Cards informativos exibidos no drawer Publicidade das empresas com plano."
+        >
+          <ConfigPublicidadeExterna
+            podeEditar={podeEditarPublicidade}
+            onMensagem={setMensagem}
           />
         </AdminSecaoChevron>
       ) : null}
