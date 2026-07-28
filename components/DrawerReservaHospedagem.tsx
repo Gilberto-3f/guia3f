@@ -81,6 +81,8 @@ type Props = {
   empresaVerificadaInicial?: boolean
   /** Abrir já no detalhe desta acomodação (favoritos). */
   acomodacaoIdInicial?: string | null
+  /** Reserva originada de recomendação profissional (`ref=recomendacao&rec=`). */
+  recomendacaoId?: string | null
 }
 
 type AnfitriaoInfo = {
@@ -143,6 +145,7 @@ export default function DrawerReservaHospedagem({
   notaMedia = null,
   empresaVerificadaInicial,
   acomodacaoIdInicial = null,
+  recomendacaoId = null,
 }: Props) {
   const router = useRouter()
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
@@ -448,6 +451,7 @@ export default function DrawerReservaHospedagem({
           valor_estimado: total,
           forma_pagamento: formaPagamento,
           numero_hospedes: numHospedes,
+          ...(recomendacaoId ? { recomendacao_id: recomendacaoId } : {}),
         }),
       })
       const json = await res.json().catch(() => ({}))

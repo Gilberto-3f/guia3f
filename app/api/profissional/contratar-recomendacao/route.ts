@@ -116,7 +116,7 @@ export async function POST(req: Request) {
   const indicador = joinSupabaseRow(rec?.profissional_indicador)
   const indicadorUsuarioId = indicador?.usuario_id != null ? String(indicador.usuario_id) : ''
 
-  if (indicadorUsuarioId) {
+  if (indicadorUsuarioId && destino.tipo !== 'empresa_reserva') {
     await notificarEmpresasParceriaComissaoDividida(admin, {
       turistaUsuarioId: auth.userId,
       indicadorUsuarioId,
@@ -130,7 +130,7 @@ export async function POST(req: Request) {
     parceria_id: res.parceriaId,
     manifesto_id: res.manifestoId ?? null,
     destino,
-    redirect: hrefDestinoContratacao(destino),
+    redirect: hrefDestinoContratacao(destino, recomendacaoId),
     api_url: destino.tipo === 'api_parceiro' ? destino.url : null,
   })
 }

@@ -1,8 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { categoriasIncluemAnfitriao } from '@/lib/anfitriaoDualMode'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
 import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
 import { buscarConfigComissoesAtiva, parProfissionaisOrdenado } from '@/lib/configComissoesRuntime'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
+import {
+  mapParceiroFinanceiroMeta,
+  notificarAnfitriaoPropostaParceriaBase,
+} from '@/lib/recomendacaoAnfitriaoFinanceiro'
 import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
 import { registrarTuristaNoManifesto, filtrarEmpresaIds, type DadosPaxManifesto } from '@/lib/manifestoDiario'
 
@@ -192,6 +197,10 @@ export async function processarContratacaoRecomendacaoProfissional(
   const catIndicado = formatProfissionalCategorias(
     Array.isArray(indicado.categorias) ? indicado.categorias.map(String) : [],
   )
+  const catsIndicado = Array.isArray(indicado.categorias) ? indicado.categorias.map(String) : []
+  const catsIndicador = Array.isArray(indicador?.categorias) ? indicador.categorias.map(String) : []
+  const indicadoEhAnfitriao = categoriasIncluemAnfitriao(catsIndicado)
+  const indicadorEhAnfitriao = categoriasIncluemAnfitriao(catsIndicador)
 
   const metaComum = {
     recomendacao_id: recomendacaoId,
@@ -203,38 +212,51 @@ export async function processarContratacaoRecomendacaoProfissional(
     dados_atendimento: dadosAtendimento,
   }
 
-  const msgIndicado = placaVermelha
-    ? `Turista ${dadosAtendimento.username} entrou no seu manifesto. Comissão de serviço regular: ${splitRegular}% (config. ADM).`
-    : `Turista ${dadosAtendimento.username} aceitou sua indicação e foi direcionado à contratação. Comissão de serviço regular: ${splitRegular}% (config. ADM).`
+  // Anfitrião/hospedagem: CONTRATAR só redireciona — avisos financeiros saem na reserva.
+  if (!indicadoEhAnfitriao) {
+    const msgIndicado = placaVermelha
+      ? `Turista ${dadosAtendimento.username} entrou no seu manifesto. Comissão de serviço regular: ${splitRegular}% (config. ADM).`
+      : `Turista ${dadosAtendimento.username} aceitou sua indicação e foi direcionado à contratação. Comissão de serviço regular: ${splitRegular}% (config. ADM).`
 
-  await Promise.all([
-    inserirNotificacaoCanalFinanceiroProfissional(supabase, {
-      profissionalUsuarioId: profissionalIndicadoUsuarioId,
-      tipo: 'extrato_comissao',
-      titulo: 'Contratação via recomendação — serviço regular',
-      mensagem: msgIndicado,
-      comprovanteDetalhes: {
-        ...metaComum,
-        papel: 'regular_contratado',
-        prof_prospector_usuario_id: indicadorUsuarioId,
-        profissional_contratado_usuario_id: profissionalIndicadoUsuarioId,
-      },
-    }),
-    indicadorUsuarioId
-      ? inserirNotificacaoCanalFinanceiroProfissional(supabase, {
-          profissionalUsuarioId: indicadorUsuarioId,
-          tipo: 'extrato_parceria',
-          titulo: 'Parceria formada — comissão por indicação',
-          mensagem: `${nomeIndicado} (${catIndicado}) foi contratado pelo turista que você indicou. Sua parte nas comissões de parceria: ${splitIndicador}%.`,
-          comprovanteDetalhes: {
-            ...metaComum,
-            papel: 'indicador',
-            prof_prospector_usuario_id: indicadorUsuarioId,
-            profissional_contratado_usuario_id: profissionalIndicadoUsuarioId,
-          },
-        })
-      : Promise.resolve(),
-  ])
+    await Promise.all([
+      inserirNotificacaoCanalFinanceiroProfissional(supabase, {
+        profissionalUsuarioId: profissionalIndicadoUsuarioId,
+        tipo: 'extrato_comissao',
+        titulo: 'Contratação via recomendação — serviço regular',
+        mensagem: msgIndicado,
+        comprovanteDetalhes: {
+          ...metaComum,
+          papel: 'regular_contratado',
+          prof_prospector_usuario_id: indicadorUsuarioId,
+          profissional_contratado_usuario_id: profissionalIndicadoUsuarioId,
+        },
+      }),
+      indicadorUsuarioId && !indicadorEhAnfitriao
+        ? inserirNotificacaoCanalFinanceiroProfissional(supabase, {
+            profissionalUsuarioId: indicadorUsuarioId,
+            tipo: 'extrato_parceria',
+            titulo: 'Parceria formada — comissão por indicação',
+            mensagem: `${nomeIndicado} (${catIndicado}) foi contratado pelo turista que você indicou. Sua parte nas comissões de parceria: ${splitIndicador}%.`,
+            comprovanteDetalhes: {
+              ...metaComum,
+              papel: 'indicador',
+              prof_prospector_usuario_id: indicadorUsuarioId,
+              profissional_contratado_usuario_id: profissionalIndicadoUsuarioId,
+            },
+          })
+        : Promise.resolve(),
+    ])
+
+    // Base pronta (módulo mobilidade): anfitrião recomendou profissional regular.
+    if (indicadorEhAnfitriao && indicadorUsuarioId) {
+      await notificarAnfitriaoPropostaParceriaBase(supabase, {
+        anfitriaoUsuarioId: indicadorUsuarioId,
+        recomendacaoId,
+        parceriaId,
+        colega: mapParceiroFinanceiroMeta(indicado),
+      })
+    }
+  }
 
   return {
     ok: true,

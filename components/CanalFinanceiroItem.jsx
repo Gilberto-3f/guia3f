@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { DollarSign, FileText, CheckCircle, Eye } from 'lucide-react'
+import AvatarImage from '@/components/AvatarImage'
 import { supabase } from '@/lib/supabase'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { marcarFinanceiroItemLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
@@ -22,6 +23,8 @@ import { marcarFinanceiroItemLidoProfissional } from '@/lib/canaisProfissionalVi
  *     profissional_nome: string
  *     empresa_nome: string
  *     destino_rotulo?: string | null
+ *     metadata?: Record<string, unknown>
+ *     comprovante_detalhes?: Record<string, unknown>
  *   }
  *   userTipo: 'profissional' | 'empresa'
  *   destinoRotulo?: string | null
@@ -31,6 +34,30 @@ import { marcarFinanceiroItemLidoProfissional } from '@/lib/canaisProfissionalVi
 export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = null, onItemLido }) {
   const [marcandoLida, setMarcandoLida] = useState(false)
   const [lidaLocal, setLidaLocal] = useState(false)
+
+  const detalhes =
+    item.metadata && typeof item.metadata === 'object' && Object.keys(item.metadata).length > 0
+      ? item.metadata
+      : item.comprovante_detalhes && typeof item.comprovante_detalhes === 'object'
+        ? item.comprovante_detalhes
+        : {}
+  const kind = detalhes.kind != null ? String(detalhes.kind) : ''
+  const parceiroRaw =
+    (detalhes.parceiro && typeof detalhes.parceiro === 'object' ? detalhes.parceiro : null) ||
+    (detalhes.colega && typeof detalhes.colega === 'object' ? detalhes.colega : null)
+  const parceiro = parceiroRaw && !Array.isArray(parceiroRaw) ? /** @type {Record<string, unknown>} */ (parceiroRaw) : null
+  const mostrarParceiro =
+    Boolean(parceiro) &&
+    (kind === 'anfitriao_foi_recomendado' ||
+      kind === 'indicador_contratacao_hospedagem' ||
+      kind === 'proposta_parceria_base')
+  const parceiroNome = parceiro?.nome != null ? String(parceiro.nome) : 'Profissional'
+  const parceiroUsername = parceiro?.username != null ? String(parceiro.username) : ''
+  const parceiroFoto = parceiro?.foto_url != null ? String(parceiro.foto_url) : null
+  const recomendadoEm =
+    detalhes.recomendado_em != null && String(detalhes.recomendado_em).trim() !== ''
+      ? String(detalhes.recomendado_em)
+      : null
 
   const getIcon = () => {
     switch (item.tipo) {
@@ -119,6 +146,32 @@ export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = nu
           </p>
 
           {item.mensagem ? <p className="mb-2 text-sm text-gray-500">{item.mensagem}</p> : null}
+
+          {mostrarParceiro ? (
+            <div className="mb-2 flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2">
+              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-200">
+                <AvatarImage
+                  src={parceiroFoto}
+                  alt=""
+                  fill
+                  className="h-full w-full object-cover"
+                  sizes="44px"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-gray-800">{parceiroNome}</p>
+                <p className="truncate text-xs text-gray-500">
+                  {parceiroUsername.startsWith('@') ? parceiroUsername : `@${parceiroUsername}`}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {recomendadoEm ? (
+            <p className="mb-2 text-xs text-gray-400">
+              Recomendação: {new Date(recomendadoEm).toLocaleString('pt-BR')}
+            </p>
+          ) : null}
 
           {valorNum != null && valorNum > 0 ? (
             <p className="mb-2 text-lg font-bold text-[#00D443]">R$ {valorNum.toFixed(2)}</p>

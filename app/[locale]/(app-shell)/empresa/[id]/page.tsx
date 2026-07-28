@@ -621,6 +621,7 @@ export default function EmpresaPage() {
               precoTicketMeia={precoTicketMeia}
               palavrasChave={empresa.palavras_chave}
               abrirReservaAuto={searchParams.get('abrir') === 'reserva'}
+              recomendacaoId={searchParams.get('rec')}
             />
           ) : null}
         </div>

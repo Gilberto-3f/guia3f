@@ -70,6 +70,28 @@ export default function CanalFinanceiroItemReservaHospedagem({ item, onRespondid
     meta.forma_pagamento != null ? String(meta.forma_pagamento) : null,
   )
 
+  const viaRecomendacao = meta.via_recomendacao === true || Boolean(meta.recomendacao_id)
+  const mensagemReserva =
+    meta.mensagem_reserva != null && String(meta.mensagem_reserva).trim() !== ''
+      ? String(meta.mensagem_reserva)
+      : null
+  const parceiro =
+    meta.parceiro && typeof meta.parceiro === 'object' && !Array.isArray(meta.parceiro)
+      ? /** @type {Record<string, unknown>} */ (meta.parceiro)
+      : null
+  const comissao =
+    meta.comissao && typeof meta.comissao === 'object' && !Array.isArray(meta.comissao)
+      ? /** @type {Record<string, unknown>} */ (meta.comissao)
+      : null
+  const parceiroNome = parceiro?.nome != null ? String(parceiro.nome) : 'Profissional'
+  const parceiroUsername = parceiro?.username != null ? String(parceiro.username) : ''
+  const parceiroFoto = parceiro?.foto_url != null ? String(parceiro.foto_url) : null
+  const comissaoTexto = comissao?.texto != null ? String(comissao.texto) : null
+  const recomendadoEm =
+    meta.recomendado_em != null && String(meta.recomendado_em).trim() !== ''
+      ? String(meta.recomendado_em)
+      : null
+
   useEffect(() => {
     if (!turistaUsuarioId) {
       setTuristaFotoUrl(fotoMetadata)
@@ -168,6 +190,10 @@ export default function CanalFinanceiroItemReservaHospedagem({ item, onRespondid
             </span>
           ) : null}
 
+          {viaRecomendacao && item.mensagem ? (
+            <p className="mt-2 text-sm text-gray-600">{item.mensagem}</p>
+          ) : null}
+
           <div className="mt-3 flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2">
             <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-200">
               <AvatarImage src={turistaFotoUrl} alt="" fill className={AVATAR_QUADRADO} sizes="44px" />
@@ -177,6 +203,11 @@ export default function CanalFinanceiroItemReservaHospedagem({ item, onRespondid
               <p className="truncate text-xs text-gray-500">@{turistaUsername}</p>
             </div>
           </div>
+
+          {mensagemReserva ? <p className="mt-2 text-sm text-gray-600">{mensagemReserva}</p> : null}
+          {!viaRecomendacao && item.mensagem ? (
+            <p className="mt-2 text-sm text-gray-600">{item.mensagem}</p>
+          ) : null}
 
           <div className="mt-3 space-y-1 text-sm text-gray-700">
             <p>
@@ -202,7 +233,38 @@ export default function CanalFinanceiroItemReservaHospedagem({ item, onRespondid
             ) : null}
           </div>
 
-          {item.mensagem ? <p className="mt-2 text-sm text-gray-600">{item.mensagem}</p> : null}
+          {viaRecomendacao && parceiro ? (
+            <div className="mt-3 rounded-lg border border-[#0097b2]/20 bg-[#0097b2]/5 px-3 py-2">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#0097b2]">
+                Profissional parceiro
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-200">
+                  <AvatarImage src={parceiroFoto} alt="" fill className={AVATAR_QUADRADO} sizes="44px" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-800">{parceiroNome}</p>
+                  <p className="truncate text-xs text-gray-500">
+                    {parceiroUsername.startsWith('@') ? parceiroUsername : `@${parceiroUsername}`}
+                  </p>
+                </div>
+              </div>
+              {recomendadoEm ? (
+                <p className="mt-2 text-xs text-gray-400">
+                  Recomendação: {new Date(recomendadoEm).toLocaleString('pt-BR')}
+                </p>
+              ) : null}
+              {comissaoTexto ? (
+                <p className="mt-2 text-sm text-gray-700">
+                  <span className="font-medium">Comissão:</span> {comissaoTexto}
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-amber-700">
+                  Cadastre uma oferta de comissão para a categoria deste colega em Comissões.
+                </p>
+              )}
+            </div>
+          ) : null}
 
           <p className="mt-2 text-xs text-gray-400">{new Date(item.created_at).toLocaleString('pt-BR')}</p>
 
@@ -214,7 +276,7 @@ export default function CanalFinanceiroItemReservaHospedagem({ item, onRespondid
                 onClick={() => void responder('confirmar')}
                 className="rounded-lg bg-[#00D443] px-3 py-2.5 text-sm font-bold text-white hover:opacity-95 disabled:opacity-50"
               >
-                Confirmar
+                CONFIRMAR
               </button>
               <button
                 type="button"
@@ -222,7 +284,7 @@ export default function CanalFinanceiroItemReservaHospedagem({ item, onRespondid
                 onClick={() => setMostrarMotivoRecusa(true)}
                 className="rounded-lg bg-red-600 px-3 py-2.5 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
               >
-                Recusar
+                RECUSAR
               </button>
             </div>
           ) : null}

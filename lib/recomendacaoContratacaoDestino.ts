@@ -77,13 +77,22 @@ export function itemCanalFinanceiroEhAvisoManifesto(item: {
   return titulo.includes('manifesto') || mensagem.includes('manifesto')
 }
 
-export function hrefDestinoContratacao(destino: DestinoContratacaoRecomendacao): string | null {
+export function hrefDestinoContratacao(
+  destino: DestinoContratacaoRecomendacao,
+  recomendacaoId?: string | null,
+): string | null {
+  const rec = String(recomendacaoId ?? '').trim()
+  const recQs = rec ? `&rec=${encodeURIComponent(rec)}` : ''
+
   if (destino.tipo === 'empresa_reserva') {
-    return `/empresa/${destino.empresaId}?ref=recomendacao&abrir=reserva`
+    return `/empresa/${destino.empresaId}?ref=recomendacao&abrir=reserva${recQs}`
   }
   if (destino.tipo === 'mobilidade_canal') {
-    return `/canal?contratar=${encodeURIComponent(destino.profissionalUsuarioId)}`
+    return `/canal?contratar=${encodeURIComponent(destino.profissionalUsuarioId)}${
+      rec ? `&rec=${encodeURIComponent(rec)}` : ''
+    }`
   }
+  if (destino.tipo === 'api_parceiro') return destino.url
   if (destino.tipo === 'canal') return '/canal'
   return null
 }

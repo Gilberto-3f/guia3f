@@ -125,6 +125,18 @@ export async function registrarRecomendacaoProfissional(
   if (recErr) throw recErr
   if (!recomendacaoId) throw new Error('Não foi possível registrar a recomendação.')
 
+  // Anfitrião indicado: aviso no Financeiro (service role via API).
+  try {
+    await fetch('/api/profissional/recomendacao-notificar-indicado', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ recomendacao_id: recomendacaoId }),
+    })
+  } catch {
+    /* não bloqueia o envio WhatsApp/e-mail */
+  }
+
   const username = prof.nome_usuario != null ? String(prof.nome_usuario).replace(/^@+/, '').trim() : null
   const categorias = Array.isArray(prof.categorias)
     ? prof.categorias.map((c) => String(c).trim()).filter(Boolean)

@@ -391,14 +391,29 @@ export async function criarAvisoCanalFinanceiroReservaHospedagem(
     noites: number
     valorEstimado: number
     formaPagamento: FormaPagamentoReservaHospedagem
+    valorDiaria?: number | null
+    recomendacaoId?: string | null
   },
 ): Promise<{ ok: boolean; canalFinanceiroId?: string; error?: string }> {
   const checkin = formatarDataBr(params.dataCheckin)
   const checkout = formatarDataBr(params.dataCheckout)
   const formaLabel = rotuloFormaPagamentoReservaHospedagem(params.formaPagamento) ?? params.formaPagamento
-  const mensagem = `${params.turistaNome} (@${params.turistaUsername}) solicitou reserva de ${params.noites} noite(s) (${checkin} → ${checkout}). Valor estimado: R$ ${params.valorEstimado.toFixed(2)}. Forma de pagamento: ${formaLabel}.`
+  const recId = String(params.recomendacaoId ?? '').trim()
+  const viaRecomendacao = Boolean(recId)
 
-  const metadata = {
+  const noiteLabel = params.noites === 1 ? 'noite' : 'noites'
+  const mensagemReserva = viaRecomendacao
+    ? `Turista @${params.turistaUsername} solicitou reserva de ${params.noites} ${noiteLabel}, segue os dados da reserva:`
+    : `${params.turistaNome} (@${params.turistaUsername}) solicitou reserva de ${params.noites} noite(s) (${checkin} → ${checkout}). Valor estimado: R$ ${params.valorEstimado.toFixed(2)}. Forma de pagamento: ${formaLabel}.`
+
+  const mensagem = viaRecomendacao
+    ? 'Um colega do ecossistema recomendou você para um turista que contratou seus serviços:'
+    : mensagemReserva
+
+  const titulo = viaRecomendacao ? 'Contratação (via recomendação)' : 'Solicitação de reserva'
+
+  /** @type {Record<string, unknown>} */
+  const metadata: Record<string, unknown> = {
     reserva_id: params.reservaId,
     turista_usuario_id: params.turistaUsuarioId,
     turista_username: params.turistaUsername,
@@ -414,6 +429,63 @@ export async function criarAvisoCanalFinanceiroReservaHospedagem(
     respondido: '',
   }
 
+  if (viaRecomendacao) {
+    metadata.mensagem_reserva = mensagemReserva
+  }
+
+  if (viaRecomendacao) {
+    const {
+      carregarParceiroDeRecomendacao,
+      buscarOfertaComissaoAtivaHospedagem,
+      calcularComissaoDiariasHospedagem,
+      notificarIndicadorContratacaoHospedagem,
+    } = await import('@/lib/recomendacaoAnfitriaoFinanceiro')
+
+    const recInfo = await carregarParceiroDeRecomendacao(supabase, recId)
+    const parceiro = recInfo?.indicador ?? null
+    const valorDiaria =
+      params.valorDiaria != null && Number.isFinite(Number(params.valorDiaria))
+        ? Number(params.valorDiaria)
+        : params.noites > 0
+          ? Number(params.valorEstimado) / params.noites
+          : 0
+
+    let comissao = null
+    if (parceiro) {
+      const oferta = await buscarOfertaComissaoAtivaHospedagem(
+        supabase,
+        params.empresaId,
+        parceiro.categorias,
+      )
+      if (oferta) {
+        const calc = calcularComissaoDiariasHospedagem(oferta.beneficios, valorDiaria, params.noites)
+        if (calc) {
+          comissao = {
+            ...calc,
+            oferta_id: oferta.ofertaId,
+            categoria_profissional: oferta.categoria,
+          }
+        }
+      }
+    }
+
+    metadata.via_recomendacao = true
+    metadata.recomendacao_id = recId
+    metadata.parceiro = parceiro
+    metadata.comissao = comissao
+    metadata.recomendado_em = recInfo?.contratadoEm ?? null
+
+    if (parceiro?.usuario_id) {
+      await notificarIndicadorContratacaoHospedagem(supabase, {
+        indicadorUsuarioId: parceiro.usuario_id,
+        recomendacaoId: recId,
+        reservaId: params.reservaId,
+        indicado: recInfo?.indicado ?? null,
+        comissao,
+      })
+    }
+  }
+
   const canalExistenteId = await buscarCanalReservaHospedagemPendente(
     supabase,
     params.empresaId,
@@ -424,7 +496,7 @@ export async function criarAvisoCanalFinanceiroReservaHospedagem(
     const { error: upErr } = await supabase
       .from('canal_financeiro')
       .update({
-        titulo: 'Solicitação de reserva',
+        titulo,
         mensagem,
         valor: params.valorEstimado,
         lida_por_profissional: false,
@@ -443,7 +515,7 @@ export async function criarAvisoCanalFinanceiroReservaHospedagem(
       empresa_id: params.empresaId,
       profissional_id: null,
       tipo: 'reserva_hospedagem',
-      titulo: 'Solicitação de reserva',
+      titulo,
       mensagem,
       valor: params.valorEstimado,
       lida_por_profissional: false,

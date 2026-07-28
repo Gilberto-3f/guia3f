@@ -62,6 +62,7 @@ function isGastronomia(cat) {
  *   empresaVerificada?: boolean | null
  *   palavrasChave?: unknown
  *   abrirReservaAuto?: boolean
+ *   recomendacaoId?: string | null
  * }} props
  */
 export default function AbaBotaoDinamico({
@@ -79,6 +80,7 @@ export default function AbaBotaoDinamico({
   precoTicketMeia,
   palavrasChave = [],
   abrirReservaAuto = false,
+  recomendacaoId = null,
 }) {
   const router = useRouter()
   const {
@@ -235,6 +237,7 @@ export default function AbaBotaoDinamico({
         empresaFotoUrl={empresaFotoUrl}
         notaMedia={notaMedia}
         empresaVerificadaInicial={empresaVerificada}
+        recomendacaoId={recomendacaoId}
       />
 
       <DrawerProdutosCde

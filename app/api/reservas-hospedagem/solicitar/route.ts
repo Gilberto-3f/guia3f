@@ -35,6 +35,7 @@ export async function POST(req: Request) {
     const valorEstimado = Number(body.valor_estimado)
     const formaRaw = String(body.forma_pagamento ?? '').trim()
     const numeroHospedes = Number(body.numero_hospedes)
+    const recomendacaoId = String(body.recomendacao_id ?? body.rec ?? '').trim() || null
 
     if (!empresaId || !checkin || !checkout || !Number.isFinite(noites) || noites <= 0) {
       return NextResponse.json({ error: 'Dados da reserva inválidos.' }, { status: 400 })
@@ -153,6 +154,8 @@ export async function POST(req: Request) {
       noites,
       valorEstimado: Number.isFinite(valorEstimado) ? valorEstimado : 0,
       formaPagamento: formaRaw as 'dinheiro' | 'pix' | 'cartao_deb_cred' | 'cartao_credito' | 'cartao_debito',
+      valorDiaria: acom.valor_diaria != null ? Number(acom.valor_diaria) : null,
+      recomendacaoId,
     })
 
     if (aviso.ok && aviso.canalFinanceiroId) {
