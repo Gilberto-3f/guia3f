@@ -6,6 +6,7 @@ import {
   type ContratacaoTipo,
 } from '@/lib/manifestoDiario'
 import { encerrarConversaCorrida } from '@/lib/mobilidadeChatCorrida'
+import { liquidarComissaoCorridaMobilidade } from '@/lib/mobilidadeFinanceiro'
 
 function metaObj(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw != null && !Array.isArray(raw)
@@ -85,12 +86,19 @@ export type ConcluirCorridaResult =
       status: 'concluida'
       manifestoConcluido: boolean
       manifestoPendenteCheckin?: boolean
+      financeiro?: {
+        regime: string
+        valorCorrida: number
+        valorRegular: number
+        valorIndicador: number
+        bonusVoluntario: number
+      }
     }
   | { ok: false; error: string; manifestoPendenteCheckin?: boolean }
 
 /**
  * Conclui a corrida aceita: libera profissional, encerra chat,
- * e tenta concluir o manifesto diário (placa vermelha).
+ * conclui manifesto (placa vermelha) e liquida comissão (v1).
  */
 export async function concluirCorridaMobilidade(
   admin: SupabaseClient,
@@ -99,6 +107,8 @@ export async function concluirCorridaMobilidade(
     profissionalUsuarioId: string
     /** Se true e guia com paradas pendentes, não conclui a corrida. */
     exigirManifestoOk?: boolean
+    pagamentoConfirmadoDinheiro?: boolean
+    bonusVoluntario?: number
   },
 ): Promise<ConcluirCorridaResult> {
   const { data: prof } = await admin
@@ -146,13 +156,23 @@ export async function concluirCorridaMobilidade(
     }
   }
 
+  const fin = await liquidarComissaoCorridaMobilidade(admin, {
+    solicitacaoId: params.solicitacaoId,
+    profissionalUsuarioId: params.profissionalUsuarioId,
+    profissionalId: String(prof.id),
+    metadataAtual: meta,
+    pagamentoConfirmadoDinheiro: params.pagamentoConfirmadoDinheiro,
+    bonusVoluntario: params.bonusVoluntario,
+  })
+  if (!fin.ok) return { ok: false, error: fin.error }
+
   const agora = new Date().toISOString()
   await admin
     .from('solicitacao_mobilidade')
     .update({
       status: 'concluida',
       metadata: {
-        ...meta,
+        ...fin.metadata,
         concluido_em: agora,
         manifesto_concluido: manifestoConcluido,
       },
@@ -174,6 +194,13 @@ export async function concluirCorridaMobilidade(
     status: 'concluida',
     manifestoConcluido,
     manifestoPendenteCheckin: manifestoPendenteCheckin || undefined,
+    financeiro: {
+      regime: fin.liquidacao.regime,
+      valorCorrida: fin.liquidacao.valorCorrida,
+      valorRegular: fin.liquidacao.valorRegular,
+      valorIndicador: fin.liquidacao.valorIndicador,
+      bonusVoluntario: fin.liquidacao.bonusVoluntario,
+    },
   }
 }
 
@@ -187,13 +214,14 @@ export async function buscarCorridaAtivaProfissional(
   destinoNome: string | null
   modalidade: string | null
   valorEstimado: number | null
+  pagamento: string | null
   conversaId: string | null
   manifestoId: string | null
 } | null> {
   const { data: row } = await admin
     .from('solicitacao_mobilidade')
     .select(
-      'id, origem_nome, destino_nome, modalidade, valor_estimado, metadata',
+      'id, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, metadata',
     )
     .eq('profissional_id', profissionalId)
     .eq('status', 'aceita')
@@ -216,6 +244,7 @@ export async function buscarCorridaAtivaProfissional(
     destinoNome: row.destino_nome != null ? String(row.destino_nome) : null,
     modalidade: row.modalidade != null ? String(row.modalidade) : null,
     valorEstimado: row.valor_estimado != null ? Number(row.valor_estimado) : null,
+    pagamento: row.pagamento != null ? String(row.pagamento) : null,
     conversaId: conv?.id != null ? String(conv.id) : null,
     manifestoId: meta.manifesto_id != null ? String(meta.manifesto_id) : null,
   }

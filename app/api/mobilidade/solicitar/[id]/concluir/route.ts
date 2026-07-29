@@ -5,7 +5,7 @@ import { concluirCorridaMobilidade } from '@/lib/mobilidadeCorrida'
 
 type Ctx = { params: Promise<{ id: string }> }
 
-/** Profissional conclui a corrida aceita (libera status + manifesto + chat). */
+/** Profissional conclui a corrida aceita (libera status + manifesto + chat + financeiro). */
 export async function POST(req: Request, ctx: Ctx) {
   const auth = await assertUserSession()
   if (!auth.ok) return auth.error
@@ -35,13 +35,18 @@ export async function POST(req: Request, ctx: Ctx) {
     return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 })
   }
 
-  const exigir =
-    body.forcar !== true && body.ignorar_manifesto !== true
+  const exigir = body.forcar !== true && body.ignorar_manifesto !== true
+  const bonus =
+    body.bonus_voluntario != null && Number.isFinite(Number(body.bonus_voluntario))
+      ? Math.max(0, Number(body.bonus_voluntario))
+      : 0
 
   const res = await concluirCorridaMobilidade(admin, {
     solicitacaoId,
     profissionalUsuarioId: auth.userId,
     exigirManifestoOk: exigir,
+    pagamentoConfirmadoDinheiro: body.pagamento_confirmado === true || body.recebi_dinheiro === true,
+    bonusVoluntario: bonus,
   })
 
   if (!res.ok) {
@@ -59,5 +64,6 @@ export async function POST(req: Request, ctx: Ctx) {
     status: res.status,
     manifesto_concluido: res.manifestoConcluido,
     manifesto_pendente_checkin: res.manifestoPendenteCheckin === true,
+    financeiro: res.financeiro ?? null,
   })
 }

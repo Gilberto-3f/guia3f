@@ -28,6 +28,7 @@ type CorridaAtiva = {
   destino_nome: string | null
   modalidade: string | null
   valor_estimado: number | null
+  pagamento: string | null
   conversa_id: string | null
   manifesto_id: string | null
 }
@@ -49,6 +50,9 @@ export default function OfertaMobilidadeListener() {
   const [erroRecusa, setErroRecusa] = useState('')
   const [corrida, setCorrida] = useState<CorridaAtiva | null>(null)
   const [erroConcluir, setErroConcluir] = useState('')
+  const [recebiDinheiro, setRecebiDinheiro] = useState(false)
+  const [bonus, setBonus] = useState('')
+  const [resumoFin, setResumoFin] = useState<string | null>(null)
 
   const elegivel =
     !loading &&
@@ -231,30 +235,76 @@ export default function OfertaMobilidadeListener() {
 
   const concluir = async (forcar = false) => {
     if (!corrida || busy) return
+    if (!recebiDinheiro && (corrida.pagamento == null || corrida.pagamento === 'dinheiro')) {
+      setErroConcluir(t('pagConfirmeDinheiro'))
+      return
+    }
     setBusy(true)
     setErroConcluir('')
     try {
       const res = await fetch(`/api/mobilidade/solicitar/${corrida.solicitacao_id}/concluir`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(forcar ? { forcar: true } : {}),
+        body: JSON.stringify({
+          forcar: forcar || undefined,
+          pagamento_confirmado: recebiDinheiro,
+          bonus_voluntario: bonus.trim() ? Number(bonus.replace(',', '.')) || 0 : 0,
+        }),
       })
       const json = (await res.json()) as {
         error?: string
         manifesto_pendente_checkin?: boolean
+        financeiro?: {
+          valorCorrida?: number
+          valorRegular?: number
+          bonusVoluntario?: number
+        } | null
       }
       if (!res.ok) {
         setErroConcluir(String(json.error ?? t('concluirErro')))
         return
       }
+      if (json.financeiro) {
+        const parts = [
+          json.financeiro.valorCorrida != null
+            ? t('finValorCorrida', { v: formatBrl(json.financeiro.valorCorrida) })
+            : null,
+          json.financeiro.valorRegular != null && json.financeiro.valorRegular > 0
+            ? t('finSuaComissao', { v: formatBrl(json.financeiro.valorRegular) })
+            : null,
+          json.financeiro.bonusVoluntario != null && json.financeiro.bonusVoluntario > 0
+            ? t('finBonus', { v: formatBrl(json.financeiro.bonusVoluntario) })
+            : null,
+        ].filter(Boolean)
+        setResumoFin(parts.join(' · ') || t('corridaConcluida'))
+      }
       setCorrida(null)
       setErroConcluir('')
+      setRecebiDinheiro(false)
+      setBonus('')
     } finally {
       setBusy(false)
     }
   }
 
   if (!elegivel) return null
+
+  if (resumoFin) {
+    return (
+      <div className="fixed inset-x-3 bottom-24 z-[70] rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-black/10 sm:inset-x-auto sm:right-4 sm:w-96">
+        <p className="text-sm font-bold text-[#00D443]">{t('corridaConcluida')}</p>
+        <p className="mt-2 text-xs text-gray-600">{resumoFin}</p>
+        <p className="mt-1 text-[11px] text-gray-400">{t('finExtratoHint')}</p>
+        <button
+          type="button"
+          onClick={() => setResumoFin(null)}
+          className="mt-3 w-full rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white"
+        >
+          {t('fechar')}
+        </button>
+      </div>
+    )
+  }
 
   if (corrida) {
     return (
@@ -264,6 +314,12 @@ export default function OfertaMobilidadeListener() {
           <p className="mt-0.5 text-xs text-gray-500">
             {corrida.origem_nome || '—'} → {corrida.destino_nome || '—'}
           </p>
+          {corrida.valor_estimado != null ? (
+            <p className="mt-1 text-sm font-semibold text-gray-800">
+              {formatBrl(corrida.valor_estimado)}
+              {corrida.pagamento ? ` · ${corrida.pagamento}` : ''}
+            </p>
+          ) : null}
           {corrida.manifesto_id ? (
             <p className="mt-1 text-[11px] font-medium text-[#0097b2]">{t('manifestoRegistrado')}</p>
           ) : null}
@@ -271,6 +327,31 @@ export default function OfertaMobilidadeListener() {
         {corrida.conversa_id ? (
           <ChatCorridaMobilidade conversaId={corrida.conversa_id} compact />
         ) : null}
+
+        <div className="mt-3 space-y-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+          <label className="flex items-start gap-2 text-xs text-gray-700">
+            <input
+              type="checkbox"
+              checked={recebiDinheiro}
+              onChange={(e) => setRecebiDinheiro(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>{t('pagRecebiDinheiro')}</span>
+          </label>
+          <label className="block text-xs text-gray-600">
+            {t('bonusLabel')}
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={bonus}
+              onChange={(e) => setBonus(e.target.value)}
+              placeholder="0,00"
+              className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+            />
+          </label>
+        </div>
+
         {erroConcluir ? (
           <div className="mt-2 space-y-1">
             <p className="text-xs text-rose-600">{erroConcluir}</p>

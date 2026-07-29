@@ -348,6 +348,13 @@
     "concluirErro": "No se pudo concluir el viaje.",
     "concluirSemManifesto": "Concluir de todos modos (manifiesto queda abierto)",
     "corridaConcluida": "Viaje concluido",
+    "pagRecebiDinheiro": "Confirmo que recibí el pago en efectivo",
+    "pagConfirmeDinheiro": "Confirma el cobro en efectivo para concluir.",
+    "bonusLabel": "Bono voluntario del turista (opcional)",
+    "finValorCorrida": "Viaje {v}",
+    "finSuaComissao": "Tu comisión {v}",
+    "finBonus": "Bono {v}",
+    "finExtratoHint": "Detalles en el canal financiero.",
     "pag": {
       "pix": "PIX",
       "dinheiro": "Efectivo",

@@ -348,6 +348,13 @@
     "concluirErro": "Could not finish the ride.",
     "concluirSemManifesto": "Finish anyway (manifesto stays open)",
     "corridaConcluida": "Ride finished",
+    "pagRecebiDinheiro": "I confirm I received cash payment",
+    "pagConfirmeDinheiro": "Confirm cash received to finish the ride.",
+    "bonusLabel": "Voluntary tip from tourist (optional)",
+    "finValorCorrida": "Ride {v}",
+    "finSuaComissao": "Your commission {v}",
+    "finBonus": "Tip {v}",
+    "finExtratoHint": "Details in the finance channel.",
     "pag": {
       "pix": "PIX",
       "dinheiro": "Cash",
