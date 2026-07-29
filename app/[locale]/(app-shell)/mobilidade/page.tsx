@@ -11,6 +11,7 @@ import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import FiltrosMapaMobilidade from '@/components/mobilidade/FiltrosMapaMobilidade'
 import PopupPesquisaMobilidade from '@/components/mobilidade/PopupPesquisaMobilidade'
 import CabecalhoMobilidadeLogoOuToggle from '@/components/mobilidade/CabecalhoMobilidadeLogoOuToggle'
+import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import { supabase } from '@/lib/supabase'
@@ -340,6 +341,7 @@ function MobilidadePageInner() {
           }
         />
       </main>
+      <OfertaMobilidadeListener />
     </div>
   )
 }

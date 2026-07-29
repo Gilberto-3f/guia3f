@@ -29,6 +29,10 @@ import {
 } from '@/lib/mobilidadePopupPesquisa'
 import type { RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
 import { descricaoPeriodoRota } from '@/lib/servicosTabeladosCatalogo'
+import {
+  MOBILIDADE_OFERTA_TIMEOUT_MS,
+  MOBILIDADE_OFERTA_WARN_MS,
+} from '@/lib/mobilidadeMatching'
 
 type Props = {
   aberto: boolean
@@ -37,6 +41,15 @@ type Props = {
   /** Cidade do destino quando veio de empresa do mapa. */
   destinoCidadeEmpresa?: string | null
   destinoNomeEmpresa?: string | null
+}
+
+type OfertaUi = {
+  profissionalId: string
+  nome: string
+  username: string | null
+  fotoUrl: string | null
+  distanciaKm: number
+  expiraEm: string
 }
 
 const ICONES: Record<ModalidadeMobilidadeId, typeof Car> = {
@@ -70,6 +83,12 @@ export default function PopupPesquisaMobilidade({
   const [dataHora, setDataHora] = useState('')
   const [pedirAcompanhamento, setPedirAcompanhamento] = useState(false)
   const [buscando, setBuscando] = useState(false)
+  const [solicitacaoId, setSolicitacaoId] = useState<string | null>(null)
+  const [matchStatus, setMatchStatus] = useState<string | null>(null)
+  const [oferta, setOferta] = useState<OfertaUi | null>(null)
+  const [backups, setBackups] = useState(0)
+  const [matchErro, setMatchErro] = useState('')
+  const [segRestantes, setSegRestantes] = useState<number | null>(null)
 
   const destinoLabel =
     pesquisa.destino.nome ||
@@ -110,7 +129,60 @@ export default function PopupPesquisaMobilidade({
     setEtapa(1)
     setModalidade(null)
     setBuscando(false)
+    setSolicitacaoId(null)
+    setMatchStatus(null)
+    setOferta(null)
+    setMatchErro('')
+    setSegRestantes(null)
   }, [aberto])
+
+  // Poll matching
+  useEffect(() => {
+    if (!aberto || etapa !== 3 || !solicitacaoId) return
+    if (matchStatus === 'aceita' || matchStatus === 'sem_profissional' || matchStatus === 'cancelada') {
+      return
+    }
+
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/mobilidade/solicitar/${solicitacaoId}`)
+        const json = (await res.json()) as Record<string, unknown>
+        if (cancelled || !res.ok) return
+        const st = String(json.status ?? '')
+        setMatchStatus(st)
+        setBackups(Number(json.backups_ocultos ?? 0))
+        const of = json.oferta as OfertaUi | null
+        setOferta(of && of.profissionalId ? of : null)
+        if (st === 'aceita' || st === 'sem_profissional') setBuscando(false)
+        if (st === 'oferecida') setBuscando(true)
+      } catch {
+        /* ignore */
+      }
+    }
+
+    void poll()
+    const id = setInterval(() => void poll(), 2000)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [aberto, etapa, solicitacaoId, matchStatus])
+
+  // Countdown UI
+  useEffect(() => {
+    if (!oferta?.expiraEm || matchStatus !== 'oferecida') {
+      setSegRestantes(null)
+      return
+    }
+    const tick = () => {
+      const ms = new Date(oferta.expiraEm).getTime() - Date.now()
+      setSegRestantes(Math.max(0, Math.ceil(ms / 1000)))
+    }
+    tick()
+    const id = setInterval(tick, 250)
+    return () => clearInterval(id)
+  }, [oferta?.expiraEm, matchStatus])
 
   useEffect(() => {
     if (!aberto) return
@@ -135,8 +207,9 @@ export default function PopupPesquisaMobilidade({
 
   const valoresPorMod = useMemo(() => {
     const destTxt = destinoLabel
-    const out: Partial<Record<ModalidadeMobilidadeId, { valor: number | null; rota: RotaTabelada | null; parceiro?: boolean }>> =
-      {}
+    const out: Partial<
+      Record<ModalidadeMobilidadeId, { valor: number | null; rota: RotaTabelada | null; parceiro?: boolean }>
+    > = {}
     for (const id of disponiveis) {
       if (id === 'motorista_app') {
         out[id] = { valor: null, rota: null, parceiro: true }
@@ -185,11 +258,80 @@ export default function PopupPesquisaMobilidade({
     setEtapa(2)
   }
 
-  const procurar = () => {
+  const procurar = async () => {
+    if (!modalidade) return
     setEtapa(3)
     setBuscando(true)
-    window.setTimeout(() => setBuscando(false), 1800)
+    setMatchErro('')
+    setOferta(null)
+    setMatchStatus(null)
+    setSolicitacaoId(null)
+
+    const valor =
+      modalidade !== 'motorista_app' && valoresPorMod[modalidade]?.valor != null
+        ? valoresPorMod[modalidade]!.valor
+        : null
+
+    try {
+      const res = await fetch('/api/mobilidade/solicitar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          modalidade,
+          origem_nome: origemLabel,
+          destino_nome: destinoLabel,
+          origem_lat: pesquisa.origem.lat,
+          origem_lng: pesquisa.origem.lng,
+          destino_lat: pesquisa.destino.lat,
+          destino_lng: pesquisa.destino.lng,
+          destino_empresa_id: pesquisa.destinoEmpresaId,
+          destino_cidade: destinoCidadeEmpresa,
+          cruzamento_fronteira: cruzamento,
+          valor_estimado: valor,
+          pagamento,
+          lugares,
+          acompanhamento_guia: pedirAcompanhamento,
+          data_agendada: dataHora || null,
+        }),
+      })
+      const json = (await res.json()) as Record<string, unknown>
+      if (!res.ok) {
+        setBuscando(false)
+        setMatchErro(String(json.error ?? t('matchErro')))
+        setMatchStatus('sem_profissional')
+        return
+      }
+
+      const sid = String(json.solicitacaoId ?? '')
+      setSolicitacaoId(sid || null)
+      setMatchStatus(String(json.status ?? ''))
+      setBackups(Number(json.backupsOcultos ?? 0))
+
+      const redirect = json.redirectParceiro != null ? String(json.redirectParceiro).trim() : ''
+      if (redirect) {
+        setBuscando(false)
+        window.location.href = redirect
+        return
+      }
+
+      const of = json.oferta as OfertaUi | null
+      if (of?.profissionalId) {
+        setOferta(of)
+        setBuscando(true)
+      } else {
+        setBuscando(false)
+        setMatchStatus('sem_profissional')
+      }
+    } catch {
+      setBuscando(false)
+      setMatchErro(t('matchErro'))
+      setMatchStatus('sem_profissional')
+    }
   }
+
+  const warnAmarelo =
+    segRestantes != null &&
+    segRestantes * 1000 <= MOBILIDADE_OFERTA_TIMEOUT_MS - MOBILIDADE_OFERTA_WARN_MS
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-30 flex max-h-[78%] flex-col rounded-t-2xl bg-white shadow-2xl ring-1 ring-black/10">
@@ -408,14 +550,53 @@ export default function PopupPesquisaMobilidade({
         ) : null}
 
         {etapa === 3 ? (
-          <div className="space-y-3 py-4 text-center">
-            {buscando ? (
+          <div className="space-y-3 py-2 text-center">
+            {matchErro ? <p className="text-sm text-rose-600">{matchErro}</p> : null}
+
+            {matchStatus === 'aceita' && oferta ? (
+              <div className="rounded-xl border-2 border-[#00D443] bg-green-50 px-3 py-4 text-left">
+                <p className="text-center text-sm font-bold text-[#00D443]">{t('matchAceito')}</p>
+                <p className="mt-2 font-semibold text-gray-900">{oferta.nome}</p>
+                {oferta.username ? (
+                  <p className="text-sm text-gray-500">@{String(oferta.username).replace(/^@+/, '')}</p>
+                ) : null}
+                <p className="mt-2 text-xs text-gray-500">{t('matchChatProxima')}</p>
+              </div>
+            ) : null}
+
+            {(matchStatus === 'oferecida' || buscando) && oferta ? (
+              <div className="rounded-xl border border-gray-200 px-3 py-4 text-left">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-bold text-gray-800">{t('matchOfertaTitulo')}</p>
+                  {segRestantes != null ? (
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-bold tabular-nums text-white ${
+                        warnAmarelo ? 'bg-amber-400' : 'bg-[#0097b2]'
+                      }`}
+                    >
+                      {segRestantes}s
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-2 font-semibold text-gray-900">{oferta.nome}</p>
+                {oferta.username ? (
+                  <p className="text-sm text-gray-500">@{String(oferta.username).replace(/^@+/, '')}</p>
+                ) : null}
+                <p className="mt-1 text-xs text-gray-500">
+                  ~{oferta.distanciaKm} km · {t('matchBackups', { n: backups })}
+                </p>
+                <p className="mt-2 text-xs text-gray-400">{t('matchAguardandoAceite')}</p>
+              </div>
+            ) : null}
+
+            {buscando && !oferta && matchStatus !== 'sem_profissional' ? (
               <>
                 <div className="mx-auto h-10 w-10 animate-pulse rounded-full bg-[#0097b2]/30" />
                 <p className="font-semibold text-gray-800">{t('procurandoProfissional')}</p>
-                <p className="text-sm text-gray-500">{t('procurandoHint')}</p>
               </>
-            ) : (
+            ) : null}
+
+            {matchStatus === 'sem_profissional' && !oferta ? (
               <>
                 <p className="font-semibold text-gray-800">{t('semProfissionalTitulo')}</p>
                 <p className="text-sm text-gray-500">{t('semProfissionalDesc')}</p>
@@ -431,7 +612,7 @@ export default function PopupPesquisaMobilidade({
                   </button>
                 )}
               </>
-            )}
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -458,14 +639,14 @@ export default function PopupPesquisaMobilidade({
             </button>
             <button
               type="button"
-              onClick={procurar}
+              onClick={() => void procurar()}
               className="flex-1 rounded-xl bg-[#00D443] py-3 text-sm font-bold uppercase text-white"
             >
               {t('procurar')}
             </button>
           </div>
         ) : null}
-        {etapa === 3 && !buscando ? (
+        {etapa === 3 && (matchStatus === 'aceita' || matchStatus === 'sem_profissional') ? (
           <button
             type="button"
             onClick={onFechar}

@@ -9,6 +9,7 @@ import PublicidadeHome from '@/components/PublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
 import BarrasPesquisaMobilidade from '@/components/mobilidade/BarrasPesquisaMobilidade'
 import CabecalhoMobilidadeLogoOuToggle from '@/components/mobilidade/CabecalhoMobilidadeLogoOuToggle'
+import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 
 function abaGuiaCls(ativo: boolean) {
   return `flex min-w-0 flex-1 items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
@@ -83,6 +84,7 @@ export default function GuiaPage() {
           <BarrasPesquisaMobilidade />
         </main>
       )}
+      <OfertaMobilidadeListener />
     </div>
   )
 }

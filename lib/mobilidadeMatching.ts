@@ -1,0 +1,511 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
+import { inferirCidadeTriplicePorCoords } from '@/lib/mobilidadePopupPesquisa'
+import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
+import type { CidadeTriplice } from '@/lib/mobilidadeRegional'
+
+/** Tempo total para aceitar (ms). */
+export const MOBILIDADE_OFERTA_TIMEOUT_MS = 45_000
+/** Após este tempo a UI muda para amarelo (aviso). */
+export const MOBILIDADE_OFERTA_WARN_MS = 30_000
+/** Backups ocultos além do oferecido. */
+export const MOBILIDADE_BACKUPS_OCULTOS = 2
+
+export type CandidatoMatch = {
+  id: string
+  usuario_id: string
+  nome_completo: string
+  nome_usuario: string | null
+  foto_url: string | null
+  categorias: string[]
+  placa_vermelha: boolean
+  lat: number
+  lng: number
+  distanciaKm: number
+  cidade: CidadeTriplice | null
+}
+
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371
+  const dLat = ((bLat - aLat) * Math.PI) / 180
+  const dLng = ((bLng - aLng) * Math.PI) / 180
+  const s1 = Math.sin(dLat / 2)
+  const s2 = Math.sin(dLng / 2)
+  const h =
+    s1 * s1 + Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * s2 * s2
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)))
+}
+
+function modalidadeMatchaCategorias(
+  modalidade: ModalidadeMobilidadeId,
+  cats: string[],
+  placaVermelha: boolean,
+): boolean {
+  if (modalidade === 'motorista_app') return cats.includes('motorista_app')
+  if (modalidade === 'van') return cats.includes('van') || (placaVermelha && cats.includes('van'))
+  if (modalidade === 'taxista') return cats.includes('taxista')
+  if (modalidade === 'guia') return cats.includes('guia')
+  return false
+}
+
+/**
+ * Candidatos online (não em atendimento), filtrados por modalidade e regras de fronteira/cidade.
+ */
+export async function buscarCandidatosMobilidade(
+  admin: SupabaseClient,
+  params: {
+    modalidade: ModalidadeMobilidadeId
+    cruzamentoFronteira: boolean
+    origemLat: number
+    origemLng: number
+    cidadeOrigem: CidadeTriplice | null
+  },
+): Promise<CandidatoMatch[]> {
+  const { data, error } = await admin
+    .from('profissionais')
+    .select(
+      'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng',
+    )
+    .eq('mobilidade_status', 'online')
+    .not('mobilidade_lat', 'is', null)
+    .not('mobilidade_lng', 'is', null)
+
+  if (error || !data) return []
+
+  const out: CandidatoMatch[] = []
+  for (const row of data) {
+    const cats = normalizarCategoriasProfissional(
+      Array.isArray(row.categorias) ? row.categorias.map(String) : [],
+    )
+    const placa = Boolean(row.placa_vermelha)
+    if (!modalidadeMatchaCategorias(params.modalidade, cats, placa)) continue
+
+    if (params.cruzamentoFronteira) {
+      if (!placa) continue
+      if (params.modalidade === 'motorista_app') continue
+    }
+
+    const lat = Number(row.mobilidade_lat)
+    const lng = Number(row.mobilidade_lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+
+    const cidadeProf = inferirCidadeTriplicePorCoords(lat, lng)
+
+    // Dentro da cidade: preferir mesma cidade de origem
+    if (!params.cruzamentoFronteira && params.cidadeOrigem && cidadeProf) {
+      if (cidadeProf !== params.cidadeOrigem) continue
+    }
+
+    out.push({
+      id: String(row.id),
+      usuario_id: String(row.usuario_id),
+      nome_completo: String(row.nome_completo ?? ''),
+      nome_usuario: row.nome_usuario != null ? String(row.nome_usuario) : null,
+      foto_url:
+        row.foto_perfil_url != null
+          ? String(row.foto_perfil_url)
+          : row.foto_url != null
+            ? String(row.foto_url)
+            : null,
+      categorias: cats,
+      placa_vermelha: placa,
+      lat,
+      lng,
+      distanciaKm: haversineKm(params.origemLat, params.origemLng, lat, lng),
+      cidade: cidadeProf,
+    })
+  }
+
+  out.sort((a, b) => a.distanciaKm - b.distanciaKm)
+  return out
+}
+
+export type SolicitarMobilidadeInput = {
+  turistaUsuarioId: string
+  modalidade: ModalidadeMobilidadeId
+  origemNome: string
+  destinoNome: string
+  origemLat: number | null
+  origemLng: number | null
+  destinoLat: number | null
+  destinoLng: number | null
+  destinoEmpresaId: string | null
+  cruzamentoFronteira: boolean
+  cidadeOrigem: CidadeTriplice | null
+  valorEstimado: number | null
+  pagamento: string | null
+  lugares: number
+  acompanhamentoGuia: boolean
+  dataAgendada: string | null
+  recomendacaoId: string | null
+}
+
+export type SolicitarMobilidadeResult =
+  | {
+      ok: true
+      solicitacaoId: string
+      status: string
+      redirectParceiro: string | null
+      oferta: {
+        profissionalId: string
+        nome: string
+        username: string | null
+        fotoUrl: string | null
+        distanciaKm: number
+        expiraEm: string
+      } | null
+      backupsOcultos: number
+    }
+  | { ok: false; error: string }
+
+export async function criarSolicitacaoEOfertar(
+  admin: SupabaseClient,
+  input: SolicitarMobilidadeInput,
+  apiMobilidadeUrl: string | null,
+): Promise<SolicitarMobilidadeResult> {
+  // Motorista app + urbano + API parceira → redirect
+  if (input.modalidade === 'motorista_app' && !input.cruzamentoFronteira) {
+    const url = String(apiMobilidadeUrl ?? '').trim()
+    if (url) {
+      const { data: row, error } = await admin
+        .from('solicitacao_mobilidade')
+        .insert({
+          turista_id: input.turistaUsuarioId,
+          profissional_id: null,
+          status: 'pendente',
+          tipo_servico: 'mobilidade',
+          modalidade: input.modalidade,
+          origem_nome: input.origemNome,
+          destino_nome: input.destinoNome,
+          lat_origem: input.origemLat,
+          lng_origem: input.origemLng,
+          lat_destino: input.destinoLat,
+          lng_destino: input.destinoLng,
+          destino_empresa_id: input.destinoEmpresaId,
+          cruzamento_fronteira: false,
+          valor_estimado: input.valorEstimado,
+          pagamento: input.pagamento,
+          lugares: input.lugares,
+          acompanhamento_guia: false,
+          data_agendada: input.dataAgendada,
+          recomendacao_id: input.recomendacaoId,
+          metadata: { destino: 'api_parceiro', api_url: url },
+        })
+        .select('id')
+        .maybeSingle()
+
+      if (error || !row?.id) {
+        return { ok: false, error: error?.message ?? 'Falha ao registrar solicitação.' }
+      }
+
+      return {
+        ok: true,
+        solicitacaoId: String(row.id),
+        status: 'pendente',
+        redirectParceiro: url,
+        oferta: null,
+        backupsOcultos: 0,
+      }
+    }
+  }
+
+  if (input.origemLat == null || input.origemLng == null) {
+    return { ok: false, error: 'Origem com GPS é necessária para localizar profissionais.' }
+  }
+
+  const candidatos = await buscarCandidatosMobilidade(admin, {
+    modalidade: input.modalidade,
+    cruzamentoFronteira: input.cruzamentoFronteira,
+    origemLat: input.origemLat,
+    origemLng: input.origemLng,
+    cidadeOrigem: input.cidadeOrigem,
+  })
+
+  const filaIds = candidatos.map((c) => c.id)
+  const agora = Date.now()
+  const expira = new Date(agora + MOBILIDADE_OFERTA_TIMEOUT_MS).toISOString()
+  const primeiro = candidatos[0] ?? null
+
+  const { data: row, error } = await admin
+    .from('solicitacao_mobilidade')
+    .insert({
+      turista_id: input.turistaUsuarioId,
+      profissional_id: null,
+      status: primeiro ? 'oferecida' : 'sem_profissional',
+      tipo_servico: 'mobilidade',
+      modalidade: input.modalidade,
+      origem_nome: input.origemNome,
+      destino_nome: input.destinoNome,
+      lat_origem: input.origemLat,
+      lng_origem: input.origemLng,
+      lat_destino: input.destinoLat,
+      lng_destino: input.destinoLng,
+      destino_empresa_id: input.destinoEmpresaId,
+      cruzamento_fronteira: input.cruzamentoFronteira,
+      valor_estimado: input.valorEstimado,
+      pagamento: input.pagamento,
+      lugares: input.lugares,
+      acompanhamento_guia: input.acompanhamentoGuia,
+      data_agendada: input.dataAgendada,
+      recomendacao_id: input.recomendacaoId,
+      fila_profissional_ids: filaIds,
+      fila_indice: 0,
+      oferta_profissional_id: primeiro?.id ?? null,
+      oferta_expira_em: primeiro ? expira : null,
+      metadata: {
+        backups: Math.min(MOBILIDADE_BACKUPS_OCULTOS, Math.max(0, filaIds.length - 1)),
+        distancias_km: candidatos.slice(0, 5).map((c) => ({
+          id: c.id,
+          km: Math.round(c.distanciaKm * 10) / 10,
+        })),
+      },
+    })
+    .select('id')
+    .maybeSingle()
+
+  if (error || !row?.id) {
+    return { ok: false, error: error?.message ?? 'Falha ao criar solicitação.' }
+  }
+
+  return {
+    ok: true,
+    solicitacaoId: String(row.id),
+    status: primeiro ? 'oferecida' : 'sem_profissional',
+    redirectParceiro: null,
+    oferta: primeiro
+      ? {
+          profissionalId: primeiro.id,
+          nome: primeiro.nome_completo,
+          username: primeiro.nome_usuario,
+          fotoUrl: primeiro.foto_url,
+          distanciaKm: Math.round(primeiro.distanciaKm * 10) / 10,
+          expiraEm: expira,
+        }
+      : null,
+    backupsOcultos: Math.min(MOBILIDADE_BACKUPS_OCULTOS, Math.max(0, filaIds.length - 1)),
+  }
+}
+
+/** Se a oferta expirou, avança para o próximo da fila. */
+export async function avancarFilaSeExpirada(
+  admin: SupabaseClient,
+  solicitacaoId: string,
+): Promise<{
+  status: string
+  oferta: {
+    profissionalId: string
+    nome: string
+    username: string | null
+    fotoUrl: string | null
+    distanciaKm: number
+    expiraEm: string
+  } | null
+}> {
+  const { data: row } = await admin
+    .from('solicitacao_mobilidade')
+    .select(
+      'id, status, oferta_expira_em, oferta_profissional_id, fila_profissional_ids, fila_indice, recusados_ids, lat_origem, lng_origem',
+    )
+    .eq('id', solicitacaoId)
+    .maybeSingle()
+
+  if (!row || row.status !== 'oferecida') {
+    return { status: String(row?.status ?? 'cancelada'), oferta: null }
+  }
+
+  const expira = row.oferta_expira_em ? new Date(String(row.oferta_expira_em)).getTime() : 0
+  if (Number.isFinite(expira) && Date.now() < expira) {
+    // ainda válida — carregar dados do profissional
+    const oferta = await montarOfertaAtual(admin, row)
+    return { status: 'oferecida', oferta }
+  }
+
+  return avancarParaProximo(admin, row)
+}
+
+async function montarOfertaAtual(
+  admin: SupabaseClient,
+  row: Record<string, unknown>,
+): Promise<{
+  profissionalId: string
+  nome: string
+  username: string | null
+  fotoUrl: string | null
+  distanciaKm: number
+  expiraEm: string
+} | null> {
+  const pid = row.oferta_profissional_id != null ? String(row.oferta_profissional_id) : ''
+  if (!pid) return null
+  const { data: p } = await admin
+    .from('profissionais')
+    .select('id, nome_completo, nome_usuario, foto_perfil_url, foto_url, mobilidade_lat, mobilidade_lng')
+    .eq('id', pid)
+    .maybeSingle()
+  if (!p) return null
+  const oLat = Number(row.lat_origem)
+  const oLng = Number(row.lng_origem)
+  const pLat = Number(p.mobilidade_lat)
+  const pLng = Number(p.mobilidade_lng)
+  let km = 0
+  if (Number.isFinite(oLat) && Number.isFinite(oLng) && Number.isFinite(pLat) && Number.isFinite(pLng)) {
+    km = Math.round(haversineKm(oLat, oLng, pLat, pLng) * 10) / 10
+  }
+  return {
+    profissionalId: String(p.id),
+    nome: String(p.nome_completo ?? ''),
+    username: p.nome_usuario != null ? String(p.nome_usuario) : null,
+    fotoUrl:
+      p.foto_perfil_url != null
+        ? String(p.foto_perfil_url)
+        : p.foto_url != null
+          ? String(p.foto_url)
+          : null,
+    distanciaKm: km,
+    expiraEm: String(row.oferta_expira_em ?? ''),
+  }
+}
+
+async function avancarParaProximo(
+  admin: SupabaseClient,
+  row: Record<string, unknown>,
+): Promise<{
+  status: string
+  oferta: {
+    profissionalId: string
+    nome: string
+    username: string | null
+    fotoUrl: string | null
+    distanciaKm: number
+    expiraEm: string
+  } | null
+}> {
+  const fila = Array.isArray(row.fila_profissional_ids)
+    ? (row.fila_profissional_ids as string[]).map(String)
+    : []
+  const recusados = new Set(
+    Array.isArray(row.recusados_ids) ? (row.recusados_ids as string[]).map(String) : [],
+  )
+  if (row.oferta_profissional_id) recusados.add(String(row.oferta_profissional_id))
+
+  let idx = Number(row.fila_indice ?? 0) + 1
+  while (idx < fila.length && recusados.has(fila[idx])) idx += 1
+
+  if (idx >= fila.length) {
+    await admin
+      .from('solicitacao_mobilidade')
+      .update({
+        status: 'sem_profissional',
+        oferta_profissional_id: null,
+        oferta_expira_em: null,
+        fila_indice: idx,
+        recusados_ids: [...recusados],
+      })
+      .eq('id', row.id)
+    return { status: 'sem_profissional', oferta: null }
+  }
+
+  const nextId = fila[idx]
+  const expira = new Date(Date.now() + MOBILIDADE_OFERTA_TIMEOUT_MS).toISOString()
+  await admin
+    .from('solicitacao_mobilidade')
+    .update({
+      status: 'oferecida',
+      oferta_profissional_id: nextId,
+      oferta_expira_em: expira,
+      fila_indice: idx,
+      recusados_ids: [...recusados],
+    })
+    .eq('id', row.id)
+
+  const oferta = await montarOfertaAtual(admin, {
+    ...row,
+    oferta_profissional_id: nextId,
+    oferta_expira_em: expira,
+  })
+  return { status: 'oferecida', oferta }
+}
+
+export async function responderOfertaMobilidade(
+  admin: SupabaseClient,
+  params: {
+    solicitacaoId: string
+    profissionalUsuarioId: string
+    aceitar: boolean
+    justificativa?: string | null
+  },
+): Promise<{ ok: boolean; error?: string; status?: string }> {
+  const { data: prof } = await admin
+    .from('profissionais')
+    .select('id')
+    .eq('usuario_id', params.profissionalUsuarioId)
+    .maybeSingle()
+  if (!prof?.id) return { ok: false, error: 'Profissional não encontrado.' }
+
+  const { data: row } = await admin
+    .from('solicitacao_mobilidade')
+    .select('*')
+    .eq('id', params.solicitacaoId)
+    .maybeSingle()
+
+  if (!row || row.status !== 'oferecida') {
+    return { ok: false, error: 'Oferta não está mais disponível.' }
+  }
+  if (String(row.oferta_profissional_id) !== String(prof.id)) {
+    return { ok: false, error: 'Esta oferta não é sua.' }
+  }
+
+  if (params.aceitar) {
+    const agora = new Date().toISOString()
+    await admin
+      .from('solicitacao_mobilidade')
+      .update({
+        status: 'aceita',
+        profissional_id: prof.id,
+        oferta_expira_em: null,
+        metadata: {
+          ...(typeof row.metadata === 'object' && row.metadata ? row.metadata : {}),
+          aceito_em: agora,
+        },
+      })
+      .eq('id', params.solicitacaoId)
+
+    await admin
+      .from('profissionais')
+      .update({
+        mobilidade_status: 'em_atendimento',
+        mobilidade_status_em: agora,
+      })
+      .eq('id', prof.id)
+
+    return { ok: true, status: 'aceita' }
+  }
+
+  // recusa
+  const recusados = Array.isArray(row.recusados_ids)
+    ? (row.recusados_ids as string[]).map(String)
+    : []
+  recusados.push(String(prof.id))
+  await admin
+    .from('solicitacao_mobilidade')
+    .update({
+      recusados_ids: recusados,
+      metadata: {
+        ...(typeof row.metadata === 'object' && row.metadata ? row.metadata : {}),
+        ultima_recusa: {
+          profissional_id: prof.id,
+          justificativa: params.justificativa ?? null,
+          em: new Date().toISOString(),
+        },
+      },
+    })
+    .eq('id', params.solicitacaoId)
+
+  // força avanço
+  await admin
+    .from('solicitacao_mobilidade')
+    .update({ oferta_expira_em: new Date(0).toISOString() })
+    .eq('id', params.solicitacaoId)
+
+  const avancou = await avancarFilaSeExpirada(admin, params.solicitacaoId)
+  return { ok: true, status: avancou.status }
+}
