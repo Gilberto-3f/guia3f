@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
 import { abrirOuObterConversaCorrida } from '@/lib/mobilidadeChatCorrida'
+import { registrarManifestoAposAceiteCorrida } from '@/lib/mobilidadeCorrida'
 import { isJustificativaRecusaMobilidade } from '@/lib/mobilidadeRecusaJustificativas'
 import { inferirCidadeTriplicePorCoords } from '@/lib/mobilidadePopupPesquisa'
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
@@ -539,7 +540,7 @@ export async function responderOfertaMobilidade(
 ): Promise<{ ok: boolean; error?: string; status?: string; conversaId?: string | null }> {
   const { data: prof } = await admin
     .from('profissionais')
-    .select('id')
+    .select('id, placa_vermelha')
     .eq('usuario_id', params.profissionalUsuarioId)
     .maybeSingle()
   if (!prof?.id) return { ok: false, error: 'Profissional não encontrado.' }
@@ -559,16 +560,29 @@ export async function responderOfertaMobilidade(
 
   if (params.aceitar) {
     const agora = new Date().toISOString()
+
+    const metaBase = {
+      ...(typeof row.metadata === 'object' && row.metadata ? row.metadata : {}),
+      aceito_em: agora,
+    }
+
+    const metaComManifesto = await registrarManifestoAposAceiteCorrida(admin, {
+      profissionalId: String(prof.id),
+      placaVermelha: Boolean(prof.placa_vermelha),
+      turistaUsuarioId: String(row.turista_id),
+      recomendacaoId: row.recomendacao_id != null ? String(row.recomendacao_id) : null,
+      destinoEmpresaId: row.destino_empresa_id != null ? String(row.destino_empresa_id) : null,
+      solicitacaoId: params.solicitacaoId,
+      metadataAtual: metaBase,
+    })
+
     await admin
       .from('solicitacao_mobilidade')
       .update({
         status: 'aceita',
         profissional_id: prof.id,
         oferta_expira_em: null,
-        metadata: {
-          ...(typeof row.metadata === 'object' && row.metadata ? row.metadata : {}),
-          aceito_em: agora,
-        },
+        metadata: metaComManifesto,
       })
       .eq('id', params.solicitacaoId)
 

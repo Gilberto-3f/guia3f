@@ -338,6 +338,12 @@
     "chatPlaceholder": "Escreva uma mensagem…",
     "chatEnviar": "Enviar",
     "chatErro": "Não foi possível carregar o chat.",
+    "corridaEmAndamento": "Corrida em andamento",
+    "manifestoRegistrado": "Turista no manifesto do dia",
+    "concluirCorrida": "Concluir corrida",
+    "concluirErro": "Não foi possível concluir a corrida.",
+    "concluirSemManifesto": "Concluir mesmo assim (manifesto fica aberto)",
+    "corridaConcluida": "Corrida concluída",
     "pag": {
       "pix": "PIX",
       "dinheiro": "Dinheiro",

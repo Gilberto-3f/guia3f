@@ -157,7 +157,28 @@ export default function PopupPesquisaMobilidade({
           })
           .catch(() => {})
       }
-      return
+      // poll leve para detectar conclusão pelo profissional
+      let cancelled = false
+      const pollAceita = async () => {
+        try {
+          const res = await fetch(`/api/mobilidade/solicitar/${solicitacaoId}`)
+          const json = (await res.json()) as Record<string, unknown>
+          if (cancelled || !res.ok) return
+          const st = String(json.status ?? '')
+          if (st === 'concluida') {
+            setMatchStatus('concluida')
+            setBuscando(false)
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      void pollAceita()
+      const id = setInterval(() => void pollAceita(), 4000)
+      return () => {
+        cancelled = true
+        clearInterval(id)
+      }
     }
 
     let cancelled = false
@@ -574,6 +595,12 @@ export default function PopupPesquisaMobilidade({
           <div className="space-y-3 py-2 text-center">
             {matchErro ? <p className="text-sm text-rose-600">{matchErro}</p> : null}
 
+            {matchStatus === 'concluida' ? (
+              <div className="rounded-xl border-2 border-[#0097b2] bg-[#0097b2]/10 px-3 py-4">
+                <p className="text-center text-sm font-bold text-[#0097b2]">{t('corridaConcluida')}</p>
+              </div>
+            ) : null}
+
             {matchStatus === 'aceita' && oferta ? (
               <div className="space-y-3 text-left">
                 <div className="rounded-xl border-2 border-[#00D443] bg-green-50 px-3 py-4">
@@ -671,7 +698,10 @@ export default function PopupPesquisaMobilidade({
             </button>
           </div>
         ) : null}
-        {etapa === 3 && (matchStatus === 'aceita' || matchStatus === 'sem_profissional') ? (
+        {etapa === 3 &&
+        (matchStatus === 'aceita' ||
+          matchStatus === 'sem_profissional' ||
+          matchStatus === 'concluida') ? (
           <button
             type="button"
             onClick={onFechar}

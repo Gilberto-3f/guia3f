@@ -123,9 +123,9 @@ export async function POST(req: Request) {
     )
   }
 
-  if (atual === 'em_atendimento' && next === 'online') {
+  if (atual === 'em_atendimento' && (next === 'online' || next === 'offline')) {
     return NextResponse.json(
-      { error: 'Conclua a corrida antes de voltar para online.' },
+      { error: 'Conclua a corrida antes de alterar o status.' },
       { status: 400 },
     )
   }

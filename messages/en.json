@@ -338,6 +338,12 @@
     "chatPlaceholder": "Write a message…",
     "chatEnviar": "Send",
     "chatErro": "Could not load the chat.",
+    "corridaEmAndamento": "Ride in progress",
+    "manifestoRegistrado": "Tourist on today’s manifesto",
+    "concluirCorrida": "Finish ride",
+    "concluirErro": "Could not finish the ride.",
+    "concluirSemManifesto": "Finish anyway (manifesto stays open)",
+    "corridaConcluida": "Ride finished",
     "pag": {
       "pix": "PIX",
       "dinheiro": "Cash",

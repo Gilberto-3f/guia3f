@@ -338,6 +338,12 @@
     "chatPlaceholder": "Escribe un mensaje…",
     "chatEnviar": "Enviar",
     "chatErro": "No se pudo cargar el chat.",
+    "corridaEmAndamento": "Viaje en curso",
+    "manifestoRegistrado": "Turista en el manifiesto del día",
+    "concluirCorrida": "Concluir viaje",
+    "concluirErro": "No se pudo concluir el viaje.",
+    "concluirSemManifesto": "Concluir de todos modos (manifiesto queda abierto)",
+    "corridaConcluida": "Viaje concluido",
     "pag": {
       "pix": "PIX",
       "dinheiro": "Efectivo",
