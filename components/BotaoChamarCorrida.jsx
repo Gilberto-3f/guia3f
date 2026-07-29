@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { Car } from 'lucide-react'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { AVISO_DOCS_PROF_ALERTA } from '@/lib/avisoDocsProfissionalTexto'
@@ -43,13 +43,13 @@ export default function BotaoChamarCorrida({
       if (!aviso.irDireto) {
         if (!window.confirm(aviso.mensagem)) return
       }
-      router.push(`/mobilidade?destino_empresa=${encodeURIComponent(id)}`)
+      router.push(`/mobilidade?destino_empresa=${encodeURIComponent(id)}&abrir_pesquisa=1`)
       return
     }
 
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
     router.push(
-      `/mobilidade?destino_lat=${lat}&destino_lng=${lng}&destino_nome=${encodeURIComponent(nomeDestino || '')}`
+      `/mobilidade?destino_lat=${lat}&destino_lng=${lng}&destino_nome=${encodeURIComponent(nomeDestino || '')}&abrir_pesquisa=1`,
     )
   }
 

@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { Car, MapPin } from 'lucide-react'
 import PublicidadeHome from '@/components/PublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
+import BarrasPesquisaMobilidade from '@/components/mobilidade/BarrasPesquisaMobilidade'
 
 function abaGuiaCls(ativo: boolean) {
   return `flex min-w-0 flex-1 items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
@@ -17,7 +18,6 @@ function abaGuiaCls(ativo: boolean) {
 }
 
 export default function GuiaPage() {
-  const tMobilidade = useTranslations('Mobilidade')
   const tGuia = useTranslations('Guia')
   const router = useRouter()
 
@@ -74,9 +74,8 @@ export default function GuiaPage() {
           </div>
         </main>
       ) : (
-        <main className="flex min-h-0 flex-1 flex-col items-center justify-start overflow-y-auto bg-gray-50 px-4 py-8 text-center">
-          <p className="text-lg font-medium text-gray-600">{tMobilidade('comingSoon')}</p>
-          <p className="mt-2 max-w-md text-sm text-gray-500">{tMobilidade('description')}</p>
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-gray-50 px-4 py-6">
+          <BarrasPesquisaMobilidade />
         </main>
       )}
     </div>

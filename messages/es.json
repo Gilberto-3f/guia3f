@@ -252,7 +252,24 @@
   },
   "Mobilidade": {
     "comingSoon": "Próximamente",
-    "description": "El módulo de movilidad está en desarrollo"
+    "description": "El módulo de movilidad está en desarrollo",
+    "origemLabel": "Punto de partida",
+    "destinoLabel": "Destino final",
+    "origemPlaceholder": "Tu ubicación actual",
+    "origemManualPlaceholder": "Escribe la dirección de partida",
+    "origemGpsLoading": "Obteniendo ubicación…",
+    "origemGpsLabel": "Ubicación actual",
+    "destinoPlaceholder": "¿A dónde vamos?",
+    "usarGps": "Usar mi ubicación",
+    "gpsNegadoHint": "Permiso de GPS denegado. Indica el punto de partida manualmente.",
+    "pesquisar": "Buscar",
+    "erroOrigemDestino": "Completa origen y destino para continuar",
+    "resumoPesquisa": "Tu búsqueda",
+    "destinoEmpresa": "Destino de la empresa",
+    "mapaEmBreveTitulo": "Mapa próximamente",
+    "mapaEmBreveDesc": "En la próxima etapa entra Mapbox con la ruta y el popup de modalidades.",
+    "popupProximaEtapa": "Popup de modalidades: próxima etapa.",
+    "gateBloqueio": "La movilidad se libera tras la verificación de documentos por el ADM o una preliberación de 24h por un profesional verificado."
   },
   "Common": {
     "welcome": "Bienvenido a Guia 3F",

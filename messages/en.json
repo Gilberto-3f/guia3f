@@ -252,7 +252,24 @@
   },
   "Mobilidade": {
     "comingSoon": "Coming soon",
-    "description": "The mobility module is under development"
+    "description": "The mobility module is under development",
+    "origemLabel": "Pickup point",
+    "destinoLabel": "Destination",
+    "origemPlaceholder": "Your current location",
+    "origemManualPlaceholder": "Enter pickup address",
+    "origemGpsLoading": "Getting location…",
+    "origemGpsLabel": "Current location",
+    "destinoPlaceholder": "Where to?",
+    "usarGps": "Use my location",
+    "gpsNegadoHint": "Location permission denied. Enter the pickup point manually.",
+    "pesquisar": "Search",
+    "erroOrigemDestino": "Fill in origin and destination to continue",
+    "resumoPesquisa": "Your search",
+    "destinoEmpresa": "Business destination",
+    "mapaEmBreveTitulo": "Map coming soon",
+    "mapaEmBreveDesc": "Next step: Mapbox with the route and the fare modes popup.",
+    "popupProximaEtapa": "Modes popup: next step.",
+    "gateBloqueio": "Mobility is available after ADM document verification or a 24h pre-release by a verified professional."
   },
   "Common": {
     "welcome": "Welcome to Guia 3F",
