@@ -314,6 +314,12 @@ function secoesProfissional(ctx) {
         subpagina: 'tabela',
         condicional: (c) => c.placaVermelha === true,
       },
+      {
+        Icon: CalendarDays,
+        label: 'Agendamento',
+        subpagina: 'agendamento',
+        condicional: (c) => c.placaVermelha === true,
+      },
       { Icon: Handshake, label: 'Parcerias Fechadas', subpagina: 'parcerias-prof' },
     ],
     ctx
@@ -1143,7 +1149,7 @@ export default function MenuLateral({
         configuracoes: 'Configurações',
         'regras-ecossistema': 'Regras do ecossistema',
         comissoes: 'Comissões',
-        agendamento: 'Agendamento Automático',
+        agendamento: 'Agendamento',
         tabela: 'Serviços Tabelados',
         manifestos: 'Manifesto',
         'historico-manifestos': 'Manifestos Concluídos',

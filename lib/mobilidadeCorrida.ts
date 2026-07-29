@@ -24,6 +24,7 @@ export async function registrarManifestoAposAceiteCorrida(
     destinoEmpresaId: string | null
     solicitacaoId: string
     metadataAtual: unknown
+    dataAgendada?: string | null
   },
 ): Promise<Record<string, unknown>> {
   const meta = metaObj(params.metadataAtual)
@@ -42,7 +43,13 @@ export async function registrarManifestoAposAceiteCorrida(
     if (rec?.profissional_indicador_id) {
       profissionalIndiretoId = String(rec.profissional_indicador_id)
     }
+  } else if (params.dataAgendada || meta.agendamento === true) {
+    contratacaoTipo = 'agendamento'
   }
+
+  const dataManifesto = params.dataAgendada
+    ? String(params.dataAgendada).slice(0, 10)
+    : undefined
 
   const paradas = params.destinoEmpresaId
     ? filtrarEmpresaIds([params.destinoEmpresaId])
@@ -53,6 +60,7 @@ export async function registrarManifestoAposAceiteCorrida(
     turistaUsuarioId: params.turistaUsuarioId,
     contratacaoTipo,
     profissionalIndiretoId,
+    dataManifesto,
     paradasEmpresaIds: paradas.length ? paradas : undefined,
   })
 

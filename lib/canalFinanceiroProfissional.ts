@@ -8,6 +8,7 @@ export type TipoNotificacaoFinanceiroProfissional =
   | 'extrato_parceria'
   | 'extrato_comissao'
   | 'manifesto_indicacao'
+  | 'mobilidade_agendamento'
 
 export type InserirNotificacaoFinanceiroParams = {
   profissionalUsuarioId: string

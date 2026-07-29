@@ -73,9 +73,39 @@ export default function OfertaMobilidadeListener() {
   const carregarOferta = useCallback(async () => {
     if (!elegivel || corrida) return
     try {
-      const res = await fetch('/api/mobilidade/ofertas-pendentes')
-      const json = (await res.json()) as { ofertas?: Oferta[] }
-      if (!res.ok) return
+      const [rOferta, rAg] = await Promise.all([
+        fetch('/api/mobilidade/ofertas-pendentes'),
+        fetch('/api/mobilidade/agendamentos-pendentes'),
+      ])
+      const json = (await rOferta.json()) as { ofertas?: Oferta[] }
+      const jag = (await rAg.json()) as {
+        agendamentos?: Array<{
+          solicitacao_id: string
+          status: string
+          origem_nome: string | null
+          destino_nome: string | null
+          data_agendada: string | null
+        }>
+      }
+      if (rAg.ok && Array.isArray(jag.agendamentos)) {
+        const conf = jag.agendamentos.find((a) => a.status === 'aguardando_confirmacao')
+        if (conf) {
+          // prioriza confirmação de agendamento sobre oferta imediata
+          setOferta({
+            solicitacao_id: conf.solicitacao_id,
+            modalidade: 'agendamento',
+            origem_nome: conf.origem_nome,
+            destino_nome: conf.destino_nome,
+            valor_estimado: null,
+            lugares: null,
+            cruzamento_fronteira: false,
+            oferta_expira_em: conf.data_agendada,
+            distancia_km: 0,
+          })
+          return
+        }
+      }
+      if (!rOferta.ok) return
       const first = Array.isArray(json.ofertas) && json.ofertas[0] ? json.ofertas[0] : null
       setOferta(first)
     } catch {
@@ -116,6 +146,18 @@ export default function OfertaMobilidadeListener() {
     setBusy(true)
     setMostrarRecusa(false)
     try {
+      if (oferta.modalidade === 'agendamento') {
+        const res = await fetch(`/api/mobilidade/agendamento/${oferta.solicitacao_id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ acao: 'confirmar' }),
+        })
+        if (res.ok) {
+          setOferta(null)
+          await carregarCorrida()
+        }
+        return
+      }
       const res = await fetch('/api/mobilidade/oferta/responder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -134,7 +176,30 @@ export default function OfertaMobilidadeListener() {
   }
 
   const confirmarRecusa = async () => {
-    if (!oferta || busy || !justificativa) {
+    if (!oferta || busy) return
+    if (oferta.modalidade === 'agendamento') {
+      setBusy(true)
+      setErroRecusa('')
+      try {
+        const res = await fetch(`/api/mobilidade/agendamento/${oferta.solicitacao_id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ acao: 'cancelar', rematch: true }),
+        })
+        if (!res.ok) {
+          const json = (await res.json()) as { error?: string }
+          setErroRecusa(String(json.error ?? t('recusaErro')))
+          return
+        }
+        setOferta(null)
+        setMostrarRecusa(false)
+        void carregarOferta()
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
+    if (!justificativa) {
       setErroRecusa(t('recusaEscolhaObrigatoria'))
       return
     }
@@ -265,23 +330,31 @@ export default function OfertaMobilidadeListener() {
 
       {mostrarRecusa ? (
         <div className="mt-3 space-y-2">
-          <p className="text-xs font-semibold text-gray-700">{t('recusaTitulo')}</p>
-          <ul className="space-y-1.5">
-            {JUSTIFICATIVAS_RECUSA_MOBILIDADE.map((id) => (
-              <li key={id}>
-                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 px-2.5 py-2 text-xs text-gray-700">
-                  <input
-                    type="radio"
-                    name="just-recusa"
-                    checked={justificativa === id}
-                    onChange={() => setJustificativa(id)}
-                    className="mt-0.5"
-                  />
-                  <span>{t(`recusa.${id}`)}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
+          {oferta.modalidade === 'agendamento' ? (
+            <p className="text-xs text-gray-600">
+              Cancelar libera a vaga e tenta remarcar com outro profissional.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs font-semibold text-gray-700">{t('recusaTitulo')}</p>
+              <ul className="space-y-1.5">
+                {JUSTIFICATIVAS_RECUSA_MOBILIDADE.map((id) => (
+                  <li key={id}>
+                    <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 px-2.5 py-2 text-xs text-gray-700">
+                      <input
+                        type="radio"
+                        name="just-recusa"
+                        checked={justificativa === id}
+                        onChange={() => setJustificativa(id)}
+                        className="mt-0.5"
+                      />
+                      <span>{t(`recusa.${id}`)}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
           {erroRecusa ? <p className="text-xs text-rose-600">{erroRecusa}</p> : null}
           <div className="flex gap-2 pt-1">
             <button

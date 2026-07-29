@@ -2,6 +2,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
 import { abrirOuObterConversaCorrida } from '@/lib/mobilidadeChatCorrida'
 import { registrarManifestoAposAceiteCorrida } from '@/lib/mobilidadeCorrida'
+import {
+  criarSolicitacaoAgendada,
+  ehAgendamentoFuturo,
+  parseDataAgendadaIso,
+} from '@/lib/mobilidadeAgendamento'
 import { isJustificativaRecusaMobilidade } from '@/lib/mobilidadeRecusaJustificativas'
 import { inferirCidadeTriplicePorCoords } from '@/lib/mobilidadePopupPesquisa'
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
@@ -217,6 +222,23 @@ export async function criarSolicitacaoEOfertar(
   input: SolicitarMobilidadeInput,
   apiMobilidadeUrl: string | null,
 ): Promise<SolicitarMobilidadeResult> {
+  const quando = parseDataAgendadaIso(input.dataAgendada)
+  if (ehAgendamentoFuturo(quando)) {
+    const ag = await criarSolicitacaoAgendada(admin, {
+      ...input,
+      dataAgendada: quando!.toISOString(),
+    })
+    if (!ag.ok) return { ok: false, error: ag.error }
+    return {
+      ok: true,
+      solicitacaoId: ag.solicitacaoId,
+      status: ag.status,
+      redirectParceiro: null,
+      oferta: ag.oferta,
+      backupsOcultos: ag.backupsOcultos,
+    }
+  }
+
   // Motorista app + urbano + API parceira → redirect
   if (input.modalidade === 'motorista_app' && !input.cruzamentoFronteira) {
     const url = String(apiMobilidadeUrl ?? '').trim()
@@ -574,6 +596,7 @@ export async function responderOfertaMobilidade(
       destinoEmpresaId: row.destino_empresa_id != null ? String(row.destino_empresa_id) : null,
       solicitacaoId: params.solicitacaoId,
       metadataAtual: metaBase,
+      dataAgendada: row.data_agendada != null ? String(row.data_agendada) : null,
     })
 
     await admin

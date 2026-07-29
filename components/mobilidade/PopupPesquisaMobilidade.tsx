@@ -360,6 +360,10 @@ export default function PopupPesquisaMobilidade({
       if (of?.profissionalId) {
         setOferta(of)
         setBuscando(true)
+      } else if (String(json.status) === 'agendada') {
+        setBuscando(false)
+        setMatchStatus('agendada')
+        if (of?.profissionalId) setOferta(of)
       } else {
         setBuscando(false)
         setMatchStatus('sem_profissional')
@@ -595,6 +599,40 @@ export default function PopupPesquisaMobilidade({
           <div className="space-y-3 py-2 text-center">
             {matchErro ? <p className="text-sm text-rose-600">{matchErro}</p> : null}
 
+            {matchStatus === 'agendada' || matchStatus === 'aguardando_confirmacao' ? (
+              <div className="space-y-3 rounded-xl border-2 border-[#0097b2] bg-[#0097b2]/10 px-3 py-4 text-left">
+                <p className="text-center text-sm font-bold text-[#0097b2]">{t('agendamentoTitulo')}</p>
+                <p className="text-sm text-gray-600">{t('agendamentoDesc')}</p>
+                {oferta?.nome ? (
+                  <p className="font-semibold text-gray-900">{oferta.nome}</p>
+                ) : null}
+                {dataHora ? (
+                  <p className="text-xs text-gray-500">
+                    {new Date(dataHora.length === 16 ? `${dataHora}:00` : dataHora).toLocaleString()}
+                  </p>
+                ) : null}
+                {solicitacaoId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void (async () => {
+                        await fetch(`/api/mobilidade/agendamento/${solicitacaoId}`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ acao: 'cancelar' }),
+                        })
+                        setMatchStatus('cancelada')
+                        setOferta(null)
+                      })()
+                    }}
+                    className="w-full text-sm font-semibold text-rose-600 underline"
+                  >
+                    {t('agendamentoCancelar')}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
             {matchStatus === 'concluida' ? (
               <div className="rounded-xl border-2 border-[#0097b2] bg-[#0097b2]/10 px-3 py-4">
                 <p className="text-center text-sm font-bold text-[#0097b2]">{t('corridaConcluida')}</p>
@@ -701,7 +739,10 @@ export default function PopupPesquisaMobilidade({
         {etapa === 3 &&
         (matchStatus === 'aceita' ||
           matchStatus === 'sem_profissional' ||
-          matchStatus === 'concluida') ? (
+          matchStatus === 'concluida' ||
+          matchStatus === 'agendada' ||
+          matchStatus === 'aguardando_confirmacao' ||
+          matchStatus === 'cancelada') ? (
           <button
             type="button"
             onClick={onFechar}
