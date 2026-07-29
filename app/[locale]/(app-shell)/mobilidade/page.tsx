@@ -10,10 +10,12 @@ import { Car, MapPin, Navigation } from 'lucide-react'
 import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import FiltrosMapaMobilidade from '@/components/mobilidade/FiltrosMapaMobilidade'
+import PopupPesquisaMobilidade from '@/components/mobilidade/PopupPesquisaMobilidade'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import { supabase } from '@/lib/supabase'
 import {
+  buildMobilidadePesquisaHref,
   parseMobilidadePesquisaSearchParams,
   pontoPreenchido,
 } from '@/lib/mobilidadePesquisaParams'
@@ -74,6 +76,35 @@ function MobilidadePageInner() {
   const [cidadePais, setCidadePais] = useState<PaisGuiaFiltro | null>(null)
   const [segmentos, setSegmentos] = useState<SegmentoEmpresaSlug[]>([])
   const [gpsCentro, setGpsCentro] = useState<{ lat: number; lng: number } | null>(null)
+  const [popupAberto, setPopupAberto] = useState(false)
+
+  useEffect(() => {
+    if (pesquisa.abrirPesquisa) setPopupAberto(true)
+  }, [pesquisa.abrirPesquisa])
+
+  const fecharPopupPesquisa = () => {
+    setPopupAberto(false)
+    router.replace(
+      buildMobilidadePesquisaHref({
+        origem: pesquisa.origem,
+        destino: pesquisa.destino,
+        destinoEmpresaId: pesquisa.destinoEmpresaId,
+        abrirPesquisa: false,
+      }),
+    )
+  }
+
+  const abrirPopupPesquisa = () => {
+    setPopupAberto(true)
+    router.replace(
+      buildMobilidadePesquisaHref({
+        origem: pesquisa.origem,
+        destino: pesquisa.destino,
+        destinoEmpresaId: pesquisa.destinoEmpresaId,
+        abrirPesquisa: true,
+      }),
+    )
+  }
 
   useEffect(() => {
     if (!perfilEhTurista || gateLoading || podeComprarReservar) return
@@ -239,8 +270,8 @@ function MobilidadePageInner() {
           </p>
         ) : null}
 
-        {temPesquisa ? (
-          <div className="pointer-events-none relative z-10 mx-3 mt-2 rounded-2xl bg-white/95 p-3 shadow-md ring-1 ring-black/5 backdrop-blur-sm">
+        {temPesquisa && !popupAberto ? (
+          <div className="relative z-10 mx-3 mt-2 rounded-2xl bg-white/95 p-3 shadow-md ring-1 ring-black/5 backdrop-blur-sm">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[#0097b2]">
               {t('resumoPesquisa')}
             </p>
@@ -269,11 +300,31 @@ function MobilidadePageInner() {
                 </span>
               </p>
             </div>
-            {pesquisa.abrirPesquisa ? (
-              <p className="mt-2 text-xs text-gray-500">{t('popupProximaEtapa')}</p>
-            ) : null}
+            <button
+              type="button"
+              onClick={abrirPopupPesquisa}
+              className="mt-3 w-full rounded-xl bg-[#00D443] py-2.5 text-sm font-bold uppercase text-white"
+            >
+              {t('pesquisar')}
+            </button>
           </div>
         ) : null}
+
+        <PopupPesquisaMobilidade
+          aberto={popupAberto}
+          onFechar={fecharPopupPesquisa}
+          pesquisa={pesquisa}
+          destinoCidadeEmpresa={
+            pesquisa.destinoEmpresaId
+              ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.cidade ?? null
+              : null
+          }
+          destinoNomeEmpresa={
+            pesquisa.destinoEmpresaId
+              ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.nome_fantasia ?? null
+              : null
+          }
+        />
       </main>
     </div>
   )

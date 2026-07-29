@@ -1,0 +1,161 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { normalizarCidadeTriplice, type CidadeTriplice } from '@/lib/mobilidadeRegional'
+import {
+  mapCidadeAtuacaoParaTabelado,
+  mapRotaTabeladaRow,
+  type CategoriaTabeladoId,
+  type CidadeOrigemTabeladoId,
+  type RotaTabelada,
+} from '@/lib/servicosTabeladosCatalogo'
+import type { MobilidadePonto } from '@/lib/mobilidadePesquisaParams'
+
+/** Centros aproximados para inferir cidade pelo GPS. */
+const CENTROS_TRIPLICE: { cidade: CidadeTriplice; lat: number; lng: number }[] = [
+  { cidade: 'Foz do Iguaçu', lat: -25.5165, lng: -54.5855 },
+  { cidade: 'Ciudad del Este', lat: -25.5097, lng: -54.6114 },
+  { cidade: 'Puerto Iguazu', lat: -25.5972, lng: -54.5786 },
+]
+
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371
+  const dLat = ((bLat - aLat) * Math.PI) / 180
+  const dLng = ((bLng - aLng) * Math.PI) / 180
+  const s1 = Math.sin(dLat / 2)
+  const s2 = Math.sin(dLng / 2)
+  const h =
+    s1 * s1 + Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * s2 * s2
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)))
+}
+
+export function inferirCidadeTriplicePorCoords(lat: number, lng: number): CidadeTriplice {
+  let best = CENTROS_TRIPLICE[0]
+  let bestD = Infinity
+  for (const c of CENTROS_TRIPLICE) {
+    const d = haversineKm(lat, lng, c.lat, c.lng)
+    if (d < bestD) {
+      bestD = d
+      best = c
+    }
+  }
+  return best.cidade
+}
+
+export function inferirCidadeDePonto(
+  ponto: MobilidadePonto,
+  fallbackTexto?: string | null,
+): CidadeTriplice | null {
+  if (ponto.lat != null && ponto.lng != null) {
+    return inferirCidadeTriplicePorCoords(ponto.lat, ponto.lng)
+  }
+  return (
+    normalizarCidadeTriplice(ponto.nome) ??
+    normalizarCidadeTriplice(fallbackTexto) ??
+    null
+  )
+}
+
+export type ModalidadeMobilidadeId = 'motorista_app' | 'van' | 'taxista' | 'guia'
+
+export const MODALIDADES_ORDEM: ModalidadeMobilidadeId[] = [
+  'motorista_app',
+  'van',
+  'taxista',
+  'guia',
+]
+
+export function ehCruzamentoFronteira(
+  origem: CidadeTriplice | null,
+  destino: CidadeTriplice | null,
+): boolean {
+  if (!origem || !destino) return false
+  return origem !== destino
+}
+
+/** Modalidades visíveis: sem anfitrião; sem app se cruzar fronteira. */
+export function modalidadesDisponiveis(cruzamentoFronteira: boolean): ModalidadeMobilidadeId[] {
+  if (cruzamentoFronteira) {
+    return ['van', 'taxista', 'guia']
+  }
+  return [...MODALIDADES_ORDEM]
+}
+
+export function modalidadeRecomendada(
+  cruzamentoFronteira: boolean,
+  valores: Partial<Record<ModalidadeMobilidadeId, number | null>>,
+): ModalidadeMobilidadeId {
+  if (!cruzamentoFronteira) return 'motorista_app'
+  const candidatas: ModalidadeMobilidadeId[] = ['van', 'taxista', 'guia']
+  let best: ModalidadeMobilidadeId = 'taxista'
+  let bestVal = Infinity
+  for (const id of candidatas) {
+    const v = valores[id]
+    if (v != null && Number.isFinite(v) && v < bestVal) {
+      bestVal = v
+      best = id
+    }
+  }
+  return best
+}
+
+function normTxt(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+/** Escolhe a rota tabelada cujo destino mais se aproxima do texto informado. */
+export function sugerirRotaParaDestino(
+  rotas: RotaTabelada[],
+  categoria: CategoriaTabeladoId,
+  destinoTexto: string,
+): RotaTabelada | null {
+  const daCat = rotas.filter((r) => r.categoria === categoria && r.ativo)
+  if (daCat.length === 0) return null
+  const dest = normTxt(destinoTexto)
+  if (!dest) return daCat[0] ?? null
+
+  let best: RotaTabelada | null = null
+  let bestScore = -1
+  for (const r of daCat) {
+    const df = normTxt(r.destinoFinal)
+    let score = 0
+    if (df === dest) score = 100
+    else if (df.includes(dest) || dest.includes(df)) score = 80
+    else {
+      const tokens = dest.split(/\s+/).filter((t) => t.length > 2)
+      score = tokens.reduce((acc, t) => (df.includes(t) ? acc + 10 : acc), 0)
+    }
+    if (score > bestScore) {
+      bestScore = score
+      best = r
+    }
+  }
+  return best ?? daCat[0] ?? null
+}
+
+export async function carregarRotasTabeladasCidade(
+  supabase: SupabaseClient,
+  cidadeOrigem: CidadeOrigemTabeladoId,
+): Promise<RotaTabelada[]> {
+  const { data, error } = await supabase
+    .from('servicos_tabelados_rotas')
+    .select('*')
+    .eq('ativo', true)
+    .eq('cidade_origem', cidadeOrigem)
+
+  if (error || !data) return []
+  return (data as Record<string, unknown>[]).map(mapRotaTabeladaRow)
+}
+
+export function cidadeTripliceParaTabelado(
+  cidade: CidadeTriplice | null,
+): CidadeOrigemTabeladoId | null {
+  if (!cidade) return null
+  return mapCidadeAtuacaoParaTabelado(cidade)
+}
+
+export type PagamentoMobilidadeId = 'pix' | 'dinheiro' | 'credito' | 'debito'
+
+export const PAGAMENTOS_ORDEM: PagamentoMobilidadeId[] = ['pix', 'dinheiro', 'credito', 'debito']
