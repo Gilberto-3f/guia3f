@@ -17,8 +17,17 @@ import { usuarioTemFavorito } from '@/lib/favoritosTurista'
 
 /**
  * Card de atrativo no Guia / mapa de mobilidade.
- * Props extras no mapa: contextoMapaMobilidade ('turista' | 'prof_parceiro'),
- * parceriaIndicacao ({ permitido, motivo, avisoGuia }), modoChamarCorrida (legado).
+ *
+ * @param {object} props
+ * @param {object} props.empresa
+ * @param {string | null} [props.segmentoGuiaSlug]
+ * @param {boolean} [props.temBotaoDinamico]
+ * @param {'turista' | 'prof_parceiro' | null} [props.contextoMapaMobilidade]
+ * @param {{ permitido: boolean, motivo?: string | null, avisoGuia?: string } | null} [props.parceriaIndicacao]
+ * @param {boolean} [props.modoChamarCorrida]
+ * @param {boolean} [props.emDegustacao]
+ * @param {boolean} [props.planosCarregando]
+ * @param {boolean} [props.degustacaoCarregando]
  */
 export default function CardAtrativo({
   empresa,
