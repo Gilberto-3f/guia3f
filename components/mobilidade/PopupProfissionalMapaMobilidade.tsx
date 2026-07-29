@@ -63,6 +63,7 @@ export default function PopupProfissionalMapaMobilidade({
       nome={prof.nome_completo}
       username={prof.nome_usuario ?? ''}
       avatarUrl={prof.foto_url}
+      verificadoEm={null}
       categorias={prof.categorias}
       placaVermelha={prof.placa_vermelha}
       profissionalVerificado

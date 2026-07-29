@@ -20,9 +20,8 @@ export default function CabecalhoMobilidadeLogoOuToggle({ compact = false }: Pro
 
   const mostrarToggle = useMemo(() => {
     if (loading || !perfilEhProfissional || !recursosProfissionaisLiberados) return false
-    const cats = Array.isArray(profRow?.categorias)
-      ? (profRow.categorias as string[])
-      : []
+    const raw = profRow as { categorias?: unknown } | null
+    const cats = Array.isArray(raw?.categorias) ? raw.categorias.map(String) : []
     return profissionalTemCategoriaMobilidade(cats)
   }, [loading, perfilEhProfissional, recursosProfissionaisLiberados, profRow])
 

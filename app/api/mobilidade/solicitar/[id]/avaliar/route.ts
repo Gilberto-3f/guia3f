@@ -25,7 +25,12 @@ export async function GET(_req: Request, ctx: Ctx) {
     return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 })
   }
 
-  const st = await statusAvaliacaoCorrida(admin, solicitacaoId, auth.userId, auth.role)
+  const st = await statusAvaliacaoCorrida(
+    admin,
+    solicitacaoId,
+    auth.userId,
+    auth.role ?? '',
+  )
   return NextResponse.json({ ok: true, ...st })
 }
 

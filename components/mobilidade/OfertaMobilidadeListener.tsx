@@ -56,13 +56,16 @@ export default function OfertaMobilidadeListener() {
   const [resumoFin, setResumoFin] = useState<string | null>(null)
   const [solicitacaoAvaliar, setSolicitacaoAvaliar] = useState<string | null>(null)
 
+  const categoriasProf = (() => {
+    const raw = profRow as { categorias?: unknown } | null
+    return Array.isArray(raw?.categorias) ? raw.categorias.map(String) : []
+  })()
+
   const elegivel =
     !loading &&
     perfilEhProfissional &&
     recursosProfissionaisLiberados &&
-    profissionalTemCategoriaMobilidade(
-      Array.isArray(profRow?.categorias) ? (profRow.categorias as string[]) : [],
-    )
+    profissionalTemCategoriaMobilidade(categoriasProf)
 
   const carregarCorrida = useCallback(async () => {
     if (!elegivel) return
