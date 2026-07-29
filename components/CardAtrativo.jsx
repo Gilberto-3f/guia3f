@@ -5,6 +5,7 @@ import { useRouter } from '@/i18n/navigation'
 import MediaFillImage from '@/components/MediaFillImage'
 import { Heart } from 'lucide-react'
 import BotaoDinamico from '@/components/BotaoDinamico'
+import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
 import BotaoRecomendar from '@/components/BotaoRecomendar'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
 import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
@@ -41,6 +42,8 @@ import { usuarioTemFavorito } from '@/lib/favoritosTurista'
  *   segmentoGuiaSlug?: string | null
  *   onSeguirToggle?: () => void
  *   temBotaoDinamico?: boolean
+ *   /** No mapa de mobilidade: troca o botão dinâmico por CHAMAR CORRIDA. */
+ *   modoChamarCorrida?: boolean
  *   emDegustacao?: boolean
  *   planosCarregando?: boolean
  *   degustacaoCarregando?: boolean
@@ -50,6 +53,7 @@ export default function CardAtrativo({
   empresa,
   segmentoGuiaSlug = null,
   temBotaoDinamico = true,
+  modoChamarCorrida = false,
   emDegustacao = false,
   planosCarregando = false,
   degustacaoCarregando = false,
@@ -149,7 +153,11 @@ export default function CardAtrativo({
                 <Heart size={20} className="shrink-0 text-white" aria-hidden />
                 <span>VISITAR PÁGINA</span>
               </button>
-              {mostrarRecomendar ? (
+              {modoChamarCorrida ? (
+                <div className="flex min-h-[3.25rem] flex-1">
+                  <BotaoChamarCorrida variant="empresa" empresaId={empresa.id} nomeDestino={empresa.nome_fantasia} />
+                </div>
+              ) : mostrarRecomendar ? (
                 <BotaoRecomendar empresa={empresa} segmentoGuiaSlug={segmentoGuiaSlug} />
               ) : mostrarBotaoDinamico ? (
                 <BotaoDinamico

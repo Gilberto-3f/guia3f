@@ -1,19 +1,42 @@
 'use client'
 
-import { Suspense, useEffect, useMemo } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { Car, MapPin, Navigation } from 'lucide-react'
 import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
+import FiltrosMapaMobilidade from '@/components/mobilidade/FiltrosMapaMobilidade'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import { supabase } from '@/lib/supabase'
 import {
   parseMobilidadePesquisaSearchParams,
   pontoPreenchido,
 } from '@/lib/mobilidadePesquisaParams'
+import {
+  buscarEmpresasMapaMobilidade,
+  filtrarEmpresasMapa,
+  FILTRO_CIDADE_OPCOES,
+  type EmpresaMapaMobilidade,
+} from '@/lib/mobilidadeMapaEmpresas'
+import {
+  CIDADE_POR_PAIS_GUIA,
+  type PaisGuiaFiltro,
+  type SegmentoEmpresaSlug,
+} from '@/lib/segmentosEmpresaGuia'
+
+const MapaMobilidade = dynamic(() => import('@/components/mobilidade/MapaMobilidade'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center bg-[#e8f4f6] text-sm text-gray-500">
+      Carregando mapa…
+    </div>
+  ),
+})
 
 function abaGuiaCls(ativo: boolean) {
   return `flex min-w-0 flex-1 items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
@@ -45,10 +68,89 @@ function MobilidadePageInner() {
     [searchParams],
   )
 
+  const [empresas, setEmpresas] = useState<EmpresaMapaMobilidade[]>([])
+  const [empresasErro, setEmpresasErro] = useState<string | null>(null)
+  const [carregandoEmpresas, setCarregandoEmpresas] = useState(true)
+  const [cidadePais, setCidadePais] = useState<PaisGuiaFiltro | null>(null)
+  const [segmentos, setSegmentos] = useState<SegmentoEmpresaSlug[]>([])
+  const [gpsCentro, setGpsCentro] = useState<{ lat: number; lng: number } | null>(null)
+
   useEffect(() => {
     if (!perfilEhTurista || gateLoading || podeComprarReservar) return
     avisarBloqueio()
   }, [perfilEhTurista, gateLoading, podeComprarReservar, avisarBloqueio])
+
+  useEffect(() => {
+    let ativo = true
+    void (async () => {
+      setCarregandoEmpresas(true)
+      const { lista, error } = await buscarEmpresasMapaMobilidade(supabase)
+      if (!ativo) return
+      setEmpresas(lista)
+      setEmpresasErro(error)
+      setCarregandoEmpresas(false)
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (pesquisa.origem.lat != null && pesquisa.origem.lng != null) {
+      setGpsCentro({ lat: pesquisa.origem.lat, lng: pesquisa.origem.lng })
+      return
+    }
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsCentro({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+      },
+      () => {
+        /* mantém fallback do mapa */
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60_000 },
+    )
+  }, [pesquisa.origem.lat, pesquisa.origem.lng])
+
+  const cidadeFiltro =
+    cidadePais != null
+      ? FILTRO_CIDADE_OPCOES.find((o) => o.pais === cidadePais)?.cidade ?? CIDADE_POR_PAIS_GUIA[cidadePais]
+      : null
+
+  const empresasFiltradas = useMemo(
+    () =>
+      filtrarEmpresasMapa(empresas, {
+        cidade: cidadeFiltro,
+        segmentos: segmentos.length ? segmentos : null,
+      }),
+    [empresas, cidadeFiltro, segmentos],
+  )
+
+  const destinoPonto = useMemo(() => {
+    if (pesquisa.destino.lat != null && pesquisa.destino.lng != null) {
+      return {
+        lat: pesquisa.destino.lat,
+        lng: pesquisa.destino.lng,
+        label: pesquisa.destino.nome || undefined,
+      }
+    }
+    if (pesquisa.destinoEmpresaId) {
+      const emp = empresas.find((e) => e.id === pesquisa.destinoEmpresaId)
+      if (emp) return { lat: emp.latitude, lng: emp.longitude, label: emp.nome_fantasia }
+    }
+    return null
+  }, [pesquisa, empresas])
+
+  const origemPonto =
+    pesquisa.origem.lat != null && pesquisa.origem.lng != null
+      ? {
+          lat: pesquisa.origem.lat,
+          lng: pesquisa.origem.lng,
+          label: pesquisa.origem.nome || undefined,
+        }
+      : gpsCentro
+        ? { ...gpsCentro, label: t('origemGpsLabel') }
+        : null
 
   if (perfilEhProfissional && (loading || !recursosProfissionaisLiberados)) {
     return (
@@ -85,43 +187,60 @@ function MobilidadePageInner() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
       <header className="shrink-0 bg-[#0097b2] pt-safe">
-        <div className="flex justify-center py-4">
+        <div className="flex justify-center py-3">
           <Image
             src="/logo.png"
             alt="Guia 3F"
-            width={228}
-            height={76}
+            width={180}
+            height={60}
             priority
-            className="h-auto w-auto max-h-[76px] max-w-[228px] object-contain"
+            className="h-auto w-auto max-h-[56px] max-w-[180px] object-contain"
           />
         </div>
         <div className="flex w-full border-b border-gray-200 bg-white">
-          <button
-            type="button"
-            onClick={() => router.push('/guia')}
-            className={abaGuiaCls(false)}
-          >
-            <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
+          <button type="button" onClick={() => router.push('/guia')} className={abaGuiaCls(false)}>
+            <MapPin className="h-5 w-5 shrink-0" aria-hidden strokeWidth={2} />
             <span>{tGuia('tabGuia')}</span>
           </button>
           <button type="button" className={abaGuiaCls(true)} aria-current="page">
-            <Car className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
+            <Car className="h-5 w-5 shrink-0" aria-hidden strokeWidth={2} />
             <span>{tGuia('tabMobilidade')}</span>
           </button>
+        </div>
+        <div className="px-3 py-2">
+          <FiltrosMapaMobilidade
+            cidadePais={cidadePais}
+            onCidadePais={setCidadePais}
+            segmentos={segmentos}
+            onSegmentos={setSegmentos}
+          />
         </div>
       </header>
 
       <main className="relative flex min-h-0 flex-1 flex-col">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#d4eef3] via-[#e8f4f6] to-[#f0f4f5]">
-          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-            <MapPin className="mb-3 h-10 w-10 text-[#0097b2]/opacity-70" aria-hidden />
-            <p className="text-base font-semibold text-[#0097b2]">{t('mapaEmBreveTitulo')}</p>
-            <p className="mt-1 max-w-sm text-sm text-gray-600">{t('mapaEmBreveDesc')}</p>
-          </div>
+        <div className="absolute inset-0">
+          {carregandoEmpresas ? (
+            <div className="flex h-full items-center justify-center bg-[#e8f4f6] text-sm text-gray-500">
+              {t('carregandoPins')}
+            </div>
+          ) : (
+            <MapaMobilidade
+              empresas={empresasFiltradas}
+              centro={gpsCentro}
+              origem={origemPonto}
+              destino={destinoPonto}
+            />
+          )}
         </div>
 
+        {empresasErro ? (
+          <p className="relative z-10 mx-3 mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+            {empresasErro}
+          </p>
+        ) : null}
+
         {temPesquisa ? (
-          <div className="relative z-10 mx-3 mt-3 rounded-2xl bg-white/95 p-3 shadow-md ring-1 ring-black/5 backdrop-blur-sm">
+          <div className="pointer-events-none relative z-10 mx-3 mt-2 rounded-2xl bg-white/95 p-3 shadow-md ring-1 ring-black/5 backdrop-blur-sm">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[#0097b2]">
               {t('resumoPesquisa')}
             </p>
@@ -142,7 +261,8 @@ function MobilidadePageInner() {
                   <span className="text-gray-500">{t('destinoLabel')}: </span>
                   {pesquisa.destino.nome ||
                     (pesquisa.destinoEmpresaId
-                      ? t('destinoEmpresa')
+                      ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.nome_fantasia ||
+                        t('destinoEmpresa')
                       : pesquisa.destino.lat != null
                         ? `${pesquisa.destino.lat.toFixed(4)}, ${pesquisa.destino.lng?.toFixed(4)}`
                         : '—')}

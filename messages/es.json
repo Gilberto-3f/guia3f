@@ -269,7 +269,11 @@
     "mapaEmBreveTitulo": "Mapa próximamente",
     "mapaEmBreveDesc": "En la próxima etapa entra Mapbox con la ruta y el popup de modalidades.",
     "popupProximaEtapa": "Popup de modalidades: próxima etapa.",
-    "gateBloqueio": "La movilidad se libera tras la verificación de documentos por el ADM o una preliberación de 24h por un profesional verificado."
+    "gateBloqueio": "La movilidad se libera tras la verificación de documentos por el ADM o una preliberación de 24h por un profesional verificado.",
+    "filtroCidade": "Ciudad",
+    "filtroAtrativos": "Atractivos",
+    "filtroTodas": "Todas",
+    "carregandoPins": "Cargando atractivos en el mapa…"
   },
   "Common": {
     "welcome": "Bienvenido a Guia 3F",

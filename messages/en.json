@@ -269,7 +269,11 @@
     "mapaEmBreveTitulo": "Map coming soon",
     "mapaEmBreveDesc": "Next step: Mapbox with the route and the fare modes popup.",
     "popupProximaEtapa": "Modes popup: next step.",
-    "gateBloqueio": "Mobility is available after ADM document verification or a 24h pre-release by a verified professional."
+    "gateBloqueio": "Mobility is available after ADM document verification or a 24h pre-release by a verified professional.",
+    "filtroCidade": "City",
+    "filtroAtrativos": "Attractions",
+    "filtroTodas": "All",
+    "carregandoPins": "Loading attractions on the map…"
   },
   "Common": {
     "welcome": "Welcome to Guia 3F",
