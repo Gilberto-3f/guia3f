@@ -16,42 +16,9 @@ import { supabase } from '@/lib/supabase'
 import { usuarioTemFavorito } from '@/lib/favoritosTurista'
 
 /**
- * @param {{
- *   empresa: {
- *     id: string
- *     nome_fantasia: string
- *     foto_url: string | null
- *     nome_usuario?: string | null
- *     descricao_curta: string | null
- *     nota_media: number | null
- *     categoria: string
- *     cidade: string
- *     whatsapp?: string | null
- *     preco_ticket_inteira?: number | null
- *     preco_ticket_meia?: number | null
- *     preco_diaria?: number | null
- *     palavras_chave?: unknown
- *     endereco?: string | null
- *     bairro?: string | null
- *     total_avaliacoes?: number | null
- *     is_seguindo?: boolean
- *     docs_verificado?: boolean | null
- *     status?: string | null
- *     plano?: string | null
- *   },
- *   segmentoGuiaSlug?: string | null
- *   onSeguirToggle?: () => void
- *   temBotaoDinamico?: boolean
- *   No mapa de mobilidade: turista → chamar corrida; prof indireto → indicar parceiro.
- *   contextoMapaMobilidade?: 'turista' | 'prof_parceiro' | null
- *   Gate da indicação no mapa (regras 3.5).
- *   parceriaIndicacao?: { permitido: boolean; motivo?: string | null; avisoGuia?: string }
- *   @deprecated Use contextoMapaMobilidade="turista"
- *   modoChamarCorrida?: boolean
- *   emDegustacao?: boolean
- *   planosCarregando?: boolean
- *   degustacaoCarregando?: boolean
- * }} props
+ * Card de atrativo no Guia / mapa de mobilidade.
+ * Props extras no mapa: contextoMapaMobilidade ('turista' | 'prof_parceiro'),
+ * parceriaIndicacao ({ permitido, motivo, avisoGuia }), modoChamarCorrida (legado).
  */
 export default function CardAtrativo({
   empresa,

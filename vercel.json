@@ -25,7 +25,7 @@
     },
     {
       "path": "/api/mobilidade/agendamento/processar",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 13 * * *"
     }
   ]
 }
