@@ -1,7 +1,6 @@
 'use client'
 
 import { Suspense, useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
@@ -11,6 +10,7 @@ import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBl
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import FiltrosMapaMobilidade from '@/components/mobilidade/FiltrosMapaMobilidade'
 import PopupPesquisaMobilidade from '@/components/mobilidade/PopupPesquisaMobilidade'
+import CabecalhoMobilidadeLogoOuToggle from '@/components/mobilidade/CabecalhoMobilidadeLogoOuToggle'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import { supabase } from '@/lib/supabase'
@@ -30,6 +30,7 @@ import {
   type PaisGuiaFiltro,
   type SegmentoEmpresaSlug,
 } from '@/lib/segmentosEmpresaGuia'
+import type { ProfissionalOnlineMapa } from '@/lib/mobilidadeStatusProfissional'
 
 const MapaMobilidade = dynamic(() => import('@/components/mobilidade/MapaMobilidade'), {
   ssr: false,
@@ -73,6 +74,7 @@ function MobilidadePageInner() {
   const [empresas, setEmpresas] = useState<EmpresaMapaMobilidade[]>([])
   const [empresasErro, setEmpresasErro] = useState<string | null>(null)
   const [carregandoEmpresas, setCarregandoEmpresas] = useState(true)
+  const [profissionaisOnline, setProfissionaisOnline] = useState<ProfissionalOnlineMapa[]>([])
   const [cidadePais, setCidadePais] = useState<PaisGuiaFiltro | null>(null)
   const [segmentos, setSegmentos] = useState<SegmentoEmpresaSlug[]>([])
   const [gpsCentro, setGpsCentro] = useState<{ lat: number; lng: number } | null>(null)
@@ -123,6 +125,26 @@ function MobilidadePageInner() {
     })()
     return () => {
       ativo = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let ativo = true
+    const load = async () => {
+      try {
+        const res = await fetch('/api/mobilidade/profissionais-online')
+        const json = (await res.json()) as { profissionais?: ProfissionalOnlineMapa[] }
+        if (!ativo || !res.ok) return
+        setProfissionaisOnline(Array.isArray(json.profissionais) ? json.profissionais : [])
+      } catch {
+        /* ignore */
+      }
+    }
+    void load()
+    const id = setInterval(() => void load(), 45_000)
+    return () => {
+      ativo = false
+      clearInterval(id)
     }
   }, [])
 
@@ -218,16 +240,7 @@ function MobilidadePageInner() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
       <header className="shrink-0 bg-[#0097b2] pt-safe">
-        <div className="flex justify-center py-3">
-          <Image
-            src="/logo.png"
-            alt="Guia 3F"
-            width={180}
-            height={60}
-            priority
-            className="h-auto w-auto max-h-[56px] max-w-[180px] object-contain"
-          />
-        </div>
+        <CabecalhoMobilidadeLogoOuToggle compact />
         <div className="flex w-full border-b border-gray-200 bg-white">
           <button type="button" onClick={() => router.push('/guia')} className={abaGuiaCls(false)}>
             <MapPin className="h-5 w-5 shrink-0" aria-hidden strokeWidth={2} />
@@ -257,6 +270,7 @@ function MobilidadePageInner() {
           ) : (
             <MapaMobilidade
               empresas={empresasFiltradas}
+              profissionais={profissionaisOnline}
               centro={gpsCentro}
               origem={origemPonto}
               destino={destinoPonto}

@@ -10,16 +10,23 @@ import {
   type EmpresaMapaMobilidade,
 } from '@/lib/mobilidadeMapaEmpresas'
 import type { SegmentoEmpresaSlug } from '@/lib/segmentosEmpresaGuia'
+import {
+  COR_STATUS_MOBILIDADE,
+  type ProfissionalOnlineMapa,
+} from '@/lib/mobilidadeStatusProfissional'
 
 const SOURCE_ID = 'empresas-mobilidade'
+const SOURCE_PROFS = 'profissionais-mobilidade'
 const LAYER_CLUSTERS = 'empresas-clusters'
 const LAYER_CLUSTER_COUNT = 'empresas-cluster-count'
 const LAYER_UNCLUSTERED = 'empresas-unclustered'
+const LAYER_PROFS = 'profissionais-unclustered'
 
 type Ponto = { lat: number; lng: number; label?: string }
 
 type Props = {
   empresas: EmpresaMapaMobilidade[]
+  profissionais?: ProfissionalOnlineMapa[]
   centro: { lat: number; lng: number } | null
   origem?: Ponto | null
   destino?: Ponto | null
@@ -44,8 +51,27 @@ function empresasToGeoJSON(empresas: EmpresaMapaMobilidade[]): GeoJSON.FeatureCo
   }
 }
 
+function profissionaisToGeoJSON(lista: ProfissionalOnlineMapa[]): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: lista.map((p) => ({
+      type: 'Feature',
+      properties: {
+        id: p.id,
+        nome: p.nome_completo || p.nome_usuario || '',
+        cor: COR_STATUS_MOBILIDADE[p.status],
+      },
+      geometry: {
+        type: 'Point',
+        coordinates: [p.lng, p.lat],
+      },
+    })),
+  }
+}
+
 export default function MapaMobilidade({
   empresas,
+  profissionais = [],
   centro,
   origem = null,
   destino = null,
@@ -57,8 +83,11 @@ export default function MapaMobilidade({
   const [tokenMissing, setTokenMissing] = useState(false)
   const [mapReady, setMapReady] = useState(false)
   const [selecionada, setSelecionada] = useState<EmpresaMapaMobilidade | null>(null)
+  const [profSelecionado, setProfSelecionado] = useState<ProfissionalOnlineMapa | null>(null)
   const empresasRef = useRef(empresas)
+  const profissionaisRef = useRef(profissionais)
   empresasRef.current = empresas
+  profissionaisRef.current = profissionais
 
   const token = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_MAPBOX_TOKEN?.trim() : ''
 
@@ -129,6 +158,23 @@ export default function MapaMobilidade({
         },
       })
 
+      map.addSource(SOURCE_PROFS, {
+        type: 'geojson',
+        data: profissionaisToGeoJSON(profissionaisRef.current),
+      })
+
+      map.addLayer({
+        id: LAYER_PROFS,
+        type: 'circle',
+        source: SOURCE_PROFS,
+        paint: {
+          'circle-color': ['get', 'cor'],
+          'circle-radius': 11,
+          'circle-stroke-width': 3,
+          'circle-stroke-color': '#111827',
+        },
+      })
+
       map.on('click', LAYER_CLUSTERS, (e) => {
         const features = map.queryRenderedFeatures(e.point, { layers: [LAYER_CLUSTERS] })
         const clusterId = features[0]?.properties?.cluster_id
@@ -144,21 +190,25 @@ export default function MapaMobilidade({
       map.on('click', LAYER_UNCLUSTERED, (e) => {
         const id = String(e.features?.[0]?.properties?.id ?? '')
         const emp = empresasRef.current.find((x) => x.id === id) ?? null
+        setProfSelecionado(null)
         setSelecionada(emp)
       })
 
-      map.on('mouseenter', LAYER_CLUSTERS, () => {
-        map.getCanvas().style.cursor = 'pointer'
+      map.on('click', LAYER_PROFS, (e) => {
+        const id = String(e.features?.[0]?.properties?.id ?? '')
+        const prof = profissionaisRef.current.find((x) => x.id === id) ?? null
+        setSelecionada(null)
+        setProfSelecionado(prof)
       })
-      map.on('mouseleave', LAYER_CLUSTERS, () => {
-        map.getCanvas().style.cursor = ''
-      })
-      map.on('mouseenter', LAYER_UNCLUSTERED, () => {
-        map.getCanvas().style.cursor = 'pointer'
-      })
-      map.on('mouseleave', LAYER_UNCLUSTERED, () => {
-        map.getCanvas().style.cursor = ''
-      })
+
+      for (const layer of [LAYER_CLUSTERS, LAYER_UNCLUSTERED, LAYER_PROFS]) {
+        map.on('mouseenter', layer, () => {
+          map.getCanvas().style.cursor = 'pointer'
+        })
+        map.on('mouseleave', layer, () => {
+          map.getCanvas().style.cursor = ''
+        })
+      }
 
       setMapReady(true)
     })
@@ -168,7 +218,7 @@ export default function MapaMobilidade({
       mapRef.current = null
       setMapReady(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mapa criado uma vez; centro/empresas atualizam em efeitos separados
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   useEffect(() => {
@@ -177,6 +227,13 @@ export default function MapaMobilidade({
     const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource | undefined
     if (source) source.setData(empresasToGeoJSON(empresas))
   }, [empresas, mapReady])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+    const source = map.getSource(SOURCE_PROFS) as mapboxgl.GeoJSONSource | undefined
+    if (source) source.setData(profissionaisToGeoJSON(profissionais))
+  }, [profissionais, mapReady])
 
   useEffect(() => {
     const map = mapRef.current
@@ -247,6 +304,34 @@ export default function MapaMobilidade({
               segmentoGuiaSlug={selecionada.segmento || null}
               modoChamarCorrida
             />
+          </div>
+        </div>
+      ) : null}
+
+      {profSelecionado ? (
+        <div className="absolute inset-x-3 bottom-3 z-20 rounded-2xl bg-white p-4 shadow-xl ring-1 ring-black/10">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate font-bold text-gray-900">{profSelecionado.nome_completo}</p>
+              {profSelecionado.nome_usuario ? (
+                <p className="text-sm text-gray-500">@{String(profSelecionado.nome_usuario).replace(/^@+/, '')}</p>
+              ) : null}
+              <p className="mt-1 text-xs font-semibold uppercase" style={{ color: COR_STATUS_MOBILIDADE[profSelecionado.status] }}>
+                {profSelecionado.status === 'online'
+                  ? 'Online'
+                  : profSelecionado.status === 'em_atendimento'
+                    ? 'Em atendimento'
+                    : 'Offline'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setProfSelecionado(null)}
+              className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+              aria-label="Fechar"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
         </div>
       ) : null}

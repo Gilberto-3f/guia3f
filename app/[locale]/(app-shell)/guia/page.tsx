@@ -8,6 +8,7 @@ import { Car, MapPin } from 'lucide-react'
 import PublicidadeHome from '@/components/PublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
 import BarrasPesquisaMobilidade from '@/components/mobilidade/BarrasPesquisaMobilidade'
+import CabecalhoMobilidadeLogoOuToggle from '@/components/mobilidade/CabecalhoMobilidadeLogoOuToggle'
 
 function abaGuiaCls(ativo: boolean) {
   return `flex min-w-0 flex-1 items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
@@ -34,16 +35,20 @@ export default function GuiaPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
       <header className="shrink-0 bg-[#0097b2] pt-safe">
-        <div className="flex justify-center py-4">
-          <Image
-            src="/logo.png"
-            alt="Guia 3F"
-            width={228}
-            height={76}
-            priority
-            className="h-auto w-auto max-h-[76px] max-w-[228px] object-contain"
-          />
-        </div>
+        {abaAtiva === 'mobilidade' ? (
+          <CabecalhoMobilidadeLogoOuToggle />
+        ) : (
+          <div className="flex justify-center py-4">
+            <Image
+              src="/logo.png"
+              alt="Guia 3F"
+              width={228}
+              height={76}
+              priority
+              className="h-auto w-auto max-h-[76px] max-w-[228px] object-contain"
+            />
+          </div>
+        )}
 
         <div className="flex w-full border-b border-gray-200 bg-white">
           <button
