@@ -3,6 +3,7 @@ import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import {
   criarSolicitacaoEOfertar,
+  resolverProfissionalFixadoMobilidade,
   type SolicitarMobilidadeInput,
 } from '@/lib/mobilidadeMatching'
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
@@ -62,6 +63,26 @@ export async function POST(req: Request) {
     .limit(1)
     .maybeSingle()
 
+  const recRaw =
+    body.recomendacao_id != null
+      ? String(body.recomendacao_id).trim()
+      : body.rec != null
+        ? String(body.rec).trim()
+        : ''
+  const profUsuarioRaw =
+    body.profissional_usuario_id != null
+      ? String(body.profissional_usuario_id).trim()
+      : body.contratar != null
+        ? String(body.contratar).trim()
+        : body.prof != null
+          ? String(body.prof).trim()
+          : ''
+
+  const fixado = await resolverProfissionalFixadoMobilidade(admin, {
+    recomendacaoId: recRaw || null,
+    profissionalUsuarioId: profUsuarioRaw || null,
+  })
+
   const input: SolicitarMobilidadeInput = {
     turistaUsuarioId: auth.userId,
     modalidade,
@@ -71,7 +92,8 @@ export async function POST(req: Request) {
     origemLng: origem.lng != null && Number.isFinite(origem.lng) ? origem.lng : null,
     destinoLat: destino.lat != null && Number.isFinite(destino.lat) ? destino.lat : null,
     destinoLng: destino.lng != null && Number.isFinite(destino.lng) ? destino.lng : null,
-    destinoEmpresaId: body.destino_empresa_id != null ? String(body.destino_empresa_id).trim() || null : null,
+    destinoEmpresaId:
+      body.destino_empresa_id != null ? String(body.destino_empresa_id).trim() || null : null,
     cruzamentoFronteira: cruzamento,
     cidadeOrigem,
     valorEstimado:
@@ -81,10 +103,12 @@ export async function POST(req: Request) {
     pagamento: body.pagamento != null ? String(body.pagamento) : null,
     lugares: Math.max(1, Number(body.lugares) || 1),
     acompanhamentoGuia: body.acompanhamento_guia === true,
-    dataAgendada: body.data_agendada != null && String(body.data_agendada).trim()
-      ? String(body.data_agendada)
-      : null,
-    recomendacaoId: body.recomendacao_id != null ? String(body.recomendacao_id).trim() || null : null,
+    dataAgendada:
+      body.data_agendada != null && String(body.data_agendada).trim()
+        ? String(body.data_agendada)
+        : null,
+    recomendacaoId: fixado.recomendacaoId,
+    profissionalFixadoId: fixado.profissionalId,
   }
 
   const res = await criarSolicitacaoEOfertar(

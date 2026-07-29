@@ -1,0 +1,143 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { Send } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+
+type Msg = {
+  id: string
+  remetente_id: string
+  texto: string
+  created_at: string
+}
+
+type Props = {
+  conversaId: string
+  compact?: boolean
+}
+
+/** Chat 1:1 temporário da corrida (fora do canal do ecossistema). */
+export default function ChatCorridaMobilidade({ conversaId, compact = false }: Props) {
+  const t = useTranslations('Mobilidade')
+  const [msgs, setMsgs] = useState<Msg[]>([])
+  const [texto, setTexto] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [meuId, setMeuId] = useState<string | null>(null)
+  const [erro, setErro] = useState('')
+  const fimRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => {
+      setMeuId(data.user?.id ?? null)
+    })
+  }, [])
+
+  const carregar = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/mobilidade/chat/${conversaId}/mensagens`)
+      const json = (await res.json()) as { mensagens?: Msg[]; error?: string }
+      if (!res.ok) {
+        setErro(String(json.error ?? t('chatErro')))
+        return
+      }
+      setMsgs(Array.isArray(json.mensagens) ? json.mensagens : [])
+      setErro('')
+    } catch {
+      setErro(t('chatErro'))
+    }
+  }, [conversaId, t])
+
+  useEffect(() => {
+    void carregar()
+    const id = setInterval(() => void carregar(), 2500)
+    return () => clearInterval(id)
+  }, [carregar])
+
+  useEffect(() => {
+    fimRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [msgs.length])
+
+  const enviar = async () => {
+    const body = texto.trim()
+    if (!body || busy) return
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/mobilidade/chat/${conversaId}/mensagens`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto: body }),
+      })
+      const json = (await res.json()) as { mensagem?: Msg; error?: string }
+      if (!res.ok) {
+        setErro(String(json.error ?? t('chatErro')))
+        return
+      }
+      setTexto('')
+      if (json.mensagem) setMsgs((prev) => [...prev, json.mensagem!])
+      else void carregar()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      className={`flex flex-col rounded-xl border border-gray-200 bg-white ${
+        compact ? 'h-56' : 'h-72'
+      }`}
+    >
+      <div className="border-b border-gray-100 px-3 py-2">
+        <p className="text-xs font-bold uppercase tracking-wide text-[#0097b2]">{t('chatTitulo')}</p>
+        <p className="text-[11px] text-gray-400">{t('chatHint')}</p>
+      </div>
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-2">
+        {msgs.length === 0 ? (
+          <p className="py-6 text-center text-xs text-gray-400">{t('chatVazio')}</p>
+        ) : (
+          msgs.map((m) => {
+            const meu = meuId != null && m.remetente_id === meuId
+            return (
+              <div key={m.id} className={`flex ${meu ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`max-w-[80%] rounded-2xl px-3 py-1.5 text-sm ${
+                    meu ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  {m.texto}
+                </div>
+              </div>
+            )
+          })
+        )}
+        <div ref={fimRef} />
+      </div>
+      {erro ? <p className="px-3 text-xs text-rose-600">{erro}</p> : null}
+      <div className="flex gap-2 border-t border-gray-100 p-2">
+        <input
+          type="text"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              void enviar()
+            }
+          }}
+          placeholder={t('chatPlaceholder')}
+          className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          maxLength={2000}
+        />
+        <button
+          type="button"
+          disabled={busy || !texto.trim()}
+          onClick={() => void enviar()}
+          className="rounded-lg bg-[#00D443] px-3 text-white disabled:opacity-50"
+          aria-label={t('chatEnviar')}
+        >
+          <Send className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
+}

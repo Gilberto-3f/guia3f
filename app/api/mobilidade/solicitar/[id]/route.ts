@@ -80,6 +80,16 @@ export async function GET(_req: Request, ctx: Ctx) {
     }
   }
 
+  let conversaId: string | null = null
+  if (status === 'aceita') {
+    const { data: conv } = await admin
+      .from('mobilidade_conversas')
+      .select('id')
+      .eq('solicitacao_id', solicitacaoId)
+      .maybeSingle()
+    conversaId = conv?.id != null ? String(conv.id) : null
+  }
+
   const filaLen = Array.isArray(row.fila_profissional_ids) ? row.fila_profissional_ids.length : 0
   const idx = Number(row.fila_indice ?? 0)
   const backupsRestantes = Math.max(0, Math.min(2, filaLen - idx - 1))
@@ -93,5 +103,6 @@ export async function GET(_req: Request, ctx: Ctx) {
     oferta,
     backups_ocultos: backupsRestantes,
     oferta_expira_em: row.oferta_expira_em,
+    conversa_id: conversaId,
   })
 }

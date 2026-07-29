@@ -92,6 +92,8 @@ function MobilidadePageInner() {
         origem: pesquisa.origem,
         destino: pesquisa.destino,
         destinoEmpresaId: pesquisa.destinoEmpresaId,
+        recomendacaoId: pesquisa.recomendacaoId,
+        profissionalUsuarioId: pesquisa.profissionalUsuarioId,
         abrirPesquisa: false,
       }),
     )
@@ -104,6 +106,8 @@ function MobilidadePageInner() {
         origem: pesquisa.origem,
         destino: pesquisa.destino,
         destinoEmpresaId: pesquisa.destinoEmpresaId,
+        recomendacaoId: pesquisa.recomendacaoId,
+        profissionalUsuarioId: pesquisa.profissionalUsuarioId,
         abrirPesquisa: true,
       }),
     )

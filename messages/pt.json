@@ -323,6 +323,21 @@
     "ofertaProfTitulo": "Nova corrida",
     "ofertaAceitar": "Aceitar",
     "ofertaRecusar": "Recusar",
+    "recusaTitulo": "Motivo da recusa",
+    "recusaEscolhaObrigatoria": "Selecione um motivo para recusar.",
+    "recusaErro": "Não foi possível registrar a recusa.",
+    "recusa": {
+      "ponto_fora_rota": "Ponto fora da minha rota",
+      "distancia_longa": "Distância muito longa",
+      "cliente_cancelou": "Cliente cancelou / não localizei",
+      "outro": "Outro motivo"
+    },
+    "chatTitulo": "Chat da corrida",
+    "chatHint": "Temporário — só enquanto a corrida estiver ativa",
+    "chatVazio": "Nenhuma mensagem ainda. Diga oi!",
+    "chatPlaceholder": "Escreva uma mensagem…",
+    "chatEnviar": "Enviar",
+    "chatErro": "Não foi possível carregar o chat.",
     "pag": {
       "pix": "PIX",
       "dinheiro": "Dinheiro",

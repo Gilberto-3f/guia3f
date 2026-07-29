@@ -42,5 +42,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: res.error }, { status: 400 })
   }
 
-  return NextResponse.json({ ok: true, status: res.status })
+  return NextResponse.json({
+    ok: true,
+    status: res.status,
+    conversa_id: res.conversaId ?? null,
+  })
 }

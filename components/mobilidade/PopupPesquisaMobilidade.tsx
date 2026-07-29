@@ -33,6 +33,7 @@ import {
   MOBILIDADE_OFERTA_TIMEOUT_MS,
   MOBILIDADE_OFERTA_WARN_MS,
 } from '@/lib/mobilidadeMatching'
+import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
 
 type Props = {
   aberto: boolean
@@ -89,6 +90,7 @@ export default function PopupPesquisaMobilidade({
   const [backups, setBackups] = useState(0)
   const [matchErro, setMatchErro] = useState('')
   const [segRestantes, setSegRestantes] = useState<number | null>(null)
+  const [conversaId, setConversaId] = useState<string | null>(null)
 
   const destinoLabel =
     pesquisa.destino.nome ||
@@ -134,12 +136,27 @@ export default function PopupPesquisaMobilidade({
     setOferta(null)
     setMatchErro('')
     setSegRestantes(null)
+    setConversaId(null)
   }, [aberto])
 
   // Poll matching
   useEffect(() => {
     if (!aberto || etapa !== 3 || !solicitacaoId) return
-    if (matchStatus === 'aceita' || matchStatus === 'sem_profissional' || matchStatus === 'cancelada') {
+    if (matchStatus === 'sem_profissional' || matchStatus === 'cancelada') return
+    if (matchStatus === 'aceita') {
+      // já aceita: garantir conversa se ainda não tiver
+      if (!conversaId) {
+        void fetch('/api/mobilidade/chat/abrir', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ solicitacao_id: solicitacaoId }),
+        })
+          .then((r) => r.json())
+          .then((j: { conversa_id?: string }) => {
+            if (j.conversa_id) setConversaId(String(j.conversa_id))
+          })
+          .catch(() => {})
+      }
       return
     }
 
@@ -156,6 +173,8 @@ export default function PopupPesquisaMobilidade({
         setOferta(of && of.profissionalId ? of : null)
         if (st === 'aceita' || st === 'sem_profissional') setBuscando(false)
         if (st === 'oferecida') setBuscando(true)
+        const cid = json.conversa_id != null ? String(json.conversa_id).trim() : ''
+        if (st === 'aceita' && cid) setConversaId(cid)
       } catch {
         /* ignore */
       }
@@ -167,7 +186,7 @@ export default function PopupPesquisaMobilidade({
       cancelled = true
       clearInterval(id)
     }
-  }, [aberto, etapa, solicitacaoId, matchStatus])
+  }, [aberto, etapa, solicitacaoId, matchStatus, conversaId])
 
   // Countdown UI
   useEffect(() => {
@@ -292,6 +311,8 @@ export default function PopupPesquisaMobilidade({
           lugares,
           acompanhamento_guia: pedirAcompanhamento,
           data_agendada: dataHora || null,
+          recomendacao_id: pesquisa.recomendacaoId,
+          profissional_usuario_id: pesquisa.profissionalUsuarioId,
         }),
       })
       const json = (await res.json()) as Record<string, unknown>
@@ -554,13 +575,17 @@ export default function PopupPesquisaMobilidade({
             {matchErro ? <p className="text-sm text-rose-600">{matchErro}</p> : null}
 
             {matchStatus === 'aceita' && oferta ? (
-              <div className="rounded-xl border-2 border-[#00D443] bg-green-50 px-3 py-4 text-left">
-                <p className="text-center text-sm font-bold text-[#00D443]">{t('matchAceito')}</p>
-                <p className="mt-2 font-semibold text-gray-900">{oferta.nome}</p>
-                {oferta.username ? (
-                  <p className="text-sm text-gray-500">@{String(oferta.username).replace(/^@+/, '')}</p>
-                ) : null}
-                <p className="mt-2 text-xs text-gray-500">{t('matchChatProxima')}</p>
+              <div className="space-y-3 text-left">
+                <div className="rounded-xl border-2 border-[#00D443] bg-green-50 px-3 py-4">
+                  <p className="text-center text-sm font-bold text-[#00D443]">{t('matchAceito')}</p>
+                  <p className="mt-2 font-semibold text-gray-900">{oferta.nome}</p>
+                  {oferta.username ? (
+                    <p className="text-sm text-gray-500">
+                      @{String(oferta.username).replace(/^@+/, '')}
+                    </p>
+                  ) : null}
+                </div>
+                {conversaId ? <ChatCorridaMobilidade conversaId={conversaId} /> : null}
               </div>
             ) : null}
 

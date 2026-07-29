@@ -12,6 +12,10 @@ export type MobilidadePesquisaState = {
   destinoEmpresaId: string | null
   /** Abre o popup de pesquisa na Etapa 3. */
   abrirPesquisa: boolean
+  /** Indicação: recomendacoes_profissional.id */
+  recomendacaoId: string | null
+  /** Indicação / contratar: usuarios.id do profissional */
+  profissionalUsuarioId: string | null
 }
 
 function numOrNull(raw: string | null): number | null {
@@ -33,6 +37,10 @@ export function parseMobilidadePesquisaSearchParams(
   const destinoNome =
     String(sp.get('destino_nome') ?? sp.get('destino') ?? '').trim() ||
     (destinoEmpresa ? '' : '')
+  const rec = String(sp.get('rec') ?? sp.get('recomendacao_id') ?? '').trim()
+  const prof = String(
+    sp.get('prof') ?? sp.get('contratar') ?? sp.get('profissional_usuario_id') ?? '',
+  ).trim()
   return {
     origem: {
       nome: String(sp.get('origem_nome') ?? sp.get('origem') ?? '').trim(),
@@ -46,6 +54,8 @@ export function parseMobilidadePesquisaSearchParams(
     },
     destinoEmpresaId: destinoEmpresa || null,
     abrirPesquisa: sp.get('abrir_pesquisa') === '1' || sp.get('pesquisar') === '1',
+    recomendacaoId: rec || null,
+    profissionalUsuarioId: prof || null,
   }
 }
 
@@ -54,6 +64,8 @@ export function buildMobilidadePesquisaHref(params: {
   destino: MobilidadePonto
   destinoEmpresaId?: string | null
   abrirPesquisa?: boolean
+  recomendacaoId?: string | null
+  profissionalUsuarioId?: string | null
 }): string {
   const q = new URLSearchParams()
   const oNome = String(params.origem.nome ?? '').trim()
@@ -76,6 +88,12 @@ export function buildMobilidadePesquisaHref(params: {
 
   const emp = String(params.destinoEmpresaId ?? '').trim()
   if (emp) q.set('destino_empresa', emp)
+
+  const rec = String(params.recomendacaoId ?? '').trim()
+  if (rec) q.set('rec', rec)
+
+  const prof = String(params.profissionalUsuarioId ?? '').trim()
+  if (prof) q.set('prof', prof)
 
   if (params.abrirPesquisa !== false) q.set('abrir_pesquisa', '1')
 

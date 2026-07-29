@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
+import { abrirOuObterConversaCorrida } from '@/lib/mobilidadeChatCorrida'
+import { isJustificativaRecusaMobilidade } from '@/lib/mobilidadeRecusaJustificativas'
 import { inferirCidadeTriplicePorCoords } from '@/lib/mobilidadePopupPesquisa'
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import type { CidadeTriplice } from '@/lib/mobilidadeRegional'
@@ -138,6 +140,57 @@ export type SolicitarMobilidadeInput = {
   acompanhamentoGuia: boolean
   dataAgendada: string | null
   recomendacaoId: string | null
+  /** profissionais.id fixado (indicação / contratar=). */
+  profissionalFixadoId: string | null
+}
+
+/** Resolve profissionais.id a partir de recomendação e/ou usuario_id. */
+export async function resolverProfissionalFixadoMobilidade(
+  admin: SupabaseClient,
+  params: {
+    recomendacaoId: string | null
+    profissionalUsuarioId: string | null
+  },
+): Promise<{ profissionalId: string | null; recomendacaoId: string | null }> {
+  let recomendacaoId = params.recomendacaoId
+  let profissionalId: string | null = null
+
+  if (recomendacaoId) {
+    const { data: rec } = await admin
+      .from('recomendacoes_profissional')
+      .select('id, profissional_indicado_id')
+      .eq('id', recomendacaoId)
+      .maybeSingle()
+    if (rec?.profissional_indicado_id) {
+      profissionalId = String(rec.profissional_indicado_id)
+      recomendacaoId = String(rec.id)
+    } else {
+      recomendacaoId = null
+    }
+  }
+
+  if (!profissionalId && params.profissionalUsuarioId) {
+    const { data: p } = await admin
+      .from('profissionais')
+      .select('id')
+      .eq('usuario_id', params.profissionalUsuarioId)
+      .maybeSingle()
+    if (p?.id) profissionalId = String(p.id)
+  }
+
+  return { profissionalId, recomendacaoId }
+}
+
+function priorizarFixadoNaFila(
+  candidatos: CandidatoMatch[],
+  fixadoId: string | null,
+): CandidatoMatch[] {
+  if (!fixadoId) return candidatos
+  const idx = candidatos.findIndex((c) => c.id === fixadoId)
+  if (idx <= 0) return candidatos
+  const copy = [...candidatos]
+  const [fixado] = copy.splice(idx, 1)
+  return [fixado, ...copy]
 }
 
 export type SolicitarMobilidadeResult =
@@ -213,13 +266,62 @@ export async function criarSolicitacaoEOfertar(
     return { ok: false, error: 'Origem com GPS é necessária para localizar profissionais.' }
   }
 
-  const candidatos = await buscarCandidatosMobilidade(admin, {
+  let candidatos = await buscarCandidatosMobilidade(admin, {
     modalidade: input.modalidade,
     cruzamentoFronteira: input.cruzamentoFronteira,
     origemLat: input.origemLat,
     origemLng: input.origemLng,
     cidadeOrigem: input.cidadeOrigem,
   })
+
+  // Indicação: se o fixado está online mas fora do filtro de cidade, ainda inclui no topo.
+  if (input.profissionalFixadoId) {
+    const jaTem = candidatos.some((c) => c.id === input.profissionalFixadoId)
+    if (!jaTem) {
+      const { data: fix } = await admin
+        .from('profissionais')
+        .select(
+          'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng',
+        )
+        .eq('id', input.profissionalFixadoId)
+        .eq('mobilidade_status', 'online')
+        .maybeSingle()
+      if (fix) {
+        const cats = normalizarCategoriasProfissional(
+          Array.isArray(fix.categorias) ? fix.categorias.map(String) : [],
+        )
+        const placa = Boolean(fix.placa_vermelha)
+        if (modalidadeMatchaCategorias(input.modalidade, cats, placa)) {
+          const lat = Number(fix.mobilidade_lat)
+          const lng = Number(fix.mobilidade_lng)
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            candidatos = [
+              {
+                id: String(fix.id),
+                usuario_id: String(fix.usuario_id),
+                nome_completo: String(fix.nome_completo ?? ''),
+                nome_usuario: fix.nome_usuario != null ? String(fix.nome_usuario) : null,
+                foto_url:
+                  fix.foto_perfil_url != null
+                    ? String(fix.foto_perfil_url)
+                    : fix.foto_url != null
+                      ? String(fix.foto_url)
+                      : null,
+                categorias: cats,
+                placa_vermelha: placa,
+                lat,
+                lng,
+                distanciaKm: haversineKm(input.origemLat, input.origemLng, lat, lng),
+                cidade: inferirCidadeTriplicePorCoords(lat, lng),
+              },
+              ...candidatos,
+            ]
+          }
+        }
+      }
+    }
+    candidatos = priorizarFixadoNaFila(candidatos, input.profissionalFixadoId)
+  }
 
   const filaIds = candidatos.map((c) => c.id)
   const agora = Date.now()
@@ -254,6 +356,7 @@ export async function criarSolicitacaoEOfertar(
       oferta_expira_em: primeiro ? expira : null,
       metadata: {
         backups: Math.min(MOBILIDADE_BACKUPS_OCULTOS, Math.max(0, filaIds.length - 1)),
+        profissional_fixado_id: input.profissionalFixadoId,
         distancias_km: candidatos.slice(0, 5).map((c) => ({
           id: c.id,
           km: Math.round(c.distanciaKm * 10) / 10,
@@ -433,7 +536,7 @@ export async function responderOfertaMobilidade(
     aceitar: boolean
     justificativa?: string | null
   },
-): Promise<{ ok: boolean; error?: string; status?: string }> {
+): Promise<{ ok: boolean; error?: string; status?: string; conversaId?: string | null }> {
   const { data: prof } = await admin
     .from('profissionais')
     .select('id')
@@ -477,10 +580,24 @@ export async function responderOfertaMobilidade(
       })
       .eq('id', prof.id)
 
-    return { ok: true, status: 'aceita' }
+    const chat = await abrirOuObterConversaCorrida(admin, {
+      solicitacaoId: params.solicitacaoId,
+      turistaUsuarioId: String(row.turista_id),
+      profissionalUsuarioId: params.profissionalUsuarioId,
+    })
+    if ('error' in chat) {
+      return { ok: true, status: 'aceita', conversaId: null }
+    }
+
+    return { ok: true, status: 'aceita', conversaId: chat.conversaId }
   }
 
-  // recusa
+  // recusa — exige justificativa válida
+  const just = String(params.justificativa ?? '').trim()
+  if (!isJustificativaRecusaMobilidade(just)) {
+    return { ok: false, error: 'Selecione uma justificativa de recusa.' }
+  }
+
   const recusados = Array.isArray(row.recusados_ids)
     ? (row.recusados_ids as string[]).map(String)
     : []
@@ -493,7 +610,7 @@ export async function responderOfertaMobilidade(
         ...(typeof row.metadata === 'object' && row.metadata ? row.metadata : {}),
         ultima_recusa: {
           profissional_id: prof.id,
-          justificativa: params.justificativa ?? null,
+          justificativa: just,
           em: new Date().toISOString(),
         },
       },

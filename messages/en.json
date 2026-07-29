@@ -323,6 +323,21 @@
     "ofertaProfTitulo": "New ride",
     "ofertaAceitar": "Accept",
     "ofertaRecusar": "Decline",
+    "recusaTitulo": "Decline reason",
+    "recusaEscolhaObrigatoria": "Select a reason to decline.",
+    "recusaErro": "Could not register the decline.",
+    "recusa": {
+      "ponto_fora_rota": "Pickup is off my route",
+      "distancia_longa": "Distance is too long",
+      "cliente_cancelou": "Client cancelled / I could not find them",
+      "outro": "Other reason"
+    },
+    "chatTitulo": "Ride chat",
+    "chatHint": "Temporary — only while the ride is active",
+    "chatVazio": "No messages yet. Say hi!",
+    "chatPlaceholder": "Write a message…",
+    "chatEnviar": "Send",
+    "chatErro": "Could not load the chat.",
     "pag": {
       "pix": "PIX",
       "dinheiro": "Cash",

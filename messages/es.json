@@ -323,6 +323,21 @@
     "ofertaProfTitulo": "Nuevo viaje",
     "ofertaAceitar": "Aceptar",
     "ofertaRecusar": "Rechazar",
+    "recusaTitulo": "Motivo del rechazo",
+    "recusaEscolhaObrigatoria": "Selecciona un motivo para rechazar.",
+    "recusaErro": "No se pudo registrar el rechazo.",
+    "recusa": {
+      "ponto_fora_rota": "Punto fuera de mi ruta",
+      "distancia_longa": "Distancia demasiado larga",
+      "cliente_cancelou": "Cliente canceló / no lo localicé",
+      "outro": "Otro motivo"
+    },
+    "chatTitulo": "Chat del viaje",
+    "chatHint": "Temporal — solo mientras el viaje esté activo",
+    "chatVazio": "Aún no hay mensajes. ¡Saluda!",
+    "chatPlaceholder": "Escribe un mensaje…",
+    "chatEnviar": "Enviar",
+    "chatErro": "No se pudo cargar el chat.",
     "pag": {
       "pix": "PIX",
       "dinheiro": "Efectivo",

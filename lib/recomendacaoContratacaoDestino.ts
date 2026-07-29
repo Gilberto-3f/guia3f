@@ -88,9 +88,11 @@ export function hrefDestinoContratacao(
     return `/empresa/${destino.empresaId}?ref=recomendacao&abrir=reserva${recQs}`
   }
   if (destino.tipo === 'mobilidade_canal') {
-    return `/canal?contratar=${encodeURIComponent(destino.profissionalUsuarioId)}${
-      rec ? `&rec=${encodeURIComponent(rec)}` : ''
-    }`
+    const q = new URLSearchParams()
+    q.set('abrir_pesquisa', '1')
+    q.set('prof', destino.profissionalUsuarioId)
+    if (rec) q.set('rec', rec)
+    return `/mobilidade?${q.toString()}`
   }
   if (destino.tipo === 'api_parceiro') return destino.url
   if (destino.tipo === 'canal') return '/canal'
