@@ -42,7 +42,11 @@ import { usuarioTemFavorito } from '@/lib/favoritosTurista'
  *   segmentoGuiaSlug?: string | null
  *   onSeguirToggle?: () => void
  *   temBotaoDinamico?: boolean
- *   /** No mapa de mobilidade: troca o botão dinâmico por CHAMAR CORRIDA. */
+ *   No mapa de mobilidade: turista → chamar corrida; prof indireto → indicar parceiro.
+ *   contextoMapaMobilidade?: 'turista' | 'prof_parceiro' | null
+ *   Gate da indicação no mapa (regras 3.5).
+ *   parceriaIndicacao?: { permitido: boolean; motivo?: string | null; avisoGuia?: string }
+ *   @deprecated Use contextoMapaMobilidade="turista"
  *   modoChamarCorrida?: boolean
  *   emDegustacao?: boolean
  *   planosCarregando?: boolean
@@ -53,6 +57,8 @@ export default function CardAtrativo({
   empresa,
   segmentoGuiaSlug = null,
   temBotaoDinamico = true,
+  contextoMapaMobilidade = null,
+  parceriaIndicacao = null,
   modoChamarCorrida = false,
   emDegustacao = false,
   planosCarregando = false,
@@ -98,6 +104,9 @@ export default function CardAtrativo({
       : empresa.descricao_curta || ''
 
   const username = (empresa?.nome_usuario ?? '').toString().replace(/^@+/, '').trim()
+
+  const contextoMapa =
+    contextoMapaMobilidade ?? (modoChamarCorrida ? 'turista' : null)
 
   return (
     <div className="overflow-hidden rounded-xl bg-white shadow-sm">
@@ -153,10 +162,28 @@ export default function CardAtrativo({
                 <Heart size={20} className="shrink-0 text-white" aria-hidden />
                 <span>VISITAR PÁGINA</span>
               </button>
-              {modoChamarCorrida ? (
+              {contextoMapa === 'turista' ? (
                 <div className="flex min-h-[3.25rem] flex-1">
                   <BotaoChamarCorrida variant="empresa" empresaId={empresa.id} nomeDestino={empresa.nome_fantasia} />
                 </div>
+              ) : contextoMapa === 'prof_parceiro' ? (
+                parceriaIndicacao?.permitido === false ? (
+                  <button
+                    type="button"
+                    disabled
+                    title={parceriaIndicacao.motivo ?? undefined}
+                    className="flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg bg-gray-300 px-2 py-2 text-center text-xs font-bold leading-tight text-gray-600 whitespace-normal sm:text-sm"
+                  >
+                    <span className="max-w-full leading-tight">INDICAR PARCEIRO</span>
+                  </button>
+                ) : (
+                  <BotaoRecomendar
+                    empresa={empresa}
+                    segmentoGuiaSlug={segmentoGuiaSlug}
+                    rotulo="INDICAR PARCEIRO"
+                    avisoGuia={parceriaIndicacao?.avisoGuia ?? null}
+                  />
+                )
               ) : mostrarRecomendar ? (
                 <BotaoRecomendar empresa={empresa} segmentoGuiaSlug={segmentoGuiaSlug} />
               ) : mostrarBotaoDinamico ? (

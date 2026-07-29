@@ -5,10 +5,13 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { X } from 'lucide-react'
 import CardAtrativo from '@/components/CardAtrativo'
+import PopupProfissionalMapaMobilidade from '@/components/mobilidade/PopupProfissionalMapaMobilidade'
 import {
   COR_PIN_SEGMENTO,
   type EmpresaMapaMobilidade,
 } from '@/lib/mobilidadeMapaEmpresas'
+import type { VisitanteParceriaMapa } from '@/lib/mobilidadeMapaVisitante'
+import { podeIndicarAtrativoMapa, type ContextoMapaMobilidade } from '@/lib/parceriaMapaMobilidade'
 import type { SegmentoEmpresaSlug } from '@/lib/segmentosEmpresaGuia'
 import {
   COR_STATUS_MOBILIDADE,
@@ -30,6 +33,8 @@ type Props = {
   centro: { lat: number; lng: number } | null
   origem?: Ponto | null
   destino?: Ponto | null
+  contextoMapa?: ContextoMapaMobilidade
+  visitanteParceria?: VisitanteParceriaMapa | null
   className?: string
 }
 
@@ -75,6 +80,8 @@ export default function MapaMobilidade({
   centro,
   origem = null,
   destino = null,
+  contextoMapa = null,
+  visitanteParceria = null,
   className = '',
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -90,6 +97,16 @@ export default function MapaMobilidade({
   profissionaisRef.current = profissionais
 
   const token = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_MAPBOX_TOKEN?.trim() : ''
+
+  const parceriaSelecionada =
+    selecionada && contextoMapa === 'prof_parceiro' && visitanteParceria
+      ? podeIndicarAtrativoMapa({
+          visitantePlacaVermelha: visitanteParceria.placaVermelha,
+          visitanteCategorias: visitanteParceria.categorias,
+          visitanteCidadesAtuacao: visitanteParceria.cidadesAtuacao,
+          empresaCidade: selecionada.cidade,
+        })
+      : null
 
   useEffect(() => {
     if (!token) {
@@ -302,38 +319,24 @@ export default function MapaMobilidade({
             <CardAtrativo
               empresa={selecionada}
               segmentoGuiaSlug={selecionada.segmento || null}
-              modoChamarCorrida
+              contextoMapaMobilidade={contextoMapa}
+              parceriaIndicacao={parceriaSelecionada ?? undefined}
             />
+            {parceriaSelecionada && !parceriaSelecionada.permitido && parceriaSelecionada.motivo ? (
+              <p className="mx-2 mb-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                {parceriaSelecionada.motivo}
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}
 
       {profSelecionado ? (
-        <div className="absolute inset-x-3 bottom-3 z-20 rounded-2xl bg-white p-4 shadow-xl ring-1 ring-black/10">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate font-bold text-gray-900">{profSelecionado.nome_completo}</p>
-              {profSelecionado.nome_usuario ? (
-                <p className="text-sm text-gray-500">@{String(profSelecionado.nome_usuario).replace(/^@+/, '')}</p>
-              ) : null}
-              <p className="mt-1 text-xs font-semibold uppercase" style={{ color: COR_STATUS_MOBILIDADE[profSelecionado.status] }}>
-                {profSelecionado.status === 'online'
-                  ? 'Online'
-                  : profSelecionado.status === 'em_atendimento'
-                    ? 'Em atendimento'
-                    : 'Offline'}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setProfSelecionado(null)}
-              className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
-              aria-label="Fechar"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
+        <PopupProfissionalMapaMobilidade
+          prof={profSelecionado}
+          onFechar={() => setProfSelecionado(null)}
+          visitanteParceria={visitanteParceria}
+        />
       ) : null}
     </div>
   )

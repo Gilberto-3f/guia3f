@@ -21,9 +21,10 @@ import { mensagemWhatsappRecomendacao, openWhatsAppChat } from '@/lib/whatsapp-e
  *   onFechar: () => void
  *   empresa: import('@/lib/recomendarEmpresa').EmpresaRecomendacaoInfo
  *   segmentoGuiaSlug?: string | null
+ *   avisoGuia?: string | null
  * }} props
  */
-export default function PopupRecomendar({ aberto, onFechar, empresa, segmentoGuiaSlug }) {
+export default function PopupRecomendar({ aberto, onFechar, empresa, segmentoGuiaSlug, avisoGuia = null }) {
   const [paisId, setPaisId] = useState('br')
   const [paisMenuAberto, setPaisMenuAberto] = useState(false)
   const [contatoLocal, setContatoLocal] = useState('')
@@ -51,10 +52,10 @@ export default function PopupRecomendar({ aberto, onFechar, empresa, segmentoGui
     onFechar()
   }
 
-  const montarMensagem = (profissionalUsername, profissionalCategorias) =>
+  const montarMensagem = (profissionalUsername, profissionalCategorias, recomendacaoId) =>
     mensagemWhatsappRecomendacao({
       empresaNome: String(empresa.nome_fantasia ?? 'Atrativo'),
-      empresaUrl: urlEmpresaRecomendacao(empresa.id),
+      empresaUrl: urlEmpresaRecomendacao(empresa.id, recomendacaoId),
       profissionalUsername,
       profissionalCategorias,
       nota: empresa.nota_media,
@@ -76,14 +77,14 @@ export default function PopupRecomendar({ aberto, onFechar, empresa, segmentoGui
           return
         }
 
-        const { profissionalUsername, profissionalCategorias } = await registrarRecomendacaoEmpresa(supabase, {
+        const { profissionalUsername, profissionalCategorias, recomendacaoId } = await registrarRecomendacaoEmpresa(supabase, {
           empresaId: empresa.id,
           segmentoGuiaSlug,
           categoriaEmpresa: empresa.categoria,
           emailTurista: email,
         })
 
-        const mensagem = montarMensagem(profissionalUsername, profissionalCategorias)
+        const mensagem = montarMensagem(profissionalUsername, profissionalCategorias, recomendacaoId)
         const subject = encodeURIComponent(`Recomendação: ${empresa.nome_fantasia ?? 'Atrativo'}`)
         const body = encodeURIComponent(mensagem)
         window.location.href = `mailto:${email}?subject=${subject}&body=${body}`
@@ -99,14 +100,14 @@ export default function PopupRecomendar({ aberto, onFechar, empresa, segmentoGui
         return
       }
 
-      const { profissionalUsername, profissionalCategorias } = await registrarRecomendacaoEmpresa(supabase, {
+      const { profissionalUsername, profissionalCategorias, recomendacaoId } = await registrarRecomendacaoEmpresa(supabase, {
         empresaId: empresa.id,
         segmentoGuiaSlug,
         categoriaEmpresa: empresa.categoria,
         whatsappTurista: phone,
       })
 
-      const mensagem = montarMensagem(profissionalUsername, profissionalCategorias)
+      const mensagem = montarMensagem(profissionalUsername, profissionalCategorias, recomendacaoId)
       const ok = openWhatsAppChat(phone, mensagem)
       if (!ok) {
         setErro('Não foi possível abrir o WhatsApp.')
@@ -140,7 +141,7 @@ export default function PopupRecomendar({ aberto, onFechar, empresa, segmentoGui
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <h3 id="popup-recomendar-titulo" className="text-lg font-extrabold text-[#001f3f]">
-            Recomendar atrativo
+            {avisoGuia ? 'Indicar parceiro' : 'Recomendar atrativo'}
           </h3>
           <button
             type="button"
@@ -152,6 +153,12 @@ export default function PopupRecomendar({ aberto, onFechar, empresa, segmentoGui
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {avisoGuia ? (
+          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 ring-1 ring-amber-200">
+            {avisoGuia}
+          </p>
+        ) : null}
 
         <label
           className="mt-4 block text-xs font-semibold text-gray-700"

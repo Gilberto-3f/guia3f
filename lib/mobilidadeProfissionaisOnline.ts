@@ -5,6 +5,7 @@ import {
   type ProfissionalOnlineMapa,
 } from '@/lib/mobilidadeStatusProfissional'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
+import { parseCidadesAtuacaoProf } from '@/lib/mobilidadeMapaVisitante'
 
 /** Lista profissionais online/em atendimento com GPS para o mapa. */
 export async function buscarProfissionaisOnlineMapa(): Promise<{
@@ -21,7 +22,7 @@ export async function buscarProfissionaisOnlineMapa(): Promise<{
   const { data, error } = await admin
     .from('profissionais')
     .select(
-      'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng',
+      'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, cidade_atuacao, mobilidade_status, mobilidade_lat, mobilidade_lng',
     )
     .in('mobilidade_status', ['online', 'em_atendimento'])
     .not('mobilidade_lat', 'is', null)
@@ -51,6 +52,7 @@ export async function buscarProfissionaisOnlineMapa(): Promise<{
             : null,
       categorias: cats,
       placa_vermelha: Boolean(row.placa_vermelha),
+      cidades_atuacao: parseCidadesAtuacaoProf(row.cidade_atuacao),
       status: parseMobilidadeStatus(row.mobilidade_status),
       lat,
       lng,

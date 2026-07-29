@@ -32,6 +32,11 @@ import {
   type SegmentoEmpresaSlug,
 } from '@/lib/segmentosEmpresaGuia'
 import type { ProfissionalOnlineMapa } from '@/lib/mobilidadeStatusProfissional'
+import {
+  parseCidadesAtuacaoProf,
+  type VisitanteParceriaMapa,
+} from '@/lib/mobilidadeMapaVisitante'
+import { resolverContextoMapaMobilidade } from '@/lib/parceriaMapaMobilidade'
 
 const MapaMobilidade = dynamic(() => import('@/components/mobilidade/MapaMobilidade'), {
   ssr: false,
@@ -76,6 +81,7 @@ function MobilidadePageInner() {
   const [empresasErro, setEmpresasErro] = useState<string | null>(null)
   const [carregandoEmpresas, setCarregandoEmpresas] = useState(true)
   const [profissionaisOnline, setProfissionaisOnline] = useState<ProfissionalOnlineMapa[]>([])
+  const [visitanteParceria, setVisitanteParceria] = useState<VisitanteParceriaMapa | null>(null)
   const [cidadePais, setCidadePais] = useState<PaisGuiaFiltro | null>(null)
   const [segmentos, setSegmentos] = useState<SegmentoEmpresaSlug[]>([])
   const [gpsCentro, setGpsCentro] = useState<{ lat: number; lng: number } | null>(null)
@@ -117,6 +123,41 @@ function MobilidadePageInner() {
     if (!perfilEhTurista || gateLoading || podeComprarReservar) return
     avisarBloqueio()
   }, [perfilEhTurista, gateLoading, podeComprarReservar, avisarBloqueio])
+
+  useEffect(() => {
+    if (!perfilEhProfissional) {
+      setVisitanteParceria(null)
+      return
+    }
+    let ativo = true
+    void (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const uid = session?.user?.id
+      if (!uid || !ativo) return
+      const { data: prof } = await supabase
+        .from('profissionais')
+        .select('placa_vermelha, categorias, cidade_atuacao')
+        .eq('usuario_id', uid)
+        .maybeSingle()
+      if (!ativo) return
+      if (!prof) {
+        setVisitanteParceria(null)
+        return
+      }
+      setVisitanteParceria({
+        placaVermelha: Boolean(prof.placa_vermelha),
+        categorias: Array.isArray(prof.categorias)
+          ? prof.categorias.filter((c): c is string => typeof c === 'string')
+          : [],
+        cidadesAtuacao: parseCidadesAtuacaoProf(prof.cidade_atuacao),
+      })
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [perfilEhProfissional])
 
   useEffect(() => {
     let ativo = true
@@ -174,6 +215,17 @@ function MobilidadePageInner() {
     cidadePais != null
       ? FILTRO_CIDADE_OPCOES.find((o) => o.pais === cidadePais)?.cidade ?? CIDADE_POR_PAIS_GUIA[cidadePais]
       : null
+
+  const contextoMapa = useMemo(() => {
+    if (perfilEhTurista) return 'turista' as const
+    if (!perfilEhProfissional || !visitanteParceria) return null
+    return resolverContextoMapaMobilidade({
+      perfilEhTurista: false,
+      perfilEhProfissional: true,
+      visitantePlacaVermelha: visitanteParceria.placaVermelha,
+      visitanteCategorias: visitanteParceria.categorias,
+    })
+  }, [perfilEhTurista, perfilEhProfissional, visitanteParceria])
 
   const empresasFiltradas = useMemo(
     () =>
@@ -279,6 +331,8 @@ function MobilidadePageInner() {
               centro={gpsCentro}
               origem={origemPonto}
               destino={destinoPonto}
+              contextoMapa={contextoMapa}
+              visitanteParceria={visitanteParceria}
             />
           )}
         </div>

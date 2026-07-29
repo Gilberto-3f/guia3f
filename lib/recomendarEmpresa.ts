@@ -71,9 +71,11 @@ export type EmpresaRecomendacaoInfo = {
   cidade?: string | null
 }
 
-export function urlEmpresaRecomendacao(empresaId: string): string {
-  if (typeof window === 'undefined') return `/empresa/${empresaId}?ref=recomendacao`
-  return `${window.location.origin}/empresa/${empresaId}?ref=recomendacao`
+export function urlEmpresaRecomendacao(empresaId: string, recomendacaoId?: string | null): string {
+  const rec = String(recomendacaoId ?? '').trim()
+  const recQs = rec ? `&rec=${encodeURIComponent(rec)}` : ''
+  if (typeof window === 'undefined') return `/empresa/${empresaId}?ref=recomendacao${recQs}`
+  return `${window.location.origin}/empresa/${empresaId}?ref=recomendacao${recQs}`
 }
 
 export async function registrarRecomendacaoEmpresa(
@@ -85,7 +87,11 @@ export async function registrarRecomendacaoEmpresa(
     whatsappTurista?: string | null
     emailTurista?: string | null
   },
-): Promise<{ profissionalUsername: string | null; profissionalCategorias: string[] }> {
+): Promise<{
+  profissionalUsername: string | null
+  profissionalCategorias: string[]
+  recomendacaoId: string | null
+}> {
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -129,21 +135,28 @@ export async function registrarRecomendacaoEmpresa(
     if (ddd) payloadCompleto.turista_whatsapp_ddd = ddd
   }
 
-  let recErr = (await supabase.from('recomendacoes').insert(payloadCompleto)).error
+  const tryInsert = async (payloadInsert: Record<string, string>) =>
+    supabase.from('recomendacoes').insert(payloadInsert).select('id').maybeSingle()
+
+  let insertRes = await tryInsert(payloadCompleto)
+  let recErr = insertRes.error
+  let recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : null
 
   if (recErr && emailPrefix && String(recErr.message ?? '').toLowerCase().includes('turista_email')) {
-    recErr = (
-      await supabase.from('recomendacoes').insert({
-        profissional_id: profissionalId,
-        empresa_id: params.empresaId,
-      })
-    ).error
+    insertRes = await tryInsert({
+      profissional_id: profissionalId,
+      empresa_id: params.empresaId,
+    })
+    recErr = insertRes.error
+    recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : recomendacaoId
   }
 
   if (recErr && String(recErr.message ?? '').toLowerCase().includes('turista_whatsapp_ddd')) {
     const semDdd = { ...payloadCompleto }
     delete semDdd.turista_whatsapp_ddd
-    recErr = (await supabase.from('recomendacoes').insert(semDdd)).error
+    insertRes = await tryInsert(semDdd)
+    recErr = insertRes.error
+    recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : recomendacaoId
   }
 
   if (recErr && String(recErr.message ?? '').toLowerCase().includes('turista_whatsapp_final')) {
@@ -155,7 +168,9 @@ export async function registrarRecomendacaoEmpresa(
       minimo.turista_canal = 'email'
       minimo.turista_email_prefix = emailPrefix
     }
-    recErr = (await supabase.from('recomendacoes').insert(minimo)).error
+    insertRes = await tryInsert(minimo)
+    recErr = insertRes.error
+    recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : recomendacaoId
   }
 
   if (recErr && String(recErr.message ?? '').toLowerCase().includes('turista_canal')) {
@@ -165,7 +180,9 @@ export async function registrarRecomendacaoEmpresa(
     }
     if (final4) legado.turista_whatsapp_final = final4
     if (ddd) legado.turista_whatsapp_ddd = ddd
-    recErr = (await supabase.from('recomendacoes').insert(legado)).error
+    insertRes = await tryInsert(legado)
+    recErr = insertRes.error
+    recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : recomendacaoId
   }
 
   if (recErr) throw recErr
@@ -186,7 +203,7 @@ export async function registrarRecomendacaoEmpresa(
   const categorias = Array.isArray(prof.categorias)
     ? prof.categorias.map((c) => String(c).trim()).filter(Boolean)
     : []
-  return { profissionalUsername: username, profissionalCategorias: categorias }
+  return { profissionalUsername: username, profissionalCategorias: categorias, recomendacaoId }
 }
 
 export function montarEnderecoEmpresa(empresa: EmpresaRecomendacaoInfo): string {

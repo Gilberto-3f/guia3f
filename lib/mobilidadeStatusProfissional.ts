@@ -46,6 +46,7 @@ export type ProfissionalOnlineMapa = {
   foto_url: string | null
   categorias: string[]
   placa_vermelha: boolean
+  cidades_atuacao: string[]
   status: MobilidadeStatusId
   lat: number
   lng: number

@@ -13,9 +13,11 @@ const COR_RECOMENDAR = '#00D443'
  * @param {{
  *   empresa: import('@/lib/recomendarEmpresa').EmpresaRecomendacaoInfo
  *   segmentoGuiaSlug?: string | null
+ *   rotulo?: string
+ *   avisoGuia?: string | null
  * }} props
  */
-export default function BotaoRecomendar({ empresa, segmentoGuiaSlug }) {
+export default function BotaoRecomendar({ empresa, segmentoGuiaSlug, rotulo = 'RECOMENDAR', avisoGuia = null }) {
   const router = useRouter()
   const { perfilEhProfissional, recursosProfissionaisLiberados, loading: gateLoading } =
     useProfissionalGate()
@@ -44,7 +46,7 @@ export default function BotaoRecomendar({ empresa, segmentoGuiaSlug }) {
         aria-busy={gateLoading}
       >
         <IconWhatsApp size={20} className="shrink-0 text-white" />
-        <span className="max-w-full leading-tight">RECOMENDAR</span>
+        <span className="max-w-full leading-tight">{rotulo}</span>
       </button>
 
       <PopupRecomendar
@@ -52,6 +54,7 @@ export default function BotaoRecomendar({ empresa, segmentoGuiaSlug }) {
         onFechar={() => setPopupAberto(false)}
         empresa={empresa}
         segmentoGuiaSlug={segmentoGuiaSlug}
+        avisoGuia={avisoGuia}
       />
     </>
   )
