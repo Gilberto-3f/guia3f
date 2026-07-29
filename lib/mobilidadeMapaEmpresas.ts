@@ -11,12 +11,13 @@ import {
   type SegmentoEmpresaSlug,
   categoriaDbParaSlug,
 } from '@/lib/segmentosEmpresaGuia'
+import { isSupabaseTransientError, withTransientRetry } from '@/lib/supabaseTransientError'
 
-const COLUNAS =
-  'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave, plano, somente_anfitriao, hospedagem_disponibilidade'
+/** Colunas mínimas para pin + card do mapa (evita payload/timeout no first load). */
+const COLUNAS_MAPA =
+  'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, plano, somente_anfitriao'
 
-const COLUNAS_SEM_PALAVRAS =
-  'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, plano, somente_anfitriao, hospedagem_disponibilidade'
+const IN_CHUNK = 80
 
 export type EmpresaMapaMobilidade = {
   id: string
@@ -97,113 +98,146 @@ function mapRow(row: Record<string, unknown>): EmpresaMapaMobilidade | null {
   }
 }
 
+type QueryRes = { data: unknown[] | null; error: { message?: string; code?: string } | null }
+
+function chunkIds(ids: string[]): string[][] {
+  const out: string[][] = []
+  for (let i = 0; i < ids.length; i += IN_CHUNK) out.push(ids.slice(i, i + IN_CHUNK))
+  return out
+}
+
+async function queryInChunks(
+  ids: string[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  run: (chunk: string[]) => Promise<any>,
+): Promise<QueryRes> {
+  if (ids.length === 0) return { data: [], error: null }
+  const all: unknown[] = []
+  for (const chunk of chunkIds(ids)) {
+    const res = (await run(chunk)) as QueryRes
+    if (res.error) return res
+    if (Array.isArray(res.data)) all.push(...res.data)
+  }
+  return { data: all, error: null }
+}
+
 /** Empresas elegíveis do Guia com latitude/longitude para o mapa de mobilidade. */
 export async function buscarEmpresasMapaMobilidade(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
 ): Promise<{ lista: EmpresaMapaMobilidade[]; error: string | null }> {
-  const agora = new Date().toISOString()
-  const [{ data: degRows }, assRows] = await Promise.all([
-    supabase
-      .from('empresa_degustacoes')
-      .select('empresa_id')
-      .eq('status', 'ativa')
-      .gt('expira_em', agora),
-    buscarAssinaturasPresencaPublica(supabase),
-  ])
-
-  const degIds = [
-    ...new Set((degRows ?? []).map((r: { empresa_id: string }) => String(r.empresa_id)).filter(Boolean)),
-  ]
-  const assIds = [
-    ...new Set(
-      assRows
-        .filter((r) => assinaturaContratadaVigente(r))
-        .map((r) => r.empresa_id)
-        .filter(Boolean),
-    ),
-  ]
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ordenar = (q: any) => q.order('nota_media', { ascending: false })
-
-  async function queryAnfitriao(select: string, comPreview: boolean) {
-    return ordenar(
-      aplicarFiltroEmpresasGuiaPublico(
+  return withTransientRetry(
+    async () => {
+      const agora = new Date().toISOString()
+      const [{ data: degRows, error: degErr }, assRows] = await Promise.all([
         supabase
-          .from('empresas')
-          .select(select)
-          .eq('somente_anfitriao', true)
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null),
-        { comPreviewFilter: comPreview },
-      ),
-    )
-  }
+          .from('empresa_degustacoes')
+          .select('empresa_id')
+          .eq('status', 'ativa')
+          .gt('expira_em', agora),
+        buscarAssinaturasPresencaPublica(supabase),
+      ])
 
-  async function queryDegustacao(select: string, comPreview: boolean) {
-    if (degIds.length === 0) return { data: [], error: null }
-    return ordenar(
-      aplicarFiltroEmpresasGuiaPlanoOuDegustacao(
-        supabase
-          .from('empresas')
-          .select(select)
-          .in('id', degIds)
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null),
-        { comPreviewFilter: comPreview },
-      ),
-    )
-  }
+      if (degErr && isSupabaseTransientError(degErr)) {
+        return { lista: [], error: String(degErr.message ?? 'Timeout ao carregar degustações.') }
+      }
 
-  async function queryAssinatura(select: string, comPreview: boolean) {
-    if (assIds.length === 0) return { data: [], error: null }
-    return ordenar(
-      aplicarFiltroEmpresasGuiaPlanoOuDegustacao(
-        supabase
-          .from('empresas')
-          .select(select)
-          .in('id', assIds)
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null),
-        { comPreviewFilter: comPreview },
-      ),
-    )
-  }
+      const degIds = [
+        ...new Set((degRows ?? []).map((r: { empresa_id: string }) => String(r.empresa_id)).filter(Boolean)),
+      ]
+      const assIds = [
+        ...new Set(
+          assRows
+            .filter((r) => assinaturaContratadaVigente(r))
+            .map((r) => r.empresa_id)
+            .filter(Boolean),
+        ),
+      ]
 
-  let select = COLUNAS
-  let anfRes = await queryAnfitriao(select, true)
-  let degRes = await queryDegustacao(select, true)
-  let assRes = await queryAssinatura(select, true)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ordenar = (q: any) => q.order('nota_media', { ascending: false }).limit(400)
 
-  const msg = String(anfRes.error?.message ?? '').toLowerCase()
-  if (msg.includes('palavras_chave')) {
-    select = COLUNAS_SEM_PALAVRAS
-    anfRes = await queryAnfitriao(select, true)
-    degRes = await queryDegustacao(select, true)
-    assRes = await queryAssinatura(select, true)
-  }
+      async function queryAnfitriao(comPreview: boolean) {
+        return ordenar(
+          aplicarFiltroEmpresasGuiaPublico(
+            supabase
+              .from('empresas')
+              .select(COLUNAS_MAPA)
+              .eq('somente_anfitriao', true)
+              .not('latitude', 'is', null)
+              .not('longitude', 'is', null),
+            { comPreviewFilter: comPreview },
+          ),
+        ) as Promise<QueryRes>
+      }
 
-  const previewMsg = String(
-    anfRes.error?.message ?? degRes.error?.message ?? assRes.error?.message ?? '',
-  ).toLowerCase()
-  if (previewMsg.includes('somente_modo_apresentacao')) {
-    anfRes = await queryAnfitriao(select, false)
-    degRes = await queryDegustacao(select, false)
-    assRes = await queryAssinatura(select, false)
-  }
+      async function queryDegustacao(comPreview: boolean) {
+        return queryInChunks(degIds, (chunk) =>
+          ordenar(
+            aplicarFiltroEmpresasGuiaPlanoOuDegustacao(
+              supabase
+                .from('empresas')
+                .select(COLUNAS_MAPA)
+                .in('id', chunk)
+                .not('latitude', 'is', null)
+                .not('longitude', 'is', null),
+              { comPreviewFilter: comPreview },
+            ),
+          ),
+        )
+      }
 
-  if (anfRes.error) {
-    return { lista: [], error: String(anfRes.error.message) }
-  }
+      async function queryAssinatura(comPreview: boolean) {
+        return queryInChunks(assIds, (chunk) =>
+          ordenar(
+            aplicarFiltroEmpresasGuiaPlanoOuDegustacao(
+              supabase
+                .from('empresas')
+                .select(COLUNAS_MAPA)
+                .in('id', chunk)
+                .not('latitude', 'is', null)
+                .not('longitude', 'is', null),
+              { comPreviewFilter: comPreview },
+            ),
+          ),
+        )
+      }
 
-  const byId = new Map<string, EmpresaMapaMobilidade>()
-  for (const row of [...(anfRes.data ?? []), ...(degRes.data ?? []), ...(assRes.data ?? [])]) {
-    const mapped = mapRow(row as Record<string, unknown>)
-    if (mapped) byId.set(mapped.id, mapped)
-  }
+      let [anfRes, degRes, assRes] = await Promise.all([
+        queryAnfitriao(true),
+        queryDegustacao(true),
+        queryAssinatura(true),
+      ])
 
-  return { lista: [...byId.values()], error: null }
+      const previewMsg = String(
+        anfRes.error?.message ?? degRes.error?.message ?? assRes.error?.message ?? '',
+      ).toLowerCase()
+      if (previewMsg.includes('somente_modo_apresentacao')) {
+        ;[anfRes, degRes, assRes] = await Promise.all([
+          queryAnfitriao(false),
+          queryDegustacao(false),
+          queryAssinatura(false),
+        ])
+      }
+
+      const err = anfRes.error ?? degRes.error ?? assRes.error
+      if (err) {
+        return { lista: [], error: String(err.message ?? 'Falha ao carregar atrativos do mapa.') }
+      }
+
+      const byId = new Map<string, EmpresaMapaMobilidade>()
+      for (const row of [...(anfRes.data ?? []), ...(degRes.data ?? []), ...(assRes.data ?? [])]) {
+        const mapped = mapRow(row as Record<string, unknown>)
+        if (mapped) byId.set(mapped.id, mapped)
+      }
+
+      return { lista: [...byId.values()], error: null }
+    },
+    {
+      delayMs: 500,
+      isError: (r) => Boolean(r.error && isSupabaseTransientError({ message: r.error })),
+    },
+  )
 }
 
 export function filtrarEmpresasMapa(

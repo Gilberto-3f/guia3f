@@ -71,21 +71,26 @@ export default function OfertaMobilidadeListener() {
     if (!elegivel) return
     try {
       const res = await fetch('/api/mobilidade/corrida-ativa')
+      if (res.status === 401 || res.status === 403) return 'auth' as const
       const json = (await res.json()) as { corrida?: CorridaAtiva | null }
-      if (!res.ok) return
+      if (!res.ok) return 'ok' as const
       setCorrida(json.corrida ?? null)
     } catch {
       /* ignore */
     }
+    return 'ok' as const
   }, [elegivel])
 
   const carregarOferta = useCallback(async () => {
-    if (!elegivel || corrida) return
+    if (!elegivel || corrida) return 'ok' as const
     try {
       const [rOferta, rAg] = await Promise.all([
         fetch('/api/mobilidade/ofertas-pendentes'),
         fetch('/api/mobilidade/agendamentos-pendentes'),
       ])
+      if (rOferta.status === 401 || rOferta.status === 403 || rAg.status === 401 || rAg.status === 403) {
+        return 'auth' as const
+      }
       const json = (await rOferta.json()) as { ofertas?: Oferta[] }
       const jag = (await rAg.json()) as {
         agendamentos?: Array<{
@@ -111,29 +116,64 @@ export default function OfertaMobilidadeListener() {
             oferta_expira_em: conf.data_agendada,
             distancia_km: 0,
           })
-          return
+          return 'ok' as const
         }
       }
-      if (!rOferta.ok) return
+      if (!rOferta.ok) return 'ok' as const
       const first = Array.isArray(json.ofertas) && json.ofertas[0] ? json.ofertas[0] : null
       setOferta(first)
     } catch {
       /* ignore */
     }
+    return 'ok' as const
   }, [elegivel, corrida])
 
   useEffect(() => {
     if (!elegivel) return
-    void carregarCorrida()
-    const id = setInterval(() => void carregarCorrida(), 4000)
-    return () => clearInterval(id)
+    let ativo = true
+    let id: ReturnType<typeof setInterval> | null = null
+    const boot = window.setTimeout(() => {
+      if (!ativo) return
+      void (async () => {
+        const st = await carregarCorrida()
+        if (!ativo || st === 'auth') return
+        id = setInterval(() => {
+          void (async () => {
+            const s = await carregarCorrida()
+            if (s === 'auth' && id) clearInterval(id)
+          })()
+        }, 10_000)
+      })()
+    }, 2000)
+    return () => {
+      ativo = false
+      window.clearTimeout(boot)
+      if (id) clearInterval(id)
+    }
   }, [elegivel, carregarCorrida])
 
   useEffect(() => {
     if (!elegivel || corrida) return
-    void carregarOferta()
-    const id = setInterval(() => void carregarOferta(), 3000)
-    return () => clearInterval(id)
+    let ativo = true
+    let id: ReturnType<typeof setInterval> | null = null
+    const boot = window.setTimeout(() => {
+      if (!ativo) return
+      void (async () => {
+        const st = await carregarOferta()
+        if (!ativo || st === 'auth') return
+        id = setInterval(() => {
+          void (async () => {
+            const s = await carregarOferta()
+            if (s === 'auth' && id) clearInterval(id)
+          })()
+        }, 8_000)
+      })()
+    }, 2500)
+    return () => {
+      ativo = false
+      window.clearTimeout(boot)
+      if (id) clearInterval(id)
+    }
   }, [elegivel, carregarOferta, corrida])
 
   useEffect(() => {

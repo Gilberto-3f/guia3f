@@ -21,7 +21,6 @@ import {
   pontoPreenchido,
 } from '@/lib/mobilidadePesquisaParams'
 import {
-  buscarEmpresasMapaMobilidade,
   filtrarEmpresasMapa,
   FILTRO_CIDADE_OPCOES,
   type EmpresaMapaMobilidade,
@@ -163,11 +162,27 @@ function MobilidadePageInner() {
     let ativo = true
     void (async () => {
       setCarregandoEmpresas(true)
-      const { lista, error } = await buscarEmpresasMapaMobilidade(supabase)
-      if (!ativo) return
-      setEmpresas(lista)
-      setEmpresasErro(error)
-      setCarregandoEmpresas(false)
+      try {
+        const res = await fetch('/api/mobilidade/empresas-mapa')
+        const json = (await res.json()) as {
+          empresas?: EmpresaMapaMobilidade[]
+          error?: string
+        }
+        if (!ativo) return
+        if (!res.ok) {
+          setEmpresas([])
+          setEmpresasErro(String(json.error ?? 'Falha ao carregar atrativos.'))
+        } else {
+          setEmpresas(Array.isArray(json.empresas) ? json.empresas : [])
+          setEmpresasErro(null)
+        }
+      } catch {
+        if (!ativo) return
+        setEmpresas([])
+        setEmpresasErro('Falha de rede ao carregar atrativos.')
+      } finally {
+        if (ativo) setCarregandoEmpresas(false)
+      }
     })()
     return () => {
       ativo = false
