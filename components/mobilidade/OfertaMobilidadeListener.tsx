@@ -9,6 +9,7 @@ import {
   type JustificativaRecusaMobilidadeId,
 } from '@/lib/mobilidadeRecusaJustificativas'
 import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
+import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
 
 type Oferta = {
   solicitacao_id: string
@@ -53,6 +54,7 @@ export default function OfertaMobilidadeListener() {
   const [recebiDinheiro, setRecebiDinheiro] = useState(false)
   const [bonus, setBonus] = useState('')
   const [resumoFin, setResumoFin] = useState<string | null>(null)
+  const [solicitacaoAvaliar, setSolicitacaoAvaliar] = useState<string | null>(null)
 
   const elegivel =
     !loading &&
@@ -277,7 +279,10 @@ export default function OfertaMobilidadeListener() {
             : null,
         ].filter(Boolean)
         setResumoFin(parts.join(' · ') || t('corridaConcluida'))
+      } else {
+        setResumoFin(t('corridaConcluida'))
       }
+      setSolicitacaoAvaliar(corrida.solicitacao_id)
       setCorrida(null)
       setErroConcluir('')
       setRecebiDinheiro(false)
@@ -295,9 +300,20 @@ export default function OfertaMobilidadeListener() {
         <p className="text-sm font-bold text-[#00D443]">{t('corridaConcluida')}</p>
         <p className="mt-2 text-xs text-gray-600">{resumoFin}</p>
         <p className="mt-1 text-[11px] text-gray-400">{t('finExtratoHint')}</p>
+        {solicitacaoAvaliar ? (
+          <div className="mt-3">
+            <AvaliacaoCorridaMobilidade
+              solicitacaoId={solicitacaoAvaliar}
+              titulo={t('avaliacaoTuristaTitulo')}
+            />
+          </div>
+        ) : null}
         <button
           type="button"
-          onClick={() => setResumoFin(null)}
+          onClick={() => {
+            setResumoFin(null)
+            setSolicitacaoAvaliar(null)
+          }}
           className="mt-3 w-full rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white"
         >
           {t('fechar')}

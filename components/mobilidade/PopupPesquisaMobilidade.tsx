@@ -34,6 +34,7 @@ import {
   MOBILIDADE_OFERTA_WARN_MS,
 } from '@/lib/mobilidadeMatching'
 import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
+import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
 
 type Props = {
   aberto: boolean
@@ -634,8 +635,13 @@ export default function PopupPesquisaMobilidade({
             ) : null}
 
             {matchStatus === 'concluida' ? (
-              <div className="rounded-xl border-2 border-[#0097b2] bg-[#0097b2]/10 px-3 py-4">
-                <p className="text-center text-sm font-bold text-[#0097b2]">{t('corridaConcluida')}</p>
+              <div className="space-y-3">
+                <div className="rounded-xl border-2 border-[#0097b2] bg-[#0097b2]/10 px-3 py-4">
+                  <p className="text-center text-sm font-bold text-[#0097b2]">{t('corridaConcluida')}</p>
+                </div>
+                {solicitacaoId ? (
+                  <AvaliacaoCorridaMobilidade solicitacaoId={solicitacaoId} />
+                ) : null}
               </div>
             ) : null}
 

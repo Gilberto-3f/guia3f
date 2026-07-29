@@ -3,6 +3,10 @@ import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional
 import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
 import { abrirOuObterConversaCorrida } from '@/lib/mobilidadeChatCorrida'
 import { registrarManifestoAposAceiteCorrida } from '@/lib/mobilidadeCorrida'
+import {
+  ehCancelamentoUltimaHora,
+  registrarInfracaoMobilidade,
+} from '@/lib/mobilidadeInfracoes'
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import type { CidadeTriplice } from '@/lib/mobilidadeRegional'
 
@@ -360,6 +364,10 @@ export async function cancelarAgendamentoMobilidade(
   )
 
   const agora = new Date().toISOString()
+  const late = ehCancelamentoUltimaHora(
+    row.data_agendada != null ? String(row.data_agendada) : null,
+  )
+
   await admin
     .from('solicitacao_mobilidade')
     .update({
@@ -368,9 +376,47 @@ export async function cancelarAgendamentoMobilidade(
         ...(typeof row.metadata === 'object' && row.metadata ? row.metadata : {}),
         cancelado_em: agora,
         cancelado_por: params.role,
+        cancelamento_ultima_hora: late,
       },
     })
     .eq('id', params.solicitacaoId)
+
+  // Infrações (catálogo ADM existente)
+  if (late && params.role === 'turista') {
+    await registrarInfracaoMobilidade(admin, {
+      usuarioId: String(row.turista_id),
+      categoria: 'turista',
+      seed: 'turistaNoShow',
+      solicitacaoId: params.solicitacaoId,
+      detalhe: 'Cancelamento de agendamento perto da partida',
+    })
+  }
+  if (late && params.role === 'profissional') {
+    await registrarInfracaoMobilidade(admin, {
+      usuarioId: params.actorUsuarioId,
+      categoria: 'profissional',
+      seed: 'profCancelUltimaHora',
+      solicitacaoId: params.solicitacaoId,
+      detalhe: 'Profissional cancelou agendamento perto da partida',
+    })
+  }
+  if (params.role === 'admin' && row.profissional_id) {
+    // timeout de confirmação (cron)
+    const { data: p } = await admin
+      .from('profissionais')
+      .select('usuario_id')
+      .eq('id', row.profissional_id)
+      .maybeSingle()
+    if (p?.usuario_id) {
+      await registrarInfracaoMobilidade(admin, {
+        usuarioId: String(p.usuario_id),
+        categoria: 'profissional',
+        seed: 'profCancelUltimaHora',
+        solicitacaoId: params.solicitacaoId,
+        detalhe: 'Não confirmou agendamento no prazo (2h)',
+      })
+    }
+  }
 
   // notificar o outro lado (profissional)
   if (row.profissional_id && params.role === 'turista') {
