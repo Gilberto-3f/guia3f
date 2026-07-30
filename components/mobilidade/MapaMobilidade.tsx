@@ -293,7 +293,8 @@ export default function MapaMobilidade({
         <p className="text-base font-semibold text-[#0097b2]">Mapbox</p>
         <p className="mt-2 max-w-sm text-sm text-gray-600">
           Defina <code className="rounded bg-white px-1 text-xs">NEXT_PUBLIC_MAPBOX_TOKEN</code> no{' '}
-          <code className="rounded bg-white px-1 text-xs">.env.local</code> para carregar o mapa.
+          <code className="rounded bg-white px-1 text-xs">.env.local</code> (dev) e nas Environment
+          Variables da Vercel (produção), depois faça redeploy.
         </p>
       </div>
     )

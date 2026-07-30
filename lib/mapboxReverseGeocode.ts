@@ -1,4 +1,13 @@
-/** Reverse geocode Mapbox → endereço curto para o ponto de partida. */
+/** Reverse geocode Mapbox → rua, nº, bairro e cidade (abreviado). */
+
+function textoCtx(
+  context: Array<{ id?: string; text?: string }> | undefined,
+  prefix: string,
+): string {
+  if (!context?.length) return ''
+  const hit = context.find((c) => String(c.id ?? '').startsWith(prefix))
+  return String(hit?.text ?? '').trim()
+}
 
 export async function reverseGeocodeMapbox(
   lat: number,
@@ -30,18 +39,34 @@ export async function reverseGeocodeMapbox(
     const f = json.features?.[0]
     if (!f) return null
 
+    const rua = String(f.text ?? '').trim()
+    const numero = String(f.address ?? '').trim()
+    const bairro =
+      textoCtx(f.context, 'neighborhood') || textoCtx(f.context, 'locality')
+    const cidade =
+      textoCtx(f.context, 'place') ||
+      textoCtx(f.context, 'locality') ||
+      textoCtx(f.context, 'district')
+
+    const partes: string[] = []
+    if (rua && numero) partes.push(`${rua}, ${numero}`)
+    else if (rua) partes.push(rua)
+    if (bairro && bairro !== cidade) partes.push(bairro)
+    if (cidade) partes.push(cidade)
+
+    if (partes.length > 0) {
+      const joined = partes.join(' · ')
+      return joined.length > 72 ? `${joined.slice(0, 69)}…` : joined
+    }
+
     const place = String(f.place_name ?? '').trim()
     if (place) {
-      // Encurta: remove país no final se houver vírgulas demais
       const parts = place.split(',').map((p) => p.trim()).filter(Boolean)
       if (parts.length > 3) return parts.slice(0, 3).join(', ')
       return place
     }
 
-    const text = String(f.text ?? '').trim()
-    const addr = String(f.address ?? '').trim()
-    if (text && addr) return `${text}, ${addr}`
-    return text || null
+    return null
   } catch {
     return null
   }
