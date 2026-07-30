@@ -3,6 +3,7 @@ import {
   createAuthUserForCadastro,
   upsertUsuarioCadastro,
 } from '@/lib/cadastroCreateAuthUser'
+import { normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -20,6 +21,7 @@ type CadastroProfissionalBody = {
   categoria?: unknown
   cidadeAtuacao?: unknown
   aceitePoliticas?: unknown
+  idiomas?: unknown
 }
 
 export async function POST(req: NextRequest) {
@@ -109,6 +111,8 @@ export async function POST(req: NextRequest) {
 
     const placaVermelha = PLACA_CATEGORIAS.has(categoria)
     const cidadeAtuacao = [cidadeRaw]
+    const idiomas =
+      categoria === 'Guia' ? normalizarIdiomasGuia(body.idiomas) : []
 
     const payload: Record<string, unknown> = {
       usuario_id: userId,
@@ -119,6 +123,9 @@ export async function POST(req: NextRequest) {
       placa_vermelha: placaVermelha,
       cidade_atuacao: cidadeAtuacao,
       status: 'pendente',
+    }
+    if (idiomas.length > 0) {
+      payload.idiomas = idiomas
     }
 
     let ins = await admin.from('profissionais').insert(payload)
@@ -132,6 +139,10 @@ export async function POST(req: NextRequest) {
     }
     if (ins.error && ins.error.message.toLowerCase().includes('status')) {
       const { status: _s, ...rest } = payload
+      ins = await admin.from('profissionais').insert(rest)
+    }
+    if (ins.error && ins.error.message.toLowerCase().includes('idiomas')) {
+      const { idiomas: _i, ...rest } = payload
       ins = await admin.from('profissionais').insert(rest)
     }
 

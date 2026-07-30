@@ -9,6 +9,8 @@ import CampoUsernameCadastro from '@/components/cadastro/CampoUsernameCadastro'
 import CampoWhatsappCadastro from '@/components/cadastro/CampoWhatsappCadastro'
 import { LinksAceitePoliticas } from '@/components/cadastro/LinksAceitePoliticas'
 import { useUsernameDisponivel } from '@/hooks/useUsernameDisponivel'
+import CampoIdiomasGuia from '@/components/perfil/CampoIdiomasGuia'
+import { normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -87,6 +89,7 @@ type CadastroProfissionalPayload = {
   categoria: string
   cidadeAtuacao: string
   aceitePoliticas: boolean
+  idiomas?: string[]
 }
 
 export default function CadastroProfissionalPage() {
@@ -103,6 +106,7 @@ export default function CadastroProfissionalPage() {
   const [whatsApp, setWhatsApp] = useState('')
   const [cidadeAtuacao, setCidadeAtuacao] = useState<CidadeProfissional>('Foz do Iguacu')
   const [categoria, setCategoria] = useState<CategoriaProfissional | ''>('')
+  const [idiomas, setIdiomas] = useState<string[]>(['pt'])
   const [aceitePoliticas, setAceitePoliticas] = useState(false)
 
   const [erroEnvio, setErroEnvio] = useState('')
@@ -153,6 +157,9 @@ export default function CadastroProfissionalPage() {
     if (digitsWhatsapp(whatsApp).length < 10) return t('profissional.valWhatsapp')
     if (!emailValido) return t('profissional.valEmail')
     if (!categoria) return t('profissional.valCategory')
+    if (categoria === 'Guia' && normalizarIdiomasGuia(idiomas).length === 0) {
+      return 'Selecione ao menos um idioma que você atende.'
+    }
     if (!aceitePoliticas) return t('profissional.valPolicies')
     if (!modoLogado) {
       if (!senhaRegex.test(senha)) return t('apiErrorInvalidPassword')
@@ -183,6 +190,7 @@ export default function CadastroProfissionalPage() {
           categoria,
           cidadeAtuacao,
           aceitePoliticas,
+          ...(categoria === 'Guia' ? { idiomas: normalizarIdiomasGuia(idiomas) } : {}),
         }
 
         const res = await fetch('/api/cadastro/profissional', {
@@ -249,6 +257,9 @@ export default function CadastroProfissionalPage() {
         cidade_atuacao: [cidadeAtuacao],
         status: 'pendente',
       }
+      if (categoria === 'Guia') {
+        payloadProfissional.idiomas = normalizarIdiomasGuia(idiomas)
+      }
 
       let insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
 
@@ -264,6 +275,11 @@ export default function CadastroProfissionalPage() {
 
       if (insertProfissional.error && insertProfissional.error.message.toLowerCase().includes('status')) {
         delete payloadProfissional.status
+        insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
+      }
+
+      if (insertProfissional.error && insertProfissional.error.message.toLowerCase().includes('idiomas')) {
+        delete payloadProfissional.idiomas
         insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
       }
 
@@ -438,6 +454,12 @@ export default function CadastroProfissionalPage() {
               <span className={placaVermelha ? 'font-semibold text-[#00D443]' : 'font-semibold text-[#0097b2]'}>
                 {placaVermelha ? t('profissional.redPlateYes') : t('profissional.redPlateNo')}
               </span>
+            </div>
+          ) : null}
+
+          {categoria === 'Guia' ? (
+            <div className="rounded-lg border border-gray-200 bg-[#f5f5f5] p-3">
+              <CampoIdiomasGuia value={idiomas} onChange={setIdiomas} disabled={enviando} />
             </div>
           ) : null}
 

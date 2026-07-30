@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Camera } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
+import CampoIdiomasGuia from '@/components/perfil/CampoIdiomasGuia'
+import { profissionalEhGuia } from '@/lib/profissionalCategoriaManifesto'
+import { normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 
 /**
  * @param {string} url
@@ -92,6 +95,9 @@ export default function EditarPerfil({
   )
   const [aplicandoCrop, setAplicandoCrop] = useState(false)
   const galeriaInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
+  const [ehGuia, setEhGuia] = useState(false)
+  const [idiomas, setIdiomas] = useState(/** @type {string[]} */ ([]))
+  const [idiomasCarregando, setIdiomasCarregando] = useState(false)
 
   useEffect(() => {
     setNome(nomeInicial)
@@ -102,6 +108,42 @@ export default function EditarPerfil({
   useEffect(() => {
     setFotoAtual(fotoInicial)
   }, [fotoInicial])
+
+  useEffect(() => {
+    if (role !== 'profissional' && role !== 'admin') {
+      setEhGuia(false)
+      setIdiomas([])
+      return
+    }
+    let ativo = true
+    setIdiomasCarregando(true)
+    void (async () => {
+      let row = /** @type {{ categorias?: unknown, idiomas?: unknown } | null} */ (null)
+      const { data, error } = await supabase
+        .from('profissionais')
+        .select('categorias, idiomas')
+        .eq('usuario_id', usuarioId)
+        .maybeSingle()
+      if (error && String(error.message ?? '').toLowerCase().includes('idiomas')) {
+        const fallback = await supabase
+          .from('profissionais')
+          .select('categorias')
+          .eq('usuario_id', usuarioId)
+          .maybeSingle()
+        row = fallback.data
+      } else {
+        row = data
+      }
+      if (!ativo) return
+      const guia = profissionalEhGuia(row?.categorias)
+      setEhGuia(guia)
+      setIdiomas(guia ? normalizarIdiomasGuia(row?.idiomas) : [])
+      setIdiomasCarregando(false)
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [role, usuarioId])
 
   useEffect(() => {
     if (!novaFotoArquivo) {
@@ -250,6 +292,9 @@ export default function EditarPerfil({
         nome_usuario: username.trim().replace(/^@/, ''),
         bio: bio.trim() || null,
       }
+      if (ehGuia) {
+        payloadBase.idiomas = normalizarIdiomasGuia(idiomas)
+      }
       let fotoUrl = null
       if (novaFotoArquivo) {
         fotoUrl = await uploadFotoPerfil(novaFotoArquivo, usuarioId)
@@ -264,9 +309,59 @@ export default function EditarPerfil({
           return
         }
         const tabelaAlvo = temTurista ? 'turistas' : 'profissionais'
-        error = await atualizarPerfilComFallbackFoto(tabelaAlvo, payloadBase, fotoUrl)
-      } else {
+        const payloadAdmin =
+          tabelaAlvo === 'profissionais' && ehGuia
+            ? { ...payloadBase, idiomas: normalizarIdiomasGuia(idiomas) }
+            : (() => {
+                const p = { ...payloadBase }
+                delete p.idiomas
+                return p
+              })()
+        error = await atualizarPerfilComFallbackFoto(tabelaAlvo, payloadAdmin, fotoUrl)
+        if (
+          error &&
+          tabelaAlvo === 'profissionais' &&
+          ehGuia &&
+          String(error.message ?? '')
+            .toLowerCase()
+            .includes('idiomas')
+        ) {
+          const { idiomas: _i, ...semIdiomas } = payloadAdmin
+          error = await atualizarPerfilComFallbackFoto(tabelaAlvo, semIdiomas, fotoUrl)
+          if (!error) {
+            setMsg('Perfil atualizado (idiomas pendentes de migration no banco).')
+            setNovaFotoArquivo(null)
+            if (galeriaInputRef.current) galeriaInputRef.current.value = ''
+            onSalvo?.()
+            window.dispatchEvent(new Event('perfil-atualizado'))
+            return
+          }
+        }
+      } else if (role === 'profissional') {
         error = await atualizarPerfilComFallbackFoto(tabela, payloadBase, fotoUrl)
+        // Coluna idiomas pode não existir ainda (migration pendente)
+        if (
+          error &&
+          ehGuia &&
+          String(error.message ?? '')
+            .toLowerCase()
+            .includes('idiomas')
+        ) {
+          const { idiomas: _i, ...semIdiomas } = payloadBase
+          error = await atualizarPerfilComFallbackFoto(tabela, semIdiomas, fotoUrl)
+          if (!error) {
+            setMsg('Perfil atualizado (idiomas pendentes de migration no banco).')
+            setNovaFotoArquivo(null)
+            if (galeriaInputRef.current) galeriaInputRef.current.value = ''
+            onSalvo?.()
+            window.dispatchEvent(new Event('perfil-atualizado'))
+            return
+          }
+        }
+      } else {
+        const p = { ...payloadBase }
+        delete p.idiomas
+        error = await atualizarPerfilComFallbackFoto(tabela, p, fotoUrl)
       }
 
       if (error) {
@@ -368,6 +463,15 @@ export default function EditarPerfil({
         />
         <p className="text-right text-xs text-gray-600">{bio.length}/170</p>
       </div>
+      {ehGuia ? (
+        <div className="rounded-xl border border-gray-100 bg-[#f5f5f5] p-3">
+          {idiomasCarregando ? (
+            <p className="text-xs text-gray-500">Carregando idiomas…</p>
+          ) : (
+            <CampoIdiomasGuia value={idiomas} onChange={setIdiomas} disabled={salvando} />
+          )}
+        </div>
+      ) : null}
       {msg ? <p className="text-sm font-medium text-[#0097b2]">{msg}</p> : null}
       <button
         type="button"
