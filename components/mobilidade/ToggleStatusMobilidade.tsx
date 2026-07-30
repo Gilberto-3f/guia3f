@@ -13,6 +13,9 @@ import {
 
 type Props = {
   className?: string
+  /** header = sobre fundo azul; painel = ferramenta de trabalho (maior). */
+  variant?: 'header' | 'painel'
+  onStatusChange?: (prev: MobilidadeStatusId, next: MobilidadeStatusId) => void
 }
 
 function lerGps(): Promise<{ lat: number; lng: number }> {
@@ -29,7 +32,11 @@ function lerGps(): Promise<{ lat: number; lng: number }> {
   })
 }
 
-export default function ToggleStatusMobilidade({ className = '' }: Props) {
+export default function ToggleStatusMobilidade({
+  className = '',
+  variant = 'header',
+  onStatusChange,
+}: Props) {
   const t = useTranslations('Mobilidade')
   const [status, setStatus] = useState<MobilidadeStatusId>('offline')
   const [onlineDesde, setOnlineDesde] = useState<string | null>(null)
@@ -38,10 +45,17 @@ export default function ToggleStatusMobilidade({ className = '' }: Props) {
   const [erro, setErro] = useState('')
   const [idleAberto, setIdleAberto] = useState(false)
   const idleForceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const statusRef = useRef<MobilidadeStatusId>('offline')
+  const onChangeRef = useRef(onStatusChange)
+  onChangeRef.current = onStatusChange
 
-  const aplicarJson = useCallback((json: Record<string, unknown>) => {
-    setStatus(parseMobilidadeStatus(json.status))
+  const aplicarJson = useCallback((json: Record<string, unknown>, emitChange: boolean) => {
+    const next = parseMobilidadeStatus(json.status)
+    const prev = statusRef.current
+    statusRef.current = next
+    setStatus(next)
     setOnlineDesde(json.online_desde != null ? String(json.online_desde) : null)
+    if (emitChange && prev !== next) onChangeRef.current?.(prev, next)
   }, [])
 
   const carregar = useCallback(async () => {
@@ -53,7 +67,7 @@ export default function ToggleStatusMobilidade({ className = '' }: Props) {
         return
       }
       if (json.elegivel === false) return
-      aplicarJson(json)
+      aplicarJson(json, false)
     } catch {
       setErro(t('statusErro'))
     } finally {
@@ -85,7 +99,7 @@ export default function ToggleStatusMobilidade({ className = '' }: Props) {
           setErro(String(json.error ?? t('statusErro')))
           return false
         }
-        if (!opts?.heartbeat) aplicarJson(json)
+        if (!opts?.heartbeat) aplicarJson(json, true)
         return true
       } catch {
         setErro(t('statusErro'))
@@ -115,7 +129,6 @@ export default function ToggleStatusMobilidade({ className = '' }: Props) {
     }
   }, [postStatus, t])
 
-  // Timer 2h online sem aceite
   useEffect(() => {
     if (status !== 'online' || !onlineDesde) return
     const desde = new Date(onlineDesde).getTime()
@@ -139,7 +152,6 @@ export default function ToggleStatusMobilidade({ className = '' }: Props) {
     }
   }, [status, onlineDesde, forcarOffline])
 
-  // Heartbeat GPS
   useEffect(() => {
     if (status !== 'online' && status !== 'em_atendimento') return
     let cancelled = false
@@ -178,14 +190,7 @@ export default function ToggleStatusMobilidade({ className = '' }: Props) {
     }
   }
 
-  if (loading) {
-    return (
-      <div className={`flex h-[56px] items-center justify-center ${className}`}>
-        <span className="text-xs text-white/80 animate-pulse">…</span>
-      </div>
-    )
-  }
-
+  const painel = variant === 'painel'
   const cor = COR_STATUS_MOBILIDADE[status]
   const label =
     status === 'online'
@@ -194,29 +199,57 @@ export default function ToggleStatusMobilidade({ className = '' }: Props) {
         ? t('statusEmAtendimento')
         : t('statusOffline')
 
+  if (loading) {
+    return (
+      <div className={`flex items-center justify-center ${painel ? 'min-h-[72px]' : 'h-[56px]'} ${className}`}>
+        <span className={`animate-pulse text-xs ${painel ? 'text-gray-400' : 'text-white/80'}`}>…</span>
+      </div>
+    )
+  }
+
   return (
     <div className={`flex flex-col items-center justify-center gap-1 py-1 ${className}`}>
       <button
         type="button"
         onClick={() => void onToggle()}
         disabled={busy || status === 'em_atendimento'}
-        className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-2 ring-2 ring-white/40 backdrop-blur-sm disabled:opacity-80"
+        className={
+          painel
+            ? 'flex w-full max-w-sm items-center justify-center gap-3 rounded-2xl bg-white px-4 py-4 shadow-md ring-1 ring-black/10 disabled:opacity-80'
+            : 'flex items-center gap-2 rounded-full bg-white/15 px-3 py-2 ring-2 ring-white/40 backdrop-blur-sm disabled:opacity-80'
+        }
         aria-pressed={status === 'online'}
         title={label}
       >
         <span
-          className="relative inline-flex h-7 w-12 items-center rounded-full transition-colors"
+          className={`relative inline-flex items-center rounded-full transition-colors ${
+            painel ? 'h-9 w-16' : 'h-7 w-12'
+          }`}
           style={{ backgroundColor: cor }}
         >
           <span
-            className={`absolute h-5 w-5 rounded-full bg-white shadow transition-transform ${
-              status === 'offline' ? 'left-1' : 'left-6'
-            }`}
+            className={`absolute rounded-full bg-white shadow transition-transform ${
+              painel ? 'h-7 w-7' : 'h-5 w-5'
+            } ${status === 'offline' ? 'left-1' : painel ? 'left-8' : 'left-6'}`}
           />
         </span>
-        <span className="text-xs font-bold uppercase tracking-wide text-white">{label}</span>
+        <span
+          className={`font-bold uppercase tracking-wide ${
+            painel ? 'text-base text-gray-900' : 'text-xs text-white'
+          }`}
+        >
+          {label}
+        </span>
       </button>
-      {erro ? <p className="max-w-[220px] text-center text-[10px] text-amber-100">{erro}</p> : null}
+      {erro ? (
+        <p
+          className={`max-w-[280px] text-center text-[10px] ${
+            painel ? 'text-amber-700' : 'text-amber-100'
+          }`}
+        >
+          {erro}
+        </p>
+      ) : null}
 
       {idleAberto ? (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">

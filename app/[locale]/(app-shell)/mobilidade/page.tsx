@@ -9,7 +9,7 @@ import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBl
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import PopupPesquisaMobilidade from '@/components/mobilidade/PopupPesquisaMobilidade'
 import CardParaOndeMobilidade from '@/components/mobilidade/CardParaOndeMobilidade'
-import CabecalhoMobilidadeLogoOuToggle from '@/components/mobilidade/CabecalhoMobilidadeLogoOuToggle'
+import PainelTrabalhoMobilidade from '@/components/mobilidade/PainelTrabalhoMobilidade'
 import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
@@ -311,10 +311,10 @@ function MobilidadePageInner() {
         )}
       </div>
 
-      {/* Overlay: toggle provisório p/ profissional (Fase B substitui) */}
+      {/* Overlay superior */}
       {perfilEhProfissional ? (
-        <div className="relative z-10 shrink-0 bg-white/95 pt-safe shadow-sm ring-1 ring-black/5 backdrop-blur-sm">
-          <CabecalhoMobilidadeLogoOuToggle compact />
+        <div className="relative z-10 shrink-0 pt-safe">
+          <PainelTrabalhoMobilidade />
         </div>
       ) : (
         <div className="pointer-events-none relative z-10 h-0 shrink-0 pt-safe" aria-hidden />
