@@ -142,15 +142,19 @@ export async function buscarEmpresasMapaMobilidade(
         return { lista: [], error: String(degErr.message ?? 'Timeout ao carregar degustações.') }
       }
 
-      const degIds = [
-        ...new Set((degRows ?? []).map((r: { empresa_id: string }) => String(r.empresa_id)).filter(Boolean)),
+      const degIds: string[] = [
+        ...new Set(
+          ((degRows ?? []) as { empresa_id?: unknown }[])
+            .map((r) => String(r.empresa_id ?? '').trim())
+            .filter((id) => id.length > 0),
+        ),
       ]
-      const assIds = [
+      const assIds: string[] = [
         ...new Set(
           assRows
             .filter((r) => assinaturaContratadaVigente(r))
-            .map((r) => r.empresa_id)
-            .filter(Boolean),
+            .map((r) => String(r.empresa_id ?? '').trim())
+            .filter((id) => id.length > 0),
         ),
       ]
 
