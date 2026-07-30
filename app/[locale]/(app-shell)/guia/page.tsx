@@ -1,14 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { Car, MapPin } from 'lucide-react'
 import PublicidadeHome from '@/components/PublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
-import BarrasPesquisaMobilidade from '@/components/mobilidade/BarrasPesquisaMobilidade'
-import CabecalhoMobilidadeLogoOuToggle from '@/components/mobilidade/CabecalhoMobilidadeLogoOuToggle'
 import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 
 function abaGuiaCls(ativo: boolean) {
@@ -33,23 +31,25 @@ export default function GuiaPage() {
     router.push(`/guia/${filtroId}`)
   }
 
+  // Aba Mobilidade → página dedicada (mapa + Para Onde?), sem card órfão.
+  useEffect(() => {
+    if (abaAtiva !== 'mobilidade') return
+    router.push('/mobilidade')
+  }, [abaAtiva, router])
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
       <header className="shrink-0 bg-[#0097b2] pt-safe">
-        {abaAtiva === 'mobilidade' ? (
-          <CabecalhoMobilidadeLogoOuToggle />
-        ) : (
-          <div className="flex justify-center py-4">
-            <Image
-              src="/logo.png"
-              alt="Guia 3F"
-              width={228}
-              height={76}
-              priority
-              className="h-auto w-auto max-h-[76px] max-w-[228px] object-contain"
-            />
-          </div>
-        )}
+        <div className="flex justify-center py-4">
+          <Image
+            src="/logo.png"
+            alt="Guia 3F"
+            width={228}
+            height={76}
+            priority
+            className="h-auto w-auto max-h-[76px] max-w-[228px] object-contain"
+          />
+        </div>
 
         <div className="flex w-full border-b border-gray-200 bg-white">
           <button
@@ -71,19 +71,19 @@ export default function GuiaPage() {
         </div>
       </header>
 
-      {abaAtiva === 'guia' ? (
-        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {abaAtiva === 'mobilidade' ? (
+          <div className="flex flex-1 items-center justify-center bg-[#e8f4f6] px-4 text-sm text-gray-500">
+            Abrindo mobilidade…
+          </div>
+        ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             <GradeFiltros onFiltroClick={handleFiltroClick} />
             <p className="mb-1 mt-2 text-center text-xs text-[#0097b2]">Espaço Publicitário</p>
             <PublicidadeHome />
           </div>
-        </main>
-      ) : (
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-gray-50 px-4 py-6">
-          <BarrasPesquisaMobilidade />
-        </main>
-      )}
+        )}
+      </main>
       <OfertaMobilidadeListener />
     </div>
   )

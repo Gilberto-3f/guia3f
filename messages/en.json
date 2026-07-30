@@ -260,6 +260,8 @@
     "origemGpsLoading": "Getting location…",
     "origemGpsLabel": "Current location",
     "destinoPlaceholder": "Where to?",
+    "paraOndeTitulo": "Where to?",
+    "paraOndePlaceholder": "Tap to set origin and destination",
     "usarGps": "Use my location",
     "gpsNegadoHint": "Location permission denied. Enter the pickup point manually.",
     "pesquisar": "Search",

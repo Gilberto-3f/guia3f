@@ -381,7 +381,7 @@ export default function PopupPesquisaMobilidade({
     segRestantes * 1000 <= MOBILIDADE_OFERTA_TIMEOUT_MS - MOBILIDADE_OFERTA_WARN_MS
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-30 flex max-h-[78%] flex-col rounded-t-2xl bg-white shadow-2xl ring-1 ring-black/10">
+    <div className="absolute inset-x-0 top-2 bottom-2 z-30 mx-auto flex w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 sm:top-3 sm:bottom-3">
       <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3">
         <div>
           <h2 className="text-base font-bold text-[#0097b2]">{t('popupTitulo')}</h2>

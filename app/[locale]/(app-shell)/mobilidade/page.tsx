@@ -5,11 +5,10 @@ import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import { Car, MapPin, Navigation } from 'lucide-react'
 import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
-import FiltrosMapaMobilidade from '@/components/mobilidade/FiltrosMapaMobilidade'
 import PopupPesquisaMobilidade from '@/components/mobilidade/PopupPesquisaMobilidade'
+import CardParaOndeMobilidade from '@/components/mobilidade/CardParaOndeMobilidade'
 import CabecalhoMobilidadeLogoOuToggle from '@/components/mobilidade/CabecalhoMobilidadeLogoOuToggle'
 import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
@@ -19,23 +18,16 @@ import {
   buildMobilidadePesquisaHref,
   parseMobilidadePesquisaSearchParams,
   pontoPreenchido,
+  type MobilidadePonto,
 } from '@/lib/mobilidadePesquisaParams'
-import {
-  filtrarEmpresasMapa,
-  FILTRO_CIDADE_OPCOES,
-  type EmpresaMapaMobilidade,
-} from '@/lib/mobilidadeMapaEmpresas'
-import {
-  CIDADE_POR_PAIS_GUIA,
-  type PaisGuiaFiltro,
-  type SegmentoEmpresaSlug,
-} from '@/lib/segmentosEmpresaGuia'
+import { type EmpresaMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
 import type { ProfissionalOnlineMapa } from '@/lib/mobilidadeStatusProfissional'
 import {
   parseCidadesAtuacaoProf,
   type VisitanteParceriaMapa,
 } from '@/lib/mobilidadeMapaVisitante'
 import { resolverContextoMapaMobilidade } from '@/lib/parceriaMapaMobilidade'
+import { reverseGeocodeMapbox } from '@/lib/mapboxReverseGeocode'
 
 const MapaMobilidade = dynamic(() => import('@/components/mobilidade/MapaMobilidade'), {
   ssr: false,
@@ -46,19 +38,10 @@ const MapaMobilidade = dynamic(() => import('@/components/mobilidade/MapaMobilid
   ),
 })
 
-function abaGuiaCls(ativo: boolean) {
-  return `flex min-w-0 flex-1 items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
-    ativo
-      ? 'border-[#0097b2] text-[#0097b2]'
-      : 'border-transparent text-gray-500'
-  }`
-}
-
 function MobilidadePageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations('Mobilidade')
-  const tGuia = useTranslations('Guia')
   const { perfilEhProfissional, perfilEhTurista, recursosProfissionaisLiberados, loading } =
     useProfissionalGate()
   const {
@@ -81,10 +64,11 @@ function MobilidadePageInner() {
   const [carregandoEmpresas, setCarregandoEmpresas] = useState(true)
   const [profissionaisOnline, setProfissionaisOnline] = useState<ProfissionalOnlineMapa[]>([])
   const [visitanteParceria, setVisitanteParceria] = useState<VisitanteParceriaMapa | null>(null)
-  const [cidadePais, setCidadePais] = useState<PaisGuiaFiltro | null>(null)
-  const [segmentos, setSegmentos] = useState<SegmentoEmpresaSlug[]>([])
   const [gpsCentro, setGpsCentro] = useState<{ lat: number; lng: number } | null>(null)
+  const [origemLabelGps, setOrigemLabelGps] = useState<string | null>(null)
   const [popupAberto, setPopupAberto] = useState(false)
+
+  const visaoTuristaUi = !perfilEhProfissional
 
   useEffect(() => {
     if (pesquisa.abrirPesquisa) setPopupAberto(true)
@@ -100,20 +84,6 @@ function MobilidadePageInner() {
         recomendacaoId: pesquisa.recomendacaoId,
         profissionalUsuarioId: pesquisa.profissionalUsuarioId,
         abrirPesquisa: false,
-      }),
-    )
-  }
-
-  const abrirPopupPesquisa = () => {
-    setPopupAberto(true)
-    router.replace(
-      buildMobilidadePesquisaHref({
-        origem: pesquisa.origem,
-        destino: pesquisa.destino,
-        destinoEmpresaId: pesquisa.destinoEmpresaId,
-        recomendacaoId: pesquisa.recomendacaoId,
-        profissionalUsuarioId: pesquisa.profissionalUsuarioId,
-        abrirPesquisa: true,
       }),
     )
   }
@@ -212,24 +182,26 @@ function MobilidadePageInner() {
   useEffect(() => {
     if (pesquisa.origem.lat != null && pesquisa.origem.lng != null) {
       setGpsCentro({ lat: pesquisa.origem.lat, lng: pesquisa.origem.lng })
+      const nome = String(pesquisa.origem.nome ?? '').trim()
+      if (nome) setOrigemLabelGps(nome)
       return
     }
     if (typeof navigator === 'undefined' || !navigator.geolocation) return
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setGpsCentro({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        const lat = pos.coords.latitude
+        const lng = pos.coords.longitude
+        setGpsCentro({ lat, lng })
+        void reverseGeocodeMapbox(lat, lng).then((addr) => {
+          if (addr) setOrigemLabelGps(addr)
+        })
       },
       () => {
         /* mantém fallback do mapa */
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 60_000 },
     )
-  }, [pesquisa.origem.lat, pesquisa.origem.lng])
-
-  const cidadeFiltro =
-    cidadePais != null
-      ? FILTRO_CIDADE_OPCOES.find((o) => o.pais === cidadePais)?.cidade ?? CIDADE_POR_PAIS_GUIA[cidadePais]
-      : null
+  }, [pesquisa.origem.lat, pesquisa.origem.lng, pesquisa.origem.nome])
 
   const contextoMapa = useMemo(() => {
     if (perfilEhTurista) return 'turista' as const
@@ -241,15 +213,6 @@ function MobilidadePageInner() {
       visitanteCategorias: visitanteParceria.categorias,
     })
   }, [perfilEhTurista, perfilEhProfissional, visitanteParceria])
-
-  const empresasFiltradas = useMemo(
-    () =>
-      filtrarEmpresasMapa(empresas, {
-        cidade: cidadeFiltro,
-        segmentos: segmentos.length ? segmentos : null,
-      }),
-    [empresas, cidadeFiltro, segmentos],
-  )
 
   const destinoPonto = useMemo(() => {
     if (pesquisa.destino.lat != null && pesquisa.destino.lng != null) {
@@ -271,11 +234,34 @@ function MobilidadePageInner() {
       ? {
           lat: pesquisa.origem.lat,
           lng: pesquisa.origem.lng,
-          label: pesquisa.origem.nome || undefined,
+          label: pesquisa.origem.nome || origemLabelGps || undefined,
         }
       : gpsCentro
-        ? { ...gpsCentro, label: t('origemGpsLabel') }
+        ? { ...gpsCentro, label: origemLabelGps || t('origemGpsLabel') }
         : null
+
+  const origemInicialCard: MobilidadePonto | null =
+    pesquisa.origem.lat != null
+      ? pesquisa.origem
+      : gpsCentro
+        ? {
+            nome: origemLabelGps || '',
+            lat: gpsCentro.lat,
+            lng: gpsCentro.lng,
+          }
+        : null
+
+  const destinoInicialCard: MobilidadePonto | null = pontoPreenchido(pesquisa.destino)
+    ? pesquisa.destino
+    : pesquisa.destinoEmpresaId
+      ? {
+          nome:
+            empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.nome_fantasia ||
+            t('destinoEmpresa'),
+          lat: destinoPonto?.lat ?? null,
+          lng: destinoPonto?.lng ?? null,
+        }
+      : null
 
   if (perfilEhProfissional && (loading || !recursosProfissionaisLiberados)) {
     return (
@@ -304,115 +290,80 @@ function MobilidadePageInner() {
     )
   }
 
-  const temPesquisa =
-    pontoPreenchido(pesquisa.origem) ||
-    pontoPreenchido(pesquisa.destino) ||
-    Boolean(pesquisa.destinoEmpresaId)
-
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-      <header className="shrink-0 bg-[#0097b2] pt-safe">
-        <CabecalhoMobilidadeLogoOuToggle compact />
-        <div className="flex w-full border-b border-gray-200 bg-white">
-          <button type="button" onClick={() => router.push('/guia')} className={abaGuiaCls(false)}>
-            <MapPin className="h-5 w-5 shrink-0" aria-hidden strokeWidth={2} />
-            <span>{tGuia('tabGuia')}</span>
-          </button>
-          <button type="button" className={abaGuiaCls(true)} aria-current="page">
-            <Car className="h-5 w-5 shrink-0" aria-hidden strokeWidth={2} />
-            <span>{tGuia('tabMobilidade')}</span>
-          </button>
-        </div>
-        <div className="px-3 py-2">
-          <FiltrosMapaMobilidade
-            cidadePais={cidadePais}
-            onCidadePais={setCidadePais}
-            segmentos={segmentos}
-            onSegmentos={setSegmentos}
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#e8f4f6]">
+      {/* Mapa full-bleed */}
+      <div className="absolute inset-0">
+        {carregandoEmpresas ? (
+          <div className="flex h-full items-center justify-center bg-[#e8f4f6] text-sm text-gray-500">
+            {t('carregandoPins')}
+          </div>
+        ) : (
+          <MapaMobilidade
+            empresas={empresas}
+            profissionais={profissionaisOnline}
+            centro={gpsCentro}
+            origem={origemPonto}
+            destino={destinoPonto}
+            contextoMapa={contextoMapa}
+            visitanteParceria={visitanteParceria}
           />
-        </div>
-      </header>
+        )}
+      </div>
 
-      <main className="relative flex min-h-0 flex-1 flex-col">
-        <div className="absolute inset-0">
-          {carregandoEmpresas ? (
-            <div className="flex h-full items-center justify-center bg-[#e8f4f6] text-sm text-gray-500">
-              {t('carregandoPins')}
-            </div>
-          ) : (
-            <MapaMobilidade
-              empresas={empresasFiltradas}
-              profissionais={profissionaisOnline}
-              centro={gpsCentro}
-              origem={origemPonto}
-              destino={destinoPonto}
-              contextoMapa={contextoMapa}
-              visitanteParceria={visitanteParceria}
-            />
-          )}
+      {/* Overlay: toggle provisório p/ profissional (Fase B substitui) */}
+      {perfilEhProfissional ? (
+        <div className="relative z-10 shrink-0 bg-white/95 pt-safe shadow-sm ring-1 ring-black/5 backdrop-blur-sm">
+          <CabecalhoMobilidadeLogoOuToggle compact />
         </div>
+      ) : (
+        <div className="pointer-events-none relative z-10 h-0 shrink-0 pt-safe" aria-hidden />
+      )}
 
+      <main className="relative z-10 flex min-h-0 flex-1 flex-col pointer-events-none">
         {empresasErro ? (
-          <p className="relative z-10 mx-3 mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          <p className="pointer-events-auto mx-3 mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
             {empresasErro}
           </p>
         ) : null}
 
-        {temPesquisa && !popupAberto ? (
-          <div className="relative z-10 mx-3 mt-2 rounded-2xl bg-white/95 p-3 shadow-md ring-1 ring-black/5 backdrop-blur-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#0097b2]">
-              {t('resumoPesquisa')}
-            </p>
-            <div className="mt-2 space-y-1.5 text-sm text-gray-800">
-              <p className="flex gap-2">
-                <Navigation className="mt-0.5 h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
-                <span className="min-w-0 truncate">
-                  <span className="text-gray-500">{t('origemLabel')}: </span>
-                  {pesquisa.origem.nome ||
-                    (pesquisa.origem.lat != null
-                      ? `${pesquisa.origem.lat.toFixed(4)}, ${pesquisa.origem.lng?.toFixed(4)}`
-                      : '—')}
-                </span>
-              </p>
-              <p className="flex gap-2">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
-                <span className="min-w-0 truncate">
-                  <span className="text-gray-500">{t('destinoLabel')}: </span>
-                  {pesquisa.destino.nome ||
-                    (pesquisa.destinoEmpresaId
-                      ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.nome_fantasia ||
-                        t('destinoEmpresa')
-                      : pesquisa.destino.lat != null
-                        ? `${pesquisa.destino.lat.toFixed(4)}, ${pesquisa.destino.lng?.toFixed(4)}`
-                        : '—')}
-                </span>
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={abrirPopupPesquisa}
-              className="mt-3 w-full rounded-xl bg-[#00D443] py-2.5 text-sm font-bold uppercase text-white"
-            >
-              {t('pesquisar')}
-            </button>
+        {visaoTuristaUi ? (
+          <div className="pointer-events-auto mt-auto px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
+            <CardParaOndeMobilidade
+              origemInicial={origemInicialCard}
+              destinoInicial={destinoInicialCard}
+              expandidoInicial={
+                Boolean(pesquisa.abrirPesquisa) ||
+                pontoPreenchido(pesquisa.destino) ||
+                Boolean(pesquisa.destinoEmpresaId)
+              }
+              onOrigemChange={(p) => {
+                if (p.lat != null && p.lng != null) {
+                  setGpsCentro({ lat: p.lat, lng: p.lng })
+                  if (p.nome) setOrigemLabelGps(p.nome)
+                }
+              }}
+            />
           </div>
         ) : null}
 
-        <PopupPesquisaMobilidade
-          aberto={popupAberto}
-          onFechar={fecharPopupPesquisa}
-          pesquisa={pesquisa}
-          destinoCidadeEmpresa={
-            pesquisa.destinoEmpresaId
-              ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.cidade ?? null
-              : null
-          }
-          destinoNomeEmpresa={
-            pesquisa.destinoEmpresaId
-              ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.nome_fantasia ?? null
-              : null
-          }
-        />
+        <div className="pointer-events-auto">
+          <PopupPesquisaMobilidade
+            aberto={popupAberto}
+            onFechar={fecharPopupPesquisa}
+            pesquisa={pesquisa}
+            destinoCidadeEmpresa={
+              pesquisa.destinoEmpresaId
+                ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.cidade ?? null
+                : null
+            }
+            destinoNomeEmpresa={
+              pesquisa.destinoEmpresaId
+                ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.nome_fantasia ?? null
+                : null
+            }
+          />
+        </div>
       </main>
       <OfertaMobilidadeListener />
     </div>

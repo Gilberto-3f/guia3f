@@ -260,6 +260,8 @@
     "origemGpsLoading": "Obtendo localização…",
     "origemGpsLabel": "Localização atual",
     "destinoPlaceholder": "Para onde vamos?",
+    "paraOndeTitulo": "Para Onde?",
+    "paraOndePlaceholder": "Toque para informar origem e destino",
     "usarGps": "Usar minha localização",
     "gpsNegadoHint": "Permissão de GPS negada. Informe o ponto de partida manualmente.",
     "pesquisar": "Pesquisar",
