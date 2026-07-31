@@ -222,7 +222,7 @@ export default function CardParaOndeMobilidade({
             <button
               type="button"
               onClick={onPesquisar}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00D443] py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm transition-opacity hover:opacity-95"
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#00D443] text-sm font-bold uppercase tracking-wide text-white shadow-sm transition-opacity hover:opacity-95"
             >
               <Search className="h-4 w-4" aria-hidden />
               {t('pesquisar')}
