@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { X } from 'lucide-react'
-import CardAtrativo from '@/components/CardAtrativo'
+import CardPinEmpresaMapa from '@/components/mobilidade/CardPinEmpresaMapa'
 import PopupProfissionalMapaMobilidade from '@/components/mobilidade/PopupProfissionalMapaMobilidade'
 import {
   COR_PIN_SEGMENTO,
@@ -172,7 +171,7 @@ export default function MapaMobilidade({
         map.remove()
         return
       }
-      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
+      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right')
       mapRef.current = map
 
       const forceResize = () => {
@@ -216,8 +215,10 @@ export default function MapaMobilidade({
           filter: ['has', 'point_count'],
           paint: {
             'circle-color': '#0097b2',
-            'circle-radius': ['step', ['get', 'point_count'], 18, 10, 22, 30, 28],
-            'circle-opacity': 0.9,
+            'circle-radius': ['step', ['get', 'point_count'], 20, 10, 26, 30, 32],
+            'circle-opacity': 0.95,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff',
           },
         })
 
@@ -241,8 +242,8 @@ export default function MapaMobilidade({
           filter: ['!', ['has', 'point_count']],
           paint: {
             'circle-color': ['get', 'cor'],
-            'circle-radius': 9,
-            'circle-stroke-width': 2,
+            'circle-radius': 11,
+            'circle-stroke-width': 3,
             'circle-stroke-color': '#ffffff',
           },
         })
@@ -399,6 +400,10 @@ export default function MapaMobilidade({
           width: 100% !important;
           height: 100% !important;
         }
+        .mapa-mobilidade-root .mapboxgl-ctrl-bottom-right,
+        .mapa-mobilidade-root .mapboxgl-ctrl-bottom-left {
+          margin-bottom: 4.75rem;
+        }
       `}</style>
       {mapError ? (
         <div className="absolute inset-x-3 top-3 z-30 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700 shadow">
@@ -407,31 +412,13 @@ export default function MapaMobilidade({
       ) : null}
 
       {selecionada ? (
-        <div className="absolute inset-x-0 bottom-0 z-20 max-h-[70%] overflow-y-auto rounded-t-2xl bg-white shadow-2xl">
-          <div className="sticky top-0 z-10 flex items-center justify-end bg-white/95 px-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setSelecionada(null)}
-              className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
-              aria-label="Fechar"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <div className="px-2 pb-4">
-            <CardAtrativo
-              empresa={selecionada}
-              segmentoGuiaSlug={selecionada.segmento || null}
-              contextoMapaMobilidade={contextoMapa}
-              parceriaIndicacao={parceriaSelecionada ?? undefined}
-            />
-            {parceriaSelecionada && !parceriaSelecionada.permitido && parceriaSelecionada.motivo ? (
-              <p className="mx-2 mb-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-800">
-                {parceriaSelecionada.motivo}
-              </p>
-            ) : null}
-          </div>
-        </div>
+        <CardPinEmpresaMapa empresa={selecionada} onFechar={() => setSelecionada(null)} />
+      ) : null}
+
+      {selecionada && parceriaSelecionada && !parceriaSelecionada.permitido && parceriaSelecionada.motivo ? (
+        <p className="pointer-events-auto absolute inset-x-3 bottom-[calc(5.5rem+4.5rem)] z-30 mx-auto max-w-lg rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-800 shadow sm:left-1/2 sm:w-[min(100%-1.5rem,28rem)] sm:-translate-x-1/2">
+          {parceriaSelecionada.motivo}
+        </p>
       ) : null}
 
       {profSelecionado ? (

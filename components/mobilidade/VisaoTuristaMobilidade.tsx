@@ -255,51 +255,50 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
     <div
       className={`relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#e8f4f6] ${className}`}
     >
-      {/* Card abaixo das abas */}
-      <div className="relative z-20 shrink-0 px-3 pb-2 pt-2">
-        {empresasErro ? (
-          <p className="mb-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{empresasErro}</p>
-        ) : null}
-        <CardParaOndeMobilidade
-          origemInicial={origemInicialCard}
-          destinoInicial={destinoInicialCard}
-          expandidoInicial={
-            Boolean(pesquisa.abrirPesquisa) ||
-            pontoPreenchido(pesquisa.destino) ||
-            Boolean(pesquisa.destinoEmpresaId)
-          }
-          onOrigemChange={(p) => {
-            if (p.lat != null && p.lng != null) {
-              setGpsCentro({ lat: p.lat, lng: p.lng })
-              if (p.nome) setOrigemLabelGps(p.nome)
-            }
-          }}
+      {/* Mapa full-bleed — até a bottom bar; card flutua por cima. */}
+      <div className="absolute inset-0 z-0">
+        <MapaMobilidade
+          empresas={empresas}
+          profissionais={profissionaisOnline}
+          centro={gpsCentro}
+          origem={origemPonto}
+          destino={destinoPonto}
+          contextoMapa={contextoMapa ?? 'turista'}
+          visitanteParceria={visitanteParceria}
         />
-      </div>
-
-      {/* Mapa: irmão do card, ocupa o resto da tela (altura real no flex). */}
-      <div
-        className="relative z-0 w-full flex-1"
-        style={{ flex: '1 1 0%', minHeight: 0 }}
-      >
-        <div className="absolute inset-0 h-full w-full">
-          <MapaMobilidade
-            empresas={empresas}
-            profissionais={profissionaisOnline}
-            centro={gpsCentro}
-            origem={origemPonto}
-            destino={destinoPonto}
-            contextoMapa={contextoMapa ?? 'turista'}
-            visitanteParceria={visitanteParceria}
-          />
-        </div>
         {carregandoEmpresas ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[5] flex justify-center">
+          <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[5] flex justify-center">
             <span className="rounded-full bg-white/90 px-3 py-1 text-xs text-gray-600 shadow">
               {t('carregandoPins')}
             </span>
           </div>
         ) : null}
+      </div>
+
+      {/* Overlay: card flutuante (não empurra o mapa ao abrir). */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-3 pt-2">
+        {empresasErro ? (
+          <p className="pointer-events-auto mb-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+            {empresasErro}
+          </p>
+        ) : null}
+        <div className="pointer-events-auto mx-auto w-full max-w-lg">
+          <CardParaOndeMobilidade
+            origemInicial={origemInicialCard}
+            destinoInicial={destinoInicialCard}
+            expandidoInicial={
+              Boolean(pesquisa.abrirPesquisa) ||
+              pontoPreenchido(pesquisa.destino) ||
+              Boolean(pesquisa.destinoEmpresaId)
+            }
+            onOrigemChange={(p) => {
+              if (p.lat != null && p.lng != null) {
+                setGpsCentro({ lat: p.lat, lng: p.lng })
+                if (p.nome) setOrigemLabelGps(p.nome)
+              }
+            }}
+          />
+        </div>
       </div>
 
       <PopupPesquisaMobilidade

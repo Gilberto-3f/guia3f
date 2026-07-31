@@ -40,7 +40,7 @@ export default function GuiaPage() {
             <VisaoTuristaMobilidade comListener={false} />
           </Suspense>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-20">
             <GradeFiltros onFiltroClick={handleFiltroClick} />
             <p className="mb-1 mt-2 text-center text-xs text-[#0097b2]">Espaço Publicitário</p>
             <PublicidadeHome />

@@ -28,15 +28,17 @@ function shellClasses(pathname: string, tecladoOcultaBarra: boolean) {
   const telaMensageiro = isCanal || isChatAdm
   const hideBottomBar =
     isStoryCriar || ((pathname.includes('/feed/criar') || telaMensageiro) && tecladoOcultaBarra)
+  const isGuiaOuMobilidade =
+    /\/guia\/?$/.test(pathname) || pathname.includes('/mobilidade')
   const paddingInferior = hideBottomBar
     ? ''
     : telaMensageiro
       ? 'pb-14'
       : pathname.includes('/feed/criar')
         ? 'pb-14'
-        : 'pb-20'
-  const isGuiaOuMobilidade =
-    /\/guia\/?$/.test(pathname) || pathname.includes('/mobilidade')
+        : isGuiaOuMobilidade
+          ? '' // mapa até a borda da BottomBar (fixed); sem faixa branca
+          : 'pb-20'
   const fundoShell =
     pathname.includes('/feed/criar') && !isStoryCriar
       ? 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
