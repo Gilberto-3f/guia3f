@@ -1,12 +1,22 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { MapPin, Phone, User, Globe, Clock, Facebook, Instagram, Music2, ChevronDown, ChevronUp } from 'lucide-react'
 import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
 import { whatsappWebSendUrl, digitsWhatsapp } from '@/lib/whatsapp-empresa'
 import { formatarTelefoneExibicao } from '@/lib/formatarTelefoneExibicao'
 import HorariosFuncionamento from '@/components/HorariosFuncionamento'
 import StatusDisponibilidadeHospedagem from '@/components/StatusDisponibilidadeHospedagem'
+
+const MapaEmpresaPagina = dynamic(() => import('@/components/empresa/MapaEmpresaPagina'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[min(280px,50vh)] items-center justify-center bg-[#e8f4f6] text-sm text-gray-500">
+      Carregando mapa…
+    </div>
+  ),
+})
 
 const ICON_CLASS = 'shrink-0 text-[#0097b2]'
 
@@ -173,6 +183,7 @@ function montarQueryMapaEndereco(e) {
  *   cidade: string
  *   latitude: number | string | null
  *   longitude: number | string | null
+ *   foto_url?: string | null
  *   telefone: string | null
  *   whatsapp: string | null
  *   website: string | null
@@ -204,12 +215,7 @@ export default function AbaEndereco({
     bairro: empresa.bairro,
     cidade: empresa.cidade,
   })
-  const mapSrc = mapaCoordOk
-    ? `https://maps.google.com/maps?q=${lat},${lng}&hl=pt&z=16&output=embed`
-    : queryEndereco !== ''
-      ? `https://maps.google.com/maps?q=${encodeURIComponent(queryEndereco)}&hl=pt&z=16&output=embed`
-      : null
-
+  const temMapa = mapaCoordOk || queryEndereco !== ''
   const siteHref = hrefWebsite(empresa.website)
 
   const linksRedes = [
@@ -334,18 +340,22 @@ export default function AbaEndereco({
         </section>
       ) : null}
 
-      {!locacaoBloqueada && mapSrc ? (
+      {!locacaoBloqueada && temMapa ? (
         <section className="mb-0 border-t border-gray-100 pt-5 pb-0">
           <TituloSecao Icon={MapPin} titulo="Mapa" />
           <div className="mb-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-100 leading-none shadow-sm">
-            <iframe
-              title="Localização no mapa"
-              src={mapSrc}
-              className="block h-[min(280px,50vh)] w-full border-0 align-top"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              allowFullScreen
-            />
+            {mapaCoordOk ? (
+              <MapaEmpresaPagina
+                latitude={lat}
+                longitude={lng}
+                nome={nomeDestino}
+                fotoUrl={empresa.foto_url != null ? String(empresa.foto_url) : null}
+              />
+            ) : (
+              <p className="bg-[#e8f4f6] px-4 py-8 text-center text-sm text-gray-600">
+                Localização ainda sem coordenadas. Endereço: {queryEndereco}
+              </p>
+            )}
           </div>
         </section>
       ) : null}

@@ -472,6 +472,7 @@ export default function EmpresaPage() {
     cidade: String(empresa.cidade ?? ''),
     latitude: Number.isFinite(latitude) ? latitude : null,
     longitude: Number.isFinite(longitude) ? longitude : null,
+    foto_url: empresa.foto_url != null ? String(empresa.foto_url) : null,
     telefone: empresa.telefone != null ? String(empresa.telefone) : null,
     whatsapp: empresa.whatsapp != null ? String(empresa.whatsapp) : null,
     website: empresa.website != null ? String(empresa.website) : null,
