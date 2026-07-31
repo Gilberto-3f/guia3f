@@ -252,23 +252,28 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
       : null
 
   return (
-    <div className={`relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#e8f4f6] ${className}`}>
-      <div className="absolute inset-0">
+    <div
+      className={`relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#e8f4f6] ${className}`}
+      style={{ minHeight: 'calc(100dvh - 11.5rem)' }}
+    >
+      {/* Mapa sempre montado (não espera API) — precisa altura real para o Mapbox pedir tiles. */}
+      <div className="absolute inset-0 z-0 h-full w-full min-h-[240px]">
+        <MapaMobilidade
+          empresas={empresas}
+          profissionais={profissionaisOnline}
+          centro={gpsCentro}
+          origem={origemPonto}
+          destino={destinoPonto}
+          contextoMapa={contextoMapa ?? 'turista'}
+          visitanteParceria={visitanteParceria}
+        />
         {carregandoEmpresas ? (
-          <div className="flex h-full items-center justify-center bg-[#e8f4f6] text-sm text-gray-500">
-            {t('carregandoPins')}
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[5] flex justify-center">
+            <span className="rounded-full bg-white/90 px-3 py-1 text-xs text-gray-600 shadow">
+              {t('carregandoPins')}
+            </span>
           </div>
-        ) : (
-          <MapaMobilidade
-            empresas={empresas}
-            profissionais={profissionaisOnline}
-            centro={gpsCentro}
-            origem={origemPonto}
-            destino={destinoPonto}
-            contextoMapa={contextoMapa ?? 'turista'}
-            visitanteParceria={visitanteParceria}
-          />
-        )}
+        ) : null}
       </div>
 
       <div className="pointer-events-none relative z-10 flex min-h-0 flex-1 flex-col">

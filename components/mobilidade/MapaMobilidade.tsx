@@ -89,6 +89,7 @@ export default function MapaMobilidade({
   const markersRef = useRef<mapboxgl.Marker[]>([])
   const [tokenMissing, setTokenMissing] = useState(false)
   const [mapReady, setMapReady] = useState(false)
+  const [mapError, setMapError] = useState<string | null>(null)
   const [selecionada, setSelecionada] = useState<EmpresaMapaMobilidade | null>(null)
   const [profSelecionado, setProfSelecionado] = useState<ProfissionalOnlineMapa | null>(null)
   const empresasRef = useRef(empresas)
@@ -113,12 +114,14 @@ export default function MapaMobilidade({
       setTokenMissing(true)
       return
     }
-    if (!containerRef.current || mapRef.current) return
+    setTokenMissing(false)
+    const el = containerRef.current
+    if (!el || mapRef.current) return
 
     mapboxgl.accessToken = token
     const start = centro ?? { lat: -25.516, lng: -54.585 }
     const map = new mapboxgl.Map({
-      container: containerRef.current,
+      container: el,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [start.lng, start.lat],
       zoom: 12,
@@ -127,7 +130,29 @@ export default function MapaMobilidade({
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
     mapRef.current = map
 
+    const forceResize = () => {
+      try {
+        map.resize()
+      } catch {
+        /* ignore */
+      }
+    }
+
+    // Container flex/absolute costuma iniciar 0×0 — sem resize o Mapbox não pede tiles.
+    forceResize()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => forceResize()) : null
+    ro?.observe(el)
+    const t1 = window.setTimeout(forceResize, 50)
+    const t2 = window.setTimeout(forceResize, 300)
+
+    map.on('error', (e) => {
+      const msg = String((e as { error?: { message?: string } })?.error?.message ?? e?.type ?? 'Erro no mapa')
+      setMapError(msg)
+    })
+
     map.on('load', () => {
+      forceResize()
+      setMapError(null)
       map.addSource(SOURCE_ID, {
         type: 'geojson',
         data: empresasToGeoJSON(empresasRef.current),
@@ -228,9 +253,13 @@ export default function MapaMobilidade({
       }
 
       setMapReady(true)
+      forceResize()
     })
 
     return () => {
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
+      ro?.disconnect()
       map.remove()
       mapRef.current = null
       setMapReady(false)
@@ -288,7 +317,7 @@ export default function MapaMobilidade({
   if (tokenMissing || !token) {
     return (
       <div
-        className={`flex h-full flex-col items-center justify-center bg-[#e8f4f6] px-6 text-center ${className}`}
+        className={`flex h-full min-h-[240px] w-full flex-col items-center justify-center bg-[#e8f4f6] px-6 text-center ${className}`}
       >
         <p className="text-base font-semibold text-[#0097b2]">Mapbox</p>
         <p className="mt-2 max-w-sm text-sm text-gray-600">
@@ -301,8 +330,17 @@ export default function MapaMobilidade({
   }
 
   return (
-    <div className={`relative h-full w-full ${className}`}>
-      <div ref={containerRef} className="absolute inset-0" />
+    <div className={`relative h-full min-h-[240px] w-full ${className}`}>
+      <div
+        ref={containerRef}
+        className="absolute inset-0 h-full w-full"
+        style={{ minHeight: 240 }}
+      />
+      {mapError ? (
+        <div className="absolute inset-x-3 top-3 z-30 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700 shadow">
+          Mapa: {mapError}
+        </div>
+      ) : null}
 
       {selecionada ? (
         <div className="absolute inset-x-0 bottom-0 z-20 max-h-[70%] overflow-y-auto rounded-t-2xl bg-white shadow-2xl">

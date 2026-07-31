@@ -35,13 +35,15 @@ function shellClasses(pathname: string, tecladoOcultaBarra: boolean) {
       : pathname.includes('/feed/criar')
         ? 'pb-14'
         : 'pb-20'
+  const isGuiaOuMobilidade =
+    /\/guia\/?$/.test(pathname) || pathname.includes('/mobilidade')
   const fundoShell =
     pathname.includes('/feed/criar') && !isStoryCriar
       ? 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
       : isStoryCriar
         ? 'bg-black'
         : 'bg-gray-50'
-  return { hideBottomBar, paddingInferior, fundoShell }
+  return { hideBottomBar, paddingInferior, fundoShell, isGuiaOuMobilidade, telaMensageiro }
 }
 
 function AppShellLayoutFrame({
@@ -55,13 +57,15 @@ function AppShellLayoutFrame({
   tecladoOcultaBarra: boolean
   children: ReactNode
 }) {
-  const { hideBottomBar, paddingInferior, fundoShell } = shellClasses(pathname, tecladoOcultaBarra)
-  const telaMensageiro = pathname.includes('/canal') || pathname.includes('/chat-adm')
+  const { hideBottomBar, paddingInferior, fundoShell, isGuiaOuMobilidade, telaMensageiro } =
+    shellClasses(pathname, tecladoOcultaBarra)
 
   return (
     <div
       className={`flex flex-col ${fundoShell} ${paddingInferior} ${
-        telaMensageiro ? 'h-dvh max-h-dvh overflow-hidden' : 'min-h-screen min-h-dvh'
+        telaMensageiro || isGuiaOuMobilidade
+          ? 'h-dvh max-h-dvh overflow-hidden'
+          : 'min-h-screen min-h-dvh'
       }`}
     >
       {modoAtivo ? null : <ModoApresentacaoChrome />}
@@ -69,7 +73,13 @@ function AppShellLayoutFrame({
       <AdminEcossistemaAlertaGate />
       <TuristaComprasNotificacaoGate />
       <ConviteAdminGate />
-      <div className={`flex min-h-0 flex-1 flex-col ${telaMensageiro ? 'overflow-hidden' : ''}`}>{children}</div>
+      <div
+        className={`flex min-h-0 flex-1 flex-col ${
+          telaMensageiro || isGuiaOuMobilidade ? 'overflow-hidden' : ''
+        }`}
+      >
+        {children}
+      </div>
       {!hideBottomBar ? <BottomBar /> : null}
     </div>
   )
