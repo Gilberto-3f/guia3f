@@ -74,6 +74,31 @@ function profissionaisToGeoJSON(lista: ProfissionalOnlineMapa[]): GeoJSON.Featur
   }
 }
 
+function waitForNonZeroSize(el: HTMLElement, timeoutMs = 3000): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (el.clientWidth > 2 && el.clientHeight > 2) {
+      resolve(true)
+      return
+    }
+    let done = false
+    const finish = (ok: boolean) => {
+      if (done) return
+      done = true
+      ro?.disconnect()
+      window.clearTimeout(timer)
+      resolve(ok)
+    }
+    const ro =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            if (el.clientWidth > 2 && el.clientHeight > 2) finish(true)
+          })
+        : null
+    ro?.observe(el)
+    const timer = window.setTimeout(() => finish(el.clientWidth > 2 && el.clientHeight > 2), timeoutMs)
+  })
+}
+
 export default function MapaMobilidade({
   empresas,
   profissionais = [],
@@ -94,8 +119,10 @@ export default function MapaMobilidade({
   const [profSelecionado, setProfSelecionado] = useState<ProfissionalOnlineMapa | null>(null)
   const empresasRef = useRef(empresas)
   const profissionaisRef = useRef(profissionais)
+  const centroRef = useRef(centro)
   empresasRef.current = empresas
   profissionaisRef.current = profissionais
+  centroRef.current = centro
 
   const token = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_MAPBOX_TOKEN?.trim() : ''
 
@@ -115,153 +142,179 @@ export default function MapaMobilidade({
       return
     }
     setTokenMissing(false)
-    const el = containerRef.current
-    if (!el || mapRef.current) return
 
-    mapboxgl.accessToken = token
-    const start = centro ?? { lat: -25.516, lng: -54.585 }
-    const map = new mapboxgl.Map({
-      container: el,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [start.lng, start.lat],
-      zoom: 12,
-      attributionControl: true,
-    })
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
-    mapRef.current = map
+    let cancelled = false
+    let ro: ResizeObserver | null = null
+    let t1 = 0
+    let t2 = 0
 
-    const forceResize = () => {
-      try {
-        map.resize()
-      } catch {
-        /* ignore */
+    const boot = async () => {
+      const el = containerRef.current
+      if (!el || mapRef.current) return
+
+      const sized = await waitForNonZeroSize(el)
+      if (cancelled || !containerRef.current || mapRef.current) return
+      if (!sized) {
+        setMapError('Área do mapa sem altura. Recarregue a página.')
+        return
       }
+
+      mapboxgl.accessToken = token
+      const start = centroRef.current ?? { lat: -25.516, lng: -54.585 }
+      const map = new mapboxgl.Map({
+        container: el,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [start.lng, start.lat],
+        zoom: 12,
+        attributionControl: true,
+      })
+      if (cancelled) {
+        map.remove()
+        return
+      }
+      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
+      mapRef.current = map
+
+      const forceResize = () => {
+        try {
+          map.resize()
+        } catch {
+          /* ignore */
+        }
+      }
+
+      forceResize()
+      ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => forceResize()) : null
+      ro?.observe(el)
+      t1 = window.setTimeout(forceResize, 50)
+      t2 = window.setTimeout(forceResize, 400)
+
+      map.on('error', (e) => {
+        const msg = String(
+          (e as { error?: { message?: string } })?.error?.message ?? 'Erro ao carregar o Mapbox',
+        )
+        setMapError(msg)
+      })
+
+      map.on('load', () => {
+        if (cancelled) return
+        forceResize()
+        setMapError(null)
+        map.addSource(SOURCE_ID, {
+          type: 'geojson',
+          data: empresasToGeoJSON(empresasRef.current),
+          cluster: true,
+          clusterMaxZoom: 11,
+          clusterRadius: 50,
+          clusterMinPoints: 3,
+        })
+
+        map.addLayer({
+          id: LAYER_CLUSTERS,
+          type: 'circle',
+          source: SOURCE_ID,
+          filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': '#0097b2',
+            'circle-radius': ['step', ['get', 'point_count'], 18, 10, 22, 30, 28],
+            'circle-opacity': 0.9,
+          },
+        })
+
+        map.addLayer({
+          id: LAYER_CLUSTER_COUNT,
+          type: 'symbol',
+          source: SOURCE_ID,
+          filter: ['has', 'point_count'],
+          layout: {
+            'text-field': ['get', 'point_count_abbreviated'],
+            'text-size': 12,
+            'text-font': ['DIN Pro Medium', 'Arial Unicode MS Bold'],
+          },
+          paint: { 'text-color': '#ffffff' },
+        })
+
+        map.addLayer({
+          id: LAYER_UNCLUSTERED,
+          type: 'circle',
+          source: SOURCE_ID,
+          filter: ['!', ['has', 'point_count']],
+          paint: {
+            'circle-color': ['get', 'cor'],
+            'circle-radius': 9,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff',
+          },
+        })
+
+        map.addSource(SOURCE_PROFS, {
+          type: 'geojson',
+          data: profissionaisToGeoJSON(profissionaisRef.current),
+        })
+
+        map.addLayer({
+          id: LAYER_PROFS,
+          type: 'circle',
+          source: SOURCE_PROFS,
+          paint: {
+            'circle-color': ['get', 'cor'],
+            'circle-radius': 11,
+            'circle-stroke-width': 3,
+            'circle-stroke-color': '#111827',
+          },
+        })
+
+        map.on('click', LAYER_CLUSTERS, (e) => {
+          const features = map.queryRenderedFeatures(e.point, { layers: [LAYER_CLUSTERS] })
+          const clusterId = features[0]?.properties?.cluster_id
+          const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource
+          if (clusterId == null || !source.getClusterExpansionZoom) return
+          source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+            if (err || zoom == null) return
+            const coords = (features[0].geometry as GeoJSON.Point).coordinates as [number, number]
+            map.easeTo({ center: coords, zoom })
+          })
+        })
+
+        map.on('click', LAYER_UNCLUSTERED, (e) => {
+          const id = String(e.features?.[0]?.properties?.id ?? '')
+          const emp = empresasRef.current.find((x) => x.id === id) ?? null
+          setProfSelecionado(null)
+          setSelecionada(emp)
+        })
+
+        map.on('click', LAYER_PROFS, (e) => {
+          const id = String(e.features?.[0]?.properties?.id ?? '')
+          const prof = profissionaisRef.current.find((x) => x.id === id) ?? null
+          setSelecionada(null)
+          setProfSelecionado(prof)
+        })
+
+        for (const layer of [LAYER_CLUSTERS, LAYER_UNCLUSTERED, LAYER_PROFS]) {
+          map.on('mouseenter', layer, () => {
+            map.getCanvas().style.cursor = 'pointer'
+          })
+          map.on('mouseleave', layer, () => {
+            map.getCanvas().style.cursor = ''
+          })
+        }
+
+        setMapReady(true)
+        forceResize()
+      })
     }
 
-    // Container flex/absolute costuma iniciar 0×0 — sem resize o Mapbox não pede tiles.
-    forceResize()
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => forceResize()) : null
-    ro?.observe(el)
-    const t1 = window.setTimeout(forceResize, 50)
-    const t2 = window.setTimeout(forceResize, 300)
-
-    map.on('error', (e) => {
-      const msg = String((e as { error?: { message?: string } })?.error?.message ?? e?.type ?? 'Erro no mapa')
-      setMapError(msg)
-    })
-
-    map.on('load', () => {
-      forceResize()
-      setMapError(null)
-      map.addSource(SOURCE_ID, {
-        type: 'geojson',
-        data: empresasToGeoJSON(empresasRef.current),
-        cluster: true,
-        clusterMaxZoom: 11,
-        clusterRadius: 50,
-        clusterMinPoints: 3,
-      })
-
-      map.addLayer({
-        id: LAYER_CLUSTERS,
-        type: 'circle',
-        source: SOURCE_ID,
-        filter: ['has', 'point_count'],
-        paint: {
-          'circle-color': '#0097b2',
-          'circle-radius': ['step', ['get', 'point_count'], 18, 10, 22, 30, 28],
-          'circle-opacity': 0.9,
-        },
-      })
-
-      map.addLayer({
-        id: LAYER_CLUSTER_COUNT,
-        type: 'symbol',
-        source: SOURCE_ID,
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': ['get', 'point_count_abbreviated'],
-          'text-size': 12,
-          'text-font': ['DIN Pro Medium', 'Arial Unicode MS Bold'],
-        },
-        paint: { 'text-color': '#ffffff' },
-      })
-
-      map.addLayer({
-        id: LAYER_UNCLUSTERED,
-        type: 'circle',
-        source: SOURCE_ID,
-        filter: ['!', ['has', 'point_count']],
-        paint: {
-          'circle-color': ['get', 'cor'],
-          'circle-radius': 9,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff',
-        },
-      })
-
-      map.addSource(SOURCE_PROFS, {
-        type: 'geojson',
-        data: profissionaisToGeoJSON(profissionaisRef.current),
-      })
-
-      map.addLayer({
-        id: LAYER_PROFS,
-        type: 'circle',
-        source: SOURCE_PROFS,
-        paint: {
-          'circle-color': ['get', 'cor'],
-          'circle-radius': 11,
-          'circle-stroke-width': 3,
-          'circle-stroke-color': '#111827',
-        },
-      })
-
-      map.on('click', LAYER_CLUSTERS, (e) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: [LAYER_CLUSTERS] })
-        const clusterId = features[0]?.properties?.cluster_id
-        const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource
-        if (clusterId == null || !source.getClusterExpansionZoom) return
-        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-          if (err || zoom == null) return
-          const coords = (features[0].geometry as GeoJSON.Point).coordinates as [number, number]
-          map.easeTo({ center: coords, zoom })
-        })
-      })
-
-      map.on('click', LAYER_UNCLUSTERED, (e) => {
-        const id = String(e.features?.[0]?.properties?.id ?? '')
-        const emp = empresasRef.current.find((x) => x.id === id) ?? null
-        setProfSelecionado(null)
-        setSelecionada(emp)
-      })
-
-      map.on('click', LAYER_PROFS, (e) => {
-        const id = String(e.features?.[0]?.properties?.id ?? '')
-        const prof = profissionaisRef.current.find((x) => x.id === id) ?? null
-        setSelecionada(null)
-        setProfSelecionado(prof)
-      })
-
-      for (const layer of [LAYER_CLUSTERS, LAYER_UNCLUSTERED, LAYER_PROFS]) {
-        map.on('mouseenter', layer, () => {
-          map.getCanvas().style.cursor = 'pointer'
-        })
-        map.on('mouseleave', layer, () => {
-          map.getCanvas().style.cursor = ''
-        })
-      }
-
-      setMapReady(true)
-      forceResize()
-    })
+    void boot()
 
     return () => {
+      cancelled = true
       window.clearTimeout(t1)
       window.clearTimeout(t2)
       ro?.disconnect()
-      map.remove()
-      mapRef.current = null
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+      }
       setMapReady(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -330,12 +383,23 @@ export default function MapaMobilidade({
   }
 
   return (
-    <div className={`relative h-full min-h-[240px] w-full ${className}`}>
+    <div
+      className={`mapa-mobilidade-root relative h-full min-h-[240px] w-full ${className}`}
+      style={{ minHeight: 240 }}
+    >
       <div
         ref={containerRef}
-        className="absolute inset-0 h-full w-full"
-        style={{ minHeight: 240 }}
+        className="absolute inset-0"
+        style={{ width: '100%', height: '100%', minHeight: 240 }}
       />
+      <style>{`
+        .mapa-mobilidade-root .mapboxgl-map,
+        .mapa-mobilidade-root .mapboxgl-canvas-container,
+        .mapa-mobilidade-root canvas.mapboxgl-canvas {
+          width: 100% !important;
+          height: 100% !important;
+        }
+      `}</style>
       {mapError ? (
         <div className="absolute inset-x-3 top-3 z-30 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700 shadow">
           Mapa: {mapError}

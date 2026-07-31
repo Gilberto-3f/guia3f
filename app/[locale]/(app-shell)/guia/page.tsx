@@ -21,14 +21,14 @@ export default function GuiaPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
       <CabecalhoAbasGuiaMobilidade
         abaAtiva={abaAtiva}
         onAbaGuia={() => setAbaAtiva('guia')}
         onAbaMobilidade={() => setAbaAtiva('mobilidade')}
       />
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ flex: '1 1 0%' }}>
         {abaAtiva === 'mobilidade' ? (
           <Suspense
             fallback={

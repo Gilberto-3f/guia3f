@@ -28,7 +28,7 @@ import { reverseGeocodeMapbox } from '@/lib/mapboxReverseGeocode'
 const MapaMobilidade = dynamic(() => import('@/components/mobilidade/MapaMobilidade'), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full items-center justify-center bg-[#e8f4f6] text-sm text-gray-500">
+    <div className="flex h-full min-h-[240px] items-center justify-center bg-[#d8eef2] text-sm text-gray-600">
       Carregando mapa…
     </div>
   ),
@@ -41,7 +41,7 @@ type Props = {
 }
 
 /**
- * Visão turista/empresa/ADM: mapa full-bleed + card "Para Onde?" no topo (abre para baixo).
+ * Visão turista/empresa/ADM: card no topo + mapa ocupando o restante (fluxo normal, não absolute).
  */
 export default function VisaoTuristaMobilidade({ comListener = true, className = '' }: Props) {
   const router = useRouter()
@@ -254,19 +254,45 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   return (
     <div
       className={`relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#e8f4f6] ${className}`}
-      style={{ minHeight: 'calc(100dvh - 11.5rem)' }}
     >
-      {/* Mapa sempre montado (não espera API) — precisa altura real para o Mapbox pedir tiles. */}
-      <div className="absolute inset-0 z-0 h-full w-full min-h-[240px]">
-        <MapaMobilidade
-          empresas={empresas}
-          profissionais={profissionaisOnline}
-          centro={gpsCentro}
-          origem={origemPonto}
-          destino={destinoPonto}
-          contextoMapa={contextoMapa ?? 'turista'}
-          visitanteParceria={visitanteParceria}
+      {/* Card abaixo das abas */}
+      <div className="relative z-20 shrink-0 px-3 pb-2 pt-2">
+        {empresasErro ? (
+          <p className="mb-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{empresasErro}</p>
+        ) : null}
+        <CardParaOndeMobilidade
+          origemInicial={origemInicialCard}
+          destinoInicial={destinoInicialCard}
+          expandidoInicial={
+            Boolean(pesquisa.abrirPesquisa) ||
+            pontoPreenchido(pesquisa.destino) ||
+            Boolean(pesquisa.destinoEmpresaId)
+          }
+          onOrigemChange={(p) => {
+            if (p.lat != null && p.lng != null) {
+              setGpsCentro({ lat: p.lat, lng: p.lng })
+              if (p.nome) setOrigemLabelGps(p.nome)
+            }
+          }}
         />
+      </div>
+
+      {/* Mapa: irmão do card, ocupa o resto da tela (altura real no flex). */}
+      <div
+        className="relative z-0 w-full flex-1"
+        style={{ flex: '1 1 0%', minHeight: 0 }}
+      >
+        <div className="absolute inset-0 h-full w-full">
+          <MapaMobilidade
+            empresas={empresas}
+            profissionais={profissionaisOnline}
+            centro={gpsCentro}
+            origem={origemPonto}
+            destino={destinoPonto}
+            contextoMapa={contextoMapa ?? 'turista'}
+            visitanteParceria={visitanteParceria}
+          />
+        </div>
         {carregandoEmpresas ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[5] flex justify-center">
             <span className="rounded-full bg-white/90 px-3 py-1 text-xs text-gray-600 shadow">
@@ -276,49 +302,21 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
         ) : null}
       </div>
 
-      <div className="pointer-events-none relative z-10 flex min-h-0 flex-1 flex-col">
-        {empresasErro ? (
-          <p className="pointer-events-auto mx-3 mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
-            {empresasErro}
-          </p>
-        ) : null}
-
-        <div className="pointer-events-auto px-3 pt-2">
-          <CardParaOndeMobilidade
-            origemInicial={origemInicialCard}
-            destinoInicial={destinoInicialCard}
-            expandidoInicial={
-              Boolean(pesquisa.abrirPesquisa) ||
-              pontoPreenchido(pesquisa.destino) ||
-              Boolean(pesquisa.destinoEmpresaId)
-            }
-            onOrigemChange={(p) => {
-              if (p.lat != null && p.lng != null) {
-                setGpsCentro({ lat: p.lat, lng: p.lng })
-                if (p.nome) setOrigemLabelGps(p.nome)
-              }
-            }}
-          />
-        </div>
-
-        <div className="pointer-events-auto flex-1">
-          <PopupPesquisaMobilidade
-            aberto={popupAberto}
-            onFechar={fecharPopupPesquisa}
-            pesquisa={pesquisa}
-            destinoCidadeEmpresa={
-              pesquisa.destinoEmpresaId
-                ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.cidade ?? null
-                : null
-            }
-            destinoNomeEmpresa={
-              pesquisa.destinoEmpresaId
-                ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.nome_fantasia ?? null
-                : null
-            }
-          />
-        </div>
-      </div>
+      <PopupPesquisaMobilidade
+        aberto={popupAberto}
+        onFechar={fecharPopupPesquisa}
+        pesquisa={pesquisa}
+        destinoCidadeEmpresa={
+          pesquisa.destinoEmpresaId
+            ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.cidade ?? null
+            : null
+        }
+        destinoNomeEmpresa={
+          pesquisa.destinoEmpresaId
+            ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.nome_fantasia ?? null
+            : null
+        }
+      />
 
       {comListener ? <OfertaMobilidadeListener /> : null}
     </div>

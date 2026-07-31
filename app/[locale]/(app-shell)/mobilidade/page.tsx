@@ -73,7 +73,7 @@ function MobilidadePageInner() {
 
   // Turista / empresa / ADM: abas da home + mapa + Para Onde?
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
       <CabecalhoAbasGuiaMobilidade abaAtiva="mobilidade" />
       <VisaoTuristaMobilidade />
     </div>

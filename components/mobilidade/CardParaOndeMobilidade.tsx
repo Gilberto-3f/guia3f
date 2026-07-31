@@ -145,15 +145,11 @@ export default function CardParaOndeMobilidade({
           onClick={() => setAberto((v) => !v)}
           className="flex w-full items-center justify-between gap-3 bg-[#0097b2] px-4 py-3.5 text-left text-white"
           aria-expanded={aberto}
+          aria-label={aberto ? t('paraOndeTitulo') : `${t('paraOndeTitulo')}. ${resumoDestino}`}
         >
           <div className="flex min-w-0 items-center gap-2.5">
             <Car className="h-5 w-5 shrink-0 text-white" aria-hidden strokeWidth={2} />
-            <div className="min-w-0">
-              <p className="text-base font-extrabold text-white">{t('paraOndeTitulo')}</p>
-              {!aberto ? (
-                <p className="mt-0.5 truncate text-sm text-white/80">{resumoDestino}</p>
-              ) : null}
-            </div>
+            <p className="text-base font-extrabold text-white">{t('paraOndeTitulo')}</p>
           </div>
           {aberto ? (
             <ChevronUp className="h-5 w-5 shrink-0 text-white" aria-hidden />
