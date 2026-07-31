@@ -5,24 +5,18 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import CardPinEmpresaMapa from '@/components/mobilidade/CardPinEmpresaMapa'
 import PopupProfissionalMapaMobilidade from '@/components/mobilidade/PopupProfissionalMapaMobilidade'
-import {
-  COR_PIN_SEGMENTO,
-  type EmpresaMapaMobilidade,
-} from '@/lib/mobilidadeMapaEmpresas'
+import { type EmpresaMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
 import type { VisitanteParceriaMapa } from '@/lib/mobilidadeMapaVisitante'
 import { podeIndicarAtrativoMapa, type ContextoMapaMobilidade } from '@/lib/parceriaMapaMobilidade'
-import type { SegmentoEmpresaSlug } from '@/lib/segmentosEmpresaGuia'
 import {
   COR_STATUS_MOBILIDADE,
   type ProfissionalOnlineMapa,
 } from '@/lib/mobilidadeStatusProfissional'
 
-const SOURCE_ID = 'empresas-mobilidade'
 const SOURCE_PROFS = 'profissionais-mobilidade'
-const LAYER_CLUSTERS = 'empresas-clusters'
-const LAYER_CLUSTER_COUNT = 'empresas-cluster-count'
-const LAYER_UNCLUSTERED = 'empresas-unclustered'
 const LAYER_PROFS = 'profissionais-unclustered'
+/** Limite de pins HTML para manter o mapa leve. */
+const MAX_PINS_EMPRESA = 120
 
 type Ponto = { lat: number; lng: number; label?: string }
 
@@ -35,24 +29,6 @@ type Props = {
   contextoMapa?: ContextoMapaMobilidade
   visitanteParceria?: VisitanteParceriaMapa | null
   className?: string
-}
-
-function empresasToGeoJSON(empresas: EmpresaMapaMobilidade[]): GeoJSON.FeatureCollection {
-  return {
-    type: 'FeatureCollection',
-    features: empresas.map((e) => ({
-      type: 'Feature',
-      properties: {
-        id: e.id,
-        segmento: e.segmento || 'passeios',
-        cor: COR_PIN_SEGMENTO[(e.segmento || 'passeios') as SegmentoEmpresaSlug] ?? '#0097b2',
-      },
-      geometry: {
-        type: 'Point',
-        coordinates: [e.longitude, e.latitude],
-      },
-    })),
-  }
 }
 
 function profissionaisToGeoJSON(lista: ProfissionalOnlineMapa[]): GeoJSON.FeatureCollection {
@@ -98,6 +74,59 @@ function waitForNonZeroSize(el: HTMLElement, timeoutMs = 3000): Promise<boolean>
   })
 }
 
+/** Pin: foto quadrada arredondada + borda branca. */
+function criarElPinEmpresa(
+  empresa: EmpresaMapaMobilidade,
+  onClick: () => void,
+): HTMLButtonElement {
+  const btn = document.createElement('button')
+  btn.type = 'button'
+  btn.title = empresa.nome_fantasia || 'Empresa'
+  btn.setAttribute('aria-label', empresa.nome_fantasia || 'Empresa')
+  btn.style.cssText = [
+    'width:44px',
+    'height:44px',
+    'padding:0',
+    'margin:0',
+    'border:3px solid #ffffff',
+    'border-radius:12px',
+    'overflow:hidden',
+    'cursor:pointer',
+    'box-shadow:0 2px 10px rgba(0,0,0,.4)',
+    'background:#0097b2',
+    'display:flex',
+    'align-items:center',
+    'justify-content:center',
+    'color:#fff',
+    'font-weight:700',
+    'font-size:16px',
+    'line-height:1',
+  ].join(';')
+
+  const foto = String(empresa.foto_url ?? '').trim()
+  if (foto) {
+    const img = document.createElement('img')
+    img.src = foto
+    img.alt = ''
+    img.draggable = false
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;pointer-events:none'
+    img.onerror = () => {
+      img.remove()
+      btn.textContent = (empresa.nome_fantasia || '?').charAt(0).toUpperCase()
+    }
+    btn.appendChild(img)
+  } else {
+    btn.textContent = (empresa.nome_fantasia || '?').charAt(0).toUpperCase()
+  }
+
+  btn.addEventListener('click', (ev) => {
+    ev.preventDefault()
+    ev.stopPropagation()
+    onClick()
+  })
+  return btn
+}
+
 export default function MapaMobilidade({
   empresas,
   profissionais = [],
@@ -110,16 +139,15 @@ export default function MapaMobilidade({
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
-  const markersRef = useRef<mapboxgl.Marker[]>([])
+  const markersRotaRef = useRef<mapboxgl.Marker[]>([])
+  const markersEmpresaRef = useRef<mapboxgl.Marker[]>([])
   const [tokenMissing, setTokenMissing] = useState(false)
   const [mapReady, setMapReady] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
   const [selecionada, setSelecionada] = useState<EmpresaMapaMobilidade | null>(null)
   const [profSelecionado, setProfSelecionado] = useState<ProfissionalOnlineMapa | null>(null)
-  const empresasRef = useRef(empresas)
   const profissionaisRef = useRef(profissionais)
   const centroRef = useRef(centro)
-  empresasRef.current = empresas
   profissionaisRef.current = profissionais
   centroRef.current = centro
 
@@ -199,54 +227,6 @@ export default function MapaMobilidade({
         if (cancelled) return
         forceResize()
         setMapError(null)
-        map.addSource(SOURCE_ID, {
-          type: 'geojson',
-          data: empresasToGeoJSON(empresasRef.current),
-          cluster: true,
-          clusterMaxZoom: 11,
-          clusterRadius: 50,
-          clusterMinPoints: 3,
-        })
-
-        map.addLayer({
-          id: LAYER_CLUSTERS,
-          type: 'circle',
-          source: SOURCE_ID,
-          filter: ['has', 'point_count'],
-          paint: {
-            'circle-color': '#0097b2',
-            'circle-radius': ['step', ['get', 'point_count'], 20, 10, 26, 30, 32],
-            'circle-opacity': 0.95,
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#ffffff',
-          },
-        })
-
-        map.addLayer({
-          id: LAYER_CLUSTER_COUNT,
-          type: 'symbol',
-          source: SOURCE_ID,
-          filter: ['has', 'point_count'],
-          layout: {
-            'text-field': ['get', 'point_count_abbreviated'],
-            'text-size': 12,
-            'text-font': ['DIN Pro Medium', 'Arial Unicode MS Bold'],
-          },
-          paint: { 'text-color': '#ffffff' },
-        })
-
-        map.addLayer({
-          id: LAYER_UNCLUSTERED,
-          type: 'circle',
-          source: SOURCE_ID,
-          filter: ['!', ['has', 'point_count']],
-          paint: {
-            'circle-color': ['get', 'cor'],
-            'circle-radius': 11,
-            'circle-stroke-width': 3,
-            'circle-stroke-color': '#ffffff',
-          },
-        })
 
         map.addSource(SOURCE_PROFS, {
           type: 'geojson',
@@ -265,25 +245,6 @@ export default function MapaMobilidade({
           },
         })
 
-        map.on('click', LAYER_CLUSTERS, (e) => {
-          const features = map.queryRenderedFeatures(e.point, { layers: [LAYER_CLUSTERS] })
-          const clusterId = features[0]?.properties?.cluster_id
-          const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource
-          if (clusterId == null || !source.getClusterExpansionZoom) return
-          source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-            if (err || zoom == null) return
-            const coords = (features[0].geometry as GeoJSON.Point).coordinates as [number, number]
-            map.easeTo({ center: coords, zoom })
-          })
-        })
-
-        map.on('click', LAYER_UNCLUSTERED, (e) => {
-          const id = String(e.features?.[0]?.properties?.id ?? '')
-          const emp = empresasRef.current.find((x) => x.id === id) ?? null
-          setProfSelecionado(null)
-          setSelecionada(emp)
-        })
-
         map.on('click', LAYER_PROFS, (e) => {
           const id = String(e.features?.[0]?.properties?.id ?? '')
           const prof = profissionaisRef.current.find((x) => x.id === id) ?? null
@@ -291,14 +252,12 @@ export default function MapaMobilidade({
           setProfSelecionado(prof)
         })
 
-        for (const layer of [LAYER_CLUSTERS, LAYER_UNCLUSTERED, LAYER_PROFS]) {
-          map.on('mouseenter', layer, () => {
-            map.getCanvas().style.cursor = 'pointer'
-          })
-          map.on('mouseleave', layer, () => {
-            map.getCanvas().style.cursor = ''
-          })
-        }
+        map.on('mouseenter', LAYER_PROFS, () => {
+          map.getCanvas().style.cursor = 'pointer'
+        })
+        map.on('mouseleave', LAYER_PROFS, () => {
+          map.getCanvas().style.cursor = ''
+        })
 
         setMapReady(true)
         forceResize()
@@ -312,6 +271,10 @@ export default function MapaMobilidade({
       window.clearTimeout(t1)
       window.clearTimeout(t2)
       ro?.disconnect()
+      for (const m of markersEmpresaRef.current) m.remove()
+      markersEmpresaRef.current = []
+      for (const m of markersRotaRef.current) m.remove()
+      markersRotaRef.current = []
       if (mapRef.current) {
         mapRef.current.remove()
         mapRef.current = null
@@ -321,11 +284,26 @@ export default function MapaMobilidade({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
+  // Pins HTML das empresas (foto + borda branca)
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapReady) return
-    const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource | undefined
-    if (source) source.setData(empresasToGeoJSON(empresas))
+
+    for (const m of markersEmpresaRef.current) m.remove()
+    markersEmpresaRef.current = []
+
+    const lista = empresas.slice(0, MAX_PINS_EMPRESA)
+    for (const emp of lista) {
+      if (!Number.isFinite(emp.latitude) || !Number.isFinite(emp.longitude)) continue
+      const el = criarElPinEmpresa(emp, () => {
+        setProfSelecionado(null)
+        setSelecionada(emp)
+      })
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([emp.longitude, emp.latitude])
+        .addTo(map)
+      markersEmpresaRef.current.push(marker)
+    }
   }, [empresas, mapReady])
 
   useEffect(() => {
@@ -344,8 +322,8 @@ export default function MapaMobilidade({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !mapReady) return
-    for (const m of markersRef.current) m.remove()
-    markersRef.current = []
+    for (const m of markersRotaRef.current) m.remove()
+    markersRotaRef.current = []
 
     const addMarker = (p: Ponto, color: string) => {
       const el = document.createElement('div')
@@ -357,7 +335,7 @@ export default function MapaMobilidade({
       el.style.boxShadow = '0 1px 4px rgba(0,0,0,.35)'
       if (p.label) el.title = p.label
       const marker = new mapboxgl.Marker({ element: el }).setLngLat([p.lng, p.lat]).addTo(map)
-      markersRef.current.push(marker)
+      markersRotaRef.current.push(marker)
     }
 
     if (origem && Number.isFinite(origem.lat) && Number.isFinite(origem.lng)) {
@@ -408,6 +386,12 @@ export default function MapaMobilidade({
       {mapError ? (
         <div className="absolute inset-x-3 top-3 z-30 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700 shadow">
           Mapa: {mapError}
+        </div>
+      ) : null}
+
+      {mapReady && empresas.length === 0 ? (
+        <div className="pointer-events-none absolute inset-x-3 top-16 z-20 mx-auto max-w-sm rounded-lg bg-white/90 px-3 py-2 text-center text-[11px] text-gray-600 shadow">
+          Nenhuma empresa com latitude/longitude cadastrada no Guia ainda.
         </div>
       ) : null}
 

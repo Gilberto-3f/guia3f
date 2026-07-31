@@ -5,6 +5,10 @@ import {
 } from '@/lib/cadastroCreateAuthUser'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { ehCategoriaEmpresaPermitida } from '@/lib/segmentosEmpresaGuia'
+import {
+  forwardGeocodeMapbox,
+  montarQueryEnderecoEmpresa,
+} from '@/lib/mapboxForwardGeocode'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
@@ -149,6 +153,14 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const geo = await forwardGeocodeMapbox(
+      montarQueryEnderecoEmpresa({
+        endereco,
+        bairro: enderecoBairro,
+        cidade,
+      }),
+    )
+
     const payloadCompleto: Record<string, unknown> = {
       usuario_id: createdUserId,
       nome_fantasia: nomeFantasia,
@@ -159,8 +171,8 @@ export async function POST(req: NextRequest) {
       bairro: enderecoBairro,
       whatsapp: whatsApp,
       descricao_curta: '',
-      latitude: null,
-      longitude: null,
+      latitude: geo?.lat ?? null,
+      longitude: geo?.lng ?? null,
       status: 'aguardando_aprovacao',
     }
 

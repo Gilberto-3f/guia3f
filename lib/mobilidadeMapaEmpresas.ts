@@ -161,13 +161,12 @@ export async function buscarEmpresasMapaMobilidade(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ordenar = (q: any) => q.order('nota_media', { ascending: false }).limit(400)
 
-      async function queryAnfitriao(comPreview: boolean) {
+      async function queryGuiaPublico(comPreview: boolean) {
         return ordenar(
           aplicarFiltroEmpresasGuiaPublico(
             supabase
               .from('empresas')
               .select(COLUNAS_MAPA)
-              .eq('somente_anfitriao', true)
               .not('latitude', 'is', null)
               .not('longitude', 'is', null),
             { comPreviewFilter: comPreview },
@@ -207,30 +206,30 @@ export async function buscarEmpresasMapaMobilidade(
         )
       }
 
-      let [anfRes, degRes, assRes] = await Promise.all([
-        queryAnfitriao(true),
+      let [pubRes, degRes, assRes] = await Promise.all([
+        queryGuiaPublico(true),
         queryDegustacao(true),
         queryAssinatura(true),
       ])
 
       const previewMsg = String(
-        anfRes.error?.message ?? degRes.error?.message ?? assRes.error?.message ?? '',
+        pubRes.error?.message ?? degRes.error?.message ?? assRes.error?.message ?? '',
       ).toLowerCase()
       if (previewMsg.includes('somente_modo_apresentacao')) {
-        ;[anfRes, degRes, assRes] = await Promise.all([
-          queryAnfitriao(false),
+        ;[pubRes, degRes, assRes] = await Promise.all([
+          queryGuiaPublico(false),
           queryDegustacao(false),
           queryAssinatura(false),
         ])
       }
 
-      const err = anfRes.error ?? degRes.error ?? assRes.error
+      const err = pubRes.error ?? degRes.error ?? assRes.error
       if (err) {
         return { lista: [], error: String(err.message ?? 'Falha ao carregar atrativos do mapa.') }
       }
 
       const byId = new Map<string, EmpresaMapaMobilidade>()
-      for (const row of [...(anfRes.data ?? []), ...(degRes.data ?? []), ...(assRes.data ?? [])]) {
+      for (const row of [...(pubRes.data ?? []), ...(degRes.data ?? []), ...(assRes.data ?? [])]) {
         const mapped = mapRow(row as Record<string, unknown>)
         if (mapped) byId.set(mapped.id, mapped)
       }
