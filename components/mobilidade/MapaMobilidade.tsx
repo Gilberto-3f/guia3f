@@ -28,6 +28,8 @@ type Props = {
   destino?: Ponto | null
   contextoMapa?: ContextoMapaMobilidade
   visitanteParceria?: VisitanteParceriaMapa | null
+  /** Enquanto true, não mostra aviso de “nenhuma empresa”. */
+  carregandoPins?: boolean
   className?: string
 }
 
@@ -135,6 +137,7 @@ export default function MapaMobilidade({
   destino = null,
   contextoMapa = null,
   visitanteParceria = null,
+  carregandoPins = false,
   className = '',
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -250,6 +253,14 @@ export default function MapaMobilidade({
           const prof = profissionaisRef.current.find((x) => x.id === id) ?? null
           setSelecionada(null)
           setProfSelecionado(prof)
+        })
+
+        // Clique no fundo do mapa fecha o card (pins HTML já usam stopPropagation)
+        map.on('click', (e) => {
+          const sobProf = map.queryRenderedFeatures(e.point, { layers: [LAYER_PROFS] })
+          if (sobProf.length > 0) return
+          setSelecionada(null)
+          setProfSelecionado(null)
         })
 
         map.on('mouseenter', LAYER_PROFS, () => {
@@ -389,7 +400,7 @@ export default function MapaMobilidade({
         </div>
       ) : null}
 
-      {mapReady && empresas.length === 0 ? (
+      {mapReady && !carregandoPins && empresas.length === 0 ? (
         <div className="pointer-events-none absolute inset-x-3 top-16 z-20 mx-auto max-w-sm rounded-lg bg-white/90 px-3 py-2 text-center text-[11px] text-gray-600 shadow">
           Nenhuma empresa com latitude/longitude cadastrada no Guia ainda.
         </div>

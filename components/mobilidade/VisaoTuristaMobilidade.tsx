@@ -265,6 +265,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
           destino={destinoPonto}
           contextoMapa={contextoMapa ?? 'turista'}
           visitanteParceria={visitanteParceria}
+          carregandoPins={carregandoEmpresas}
         />
         {carregandoEmpresas ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[5] flex justify-center">

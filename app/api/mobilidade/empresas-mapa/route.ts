@@ -32,16 +32,30 @@ export async function GET() {
     return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 })
   }
 
-  // Completa coordenadas faltantes (cadastro grava null) a partir do endereço.
-  try {
-    await geocodificarEmpresasSemCoords(admin)
-  } catch {
-    /* mapa ainda tenta com o que já tem coords */
-  }
-
+  // Completa coordenadas em background (não bloqueia a resposta — evita ~2s de espera).
   const { lista, error } = await buscarEmpresasMapaMobilidade(admin)
   if (error) {
     return NextResponse.json({ error, empresas: [] }, { status: 503 })
+  }
+
+  // Se ainda não há pins, geocodifica e busca de novo; senão geocode em background para a próxima visita.
+  if (lista.length === 0) {
+    try {
+      await geocodificarEmpresasSemCoords(admin)
+      const again = await buscarEmpresasMapaMobilidade(admin)
+      return NextResponse.json(
+        { ok: true, empresas: again.lista },
+        {
+          headers: {
+            'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+          },
+        },
+      )
+    } catch {
+      /* devolve lista vazia */
+    }
+  } else {
+    void geocodificarEmpresasSemCoords(admin).catch(() => {})
   }
 
   return NextResponse.json(
