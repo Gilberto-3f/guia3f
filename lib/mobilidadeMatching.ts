@@ -11,6 +11,15 @@ import { isJustificativaRecusaMobilidade } from '@/lib/mobilidadeRecusaJustifica
 import { inferirCidadeTriplicePorCoords } from '@/lib/mobilidadePopupPesquisa'
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import type { CidadeTriplice } from '@/lib/mobilidadeRegional'
+import { normalizarIdiomasGuia } from '@/lib/idiomasGuia'
+import {
+  normalizarMoedaModo,
+  normalizarMoedasPreferencia,
+  normalizarVeiculoLugares,
+  scoreIdiomaSoftRank,
+  scoreMoedaSoftRank,
+  type MoedaModoProfissional,
+} from '@/lib/mobilidadePerfilProfissional'
 
 /** Tempo total para aceitar (ms). */
 export const MOBILIDADE_OFERTA_TIMEOUT_MS = 45_000
@@ -31,6 +40,10 @@ export type CandidatoMatch = {
   lng: number
   distanciaKm: number
   cidade: CidadeTriplice | null
+  veiculo_lugares: number | null
+  idiomas: string[]
+  moeda_modo: MoedaModoProfissional
+  moedas_preferencia: string[]
 }
 
 function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
@@ -67,23 +80,50 @@ export async function buscarCandidatosMobilidade(
     origemLat: number
     origemLng: number
     cidadeOrigem: CidadeTriplice | null
+    /** Capacidade mínima do veículo (van/táxi/guia). */
+    lugares?: number
   },
 ): Promise<CandidatoMatch[]> {
-  const { data, error } = await admin
-    .from('profissionais')
-    .select(
-      'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng',
-    )
-    .eq('mobilidade_status', 'online')
-    .not('mobilidade_lat', 'is', null)
-    .not('mobilidade_lng', 'is', null)
+  const lugaresPedidos = Math.max(1, Number(params.lugares) || 1)
+
+  let data: Record<string, unknown>[] | null = null
+  let error: { message: string } | null = null
+
+  {
+    const res = await admin
+      .from('profissionais')
+      .select(
+        'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng, veiculo_lugares, idiomas, moeda_modo, moedas_preferencia',
+      )
+      .eq('mobilidade_status', 'online')
+      .not('mobilidade_lat', 'is', null)
+      .not('mobilidade_lng', 'is', null)
+    data = (res.data as Record<string, unknown>[] | null) ?? null
+    error = res.error
+    // Colunas novas podem não existir ainda — fallback sem elas
+    if (
+      error &&
+      /veiculo_lugares|idiomas|moeda_modo|moedas_preferencia/i.test(error.message)
+    ) {
+      const res2 = await admin
+        .from('profissionais')
+        .select(
+          'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng',
+        )
+        .eq('mobilidade_status', 'online')
+        .not('mobilidade_lat', 'is', null)
+        .not('mobilidade_lng', 'is', null)
+      data = (res2.data as Record<string, unknown>[] | null) ?? null
+      error = res2.error
+    }
+  }
 
   if (error || !data) return []
 
   const out: CandidatoMatch[] = []
   for (const row of data) {
     const cats = normalizarCategoriasProfissional(
-      Array.isArray(row.categorias) ? row.categorias.map(String) : [],
+      Array.isArray(row.categorias) ? (row.categorias as unknown[]).map(String) : [],
     )
     const placa = Boolean(row.placa_vermelha)
     if (!modalidadeMatchaCategorias(params.modalidade, cats, placa)) continue
@@ -104,6 +144,18 @@ export async function buscarCandidatosMobilidade(
       if (cidadeProf !== params.cidadeOrigem) continue
     }
 
+    const capacidade = normalizarVeiculoLugares(row.veiculo_lugares)
+    // Filtra só quando o profissional cadastrou capacidade; sem cadastro ainda entra
+    if (
+      capacidade != null &&
+      (params.modalidade === 'van' ||
+        params.modalidade === 'taxista' ||
+        params.modalidade === 'guia') &&
+      capacidade < lugaresPedidos
+    ) {
+      continue
+    }
+
     out.push({
       id: String(row.id),
       usuario_id: String(row.usuario_id),
@@ -121,11 +173,46 @@ export async function buscarCandidatosMobilidade(
       lng,
       distanciaKm: haversineKm(params.origemLat, params.origemLng, lat, lng),
       cidade: cidadeProf,
+      veiculo_lugares: capacidade,
+      idiomas: normalizarIdiomasGuia(row.idiomas),
+      moeda_modo: normalizarMoedaModo(row.moeda_modo),
+      moedas_preferencia: normalizarMoedasPreferencia(row.moedas_preferencia),
     })
   }
 
   out.sort((a, b) => a.distanciaKm - b.distanciaKm)
   return out
+}
+
+function ordenarCandidatosSoftRank(
+  candidatos: CandidatoMatch[],
+  opts: {
+    idiomaPreferido: string | null
+    pagamento: string | null
+    moedasDinheiro: string[]
+  },
+): CandidatoMatch[] {
+  return [...candidatos].sort((a, b) => {
+    const ia = scoreIdiomaSoftRank(a.idiomas, opts.idiomaPreferido)
+    const ib = scoreIdiomaSoftRank(b.idiomas, opts.idiomaPreferido)
+    if (ia !== ib) return ia - ib
+
+    const ma = scoreMoedaSoftRank(
+      a.moeda_modo,
+      a.moedas_preferencia,
+      opts.pagamento,
+      opts.moedasDinheiro,
+    )
+    const mb = scoreMoedaSoftRank(
+      b.moeda_modo,
+      b.moedas_preferencia,
+      opts.pagamento,
+      opts.moedasDinheiro,
+    )
+    if (ma !== mb) return ma - mb
+
+    return a.distanciaKm - b.distanciaKm
+  })
 }
 
 export type SolicitarMobilidadeInput = {
@@ -148,6 +235,8 @@ export type SolicitarMobilidadeInput = {
   recomendacaoId: string | null
   /** profissionais.id fixado (indicação / contratar=). */
   profissionalFixadoId: string | null
+  idiomaPreferido?: string | null
+  moedasDinheiro?: string[]
 }
 
 /** Resolve profissionais.id a partir de recomendação e/ou usuario_id. */
@@ -295,6 +384,13 @@ export async function criarSolicitacaoEOfertar(
     origemLat: input.origemLat,
     origemLng: input.origemLng,
     cidadeOrigem: input.cidadeOrigem,
+    lugares: input.lugares,
+  })
+
+  candidatos = ordenarCandidatosSoftRank(candidatos, {
+    idiomaPreferido: input.idiomaPreferido ?? null,
+    pagamento: input.pagamento,
+    moedasDinheiro: input.moedasDinheiro ?? [],
   })
 
   // Indicação: se o fixado está online mas fora do filtro de cidade, ainda inclui no topo.
@@ -304,7 +400,7 @@ export async function criarSolicitacaoEOfertar(
       const { data: fix } = await admin
         .from('profissionais')
         .select(
-          'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng',
+          'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng, veiculo_lugares, idiomas, moeda_modo, moedas_preferencia',
         )
         .eq('id', input.profissionalFixadoId)
         .eq('mobilidade_status', 'online')
@@ -336,6 +432,10 @@ export async function criarSolicitacaoEOfertar(
                 lng,
                 distanciaKm: haversineKm(input.origemLat, input.origemLng, lat, lng),
                 cidade: inferirCidadeTriplicePorCoords(lat, lng),
+                veiculo_lugares: normalizarVeiculoLugares(fix.veiculo_lugares),
+                idiomas: normalizarIdiomasGuia(fix.idiomas),
+                moeda_modo: normalizarMoedaModo(fix.moeda_modo),
+                moedas_preferencia: normalizarMoedasPreferencia(fix.moedas_preferencia),
               },
               ...candidatos,
             ]
@@ -351,43 +451,69 @@ export async function criarSolicitacaoEOfertar(
   const expira = new Date(agora + MOBILIDADE_OFERTA_TIMEOUT_MS).toISOString()
   const primeiro = candidatos[0] ?? null
 
-  const { data: row, error } = await admin
-    .from('solicitacao_mobilidade')
-    .insert({
-      turista_id: input.turistaUsuarioId,
-      profissional_id: null,
-      status: primeiro ? 'oferecida' : 'sem_profissional',
-      tipo_servico: 'mobilidade',
-      modalidade: input.modalidade,
-      origem_nome: input.origemNome,
-      destino_nome: input.destinoNome,
-      lat_origem: input.origemLat,
-      lng_origem: input.origemLng,
-      lat_destino: input.destinoLat,
-      lng_destino: input.destinoLng,
-      destino_empresa_id: input.destinoEmpresaId,
-      cruzamento_fronteira: input.cruzamentoFronteira,
-      valor_estimado: input.valorEstimado,
-      pagamento: input.pagamento,
-      lugares: input.lugares,
-      acompanhamento_guia: input.acompanhamentoGuia,
-      data_agendada: input.dataAgendada,
-      recomendacao_id: input.recomendacaoId,
-      fila_profissional_ids: filaIds,
-      fila_indice: 0,
-      oferta_profissional_id: primeiro?.id ?? null,
-      oferta_expira_em: primeiro ? expira : null,
-      metadata: {
-        backups: Math.min(MOBILIDADE_BACKUPS_OCULTOS, Math.max(0, filaIds.length - 1)),
-        profissional_fixado_id: input.profissionalFixadoId,
-        distancias_km: candidatos.slice(0, 5).map((c) => ({
-          id: c.id,
-          km: Math.round(c.distanciaKm * 10) / 10,
-        })),
-      },
-    })
-    .select('id')
-    .maybeSingle()
+  const moedasDinheiro = normalizarMoedasPreferencia(input.moedasDinheiro)
+  const idiomaPref =
+    input.idiomaPreferido != null && String(input.idiomaPreferido).trim()
+      ? String(input.idiomaPreferido).trim().toLowerCase()
+      : null
+
+  const insertBase = {
+    turista_id: input.turistaUsuarioId,
+    profissional_id: null as null,
+    status: primeiro ? 'oferecida' : 'sem_profissional',
+    tipo_servico: 'mobilidade',
+    modalidade: input.modalidade,
+    origem_nome: input.origemNome,
+    destino_nome: input.destinoNome,
+    lat_origem: input.origemLat,
+    lng_origem: input.origemLng,
+    lat_destino: input.destinoLat,
+    lng_destino: input.destinoLng,
+    destino_empresa_id: input.destinoEmpresaId,
+    cruzamento_fronteira: input.cruzamentoFronteira,
+    valor_estimado: input.valorEstimado,
+    pagamento: input.pagamento,
+    lugares: input.lugares,
+    acompanhamento_guia: input.acompanhamentoGuia,
+    data_agendada: input.dataAgendada,
+    recomendacao_id: input.recomendacaoId,
+    fila_profissional_ids: filaIds,
+    fila_indice: 0,
+    oferta_profissional_id: primeiro?.id ?? null,
+    oferta_expira_em: primeiro ? expira : null,
+    metadata: {
+      backups: Math.min(MOBILIDADE_BACKUPS_OCULTOS, Math.max(0, filaIds.length - 1)),
+      profissional_fixado_id: input.profissionalFixadoId,
+      idioma_preferido: idiomaPref,
+      moedas_dinheiro: moedasDinheiro,
+      distancias_km: candidatos.slice(0, 5).map((c) => ({
+        id: c.id,
+        km: Math.round(c.distanciaKm * 10) / 10,
+      })),
+    },
+  }
+
+  let row: { id: string } | null = null
+  let error: { message: string } | null = null
+
+  {
+    const res = await admin
+      .from('solicitacao_mobilidade')
+      .insert({
+        ...insertBase,
+        idioma_preferido: idiomaPref,
+        moedas_dinheiro: moedasDinheiro,
+      })
+      .select('id')
+      .maybeSingle()
+    row = res.data as { id: string } | null
+    error = res.error
+    if (error && /idioma_preferido|moedas_dinheiro/i.test(error.message)) {
+      const res2 = await admin.from('solicitacao_mobilidade').insert(insertBase).select('id').maybeSingle()
+      row = res2.data as { id: string } | null
+      error = res2.error
+    }
+  }
 
   if (error || !row?.id) {
     return { ok: false, error: error?.message ?? 'Falha ao criar solicitação.' }

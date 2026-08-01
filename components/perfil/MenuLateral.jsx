@@ -68,6 +68,7 @@ import EmergenciaPreLiberacao from '@/components/perfil/subpaginas/emergencia/Em
 import { prefetchMinhasAtividades } from '@/lib/fetchMinhasAtividades'
 import { prefetchComissoesOfertas } from '@/lib/fetchComissoesOfertas'
 import EditarPerfil from '@/components/perfil/subpaginas/EditarPerfil'
+import MobilidadePerfil from '@/components/perfil/subpaginas/MobilidadePerfil'
 import MeuHistorico from '@/components/perfil/subpaginas/MeuHistorico'
 import HistoricoCompras from '@/components/perfil/subpaginas/HistoricoCompras'
 import MinhasAtividades from '@/components/perfil/subpaginas/MinhasAtividades'
@@ -295,6 +296,12 @@ function secoesProfissional(ctx) {
   const gUsuario = filtrarMenu(
     [
       { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
+      {
+        Icon: Car,
+        label: 'Mobilidade',
+        subpagina: 'mobilidade-perfil',
+        condicional: (c) => c.placaVermelha === true,
+      },
       { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos' },
     ],
     ctx
@@ -1145,6 +1152,7 @@ export default function MenuLateral({
         'emergencia-adm': 'Chat ADM',
         'emergencia-pre-liberacao': 'Pré-liberação de Cadastro',
         'editar-perfil': 'Editar Perfil',
+        'mobilidade-perfil': 'Mobilidade',
         'minhas-atividades': 'Minhas Atividades',
         configuracoes: 'Configurações',
         'regras-ecossistema': 'Regras do ecossistema',
@@ -1258,6 +1266,7 @@ export default function MenuLateral({
           onSalvo={onPerfilAtualizado}
         />
       )
+    if (id === 'mobilidade-perfil') return <MobilidadePerfil usuarioId={usuarioIdEfetivo} />
     if (id === 'minhas-atividades')
       return (
         <MinhasAtividades

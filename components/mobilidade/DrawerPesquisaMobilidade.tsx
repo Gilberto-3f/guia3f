@@ -46,6 +46,7 @@ import {
 import type { RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
 import { descricaoPeriodoRota } from '@/lib/servicosTabeladosCatalogo'
 import { labelIdiomaGuia } from '@/lib/idiomasGuia'
+import CotacaoValorMobilidade from '@/components/mobilidade/CotacaoValorMobilidade'
 import type {
   OfertaResultadoUi,
   ResultadoCorridaMobilidade,
@@ -978,13 +979,17 @@ export default function DrawerPesquisaMobilidade({
                 </p>
                 <div className="mt-1 flex items-start gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="text-lg font-bold" style={{ color: COR }}>
-                      {valorTotalAtual != null ? formatBrl(valorTotalAtual) : t('valorIndisponivel')}
-                    </p>
+                    {valorTotalAtual != null ? (
+                      <CotacaoValorMobilidade valorBrl={valorTotalAtual} />
+                    ) : (
+                      <p className="text-lg font-bold" style={{ color: COR }}>
+                        {t('valorIndisponivel')}
+                      </p>
+                    )}
                     {valorUnitarioAtual != null &&
                     (modalidade === 'guia' || modalidade === 'van') &&
                     lugares > 1 ? (
-                      <p className="text-xs text-gray-500">
+                      <p className="mt-1 text-xs text-gray-500">
                         {t('valorPorLugares', {
                           unitario: formatBrl(valorUnitarioAtual),
                           n: lugares,

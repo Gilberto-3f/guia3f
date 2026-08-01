@@ -8,6 +8,7 @@ import {
 } from '@/lib/mobilidadeMatching'
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import { ehCruzamentoFronteira, inferirCidadeDePonto } from '@/lib/mobilidadePopupPesquisa'
+import { normalizarMoedasPreferencia } from '@/lib/mobilidadePerfilProfissional'
 
 const MODS = new Set(['motorista_app', 'van', 'taxista', 'guia'])
 
@@ -109,6 +110,11 @@ export async function POST(req: Request) {
         : null,
     recomendacaoId: fixado.recomendacaoId,
     profissionalFixadoId: fixado.profissionalId,
+    idiomaPreferido:
+      body.idioma_preferido != null && String(body.idioma_preferido).trim()
+        ? String(body.idioma_preferido).trim().toLowerCase()
+        : null,
+    moedasDinheiro: normalizarMoedasPreferencia(body.moedas_dinheiro),
   }
 
   const res = await criarSolicitacaoEOfertar(
