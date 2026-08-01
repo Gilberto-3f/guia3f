@@ -5,7 +5,10 @@ import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
-import PopupPesquisaMobilidade from '@/components/mobilidade/PopupPesquisaMobilidade'
+import DrawerPesquisaMobilidade from '@/components/mobilidade/DrawerPesquisaMobilidade'
+import PopupResultadoCorridaMobilidade, {
+  type ResultadoCorridaMobilidade,
+} from '@/components/mobilidade/PopupResultadoCorridaMobilidade'
 import CardParaOndeMobilidade from '@/components/mobilidade/CardParaOndeMobilidade'
 import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
@@ -61,14 +64,16 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   const [visitanteParceria, setVisitanteParceria] = useState<VisitanteParceriaMapa | null>(null)
   const [gpsCentro, setGpsCentro] = useState<{ lat: number; lng: number } | null>(null)
   const [origemLabelGps, setOrigemLabelGps] = useState<string | null>(null)
-  const [popupAberto, setPopupAberto] = useState(false)
+  const [drawerAberto, setDrawerAberto] = useState(false)
+  const [resultadoCorrida, setResultadoCorrida] = useState<ResultadoCorridaMobilidade | null>(null)
+  const [resultadoAberto, setResultadoAberto] = useState(false)
 
   useEffect(() => {
-    if (pesquisa.abrirPesquisa) setPopupAberto(true)
+    if (pesquisa.abrirPesquisa) setDrawerAberto(true)
   }, [pesquisa.abrirPesquisa])
 
-  const fecharPopupPesquisa = () => {
-    setPopupAberto(false)
+  const fecharDrawerPesquisa = () => {
+    setDrawerAberto(false)
     router.replace(
       buildMobilidadePesquisaHref({
         origem: pesquisa.origem,
@@ -77,6 +82,22 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
         recomendacaoId: pesquisa.recomendacaoId,
         profissionalUsuarioId: pesquisa.profissionalUsuarioId,
         abrirPesquisa: false,
+      }),
+    )
+  }
+
+  const reabrirDrawerParaAgendar = () => {
+    setResultadoAberto(false)
+    setResultadoCorrida(null)
+    setDrawerAberto(true)
+    router.replace(
+      buildMobilidadePesquisaHref({
+        origem: pesquisa.origem,
+        destino: pesquisa.destino,
+        destinoEmpresaId: pesquisa.destinoEmpresaId,
+        recomendacaoId: pesquisa.recomendacaoId,
+        profissionalUsuarioId: pesquisa.profissionalUsuarioId,
+        abrirPesquisa: true,
       }),
     )
   }
@@ -328,9 +349,9 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
         </div>
       </div>
 
-      <PopupPesquisaMobilidade
-        aberto={popupAberto}
-        onFechar={fecharPopupPesquisa}
+      <DrawerPesquisaMobilidade
+        aberto={drawerAberto}
+        onFechar={fecharDrawerPesquisa}
         pesquisa={pesquisa}
         destinoCidadeEmpresa={
           pesquisa.destinoEmpresaId
@@ -342,6 +363,20 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
             ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.nome_fantasia ?? null
             : null
         }
+        onResultado={(r) => {
+          setResultadoCorrida(r)
+          setResultadoAberto(true)
+        }}
+      />
+
+      <PopupResultadoCorridaMobilidade
+        aberto={resultadoAberto}
+        resultado={resultadoCorrida}
+        onFechar={() => {
+          setResultadoAberto(false)
+          setResultadoCorrida(null)
+        }}
+        onReabrirAgendar={reabrirDrawerParaAgendar}
       />
 
       {comListener ? <OfertaMobilidadeListener /> : null}

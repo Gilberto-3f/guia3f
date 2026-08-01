@@ -71,12 +71,33 @@ export function ehCruzamentoFronteira(
   return origem !== destino
 }
 
-/** Modalidades visíveis: sem anfitrião; sem app se cruzar fronteira. */
+/** Modalidades visíveis: sem anfitrião; sem app se cruzar fronteira. Guia sempre na lista. */
 export function modalidadesDisponiveis(cruzamentoFronteira: boolean): ModalidadeMobilidadeId[] {
   if (cruzamentoFronteira) {
     return ['van', 'taxista', 'guia']
   }
   return [...MODALIDADES_ORDEM]
+}
+
+/**
+ * App sempre no topo (quando disponível); demais por preço menor→maior.
+ * Sem preço → vai para o fim do grupo.
+ */
+export function ordenarModalidadesPorPreco(
+  lista: ModalidadeMobilidadeId[],
+  valores: Partial<Record<ModalidadeMobilidadeId, number | null>>,
+): ModalidadeMobilidadeId[] {
+  const app = lista.filter((id) => id === 'motorista_app')
+  const resto = lista.filter((id) => id !== 'motorista_app')
+  resto.sort((a, b) => {
+    const va = valores[a]
+    const vb = valores[b]
+    const na = va != null && Number.isFinite(va) ? va : Number.POSITIVE_INFINITY
+    const nb = vb != null && Number.isFinite(vb) ? vb : Number.POSITIVE_INFINITY
+    if (na !== nb) return na - nb
+    return MODALIDADES_ORDEM.indexOf(a) - MODALIDADES_ORDEM.indexOf(b)
+  })
+  return [...app, ...resto]
 }
 
 export function modalidadeRecomendada(
