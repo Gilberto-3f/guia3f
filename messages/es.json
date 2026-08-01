@@ -309,7 +309,7 @@
     "verBeneficios": "Ver beneficios",
     "ocultarBeneficios": "Ocultar",
     "beneficiosTitulo": "Beneficios",
-    "extrasTitulo": "Diferenciales / límites",
+    "extrasTitulo": "Diferenciales",
     "valorParceiro": "Según app asociado",
     "valorIndisponivel": "Valor a confirmar",
     "rotaSugerida": "Ruta tabulada sugerida",
@@ -409,12 +409,11 @@
       "motorista_app": {
         "label": "Conductor de App",
         "beneficiosCount": "4",
-        "extrasCount": "1",
+        "extrasCount": "0",
         "b1": "Disponibilidad: muchos profesionales online, especialmente en horarios pico",
         "b2": "Agilidad: ideal para trayectos urbanos rápidos",
         "b3": "Precios competitivos: suele ser la opción más económica en ciudad",
-        "b4": "Rastreo: seguimiento en tiempo real",
-        "e1": "Límite: no puede cruzar fronteras (sin placa roja)"
+        "b4": "Rastreo: seguimiento en tiempo real"
       },
       "van": {
         "label": "Conductor de Van",

@@ -345,6 +345,11 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
                 if (p.nome) setOrigemLabelGps(p.nome)
               }
             }}
+            onPesquisar={() => {
+              setResultadoAberto(false)
+              setResultadoCorrida(null)
+              setDrawerAberto(true)
+            }}
           />
         </div>
       </div>

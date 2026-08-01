@@ -95,7 +95,7 @@ export function buildMobilidadePesquisaHref(params: {
   const prof = String(params.profissionalUsuarioId ?? '').trim()
   if (prof) q.set('prof', prof)
 
-  if (params.abrirPesquisa !== false) q.set('abrir_pesquisa', '1')
+  if (params.abrirPesquisa === true) q.set('abrir_pesquisa', '1')
 
   const qs = q.toString()
   return qs ? `/mobilidade?${qs}` : '/mobilidade'

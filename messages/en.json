@@ -309,7 +309,7 @@
     "verBeneficios": "See benefits",
     "ocultarBeneficios": "Hide",
     "beneficiosTitulo": "Benefits",
-    "extrasTitulo": "Highlights / limits",
+    "extrasTitulo": "Highlights",
     "valorParceiro": "Per partner app",
     "valorIndisponivel": "Price to confirm",
     "rotaSugerida": "Suggested table route",
@@ -409,12 +409,11 @@
       "motorista_app": {
         "label": "App driver",
         "beneficiosCount": "4",
-        "extrasCount": "1",
+        "extrasCount": "0",
         "b1": "Availability: many professionals online, especially at peak hours",
         "b2": "Speed: ideal for quick urban trips",
         "b3": "Competitive prices: usually the cheapest urban option",
-        "b4": "Tracking: real-time trip follow-up",
-        "e1": "Limit: cannot cross borders (no red plate)"
+        "b4": "Tracking: real-time trip follow-up"
       },
       "van": {
         "label": "Van driver",

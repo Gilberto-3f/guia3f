@@ -18,6 +18,11 @@ type Props = {
   expandidoInicial?: boolean
   className?: string
   onOrigemChange?: (ponto: MobilidadePonto) => void
+  /**
+   * Se informado, abre o fluxo imediatamente (evita travar quando a URL não muda).
+   * Ainda assim atualiza a query via router.
+   */
+  onPesquisar?: (origem: MobilidadePonto, destino: MobilidadePonto) => void
 }
 
 const fieldClass =
@@ -33,6 +38,7 @@ export default function CardParaOndeMobilidade({
   expandidoInicial = false,
   className = '',
   onOrigemChange,
+  onPesquisar: onPesquisarProp,
 }: Props) {
   const t = useTranslations('Mobilidade')
   const router = useRouter()
@@ -126,6 +132,8 @@ export default function CardParaOndeMobilidade({
       setAberto(true)
       return
     }
+    // Abre drawer na hora (não depende só da mudança de query)
+    onPesquisarProp?.(o, d)
     router.push(
       buildMobilidadePesquisaHref({
         origem: o,
