@@ -56,7 +56,7 @@ export default function CardPinEmpresaMapa({ empresa }: Props) {
         <button
           type="button"
           onClick={() => router.push(`/empresa/${empresa.id}`)}
-          className="shrink-0 rounded-lg bg-white px-2.5 py-2 text-[10px] font-bold uppercase leading-tight tracking-wide text-[#0097b2]"
+          className="shrink-0 rounded-xl bg-white px-3.5 py-2.5 text-xs font-bold uppercase leading-snug tracking-wide text-[#0097b2]"
         >
           Visitar
           <br />
