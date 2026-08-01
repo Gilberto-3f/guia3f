@@ -10,7 +10,6 @@ import {
   normalizarVeiculoFotos,
   normalizarVeiculoLugares,
   profissionalElegivelPerfilMobilidade,
-  type MoedaModoProfissional,
 } from '@/lib/mobilidadePerfilProfissional'
 
 const COR = '#0097b2'
@@ -57,7 +56,8 @@ export default function MobilidadePerfil({ usuarioId }) {
   const [fotos, setFotos] = useState(/** @type {string[]} */ ([]))
   const [placa, setPlaca] = useState('')
   const [lugares, setLugares] = useState('')
-  const [moedaModo, setMoedaModo] = useState(/** @type {MoedaModoProfissional} */ ('todas'))
+  /** @type {[string, (v: string) => void]} */
+  const [moedaModo, setMoedaModo] = useState('todas')
   const [moedasPref, setMoedasPref] = useState(/** @type {string[]} */ ([]))
 
   const carregar = useCallback(async () => {
