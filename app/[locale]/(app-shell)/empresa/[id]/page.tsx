@@ -634,12 +634,12 @@ export default function EmpresaPage() {
             <div className="h-24 animate-pulse rounded-lg bg-gray-100" aria-busy="true" aria-label="A carregar conteúdo" />
           </div>
         ) : mostrarConteudoRede ? (
-        <div className="border-b border-gray-100 bg-white pt-4 px-4 pb-0">
-          <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+        <div className="border-b border-gray-100 bg-white pb-0">
+          <div className="flex w-full gap-0 bg-gray-100">
             <button
               type="button"
               onClick={() => setSubAbaAtiva('fotos')}
-              className={`flex flex-1 flex-col items-center gap-0.5 rounded-md py-2 text-xs font-medium transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
                 subAbaAtiva === 'fotos'
                   ? 'bg-[#0097b2] text-white shadow-sm'
                   : 'text-[#0097b2] hover:bg-white/60'
@@ -651,7 +651,7 @@ export default function EmpresaPage() {
             <button
               type="button"
               onClick={() => setSubAbaAtiva('posts')}
-              className={`flex flex-1 flex-col items-center gap-0.5 rounded-md py-2 text-xs font-medium transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
                 subAbaAtiva === 'posts'
                   ? 'bg-[#0097b2] text-white shadow-sm'
                   : 'text-[#0097b2] hover:bg-white/60'
@@ -663,7 +663,7 @@ export default function EmpresaPage() {
             <button
               type="button"
               onClick={() => setSubAbaAtiva('tour360')}
-              className={`flex flex-1 flex-col items-center gap-0.5 rounded-md py-2 text-xs font-medium transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
                 subAbaAtiva === 'tour360'
                   ? 'bg-[#0097b2] text-white shadow-sm'
                   : 'text-[#0097b2] hover:bg-white/60'
