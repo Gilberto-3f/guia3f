@@ -179,4 +179,27 @@ export function cidadeTripliceParaTabelado(
 
 export type PagamentoMobilidadeId = 'pix' | 'dinheiro' | 'credito' | 'debito'
 
-export const PAGAMENTOS_ORDEM: PagamentoMobilidadeId[] = ['pix', 'dinheiro', 'credito', 'debito']
+/** Dinheiro primeiro (padrão da solicitação). */
+export const PAGAMENTOS_ORDEM: PagamentoMobilidadeId[] = ['dinheiro', 'pix', 'credito', 'debito']
+
+export const MOEDAS_MOBILIDADE = [
+  { value: 'real', label: 'Real' },
+  { value: 'guarani', label: 'Guaraní' },
+  { value: 'peso', label: 'Peso' },
+  { value: 'dolar', label: 'Dólar' },
+  { value: 'euro', label: 'Euro' },
+] as const
+
+export type MoedaMobilidadeId = (typeof MOEDAS_MOBILIDADE)[number]['value']
+
+/** Valor tabelado × lugares (van e guia). Demais modalidades: valor unitário. */
+export function valorCorridaComLugares(
+  modalidade: ModalidadeMobilidadeId,
+  valorUnitario: number | null | undefined,
+  lugares: number,
+): number | null {
+  if (valorUnitario == null || !Number.isFinite(valorUnitario)) return null
+  const n = Math.max(1, Number(lugares) || 1)
+  if (modalidade === 'van' || modalidade === 'guia') return valorUnitario * n
+  return valorUnitario
+}

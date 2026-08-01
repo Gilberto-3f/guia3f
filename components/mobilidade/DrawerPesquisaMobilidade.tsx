@@ -9,6 +9,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  DollarSign,
   Languages,
   MapPin,
   Minus,
@@ -35,8 +36,11 @@ import {
   modalidadesDisponiveis,
   ordenarModalidadesPorPreco,
   sugerirRotaParaDestino,
+  valorCorridaComLugares,
   type ModalidadeMobilidadeId,
+  type MoedaMobilidadeId,
   type PagamentoMobilidadeId,
+  MOEDAS_MOBILIDADE,
   PAGAMENTOS_ORDEM,
 } from '@/lib/mobilidadePopupPesquisa'
 import type { RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
@@ -153,6 +157,48 @@ function ContadorLugares({
   )
 }
 
+const agendaFieldClass =
+  'mt-1 w-full rounded-lg border border-white/25 bg-[#0097b2] px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-white/40 [color-scheme:dark]'
+
+function CamposAgendamento({
+  data,
+  hora,
+  onData,
+  onHora,
+  labelData,
+  labelHora,
+}: {
+  data: string
+  hora: string
+  onData: (v: string) => void
+  onHora: (v: string) => void
+  labelData: string
+  labelHora: string
+}) {
+  return (
+    <div className="mt-2 grid grid-cols-2 gap-2">
+      <label className="block text-xs font-semibold text-gray-700">
+        {labelData}
+        <input
+          type="date"
+          value={data}
+          onChange={(e) => onData(e.target.value)}
+          className={agendaFieldClass}
+        />
+      </label>
+      <label className="block text-xs font-semibold text-gray-700">
+        {labelHora}
+        <input
+          type="time"
+          value={hora}
+          onChange={(e) => onHora(e.target.value)}
+          className={agendaFieldClass}
+        />
+      </label>
+    </div>
+  )
+}
+
 export default function DrawerPesquisaMobilidade({
   aberto,
   onFechar,
@@ -173,9 +219,11 @@ export default function DrawerPesquisaMobilidade({
   const [modalidade, setModalidade] = useState<ModalidadeMobilidadeId | null>(null)
   const [rotas, setRotas] = useState<RotaTabelada[]>([])
   const [carregandoValores, setCarregandoValores] = useState(false)
-  const [pagamento, setPagamento] = useState<PagamentoMobilidadeId>('pix')
+  const [pagamento, setPagamento] = useState<PagamentoMobilidadeId>('dinheiro')
+  const [moedasDinheiro, setMoedasDinheiro] = useState<MoedaMobilidadeId[]>(['real'])
   const [lugares, setLugares] = useState(1)
-  const [dataHora, setDataHora] = useState('')
+  const [dataAgenda, setDataAgenda] = useState('')
+  const [horaAgenda, setHoraAgenda] = useState('')
   const [agendarOutraData, setAgendarOutraData] = useState(false)
   const [idiomaPreferido, setIdiomaPreferido] = useState('pt')
   const [editandoEndereco, setEditandoEndereco] = useState(false)
@@ -213,9 +261,11 @@ export default function DrawerPesquisaMobilidade({
     setModalidade(null)
     setEditandoEndereco(false)
     setAgendarOutraData(false)
-    setDataHora('')
+    setDataAgenda('')
+    setHoraAgenda('')
     setLugares(1)
-    setPagamento('pix')
+    setPagamento('dinheiro')
+    setMoedasDinheiro(['real'])
     setIdiomaPreferido('pt')
     setChevIdioma(false)
     setChevLugares(false)
@@ -311,7 +361,7 @@ export default function DrawerPesquisaMobilidade({
   }
 
   const IconHeader =
-    etapa === 1 ? Car : etapa === 3 ? Check : modalidade ? ICONES[modalidade] : Car
+    etapa === 1 ? Car : etapa === 3 ? DollarSign : modalidade ? ICONES[modalidade] : Car
 
   const tituloHeader =
     etapa === 1
@@ -322,7 +372,17 @@ export default function DrawerPesquisaMobilidade({
           ? TITULOS_MOD[modalidade]
           : '—'
 
-  const mostrarX = etapa === 1 || etapa === 3
+  const dataHoraCombinada =
+    dataAgenda && horaAgenda ? `${dataAgenda}T${horaAgenda}` : dataAgenda || ''
+
+  const valorUnitarioAtual =
+    modalidade && modalidade !== 'motorista_app'
+      ? (valoresPorMod[modalidade]?.valor ?? null)
+      : null
+  const valorTotalAtual =
+    modalidade != null
+      ? valorCorridaComLugares(modalidade, valorUnitarioAtual, lugares)
+      : null
 
   const aplicarEnderecoEditado = () => {
     router.replace(
@@ -350,16 +410,17 @@ export default function DrawerPesquisaMobilidade({
     if (!modalidade || enviando) return
     setEnviando(true)
 
-    const valor =
-      modalidade !== 'motorista_app' && valoresPorMod[modalidade]?.valor != null
-        ? valoresPorMod[modalidade]!.valor
-        : null
+    const valor = valorCorridaComLugares(
+      modalidade,
+      modalidade !== 'motorista_app' ? valoresPorMod[modalidade]?.valor ?? null : null,
+      lugares,
+    )
 
     const dataAgendada =
       modalidade === 'taxista'
-        ? dataHora || null
-        : agendarOutraData && dataHora
-          ? dataHora
+        ? dataHoraCombinada || null
+        : agendarOutraData && dataHoraCombinada
+          ? dataHoraCombinada
           : null
 
     try {
@@ -379,6 +440,7 @@ export default function DrawerPesquisaMobilidade({
           cruzamento_fronteira: cruzamento,
           valor_estimado: valor,
           pagamento,
+          moedas_dinheiro: pagamento === 'dinheiro' ? moedasDinheiro : [],
           lugares,
           acompanhamento_guia: modalidade === 'guia',
           data_agendada: dataAgendada,
@@ -449,7 +511,7 @@ export default function DrawerPesquisaMobilidade({
           <h2 className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide text-white">
             {tituloHeader}
           </h2>
-          {mostrarX ? (
+          {etapa === 1 ? (
             <button
               type="button"
               onClick={onFechar}
@@ -457,6 +519,15 @@ export default function DrawerPesquisaMobilidade({
               aria-label={t('fechar')}
             >
               <X className="h-5 w-5" />
+            </button>
+          ) : etapa === 3 ? (
+            <button
+              type="button"
+              onClick={() => setEtapa(2)}
+              className="rounded-lg p-1.5 text-white/90 hover:bg-white/15"
+              aria-label={t('retornar')}
+            >
+              <ArrowLeft className="h-5 w-5" />
             </button>
           ) : (
             <span className="w-8" aria-hidden />
@@ -723,7 +794,18 @@ export default function DrawerPesquisaMobilidade({
               titulo={t('passageirosChevron')}
             >
               <ContadorLugares value={lugares} onChange={setLugares} />
-              <p className="text-center text-[11px] text-gray-400">{t('lugaresHint')}</p>
+              <p className="text-center text-[11px] text-gray-500">{t('lugaresHint')}</p>
+              {valorUnitarioAtual != null ? (
+                <p className="mt-1 text-center text-sm font-semibold" style={{ color: COR }}>
+                  {lugares > 1
+                    ? t('valorPorLugares', {
+                        unitario: formatBrl(valorUnitarioAtual),
+                        n: lugares,
+                        total: formatBrl(valorUnitarioAtual * lugares),
+                      })
+                    : formatBrl(valorUnitarioAtual)}
+                </p>
+              ) : null}
             </ChevronSecao>
             <ChevronSecao
               aberto={chevAgendar}
@@ -737,17 +819,22 @@ export default function DrawerPesquisaMobilidade({
                   checked={agendarOutraData}
                   onChange={(e) => {
                     setAgendarOutraData(e.target.checked)
-                    if (!e.target.checked) setDataHora('')
+                    if (!e.target.checked) {
+                      setDataAgenda('')
+                      setHoraAgenda('')
+                    }
                   }}
                 />
                 {t('paraOutraData')}
               </label>
               {agendarOutraData ? (
-                <input
-                  type="datetime-local"
-                  value={dataHora}
-                  onChange={(e) => setDataHora(e.target.value)}
-                  className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                <CamposAgendamento
+                  data={dataAgenda}
+                  hora={horaAgenda}
+                  onData={setDataAgenda}
+                  onHora={setHoraAgenda}
+                  labelData={t('dataAgendaLabel')}
+                  labelHora={t('horaAgendaLabel')}
                 />
               ) : null}
             </ChevronSecao>
@@ -763,7 +850,18 @@ export default function DrawerPesquisaMobilidade({
               titulo={t('passageirosChevron')}
             >
               <ContadorLugares value={lugares} onChange={setLugares} max={15} />
-              <p className="text-center text-[11px] text-gray-400">{t('lugaresHint')}</p>
+              <p className="text-center text-[11px] text-gray-500">{t('lugaresHint')}</p>
+              {valorUnitarioAtual != null ? (
+                <p className="mt-1 text-center text-sm font-semibold" style={{ color: COR }}>
+                  {lugares > 1
+                    ? t('valorPorLugares', {
+                        unitario: formatBrl(valorUnitarioAtual),
+                        n: lugares,
+                        total: formatBrl(valorUnitarioAtual * lugares),
+                      })
+                    : formatBrl(valorUnitarioAtual)}
+                </p>
+              ) : null}
             </ChevronSecao>
             <ChevronSecao
               aberto={chevAgendar}
@@ -777,17 +875,22 @@ export default function DrawerPesquisaMobilidade({
                   checked={agendarOutraData}
                   onChange={(e) => {
                     setAgendarOutraData(e.target.checked)
-                    if (!e.target.checked) setDataHora('')
+                    if (!e.target.checked) {
+                      setDataAgenda('')
+                      setHoraAgenda('')
+                    }
                   }}
                 />
                 {t('paraOutraData')}
               </label>
               {agendarOutraData ? (
-                <input
-                  type="datetime-local"
-                  value={dataHora}
-                  onChange={(e) => setDataHora(e.target.value)}
-                  className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                <CamposAgendamento
+                  data={dataAgenda}
+                  hora={horaAgenda}
+                  onData={setDataAgenda}
+                  onHora={setHoraAgenda}
+                  labelData={t('dataAgendaLabel')}
+                  labelHora={t('horaAgendaLabel')}
                 />
               ) : null}
             </ChevronSecao>
@@ -808,15 +911,14 @@ export default function DrawerPesquisaMobilidade({
                 <CalendarDays className="h-4 w-4" aria-hidden />
                 {t('agendarChevron')}
               </p>
-              <label className="block text-xs text-gray-600">
-                {t('dataHoraLabel')}
-                <input
-                  type="datetime-local"
-                  value={dataHora}
-                  onChange={(e) => setDataHora(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                />
-              </label>
+              <CamposAgendamento
+                data={dataAgenda}
+                hora={horaAgenda}
+                onData={setDataAgenda}
+                onHora={setHoraAgenda}
+                labelData={t('dataAgendaLabel')}
+                labelHora={t('horaAgendaLabel')}
+              />
             </div>
           </div>
         ) : null}
@@ -833,9 +935,22 @@ export default function DrawerPesquisaMobilidade({
                   {t('valorCorrida')}
                 </p>
                 <div className="mt-1 flex items-start gap-2">
-                  <p className="min-w-0 flex-1 text-lg font-bold" style={{ color: COR }}>
-                    {infoMod?.valor != null ? formatBrl(infoMod.valor) : t('valorIndisponivel')}
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-lg font-bold" style={{ color: COR }}>
+                      {valorTotalAtual != null ? formatBrl(valorTotalAtual) : t('valorIndisponivel')}
+                    </p>
+                    {valorUnitarioAtual != null &&
+                    (modalidade === 'guia' || modalidade === 'van') &&
+                    lugares > 1 ? (
+                      <p className="text-xs text-gray-500">
+                        {t('valorPorLugares', {
+                          unitario: formatBrl(valorUnitarioAtual),
+                          n: lugares,
+                          total: formatBrl(valorUnitarioAtual * lugares),
+                        })}
+                      </p>
+                    ) : null}
+                  </div>
                   {infoMod?.rota ? (
                     <button
                       type="button"
@@ -888,11 +1003,15 @@ export default function DrawerPesquisaMobilidade({
                     ) : null}
                     {((modalidade === 'guia' || modalidade === 'van') &&
                       agendarOutraData &&
-                      dataHora) ||
-                    (modalidade === 'taxista' && dataHora) ? (
+                      dataHoraCombinada) ||
+                    (modalidade === 'taxista' && dataHoraCombinada) ? (
                       <li>
                         {t('resumoAgendamento')}:{' '}
-                        {new Date(dataHora.length === 16 ? `${dataHora}:00` : dataHora).toLocaleString()}
+                        {new Date(
+                          dataHoraCombinada.length === 16
+                            ? `${dataHoraCombinada}:00`
+                            : dataHoraCombinada,
+                        ).toLocaleString()}
                       </li>
                     ) : null}
                   </ul>
@@ -927,6 +1046,37 @@ export default function DrawerPesquisaMobilidade({
                       </span>
                       {t(`pag.${id}`)}
                     </button>
+                    {id === 'dinheiro' && pagamento === 'dinheiro' ? (
+                      <div className="mt-2 space-y-1.5 rounded-lg border border-[#0097b2]/30 bg-[#0097b2]/5 px-3 py-2">
+                        <p className="text-xs font-semibold text-gray-600">{t('moedasDinheiroTitulo')}</p>
+                        <ul className="space-y-1.5">
+                          {MOEDAS_MOBILIDADE.map((m) => {
+                            const checked = moedasDinheiro.includes(m.value)
+                            return (
+                              <li key={m.value}>
+                                <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-800">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => {
+                                      setMoedasDinheiro((prev) => {
+                                        if (prev.includes(m.value)) {
+                                          const next = prev.filter((x) => x !== m.value)
+                                          return next.length > 0 ? next : prev
+                                        }
+                                        return [...prev, m.value]
+                                      })
+                                    }}
+                                    className="h-4 w-4 accent-[#0097b2]"
+                                  />
+                                  {m.label}
+                                </label>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -970,16 +1120,26 @@ export default function DrawerPesquisaMobilidade({
           </div>
         ) : null}
         {etapa === 3 ? (
-          <button
-            type="button"
-            disabled={enviando}
-            onClick={() => void procurar()}
-            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-60"
-            style={{ backgroundColor: VERDE }}
-          >
-            <Search className="h-4 w-4" aria-hidden />
-            {enviando ? t('procurandoProfissional') : t('procurar')}
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onFechar}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-3 text-sm font-bold uppercase text-white"
+            >
+              <X className="h-4 w-4" aria-hidden />
+              {t('cancelar')}
+            </button>
+            <button
+              type="button"
+              disabled={enviando}
+              onClick={() => void procurar()}
+              className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-60"
+              style={{ backgroundColor: VERDE }}
+            >
+              <Search className="h-4 w-4" aria-hidden />
+              {enviando ? '…' : t('procurar')}
+            </button>
+          </div>
         ) : null}
       </div>
     </div>
