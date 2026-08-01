@@ -10,10 +10,12 @@ import PopupRecomendarMobilidade from '@/components/PopupRecomendarMobilidade'
 import EstrelasAvaliacao from '@/components/EstrelasAvaliacao'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
 import {
+  normalizarCategoriasProfissional,
   resolverAcoesCartaoVisitaProfissional,
   resolverVisaoCartaoVisita,
   tituloAvaliarDesabilitadoCartao,
 } from '@/lib/cartaoVisitaProfissional'
+import { labelIdiomaGuia, normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { supabase } from '@/lib/supabase'
 
@@ -49,6 +51,7 @@ function formatMesAno(iso) {
  *  temParceriaFechada?: boolean
  *  turistaContratouProfissional?: boolean
  *  cidadeAtuacaoVisitado?: string | null
+ *  idiomas?: string[] | null
  *  onContratar?: () => void
  *  onAvaliacaoConcluida?: () => void
  * }} props
@@ -76,6 +79,7 @@ export default function PopupCartaoVisitaProfissional({
   temParceriaFechada = false,
   turistaContratouProfissional = false,
   cidadeAtuacaoVisitado = null,
+  idiomas: idiomasProp = null,
   onContratar,
   onAvaliacaoConcluida,
 }) {
@@ -89,12 +93,43 @@ export default function PopupCartaoVisitaProfissional({
   const [checandoJaAvaliou, setChecandoJaAvaliou] = useState(false)
   const [popupRecomendarAberto, setPopupRecomendarAberto] = useState(false)
   const [popupMobilidadeAberto, setPopupMobilidadeAberto] = useState(false)
+  const [idiomasGuia, setIdiomasGuia] = useState(/** @type {string[]} */ ([]))
 
   const verificado = profissionalVerificado === true
   const mesAnoCadastro = formatMesAno(cadastradoEm ?? verificadoEm)
   const u = String(username ?? '').trim().replace(/^@+/, '')
   const uShown = u.length > 15 ? `${u.slice(0, 15)}…` : u
   const rotuloCategoria = formatProfissionalCategorias(categorias)
+  const ehGuia = normalizarCategoriasProfissional(categorias).includes('guia')
+
+  useEffect(() => {
+    if (!aberto || !ehGuia) {
+      setIdiomasGuia([])
+      return
+    }
+    const fromProp = normalizarIdiomasGuia(idiomasProp)
+    if (fromProp.length > 0) {
+      setIdiomasGuia(fromProp)
+      return
+    }
+    let ativo = true
+    void (async () => {
+      const { data, error } = await supabase
+        .from('profissionais')
+        .select('idiomas')
+        .eq('usuario_id', profileId)
+        .maybeSingle()
+      if (!ativo) return
+      if (error && String(error.message ?? '').toLowerCase().includes('idiomas')) {
+        setIdiomasGuia([])
+        return
+      }
+      setIdiomasGuia(normalizarIdiomasGuia(data?.idiomas))
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [aberto, ehGuia, profileId, idiomasProp])
 
   const souDono = Boolean(meuId && profileId && meuId === profileId)
   const visao = resolverVisaoCartaoVisita({ meuId, profileId, meuRole, souDono })
@@ -388,6 +423,18 @@ export default function PopupCartaoVisitaProfissional({
                   <p className="w-full whitespace-normal px-1 text-center text-2xl font-bold leading-snug tracking-wide text-[#0097b2] sm:text-3xl">
                     {rotuloCategoria}
                   </p>
+                  {ehGuia && idiomasGuia.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+                      {idiomasGuia.map((cod) => (
+                        <span
+                          key={cod}
+                          className="inline-flex items-center gap-1 rounded-full bg-[#0097b2]/10 px-2.5 py-1 text-xs font-semibold text-[#0097b2]"
+                        >
+                          {labelIdiomaGuia(cod)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="mt-6 w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-4">

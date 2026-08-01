@@ -45,7 +45,7 @@ import {
 } from '@/lib/mobilidadePopupPesquisa'
 import type { RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
 import { descricaoPeriodoRota } from '@/lib/servicosTabeladosCatalogo'
-import { IDIOMAS_GUIA } from '@/lib/idiomasGuia'
+import { labelIdiomaGuia } from '@/lib/idiomasGuia'
 import type {
   OfertaResultadoUi,
   ResultadoCorridaMobilidade,
@@ -225,7 +225,11 @@ export default function DrawerPesquisaMobilidade({
   const [dataAgenda, setDataAgenda] = useState('')
   const [horaAgenda, setHoraAgenda] = useState('')
   const [agendarOutraData, setAgendarOutraData] = useState(false)
-  const [idiomaPreferido, setIdiomaPreferido] = useState('pt')
+  const [idiomaPreferido, setIdiomaPreferido] = useState('')
+  const [idiomasFiltro, setIdiomasFiltro] = useState<
+    { codigo: string; label: string; bandeira: string }[]
+  >([])
+  const [idiomasFiltroLoading, setIdiomasFiltroLoading] = useState(false)
   const [editandoEndereco, setEditandoEndereco] = useState(false)
   const [origemDraft, setOrigemDraft] = useState<MobilidadePonto>({ nome: '', lat: null, lng: null })
   const [destinoDraft, setDestinoDraft] = useState<MobilidadePonto>({ nome: '', lat: null, lng: null })
@@ -266,7 +270,8 @@ export default function DrawerPesquisaMobilidade({
     setLugares(1)
     setPagamento('dinheiro')
     setMoedasDinheiro(['real'])
-    setIdiomaPreferido('pt')
+    setIdiomaPreferido('')
+    setIdiomasFiltro([])
     setChevIdioma(false)
     setChevLugares(false)
     setChevAgendar(false)
@@ -300,6 +305,34 @@ export default function DrawerPesquisaMobilidade({
       ativo = false
     }
   }, [aberto, cidadeOrigem])
+
+  useEffect(() => {
+    if (!aberto || modalidade !== 'guia') return
+    let ativo = true
+    setIdiomasFiltroLoading(true)
+    void (async () => {
+      try {
+        const res = await fetch('/api/mobilidade/idiomas-guia')
+        const json = (await res.json()) as {
+          idiomas?: { codigo: string; label: string; bandeira: string }[]
+        }
+        if (!ativo) return
+        const lista = Array.isArray(json.idiomas) ? json.idiomas : []
+        setIdiomasFiltro(lista)
+        setIdiomaPreferido((prev) => {
+          if (prev && lista.some((i) => i.codigo === prev)) return prev
+          return lista[0]?.codigo ?? ''
+        })
+      } catch {
+        if (ativo) setIdiomasFiltro([])
+      } finally {
+        if (ativo) setIdiomasFiltroLoading(false)
+      }
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [aberto, modalidade])
 
   const valoresPorMod = useMemo(() => {
     const destTxt = destinoLabel
@@ -444,7 +477,8 @@ export default function DrawerPesquisaMobilidade({
           lugares,
           acompanhamento_guia: modalidade === 'guia',
           data_agendada: dataAgendada,
-          idioma_preferido: modalidade === 'guia' ? idiomaPreferido : null,
+          idioma_preferido:
+            modalidade === 'guia' && idiomaPreferido ? idiomaPreferido : null,
           recomendacao_id: pesquisa.recomendacaoId,
           profissional_usuario_id: pesquisa.profissionalUsuarioId,
         }),
@@ -769,23 +803,31 @@ export default function DrawerPesquisaMobilidade({
               icon={Languages}
               titulo={t('idiomaChevron')}
             >
-              <div className="flex flex-wrap gap-2">
-                {IDIOMAS_GUIA.map((idi) => (
-                  <button
-                    key={idi.codigo}
-                    type="button"
-                    onClick={() => setIdiomaPreferido(idi.codigo)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                      idiomaPreferido === idi.codigo
-                        ? 'bg-[#0097b2] text-white'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {idi.bandeira} {idi.label}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-[11px] text-gray-400">{t('idiomaHint')}</p>
+              {idiomasFiltroLoading ? (
+                <p className="text-xs text-gray-500">{t('idiomasFiltroCarregando')}</p>
+              ) : idiomasFiltro.length === 0 ? (
+                <p className="text-xs text-gray-500">{t('idiomasFiltroVazio')}</p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {idiomasFiltro.map((idi) => (
+                      <button
+                        key={idi.codigo}
+                        type="button"
+                        onClick={() => setIdiomaPreferido(idi.codigo)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                          idiomaPreferido === idi.codigo
+                            ? 'bg-[#0097b2] text-white'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {idi.bandeira} {idi.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[11px] text-gray-400">{t('idiomaHint')}</p>
+                </>
+              )}
             </ChevronSecao>
             <ChevronSecao
               aberto={chevLugares}
@@ -986,11 +1028,11 @@ export default function DrawerPesquisaMobilidade({
                     {t('resumoCorrida')}
                   </p>
                   <ul className="mt-1 space-y-0.5 text-sm text-gray-700">
-                    {modalidade === 'guia' ? (
+                    {modalidade === 'guia' && idiomaPreferido ? (
                       <li>
                         {t('resumoIdioma')}:{' '}
-                        {IDIOMAS_GUIA.find((i) => i.codigo === idiomaPreferido)?.label ??
-                          idiomaPreferido}
+                        {idiomasFiltro.find((i) => i.codigo === idiomaPreferido)?.label ??
+                          labelIdiomaGuia(idiomaPreferido)}
                       </li>
                     ) : null}
                     {modalidade === 'guia' || modalidade === 'van' ? (
