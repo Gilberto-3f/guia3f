@@ -118,8 +118,9 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
 
   useEffect(() => {
     let ativo = true
-    void (async () => {
-      setCarregandoEmpresas(true)
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+
+    const carregar = async (tentativa: number) => {
       try {
         const res = await fetch('/api/mobilidade/empresas-mapa')
         const json = (await res.json()) as {
@@ -129,6 +130,14 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
         if (!ativo) return
         if (!res.ok) {
           setEmpresas([])
+          // 503/timeout: silencioso + 1 retry (não martelar)
+          if ((res.status === 503 || res.status >= 500) && tentativa < 1) {
+            setEmpresasErro(null)
+            retryTimer = setTimeout(() => {
+              if (ativo) void carregar(tentativa + 1)
+            }, 3500)
+            return
+          }
           setEmpresasErro(String(json.error ?? 'Falha ao carregar atrativos.'))
         } else {
           setEmpresas(Array.isArray(json.empresas) ? json.empresas : [])
@@ -137,13 +146,25 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
       } catch {
         if (!ativo) return
         setEmpresas([])
+        if (tentativa < 1) {
+          retryTimer = setTimeout(() => {
+            if (ativo) void carregar(tentativa + 1)
+          }, 3500)
+          return
+        }
         setEmpresasErro('Falha de rede ao carregar atrativos.')
       } finally {
-        if (ativo) setCarregandoEmpresas(false)
+        if (ativo && tentativa === 0) {
+          setCarregandoEmpresas(false)
+        }
       }
-    })()
+    }
+
+    setCarregandoEmpresas(true)
+    void carregar(0)
     return () => {
       ativo = false
+      if (retryTimer) clearTimeout(retryTimer)
     }
   }, [])
 
@@ -159,10 +180,15 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
         /* ignore */
       }
     }
-    void load()
-    const id = setInterval(() => void load(), 45_000)
+    // Atrasa o 1º fetch para não competir com empresas-mapa no first load
+    const boot = window.setTimeout(() => {
+      if (!ativo) return
+      void load()
+    }, 4000)
+    const id = setInterval(() => void load(), 90_000)
     return () => {
       ativo = false
+      window.clearTimeout(boot)
       clearInterval(id)
     }
   }, [])

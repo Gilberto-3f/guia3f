@@ -2,9 +2,11 @@ import { syncSessionCookiesToServer } from '@/lib/authCookieSync'
 import { supabase } from '@/lib/supabase'
 
 /** Evita tempestade focus+visibility+pageshow após idle. */
-const RESUME_COOLDOWN_MS = 12_000
+const RESUME_COOLDOWN_MS = 30_000
 /** Se o JWT ainda vale mais que isso, só alinha cookies — sem refresh. */
-const JWT_SKIP_REFRESH_MS = 120_000
+const JWT_SKIP_REFRESH_MS = 180_000
+/** Só desconecta Realtime após ficar oculto por este tempo (evita churn do pool). */
+const REALTIME_PAUSE_AFTER_MS = 45_000
 
 let lastResumeAt = 0
 let inflightResume: Promise<void> | null = null
@@ -75,17 +77,34 @@ export async function resumirSessaoAposIdle(): Promise<void> {
 }
 
 /**
- * Pausa Realtime em background — libera conexões do pool Postgres quando o app fica idle.
+ * Pausa Realtime só após idle prolongado — evita Disconnecting broadcast em cascata.
  */
 function registrarPausaRealtimeEmBackground(): () => void {
   if (typeof window === 'undefined') return () => {}
 
+  let hideTimer: ReturnType<typeof setTimeout> | null = null
+
   const onVis = () => {
     try {
       if (document.visibilityState === 'hidden') {
-        supabase.realtime.disconnect()
+        if (hideTimer) clearTimeout(hideTimer)
+        hideTimer = setTimeout(() => {
+          try {
+            supabase.realtime.disconnect()
+          } catch {
+            /* ignore */
+          }
+        }, REALTIME_PAUSE_AFTER_MS)
       } else {
-        supabase.realtime.connect()
+        if (hideTimer) {
+          clearTimeout(hideTimer)
+          hideTimer = null
+        }
+        try {
+          supabase.realtime.connect()
+        } catch {
+          /* ignore */
+        }
       }
     } catch (err) {
       console.warn('[authResume] realtime pause/resume', err)
@@ -93,7 +112,10 @@ function registrarPausaRealtimeEmBackground(): () => void {
   }
 
   document.addEventListener('visibilitychange', onVis)
-  return () => document.removeEventListener('visibilitychange', onVis)
+  return () => {
+    if (hideTimer) clearTimeout(hideTimer)
+    document.removeEventListener('visibilitychange', onVis)
+  }
 }
 
 /** Registra listeners de retorno ao app (visibility + bfcache iOS). Sem `focus` (muito barulhento). */

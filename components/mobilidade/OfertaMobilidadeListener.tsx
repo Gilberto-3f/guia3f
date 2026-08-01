@@ -142,7 +142,7 @@ export default function OfertaMobilidadeListener() {
             const s = await carregarCorrida()
             if (s === 'auth' && id) clearInterval(id)
           })()
-        }, 10_000)
+        }, 25_000)
       })()
     }, 2000)
     return () => {
@@ -166,7 +166,7 @@ export default function OfertaMobilidadeListener() {
             const s = await carregarOferta()
             if (s === 'auth' && id) clearInterval(id)
           })()
-        }, 8_000)
+        }, 20_000)
       })()
     }, 2500)
     return () => {

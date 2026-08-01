@@ -1,28 +1,14 @@
 import { NextResponse } from 'next/server'
-import { assertUserSession } from '@/lib/apiUserSession'
+import { assertUserSessionLight } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { buscarEmpresasMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
-import {
-  forwardGeocodeMapbox,
-  montarQueryEnderecoEmpresa,
-} from '@/lib/mapboxForwardGeocode'
-import {
-  aplicarFiltroEmpresasGuiaPlanoOuDegustacao,
-  aplicarFiltroEmpresasGuiaPublico,
-} from '@/lib/empresaGuiaVisibilidade'
-import { buscarAssinaturasPresencaPublica, assinaturaContratadaVigente } from '@/lib/empresaAssinatura'
-
-const COLUNAS_GEO =
-  'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, plano, somente_anfitriao'
-
-const MAX_GEOCODE_POR_REQUEST = 20
 
 /**
- * Pins do mapa (server-side com service role).
- * Geocodifica e persiste lat/lng quando a empresa tem endereço mas ainda não tem coordenadas.
+ * Pins do mapa — query única + cache curto.
+ * Geocode NÃO roda aqui (cadastro já grava coords; evita timeouts 57014).
  */
 export async function GET() {
-  const auth = await assertUserSession()
+  const auth = await assertUserSessionLight()
   if (!auth.ok) return auth.error
 
   let admin
@@ -32,110 +18,22 @@ export async function GET() {
     return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 })
   }
 
-  // Completa coordenadas em background (não bloqueia a resposta — evita ~2s de espera).
   const { lista, error } = await buscarEmpresasMapaMobilidade(admin)
   if (error) {
-    return NextResponse.json({ error, empresas: [] }, { status: 503 })
-  }
-
-  // Se ainda não há pins, geocodifica e busca de novo; senão geocode em background para a próxima visita.
-  if (lista.length === 0) {
-    try {
-      await geocodificarEmpresasSemCoords(admin)
-      const again = await buscarEmpresasMapaMobilidade(admin)
-      return NextResponse.json(
-        { ok: true, empresas: again.lista },
-        {
-          headers: {
-            'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
-          },
-        },
-      )
-    } catch {
-      /* devolve lista vazia */
-    }
-  } else {
-    void geocodificarEmpresasSemCoords(admin).catch(() => {})
+    // Não martelar o banco com retry — devolve vazio e deixa o cliente tentar depois
+    const transient = /57014|timeout|canceling|503|overloaded/i.test(error)
+    return NextResponse.json(
+      { error, empresas: [] },
+      { status: transient ? 503 : 500 },
+    )
   }
 
   return NextResponse.json(
     { ok: true, empresas: lista },
     {
       headers: {
-        'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
       },
     },
   )
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function geocodificarEmpresasSemCoords(admin: any) {
-  const agora = new Date().toISOString()
-  const [{ data: degRows }, assRows] = await Promise.all([
-    admin
-      .from('empresa_degustacoes')
-      .select('empresa_id')
-      .eq('status', 'ativa')
-      .gt('expira_em', agora),
-    buscarAssinaturasPresencaPublica(admin),
-  ])
-
-  const degIds = [
-    ...new Set(
-      ((degRows ?? []) as { empresa_id?: unknown }[])
-        .map((r) => String(r.empresa_id ?? '').trim())
-        .filter(Boolean),
-    ),
-  ]
-  const assIds = [
-    ...new Set(
-      assRows
-        .filter((r) => assinaturaContratadaVigente(r))
-        .map((r) => String(r.empresa_id ?? '').trim())
-        .filter(Boolean),
-    ),
-  ]
-
-  const [pubRes, degRes, assRes] = await Promise.all([
-    aplicarFiltroEmpresasGuiaPublico(
-      admin.from('empresas').select(COLUNAS_GEO).is('latitude', null).not('endereco', 'is', null),
-    ).limit(MAX_GEOCODE_POR_REQUEST),
-    degIds.length
-      ? aplicarFiltroEmpresasGuiaPlanoOuDegustacao(
-          admin.from('empresas').select(COLUNAS_GEO).in('id', degIds.slice(0, 40)).is('latitude', null),
-        ).limit(MAX_GEOCODE_POR_REQUEST)
-      : Promise.resolve({ data: [], error: null }),
-    assIds.length
-      ? aplicarFiltroEmpresasGuiaPlanoOuDegustacao(
-          admin.from('empresas').select(COLUNAS_GEO).in('id', assIds.slice(0, 40)).is('latitude', null),
-        ).limit(MAX_GEOCODE_POR_REQUEST)
-      : Promise.resolve({ data: [], error: null }),
-  ])
-
-  const byId = new Map<string, Record<string, unknown>>()
-  for (const row of [
-    ...((pubRes.data ?? []) as Record<string, unknown>[]),
-    ...((degRes.data ?? []) as Record<string, unknown>[]),
-    ...((assRes.data ?? []) as Record<string, unknown>[]),
-  ]) {
-    const id = String(row.id ?? '')
-    if (id) byId.set(id, row)
-  }
-
-  const candidatos = [...byId.values()].slice(0, MAX_GEOCODE_POR_REQUEST)
-  for (const row of candidatos) {
-    const id = String(row.id ?? '')
-    const query = montarQueryEnderecoEmpresa({
-      endereco: row.endereco as string | null,
-      bairro: row.bairro as string | null,
-      cidade: row.cidade as string | null,
-    })
-    if (!id || query.length < 5) continue
-    const geo = await forwardGeocodeMapbox(query)
-    if (!geo) continue
-    await admin
-      .from('empresas')
-      .update({ latitude: geo.lat, longitude: geo.lng })
-      .eq('id', id)
-  }
 }

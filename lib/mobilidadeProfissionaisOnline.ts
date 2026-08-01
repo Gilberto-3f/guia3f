@@ -27,6 +27,7 @@ export async function buscarProfissionaisOnlineMapa(): Promise<{
     .in('mobilidade_status', ['online', 'em_atendimento'])
     .not('mobilidade_lat', 'is', null)
     .not('mobilidade_lng', 'is', null)
+    .limit(80)
 
   if (error) return { lista: [], error: error.message }
 
