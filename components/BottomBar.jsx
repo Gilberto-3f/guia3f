@@ -520,7 +520,7 @@ export default function BottomBar() {
   return (
     <div
       ref={rootRef}
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-lg will-change-transform"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white pb-safe shadow-lg will-change-transform"
     >
       <div className="flex items-center justify-around py-2">
         <Link

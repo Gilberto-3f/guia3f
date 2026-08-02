@@ -71,15 +71,28 @@ export function useModalScrollLock(aberto: boolean) {
 
       document.removeEventListener('touchmove', blockTouchMove)
 
+      const y = snapshot.scrollY
       html.style.overflow = snapshot.htmlOverflow
       body.style.overflow = snapshot.bodyOverflow
       body.style.position = snapshot.bodyPosition
       body.style.top = snapshot.bodyTop
       body.style.width = snapshot.bodyWidth
       body.style.touchAction = snapshot.bodyTouchAction
-      window.scrollTo(0, snapshot.scrollY)
-
       snapshot = null
+
+      // Guia/Mobilidade usam h-dvh (sem scroll): sempre voltar ao topo — evita faixa preta sob a BottomBar.
+      const path = window.location.pathname
+      const forceTop = /\/guia\/?$/.test(path) || path.includes('/mobilidade')
+      const targetY = forceTop ? 0 : y
+      window.scrollTo(0, targetY)
+      requestAnimationFrame(() => {
+        window.scrollTo(0, targetY)
+        try {
+          window.dispatchEvent(new Event('resize'))
+        } catch {
+          /* ignore */
+        }
+      })
     }
   }, [aberto])
 }

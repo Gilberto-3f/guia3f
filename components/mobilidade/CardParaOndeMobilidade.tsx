@@ -249,6 +249,13 @@ export default function CardParaOndeMobilidade({
     }
     // Fecha o card antes do drawer — evita flash do layout expandido (origem+destino).
     setAberto(false)
+    setCampoFocado(false)
+    setSugestoesAbertas(false)
+    emitTecladoBarra(false)
+    if (typeof document !== 'undefined') {
+      const ae = document.activeElement
+      if (ae instanceof HTMLElement) ae.blur()
+    }
     onPesquisarProp?.(o, d, destinoEmpresaId)
     router.push(
       buildMobilidadePesquisaHref({
@@ -265,15 +272,21 @@ export default function CardParaOndeMobilidade({
 
   return (
     <div className={`w-full max-w-lg ${className}`}>
-      {/* Sem overflow-hidden no wrapper: senão a lista de autocomplete é cortada. */}
-      <div className="rounded-2xl bg-white shadow-lg ring-1 ring-black/10">
+      {/* overflow-hidden só fechado (quinas); aberto sem overflow p/ não cortar autocomplete. */}
+      <div
+        className={`bg-white shadow-lg ring-1 ring-black/10 ${
+          painelAberto ? 'rounded-2xl' : 'overflow-hidden rounded-2xl'
+        }`}
+      >
         <button
           type="button"
           onClick={() => {
             if (forcarRecolhido) return
             setAberto((v) => !v)
           }}
-          className="flex w-full items-center justify-between gap-3 rounded-t-2xl bg-[#0097b2] px-4 py-3.5 text-left text-white"
+          className={`flex w-full items-center justify-between gap-3 bg-[#0097b2] px-4 py-3.5 text-left text-white ${
+            painelAberto ? 'rounded-t-2xl' : 'rounded-2xl'
+          }`}
           aria-expanded={painelAberto}
           aria-label={painelAberto ? t('paraOndeTitulo') : `${t('paraOndeTitulo')}. ${resumoDestino}`}
         >

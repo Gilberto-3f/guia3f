@@ -67,6 +67,21 @@ function AppShellLayoutFrame({
   const { hideBottomBar, paddingInferior, fundoShell, isGuiaOuMobilidade, telaMensageiro } =
     shellClasses(pathname, tecladoOcultaBarra)
 
+  // Evita faixa preta (prefers-color-scheme: dark no body) sob a BottomBar nestas telas.
+  useEffect(() => {
+    if (!isGuiaOuMobilidade || typeof document === 'undefined') return
+    const html = document.documentElement
+    const body = document.body
+    const prevHtmlBg = html.style.backgroundColor
+    const prevBodyBg = body.style.backgroundColor
+    html.style.backgroundColor = '#f9fafb'
+    body.style.backgroundColor = '#f9fafb'
+    return () => {
+      html.style.backgroundColor = prevHtmlBg
+      body.style.backgroundColor = prevBodyBg
+    }
+  }, [isGuiaOuMobilidade])
+
   return (
     <div
       className={`flex flex-col ${fundoShell} ${paddingInferior} ${
@@ -124,6 +139,24 @@ function AppShellInner({ children }: { children: ReactNode }) {
       /\/guia\/?$/.test(pathname)
     if (!emTelaTeclado) setTecladoOcultaBarra(false)
   }, [pathname])
+
+  /** Após esconder o teclado na Guia/Mobilidade: zera offset residual (faixa preta sob a barra). */
+  useEffect(() => {
+    if (tecladoOcultaBarra) return
+    const isGuiaOuMobilidade =
+      /\/guia\/?$/.test(pathname) || pathname.includes('/mobilidade')
+    if (!isGuiaOuMobilidade || typeof window === 'undefined') return
+
+    const corrigir = () => {
+      const body = document.body
+      if (body.style.position === 'fixed') return
+      body.style.top = ''
+      window.scrollTo(0, 0)
+    }
+    corrigir()
+    const t = window.setTimeout(corrigir, 120)
+    return () => window.clearTimeout(t)
+  }, [tecladoOcultaBarra, pathname])
 
   return (
     <AppShellLayoutFrame
