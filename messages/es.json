@@ -321,7 +321,7 @@
     "pagamentoDepoisHint": "En la v1 el pago se informa al profesional (efectivo). PIX/tarjeta vendrán después.",
     "agendarTitulo": "Agendar (opcional)",
     "lugaresLabel": "Número de asientos / pasajeros",
-    "lugaresHint": "El valor tabulado se cobra por asiento en el vehículo (van y guía).",
+    "lugaresHint": "El valor se cobra por asiento en el vehículo (van y guía).",
     "valorPorLugares": "{unitario} × {n} asientos = {total}",
     "dataAgendaLabel": "Fecha",
     "horaAgendaLabel": "Hora",

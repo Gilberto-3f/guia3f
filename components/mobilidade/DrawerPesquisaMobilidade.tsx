@@ -10,12 +10,14 @@ import {
   ChevronDown,
   ChevronUp,
   DollarSign,
+  Info,
   Languages,
   MapPin,
   Minus,
   Plus,
   Search,
   Smartphone,
+  Sparkles,
   Users,
   X,
 } from 'lucide-react'
@@ -177,7 +179,7 @@ function CamposAgendamento({
   labelHora: string
 }) {
   return (
-    <div className="mt-2 grid grid-cols-2 gap-2">
+    <div className="mt-2 space-y-2">
       <label className="block text-xs font-semibold text-gray-700">
         {labelData}
         <input
@@ -200,6 +202,36 @@ function CamposAgendamento({
   )
 }
 
+function DicaLugaresInfo({
+  aberto,
+  onToggle,
+  texto,
+  ariaLabel,
+}: {
+  aberto: boolean
+  onToggle: () => void
+  texto: string
+  ariaLabel: string
+}) {
+  return (
+    <div className="mt-2 flex flex-col items-center gap-1">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="rounded-full p-1"
+        style={{ color: COR }}
+        aria-label={ariaLabel}
+        aria-expanded={aberto}
+      >
+        <Info className="h-4 w-4" aria-hidden />
+      </button>
+      {aberto ? (
+        <p className="text-center text-[11px] text-gray-500">{texto}</p>
+      ) : null}
+    </div>
+  )
+}
+
 export default function DrawerPesquisaMobilidade({
   aberto,
   onFechar,
@@ -213,7 +245,6 @@ export default function DrawerPesquisaMobilidade({
   useModalScrollLock(aberto)
 
   const [etapa, setEtapa] = useState<1 | 2 | 3>(1)
-  const [expandidos, setExpandidos] = useState<Partial<Record<ModalidadeMobilidadeId, boolean>>>({})
   const [rotasExpandidas, setRotasExpandidas] = useState<
     Partial<Record<ModalidadeMobilidadeId | 'resumo', boolean>>
   >({})
@@ -221,7 +252,7 @@ export default function DrawerPesquisaMobilidade({
   const [rotas, setRotas] = useState<RotaTabelada[]>([])
   const [carregandoValores, setCarregandoValores] = useState(false)
   const [pagamento, setPagamento] = useState<PagamentoMobilidadeId>('dinheiro')
-  const [moedasDinheiro, setMoedasDinheiro] = useState<MoedaMobilidadeId[]>(['real'])
+  const [moedaDinheiro, setMoedaDinheiro] = useState<MoedaMobilidadeId>('real')
   const [lugares, setLugares] = useState(1)
   const [dataAgenda, setDataAgenda] = useState('')
   const [horaAgenda, setHoraAgenda] = useState('')
@@ -237,6 +268,8 @@ export default function DrawerPesquisaMobilidade({
   const [chevIdioma, setChevIdioma] = useState(false)
   const [chevLugares, setChevLugares] = useState(false)
   const [chevAgendar, setChevAgendar] = useState(false)
+  const [chevBeneficios, setChevBeneficios] = useState(false)
+  const [dicaLugaresAberta, setDicaLugaresAberta] = useState(false)
   const [enviando, setEnviando] = useState(false)
 
   const destinoLabel =
@@ -270,12 +303,14 @@ export default function DrawerPesquisaMobilidade({
     setHoraAgenda('')
     setLugares(1)
     setPagamento('dinheiro')
-    setMoedasDinheiro(['real'])
+    setMoedaDinheiro('real')
     setIdiomaPreferido('')
     setIdiomasFiltro([])
     setChevIdioma(false)
     setChevLugares(false)
     setChevAgendar(false)
+    setChevBeneficios(false)
+    setDicaLugaresAberta(false)
     setEnviando(false)
     setRotasExpandidas({})
     setOrigemDraft({ ...pesquisa.origem })
@@ -474,7 +509,7 @@ export default function DrawerPesquisaMobilidade({
           cruzamento_fronteira: cruzamento,
           valor_estimado: valor,
           pagamento,
-          moedas_dinheiro: pagamento === 'dinheiro' ? moedasDinheiro : [],
+          moedas_dinheiro: pagamento === 'dinheiro' ? [moedaDinheiro] : [],
           lugares,
           acompanhamento_guia: modalidade === 'guia',
           data_agendada: dataAgendada,
@@ -574,67 +609,50 @@ export default function DrawerPesquisaMobilidade({
         {/* Card rota */}
         <div className="rounded-xl px-3 py-2.5 text-sm text-white" style={{ backgroundColor: COR }}>
           {!editandoEndereco || etapa !== 1 ? (
-            <div className="flex items-start gap-2">
-              <div className="min-w-0 flex-1 text-white">
-                <p>
-                  <span className="font-semibold text-white">{t('origemLabel')}: </span>
-                  {origemLabel}
-                </p>
-                <p className="mt-1">
-                  <span className="font-semibold text-white">{t('destinoLabel')}: </span>
-                  {destinoLabel}
-                </p>
-              </div>
+            <div className="text-center text-white">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-white">
+                {t('origemLabel')}
+              </p>
+              <p className="mt-0.5 text-sm font-medium text-white">{origemLabel}</p>
+              <p className="mt-2.5 text-[11px] font-bold uppercase tracking-wide text-white">
+                {t('destinoLabel')}
+              </p>
+              <p className="mt-0.5 text-sm font-medium text-white">{destinoLabel}</p>
               {etapa === 1 ? (
                 <button
                   type="button"
-                  onClick={() => setEditandoEndereco((v) => !v)}
-                  className="shrink-0 rounded-lg p-1 text-white hover:bg-white/15"
+                  onClick={() => setEditandoEndereco(true)}
+                  className="mx-auto mt-2 flex items-center justify-center rounded-lg p-1 text-white hover:bg-white/15"
                   aria-label={t('editarEndereco')}
-                  aria-expanded={editandoEndereco}
+                  aria-expanded={false}
                 >
-                  {editandoEndereco ? (
-                    <ChevronUp className="h-5 w-5 text-white" aria-hidden />
-                  ) : (
-                    <ChevronDown className="h-5 w-5 text-white" aria-hidden />
-                  )}
+                  <ChevronDown className="h-5 w-5 text-white" aria-hidden />
                 </button>
               ) : null}
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1 space-y-2">
-                  <label className="block text-xs font-semibold text-white">
-                    {t('origemLabel')}
-                    <input
-                      type="text"
-                      value={origemDraft.nome}
-                      onChange={(e) => setOrigemDraft((p) => ({ ...p, nome: e.target.value }))}
-                      className="mt-1 w-full rounded-lg border border-white/30 bg-white/15 px-3 py-2 text-sm text-white placeholder:text-white/60 outline-none"
-                      placeholder={t('origemManualPlaceholder')}
-                    />
-                  </label>
-                  <label className="block text-xs font-semibold text-white">
-                    {t('destinoLabel')}
-                    <input
-                      type="text"
-                      value={destinoDraft.nome}
-                      onChange={(e) => setDestinoDraft((p) => ({ ...p, nome: e.target.value }))}
-                      className="mt-1 w-full rounded-lg border border-white/30 bg-white/15 px-3 py-2 text-sm text-white placeholder:text-white/60 outline-none"
-                      placeholder={t('destinoPlaceholder')}
-                    />
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditandoEndereco(false)}
-                  className="shrink-0 rounded-lg p-1 text-white hover:bg-white/15"
-                  aria-label={t('editarEndereco')}
-                  aria-expanded
-                >
-                  <ChevronUp className="h-5 w-5 text-white" aria-hidden />
-                </button>
+              <div className="space-y-2 text-center">
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-white">
+                  {t('origemLabel')}
+                  <input
+                    type="text"
+                    value={origemDraft.nome}
+                    onChange={(e) => setOrigemDraft((p) => ({ ...p, nome: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-white/30 bg-white/15 px-3 py-2 text-center text-sm font-medium text-white placeholder:text-white/60 outline-none"
+                    placeholder={t('origemManualPlaceholder')}
+                  />
+                </label>
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-white">
+                  {t('destinoLabel')}
+                  <input
+                    type="text"
+                    value={destinoDraft.nome}
+                    onChange={(e) => setDestinoDraft((p) => ({ ...p, nome: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-white/30 bg-white/15 px-3 py-2 text-center text-sm font-medium text-white placeholder:text-white/60 outline-none"
+                    placeholder={t('destinoPlaceholder')}
+                  />
+                </label>
               </div>
               <button
                 type="button"
@@ -643,6 +661,15 @@ export default function DrawerPesquisaMobilidade({
                 style={{ color: COR }}
               >
                 {t('aplicarEndereco')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditandoEndereco(false)}
+                className="mx-auto flex items-center justify-center rounded-lg p-1 text-white hover:bg-white/15"
+                aria-label={t('editarEndereco')}
+                aria-expanded
+              >
+                <ChevronUp className="h-5 w-5 text-white" aria-hidden />
               </button>
             </div>
           )}
@@ -658,7 +685,6 @@ export default function DrawerPesquisaMobilidade({
               {disponiveis.map((id) => {
                 const Icon = ICONES[id]
                 const info = valoresPorMod[id]
-                const abertoCard = Boolean(expandidos[id])
                 const rotaAberta = Boolean(rotasExpandidas[id])
                 const temRotaExtra = Boolean(
                   info?.rota &&
@@ -667,7 +693,7 @@ export default function DrawerPesquisaMobilidade({
                 return (
                   <li key={id}>
                     <div
-                      className={`rounded-xl border-2 p-3 transition-colors ${
+                      className={`rounded-xl border-2 px-3 py-2.5 transition-colors ${
                         modalidade === id
                           ? 'border-[#00D443] bg-green-50/40'
                           : 'border-gray-200 bg-white'
@@ -744,41 +770,6 @@ export default function DrawerPesquisaMobilidade({
                           </button>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandidos((prev) => ({ ...prev, [id]: !prev[id] }))
-                        }
-                        className="mt-2 flex w-full items-center justify-center gap-1 text-xs font-semibold"
-                        style={{ color: COR }}
-                      >
-                        {abertoCard ? t('ocultarBeneficios') : t('verBeneficios')}
-                        {abertoCard ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </button>
-                      {abertoCard ? (
-                        <div className="mt-2 space-y-2 border-t border-gray-100 pt-2 text-xs text-gray-600">
-                          <p className="font-semibold text-gray-800">{t('beneficiosTitulo')}</p>
-                          <ul className="list-disc space-y-1 pl-4">
-                            {beneficiosKeys(id).map((k) => (
-                              <li key={k}>{t(k)}</li>
-                            ))}
-                          </ul>
-                          {extrasKeys(id).length > 0 ? (
-                            <>
-                              <p className="font-semibold text-gray-800">{t('extrasTitulo')}</p>
-                              <ul className="list-disc space-y-1 pl-4">
-                                {extrasKeys(id).map((k) => (
-                                  <li key={k}>{t(k)}</li>
-                                ))}
-                              </ul>
-                            </>
-                          ) : null}
-                        </div>
-                      ) : null}
                     </div>
                   </li>
                 )
@@ -790,14 +781,64 @@ export default function DrawerPesquisaMobilidade({
         )}
 
         {etapa === 2 && modalidade === 'motorista_app' ? (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-8 text-center">
-            <Smartphone className="mx-auto h-10 w-10 text-gray-400" aria-hidden />
-            <p className="mt-3 text-sm text-gray-600">{t('appPlaceholder')}</p>
+          <div className="space-y-2">
+            <ChevronSecao
+              aberto={chevBeneficios}
+              onToggle={() => setChevBeneficios((v) => !v)}
+              icon={Sparkles}
+              titulo={t('beneficiosTitulo')}
+            >
+              <div className="space-y-2 text-xs text-gray-600">
+                <ul className="list-disc space-y-1 pl-4">
+                  {beneficiosKeys('motorista_app').map((k) => (
+                    <li key={k}>{t(k)}</li>
+                  ))}
+                </ul>
+                {extrasKeys('motorista_app').length > 0 ? (
+                  <>
+                    <p className="font-semibold text-gray-800">{t('extrasTitulo')}</p>
+                    <ul className="list-disc space-y-1 pl-4">
+                      {extrasKeys('motorista_app').map((k) => (
+                        <li key={k}>{t(k)}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
+              </div>
+            </ChevronSecao>
+            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-8 text-center">
+              <Smartphone className="mx-auto h-10 w-10 text-gray-400" aria-hidden />
+              <p className="mt-3 text-sm text-gray-600">{t('appPlaceholder')}</p>
+            </div>
           </div>
         ) : null}
 
         {etapa === 2 && modalidade === 'guia' ? (
           <div className="space-y-2">
+            <ChevronSecao
+              aberto={chevBeneficios}
+              onToggle={() => setChevBeneficios((v) => !v)}
+              icon={Sparkles}
+              titulo={t('beneficiosTitulo')}
+            >
+              <div className="space-y-2 text-xs text-gray-600">
+                <ul className="list-disc space-y-1 pl-4">
+                  {beneficiosKeys('guia').map((k) => (
+                    <li key={k}>{t(k)}</li>
+                  ))}
+                </ul>
+                {extrasKeys('guia').length > 0 ? (
+                  <>
+                    <p className="font-semibold text-gray-800">{t('extrasTitulo')}</p>
+                    <ul className="list-disc space-y-1 pl-4">
+                      {extrasKeys('guia').map((k) => (
+                        <li key={k}>{t(k)}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
+              </div>
+            </ChevronSecao>
             <ChevronSecao
               aberto={chevIdioma}
               onToggle={() => setChevIdioma((v) => !v)}
@@ -837,7 +878,12 @@ export default function DrawerPesquisaMobilidade({
               titulo={t('passageirosChevron')}
             >
               <ContadorLugares value={lugares} onChange={setLugares} />
-              <p className="text-center text-[11px] text-gray-500">{t('lugaresHint')}</p>
+              <DicaLugaresInfo
+                aberto={dicaLugaresAberta}
+                onToggle={() => setDicaLugaresAberta((v) => !v)}
+                texto={t('lugaresHint')}
+                ariaLabel={t('lugaresHint')}
+              />
               {valorUnitarioAtual != null ? (
                 <p className="mt-1 text-center text-sm font-semibold" style={{ color: COR }}>
                   {lugares > 1
@@ -887,13 +933,42 @@ export default function DrawerPesquisaMobilidade({
         {etapa === 2 && modalidade === 'van' ? (
           <div className="space-y-2">
             <ChevronSecao
+              aberto={chevBeneficios}
+              onToggle={() => setChevBeneficios((v) => !v)}
+              icon={Sparkles}
+              titulo={t('beneficiosTitulo')}
+            >
+              <div className="space-y-2 text-xs text-gray-600">
+                <ul className="list-disc space-y-1 pl-4">
+                  {beneficiosKeys('van').map((k) => (
+                    <li key={k}>{t(k)}</li>
+                  ))}
+                </ul>
+                {extrasKeys('van').length > 0 ? (
+                  <>
+                    <p className="font-semibold text-gray-800">{t('extrasTitulo')}</p>
+                    <ul className="list-disc space-y-1 pl-4">
+                      {extrasKeys('van').map((k) => (
+                        <li key={k}>{t(k)}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
+              </div>
+            </ChevronSecao>
+            <ChevronSecao
               aberto={chevLugares}
               onToggle={() => setChevLugares((v) => !v)}
               icon={Users}
               titulo={t('passageirosChevron')}
             >
               <ContadorLugares value={lugares} onChange={setLugares} max={15} />
-              <p className="text-center text-[11px] text-gray-500">{t('lugaresHint')}</p>
+              <DicaLugaresInfo
+                aberto={dicaLugaresAberta}
+                onToggle={() => setDicaLugaresAberta((v) => !v)}
+                texto={t('lugaresHint')}
+                ariaLabel={t('lugaresHint')}
+              />
               {valorUnitarioAtual != null ? (
                 <p className="mt-1 text-center text-sm font-semibold" style={{ color: COR }}>
                   {lugares > 1
@@ -941,7 +1016,31 @@ export default function DrawerPesquisaMobilidade({
         ) : null}
 
         {etapa === 2 && modalidade === 'taxista' ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
+            <ChevronSecao
+              aberto={chevBeneficios}
+              onToggle={() => setChevBeneficios((v) => !v)}
+              icon={Sparkles}
+              titulo={t('beneficiosTitulo')}
+            >
+              <div className="space-y-2 text-xs text-gray-600">
+                <ul className="list-disc space-y-1 pl-4">
+                  {beneficiosKeys('taxista').map((k) => (
+                    <li key={k}>{t(k)}</li>
+                  ))}
+                </ul>
+                {extrasKeys('taxista').length > 0 ? (
+                  <>
+                    <p className="font-semibold text-gray-800">{t('extrasTitulo')}</p>
+                    <ul className="list-disc space-y-1 pl-4">
+                      {extrasKeys('taxista').map((k) => (
+                        <li key={k}>{t(k)}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
+              </div>
+            </ChevronSecao>
             <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
               <p className="font-semibold text-gray-900">{t('taxistaInfoTitulo')}</p>
               <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
@@ -1098,22 +1197,15 @@ export default function DrawerPesquisaMobilidade({
                         <p className="text-xs font-semibold text-gray-600">{t('moedasDinheiroTitulo')}</p>
                         <ul className="space-y-1.5">
                           {MOEDAS_MOBILIDADE.map((m) => {
-                            const checked = moedasDinheiro.includes(m.value)
+                            const selected = moedaDinheiro === m.value
                             return (
                               <li key={m.value}>
                                 <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-800">
                                   <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() => {
-                                      setMoedasDinheiro((prev) => {
-                                        if (prev.includes(m.value)) {
-                                          const next = prev.filter((x) => x !== m.value)
-                                          return next.length > 0 ? next : prev
-                                        }
-                                        return [...prev, m.value]
-                                      })
-                                    }}
+                                    type="radio"
+                                    name="moeda-dinheiro-mobilidade"
+                                    checked={selected}
+                                    onChange={() => setMoedaDinheiro(m.value)}
                                     className="h-4 w-4 accent-[#0097b2]"
                                   />
                                   {m.label}
