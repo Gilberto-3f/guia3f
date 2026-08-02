@@ -266,6 +266,8 @@
     "gpsNegadoHint": "Permissão de GPS negada. Informe o ponto de partida manualmente.",
     "pesquisar": "Pesquisar",
     "erroOrigemDestino": "Preencha a origem e o destino para continuar",
+    "sugestaoRota": "Rota tabelada",
+    "sugestaoEmpresa": "Empresa do guia",
     "resumoPesquisa": "Sua pesquisa",
     "destinoEmpresa": "Destino da empresa",
     "mapaEmBreveTitulo": "Mapa em breve",

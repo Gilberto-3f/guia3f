@@ -266,6 +266,8 @@
     "gpsNegadoHint": "Location permission denied. Enter the pickup point manually.",
     "pesquisar": "Search",
     "erroOrigemDestino": "Fill in origin and destination to continue",
+    "sugestaoRota": "Tabled route",
+    "sugestaoEmpresa": "Guide business",
     "resumoPesquisa": "Your search",
     "destinoEmpresa": "Business destination",
     "mapaEmBreveTitulo": "Map coming soon",

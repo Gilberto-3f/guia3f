@@ -334,6 +334,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
           <CardParaOndeMobilidade
             origemInicial={origemInicialCard}
             destinoInicial={destinoInicialCard}
+            empresas={empresas}
             expandidoInicial={
               Boolean(pesquisa.abrirPesquisa) ||
               pontoPreenchido(pesquisa.destino) ||

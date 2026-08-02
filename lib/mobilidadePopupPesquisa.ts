@@ -179,7 +179,7 @@ export function cidadeTripliceParaTabelado(
 
 export type PagamentoMobilidadeId = 'pix' | 'dinheiro' | 'credito' | 'debito'
 
-/** Dinheiro primeiro (padrão da solicitação). */
+/** Ordem da lista no drawer 3 — a primeira é a marcada por padrão. */
 export const PAGAMENTOS_ORDEM: PagamentoMobilidadeId[] = ['pix', 'dinheiro', 'credito', 'debito']
 
 export const MOEDAS_MOBILIDADE = [
@@ -191,6 +191,91 @@ export const MOEDAS_MOBILIDADE = [
 ] as const
 
 export type MoedaMobilidadeId = (typeof MOEDAS_MOBILIDADE)[number]['value']
+
+export type SugestaoDestinoMobilidade = {
+  id: string
+  tipo: 'rota' | 'empresa'
+  label: string
+  detalhe: string | null
+  lat: number | null
+  lng: number | null
+  empresaId: string | null
+}
+
+function scoreMatchTexto(haystack: string, query: string): number {
+  const h = normTxt(haystack)
+  const q = normTxt(query)
+  if (!q || !h) return 0
+  if (h === q) return 100
+  if (h.startsWith(q)) return 90
+  if (h.includes(q)) return 70
+  const tokens = q.split(/\s+/).filter((t) => t.length > 1)
+  if (tokens.length === 0) return 0
+  return tokens.reduce((acc, t) => (h.includes(t) ? acc + 15 : acc), 0)
+}
+
+/**
+ * Sugestões para o campo destino: destinos de rotas tabeladas + empresas do mapa.
+ */
+export function sugerirDestinosMobilidade(input: {
+  query: string
+  rotas: RotaTabelada[]
+  empresas: {
+    id: string
+    nome_fantasia: string
+    cidade?: string | null
+    latitude?: number | null
+    longitude?: number | null
+  }[]
+  limite?: number
+}): SugestaoDestinoMobilidade[] {
+  const q = String(input.query ?? '').trim()
+  if (q.length < 2) return []
+  const limite = input.limite ?? 8
+  const out: (SugestaoDestinoMobilidade & { score: number })[] = []
+  const destinosVistos = new Set<string>()
+
+  for (const r of input.rotas) {
+    if (!r.ativo) continue
+    const label = String(r.destinoFinal ?? '').trim()
+    if (!label) continue
+    const key = `rota:${normTxt(label)}`
+    if (destinosVistos.has(key)) continue
+    const score = scoreMatchTexto(label, q)
+    if (score <= 0) continue
+    destinosVistos.add(key)
+    out.push({
+      id: key,
+      tipo: 'rota',
+      label,
+      detalhe: null,
+      lat: null,
+      lng: null,
+      empresaId: null,
+      score,
+    })
+  }
+
+  for (const e of input.empresas) {
+    const label = String(e.nome_fantasia ?? '').trim()
+    if (!label) continue
+    const score = scoreMatchTexto(label, q)
+    if (score <= 0) continue
+    out.push({
+      id: `empresa:${e.id}`,
+      tipo: 'empresa',
+      label,
+      detalhe: e.cidade ? String(e.cidade) : null,
+      lat: e.latitude != null && Number.isFinite(e.latitude) ? e.latitude : null,
+      lng: e.longitude != null && Number.isFinite(e.longitude) ? e.longitude : null,
+      empresaId: e.id,
+      score,
+    })
+  }
+
+  out.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, 'pt'))
+  return out.slice(0, limite).map(({ score: _s, ...rest }) => rest)
+}
 
 /** Valor tabelado × lugares (van e guia). Demais modalidades: valor unitário. */
 export function valorCorridaComLugares(

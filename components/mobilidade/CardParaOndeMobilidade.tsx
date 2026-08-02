@@ -1,19 +1,31 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Car, ChevronDown, ChevronUp, MapPin, Navigation, Search } from 'lucide-react'
+import { Building2, Car, ChevronDown, ChevronUp, MapPin, Navigation, Route, Search } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
+import { supabase } from '@/lib/supabase'
 import {
   buildMobilidadePesquisaHref,
   pontoPreenchido,
   type MobilidadePonto,
 } from '@/lib/mobilidadePesquisaParams'
 import { reverseGeocodeMapbox } from '@/lib/mapboxReverseGeocode'
+import type { EmpresaMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
+import type { RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
+import {
+  carregarRotasTabeladasCidade,
+  cidadeTripliceParaTabelado,
+  inferirCidadeDePonto,
+  sugerirDestinosMobilidade,
+  type SugestaoDestinoMobilidade,
+} from '@/lib/mobilidadePopupPesquisa'
 
 type Props = {
   destinoInicial?: MobilidadePonto | null
   origemInicial?: MobilidadePonto | null
+  /** Empresas do mapa (nome fantasia) para autocomplete. */
+  empresas?: EmpresaMapaMobilidade[]
   /** Inicia expandido (ex.: deep link). */
   expandidoInicial?: boolean
   className?: string
@@ -35,6 +47,7 @@ const fieldClass =
 export default function CardParaOndeMobilidade({
   destinoInicial = null,
   origemInicial = null,
+  empresas = [],
   expandidoInicial = false,
   className = '',
   onOrigemChange,
@@ -54,6 +67,9 @@ export default function CardParaOndeMobilidade({
     lat: destinoInicial?.lat ?? null,
     lng: destinoInicial?.lng ?? null,
   }))
+  const [destinoEmpresaId, setDestinoEmpresaId] = useState<string | null>(null)
+  const [rotasTabeladas, setRotasTabeladas] = useState<RotaTabelada[]>([])
+  const [sugestoesAbertas, setSugestoesAbertas] = useState(false)
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'loading' | 'ok' | 'denied' | 'error'>('idle')
   const [erro, setErro] = useState('')
 
@@ -115,8 +131,47 @@ export default function CardParaOndeMobilidade({
     solicitarGps()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps -- boot GPS uma vez
 
+  useEffect(() => {
+    const cidade = inferirCidadeDePonto(origem)
+    const tab = cidadeTripliceParaTabelado(cidade)
+    if (!tab) {
+      setRotasTabeladas([])
+      return
+    }
+    let ativo = true
+    void carregarRotasTabeladasCidade(supabase, tab).then((lista) => {
+      if (ativo) setRotasTabeladas(lista)
+    })
+    return () => {
+      ativo = false
+    }
+  }, [origem.lat, origem.lng, origem.nome])
+
+  const sugestoes = useMemo(
+    () =>
+      sugerirDestinosMobilidade({
+        query: destino.nome,
+        rotas: rotasTabeladas,
+        empresas,
+        limite: 8,
+      }),
+    [destino.nome, rotasTabeladas, empresas],
+  )
+
+  const escolherSugestao = (s: SugestaoDestinoMobilidade) => {
+    setDestino({
+      nome: s.label,
+      lat: s.lat,
+      lng: s.lng,
+    })
+    setDestinoEmpresaId(s.empresaId)
+    setSugestoesAbertas(false)
+    setErro('')
+  }
+
   const onPesquisar = () => {
     setErro('')
+    setSugestoesAbertas(false)
     const o: MobilidadePonto = {
       nome: origem.nome.trim(),
       lat: origem.lat,
@@ -132,12 +187,12 @@ export default function CardParaOndeMobilidade({
       setAberto(true)
       return
     }
-    // Abre drawer na hora (não depende só da mudança de query)
     onPesquisarProp?.(o, d)
     router.push(
       buildMobilidadePesquisaHref({
         origem: o,
         destino: d,
+        destinoEmpresaId,
         abrirPesquisa: true,
       }),
     )
@@ -204,26 +259,72 @@ export default function CardParaOndeMobilidade({
               ) : null}
             </label>
 
-            <label className="block">
-              <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#0097b2]">
-                <MapPin className="h-3.5 w-3.5" aria-hidden />
-                {t('destinoLabel')}
-              </span>
-              <input
-                type="text"
-                value={destino.nome}
-                onChange={(e) =>
-                  setDestino({
-                    nome: e.target.value,
-                    lat: null,
-                    lng: null,
-                  })
-                }
-                placeholder={t('destinoPlaceholder')}
-                className={fieldClass}
-                autoComplete="street-address"
-              />
-            </label>
+            <div className="relative block">
+              <label className="block">
+                <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#0097b2]">
+                  <MapPin className="h-3.5 w-3.5" aria-hidden />
+                  {t('destinoLabel')}
+                </span>
+                <input
+                  type="text"
+                  value={destino.nome}
+                  onChange={(e) => {
+                    setDestino({
+                      nome: e.target.value,
+                      lat: null,
+                      lng: null,
+                    })
+                    setDestinoEmpresaId(null)
+                    setSugestoesAbertas(true)
+                  }}
+                  onFocus={() => setSugestoesAbertas(true)}
+                  onBlur={() => {
+                    // Delay para permitir clique na sugestão
+                    window.setTimeout(() => setSugestoesAbertas(false), 150)
+                  }}
+                  placeholder={t('destinoPlaceholder')}
+                  className={fieldClass}
+                  autoComplete="off"
+                  role="combobox"
+                  aria-expanded={sugestoesAbertas && sugestoes.length > 0}
+                  aria-autocomplete="list"
+                />
+              </label>
+
+              {sugestoesAbertas && sugestoes.length > 0 ? (
+                <ul
+                  className="absolute left-0 right-0 z-30 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+                  role="listbox"
+                >
+                  {sugestoes.map((s) => (
+                    <li key={s.id} role="option">
+                      <button
+                        type="button"
+                        className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left hover:bg-[#0097b2]/8"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => escolherSugestao(s)}
+                      >
+                        {s.tipo === 'empresa' ? (
+                          <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
+                        ) : (
+                          <Route className="mt-0.5 h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-gray-900">{s.label}</span>
+                          <span className="block text-[11px] text-gray-500">
+                            {s.tipo === 'empresa'
+                              ? s.detalhe
+                                ? `${t('sugestaoEmpresa')} · ${s.detalhe}`
+                                : t('sugestaoEmpresa')
+                              : t('sugestaoRota')}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
 
             {erro ? <p className="text-sm text-rose-600">{erro}</p> : null}
 
