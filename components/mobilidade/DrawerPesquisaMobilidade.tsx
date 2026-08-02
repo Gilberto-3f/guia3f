@@ -37,6 +37,7 @@ import {
   modalidadeRecomendada,
   modalidadesDisponiveis,
   ordenarModalidadesPorPreco,
+  peekRotasTabeladasCache,
   sugerirRotaParaDestino,
   valorCorridaComLugares,
   type ModalidadeMobilidadeId,
@@ -260,10 +261,32 @@ export default function DrawerPesquisaMobilidade({
   const router = useRouter()
   useModalScrollLock(aberto)
 
+  const cidadeOrigemBoot = inferirCidadeDePonto(pesquisa.origem)
+  const cidadeDestinoBoot =
+    inferirCidadeDePonto(pesquisa.destino, destinoCidadeEmpresa) ??
+    inferirCidadeDePonto(
+      {
+        nome: destinoLabelCurto || pesquisa.destino.nome || destinoNomeEmpresa || '',
+        lat: null,
+        lng: null,
+      },
+      destinoCidadeEmpresa,
+    )
+  const cruzamentoBoot = ehCruzamentoFronteira(cidadeOrigemBoot, cidadeDestinoBoot)
+  const disponiveisBoot = modalidadesDisponiveis(cruzamentoBoot)
+  const tabBoot = cidadeTripliceParaTabelado(cidadeOrigemBoot)
+  const rotasBoot = tabBoot ? peekRotasTabeladasCache(tabBoot) : null
+
   const [etapa, setEtapa] = useState<1 | 2 | 3>(1)
-  const [modalidade, setModalidade] = useState<ModalidadeMobilidadeId | null>(null)
-  const [rotas, setRotas] = useState<RotaTabelada[]>([])
-  const [carregandoValores, setCarregandoValores] = useState(false)
+  /** Já nasce com a modalidade correta (evita flash do motorista de app na fronteira). */
+  const [modalidade, setModalidade] = useState<ModalidadeMobilidadeId | null>(
+    () =>
+      disponiveisBoot.includes('motorista_app')
+        ? 'motorista_app'
+        : (disponiveisBoot[0] ?? null),
+  )
+  const [rotas, setRotas] = useState<RotaTabelada[]>(() => rotasBoot ?? [])
+  const [carregandoValores, setCarregandoValores] = useState(() => Boolean(tabBoot) && !rotasBoot)
   const [pagamento, setPagamento] = useState<PagamentoMobilidadeId>(PAGAMENTOS_ORDEM[0])
   const [moedaDinheiro, setMoedaDinheiro] = useState<MoedaMobilidadeId>('real')
   const [lugares, setLugares] = useState(1)
@@ -317,7 +340,6 @@ export default function DrawerPesquisaMobilidade({
   useEffect(() => {
     if (!aberto) return
     setEtapa(1)
-    setModalidade(null)
     setEditandoEndereco(false)
     setAgendarOutraData(false)
     setDataAgenda('')
@@ -348,6 +370,13 @@ export default function DrawerPesquisaMobilidade({
     const tab = cidadeTripliceParaTabelado(cidadeOrigem)
     if (!tab) {
       setRotas([])
+      setCarregandoValores(false)
+      return
+    }
+    const cached = peekRotasTabeladasCache(tab)
+    if (cached) {
+      setRotas(cached)
+      setCarregandoValores(false)
       return
     }
     let ativo = true
@@ -411,16 +440,16 @@ export default function DrawerPesquisaMobilidade({
     return out
   }, [disponiveisBase, rotas, destinoLabelBase])
 
-  const disponiveis = useMemo(
-    () =>
-      ordenarModalidadesPorPreco(
-        disponiveisBase,
-        Object.fromEntries(
-          Object.entries(valoresPorMod).map(([k, v]) => [k, v?.valor ?? null]),
-        ) as Partial<Record<ModalidadeMobilidadeId, number | null>>,
-      ),
-    [disponiveisBase, valoresPorMod],
-  )
+  const disponiveis = useMemo(() => {
+    // Enquanto preços carregam: ordem fixa (sem reordenar) — evita flash na lista.
+    if (carregandoValores) return disponiveisBase
+    return ordenarModalidadesPorPreco(
+      disponiveisBase,
+      Object.fromEntries(
+        Object.entries(valoresPorMod).map(([k, v]) => [k, v?.valor ?? null]),
+      ) as Partial<Record<ModalidadeMobilidadeId, number | null>>,
+    )
+  }, [carregandoValores, disponiveisBase, valoresPorMod])
 
   const recomendada = useMemo(
     () =>
@@ -434,9 +463,11 @@ export default function DrawerPesquisaMobilidade({
   )
 
   useEffect(() => {
-    if (!aberto || modalidade) return
+    if (!aberto) return
+    if (modalidade && disponiveis.includes(modalidade)) return
     if (disponiveis.includes(recomendada)) setModalidade(recomendada)
     else if (disponiveis[0]) setModalidade(disponiveis[0])
+    else setModalidade(null)
   }, [aberto, recomendada, disponiveis, modalidade])
 
   if (!aberto) return null
@@ -508,11 +539,7 @@ export default function DrawerPesquisaMobilidade({
     )
 
     const dataAgendada =
-      modalidade === 'taxista'
-        ? dataHoraCombinada || null
-        : agendarOutraData && dataHoraCombinada
-          ? dataHoraCombinada
-          : null
+      agendarOutraData && dataHoraCombinada ? dataHoraCombinada : null
 
     try {
       const res = await fetch('/api/mobilidade/solicitar', {
@@ -705,13 +732,17 @@ export default function DrawerPesquisaMobilidade({
         {etapa === 1 ? (
           <div className="mt-2 space-y-2">
             <p className="text-center text-sm text-black">{t('escolhaModalidade')}</p>
-            {carregandoValores ? (
-              <p className="text-center text-sm text-gray-500">{t('carregandoValores')}</p>
-            ) : null}
             <ul className="space-y-2">
               {disponiveis.map((id) => {
                 const Icon = ICONES[id]
                 const info = valoresPorMod[id]
+                const precoTxt = info?.parceiro
+                  ? t('valorParceiro')
+                  : info?.valor != null
+                    ? formatBrl(info.valor)
+                    : carregandoValores
+                      ? '…'
+                      : t('valorIndisponivel')
                 return (
                   <li key={id}>
                     <div
@@ -731,11 +762,7 @@ export default function DrawerPesquisaMobilidade({
                           <div className="min-w-0 flex-1">
                             <span className="font-bold text-gray-900">{labelMod(id)}</span>
                             <p className="mt-0.5 text-sm font-semibold" style={{ color: COR }}>
-                              {info?.parceiro
-                                ? t('valorParceiro')
-                                : info?.valor != null
-                                  ? formatBrl(info.valor)
-                                  : t('valorIndisponivel')}
+                              {precoTxt}
                             </p>
                           </div>
                         </button>
@@ -1042,27 +1069,37 @@ export default function DrawerPesquisaMobilidade({
                 ) : null}
               </div>
             </ChevronSecao>
-            <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
-              <p className="font-semibold text-gray-900">{t('taxistaInfoTitulo')}</p>
-              <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
-                <li>{t('taxistaInfoLugares')}</li>
-                <li>{t('taxistaInfoEspera')}</li>
-              </ul>
-            </div>
-            <div className="rounded-xl border border-gray-200 px-3 py-3">
-              <p className="mb-2 flex items-center gap-2 text-sm font-bold" style={{ color: COR }}>
-                <CalendarDays className="h-4 w-4" aria-hidden />
-                {t('agendarChevron')}
-              </p>
-              <CamposAgendamento
-                data={dataAgenda}
-                hora={horaAgenda}
-                onData={setDataAgenda}
-                onHora={setHoraAgenda}
-                labelData={t('dataAgendaLabel')}
-                labelHora={t('horaAgendaLabel')}
-              />
-            </div>
+            <ChevronSecao
+              aberto={chevAgendar}
+              onToggle={() => setChevAgendar((v) => !v)}
+              icon={CalendarDays}
+              titulo={t('agendarChevron')}
+            >
+              <label className="flex items-center gap-2 text-sm text-gray-800">
+                <input
+                  type="checkbox"
+                  checked={agendarOutraData}
+                  onChange={(e) => {
+                    setAgendarOutraData(e.target.checked)
+                    if (!e.target.checked) {
+                      setDataAgenda('')
+                      setHoraAgenda('')
+                    }
+                  }}
+                />
+                {t('paraOutraData')}
+              </label>
+              {agendarOutraData ? (
+                <CamposAgendamento
+                  data={dataAgenda}
+                  hora={horaAgenda}
+                  onData={setDataAgenda}
+                  onHora={setHoraAgenda}
+                  labelData={t('dataAgendaLabel')}
+                  labelHora={t('horaAgendaLabel')}
+                />
+              ) : null}
+            </ChevronSecao>
           </div>
         ) : null}
 
@@ -1117,10 +1154,7 @@ export default function DrawerPesquisaMobilidade({
                     {modalidade === 'taxista' ? (
                       <li>{t('taxistaInfoLugares')}</li>
                     ) : null}
-                    {((modalidade === 'guia' || modalidade === 'van') &&
-                      agendarOutraData &&
-                      dataHoraCombinada) ||
-                    (modalidade === 'taxista' && dataHoraCombinada) ? (
+                    {agendarOutraData && dataHoraCombinada ? (
                       <li>
                         {t('resumoAgendamento')}:{' '}
                         {new Date(

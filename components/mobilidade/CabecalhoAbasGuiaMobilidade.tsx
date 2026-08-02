@@ -28,18 +28,22 @@ export default function CabecalhoAbasGuiaMobilidade({
 }: Props) {
   const tGuia = useTranslations('Guia')
 
+  const mostrarLogo = abaAtiva === 'guia'
+
   return (
     <header className="shrink-0 bg-[#0097b2] pt-safe">
-      <div className="flex justify-center py-4">
-        <Image
-          src="/logo.png"
-          alt="Guia 3F"
-          width={228}
-          height={76}
-          priority
-          className="h-auto w-auto max-h-[76px] max-w-[228px] object-contain"
-        />
-      </div>
+      {mostrarLogo ? (
+        <div className="flex justify-center py-4">
+          <Image
+            src="/logo.png"
+            alt="Guia 3F"
+            width={228}
+            height={76}
+            priority
+            className="h-auto w-auto max-h-[76px] max-w-[228px] object-contain"
+          />
+        </div>
+      ) : null}
 
       <div className="flex w-full border-b border-gray-200 bg-white">
         {onAbaGuia ? (

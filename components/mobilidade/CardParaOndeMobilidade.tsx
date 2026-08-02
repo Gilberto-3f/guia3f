@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Building2, Car, ChevronDown, ChevronUp, MapPin, Navigation, Route, Search } from 'lucide-react'
+import { Building2, Car, ChevronDown, ChevronUp, MapPin, Navigation, Route, Search, X } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import {
@@ -341,40 +341,58 @@ export default function CardParaOndeMobilidade({
                   <MapPin className="h-3.5 w-3.5" aria-hidden />
                   {t('destinoLabel')}
                 </span>
-                <input
-                  type="text"
-                  value={destino.nome}
-                  onChange={(e) => {
-                    setDestino({
-                      nome: e.target.value,
-                      lat: null,
-                      lng: null,
-                    })
-                    setDestinoEmpresaId(null)
-                    setSugestoesAbertas(true)
-                  }}
-                  onFocus={() => {
-                    setCampoFocado(true)
-                    setSugestoesAbertas(true)
-                  }}
-                  onBlur={() => {
-                    window.setTimeout(() => {
-                      setSugestoesAbertas(false)
-                      setCampoFocado(false)
-                    }, 200)
-                  }}
-                  placeholder={t('destinoPlaceholder')}
-                  className={fieldClass}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  inputMode="text"
-                  enterKeyHint="search"
-                  role="combobox"
-                  aria-expanded={mostrarLista}
-                  aria-autocomplete="list"
-                />
+                <span className="relative block">
+                  <input
+                    type="text"
+                    value={destino.nome}
+                    onChange={(e) => {
+                      setDestino({
+                        nome: e.target.value,
+                        lat: null,
+                        lng: null,
+                      })
+                      setDestinoEmpresaId(null)
+                      setSugestoesAbertas(true)
+                    }}
+                    onFocus={() => {
+                      setCampoFocado(true)
+                      setSugestoesAbertas(true)
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => {
+                        setSugestoesAbertas(false)
+                        setCampoFocado(false)
+                      }, 200)
+                    }}
+                    placeholder={t('destinoPlaceholder')}
+                    className={`${fieldClass}${destino.nome.trim() ? ' pr-10' : ''}`}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    inputMode="text"
+                    enterKeyHint="search"
+                    role="combobox"
+                    aria-expanded={mostrarLista}
+                    aria-autocomplete="list"
+                  />
+                  {destino.nome.trim() ? (
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-white/90 hover:bg-white/15"
+                      aria-label={t('limparDestino')}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setDestino({ nome: '', lat: null, lng: null })
+                        setDestinoEmpresaId(null)
+                        setSugestoesAbertas(false)
+                        setErro('')
+                      }}
+                    >
+                      <X className="h-4 w-4" aria-hidden strokeWidth={2.5} />
+                    </button>
+                  ) : null}
+                </span>
               </label>
 
               {/* Lista no fluxo (não absolute) — pelo menos ~3 itens visíveis; só ela rola. */}

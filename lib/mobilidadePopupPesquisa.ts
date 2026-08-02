@@ -156,18 +156,44 @@ export function sugerirRotaParaDestino(
   return best ?? daCat[0] ?? null
 }
 
+const rotasTabeladasCache = new Map<CidadeOrigemTabeladoId, RotaTabelada[]>()
+const rotasTabeladasInflight = new Map<CidadeOrigemTabeladoId, Promise<RotaTabelada[]>>()
+
+/** Leitura síncrona do cache (evita flash de preços no drawer 1). */
+export function peekRotasTabeladasCache(
+  cidadeOrigem: CidadeOrigemTabeladoId,
+): RotaTabelada[] | null {
+  return rotasTabeladasCache.get(cidadeOrigem) ?? null
+}
+
 export async function carregarRotasTabeladasCidade(
   supabase: SupabaseClient,
   cidadeOrigem: CidadeOrigemTabeladoId,
 ): Promise<RotaTabelada[]> {
-  const { data, error } = await supabase
-    .from('servicos_tabelados_rotas')
-    .select('*')
-    .eq('ativo', true)
-    .eq('cidade_origem', cidadeOrigem)
+  const hit = rotasTabeladasCache.get(cidadeOrigem)
+  if (hit) return hit
 
-  if (error || !data) return []
-  return (data as Record<string, unknown>[]).map(mapRotaTabeladaRow)
+  const pending = rotasTabeladasInflight.get(cidadeOrigem)
+  if (pending) return pending
+
+  const req = (async () => {
+    const { data, error } = await supabase
+      .from('servicos_tabelados_rotas')
+      .select('*')
+      .eq('ativo', true)
+      .eq('cidade_origem', cidadeOrigem)
+
+    const lista =
+      error || !data
+        ? []
+        : (data as Record<string, unknown>[]).map(mapRotaTabeladaRow)
+    rotasTabeladasCache.set(cidadeOrigem, lista)
+    rotasTabeladasInflight.delete(cidadeOrigem)
+    return lista
+  })()
+
+  rotasTabeladasInflight.set(cidadeOrigem, req)
+  return req
 }
 
 export function cidadeTripliceParaTabelado(

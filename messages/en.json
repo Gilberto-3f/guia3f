@@ -294,6 +294,7 @@
     "passageirosChevron": "Passengers",
     "agendarChevron": "Schedule service",
     "paraOutraData": "For another date?",
+    "limparDestino": "Clear destination",
     "taxistaInfoTitulo": "Ride details",
     "taxistaInfoLugares": "Up to 4 passengers per vehicle",
     "taxistaInfoEspera": "Estimated wait time depends on availability in the area",
@@ -438,12 +439,14 @@
       "taxista": {
         "label": "Taxi",
         "beneficiosCount": "4",
-        "extrasCount": "1",
+        "extrasCount": "3",
         "b1": "Immediate availability at strategic taxi stands",
         "b2": "City knowledge: shortcuts and alternate routes",
         "b3": "Safety: regularly inspected vehicles",
         "b4": "Regulation: official, supervised fare table",
-        "e1": "ALLOWS BORDER CROSSING (red plate)"
+        "e1": "ALLOWS BORDER CROSSING (red plate)",
+        "e2": "Up to 4 passengers per vehicle",
+        "e3": "Estimated wait time depends on availability in the area"
       },
       "guia": {
         "label": "Tour guide",

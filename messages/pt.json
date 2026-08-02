@@ -294,6 +294,7 @@
     "passageirosChevron": "Passageiros",
     "agendarChevron": "Agendar atendimento",
     "paraOutraData": "Para outra data?",
+    "limparDestino": "Limpar destino",
     "taxistaInfoTitulo": "Informações da corrida",
     "taxistaInfoLugares": "Até 4 passageiros por veículo",
     "taxistaInfoEspera": "Tempo de espera estimado conforme disponibilidade na região",
@@ -438,12 +439,14 @@
       "taxista": {
         "label": "Taxista",
         "beneficiosCount": "4",
-        "extrasCount": "1",
+        "extrasCount": "3",
         "b1": "Disponibilidade imediata: pontos de táxi em locais estratégicos",
         "b2": "Conhecimento da cidade: atalhos e rotas alternativas",
         "b3": "Segurança: veículos vistoriados regularmente",
         "b4": "Regulamentação: tabela de preços oficial e fiscalizada",
-        "e1": "PERMITE CRUZAR FRONTEIRAS (placa vermelha)"
+        "e1": "PERMITE CRUZAR FRONTEIRAS (placa vermelha)",
+        "e2": "Até 4 passageiros por veículo",
+        "e3": "Tempo de espera estimado conforme disponibilidade na região"
       },
       "guia": {
         "label": "Guia de Turismo",
