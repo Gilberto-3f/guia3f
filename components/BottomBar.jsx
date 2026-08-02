@@ -384,11 +384,13 @@ export default function BottomBar() {
   }, [pathname, authUserId])
 
   /**
-   * Safari iOS move `position: fixed; bottom: 0` com o teclado; compensamos fora de `/feed/criar`,
-   * onde a barra é ocultada com o teclado (evita conflito com scroll da legenda).
+   * Safari iOS move `position: fixed; bottom: 0` com o teclado.
+   * Em /feed/criar a barra é ocultada; em Guia/Mobilidade NÃO compensamos —
+   * a barra não deve subir acima do teclado (tela permanece fixa).
    */
   useLayoutEffect(() => {
     if (!pathname || pathname.includes('/feed/criar')) return
+    if (pathname.includes('/mobilidade') || pathname.includes('/guia')) return
     const vv = window.visualViewport
     const el = rootRef.current
     if (!vv || !el) return

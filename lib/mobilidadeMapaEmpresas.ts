@@ -10,9 +10,9 @@ import {
   categoriaDbParaSlug,
 } from '@/lib/segmentosEmpresaGuia'
 
-/** Colunas mínimas para pin + card do mapa. */
+/** Colunas mínimas para pin + card do mapa + autocomplete. */
 const COLUNAS_MAPA =
-  'id, nome_fantasia, nome_usuario, categoria, cidade, latitude, longitude, foto_url, nota_media, plano, somente_anfitriao'
+  'id, nome_fantasia, nome_usuario, categoria, cidade, endereco, latitude, longitude, foto_url, nota_media, plano, somente_anfitriao'
 
 /** Limite alinhado aos pins HTML no cliente (evita scan de 400 linhas). */
 const LIMITE_MAPA = 120
@@ -75,7 +75,7 @@ function mapRow(row: Record<string, unknown>): EmpresaMapaMobilidade | null {
     descricao_curta: null,
     categoria,
     cidade: String(row.cidade ?? ''),
-    endereco: null,
+    endereco: row.endereco != null && String(row.endereco).trim() ? String(row.endereco).trim() : null,
     bairro: null,
     status: null,
     docs_verificado: null,

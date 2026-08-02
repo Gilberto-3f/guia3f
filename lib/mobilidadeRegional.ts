@@ -49,6 +49,16 @@ export function normalizarCidadeTriplice(raw: string | null | undefined): Cidade
   return null
 }
 
+/** Abreviação para UI (drawer 1 / chips): Foz, CDE, P. Iguazú. */
+export function abreviarCidadeTriplice(raw: string | null | undefined): string {
+  const c = normalizarCidadeTriplice(raw)
+  if (c === 'Foz do Iguaçu') return 'Foz'
+  if (c === 'Ciudad del Este') return 'CDE'
+  if (c === 'Puerto Iguazu') return 'P. Iguazú'
+  const t = String(raw ?? '').trim()
+  return t || ''
+}
+
 /** Normaliza categoria/slug do profissional para uma das 5 categorias de mobilidade. */
 export function normalizarCategoriaMobilidade(raw: string | null | undefined): CategoriaMobilidade | null {
   const n = stripAccents(String(raw ?? '').trim().toLowerCase())

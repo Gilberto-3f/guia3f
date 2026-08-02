@@ -17,9 +17,11 @@ import {
   buildMobilidadePesquisaHref,
   parseMobilidadePesquisaSearchParams,
   pontoPreenchido,
+  type MobilidadePesquisaState,
   type MobilidadePonto,
 } from '@/lib/mobilidadePesquisaParams'
 import { type EmpresaMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
+import { abreviarCidadeTriplice } from '@/lib/mobilidadeRegional'
 import type { ProfissionalOnlineMapa } from '@/lib/mobilidadeStatusProfissional'
 import {
   parseCidadesAtuacaoProf,
@@ -65,22 +67,29 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   const [gpsCentro, setGpsCentro] = useState<{ lat: number; lng: number } | null>(null)
   const [origemLabelGps, setOrigemLabelGps] = useState<string | null>(null)
   const [drawerAberto, setDrawerAberto] = useState(false)
+  /** Pesquisa efetiva ao abrir o drawer (evita stale URL enquanto o router ainda não atualizou). */
+  const [pesquisaDrawer, setPesquisaDrawer] = useState<MobilidadePesquisaState | null>(null)
   const [resultadoCorrida, setResultadoCorrida] = useState<ResultadoCorridaMobilidade | null>(null)
   const [resultadoAberto, setResultadoAberto] = useState(false)
 
+  const pesquisaAtiva = drawerAberto && pesquisaDrawer ? pesquisaDrawer : pesquisa
+
   useEffect(() => {
-    if (pesquisa.abrirPesquisa) setDrawerAberto(true)
-  }, [pesquisa.abrirPesquisa])
+    if (!pesquisa.abrirPesquisa) return
+    setDrawerAberto(true)
+    setPesquisaDrawer((prev) => prev ?? pesquisa)
+  }, [pesquisa.abrirPesquisa, pesquisa])
 
   const fecharDrawerPesquisa = () => {
     setDrawerAberto(false)
+    setPesquisaDrawer(null)
     router.replace(
       buildMobilidadePesquisaHref({
-        origem: pesquisa.origem,
-        destino: pesquisa.destino,
-        destinoEmpresaId: pesquisa.destinoEmpresaId,
-        recomendacaoId: pesquisa.recomendacaoId,
-        profissionalUsuarioId: pesquisa.profissionalUsuarioId,
+        origem: pesquisaAtiva.origem,
+        destino: pesquisaAtiva.destino,
+        destinoEmpresaId: pesquisaAtiva.destinoEmpresaId,
+        recomendacaoId: pesquisaAtiva.recomendacaoId,
+        profissionalUsuarioId: pesquisaAtiva.profissionalUsuarioId,
         abrirPesquisa: false,
       }),
     )
@@ -89,17 +98,16 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   const reabrirDrawerParaAgendar = () => {
     setResultadoAberto(false)
     setResultadoCorrida(null)
+    const next = {
+      ...pesquisa,
+      origem: pesquisaAtiva.origem,
+      destino: pesquisaAtiva.destino,
+      destinoEmpresaId: pesquisaAtiva.destinoEmpresaId,
+      abrirPesquisa: true,
+    }
+    setPesquisaDrawer(next)
     setDrawerAberto(true)
-    router.replace(
-      buildMobilidadePesquisaHref({
-        origem: pesquisa.origem,
-        destino: pesquisa.destino,
-        destinoEmpresaId: pesquisa.destinoEmpresaId,
-        recomendacaoId: pesquisa.recomendacaoId,
-        profissionalUsuarioId: pesquisa.profissionalUsuarioId,
-        abrirPesquisa: true,
-      }),
-    )
+    router.replace(buildMobilidadePesquisaHref(next))
   }
 
   useEffect(() => {
@@ -250,26 +258,27 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   }, [perfilEhTurista, perfilEhProfissional, visitanteParceria])
 
   const destinoPonto = useMemo(() => {
-    if (pesquisa.destino.lat != null && pesquisa.destino.lng != null) {
+    const p = pesquisaAtiva
+    if (p.destino.lat != null && p.destino.lng != null) {
       return {
-        lat: pesquisa.destino.lat,
-        lng: pesquisa.destino.lng,
-        label: pesquisa.destino.nome || undefined,
+        lat: p.destino.lat,
+        lng: p.destino.lng,
+        label: p.destino.nome || undefined,
       }
     }
-    if (pesquisa.destinoEmpresaId) {
-      const emp = empresas.find((e) => e.id === pesquisa.destinoEmpresaId)
+    if (p.destinoEmpresaId) {
+      const emp = empresas.find((e) => e.id === p.destinoEmpresaId)
       if (emp) return { lat: emp.latitude, lng: emp.longitude, label: emp.nome_fantasia }
     }
     return null
-  }, [pesquisa, empresas])
+  }, [pesquisaAtiva, empresas])
 
   const origemPonto =
-    pesquisa.origem.lat != null && pesquisa.origem.lng != null
+    pesquisaAtiva.origem.lat != null && pesquisaAtiva.origem.lng != null
       ? {
-          lat: pesquisa.origem.lat,
-          lng: pesquisa.origem.lng,
-          label: pesquisa.origem.nome || origemLabelGps || undefined,
+          lat: pesquisaAtiva.origem.lat,
+          lng: pesquisaAtiva.origem.lng,
+          label: pesquisaAtiva.origem.nome || origemLabelGps || undefined,
         }
       : gpsCentro
         ? { ...gpsCentro, label: origemLabelGps || undefined }
@@ -296,6 +305,26 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
           lat: destinoPonto?.lat ?? null,
           lng: destinoPonto?.lng ?? null,
         }
+      : null
+
+  const empresaDestino = pesquisaAtiva.destinoEmpresaId
+    ? empresas.find((e) => e.id === pesquisaAtiva.destinoEmpresaId) ?? null
+    : null
+
+  const destinoNomeEmpresa = empresaDestino?.nome_fantasia ?? null
+  const destinoCidadeEmpresa = empresaDestino?.cidade ?? null
+  const destinoEnderecoEmpresa = empresaDestino?.endereco ?? null
+  const destinoLabelCurtoEmpresa =
+    empresaDestino != null
+      ? [empresaDestino.nome_fantasia, abreviarCidadeTriplice(empresaDestino.cidade)]
+          .filter(Boolean)
+          .join(' · ')
+      : null
+  const destinoLabelCompletoEmpresa =
+    empresaDestino != null
+      ? [empresaDestino.nome_fantasia, empresaDestino.endereco, empresaDestino.cidade]
+          .filter(Boolean)
+          .join(' · ')
       : null
 
   return (
@@ -346,9 +375,18 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
                 if (p.nome) setOrigemLabelGps(p.nome)
               }
             }}
-            onPesquisar={() => {
+            onPesquisar={(o, d, empId) => {
+              const next: MobilidadePesquisaState = {
+                origem: o,
+                destino: d,
+                destinoEmpresaId: empId,
+                abrirPesquisa: true,
+                recomendacaoId: null,
+                profissionalUsuarioId: null,
+              }
               setResultadoAberto(false)
               setResultadoCorrida(null)
+              setPesquisaDrawer(next)
               setDrawerAberto(true)
             }}
           />
@@ -358,17 +396,11 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
       <DrawerPesquisaMobilidade
         aberto={drawerAberto}
         onFechar={fecharDrawerPesquisa}
-        pesquisa={pesquisa}
-        destinoCidadeEmpresa={
-          pesquisa.destinoEmpresaId
-            ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.cidade ?? null
-            : null
-        }
-        destinoNomeEmpresa={
-          pesquisa.destinoEmpresaId
-            ? empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.nome_fantasia ?? null
-            : null
-        }
+        pesquisa={pesquisaAtiva}
+        destinoCidadeEmpresa={destinoCidadeEmpresa}
+        destinoNomeEmpresa={destinoNomeEmpresa}
+        destinoLabelCurto={destinoLabelCurtoEmpresa}
+        destinoLabelCompleto={destinoLabelCompletoEmpresa}
         onResultado={(r) => {
           setResultadoCorrida(r)
           setResultadoAberto(true)

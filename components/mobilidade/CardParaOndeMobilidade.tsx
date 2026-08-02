@@ -34,7 +34,11 @@ type Props = {
    * Se informado, abre o fluxo imediatamente (evita travar quando a URL não muda).
    * Ainda assim atualiza a query via router.
    */
-  onPesquisar?: (origem: MobilidadePonto, destino: MobilidadePonto) => void
+  onPesquisar?: (
+    origem: MobilidadePonto,
+    destino: MobilidadePonto,
+    destinoEmpresaId: string | null,
+  ) => void
 }
 
 const fieldClass =
@@ -153,7 +157,7 @@ export default function CardParaOndeMobilidade({
         query: destino.nome,
         rotas: rotasTabeladas,
         empresas,
-        limite: 8,
+        limite: 12,
       }),
     [destino.nome, rotasTabeladas, empresas],
   )
@@ -187,7 +191,7 @@ export default function CardParaOndeMobilidade({
       setAberto(true)
       return
     }
-    onPesquisarProp?.(o, d)
+    onPesquisarProp?.(o, d, destinoEmpresaId)
     router.push(
       buildMobilidadePesquisaHref({
         origem: o,
@@ -252,7 +256,12 @@ export default function CardParaOndeMobilidade({
                       : t('origemPlaceholder')
                 }
                 className={fieldClass}
-                autoComplete="street-address"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                inputMode="text"
+                enterKeyHint="done"
               />
               {gpsStatus === 'denied' ? (
                 <p className="mt-1 text-xs text-amber-700">{t('gpsNegadoHint')}</p>
@@ -279,12 +288,16 @@ export default function CardParaOndeMobilidade({
                   }}
                   onFocus={() => setSugestoesAbertas(true)}
                   onBlur={() => {
-                    // Delay para permitir clique na sugestão
-                    window.setTimeout(() => setSugestoesAbertas(false), 150)
+                    window.setTimeout(() => setSugestoesAbertas(false), 180)
                   }}
                   placeholder={t('destinoPlaceholder')}
                   className={fieldClass}
                   autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  inputMode="text"
+                  enterKeyHint="search"
                   role="combobox"
                   aria-expanded={sugestoesAbertas && sugestoes.length > 0}
                   aria-autocomplete="list"
@@ -293,7 +306,7 @@ export default function CardParaOndeMobilidade({
 
               {sugestoesAbertas && sugestoes.length > 0 ? (
                 <ul
-                  className="absolute left-0 right-0 z-30 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+                  className="absolute left-0 right-0 z-30 mt-1 max-h-[min(55vh,24rem)] overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
                   role="listbox"
                 >
                   {sugestoes.map((s) => (
@@ -305,19 +318,35 @@ export default function CardParaOndeMobilidade({
                         onClick={() => escolherSugestao(s)}
                       >
                         {s.tipo === 'empresa' ? (
-                          <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
+                          s.fotoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={s.fotoUrl}
+                              alt=""
+                              className="mt-0.5 h-9 w-9 shrink-0 rounded-lg object-cover bg-gray-100"
+                            />
+                          ) : (
+                            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0097b2]/15">
+                              <Building2 className="h-4 w-4 text-[#0097b2]" aria-hidden />
+                            </span>
+                          )
                         ) : (
-                          <Route className="mt-0.5 h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
+                          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0097b2]/15">
+                            <Route className="h-4 w-4 text-[#0097b2]" aria-hidden />
+                          </span>
                         )}
                         <span className="min-w-0 flex-1">
                           <span className="block text-sm font-semibold text-gray-900">{s.label}</span>
-                          <span className="block text-[11px] text-gray-500">
-                            {s.tipo === 'empresa'
-                              ? s.detalhe
-                                ? `${t('sugestaoEmpresa')} · ${s.detalhe}`
-                                : t('sugestaoEmpresa')
-                              : t('sugestaoRota')}
-                          </span>
+                          {s.tipo === 'empresa' ? (
+                            <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
+                              {[s.endereco, s.detalhe].filter(Boolean).join(' · ') ||
+                                t('sugestaoEmpresa')}
+                            </span>
+                          ) : (
+                            <span className="mt-0.5 block text-[11px] text-gray-500">
+                              {t('sugestaoRota')}
+                            </span>
+                          )}
                         </span>
                       </button>
                     </li>

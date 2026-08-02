@@ -62,6 +62,10 @@ type Props = {
   pesquisa: MobilidadePesquisaState
   destinoCidadeEmpresa?: string | null
   destinoNomeEmpresa?: string | null
+  /** Drawer 1: nome fantasia + cidade abreviada (empresa). */
+  destinoLabelCurto?: string | null
+  /** Drawers 2–3: nome + endereço (empresa). */
+  destinoLabelCompleto?: string | null
   /** Após PROCURAR: fecha drawer e entrega resultado à página. */
   onResultado: (r: ResultadoCorridaMobilidade) => void
 }
@@ -248,6 +252,8 @@ export default function DrawerPesquisaMobilidade({
   pesquisa,
   destinoCidadeEmpresa = null,
   destinoNomeEmpresa = null,
+  destinoLabelCurto = null,
+  destinoLabelCompleto = null,
   onResultado,
 }: Props) {
   const t = useTranslations('Mobilidade')
@@ -279,10 +285,23 @@ export default function DrawerPesquisaMobilidade({
   const [dicaLugaresAberta, setDicaLugaresAberta] = useState(false)
   const [enviando, setEnviando] = useState(false)
 
-  const destinoLabel =
+  const destinoLabelBase =
     pesquisa.destino.nome ||
     destinoNomeEmpresa ||
     (pesquisa.destinoEmpresaId ? t('destinoEmpresa') : '—')
+
+  const destinoLabelEtapa1 =
+    pesquisa.destinoEmpresaId && destinoLabelCurto
+      ? destinoLabelCurto
+      : destinoLabelBase
+
+  const destinoLabelEtapa23 =
+    pesquisa.destinoEmpresaId && destinoLabelCompleto
+      ? destinoLabelCompleto
+      : destinoLabelBase
+
+  const destinoLabel = etapa === 1 ? destinoLabelEtapa1 : destinoLabelEtapa23
+
   const origemLabel =
     pesquisa.origem.nome ||
     (pesquisa.origem.lat != null
@@ -293,8 +312,8 @@ export default function DrawerPesquisaMobilidade({
   const cidadeDestino = useMemo(
     () =>
       inferirCidadeDePonto(pesquisa.destino, destinoCidadeEmpresa) ??
-      inferirCidadeDePonto({ nome: destinoLabel, lat: null, lng: null }, destinoCidadeEmpresa),
-    [pesquisa.destino, destinoCidadeEmpresa, destinoLabel],
+      inferirCidadeDePonto({ nome: destinoLabelBase, lat: null, lng: null }, destinoCidadeEmpresa),
+    [pesquisa.destino, destinoCidadeEmpresa, destinoLabelBase],
   )
   const cruzamento = ehCruzamentoFronteira(cidadeOrigem, cidadeDestino)
 
@@ -325,7 +344,16 @@ export default function DrawerPesquisaMobilidade({
       lat: pesquisa.destino.lat,
       lng: pesquisa.destino.lng,
     })
-  }, [aberto]) // eslint-disable-line react-hooks/exhaustive-deps -- reset ao abrir
+  }, [
+    aberto,
+    pesquisa.destino.nome,
+    pesquisa.destino.lat,
+    pesquisa.destino.lng,
+    pesquisa.destinoEmpresaId,
+    pesquisa.origem.nome,
+    pesquisa.origem.lat,
+    pesquisa.origem.lng,
+  ])
 
   useEffect(() => {
     if (!aberto) return
@@ -377,7 +405,7 @@ export default function DrawerPesquisaMobilidade({
   }, [aberto, modalidade])
 
   const valoresPorMod = useMemo(() => {
-    const destTxt = destinoLabel
+    const destTxt = destinoLabelBase
     const out: Partial<
       Record<
         ModalidadeMobilidadeId,
@@ -393,7 +421,7 @@ export default function DrawerPesquisaMobilidade({
       out[id] = { valor: rota ? rota.valorRota : null, rota }
     }
     return out
-  }, [disponiveisBase, rotas, destinoLabel])
+  }, [disponiveisBase, rotas, destinoLabelBase])
 
   const disponiveis = useMemo(
     () =>
@@ -505,7 +533,7 @@ export default function DrawerPesquisaMobilidade({
         body: JSON.stringify({
           modalidade,
           origem_nome: origemLabel,
-          destino_nome: destinoLabel,
+          destino_nome: destinoLabelBase,
           origem_lat: pesquisa.origem.lat,
           origem_lng: pesquisa.origem.lng,
           destino_lat: pesquisa.destino.lat,

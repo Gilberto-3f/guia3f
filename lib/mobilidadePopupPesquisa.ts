@@ -197,6 +197,8 @@ export type SugestaoDestinoMobilidade = {
   tipo: 'rota' | 'empresa'
   label: string
   detalhe: string | null
+  fotoUrl: string | null
+  endereco: string | null
   lat: number | null
   lng: number | null
   empresaId: string | null
@@ -224,6 +226,8 @@ export function sugerirDestinosMobilidade(input: {
     id: string
     nome_fantasia: string
     cidade?: string | null
+    endereco?: string | null
+    foto_url?: string | null
     latitude?: number | null
     longitude?: number | null
   }[]
@@ -231,7 +235,7 @@ export function sugerirDestinosMobilidade(input: {
 }): SugestaoDestinoMobilidade[] {
   const q = String(input.query ?? '').trim()
   if (q.length < 2) return []
-  const limite = input.limite ?? 8
+  const limite = input.limite ?? 12
   const out: (SugestaoDestinoMobilidade & { score: number })[] = []
   const destinosVistos = new Set<string>()
 
@@ -249,6 +253,8 @@ export function sugerirDestinosMobilidade(input: {
       tipo: 'rota',
       label,
       detalhe: null,
+      fotoUrl: null,
+      endereco: null,
       lat: null,
       lng: null,
       empresaId: null,
@@ -261,11 +267,15 @@ export function sugerirDestinosMobilidade(input: {
     if (!label) continue
     const score = scoreMatchTexto(label, q)
     if (score <= 0) continue
+    const endereco = e.endereco != null && String(e.endereco).trim() ? String(e.endereco).trim() : null
+    const cidade = e.cidade != null && String(e.cidade).trim() ? String(e.cidade).trim() : null
     out.push({
       id: `empresa:${e.id}`,
       tipo: 'empresa',
       label,
-      detalhe: e.cidade ? String(e.cidade) : null,
+      detalhe: cidade,
+      fotoUrl: e.foto_url != null && String(e.foto_url).trim() ? String(e.foto_url).trim() : null,
+      endereco,
       lat: e.latitude != null && Number.isFinite(e.latitude) ? e.latitude : null,
       lng: e.longitude != null && Number.isFinite(e.longitude) ? e.longitude : null,
       empresaId: e.id,
