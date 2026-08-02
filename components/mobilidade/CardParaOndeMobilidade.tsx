@@ -41,6 +41,8 @@ type Props = {
     destino: MobilidadePonto,
     destinoEmpresaId: string | null,
   ) => void
+  /** Força o card recolhido (ex.: enquanto o drawer de pesquisa está aberto). */
+  forcarRecolhido?: boolean
 }
 
 const fieldClass =
@@ -66,12 +68,13 @@ export default function CardParaOndeMobilidade({
   className = '',
   onOrigemChange,
   onPesquisar: onPesquisarProp,
+  forcarRecolhido = false,
 }: Props) {
   const t = useTranslations('Mobilidade')
   const router = useRouter()
   const listaRef = useRef<HTMLUListElement | null>(null)
 
-  const [aberto, setAberto] = useState(expandidoInicial)
+  const [aberto, setAberto] = useState(expandidoInicial && !forcarRecolhido)
   const [origem, setOrigem] = useState<MobilidadePonto>(() => ({
     nome: String(origemInicial?.nome ?? '').trim(),
     lat: origemInicial?.lat ?? null,
@@ -127,6 +130,10 @@ export default function CardParaOndeMobilidade({
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 60_000 },
     )
   }, [aplicarGps])
+
+  useEffect(() => {
+    if (forcarRecolhido) setAberto(false)
+  }, [forcarRecolhido])
 
   useEffect(() => {
     if (origemInicial?.lat != null && origemInicial?.lng != null) {
@@ -240,6 +247,8 @@ export default function CardParaOndeMobilidade({
       setAberto(true)
       return
     }
+    // Fecha o card antes do drawer — evita flash do layout expandido (origem+destino).
+    setAberto(false)
     onPesquisarProp?.(o, d, destinoEmpresaId)
     router.push(
       buildMobilidadePesquisaHref({
@@ -251,6 +260,7 @@ export default function CardParaOndeMobilidade({
     )
   }
 
+  const painelAberto = aberto && !forcarRecolhido
   const resumoDestino = destino.nome.trim() || t('paraOndePlaceholder')
 
   return (
@@ -259,23 +269,26 @@ export default function CardParaOndeMobilidade({
       <div className="rounded-2xl bg-white shadow-lg ring-1 ring-black/10">
         <button
           type="button"
-          onClick={() => setAberto((v) => !v)}
+          onClick={() => {
+            if (forcarRecolhido) return
+            setAberto((v) => !v)
+          }}
           className="flex w-full items-center justify-between gap-3 rounded-t-2xl bg-[#0097b2] px-4 py-3.5 text-left text-white"
-          aria-expanded={aberto}
-          aria-label={aberto ? t('paraOndeTitulo') : `${t('paraOndeTitulo')}. ${resumoDestino}`}
+          aria-expanded={painelAberto}
+          aria-label={painelAberto ? t('paraOndeTitulo') : `${t('paraOndeTitulo')}. ${resumoDestino}`}
         >
           <div className="flex min-w-0 items-center gap-2.5">
             <Car className="h-5 w-5 shrink-0 text-white" aria-hidden strokeWidth={2} />
             <p className="text-base font-extrabold text-white">{t('paraOndeTitulo')}</p>
           </div>
-          {aberto ? (
+          {painelAberto ? (
             <ChevronUp className="h-5 w-5 shrink-0 text-white" aria-hidden />
           ) : (
             <ChevronDown className="h-5 w-5 shrink-0 text-white" aria-hidden />
           )}
         </button>
 
-        {aberto ? (
+        {painelAberto ? (
           <div className="space-y-3 rounded-b-2xl bg-white px-4 pb-4 pt-3">
             <label className="block">
               <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#0097b2]">

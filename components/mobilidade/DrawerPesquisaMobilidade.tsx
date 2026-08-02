@@ -286,20 +286,14 @@ export default function DrawerPesquisaMobilidade({
   const [enviando, setEnviando] = useState(false)
 
   const destinoLabelBase =
+    destinoLabelCurto ||
     pesquisa.destino.nome ||
     destinoNomeEmpresa ||
     (pesquisa.destinoEmpresaId ? t('destinoEmpresa') : '—')
 
-  const destinoLabelEtapa1 =
-    pesquisa.destinoEmpresaId && destinoLabelCurto
-      ? destinoLabelCurto
-      : destinoLabelBase
-
-  const destinoLabelEtapa23 =
-    pesquisa.destinoEmpresaId && destinoLabelCompleto
-      ? destinoLabelCompleto
-      : destinoLabelBase
-
+  // Snapshot do pai tem prioridade — texto completo no 1º paint.
+  const destinoLabelEtapa1 = destinoLabelCurto || destinoLabelBase
+  const destinoLabelEtapa23 = destinoLabelCompleto || destinoLabelCurto || destinoLabelBase
   const destinoLabel = etapa === 1 ? destinoLabelEtapa1 : destinoLabelEtapa23
 
   const origemLabel =
@@ -319,6 +313,7 @@ export default function DrawerPesquisaMobilidade({
 
   const disponiveisBase = useMemo(() => modalidadesDisponiveis(cruzamento), [cruzamento])
 
+  // Montagem fresca a cada abertura (pai usa key + render condicional) — etapa 1 sem herança.
   useEffect(() => {
     if (!aberto) return
     setEtapa(1)
@@ -340,20 +335,13 @@ export default function DrawerPesquisaMobilidade({
     setEnviando(false)
     setOrigemDraft({ ...pesquisa.origem })
     setDestinoDraft({
-      nome: pesquisa.destino.nome || destinoNomeEmpresa || '',
+      nome: destinoLabelCurto || pesquisa.destino.nome || destinoNomeEmpresa || '',
       lat: pesquisa.destino.lat,
       lng: pesquisa.destino.lng,
     })
-  }, [
-    aberto,
-    pesquisa.destino.nome,
-    pesquisa.destino.lat,
-    pesquisa.destino.lng,
-    pesquisa.destinoEmpresaId,
-    pesquisa.origem.nome,
-    pesquisa.origem.lat,
-    pesquisa.origem.lng,
-  ])
+    // Só no open / troca de pesquisa relevante — não a cada keystroke de draft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto, pesquisa.destinoEmpresaId, pesquisa.destino.lat, pesquisa.destino.lng])
 
   useEffect(() => {
     if (!aberto) return

@@ -69,20 +69,67 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   const [drawerAberto, setDrawerAberto] = useState(false)
   /** Pesquisa efetiva ao abrir o drawer (evita stale URL enquanto o router ainda não atualizou). */
   const [pesquisaDrawer, setPesquisaDrawer] = useState<MobilidadePesquisaState | null>(null)
+  /** Labels prontos no clique (evita flash nome → nome+cidade). */
+  const [destinoLabelsSnap, setDestinoLabelsSnap] = useState<{
+    curto: string
+    completo: string
+    nome: string
+    cidade: string | null
+  } | null>(null)
+  /** Remonta o drawer a cada pesquisa — evita flash do layout da etapa anterior. */
+  const [drawerKey, setDrawerKey] = useState(0)
   const [resultadoCorrida, setResultadoCorrida] = useState<ResultadoCorridaMobilidade | null>(null)
   const [resultadoAberto, setResultadoAberto] = useState(false)
 
   const pesquisaAtiva = drawerAberto && pesquisaDrawer ? pesquisaDrawer : pesquisa
 
+  const montarLabelsDestino = (
+    empId: string | null | undefined,
+    destinoNome: string,
+  ): {
+    curto: string
+    completo: string
+    nome: string
+    cidade: string | null
+  } => {
+    const emp = empId ? empresas.find((e) => e.id === empId) : undefined
+    if (emp) {
+      const abrev = abreviarCidadeTriplice(emp.cidade)
+      return {
+        nome: emp.nome_fantasia,
+        cidade: emp.cidade || null,
+        curto: abrev ? `${emp.nome_fantasia} · ${abrev}` : emp.nome_fantasia,
+        completo: [emp.nome_fantasia, emp.endereco, emp.cidade].filter(Boolean).join(' · '),
+      }
+    }
+    const nome = destinoNome.trim()
+    return { nome, cidade: null, curto: nome, completo: nome }
+  }
+
+  const abrirDrawerPesquisa = (next: MobilidadePesquisaState) => {
+    const labels = montarLabelsDestino(next.destinoEmpresaId, next.destino.nome)
+    setDestinoLabelsSnap(labels)
+    setDrawerKey((k) => k + 1)
+    setPesquisaDrawer(next)
+    setDrawerAberto(true)
+  }
+
   useEffect(() => {
     if (!pesquisa.abrirPesquisa) return
-    setDrawerAberto(true)
-    setPesquisaDrawer((prev) => prev ?? pesquisa)
-  }, [pesquisa.abrirPesquisa, pesquisa])
+    if (drawerAberto) return
+    // Espera empresas se o destino for empresa — label completo no 1º paint.
+    if (pesquisa.destinoEmpresaId && carregandoEmpresas) return
+    abrirDrawerPesquisa({
+      ...pesquisa,
+      abrirPesquisa: true,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deep link / URL
+  }, [pesquisa.abrirPesquisa, pesquisa.destinoEmpresaId, carregandoEmpresas, empresas])
 
   const fecharDrawerPesquisa = () => {
     setDrawerAberto(false)
     setPesquisaDrawer(null)
+    setDestinoLabelsSnap(null)
     router.replace(
       buildMobilidadePesquisaHref({
         origem: pesquisaAtiva.origem,
@@ -98,15 +145,14 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   const reabrirDrawerParaAgendar = () => {
     setResultadoAberto(false)
     setResultadoCorrida(null)
-    const next = {
+    const next: MobilidadePesquisaState = {
       ...pesquisa,
       origem: pesquisaAtiva.origem,
       destino: pesquisaAtiva.destino,
       destinoEmpresaId: pesquisaAtiva.destinoEmpresaId,
       abrirPesquisa: true,
     }
-    setPesquisaDrawer(next)
-    setDrawerAberto(true)
+    abrirDrawerPesquisa(next)
     router.replace(buildMobilidadePesquisaHref(next))
   }
 
@@ -311,21 +357,22 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
     ? empresas.find((e) => e.id === pesquisaAtiva.destinoEmpresaId) ?? null
     : null
 
-  const destinoNomeEmpresa = empresaDestino?.nome_fantasia ?? null
-  const destinoCidadeEmpresa = empresaDestino?.cidade ?? null
-  const destinoEnderecoEmpresa = empresaDestino?.endereco ?? null
+  const destinoNomeEmpresa = destinoLabelsSnap?.nome ?? empresaDestino?.nome_fantasia ?? null
+  const destinoCidadeEmpresa = destinoLabelsSnap?.cidade ?? empresaDestino?.cidade ?? null
   const destinoLabelCurtoEmpresa =
-    empresaDestino != null
+    destinoLabelsSnap?.curto ??
+    (empresaDestino != null
       ? [empresaDestino.nome_fantasia, abreviarCidadeTriplice(empresaDestino.cidade)]
           .filter(Boolean)
           .join(' · ')
-      : null
+      : null)
   const destinoLabelCompletoEmpresa =
-    empresaDestino != null
+    destinoLabelsSnap?.completo ??
+    (empresaDestino != null
       ? [empresaDestino.nome_fantasia, empresaDestino.endereco, empresaDestino.cidade]
           .filter(Boolean)
           .join(' · ')
-      : null
+      : null)
 
   return (
     <div
@@ -364,6 +411,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
             origemInicial={origemInicialCard}
             destinoInicial={destinoInicialCard}
             empresas={empresas}
+            forcarRecolhido={drawerAberto}
             expandidoInicial={
               Boolean(pesquisa.abrirPesquisa) ||
               pontoPreenchido(pesquisa.destino) ||
@@ -376,36 +424,37 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
               }
             }}
             onPesquisar={(o, d, empId) => {
-              const next: MobilidadePesquisaState = {
+              setResultadoAberto(false)
+              setResultadoCorrida(null)
+              abrirDrawerPesquisa({
                 origem: o,
                 destino: d,
                 destinoEmpresaId: empId,
                 abrirPesquisa: true,
                 recomendacaoId: null,
                 profissionalUsuarioId: null,
-              }
-              setResultadoAberto(false)
-              setResultadoCorrida(null)
-              setPesquisaDrawer(next)
-              setDrawerAberto(true)
+              })
             }}
           />
         </div>
       </div>
 
-      <DrawerPesquisaMobilidade
-        aberto={drawerAberto}
-        onFechar={fecharDrawerPesquisa}
-        pesquisa={pesquisaAtiva}
-        destinoCidadeEmpresa={destinoCidadeEmpresa}
-        destinoNomeEmpresa={destinoNomeEmpresa}
-        destinoLabelCurto={destinoLabelCurtoEmpresa}
-        destinoLabelCompleto={destinoLabelCompletoEmpresa}
-        onResultado={(r) => {
-          setResultadoCorrida(r)
-          setResultadoAberto(true)
-        }}
-      />
+      {drawerAberto ? (
+        <DrawerPesquisaMobilidade
+          key={`pesquisa-drawer-${drawerKey}`}
+          aberto
+          onFechar={fecharDrawerPesquisa}
+          pesquisa={pesquisaAtiva}
+          destinoCidadeEmpresa={destinoCidadeEmpresa}
+          destinoNomeEmpresa={destinoNomeEmpresa}
+          destinoLabelCurto={destinoLabelCurtoEmpresa}
+          destinoLabelCompleto={destinoLabelCompletoEmpresa}
+          onResultado={(r) => {
+            setResultadoCorrida(r)
+            setResultadoAberto(true)
+          }}
+        />
+      ) : null}
 
       <PopupResultadoCorridaMobilidade
         aberto={resultadoAberto}
