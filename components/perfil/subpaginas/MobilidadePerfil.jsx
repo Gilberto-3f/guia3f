@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Car, Coins, ImagePlus, Info, Paperclip, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { MOEDAS_MOBILIDADE } from '@/lib/mobilidadePopupPesquisa'
@@ -39,7 +39,10 @@ function ChevronPasta({ titulo, aberto, onToggle, icon: Icon, children }) {
         </span>
         <span className="text-xs text-gray-400">{aberto ? '▲' : '▼'}</span>
       </button>
-      {aberto ? <div className="border-t border-gray-100 px-3 pb-3 pt-2">{children}</div> : null}
+      {/* Mantém montado (estado/ref) mesmo fechado — só oculta. */}
+      <div className={aberto ? 'border-t border-gray-100 px-3 pb-3 pt-2' : 'hidden'}>
+        {children}
+      </div>
     </div>
   )
 }
@@ -49,14 +52,15 @@ function ChevronPasta({ titulo, aberto, onToggle, icon: Icon, children }) {
  * @param {{ usuarioId: string | null, onDocsConcluido?: () => void }} props
  */
 export default function MobilidadePerfil({ usuarioId, onDocsConcluido }) {
+  const docsRef = useRef(/** @type {{ enviar: () => Promise<{ ok: boolean, erro?: string }> } | null} */ (null))
   const [carregando, setCarregando] = useState(true)
-  const [salvando, setSalvando] = useState(false)
+  const [enviando, setEnviando] = useState(false)
   const [msg, setMsg] = useState('')
   const [erro, setErro] = useState('')
   const [elegivel, setElegivel] = useState(false)
   const [ehMotoristaApp, setEhMotoristaApp] = useState(false)
   const [infoAberta, setInfoAberta] = useState(false)
-  const [pastaVeiculo, setPastaVeiculo] = useState(true)
+  const [pastaVeiculo, setPastaVeiculo] = useState(false)
   const [pastaMoeda, setPastaMoeda] = useState(false)
   const [pastaDocs, setPastaDocs] = useState(false)
 
@@ -100,7 +104,11 @@ export default function MobilidadePerfil({ usuarioId, onDocsConcluido }) {
       const cats = Array.isArray(data?.categorias) ? data.categorias.map(String) : []
       const ok = profissionalElegivelPerfilMobilidade(placaV, cats)
       setElegivel(ok)
-      setEhMotoristaApp(cats.map((c) => String(c).toLowerCase()).some((c) => c === 'motorista_app' || c.includes('motorista')))
+      setEhMotoristaApp(
+        cats
+          .map((c) => String(c).toLowerCase())
+          .some((c) => c === 'motorista_app' || c.includes('motorista')),
+      )
       if (!ok) return
 
       setFotos(normalizarVeiculoFotos(data?.veiculo_fotos))
@@ -135,9 +143,9 @@ export default function MobilidadePerfil({ usuarioId, onDocsConcluido }) {
     if (url) setFotos((prev) => [...prev, url].slice(0, 8))
   }
 
-  const salvar = async () => {
-    if (!usuarioId || salvando) return
-    setSalvando(true)
+  const enviarParaAnalise = async () => {
+    if (!usuarioId || enviando) return
+    setEnviando(true)
     setMsg('')
     setErro('')
     try {
@@ -151,7 +159,7 @@ export default function MobilidadePerfil({ usuarioId, onDocsConcluido }) {
         moedasPreferencia: moedasPref,
       })
       if (faltando.length > 0) {
-        setErro(`Campos incompletos: ${faltando.join(', ')}.`)
+        setErro(`Campos incompletos (Veículo/Moeda): ${faltando.join(', ')}.`)
         return
       }
 
@@ -160,26 +168,40 @@ export default function MobilidadePerfil({ usuarioId, onDocsConcluido }) {
       const modo = normalizarMoedaModo(moedaModo)
       const prefs = modo === 'prioridade' ? normalizarMoedasPreferencia(moedasPref) : []
 
-      const payload = {
-        veiculo_fotos: normalizarVeiculoFotos(fotos),
-        veiculo_placa: placa.trim().toUpperCase().slice(0, 20),
-        veiculo_modelo: normalizarVeiculoModelo(modelo),
-        veiculo_ano: anoN,
-        veiculo_lugares: lug,
-        moeda_modo: modo,
-        moedas_preferencia: prefs,
-      }
+      const { error: veiculoErr } = await supabase
+        .from('profissionais')
+        .update({
+          veiculo_fotos: normalizarVeiculoFotos(fotos),
+          veiculo_placa: placa.trim().toUpperCase().slice(0, 20),
+          veiculo_modelo: normalizarVeiculoModelo(modelo),
+          veiculo_ano: anoN,
+          veiculo_lugares: lug,
+          moeda_modo: modo,
+          moedas_preferencia: prefs,
+        })
+        .eq('usuario_id', usuarioId)
 
-      const { error } = await supabase.from('profissionais').update(payload).eq('usuario_id', usuarioId)
-      if (error) {
-        setErro(error.message)
+      if (veiculoErr) {
+        setErro(veiculoErr.message)
         return
       }
-      setMsg('Dados de mobilidade salvos.')
+
+      const docs = docsRef.current
+      if (!docs?.enviar) {
+        setErro('Não foi possível enviar os documentos. Abra a pasta Anexar documentos e tente de novo.')
+        return
+      }
+      const resultado = await docs.enviar()
+      if (!resultado.ok) {
+        setErro(resultado.erro || 'Preencha a pasta Anexar documentos.')
+        return
+      }
+
+      setMsg('Cadastro enviado para análise.')
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Falha ao salvar.')
+      setErro(e instanceof Error ? e.message : 'Falha ao enviar.')
     } finally {
-      setSalvando(false)
+      setEnviando(false)
     }
   }
 
@@ -232,6 +254,20 @@ export default function MobilidadePerfil({ usuarioId, onDocsConcluido }) {
       </div>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
+        <ChevronPasta
+          titulo="Anexar documentos"
+          aberto={pastaDocs}
+          onToggle={() => setPastaDocs((v) => !v)}
+          icon={Paperclip}
+        >
+          <AnexarDocumentos
+            ref={docsRef}
+            usuarioId={usuarioId}
+            onConcluido={onDocsConcluido}
+            ocultarBotao
+          />
+        </ChevronPasta>
+
         <ChevronPasta
           titulo="Veículo"
           aberto={pastaVeiculo}
@@ -383,15 +419,6 @@ export default function MobilidadePerfil({ usuarioId, onDocsConcluido }) {
           </div>
         </ChevronPasta>
 
-        <ChevronPasta
-          titulo="Anexar documentos"
-          aberto={pastaDocs}
-          onToggle={() => setPastaDocs((v) => !v)}
-          icon={Paperclip}
-        >
-          <AnexarDocumentos usuarioId={usuarioId} onConcluido={onDocsConcluido} />
-        </ChevronPasta>
-
         {erro ? <p className="text-sm text-rose-600">{erro}</p> : null}
         {msg ? (
           <p className="text-sm font-medium" style={{ color: COR }}>
@@ -403,12 +430,12 @@ export default function MobilidadePerfil({ usuarioId, onDocsConcluido }) {
       <div className="shrink-0 border-t border-gray-100 p-3">
         <button
           type="button"
-          disabled={salvando}
-          onClick={() => void salvar()}
+          disabled={enviando}
+          onClick={() => void enviarParaAnalise()}
           className="w-full rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
           style={{ backgroundColor: VERDE }}
         >
-          {salvando ? 'Salvando…' : 'Salvar'}
+          {enviando ? 'Enviando…' : 'Enviar para análise'}
         </button>
       </div>
     </div>

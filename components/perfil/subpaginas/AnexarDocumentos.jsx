@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useId, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useState } from 'react'
 import { Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useDocumentoDisponivel } from '@/hooks/useDocumentoDisponivel'
@@ -47,9 +47,17 @@ async function uploadProfDoc(file, userId, rotulo) {
 }
 
 /**
- * @param {{ usuarioId: string | null, onConcluido?: () => void }} props
+ * @typedef {{ enviar: () => Promise<{ ok: boolean, erro?: string }> }} AnexarDocumentosHandle
  */
-export default function AnexarDocumentos({ usuarioId, onConcluido }) {
+
+/**
+ * @param {{ usuarioId: string | null, onConcluido?: () => void, ocultarBotao?: boolean }} props
+ * @param {import('react').Ref<AnexarDocumentosHandle>} ref
+ */
+const AnexarDocumentos = forwardRef(function AnexarDocumentos(
+  { usuarioId, onConcluido, ocultarBotao = false },
+  ref,
+) {
   const [nomeCompleto, setNomeCompleto] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [numeroDocumento, setNumeroDocumento] = useState('')
@@ -70,7 +78,6 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
     if (!usuarioId) return
     let ativo = true
     void (async () => {
-      // Alguns bancos antigos ainda não têm `profissionais.telefone`; tenta com fallback.
       const res1 = await supabase
         .from('profissionais')
         .select(
@@ -133,53 +140,59 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
   const enviar = useCallback(async () => {
     setErro('')
     if (!usuarioId) {
-      setErro('Sessão inválida.')
-      return
+      const m = 'Sessão inválida.'
+      setErro(m)
+      return { ok: false, erro: m }
     }
     const nome = nomeCompleto.trim()
     const wa = whatsapp.trim()
     if (!nome) {
-      setErro('Informe o nome completo.')
-      return
+      const m = 'Informe o nome completo.'
+      setErro(m)
+      return { ok: false, erro: m }
     }
     if (!wa) {
-      setErro('Informe o WhatsApp.')
-      return
+      const m = 'Informe o WhatsApp.'
+      setErro(m)
+      return { ok: false, erro: m }
     }
     if (!documentoIdentidadeValido(documentoLimpo)) {
-      setErro('Informe o número do documento de identidade (mesmo da foto anexada).')
-      return
+      const m = 'Informe o número do documento de identidade (mesmo da foto anexada).'
+      setErro(m)
+      return { ok: false, erro: m }
     }
     if (documentoStatus !== 'available') {
-      setErro(
+      const m =
         documentoStatus === 'checking'
           ? 'Aguarde a verificação do número do documento.'
-          : documentoFeedback || 'Este documento já está vinculado a outra conta.',
-      )
-      return
+          : documentoFeedback || 'Este documento já está vinculado a outra conta.'
+      setErro(m)
+      return { ok: false, erro: m }
     }
-    if (!identidade || !endereco || !profissao) {
-      setErro('Envie os três documentos obrigatórios.')
-      return
+    if ((!identidade && !urlIdentidade) || (!endereco && !urlEndereco) || (!profissao && !urlProfissao)) {
+      const m = 'Envie os três documentos obrigatórios.'
+      setErro(m)
+      return { ok: false, erro: m }
     }
     for (const pair of [
       [identidade, 'identidade'],
       [endereco, 'endereco'],
       [profissao, 'profissao'],
     ]) {
+      if (!pair[0]) continue
       const v = validarArquivo(/** @type {File} */ (pair[0]))
       if (v) {
         setErro(v)
-        return
+        return { ok: false, erro: v }
       }
     }
 
     setEnviando(true)
     try {
       const [uId, uEnd, uProf] = await Promise.all([
-        uploadProfDoc(identidade, usuarioId, 'identidade'),
-        uploadProfDoc(endereco, usuarioId, 'endereco'),
-        uploadProfDoc(profissao, usuarioId, 'profissao'),
+        identidade ? uploadProfDoc(identidade, usuarioId, 'identidade') : Promise.resolve(urlIdentidade),
+        endereco ? uploadProfDoc(endereco, usuarioId, 'endereco') : Promise.resolve(urlEndereco),
+        profissao ? uploadProfDoc(profissao, usuarioId, 'profissao') : Promise.resolve(urlProfissao),
       ])
 
       const agora = new Date().toISOString()
@@ -202,8 +215,8 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
         .eq('usuario_id', usuarioId)
 
       if (upErr) {
-        const msg = upErr.message.toLowerCase()
-        if (msg.includes('documento_identidade') || msg.includes('unique')) {
+        const msgUp = upErr.message.toLowerCase()
+        if (msgUp.includes('documento_identidade') || msgUp.includes('unique')) {
           throw new Error('Este documento já está vinculado a outra conta.')
         }
         throw new Error(upErr.message)
@@ -224,8 +237,11 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
         /* ignore */
       }
       onConcluido?.()
+      return { ok: true }
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Falha ao enviar.')
+      const m = e instanceof Error ? e.message : 'Falha ao enviar.'
+      setErro(m)
+      return { ok: false, erro: m }
     } finally {
       setEnviando(false)
     }
@@ -239,8 +255,13 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
     identidade,
     endereco,
     profissao,
+    urlIdentidade,
+    urlEndereco,
+    urlProfissao,
     onConcluido,
   ])
+
+  useImperativeHandle(ref, () => ({ enviar }), [enviar])
 
   /**
    * @param {{ label: string, file: File | null, onChange: (f: File | null) => void, jaAnexado?: boolean }} props
@@ -284,8 +305,11 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
 
   return (
     <div className="space-y-5 text-gray-900">
-
-      {erro ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{erro}</div> : null}
+      {erro && !ocultarBotao ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+          {erro}
+        </div>
+      ) : null}
 
       <div className="space-y-3">
         <label className="block text-sm font-semibold text-gray-800">
@@ -375,15 +399,17 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
         />
       </div>
 
-      <button
-        type="button"
-        disabled={enviando}
-        onClick={() => void enviar()}
-        className="w-full rounded-xl py-3 text-base font-bold text-white shadow-sm transition hover:brightness-95 disabled:opacity-60"
-        style={{ backgroundColor: '#00D443' }}
-      >
-        {enviando ? 'Enviando…' : 'ENVIAR PARA ANÁLISE'}
-      </button>
+      {!ocultarBotao ? (
+        <button
+          type="button"
+          disabled={enviando}
+          onClick={() => void enviar()}
+          className="w-full rounded-xl py-3 text-base font-bold text-white shadow-sm transition hover:brightness-95 disabled:opacity-60"
+          style={{ backgroundColor: '#00D443' }}
+        >
+          {enviando ? 'Enviando…' : 'ENVIAR PARA ANÁLISE'}
+        </button>
+      ) : null}
 
       {mensagemVerificacao ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm leading-relaxed text-emerald-800">
@@ -392,4 +418,6 @@ export default function AnexarDocumentos({ usuarioId, onConcluido }) {
       ) : null}
     </div>
   )
-}
+})
+
+export default AnexarDocumentos
