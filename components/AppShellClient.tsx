@@ -27,7 +27,12 @@ function shellClasses(pathname: string, tecladoOcultaBarra: boolean) {
   const isChatAdm = pathname.includes('/chat-adm')
   const telaMensageiro = isCanal || isChatAdm
   const hideBottomBar =
-    isStoryCriar || ((pathname.includes('/feed/criar') || telaMensageiro) && tecladoOcultaBarra)
+    isStoryCriar ||
+    ((pathname.includes('/feed/criar') ||
+      telaMensageiro ||
+      pathname.includes('/mobilidade') ||
+      /\/guia\/?$/.test(pathname)) &&
+      tecladoOcultaBarra)
   const isGuiaOuMobilidade =
     /\/guia\/?$/.test(pathname) || pathname.includes('/mobilidade')
   const paddingInferior = hideBottomBar
@@ -111,9 +116,13 @@ function AppShellInner({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (!pathname.includes('/feed/criar') && !pathname.includes('/canal') && !pathname.includes('/chat-adm')) {
-      setTecladoOcultaBarra(false)
-    }
+    const emTelaTeclado =
+      pathname.includes('/feed/criar') ||
+      pathname.includes('/canal') ||
+      pathname.includes('/chat-adm') ||
+      pathname.includes('/mobilidade') ||
+      /\/guia\/?$/.test(pathname)
+    if (!emTelaTeclado) setTecladoOcultaBarra(false)
   }, [pathname])
 
   return (

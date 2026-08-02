@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Building2, Car, ChevronDown, ChevronUp, MapPin, Navigation, Route, Search } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
@@ -20,6 +20,8 @@ import {
   sugerirDestinosMobilidade,
   type SugestaoDestinoMobilidade,
 } from '@/lib/mobilidadePopupPesquisa'
+
+const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 
 type Props = {
   destinoInicial?: MobilidadePonto | null
@@ -44,6 +46,14 @@ type Props = {
 const fieldClass =
   'w-full rounded-xl border border-white/25 bg-[#0097b2] px-3 py-2.5 text-sm text-white placeholder:text-white/70 outline-none focus:ring-2 focus:ring-white/40'
 
+function emitTecladoBarra(hide: boolean) {
+  try {
+    window.dispatchEvent(new CustomEvent(TECLADO_BOTTOM_BAR_EVENT, { detail: { hide } }))
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Card colapsável "Para Onde?" — fixo no topo; painel abre para baixo.
  * GPS automático no boot (sem botão de mira).
@@ -59,6 +69,7 @@ export default function CardParaOndeMobilidade({
 }: Props) {
   const t = useTranslations('Mobilidade')
   const router = useRouter()
+  const listaRef = useRef<HTMLUListElement | null>(null)
 
   const [aberto, setAberto] = useState(expandidoInicial)
   const [origem, setOrigem] = useState<MobilidadePonto>(() => ({
@@ -74,6 +85,7 @@ export default function CardParaOndeMobilidade({
   const [destinoEmpresaId, setDestinoEmpresaId] = useState<string | null>(null)
   const [rotasTabeladas, setRotasTabeladas] = useState<RotaTabelada[]>([])
   const [sugestoesAbertas, setSugestoesAbertas] = useState(false)
+  const [campoFocado, setCampoFocado] = useState(false)
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'loading' | 'ok' | 'denied' | 'error'>('idle')
   const [erro, setErro] = useState('')
 
@@ -151,6 +163,39 @@ export default function CardParaOndeMobilidade({
     }
   }, [origem.lat, origem.lng, origem.nome])
 
+  /** Esconde BottomBar + trava scroll do fundo enquanto o teclado/campo está ativo. */
+  useEffect(() => {
+    const ativo = campoFocado || sugestoesAbertas
+    emitTecladoBarra(ativo)
+    if (!ativo || typeof document === 'undefined') {
+      return () => emitTecladoBarra(false)
+    }
+
+    const html = document.documentElement
+    const body = document.body
+    const prevHtmlOverflow = html.style.overflow
+    const prevBodyOverflow = body.style.overflow
+    const prevBodyTouch = body.style.touchAction
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    body.style.touchAction = 'none'
+
+    const bloquearFundo = (e: TouchEvent) => {
+      const lista = listaRef.current
+      if (lista && e.target instanceof Node && lista.contains(e.target)) return
+      e.preventDefault()
+    }
+    document.addEventListener('touchmove', bloquearFundo, { passive: false })
+
+    return () => {
+      html.style.overflow = prevHtmlOverflow
+      body.style.overflow = prevBodyOverflow
+      body.style.touchAction = prevBodyTouch
+      document.removeEventListener('touchmove', bloquearFundo)
+      emitTecladoBarra(false)
+    }
+  }, [campoFocado, sugestoesAbertas])
+
   const sugestoes = useMemo(
     () =>
       sugerirDestinosMobilidade({
@@ -161,6 +206,8 @@ export default function CardParaOndeMobilidade({
       }),
     [destino.nome, rotasTabeladas, empresas],
   )
+
+  const mostrarLista = sugestoesAbertas && sugestoes.length > 0
 
   const escolherSugestao = (s: SugestaoDestinoMobilidade) => {
     setDestino({
@@ -176,6 +223,8 @@ export default function CardParaOndeMobilidade({
   const onPesquisar = () => {
     setErro('')
     setSugestoesAbertas(false)
+    setCampoFocado(false)
+    emitTecladoBarra(false)
     const o: MobilidadePonto = {
       nome: origem.nome.trim(),
       lat: origem.lat,
@@ -206,11 +255,12 @@ export default function CardParaOndeMobilidade({
 
   return (
     <div className={`w-full max-w-lg ${className}`}>
-      <div className="overflow-hidden rounded-2xl shadow-lg ring-1 ring-black/10">
+      {/* Sem overflow-hidden no wrapper: senão a lista de autocomplete é cortada. */}
+      <div className="rounded-2xl bg-white shadow-lg ring-1 ring-black/10">
         <button
           type="button"
           onClick={() => setAberto((v) => !v)}
-          className="flex w-full items-center justify-between gap-3 bg-[#0097b2] px-4 py-3.5 text-left text-white"
+          className="flex w-full items-center justify-between gap-3 rounded-t-2xl bg-[#0097b2] px-4 py-3.5 text-left text-white"
           aria-expanded={aberto}
           aria-label={aberto ? t('paraOndeTitulo') : `${t('paraOndeTitulo')}. ${resumoDestino}`}
         >
@@ -226,7 +276,7 @@ export default function CardParaOndeMobilidade({
         </button>
 
         {aberto ? (
-          <div className="space-y-3 bg-white px-4 pb-4 pt-3">
+          <div className="space-y-3 rounded-b-2xl bg-white px-4 pb-4 pt-3">
             <label className="block">
               <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#0097b2]">
                 <Navigation className="h-3.5 w-3.5" aria-hidden />
@@ -248,6 +298,10 @@ export default function CardParaOndeMobilidade({
                     return next
                   })
                 }}
+                onFocus={() => setCampoFocado(true)}
+                onBlur={() => {
+                  window.setTimeout(() => setCampoFocado(false), 200)
+                }}
                 placeholder={
                   gpsStatus === 'loading'
                     ? t('origemGpsLoading')
@@ -268,7 +322,7 @@ export default function CardParaOndeMobilidade({
               ) : null}
             </label>
 
-            <div className="relative block">
+            <div className="block">
               <label className="block">
                 <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#0097b2]">
                   <MapPin className="h-3.5 w-3.5" aria-hidden />
@@ -286,9 +340,15 @@ export default function CardParaOndeMobilidade({
                     setDestinoEmpresaId(null)
                     setSugestoesAbertas(true)
                   }}
-                  onFocus={() => setSugestoesAbertas(true)}
+                  onFocus={() => {
+                    setCampoFocado(true)
+                    setSugestoesAbertas(true)
+                  }}
                   onBlur={() => {
-                    window.setTimeout(() => setSugestoesAbertas(false), 180)
+                    window.setTimeout(() => {
+                      setSugestoesAbertas(false)
+                      setCampoFocado(false)
+                    }, 200)
                   }}
                   placeholder={t('destinoPlaceholder')}
                   className={fieldClass}
@@ -299,15 +359,19 @@ export default function CardParaOndeMobilidade({
                   inputMode="text"
                   enterKeyHint="search"
                   role="combobox"
-                  aria-expanded={sugestoesAbertas && sugestoes.length > 0}
+                  aria-expanded={mostrarLista}
                   aria-autocomplete="list"
                 />
               </label>
 
-              {sugestoesAbertas && sugestoes.length > 0 ? (
+              {/* Lista no fluxo (não absolute) — pelo menos ~3 itens visíveis; só ela rola. */}
+              {mostrarLista ? (
                 <ul
-                  className="absolute left-0 right-0 z-30 mt-1 max-h-[min(55vh,24rem)] overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+                  ref={listaRef}
+                  className="mt-2 max-h-[min(42vh,13.5rem)] min-h-[10.5rem] touch-pan-y overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white py-1 shadow-md"
+                  style={{ WebkitOverflowScrolling: 'touch' }}
                   role="listbox"
+                  onTouchMove={(e) => e.stopPropagation()}
                 >
                   {sugestoes.map((s) => (
                     <li key={s.id} role="option">
