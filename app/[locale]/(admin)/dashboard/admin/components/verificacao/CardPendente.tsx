@@ -68,6 +68,73 @@ function LinhaInfo({ rotulo, valor }: { rotulo: string; valor: string }) {
   )
 }
 
+const MOEDA_LABEL: Record<string, string> = {
+  real: 'Real',
+  guarani: 'Guarani',
+  peso: 'Peso',
+  dolar: 'Dólar',
+  euro: 'Euro',
+}
+
+function BlocoMobilidadeAdmin({ raw }: { raw: Record<string, unknown> }) {
+  const placa = raw.veiculo_placa != null ? String(raw.veiculo_placa).trim() : ''
+  const modelo = raw.veiculo_modelo != null ? String(raw.veiculo_modelo).trim() : ''
+  const ano = raw.veiculo_ano != null && String(raw.veiculo_ano).trim() ? String(raw.veiculo_ano) : ''
+  const lugares =
+    raw.veiculo_lugares != null && String(raw.veiculo_lugares).trim()
+      ? String(raw.veiculo_lugares)
+      : ''
+  const fotos = Array.isArray(raw.veiculo_fotos)
+    ? raw.veiculo_fotos.map((u) => String(u)).filter((u) => u.startsWith('http'))
+    : []
+  const modo = String(raw.moeda_modo ?? '').trim().toLowerCase() === 'prioridade' ? 'prioridade' : 'todas'
+  const prefs = Array.isArray(raw.moedas_preferencia)
+    ? raw.moedas_preferencia.map((m) => MOEDA_LABEL[String(m)] ?? String(m)).filter(Boolean)
+    : []
+
+  const temAlgo = Boolean(placa || modelo || ano || lugares || fotos.length || prefs.length || raw.moeda_modo)
+  if (!temAlgo) return null
+
+  return (
+    <div className="mt-3 rounded-xl border border-[#0097b2]/25 bg-[#0097b2]/5 p-3">
+      <p className="text-xs font-bold uppercase tracking-wide" style={{ color: COR_LOGO }}>
+        Mobilidade / veículo
+      </p>
+      <div className="mt-2 space-y-1">
+        {placa ? <LinhaInfo rotulo="Placa" valor={placa} /> : null}
+        {modelo ? <LinhaInfo rotulo="Modelo" valor={modelo} /> : null}
+        {ano ? <LinhaInfo rotulo="Ano" valor={ano} /> : null}
+        {lugares ? <LinhaInfo rotulo="Lugares" valor={lugares} /> : null}
+        <LinhaInfo
+          rotulo="Moeda"
+          valor={
+            modo === 'prioridade'
+              ? prefs.length
+                ? `Prioridade: ${prefs.join(', ')}`
+                : 'Prioridade (sem lista)'
+              : 'Todas'
+          }
+        />
+      </div>
+      {fotos.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {fotos.slice(0, 8).map((url) => (
+            <a key={url} href={url} target="_blank" rel="noreferrer" className="block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt=""
+                className="h-14 w-14 rounded-lg object-cover bg-gray-100"
+                loading="lazy"
+              />
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export function CardPendente({
   item,
   tipo,
@@ -207,6 +274,7 @@ export function CardPendente({
           {tipo === 'profissionais' && item.placaVermelha ? (
             <div className="mt-2 text-xs font-medium text-rose-700">Placa vermelha registrada</div>
           ) : null}
+          {tipo === 'profissionais' ? <BlocoMobilidadeAdmin raw={item.raw} /> : null}
 
           {tipo === 'turistas' && Array.isArray(item.raw.pre_liberacoes) && item.raw.pre_liberacoes.length > 0 ? (
             <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-950">

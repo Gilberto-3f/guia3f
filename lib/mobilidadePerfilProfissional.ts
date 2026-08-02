@@ -6,20 +6,61 @@ import {
 
 export type MoedaModoProfissional = 'todas' | 'prioridade'
 
-/** Van / táxi / guia com placa vermelha — não anfitrião nem motorista de app. */
+const CATS_PLACA = new Set(['van', 'taxista', 'guia'])
+
+/**
+ * Perfil Mobilidade no menu: placa vermelha (van/táxi/guia) ou motorista de app.
+ * Anfitrião puro (só hospedagem) fica de fora.
+ */
 export function profissionalElegivelPerfilMobilidade(
   placaVermelha: boolean,
   categorias: string[] | null | undefined,
 ): boolean {
-  if (!placaVermelha) return false
   const cats = normalizarCategoriasProfissional(categorias)
-  if (cats.includes('anfitriao') && !cats.some((c) => c === 'van' || c === 'taxista' || c === 'guia')) {
-    return false
+  const temPlaca = cats.some((c) => CATS_PLACA.has(c))
+  const temApp = cats.includes('motorista_app')
+  if (temPlaca && placaVermelha) return true
+  if (temApp) return true
+  return false
+}
+
+export function normalizarVeiculoModelo(raw: unknown): string {
+  return String(raw ?? '')
+    .trim()
+    .slice(0, 80)
+}
+
+export function normalizarVeiculoAno(raw: unknown): number | null {
+  if (raw == null || raw === '') return null
+  const n = Math.floor(Number(raw))
+  const maxAno = new Date().getFullYear() + 1
+  if (!Number.isFinite(n) || n < 1980 || n > maxAno) return null
+  return n
+}
+
+/** Campos obrigatórios do cadastro de veículo/moeda (salvar perfil). */
+export function validarCadastroMobilidadeCompleto(input: {
+  fotos: unknown
+  placa: unknown
+  modelo: unknown
+  ano: unknown
+  lugares: unknown
+  moedaModo: unknown
+  moedasPreferencia: unknown
+}): string[] {
+  const faltando: string[] = []
+  if (normalizarVeiculoFotos(input.fotos).length === 0) faltando.push('Fotos do veículo')
+  if (!String(input.placa ?? '').trim()) faltando.push('Placa')
+  if (!normalizarVeiculoModelo(input.modelo)) faltando.push('Modelo do veículo')
+  if (normalizarVeiculoAno(input.ano) == null) faltando.push('Ano do veículo')
+  if (normalizarVeiculoLugares(input.lugares) == null) {
+    faltando.push('Quantidade de lugares')
   }
-  if (cats.includes('motorista_app') && !cats.some((c) => c === 'van' || c === 'taxista' || c === 'guia')) {
-    return false
+  const modo = normalizarMoedaModo(input.moedaModo)
+  if (modo === 'prioridade' && normalizarMoedasPreferencia(input.moedasPreferencia).length === 0) {
+    faltando.push('Moedas de prioridade')
   }
-  return cats.includes('van') || cats.includes('taxista') || cats.includes('guia')
+  return faltando
 }
 
 const MOEDA_SET = new Set<string>(MOEDAS_MOBILIDADE.map((m) => m.value))

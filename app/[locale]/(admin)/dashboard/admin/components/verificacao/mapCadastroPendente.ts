@@ -179,6 +179,29 @@ export function mapRowToCadastroPendente(
         : row.cidade_atuacao != null && String(row.cidade_atuacao).trim()
           ? [String(row.cidade_atuacao).trim()]
           : null,
+      veiculo_fotos: Array.isArray(row.veiculo_fotos)
+        ? row.veiculo_fotos.map((v) => String(v))
+        : null,
+      veiculo_placa:
+        row.veiculo_placa != null && String(row.veiculo_placa).trim()
+          ? String(row.veiculo_placa).trim()
+          : null,
+      veiculo_modelo:
+        row.veiculo_modelo != null && String(row.veiculo_modelo).trim()
+          ? String(row.veiculo_modelo).trim()
+          : null,
+      veiculo_ano:
+        row.veiculo_ano != null && Number.isFinite(Number(row.veiculo_ano))
+          ? Math.floor(Number(row.veiculo_ano))
+          : null,
+      veiculo_lugares:
+        row.veiculo_lugares != null && Number.isFinite(Number(row.veiculo_lugares))
+          ? Math.floor(Number(row.veiculo_lugares))
+          : null,
+      moeda_modo: row.moeda_modo != null ? String(row.moeda_modo) : null,
+      moedas_preferencia: Array.isArray(row.moedas_preferencia)
+        ? row.moedas_preferencia.map((v) => String(v))
+        : null,
     }
     return mapProfissionalToCadastroPendente(p)
   }

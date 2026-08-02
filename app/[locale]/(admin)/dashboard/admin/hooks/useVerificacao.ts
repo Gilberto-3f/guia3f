@@ -269,6 +269,29 @@ export function useVerificacao(filtros: FiltrosVerificacao) {
           : r.cidade_atuacao != null && String(r.cidade_atuacao).trim()
             ? [String(r.cidade_atuacao).trim()]
             : null,
+        veiculo_fotos: Array.isArray(r.veiculo_fotos)
+          ? r.veiculo_fotos.map((v) => String(v))
+          : null,
+        veiculo_placa:
+          r.veiculo_placa != null && String(r.veiculo_placa).trim()
+            ? String(r.veiculo_placa).trim()
+            : null,
+        veiculo_modelo:
+          r.veiculo_modelo != null && String(r.veiculo_modelo).trim()
+            ? String(r.veiculo_modelo).trim()
+            : null,
+        veiculo_ano:
+          r.veiculo_ano != null && Number.isFinite(Number(r.veiculo_ano))
+            ? Math.floor(Number(r.veiculo_ano))
+            : null,
+        veiculo_lugares:
+          r.veiculo_lugares != null && Number.isFinite(Number(r.veiculo_lugares))
+            ? Math.floor(Number(r.veiculo_lugares))
+            : null,
+        moeda_modo: r.moeda_modo != null ? String(r.moeda_modo) : null,
+        moedas_preferencia: Array.isArray(r.moedas_preferencia)
+          ? r.moedas_preferencia.map((v) => String(v))
+          : null,
       }
     })
 

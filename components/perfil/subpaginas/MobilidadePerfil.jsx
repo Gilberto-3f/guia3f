@@ -1,27 +1,28 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Car, Coins, ImagePlus, Trash2 } from 'lucide-react'
+import { Car, Coins, ImagePlus, Info, Paperclip, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { MOEDAS_MOBILIDADE } from '@/lib/mobilidadePopupPesquisa'
 import {
   normalizarMoedaModo,
   normalizarMoedasPreferencia,
+  normalizarVeiculoAno,
   normalizarVeiculoFotos,
   normalizarVeiculoLugares,
+  normalizarVeiculoModelo,
   profissionalElegivelPerfilMobilidade,
+  validarCadastroMobilidadeCompleto,
 } from '@/lib/mobilidadePerfilProfissional'
+import AnexarDocumentos from '@/components/perfil/subpaginas/AnexarDocumentos'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
 
-function ChevronPasta({
-  titulo,
-  aberto,
-  onToggle,
-  icon: Icon,
-  children,
-}) {
+const TEXTO_INFO_MOBILIDADE =
+  'Cadastro do profissional e do veículo + preferência de recebimento — dados alimentam o algoritmo na busca do turista.'
+
+function ChevronPasta({ titulo, aberto, onToggle, icon: Icon, children }) {
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       <button
@@ -30,7 +31,10 @@ function ChevronPasta({
         className="flex w-full items-center gap-2 px-3 py-3 text-left"
       >
         <Icon className="h-5 w-5 shrink-0" style={{ color: COR }} aria-hidden />
-        <span className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide" style={{ color: COR }}>
+        <span
+          className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide"
+          style={{ color: COR }}
+        >
           {titulo}
         </span>
         <span className="text-xs text-gray-400">{aberto ? '▲' : '▼'}</span>
@@ -41,20 +45,25 @@ function ChevronPasta({
 }
 
 /**
- * Perfil Mobilidade (placa vermelha): veículo + preferência de moeda.
- * @param {{ usuarioId: string | null }} props
+ * Perfil Mobilidade (placa vermelha + motorista de app): veículo, moeda e documentos.
+ * @param {{ usuarioId: string | null, onDocsConcluido?: () => void }} props
  */
-export default function MobilidadePerfil({ usuarioId }) {
+export default function MobilidadePerfil({ usuarioId, onDocsConcluido }) {
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [msg, setMsg] = useState('')
   const [erro, setErro] = useState('')
   const [elegivel, setElegivel] = useState(false)
+  const [ehMotoristaApp, setEhMotoristaApp] = useState(false)
+  const [infoAberta, setInfoAberta] = useState(false)
   const [pastaVeiculo, setPastaVeiculo] = useState(true)
   const [pastaMoeda, setPastaMoeda] = useState(false)
+  const [pastaDocs, setPastaDocs] = useState(false)
 
   const [fotos, setFotos] = useState(/** @type {string[]} */ ([]))
   const [placa, setPlaca] = useState('')
+  const [modelo, setModelo] = useState('')
+  const [ano, setAno] = useState('')
   const [lugares, setLugares] = useState('')
   /** @type {[string, (v: string) => void]} */
   const [moedaModo, setMoedaModo] = useState('todas')
@@ -68,14 +77,17 @@ export default function MobilidadePerfil({ usuarioId }) {
       const { data, error } = await supabase
         .from('profissionais')
         .select(
-          'categorias, placa_vermelha, veiculo_fotos, veiculo_placa, veiculo_lugares, moeda_modo, moedas_preferencia',
+          'categorias, placa_vermelha, veiculo_fotos, veiculo_placa, veiculo_modelo, veiculo_ano, veiculo_lugares, moeda_modo, moedas_preferencia',
         )
         .eq('usuario_id', usuarioId)
         .maybeSingle()
 
       if (error) {
         const m = String(error.message ?? '')
-        if (m.toLowerCase().includes('veiculo') || m.toLowerCase().includes('moeda_modo')) {
+        if (
+          m.toLowerCase().includes('veiculo') ||
+          m.toLowerCase().includes('moeda_modo')
+        ) {
           setErro('Migration de veículo/moeda pendente no banco. Aplique o SQL e recarregue.')
           setElegivel(false)
           return
@@ -88,10 +100,14 @@ export default function MobilidadePerfil({ usuarioId }) {
       const cats = Array.isArray(data?.categorias) ? data.categorias.map(String) : []
       const ok = profissionalElegivelPerfilMobilidade(placaV, cats)
       setElegivel(ok)
+      setEhMotoristaApp(cats.map((c) => String(c).toLowerCase()).some((c) => c === 'motorista_app' || c.includes('motorista')))
       if (!ok) return
 
       setFotos(normalizarVeiculoFotos(data?.veiculo_fotos))
       setPlaca(data?.veiculo_placa != null ? String(data.veiculo_placa) : '')
+      setModelo(normalizarVeiculoModelo(data?.veiculo_modelo))
+      const anoN = normalizarVeiculoAno(data?.veiculo_ano)
+      setAno(anoN != null ? String(anoN) : '')
       const lug = normalizarVeiculoLugares(data?.veiculo_lugares)
       setLugares(lug != null ? String(lug) : '')
       setMoedaModo(normalizarMoedaModo(data?.moeda_modo))
@@ -125,21 +141,30 @@ export default function MobilidadePerfil({ usuarioId }) {
     setMsg('')
     setErro('')
     try {
-      const lug = normalizarVeiculoLugares(lugares)
-      if (lug == null) {
-        setErro('Informe a quantidade de lugares do veículo (mínimo 1).')
-        return
-      }
-      const modo = normalizarMoedaModo(moedaModo)
-      const prefs = modo === 'prioridade' ? normalizarMoedasPreferencia(moedasPref) : []
-      if (modo === 'prioridade' && prefs.length === 0) {
-        setErro('Marque ao menos uma moeda de prioridade.')
+      const faltando = validarCadastroMobilidadeCompleto({
+        fotos,
+        placa,
+        modelo,
+        ano,
+        lugares,
+        moedaModo,
+        moedasPreferencia: moedasPref,
+      })
+      if (faltando.length > 0) {
+        setErro(`Campos incompletos: ${faltando.join(', ')}.`)
         return
       }
 
+      const lug = /** @type {number} */ (normalizarVeiculoLugares(lugares))
+      const anoN = /** @type {number} */ (normalizarVeiculoAno(ano))
+      const modo = normalizarMoedaModo(moedaModo)
+      const prefs = modo === 'prioridade' ? normalizarMoedasPreferencia(moedasPref) : []
+
       const payload = {
         veiculo_fotos: normalizarVeiculoFotos(fotos),
-        veiculo_placa: placa.trim().slice(0, 20) || null,
+        veiculo_placa: placa.trim().toUpperCase().slice(0, 20),
+        veiculo_modelo: normalizarVeiculoModelo(modelo),
+        veiculo_ano: anoN,
         veiculo_lugares: lug,
         moeda_modo: modo,
         moedas_preferencia: prefs,
@@ -169,8 +194,8 @@ export default function MobilidadePerfil({ usuarioId }) {
           Mobilidade
         </h2>
         <p className="text-sm text-gray-600">
-          Disponível apenas para profissionais de mobilidade com placa vermelha (van, táxi ou guia).
-          Anfitrião e motorista de app não usam este cadastro.
+          Disponível para profissionais de mobilidade (placa vermelha: van, táxi ou guia) e motorista
+          de app. Anfitriões de hospedagem não usam este cadastro.
         </p>
         {erro ? <p className="text-sm text-rose-600">{erro}</p> : null}
       </div>
@@ -180,12 +205,30 @@ export default function MobilidadePerfil({ usuarioId }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-gray-100 px-4 py-3">
-        <h2 className="text-lg font-bold" style={{ color: COR }}>
-          Mobilidade
-        </h2>
-        <p className="mt-0.5 text-xs text-gray-500">
-          Veículo e preferência de recebimento — alimentam o algoritmo e o cartão do turista.
-        </p>
+        <div className="flex items-start gap-2">
+          <h2 className="min-w-0 flex-1 text-lg font-bold" style={{ color: COR }}>
+            Mobilidade
+          </h2>
+          <button
+            type="button"
+            onClick={() => setInfoAberta((v) => !v)}
+            className="shrink-0 rounded-full p-1"
+            style={{ color: COR }}
+            aria-label="Informações sobre o cadastro de mobilidade"
+            aria-expanded={infoAberta}
+          >
+            <Info className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+        {infoAberta ? (
+          <p className="mt-2 text-xs leading-relaxed text-gray-600">{TEXTO_INFO_MOBILIDADE}</p>
+        ) : null}
+        {ehMotoristaApp ? (
+          <p className="mt-1 text-[11px] text-gray-400">
+            Motorista de app: o atendimento ao turista segue a API do parceiro; estes dados protegem o
+            ecossistema.
+          </p>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
@@ -241,6 +284,31 @@ export default function MobilidadePerfil({ usuarioId }) {
                 maxLength={20}
                 className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900"
                 placeholder="ABC1D23"
+              />
+            </label>
+
+            <label className="block text-xs font-semibold text-gray-600">
+              Modelo do veículo
+              <input
+                type="text"
+                value={modelo}
+                onChange={(e) => setModelo(e.target.value)}
+                maxLength={80}
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900"
+                placeholder="Ex.: Fiat Doblo"
+              />
+            </label>
+
+            <label className="block text-xs font-semibold text-gray-600">
+              Ano
+              <input
+                type="number"
+                min={1980}
+                max={new Date().getFullYear() + 1}
+                value={ano}
+                onChange={(e) => setAno(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900"
+                placeholder="Ex.: 2020"
               />
             </label>
 
@@ -315,8 +383,21 @@ export default function MobilidadePerfil({ usuarioId }) {
           </div>
         </ChevronPasta>
 
+        <ChevronPasta
+          titulo="Anexar documentos"
+          aberto={pastaDocs}
+          onToggle={() => setPastaDocs((v) => !v)}
+          icon={Paperclip}
+        >
+          <AnexarDocumentos usuarioId={usuarioId} onConcluido={onDocsConcluido} />
+        </ChevronPasta>
+
         {erro ? <p className="text-sm text-rose-600">{erro}</p> : null}
-        {msg ? <p className="text-sm font-medium" style={{ color: COR }}>{msg}</p> : null}
+        {msg ? (
+          <p className="text-sm font-medium" style={{ color: COR }}>
+            {msg}
+          </p>
+        ) : null}
       </div>
 
       <div className="shrink-0 border-t border-gray-100 p-3">

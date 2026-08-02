@@ -134,6 +134,13 @@ export type PendenteProfissional = {
   telefone?: string | null
   pais?: string | null
   cidade_atuacao?: string[] | null
+  veiculo_fotos?: string[] | null
+  veiculo_placa?: string | null
+  veiculo_modelo?: string | null
+  veiculo_ano?: number | null
+  veiculo_lugares?: number | null
+  moeda_modo?: string | null
+  moedas_preferencia?: string[] | null
 }
 
 export type PendenteEmpresa = {

@@ -101,6 +101,7 @@ import { contarVisitasPerfilPendentes } from '@/lib/perfilVisitas'
 import { contarComprasTuristaPendentes } from '@/lib/turistaCompras'
 import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
 import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBloqueado'
+import { profissionalElegivelPerfilMobilidade } from '@/lib/mobilidadePerfilProfissional'
 import {
   GRUPOS_MENU_PROF_BLOQUEADOS_DOCS,
   SUBGRUPOS_MENU_PROF_BLOQUEADOS_DOCS,
@@ -128,6 +129,7 @@ import {
  * @typedef {{
  *   variant: 'turista' | 'profissional' | 'empresa' | 'admin'
  *   placaVermelha: boolean
+ *   perfilMobilidade: boolean
  *   adminLevel: number
  *   recursosProfissionaisLiberados: boolean
  *   empresaCategoria?: string
@@ -253,7 +255,7 @@ function secoesTurista(opts = {}) {
   ]
   return [
     secaoUsuario(gUsuario),
-    secaoMinhaConta({ variant: 'turista', placaVermelha: false, adminLevel: 0, recursosProfissionaisLiberados: false }),
+    secaoMinhaConta({ variant: 'turista', placaVermelha: false, perfilMobilidade: false, adminLevel: 0, recursosProfissionaisLiberados: false }),
     { tipo: 'grupo', key: 'aplicativo', label: 'Aplicativo', items: gAplic },
     /** @type {const} */ { tipo: 'grupo', key: 'emergencia', label: 'Emergência', items: gEmergencia },
     { tipo: 'sair' },
@@ -300,9 +302,15 @@ function secoesProfissional(ctx) {
         Icon: Car,
         label: 'Mobilidade',
         subpagina: 'mobilidade-perfil',
-        condicional: (c) => c.placaVermelha === true,
+        condicional: (c) => c.perfilMobilidade === true,
       },
-      { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos' },
+      {
+        Icon: Paperclip,
+        label: 'Anexar Documentos',
+        subpagina: 'anexar-documentos',
+        /** Mobilidade (placa vermelha / motorista app): docs ficam dentro do drawer Mobilidade. */
+        condicional: (c) => c.perfilMobilidade !== true,
+      },
     ],
     ctx
   )
@@ -387,7 +395,18 @@ function secoesProfissionalAguardandoDocs(ctx) {
       filtrarMenu(
         [
           { Icon: User, label: 'Editar Perfil', subpagina: 'editar-perfil' },
-          { Icon: Paperclip, label: 'Anexar Documentos', subpagina: 'anexar-documentos' },
+          {
+            Icon: Car,
+            label: 'Mobilidade',
+            subpagina: 'mobilidade-perfil',
+            condicional: (c) => c.perfilMobilidade === true,
+          },
+          {
+            Icon: Paperclip,
+            label: 'Anexar Documentos',
+            subpagina: 'anexar-documentos',
+            condicional: (c) => c.perfilMobilidade !== true,
+          },
         ],
         ctx
       )
@@ -616,6 +635,7 @@ export default function MenuLateral({
   } = useAdminColaboradorModo()
 
   const [profVerificadoMenu, setProfVerificadoMenu] = useState(false)
+  const [perfilMobilidade, setPerfilMobilidade] = useState(false)
   const [visitasPendentes, setVisitasPendentes] = useState(0)
   const [comprasPendentes, setComprasPendentes] = useState(0)
   const [adminLevelMenu, setAdminLevelMenu] = useState(adminLevel)
@@ -706,6 +726,29 @@ export default function MenuLateral({
     }
     return variant || 'turista'
   })()
+
+  useEffect(() => {
+    if (!usuarioIdEfetivo || menuVariantEfetivo !== 'profissional') {
+      setPerfilMobilidade(false)
+      return
+    }
+    let ativo = true
+    void (async () => {
+      const { data } = await supabase
+        .from('profissionais')
+        .select('placa_vermelha, categorias')
+        .eq('usuario_id', usuarioIdEfetivo)
+        .maybeSingle()
+      if (!ativo) return
+      const cats = Array.isArray(data?.categorias) ? data.categorias.map(String) : []
+      setPerfilMobilidade(
+        profissionalElegivelPerfilMobilidade(Boolean(data?.placa_vermelha), cats),
+      )
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [usuarioIdEfetivo, menuVariantEfetivo, aberto, placaVermelha])
 
   const recursosProfLiberadosEfetivo =
     variant === 'profissional' && !gateLoading && recursosProfissionaisLiberados
@@ -821,6 +864,7 @@ export default function MenuLateral({
   const ctx = {
     variant: menuVariantEfetivo,
     placaVermelha,
+    perfilMobilidade,
     adminLevel,
     recursosProfissionaisLiberados: recursosProfLiberadosEfetivo,
     empresaCategoria,
@@ -837,6 +881,7 @@ export default function MenuLateral({
     const c = {
       variant: menuVariantEfetivo,
       placaVermelha,
+      perfilMobilidade,
       adminLevel,
       recursosProfissionaisLiberados: recursosProfLiberadosEfetivo,
       empresaCategoria,
@@ -881,6 +926,7 @@ export default function MenuLateral({
     variant,
     menuVariantEfetivo,
     placaVermelha,
+    perfilMobilidade,
     adminLevel,
     recursosProfLiberadosEfetivo,
     simulandoComoPerfil,
@@ -1266,7 +1312,13 @@ export default function MenuLateral({
           onSalvo={onPerfilAtualizado}
         />
       )
-    if (id === 'mobilidade-perfil') return <MobilidadePerfil usuarioId={usuarioIdEfetivo} />
+    if (id === 'mobilidade-perfil')
+      return (
+        <MobilidadePerfil
+          usuarioId={usuarioIdEfetivo}
+          onDocsConcluido={onPerfilAtualizado}
+        />
+      )
     if (id === 'minhas-atividades')
       return (
         <MinhasAtividades
