@@ -46,7 +46,6 @@ import {
   PAGAMENTOS_ORDEM,
 } from '@/lib/mobilidadePopupPesquisa'
 import type { RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
-import { descricaoPeriodoRota } from '@/lib/servicosTabeladosCatalogo'
 import { labelIdiomaGuia } from '@/lib/idiomasGuia'
 import CotacaoValorMobilidade from '@/components/mobilidade/CotacaoValorMobilidade'
 import type {
@@ -161,7 +160,7 @@ function ContadorLugares({
 }
 
 const agendaFieldClass =
-  'mt-1 box-border w-full max-w-full min-w-0 rounded-lg border border-white/25 bg-[#0097b2] px-2 py-1.5 text-xs text-white outline-none focus:ring-2 focus:ring-white/40 [color-scheme:dark]'
+  'box-border block w-full min-w-0 appearance-none rounded-lg border border-white/25 bg-[#0097b2] px-2.5 py-1.5 text-xs text-white outline-none focus:ring-2 focus:ring-white/40 [color-scheme:dark]'
 
 function CamposAgendamento({
   data,
@@ -179,24 +178,28 @@ function CamposAgendamento({
   labelHora: string
 }) {
   return (
-    <div className="mt-2 max-w-full space-y-2 overflow-hidden">
+    <div className="mt-2 max-w-full space-y-2">
       <label className="block min-w-0 text-xs font-semibold text-gray-700">
         {labelData}
-        <input
-          type="date"
-          value={data}
-          onChange={(e) => onData(e.target.value)}
-          className={agendaFieldClass}
-        />
+        <span className="mt-1 block overflow-hidden rounded-lg">
+          <input
+            type="date"
+            value={data}
+            onChange={(e) => onData(e.target.value)}
+            className={agendaFieldClass}
+          />
+        </span>
       </label>
       <label className="block min-w-0 text-xs font-semibold text-gray-700">
         {labelHora}
-        <input
-          type="time"
-          value={hora}
-          onChange={(e) => onHora(e.target.value)}
-          className={agendaFieldClass}
-        />
+        <span className="mt-1 block overflow-hidden rounded-lg">
+          <input
+            type="time"
+            value={hora}
+            onChange={(e) => onHora(e.target.value)}
+            className={agendaFieldClass}
+          />
+        </span>
       </label>
     </div>
   )
@@ -252,9 +255,6 @@ export default function DrawerPesquisaMobilidade({
   useModalScrollLock(aberto)
 
   const [etapa, setEtapa] = useState<1 | 2 | 3>(1)
-  const [rotasExpandidas, setRotasExpandidas] = useState<
-    Partial<Record<ModalidadeMobilidadeId | 'resumo', boolean>>
-  >({})
   const [modalidade, setModalidade] = useState<ModalidadeMobilidadeId | null>(null)
   const [rotas, setRotas] = useState<RotaTabelada[]>([])
   const [carregandoValores, setCarregandoValores] = useState(false)
@@ -319,7 +319,6 @@ export default function DrawerPesquisaMobilidade({
     setChevBeneficios(false)
     setDicaLugaresAberta(false)
     setEnviando(false)
-    setRotasExpandidas({})
     setOrigemDraft({ ...pesquisa.origem })
     setDestinoDraft({
       nome: pesquisa.destino.nome || destinoNomeEmpresa || '',
@@ -573,8 +572,6 @@ export default function DrawerPesquisaMobilidade({
     }
   }
 
-  const infoMod = modalidade ? valoresPorMod[modalidade] : null
-
   return (
     <div
       className="fixed inset-0 z-[75] flex max-h-[100dvh] flex-col bg-white"
@@ -583,16 +580,16 @@ export default function DrawerPesquisaMobilidade({
     >
       {/* Faixa azul + safe area (padrão menu/canais) */}
       <div className="shrink-0 pt-safe" style={{ backgroundColor: COR }}>
-        <div className="flex items-center gap-2 px-3 py-3">
+        <div className="flex h-12 items-center gap-2 px-3">
           <IconHeader className="h-5 w-5 shrink-0 text-white" aria-hidden />
-          <h2 className="min-w-0 flex-1 text-base font-bold uppercase tracking-wide text-white">
+          <h2 className="min-w-0 flex-1 truncate text-base font-bold uppercase tracking-wide text-white">
             {tituloHeader}
           </h2>
           {etapa === 1 ? (
             <button
               type="button"
               onClick={onFechar}
-              className="rounded-lg p-1.5 text-white/90 hover:bg-white/15"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/90 hover:bg-white/15"
               aria-label={t('fechar')}
             >
               <X className="h-5 w-5" />
@@ -601,13 +598,13 @@ export default function DrawerPesquisaMobilidade({
             <button
               type="button"
               onClick={() => setEtapa(2)}
-              className="rounded-lg p-1.5 text-white/90 hover:bg-white/15"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/90 hover:bg-white/15"
               aria-label={t('retornar')}
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
           ) : (
-            <span className="w-8" aria-hidden />
+            <span className="inline-flex h-8 w-8 shrink-0" aria-hidden />
           )}
         </div>
       </div>
@@ -615,25 +612,7 @@ export default function DrawerPesquisaMobilidade({
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3" data-modal-scroll-lock-scrollable>
         {/* Card rota */}
         <div className="rounded-xl px-3 py-2.5 text-sm text-white" style={{ backgroundColor: COR }}>
-          {!editandoEndereco || etapa !== 1 ? (
-            <div className="text-center text-white">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-white">
-                {t('destinoLabel')}
-              </p>
-              <p className="mt-0.5 text-sm font-medium text-white">{destinoLabel}</p>
-              {etapa === 1 ? (
-                <button
-                  type="button"
-                  onClick={() => setEditandoEndereco(true)}
-                  className="mx-auto mt-2 flex items-center justify-center rounded-lg p-1 text-white hover:bg-white/15"
-                  aria-label={t('editarEndereco')}
-                  aria-expanded={false}
-                >
-                  <ChevronDown className="h-5 w-5 text-white" aria-hidden />
-                </button>
-              ) : null}
-            </div>
-          ) : (
+          {etapa === 1 && editandoEndereco ? (
             <div className="space-y-2">
               <div className="space-y-2 text-center">
                 <label className="block text-[11px] font-bold uppercase tracking-wide text-white">
@@ -662,8 +641,8 @@ export default function DrawerPesquisaMobilidade({
               <button
                 type="button"
                 onClick={aplicarEnderecoEditado}
-                className="w-full rounded-lg bg-white py-2 text-xs font-bold uppercase"
-                style={{ color: COR }}
+                className="mx-auto block w-[55%] max-w-[12rem] rounded-lg py-2 text-xs font-bold uppercase text-white"
+                style={{ backgroundColor: VERDE }}
               >
                 {t('aplicarEndereco')}
               </button>
@@ -676,6 +655,33 @@ export default function DrawerPesquisaMobilidade({
               >
                 <ChevronUp className="h-5 w-5 text-white" aria-hidden />
               </button>
+            </div>
+          ) : etapa === 1 ? (
+            <div className="text-center text-white">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-white">
+                {t('destinoLabel')}
+              </p>
+              <p className="mt-0.5 text-sm font-medium text-white">{destinoLabel}</p>
+              <button
+                type="button"
+                onClick={() => setEditandoEndereco(true)}
+                className="mx-auto mt-2 flex items-center justify-center rounded-lg p-1 text-white hover:bg-white/15"
+                aria-label={t('editarEndereco')}
+                aria-expanded={false}
+              >
+                <ChevronDown className="h-5 w-5 text-white" aria-hidden />
+              </button>
+            </div>
+          ) : (
+            <div className="text-white">
+              <p>
+                <span className="font-semibold text-white">{t('origemLabel')}: </span>
+                {origemLabel}
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold text-white">{t('destinoLabel')}: </span>
+                {destinoLabel}
+              </p>
             </div>
           )}
         </div>
@@ -690,11 +696,6 @@ export default function DrawerPesquisaMobilidade({
               {disponiveis.map((id) => {
                 const Icon = ICONES[id]
                 const info = valoresPorMod[id]
-                const rotaAberta = Boolean(rotasExpandidas[id])
-                const temRotaExtra = Boolean(
-                  info?.rota &&
-                    (descricaoPeriodoRota(info.rota) || (!info.parceiro && info.rota.destinoFinal)),
-                )
                 return (
                   <li key={id}>
                     <div
@@ -720,60 +721,23 @@ export default function DrawerPesquisaMobilidade({
                                   ? formatBrl(info.valor)
                                   : t('valorIndisponivel')}
                             </p>
-                            {rotaAberta && info?.rota ? (
-                              <div className="mt-1 space-y-0.5">
-                                {descricaoPeriodoRota(info.rota) ? (
-                                  <p className="text-xs text-gray-500">
-                                    {descricaoPeriodoRota(info.rota)}
-                                  </p>
-                                ) : null}
-                                {!info.parceiro ? (
-                                  <p className="text-xs text-gray-400">
-                                    {t('rotaSugerida')}: {info.rota.destinoFinal}
-                                  </p>
-                                ) : null}
-                              </div>
-                            ) : null}
                           </div>
                         </button>
-                        <div className="flex shrink-0 flex-col items-center gap-1">
-                          {temRotaExtra ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setRotasExpandidas((prev) => ({
-                                  ...prev,
-                                  [id]: !prev[id],
-                                }))
-                              }
-                              className="rounded p-0.5"
-                              style={{ color: COR }}
-                              aria-label={t('rotaSugerida')}
-                              aria-expanded={rotaAberta}
-                            >
-                              {rotaAberta ? (
-                                <ChevronUp className="h-4 w-4" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4" />
-                              )}
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            onClick={() => setModalidade(id)}
-                            className="p-0.5"
-                            aria-label={labelMod(id)}
-                          >
-                            <span
-                              className={`block h-4 w-4 rounded-full border-2 ${
-                                modalidade === id
-                                  ? 'border-[#00D443] bg-[#00D443]'
-                                  : 'border-gray-300'
-                              }`}
-                              aria-hidden
-                            />
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setModalidade(id)}
+                          className="shrink-0 p-0.5"
+                          aria-label={labelMod(id)}
+                        >
+                          <span
+                            className={`block h-4 w-4 rounded-full border-2 ${
+                              modalidade === id
+                                ? 'border-[#00D443] bg-[#00D443]'
+                                : 'border-gray-300'
+                            }`}
+                            aria-hidden
+                          />
+                        </button>
                       </div>
                     </div>
                   </li>
@@ -1097,57 +1061,26 @@ export default function DrawerPesquisaMobilidade({
                 <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: COR }}>
                   {t('valorCorrida')}
                 </p>
-                <div className="mt-1 flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    {valorTotalAtual != null ? (
-                      <CotacaoValorMobilidade valorBrl={valorTotalAtual} />
-                    ) : (
-                      <p className="text-lg font-bold" style={{ color: COR }}>
-                        {t('valorIndisponivel')}
-                      </p>
-                    )}
-                    {valorUnitarioAtual != null &&
-                    (modalidade === 'guia' || modalidade === 'van') &&
-                    lugares > 1 ? (
-                      <p className="mt-1 text-xs text-gray-500">
-                        {t('valorPorLugares', {
-                          unitario: formatBrl(valorUnitarioAtual),
-                          n: lugares,
-                          total: formatBrl(valorUnitarioAtual * lugares),
-                        })}
-                      </p>
-                    ) : null}
-                  </div>
-                  {infoMod?.rota ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setRotasExpandidas((prev) => ({
-                          ...prev,
-                          resumo: !prev.resumo,
-                        }))
-                      }
-                      className="shrink-0 rounded p-0.5"
-                      style={{ color: COR }}
-                      aria-label={t('rotaSugerida')}
-                      aria-expanded={Boolean(rotasExpandidas.resumo)}
-                    >
-                      {rotasExpandidas.resumo ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </button>
+                <div className="mt-1">
+                  {valorTotalAtual != null ? (
+                    <CotacaoValorMobilidade valorBrl={valorTotalAtual} />
+                  ) : (
+                    <p className="text-lg font-bold" style={{ color: COR }}>
+                      {t('valorIndisponivel')}
+                    </p>
+                  )}
+                  {valorUnitarioAtual != null &&
+                  (modalidade === 'guia' || modalidade === 'van') &&
+                  lugares > 1 ? (
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t('valorPorLugares', {
+                        unitario: formatBrl(valorUnitarioAtual),
+                        n: lugares,
+                        total: formatBrl(valorUnitarioAtual * lugares),
+                      })}
+                    </p>
                   ) : null}
                 </div>
-                {rotasExpandidas.resumo && infoMod?.rota ? (
-                  <p className="mt-1 text-xs text-gray-500">
-                    {t('rotaSugerida')}: {infoMod.rota.destinoFinal}
-                    {descricaoPeriodoRota(infoMod.rota)
-                      ? ` · ${descricaoPeriodoRota(infoMod.rota)}`
-                      : ''}
-                  </p>
-                ) : null}
                 <div className="mt-3 border-t border-gray-200 pt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: COR }}>
                     {t('resumoCorrida')}

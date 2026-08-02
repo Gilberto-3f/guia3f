@@ -180,7 +180,7 @@ export function cidadeTripliceParaTabelado(
 export type PagamentoMobilidadeId = 'pix' | 'dinheiro' | 'credito' | 'debito'
 
 /** Dinheiro primeiro (padrão da solicitação). */
-export const PAGAMENTOS_ORDEM: PagamentoMobilidadeId[] = ['dinheiro', 'pix', 'credito', 'debito']
+export const PAGAMENTOS_ORDEM: PagamentoMobilidadeId[] = ['pix', 'dinheiro', 'credito', 'debito']
 
 export const MOEDAS_MOBILIDADE = [
   { value: 'real', label: 'Real' },
