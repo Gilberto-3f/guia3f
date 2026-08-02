@@ -161,7 +161,7 @@ function ContadorLugares({
 }
 
 const agendaFieldClass =
-  'mt-1 w-full rounded-lg border border-white/25 bg-[#0097b2] px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-white/40 [color-scheme:dark]'
+  'mt-1 box-border w-full max-w-full min-w-0 rounded-lg border border-white/25 bg-[#0097b2] px-2 py-1.5 text-xs text-white outline-none focus:ring-2 focus:ring-white/40 [color-scheme:dark]'
 
 function CamposAgendamento({
   data,
@@ -179,8 +179,8 @@ function CamposAgendamento({
   labelHora: string
 }) {
   return (
-    <div className="mt-2 space-y-2">
-      <label className="block text-xs font-semibold text-gray-700">
+    <div className="mt-2 max-w-full space-y-2 overflow-hidden">
+      <label className="block min-w-0 text-xs font-semibold text-gray-700">
         {labelData}
         <input
           type="date"
@@ -189,7 +189,7 @@ function CamposAgendamento({
           className={agendaFieldClass}
         />
       </label>
-      <label className="block text-xs font-semibold text-gray-700">
+      <label className="block min-w-0 text-xs font-semibold text-gray-700">
         {labelHora}
         <input
           type="time"
@@ -202,31 +202,38 @@ function CamposAgendamento({
   )
 }
 
-function DicaLugaresInfo({
+function ValorComDicaLugares({
   aberto,
   onToggle,
   texto,
   ariaLabel,
+  valorNode,
 }: {
   aberto: boolean
   onToggle: () => void
   texto: string
   ariaLabel: string
+  valorNode: ReactNode
 }) {
   return (
-    <div className="mt-2 flex flex-col items-center gap-1">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="rounded-full p-1"
-        style={{ color: COR }}
-        aria-label={ariaLabel}
-        aria-expanded={aberto}
-      >
-        <Info className="h-4 w-4" aria-hidden />
-      </button>
+    <div className="mt-1">
+      <div className="flex items-center justify-center gap-1.5">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="shrink-0 rounded-full p-0.5"
+          style={{ color: COR }}
+          aria-label={ariaLabel}
+          aria-expanded={aberto}
+        >
+          <Info className="h-4 w-4" aria-hidden />
+        </button>
+        <div className="min-w-0 text-sm font-semibold" style={{ color: COR }}>
+          {valorNode}
+        </div>
+      </div>
       {aberto ? (
-        <p className="text-center text-[11px] text-gray-500">{texto}</p>
+        <p className="mt-1 text-center text-[11px] text-gray-500">{texto}</p>
       ) : null}
     </div>
   )
@@ -576,9 +583,9 @@ export default function DrawerPesquisaMobilidade({
     >
       {/* Faixa azul + safe area (padrão menu/canais) */}
       <div className="shrink-0 pt-safe" style={{ backgroundColor: COR }}>
-        <div className="flex items-center gap-2 px-3 py-2.5">
+        <div className="flex items-center gap-2 px-3 py-3">
           <IconHeader className="h-5 w-5 shrink-0 text-white" aria-hidden />
-          <h2 className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide text-white">
+          <h2 className="min-w-0 flex-1 text-base font-bold uppercase tracking-wide text-white">
             {tituloHeader}
           </h2>
           {etapa === 1 ? (
@@ -611,10 +618,6 @@ export default function DrawerPesquisaMobilidade({
           {!editandoEndereco || etapa !== 1 ? (
             <div className="text-center text-white">
               <p className="text-[11px] font-bold uppercase tracking-wide text-white">
-                {t('origemLabel')}
-              </p>
-              <p className="mt-0.5 text-sm font-medium text-white">{origemLabel}</p>
-              <p className="mt-2.5 text-[11px] font-bold uppercase tracking-wide text-white">
                 {t('destinoLabel')}
               </p>
               <p className="mt-0.5 text-sm font-medium text-white">{destinoLabel}</p>
@@ -639,7 +642,8 @@ export default function DrawerPesquisaMobilidade({
                     type="text"
                     value={origemDraft.nome}
                     onChange={(e) => setOrigemDraft((p) => ({ ...p, nome: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-white/30 bg-white/15 px-3 py-2 text-center text-sm font-medium text-white placeholder:text-white/60 outline-none"
+                    className="mt-1 w-full rounded-lg border border-[#0097b2]/20 bg-white px-3 py-2 text-center text-sm font-medium outline-none placeholder:text-[#0097b2]/50"
+                    style={{ color: COR }}
                     placeholder={t('origemManualPlaceholder')}
                   />
                 </label>
@@ -649,7 +653,8 @@ export default function DrawerPesquisaMobilidade({
                     type="text"
                     value={destinoDraft.nome}
                     onChange={(e) => setDestinoDraft((p) => ({ ...p, nome: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-white/30 bg-white/15 px-3 py-2 text-center text-sm font-medium text-white placeholder:text-white/60 outline-none"
+                    className="mt-1 w-full rounded-lg border border-[#0097b2]/20 bg-white px-3 py-2 text-center text-sm font-medium outline-none placeholder:text-[#0097b2]/50"
+                    style={{ color: COR }}
                     placeholder={t('destinoPlaceholder')}
                   />
                 </label>
@@ -878,23 +883,31 @@ export default function DrawerPesquisaMobilidade({
               titulo={t('passageirosChevron')}
             >
               <ContadorLugares value={lugares} onChange={setLugares} />
-              <DicaLugaresInfo
-                aberto={dicaLugaresAberta}
-                onToggle={() => setDicaLugaresAberta((v) => !v)}
-                texto={t('lugaresHint')}
-                ariaLabel={t('lugaresHint')}
-              />
               {valorUnitarioAtual != null ? (
-                <p className="mt-1 text-center text-sm font-semibold" style={{ color: COR }}>
-                  {lugares > 1
-                    ? t('valorPorLugares', {
-                        unitario: formatBrl(valorUnitarioAtual),
-                        n: lugares,
-                        total: formatBrl(valorUnitarioAtual * lugares),
-                      })
-                    : formatBrl(valorUnitarioAtual)}
-                </p>
-              ) : null}
+                <ValorComDicaLugares
+                  aberto={dicaLugaresAberta}
+                  onToggle={() => setDicaLugaresAberta((v) => !v)}
+                  texto={t('lugaresHint')}
+                  ariaLabel={t('lugaresHint')}
+                  valorNode={
+                    lugares > 1
+                      ? t('valorPorLugares', {
+                          unitario: formatBrl(valorUnitarioAtual),
+                          n: lugares,
+                          total: formatBrl(valorUnitarioAtual * lugares),
+                        })
+                      : formatBrl(valorUnitarioAtual)
+                  }
+                />
+              ) : (
+                <ValorComDicaLugares
+                  aberto={dicaLugaresAberta}
+                  onToggle={() => setDicaLugaresAberta((v) => !v)}
+                  texto={t('lugaresHint')}
+                  ariaLabel={t('lugaresHint')}
+                  valorNode={<span className="text-gray-400">—</span>}
+                />
+              )}
             </ChevronSecao>
             <ChevronSecao
               aberto={chevAgendar}
@@ -963,23 +976,31 @@ export default function DrawerPesquisaMobilidade({
               titulo={t('passageirosChevron')}
             >
               <ContadorLugares value={lugares} onChange={setLugares} max={15} />
-              <DicaLugaresInfo
-                aberto={dicaLugaresAberta}
-                onToggle={() => setDicaLugaresAberta((v) => !v)}
-                texto={t('lugaresHint')}
-                ariaLabel={t('lugaresHint')}
-              />
               {valorUnitarioAtual != null ? (
-                <p className="mt-1 text-center text-sm font-semibold" style={{ color: COR }}>
-                  {lugares > 1
-                    ? t('valorPorLugares', {
-                        unitario: formatBrl(valorUnitarioAtual),
-                        n: lugares,
-                        total: formatBrl(valorUnitarioAtual * lugares),
-                      })
-                    : formatBrl(valorUnitarioAtual)}
-                </p>
-              ) : null}
+                <ValorComDicaLugares
+                  aberto={dicaLugaresAberta}
+                  onToggle={() => setDicaLugaresAberta((v) => !v)}
+                  texto={t('lugaresHint')}
+                  ariaLabel={t('lugaresHint')}
+                  valorNode={
+                    lugares > 1
+                      ? t('valorPorLugares', {
+                          unitario: formatBrl(valorUnitarioAtual),
+                          n: lugares,
+                          total: formatBrl(valorUnitarioAtual * lugares),
+                        })
+                      : formatBrl(valorUnitarioAtual)
+                  }
+                />
+              ) : (
+                <ValorComDicaLugares
+                  aberto={dicaLugaresAberta}
+                  onToggle={() => setDicaLugaresAberta((v) => !v)}
+                  texto={t('lugaresHint')}
+                  ariaLabel={t('lugaresHint')}
+                  valorNode={<span className="text-gray-400">—</span>}
+                />
+              )}
             </ChevronSecao>
             <ChevronSecao
               aberto={chevAgendar}
@@ -1219,7 +1240,6 @@ export default function DrawerPesquisaMobilidade({
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-[11px] text-gray-400">{t('pagamentoDepoisHint')}</p>
             </div>
           </div>
         ) : null}

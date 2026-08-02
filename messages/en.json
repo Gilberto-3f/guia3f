@@ -321,7 +321,7 @@
     "pagamentoDepoisHint": "In v1 payment is told to the professional (cash). PIX/card come later.",
     "agendarTitulo": "Schedule (optional)",
     "lugaresLabel": "Number of seats / passengers",
-    "lugaresHint": "The fare is charged per seat in the vehicle (van and guide).",
+    "lugaresHint": "The fare is charged per seat in the vehicle.",
     "valorPorLugares": "{unitario} × {n} seats = {total}",
     "dataAgendaLabel": "Date",
     "horaAgendaLabel": "Time",
