@@ -606,27 +606,22 @@ export default function DrawerServicosLocais({
               </div>
             ) : null}
 
+            {perfilEhProfissional ? (
+              <button
+                type="button"
+                onClick={() => setRecomendarAberto(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#00D443] py-3 text-base font-bold text-white shadow-sm transition-opacity hover:opacity-95"
+              >
+                <MessageCircle size={20} className="text-white" aria-hidden />
+                RECOMENDAR
+              </button>
+            ) : (
+              <BotaoChamarCorrida variant="empresa" empresaId={empresaId} />
+            )}
             </div>
           </div>
         ) : null}
       </div>
-
-      {selecionado ? (
-        <div className="shrink-0 border-t border-gray-100 bg-white p-3">
-          {perfilEhProfissional ? (
-            <button
-              type="button"
-              onClick={() => setRecomendarAberto(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#00D443] py-3 text-base font-bold text-white shadow-sm transition-opacity hover:opacity-95"
-            >
-              <MessageCircle size={20} className="text-white" aria-hidden />
-              RECOMENDAR
-            </button>
-          ) : (
-            <BotaoChamarCorrida variant="empresa" empresaId={empresaId} />
-          )}
-        </div>
-      ) : null}
 
       {selecionado ? (
         <PopupRecomendarServico

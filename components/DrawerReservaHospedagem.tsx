@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   BadgeCheck,
   ChevronDown,
@@ -28,6 +29,7 @@ import {
   listarReservasPendentesOutrasEmpresas,
 } from '@/lib/reservaHospedagem'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { useAppViewportHeight } from '@/lib/useAppViewportHeight'
 import {
   formatarValorDiaria,
   mapAcomodacaoRow,
@@ -205,6 +207,7 @@ export default function DrawerReservaHospedagem({
   const touchFotoX = useRef<number | null>(null)
 
   useModalScrollLock(isOpen || painelVisivel)
+  useAppViewportHeight()
 
   useEffect(() => {
     if (isOpen) {
@@ -521,6 +524,7 @@ export default function DrawerReservaHospedagem({
   }
 
   if (!painelVisivel) return null
+  if (typeof document === 'undefined') return null
 
   const avatarEmpresa =
     fotoEmpresaLive ||
@@ -716,7 +720,7 @@ export default function DrawerReservaHospedagem({
     )
   }
 
-  return (
+  return createPortal(
     <>
       <div
         className={`fixed left-0 right-0 top-0 z-[70] flex flex-col bg-white transition-transform duration-300 ease-out ${
@@ -1208,10 +1212,7 @@ export default function DrawerReservaHospedagem({
         </div>
 
         {mostrarRodapePassos ? (
-          <div
-            className="shrink-0 border-t border-gray-200 bg-white px-3 pt-3"
-            style={{ paddingBottom: '0.75rem' }}
-          >
+          <div className="shrink-0 border-t border-gray-200 bg-white p-3">
             {passo === 2 ? (
               <div className="flex gap-2">
                 <button
@@ -1274,6 +1275,7 @@ export default function DrawerReservaHospedagem({
         titulo={tituloBloqueio}
         mensagem={mensagemBloqueio}
       />
-    </>
+    </>,
+    document.body,
   )
 }
