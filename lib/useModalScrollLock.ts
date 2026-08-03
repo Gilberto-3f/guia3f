@@ -10,6 +10,7 @@ type ScrollLockSnapshot = {
   bodyWidth: string
   bodyTouchAction: string
   scrollY: number
+  soft: boolean
 }
 
 let activeLocks = 0
@@ -30,9 +31,17 @@ const blockTouchMove = (e: TouchEvent) => {
   e.preventDefault()
 }
 
+/** Guia/Mobilidade já usam h-dvh + overflow hidden — position:fixed no body cria faixa sob a barra. */
+function usarLockSuave(): boolean {
+  if (typeof window === 'undefined') return false
+  const p = window.location.pathname
+  return /\/guia\/?$/.test(p) || p.includes('/mobilidade')
+}
+
 /**
  * Bloqueia scroll do fundo enquanto um modal/popup está aberto (inclui iOS).
  * Suporta múltiplos modais em paralelo; só libera o scroll ao fechar o último.
+ * Em Guia/Mobilidade: lock "suave" (sem position:fixed) para não gerar espaço extra sob a UI.
  */
 export function useModalScrollLock(aberto: boolean) {
   useEffect(() => {
@@ -40,6 +49,7 @@ export function useModalScrollLock(aberto: boolean) {
 
     const html = document.documentElement
     const body = document.body
+    const soft = usarLockSuave()
 
     if (activeLocks === 0) {
       const scrollY = window.scrollY
@@ -51,14 +61,18 @@ export function useModalScrollLock(aberto: boolean) {
         bodyWidth: body.style.width,
         bodyTouchAction: body.style.touchAction,
         scrollY,
+        soft,
       }
 
       html.style.overflow = 'hidden'
       body.style.overflow = 'hidden'
-      body.style.position = 'fixed'
-      body.style.top = `-${scrollY}px`
-      body.style.width = '100%'
       body.style.touchAction = 'none'
+
+      if (!soft) {
+        body.style.position = 'fixed'
+        body.style.top = `-${scrollY}px`
+        body.style.width = '100%'
+      }
 
       document.addEventListener('touchmove', blockTouchMove, { passive: false })
     }
@@ -71,28 +85,27 @@ export function useModalScrollLock(aberto: boolean) {
 
       document.removeEventListener('touchmove', blockTouchMove)
 
-      const y = snapshot.scrollY
-      html.style.overflow = snapshot.htmlOverflow
-      body.style.overflow = snapshot.bodyOverflow
-      body.style.position = snapshot.bodyPosition
-      body.style.top = snapshot.bodyTop
-      body.style.width = snapshot.bodyWidth
-      body.style.touchAction = snapshot.bodyTouchAction
+      const snap = snapshot
       snapshot = null
 
-      // Guia/Mobilidade usam h-dvh (sem scroll): sempre voltar ao topo — evita faixa preta sob a BottomBar.
-      const path = window.location.pathname
-      const forceTop = /\/guia\/?$/.test(path) || path.includes('/mobilidade')
-      const targetY = forceTop ? 0 : y
-      window.scrollTo(0, targetY)
-      requestAnimationFrame(() => {
-        window.scrollTo(0, targetY)
-        try {
-          window.dispatchEvent(new Event('resize'))
-        } catch {
-          /* ignore */
+      html.style.overflow = snap.htmlOverflow
+      body.style.overflow = snap.bodyOverflow
+      body.style.touchAction = snap.bodyTouchAction
+
+      if (!snap.soft) {
+        body.style.position = snap.bodyPosition
+        body.style.top = snap.bodyTop
+        body.style.width = snap.bodyWidth
+        window.scrollTo(0, snap.scrollY)
+      } else {
+        // Garante limpeza residual de locks antigos (position:fixed).
+        if (body.style.position === 'fixed') {
+          body.style.position = ''
+          body.style.top = ''
+          body.style.width = ''
         }
-      })
+        window.scrollTo(0, 0)
+      }
     }
   }, [aberto])
 }

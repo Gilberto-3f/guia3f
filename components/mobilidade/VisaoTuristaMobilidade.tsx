@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
@@ -29,6 +29,12 @@ import {
 } from '@/lib/mobilidadeMapaVisitante'
 import { resolverContextoMapaMobilidade } from '@/lib/parceriaMapaMobilidade'
 import { reverseGeocodeMapbox } from '@/lib/mapboxReverseGeocode'
+import {
+  carregarRotasTabeladasCidade,
+  cidadeTripliceParaTabelado,
+  inferirCidadeDePonto,
+  peekRotasTabeladasCache,
+} from '@/lib/mobilidadePopupPesquisa'
 
 const MapaMobilidade = dynamic(() => import('@/components/mobilidade/MapaMobilidade'), {
   ssr: false,
@@ -80,44 +86,116 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   const [drawerKey, setDrawerKey] = useState(0)
   const [resultadoCorrida, setResultadoCorrida] = useState<ResultadoCorridaMobilidade | null>(null)
   const [resultadoAberto, setResultadoAberto] = useState(false)
+  const gpsCentroRef = useRef(gpsCentro)
+  const origemLabelGpsRef = useRef(origemLabelGps)
+  const abrindoDrawerRef = useRef(false)
+  gpsCentroRef.current = gpsCentro
+  origemLabelGpsRef.current = origemLabelGps
 
   const pesquisaAtiva = drawerAberto && pesquisaDrawer ? pesquisaDrawer : pesquisa
 
-  const montarLabelsDestino = (
-    empId: string | null | undefined,
-    destinoNome: string,
-  ): {
-    curto: string
-    completo: string
-    nome: string
-    cidade: string | null
-  } => {
-    const emp = empId ? empresas.find((e) => e.id === empId) : undefined
-    if (emp) {
-      const abrev = abreviarCidadeTriplice(emp.cidade)
-      return {
-        nome: emp.nome_fantasia,
-        cidade: emp.cidade || null,
-        curto: abrev ? `${emp.nome_fantasia} · ${abrev}` : emp.nome_fantasia,
-        completo: [emp.nome_fantasia, emp.endereco, emp.cidade].filter(Boolean).join(' · '),
+  const montarLabelsDestino = useCallback(
+    (
+      empId: string | null | undefined,
+      destinoNome: string,
+      listaEmpresas: EmpresaMapaMobilidade[] = empresas,
+    ): {
+      curto: string
+      completo: string
+      nome: string
+      cidade: string | null
+    } => {
+      const emp = empId ? listaEmpresas.find((e) => e.id === empId) : undefined
+      if (emp) {
+        const abrev = abreviarCidadeTriplice(emp.cidade)
+        return {
+          nome: emp.nome_fantasia,
+          cidade: emp.cidade || null,
+          curto: abrev ? `${emp.nome_fantasia} · ${abrev}` : emp.nome_fantasia,
+          completo: [emp.nome_fantasia, emp.endereco, emp.cidade].filter(Boolean).join(' · '),
+        }
+      }
+      const nome = destinoNome.trim()
+      return { nome, cidade: null, curto: nome, completo: nome }
+    },
+    [empresas],
+  )
+
+  /** Sempre preenche origem com GPS atual (coords + endereço quando disponível). */
+  const garantirOrigemGps = useCallback(async (next: MobilidadePesquisaState): Promise<MobilidadePesquisaState> => {
+    const temCoords =
+      next.origem.lat != null &&
+      next.origem.lng != null &&
+      Number.isFinite(next.origem.lat) &&
+      Number.isFinite(next.origem.lng)
+
+    if (temCoords && next.origem.nome.trim()) return next
+
+    let lat = temCoords ? next.origem.lat : gpsCentroRef.current?.lat ?? null
+    let lng = temCoords ? next.origem.lng : gpsCentroRef.current?.lng ?? null
+    let nome = next.origem.nome.trim() || origemLabelGpsRef.current || ''
+
+    if (lat == null || lng == null) {
+      const pos = await new Promise<GeolocationPosition | null>((resolve) => {
+        if (typeof navigator === 'undefined' || !navigator.geolocation) {
+          resolve(null)
+          return
+        }
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve(p),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 60_000 },
+        )
+      })
+      if (pos) {
+        lat = pos.coords.latitude
+        lng = pos.coords.longitude
+        setGpsCentro({ lat, lng })
       }
     }
-    const nome = destinoNome.trim()
-    return { nome, cidade: null, curto: nome, completo: nome }
-  }
 
-  const abrirDrawerPesquisa = (next: MobilidadePesquisaState) => {
-    const labels = montarLabelsDestino(next.destinoEmpresaId, next.destino.nome)
-    setDestinoLabelsSnap(labels)
-    setDrawerKey((k) => k + 1)
-    setPesquisaDrawer(next)
-    setDrawerAberto(true)
-  }
+    if (lat != null && lng != null && !nome) {
+      const addr = await reverseGeocodeMapbox(lat, lng)
+      if (addr) {
+        nome = addr
+        setOrigemLabelGps(addr)
+      }
+    }
+
+    if (lat == null || lng == null) return next
+    return {
+      ...next,
+      origem: { nome, lat, lng },
+    }
+  }, [])
+
+  /** Prefetch rotas + labels antes do 1º paint do drawer (evita flash). */
+  const abrirDrawerPesquisa = useCallback(
+    async (raw: MobilidadePesquisaState) => {
+      abrindoDrawerRef.current = true
+      try {
+        const next = await garantirOrigemGps(raw)
+        const cidade = inferirCidadeDePonto(next.origem)
+        const tab = cidadeTripliceParaTabelado(cidade)
+        if (tab && !peekRotasTabeladasCache(tab)) {
+          await carregarRotasTabeladasCidade(supabase, tab)
+        }
+        const labels = montarLabelsDestino(next.destinoEmpresaId, next.destino.nome)
+        setDestinoLabelsSnap(labels)
+        setDrawerKey((k) => k + 1)
+        setPesquisaDrawer(next)
+        setDrawerAberto(true)
+      } finally {
+        abrindoDrawerRef.current = false
+      }
+    },
+    [garantirOrigemGps, montarLabelsDestino],
+  )
 
   /** Deep link / Chamar corrida: abre drawer 1 com destino da empresa + origem GPS. */
   useEffect(() => {
     if (!pesquisa.abrirPesquisa) return
-    if (drawerAberto) return
+    if (drawerAberto || abrindoDrawerRef.current) return
     if (pesquisa.destinoEmpresaId && carregandoEmpresas) return
 
     let ativo = true
@@ -125,10 +203,9 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
       let next: MobilidadePesquisaState = { ...pesquisa, abrirPesquisa: true }
       const empId = next.destinoEmpresaId
 
-      let emp =
-        empId != null ? empresas.find((e) => e.id === empId) ?? null : null
+      let emp = empId != null ? empresas.find((e) => e.id === empId) ?? null : null
+      let listaEmp = empresas
 
-      // Empresa fora do lote do mapa: busca pontual (coords + nome).
       if (empId && !emp) {
         const { data } = await supabase
           .from('empresas')
@@ -165,6 +242,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
               preco_diaria: null,
               segmento: '',
             }
+            listaEmp = [...empresas, emp]
             setEmpresas((prev) => (prev.some((e) => e.id === emp!.id) ? prev : [...prev, emp!]))
           }
         }
@@ -180,21 +258,11 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
           },
           destinoEmpresaId: emp.id,
         }
-      }
-
-      if (!pontoPreenchido(next.origem) && gpsCentro) {
-        next = {
-          ...next,
-          origem: {
-            nome: origemLabelGps || '',
-            lat: gpsCentro.lat,
-            lng: gpsCentro.lng,
-          },
-        }
+        setDestinoLabelsSnap(montarLabelsDestino(emp.id, emp.nome_fantasia, listaEmp))
       }
 
       if (!ativo) return
-      abrirDrawerPesquisa(next)
+      await abrirDrawerPesquisa(next)
     })()
 
     return () => {
@@ -209,9 +277,9 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
     pesquisa.destino.nome,
     carregandoEmpresas,
     empresas,
-    gpsCentro,
-    origemLabelGps,
     drawerAberto,
+    abrirDrawerPesquisa,
+    montarLabelsDestino,
   ])
 
   const fecharDrawerPesquisa = () => {
@@ -240,7 +308,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
       destinoEmpresaId: pesquisaAtiva.destinoEmpresaId,
       abrirPesquisa: true,
     }
-    abrirDrawerPesquisa(next)
+    void abrirDrawerPesquisa(next)
     router.replace(buildMobilidadePesquisaHref(next))
   }
 
@@ -514,7 +582,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
             onPesquisar={(o, d, empId) => {
               setResultadoAberto(false)
               setResultadoCorrida(null)
-              abrirDrawerPesquisa({
+              void abrirDrawerPesquisa({
                 origem: o,
                 destino: d,
                 destinoEmpresaId: empId,

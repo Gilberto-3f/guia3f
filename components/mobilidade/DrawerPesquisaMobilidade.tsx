@@ -617,7 +617,7 @@ export default function DrawerPesquisaMobilidade({
 
   return (
     <div
-      className="fixed inset-0 z-[75] flex max-h-[100dvh] flex-col bg-white"
+      className="fixed inset-0 z-[75] flex h-dvh max-h-dvh flex-col bg-white"
       role="dialog"
       aria-modal="true"
     >
