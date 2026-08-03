@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowRight,
   BadgeCheck,
@@ -327,8 +328,9 @@ export default function DrawerProdutosCde({
   )
 
   if (!isOpen) return null
+  if (typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[140] flex flex-col bg-white"
       role="dialog"
@@ -728,6 +730,7 @@ export default function DrawerProdutosCde({
           }}
         />
       ) : null}
-    </div>
+    </div>,
+    document.body,
   )
 }

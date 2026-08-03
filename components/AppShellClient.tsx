@@ -83,7 +83,7 @@ function AppShellLayoutFrame({
     <div
       className={`flex flex-col ${fundoShell} ${paddingInferior} ${
         telaMensageiro || isGuiaOuMobilidade
-          ? 'h-dvh max-h-dvh overflow-hidden'
+          ? 'fixed inset-0 z-0 overflow-hidden'
           : 'min-h-screen min-h-dvh'
       }`}
     >

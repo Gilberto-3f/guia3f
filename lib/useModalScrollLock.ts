@@ -31,11 +31,20 @@ const blockTouchMove = (e: TouchEvent) => {
   e.preventDefault()
 }
 
-/** Guia/Mobilidade já usam h-dvh + overflow hidden — position:fixed no body cria faixa sob a barra. */
+/** Guia/Mobilidade usam shell fixed inset-0 — position:fixed no body cria faixa sob a barra. */
 function usarLockSuave(): boolean {
   if (typeof window === 'undefined') return false
   const p = window.location.pathname
   return /\/guia\/?$/.test(p) || p.includes('/mobilidade')
+}
+
+function limparBodyFixedResidual() {
+  const body = document.body
+  if (body.style.position === 'fixed') {
+    body.style.position = ''
+    body.style.top = ''
+    body.style.width = ''
+  }
 }
 
 /**
@@ -72,6 +81,9 @@ export function useModalScrollLock(aberto: boolean) {
         body.style.position = 'fixed'
         body.style.top = `-${scrollY}px`
         body.style.width = '100%'
+      } else {
+        limparBodyFixedResidual()
+        window.scrollTo(0, 0)
       }
 
       document.addEventListener('touchmove', blockTouchMove, { passive: false })
@@ -98,12 +110,7 @@ export function useModalScrollLock(aberto: boolean) {
         body.style.width = snap.bodyWidth
         window.scrollTo(0, snap.scrollY)
       } else {
-        // Garante limpeza residual de locks antigos (position:fixed).
-        if (body.style.position === 'fixed') {
-          body.style.position = ''
-          body.style.top = ''
-          body.style.width = ''
-        }
+        limparBodyFixedResidual()
         window.scrollTo(0, 0)
       }
     }

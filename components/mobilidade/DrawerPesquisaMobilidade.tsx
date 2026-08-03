@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import {
   ArrowLeft,
@@ -615,9 +616,11 @@ export default function DrawerPesquisaMobilidade({
     }
   }
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[75] flex h-dvh max-h-dvh flex-col bg-white"
+      className="fixed inset-0 z-[75] flex flex-col bg-white"
       role="dialog"
       aria-modal="true"
     >
@@ -1284,6 +1287,7 @@ export default function DrawerPesquisaMobilidade({
           </div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

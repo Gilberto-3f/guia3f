@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ArrowRight, BadgeCheck, ChevronLeft, ChevronRight, ExternalLink, Eye, MessageCircle, X } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
@@ -257,8 +258,9 @@ export default function DrawerCardapio({
   const totalPratos = useMemo(() => secoes.reduce((acc, s) => acc + s.pratos.length, 0), [secoes])
 
   if (!isOpen) return null
+  if (typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[140] flex flex-col bg-white"
       role="dialog"
@@ -636,6 +638,7 @@ export default function DrawerCardapio({
           }}
         />
       ) : null}
-    </div>
+    </div>,
+    document.body,
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowLeft,
   BadgeCheck,
@@ -772,6 +773,7 @@ export default function DrawerTicketsAtrativos({
   }
 
   if (!isOpen) return null
+  if (typeof document === 'undefined') return null
 
   const cabecalhoEmpresa = ({
     acaoDireita,
@@ -865,7 +867,7 @@ export default function DrawerTicketsAtrativos({
     </header>
   )
 
-  return (
+  return createPortal(
     <>
       <div
         className="fixed inset-0 z-[140] flex flex-col bg-white"
@@ -1042,6 +1044,7 @@ export default function DrawerTicketsAtrativos({
         titulo={tituloBloqueio}
         mensagem={mensagemBloqueio}
       />
-    </>
+    </>,
+    document.body,
   )
 }
