@@ -100,3 +100,27 @@ export function buildMobilidadePesquisaHref(params: {
   const qs = q.toString()
   return qs ? `/mobilidade?${qs}` : '/mobilidade'
 }
+
+/**
+ * Atalho "Chamar corrida": abre /mobilidade com drawer 1 e destino da empresa preenchido.
+ */
+export function buildHrefChamarCorridaEmpresa(params: {
+  empresaId: string
+  nomeDestino?: string | null
+  latitude?: number | string | null
+  longitude?: number | string | null
+}): string {
+  const id = String(params.empresaId ?? '').trim()
+  const lat = params.latitude != null && params.latitude !== '' ? Number(params.latitude) : NaN
+  const lng = params.longitude != null && params.longitude !== '' ? Number(params.longitude) : NaN
+  return buildMobilidadePesquisaHref({
+    origem: { nome: '', lat: null, lng: null },
+    destino: {
+      nome: String(params.nomeDestino ?? '').trim(),
+      lat: Number.isFinite(lat) ? lat : null,
+      lng: Number.isFinite(lng) ? lng : null,
+    },
+    destinoEmpresaId: id || null,
+    abrirPesquisa: true,
+  })
+}

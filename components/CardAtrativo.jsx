@@ -140,7 +140,13 @@ export default function CardAtrativo({
               </button>
               {contextoMapa === 'turista' ? (
                 <div className="flex min-h-[3.25rem] flex-1">
-                  <BotaoChamarCorrida variant="empresa" empresaId={empresa.id} nomeDestino={empresa.nome_fantasia} />
+                  <BotaoChamarCorrida
+                    variant="empresa"
+                    empresaId={empresa.id}
+                    nomeDestino={empresa.nome_fantasia}
+                    latitude={empresa.latitude}
+                    longitude={empresa.longitude}
+                  />
                 </div>
               ) : contextoMapa === 'prof_parceiro' ? (
                 parceriaIndicacao?.permitido === false ? (

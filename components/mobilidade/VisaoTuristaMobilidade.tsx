@@ -114,17 +114,105 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
     setDrawerAberto(true)
   }
 
+  /** Deep link / Chamar corrida: abre drawer 1 com destino da empresa + origem GPS. */
   useEffect(() => {
     if (!pesquisa.abrirPesquisa) return
     if (drawerAberto) return
-    // Espera empresas se o destino for empresa — label completo no 1º paint.
     if (pesquisa.destinoEmpresaId && carregandoEmpresas) return
-    abrirDrawerPesquisa({
-      ...pesquisa,
-      abrirPesquisa: true,
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- deep link / URL
-  }, [pesquisa.abrirPesquisa, pesquisa.destinoEmpresaId, carregandoEmpresas, empresas])
+
+    let ativo = true
+    void (async () => {
+      let next: MobilidadePesquisaState = { ...pesquisa, abrirPesquisa: true }
+      const empId = next.destinoEmpresaId
+
+      let emp =
+        empId != null ? empresas.find((e) => e.id === empId) ?? null : null
+
+      // Empresa fora do lote do mapa: busca pontual (coords + nome).
+      if (empId && !emp) {
+        const { data } = await supabase
+          .from('empresas')
+          .select('id, nome_fantasia, cidade, endereco, latitude, longitude')
+          .eq('id', empId)
+          .maybeSingle()
+        if (!ativo) return
+        if (data) {
+          const lat = Number(data.latitude)
+          const lng = Number(data.longitude)
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            emp = {
+              id: String(data.id),
+              nome_fantasia: String(data.nome_fantasia ?? ''),
+              nome_usuario: null,
+              descricao_curta: null,
+              categoria: '',
+              cidade: String(data.cidade ?? ''),
+              endereco:
+                data.endereco != null && String(data.endereco).trim()
+                  ? String(data.endereco).trim()
+                  : null,
+              bairro: null,
+              status: null,
+              docs_verificado: null,
+              nota_media: null,
+              total_avaliacoes: null,
+              latitude: lat,
+              longitude: lng,
+              foto_url: null,
+              whatsapp: null,
+              preco_ticket_inteira: null,
+              preco_ticket_meia: null,
+              preco_diaria: null,
+              segmento: '',
+            }
+            setEmpresas((prev) => (prev.some((e) => e.id === emp!.id) ? prev : [...prev, emp!]))
+          }
+        }
+      }
+
+      if (emp) {
+        next = {
+          ...next,
+          destino: {
+            nome: next.destino.nome.trim() || emp.nome_fantasia,
+            lat: next.destino.lat ?? emp.latitude,
+            lng: next.destino.lng ?? emp.longitude,
+          },
+          destinoEmpresaId: emp.id,
+        }
+      }
+
+      if (!pontoPreenchido(next.origem) && gpsCentro) {
+        next = {
+          ...next,
+          origem: {
+            nome: origemLabelGps || '',
+            lat: gpsCentro.lat,
+            lng: gpsCentro.lng,
+          },
+        }
+      }
+
+      if (!ativo) return
+      abrirDrawerPesquisa(next)
+    })()
+
+    return () => {
+      ativo = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deep link / Chamar corrida
+  }, [
+    pesquisa.abrirPesquisa,
+    pesquisa.destinoEmpresaId,
+    pesquisa.destino.lat,
+    pesquisa.destino.lng,
+    pesquisa.destino.nome,
+    carregandoEmpresas,
+    empresas,
+    gpsCentro,
+    origemLabelGps,
+    drawerAberto,
+  ])
 
   const fecharDrawerPesquisa = () => {
     setDrawerAberto(false)

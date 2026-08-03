@@ -16,6 +16,7 @@ import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { registrarCliqueBotaoDinamico } from '@/lib/botaoDinamicoCliques'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { empresaEhLojaComCatalogo } from '@/lib/cidade-empresa'
+import { buildHrefChamarCorridaEmpresa } from '@/lib/mobilidadePesquisaParams'
 
 // Cards de filtros: botão dinâmico sempre verde (página da empresa usa AbaBotaoDinamico com cores por segmento)
 const COR_PADRAO = '#00D443'
@@ -165,7 +166,12 @@ export default function BotaoDinamico({
           descricao: `Mobilidade — destino ${empresaNome}`,
           empresaId,
         })
-        router.push(`/mobilidade?destino=${encodeURIComponent(empresaId)}`)
+        router.push(
+          buildHrefChamarCorridaEmpresa({
+            empresaId,
+            nomeDestino: empresaNome,
+          }),
+        )
         break
       case 'hospedagem':
         setShowReservaPopup(true)

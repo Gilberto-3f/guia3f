@@ -5,6 +5,7 @@ import { Car } from 'lucide-react'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { AVISO_DOCS_PROF_ALERTA } from '@/lib/avisoDocsProfissionalTexto'
 import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
+import { buildHrefChamarCorridaEmpresa, buildMobilidadePesquisaHref } from '@/lib/mobilidadePesquisaParams'
 
 /**
  * @param {{
@@ -43,13 +44,28 @@ export default function BotaoChamarCorrida({
       if (!aviso.irDireto) {
         if (!window.confirm(aviso.mensagem)) return
       }
-      router.push(`/mobilidade?destino_empresa=${encodeURIComponent(id)}&abrir_pesquisa=1`)
+      router.push(
+        buildHrefChamarCorridaEmpresa({
+          empresaId: id,
+          nomeDestino: nomeDestino || '',
+          latitude: Number.isFinite(lat) ? lat : null,
+          longitude: Number.isFinite(lng) ? lng : null,
+        }),
+      )
       return
     }
 
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
     router.push(
-      `/mobilidade?destino_lat=${lat}&destino_lng=${lng}&destino_nome=${encodeURIComponent(nomeDestino || '')}&abrir_pesquisa=1`,
+      buildMobilidadePesquisaHref({
+        origem: { nome: '', lat: null, lng: null },
+        destino: {
+          nome: String(nomeDestino || '').trim(),
+          lat,
+          lng,
+        },
+        abrirPesquisa: true,
+      }),
     )
   }
 

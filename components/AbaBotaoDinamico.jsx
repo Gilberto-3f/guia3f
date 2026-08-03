@@ -15,6 +15,7 @@ import { registrarCliqueBotaoDinamico } from '@/lib/botaoDinamicoCliques'
 import { supabase } from '@/lib/supabase'
 import { empresaEhLojaComCatalogo } from '@/lib/cidade-empresa'
 import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
+import { buildHrefChamarCorridaEmpresa } from '@/lib/mobilidadePesquisaParams'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 
 const COR_BOTAO_CHAMAR_CORRIDA = '#00D443'
@@ -145,7 +146,12 @@ export default function AbaBotaoDinamico({
       descricao: `Mobilidade — destino ${empresaNome}`,
       empresaId,
     })
-    router.push(`/mobilidade?destino_empresa=${encodeURIComponent(empresaId)}`)
+    router.push(
+      buildHrefChamarCorridaEmpresa({
+        empresaId,
+        nomeDestino: empresaNome,
+      }),
+    )
   }
 
   const handleClick = () => {
