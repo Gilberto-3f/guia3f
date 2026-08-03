@@ -89,6 +89,10 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   const gpsCentroRef = useRef(gpsCentro)
   const origemLabelGpsRef = useRef(origemLabelGps)
   const abrindoDrawerRef = useRef(false)
+  /** Evita reabrir o drawer no frame em que o X fecha e a URL ainda tem abrir_pesquisa=1. */
+  const fecharIgnoraAbrirRef = useRef(false)
+  /** Chave do último open via URL — permite trocar de empresa no 2º Chamar corrida. */
+  const ultimoOpenKeyRef = useRef<string | null>(null)
   gpsCentroRef.current = gpsCentro
   origemLabelGpsRef.current = origemLabelGps
 
@@ -172,14 +176,17 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   /** Prefetch rotas + labels antes do 1º paint do drawer (evita flash). */
   const abrirDrawerPesquisa = useCallback(
     async (raw: MobilidadePesquisaState) => {
+      if (fecharIgnoraAbrirRef.current) return
       abrindoDrawerRef.current = true
       try {
         const next = await garantirOrigemGps(raw)
+        if (fecharIgnoraAbrirRef.current) return
         const cidade = inferirCidadeDePonto(next.origem)
         const tab = cidadeTripliceParaTabelado(cidade)
         if (tab && !peekRotasTabeladasCache(tab)) {
           await carregarRotasTabeladasCidade(supabase, tab)
         }
+        if (fecharIgnoraAbrirRef.current) return
         const labels = montarLabelsDestino(next.destinoEmpresaId, next.destino.nome)
         setDestinoLabelsSnap(labels)
         setDrawerKey((k) => k + 1)
@@ -194,9 +201,23 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
 
   /** Deep link / Chamar corrida: abre drawer 1 com destino da empresa + origem GPS. */
   useEffect(() => {
-    if (!pesquisa.abrirPesquisa) return
-    if (drawerAberto || abrindoDrawerRef.current) return
+    if (!pesquisa.abrirPesquisa) {
+      fecharIgnoraAbrirRef.current = false
+      return
+    }
+    if (fecharIgnoraAbrirRef.current) return
+    if (abrindoDrawerRef.current) return
     if (pesquisa.destinoEmpresaId && carregandoEmpresas) return
+
+    const openKey = [
+      pesquisa.destinoEmpresaId ?? '',
+      pesquisa.destino.lat ?? '',
+      pesquisa.destino.lng ?? '',
+      pesquisa.destino.nome.trim(),
+    ].join('|')
+
+    // Já aberto com o mesmo destino — não remonta.
+    if (drawerAberto && ultimoOpenKeyRef.current === openKey) return
 
     let ativo = true
     void (async () => {
@@ -252,16 +273,17 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
         next = {
           ...next,
           destino: {
-            nome: next.destino.nome.trim() || emp.nome_fantasia,
-            lat: next.destino.lat ?? emp.latitude,
-            lng: next.destino.lng ?? emp.longitude,
+            nome: emp.nome_fantasia,
+            lat: emp.latitude,
+            lng: emp.longitude,
           },
           destinoEmpresaId: emp.id,
         }
         setDestinoLabelsSnap(montarLabelsDestino(emp.id, emp.nome_fantasia, listaEmp))
       }
 
-      if (!ativo) return
+      if (!ativo || fecharIgnoraAbrirRef.current) return
+      ultimoOpenKeyRef.current = openKey
       await abrirDrawerPesquisa(next)
     })()
 
@@ -283,16 +305,25 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   ])
 
   const fecharDrawerPesquisa = () => {
+    // Bloqueia o effect enquanto a URL ainda tem abrir_pesquisa=1 (senão o X “não fecha”).
+    fecharIgnoraAbrirRef.current = true
+    ultimoOpenKeyRef.current = null
+    abrindoDrawerRef.current = false
     setDrawerAberto(false)
     setPesquisaDrawer(null)
     setDestinoLabelsSnap(null)
+    // Limpa destino/empresa — próximo Chamar corrida começa limpo.
     router.replace(
       buildMobilidadePesquisaHref({
-        origem: pesquisaAtiva.origem,
-        destino: pesquisaAtiva.destino,
-        destinoEmpresaId: pesquisaAtiva.destinoEmpresaId,
-        recomendacaoId: pesquisaAtiva.recomendacaoId,
-        profissionalUsuarioId: pesquisaAtiva.profissionalUsuarioId,
+        origem: {
+          nome: origemLabelGps || pesquisaAtiva.origem.nome || '',
+          lat: gpsCentro?.lat ?? pesquisaAtiva.origem.lat,
+          lng: gpsCentro?.lng ?? pesquisaAtiva.origem.lng,
+        },
+        destino: { nome: '', lat: null, lng: null },
+        destinoEmpresaId: null,
+        recomendacaoId: null,
+        profissionalUsuarioId: null,
         abrirPesquisa: false,
       }),
     )
@@ -301,6 +332,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   const reabrirDrawerParaAgendar = () => {
     setResultadoAberto(false)
     setResultadoCorrida(null)
+    fecharIgnoraAbrirRef.current = false
     const next: MobilidadePesquisaState = {
       ...pesquisa,
       origem: pesquisaAtiva.origem,
@@ -582,6 +614,13 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
             onPesquisar={(o, d, empId) => {
               setResultadoAberto(false)
               setResultadoCorrida(null)
+              fecharIgnoraAbrirRef.current = false
+              ultimoOpenKeyRef.current = [
+                empId ?? '',
+                d.lat ?? '',
+                d.lng ?? '',
+                d.nome.trim(),
+              ].join('|')
               void abrirDrawerPesquisa({
                 origem: o,
                 destino: d,
