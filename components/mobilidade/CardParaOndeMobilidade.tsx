@@ -105,7 +105,6 @@ export default function CardParaOndeMobilidade({
 
   /** Chamar corrida / fechar drawer: aplica ou limpa o destino sem remount (preserva GPS). */
   useEffect(() => {
-    if (destinoSyncToken < 0) return
     const nome = String(destinoInicial?.nome ?? '').trim()
     const lat = destinoInicial?.lat ?? null
     const lng = destinoInicial?.lng ?? null
@@ -125,7 +124,13 @@ export default function CardParaOndeMobilidade({
     }
     setDestino({ nome, lat, lng })
     setDestinoEmpresaId(empId)
-  }, [destinoSyncToken]) // eslint-disable-line react-hooks/exhaustive-deps -- token dispara leitura das props
+  }, [
+    destinoSyncToken,
+    destinoInicial?.nome,
+    destinoInicial?.lat,
+    destinoInicial?.lng,
+    destinoEmpresaIdInicial,
+  ])
 
   const aplicarOrigem = useCallback(
     (ponto: MobilidadePonto) => {

@@ -113,7 +113,7 @@ export function buildHrefChamarCorridaEmpresa(params: {
   const id = String(params.empresaId ?? '').trim()
   const lat = params.latitude != null && params.latitude !== '' ? Number(params.latitude) : NaN
   const lng = params.longitude != null && params.longitude !== '' ? Number(params.longitude) : NaN
-  return buildMobilidadePesquisaHref({
+  const href = buildMobilidadePesquisaHref({
     origem: { nome: '', lat: null, lng: null },
     destino: {
       nome: String(params.nomeDestino ?? '').trim(),
@@ -123,4 +123,7 @@ export function buildHrefChamarCorridaEmpresa(params: {
     destinoEmpresaId: id || null,
     abrirPesquisa: true,
   })
+  // Nonce: garante novo ciclo de searchParams a cada clique (troca de empresa / reabrir).
+  const sep = href.includes('?') ? '&' : '?'
+  return `${href}${sep}_cc=${Date.now()}`
 }

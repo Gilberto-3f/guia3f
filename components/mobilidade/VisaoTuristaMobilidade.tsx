@@ -64,6 +64,8 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
     () => parseMobilidadePesquisaSearchParams(searchParams),
     [searchParams],
   )
+  /** Nonce do Chamar corrida — força reabrir mesmo com o mesmo destino_empresa. */
+  const chamarCorridaNonce = searchParams.get('_cc')
 
   const [empresas, setEmpresas] = useState<EmpresaMapaMobilidade[]>([])
   const [empresasErro, setEmpresasErro] = useState<string | null>(null)
@@ -103,6 +105,9 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   const ultimoOpenKeyRef = useRef<string | null>(null)
   gpsCentroRef.current = gpsCentro
   origemLabelGpsRef.current = origemLabelGps
+
+  const empresasRef = useRef(empresas)
+  empresasRef.current = empresas
 
   const pesquisaAtiva = drawerAberto && pesquisaDrawer ? pesquisaDrawer : pesquisa
 
@@ -250,7 +255,6 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
     const openKey = montarOpenKey(pesquisa)
 
     // Bloqueio só vale para o mesmo destino que acabamos de fechar (X/Cancelar).
-    // Novo Chamar corrida (outra empresa / outro openKey) libera na hora.
     if (fecharIgnoraAbrirRef.current) {
       if (openKeyFechadoRef.current != null && openKey !== openKeyFechadoRef.current) {
         fecharIgnoraAbrirRef.current = false
@@ -266,21 +270,40 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
     // Já aberto com o mesmo destino — não remonta.
     if (drawerAberto && ultimoOpenKeyRef.current === openKey) return
 
+    const listaEmp = empresasRef.current
+    const empIdEarly = pesquisa.destinoEmpresaId
+    const empEarly = empIdEarly ? listaEmp.find((e) => e.id === empIdEarly) ?? null : null
+
+    // Preenche o card na hora (antes do await) — evita autocomplete da empresa anterior.
+    if (empEarly) {
+      aplicarDestinoNoCard(
+        { nome: empEarly.nome_fantasia, lat: empEarly.latitude, lng: empEarly.longitude },
+        empEarly.id,
+      )
+    } else if (pontoPreenchido(pesquisa.destino)) {
+      aplicarDestinoNoCard(pesquisa.destino, empIdEarly)
+    } else if (empIdEarly) {
+      // Só o id na URL — limpa nome antigo até o fetch terminar.
+      aplicarDestinoNoCard({ nome: '', lat: null, lng: null }, empIdEarly)
+    }
+
     let ativo = true
     void (async () => {
       let next: MobilidadePesquisaState = { ...pesquisa, abrirPesquisa: true }
       const empId = next.destinoEmpresaId
 
-      let emp = empId != null ? empresas.find((e) => e.id === empId) ?? null : null
-      let listaEmp = empresas
+      let emp = empId != null ? empresasRef.current.find((e) => e.id === empId) ?? null : null
+      let listaAtual = empresasRef.current
 
       if (empId && !emp) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('empresas')
           .select('id, nome_fantasia, cidade, endereco, latitude, longitude')
           .eq('id', empId)
           .maybeSingle()
         if (!ativo) return
+        // 57014 / abort de navegação: ignora sem rethrow
+        if (error) return
         if (data) {
           const lat = Number(data.latitude)
           const lng = Number(data.longitude)
@@ -310,7 +333,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
               preco_diaria: null,
               segmento: '',
             }
-            listaEmp = [...empresas, emp]
+            listaAtual = [...empresasRef.current, emp]
             setEmpresas((prev) => (prev.some((e) => e.id === emp!.id) ? prev : [...prev, emp!]))
           }
         }
@@ -326,7 +349,9 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
           },
           destinoEmpresaId: emp.id,
         }
-        setDestinoLabelsSnap(montarLabelsDestino(emp.id, emp.nome_fantasia, listaEmp))
+        if (!ativo || fecharIgnoraAbrirRef.current) return
+        aplicarDestinoNoCard(next.destino, emp.id)
+        setDestinoLabelsSnap(montarLabelsDestino(emp.id, emp.nome_fantasia, listaAtual))
       }
 
       if (!ativo || fecharIgnoraAbrirRef.current) return
@@ -337,6 +362,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
     return () => {
       ativo = false
     }
+    // empresas via ref — evita re-disparar fetch a cada setEmpresas (cancel 57014).
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deep link / Chamar corrida
   }, [
     pesquisa.abrirPesquisa,
@@ -344,12 +370,13 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
     pesquisa.destino.lat,
     pesquisa.destino.lng,
     pesquisa.destino.nome,
+    chamarCorridaNonce,
     carregandoEmpresas,
-    empresas,
     drawerAberto,
     abrirDrawerPesquisa,
-    montarLabelsDestino,
     montarOpenKey,
+    aplicarDestinoNoCard,
+    montarLabelsDestino,
   ])
 
   const fecharDrawerPesquisa = () => {
@@ -378,6 +405,22 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
       }),
     )
   }
+
+  /** URL já sem destino — reforça limpeza do card (evita reaplicar empresa antiga). */
+  useEffect(() => {
+    if (pesquisa.abrirPesquisa) return
+    if (pesquisa.destinoEmpresaId || pontoPreenchido(pesquisa.destino)) return
+    if (cardDestino == null) return
+    aplicarDestinoNoCard(null, null)
+  }, [
+    pesquisa.abrirPesquisa,
+    pesquisa.destinoEmpresaId,
+    pesquisa.destino.nome,
+    pesquisa.destino.lat,
+    pesquisa.destino.lng,
+    cardDestino,
+    aplicarDestinoNoCard,
+  ])
 
   const reabrirDrawerParaAgendar = () => {
     setResultadoAberto(false)
@@ -579,22 +622,8 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
           }
         : null
 
-  const destinoInicialCard: MobilidadePonto | null =
-    cardDestino?.ponto ??
-    (pontoPreenchido(pesquisa.destino)
-      ? pesquisa.destino
-      : pesquisa.destinoEmpresaId
-        ? {
-            nome:
-              empresas.find((e) => e.id === pesquisa.destinoEmpresaId)?.nome_fantasia ||
-              t('destinoEmpresa'),
-            lat: destinoPonto?.lat ?? null,
-            lng: destinoPonto?.lng ?? null,
-          }
-        : null)
-
-  const destinoEmpresaIdCard =
-    cardDestino?.empresaId ?? pesquisa.destinoEmpresaId ?? null
+  const destinoInicialCard: MobilidadePonto | null = cardDestino?.ponto ?? null
+  const destinoEmpresaIdCard = cardDestino?.empresaId ?? null
 
   const empresaDestino = pesquisaAtiva.destinoEmpresaId
     ? empresas.find((e) => e.id === pesquisaAtiva.destinoEmpresaId) ?? null
@@ -657,12 +686,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
             destinoSyncToken={destinoSyncToken}
             empresas={empresas}
             forcarRecolhido={drawerAberto}
-            expandidoInicial={
-              Boolean(pesquisa.abrirPesquisa) ||
-              pontoPreenchido(pesquisa.destino) ||
-              Boolean(pesquisa.destinoEmpresaId) ||
-              Boolean(cardDestino)
-            }
+            expandidoInicial={Boolean(cardDestino)}
             onOrigemChange={(p) => {
               if (p.lat != null && p.lng != null) {
                 setGpsCentro({ lat: p.lat, lng: p.lng })
@@ -693,7 +717,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
 
       {drawerAberto ? (
         <DrawerPesquisaMobilidade
-          key={`pesquisa-drawer-${drawerKey}`}
+          key={`pesquisa-drawer-${drawerKey}-${pesquisaAtiva.destinoEmpresaId ?? 'geo'}`}
           aberto
           onFechar={fecharDrawerPesquisa}
           pesquisa={pesquisaAtiva}
