@@ -25,6 +25,13 @@ const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
 
 type Props = {
   destinoInicial?: MobilidadePonto | null
+  /** Empresa vinculada ao destino (Chamar corrida / sugestão). */
+  destinoEmpresaIdInicial?: string | null
+  /**
+   * Incrementado pelo pai ao aplicar/limpar destino (Chamar corrida, fechar drawer).
+   * Sem isso o estado local do card não acompanha a URL.
+   */
+  destinoSyncToken?: number
   origemInicial?: MobilidadePonto | null
   /** Empresas do mapa (nome fantasia) para autocomplete. */
   empresas?: EmpresaMapaMobilidade[]
@@ -62,6 +69,8 @@ function emitTecladoBarra(hide: boolean) {
  */
 export default function CardParaOndeMobilidade({
   destinoInicial = null,
+  destinoEmpresaIdInicial = null,
+  destinoSyncToken = 0,
   origemInicial = null,
   empresas = [],
   expandidoInicial = false,
@@ -85,12 +94,38 @@ export default function CardParaOndeMobilidade({
     lat: destinoInicial?.lat ?? null,
     lng: destinoInicial?.lng ?? null,
   }))
-  const [destinoEmpresaId, setDestinoEmpresaId] = useState<string | null>(null)
+  const [destinoEmpresaId, setDestinoEmpresaId] = useState<string | null>(
+    () => destinoEmpresaIdInicial,
+  )
   const [rotasTabeladas, setRotasTabeladas] = useState<RotaTabelada[]>([])
   const [sugestoesAbertas, setSugestoesAbertas] = useState(false)
   const [campoFocado, setCampoFocado] = useState(false)
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'loading' | 'ok' | 'denied' | 'error'>('idle')
   const [erro, setErro] = useState('')
+
+  /** Chamar corrida / fechar drawer: aplica ou limpa o destino sem remount (preserva GPS). */
+  useEffect(() => {
+    if (destinoSyncToken < 0) return
+    const nome = String(destinoInicial?.nome ?? '').trim()
+    const lat = destinoInicial?.lat ?? null
+    const lng = destinoInicial?.lng ?? null
+    const empId =
+      destinoEmpresaIdInicial != null && String(destinoEmpresaIdInicial).trim() !== ''
+        ? String(destinoEmpresaIdInicial).trim()
+        : null
+    const preenchido =
+      Boolean(nome) ||
+      (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) ||
+      Boolean(empId)
+
+    if (!preenchido) {
+      setDestino({ nome: '', lat: null, lng: null })
+      setDestinoEmpresaId(null)
+      return
+    }
+    setDestino({ nome, lat, lng })
+    setDestinoEmpresaId(empId)
+  }, [destinoSyncToken]) // eslint-disable-line react-hooks/exhaustive-deps -- token dispara leitura das props
 
   const aplicarOrigem = useCallback(
     (ponto: MobilidadePonto) => {
