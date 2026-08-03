@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { usePathname } from 'next/navigation'
 import { AdminPermissaoProvider } from '@/app/[locale]/(admin)/dashboard/admin/context/AdminPermissaoContext'
 import { ModoApresentacaoProvider, useModoApresentacao } from '@/context/ModoApresentacaoContext'
@@ -13,6 +14,7 @@ import AdminEcossistemaAlertaGate from '@/components/canal/AdminEcossistemaAlert
 import TuristaComprasNotificacaoGate from '@/components/TuristaComprasNotificacaoGate'
 import ConviteAdminGate from '@/components/ConviteAdminGate'
 import AdminColaboradorModoGate from '@/components/AdminColaboradorModoGate'
+import { useAppViewportHeight } from '@/lib/useAppViewportHeight'
 
 /** `feed/criar` emite quando o teclado está visível para esconder a barra (aba TEXTO ou legenda na FOTO). */
 const CRIAR_KEYBOARD_EVENT = 'guia-criar-keyboard'
@@ -66,6 +68,9 @@ function AppShellLayoutFrame({
 }) {
   const { hideBottomBar, paddingInferior, fundoShell, isGuiaOuMobilidade, telaMensageiro } =
     shellClasses(pathname, tecladoOcultaBarra)
+  const [portalReady] = useState(() => typeof document !== 'undefined')
+
+  useAppViewportHeight()
 
   // Limpa position:fixed residual de locks antigos (causa faixa sob a barra / drawers).
   useEffect(() => {
@@ -79,38 +84,43 @@ function AppShellLayoutFrame({
     }
   }, [isGuiaOuMobilidade, tecladoOcultaBarra])
 
-  return (
-    <div
-      className={`flex flex-col ${fundoShell} ${paddingInferior} ${
-        telaMensageiro || isGuiaOuMobilidade
-          ? 'fixed inset-0 z-0 overflow-hidden'
-          : 'min-h-screen min-h-dvh'
-      }`}
-    >
-      {modoAtivo ? null : <ModoApresentacaoChrome />}
-      <ProfissionalGateBanner />
-      <AdminEcossistemaAlertaGate />
-      <TuristaComprasNotificacaoGate />
-      <ConviteAdminGate />
+  const bottomBar =
+    isGuiaOuMobilidade ? (
       <div
-        className={`flex min-h-0 flex-1 flex-col ${
-          telaMensageiro || isGuiaOuMobilidade ? 'overflow-hidden' : ''
+        className={tecladoOcultaBarra ? 'pointer-events-none invisible' : undefined}
+        aria-hidden={tecladoOcultaBarra || undefined}
+      >
+        <BottomBar />
+      </div>
+    ) : !hideBottomBar ? (
+      <BottomBar />
+    ) : null
+
+  return (
+    <>
+      <div
+        className={`flex flex-col ${fundoShell} ${paddingInferior} ${
+          telaMensageiro || isGuiaOuMobilidade
+            ? 'h-[var(--app-height,100dvh)] max-h-[var(--app-height,100dvh)] overflow-hidden'
+            : 'min-h-screen min-h-dvh'
         }`}
       >
-        {children}
-      </div>
-      {/* Guia/Mobilidade: não desmonta a barra no teclado (evita faixa sob o rodapé ao remontar). */}
-      {isGuiaOuMobilidade ? (
+        {modoAtivo ? null : <ModoApresentacaoChrome />}
+        <ProfissionalGateBanner />
+        <AdminEcossistemaAlertaGate />
+        <TuristaComprasNotificacaoGate />
+        <ConviteAdminGate />
         <div
-          className={tecladoOcultaBarra ? 'pointer-events-none invisible' : undefined}
-          aria-hidden={tecladoOcultaBarra || undefined}
+          className={`flex min-h-0 flex-1 flex-col ${
+            telaMensageiro || isGuiaOuMobilidade ? 'overflow-hidden' : ''
+          }`}
         >
-          <BottomBar />
+          {children}
         </div>
-      ) : !hideBottomBar ? (
-        <BottomBar />
-      ) : null}
-    </div>
+      </div>
+      {/* Portal no body: evita containing block de ancestors fixed/transform (faixa no iOS). */}
+      {portalReady && bottomBar ? createPortal(bottomBar, document.body) : null}
+    </>
   )
 }
 

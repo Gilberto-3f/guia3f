@@ -15,12 +15,16 @@
 html {
   color-scheme: light;
   background: #ffffff;
+  height: 100%;
+  --app-height: 100dvh;
 }
 
 body {
   background: #ffffff;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100%;
+  min-height: var(--app-height, 100dvh);
 }
 
 /* Empurra conteúdo abaixo da status bar; a cor de fundo do elemento preenche a área superior */
