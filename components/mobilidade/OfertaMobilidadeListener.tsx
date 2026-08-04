@@ -10,17 +10,13 @@ import {
 } from '@/lib/mobilidadeRecusaJustificativas'
 import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
 import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
+import DrawerAtendimentoMobilidade, {
+  type OfertaAtendimentoUi,
+} from '@/components/mobilidade/DrawerAtendimentoMobilidade'
 
-type Oferta = {
-  solicitacao_id: string
-  modalidade: string | null
-  origem_nome: string | null
-  destino_nome: string | null
-  valor_estimado: number | null
-  lugares: number | null
-  cruzamento_fronteira: boolean
-  oferta_expira_em: string | null
-  distancia_km: number
+type Oferta = OfertaAtendimentoUi & {
+  /** Marcador interno: confirmação de agendamento (API dedicada). */
+  _fluxo?: 'oferta' | 'agendamento_confirmacao'
 }
 
 type CorridaAtiva = {
@@ -88,40 +84,55 @@ export default function OfertaMobilidadeListener() {
         fetch('/api/mobilidade/ofertas-pendentes'),
         fetch('/api/mobilidade/agendamentos-pendentes'),
       ])
-      if (rOferta.status === 401 || rOferta.status === 403 || rAg.status === 401 || rAg.status === 403) {
+      if (
+        rOferta.status === 401 ||
+        rOferta.status === 403 ||
+        rAg.status === 401 ||
+        rAg.status === 403
+      ) {
         return 'auth' as const
       }
-      const json = (await rOferta.json()) as { ofertas?: Oferta[] }
+      const json = (await rOferta.json()) as { ofertas?: OfertaAtendimentoUi[] }
       const jag = (await rAg.json()) as {
         agendamentos?: Array<{
           solicitacao_id: string
           status: string
+          modalidade: string | null
           origem_nome: string | null
           destino_nome: string | null
+          valor_estimado: number | null
+          lugares: number | null
+          pagamento: string | null
           data_agendada: string | null
+          contratacao_direcionada?: boolean
+          turista?: OfertaAtendimentoUi['turista']
         }>
       }
       if (rAg.ok && Array.isArray(jag.agendamentos)) {
         const conf = jag.agendamentos.find((a) => a.status === 'aguardando_confirmacao')
         if (conf) {
-          // prioriza confirmação de agendamento sobre oferta imediata
           setOferta({
             solicitacao_id: conf.solicitacao_id,
-            modalidade: 'agendamento',
+            modalidade: conf.modalidade ?? 'agendamento',
             origem_nome: conf.origem_nome,
             destino_nome: conf.destino_nome,
-            valor_estimado: null,
-            lugares: null,
+            valor_estimado: conf.valor_estimado,
+            lugares: conf.lugares,
+            pagamento: conf.pagamento ?? null,
+            data_agendada: conf.data_agendada,
             cruzamento_fronteira: false,
             oferta_expira_em: conf.data_agendada,
             distancia_km: 0,
+            contratacao_direcionada: Boolean(conf.contratacao_direcionada),
+            turista: conf.turista ?? null,
+            _fluxo: 'agendamento_confirmacao',
           })
           return 'ok' as const
         }
       }
       if (!rOferta.ok) return 'ok' as const
       const first = Array.isArray(json.ofertas) && json.ofertas[0] ? json.ofertas[0] : null
-      setOferta(first)
+      setOferta(first ? { ...first, _fluxo: 'oferta' } : null)
     } catch {
       /* ignore */
     }
@@ -177,7 +188,7 @@ export default function OfertaMobilidadeListener() {
   }, [elegivel, carregarOferta, corrida])
 
   useEffect(() => {
-    if (!oferta?.oferta_expira_em) {
+    if (!oferta?.oferta_expira_em || oferta._fluxo === 'agendamento_confirmacao') {
       setSeg(null)
       return
     }
@@ -188,14 +199,14 @@ export default function OfertaMobilidadeListener() {
     tick()
     const id = setInterval(tick, 250)
     return () => clearInterval(id)
-  }, [oferta?.oferta_expira_em])
+  }, [oferta?.oferta_expira_em, oferta?._fluxo])
 
   const aceitar = async () => {
     if (!oferta || busy) return
     setBusy(true)
     setMostrarRecusa(false)
     try {
-      if (oferta.modalidade === 'agendamento') {
+      if (oferta._fluxo === 'agendamento_confirmacao') {
         const res = await fetch(`/api/mobilidade/agendamento/${oferta.solicitacao_id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -226,7 +237,7 @@ export default function OfertaMobilidadeListener() {
 
   const confirmarRecusa = async () => {
     if (!oferta || busy) return
-    if (oferta.modalidade === 'agendamento') {
+    if (oferta._fluxo === 'agendamento_confirmacao') {
       setBusy(true)
       setErroRecusa('')
       try {
@@ -440,108 +451,71 @@ export default function OfertaMobilidadeListener() {
 
   if (!oferta) return null
 
-  const warn = seg != null && seg <= 15
+  const painelRecusa = mostrarRecusa ? (
+    <div className="mb-2 space-y-2">
+      {oferta._fluxo === 'agendamento_confirmacao' ? (
+        <p className="text-xs text-gray-600">
+          Cancelar libera a vaga e tenta remarcar com outro profissional.
+        </p>
+      ) : (
+        <>
+          <p className="text-xs font-semibold text-gray-700">{t('recusaTitulo')}</p>
+          <ul className="space-y-1.5">
+            {JUSTIFICATIVAS_RECUSA_MOBILIDADE.map((id) => (
+              <li key={id}>
+                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 px-2.5 py-2 text-xs text-gray-700">
+                  <input
+                    type="radio"
+                    name="just-recusa"
+                    checked={justificativa === id}
+                    onChange={() => setJustificativa(id)}
+                    className="mt-0.5"
+                  />
+                  <span>{t(`recusa.${id}`)}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {erroRecusa ? <p className="text-xs text-rose-600">{erroRecusa}</p> : null}
+      <div className="flex gap-2 pt-1">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setMostrarRecusa(false)
+            setErroRecusa('')
+          }}
+          className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700"
+        >
+          {t('voltar')}
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void confirmarRecusa()}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-2.5 text-sm font-bold uppercase text-white"
+        >
+          {t('ofertaRecusar')}
+        </button>
+      </div>
+    </div>
+  ) : null
 
   return (
-    <div className="fixed inset-x-3 bottom-24 z-[70] rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-black/10 sm:inset-x-auto sm:right-4 sm:w-96">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-sm font-bold text-[#0097b2]">{t('ofertaProfTitulo')}</p>
-          <p className="mt-1 text-xs text-gray-500">
-            {oferta.origem_nome || '—'} → {oferta.destino_nome || '—'}
-          </p>
-        </div>
-        {seg != null ? (
-          <span
-            className={`rounded-full px-2 py-1 text-xs font-bold text-white ${
-              warn ? 'bg-amber-400' : 'bg-[#0097b2]'
-            }`}
-          >
-            {seg}s
-          </span>
-        ) : null}
-      </div>
-      <p className="mt-2 text-sm text-gray-700">
-        {oferta.modalidade || '—'}
-        {oferta.valor_estimado != null ? ` · ${formatBrl(oferta.valor_estimado)}` : ''}
-        {` · ${oferta.lugares ?? 1} pax`}
-        {` · ~${oferta.distancia_km} km`}
-      </p>
-
-      {mostrarRecusa ? (
-        <div className="mt-3 space-y-2">
-          {oferta.modalidade === 'agendamento' ? (
-            <p className="text-xs text-gray-600">
-              Cancelar libera a vaga e tenta remarcar com outro profissional.
-            </p>
-          ) : (
-            <>
-              <p className="text-xs font-semibold text-gray-700">{t('recusaTitulo')}</p>
-              <ul className="space-y-1.5">
-                {JUSTIFICATIVAS_RECUSA_MOBILIDADE.map((id) => (
-                  <li key={id}>
-                    <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 px-2.5 py-2 text-xs text-gray-700">
-                      <input
-                        type="radio"
-                        name="just-recusa"
-                        checked={justificativa === id}
-                        onChange={() => setJustificativa(id)}
-                        className="mt-0.5"
-                      />
-                      <span>{t(`recusa.${id}`)}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          {erroRecusa ? <p className="text-xs text-rose-600">{erroRecusa}</p> : null}
-          <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setMostrarRecusa(false)
-                setErroRecusa('')
-              }}
-              className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700"
-            >
-              {t('voltar')}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void confirmarRecusa()}
-              className="flex-1 rounded-xl bg-rose-500 py-2.5 text-sm font-bold text-white"
-            >
-              {t('ofertaRecusar')}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              setMostrarRecusa(true)
-              setJustificativa(null)
-              setErroRecusa('')
-            }}
-            className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700"
-          >
-            {t('ofertaRecusar')}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void aceitar()}
-            className="flex-1 rounded-xl bg-[#00D443] py-2.5 text-sm font-bold text-white"
-          >
-            {t('ofertaAceitar')}
-          </button>
-        </div>
-      )}
-    </div>
+    <DrawerAtendimentoMobilidade
+      oferta={oferta}
+      busy={busy}
+      segundosRestantes={oferta._fluxo === 'agendamento_confirmacao' ? null : seg}
+      ocultarBotoes={mostrarRecusa}
+      rodapeExtra={painelRecusa}
+      onAceitar={() => void aceitar()}
+      onRecusar={() => {
+        setMostrarRecusa(true)
+        setJustificativa(null)
+        setErroRecusa('')
+      }}
+    />
   )
 }
