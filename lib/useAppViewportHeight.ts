@@ -2,40 +2,42 @@
 
 import { useEffect } from 'react'
 
+function syncAppHeight() {
+  if (typeof window === 'undefined') return
+  const vv = window.visualViewport
+  const fromVv = vv != null ? Math.round(vv.height + vv.offsetTop) : 0
+  const h = Math.max(
+    Math.round(window.innerHeight),
+    Math.round(document.documentElement.clientHeight || 0),
+    fromVv,
+  )
+  if (h > 0) {
+    document.documentElement.style.setProperty('--app-height', `${h}px`)
+  }
+}
+
 /**
- * Define --app-height com window.innerHeight.
- * No iOS, 100dvh / fixed inset-0 costumam ficar mais curtos que a tela
- * e geram faixa vazia sob BottomBar e drawers.
+ * Define --app-height com a altura real da janela.
+ * No iOS, 100dvh costuma ficar mais curto e gera faixa sob drawers/BottomBar.
  */
 export function useAppViewportHeight() {
   useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const sync = () => {
-      const vv = window.visualViewport
-      const fromVv =
-        vv != null ? Math.round(vv.height + vv.offsetTop) : 0
-      const h = Math.max(
-        Math.round(window.innerHeight),
-        Math.round(document.documentElement.clientHeight || 0),
-        fromVv,
-      )
-      if (h > 0) {
-        document.documentElement.style.setProperty('--app-height', `${h}px`)
-      }
-    }
-
-    sync()
-    window.addEventListener('resize', sync)
-    window.addEventListener('orientationchange', sync)
-    window.visualViewport?.addEventListener('resize', sync)
-    window.visualViewport?.addEventListener('scroll', sync)
+    syncAppHeight()
+    window.addEventListener('resize', syncAppHeight)
+    window.addEventListener('orientationchange', syncAppHeight)
+    window.visualViewport?.addEventListener('resize', syncAppHeight)
+    window.visualViewport?.addEventListener('scroll', syncAppHeight)
 
     return () => {
-      window.removeEventListener('resize', sync)
-      window.removeEventListener('orientationchange', sync)
-      window.visualViewport?.removeEventListener('resize', sync)
-      window.visualViewport?.removeEventListener('scroll', sync)
+      window.removeEventListener('resize', syncAppHeight)
+      window.removeEventListener('orientationchange', syncAppHeight)
+      window.visualViewport?.removeEventListener('resize', syncAppHeight)
+      window.visualViewport?.removeEventListener('scroll', syncAppHeight)
     }
   }, [])
+}
+
+/** Chamar ao abrir um drawer full-screen (garante altura atualizada). */
+export function refreshAppViewportHeight() {
+  syncAppHeight()
 }

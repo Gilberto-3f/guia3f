@@ -870,8 +870,7 @@ export default function DrawerTicketsAtrativos({
   return createPortal(
     <>
       <div
-        className="fixed left-0 right-0 top-0 z-[140] flex flex-col bg-white"
-        style={{ height: 'var(--app-height, 100dvh)' }}
+        className="fixed inset-0 z-[140] flex flex-col bg-white"
         role="dialog"
         aria-modal="true"
         aria-label="Tickets"

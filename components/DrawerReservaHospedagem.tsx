@@ -29,7 +29,7 @@ import {
   listarReservasPendentesOutrasEmpresas,
 } from '@/lib/reservaHospedagem'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
-import { useAppViewportHeight } from '@/lib/useAppViewportHeight'
+import { useAppViewportHeight, refreshAppViewportHeight } from '@/lib/useAppViewportHeight'
 import {
   formatarValorDiaria,
   mapAcomodacaoRow,
@@ -208,6 +208,10 @@ export default function DrawerReservaHospedagem({
 
   useModalScrollLock(isOpen || painelVisivel)
   useAppViewportHeight()
+
+  useEffect(() => {
+    if (isOpen || painelVisivel) refreshAppViewportHeight()
+  }, [isOpen, painelVisivel])
 
   useEffect(() => {
     if (isOpen) {
@@ -723,10 +727,9 @@ export default function DrawerReservaHospedagem({
   return createPortal(
     <>
       <div
-        className={`fixed left-0 right-0 top-0 z-[70] flex flex-col bg-white transition-transform duration-300 ease-out ${
+        className={`fixed inset-0 z-[140] flex flex-col bg-white transition-transform duration-300 ease-out ${
           painelAberto ? 'translate-x-0' : 'translate-x-full'
         }`}
-        style={{ height: 'var(--app-height, 100dvh)' }}
         role="dialog"
         aria-modal="true"
       >
@@ -1212,7 +1215,7 @@ export default function DrawerReservaHospedagem({
         </div>
 
         {mostrarRodapePassos ? (
-          <div className="shrink-0 border-t border-gray-200 bg-white p-3">
+          <div className="shrink-0 border-t border-gray-200 bg-white px-3 pt-3 pb-3">
             {passo === 2 ? (
               <div className="flex gap-2">
                 <button

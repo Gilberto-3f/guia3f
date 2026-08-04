@@ -14,6 +14,7 @@ import {
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { refreshAppViewportHeight } from '@/lib/useAppViewportHeight'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
 import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
@@ -86,6 +87,9 @@ export default function DrawerProdutosCde({
   produtoIdInicial = null,
 }: Props) {
   useModalScrollLock(isOpen)
+  useEffect(() => {
+    if (isOpen) refreshAppViewportHeight()
+  }, [isOpen])
   const router = useRouter()
   const { perfilEhProfissional, perfilEhEmpresa } = useProfissionalGate()
 
@@ -332,8 +336,7 @@ export default function DrawerProdutosCde({
 
   return createPortal(
     <div
-      className="fixed left-0 right-0 top-0 z-[140] flex flex-col bg-white"
-      style={{ height: 'var(--app-height, 100dvh)' }}
+      className="fixed inset-0 z-[140] flex flex-col bg-white"
       role="dialog"
       aria-modal="true"
       aria-label="Catálogo de produtos"
@@ -476,10 +479,10 @@ export default function DrawerProdutosCde({
             )}
           </div>
         ) : selecionado ? (
-          <div className="space-y-4 pb-8 pt-3">
+          <div className="flex min-h-full flex-col pb-3 pt-3">
             <p className="px-4 text-left text-base font-bold text-[#001f3f]">{selecionado.nome}</p>
 
-            <div className="relative px-6">
+            <div className="relative mt-4 px-6">
               <div
                 className="aspect-[16/10] w-full touch-pan-y overflow-hidden rounded-xl bg-gray-100"
                 onTouchStart={(e) => {
@@ -534,7 +537,7 @@ export default function DrawerProdutosCde({
               ) : null}
             </div>
 
-            <div className="space-y-4 px-4">
+            <div className="mt-4 flex min-h-0 flex-1 flex-col space-y-4 px-4">
             <div>
               <PrecoProdutoCde
                 precoUsd={precoFinal}
@@ -621,6 +624,7 @@ export default function DrawerProdutosCde({
               </div>
             </ChevronPasta>
 
+            <div className="mt-auto space-y-4 pt-4">
             {mostrarEmpresaNoDetalhe ? (
               <div className="flex items-center gap-3 rounded-xl bg-[#0097b2] p-3 shadow-sm">
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 border-white/40 bg-white/20">
@@ -677,6 +681,7 @@ export default function DrawerProdutosCde({
             ) : (
               <BotaoChamarCorrida variant="empresa" empresaId={empresaId} />
             )}
+            </div>
             </div>
           </div>
         ) : null}
