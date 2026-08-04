@@ -20,6 +20,7 @@ import {
   scoreMoedaSoftRank,
   type MoedaModoProfissional,
 } from '@/lib/mobilidadePerfilProfissional'
+import { parseMobilidadeStatus } from '@/lib/mobilidadeStatusProfissional'
 
 /** Tempo total para aceitar (ms). */
 export const MOBILIDADE_OFERTA_TIMEOUT_MS = 45_000
@@ -276,16 +277,36 @@ export async function resolverProfissionalFixadoMobilidade(
   return { profissionalId, recomendacaoId }
 }
 
-function priorizarFixadoNaFila(
-  candidatos: CandidatoMatch[],
-  fixadoId: string | null,
-): CandidatoMatch[] {
-  if (!fixadoId) return candidatos
-  const idx = candidatos.findIndex((c) => c.id === fixadoId)
-  if (idx <= 0) return candidatos
-  const copy = [...candidatos]
-  const [fixado] = copy.splice(idx, 1)
-  return [fixado, ...copy]
+/** Contratação pelo cartão de visita / `prof` — oferta exclusiva, sem fila de matching. */
+export function solicitacaoEhContratacaoDirecionada(row: {
+  metadata?: unknown
+  profissional_fixado_id?: unknown
+}): boolean {
+  const meta =
+    typeof row.metadata === 'object' && row.metadata != null
+      ? (row.metadata as Record<string, unknown>)
+      : {}
+  if (meta.contratacao_direcionada === true) return true
+  if (meta.profissional_fixado_id != null && String(meta.profissional_fixado_id).trim()) {
+    return true
+  }
+  if (row.profissional_fixado_id != null && String(row.profissional_fixado_id).trim()) {
+    return true
+  }
+  return false
+}
+
+function metaContratacaoDirecionada(
+  input: SolicitarMobilidadeInput,
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const dirigida = Boolean(input.profissionalFixadoId)
+  return {
+    ...extra,
+    contratacao_direcionada: dirigida,
+    profissional_fixado_id: input.profissionalFixadoId,
+    recomendacao_id: input.recomendacaoId,
+  }
 }
 
 export type SolicitarMobilidadeResult =
@@ -326,6 +347,11 @@ export async function criarSolicitacaoEOfertar(
       oferta: ag.oferta,
       backupsOcultos: ag.backupsOcultos,
     }
+  }
+
+  // Contratação dirigida imediata: só o profissional do cartão (sem matching livre).
+  if (input.profissionalFixadoId) {
+    return criarOfertaDirecionadaImediata(admin, input)
   }
 
   // Motorista app + urbano + API parceira → redirect
@@ -393,59 +419,6 @@ export async function criarSolicitacaoEOfertar(
     moedasDinheiro: input.moedasDinheiro ?? [],
   })
 
-  // Indicação: se o fixado está online mas fora do filtro de cidade, ainda inclui no topo.
-  if (input.profissionalFixadoId) {
-    const jaTem = candidatos.some((c) => c.id === input.profissionalFixadoId)
-    if (!jaTem) {
-      const { data: fix } = await admin
-        .from('profissionais')
-        .select(
-          'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng, veiculo_lugares, idiomas, moeda_modo, moedas_preferencia',
-        )
-        .eq('id', input.profissionalFixadoId)
-        .eq('mobilidade_status', 'online')
-        .maybeSingle()
-      if (fix) {
-        const cats = normalizarCategoriasProfissional(
-          Array.isArray(fix.categorias) ? fix.categorias.map(String) : [],
-        )
-        const placa = Boolean(fix.placa_vermelha)
-        if (modalidadeMatchaCategorias(input.modalidade, cats, placa)) {
-          const lat = Number(fix.mobilidade_lat)
-          const lng = Number(fix.mobilidade_lng)
-          if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            candidatos = [
-              {
-                id: String(fix.id),
-                usuario_id: String(fix.usuario_id),
-                nome_completo: String(fix.nome_completo ?? ''),
-                nome_usuario: fix.nome_usuario != null ? String(fix.nome_usuario) : null,
-                foto_url:
-                  fix.foto_perfil_url != null
-                    ? String(fix.foto_perfil_url)
-                    : fix.foto_url != null
-                      ? String(fix.foto_url)
-                      : null,
-                categorias: cats,
-                placa_vermelha: placa,
-                lat,
-                lng,
-                distanciaKm: haversineKm(input.origemLat, input.origemLng, lat, lng),
-                cidade: inferirCidadeTriplicePorCoords(lat, lng),
-                veiculo_lugares: normalizarVeiculoLugares(fix.veiculo_lugares),
-                idiomas: normalizarIdiomasGuia(fix.idiomas),
-                moeda_modo: normalizarMoedaModo(fix.moeda_modo),
-                moedas_preferencia: normalizarMoedasPreferencia(fix.moedas_preferencia),
-              },
-              ...candidatos,
-            ]
-          }
-        }
-      }
-    }
-    candidatos = priorizarFixadoNaFila(candidatos, input.profissionalFixadoId)
-  }
-
   const filaIds = candidatos.map((c) => c.id)
   const agora = Date.now()
   const expira = new Date(agora + MOBILIDADE_OFERTA_TIMEOUT_MS).toISOString()
@@ -481,16 +454,15 @@ export async function criarSolicitacaoEOfertar(
     fila_indice: 0,
     oferta_profissional_id: primeiro?.id ?? null,
     oferta_expira_em: primeiro ? expira : null,
-    metadata: {
+    metadata: metaContratacaoDirecionada(input, {
       backups: Math.min(MOBILIDADE_BACKUPS_OCULTOS, Math.max(0, filaIds.length - 1)),
-      profissional_fixado_id: input.profissionalFixadoId,
       idioma_preferido: idiomaPref,
       moedas_dinheiro: moedasDinheiro,
       distancias_km: candidatos.slice(0, 5).map((c) => ({
         id: c.id,
         km: Math.round(c.distanciaKm * 10) / 10,
       })),
-    },
+    }),
   }
 
   let row: { id: string } | null = null
@@ -538,6 +510,166 @@ export async function criarSolicitacaoEOfertar(
   }
 }
 
+/** Oferta imediata exclusiva ao profissional do cartão de visita. */
+async function criarOfertaDirecionadaImediata(
+  admin: SupabaseClient,
+  input: SolicitarMobilidadeInput,
+): Promise<SolicitarMobilidadeResult> {
+  const fixadoId = String(input.profissionalFixadoId ?? '').trim()
+  if (!fixadoId) {
+    return { ok: false, error: 'Profissional não informado para contratação dirigida.' }
+  }
+
+  const { data: fix, error: fixErr } = await admin
+    .from('profissionais')
+    .select(
+      'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng, veiculo_lugares, idiomas, moeda_modo, moedas_preferencia',
+    )
+    .eq('id', fixadoId)
+    .maybeSingle()
+
+  if (fixErr || !fix) {
+    return { ok: false, error: 'Profissional não encontrado.' }
+  }
+
+  const cats = normalizarCategoriasProfissional(
+    Array.isArray(fix.categorias) ? fix.categorias.map(String) : [],
+  )
+  const placa = Boolean(fix.placa_vermelha)
+  if (!modalidadeMatchaCategorias(input.modalidade, cats, placa)) {
+    return { ok: false, error: 'Este profissional não atende a modalidade solicitada.' }
+  }
+
+  const statusMob = parseMobilidadeStatus(fix.mobilidade_status)
+  if (statusMob !== 'online') {
+    return {
+      ok: false,
+      error:
+        'Profissional indisponível no momento. Agende um horário ou tente quando ele estiver online.',
+    }
+  }
+
+  const pLat = Number(fix.mobilidade_lat)
+  const pLng = Number(fix.mobilidade_lng)
+  let distanciaKm = 0
+  if (
+    input.origemLat != null &&
+    input.origemLng != null &&
+    Number.isFinite(pLat) &&
+    Number.isFinite(pLng)
+  ) {
+    distanciaKm = haversineKm(input.origemLat, input.origemLng, pLat, pLng)
+  }
+
+  const primeiro: CandidatoMatch = {
+    id: String(fix.id),
+    usuario_id: String(fix.usuario_id),
+    nome_completo: String(fix.nome_completo ?? ''),
+    nome_usuario: fix.nome_usuario != null ? String(fix.nome_usuario) : null,
+    foto_url:
+      fix.foto_perfil_url != null
+        ? String(fix.foto_perfil_url)
+        : fix.foto_url != null
+          ? String(fix.foto_url)
+          : null,
+    categorias: cats,
+    placa_vermelha: placa,
+    lat: Number.isFinite(pLat) ? pLat : 0,
+    lng: Number.isFinite(pLng) ? pLng : 0,
+    distanciaKm,
+    cidade:
+      Number.isFinite(pLat) && Number.isFinite(pLng)
+        ? inferirCidadeTriplicePorCoords(pLat, pLng)
+        : null,
+    veiculo_lugares: normalizarVeiculoLugares(fix.veiculo_lugares),
+    idiomas: normalizarIdiomasGuia(fix.idiomas),
+    moeda_modo: normalizarMoedaModo(fix.moeda_modo),
+    moedas_preferencia: normalizarMoedasPreferencia(fix.moedas_preferencia),
+  }
+
+  const filaIds = [primeiro.id]
+  const expira = new Date(Date.now() + MOBILIDADE_OFERTA_TIMEOUT_MS).toISOString()
+  const moedasDinheiro = normalizarMoedasPreferencia(input.moedasDinheiro)
+  const idiomaPref =
+    input.idiomaPreferido != null && String(input.idiomaPreferido).trim()
+      ? String(input.idiomaPreferido).trim().toLowerCase()
+      : null
+
+  const insertBase = {
+    turista_id: input.turistaUsuarioId,
+    profissional_id: null as null,
+    status: 'oferecida' as const,
+    tipo_servico: 'mobilidade',
+    modalidade: input.modalidade,
+    origem_nome: input.origemNome,
+    destino_nome: input.destinoNome,
+    lat_origem: input.origemLat,
+    lng_origem: input.origemLng,
+    lat_destino: input.destinoLat,
+    lng_destino: input.destinoLng,
+    destino_empresa_id: input.destinoEmpresaId,
+    cruzamento_fronteira: input.cruzamentoFronteira,
+    valor_estimado: input.valorEstimado,
+    pagamento: input.pagamento,
+    lugares: input.lugares,
+    acompanhamento_guia: input.acompanhamentoGuia,
+    data_agendada: input.dataAgendada,
+    recomendacao_id: input.recomendacaoId,
+    fila_profissional_ids: filaIds,
+    fila_indice: 0,
+    oferta_profissional_id: primeiro.id,
+    oferta_expira_em: expira,
+    metadata: metaContratacaoDirecionada(input, {
+      backups: 0,
+      idioma_preferido: idiomaPref,
+      moedas_dinheiro: moedasDinheiro,
+      distancias_km: [{ id: primeiro.id, km: Math.round(distanciaKm * 10) / 10 }],
+    }),
+  }
+
+  let row: { id: string } | null = null
+  let error: { message: string } | null = null
+
+  {
+    const res = await admin
+      .from('solicitacao_mobilidade')
+      .insert({
+        ...insertBase,
+        idioma_preferido: idiomaPref,
+        moedas_dinheiro: moedasDinheiro,
+      })
+      .select('id')
+      .maybeSingle()
+    row = res.data as { id: string } | null
+    error = res.error
+    if (error && /idioma_preferido|moedas_dinheiro/i.test(error.message)) {
+      const res2 = await admin.from('solicitacao_mobilidade').insert(insertBase).select('id').maybeSingle()
+      row = res2.data as { id: string } | null
+      error = res2.error
+    }
+  }
+
+  if (error || !row?.id) {
+    return { ok: false, error: error?.message ?? 'Falha ao criar solicitação dirigida.' }
+  }
+
+  return {
+    ok: true,
+    solicitacaoId: String(row.id),
+    status: 'oferecida',
+    redirectParceiro: null,
+    oferta: {
+      profissionalId: primeiro.id,
+      nome: primeiro.nome_completo,
+      username: primeiro.nome_usuario,
+      fotoUrl: primeiro.foto_url,
+      distanciaKm: Math.round(distanciaKm * 10) / 10,
+      expiraEm: expira,
+    },
+    backupsOcultos: 0,
+  }
+}
+
 /** Se a oferta expirou, avança para o próximo da fila. */
 export async function avancarFilaSeExpirada(
   admin: SupabaseClient,
@@ -556,7 +688,7 @@ export async function avancarFilaSeExpirada(
   const { data: row } = await admin
     .from('solicitacao_mobilidade')
     .select(
-      'id, status, oferta_expira_em, oferta_profissional_id, fila_profissional_ids, fila_indice, recusados_ids, lat_origem, lng_origem',
+      'id, status, oferta_expira_em, oferta_profissional_id, fila_profissional_ids, fila_indice, recusados_ids, lat_origem, lng_origem, metadata',
     )
     .eq('id', solicitacaoId)
     .maybeSingle()
@@ -631,13 +763,36 @@ async function avancarParaProximo(
     expiraEm: string
   } | null
 }> {
-  const fila = Array.isArray(row.fila_profissional_ids)
-    ? (row.fila_profissional_ids as string[]).map(String)
-    : []
   const recusados = new Set(
     Array.isArray(row.recusados_ids) ? (row.recusados_ids as string[]).map(String) : [],
   )
   if (row.oferta_profissional_id) recusados.add(String(row.oferta_profissional_id))
+
+  // Dirigida: não oferece a outros profissionais após recusa/timeout.
+  if (solicitacaoEhContratacaoDirecionada(row)) {
+    await admin
+      .from('solicitacao_mobilidade')
+      .update({
+        status: 'sem_profissional',
+        oferta_profissional_id: null,
+        oferta_expira_em: null,
+        fila_indice: 1,
+        recusados_ids: [...recusados],
+        metadata: {
+          ...(typeof row.metadata === 'object' && row.metadata
+            ? (row.metadata as Record<string, unknown>)
+            : {}),
+          encerrada_direcionada: true,
+          encerrada_em: new Date().toISOString(),
+        },
+      })
+      .eq('id', row.id)
+    return { status: 'sem_profissional', oferta: null }
+  }
+
+  const fila = Array.isArray(row.fila_profissional_ids)
+    ? (row.fila_profissional_ids as string[]).map(String)
+    : []
 
   let idx = Number(row.fila_indice ?? 0) + 1
   while (idx < fila.length && recusados.has(fila[idx])) idx += 1

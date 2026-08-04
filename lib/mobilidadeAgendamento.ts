@@ -208,7 +208,9 @@ export async function criarSolicitacaoAgendada(
   if (!slots.length) {
     return {
       ok: false,
-      error: 'Nenhum profissional com vaga nessa data/horário. Tente outro horário ou aguarde novas agendas.',
+      error: input.profissionalFixadoId
+        ? 'Este profissional não tem vaga nesse horário. Escolha outra data/hora.'
+        : 'Nenhum profissional com vaga nessa data/horário. Tente outro horário ou aguarde novas agendas.',
     }
   }
 
@@ -256,6 +258,9 @@ export async function criarSolicitacaoAgendada(
         agendamento: true,
         slot_id: escolhido.id,
         lugares_reservados: Math.max(1, input.lugares),
+        contratacao_direcionada: Boolean(input.profissionalFixadoId),
+        profissional_fixado_id: input.profissionalFixadoId,
+        recomendacao_id: input.recomendacaoId,
       },
     })
     .select('id')

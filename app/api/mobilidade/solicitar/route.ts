@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   const auth = await assertUserSession()
   if (!auth.ok) return auth.error
 
-  if (auth.role !== 'turista' && auth.role !== 'admin') {
+  if (auth.role !== 'turista' && auth.role !== 'admin' && auth.role !== 'empresa') {
     return NextResponse.json({ error: 'Apenas turistas podem solicitar corrida.' }, { status: 403 })
   }
 
