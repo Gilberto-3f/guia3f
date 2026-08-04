@@ -10,6 +10,7 @@ import PopupResultadoCorridaMobilidade, {
   type ResultadoCorridaMobilidade,
 } from '@/components/mobilidade/PopupResultadoCorridaMobilidade'
 import CardParaOndeMobilidade from '@/components/mobilidade/CardParaOndeMobilidade'
+import CardStatusProfissionalMobilidade from '@/components/mobilidade/CardStatusProfissionalMobilidade'
 import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 import ChegadaTuristaMobilidadeListener from '@/components/mobilidade/ChegadaTuristaMobilidadeListener'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
@@ -246,6 +247,7 @@ export default function VisaoTuristaMobilidade({
 
   /** Deep link / Chamar corrida: abre drawer 1 com destino da empresa + origem GPS. */
   useEffect(() => {
+    if (perfilEhProfissional) return
     if (!pesquisa.abrirPesquisa) {
       empresaFechadaIdRef.current = null
       return
@@ -391,6 +393,7 @@ export default function VisaoTuristaMobilidade({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deep link / Chamar corrida
   }, [
+    perfilEhProfissional,
     pesquisa.abrirPesquisa,
     pesquisa.destinoEmpresaId,
     pesquisa.destino.lat,
@@ -704,39 +707,43 @@ export default function VisaoTuristaMobilidade({
           </p>
         ) : null}
         <div className="pointer-events-auto mx-auto w-full max-w-lg">
-          <CardParaOndeMobilidade
-            key={`card-destino-${cardDestino?.empresaId ?? 'vazio'}`}
-            origemInicial={origemInicialCard}
-            destinoInicial={destinoInicialCard}
-            destinoEmpresaIdInicial={destinoEmpresaIdCard}
-            destinoSyncToken={destinoSyncToken}
-            empresas={empresas}
-            forcarRecolhido={drawerAberto}
-            expandidoInicial={Boolean(cardDestino)}
-            onOrigemChange={(p) => {
-              if (p.lat != null && p.lng != null) {
-                setGpsCentro({ lat: p.lat, lng: p.lng })
-                if (p.nome) setOrigemLabelGps(p.nome)
-              }
-            }}
-            onPesquisar={(o, d, empId) => {
-              setResultadoAberto(false)
-              setResultadoCorrida(null)
-              empresaFechadaIdRef.current = null
-              const gen = openGenRef.current
-              void abrirDrawerPesquisa(
-                {
-                  origem: o,
-                  destino: d,
-                  destinoEmpresaId: empId,
-                  abrirPesquisa: true,
-                  recomendacaoId: null,
-                  profissionalUsuarioId: null,
-                },
-                gen,
-              )
-            }}
-          />
+          {perfilEhProfissional ? (
+            <CardStatusProfissionalMobilidade forcarRecolhido={drawerAberto} />
+          ) : (
+            <CardParaOndeMobilidade
+              key={`card-destino-${cardDestino?.empresaId ?? 'vazio'}`}
+              origemInicial={origemInicialCard}
+              destinoInicial={destinoInicialCard}
+              destinoEmpresaIdInicial={destinoEmpresaIdCard}
+              destinoSyncToken={destinoSyncToken}
+              empresas={empresas}
+              forcarRecolhido={drawerAberto}
+              expandidoInicial={Boolean(cardDestino)}
+              onOrigemChange={(p) => {
+                if (p.lat != null && p.lng != null) {
+                  setGpsCentro({ lat: p.lat, lng: p.lng })
+                  if (p.nome) setOrigemLabelGps(p.nome)
+                }
+              }}
+              onPesquisar={(o, d, empId) => {
+                setResultadoAberto(false)
+                setResultadoCorrida(null)
+                empresaFechadaIdRef.current = null
+                const gen = openGenRef.current
+                void abrirDrawerPesquisa(
+                  {
+                    origem: o,
+                    destino: d,
+                    destinoEmpresaId: empId,
+                    abrirPesquisa: true,
+                    recomendacaoId: null,
+                    profissionalUsuarioId: null,
+                  },
+                  gen,
+                )
+              }}
+            />
+          )}
         </div>
       </div>
 

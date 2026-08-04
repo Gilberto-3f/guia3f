@@ -13,8 +13,10 @@ import {
 
 type Props = {
   className?: string
-  /** header = sobre fundo azul; painel = ferramenta de trabalho (maior). */
-  variant?: 'header' | 'painel'
+  /** header = sobre fundo azul; painel = ferramenta de trabalho (maior); card = dentro do popup flutuante. */
+  variant?: 'header' | 'painel' | 'card'
+  /** Cor do knoboffline (padrão vermelho no mapa; azul no card do profissional). */
+  corOffline?: string
   onStatusChange?: (prev: MobilidadeStatusId, next: MobilidadeStatusId) => void
 }
 
@@ -35,6 +37,7 @@ function lerGps(): Promise<{ lat: number; lng: number }> {
 export default function ToggleStatusMobilidade({
   className = '',
   variant = 'header',
+  corOffline,
   onStatusChange,
 }: Props) {
   const t = useTranslations('Mobilidade')
@@ -191,7 +194,12 @@ export default function ToggleStatusMobilidade({
   }
 
   const painel = variant === 'painel'
-  const cor = COR_STATUS_MOBILIDADE[status]
+  const card = variant === 'card'
+  const corBase = COR_STATUS_MOBILIDADE[status]
+  const cor =
+    status === 'offline' && corOffline
+      ? corOffline
+      : corBase
   const label =
     status === 'online'
       ? t('statusOnline')
@@ -201,8 +209,14 @@ export default function ToggleStatusMobilidade({
 
   if (loading) {
     return (
-      <div className={`flex items-center justify-center ${painel ? 'min-h-[72px]' : 'h-[56px]'} ${className}`}>
-        <span className={`animate-pulse text-xs ${painel ? 'text-gray-400' : 'text-white/80'}`}>…</span>
+      <div
+        className={`flex items-center justify-center ${
+          painel || card ? 'min-h-[72px]' : 'h-[56px]'
+        } ${className}`}
+      >
+        <span className={`animate-pulse text-xs ${painel || card ? 'text-gray-400' : 'text-white/80'}`}>
+          …
+        </span>
       </div>
     )
   }
@@ -214,28 +228,28 @@ export default function ToggleStatusMobilidade({
         onClick={() => void onToggle()}
         disabled={busy || status === 'em_atendimento'}
         className={
-          painel
+          painel || card
             ? 'flex w-full max-w-sm items-center justify-center gap-3 rounded-2xl bg-white px-4 py-4 shadow-md ring-1 ring-black/10 disabled:opacity-80'
             : 'flex items-center gap-2 rounded-full bg-white/15 px-3 py-2 ring-2 ring-white/40 backdrop-blur-sm disabled:opacity-80'
         }
-        aria-pressed={status === 'online'}
+        aria-pressed={status === 'online' || status === 'em_atendimento'}
         title={label}
       >
         <span
           className={`relative inline-flex items-center rounded-full transition-colors ${
-            painel ? 'h-9 w-16' : 'h-7 w-12'
+            painel || card ? 'h-9 w-16' : 'h-7 w-12'
           }`}
           style={{ backgroundColor: cor }}
         >
           <span
             className={`absolute rounded-full bg-white shadow transition-transform ${
-              painel ? 'h-7 w-7' : 'h-5 w-5'
-            } ${status === 'offline' ? 'left-1' : painel ? 'left-8' : 'left-6'}`}
+              painel || card ? 'h-7 w-7' : 'h-5 w-5'
+            } ${status === 'offline' ? 'left-1' : painel || card ? 'left-8' : 'left-6'}`}
           />
         </span>
         <span
           className={`font-bold uppercase tracking-wide ${
-            painel ? 'text-base text-gray-900' : 'text-xs text-white'
+            painel || card ? 'text-base text-gray-900' : 'text-xs text-white'
           }`}
         >
           {label}
@@ -244,7 +258,7 @@ export default function ToggleStatusMobilidade({
       {erro ? (
         <p
           className={`max-w-[280px] text-center text-[10px] ${
-            painel ? 'text-amber-700' : 'text-amber-100'
+            painel || card ? 'text-amber-700' : 'text-amber-100'
           }`}
         >
           {erro}
