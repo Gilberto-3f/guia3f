@@ -20,7 +20,7 @@ type Props = {
   onAbaMobilidade?: () => void
 }
 
-/** Cabeçalho logo + abas Guia | Mobilidade (visão turista/empresa/ADM). */
+/** Cabeçalho logo + abas Guia | Mobilidade (home / mobilidade para todos os perfis). */
 export default function CabecalhoAbasGuiaMobilidade({
   abaAtiva,
   onAbaGuia,

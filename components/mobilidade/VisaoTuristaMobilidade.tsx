@@ -54,12 +54,23 @@ type Props = {
   /** Se false, omite OfertaMobilidadeListener (já no layout pai). */
   comListener?: boolean
   className?: string
+  /** Linha azul da corrida ativa (profissional). */
+  trajeto?: { de: { lat: number; lng: number }; ate: { lat: number; lng: number } } | null
+  /** Marcadores da corrida (partida / destino) sobre o mapa. */
+  origemCorrida?: { lat: number; lng: number; label?: string } | null
+  destinoCorrida?: { lat: number; lng: number; label?: string } | null
 }
 
 /**
- * Visão turista/empresa/ADM: card no topo + mapa ocupando o restante (fluxo normal, não absolute).
+ * Visão mapa + card flutuante (turista/empresa/ADM e, na Etapa A, também profissional).
  */
-export default function VisaoTuristaMobilidade({ comListener = true, className = '' }: Props) {
+export default function VisaoTuristaMobilidade({
+  comListener = true,
+  className = '',
+  trajeto = null,
+  origemCorrida = null,
+  destinoCorrida = null,
+}: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations('Mobilidade')
@@ -669,8 +680,9 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
           empresas={empresas}
           profissionais={profissionaisOnline}
           centro={gpsCentro}
-          origem={origemPonto}
-          destino={destinoPonto}
+          origem={origemCorrida ?? origemPonto}
+          destino={destinoCorrida ?? destinoPonto}
+          trajeto={trajeto}
           contextoMapa={contextoMapa ?? 'turista'}
           visitanteParceria={visitanteParceria}
           carregandoPins={carregandoEmpresas}

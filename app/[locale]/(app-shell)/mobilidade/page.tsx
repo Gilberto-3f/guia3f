@@ -1,20 +1,17 @@
 'use client'
 
-import { Suspense, useCallback, useMemo, useState } from 'react'
+import { Suspense, useCallback, useMemo, useState, useEffect } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
-import PainelTrabalhoMobilidade from '@/components/mobilidade/PainelTrabalhoMobilidade'
 import CabecalhoAbasGuiaMobilidade from '@/components/mobilidade/CabecalhoAbasGuiaMobilidade'
 import VisaoTuristaMobilidade from '@/components/mobilidade/VisaoTuristaMobilidade'
 import OfertaMobilidadeListener, {
   type CorridaAtivaMobilidade,
 } from '@/components/mobilidade/OfertaMobilidadeListener'
-import MapaMobilidade from '@/components/mobilidade/MapaMobilidade'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
-import { useEffect } from 'react'
 
 function MobilidadePageInner() {
   const router = useRouter()
@@ -84,6 +81,7 @@ function MobilidadePageInner() {
   const emViagem = statusCorrida === 'em_viagem'
 
   const trajeto = useMemo(() => {
+    if (!perfilEhProfissional || !corridaMapa) return null
     if (emViagem) {
       if (pontoPartida && pontoDestino) return { de: pontoPartida, ate: pontoDestino }
       if (pontoProf && pontoDestino) return { de: pontoProf, ate: pontoDestino }
@@ -91,11 +89,7 @@ function MobilidadePageInner() {
     }
     if (!pontoProf || !pontoPartida) return null
     return { de: pontoProf, ate: pontoPartida }
-  }, [emViagem, pontoProf, pontoPartida, pontoDestino])
-
-  const centroMapa = emViagem
-    ? pontoDestino ?? pontoPartida ?? pontoProf
-    : pontoProf ?? pontoPartida
+  }, [perfilEhProfissional, corridaMapa, emViagem, pontoProf, pontoPartida, pontoDestino])
 
   useEffect(() => {
     if (!perfilEhTurista || gateLoading || podeComprarReservar) return
@@ -129,29 +123,23 @@ function MobilidadePageInner() {
     )
   }
 
+  // Profissional + turista/empresa/ADM: mesmo shell (abas + mapa + card).
+  // Ofertas/corrida do pro ficam no listener do layout (com trajeto no mapa).
   if (perfilEhProfissional) {
     return (
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#e8f4f6]">
-        <div className="relative z-10 shrink-0 pt-safe">
-          <PainelTrabalhoMobilidade />
-        </div>
-        <div className="relative min-h-0 flex-1">
-          <MapaMobilidade
-            empresas={[]}
-            centro={centroMapa}
-            origem={pontoPartida}
-            destino={emViagem ? pontoDestino : null}
-            trajeto={trajeto}
-            ocultarAvisoEmpresas
-            className="h-full min-h-[240px]"
-          />
-        </div>
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
+        <CabecalhoAbasGuiaMobilidade abaAtiva="mobilidade" />
+        <VisaoTuristaMobilidade
+          comListener={false}
+          trajeto={trajeto}
+          origemCorrida={pontoPartida}
+          destinoCorrida={emViagem ? pontoDestino : null}
+        />
         <OfertaMobilidadeListener onCorridaChange={onCorridaChange} />
       </div>
     )
   }
 
-  // Turista / empresa / ADM: abas da home + mapa + Para Onde?
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
       <CabecalhoAbasGuiaMobilidade abaAtiva="mobilidade" />
