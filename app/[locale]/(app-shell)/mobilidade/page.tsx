@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense } from 'react'
+import { Suspense, useCallback, useMemo, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
@@ -8,7 +8,10 @@ import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import PainelTrabalhoMobilidade from '@/components/mobilidade/PainelTrabalhoMobilidade'
 import CabecalhoAbasGuiaMobilidade from '@/components/mobilidade/CabecalhoAbasGuiaMobilidade'
 import VisaoTuristaMobilidade from '@/components/mobilidade/VisaoTuristaMobilidade'
-import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
+import OfertaMobilidadeListener, {
+  type CorridaAtivaMobilidade,
+} from '@/components/mobilidade/OfertaMobilidadeListener'
+import MapaMobilidade from '@/components/mobilidade/MapaMobilidade'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import { useEffect } from 'react'
@@ -27,6 +30,46 @@ function MobilidadePageInner() {
     tituloBloqueio,
     loading: gateLoading,
   } = useGateComprasReservas()
+  const [corridaMapa, setCorridaMapa] = useState<CorridaAtivaMobilidade | null>(null)
+
+  const onCorridaChange = useCallback((c: CorridaAtivaMobilidade | null) => {
+    setCorridaMapa(c)
+  }, [])
+
+  const pontoPartida = useMemo(() => {
+    if (
+      corridaMapa?.lat_origem == null ||
+      corridaMapa?.lng_origem == null ||
+      !Number.isFinite(corridaMapa.lat_origem) ||
+      !Number.isFinite(corridaMapa.lng_origem)
+    ) {
+      return null
+    }
+    return {
+      lat: corridaMapa.lat_origem,
+      lng: corridaMapa.lng_origem,
+      label: corridaMapa.origem_nome || undefined,
+    }
+  }, [corridaMapa])
+
+  const pontoProf = useMemo(() => {
+    if (
+      corridaMapa?.prof_lat == null ||
+      corridaMapa?.prof_lng == null ||
+      !Number.isFinite(corridaMapa.prof_lat) ||
+      !Number.isFinite(corridaMapa.prof_lng)
+    ) {
+      return null
+    }
+    return { lat: corridaMapa.prof_lat, lng: corridaMapa.prof_lng }
+  }, [corridaMapa])
+
+  const trajeto = useMemo(() => {
+    if (!pontoProf || !pontoPartida) return null
+    return { de: pontoProf, ate: pontoPartida }
+  }, [pontoProf, pontoPartida])
+
+  const centroMapa = pontoProf ?? pontoPartida
 
   useEffect(() => {
     if (!perfilEhTurista || gateLoading || podeComprarReservar) return
@@ -66,7 +109,17 @@ function MobilidadePageInner() {
         <div className="relative z-10 shrink-0 pt-safe">
           <PainelTrabalhoMobilidade />
         </div>
-        <OfertaMobilidadeListener />
+        <div className="relative min-h-0 flex-1">
+          <MapaMobilidade
+            empresas={[]}
+            centro={centroMapa}
+            origem={pontoPartida}
+            trajeto={trajeto}
+            ocultarAvisoEmpresas
+            className="h-full min-h-[240px]"
+          />
+        </div>
+        <OfertaMobilidadeListener onCorridaChange={onCorridaChange} />
       </div>
     )
   }

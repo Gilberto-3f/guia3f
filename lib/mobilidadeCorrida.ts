@@ -26,6 +26,12 @@ export async function registrarManifestoAposAceiteCorrida(
     solicitacaoId: string
     metadataAtual: unknown
     dataAgendada?: string | null
+    dadosPax?: {
+      nome: string
+      documento: string
+      data_nascimento: string
+      validada?: boolean
+    } | null
   },
 ): Promise<Record<string, unknown>> {
   const meta = metaObj(params.metadataAtual)
@@ -44,6 +50,8 @@ export async function registrarManifestoAposAceiteCorrida(
     if (rec?.profissional_indicador_id) {
       profissionalIndiretoId = String(rec.profissional_indicador_id)
     }
+  } else if (meta.contratacao_direcionada === true || meta.profissional_fixado_id) {
+    contratacaoTipo = 'contratacao_direta'
   } else if (params.dataAgendada || meta.agendamento === true) {
     contratacaoTipo = 'agendamento'
   }
@@ -56,6 +64,15 @@ export async function registrarManifestoAposAceiteCorrida(
     ? filtrarEmpresaIds([params.destinoEmpresaId])
     : []
 
+  const dadosPax = params.dadosPax
+    ? {
+        nome: params.dadosPax.nome,
+        documento: params.dadosPax.documento,
+        data_nascimento: params.dadosPax.data_nascimento,
+        validada: params.dadosPax.validada !== false,
+      }
+    : undefined
+
   const reg = await registrarTuristaNoManifesto(admin, {
     profissionalId: params.profissionalId,
     turistaUsuarioId: params.turistaUsuarioId,
@@ -63,6 +80,7 @@ export async function registrarManifestoAposAceiteCorrida(
     profissionalIndiretoId,
     dataManifesto,
     paradasEmpresaIds: paradas.length ? paradas : undefined,
+    dadosPax,
   })
 
   if ('error' in reg) {
@@ -77,6 +95,7 @@ export async function registrarManifestoAposAceiteCorrida(
     manifesto_id: reg.manifestoId,
     manifesto_passageiro_id: reg.passageiroId,
     manifesto_contratacao_tipo: contratacaoTipo,
+    fase: 'a_caminho',
   }
 }
 
@@ -125,7 +144,7 @@ export async function concluirCorridaMobilidade(
     .maybeSingle()
 
   if (!row) return { ok: false, error: 'Solicitação não encontrada.' }
-  if (String(row.status) !== 'aceita') {
+  if (String(row.status) !== 'aceita' && String(row.status) !== 'a_caminho') {
     return { ok: false, error: 'Corrida não está em andamento.' }
   }
   if (String(row.profissional_id) !== String(prof.id)) {
@@ -204,12 +223,13 @@ export async function concluirCorridaMobilidade(
   }
 }
 
-/** Corrida aceita do profissional (para UI de concluir). */
+/** Corrida ativa do profissional (a caminho / em atendimento). */
 export async function buscarCorridaAtivaProfissional(
   admin: SupabaseClient,
   profissionalId: string,
 ): Promise<{
   solicitacaoId: string
+  status: string
   origemNome: string | null
   destinoNome: string | null
   modalidade: string | null
@@ -217,19 +237,31 @@ export async function buscarCorridaAtivaProfissional(
   pagamento: string | null
   conversaId: string | null
   manifestoId: string | null
+  latOrigem: number | null
+  lngOrigem: number | null
+  latDestino: number | null
+  lngDestino: number | null
+  profLat: number | null
+  profLng: number | null
 } | null> {
   const { data: row } = await admin
     .from('solicitacao_mobilidade')
     .select(
-      'id, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, metadata',
+      'id, status, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
     )
     .eq('profissional_id', profissionalId)
-    .eq('status', 'aceita')
+    .in('status', ['aceita', 'a_caminho'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
   if (!row?.id) return null
+
+  const { data: prof } = await admin
+    .from('profissionais')
+    .select('mobilidade_lat, mobilidade_lng')
+    .eq('id', profissionalId)
+    .maybeSingle()
 
   const meta = metaObj(row.metadata)
   const { data: conv } = await admin
@@ -238,8 +270,14 @@ export async function buscarCorridaAtivaProfissional(
     .eq('solicitacao_id', row.id)
     .maybeSingle()
 
+  const numOrNull = (v: unknown) => {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : null
+  }
+
   return {
     solicitacaoId: String(row.id),
+    status: String(row.status ?? 'a_caminho'),
     origemNome: row.origem_nome != null ? String(row.origem_nome) : null,
     destinoNome: row.destino_nome != null ? String(row.destino_nome) : null,
     modalidade: row.modalidade != null ? String(row.modalidade) : null,
@@ -247,5 +285,11 @@ export async function buscarCorridaAtivaProfissional(
     pagamento: row.pagamento != null ? String(row.pagamento) : null,
     conversaId: conv?.id != null ? String(conv.id) : null,
     manifestoId: meta.manifesto_id != null ? String(meta.manifesto_id) : null,
+    latOrigem: numOrNull(row.lat_origem),
+    lngOrigem: numOrNull(row.lng_origem),
+    latDestino: numOrNull(row.lat_destino),
+    lngDestino: numOrNull(row.lng_destino),
+    profLat: numOrNull(prof?.mobilidade_lat),
+    profLng: numOrNull(prof?.mobilidade_lng),
   }
 }

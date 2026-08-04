@@ -8,19 +8,24 @@ import {
   JUSTIFICATIVAS_RECUSA_MOBILIDADE,
   type JustificativaRecusaMobilidadeId,
 } from '@/lib/mobilidadeRecusaJustificativas'
+import { modalidadeUsaManifesto } from '@/lib/mobilidadeOfertaAtendimento'
 import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
 import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
 import DrawerAtendimentoMobilidade, {
   type OfertaAtendimentoUi,
 } from '@/components/mobilidade/DrawerAtendimentoMobilidade'
+import PopupComplementoContratacao, {
+  type DadosComplementoContratacao,
+} from '@/components/manifesto/PopupComplementoContratacao'
 
 type Oferta = OfertaAtendimentoUi & {
   /** Marcador interno: confirmação de agendamento (API dedicada). */
   _fluxo?: 'oferta' | 'agendamento_confirmacao'
 }
 
-type CorridaAtiva = {
+export type CorridaAtivaMobilidade = {
   solicitacao_id: string
+  status?: string | null
   origem_nome: string | null
   destino_nome: string | null
   modalidade: string | null
@@ -28,6 +33,17 @@ type CorridaAtiva = {
   pagamento: string | null
   conversa_id: string | null
   manifesto_id: string | null
+  lat_origem?: number | null
+  lng_origem?: number | null
+  lat_destino?: number | null
+  lng_destino?: number | null
+  prof_lat?: number | null
+  prof_lng?: number | null
+}
+
+type Props = {
+  /** Notifica a página (mapa: trajeto profissional → partida). */
+  onCorridaChange?: (corrida: CorridaAtivaMobilidade | null) => void
 }
 
 function formatBrl(n: number): string {
@@ -35,7 +51,7 @@ function formatBrl(n: number): string {
 }
 
 /** Pré-aceite + chat + concluir corrida (manifesto). */
-export default function OfertaMobilidadeListener() {
+export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}) {
   const t = useTranslations('Mobilidade')
   const { perfilEhProfissional, recursosProfissionaisLiberados, profRow, loading } =
     useProfissionalGate()
@@ -46,12 +62,14 @@ export default function OfertaMobilidadeListener() {
   const [justificativa, setJustificativa] = useState<JustificativaRecusaMobilidadeId | null>(null)
   const [justificativaDetalhe, setJustificativaDetalhe] = useState('')
   const [erroRecusa, setErroRecusa] = useState('')
-  const [corrida, setCorrida] = useState<CorridaAtiva | null>(null)
+  const [corrida, setCorrida] = useState<CorridaAtivaMobilidade | null>(null)
   const [erroConcluir, setErroConcluir] = useState('')
   const [recebiDinheiro, setRecebiDinheiro] = useState(false)
   const [bonus, setBonus] = useState('')
   const [resumoFin, setResumoFin] = useState<string | null>(null)
   const [solicitacaoAvaliar, setSolicitacaoAvaliar] = useState<string | null>(null)
+  const [popupPaxAberto, setPopupPaxAberto] = useState(false)
+  const [erroPax, setErroPax] = useState('')
 
   const categoriasProf = (() => {
     const raw = profRow as { categorias?: unknown } | null
@@ -69,7 +87,7 @@ export default function OfertaMobilidadeListener() {
     try {
       const res = await fetch('/api/mobilidade/corrida-ativa')
       if (res.status === 401 || res.status === 403) return 'auth' as const
-      const json = (await res.json()) as { corrida?: CorridaAtiva | null }
+      const json = (await res.json()) as { corrida?: CorridaAtivaMobilidade | null }
       if (!res.ok) return 'ok' as const
       setCorrida(json.corrida ?? null)
     } catch {
@@ -204,35 +222,85 @@ export default function OfertaMobilidadeListener() {
     return () => clearInterval(id)
   }, [oferta?.oferta_expira_em, oferta?._fluxo])
 
-  const aceitar = async () => {
-    if (!oferta || busy) return
-    setBusy(true)
-    setMostrarRecusa(false)
-    try {
-      if (oferta._fluxo === 'agendamento_confirmacao') {
-        const res = await fetch(`/api/mobilidade/agendamento/${oferta.solicitacao_id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ acao: 'confirmar' }),
-        })
-        if (res.ok) {
-          setOferta(null)
-          await carregarCorrida()
+  useEffect(() => {
+    onCorridaChange?.(corrida)
+  }, [corrida, onCorridaChange])
+
+  useEffect(() => {
+    if (!elegivel) onCorridaChange?.(null)
+  }, [elegivel, onCorridaChange])
+
+  const enviarAceite = async (dadosPax?: DadosComplementoContratacao) => {
+    if (!oferta) return false
+    const paxBody = dadosPax
+      ? {
+          dados_pax: {
+            nome_completo: dadosPax.nome_completo,
+            data_nascimento: dadosPax.data_nascimento,
+            documento: dadosPax.documento,
+          },
         }
-        return
-      }
-      const res = await fetch('/api/mobilidade/oferta/responder', {
+      : {}
+
+    if (oferta._fluxo === 'agendamento_confirmacao') {
+      const res = await fetch(`/api/mobilidade/agendamento/${oferta.solicitacao_id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          solicitacao_id: oferta.solicitacao_id,
-          aceitar: true,
-        }),
+        body: JSON.stringify({ acao: 'confirmar', ...paxBody }),
       })
-      if (res.ok) {
-        setOferta(null)
-        await carregarCorrida()
+      if (!res.ok) {
+        const json = (await res.json()) as { error?: string }
+        setErroPax(String(json.error ?? t('aceiteErro')))
+        return false
       }
+      setOferta(null)
+      setPopupPaxAberto(false)
+      await carregarCorrida()
+      return true
+    }
+
+    const res = await fetch('/api/mobilidade/oferta/responder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        solicitacao_id: oferta.solicitacao_id,
+        aceitar: true,
+        ...paxBody,
+      }),
+    })
+    if (!res.ok) {
+      const json = (await res.json()) as { error?: string }
+      setErroPax(String(json.error ?? t('aceiteErro')))
+      return false
+    }
+    setOferta(null)
+    setPopupPaxAberto(false)
+    await carregarCorrida()
+    return true
+  }
+
+  const aceitar = async () => {
+    if (!oferta || busy) return
+    setMostrarRecusa(false)
+    setErroPax('')
+    if (modalidadeUsaManifesto(oferta.modalidade)) {
+      setPopupPaxAberto(true)
+      return
+    }
+    setBusy(true)
+    try {
+      await enviarAceite()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const confirmarPax = async (dados: DadosComplementoContratacao) => {
+    if (!oferta || busy) return
+    setBusy(true)
+    setErroPax('')
+    try {
+      await enviarAceite(dados)
     } finally {
       setBusy(false)
     }
@@ -523,19 +591,35 @@ export default function OfertaMobilidadeListener() {
   ) : null
 
   return (
-    <DrawerAtendimentoMobilidade
-      oferta={oferta}
-      busy={busy}
-      segundosRestantes={oferta._fluxo === 'agendamento_confirmacao' ? null : seg}
-      ocultarBotoes={mostrarRecusa}
-      rodapeExtra={painelRecusa}
-      onAceitar={() => void aceitar()}
-      onRecusar={() => {
-        setMostrarRecusa(true)
-        setJustificativa(null)
-        setJustificativaDetalhe('')
-        setErroRecusa('')
-      }}
-    />
+    <>
+      <DrawerAtendimentoMobilidade
+        oferta={oferta}
+        busy={busy}
+        segundosRestantes={oferta._fluxo === 'agendamento_confirmacao' ? null : seg}
+        ocultarBotoes={mostrarRecusa}
+        rodapeExtra={painelRecusa}
+        onAceitar={() => void aceitar()}
+        onRecusar={() => {
+          setMostrarRecusa(true)
+          setJustificativa(null)
+          setJustificativaDetalhe('')
+          setErroRecusa('')
+        }}
+      />
+      <PopupComplementoContratacao
+        aberto={popupPaxAberto}
+        onFechar={() => {
+          if (busy) return
+          setPopupPaxAberto(false)
+          setErroPax('')
+        }}
+        onConfirmar={(dados) => void confirmarPax(dados)}
+        enviando={busy}
+        erroServidor={erroPax}
+        titulo={t('paxAceiteTitulo')}
+        descricao={t('paxAceiteDescricao')}
+        nomeInicial={oferta.turista?.nome ?? ''}
+      />
+    </>
   )
 }

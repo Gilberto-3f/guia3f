@@ -840,6 +840,11 @@ export async function responderOfertaMobilidade(
     aceitar: boolean
     justificativa?: string | null
     justificativaDetalhe?: string | null
+    dadosPax?: {
+      nome_completo: string
+      data_nascimento: string
+      documento: string
+    } | null
   },
 ): Promise<{ ok: boolean; error?: string; status?: string; conversaId?: string | null }> {
   const { data: prof } = await admin
@@ -864,6 +869,17 @@ export async function responderOfertaMobilidade(
 
   if (params.aceitar) {
     const agora = new Date().toISOString()
+    const modalidade = String(row.modalidade ?? '').trim().toLowerCase()
+    const pax = params.dadosPax
+    if (
+      (modalidade === 'guia' || modalidade === 'van') &&
+      (!pax?.nome_completo?.trim() || !pax?.documento?.trim() || !pax?.data_nascimento?.trim())
+    ) {
+      return {
+        ok: false,
+        error: 'Informe nome, documento e data de nascimento do passageiro para o manifesto.',
+      }
+    }
 
     const metaBase = {
       ...(typeof row.metadata === 'object' && row.metadata ? row.metadata : {}),
@@ -879,12 +895,20 @@ export async function responderOfertaMobilidade(
       solicitacaoId: params.solicitacaoId,
       metadataAtual: metaBase,
       dataAgendada: row.data_agendada != null ? String(row.data_agendada) : null,
+      dadosPax: pax
+        ? {
+            nome: pax.nome_completo,
+            documento: pax.documento,
+            data_nascimento: pax.data_nascimento,
+            validada: true,
+          }
+        : null,
     })
 
     await admin
       .from('solicitacao_mobilidade')
       .update({
-        status: 'aceita',
+        status: 'a_caminho',
         profissional_id: prof.id,
         oferta_expira_em: null,
         metadata: metaComManifesto,
@@ -905,10 +929,10 @@ export async function responderOfertaMobilidade(
       profissionalUsuarioId: params.profissionalUsuarioId,
     })
     if ('error' in chat) {
-      return { ok: true, status: 'aceita', conversaId: null }
+      return { ok: true, status: 'a_caminho', conversaId: null }
     }
 
-    return { ok: true, status: 'aceita', conversaId: chat.conversaId }
+    return { ok: true, status: 'a_caminho', conversaId: chat.conversaId }
   }
 
   // recusa — exige motivo (MVP) + texto se "Outro"

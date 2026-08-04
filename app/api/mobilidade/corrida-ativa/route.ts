@@ -35,6 +35,7 @@ export async function GET() {
     corrida: ativa
       ? {
           solicitacao_id: ativa.solicitacaoId,
+          status: ativa.status,
           origem_nome: ativa.origemNome,
           destino_nome: ativa.destinoNome,
           modalidade: ativa.modalidade,
@@ -42,6 +43,12 @@ export async function GET() {
           pagamento: ativa.pagamento,
           conversa_id: ativa.conversaId,
           manifesto_id: ativa.manifestoId,
+          lat_origem: ativa.latOrigem,
+          lng_origem: ativa.lngOrigem,
+          lat_destino: ativa.latDestino,
+          lng_destino: ativa.lngDestino,
+          prof_lat: ativa.profLat,
+          prof_lng: ativa.profLng,
         }
       : null,
   })

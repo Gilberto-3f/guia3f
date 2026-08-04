@@ -514,7 +514,15 @@ export async function cancelarAgendamentoMobilidade(
 
 export async function confirmarAgendamentoMobilidade(
   admin: SupabaseClient,
-  params: { solicitacaoId: string; profissionalUsuarioId: string },
+  params: {
+    solicitacaoId: string
+    profissionalUsuarioId: string
+    dadosPax?: {
+      nome_completo: string
+      data_nascimento: string
+      documento: string
+    } | null
+  },
 ): Promise<{ ok: boolean; error?: string; conversaId?: string | null }> {
   const { data: prof } = await admin
     .from('profissionais')
@@ -538,6 +546,18 @@ export async function confirmarAgendamentoMobilidade(
   }
 
   const agora = new Date().toISOString()
+  const modalidade = String(row.modalidade ?? '').trim().toLowerCase()
+  const pax = params.dadosPax
+  if (
+    (modalidade === 'guia' || modalidade === 'van') &&
+    (!pax?.nome_completo?.trim() || !pax?.documento?.trim() || !pax?.data_nascimento?.trim())
+  ) {
+    return {
+      ok: false,
+      error: 'Informe nome, documento e data de nascimento do passageiro para o manifesto.',
+    }
+  }
+
   const metaBase = {
     ...(typeof row.metadata === 'object' && row.metadata ? row.metadata : {}),
     confirmado_em: agora,
@@ -553,12 +573,20 @@ export async function confirmarAgendamentoMobilidade(
     solicitacaoId: params.solicitacaoId,
     metadataAtual: metaBase,
     dataAgendada: row.data_agendada != null ? String(row.data_agendada) : null,
+    dadosPax: pax
+      ? {
+          nome: pax.nome_completo,
+          documento: pax.documento,
+          data_nascimento: pax.data_nascimento,
+          validada: true,
+        }
+      : null,
   })
 
   await admin
     .from('solicitacao_mobilidade')
     .update({
-      status: 'aceita',
+      status: 'a_caminho',
       confirmacao_expira_em: null,
       metadata: metaComManifesto,
     })

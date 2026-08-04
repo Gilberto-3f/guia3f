@@ -15,6 +15,8 @@ import {
 
 const SOURCE_PROFS = 'profissionais-mobilidade'
 const LAYER_PROFS = 'profissionais-unclustered'
+const SOURCE_TRAJETO = 'trajeto-corrida-mobilidade'
+const LAYER_TRAJETO = 'trajeto-corrida-linha'
 /** Limite de pins HTML para manter o mapa leve. */
 const MAX_PINS_EMPRESA = 120
 
@@ -26,10 +28,14 @@ type Props = {
   centro: { lat: number; lng: number } | null
   origem?: Ponto | null
   destino?: Ponto | null
+  /** Linha azul (logo) entre dois pontos — ex.: profissional → partida do turista. */
+  trajeto?: { de: Ponto; ate: Ponto } | null
   contextoMapa?: ContextoMapaMobilidade
   visitanteParceria?: VisitanteParceriaMapa | null
   /** Enquanto true, não mostra aviso de “nenhuma empresa”. */
   carregandoPins?: boolean
+  /** Oculta aviso de empresas vazias (modo corrida profissional). */
+  ocultarAvisoEmpresas?: boolean
   className?: string
 }
 
@@ -135,9 +141,11 @@ export default function MapaMobilidade({
   centro,
   origem = null,
   destino = null,
+  trajeto = null,
   contextoMapa = null,
   visitanteParceria = null,
   carregandoPins = false,
+  ocultarAvisoEmpresas = false,
   className = '',
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -357,6 +365,78 @@ export default function MapaMobilidade({
     }
   }, [origem, destino, mapReady])
 
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+
+    const limpar = () => {
+      if (map.getLayer(LAYER_TRAJETO)) map.removeLayer(LAYER_TRAJETO)
+      if (map.getSource(SOURCE_TRAJETO)) map.removeSource(SOURCE_TRAJETO)
+    }
+
+    const de = trajeto?.de
+    const ate = trajeto?.ate
+    if (
+      !de ||
+      !ate ||
+      !Number.isFinite(de.lat) ||
+      !Number.isFinite(de.lng) ||
+      !Number.isFinite(ate.lat) ||
+      !Number.isFinite(ate.lng)
+    ) {
+      limpar()
+      return
+    }
+
+    const geo: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [de.lng, de.lat],
+              [ate.lng, ate.lat],
+            ],
+          },
+        },
+      ],
+    }
+
+    const existing = map.getSource(SOURCE_TRAJETO) as mapboxgl.GeoJSONSource | undefined
+    if (existing) {
+      existing.setData(geo)
+    } else {
+      map.addSource(SOURCE_TRAJETO, { type: 'geojson', data: geo })
+      map.addLayer({
+        id: LAYER_TRAJETO,
+        type: 'line',
+        source: SOURCE_TRAJETO,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#0097b2',
+          'line-width': 4,
+          'line-opacity': 0.9,
+        },
+      })
+    }
+
+    try {
+      const bounds = new mapboxgl.LngLatBounds()
+      bounds.extend([de.lng, de.lat])
+      bounds.extend([ate.lng, ate.lat])
+      map.fitBounds(bounds, { padding: 72, maxZoom: 15, duration: 600 })
+    } catch {
+      /* ignore */
+    }
+
+    return () => {
+      /* mantém layer até próximo update / unmount do mapa */
+    }
+  }, [trajeto, mapReady])
+
   if (tokenMissing || !token) {
     return (
       <div
@@ -400,7 +480,7 @@ export default function MapaMobilidade({
         </div>
       ) : null}
 
-      {mapReady && !carregandoPins && empresas.length === 0 ? (
+      {mapReady && !carregandoPins && !ocultarAvisoEmpresas && empresas.length === 0 ? (
         <div className="pointer-events-none absolute inset-x-3 top-16 z-20 mx-auto max-w-sm rounded-lg bg-white/90 px-3 py-2 text-center text-[11px] text-gray-600 shadow">
           Nenhuma empresa com latitude/longitude cadastrada no Guia ainda.
         </div>

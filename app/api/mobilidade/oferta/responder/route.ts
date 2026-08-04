@@ -42,6 +42,22 @@ export async function POST(req: Request) {
         : body.detalhe != null
           ? String(body.detalhe)
           : null,
+    dadosPax:
+      body.nome_completo != null && body.data_nascimento != null && body.documento != null
+        ? {
+            nome_completo: String(body.nome_completo),
+            data_nascimento: String(body.data_nascimento).slice(0, 10),
+            documento: String(body.documento),
+          }
+        : body.dados_pax && typeof body.dados_pax === 'object'
+          ? {
+              nome_completo: String((body.dados_pax as Record<string, unknown>).nome_completo ?? ''),
+              data_nascimento: String(
+                (body.dados_pax as Record<string, unknown>).data_nascimento ?? '',
+              ).slice(0, 10),
+              documento: String((body.dados_pax as Record<string, unknown>).documento ?? ''),
+            }
+          : null,
   })
 
   if (!res.ok) {

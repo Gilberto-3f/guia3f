@@ -18,6 +18,8 @@ type Props = {
   documentoInicial?: string
   enviando?: boolean
   erroServidor?: string
+  titulo?: string
+  descricao?: string
 }
 
 /** Popup para validar contratação com dados do manifesto físico (PAX). */
@@ -29,6 +31,8 @@ export default function PopupComplementoContratacao({
   documentoInicial = '',
   enviando = false,
   erroServidor = '',
+  titulo = 'Dados para o manifesto',
+  descricao = 'Informe seus dados para o profissional preencher a lista de passageiros (aduanas).',
 }: Props) {
   useModalScrollLock(aberto)
   const [nome, setNome] = useState(nomeInicial)
@@ -69,11 +73,9 @@ export default function PopupComplementoContratacao({
         <div className="mb-4 flex items-start justify-between gap-2">
           <div>
             <h2 id="complemento-contratacao-titulo" className="text-lg font-bold text-gray-900">
-              Dados para o manifesto
+              {titulo}
             </h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Informe seus dados para o profissional preencher a lista de passageiros (aduanas).
-            </p>
+            <p className="mt-1 text-sm text-gray-600">{descricao}</p>
           </div>
           <button
             type="button"

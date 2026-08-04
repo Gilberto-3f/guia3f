@@ -40,9 +40,27 @@ export async function POST(req: Request, ctx: Ctx) {
     const res = await confirmarAgendamentoMobilidade(admin, {
       solicitacaoId,
       profissionalUsuarioId: auth.userId,
+      dadosPax:
+        body.nome_completo != null && body.data_nascimento != null && body.documento != null
+          ? {
+              nome_completo: String(body.nome_completo),
+              data_nascimento: String(body.data_nascimento).slice(0, 10),
+              documento: String(body.documento),
+            }
+          : body.dados_pax && typeof body.dados_pax === 'object'
+            ? {
+                nome_completo: String(
+                  (body.dados_pax as Record<string, unknown>).nome_completo ?? '',
+                ),
+                data_nascimento: String(
+                  (body.dados_pax as Record<string, unknown>).data_nascimento ?? '',
+                ).slice(0, 10),
+                documento: String((body.dados_pax as Record<string, unknown>).documento ?? ''),
+              }
+            : null,
     })
     if (!res.ok) return NextResponse.json({ error: res.error }, { status: 400 })
-    return NextResponse.json({ ok: true, status: 'aceita', conversa_id: res.conversaId ?? null })
+    return NextResponse.json({ ok: true, status: 'a_caminho', conversa_id: res.conversaId ?? null })
   }
 
   if (acao === 'cancelar') {
