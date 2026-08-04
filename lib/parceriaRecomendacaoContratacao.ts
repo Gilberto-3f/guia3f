@@ -79,6 +79,11 @@ export async function processarContratacaoRecomendacaoProfissional(
     pontoPartida?: string | null
     atrativos?: string[]
     dadosPax?: DadosPaxManifesto
+    /**
+     * Guia/van/taxista: manifesto só após ACEITAR na mobilidade (Etapa 7).
+     * Ainda marca recomendação + parceria + avisos no canal.
+     */
+    omitirManifesto?: boolean
   },
 ): Promise<ContratarRecomendacaoResult> {
   const { turistaUsuarioId, recomendacaoId, profissionalIndicadoUsuarioId } = params
@@ -166,9 +171,10 @@ export async function processarContratacaoRecomendacaoProfissional(
     parceriaId = novaPar?.id != null ? String(novaPar.id) : undefined
   }
 
-  // Manifesto operacional: apenas profissionais com placa vermelha
+  // Manifesto operacional: placa vermelha — exceto quando o fluxo vai para mobilidade
+  // (manifesto só no ACEITAR do profissional).
   let manifestoId: string | undefined
-  if (placaVermelha) {
+  if (placaVermelha && !params.omitirManifesto) {
     const { data: manifestoRow, error: manErr } = await supabase
       .from('manifesto')
       .insert({
@@ -229,9 +235,12 @@ export async function processarContratacaoRecomendacaoProfissional(
 
   // Anfitrião/hospedagem: CONTRATAR só redireciona — avisos financeiros saem na reserva.
   if (!indicadoEhAnfitriao) {
-    const msgIndicado = placaVermelha
-      ? `Turista ${dadosAtendimento.username} entrou no seu manifesto. Comissão de serviço regular: ${splitRegular}% (config. ADM).`
-      : `Turista ${dadosAtendimento.username} aceitou sua indicação e foi direcionado à contratação. Comissão de serviço regular: ${splitRegular}% (config. ADM).`
+    const msgIndicado =
+      placaVermelha && params.omitirManifesto
+        ? `Turista ${dadosAtendimento.username} iniciou contratação particular via indicação (drawer de mobilidade). Comissão de serviço regular: ${splitRegular}% (config. ADM).`
+        : placaVermelha
+          ? `Turista ${dadosAtendimento.username} entrou no seu manifesto. Comissão de serviço regular: ${splitRegular}% (config. ADM).`
+          : `Turista ${dadosAtendimento.username} aceitou sua indicação e foi direcionado à contratação. Comissão de serviço regular: ${splitRegular}% (config. ADM).`
 
     await Promise.all([
       inserirNotificacaoCanalFinanceiroProfissional(supabase, {

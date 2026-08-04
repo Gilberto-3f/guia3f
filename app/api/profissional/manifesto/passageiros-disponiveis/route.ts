@@ -54,7 +54,7 @@ export async function GET() {
     .from('solicitacao_mobilidade')
     .select('turista_id, status, created_at')
     .eq('profissional_id', prof.id)
-    .in('status', ['aceita', 'concluida', 'concluido', 'finalizada'])
+    .in('status', ['aceita', 'a_caminho', 'no_local', 'em_viagem', 'concluida', 'concluido', 'finalizada'])
     .order('created_at', { ascending: false })
     .limit(30)
 

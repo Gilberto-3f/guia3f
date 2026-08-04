@@ -15,12 +15,15 @@ type CorridaTurista = {
  * Mostra "Profissional CHEGOU!!!" mesmo se o popup de resultado da corrida foi fechado.
  */
 export default function ChegadaTuristaMobilidadeListener() {
-  const { perfilEhTurista, perfilEhEmpresa, perfilEhProfissional, loading } = useProfissionalGate()
+  const { perfilEhTurista, perfilEhEmpresa, perfilEhProfissional, roleEfetivo, loading } =
+    useProfissionalGate()
   const [corrida, setCorrida] = useState<CorridaTurista | null>(null)
   const [dismissedId, setDismissedId] = useState<string | null>(null)
 
   const elegivel =
-    !loading && !perfilEhProfissional && (perfilEhTurista || perfilEhEmpresa)
+    !loading &&
+    !perfilEhProfissional &&
+    (perfilEhTurista || perfilEhEmpresa || roleEfetivo === 'admin')
 
   const carregar = useCallback(async () => {
     if (!elegivel) return

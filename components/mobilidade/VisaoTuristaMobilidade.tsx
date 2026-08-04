@@ -389,6 +389,8 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
     carregandoEmpresas,
     abrirDrawerPesquisa,
     aplicarDestinoNoCard,
+    pesquisa.profissionalUsuarioId,
+    pesquisa.recomendacaoId,
   ])
 
   const fecharDrawerPesquisa = () => {

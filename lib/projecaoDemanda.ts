@@ -320,7 +320,13 @@ export function agregarAgendamentosAntecipados(
     const mes = agendada.getMonth()
     const k = chave(mes)
     if (!contagem[k]) contagem[k] = { confirmados: 0, pendentes: 0 }
-    if (row.status === 'concluida' || row.status === 'aceita') {
+    if (
+      row.status === 'concluida' ||
+      row.status === 'aceita' ||
+      row.status === 'a_caminho' ||
+      row.status === 'no_local' ||
+      row.status === 'em_viagem'
+    ) {
       contagem[k].confirmados += 1
     } else if (row.status === 'pendente') {
       contagem[k].pendentes += 1

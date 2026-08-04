@@ -7,7 +7,10 @@ import AvatarImage from '@/components/AvatarImage'
 import PopupComplementoContratacao, {
   type DadosComplementoContratacao,
 } from '@/components/manifesto/PopupComplementoContratacao'
-import { precisaDadosPaxManifesto } from '@/lib/recomendacaoContratacaoDestino'
+import {
+  precisaDadosPaxManifesto,
+  resolverDestinoContratacaoRecomendacao,
+} from '@/lib/recomendacaoContratacaoDestino'
 import { categoriaProfissionalParaSlug } from '@/lib/canaisProfissionalSlugs'
 
 const COR = '#0097b2'
@@ -104,7 +107,15 @@ export default function PopupContratarProfissionalRecomendado({
   if (!aberto || !indicador || !indicado) return null
 
   const cats = categoriasDoIndicado(indicado)
-  const precisaPax = precisaDadosPaxManifesto(cats, Boolean(indicado.placa_vermelha))
+  const destinoProvavel = resolverDestinoContratacaoRecomendacao({
+    categoriasIndicado: cats,
+    placaVermelhaIndicado: Boolean(indicado.placa_vermelha),
+    profissionalUsuarioId,
+  })
+  // Guia/van no drawer de mobilidade: PAX só no ACEITAR (não no CONTRATAR).
+  const precisaPax =
+    destinoProvavel.tipo !== 'mobilidade_canal' &&
+    precisaDadosPaxManifesto(cats, Boolean(indicado.placa_vermelha))
 
   const redirecionarAposContratacao = (json: {
     redirect?: string | null

@@ -17,8 +17,8 @@ export async function POST(req: Request) {
   const auth = await assertUserSession()
   if (!auth.ok) return auth.error
 
-  if (auth.role !== 'turista') {
-    return NextResponse.json({ error: 'Apenas turistas podem contratar por recomendação.' }, { status: 403 })
+  if (auth.role !== 'turista' && auth.role !== 'admin' && auth.role !== 'empresa') {
+    return NextResponse.json({ error: 'Apenas contratantes podem contratar por recomendação.' }, { status: 403 })
   }
 
   const body = (await req.json()) as Record<string, unknown>
@@ -62,15 +62,6 @@ export async function POST(req: Request) {
   const placaVermelha = Boolean(indicadoMeta.placa_vermelha)
   const cats = Array.isArray(indicadoMeta.categorias) ? indicadoMeta.categorias.map(String) : []
 
-  if (precisaDadosPaxManifesto(cats, placaVermelha)) {
-    if (!nomeCompleto || !dataNascimento || !documento) {
-      return NextResponse.json(
-        { error: 'Nome completo, data de nascimento e documento são obrigatórios.' },
-        { status: 400 },
-      )
-    }
-  }
-
   const { data: cfg } = await admin
     .from('config_apis')
     .select('api_mobilidade_url')
@@ -86,14 +77,27 @@ export async function POST(req: Request) {
     apiMobilidadeUrl: cfg?.api_mobilidade_url != null ? String(cfg.api_mobilidade_url) : null,
   })
 
+  const fluxoMobilidadeDrawer = destino.tipo === 'mobilidade_canal'
+
+  // PAX/manifesto só no ACEITAR (guia/van). No CONTRATAR da indicação → drawer.
+  if (!fluxoMobilidadeDrawer && precisaDadosPaxManifesto(cats, placaVermelha)) {
+    if (!nomeCompleto || !dataNascimento || !documento) {
+      return NextResponse.json(
+        { error: 'Nome completo, data de nascimento e documento são obrigatórios.' },
+        { status: 400 },
+      )
+    }
+  }
+
   const res = await processarContratacaoRecomendacaoProfissional(admin, {
     turistaUsuarioId: auth.userId,
     recomendacaoId,
     profissionalIndicadoUsuarioId,
     pontoPartida,
     atrativos,
+    omitirManifesto: fluxoMobilidadeDrawer,
     dadosPax:
-      nomeCompleto && dataNascimento && documento
+      !fluxoMobilidadeDrawer && nomeCompleto && dataNascimento && documento
         ? {
             nome: nomeCompleto,
             documento,

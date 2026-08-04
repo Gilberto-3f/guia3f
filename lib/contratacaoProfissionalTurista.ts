@@ -1,6 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-const STATUS_CONTRATACAO_VALIDOS = new Set(['aceita', 'concluida', 'concluido', 'finalizada', 'finalizado'])
+const STATUS_CONTRATACAO_VALIDOS = new Set([
+  'aceita',
+  'a_caminho',
+  'no_local',
+  'em_viagem',
+  'concluida',
+  'concluido',
+  'finalizada',
+  'finalizado',
+])
 
 /**
  * Verifica se o turista contratou o profissional visitado (placa vermelha / regular).
