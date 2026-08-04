@@ -35,6 +35,7 @@ import {
   cidadeTripliceParaTabelado,
   ehCruzamentoFronteira,
   inferirCidadeDePonto,
+  modalidadeDeCategoriasProfissional,
   modalidadeRecomendada,
   modalidadesDisponiveis,
   ordenarModalidadesPorPreco,
@@ -49,7 +50,11 @@ import {
 } from '@/lib/mobilidadePopupPesquisa'
 import type { RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
 import { labelIdiomaGuia } from '@/lib/idiomasGuia'
+import { parseMobilidadeStatus } from '@/lib/mobilidadeStatusProfissional'
 import CotacaoValorMobilidade from '@/components/mobilidade/CotacaoValorMobilidade'
+import BlocoProfissionalDrawerParticular, {
+  type ProfissionalDrawerParticular,
+} from '@/components/mobilidade/BlocoProfissionalDrawerParticular'
 import type {
   OfertaResultadoUi,
   ResultadoCorridaMobilidade,
@@ -308,6 +313,12 @@ export default function DrawerPesquisaMobilidade({
   const [chevBeneficios, setChevBeneficios] = useState(false)
   const [dicaLugaresAberta, setDicaLugaresAberta] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  const [profParticular, setProfParticular] = useState<ProfissionalDrawerParticular | null>(null)
+  const [profParticularLoading, setProfParticularLoading] = useState(false)
+  /** Online permite imediato; offline / em atendimento → só agendamento. */
+  const [particularPermiteImediato, setParticularPermiteImediato] = useState(true)
+
+  const modoParticular = Boolean(String(pesquisa.profissionalUsuarioId ?? '').trim())
 
   const destinoLabelBase =
     destinoLabelCurto ||
@@ -356,6 +367,8 @@ export default function DrawerPesquisaMobilidade({
     setChevBeneficios(false)
     setDicaLugaresAberta(false)
     setEnviando(false)
+    setProfParticular(null)
+    setParticularPermiteImediato(true)
     setOrigemDraft({ ...pesquisa.origem })
     setDestinoDraft({
       nome: destinoLabelCurto || pesquisa.destino.nome || destinoNomeEmpresa || '',
@@ -364,7 +377,66 @@ export default function DrawerPesquisaMobilidade({
     })
     // Só no open / troca de pesquisa relevante — não a cada keystroke de draft.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aberto, pesquisa.destinoEmpresaId, pesquisa.destino.lat, pesquisa.destino.lng])
+  }, [aberto, pesquisa.destinoEmpresaId, pesquisa.destino.lat, pesquisa.destino.lng, pesquisa.profissionalUsuarioId])
+
+  useEffect(() => {
+    if (!aberto || !modoParticular) {
+      setProfParticular(null)
+      setProfParticularLoading(false)
+      setParticularPermiteImediato(true)
+      return
+    }
+    const uid = String(pesquisa.profissionalUsuarioId ?? '').trim()
+    if (!uid) return
+    let ativo = true
+    setProfParticularLoading(true)
+    void (async () => {
+      const { data, error } = await supabase
+        .from('profissionais')
+        .select(
+          'nome_completo, nome_usuario, foto_url, foto_perfil_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, mobilidade_status',
+        )
+        .eq('usuario_id', uid)
+        .maybeSingle()
+      if (!ativo) return
+      if (error || !data) {
+        setProfParticular(null)
+        setProfParticularLoading(false)
+        return
+      }
+      const cats = Array.isArray(data.categorias) ? data.categorias.map(String) : []
+      const placa = Boolean(data.placa_vermelha)
+      const mod = modalidadeDeCategoriasProfissional(cats, placa)
+      if (mod) setModalidade(mod)
+      const statusMob = parseMobilidadeStatus(data.mobilidade_status)
+      const imediatoOk = statusMob === 'online'
+      setParticularPermiteImediato(imediatoOk)
+      if (!imediatoOk) {
+        setAgendarOutraData(true)
+        setChevAgendar(true)
+      }
+      const foto =
+        (data.foto_perfil_url != null && String(data.foto_perfil_url).trim()) ||
+        (data.foto_url != null && String(data.foto_url).trim()) ||
+        null
+      setProfParticular({
+        nome_completo: String(data.nome_completo ?? 'Profissional'),
+        nome_usuario: data.nome_usuario != null ? String(data.nome_usuario) : null,
+        foto_url: foto,
+        verificado: String(data.status ?? '') === 'aprovado' || Boolean(data.docs_verificado),
+        verificado_em:
+          data.docs_verificado_em != null
+            ? String(data.docs_verificado_em)
+            : data.created_at != null
+              ? String(data.created_at)
+              : null,
+      })
+      setProfParticularLoading(false)
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [aberto, modoParticular, pesquisa.profissionalUsuarioId])
 
   useEffect(() => {
     if (!aberto) return
@@ -465,11 +537,12 @@ export default function DrawerPesquisaMobilidade({
 
   useEffect(() => {
     if (!aberto) return
+    if (modoParticular) return
     if (modalidade && disponiveis.includes(modalidade)) return
     if (disponiveis.includes(recomendada)) setModalidade(recomendada)
     else if (disponiveis[0]) setModalidade(disponiveis[0])
     else setModalidade(null)
-  }, [aberto, recomendada, disponiveis, modalidade])
+  }, [aberto, recomendada, disponiveis, modalidade, modoParticular])
 
   if (!aberto) return null
 
@@ -484,16 +557,31 @@ export default function DrawerPesquisaMobilidade({
   }
 
   const IconHeader =
-    etapa === 1 ? Car : etapa === 3 ? DollarSign : modalidade ? ICONES[modalidade] : Car
+    etapa === 1
+      ? modalidade && modoParticular
+        ? ICONES[modalidade]
+        : Car
+      : etapa === 3
+        ? DollarSign
+        : modalidade
+          ? ICONES[modalidade]
+          : Car
 
   const tituloHeader =
     etapa === 1
-      ? t('drawerModalidades')
+      ? modoParticular && modalidade
+        ? TITULOS_MOD[modalidade]
+        : t('drawerModalidades')
       : etapa === 3
         ? t('drawerFormaPagamento')
         : modalidade
           ? TITULOS_MOD[modalidade]
           : '—'
+
+  const particularExigeAgenda = modoParticular && !particularPermiteImediato
+  const agendaPreenchida = Boolean(dataAgenda && horaAgenda)
+  // Offline dirigido: só avança da etapa 2 com data/hora.
+  const podeAvancarParaPagamento = !particularExigeAgenda || agendaPreenchida
 
   const dataHoraCombinada =
     dataAgenda && horaAgenda ? `${dataAgenda}T${horaAgenda}` : dataAgenda || ''
@@ -529,8 +617,18 @@ export default function DrawerPesquisaMobilidade({
     setEditandoEndereco(false)
   }
 
+  const alterarAgendarOutraData = (checked: boolean) => {
+    if (particularExigeAgenda && !checked) return
+    setAgendarOutraData(checked)
+    if (!checked) {
+      setDataAgenda('')
+      setHoraAgenda('')
+    }
+  }
+
   const procurar = async () => {
     if (!modalidade || enviando) return
+    if (particularExigeAgenda && !agendaPreenchida) return
     setEnviando(true)
 
     const valor = valorCorridaComLugares(
@@ -540,7 +638,9 @@ export default function DrawerPesquisaMobilidade({
     )
 
     const dataAgendada =
-      agendarOutraData && dataHoraCombinada ? dataHoraCombinada : null
+      (agendarOutraData || particularExigeAgenda) && dataHoraCombinada
+        ? dataHoraCombinada
+        : null
 
     try {
       const res = await fetch('/api/mobilidade/solicitar', {
@@ -656,6 +756,26 @@ export default function DrawerPesquisaMobilidade({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3" data-modal-scroll-lock-scrollable>
+        {etapa === 1 && modoParticular ? (
+          <div className="mb-2">
+            {profParticularLoading ? (
+              <p className="py-6 text-center text-sm text-gray-500">…</p>
+            ) : profParticular ? (
+              <BlocoProfissionalDrawerParticular
+                prof={profParticular}
+                labelVerificadoDesde={(mesAno) => t('particularVerificadoDesde', { mesAno })}
+              />
+            ) : (
+              <p className="py-4 text-center text-sm text-rose-600">{t('particularProfErro')}</p>
+            )}
+            {particularExigeAgenda ? (
+              <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-800">
+                {t('particularOfflineAviso')}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* Card rota */}
         <div className="rounded-xl px-3 py-2.5 text-sm text-white" style={{ backgroundColor: COR }}>
           {etapa === 1 && editandoEndereco ? (
@@ -702,6 +822,30 @@ export default function DrawerPesquisaMobilidade({
                 <ChevronUp className="h-5 w-5 text-white" aria-hidden />
               </button>
             </div>
+          ) : etapa === 1 && modoParticular ? (
+            <div className="text-center text-white">
+              <p>
+                <span className="text-[11px] font-bold uppercase tracking-wide text-white">
+                  {t('origemLabel')}:{' '}
+                </span>
+                <span className="text-sm font-medium text-white">{origemLabel}</span>
+              </p>
+              <p className="mt-1">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-white">
+                  {t('destinoLabel')}:{' '}
+                </span>
+                <span className="text-sm font-medium text-white">{destinoLabel}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setEditandoEndereco(true)}
+                className="mx-auto mt-2 flex items-center justify-center rounded-lg p-1 text-white hover:bg-white/15"
+                aria-label={t('editarEndereco')}
+                aria-expanded={false}
+              >
+                <ChevronDown className="h-5 w-5 text-white" aria-hidden />
+              </button>
+            </div>
           ) : etapa === 1 ? (
             <div className="text-center text-white">
               <p className="text-[11px] font-bold uppercase tracking-wide text-white">
@@ -732,7 +876,7 @@ export default function DrawerPesquisaMobilidade({
           )}
         </div>
 
-        {etapa === 1 ? (
+        {etapa === 1 && !modoParticular ? (
           <div className="mt-2 space-y-2">
             <p className="text-center text-sm text-black">{t('escolhaModalidade')}</p>
             <ul className="space-y-2">
@@ -929,13 +1073,8 @@ export default function DrawerPesquisaMobilidade({
                 <input
                   type="checkbox"
                   checked={agendarOutraData}
-                  onChange={(e) => {
-                    setAgendarOutraData(e.target.checked)
-                    if (!e.target.checked) {
-                      setDataAgenda('')
-                      setHoraAgenda('')
-                    }
-                  }}
+                  disabled={particularExigeAgenda}
+                  onChange={(e) => alterarAgendarOutraData(e.target.checked)}
                 />
                 {t('paraOutraData')}
               </label>
@@ -1022,13 +1161,8 @@ export default function DrawerPesquisaMobilidade({
                 <input
                   type="checkbox"
                   checked={agendarOutraData}
-                  onChange={(e) => {
-                    setAgendarOutraData(e.target.checked)
-                    if (!e.target.checked) {
-                      setDataAgenda('')
-                      setHoraAgenda('')
-                    }
-                  }}
+                  disabled={particularExigeAgenda}
+                  onChange={(e) => alterarAgendarOutraData(e.target.checked)}
                 />
                 {t('paraOutraData')}
               </label>
@@ -1082,13 +1216,8 @@ export default function DrawerPesquisaMobilidade({
                 <input
                   type="checkbox"
                   checked={agendarOutraData}
-                  onChange={(e) => {
-                    setAgendarOutraData(e.target.checked)
-                    if (!e.target.checked) {
-                      setDataAgenda('')
-                      setHoraAgenda('')
-                    }
-                  }}
+                  disabled={particularExigeAgenda}
+                  onChange={(e) => alterarAgendarOutraData(e.target.checked)}
                 />
                 {t('paraOutraData')}
               </label>
@@ -1235,7 +1364,10 @@ export default function DrawerPesquisaMobilidade({
         {etapa === 1 ? (
           <button
             type="button"
-            disabled={!modalidade}
+            disabled={
+              !modalidade ||
+              (modoParticular && (profParticularLoading || !profParticular))
+            }
             onClick={() => setEtapa(2)}
             className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
             style={{ backgroundColor: VERDE }}
@@ -1256,8 +1388,13 @@ export default function DrawerPesquisaMobilidade({
             </button>
             <button
               type="button"
-              onClick={() => setEtapa(3)}
-              className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white"
+              disabled={!podeAvancarParaPagamento}
+              onClick={() => {
+                if (!podeAvancarParaPagamento) return
+                if (particularExigeAgenda) setAgendarOutraData(true)
+                setEtapa(3)
+              }}
+              className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
               style={{ backgroundColor: VERDE }}
             >
               {t('avancar')}
@@ -1276,7 +1413,7 @@ export default function DrawerPesquisaMobilidade({
             </button>
             <button
               type="button"
-              disabled={enviando}
+              disabled={enviando || (particularExigeAgenda && !agendaPreenchida)}
               onClick={() => void procurar()}
               className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-60"
               style={{ backgroundColor: VERDE }}

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
 import { normalizarCidadeTriplice, type CidadeTriplice } from '@/lib/mobilidadeRegional'
 import {
   mapCidadeAtuacaoParaTabelado,
@@ -77,6 +78,20 @@ export function modalidadesDisponiveis(cruzamentoFronteira: boolean): Modalidade
     return ['van', 'taxista', 'guia']
   }
   return [...MODALIDADES_ORDEM]
+}
+
+/** Modalidade implícita na contratação dirigida (cartão de visita). */
+export function modalidadeDeCategoriasProfissional(
+  categorias: string[] | null | undefined,
+  placaVermelha = false,
+): ModalidadeMobilidadeId | null {
+  const cats = normalizarCategoriasProfissional(categorias)
+  if (cats.includes('guia')) return 'guia'
+  if (cats.includes('van')) return 'van'
+  if (cats.includes('taxista')) return 'taxista'
+  if (cats.includes('motorista_app')) return 'motorista_app'
+  if (placaVermelha) return 'taxista'
+  return null
 }
 
 /**
