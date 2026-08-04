@@ -52,6 +52,22 @@ function MobilidadePageInner() {
     }
   }, [corridaMapa])
 
+  const pontoDestino = useMemo(() => {
+    if (
+      corridaMapa?.lat_destino == null ||
+      corridaMapa?.lng_destino == null ||
+      !Number.isFinite(corridaMapa.lat_destino) ||
+      !Number.isFinite(corridaMapa.lng_destino)
+    ) {
+      return null
+    }
+    return {
+      lat: corridaMapa.lat_destino,
+      lng: corridaMapa.lng_destino,
+      label: corridaMapa.destino_nome || undefined,
+    }
+  }, [corridaMapa])
+
   const pontoProf = useMemo(() => {
     if (
       corridaMapa?.prof_lat == null ||
@@ -64,12 +80,22 @@ function MobilidadePageInner() {
     return { lat: corridaMapa.prof_lat, lng: corridaMapa.prof_lng }
   }, [corridaMapa])
 
+  const statusCorrida = String(corridaMapa?.status ?? '')
+  const emViagem = statusCorrida === 'em_viagem'
+
   const trajeto = useMemo(() => {
+    if (emViagem) {
+      if (pontoPartida && pontoDestino) return { de: pontoPartida, ate: pontoDestino }
+      if (pontoProf && pontoDestino) return { de: pontoProf, ate: pontoDestino }
+      return null
+    }
     if (!pontoProf || !pontoPartida) return null
     return { de: pontoProf, ate: pontoPartida }
-  }, [pontoProf, pontoPartida])
+  }, [emViagem, pontoProf, pontoPartida, pontoDestino])
 
-  const centroMapa = pontoProf ?? pontoPartida
+  const centroMapa = emViagem
+    ? pontoDestino ?? pontoPartida ?? pontoProf
+    : pontoProf ?? pontoPartida
 
   useEffect(() => {
     if (!perfilEhTurista || gateLoading || podeComprarReservar) return
@@ -114,6 +140,7 @@ function MobilidadePageInner() {
             empresas={[]}
             centro={centroMapa}
             origem={pontoPartida}
+            destino={emViagem ? pontoDestino : null}
             trajeto={trajeto}
             ocultarAvisoEmpresas
             className="h-full min-h-[240px]"

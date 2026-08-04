@@ -57,6 +57,12 @@ export default function PopupResultadoCorridaMobilidade({
   const [conversaId, setConversaId] = useState<string | null>(null)
   const [matchErro, setMatchErro] = useState('')
 
+  const statusAtivo =
+    matchStatus === 'aceita' ||
+    matchStatus === 'a_caminho' ||
+    matchStatus === 'no_local' ||
+    matchStatus === 'em_viagem'
+
   useEffect(() => {
     if (!aberto || !resultado) return
     setMatchStatus(resultado.status)
@@ -68,6 +74,9 @@ export default function PopupResultadoCorridaMobilidade({
     setBuscando(
       Boolean(resultado.oferta) &&
         st !== 'aceita' &&
+        st !== 'a_caminho' &&
+        st !== 'no_local' &&
+        st !== 'em_viagem' &&
         st !== 'sem_profissional' &&
         st !== 'agendada' &&
         st !== 'aguardando_confirmacao',
@@ -79,7 +88,7 @@ export default function PopupResultadoCorridaMobilidade({
     const solicitacaoId = resultado.solicitacaoId
     if (matchStatus === 'sem_profissional' || matchStatus === 'cancelada') return
 
-    if (matchStatus === 'aceita') {
+    if (statusAtivo) {
       if (!conversaId) {
         void fetch('/api/mobilidade/chat/abrir', {
           method: 'POST',
@@ -93,21 +102,23 @@ export default function PopupResultadoCorridaMobilidade({
           .catch(() => {})
       }
       let cancelled = false
-      const pollAceita = async () => {
+      const pollAtiva = async () => {
         try {
           const res = await fetch(`/api/mobilidade/solicitar/${solicitacaoId}`)
           const json = (await res.json()) as Record<string, unknown>
           if (cancelled || !res.ok) return
-          if (String(json.status ?? '') === 'concluida') {
-            setMatchStatus('concluida')
-            setBuscando(false)
-          }
+          const st = String(json.status ?? '')
+          setMatchStatus(st)
+          setBuscando(false)
+          const cid = json.conversa_id != null ? String(json.conversa_id).trim() : ''
+          if (cid) setConversaId(cid)
+          if (st === 'concluida' || st === 'cancelada') setBuscando(false)
         } catch {
           /* ignore */
         }
       }
-      void pollAceita()
-      const id = setInterval(() => void pollAceita(), 4000)
+      void pollAtiva()
+      const id = setInterval(() => void pollAtiva(), 4000)
       return () => {
         cancelled = true
         clearInterval(id)
@@ -125,10 +136,23 @@ export default function PopupResultadoCorridaMobilidade({
         setBackups(Number(json.backups_ocultos ?? 0))
         const of = json.oferta as OfertaResultadoUi | null
         setOferta(of && of.profissionalId ? of : null)
-        if (st === 'aceita' || st === 'sem_profissional') setBuscando(false)
+        if (
+          st === 'aceita' ||
+          st === 'a_caminho' ||
+          st === 'no_local' ||
+          st === 'em_viagem' ||
+          st === 'sem_profissional'
+        ) {
+          setBuscando(false)
+        }
         if (st === 'oferecida') setBuscando(true)
         const cid = json.conversa_id != null ? String(json.conversa_id).trim() : ''
-        if (st === 'aceita' && cid) setConversaId(cid)
+        if (
+          (st === 'aceita' || st === 'a_caminho' || st === 'no_local' || st === 'em_viagem') &&
+          cid
+        ) {
+          setConversaId(cid)
+        }
       } catch {
         /* ignore */
       }
@@ -140,7 +164,7 @@ export default function PopupResultadoCorridaMobilidade({
       cancelled = true
       clearInterval(id)
     }
-  }, [aberto, resultado?.solicitacaoId, matchStatus, conversaId])
+  }, [aberto, resultado?.solicitacaoId, matchStatus, conversaId, statusAtivo])
 
   useEffect(() => {
     if (!oferta?.expiraEm || matchStatus !== 'oferecida') {
@@ -165,6 +189,9 @@ export default function PopupResultadoCorridaMobilidade({
 
   const mostrarFechar =
     matchStatus === 'aceita' ||
+    matchStatus === 'a_caminho' ||
+    matchStatus === 'no_local' ||
+    matchStatus === 'em_viagem' ||
     matchStatus === 'sem_profissional' ||
     matchStatus === 'concluida' ||
     matchStatus === 'agendada' ||
@@ -241,10 +268,18 @@ export default function PopupResultadoCorridaMobilidade({
               </div>
             ) : null}
 
-            {matchStatus === 'aceita' && oferta ? (
+            {statusAtivo && oferta ? (
               <div className="space-y-3 text-left">
                 <div className="rounded-xl border-2 border-[#00D443] bg-green-50 px-3 py-4">
-                  <p className="text-center text-sm font-bold text-[#00D443]">{t('matchAceito')}</p>
+                  <p className="text-center text-sm font-bold text-[#00D443]">
+                    {matchStatus === 'em_viagem'
+                      ? t('chegadaEmViagemTitulo')
+                      : matchStatus === 'no_local'
+                        ? t('chegadaProTitulo')
+                        : matchStatus === 'a_caminho'
+                          ? t('chegadaACaminhoTurista')
+                          : t('matchAceito')}
+                  </p>
                   <p className="mt-2 font-semibold text-gray-900">{oferta.nome}</p>
                   {oferta.username ? (
                     <p className="text-sm text-gray-500">

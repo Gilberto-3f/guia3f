@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { profissionalTemCategoriaMobilidade } from '@/lib/mobilidadeStatusProfissional'
@@ -9,6 +9,10 @@ import {
   type JustificativaRecusaMobilidadeId,
 } from '@/lib/mobilidadeRecusaJustificativas'
 import { modalidadeUsaManifesto } from '@/lib/mobilidadeOfertaAtendimento'
+import {
+  profissionalChegouNaPartida,
+  RAIO_CHEGADA_METROS,
+} from '@/lib/mobilidadeChegada'
 import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
 import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
 import DrawerAtendimentoMobilidade, {
@@ -17,6 +21,7 @@ import DrawerAtendimentoMobilidade, {
 import PopupComplementoContratacao, {
   type DadosComplementoContratacao,
 } from '@/components/manifesto/PopupComplementoContratacao'
+import PopupChegadaProfissionalMobilidade from '@/components/mobilidade/PopupChegadaProfissionalMobilidade'
 
 type Oferta = OfertaAtendimentoUi & {
   /** Marcador interno: confirmação de agendamento (API dedicada). */
@@ -70,6 +75,8 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   const [solicitacaoAvaliar, setSolicitacaoAvaliar] = useState<string | null>(null)
   const [popupPaxAberto, setPopupPaxAberto] = useState(false)
   const [erroPax, setErroPax] = useState('')
+  const [erroChegada, setErroChegada] = useState('')
+  const detectandoChegadaRef = useRef(false)
 
   const categoriasProf = (() => {
     const raw = profRow as { categorias?: unknown } | null
@@ -229,6 +236,95 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   useEffect(() => {
     if (!elegivel) onCorridaChange?.(null)
   }, [elegivel, onCorridaChange])
+
+  /** GPS automático: a_caminho → detectar proximidade da partida. */
+  useEffect(() => {
+    const st = String(corrida?.status ?? '')
+    if (!corrida || (st !== 'a_caminho' && st !== 'aceita')) return
+    const oLat = corrida.lat_origem
+    const oLng = corrida.lng_origem
+    if (oLat == null || oLng == null || !Number.isFinite(oLat) || !Number.isFinite(oLng)) return
+
+    let cancelled = false
+
+    const tentar = async () => {
+      if (cancelled || detectandoChegadaRef.current) return
+      if (typeof navigator === 'undefined' || !navigator.geolocation) return
+      detectandoChegadaRef.current = true
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 12000,
+            maximumAge: 10_000,
+          })
+        })
+        if (cancelled) return
+        const lat = pos.coords.latitude
+        const lng = pos.coords.longitude
+        if (
+          !profissionalChegouNaPartida({
+            profLat: lat,
+            profLng: lng,
+            origemLat: oLat,
+            origemLng: oLng,
+            raioMetros: RAIO_CHEGADA_METROS,
+          })
+        ) {
+          return
+        }
+        const res = await fetch(`/api/mobilidade/solicitar/${corrida.solicitacao_id}/chegada`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ acao: 'detectar', lat, lng }),
+        })
+        if (res.ok) await carregarCorrida()
+      } catch {
+        /* ignore GPS failures */
+      } finally {
+        detectandoChegadaRef.current = false
+      }
+    }
+
+    void tentar()
+    const id = setInterval(() => void tentar(), 12_000)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [
+    corrida?.solicitacao_id,
+    corrida?.status,
+    corrida?.lat_origem,
+    corrida?.lng_origem,
+    carregarCorrida,
+  ])
+
+  const confirmarEmbarque = async (recebido: boolean) => {
+    if (!corrida || busy) return
+    setBusy(true)
+    setErroChegada('')
+    try {
+      const res = await fetch(`/api/mobilidade/solicitar/${corrida.solicitacao_id}/chegada`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: recebido ? 'confirmar' : 'recusar' }),
+      })
+      const json = (await res.json()) as { error?: string }
+      if (!res.ok) {
+        setErroChegada(String(json.error ?? t('chegadaErro')))
+        return
+      }
+      if (!recebido) {
+        setCorrida(null)
+        void carregarOferta()
+        return
+      }
+      await carregarCorrida()
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const enviarAceite = async (dadosPax?: DadosComplementoContratacao) => {
     if (!oferta) return false
@@ -455,75 +551,92 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   }
 
   if (corrida) {
+    const st = String(corrida.status ?? 'a_caminho')
+    const tituloCorrida =
+      st === 'no_local'
+        ? t('chegadaNoLocalTitulo')
+        : st === 'em_viagem'
+          ? t('chegadaEmViagemTitulo')
+          : t('corridaEmAndamento')
+
     return (
-      <div className="fixed inset-x-3 bottom-24 z-[70] rounded-2xl bg-white p-3 shadow-2xl ring-1 ring-black/10 sm:inset-x-auto sm:right-4 sm:w-96">
-        <div className="mb-2">
-          <p className="text-sm font-bold text-[#00D443]">{t('corridaEmAndamento')}</p>
-          <p className="mt-0.5 text-xs text-gray-500">
-            {corrida.origem_nome || '—'} → {corrida.destino_nome || '—'}
-          </p>
-          {corrida.valor_estimado != null ? (
-            <p className="mt-1 text-sm font-semibold text-gray-800">
-              {formatBrl(corrida.valor_estimado)}
-              {corrida.pagamento ? ` · ${corrida.pagamento}` : ''}
+      <>
+        <div className="fixed inset-x-3 bottom-24 z-[70] rounded-2xl bg-white p-3 shadow-2xl ring-1 ring-black/10 sm:inset-x-auto sm:right-4 sm:w-96">
+          <div className="mb-2">
+            <p className="text-sm font-bold text-[#00D443]">{tituloCorrida}</p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {corrida.origem_nome || '—'} → {corrida.destino_nome || '—'}
             </p>
-          ) : null}
-          {corrida.manifesto_id ? (
-            <p className="mt-1 text-[11px] font-medium text-[#0097b2]">{t('manifestoRegistrado')}</p>
-          ) : null}
-        </div>
-        {corrida.conversa_id ? (
-          <ChatCorridaMobilidade conversaId={corrida.conversa_id} compact />
-        ) : null}
-
-        <div className="mt-3 space-y-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
-          <label className="flex items-start gap-2 text-xs text-gray-700">
-            <input
-              type="checkbox"
-              checked={recebiDinheiro}
-              onChange={(e) => setRecebiDinheiro(e.target.checked)}
-              className="mt-0.5"
-            />
-            <span>{t('pagRecebiDinheiro')}</span>
-          </label>
-          <label className="block text-xs text-gray-600">
-            {t('bonusLabel')}
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={bonus}
-              onChange={(e) => setBonus(e.target.value)}
-              placeholder="0,00"
-              className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
-            />
-          </label>
-        </div>
-
-        {erroConcluir ? (
-          <div className="mt-2 space-y-1">
-            <p className="text-xs text-rose-600">{erroConcluir}</p>
-            {erroConcluir.toLowerCase().includes('check-in') ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void concluir(true)}
-                className="text-xs font-semibold text-[#0097b2] underline"
-              >
-                {t('concluirSemManifesto')}
-              </button>
+            {corrida.valor_estimado != null ? (
+              <p className="mt-1 text-sm font-semibold text-gray-800">
+                {formatBrl(corrida.valor_estimado)}
+                {corrida.pagamento ? ` · ${corrida.pagamento}` : ''}
+              </p>
+            ) : null}
+            {corrida.manifesto_id ? (
+              <p className="mt-1 text-[11px] font-medium text-[#0097b2]">{t('manifestoRegistrado')}</p>
             ) : null}
           </div>
-        ) : null}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void concluir(false)}
-          className="mt-3 w-full rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white disabled:opacity-50"
-        >
-          {t('concluirCorrida')}
-        </button>
-      </div>
+          {corrida.conversa_id ? (
+            <ChatCorridaMobilidade conversaId={corrida.conversa_id} compact />
+          ) : null}
+
+          <div className="mt-3 space-y-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+            <label className="flex items-start gap-2 text-xs text-gray-700">
+              <input
+                type="checkbox"
+                checked={recebiDinheiro}
+                onChange={(e) => setRecebiDinheiro(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>{t('pagRecebiDinheiro')}</span>
+            </label>
+            <label className="block text-xs text-gray-600">
+              {t('bonusLabel')}
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={bonus}
+                onChange={(e) => setBonus(e.target.value)}
+                placeholder="0,00"
+                className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+              />
+            </label>
+          </div>
+
+          {erroConcluir ? (
+            <div className="mt-2 space-y-1">
+              <p className="text-xs text-rose-600">{erroConcluir}</p>
+              {erroConcluir.toLowerCase().includes('check-in') ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void concluir(true)}
+                  className="text-xs font-semibold text-[#0097b2] underline"
+                >
+                  {t('concluirSemManifesto')}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            disabled={busy || st === 'no_local'}
+            onClick={() => void concluir(false)}
+            className="mt-3 w-full rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white disabled:opacity-50"
+          >
+            {t('concluirCorrida')}
+          </button>
+        </div>
+        <PopupChegadaProfissionalMobilidade
+          aberto={st === 'no_local'}
+          busy={busy}
+          erro={erroChegada}
+          onSim={() => void confirmarEmbarque(true)}
+          onNao={() => void confirmarEmbarque(false)}
+        />
+      </>
     )
   }
 

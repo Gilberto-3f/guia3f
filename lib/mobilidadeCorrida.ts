@@ -144,7 +144,12 @@ export async function concluirCorridaMobilidade(
     .maybeSingle()
 
   if (!row) return { ok: false, error: 'Solicitação não encontrada.' }
-  if (String(row.status) !== 'aceita' && String(row.status) !== 'a_caminho') {
+  if (
+    String(row.status) !== 'aceita' &&
+    String(row.status) !== 'a_caminho' &&
+    String(row.status) !== 'no_local' &&
+    String(row.status) !== 'em_viagem'
+  ) {
     return { ok: false, error: 'Corrida não está em andamento.' }
   }
   if (String(row.profissional_id) !== String(prof.id)) {
@@ -250,7 +255,7 @@ export async function buscarCorridaAtivaProfissional(
       'id, status, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
     )
     .eq('profissional_id', profissionalId)
-    .in('status', ['aceita', 'a_caminho'])
+    .in('status', ['aceita', 'a_caminho', 'no_local', 'em_viagem'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()

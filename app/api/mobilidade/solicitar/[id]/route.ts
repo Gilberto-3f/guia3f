@@ -52,22 +52,33 @@ export async function GET(_req: Request, ctx: Ctx) {
 
   let status = String(row.status)
   let oferta = null as Awaited<ReturnType<typeof avancarFilaSeExpirada>>['oferta']
+  let profissionalWhatsapp: string | null = null
+  let profissionalUsername: string | null = null
 
   if (status === 'oferecida') {
     const avancou = await avancarFilaSeExpirada(admin, solicitacaoId)
     status = avancou.status
     oferta = avancou.oferta
-  } else if (status === 'aceita' && row.profissional_id) {
+  } else if (
+    (status === 'aceita' ||
+      status === 'a_caminho' ||
+      status === 'no_local' ||
+      status === 'em_viagem') &&
+    row.profissional_id
+  ) {
     const { data: p } = await admin
       .from('profissionais')
-      .select('id, nome_completo, nome_usuario, foto_perfil_url, foto_url')
+      .select('id, nome_completo, nome_usuario, foto_perfil_url, foto_url, telefone')
       .eq('id', row.profissional_id)
       .maybeSingle()
     if (p) {
+      profissionalUsername = p.nome_usuario != null ? String(p.nome_usuario) : null
+      profissionalWhatsapp =
+        p.telefone != null && String(p.telefone).trim() ? String(p.telefone).trim() : null
       oferta = {
         profissionalId: String(p.id),
         nome: String(p.nome_completo ?? ''),
-        username: p.nome_usuario != null ? String(p.nome_usuario) : null,
+        username: profissionalUsername,
         fotoUrl:
           p.foto_perfil_url != null
             ? String(p.foto_perfil_url)
@@ -81,7 +92,12 @@ export async function GET(_req: Request, ctx: Ctx) {
   }
 
   let conversaId: string | null = null
-  if (status === 'aceita') {
+  if (
+    status === 'aceita' ||
+    status === 'a_caminho' ||
+    status === 'no_local' ||
+    status === 'em_viagem'
+  ) {
     const { data: conv } = await admin
       .from('mobilidade_conversas')
       .select('id')
@@ -104,5 +120,7 @@ export async function GET(_req: Request, ctx: Ctx) {
     backups_ocultos: backupsRestantes,
     oferta_expira_em: row.oferta_expira_em,
     conversa_id: conversaId,
+    profissional_username: profissionalUsername,
+    profissional_whatsapp: profissionalWhatsapp,
   })
 }

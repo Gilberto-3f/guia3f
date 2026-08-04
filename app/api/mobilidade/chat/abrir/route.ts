@@ -33,7 +33,11 @@ export async function POST(req: Request) {
     .eq('id', solicitacaoId)
     .maybeSingle()
 
-  if (!row || String(row.status) !== 'aceita' || !row.profissional_id) {
+  if (
+    !row ||
+    !row.profissional_id ||
+    !['aceita', 'a_caminho', 'no_local', 'em_viagem'].includes(String(row.status))
+  ) {
     return NextResponse.json({ error: 'Corrida ainda não aceita.' }, { status: 400 })
   }
 

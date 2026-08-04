@@ -11,6 +11,7 @@ import PopupResultadoCorridaMobilidade, {
 } from '@/components/mobilidade/PopupResultadoCorridaMobilidade'
 import CardParaOndeMobilidade from '@/components/mobilidade/CardParaOndeMobilidade'
 import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
+import ChegadaTuristaMobilidadeListener from '@/components/mobilidade/ChegadaTuristaMobilidadeListener'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { supabase } from '@/lib/supabase'
 import {
@@ -753,6 +754,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
       />
 
       {comListener ? <OfertaMobilidadeListener /> : null}
+      <ChegadaTuristaMobilidadeListener />
     </div>
   )
 }
