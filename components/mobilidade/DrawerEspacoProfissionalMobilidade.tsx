@@ -9,6 +9,12 @@ import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { supabase } from '@/lib/supabase'
+import {
+  botoesEspacoProfissional,
+  resolverPainelMobilidade,
+  type EspacoProfissionalAcaoId,
+  type PainelMobilidadeModo,
+} from '@/lib/mobilidadePainelProfissional'
 
 const COR = '#0097b2'
 
@@ -18,8 +24,8 @@ type Props = {
 }
 
 /**
- * Drawer shell ESPAÇO PROFISSIONAL (Etapa B).
- * Botões por categoria entram na próxima fase.
+ * Drawer ESPAÇO PROFISSIONAL — perfil + botões por categoria.
+ * Drawers internos de cada botão ficam para a próxima fase.
  */
 export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }: Props) {
   const t = useTranslations('Mobilidade')
@@ -29,6 +35,7 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
   const [username, setUsername] = useState<string | null>(null)
   const [foto, setFoto] = useState<string | null>(null)
   const [verificado, setVerificado] = useState(false)
+  const [modo, setModo] = useState<PainelMobilidadeModo | null>(null)
 
   useEffect(() => {
     if (!aberto) return
@@ -41,7 +48,9 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
       if (!uid || !ativo) return
       const { data: prof } = await supabase
         .from('profissionais')
-        .select('nome_completo, nome_usuario, foto_perfil_url, foto_url, docs_verificado, status')
+        .select(
+          'nome_completo, nome_usuario, foto_perfil_url, foto_url, docs_verificado, status, placa_vermelha, categorias',
+        )
         .eq('usuario_id', uid)
         .maybeSingle()
       if (!ativo || !prof) return
@@ -58,6 +67,10 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
         Boolean(prof.docs_verificado) ||
           String(prof.status ?? '').toLowerCase() === 'aprovado',
       )
+      const cats = Array.isArray(prof.categorias)
+        ? prof.categorias.filter((c): c is string => typeof c === 'string')
+        : []
+      setModo(resolverPainelMobilidade(Boolean(prof.placa_vermelha), cats))
     })()
     return () => {
       ativo = false
@@ -69,6 +82,8 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
   const handle = String(username ?? '')
     .replace(/^@+/, '')
     .trim()
+  const acoes: EspacoProfissionalAcaoId[] =
+    modo != null ? botoesEspacoProfissional(modo) : []
 
   return createPortal(
     <div
@@ -123,7 +138,30 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
           ) : null}
         </div>
 
-        <p className="mt-8 text-center text-sm text-gray-500">{t('espacoProfissionalBotoesEmBreve')}</p>
+        <div className="mt-6 space-y-3">
+          {modo == null ? (
+            <p className="animate-pulse text-center text-sm text-gray-400">…</p>
+          ) : (
+            acoes.map((id) => (
+              <button
+                key={id}
+                type="button"
+                className="flex w-full flex-col items-start rounded-2xl px-4 py-4 text-left text-white shadow-md transition-opacity hover:opacity-95"
+                style={{ backgroundColor: COR }}
+                onClick={() => {
+                  /* Drawers filhos: próxima fase */
+                }}
+              >
+                <span className="text-base font-extrabold uppercase tracking-wide">
+                  {t(`espacoAcao.${id}.titulo`)}
+                </span>
+                <span className="mt-1 text-sm font-normal text-white/90">
+                  {t(`espacoAcao.${id}.subtitulo`)}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
       </div>
     </div>,
     document.body,

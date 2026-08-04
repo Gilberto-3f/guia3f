@@ -350,6 +350,32 @@
     "espacoProfissionalTitulo": "Espacio Profesional",
     "espacoProfissionalFallbackNome": "Profesional",
     "espacoProfissionalBotoesEmBreve": "Herramientas de rutina en breve.",
+    "espacoAcao": {
+      "app_parceiro": {
+        "titulo": "App asociado",
+        "subtitulo": "Integración con apps de movilidad urbana"
+      },
+      "ecossistema": {
+        "titulo": "Ecosistema",
+        "subtitulo": "Herramientas y conexiones de Guia 3F"
+      },
+      "parcerias": {
+        "titulo": "Alianzas",
+        "subtitulo": "Alianzas cerradas con colegas del ecosistema"
+      },
+      "manifesto": {
+        "titulo": "Manifiesto",
+        "subtitulo": "Lista de pasajeros del día"
+      },
+      "calendario": {
+        "titulo": "Calendario",
+        "subtitulo": "Preagendamiento de atenciones"
+      },
+      "historico": {
+        "titulo": "Historial",
+        "subtitulo": "Atenciones realizadas"
+      }
+    },
     "statusEmAtendimento": "En atención",
     "statusErro": "No se pudo actualizar el estado.",
     "statusGpsObrigatorio": "Permite el GPS para estar online.",

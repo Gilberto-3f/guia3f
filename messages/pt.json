@@ -350,6 +350,32 @@
     "espacoProfissionalTitulo": "Espaço Profissional",
     "espacoProfissionalFallbackNome": "Profissional",
     "espacoProfissionalBotoesEmBreve": "Ferramentas da rotina em breve.",
+    "espacoAcao": {
+      "app_parceiro": {
+        "titulo": "App parceiro",
+        "subtitulo": "Integração com apps de mobilidade urbana"
+      },
+      "ecossistema": {
+        "titulo": "Ecossistema",
+        "subtitulo": "Ferramentas e conexões do Guia 3F"
+      },
+      "parcerias": {
+        "titulo": "Parcerias",
+        "subtitulo": "Parcerias fechadas com colegas do ecossistema"
+      },
+      "manifesto": {
+        "titulo": "Manifesto",
+        "subtitulo": "Lista de passageiros do dia"
+      },
+      "calendario": {
+        "titulo": "Calendário",
+        "subtitulo": "Pré-agendamento de atendimentos"
+      },
+      "historico": {
+        "titulo": "Histórico",
+        "subtitulo": "Atendimentos realizados"
+      }
+    },
     "statusEmAtendimento": "Em atendimento",
     "statusErro": "Não foi possível atualizar o status.",
     "statusGpsObrigatorio": "Permita o GPS para ficar online.",

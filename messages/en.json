@@ -350,6 +350,32 @@
     "espacoProfissionalTitulo": "Professional Space",
     "espacoProfissionalFallbackNome": "Professional",
     "espacoProfissionalBotoesEmBreve": "Routine tools coming soon.",
+    "espacoAcao": {
+      "app_parceiro": {
+        "titulo": "Partner app",
+        "subtitulo": "Integration with urban mobility apps"
+      },
+      "ecossistema": {
+        "titulo": "Ecosystem",
+        "subtitulo": "Guia 3F tools and connections"
+      },
+      "parcerias": {
+        "titulo": "Partnerships",
+        "subtitulo": "Closed partnerships with ecosystem peers"
+      },
+      "manifesto": {
+        "titulo": "Manifesto",
+        "subtitulo": "Daily passenger list"
+      },
+      "calendario": {
+        "titulo": "Calendar",
+        "subtitulo": "Advance booking schedule"
+      },
+      "historico": {
+        "titulo": "History",
+        "subtitulo": "Completed services"
+      }
+    },
     "statusEmAtendimento": "On a ride",
     "statusErro": "Could not update status.",
     "statusGpsObrigatorio": "Allow GPS to go online.",
