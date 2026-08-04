@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { avancarFilaSeExpirada, solicitacaoEhContratacaoDirecionada } from '@/lib/mobilidadeMatching'
+import { carregarParceiroRecomendacaoOferta } from '@/lib/mobilidadeOfertaAtendimento'
+import { carregarParceiroRecomendacaoOferta } from '@/lib/mobilidadeOfertaAtendimento'
+import { carregarParceiroRecomendacaoOferta } from '@/lib/mobilidadeOfertaAtendimento'
 
 async function carregarTuristaOferta(
   admin: ReturnType<typeof createSupabaseAdmin>,
@@ -90,6 +93,9 @@ export async function GET() {
         ? (row.metadata as Record<string, unknown>)
         : {}
 
+    const recId = row.recomendacao_id != null ? String(row.recomendacao_id) : null
+    const recomendacao = await carregarParceiroRecomendacaoOferta(admin, recId)
+
     ofertas.push({
       solicitacao_id: row.id,
       modalidade: row.modalidade,
@@ -105,8 +111,9 @@ export async function GET() {
       contratacao_direcionada: solicitacaoEhContratacaoDirecionada({
         metadata: meta,
       }),
-      recomendacao_id: row.recomendacao_id != null ? String(row.recomendacao_id) : null,
+      recomendacao_id: recId,
       turista,
+      recomendacao,
     })
   }
 

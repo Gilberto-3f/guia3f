@@ -7,6 +7,12 @@ import { Check, X, Bell } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import {
+  formatDataHoraAtendimentoCurta,
+  handleUsuarioAtendimento,
+  modalidadeUsaManifesto,
+  type ParceiroRecomendacaoOferta,
+} from '@/lib/mobilidadeOfertaAtendimento'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
@@ -32,6 +38,7 @@ export type OfertaAtendimentoUi = {
   distancia_km: number
   contratacao_direcionada: boolean
   turista: TuristaOfertaAtendimento | null
+  recomendacao?: ParceiroRecomendacaoOferta | null
 }
 
 type Props = {
@@ -63,10 +70,7 @@ function formatDataHora(iso: string | null | undefined): string | null {
   })
 }
 
-function labelPagamento(
-  pagamento: string,
-  t: (key: string) => string,
-): string {
+function labelPagamento(pagamento: string, t: (key: string) => string): string {
   const map: Record<string, string> = {
     dinheiro: 'pag.dinheiro',
     pix: 'pag.pix',
@@ -83,7 +87,36 @@ function labelPagamento(
   }
 }
 
-/** Drawer de atendimento (profissional): layout base — Etapa 4. */
+/** Mensagem principal conforme livre/dirigida × imediato/agendado × taxista/guia-van. */
+function mensagemPrincipalAtendimento(
+  oferta: OfertaAtendimentoUi,
+  t: ReturnType<typeof useTranslations<'Mobilidade'>>,
+): string {
+  const handle = handleUsuarioAtendimento(oferta.turista?.username)
+  const dataCurta = formatDataHoraAtendimentoCurta(oferta.data_agendada)
+  const manifesto = modalidadeUsaManifesto(oferta.modalidade)
+  const agendado = Boolean(dataCurta)
+  const dirigida = Boolean(oferta.contratacao_direcionada)
+
+  if (dirigida && agendado && dataCurta) {
+    return manifesto
+      ? t('msgDirigidaAgendadaManifesto', { user: handle, quando: dataCurta })
+      : t('msgDirigidaAgendadaTaxista', { user: handle, quando: dataCurta })
+  }
+  if (dirigida) {
+    return manifesto
+      ? t('msgDirigidaImediataManifesto', { user: handle })
+      : t('msgDirigidaImediataTaxista', { user: handle })
+  }
+  if (agendado && dataCurta) {
+    return manifesto
+      ? t('msgAgendadaManifesto', { quando: dataCurta })
+      : t('msgAgendadaTaxista', { quando: dataCurta })
+  }
+  return manifesto ? t('msgImediataManifesto') : t('msgImediataTaxista')
+}
+
+/** Drawer de atendimento (profissional) — layout + mensagens condicionais. */
 export default function DrawerAtendimentoMobilidade({
   oferta,
   busy = false,
@@ -100,6 +133,9 @@ export default function DrawerAtendimentoMobilidade({
   const username = String(turista?.username ?? '').replace(/^@+/, '') || 'usuario'
   const dataHoraAgenda = formatDataHora(oferta.data_agendada)
   const warn = segundosRestantes != null && segundosRestantes <= 15
+  const mensagemPrincipal = mensagemPrincipalAtendimento(oferta, t)
+  const rec = oferta.recomendacao ?? null
+  const recHandle = handleUsuarioAtendimento(rec?.username)
 
   return createPortal(
     <div
@@ -202,6 +238,43 @@ export default function DrawerAtendimentoMobilidade({
             ) : null}
           </ul>
         </div>
+
+        {/* Recomendação (condicional) */}
+        {rec ? (
+          <div className="mt-4 space-y-3">
+            <p className="rounded-xl border border-[#0097b2]/25 bg-[#0097b2]/5 px-3 py-2.5 text-sm leading-relaxed text-gray-800">
+              {t('msgRecomendacaoBonificacao', {
+                user: recHandle,
+                pct: rec.percentual_bonificacao,
+              })}
+            </p>
+            <div
+              className="flex items-center gap-3 rounded-xl px-3 py-3 text-white"
+              style={{ backgroundColor: COR }}
+            >
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-white/80 bg-white/20">
+                {rec.foto_url ? (
+                  <AvatarImage
+                    src={rec.foto_url}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="48px"
+                  />
+                ) : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-white">{rec.nome}</p>
+                <p className="truncate text-sm text-white/90">{recHandle}</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Mensagem de aceite / agendamento */}
+        <p className="mt-4 rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm leading-relaxed text-gray-800">
+          {mensagemPrincipal}
+        </p>
       </div>
 
       <div className="shrink-0 border-t border-gray-100 p-3 pb-safe">

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { carregarParceiroRecomendacaoOferta } from '@/lib/mobilidadeOfertaAtendimento'
 
 /** Agendamentos pendentes do profissional (para confirmar / cancelar). */
 export async function GET() {
@@ -66,6 +67,8 @@ export async function GET() {
       typeof r.metadata === 'object' && r.metadata != null
         ? (r.metadata as Record<string, unknown>)
         : {}
+    const recId = r.recomendacao_id != null ? String(r.recomendacao_id) : null
+    const recomendacao = await carregarParceiroRecomendacaoOferta(admin, recId)
     agendamentos.push({
       solicitacao_id: String(r.id),
       status: String(r.status),
@@ -79,8 +82,9 @@ export async function GET() {
       confirmacao_expira_em:
         r.confirmacao_expira_em != null ? String(r.confirmacao_expira_em) : null,
       contratacao_direcionada: meta.contratacao_direcionada === true,
-      recomendacao_id: r.recomendacao_id != null ? String(r.recomendacao_id) : null,
+      recomendacao_id: recId,
       turista,
+      recomendacao,
     })
   }
 

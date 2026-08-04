@@ -106,6 +106,7 @@ export default function OfertaMobilidadeListener() {
           data_agendada: string | null
           contratacao_direcionada?: boolean
           turista?: OfertaAtendimentoUi['turista']
+          recomendacao?: OfertaAtendimentoUi['recomendacao']
         }>
       }
       if (rAg.ok && Array.isArray(jag.agendamentos)) {
@@ -125,6 +126,7 @@ export default function OfertaMobilidadeListener() {
             distancia_km: 0,
             contratacao_direcionada: Boolean(conf.contratacao_direcionada),
             turista: conf.turista ?? null,
+            recomendacao: conf.recomendacao ?? null,
             _fluxo: 'agendamento_confirmacao',
           })
           return 'ok' as const
