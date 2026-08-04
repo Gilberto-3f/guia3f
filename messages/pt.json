@@ -390,12 +390,16 @@
     "ofertaRecusar": "Recusar",
     "recusaTitulo": "Motivo da recusa",
     "recusaEscolhaObrigatoria": "Selecione um motivo para recusar.",
+    "recusaOutroObrigatorio": "Descreva o motivo da recusa.",
+    "recusaOutroLabel": "Descreva o motivo",
+    "recusaOutroPlaceholder": "Escreva aqui…",
     "recusaErro": "Não foi possível registrar a recusa.",
     "recusa": {
-      "ponto_fora_rota": "Ponto fora da minha rota",
-      "distancia_longa": "Distância muito longa",
-      "cliente_cancelou": "Cliente cancelou / não localizei",
-      "outro": "Outro motivo"
+      "em_atendimento": "Já estou em atendimento",
+      "fora_area_rota": "Fora da minha área / rota",
+      "indisponivel_horario": "Indisponível neste horário",
+      "valor_condicoes": "Valor / condições não adequados",
+      "outro": "Outro"
     },
     "chatTitulo": "Chat da corrida",
     "chatHint": "Temporário — só enquanto a corrida estiver ativa",

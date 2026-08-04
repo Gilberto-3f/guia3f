@@ -44,6 +44,7 @@ export default function OfertaMobilidadeListener() {
   const [seg, setSeg] = useState<number | null>(null)
   const [mostrarRecusa, setMostrarRecusa] = useState(false)
   const [justificativa, setJustificativa] = useState<JustificativaRecusaMobilidadeId | null>(null)
+  const [justificativaDetalhe, setJustificativaDetalhe] = useState('')
   const [erroRecusa, setErroRecusa] = useState('')
   const [corrida, setCorrida] = useState<CorridaAtiva | null>(null)
   const [erroConcluir, setErroConcluir] = useState('')
@@ -239,14 +240,27 @@ export default function OfertaMobilidadeListener() {
 
   const confirmarRecusa = async () => {
     if (!oferta || busy) return
-    if (oferta._fluxo === 'agendamento_confirmacao') {
-      setBusy(true)
-      setErroRecusa('')
-      try {
+    if (!justificativa) {
+      setErroRecusa(t('recusaEscolhaObrigatoria'))
+      return
+    }
+    if (justificativa === 'outro' && !justificativaDetalhe.trim()) {
+      setErroRecusa(t('recusaOutroObrigatorio'))
+      return
+    }
+    setBusy(true)
+    setErroRecusa('')
+    try {
+      if (oferta._fluxo === 'agendamento_confirmacao') {
         const res = await fetch(`/api/mobilidade/agendamento/${oferta.solicitacao_id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ acao: 'cancelar', rematch: true }),
+          body: JSON.stringify({
+            acao: 'cancelar',
+            rematch: true,
+            justificativa,
+            justificativa_detalhe: justificativaDetalhe.trim() || null,
+          }),
         })
         if (!res.ok) {
           const json = (await res.json()) as { error?: string }
@@ -255,19 +269,11 @@ export default function OfertaMobilidadeListener() {
         }
         setOferta(null)
         setMostrarRecusa(false)
+        setJustificativa(null)
+        setJustificativaDetalhe('')
         void carregarOferta()
-      } finally {
-        setBusy(false)
+        return
       }
-      return
-    }
-    if (!justificativa) {
-      setErroRecusa(t('recusaEscolhaObrigatoria'))
-      return
-    }
-    setBusy(true)
-    setErroRecusa('')
-    try {
       const res = await fetch('/api/mobilidade/oferta/responder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -275,6 +281,7 @@ export default function OfertaMobilidadeListener() {
           solicitacao_id: oferta.solicitacao_id,
           aceitar: false,
           justificativa,
+          justificativa_detalhe: justificativaDetalhe.trim() || null,
         }),
       })
       if (!res.ok) {
@@ -285,6 +292,7 @@ export default function OfertaMobilidadeListener() {
       setOferta(null)
       setMostrarRecusa(false)
       setJustificativa(null)
+      setJustificativaDetalhe('')
       void carregarOferta()
     } finally {
       setBusy(false)
@@ -455,31 +463,39 @@ export default function OfertaMobilidadeListener() {
 
   const painelRecusa = mostrarRecusa ? (
     <div className="mb-2 space-y-2">
-      {oferta._fluxo === 'agendamento_confirmacao' ? (
-        <p className="text-xs text-gray-600">
-          Cancelar libera a vaga e tenta remarcar com outro profissional.
-        </p>
-      ) : (
-        <>
-          <p className="text-xs font-semibold text-gray-700">{t('recusaTitulo')}</p>
-          <ul className="space-y-1.5">
-            {JUSTIFICATIVAS_RECUSA_MOBILIDADE.map((id) => (
-              <li key={id}>
-                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 px-2.5 py-2 text-xs text-gray-700">
-                  <input
-                    type="radio"
-                    name="just-recusa"
-                    checked={justificativa === id}
-                    onChange={() => setJustificativa(id)}
-                    className="mt-0.5"
-                  />
-                  <span>{t(`recusa.${id}`)}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+      <p className="text-xs font-semibold text-gray-700">{t('recusaTitulo')}</p>
+      <ul className="space-y-1.5">
+        {JUSTIFICATIVAS_RECUSA_MOBILIDADE.map((id) => (
+          <li key={id}>
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 px-2.5 py-2 text-xs text-gray-700">
+              <input
+                type="radio"
+                name="just-recusa"
+                checked={justificativa === id}
+                onChange={() => {
+                  setJustificativa(id)
+                  if (id !== 'outro') setJustificativaDetalhe('')
+                }}
+                className="mt-0.5"
+              />
+              <span>{t(`recusa.${id}`)}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      {justificativa === 'outro' ? (
+        <label className="block text-xs text-gray-600">
+          {t('recusaOutroLabel')}
+          <textarea
+            value={justificativaDetalhe}
+            onChange={(e) => setJustificativaDetalhe(e.target.value)}
+            rows={2}
+            maxLength={280}
+            placeholder={t('recusaOutroPlaceholder')}
+            className="mt-1 w-full rounded-lg border border-gray-200 px-2.5 py-2 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-[#0097b2]/30"
+          />
+        </label>
+      ) : null}
       {erroRecusa ? <p className="text-xs text-rose-600">{erroRecusa}</p> : null}
       <div className="flex gap-2 pt-1">
         <button
@@ -488,6 +504,7 @@ export default function OfertaMobilidadeListener() {
           onClick={() => {
             setMostrarRecusa(false)
             setErroRecusa('')
+            setJustificativaDetalhe('')
           }}
           className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700"
         >
@@ -516,6 +533,7 @@ export default function OfertaMobilidadeListener() {
       onRecusar={() => {
         setMostrarRecusa(true)
         setJustificativa(null)
+        setJustificativaDetalhe('')
         setErroRecusa('')
       }}
     />

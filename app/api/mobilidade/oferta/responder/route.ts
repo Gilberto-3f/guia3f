@@ -36,6 +36,12 @@ export async function POST(req: Request) {
     profissionalUsuarioId: auth.userId,
     aceitar,
     justificativa: body.justificativa != null ? String(body.justificativa) : null,
+    justificativaDetalhe:
+      body.justificativa_detalhe != null
+        ? String(body.justificativa_detalhe)
+        : body.detalhe != null
+          ? String(body.detalhe)
+          : null,
   })
 
   if (!res.ok) {

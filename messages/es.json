@@ -390,12 +390,16 @@
     "ofertaRecusar": "Rechazar",
     "recusaTitulo": "Motivo del rechazo",
     "recusaEscolhaObrigatoria": "Selecciona un motivo para rechazar.",
+    "recusaOutroObrigatorio": "Describe el motivo del rechazo.",
+    "recusaOutroLabel": "Describe el motivo",
+    "recusaOutroPlaceholder": "Escribe aquí…",
     "recusaErro": "No se pudo registrar el rechazo.",
     "recusa": {
-      "ponto_fora_rota": "Punto fuera de mi ruta",
-      "distancia_longa": "Distancia demasiado larga",
-      "cliente_cancelou": "Cliente canceló / no lo localicé",
-      "outro": "Otro motivo"
+      "em_atendimento": "Ya estoy en un servicio",
+      "fora_area_rota": "Fuera de mi área / ruta",
+      "indisponivel_horario": "No disponible en este horario",
+      "valor_condicoes": "Valor / condiciones no adecuados",
+      "outro": "Otro"
     },
     "chatTitulo": "Chat del viaje",
     "chatHint": "Temporal — solo mientras el viaje esté activo",

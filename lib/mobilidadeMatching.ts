@@ -7,7 +7,7 @@ import {
   ehAgendamentoFuturo,
   parseDataAgendadaIso,
 } from '@/lib/mobilidadeAgendamento'
-import { isJustificativaRecusaMobilidade } from '@/lib/mobilidadeRecusaJustificativas'
+import { validarRecusaMobilidade } from '@/lib/mobilidadeRecusaJustificativas'
 import { inferirCidadeTriplicePorCoords } from '@/lib/mobilidadePopupPesquisa'
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import type { CidadeTriplice } from '@/lib/mobilidadeRegional'
@@ -839,6 +839,7 @@ export async function responderOfertaMobilidade(
     profissionalUsuarioId: string
     aceitar: boolean
     justificativa?: string | null
+    justificativaDetalhe?: string | null
   },
 ): Promise<{ ok: boolean; error?: string; status?: string; conversaId?: string | null }> {
   const { data: prof } = await admin
@@ -910,11 +911,28 @@ export async function responderOfertaMobilidade(
     return { ok: true, status: 'aceita', conversaId: chat.conversaId }
   }
 
-  // recusa — exige justificativa válida
-  const just = String(params.justificativa ?? '').trim()
-  if (!isJustificativaRecusaMobilidade(just)) {
-    return { ok: false, error: 'Selecione uma justificativa de recusa.' }
+  // recusa — exige motivo (MVP) + texto se "Outro"
+  const validacao = validarRecusaMobilidade({
+    justificativa: params.justificativa,
+    detalhe: params.justificativaDetalhe,
+  })
+  if (!validacao.ok) {
+    return { ok: false, error: validacao.error }
   }
+
+  const agora = new Date().toISOString()
+  const metaAtual =
+    typeof row.metadata === 'object' && row.metadata ? (row.metadata as Record<string, unknown>) : {}
+  const historicoRecusas = Array.isArray(metaAtual.historico_recusas)
+    ? [...(metaAtual.historico_recusas as unknown[])]
+    : []
+  const entradaRecusa = {
+    profissional_id: prof.id,
+    justificativa: validacao.id,
+    detalhe: validacao.detalhe,
+    em: agora,
+  }
+  historicoRecusas.push(entradaRecusa)
 
   const recusados = Array.isArray(row.recusados_ids)
     ? (row.recusados_ids as string[]).map(String)
@@ -925,12 +943,9 @@ export async function responderOfertaMobilidade(
     .update({
       recusados_ids: recusados,
       metadata: {
-        ...(typeof row.metadata === 'object' && row.metadata ? row.metadata : {}),
-        ultima_recusa: {
-          profissional_id: prof.id,
-          justificativa: just,
-          em: new Date().toISOString(),
-        },
+        ...metaAtual,
+        ultima_recusa: entradaRecusa,
+        historico_recusas: historicoRecusas,
       },
     })
     .eq('id', params.solicitacaoId)

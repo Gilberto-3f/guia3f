@@ -390,12 +390,16 @@
     "ofertaRecusar": "Decline",
     "recusaTitulo": "Decline reason",
     "recusaEscolhaObrigatoria": "Select a reason to decline.",
+    "recusaOutroObrigatorio": "Please describe the decline reason.",
+    "recusaOutroLabel": "Describe the reason",
+    "recusaOutroPlaceholder": "Write here…",
     "recusaErro": "Could not register the decline.",
     "recusa": {
-      "ponto_fora_rota": "Pickup is off my route",
-      "distancia_longa": "Distance is too long",
-      "cliente_cancelou": "Client cancelled / I could not find them",
-      "outro": "Other reason"
+      "em_atendimento": "I'm already on a job",
+      "fora_area_rota": "Outside my area / route",
+      "indisponivel_horario": "Unavailable at this time",
+      "valor_condicoes": "Fare / conditions not suitable",
+      "outro": "Other"
     },
     "chatTitulo": "Ride chat",
     "chatHint": "Temporary — only while the ride is active",

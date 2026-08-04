@@ -9,6 +9,7 @@ import {
 } from '@/lib/mobilidadeInfracoes'
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import type { CidadeTriplice } from '@/lib/mobilidadeRegional'
+import { validarRecusaMobilidade } from '@/lib/mobilidadeRecusaJustificativas'
 
 export type AgendamentoMobilidadeInput = {
   turistaUsuarioId: string
@@ -333,6 +334,8 @@ export async function cancelarAgendamentoMobilidade(
     actorUsuarioId: string
     role: 'turista' | 'profissional' | 'admin'
     tentarRematch?: boolean
+    justificativa?: string | null
+    justificativaDetalhe?: string | null
   },
 ): Promise<{ ok: boolean; error?: string; rematchSolicitacaoId?: string | null }> {
   const { data: row } = await admin
@@ -361,6 +364,29 @@ export async function cancelarAgendamentoMobilidade(
     }
   }
 
+  let entradaRecusa: {
+    profissional_id?: string
+    justificativa: string
+    detalhe: string | null
+    em: string
+  } | null = null
+
+  if (params.role === 'profissional') {
+    const validacao = validarRecusaMobilidade({
+      justificativa: params.justificativa,
+      detalhe: params.justificativaDetalhe,
+    })
+    if (!validacao.ok) {
+      return { ok: false, error: validacao.error }
+    }
+    entradaRecusa = {
+      profissional_id: row.profissional_id != null ? String(row.profissional_id) : undefined,
+      justificativa: validacao.id,
+      detalhe: validacao.detalhe,
+      em: new Date().toISOString(),
+    }
+  }
+
   const lugares = Math.max(1, Number(row.lugares) || 1)
   await liberarVaga(
     admin,
@@ -373,15 +399,28 @@ export async function cancelarAgendamentoMobilidade(
     row.data_agendada != null ? String(row.data_agendada) : null,
   )
 
+  const metaAtual =
+    typeof row.metadata === 'object' && row.metadata ? (row.metadata as Record<string, unknown>) : {}
+  const historicoRecusas = Array.isArray(metaAtual.historico_recusas)
+    ? [...(metaAtual.historico_recusas as unknown[])]
+    : []
+  if (entradaRecusa) historicoRecusas.push(entradaRecusa)
+
   await admin
     .from('solicitacao_mobilidade')
     .update({
       status: 'cancelada',
       metadata: {
-        ...(typeof row.metadata === 'object' && row.metadata ? row.metadata : {}),
+        ...metaAtual,
         cancelado_em: agora,
         cancelado_por: params.role,
         cancelamento_ultima_hora: late,
+        ...(entradaRecusa
+          ? {
+              ultima_recusa: entradaRecusa,
+              historico_recusas: historicoRecusas,
+            }
+          : {}),
       },
     })
     .eq('id', params.solicitacaoId)
