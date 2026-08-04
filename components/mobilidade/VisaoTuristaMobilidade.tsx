@@ -20,6 +20,10 @@ import {
   type MobilidadePesquisaState,
   type MobilidadePonto,
 } from '@/lib/mobilidadePesquisaParams'
+import {
+  consumirChamarCorridaIntent,
+  limparChamarCorridaIntent,
+} from '@/lib/chamarCorridaIntent'
 import { type EmpresaMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
 import { abreviarCidadeTriplice } from '@/lib/mobilidadeRegional'
 import type { ProfissionalOnlineMapa } from '@/lib/mobilidadeStatusProfissional'
@@ -97,12 +101,10 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   const gpsCentroRef = useRef(gpsCentro)
   const origemLabelGpsRef = useRef(origemLabelGps)
   const abrindoDrawerRef = useRef(false)
-  /** Evita reabrir o drawer no frame em que o X fecha e a URL ainda tem abrir_pesquisa=1. */
-  const fecharIgnoraAbrirRef = useRef(false)
-  /** openKey do destino que acabamos de fechar — libera se chegar Chamar corrida de outra empresa. */
-  const openKeyFechadoRef = useRef<string | null>(null)
-  /** Chave do último open via URL — permite trocar de empresa no 2º Chamar corrida. */
-  const ultimoOpenKeyRef = useRef<string | null>(null)
+  /** Invalida opens async ao fechar o drawer (X / Cancelar). */
+  const openGenRef = useRef(0)
+  /** Empresa cujo drawer acabamos de fechar — ignora reabrir o mesmo deep link residual na URL. */
+  const empresaFechadaIdRef = useRef<string | null>(null)
   gpsCentroRef.current = gpsCentro
   origemLabelGpsRef.current = origemLabelGps
 
@@ -110,20 +112,6 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   empresasRef.current = empresas
 
   const pesquisaAtiva = drawerAberto && pesquisaDrawer ? pesquisaDrawer : pesquisa
-
-  const montarOpenKey = useCallback((p: {
-    destinoEmpresaId?: string | null
-    destino: MobilidadePonto
-  }) => {
-    const emp = String(p.destinoEmpresaId ?? '').trim()
-    if (emp) return `empresa:${emp}`
-    return [
-      'geo',
-      p.destino.lat ?? '',
-      p.destino.lng ?? '',
-      String(p.destino.nome ?? '').trim(),
-    ].join('|')
-  }, [])
 
   const aplicarDestinoNoCard = useCallback(
     (ponto: MobilidadePonto | null, empresaId: string | null) => {
@@ -217,26 +205,26 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
 
   /** Prefetch rotas + labels antes do 1º paint do drawer (evita flash). */
   const abrirDrawerPesquisa = useCallback(
-    async (raw: MobilidadePesquisaState) => {
-      if (fecharIgnoraAbrirRef.current) return
+    async (raw: MobilidadePesquisaState, gen: number) => {
+      if (gen !== openGenRef.current) return
       abrindoDrawerRef.current = true
       try {
         const next = await garantirOrigemGps(raw)
-        if (fecharIgnoraAbrirRef.current) return
+        if (gen !== openGenRef.current) return
         const cidade = inferirCidadeDePonto(next.origem)
         const tab = cidadeTripliceParaTabelado(cidade)
         if (tab && !peekRotasTabeladasCache(tab)) {
           await carregarRotasTabeladasCidade(supabase, tab)
         }
-        if (fecharIgnoraAbrirRef.current) return
-        const labels = montarLabelsDestino(next.destinoEmpresaId, next.destino.nome)
-        // Card Para Onde? recebe o destino antes/junto da abertura do drawer 1.
+        if (gen !== openGenRef.current) return
+        const lista = empresasRef.current
+        const labels = montarLabelsDestino(next.destinoEmpresaId, next.destino.nome, lista)
         aplicarDestinoNoCard(next.destino, next.destinoEmpresaId)
         setDestinoLabelsSnap(labels)
         setDrawerKey((k) => k + 1)
         setPesquisaDrawer(next)
         setDrawerAberto(true)
-        openKeyFechadoRef.current = null
+        empresaFechadaIdRef.current = null
       } finally {
         abrindoDrawerRef.current = false
       }
@@ -247,62 +235,93 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   /** Deep link / Chamar corrida: abre drawer 1 com destino da empresa + origem GPS. */
   useEffect(() => {
     if (!pesquisa.abrirPesquisa) {
-      fecharIgnoraAbrirRef.current = false
-      openKeyFechadoRef.current = null
+      empresaFechadaIdRef.current = null
       return
     }
-
-    const openKey = montarOpenKey(pesquisa)
-
-    // Bloqueio só vale para o mesmo destino que acabamos de fechar (X/Cancelar).
-    if (fecharIgnoraAbrirRef.current) {
-      if (openKeyFechadoRef.current != null && openKey !== openKeyFechadoRef.current) {
-        fecharIgnoraAbrirRef.current = false
-        openKeyFechadoRef.current = null
-      } else {
-        return
-      }
-    }
-
     if (abrindoDrawerRef.current) return
     if (pesquisa.destinoEmpresaId && carregandoEmpresas) return
 
-    // Já aberto com o mesmo destino — não remonta.
-    if (drawerAberto && ultimoOpenKeyRef.current === openKey) return
+    const intent = consumirChamarCorridaIntent()
+    const empIdUrl = pesquisa.destinoEmpresaId
+    const empIdIntent = intent?.empresaId ? String(intent.empresaId).trim() : ''
+    const empId = empIdIntent || empIdUrl
 
-    const listaEmp = empresasRef.current
-    const empIdEarly = pesquisa.destinoEmpresaId
-    const empEarly = empIdEarly ? listaEmp.find((e) => e.id === empIdEarly) ?? null : null
-
-    // Preenche o card na hora (antes do await) — evita autocomplete da empresa anterior.
-    if (empEarly) {
-      aplicarDestinoNoCard(
-        { nome: empEarly.nome_fantasia, lat: empEarly.latitude, lng: empEarly.longitude },
-        empEarly.id,
-      )
-    } else if (pontoPreenchido(pesquisa.destino)) {
-      aplicarDestinoNoCard(pesquisa.destino, empIdEarly)
-    } else if (empIdEarly) {
-      // Só o id na URL — limpa nome antigo até o fetch terminar.
-      aplicarDestinoNoCard({ nome: '', lat: null, lng: null }, empIdEarly)
+    // URL residual da empresa que acabamos de fechar — não reabrir.
+    if (
+      empId &&
+      empresaFechadaIdRef.current &&
+      empId === empresaFechadaIdRef.current &&
+      !intent
+    ) {
+      return
     }
 
-    let ativo = true
-    void (async () => {
-      let next: MobilidadePesquisaState = { ...pesquisa, abrirPesquisa: true }
-      const empId = next.destinoEmpresaId
+    // Já mostrando este destino.
+    if (
+      drawerAberto &&
+      pesquisaDrawer?.destinoEmpresaId &&
+      empId &&
+      pesquisaDrawer.destinoEmpresaId === empId &&
+      !intent
+    ) {
+      return
+    }
 
-      let emp = empId != null ? empresasRef.current.find((e) => e.id === empId) ?? null : null
+    const gen = openGenRef.current
+    let ativo = true
+
+    // Limpa visual da empresa anterior imediatamente.
+    setDestinoLabelsSnap(null)
+    if (intent) {
+      aplicarDestinoNoCard(
+        {
+          nome: intent.nomeDestino,
+          lat: intent.lat,
+          lng: intent.lng,
+        },
+        intent.empresaId,
+      )
+    } else if (empId) {
+      const empEarly = empresasRef.current.find((e) => e.id === empId)
+      if (empEarly) {
+        aplicarDestinoNoCard(
+          { nome: empEarly.nome_fantasia, lat: empEarly.latitude, lng: empEarly.longitude },
+          empEarly.id,
+        )
+      } else if (pontoPreenchido(pesquisa.destino)) {
+        aplicarDestinoNoCard(pesquisa.destino, empId)
+      } else {
+        aplicarDestinoNoCard({ nome: '', lat: null, lng: null }, empId)
+      }
+    }
+
+    void (async () => {
+      let next: MobilidadePesquisaState = {
+        ...pesquisa,
+        abrirPesquisa: true,
+        destinoEmpresaId: empId || pesquisa.destinoEmpresaId,
+        destino: intent
+          ? {
+              nome: intent.nomeDestino || pesquisa.destino.nome,
+              lat: intent.lat ?? pesquisa.destino.lat,
+              lng: intent.lng ?? pesquisa.destino.lng,
+            }
+          : pesquisa.destino,
+      }
+
+      let emp =
+        next.destinoEmpresaId != null
+          ? empresasRef.current.find((e) => e.id === next.destinoEmpresaId) ?? null
+          : null
       let listaAtual = empresasRef.current
 
-      if (empId && !emp) {
+      if (next.destinoEmpresaId && !emp) {
         const { data, error } = await supabase
           .from('empresas')
           .select('id, nome_fantasia, cidade, endereco, latitude, longitude')
-          .eq('id', empId)
+          .eq('id', next.destinoEmpresaId)
           .maybeSingle()
-        if (!ativo) return
-        // 57014 / abort de navegação: ignora sem rethrow
+        if (!ativo || gen !== openGenRef.current) return
         if (error) return
         if (data) {
           const lat = Number(data.latitude)
@@ -349,20 +368,15 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
           },
           destinoEmpresaId: emp.id,
         }
-        if (!ativo || fecharIgnoraAbrirRef.current) return
-        aplicarDestinoNoCard(next.destino, emp.id)
-        setDestinoLabelsSnap(montarLabelsDestino(emp.id, emp.nome_fantasia, listaAtual))
       }
 
-      if (!ativo || fecharIgnoraAbrirRef.current) return
-      ultimoOpenKeyRef.current = openKey
-      await abrirDrawerPesquisa(next)
+      if (!ativo || gen !== openGenRef.current) return
+      await abrirDrawerPesquisa(next, gen)
     })()
 
     return () => {
       ativo = false
     }
-    // empresas via ref — evita re-disparar fetch a cada setEmpresas (cancel 57014).
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deep link / Chamar corrida
   }, [
     pesquisa.abrirPesquisa,
@@ -372,23 +386,18 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
     pesquisa.destino.nome,
     chamarCorridaNonce,
     carregandoEmpresas,
-    drawerAberto,
     abrirDrawerPesquisa,
-    montarOpenKey,
     aplicarDestinoNoCard,
-    montarLabelsDestino,
   ])
 
   const fecharDrawerPesquisa = () => {
-    // Usa a mesma openKey da URL (não a enriquecida) para o bloqueio bater com o effect.
-    openKeyFechadoRef.current = ultimoOpenKeyRef.current ?? montarOpenKey(pesquisa)
-    fecharIgnoraAbrirRef.current = true
-    ultimoOpenKeyRef.current = null
+    openGenRef.current += 1
     abrindoDrawerRef.current = false
+    empresaFechadaIdRef.current = pesquisaAtiva.destinoEmpresaId
+    limparChamarCorridaIntent()
     setDrawerAberto(false)
     setPesquisaDrawer(null)
     setDestinoLabelsSnap(null)
-    // Limpa o buscador Para Onde? — próximo Chamar corrida começa vazio.
     aplicarDestinoNoCard(null, null)
     router.replace(
       buildMobilidadePesquisaHref({
@@ -406,7 +415,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
     )
   }
 
-  /** URL já sem destino — reforça limpeza do card (evita reaplicar empresa antiga). */
+  /** URL já sem destino — reforça limpeza do card. */
   useEffect(() => {
     if (pesquisa.abrirPesquisa) return
     if (pesquisa.destinoEmpresaId || pontoPreenchido(pesquisa.destino)) return
@@ -425,7 +434,8 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
   const reabrirDrawerParaAgendar = () => {
     setResultadoAberto(false)
     setResultadoCorrida(null)
-    fecharIgnoraAbrirRef.current = false
+    empresaFechadaIdRef.current = null
+    const gen = openGenRef.current
     const next: MobilidadePesquisaState = {
       ...pesquisa,
       origem: pesquisaAtiva.origem,
@@ -433,7 +443,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
       destinoEmpresaId: pesquisaAtiva.destinoEmpresaId,
       abrirPesquisa: true,
     }
-    void abrirDrawerPesquisa(next)
+    void abrirDrawerPesquisa(next, gen)
     router.replace(buildMobilidadePesquisaHref(next))
   }
 
@@ -680,6 +690,7 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
         ) : null}
         <div className="pointer-events-auto mx-auto w-full max-w-lg">
           <CardParaOndeMobilidade
+            key={`card-destino-${cardDestino?.empresaId ?? 'vazio'}`}
             origemInicial={origemInicialCard}
             destinoInicial={destinoInicialCard}
             destinoEmpresaIdInicial={destinoEmpresaIdCard}
@@ -696,31 +707,30 @@ export default function VisaoTuristaMobilidade({ comListener = true, className =
             onPesquisar={(o, d, empId) => {
               setResultadoAberto(false)
               setResultadoCorrida(null)
-              fecharIgnoraAbrirRef.current = false
-              openKeyFechadoRef.current = null
-              ultimoOpenKeyRef.current = montarOpenKey({
-                destinoEmpresaId: empId,
-                destino: d,
-              })
-              void abrirDrawerPesquisa({
-                origem: o,
-                destino: d,
-                destinoEmpresaId: empId,
-                abrirPesquisa: true,
-                recomendacaoId: null,
-                profissionalUsuarioId: null,
-              })
+              empresaFechadaIdRef.current = null
+              const gen = openGenRef.current
+              void abrirDrawerPesquisa(
+                {
+                  origem: o,
+                  destino: d,
+                  destinoEmpresaId: empId,
+                  abrirPesquisa: true,
+                  recomendacaoId: null,
+                  profissionalUsuarioId: null,
+                },
+                gen,
+              )
             }}
           />
         </div>
       </div>
 
-      {drawerAberto ? (
+      {drawerAberto && pesquisaDrawer ? (
         <DrawerPesquisaMobilidade
-          key={`pesquisa-drawer-${drawerKey}-${pesquisaAtiva.destinoEmpresaId ?? 'geo'}`}
+          key={`pesquisa-drawer-${drawerKey}-${pesquisaDrawer.destinoEmpresaId ?? 'geo'}`}
           aberto
           onFechar={fecharDrawerPesquisa}
-          pesquisa={pesquisaAtiva}
+          pesquisa={pesquisaDrawer}
           destinoCidadeEmpresa={destinoCidadeEmpresa}
           destinoNomeEmpresa={destinoNomeEmpresa}
           destinoLabelCurto={destinoLabelCurtoEmpresa}

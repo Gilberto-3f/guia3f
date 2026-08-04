@@ -6,6 +6,7 @@ import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { AVISO_DOCS_PROF_ALERTA } from '@/lib/avisoDocsProfissionalTexto'
 import { avaliarAvisoChamarCorrida } from '@/lib/chamar-corrida-empresa'
 import { buildHrefChamarCorridaEmpresa, buildMobilidadePesquisaHref } from '@/lib/mobilidadePesquisaParams'
+import { salvarChamarCorridaIntent } from '@/lib/chamarCorridaIntent'
 
 /**
  * @param {{
@@ -44,12 +45,21 @@ export default function BotaoChamarCorrida({
       if (!aviso.irDireto) {
         if (!window.confirm(aviso.mensagem)) return
       }
+      const latOk = Number.isFinite(lat) ? lat : null
+      const lngOk = Number.isFinite(lng) ? lng : null
+      // Intent no sessionStorage: VisaoTurista aplica ESTE destino (não o da empresa anterior).
+      salvarChamarCorridaIntent({
+        empresaId: id,
+        nomeDestino: nomeDestino || '',
+        lat: latOk,
+        lng: lngOk,
+      })
       router.push(
         buildHrefChamarCorridaEmpresa({
           empresaId: id,
           nomeDestino: nomeDestino || '',
-          latitude: Number.isFinite(lat) ? lat : null,
-          longitude: Number.isFinite(lng) ? lng : null,
+          latitude: latOk,
+          longitude: lngOk,
         }),
       )
       return
