@@ -3,14 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import PopupCartaoVisitaProfissional from '@/components/perfil/PopupCartaoVisitaProfissional'
-import {
-  hrefDestinoContratacao,
-  resolverDestinoContratacaoRecomendacao,
-} from '@/lib/recomendacaoContratacaoDestino'
+import { resolverHrefContratarCartaoVisita } from '@/lib/recomendacaoContratacaoDestino'
 import type { ProfissionalOnlineMapa } from '@/lib/mobilidadeStatusProfissional'
 import type { VisitanteParceriaMapa } from '@/lib/mobilidadeMapaVisitante'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { supabase } from '@/lib/supabase'
+import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
 
 type Props = {
   prof: ProfissionalOnlineMapa | null
@@ -39,15 +37,32 @@ export default function PopupProfissionalMapaMobilidade({
 
   if (!prof) return null
 
-  const handleContratar = () => {
-    const destino = resolverDestinoContratacaoRecomendacao({
-      categoriasIndicado: prof.categorias,
-      placaVermelhaIndicado: prof.placa_vermelha,
+  const handleContratar = async () => {
+    let apiMobilidadeUrl: string | null = null
+    const cats = normalizarCategoriasProfissional(prof.categorias)
+    if (cats.includes('motorista_app')) {
+      const { data: cfg } = await supabase
+        .from('config_apis')
+        .select('api_mobilidade_url')
+        .limit(1)
+        .maybeSingle()
+      apiMobilidadeUrl =
+        cfg?.api_mobilidade_url != null ? String(cfg.api_mobilidade_url).trim() || null : null
+    }
+
+    const { href, externo } = resolverHrefContratarCartaoVisita({
+      categorias: prof.categorias,
+      placaVermelha: prof.placa_vermelha,
       profissionalUsuarioId: prof.usuario_id,
+      apiMobilidadeUrl,
     })
-    const href = hrefDestinoContratacao(destino)
-    if (href) router.push(href)
     onFechar()
+    if (!href) return
+    if (externo) {
+      window.location.assign(href)
+      return
+    }
+    router.push(href)
   }
 
   const cidadeVisitado =

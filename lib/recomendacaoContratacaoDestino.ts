@@ -99,6 +99,42 @@ export function hrefDestinoContratacao(
   return null
 }
 
+/**
+ * CONTRATAR no cartão de visita (perfil/mapa): resolve destino sem gravar manifesto.
+ * Placa vermelha (guia/van/taxista) → drawer de mobilidade com `prof` fixado.
+ * Anfitrião → reserva; motorista app → API parceiro.
+ */
+export function resolverHrefContratarCartaoVisita(params: {
+  categorias: string[] | null | undefined
+  placaVermelha: boolean
+  profissionalUsuarioId: string
+  empresaHospedagemId?: string | null
+  apiMobilidadeUrl?: string | null
+  recomendacaoId?: string | null
+}): { href: string | null; destino: DestinoContratacaoRecomendacao; externo: boolean } {
+  const destino = resolverDestinoContratacaoRecomendacao({
+    categoriasIndicado: params.categorias,
+    placaVermelhaIndicado: params.placaVermelha,
+    empresaHospedagemId: params.empresaHospedagemId,
+    profissionalUsuarioId: params.profissionalUsuarioId,
+    apiMobilidadeUrl: params.apiMobilidadeUrl,
+  })
+  // Contratação direta (sem indicação): reserva sem query de recomendação.
+  if (destino.tipo === 'empresa_reserva' && !String(params.recomendacaoId ?? '').trim()) {
+    return {
+      destino,
+      href: `/empresa/${destino.empresaId}?abrir=reserva`,
+      externo: false,
+    }
+  }
+  const href = hrefDestinoContratacao(destino, params.recomendacaoId)
+  return {
+    destino,
+    href,
+    externo: destino.tipo === 'api_parceiro',
+  }
+}
+
 export function categoriaSlugDeRotulo(rotulo: string): string {
   return categoriaProfissionalParaSlug(rotulo)
 }

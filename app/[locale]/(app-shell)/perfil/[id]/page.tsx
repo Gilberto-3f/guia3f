@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState, Suspense } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
+import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import FotoCapa from '@/components/perfil/FotoCapa'
 import MenuLateral from '@/components/perfil/MenuLateral'
@@ -32,7 +33,8 @@ import { consumirReabrirMenuLateral } from '@/lib/menuLateralHistory'
 import { turistaContratouProfissional } from '@/lib/contratacaoProfissionalTurista'
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 import PerfilRecomendacaoContratarGate from '@/components/perfil/PerfilRecomendacaoContratarGate'
-import PopupComplementoContratacao from '@/components/manifesto/PopupComplementoContratacao'
+import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
+import { resolverHrefContratarCartaoVisita } from '@/lib/recomendacaoContratacaoDestino'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
 
@@ -54,6 +56,9 @@ function labelCidadeAtuacao(cidades: string[] | null | undefined): string | null
   const first = String(cidades[0] ?? '').trim()
   return first || null
 }
+
+const SELECT_PROFISSIONAL_PERFIL =
+  'id, nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, pais, cidade_atuacao, empresa_hospedagem_id'
 
 export default function PerfilSocialPage() {
   const { recursosProfissionaisLiberados } = useProfissionalGate()
@@ -105,9 +110,6 @@ export default function PerfilSocialPage() {
   const [popAval, setPopAval] = useState(false)
   const [popAvalAba, setPopAvalAba] = useState<'empresa' | 'profissional' | 'feedback'>('empresa')
   const [popCartao, setPopCartao] = useState(false)
-  const [popComplementoContrato, setPopComplementoContrato] = useState(false)
-  const [complementoTurista, setComplementoTurista] = useState({ nome: '', documento: '' })
-  const [enviandoContrato, setEnviandoContrato] = useState(false)
   const [modalFoto, setModalFoto] = useState({ aberto: false, i: 0 })
 
   const [profMeta, setProfMeta] = useState<{
@@ -121,6 +123,7 @@ export default function PerfilSocialPage() {
     docsVerificado: boolean
     paisBandeira: string | null
     profissionalId: string | null
+    empresaHospedagemId: string | null
     notaMedia: number
     totalAvaliacoesProf: number
     cidadeAtuacaoLabel: string | null
@@ -133,6 +136,7 @@ export default function PerfilSocialPage() {
     docsVerificado: false,
     paisBandeira: null,
     profissionalId: null,
+    empresaHospedagemId: null,
     notaMedia: 0,
     totalAvaliacoesProf: 0,
     cidadeAtuacaoLabel: null,
@@ -302,9 +306,7 @@ export default function PerfilSocialPage() {
         const [profRes, turRes] = await Promise.all([
           supabase
             .from('profissionais')
-            .select(
-              'id, nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, pais, cidade_atuacao'
-            )
+            .select(SELECT_PROFISSIONAL_PERFIL)
             .eq('usuario_id', profileId)
             .maybeSingle(),
           supabase
@@ -329,6 +331,7 @@ export default function PerfilSocialPage() {
             status?: string | null
             pais?: string | null
             cidade_atuacao?: string[] | null
+            empresa_hospedagem_id?: string | null
           }
           const profId = rr.id != null ? String(rr.id) : null
           setProfMeta({
@@ -343,6 +346,8 @@ export default function PerfilSocialPage() {
               cidadeAtuacao: rr.cidade_atuacao,
             }),
             profissionalId: profId,
+            empresaHospedagemId:
+              rr.empresa_hospedagem_id != null ? String(rr.empresa_hospedagem_id) : null,
             notaMedia: 0,
             totalAvaliacoesProf: 0,
             cidadeAtuacaoLabel: labelCidadeAtuacao(rr.cidade_atuacao),
@@ -359,6 +364,7 @@ export default function PerfilSocialPage() {
             docsVerificado: false,
             paisBandeira: null,
             profissionalId: null,
+            empresaHospedagemId: null,
             notaMedia: 0,
             totalAvaliacoesProf: 0,
             cidadeAtuacaoLabel: null,
@@ -367,9 +373,7 @@ export default function PerfilSocialPage() {
       } else if (role === 'profissional') {
         const { data: prof, error: ep } = await supabase
           .from('profissionais')
-          .select(
-            'id, nome_completo, nome_usuario, foto_url, foto_perfil_url, bio, foto_capa_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, pais, cidade_atuacao'
-          )
+          .select(SELECT_PROFISSIONAL_PERFIL)
           .eq('usuario_id', profileId)
           .maybeSingle()
         if (ep) console.warn('Perfil profissionais:', ep.message)
@@ -385,6 +389,7 @@ export default function PerfilSocialPage() {
             status?: string | null
             pais?: string | null
             cidade_atuacao?: string[] | null
+            empresa_hospedagem_id?: string | null
           }
           const profId = rr.id != null ? String(rr.id) : null
           setProfMeta({
@@ -399,6 +404,8 @@ export default function PerfilSocialPage() {
               cidadeAtuacao: rr.cidade_atuacao,
             }),
             profissionalId: profId,
+            empresaHospedagemId:
+              rr.empresa_hospedagem_id != null ? String(rr.empresa_hospedagem_id) : null,
             notaMedia: 0,
             totalAvaliacoesProf: 0,
             cidadeAtuacaoLabel: labelCidadeAtuacao(rr.cidade_atuacao),
@@ -424,6 +431,7 @@ export default function PerfilSocialPage() {
           docsVerificado: false,
           paisBandeira: null,
           profissionalId: null,
+          empresaHospedagemId: null,
           notaMedia: 0,
           totalAvaliacoesProf: 0,
           cidadeAtuacaoLabel: null,
@@ -660,7 +668,10 @@ export default function PerfilSocialPage() {
       setTuristaContratouProf(false)
       return
     }
-    if ((meuRole !== 'turista' && meuRole !== 'empresa') || perfilRole !== 'profissional') {
+    if (
+      (meuRole !== 'turista' && meuRole !== 'empresa' && meuRole !== 'admin') ||
+      perfilRole !== 'profissional'
+    ) {
       setTuristaContratouProf(false)
       return
     }
@@ -970,23 +981,35 @@ export default function PerfilSocialPage() {
         turistaContratouProfissional={turistaContratouProf}
         cidadeAtuacaoVisitado={profMeta.cidadeAtuacaoLabel}
         onContratar={async () => {
-          if (profMeta.placaVermelha && meuRole === 'turista' && profileId) {
-            let nomeIni = ''
-            let docIni = ''
-            if (meuId) {
-              const { data: tur } = await supabase
-                .from('turistas')
-                .select('nome_completo, documento_identidade')
-                .eq('usuario_id', meuId)
-                .maybeSingle()
-              nomeIni = String(tur?.nome_completo ?? '')
-              docIni = tur?.documento_identidade != null ? String(tur.documento_identidade) : ''
-            }
-            setComplementoTurista({ nome: nomeIni, documento: docIni })
-            setPopComplementoContrato(true)
+          if (!profileId) return
+
+          let apiMobilidadeUrl: string | null = null
+          const cats = normalizarCategoriasProfissional(profMeta.categorias)
+          if (cats.includes('motorista_app')) {
+            const { data: cfg } = await supabase
+              .from('config_apis')
+              .select('api_mobilidade_url')
+              .limit(1)
+              .maybeSingle()
+            apiMobilidadeUrl =
+              cfg?.api_mobilidade_url != null ? String(cfg.api_mobilidade_url).trim() || null : null
+          }
+
+          const { href, externo } = resolverHrefContratarCartaoVisita({
+            categorias: profMeta.categorias,
+            placaVermelha: profMeta.placaVermelha,
+            profissionalUsuarioId: profileId,
+            empresaHospedagemId: profMeta.empresaHospedagemId,
+            apiMobilidadeUrl,
+          })
+
+          setPopCartao(false)
+          if (!href) return
+          if (externo) {
+            window.location.assign(href)
             return
           }
-          router.push('/canal')
+          router.push(href)
         }}
         onAvaliacaoConcluida={() => {
           setPopAvalAba('feedback')
@@ -1019,35 +1042,6 @@ export default function PerfilSocialPage() {
         }}
         onPatchPost={patchFotoPost}
         onRemovePost={(postId) => setPostsFotos((prev) => prev.filter((p) => p.id !== postId))}
-      />
-
-      <PopupComplementoContratacao
-        aberto={popComplementoContrato}
-        onFechar={() => setPopComplementoContrato(false)}
-        nomeInicial={complementoTurista.nome}
-        documentoInicial={complementoTurista.documento}
-        enviando={enviandoContrato}
-        onConfirmar={async (dados) => {
-          setEnviandoContrato(true)
-          try {
-            await fetch('/api/profissional/manifesto/registrar', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                profissional_usuario_id: profileId,
-                contratacao_tipo: 'contratacao_direta',
-                nome_completo: dados.nome_completo,
-                data_nascimento: dados.data_nascimento,
-                documento: dados.documento,
-              }),
-            })
-            setPopComplementoContrato(false)
-            setPopCartao(false)
-            router.push('/canal')
-          } finally {
-            setEnviandoContrato(false)
-          }
-        }}
       />
     </div>
   )

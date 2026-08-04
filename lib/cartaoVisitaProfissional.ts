@@ -166,7 +166,8 @@ export function resolverVisaoCartaoVisita(params: {
 }): VisaoCartaoVisita {
   if (!params.meuId) return 'visitante_anonimo'
   if (params.souDono && params.meuRole === 'profissional') return 'profissional_dono'
-  if (params.meuRole === 'turista') return 'turista'
+  // Adm contrata como turista (atendimento para si).
+  if (params.meuRole === 'turista' || params.meuRole === 'admin') return 'turista'
   if (params.meuRole === 'empresa') return 'empresa'
   if (params.meuRole === 'profissional' && params.meuId !== params.profileId) {
     return 'profissional_visitante'
