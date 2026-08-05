@@ -25,6 +25,7 @@ import {
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { refreshAppViewportHeight } from '@/lib/useAppViewportHeight'
 import {
   buildMobilidadePesquisaHref,
   type MobilidadePesquisaState,
@@ -266,6 +267,9 @@ export default function DrawerPesquisaMobilidade({
   const t = useTranslations('Mobilidade')
   const router = useRouter()
   useModalScrollLock(aberto)
+  useEffect(() => {
+    if (aberto) refreshAppViewportHeight()
+  }, [aberto])
 
   const cidadeOrigemBoot = inferirCidadeDePonto(pesquisa.origem)
   const cidadeDestinoBoot =
@@ -720,7 +724,8 @@ export default function DrawerPesquisaMobilidade({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[75] flex flex-col bg-white"
+      className="fixed left-0 right-0 top-0 z-[75] flex flex-col bg-white"
+      style={{ height: 'var(--app-height, 100dvh)' }}
       role="dialog"
       aria-modal="true"
     >

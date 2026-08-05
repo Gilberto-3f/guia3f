@@ -28,6 +28,7 @@ import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-emp
 import { filtrarFavoritoIdsPorUsuario } from '@/lib/favoritosTurista'
 import { registrarUsoPreLiberacao } from '@/lib/registrarUsoPreLiberacao'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { refreshAppViewportHeight } from '@/lib/useAppViewportHeight'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import {
   formatarPrecoTicket,
@@ -516,6 +517,9 @@ export default function DrawerTicketsAtrativos({
   )
 
   useModalScrollLock(isOpen)
+  useEffect(() => {
+    if (isOpen) refreshAppViewportHeight()
+  }, [isOpen])
 
   const reset = useCallback(() => {
     setPasso(abrirDiretoNoDetalhe ? 2 : 1)
@@ -870,7 +874,8 @@ export default function DrawerTicketsAtrativos({
   return createPortal(
     <>
       <div
-        className="fixed inset-0 z-[140] flex flex-col bg-white"
+        className="fixed left-0 right-0 top-0 z-[140] flex flex-col bg-white"
+        style={{ height: 'var(--app-height, 100dvh)' }}
         role="dialog"
         aria-modal="true"
         aria-label="Tickets"

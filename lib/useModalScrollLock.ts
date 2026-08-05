@@ -31,11 +31,22 @@ const blockTouchMove = (e: TouchEvent) => {
   e.preventDefault()
 }
 
-/** Guia/Mobilidade usam shell fixed inset-0 — position:fixed no body cria faixa sob a barra. */
+/**
+ * Shell com altura controlada / BottomBar no body — position:fixed no body
+ * cria faixa branca sob drawers (guia, mobilidade, empresa/hospedagem, feed…).
+ */
 function usarLockSuave(): boolean {
   if (typeof window === 'undefined') return false
   const p = window.location.pathname
-  return /\/guia\/?$/.test(p) || p.includes('/mobilidade')
+  return (
+    /\/guia\/?$/.test(p) ||
+    p.includes('/mobilidade') ||
+    p.includes('/empresa') ||
+    p.includes('/feed') ||
+    p.includes('/favoritos') ||
+    p.includes('/atividades') ||
+    p.includes('/perfil')
+  )
 }
 
 function limparBodyFixedResidual() {
@@ -50,7 +61,7 @@ function limparBodyFixedResidual() {
 /**
  * Bloqueia scroll do fundo enquanto um modal/popup está aberto (inclui iOS).
  * Suporta múltiplos modais em paralelo; só libera o scroll ao fechar o último.
- * Em Guia/Mobilidade: lock "suave" (sem position:fixed) para não gerar espaço extra sob a UI.
+ * Em rotas do app-shell: lock "suave" (sem position:fixed) para não gerar faixa branca.
  */
 export function useModalScrollLock(aberto: boolean) {
   useEffect(() => {

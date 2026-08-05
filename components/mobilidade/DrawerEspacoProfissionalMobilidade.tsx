@@ -87,7 +87,8 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[90] flex flex-col bg-white"
+      className="fixed left-0 right-0 top-0 z-[90] flex flex-col bg-white"
+      style={{ height: 'var(--app-height, 100dvh)' }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="drawer-espaco-profissional-titulo"

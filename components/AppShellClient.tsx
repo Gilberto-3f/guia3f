@@ -74,7 +74,15 @@ function AppShellLayoutFrame({
 
   // Limpa position:fixed residual de locks antigos (causa faixa sob a barra / drawers).
   useEffect(() => {
-    if (!isGuiaOuMobilidade || typeof document === 'undefined') return
+    if (typeof document === 'undefined') return
+    const softRoute =
+      isGuiaOuMobilidade ||
+      pathname.includes('/empresa') ||
+      pathname.includes('/feed') ||
+      pathname.includes('/favoritos') ||
+      pathname.includes('/atividades') ||
+      pathname.includes('/perfil')
+    if (!softRoute) return
     const body = document.body
     if (body.style.position === 'fixed') {
       body.style.position = ''
@@ -82,7 +90,7 @@ function AppShellLayoutFrame({
       body.style.width = ''
       window.scrollTo(0, 0)
     }
-  }, [isGuiaOuMobilidade, tecladoOcultaBarra])
+  }, [isGuiaOuMobilidade, pathname, tecladoOcultaBarra])
 
   const bottomBar =
     isGuiaOuMobilidade ? (
