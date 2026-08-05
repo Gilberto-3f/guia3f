@@ -350,6 +350,8 @@
     "espacoProfissionalTitulo": "Espacio Profesional",
     "espacoProfissionalFallbackNome": "Profesional",
     "espacoProfissionalBotoesEmBreve": "Herramientas de rutina en breve.",
+    "appParceiroLinkAusente": "El enlace de la app asociada no está configurado. Pide al administrador que lo registre en Configuración → Movilidad.",
+    "appParceiroAbrindo": "Abriendo…",
     "espacoAcao": {
       "app_parceiro": {
         "titulo": "App asociado",

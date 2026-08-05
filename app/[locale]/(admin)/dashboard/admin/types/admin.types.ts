@@ -352,6 +352,8 @@ export type ConfigAPIs = {
   moedas: string[]
   api_mobilidade_url: string
   api_mobilidade_key: string
+  /** Link do app (loja/deep link) para profissionais motorista_app — botão APP PARCEIRO. */
+  app_parceiro_link: string
   cotacoes_modo: CotacaoModoConfig
   cotacoes_fonte_url: string
   cotacoes_manual: Record<string, number>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Briefcase, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -9,6 +9,7 @@ import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { supabase } from '@/lib/supabase'
+import { abrirLinkAppParceiro, carregarLinkAppParceiro } from '@/lib/appParceiroLink'
 import {
   botoesEspacoProfissional,
   resolverPainelMobilidade,
@@ -44,6 +45,35 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
   const [verificado, setVerificado] = useState(false)
   const [notaMedia, setNotaMedia] = useState<number | null>(null)
   const [modo, setModo] = useState<PainelMobilidadeModo | null>(null)
+  const [acaoBusy, setAcaoBusy] = useState(false)
+  const [acaoErro, setAcaoErro] = useState('')
+
+  const handleAcao = useCallback(
+    async (id: EspacoProfissionalAcaoId) => {
+      setAcaoErro('')
+      if (id === 'app_parceiro') {
+        setAcaoBusy(true)
+        try {
+          const link = await carregarLinkAppParceiro()
+          if (!abrirLinkAppParceiro(link)) {
+            setAcaoErro(t('appParceiroLinkAusente'))
+          }
+        } catch {
+          setAcaoErro(t('appParceiroLinkAusente'))
+        } finally {
+          setAcaoBusy(false)
+        }
+        return
+      }
+      /* Demais drawers: próximas etapas */
+    },
+    [t],
+  )
+
+  useEffect(() => {
+    if (!aberto) return
+    setAcaoErro('')
+  }, [aberto])
 
   useEffect(() => {
     if (!aberto) return
@@ -190,20 +220,20 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
           ) : (
             acoes.map((id) => {
               const subtitulo = t(`espacoAcao.${id}.subtitulo`).trim()
+              const busyApp = id === 'app_parceiro' && acaoBusy
               return (
                 <button
                   key={id}
                   type="button"
-                  className="flex w-full flex-col items-center justify-center gap-0 rounded-2xl px-4 py-4 text-center text-white shadow-md transition-opacity hover:opacity-95"
+                  disabled={busyApp}
+                  className="flex w-full flex-col items-center justify-center gap-0 rounded-2xl px-4 py-4 text-center text-white shadow-md transition-opacity hover:opacity-95 disabled:opacity-60"
                   style={{ backgroundColor: COR }}
-                  onClick={() => {
-                    /* Drawers filhos: próxima fase */
-                  }}
+                  onClick={() => void handleAcao(id)}
                 >
                   <span className="text-base font-extrabold uppercase leading-none tracking-wide">
-                    {t(`espacoAcao.${id}.titulo`)}
+                    {busyApp ? t('appParceiroAbrindo') : t(`espacoAcao.${id}.titulo`)}
                   </span>
-                  {subtitulo ? (
+                  {!busyApp && subtitulo ? (
                     <span className="mt-0.5 text-sm font-normal leading-none text-white/90">
                       {subtitulo}
                     </span>
@@ -212,6 +242,11 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
               )
             })
           )}
+          {acaoErro ? (
+            <p className="rounded-xl bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-800">
+              {acaoErro}
+            </p>
+          ) : null}
         </div>
       </div>
     </div>,

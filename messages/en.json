@@ -350,6 +350,8 @@
     "espacoProfissionalTitulo": "Professional Space",
     "espacoProfissionalFallbackNome": "Professional",
     "espacoProfissionalBotoesEmBreve": "Routine tools coming soon.",
+    "appParceiroLinkAusente": "Partner app link is not configured. Ask an admin to set it under Settings → Mobility.",
+    "appParceiroAbrindo": "Opening…",
     "espacoAcao": {
       "app_parceiro": {
         "titulo": "Partner app",

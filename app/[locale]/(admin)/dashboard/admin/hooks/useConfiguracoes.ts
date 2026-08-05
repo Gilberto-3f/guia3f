@@ -41,6 +41,7 @@ function mapRowToApis(row: Record<string, unknown>): ConfigAPIs {
     moedas: parseMoedas(row.moedas),
     api_mobilidade_url: String(row.api_mobilidade_url ?? ''),
     api_mobilidade_key: String(row.api_mobilidade_key ?? ''),
+    app_parceiro_link: String(row.app_parceiro_link ?? ''),
     cotacoes_modo: row.cotacoes_modo === 'manual' ? 'manual' : 'api',
     cotacoes_fonte_url: String(
       row.cotacoes_fonte_url ??
@@ -74,6 +75,7 @@ const defaultApis = (): ConfigAPIs => ({
   moedas: ['BRL', 'PYG', 'ARS'],
   api_mobilidade_url: '',
   api_mobilidade_key: '',
+  app_parceiro_link: '',
   cotacoes_modo: 'api',
   cotacoes_fonte_url:
     'https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,ARS-BRL,PYG-BRL',
@@ -148,6 +150,7 @@ export function useConfiguracoes() {
         moedas: novasConfig.moedas,
         api_mobilidade_url: novasConfig.api_mobilidade_url || null,
         api_mobilidade_key: novasConfig.api_mobilidade_key || null,
+        app_parceiro_link: novasConfig.app_parceiro_link || null,
         cotacoes_modo: novasConfig.cotacoes_modo,
         cotacoes_fonte_url: novasConfig.cotacoes_fonte_url || null,
         cotacoes_manual: novasConfig.cotacoes_manual ?? {},
