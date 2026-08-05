@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase'
 import { abrirLinkAppParceiro, carregarLinkAppParceiro } from '@/lib/appParceiroLink'
 import PopupRecomendarMobilidade from '@/components/PopupRecomendarMobilidade'
 import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
+import DrawerCalendarioEspaco from '@/components/mobilidade/DrawerCalendarioEspaco'
 import {
   botoesEspacoProfissional,
   resolverPainelMobilidade,
@@ -57,6 +58,7 @@ export default function DrawerEspacoProfissionalMobilidade({
   const [acaoErro, setAcaoErro] = useState('')
   const [recomendarMobAberto, setRecomendarMobAberto] = useState(false)
   const [manifestoAberto, setManifestoAberto] = useState(false)
+  const [calendarioAberto, setCalendarioAberto] = useState(false)
 
   const handleAcao = useCallback(
     async (id: EspacoProfissionalAcaoId) => {
@@ -81,6 +83,10 @@ export default function DrawerEspacoProfissionalMobilidade({
       }
       if (id === 'manifesto') {
         setManifestoAberto(true)
+        return
+      }
+      if (id === 'calendario') {
+        setCalendarioAberto(true)
         return
       }
       /* Demais drawers: próximas etapas */
@@ -277,6 +283,10 @@ export default function DrawerEspacoProfissionalMobilidade({
       onFechar={() => setRecomendarMobAberto(false)}
     />
     <DrawerManifestoEspaco aberto={manifestoAberto} onFechar={() => setManifestoAberto(false)} />
+    <DrawerCalendarioEspaco
+      aberto={calendarioAberto}
+      onFechar={() => setCalendarioAberto(false)}
+    />
     </>,
     document.body,
   )
