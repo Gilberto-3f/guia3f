@@ -727,7 +727,7 @@ export default function DrawerReservaHospedagem({
   return createPortal(
     <>
       <div
-        className={`fixed left-0 right-0 top-0 z-[140] flex flex-col bg-white transition-transform duration-300 ease-out ${
+        className={`fixed inset-0 z-[140] flex flex-col bg-white transition-transform duration-300 ease-out ${
           painelAberto ? 'translate-x-0' : 'translate-x-full'
         }`}
         style={{ height: 'var(--app-height, 100dvh)' }}
@@ -1216,7 +1216,7 @@ export default function DrawerReservaHospedagem({
         </div>
 
         {mostrarRodapePassos ? (
-          <div className="shrink-0 border-t border-gray-200 bg-white px-3 pt-3 pb-3">
+          <div className="shrink-0 border-t border-gray-200 bg-white px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
             {passo === 2 ? (
               <div className="flex gap-2">
                 <button

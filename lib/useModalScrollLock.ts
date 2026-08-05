@@ -16,6 +16,18 @@ type ScrollLockSnapshot = {
 let activeLocks = 0
 let snapshot: ScrollLockSnapshot | null = null
 
+/** AppShell escuta para ocultar a BottomBar sob drawers (evita faixa branca no rodapé). */
+export const MODAL_SCROLL_LOCK_EVENT = 'guia-modal-scroll-lock'
+
+function emitirLockChange() {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(
+    new CustomEvent(MODAL_SCROLL_LOCK_EVENT, {
+      detail: { locked: activeLocks > 0 },
+    }),
+  )
+}
+
 /** True enquanto ao menos um modal/popup com scroll lock está aberto. */
 export function isModalScrollLocked() {
   return activeLocks > 0
@@ -101,9 +113,11 @@ export function useModalScrollLock(aberto: boolean) {
     }
 
     activeLocks += 1
+    emitirLockChange()
 
     return () => {
       activeLocks = Math.max(0, activeLocks - 1)
+      emitirLockChange()
       if (activeLocks > 0 || !snapshot) return
 
       document.removeEventListener('touchmove', blockTouchMove)

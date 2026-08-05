@@ -724,7 +724,7 @@ export default function DrawerPesquisaMobilidade({
 
   return createPortal(
     <div
-      className="fixed left-0 right-0 top-0 z-[75] flex flex-col bg-white"
+      className="fixed inset-0 z-[75] flex flex-col bg-white"
       style={{ height: 'var(--app-height, 100dvh)' }}
       role="dialog"
       aria-modal="true"
@@ -1365,7 +1365,7 @@ export default function DrawerPesquisaMobilidade({
         ) : null}
       </div>
 
-      <div className="shrink-0 border-t border-gray-100 p-3">
+      <div className="shrink-0 border-t border-gray-100 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
         {etapa === 1 ? (
           <button
             type="button"

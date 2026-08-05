@@ -15,6 +15,10 @@ import TuristaComprasNotificacaoGate from '@/components/TuristaComprasNotificaca
 import ConviteAdminGate from '@/components/ConviteAdminGate'
 import AdminColaboradorModoGate from '@/components/AdminColaboradorModoGate'
 import { useAppViewportHeight } from '@/lib/useAppViewportHeight'
+import {
+  isModalScrollLocked,
+  MODAL_SCROLL_LOCK_EVENT,
+} from '@/lib/useModalScrollLock'
 
 /** `feed/criar` emite quando o teclado está visível para esconder a barra (aba TEXTO ou legenda na FOTO). */
 const CRIAR_KEYBOARD_EVENT = 'guia-criar-keyboard'
@@ -59,11 +63,13 @@ function AppShellLayoutFrame({
   pathname,
   modoAtivo,
   tecladoOcultaBarra,
+  modalOcultaBarra,
   children,
 }: {
   pathname: string
   modoAtivo: boolean
   tecladoOcultaBarra: boolean
+  modalOcultaBarra: boolean
   children: ReactNode
 }) {
   const { hideBottomBar, paddingInferior, fundoShell, isGuiaOuMobilidade, telaMensageiro } =
@@ -90,18 +96,19 @@ function AppShellLayoutFrame({
       body.style.width = ''
       window.scrollTo(0, 0)
     }
-  }, [isGuiaOuMobilidade, pathname, tecladoOcultaBarra])
+  }, [isGuiaOuMobilidade, pathname, tecladoOcultaBarra, modalOcultaBarra])
 
-  const bottomBar =
-    isGuiaOuMobilidade ? (
+  /** Drawer/modal aberto: oculta BottomBar (faixa branca sob hospedagem/produtos). */
+  const ocultarBarra = tecladoOcultaBarra || modalOcultaBarra
+
+  const bottomBarPortal =
+    isGuiaOuMobilidade || !hideBottomBar ? (
       <div
-        className={tecladoOcultaBarra ? 'pointer-events-none invisible' : undefined}
-        aria-hidden={tecladoOcultaBarra || undefined}
+        className={ocultarBarra ? 'pointer-events-none invisible' : undefined}
+        aria-hidden={ocultarBarra || undefined}
       >
         <BottomBar />
       </div>
-    ) : !hideBottomBar ? (
-      <BottomBar />
     ) : null
 
   return (
@@ -127,7 +134,7 @@ function AppShellLayoutFrame({
         </div>
       </div>
       {/* Portal no body: evita containing block de ancestors fixed/transform (faixa no iOS). */}
-      {portalReady && bottomBar ? createPortal(bottomBar, document.body) : null}
+      {portalReady && bottomBarPortal ? createPortal(bottomBarPortal, document.body) : null}
     </>
   )
 }
@@ -135,7 +142,12 @@ function AppShellLayoutFrame({
 /** Fallback: mesma árvore que o shell em /feed (gray-50, chrome, barra). pathname vazio → defaults de feed. */
 function AppShellSuspenseFallback({ children }: { children: ReactNode }) {
   return (
-    <AppShellLayoutFrame pathname="" modoAtivo={false} tecladoOcultaBarra={false}>
+    <AppShellLayoutFrame
+      pathname=""
+      modoAtivo={false}
+      tecladoOcultaBarra={false}
+      modalOcultaBarra={false}
+    >
       {children}
     </AppShellLayoutFrame>
   )
@@ -144,6 +156,7 @@ function AppShellSuspenseFallback({ children }: { children: ReactNode }) {
 function AppShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const [tecladoOcultaBarra, setTecladoOcultaBarra] = useState(false)
+  const [modalOcultaBarra, setModalOcultaBarra] = useState(() => isModalScrollLocked())
   const { modoAtivo } = useModoApresentacao()
 
   useEffect(() => {
@@ -153,6 +166,16 @@ function AppShellInner({ children }: { children: ReactNode }) {
     }
     window.addEventListener(CRIAR_KEYBOARD_EVENT, onKb as EventListener)
     return () => window.removeEventListener(CRIAR_KEYBOARD_EVENT, onKb as EventListener)
+  }, [])
+
+  useEffect(() => {
+    const onLock = (e: Event) => {
+      const d = (e as CustomEvent<{ locked?: boolean }>).detail
+      setModalOcultaBarra(!!d?.locked)
+    }
+    setModalOcultaBarra(isModalScrollLocked())
+    window.addEventListener(MODAL_SCROLL_LOCK_EVENT, onLock as EventListener)
+    return () => window.removeEventListener(MODAL_SCROLL_LOCK_EVENT, onLock as EventListener)
   }, [])
 
   useEffect(() => {
@@ -170,6 +193,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
       pathname={pathname}
       modoAtivo={modoAtivo}
       tecladoOcultaBarra={tecladoOcultaBarra}
+      modalOcultaBarra={modalOcultaBarra}
     >
       {children}
     </AppShellLayoutFrame>
