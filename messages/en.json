@@ -353,27 +353,27 @@
     "espacoAcao": {
       "app_parceiro": {
         "titulo": "Partner app",
-        "subtitulo": "Integration with urban mobility apps"
+        "subtitulo": ""
       },
       "ecossistema": {
         "titulo": "Ecosystem",
-        "subtitulo": "Guia 3F tools and connections"
+        "subtitulo": ""
       },
       "parcerias": {
-        "titulo": "Partnerships",
-        "subtitulo": "Closed partnerships with ecosystem peers"
+        "titulo": "History",
+        "subtitulo": "(sales + partnerships)"
       },
       "manifesto": {
-        "titulo": "Manifesto",
-        "subtitulo": "Daily passenger list"
+        "titulo": "Manifest",
+        "subtitulo": "(Passenger list)"
       },
       "calendario": {
         "titulo": "Calendar",
-        "subtitulo": "Advance booking schedule"
+        "subtitulo": "(pre-booking)"
       },
       "historico": {
         "titulo": "History",
-        "subtitulo": "Completed services"
+        "subtitulo": "(of services)"
       }
     },
     "statusEmAtendimento": "On a ride",

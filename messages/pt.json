@@ -353,27 +353,27 @@
     "espacoAcao": {
       "app_parceiro": {
         "titulo": "App parceiro",
-        "subtitulo": "Integração com apps de mobilidade urbana"
+        "subtitulo": ""
       },
       "ecossistema": {
         "titulo": "Ecossistema",
-        "subtitulo": "Ferramentas e conexões do Guia 3F"
+        "subtitulo": ""
       },
       "parcerias": {
-        "titulo": "Parcerias",
-        "subtitulo": "Parcerias fechadas com colegas do ecossistema"
+        "titulo": "Histórico",
+        "subtitulo": "(vendas + parcerias)"
       },
       "manifesto": {
         "titulo": "Manifesto",
-        "subtitulo": "Lista de passageiros do dia"
+        "subtitulo": "(Lista de Passageiro)"
       },
       "calendario": {
         "titulo": "Calendário",
-        "subtitulo": "Pré-agendamento de atendimentos"
+        "subtitulo": "(pré-agendamento)"
       },
       "historico": {
         "titulo": "Histórico",
-        "subtitulo": "Atendimentos realizados"
+        "subtitulo": "(de atendimentos)"
       }
     },
     "statusEmAtendimento": "Em atendimento",

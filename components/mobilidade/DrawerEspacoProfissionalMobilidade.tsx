@@ -143,24 +143,29 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
           {modo == null ? (
             <p className="animate-pulse text-center text-sm text-gray-400">…</p>
           ) : (
-            acoes.map((id) => (
-              <button
-                key={id}
-                type="button"
-                className="flex w-full flex-col items-start rounded-2xl px-4 py-4 text-left text-white shadow-md transition-opacity hover:opacity-95"
-                style={{ backgroundColor: COR }}
-                onClick={() => {
-                  /* Drawers filhos: próxima fase */
-                }}
-              >
-                <span className="text-base font-extrabold uppercase tracking-wide">
-                  {t(`espacoAcao.${id}.titulo`)}
-                </span>
-                <span className="mt-1 text-sm font-normal text-white/90">
-                  {t(`espacoAcao.${id}.subtitulo`)}
-                </span>
-              </button>
-            ))
+            acoes.map((id) => {
+              const subtitulo = t(`espacoAcao.${id}.subtitulo`).trim()
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className="flex w-full flex-col items-center justify-center gap-0 rounded-2xl px-4 py-4 text-center text-white shadow-md transition-opacity hover:opacity-95"
+                  style={{ backgroundColor: COR }}
+                  onClick={() => {
+                    /* Drawers filhos: próxima fase */
+                  }}
+                >
+                  <span className="text-base font-extrabold uppercase leading-none tracking-wide">
+                    {t(`espacoAcao.${id}.titulo`)}
+                  </span>
+                  {subtitulo ? (
+                    <span className="mt-0.5 text-sm font-normal leading-none text-white/90">
+                      {subtitulo}
+                    </span>
+                  ) : null}
+                </button>
+              )
+            })
           )}
         </div>
       </div>
