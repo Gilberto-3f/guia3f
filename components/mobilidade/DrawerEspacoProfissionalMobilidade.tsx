@@ -17,10 +17,17 @@ import {
 } from '@/lib/mobilidadePainelProfissional'
 
 const COR = '#0097b2'
+/** Nota de referência quando o profissional ainda não tem avaliações. */
+const NOTA_REFERENCIA = 5
 
 type Props = {
   aberto: boolean
   onFechar: () => void
+}
+
+function formatarNotaExibicao(media: number | null): string {
+  const n = media != null && media > 0 ? media : NOTA_REFERENCIA
+  return Number.isInteger(n) ? String(n) : n.toFixed(1)
 }
 
 /**
@@ -35,6 +42,7 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
   const [username, setUsername] = useState<string | null>(null)
   const [foto, setFoto] = useState<string | null>(null)
   const [verificado, setVerificado] = useState(false)
+  const [notaMedia, setNotaMedia] = useState<number | null>(null)
   const [modo, setModo] = useState<PainelMobilidadeModo | null>(null)
 
   useEffect(() => {
@@ -49,7 +57,7 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
       const { data: prof } = await supabase
         .from('profissionais')
         .select(
-          'nome_completo, nome_usuario, foto_perfil_url, foto_url, docs_verificado, status, placa_vermelha, categorias',
+          'id, nome_completo, nome_usuario, foto_perfil_url, foto_url, docs_verificado, status, placa_vermelha, categorias',
         )
         .eq('usuario_id', uid)
         .maybeSingle()
@@ -71,6 +79,23 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
         ? prof.categorias.filter((c): c is string => typeof c === 'string')
         : []
       setModo(resolverPainelMobilidade(Boolean(prof.placa_vermelha), cats))
+
+      const profId = String(prof.id ?? '')
+      const alvoIds = [...new Set([uid, ...(profId ? [profId] : [])])]
+      const { data: avs } = await supabase
+        .from('avaliacoes')
+        .select('nota')
+        .eq('alvo_tipo', 'profissional')
+        .in('alvo_id', alvoIds)
+      if (!ativo) return
+      const notas = (avs ?? [])
+        .map((r) => Number(r.nota))
+        .filter((n) => Number.isFinite(n))
+      if (notas.length) {
+        setNotaMedia(notas.reduce((s, n) => s + n, 0) / notas.length)
+      } else {
+        setNotaMedia(null)
+      }
     })()
     return () => {
       ativo = false
@@ -84,6 +109,7 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
     .trim()
   const acoes: EspacoProfissionalAcaoId[] =
     modo != null ? botoesEspacoProfissional(modo) : []
+  const notaTexto = formatarNotaExibicao(notaMedia)
 
   return createPortal(
     <div
@@ -114,7 +140,7 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6" data-modal-scroll-lock-scrollable>
-        <div className="flex flex-col items-center gap-2 text-center">
+        <div className="flex flex-col items-center gap-3 text-center">
           <div
             className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100"
             style={{ boxShadow: `0 0 0 4px ${COR}` }}
@@ -127,16 +153,35 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
               </span>
             )}
           </div>
-          <p className="text-base font-bold text-gray-900">{nome || '…'}</p>
-          {handle ? (
-            <UsuarioHandleVerificado
-              username={handle}
-              verificado={verificado}
-              verificadoTipo="profissional"
-              asButton={false}
-              className="justify-center text-sm font-normal text-gray-600"
-            />
-          ) : null}
+          <div className="flex flex-col items-center gap-0.5 leading-tight">
+            <p className="text-base font-bold leading-tight text-gray-900">{nome || '…'}</p>
+            {handle ? (
+              <div className="flex max-w-full items-center justify-center gap-1.5">
+                <UsuarioHandleVerificado
+                  username={handle}
+                  verificado={verificado}
+                  verificadoTipo="profissional"
+                  asButton={false}
+                  className="justify-center text-sm font-normal leading-tight text-gray-600"
+                />
+                <span
+                  className="inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-amber-500"
+                  aria-label={`Nota ${notaTexto}`}
+                >
+                  <span aria-hidden>★</span>
+                  {notaTexto}
+                </span>
+              </div>
+            ) : (
+              <span
+                className="inline-flex items-center gap-0.5 text-sm font-bold text-amber-500"
+                aria-label={`Nota ${notaTexto}`}
+              >
+                <span aria-hidden>★</span>
+                {notaTexto}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="mt-6 space-y-3">

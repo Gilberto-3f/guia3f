@@ -136,15 +136,6 @@ export default function CardStatusProfissionalMobilidade({
               onStatusChange={onStatusChange}
             />
 
-            {toastOffline ? (
-              <div
-                className="rounded-xl px-3 py-3 text-center text-sm font-semibold text-white shadow"
-                style={{ backgroundColor: COR }}
-              >
-                {t('toastOffline')}
-              </div>
-            ) : null}
-
             <button
               type="button"
               onClick={() => setEspacoAberto(true)}
@@ -154,6 +145,15 @@ export default function CardStatusProfissionalMobilidade({
               <Briefcase className="h-4 w-4 shrink-0" aria-hidden strokeWidth={2.5} />
               {t('espacoProfissionalBotao')}
             </button>
+
+            {toastOffline ? (
+              <div
+                className="rounded-xl px-3 py-3 text-center text-sm font-semibold text-white shadow"
+                style={{ backgroundColor: COR }}
+              >
+                {t('toastOffline')}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

@@ -361,19 +361,19 @@
       },
       "parcerias": {
         "titulo": "History",
-        "subtitulo": "(sales + partnerships)"
+        "subtitulo": "sales + partnerships"
       },
       "manifesto": {
         "titulo": "Manifest",
-        "subtitulo": "(Passenger list)"
+        "subtitulo": "Passenger list"
       },
       "calendario": {
         "titulo": "Calendar",
-        "subtitulo": "(pre-booking)"
+        "subtitulo": "pre-booking"
       },
       "historico": {
         "titulo": "History",
-        "subtitulo": "(of services)"
+        "subtitulo": "of services"
       }
     },
     "statusEmAtendimento": "On a ride",

@@ -361,19 +361,19 @@
       },
       "parcerias": {
         "titulo": "Histórico",
-        "subtitulo": "(vendas + parcerias)"
+        "subtitulo": "vendas + parcerias"
       },
       "manifesto": {
         "titulo": "Manifesto",
-        "subtitulo": "(Lista de Passageiro)"
+        "subtitulo": "Lista de Passageiro"
       },
       "calendario": {
         "titulo": "Calendário",
-        "subtitulo": "(pré-agendamento)"
+        "subtitulo": "pré-agendamento"
       },
       "historico": {
         "titulo": "Histórico",
-        "subtitulo": "(de atendimentos)"
+        "subtitulo": "de atendimentos"
       }
     },
     "statusEmAtendimento": "Em atendimento",
