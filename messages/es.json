@@ -362,7 +362,7 @@
       },
       "ecossistema": {
         "titulo": "Ecosistema",
-        "subtitulo": ""
+        "subtitulo": "recomendar profesional"
       },
       "mobilidade_urbana": {
         "titulo": "Movilidad urbana",
@@ -419,6 +419,16 @@
     "calendarioLegendaLotado": "Lleno",
     "calendarioLegendaVazio": "Sin agenda",
     "calendarioLegendaPassado": "Pasado",
+    "ecossistemaHint": "Busca un profesional del ecosistema para ver su agenda y recomendar con precisión.",
+    "ecossistemaBuscaPlaceholder": "Nombre o @usuario",
+    "ecossistemaErroBusca": "No se pudo buscar profesionales.",
+    "ecossistemaSemResultados": "Ningún profesional encontrado.",
+    "ecossistemaAgendaTitulo": "Agenda del indicado",
+    "ecossistemaAgendaHint": "Solo lectura — plazas publicadas por el profesional.",
+    "ecossistemaErroAgenda": "No se pudo cargar la agenda.",
+    "ecossistemaSemPlaca": "Este profesional no publica agenda de preagendamiento.",
+    "ecossistemaSemAgenda": "Todavía no hay fechas publicadas.",
+    "ecossistemaRecomendar": "Recomendar",
     "statusEmAtendimento": "En atención",
     "statusErro": "No se pudo actualizar el estado.",
     "statusGpsObrigatorio": "Permite el GPS para estar online.",

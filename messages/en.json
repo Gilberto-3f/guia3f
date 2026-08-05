@@ -362,7 +362,7 @@
       },
       "ecossistema": {
         "titulo": "Ecosystem",
-        "subtitulo": ""
+        "subtitulo": "recommend a professional"
       },
       "mobilidade_urbana": {
         "titulo": "Urban mobility",
@@ -419,6 +419,16 @@
     "calendarioLegendaLotado": "Full",
     "calendarioLegendaVazio": "No schedule",
     "calendarioLegendaPassado": "Past",
+    "ecossistemaHint": "Search for an ecosystem professional to see their schedule and recommend assertively.",
+    "ecossistemaBuscaPlaceholder": "Name or @username",
+    "ecossistemaErroBusca": "Could not search for professionals.",
+    "ecossistemaSemResultados": "No professionals found.",
+    "ecossistemaAgendaTitulo": "Indicated professional's schedule",
+    "ecossistemaAgendaHint": "Read-only — seats published by the professional.",
+    "ecossistemaErroAgenda": "Could not load the schedule.",
+    "ecossistemaSemPlaca": "This professional does not publish a pre-booking schedule.",
+    "ecossistemaSemAgenda": "No dates published yet.",
+    "ecossistemaRecomendar": "Recommend",
     "statusEmAtendimento": "On a ride",
     "statusErro": "Could not update status.",
     "statusGpsObrigatorio": "Allow GPS to go online.",

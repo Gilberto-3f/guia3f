@@ -13,6 +13,7 @@ import { abrirLinkAppParceiro, carregarLinkAppParceiro } from '@/lib/appParceiro
 import PopupRecomendarMobilidade from '@/components/PopupRecomendarMobilidade'
 import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
 import DrawerCalendarioEspaco from '@/components/mobilidade/DrawerCalendarioEspaco'
+import DrawerEcossistemaEspaco from '@/components/mobilidade/DrawerEcossistemaEspaco'
 import {
   botoesEspacoProfissional,
   resolverPainelMobilidade,
@@ -59,6 +60,7 @@ export default function DrawerEspacoProfissionalMobilidade({
   const [recomendarMobAberto, setRecomendarMobAberto] = useState(false)
   const [manifestoAberto, setManifestoAberto] = useState(false)
   const [calendarioAberto, setCalendarioAberto] = useState(false)
+  const [ecossistemaAberto, setEcossistemaAberto] = useState(false)
 
   const handleAcao = useCallback(
     async (id: EspacoProfissionalAcaoId) => {
@@ -87,6 +89,10 @@ export default function DrawerEspacoProfissionalMobilidade({
       }
       if (id === 'calendario') {
         setCalendarioAberto(true)
+        return
+      }
+      if (id === 'ecossistema') {
+        setEcossistemaAberto(true)
         return
       }
       /* Demais drawers: próximas etapas */
@@ -286,6 +292,10 @@ export default function DrawerEspacoProfissionalMobilidade({
     <DrawerCalendarioEspaco
       aberto={calendarioAberto}
       onFechar={() => setCalendarioAberto(false)}
+    />
+    <DrawerEcossistemaEspaco
+      aberto={ecossistemaAberto}
+      onFechar={() => setEcossistemaAberto(false)}
     />
     </>,
     document.body,
