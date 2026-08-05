@@ -385,6 +385,16 @@
         "subtitulo": "de atenciones"
       }
     },
+    "manifestoDeHoje": "Manifiesto de hoy",
+    "manifestoOutrasListas": "Otras listas",
+    "manifestoSemOutras": "No hay otras fechas con manifiesto.",
+    "manifestoListaPassageiros": "Lista de pasajeros",
+    "manifestoAbaLista": "Lista",
+    "manifestoAbaItinerario": "Itinerario",
+    "manifestoQuemDesejaVisitar": "Quién desea visitar",
+    "manifestoErro": "No se pudo cargar el manifiesto.",
+    "manifestoSemPassageiros": "Ningún pasajero en esta lista.",
+    "manifestoSemParadas": "Ninguna parada en el itinerario.",
     "statusEmAtendimento": "En atención",
     "statusErro": "No se pudo actualizar el estado.",
     "statusGpsObrigatorio": "Permite el GPS para estar online.",

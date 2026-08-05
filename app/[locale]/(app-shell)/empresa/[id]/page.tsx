@@ -6,6 +6,7 @@ import { Camera, ChevronDown, ChevronUp, FileText, Globe2, MapPin, Star } from '
 import { supabase } from '@/lib/supabase'
 import BotaoVoltar from '@/components/BotaoVoltar'
 import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
+import BotaoAlfineteItinerario from '@/components/manifesto/BotaoAlfineteItinerario'
 import Username from '@/components/Username'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { bandeiraProfissionalRegistro } from '@/lib/bandeiraProfissional'
@@ -509,14 +510,17 @@ export default function EmpresaPage() {
           </div>
           <div className="flex shrink-0 items-center justify-end gap-1">
             {authCarregado && meuRole === 'turista' ? (
-              <BotaoEstrelaFavorito
-                usuarioId={usuarioId}
-                alvoId={empresaId}
-                tipo="empresa"
-                inicial={favEmpresa}
-                size={22}
-                onChange={setFavEmpresa}
-              />
+              <>
+                <BotaoAlfineteItinerario empresaId={empresaId} size={22} />
+                <BotaoEstrelaFavorito
+                  usuarioId={usuarioId}
+                  alvoId={empresaId}
+                  tipo="empresa"
+                  inicial={favEmpresa}
+                  size={22}
+                  onChange={setFavEmpresa}
+                />
+              </>
             ) : null}
             {podeAbrirMenu ? <BotaoAbrirMenuLateral onClick={() => setMenuAberto(true)} /> : null}
           </div>

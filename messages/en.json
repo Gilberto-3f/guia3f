@@ -385,6 +385,16 @@
         "subtitulo": "of services"
       }
     },
+    "manifestoDeHoje": "Today's manifest",
+    "manifestoOutrasListas": "Other lists",
+    "manifestoSemOutras": "No other dates with a manifest.",
+    "manifestoListaPassageiros": "Passenger list",
+    "manifestoAbaLista": "List",
+    "manifestoAbaItinerario": "Itinerary",
+    "manifestoQuemDesejaVisitar": "Who wants to visit",
+    "manifestoErro": "Could not load the manifest.",
+    "manifestoSemPassageiros": "No passengers on this list.",
+    "manifestoSemParadas": "No stops on the itinerary.",
     "statusEmAtendimento": "On a ride",
     "statusErro": "Could not update status.",
     "statusGpsObrigatorio": "Allow GPS to go online.",

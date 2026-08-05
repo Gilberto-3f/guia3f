@@ -11,6 +11,7 @@ import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { supabase } from '@/lib/supabase'
 import { abrirLinkAppParceiro, carregarLinkAppParceiro } from '@/lib/appParceiroLink'
 import PopupRecomendarMobilidade from '@/components/PopupRecomendarMobilidade'
+import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
 import {
   botoesEspacoProfissional,
   resolverPainelMobilidade,
@@ -55,6 +56,7 @@ export default function DrawerEspacoProfissionalMobilidade({
   const [acaoBusy, setAcaoBusy] = useState(false)
   const [acaoErro, setAcaoErro] = useState('')
   const [recomendarMobAberto, setRecomendarMobAberto] = useState(false)
+  const [manifestoAberto, setManifestoAberto] = useState(false)
 
   const handleAcao = useCallback(
     async (id: EspacoProfissionalAcaoId) => {
@@ -75,6 +77,10 @@ export default function DrawerEspacoProfissionalMobilidade({
       }
       if (id === 'mobilidade_urbana') {
         setRecomendarMobAberto(true)
+        return
+      }
+      if (id === 'manifesto') {
+        setManifestoAberto(true)
         return
       }
       /* Demais drawers: próximas etapas */
@@ -270,6 +276,7 @@ export default function DrawerEspacoProfissionalMobilidade({
       aberto={recomendarMobAberto}
       onFechar={() => setRecomendarMobAberto(false)}
     />
+    <DrawerManifestoEspaco aberto={manifestoAberto} onFechar={() => setManifestoAberto(false)} />
     </>,
     document.body,
   )

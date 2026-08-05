@@ -385,6 +385,16 @@
         "subtitulo": "de atendimentos"
       }
     },
+    "manifestoDeHoje": "Manifesto de hoje",
+    "manifestoOutrasListas": "Outras listas",
+    "manifestoSemOutras": "Nenhuma outra data com manifesto.",
+    "manifestoListaPassageiros": "Lista de passageiros",
+    "manifestoAbaLista": "Lista",
+    "manifestoAbaItinerario": "Itinerário",
+    "manifestoQuemDesejaVisitar": "Quem deseja visitar",
+    "manifestoErro": "Não foi possível carregar o manifesto.",
+    "manifestoSemPassageiros": "Nenhum passageiro nesta lista.",
+    "manifestoSemParadas": "Nenhuma parada no itinerário.",
     "statusEmAtendimento": "Em atendimento",
     "statusErro": "Não foi possível atualizar o status.",
     "statusGpsObrigatorio": "Permita o GPS para ficar online.",
