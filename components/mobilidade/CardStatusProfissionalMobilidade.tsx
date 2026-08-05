@@ -1,13 +1,33 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { Briefcase, ChevronDown, ChevronUp } from 'lucide-react'
+import { useCallback, useEffect, useState, type SVGProps } from 'react'
+import { Briefcase, ChevronDown, ChevronUp, Smile } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ToggleStatusMobilidade from '@/components/mobilidade/ToggleStatusMobilidade'
 import DrawerEspacoProfissionalMobilidade from '@/components/mobilidade/DrawerEspacoProfissionalMobilidade'
 import type { MobilidadeStatusId } from '@/lib/mobilidadeStatusProfissional'
 
 const COR = '#0097b2'
+
+/** Ícone zZz (sono) — offline profissional. */
+function IconZzz(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      {...props}
+    >
+      <path d="M4 16h5l-5 5h5" />
+      <path d="M10 9h4.5L10 14h4.5" />
+      <path d="M16 4h4l-4 4h4" />
+    </svg>
+  )
+}
 
 type Props = {
   className?: string
@@ -91,7 +111,11 @@ export default function CardStatusProfissionalMobilidade({
             aria-label={titulo}
           >
             <div className="flex min-w-0 items-center gap-2.5">
-              <Briefcase className="h-5 w-5 shrink-0 text-white" aria-hidden strokeWidth={2} />
+              {online ? (
+                <Smile className="h-5 w-5 shrink-0 text-white" aria-hidden strokeWidth={2} />
+              ) : (
+                <IconZzz className="h-5 w-5 shrink-0 text-white" />
+              )}
               <p className="text-base font-extrabold uppercase tracking-wide text-white">{titulo}</p>
             </div>
             {painelAberto ? (
@@ -101,35 +125,36 @@ export default function CardStatusProfissionalMobilidade({
             )}
           </button>
 
-          {painelAberto ? (
-            <div className="space-y-3 px-4 py-4">
-              <ToggleStatusMobilidade
-                variant="card"
-                corOffline={COR}
-                onStatusChange={onStatusChange}
-              />
+          {/* Toggle sempre montado (evita flash de loading ao abrir o chevron). */}
+          <div
+            className={painelAberto ? 'space-y-3 px-4 py-4' : 'hidden'}
+            aria-hidden={!painelAberto}
+          >
+            <ToggleStatusMobilidade
+              variant="card"
+              corOffline={COR}
+              onStatusChange={onStatusChange}
+            />
 
-              {toastOffline ? (
-                <div
-                  className="rounded-xl px-3 py-3 text-center text-sm font-semibold text-white shadow"
-                  style={{ backgroundColor: COR }}
-                >
-                  {t('toastOffline')}
-                </div>
-              ) : null}
+            {toastOffline ? (
+              <div
+                className="rounded-xl px-3 py-3 text-center text-sm font-semibold text-white shadow"
+                style={{ backgroundColor: COR }}
+              >
+                {t('toastOffline')}
+              </div>
+            ) : null}
 
-              {online ? (
-                <button
-                  type="button"
-                  onClick={() => setEspacoAberto(true)}
-                  className="w-full rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm transition-opacity hover:opacity-95"
-                  style={{ backgroundColor: COR }}
-                >
-                  {t('espacoProfissionalBotao')}
-                </button>
-              ) : null}
-            </div>
-          ) : null}
+            <button
+              type="button"
+              onClick={() => setEspacoAberto(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm transition-opacity hover:opacity-95"
+              style={{ backgroundColor: COR }}
+            >
+              <Briefcase className="h-4 w-4 shrink-0" aria-hidden strokeWidth={2.5} />
+              {t('espacoProfissionalBotao')}
+            </button>
+          </div>
         </div>
       </div>
 
