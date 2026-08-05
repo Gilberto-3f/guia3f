@@ -15,14 +15,18 @@ export type AtendimentoDiaItem = {
   data_agendada: string | null
 }
 
-/** Atendimentos do dia do profissional (lista taxista). */
-export async function GET() {
+/** Atendimentos do dia do profissional (lista taxista).
+ *  `?historico=1` → últimos 30 dias (sem filtro só de hoje).
+ */
+export async function GET(req: Request) {
   const auth = await assertUserSession()
   if (!auth.ok) return auth.error
 
   if (auth.role !== 'profissional') {
     return NextResponse.json({ error: 'Apenas profissionais.' }, { status: 403 })
   }
+
+  const historico = new URL(req.url).searchParams.get('historico') === '1'
 
   let admin
   try {
@@ -47,26 +51,27 @@ export async function GET() {
   const d = String(hoje.getDate()).padStart(2, '0')
   const dia = `${y}-${m}-${d}`
 
+  const statuses = historico
+    ? ['aceita', 'em_andamento', 'concluida', 'oferecida', 'agendada', 'aguardando_confirmacao', 'cancelada']
+    : ['aceita', 'em_andamento', 'concluida', 'oferecida', 'agendada', 'aguardando_confirmacao']
+
   const { data: rows, error } = await admin
     .from('solicitacao_mobilidade')
     .select(
       'id, status, origem_nome, destino_nome, valor_estimado, turista_id, created_at, data_agendada',
     )
     .eq('profissional_id', prof.id)
-    .in('status', [
-      'aceita',
-      'em_andamento',
-      'concluida',
-      'oferecida',
-      'agendada',
-      'aguardando_confirmacao',
-    ])
+    .in('status', statuses)
     .order('created_at', { ascending: false })
-    .limit(80)
+    .limit(historico ? 120 : 80)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 })
   }
+
+  const limiteHistorico = new Date(hoje)
+  limiteHistorico.setDate(limiteHistorico.getDate() - 30)
+  const limiteIso = limiteHistorico.toISOString().slice(0, 10)
 
   const noDia = (iso: string | null | undefined) => {
     if (!iso) return false
@@ -74,13 +79,21 @@ export async function GET() {
     return s.slice(0, 10) === dia || s.includes(dia)
   }
 
-  const rowsDia = (rows ?? []).filter(
-    (r) => noDia(r.created_at != null ? String(r.created_at) : null) || noDia(r.data_agendada != null ? String(r.data_agendada) : null),
-  )
+  const noPeriodo = (iso: string | null | undefined) => {
+    if (!iso) return false
+    return String(iso).slice(0, 10) >= limiteIso
+  }
+
+  const rowsFiltrados = (rows ?? []).filter((r) => {
+    const created = r.created_at != null ? String(r.created_at) : null
+    const agendada = r.data_agendada != null ? String(r.data_agendada) : null
+    if (historico) return noPeriodo(created) || noPeriodo(agendada)
+    return noDia(created) || noDia(agendada)
+  })
 
   const turistaIds = [
     ...new Set(
-      rowsDia
+      rowsFiltrados
         .map((r) => (r.turista_id != null ? String(r.turista_id) : ''))
         .filter(Boolean),
     ),
@@ -130,7 +143,7 @@ export async function GET() {
     }
   }
 
-  const atendimentos: AtendimentoDiaItem[] = rowsDia.map((r) => {
+  const atendimentos: AtendimentoDiaItem[] = rowsFiltrados.map((r) => {
     const tid = r.turista_id != null ? String(r.turista_id) : ''
     const p = tid ? perfilByUser.get(tid) : null
     return {
@@ -147,5 +160,5 @@ export async function GET() {
     }
   })
 
-  return NextResponse.json({ ok: true, data: dia, atendimentos })
+  return NextResponse.json({ ok: true, data: dia, historico, atendimentos })
 }

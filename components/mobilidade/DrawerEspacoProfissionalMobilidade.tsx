@@ -14,6 +14,8 @@ import PopupRecomendarMobilidade from '@/components/PopupRecomendarMobilidade'
 import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
 import DrawerCalendarioEspaco from '@/components/mobilidade/DrawerCalendarioEspaco'
 import DrawerEcossistemaEspaco from '@/components/mobilidade/DrawerEcossistemaEspaco'
+import DrawerHistoricoAtendimentosEspaco from '@/components/mobilidade/DrawerHistoricoAtendimentosEspaco'
+import DrawerHistoricoParceriasEspaco from '@/components/mobilidade/DrawerHistoricoParceriasEspaco'
 import {
   botoesEspacoProfissional,
   resolverPainelMobilidade,
@@ -61,6 +63,8 @@ export default function DrawerEspacoProfissionalMobilidade({
   const [manifestoAberto, setManifestoAberto] = useState(false)
   const [calendarioAberto, setCalendarioAberto] = useState(false)
   const [ecossistemaAberto, setEcossistemaAberto] = useState(false)
+  const [historicoAtendAberto, setHistoricoAtendAberto] = useState(false)
+  const [historicoParcAberto, setHistoricoParcAberto] = useState(false)
 
   const handleAcao = useCallback(
     async (id: EspacoProfissionalAcaoId) => {
@@ -95,7 +99,14 @@ export default function DrawerEspacoProfissionalMobilidade({
         setEcossistemaAberto(true)
         return
       }
-      /* Demais drawers: próximas etapas */
+      if (id === 'historico') {
+        setHistoricoAtendAberto(true)
+        return
+      }
+      if (id === 'parcerias') {
+        setHistoricoParcAberto(true)
+        return
+      }
     },
     [t],
   )
@@ -296,6 +307,14 @@ export default function DrawerEspacoProfissionalMobilidade({
     <DrawerEcossistemaEspaco
       aberto={ecossistemaAberto}
       onFechar={() => setEcossistemaAberto(false)}
+    />
+    <DrawerHistoricoAtendimentosEspaco
+      aberto={historicoAtendAberto}
+      onFechar={() => setHistoricoAtendAberto(false)}
+    />
+    <DrawerHistoricoParceriasEspaco
+      aberto={historicoParcAberto}
+      onFechar={() => setHistoricoParcAberto(false)}
     />
     </>,
     document.body,

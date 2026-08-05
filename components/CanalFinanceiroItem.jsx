@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { DollarSign, FileText, CheckCircle, Eye } from 'lucide-react'
+import { DollarSign, FileText, CheckCircle, Eye, MessageCircle } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import { supabase } from '@/lib/supabase'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { marcarFinanceiroItemLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { marcarFinanceiroItemLidoProfissional } from '@/lib/canaisProfissionalVisibilidade'
+import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
 
 /**
  * @param {{
@@ -50,10 +51,14 @@ export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = nu
     Boolean(parceiro) &&
     (kind === 'anfitriao_foi_recomendado' ||
       kind === 'indicador_contratacao_hospedagem' ||
-      kind === 'proposta_parceria_base')
+      kind === 'proposta_parceria_base' ||
+      kind === 'confirmar_pagamento_bilateral')
   const parceiroNome = parceiro?.nome != null ? String(parceiro.nome) : 'Profissional'
   const parceiroUsername = parceiro?.username != null ? String(parceiro.username) : ''
   const parceiroFoto = parceiro?.foto_url != null ? String(parceiro.foto_url) : null
+  const parceiroWhatsapp = parceiro?.whatsapp != null ? String(parceiro.whatsapp) : ''
+  const bilateralPagamento = kind === 'confirmar_pagamento_bilateral'
+  const liquidadoBilateral = detalhes.liquidado === true
   const recomendadoEm =
     detalhes.recomendado_em != null && String(detalhes.recomendado_em).trim() !== ''
       ? String(detalhes.recomendado_em)
@@ -158,13 +163,37 @@ export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = nu
                   sizes="44px"
                 />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-gray-800">{parceiroNome}</p>
                 <p className="truncate text-xs text-gray-500">
                   {parceiroUsername.startsWith('@') ? parceiroUsername : `@${parceiroUsername}`}
                 </p>
               </div>
+              {bilateralPagamento && parceiroWhatsapp ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    openWhatsAppChat(
+                      parceiroWhatsapp,
+                      `Olá ${parceiroNome}, sobre a confirmação de pagamento/recebimento da parceria no Guia 3F.`,
+                    )
+                  }}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#0097b2]/10 px-2 py-1.5 text-xs font-bold text-[#0097b2]"
+                  aria-label="WhatsApp do parceiro"
+                >
+                  <MessageCircle size={14} aria-hidden />
+                  WhatsApp
+                </button>
+              ) : null}
             </div>
+          ) : null}
+
+          {bilateralPagamento ? (
+            <p className="mb-2 text-xs font-medium text-amber-800">
+              {liquidadoBilateral
+                ? 'Liquidado — ambas as partes confirmaram (sem timeout).'
+                : 'Pendente até as duas partes confirmarem (sem prazo de expiração).'}
+            </p>
           ) : null}
 
           {recomendadoEm ? (

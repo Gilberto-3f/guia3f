@@ -25,6 +25,7 @@ export type ParceriaRow = {
     username: string
     foto_url: string | null
     categorias: string
+    whatsapp: string | null
   }
   turista: {
     nome: string
@@ -34,6 +35,9 @@ export type ParceriaRow = {
   papel: 'indicador' | 'indicado' | 'parceiro'
   total_comissoes_estimadas: number | null
   atrativos: ParceriaAtrativoRow[]
+  pagamento_confirmado: boolean
+  recebimento_confirmado: boolean
+  liquidado: boolean
 }
 
 async function buscarAtrativosParceria(
@@ -126,6 +130,9 @@ export async function GET(req: Request) {
       recomendacao_id,
       profissional_a_id,
       profissional_b_id,
+      pagamento_confirmado_em,
+      recebimento_confirmado_em,
+      liquidado_em,
       recomendacao:recomendacao_id (contratado_em, profissional_indicador_id)
     `,
     )
@@ -147,7 +154,7 @@ export async function GET(req: Request) {
 
     const { data: parceiro } = await auth.supabase
       .from('profissionais')
-      .select('id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias')
+      .select('id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, whatsapp')
       .eq('id', outroProfId)
       .maybeSingle()
 
@@ -180,6 +187,12 @@ export async function GET(req: Request) {
 
     const atrativos = await buscarAtrativosParceria(auth.supabase, profId, turistaId, Boolean(souIndicador))
 
+    const papel: ParceriaRow['papel'] = souIndicador
+      ? 'indicador'
+      : String(row.profissional_a_id) === profId
+        ? 'parceiro'
+        : 'indicado'
+
     parcerias.push({
       id: String(row.id),
       status: String(row.status),
@@ -195,12 +208,16 @@ export async function GET(req: Request) {
         categorias: formatProfissionalCategorias(
           Array.isArray(parceiro?.categorias) ? parceiro.categorias.map(String) : [],
         ),
+        whatsapp: parceiro?.whatsapp != null ? String(parceiro.whatsapp) : null,
       },
       turista,
       contratado_em: rec?.contratado_em != null ? String(rec.contratado_em) : null,
-      papel: souIndicador ? 'indicador' : String(row.profissional_a_id) === profId ? 'parceiro' : 'indicado',
+      papel,
       total_comissoes_estimadas: historico ? atrativos.filter((a) => a.visitado).length : null,
       atrativos,
+      pagamento_confirmado: Boolean(row.pagamento_confirmado_em),
+      recebimento_confirmado: Boolean(row.recebimento_confirmado_em),
+      liquidado: Boolean(row.liquidado_em),
     })
   }
 
