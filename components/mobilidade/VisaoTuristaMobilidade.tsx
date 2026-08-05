@@ -80,8 +80,12 @@ export default function VisaoTuristaMobilidade({
   const t = useTranslations('Mobilidade')
   const { perfilEhTurista, perfilEhProfissional, profRow } = useProfissionalGate()
   const { ehAnfitriao } = useAnfitriaoModo()
-  const catsProf = Array.isArray(profRow?.categorias)
-    ? profRow.categorias.filter((c) => typeof c === 'string')
+  const catsRaw =
+    profRow != null && typeof profRow === 'object' && 'categorias' in profRow
+      ? (profRow as { categorias?: unknown }).categorias
+      : null
+  const catsProf = Array.isArray(catsRaw)
+    ? catsRaw.filter((c): c is string => typeof c === 'string')
     : []
   const temToggleMobilidade = profissionalTemCategoriaMobilidade(catsProf)
   const cardAnfitriao = Boolean(perfilEhProfissional && ehAnfitriao && !temToggleMobilidade)
