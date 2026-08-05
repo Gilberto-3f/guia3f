@@ -11,9 +11,12 @@ import PopupResultadoCorridaMobilidade, {
 } from '@/components/mobilidade/PopupResultadoCorridaMobilidade'
 import CardParaOndeMobilidade from '@/components/mobilidade/CardParaOndeMobilidade'
 import CardStatusProfissionalMobilidade from '@/components/mobilidade/CardStatusProfissionalMobilidade'
+import CardAnfitriaoMobilidade from '@/components/mobilidade/CardAnfitriaoMobilidade'
 import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 import ChegadaTuristaMobilidadeListener from '@/components/mobilidade/ChegadaTuristaMobilidadeListener'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { profissionalTemCategoriaMobilidade } from '@/lib/mobilidadeStatusProfissional'
 import { supabase } from '@/lib/supabase'
 import {
   buildMobilidadePesquisaHref,
@@ -75,7 +78,14 @@ export default function VisaoTuristaMobilidade({
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations('Mobilidade')
-  const { perfilEhTurista, perfilEhProfissional } = useProfissionalGate()
+  const { perfilEhTurista, perfilEhProfissional, profRow } = useProfissionalGate()
+  const { ehAnfitriao } = useAnfitriaoModo()
+  const catsProf = Array.isArray(profRow?.categorias)
+    ? profRow.categorias.filter((c) => typeof c === 'string')
+    : []
+  const temToggleMobilidade = profissionalTemCategoriaMobilidade(catsProf)
+  const cardAnfitriao = Boolean(perfilEhProfissional && ehAnfitriao && !temToggleMobilidade)
+  const [anfitriaoChamarCorrida, setAnfitriaoChamarCorrida] = useState(false)
 
   const pesquisa = useMemo(
     () => parseMobilidadePesquisaSearchParams(searchParams),
@@ -707,18 +717,28 @@ export default function VisaoTuristaMobilidade({
           </p>
         ) : null}
         <div className="pointer-events-auto mx-auto w-full max-w-lg">
-          {perfilEhProfissional ? (
+          {perfilEhProfissional && temToggleMobilidade ? (
             <CardStatusProfissionalMobilidade forcarRecolhido={drawerAberto} />
+          ) : cardAnfitriao && !anfitriaoChamarCorrida ? (
+            <CardAnfitriaoMobilidade
+              forcarRecolhido={drawerAberto}
+              onChamarCorrida={() => setAnfitriaoChamarCorrida(true)}
+            />
           ) : (
             <CardParaOndeMobilidade
-              key={`card-destino-${cardDestino?.empresaId ?? 'vazio'}`}
+              key={`card-destino-${cardDestino?.empresaId ?? 'vazio'}-${anfitriaoChamarCorrida ? 'cc' : 'std'}`}
               origemInicial={origemInicialCard}
               destinoInicial={destinoInicialCard}
               destinoEmpresaIdInicial={destinoEmpresaIdCard}
               destinoSyncToken={destinoSyncToken}
               empresas={empresas}
               forcarRecolhido={drawerAberto}
-              expandidoInicial={Boolean(cardDestino)}
+              expandidoInicial={Boolean(cardDestino) || anfitriaoChamarCorrida}
+              onVoltar={
+                cardAnfitriao && anfitriaoChamarCorrida
+                  ? () => setAnfitriaoChamarCorrida(false)
+                  : undefined
+              }
               onOrigemChange={(p) => {
                 if (p.lat != null && p.lng != null) {
                   setGpsCentro({ lat: p.lat, lng: p.lng })

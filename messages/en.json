@@ -350,6 +350,9 @@
     "espacoProfissionalTitulo": "Professional Space",
     "espacoProfissionalFallbackNome": "Professional",
     "espacoProfissionalBotoesEmBreve": "Routine tools coming soon.",
+    "anfitriaoCardTitulo": "Host",
+    "chamarCorrida": "Call a ride",
+    "voltarAnfitriao": "Back to Host card",
     "appParceiroLinkAusente": "Partner app link is not configured. Ask an admin to set it under Settings → Mobility.",
     "appParceiroAbrindo": "Opening…",
     "espacoAcao": {
@@ -360,6 +363,10 @@
       "ecossistema": {
         "titulo": "Ecosystem",
         "subtitulo": ""
+      },
+      "mobilidade_urbana": {
+        "titulo": "Urban mobility",
+        "subtitulo": "recommend partner app"
       },
       "parcerias": {
         "titulo": "History",

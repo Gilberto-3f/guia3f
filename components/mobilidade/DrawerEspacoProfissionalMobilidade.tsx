@@ -10,6 +10,7 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { supabase } from '@/lib/supabase'
 import { abrirLinkAppParceiro, carregarLinkAppParceiro } from '@/lib/appParceiroLink'
+import PopupRecomendarMobilidade from '@/components/PopupRecomendarMobilidade'
 import {
   botoesEspacoProfissional,
   resolverPainelMobilidade,
@@ -24,6 +25,8 @@ const NOTA_REFERENCIA = 5
 type Props = {
   aberto: boolean
   onFechar: () => void
+  /** Força o conjunto de botões (ex.: anfitrião). */
+  forcarModo?: PainelMobilidadeModo | null
 }
 
 function formatarNotaExibicao(media: number | null): string {
@@ -35,7 +38,11 @@ function formatarNotaExibicao(media: number | null): string {
  * Drawer ESPAÇO PROFISSIONAL — perfil + botões por categoria.
  * Drawers internos de cada botão ficam para a próxima fase.
  */
-export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }: Props) {
+export default function DrawerEspacoProfissionalMobilidade({
+  aberto,
+  onFechar,
+  forcarModo = null,
+}: Props) {
   const t = useTranslations('Mobilidade')
   useModalScrollLock(aberto)
   const { fotoPerfilBarra } = useProfissionalGate()
@@ -47,6 +54,7 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
   const [modo, setModo] = useState<PainelMobilidadeModo | null>(null)
   const [acaoBusy, setAcaoBusy] = useState(false)
   const [acaoErro, setAcaoErro] = useState('')
+  const [recomendarMobAberto, setRecomendarMobAberto] = useState(false)
 
   const handleAcao = useCallback(
     async (id: EspacoProfissionalAcaoId) => {
@@ -63,6 +71,10 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
         } finally {
           setAcaoBusy(false)
         }
+        return
+      }
+      if (id === 'mobilidade_urbana') {
+        setRecomendarMobAberto(true)
         return
       }
       /* Demais drawers: próximas etapas */
@@ -108,7 +120,9 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
       const cats = Array.isArray(prof.categorias)
         ? prof.categorias.filter((c): c is string => typeof c === 'string')
         : []
-      setModo(resolverPainelMobilidade(Boolean(prof.placa_vermelha), cats))
+      setModo(
+        forcarModo ?? resolverPainelMobilidade(Boolean(prof.placa_vermelha), cats),
+      )
 
       const profId = String(prof.id ?? '')
       const alvoIds = [...new Set([uid, ...(profId ? [profId] : [])])]
@@ -130,18 +144,20 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
     return () => {
       ativo = false
     }
-  }, [aberto, fotoPerfilBarra, t])
+  }, [aberto, fotoPerfilBarra, forcarModo, t])
 
   if (!aberto) return null
 
   const handle = String(username ?? '')
     .replace(/^@+/, '')
     .trim()
+  const modoEfetivo = forcarModo ?? modo
   const acoes: EspacoProfissionalAcaoId[] =
-    modo != null ? botoesEspacoProfissional(modo) : []
+    modoEfetivo != null ? botoesEspacoProfissional(modoEfetivo) : []
   const notaTexto = formatarNotaExibicao(notaMedia)
 
   return createPortal(
+    <>
     <div
       className="fixed inset-0 z-[90] flex flex-col bg-white"
       style={{ height: 'var(--app-height, 100dvh)' }}
@@ -215,7 +231,7 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
         </div>
 
         <div className="mt-6 space-y-3">
-          {modo == null ? (
+          {modoEfetivo == null ? (
             <p className="animate-pulse text-center text-sm text-gray-400">…</p>
           ) : (
             acoes.map((id) => {
@@ -249,7 +265,12 @@ export default function DrawerEspacoProfissionalMobilidade({ aberto, onFechar }:
           ) : null}
         </div>
       </div>
-    </div>,
+    </div>
+    <PopupRecomendarMobilidade
+      aberto={recomendarMobAberto}
+      onFechar={() => setRecomendarMobAberto(false)}
+    />
+    </>,
     document.body,
   )
 }

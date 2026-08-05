@@ -350,6 +350,9 @@
     "espacoProfissionalTitulo": "Espacio Profesional",
     "espacoProfissionalFallbackNome": "Profesional",
     "espacoProfissionalBotoesEmBreve": "Herramientas de rutina en breve.",
+    "anfitriaoCardTitulo": "Anfitrión",
+    "chamarCorrida": "Llamar viaje",
+    "voltarAnfitriao": "Volver a la tarjeta Anfitrión",
     "appParceiroLinkAusente": "El enlace de la app asociada no está configurado. Pide al administrador que lo registre en Configuración → Movilidad.",
     "appParceiroAbrindo": "Abriendo…",
     "espacoAcao": {
@@ -360,6 +363,10 @@
       "ecossistema": {
         "titulo": "Ecosistema",
         "subtitulo": ""
+      },
+      "mobilidade_urbana": {
+        "titulo": "Movilidad urbana",
+        "subtitulo": "recomendar app asociada"
       },
       "parcerias": {
         "titulo": "Historial",

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Building2, Car, ChevronDown, ChevronUp, MapPin, Navigation, Route, Search, X } from 'lucide-react'
+import { Building2, Car, ChevronDown, ChevronUp, MapPin, Navigation, Route, Search, X, ArrowLeft } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import {
@@ -50,6 +50,8 @@ type Props = {
   ) => void
   /** Força o card recolhido (ex.: enquanto o drawer de pesquisa está aberto). */
   forcarRecolhido?: boolean
+  /** Voltar ao card anterior (ex.: anfitrião). */
+  onVoltar?: () => void
 }
 
 const fieldClass =
@@ -78,6 +80,7 @@ export default function CardParaOndeMobilidade({
   onOrigemChange,
   onPesquisar: onPesquisarProp,
   forcarRecolhido = false,
+  onVoltar,
 }: Props) {
   const t = useTranslations('Mobilidade')
   const router = useRouter()
@@ -318,28 +321,42 @@ export default function CardParaOndeMobilidade({
           painelAberto ? 'rounded-2xl' : 'overflow-hidden rounded-2xl'
         }`}
       >
-        <button
-          type="button"
-          onClick={() => {
-            if (forcarRecolhido) return
-            setAberto((v) => !v)
-          }}
-          className={`flex w-full items-center justify-between gap-3 bg-[#0097b2] px-4 py-3.5 text-left text-white ${
+        <div
+          className={`flex w-full items-center gap-1 bg-[#0097b2] px-2 py-2 text-white ${
             painelAberto ? 'rounded-t-2xl' : 'rounded-2xl'
           }`}
-          aria-expanded={painelAberto}
-          aria-label={painelAberto ? t('paraOndeTitulo') : `${t('paraOndeTitulo')}. ${resumoDestino}`}
         >
-          <div className="flex min-w-0 items-center gap-2.5">
-            <Car className="h-5 w-5 shrink-0 text-white" aria-hidden strokeWidth={2} />
-            <p className="text-base font-extrabold text-white">{t('paraOndeTitulo')}</p>
-          </div>
-          {painelAberto ? (
-            <ChevronUp className="h-5 w-5 shrink-0 text-white" aria-hidden />
-          ) : (
-            <ChevronDown className="h-5 w-5 shrink-0 text-white" aria-hidden />
-          )}
-        </button>
+          {onVoltar ? (
+            <button
+              type="button"
+              onClick={onVoltar}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white/90 hover:bg-white/15"
+              aria-label={t('voltarAnfitriao')}
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              if (forcarRecolhido) return
+              setAberto((v) => !v)
+            }}
+            className="flex min-w-0 flex-1 items-center justify-between gap-3 px-2 py-1.5 text-left text-white"
+            aria-expanded={painelAberto}
+            aria-label={painelAberto ? t('paraOndeTitulo') : `${t('paraOndeTitulo')}. ${resumoDestino}`}
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+              <Car className="h-5 w-5 shrink-0 text-white" aria-hidden strokeWidth={2} />
+              <p className="text-base font-extrabold text-white">{t('paraOndeTitulo')}</p>
+            </div>
+            {painelAberto ? (
+              <ChevronUp className="h-5 w-5 shrink-0 text-white" aria-hidden />
+            ) : (
+              <ChevronDown className="h-5 w-5 shrink-0 text-white" aria-hidden />
+            )}
+          </button>
+        </div>
 
         {painelAberto ? (
           <div className="space-y-3 rounded-b-2xl bg-white px-4 pb-4 pt-3">

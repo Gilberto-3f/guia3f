@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, X } from 'lucide-react'
 import {
   montarTelefoneComDdi,
@@ -9,10 +9,10 @@ import {
 } from '@/lib/paisesTelefoneRecomendacao'
 import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
 import IconWhatsApp from '@/components/IconWhatsApp'
+import { carregarLinkAppParceiro } from '@/lib/appParceiroLink'
 
 /**
- * Popup base para recomendar a mobilidade urbana do ecossistema (plataforma parceira).
- * Serviço ainda em estruturação — fluxo preparado para integração futura.
+ * Recomenda o app parceiro de mobilidade urbana (WhatsApp / e-mail).
  *
  * @param {{
  *   aberto: boolean
@@ -28,15 +28,29 @@ export default function PopupRecomendarMobilidade({ aberto, onFechar, cidadeAtua
   const [modoContato, setModoContato] = useState('whatsapp')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
+  const [linkApp, setLinkApp] = useState(/** @type {string | null} */ (null))
+
+  useEffect(() => {
+    if (!aberto) return
+    let ativo = true
+    void (async () => {
+      const link = await carregarLinkAppParceiro()
+      if (ativo) setLinkApp(link)
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [aberto])
 
   if (!aberto) return null
 
   const pais = paisTelefonePorId(paisId)
   const cidade = String(cidadeAtuacao ?? '').trim()
-  const mobilidadeUrl =
+  const mobilidadeFallback =
     typeof window !== 'undefined'
       ? `${window.location.origin}/mobilidade${cidade ? `?cidade=${encodeURIComponent(cidade)}` : ''}`
       : '/mobilidade'
+  const destinoUrl = (linkApp && linkApp.trim()) || mobilidadeFallback
 
   const resetar = () => {
     setContatoLocal('')
@@ -55,14 +69,14 @@ export default function PopupRecomendarMobilidade({ aberto, onFechar, cidadeAtua
 
   const montarMensagem = () => {
     const lines = [
-      'Olá! Recomendo a *mobilidade urbana do Guia 3F* para você...',
+      'Olá! Recomendo o *app parceiro de mobilidade urbana* do ecossistema Guia 3F para seus deslocamentos na cidade.',
       '',
-      mobilidadeUrl,
+      destinoUrl,
       '',
-      'Transporte credenciado no ecossistema 3F — app parceiro em integração.',
+      'Atendimento exclusivo desse segmento — siga as regras do app parceiro para solicitar corridas.',
     ]
     if (cidade) lines.push(`Região: ${cidade}`)
-    lines.push('', 'Indicação via perfil profissional no Guia 3F Turístico.')
+    lines.push('', 'Indicação via perfil profissional (anfitrião) no Guia 3F Turístico.')
     return lines.join('\n')
   }
 
@@ -79,7 +93,7 @@ export default function PopupRecomendarMobilidade({ aberto, onFechar, cidadeAtua
           setErro('Informe um e-mail válido.')
           return
         }
-        const subject = encodeURIComponent('Recomendação: Mobilidade Guia 3F')
+        const subject = encodeURIComponent('Recomendação: App de mobilidade urbana')
         const body = encodeURIComponent(mensagem)
         window.location.href = `mailto:${email}?subject=${subject}&body=${body}`
         resetar()
@@ -126,7 +140,7 @@ export default function PopupRecomendarMobilidade({ aberto, onFechar, cidadeAtua
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <h3 id="popup-recomendar-mobilidade-titulo" className="text-lg font-extrabold text-[#001f3f]">
-            Recomendar mobilidade
+            Mobilidade urbana
           </h3>
           <button
             type="button"
@@ -140,8 +154,8 @@ export default function PopupRecomendarMobilidade({ aberto, onFechar, cidadeAtua
         </div>
 
         <p className="mt-2 text-center text-sm leading-relaxed text-gray-600">
-          Indique a plataforma de mobilidade urbana do ecossistema 3F para um turista. O app parceiro está em
-          finalização — o link já direciona para a área de mobilidade.
+          Recomende o app parceiro de mobilidade urbana ao turista (WhatsApp ou e-mail). Profissionais com placa
+          vermelha são indicados pelo Ecossistema.
         </p>
 
         <label
