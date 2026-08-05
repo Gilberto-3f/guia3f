@@ -3,8 +3,6 @@ import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { avancarFilaSeExpirada, solicitacaoEhContratacaoDirecionada } from '@/lib/mobilidadeMatching'
 import { carregarParceiroRecomendacaoOferta } from '@/lib/mobilidadeOfertaAtendimento'
-import { carregarParceiroRecomendacaoOferta } from '@/lib/mobilidadeOfertaAtendimento'
-import { carregarParceiroRecomendacaoOferta } from '@/lib/mobilidadeOfertaAtendimento'
 
 async function carregarTuristaOferta(
   admin: ReturnType<typeof createSupabaseAdmin>,
