@@ -128,13 +128,19 @@ export async function GET(req: Request) {
       nome: String(r.nome_completo ?? 'Profissional'),
       username: r.nome_usuario != null ? String(r.nome_usuario).replace(/^@+/, '') : null,
       foto_url: foto,
-      categorias: normalizarCategoriasProfissional(r.categorias),
+      categorias: normalizarCategoriasProfissional(
+        Array.isArray(r.categorias) ? r.categorias.map(String) : null,
+      ),
       placa_vermelha: Boolean(r.placa_vermelha),
       nota_media: n > 0 ? Math.round((soma / n) * 10) / 10 : null,
       total_avaliacoes: n,
       pais_bandeira: bandeiraProfissionalRegistro({
-        pais: r.pais,
-        cidadeAtuacao: r.cidade_atuacao,
+        pais: r.pais != null ? String(r.pais) : null,
+        cidadeAtuacao: Array.isArray(r.cidade_atuacao)
+          ? r.cidade_atuacao.map(String)
+          : r.cidade_atuacao != null
+            ? String(r.cidade_atuacao)
+            : null,
       }),
     }
   })
