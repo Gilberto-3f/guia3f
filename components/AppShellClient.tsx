@@ -115,24 +115,26 @@ function AppShellLayoutFrame({
   return (
     <>
       <AppSplash />
-      <div
-        className={`flex flex-col ${fundoShell} ${paddingInferior} ${
-          telaMensageiro || isGuiaOuMobilidade
-            ? 'h-[var(--app-height,100dvh)] max-h-[var(--app-height,100dvh)] overflow-hidden'
-            : 'min-h-screen min-h-dvh'
-        }`}
-      >
-        {modoAtivo ? null : <ModoApresentacaoChrome />}
-        <ProfissionalGateBanner />
-        <AdminEcossistemaAlertaGate />
-        <TuristaComprasNotificacaoGate />
-        <ConviteAdminGate />
+      <div className="app-shell-backdrop">
         <div
-          className={`flex min-h-0 flex-1 flex-col ${
-            telaMensageiro || isGuiaOuMobilidade ? 'overflow-hidden' : ''
+          className={`app-shell-column ${fundoShell} ${paddingInferior} ${
+            telaMensageiro || isGuiaOuMobilidade
+              ? 'h-[var(--app-height,100dvh)] max-h-[var(--app-height,100dvh)] overflow-hidden'
+              : 'min-h-screen min-h-dvh'
           }`}
         >
-          {children}
+          {modoAtivo ? null : <ModoApresentacaoChrome />}
+          <ProfissionalGateBanner />
+          <AdminEcossistemaAlertaGate />
+          <TuristaComprasNotificacaoGate />
+          <ConviteAdminGate />
+          <div
+            className={`flex min-h-0 flex-1 flex-col ${
+              telaMensageiro || isGuiaOuMobilidade ? 'overflow-hidden' : ''
+            }`}
+          >
+            {children}
+          </div>
         </div>
       </div>
       {/* Portal no body: evita containing block de ancestors fixed/transform (faixa no iOS). */}

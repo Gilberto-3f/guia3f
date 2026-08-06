@@ -397,7 +397,9 @@ export default function BottomBar() {
 
     const sync = () => {
       const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
-      el.style.transform = inset > 0 ? `translate3d(0, ${inset}px, 0)` : ''
+      // -50% X: coluna centrada (left-1/2); Y: compensa teclado iOS.
+      el.style.transform =
+        inset > 0 ? `translate3d(-50%, ${inset}px, 0)` : 'translate3d(-50%, 0, 0)'
     }
 
     sync()
@@ -408,7 +410,7 @@ export default function BottomBar() {
       vv.removeEventListener('resize', sync)
       vv.removeEventListener('scroll', sync)
       window.removeEventListener('resize', sync)
-      el.style.transform = ''
+      el.style.transform = 'translate3d(-50%, 0, 0)'
     }
   }, [pathname])
 
@@ -520,7 +522,8 @@ export default function BottomBar() {
   return (
     <div
       ref={rootRef}
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white shadow-lg"
+      className="fixed bottom-0 left-1/2 z-50 w-full max-w-[var(--app-column)] border-t border-gray-200 bg-white pb-safe shadow-lg"
+      style={{ transform: 'translate3d(-50%, 0, 0)' }}
     >
       <div className="flex items-center justify-around py-2">
         <Link
