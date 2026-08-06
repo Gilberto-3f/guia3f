@@ -2,9 +2,8 @@ import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional
 
 export type MobilidadeStatusId = 'offline' | 'online' | 'em_atendimento'
 
-/** Categorias que usam o toggle de Mobilidade (sem anfitrião). */
+/** Categorias que usam o toggle de Mobilidade (sem motorista_app — demanda vai ao app parceiro). */
 export const CATEGORIAS_MOBILIDADE_STATUS = [
-  'motorista_app',
   'van',
   'taxista',
   'guia',

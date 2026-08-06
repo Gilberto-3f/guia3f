@@ -54,26 +54,6 @@ export default function CardStatusProfissionalMobilidade({
   }, [forcarRecolhido])
 
   useEffect(() => {
-    let ativo = true
-    void (async () => {
-      try {
-        const res = await fetch('/api/profissional/mobilidade-status')
-        const json = (await res.json()) as { status?: string }
-        if (!ativo || !res.ok) return
-        const s = String(json.status ?? '').toLowerCase()
-        if (s === 'online' || s === 'em_atendimento' || s === 'offline') {
-          setStatus(s as MobilidadeStatusId)
-        }
-      } catch {
-        /* ignore */
-      }
-    })()
-    return () => {
-      ativo = false
-    }
-  }, [])
-
-  useEffect(() => {
     if (!toastOffline) return
     const id = window.setTimeout(() => setToastOffline(false), 5000)
     return () => window.clearTimeout(id)

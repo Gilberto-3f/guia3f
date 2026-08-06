@@ -43,7 +43,8 @@ export default function ToggleStatusMobilidade({
   const t = useTranslations('Mobilidade')
   const [status, setStatus] = useState<MobilidadeStatusId>('offline')
   const [onlineDesde, setOnlineDesde] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  /** Card: mostra o toggle na hora; sync em background (evita 3–5s de “…”). */
+  const [loading, setLoading] = useState(variant !== 'card')
   const [busy, setBusy] = useState(false)
   const [erro, setErro] = useState('')
   const [idleAberto, setIdleAberto] = useState(false)
@@ -70,7 +71,8 @@ export default function ToggleStatusMobilidade({
         return
       }
       if (json.elegivel === false) return
-      aplicarJson(json, false)
+      // Emite mudança para o card atualizar ONLINE/OFFLINE sem esperar segundo fetch.
+      aplicarJson(json, true)
     } catch {
       setErro(t('statusErro'))
     } finally {
@@ -207,14 +209,14 @@ export default function ToggleStatusMobilidade({
         ? t('statusEmAtendimento')
         : t('statusOffline')
 
-  if (loading) {
+  if (loading && !card) {
     return (
       <div
         className={`flex items-center justify-center ${
-          painel || card ? 'min-h-[72px]' : 'h-[56px]'
+          painel ? 'min-h-[72px]' : 'h-[56px]'
         } ${className}`}
       >
-        <span className={`animate-pulse text-xs ${painel || card ? 'text-gray-400' : 'text-white/80'}`}>
+        <span className={`animate-pulse text-xs ${painel ? 'text-gray-400' : 'text-white/80'}`}>
           …
         </span>
       </div>

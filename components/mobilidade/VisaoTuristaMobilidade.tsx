@@ -17,6 +17,7 @@ import ChegadaTuristaMobilidadeListener from '@/components/mobilidade/ChegadaTur
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { profissionalTemCategoriaMobilidade } from '@/lib/mobilidadeStatusProfissional'
+import { resolverPainelMobilidade } from '@/lib/mobilidadePainelProfissional'
 import { supabase } from '@/lib/supabase'
 import {
   buildMobilidadePesquisaHref,
@@ -88,7 +89,11 @@ export default function VisaoTuristaMobilidade({
     ? catsRaw.filter((c): c is string => typeof c === 'string')
     : []
   const temToggleMobilidade = profissionalTemCategoriaMobilidade(catsProf)
-  const cardAnfitriao = Boolean(perfilEhProfissional && ehAnfitriao && !temToggleMobilidade)
+  const modoPainel = perfilEhProfissional ? resolverPainelMobilidade(false, catsProf) : null
+  const cardMotoristaApp = Boolean(perfilEhProfissional && modoPainel === 'motorista_app')
+  const cardAnfitriao = Boolean(
+    perfilEhProfissional && ehAnfitriao && !temToggleMobilidade && !cardMotoristaApp,
+  )
   const [anfitriaoChamarCorrida, setAnfitriaoChamarCorrida] = useState(false)
 
   const pesquisa = useMemo(
@@ -723,10 +728,17 @@ export default function VisaoTuristaMobilidade({
         <div className="pointer-events-auto mx-auto w-full max-w-lg">
           {perfilEhProfissional && temToggleMobilidade ? (
             <CardStatusProfissionalMobilidade forcarRecolhido={drawerAberto} />
+          ) : cardMotoristaApp ? (
+            <CardAnfitriaoMobilidade
+              forcarRecolhido={drawerAberto}
+              mostrarChamarCorrida={false}
+              forcarModo="motorista_app"
+            />
           ) : cardAnfitriao && !anfitriaoChamarCorrida ? (
             <CardAnfitriaoMobilidade
               forcarRecolhido={drawerAberto}
               onChamarCorrida={() => setAnfitriaoChamarCorrida(true)}
+              forcarModo="anfitriao"
             />
           ) : (
             <CardParaOndeMobilidade
@@ -743,10 +755,10 @@ export default function VisaoTuristaMobilidade({
                   ? () => setAnfitriaoChamarCorrida(false)
                   : undefined
               }
-              onOrigemChange={(p) => {
-                if (p.lat != null && p.lng != null) {
-                  setGpsCentro({ lat: p.lat, lng: p.lng })
-                  if (p.nome) setOrigemLabelGps(p.nome)
+              onOrigemChange={(o) => {
+                if (o.lat != null && o.lng != null) {
+                  setGpsCentro({ lat: o.lat, lng: o.lng })
+                  if (o.nome) setOrigemLabelGps(o.nome)
                 }
               }}
               onPesquisar={(o, d, empId) => {
