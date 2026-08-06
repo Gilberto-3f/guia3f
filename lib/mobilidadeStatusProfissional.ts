@@ -31,6 +31,21 @@ export function profissionalTemCategoriaMobilidade(
   return CATEGORIAS_MOBILIDADE_STATUS.some((c) => cats.includes(c))
 }
 
+/** Categorias elegíveis na busca Ecossistema (mobilidade — exclui anfitrião puro). */
+export const CATEGORIAS_ECOSSISTEMA_MOBILIDADE = [
+  'guia',
+  'van',
+  'taxista',
+  'motorista_app',
+] as const
+
+export function profissionalElegivelBuscaEcossistema(
+  categorias: string[] | null | undefined,
+): boolean {
+  const cats = normalizarCategoriasProfissional(categorias)
+  return CATEGORIAS_ECOSSISTEMA_MOBILIDADE.some((c) => cats.includes(c))
+}
+
 export function parseMobilidadeStatus(raw: unknown): MobilidadeStatusId {
   const s = String(raw ?? '').trim().toLowerCase()
   if (s === 'online' || s === 'em_atendimento') return s
