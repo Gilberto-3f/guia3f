@@ -1,22 +1,31 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ShieldCheck, Star, User, X } from 'lucide-react'
+import { Building2, Car, ChevronLeft, ShieldCheck, Star, User, X } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import EscudoVerificacaoPendente from '@/components/EscudoVerificacaoPendente'
 import IconWhatsApp from '@/components/IconWhatsApp'
 import PopupRecomendarProfissional from '@/components/PopupRecomendarProfissional'
 import PopupRecomendarMobilidade from '@/components/PopupRecomendarMobilidade'
 import EstrelasAvaliacao from '@/components/EstrelasAvaliacao'
+import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
 import {
+  classificarTipoProfissionalCartao,
   normalizarCategoriasProfissional,
   resolverAcoesCartaoVisitaProfissional,
   resolverVisaoCartaoVisita,
   tituloAvaliarDesabilitadoCartao,
 } from '@/lib/cartaoVisitaProfissional'
+import {
+  normalizarVeiculoAno,
+  normalizarVeiculoFotos,
+  normalizarVeiculoModelo,
+  profissionalElegivelPerfilMobilidade,
+} from '@/lib/mobilidadePerfilProfissional'
 import { labelIdiomaGuia, normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 
 function formatMesAno(iso) {
@@ -84,6 +93,7 @@ export default function PopupCartaoVisitaProfissional({
   onAvaliacaoConcluida,
 }) {
   useModalScrollLock(aberto)
+  const router = useRouter()
   const [modo, setModo] = useState(/** @type {'cartao' | 'avaliar'} */ ('cartao'))
   const [notaUsuario, setNotaUsuario] = useState(0)
   const [feedbackUsuario, setFeedbackUsuario] = useState('')
@@ -94,13 +104,23 @@ export default function PopupCartaoVisitaProfissional({
   const [popupRecomendarAberto, setPopupRecomendarAberto] = useState(false)
   const [popupMobilidadeAberto, setPopupMobilidadeAberto] = useState(false)
   const [idiomasGuia, setIdiomasGuia] = useState(/** @type {string[]} */ ([]))
+  const [pastaVeiculoAberta, setPastaVeiculoAberta] = useState(false)
+  /** @type {[{ fotos: string[], modelo: string, ano: number | null } | null, Function]} */
+  const [veiculo, setVeiculo] = useState(null)
+  /** @type {[{ id: string, nomeFantasia: string, username: string | null, fotoUrl: string | null, notaMedia: number | null } | null, Function]} */
+  const [empresaHospedagem, setEmpresaHospedagem] = useState(null)
 
   const verificado = profissionalVerificado === true
   const mesAnoCadastro = formatMesAno(cadastradoEm ?? verificadoEm)
   const u = String(username ?? '').trim().replace(/^@+/, '')
   const uShown = u.length > 15 ? `${u.slice(0, 15)}…` : u
   const rotuloCategoria = formatProfissionalCategorias(categorias)
-  const ehGuia = normalizarCategoriasProfissional(categorias).includes('guia')
+  const catsNorm = normalizarCategoriasProfissional(categorias)
+  const ehGuia = catsNorm.includes('guia')
+  const ehMobilidade = profissionalElegivelPerfilMobilidade(placaVermelha, categorias)
+  const ehAnfitriao =
+    classificarTipoProfissionalCartao(placaVermelha, categorias) === 'anfitriao' ||
+    catsNorm.includes('anfitriao')
 
   useEffect(() => {
     if (!aberto || !ehGuia) {
@@ -130,6 +150,95 @@ export default function PopupCartaoVisitaProfissional({
       ativo = false
     }
   }, [aberto, ehGuia, profileId, idiomasProp])
+
+  /** Veículo (mobilidade) + empresa de hospedagem (anfitrião). */
+  useEffect(() => {
+    if (!aberto || !profileId || !verificado) {
+      setVeiculo(null)
+      setEmpresaHospedagem(null)
+      setPastaVeiculoAberta(false)
+      return
+    }
+    if (!ehMobilidade && !ehAnfitriao) {
+      setVeiculo(null)
+      setEmpresaHospedagem(null)
+      return
+    }
+    let ativo = true
+    void (async () => {
+      const cols = [
+        ehMobilidade ? 'veiculo_fotos, veiculo_modelo, veiculo_ano' : null,
+        ehAnfitriao ? 'empresa_hospedagem_id' : null,
+      ]
+        .filter(Boolean)
+        .join(', ')
+      const { data, error } = await supabase
+        .from('profissionais')
+        .select(cols)
+        .eq('usuario_id', profileId)
+        .maybeSingle()
+      if (!ativo) return
+      if (error) {
+        console.error('[CartaoVisita] veiculo/empresa:', error.message)
+        setVeiculo(null)
+        setEmpresaHospedagem(null)
+        return
+      }
+
+      if (ehMobilidade) {
+        const fotos = normalizarVeiculoFotos(data?.veiculo_fotos)
+        const modelo = normalizarVeiculoModelo(data?.veiculo_modelo)
+        const ano = normalizarVeiculoAno(data?.veiculo_ano)
+        if (fotos.length > 0 || modelo || ano != null) {
+          setVeiculo({ fotos, modelo, ano })
+        } else {
+          setVeiculo(null)
+        }
+      } else {
+        setVeiculo(null)
+      }
+
+      const empId =
+        ehAnfitriao && data?.empresa_hospedagem_id != null
+          ? String(data.empresa_hospedagem_id).trim()
+          : ''
+      if (!empId) {
+        setEmpresaHospedagem(null)
+        return
+      }
+      const { data: emp, error: empErr } = await supabase
+        .from('empresas')
+        .select('id, nome_fantasia, nome_usuario, foto_url, nota_media')
+        .eq('id', empId)
+        .maybeSingle()
+      if (!ativo) return
+      if (empErr || !emp?.id) {
+        if (empErr) console.error('[CartaoVisita] empresa:', empErr.message)
+        setEmpresaHospedagem(null)
+        return
+      }
+      const usernameEmp = String(emp.nome_usuario ?? '')
+        .replace(/^@+/, '')
+        .trim()
+      const nota =
+        emp.nota_media != null && Number.isFinite(Number(emp.nota_media))
+          ? Number(emp.nota_media)
+          : null
+      setEmpresaHospedagem({
+        id: String(emp.id),
+        nomeFantasia: String(emp.nome_fantasia ?? 'Empresa'),
+        username: usernameEmp || null,
+        fotoUrl:
+          emp.foto_url != null && String(emp.foto_url).trim()
+            ? String(emp.foto_url)
+            : null,
+        notaMedia: nota != null && nota > 0 ? nota : null,
+      })
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [aberto, profileId, verificado, ehMobilidade, ehAnfitriao])
 
   const souDono = Boolean(meuId && profileId && meuId === profileId)
   const visao = resolverVisaoCartaoVisita({ meuId, profileId, meuRole, souDono })
@@ -436,6 +545,93 @@ export default function PopupCartaoVisitaProfissional({
                     </div>
                   ) : null}
                 </div>
+
+                {veiculo ? (
+                  <div className="mt-5">
+                    <ChevronPasta
+                      titulo="Dados do Veículo"
+                      icone={Car}
+                      corTitulo="#0097b2"
+                      aberto={pastaVeiculoAberta}
+                      onToggle={() => setPastaVeiculoAberta((v) => !v)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-1 ring-gray-200">
+                          {veiculo.fotos[0] ? (
+                            <AvatarImage
+                              src={veiculo.fotos[0]}
+                              alt=""
+                              fill
+                              className="object-cover"
+                              sizes="56px"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-[#0097b2]">
+                              <Car className="h-6 w-6" aria-hidden />
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold text-gray-900">
+                            {veiculo.modelo || 'Veículo'}
+                          </p>
+                          {veiculo.ano != null ? (
+                            <p className="mt-0.5 text-xs text-gray-500">{veiculo.ano}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </ChevronPasta>
+                  </div>
+                ) : null}
+
+                {empresaHospedagem ? (
+                  <div className="mt-5">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#0097b2]">
+                      <Building2 className="h-4 w-4 shrink-0" aria-hidden />
+                      <span>Empresa de hospedagem</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 rounded-xl bg-[#0097b2] p-2.5 shadow-sm">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-white bg-white/20">
+                        {empresaHospedagem.fotoUrl ? (
+                          <AvatarImage
+                            src={empresaHospedagem.fotoUrl}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="48px"
+                          />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 flex-1 overflow-hidden pr-1">
+                        <p className="truncate text-sm font-bold leading-tight text-white">
+                          {empresaHospedagem.nomeFantasia}
+                        </p>
+                        {empresaHospedagem.username ? (
+                          <p className="mt-0.5 truncate text-xs leading-tight text-white/90">
+                            @{empresaHospedagem.username}
+                          </p>
+                        ) : null}
+                        {empresaHospedagem.notaMedia != null ? (
+                          <p className="mt-0.5 inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                            <span aria-hidden>★</span>
+                            {empresaHospedagem.notaMedia.toFixed(1).replace(/\.0$/, '')}
+                          </p>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          fecharPopup()
+                          router.push(`/empresa/${empresaHospedagem.id}`)
+                        }}
+                        className="flex h-11 w-[4.5rem] shrink-0 flex-col items-center justify-center rounded-lg bg-white px-1 text-center text-[10px] font-bold leading-tight text-[#0097b2]"
+                      >
+                        <span>VISITAR</span>
+                        <span>PÁGINA</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="mt-6 w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-4">
                   <p className="text-center text-sm font-semibold text-gray-800">Nota de avaliação</p>
