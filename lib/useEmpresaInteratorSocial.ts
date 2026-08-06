@@ -2,29 +2,55 @@
 
 import { useMemo } from 'react'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { useGuiaModo } from '@/context/GuiaModoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { categoriasIncluemAnfitriao } from '@/lib/anfitriaoDualMode'
+import { categoriasIncluemGuia } from '@/lib/guiaDualMode'
 
-/** Empresa de hospedagem quando o anfitrião interage no feed em modo hospedagem. */
+/** Empresa vinculada quando o profissional interage no feed em modo empresa (hospedagem ou agência). */
 export function useEmpresaInteratorSocial(): string | null {
   const { userRole, profRow } = useProfissionalGate()
   const { ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
+  const {
+    ehGuia,
+    modoEfetivo: modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
+  } = useGuiaModo()
 
   return useMemo(() => {
     if (userRole !== 'profissional') return null
 
-    const prof = profRow as { categorias?: string[]; empresa_hospedagem_id?: string | null } | null
-    const ehAnfit =
-      ehAnfitriao || categoriasIncluemAnfitriao(prof?.categorias)
-    if (!ehAnfit) return null
+    const prof = profRow as {
+      categorias?: string[]
+      empresa_hospedagem_id?: string | null
+      empresa_agencia_id?: string | null
+    } | null
 
-    const empId =
-      String(empresaHospedagemId ?? prof?.empresa_hospedagem_id ?? '').trim() || null
-    if (!empId || !empresaHospedagemLiberada) return null
+    const ehAnfit = ehAnfitriao || categoriasIncluemAnfitriao(prof?.categorias)
+    if (ehAnfit && modoEfetivo === 'hospedagem') {
+      const empId =
+        String(empresaHospedagemId ?? prof?.empresa_hospedagem_id ?? '').trim() || null
+      if (empId && empresaHospedagemLiberada) return empId
+    }
 
-    // Única fonte de verdade: modo efetivo do contexto (já sincronizado com localStorage).
-    if (modoEfetivo === 'hospedagem') return empId
+    const guia = ehGuia || categoriasIncluemGuia(prof?.categorias)
+    if (guia && modoGuiaEfetivo === 'agencia') {
+      const empId = String(empresaAgenciaId ?? prof?.empresa_agencia_id ?? '').trim() || null
+      if (empId && empresaAgenciaLiberada) return empId
+    }
 
     return null
-  }, [userRole, profRow, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada])
+  }, [
+    userRole,
+    profRow,
+    ehAnfitriao,
+    modoEfetivo,
+    empresaHospedagemId,
+    empresaHospedagemLiberada,
+    ehGuia,
+    modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
+  ])
 }

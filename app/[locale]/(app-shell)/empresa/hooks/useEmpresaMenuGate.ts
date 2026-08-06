@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { categoriasIncluemAnfitriao, lerModoAnfitriaoStorage } from '@/lib/anfitriaoDualMode'
+import { categoriasIncluemGuia, lerModoGuiaStorage } from '@/lib/guiaDualMode'
 import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
 
 export type EmpresaMenuGate = 'loading' | 'forbidden' | 'pending' | 'ok'
@@ -46,20 +47,29 @@ export function useEmpresaMenuGate(): EmpresaMenuGate {
       } else if (role === 'profissional') {
         const { data: prof } = await supabase
           .from('profissionais')
-          .select('categorias, empresa_hospedagem_id')
+          .select('categorias, empresa_hospedagem_id, empresa_agencia_id')
           .eq('usuario_id', uid)
           .maybeSingle()
         const cats = Array.isArray(prof?.categorias)
           ? prof.categorias.filter((c): c is string => typeof c === 'string')
           : []
-        const empId = prof?.empresa_hospedagem_id != null ? String(prof.empresa_hospedagem_id) : null
-        if (!categoriasIncluemAnfitriao(cats) || !empId || lerModoAnfitriaoStorage() !== 'hospedagem') {
+        const empHospId = prof?.empresa_hospedagem_id != null ? String(prof.empresa_hospedagem_id) : null
+        const empAgenciaId = prof?.empresa_agencia_id != null ? String(prof.empresa_agencia_id) : null
+
+        let empId: string | null = null
+        if (categoriasIncluemAnfitriao(cats) && empHospId && lerModoAnfitriaoStorage() === 'hospedagem') {
+          empId = empHospId
+        } else if (categoriasIncluemGuia(cats) && empAgenciaId && lerModoGuiaStorage() === 'agencia') {
+          empId = empAgenciaId
+        }
+
+        if (!empId) {
           if (ativo) setGate('forbidden')
           return
         }
         const { data } = await supabase
           .from('empresas')
-          .select('status, docs_verificado, aprovado_em, verificado_em, somente_anfitriao')
+          .select('status, docs_verificado, aprovado_em, verificado_em, somente_anfitriao, somente_guia')
           .eq('id', empId)
           .maybeSingle()
         empData = data && typeof data === 'object' ? data : null

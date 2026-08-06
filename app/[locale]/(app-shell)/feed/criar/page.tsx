@@ -26,8 +26,10 @@ import { salvarDraftAgendamento, urlRetornoAgendamento } from '@/lib/agendamento
 import { uploadMidiaAgendada } from '@/lib/agendamentoUpload'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { useGuiaModo } from '@/context/GuiaModoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
+import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
 
 type Aba = 'foto' | 'texto'
 
@@ -86,6 +88,12 @@ function CriarPublicacaoPageInner() {
     loading: gateFeedLoading,
   } = useGateFeedSocial()
   const { ehAnfitriao, modo: modoAnfitriao, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
+  const {
+    ehGuia,
+    modoEfetivo: modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
+  } = useGuiaModo()
   const { userRole } = useProfissionalGate()
 
   useEffect(() => {
@@ -552,17 +560,42 @@ function CriarPublicacaoPageInner() {
 
       setLoadingMsg('Criando publicação…')
       const roleUsuario = userRole != null ? String(userRole) : 'turista'
-      const publicarComoEmpresa = profissionalOperaComoEmpresaHospedagem(
+      const publicarComoEmpresa =
+        profissionalOperaComoEmpresaHospedagem(
+          roleUsuario,
+          ehAnfitriao,
+          modoAnfitriao,
+          empresaHospedagemId,
+          empresaHospedagemLiberada,
+        ) ||
+        profissionalOperaComoEmpresaAgencia(
+          roleUsuario,
+          ehGuia,
+          modoGuiaEfetivo,
+          empresaAgenciaId,
+          empresaAgenciaLiberada,
+        )
+      const empresaIdPost = profissionalOperaComoEmpresaHospedagem(
         roleUsuario,
         ehAnfitriao,
         modoAnfitriao,
         empresaHospedagemId,
         empresaHospedagemLiberada,
       )
+        ? empresaHospedagemId
+        : profissionalOperaComoEmpresaAgencia(
+              roleUsuario,
+              ehGuia,
+              modoGuiaEfetivo,
+              empresaAgenciaId,
+              empresaAgenciaLiberada,
+            )
+          ? empresaAgenciaId
+          : null
       const { error } = await supabase.from('posts').insert({
         autor_id: session.user.id,
         autor_tipo: publicarComoEmpresa ? 'empresa' : roleUsuario,
-        empresa_id: publicarComoEmpresa && empresaHospedagemId ? empresaHospedagemId : null,
+        empresa_id: publicarComoEmpresa && empresaIdPost ? empresaIdPost : null,
         texto: !texto.trim() ? null : texto,
         foto_url: fotoUrl,
         conteudo_url: fotoUrl,

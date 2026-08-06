@@ -11,6 +11,7 @@ import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import { AVISO_PLANO_EMPRESA_PADRAO } from '@/lib/planosEmpresaServicosGate'
 import LembreteVencimentoPlanoEmpresa from '@/components/empresa/LembreteVencimentoPlanoEmpresa'
 import { categoriasIncluemAnfitriao, lerModoAnfitriaoStorage } from '@/lib/anfitriaoDualMode'
+import { categoriasIncluemGuia, lerModoGuiaStorage } from '@/lib/guiaDualMode'
 import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
 
 import MenuPeriodoDashboard from './components/shared/MenuPeriodoDashboard'
@@ -91,21 +92,30 @@ export default function DashboardEmpresaPage() {
       if (role === 'profissional') {
         const { data: prof } = await supabase
           .from('profissionais')
-          .select('categorias, empresa_hospedagem_id')
+          .select('categorias, empresa_hospedagem_id, empresa_agencia_id')
           .eq('usuario_id', uid)
           .maybeSingle()
         const cats = Array.isArray(prof?.categorias)
           ? prof.categorias.filter((c): c is string => typeof c === 'string')
           : []
         const empHospId = prof?.empresa_hospedagem_id != null ? String(prof.empresa_hospedagem_id) : null
-        if (!categoriasIncluemAnfitriao(cats) || !empHospId || lerModoAnfitriaoStorage() !== 'hospedagem') {
+        const empAgenciaId = prof?.empresa_agencia_id != null ? String(prof.empresa_agencia_id) : null
+
+        let empDualId: string | null = null
+        if (categoriasIncluemAnfitriao(cats) && empHospId && lerModoAnfitriaoStorage() === 'hospedagem') {
+          empDualId = empHospId
+        } else if (categoriasIncluemGuia(cats) && empAgenciaId && lerModoGuiaStorage() === 'agencia') {
+          empDualId = empAgenciaId
+        }
+
+        if (!empDualId) {
           if (ativo) setGate({ status: 'forbidden' })
           return
         }
         const { data: empAnfitriao } = await supabase
           .from('empresas')
           .select(EMPRESA_SELECT)
-          .eq('id', empHospId)
+          .eq('id', empDualId)
           .maybeSingle()
         const empAnfitriaoRow = empAnfitriao ? mapEmpresaRow(empAnfitriao as Record<string, unknown>) : null
         const empGateRow = empAnfitriao as Record<string, unknown> | null
@@ -142,9 +152,11 @@ export default function DashboardEmpresaPage() {
     void boot()
     const onRef = () => void boot()
     window.addEventListener('anfitriao-modo-change', onRef)
+    window.addEventListener('guia-modo-change', onRef)
     return () => {
       ativo = false
       window.removeEventListener('anfitriao-modo-change', onRef)
+      window.removeEventListener('guia-modo-change', onRef)
     }
   }, [modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
 
@@ -223,7 +235,7 @@ function DashboardEmpresaConteudo({
   const { abaLiberada, loading: planoLoading, lembreteVencimentoPlano, diasParaVencimentoPlano } =
     useEmpresaServicosPlano(empresa?.plano, empresa?.id, {
     aguardarEmpresa: empresaLoading,
-    somenteAnfitriao: Boolean(empresa?.somente_anfitriao),
+    somenteAnfitriao: Boolean(empresa?.somente_anfitriao || empresa?.somente_guia),
   })
   const aguardandoPlano = empresaLoading || planoLoading
 

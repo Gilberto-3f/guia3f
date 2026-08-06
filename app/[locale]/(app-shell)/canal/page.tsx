@@ -7,9 +7,11 @@ import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { useGuiaModo } from '@/context/GuiaModoContext'
 import { useAdminColaboradorModo } from '@/context/AdminColaboradorModoContext'
 import { colaboradorTemModoDual } from '@/lib/adminColaboradorModo'
 import { anfitriaoUsaCanaisProfissionais } from '@/lib/anfitriaoDualMode'
+import { guiaUsaCanaisProfissionais } from '@/lib/guiaDualMode'
 import ListaCanais from '@/components/ListaCanais'
 import ListaCanaisEmpresa from '@/components/ListaCanaisEmpresa'
 import ListaCanaisProfissional from '@/components/ListaCanaisProfissional'
@@ -23,6 +25,7 @@ export default function CanalPage() {
   const { modoAtivo, perfilSimulado, podeInteragir } = useModoApresentacao()
   const { refreshGate, userRole } = useProfissionalGate()
   const { ehAnfitriao } = useAnfitriaoModo()
+  const { ehGuia } = useGuiaModo()
   const { emModoAdm, habilitado: modoColaboradorDual } = useAdminColaboradorModo()
   const [userTipo, setUserTipo] = useState<TipoUsuario>(null)
   const [adminLevel, setAdminLevel] = useState(0)
@@ -40,8 +43,9 @@ export default function CanalPage() {
       if (perfilSimulado.tipo === 'empresa') return 'empresa'
     }
     if (anfitriaoUsaCanaisProfissionais(userRole, ehAnfitriao)) return 'profissional'
+    if (guiaUsaCanaisProfissionais(userRole, ehGuia)) return 'profissional'
     return userTipo
-  }, [modoColaboradorDual, emModoAdm, adminLevel, modoAtivo, perfilSimulado, userTipo, userRole, ehAnfitriao])
+  }, [modoColaboradorDual, emModoAdm, adminLevel, modoAtivo, perfilSimulado, userTipo, userRole, ehAnfitriao, ehGuia])
 
   useEffect(() => {
     const init = async () => {

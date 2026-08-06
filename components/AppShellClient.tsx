@@ -7,6 +7,7 @@ import { AdminPermissaoProvider } from '@/app/[locale]/(admin)/dashboard/admin/c
 import { ModoApresentacaoProvider, useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { ProfissionalGateProvider } from '@/context/ProfissionalGateContext'
 import { AnfitriaoModoProvider } from '@/context/AnfitriaoModoContext'
+import { GuiaModoProvider } from '@/context/GuiaModoContext'
 import ModoApresentacaoChrome from '@/components/ModoApresentacaoChrome'
 import ProfissionalGateBanner from '@/components/ProfissionalGateBanner'
 import BottomBar from '@/components/BottomBar'
@@ -211,9 +212,11 @@ export default function AppShellClient({ children }: { children: ReactNode }) {
         <ModoApresentacaoProvider>
           <ProfissionalGateProvider>
             <AnfitriaoModoProvider>
+              <GuiaModoProvider>
               <Suspense fallback={<AppShellSuspenseFallback>{children}</AppShellSuspenseFallback>}>
                 <AppShellInner>{children}</AppShellInner>
               </Suspense>
+              </GuiaModoProvider>
             </AnfitriaoModoProvider>
           </ProfissionalGateProvider>
         </ModoApresentacaoProvider>

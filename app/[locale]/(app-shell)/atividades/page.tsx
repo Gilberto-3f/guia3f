@@ -66,7 +66,9 @@ import { GUIA_ATIVIDADES_BADGE_EVENT, GUIA_ATIVIDADES_RELOAD_EVENT, zerarBadgeAt
 import { resolverUsernameOriginalRepostStory, normalizarUsernameAtividade } from '@/lib/formatarTextoRepostStory'
 import { fetchSeguidosRedeEEmpresasAtividades, fetchUsuarioIdsGestoresAnfitriaoGuia } from '@/lib/feedSeguidosEmpresasFavoritas'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { useGuiaModo } from '@/context/GuiaModoContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
+import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
 import { propsInteractor, propsDonor, propsAtor, propsDono, propsSeguidor, propsSeguido, propsReposter, propsOriginal } from '@/components/atividades/atividadeHandleProps'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 
@@ -222,6 +224,12 @@ export default function AtividadesPage() {
   const router = useRouter()
   const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
   const { ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
+  const {
+    ehGuia,
+    modoEfetivo: modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
+  } = useGuiaModo()
   const [aba, setAba] = useState<'amigos' | 'minha'>('amigos')
   const [termoBusca, setTermoBusca] = useState('')
   const [resultadosBusca, setResultadosBusca] = useState<
@@ -323,8 +331,25 @@ export default function AtividadesPage() {
         modoEfetivo,
         empresaHospedagemId,
         empresaHospedagemLiberada,
+      ) ||
+      profissionalOperaComoEmpresaAgencia(
+        meuRole,
+        ehGuia,
+        modoGuiaEfetivo,
+        empresaAgenciaId,
+        empresaAgenciaLiberada,
       ),
-    [meuRole, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada],
+    [
+      meuRole,
+      ehAnfitriao,
+      modoEfetivo,
+      empresaHospedagemId,
+      empresaHospedagemLiberada,
+      ehGuia,
+      modoGuiaEfetivo,
+      empresaAgenciaId,
+      empresaAgenciaLiberada,
+    ],
   )
 
   const carregarStoriesMeta = useCallback(async (rows: AtividadeRow[], opcoes?: { merge?: boolean }) => {
@@ -1218,6 +1243,9 @@ export default function AtividadesPage() {
     if (ehAnfitriao && empresaHospedagemId) {
       empresaIds.push(empresaHospedagemId)
     }
+    if (ehGuia && empresaAgenciaId) {
+      empresaIds.push(empresaAgenciaId)
+    }
 
     const uniqEmpresaIds = [...new Set(empresaIds.filter(Boolean))]
 
@@ -1380,13 +1408,21 @@ export default function AtividadesPage() {
 
     setMinhaEmpresaAtividades(null)
 
-    const comoHospedagem = profissionalOperaComoEmpresaHospedagem(
-      role,
-      ehAnfitriao,
-      modoEfetivo,
-      empresaHospedagemId,
-      empresaHospedagemLiberada,
-    )
+    const comoHospedagem =
+      profissionalOperaComoEmpresaHospedagem(
+        role,
+        ehAnfitriao,
+        modoEfetivo,
+        empresaHospedagemId,
+        empresaHospedagemLiberada,
+      ) ||
+      profissionalOperaComoEmpresaAgencia(
+        role,
+        ehGuia,
+        modoGuiaEfetivo,
+        empresaAgenciaId,
+        empresaAgenciaLiberada,
+      )
 
     if (comoHospedagem) {
       setErroAmigos(null)

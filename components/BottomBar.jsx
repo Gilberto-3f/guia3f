@@ -27,7 +27,9 @@ import { empresaGestorTemPresencaVigenteCached } from '@/lib/empresaPresencaPubl
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { useGuiaModo } from '@/context/GuiaModoContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
+import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
 import { lerPerfilBarraCache } from '@/lib/perfilBarraCache'
 import { resumirSessaoAposIdle } from '@/lib/authResume'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
@@ -103,6 +105,68 @@ export default function BottomBar() {
   const rootRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const { userRole, fotoPerfilBarra, empresaIdBarra } = useProfissionalGate()
   const { ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada, empresaHospedagem } = useAnfitriaoModo()
+  const {
+    ehGuia,
+    modoEfetivo: modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
+    empresaAgencia,
+  } = useGuiaModo()
+
+  const operaComoEmpresaDual = (role) =>
+    profissionalOperaComoEmpresaHospedagem(
+      role,
+      ehAnfitriao,
+      modoEfetivo,
+      empresaHospedagemId,
+      empresaHospedagemLiberada,
+    ) ||
+    profissionalOperaComoEmpresaAgencia(
+      role,
+      ehGuia,
+      modoGuiaEfetivo,
+      empresaAgenciaId,
+      empresaAgenciaLiberada,
+    )
+
+  const empresaIdDual =
+    profissionalOperaComoEmpresaHospedagem(
+      userRole,
+      ehAnfitriao,
+      modoEfetivo,
+      empresaHospedagemId,
+      empresaHospedagemLiberada,
+    )
+      ? empresaHospedagemId
+      : profissionalOperaComoEmpresaAgencia(
+            userRole,
+            ehGuia,
+            modoGuiaEfetivo,
+            empresaAgenciaId,
+            empresaAgenciaLiberada,
+          )
+        ? empresaAgenciaId
+        : null
+
+  const fotoEmpresaDual =
+    profissionalOperaComoEmpresaHospedagem(
+      userRole,
+      ehAnfitriao,
+      modoEfetivo,
+      empresaHospedagemId,
+      empresaHospedagemLiberada,
+    )
+      ? empresaHospedagem?.foto_url
+      : profissionalOperaComoEmpresaAgencia(
+            userRole,
+            ehGuia,
+            modoGuiaEfetivo,
+            empresaAgenciaId,
+            empresaAgenciaLiberada,
+          )
+        ? empresaAgencia?.foto_url
+        : null
+
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [authUserId, setAuthUserId] = useState(() => lerPerfilBarraCache()?.userId ?? null)
   const [fotoPerfilCache, setFotoPerfilCache] = useState(/** @type {string | null} */ (() => {
@@ -182,16 +246,28 @@ export default function BottomBar() {
     }
     if (
       userRole === 'profissional' &&
-      profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada) &&
-      empresaHospedagemId
+      operaComoEmpresaDual(userRole) &&
+      empresaIdDual
     ) {
-      setEmpresaId(empresaHospedagemId)
+      setEmpresaId(empresaIdDual)
       return
     }
     if (userRole !== 'empresa') {
       setEmpresaId(null)
     }
-  }, [userRole, empresaIdBarra, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada])
+  }, [
+    userRole,
+    empresaIdBarra,
+    ehAnfitriao,
+    modoEfetivo,
+    empresaHospedagemId,
+    empresaHospedagemLiberada,
+    ehGuia,
+    modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
+    empresaIdDual,
+  ])
 
   /** Feed social (`atividades`): badge do coração — nunca mistura com `mensagens_canal`. */
   useEffect(() => {
@@ -308,12 +384,12 @@ export default function BottomBar() {
     const ehEmpresa =
       (modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId) ||
       userRole === 'empresa' ||
-      profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada)
+      operaComoEmpresaDual(userRole)
     const empId =
       modoAtivo && perfilSimulado?.tipo === 'empresa' && contextoEmpresaId
         ? contextoEmpresaId
-        : profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada)
-          ? empresaHospedagemId ?? empresaId
+        : operaComoEmpresaDual(userRole)
+          ? empresaIdDual ?? empresaId
           : empresaId
 
     if (!ehEmpresa || !empId || !authUserId) {
@@ -360,7 +436,7 @@ export default function BottomBar() {
       clearInterval(pollFunilId)
       window.removeEventListener(GUIA_FUNIL_BADGE_EVENT, onFunil)
     }
-  }, [authUserId, userRole, empresaId, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada])
+  }, [authUserId, userRole, empresaId, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada, ehGuia, modoGuiaEfetivo, empresaAgenciaId, empresaAgenciaLiberada, empresaIdDual])
 
   /** Ao sair do detalhe do canal, reconta (não em toda navegação — evita tempestade em 503). */
   const prevPathnameRef = useRef(/** @type {string | null} */ (null))
@@ -420,7 +496,7 @@ export default function BottomBar() {
     const cached = authUserId ? lerPerfilBarraCache() : null
     const roleBase = userRole ?? (cached?.userId === authUserId ? cached.role : null)
     if (modoAtivo && perfilSimulado) return perfilSimulado.tipo
-    if (profissionalOperaComoEmpresaHospedagem(roleBase, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada)) {
+    if (operaComoEmpresaDual(roleBase)) {
       return 'empresa'
     }
     return roleBase === 'admin' ? 'admin' : roleBase
@@ -431,8 +507,8 @@ export default function BottomBar() {
   const empresaIdBar =
     isEmpresaBar && modoAtivo && contextoEmpresaId
       ? contextoEmpresaId
-      : isEmpresaBar && profissionalOperaComoEmpresaHospedagem(userRole, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada)
-        ? empresaHospedagemId ?? empresaId ?? perfilBarraCache?.empresaHospedagemId ?? null
+      : isEmpresaBar && operaComoEmpresaDual(userRole)
+        ? empresaIdDual ?? empresaId ?? perfilBarraCache?.empresaHospedagemId ?? null
         : userRole === 'empresa'
           ? empresaId ?? perfilBarraCache?.empresaId ?? null
           : null
@@ -480,15 +556,9 @@ export default function BottomBar() {
       fotoPerfilBarra ??
       (userRole === 'profissional' ? perfilBarraCache?.fotoUrl : null) ??
       fotoPerfilCache
-    const operaEmpresa = profissionalOperaComoEmpresaHospedagem(
-      userRole,
-      ehAnfitriao,
-      modoEfetivo,
-      empresaHospedagemId,
-      empresaHospedagemLiberada,
-    )
+    const operaEmpresa = operaComoEmpresaDual(userRole)
     if (operaEmpresa) {
-      return empresaHospedagem?.foto_url ?? perfilBarraCache?.empresaFotoUrl ?? fotoProfSocial
+      return fotoEmpresaDual ?? perfilBarraCache?.empresaFotoUrl ?? fotoProfSocial
     }
     if (userRole === 'empresa' || isEmpresaBar) {
       return fotoPerfilBarra ?? perfilBarraCache?.fotoUrl ?? fotoPerfilCache
