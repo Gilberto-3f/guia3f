@@ -1,10 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ChevronDown, ChevronUp, Handshake, MessageCircle } from 'lucide-react'
+import { ChevronDown, ChevronUp, MessageCircle } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import type { ParceriaRow } from '@/app/api/profissional/parcerias/route'
 import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
+
+const VERDE = '#00D443'
+const COR = '#0097b2'
 
 function formatarDataHora(iso: string): string {
   const d = new Date(iso)
@@ -15,7 +18,6 @@ function formatarDataHora(iso: string): string {
 type AbaParcerias = 'andamento' | 'historico'
 
 type Props = {
-  /** Remove padding lateral quando embutido em drawer. */
   compact?: boolean
 }
 
@@ -59,11 +61,14 @@ export default function ParceriasProfissional({ compact = false }: Props) {
     setBusyId(p.id)
     setMsgAcao('')
     try {
-      const res = await fetch(`/api/profissional/parcerias/${encodeURIComponent(p.id)}/confirmar-pagamento`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ acao }),
-      })
+      const res = await fetch(
+        `/api/profissional/parcerias/${encodeURIComponent(p.id)}/confirmar-pagamento`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ acao }),
+        },
+      )
       const json = (await res.json()) as { error?: string; liquidado?: boolean }
       if (!res.ok) {
         setMsgAcao(String(json.error ?? 'Não foi possível confirmar.'))
@@ -72,7 +77,7 @@ export default function ParceriasProfissional({ compact = false }: Props) {
       setMsgAcao(
         json.liquidado
           ? 'Pagamento e recebimento confirmados. Parceria liquidada.'
-          : 'Confirmação registrada. Aguardando a outra parte (sem prazo de expiração).',
+          : 'Confirmação registrada. Aguardando a outra parte.',
       )
       await carregar()
     } catch {
@@ -102,18 +107,20 @@ export default function ParceriasProfissional({ compact = false }: Props) {
         <button
           type="button"
           onClick={() => setAba('andamento')}
-          className={`flex-1 rounded-md py-2 text-xs font-bold uppercase tracking-wide ${
-            aba === 'andamento' ? 'bg-white text-[#0097b2] shadow-sm' : 'text-gray-600'
+          className={`flex-1 rounded-md py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+            aba === 'andamento' ? 'text-white shadow-sm' : 'text-gray-600'
           }`}
+          style={aba === 'andamento' ? { backgroundColor: VERDE } : undefined}
         >
           Em andamento
         </button>
         <button
           type="button"
           onClick={() => setAba('historico')}
-          className={`flex-1 rounded-md py-2 text-xs font-bold uppercase tracking-wide ${
-            aba === 'historico' ? 'bg-white text-[#0097b2] shadow-sm' : 'text-gray-600'
+          className={`flex-1 rounded-md py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+            aba === 'historico' ? 'text-white shadow-sm' : 'text-gray-600'
           }`}
+          style={aba === 'historico' ? { backgroundColor: VERDE } : undefined}
         >
           Histórico
         </button>
@@ -134,16 +141,22 @@ export default function ParceriasProfissional({ compact = false }: Props) {
       ) : (
         <ul className="space-y-2">
           {parcerias.map((p) => {
-            const handle = p.parceiro.username ? `@${p.parceiro.username.replace(/^@+/, '')}` : '—'
+            const handle = p.parceiro.username
+              ? `@${p.parceiro.username.replace(/^@+/, '')}`
+              : '—'
             const aberto = expandido === p.id
             const mostrarRelatorio = relatorioId === p.id
-            const podePagar = p.papel !== 'indicador' && !p.pagamento_confirmado && !p.liquidado
-            const podeReceber = p.papel === 'indicador' && !p.recebimento_confirmado && !p.liquidado
+            const mostrarBotaoPagar =
+              p.papel !== 'indicador' && !p.pagamento_confirmado && !p.liquidado
+            const mostrarBotaoReceber =
+              p.papel === 'indicador' && !p.recebimento_confirmado && !p.liquidado
+            const receberLiberado = p.pagamento_confirmado
+
             return (
               <li key={p.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
                 <button
                   type="button"
-                  className="flex w-full items-start gap-3 p-3 text-left"
+                  className="flex w-full items-center gap-3 p-3 text-left"
                   onClick={() => setExpandido(aberto ? null : p.id)}
                   aria-expanded={aberto}
                 >
@@ -155,13 +168,20 @@ export default function ParceriasProfissional({ compact = false }: Props) {
                     className="h-12 w-12 shrink-0 rounded-lg object-cover"
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-semibold text-gray-900">{p.parceiro.nome}</span>
-                      <Handshake className="h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
-                    </div>
+                    <p className="truncate font-semibold text-gray-900">{p.parceiro.nome}</p>
                     <p className="truncate text-sm text-[#0097b2]">{handle}</p>
-                    <p className="text-xs text-gray-500">{p.parceiro.categorias}</p>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="truncate text-xs text-gray-500">{p.parceiro.categorias || '—'}</p>
+                  </div>
+                  {aberto ? (
+                    <ChevronUp className="h-5 w-5 shrink-0 text-[#0097b2]" aria-hidden />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
+                  )}
+                </button>
+
+                {aberto ? (
+                  <div className="space-y-2 border-t border-gray-100 px-3 pb-3 pt-2">
+                    <p className="text-xs text-gray-500">
                       {aba === 'historico'
                         ? `Período: ${formatarDataHora(p.created_at)}`
                         : `Início: ${formatarDataHora(p.created_at)}`}
@@ -172,12 +192,13 @@ export default function ParceriasProfissional({ compact = false }: Props) {
                       </p>
                     ) : null}
                     {p.turista ? (
-                      <p className="mt-1 text-xs font-medium text-[#15803d]">
+                      <p className="text-xs font-medium text-[#15803d]">
                         Turista: {p.turista.nome} ({p.turista.username})
                         {p.contratado_em ? ` · ${formatarDataHora(p.contratado_em)}` : ''}
                       </p>
                     ) : null}
-                    <div className="mt-2 flex flex-wrap gap-1">
+
+                    <div className="flex flex-wrap gap-1">
                       <span
                         className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                           p.status === 'em_andamento'
@@ -214,64 +235,57 @@ export default function ParceriasProfissional({ compact = false }: Props) {
                         </>
                       )}
                     </div>
-                  </div>
-                  {aberto ? (
-                    <ChevronUp className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
-                  ) : (
-                    <ChevronDown className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
-                  )}
-                </button>
 
-                {aberto ? (
-                  <div className="space-y-2 border-t border-gray-100 px-3 pb-3">
                     {aba === 'andamento' && !p.liquidado ? (
-                      <div className="mt-2 space-y-2">
-                        <p className="text-[11px] text-gray-500">
-                          Confirmação bilateral sem prazo — fica pendente até as duas partes.
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {podePagar ? (
-                            <button
-                              type="button"
-                              disabled={busyId === p.id}
-                              onClick={() => void confirmar(p, 'pagamento')}
-                              className="flex-1 rounded-lg bg-[#00D443] px-3 py-2 text-xs font-bold uppercase text-white disabled:opacity-50"
-                            >
-                              Confirmar pagamento
-                            </button>
-                          ) : null}
-                          {podeReceber ? (
-                            <button
-                              type="button"
-                              disabled={busyId === p.id}
-                              onClick={() => void confirmar(p, 'recebimento')}
-                              className="flex-1 rounded-lg bg-[#0097b2] px-3 py-2 text-xs font-bold uppercase text-white disabled:opacity-50"
-                            >
-                              Confirmar recebimento
-                            </button>
-                          ) : null}
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {mostrarBotaoPagar ? (
                           <button
                             type="button"
-                            onClick={() => abrirWhatsapp(p)}
-                            className="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-[#0097b2]"
+                            disabled={busyId === p.id}
+                            onClick={() => void confirmar(p, 'pagamento')}
+                            className="flex-1 rounded-lg px-3 py-2.5 text-xs font-bold uppercase text-white disabled:opacity-50"
+                            style={{ backgroundColor: VERDE }}
                           >
-                            <MessageCircle className="h-3.5 w-3.5" aria-hidden />
-                            WhatsApp
+                            Confirmar pagamento
                           </button>
-                        </div>
+                        ) : null}
+                        {mostrarBotaoReceber ? (
+                          <button
+                            type="button"
+                            disabled={busyId === p.id || !receberLiberado}
+                            onClick={() => void confirmar(p, 'recebimento')}
+                            title={
+                              receberLiberado
+                                ? undefined
+                                : 'Liberado após a confirmação de pagamento'
+                            }
+                            className="flex-1 rounded-lg px-3 py-2.5 text-xs font-bold uppercase text-white disabled:cursor-not-allowed disabled:opacity-40"
+                            style={{ backgroundColor: COR }}
+                          >
+                            Confirmar recebimento
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => abrirWhatsapp(p)}
+                          className="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-xs font-bold text-[#0097b2]"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+                          WhatsApp
+                        </button>
                       </div>
                     ) : null}
 
                     <button
                       type="button"
                       onClick={() => setRelatorioId(mostrarRelatorio ? null : p.id)}
-                      className="mt-2 w-full rounded-lg bg-[#0097b2]/10 py-2 text-xs font-bold uppercase text-[#0097b2] hover:bg-[#0097b2]/15"
+                      className="w-full rounded-lg bg-[#0097b2]/10 py-2 text-xs font-bold uppercase text-[#0097b2] hover:bg-[#0097b2]/15"
                     >
                       {mostrarRelatorio ? 'Ocultar relatório' : 'Ver relatório'}
                     </button>
 
                     {mostrarRelatorio ? (
-                      <div className="mt-2 rounded-lg bg-gray-50 p-3">
+                      <div className="rounded-lg bg-gray-50 p-3">
                         <p className="mb-2 text-xs font-bold uppercase text-gray-500">
                           Atrativos selecionados
                         </p>

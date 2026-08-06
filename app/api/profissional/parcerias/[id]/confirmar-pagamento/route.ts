@@ -83,6 +83,7 @@ export async function POST(
   const souIndicador = indicadorId != null && indicadorId === profId
 
   // Indicador confirma recebimento; indicado/parceiro confirma pagamento.
+  // Recebimento só após pagamento confirmado.
   if (acao === 'recebimento' && !souIndicador) {
     return NextResponse.json(
       { error: 'Apenas quem recebe a bonificação confirma o recebimento.' },
@@ -92,6 +93,12 @@ export async function POST(
   if (acao === 'pagamento' && souIndicador) {
     return NextResponse.json(
       { error: 'Quem recebe não confirma pagamento — use confirmar recebimento.' },
+      { status: 403 },
+    )
+  }
+  if (acao === 'recebimento' && !row.pagamento_confirmado_em) {
+    return NextResponse.json(
+      { error: 'Aguarde a confirmação de pagamento antes de confirmar o recebimento.' },
       { status: 403 },
     )
   }
