@@ -1,7 +1,26 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Building2, Hotel, ShoppingBag, Store, Star, Ticket, Utensils, Wrench } from 'lucide-react'
+import {
+  Children,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import {
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  Hotel,
+  ShoppingBag,
+  Store,
+  Star,
+  Ticket,
+  Utensils,
+  Wrench,
+} from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import AvatarImage from '@/components/AvatarImage'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
@@ -40,6 +59,86 @@ import { formatarUsd } from '@/lib/comprasCdeCatalogo'
 import { formatarPrecoTicket } from '@/lib/atrativosCatalogo'
 
 const COR = '#0097b2'
+
+/**
+ * Carrossel horizontal (padrão dos drawers dos botões dinâmicos):
+ * um minicard por vez + setas laterais para avançar/voltar.
+ */
+function CarrosselMinicardsFavoritos({ children }: { children: ReactNode }) {
+  const items = Children.toArray(children).filter(Boolean)
+  const [idx, setIdx] = useState(0)
+  const touchX = useRef<number | null>(null)
+  const n = items.length
+
+  useEffect(() => {
+    setIdx((i) => (n === 0 ? 0 : Math.min(i, n - 1)))
+  }, [n])
+
+  const irAnterior = useCallback(() => {
+    if (n <= 1) return
+    setIdx((i) => (i - 1 + n) % n)
+  }, [n])
+
+  const irProximo = useCallback(() => {
+    if (n <= 1) return
+    setIdx((i) => (i + 1) % n)
+  }, [n])
+
+  if (n === 0) return null
+
+  return (
+    <div>
+      <div className="relative px-6">
+        <div
+          className="w-full touch-pan-y"
+          onTouchStart={(e) => {
+            touchX.current = e.touches[0]?.clientX ?? null
+          }}
+          onTouchEnd={(e) => {
+            const start = touchX.current
+            touchX.current = null
+            if (start == null || n <= 1) return
+            const end = e.changedTouches[0]?.clientX
+            if (end == null) return
+            const dx = end - start
+            if (Math.abs(dx) < 40) return
+            if (dx < 0) irProximo()
+            else irAnterior()
+          }}
+        >
+          {items[idx]}
+        </div>
+        {n > 1 ? (
+          <>
+            <button
+              type="button"
+              className="absolute left-0 top-1/2 z-10 flex w-6 -translate-y-1/2 items-center justify-center"
+              style={{ color: COR }}
+              onClick={irAnterior}
+              aria-label="Anterior"
+            >
+              <ChevronLeft className="h-6 w-6" strokeWidth={2.5} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="absolute right-0 top-1/2 z-10 flex w-6 -translate-y-1/2 items-center justify-center"
+              style={{ color: COR }}
+              onClick={irProximo}
+              aria-label="Próximo"
+            >
+              <ChevronRight className="h-6 w-6" strokeWidth={2.5} aria-hidden />
+            </button>
+          </>
+        ) : null}
+      </div>
+      {n > 1 ? (
+        <p className="mt-2 text-center text-[11px] font-semibold text-gray-400">
+          {idx + 1} / {n}
+        </p>
+      ) : null}
+    </div>
+  )
+}
 
 type Pastas = {
   comprasCde: boolean
@@ -108,7 +207,7 @@ function CardProdutoFavorito({
   onVer: () => void
 }) {
   return (
-    <li className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <article className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">{p.titulo}</p>
       <div className="mt-2 aspect-[4/3] bg-gray-100">
         {p.foto_url ? (
@@ -143,7 +242,7 @@ function CardProdutoFavorito({
           </button>
         ) : null}
       </div>
-    </li>
+    </article>
   )
 }
 
@@ -155,7 +254,7 @@ function CardPratoFavorito({
   onVer: () => void
 }) {
   return (
-    <li className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <article className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">{p.titulo}</p>
       <div className="mt-2 aspect-[4/3] bg-gray-100">
         {p.foto_url ? (
@@ -190,7 +289,7 @@ function CardPratoFavorito({
           </button>
         ) : null}
       </div>
-    </li>
+    </article>
   )
 }
 
@@ -202,7 +301,7 @@ function CardServicoFavorito({
   onVer: () => void
 }) {
   return (
-    <li className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <article className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <p className="px-3 pt-3 text-sm font-semibold text-[#001f3f]">{p.titulo}</p>
       <div className="mt-2 aspect-[4/3] bg-gray-100">
         {p.foto_url ? (
@@ -237,7 +336,7 @@ function CardServicoFavorito({
           </button>
         ) : null}
       </div>
-    </li>
+    </article>
   )
 }
 
@@ -401,11 +500,11 @@ export default function FavoritosPage() {
               {produtosCde.length === 0 ? (
                 <p className="text-center text-sm text-gray-500">Nenhum produto salvo ainda.</p>
               ) : (
-                <ul className="space-y-3">
+                <CarrosselMinicardsFavoritos>
                   {produtosCde.map((p) => (
                     <CardProdutoFavorito key={p.id} p={p} onVer={() => abrirProduto(p)} />
                   ))}
-                </ul>
+                </CarrosselMinicardsFavoritos>
               )}
             </ChevronPasta>
 
@@ -421,11 +520,11 @@ export default function FavoritosPage() {
                   Nenhum produto de lojas de Foz ou Puerto salvo ainda.
                 </p>
               ) : (
-                <ul className="space-y-3">
+                <CarrosselMinicardsFavoritos>
                   {produtosLojasBrAr.map((p) => (
                     <CardProdutoFavorito key={p.id} p={p} onVer={() => abrirProduto(p)} />
                   ))}
-                </ul>
+                </CarrosselMinicardsFavoritos>
               )}
             </ChevronPasta>
 
@@ -439,11 +538,11 @@ export default function FavoritosPage() {
               {pratos.length === 0 ? (
                 <p className="text-center text-sm text-gray-500">Nenhum prato salvo ainda.</p>
               ) : (
-                <ul className="space-y-3">
+                <CarrosselMinicardsFavoritos>
                   {pratos.map((p) => (
                     <CardPratoFavorito key={p.id} p={p} onVer={() => abrirPrato(p)} />
                   ))}
-                </ul>
+                </CarrosselMinicardsFavoritos>
               )}
             </ChevronPasta>
 
@@ -457,11 +556,11 @@ export default function FavoritosPage() {
               {servicos.length === 0 ? (
                 <p className="text-center text-sm text-gray-500">Nenhum serviço salvo ainda.</p>
               ) : (
-                <ul className="space-y-3">
+                <CarrosselMinicardsFavoritos>
                   {servicos.map((p) => (
                     <CardServicoFavorito key={p.id} p={p} onVer={() => abrirServico(p)} />
                   ))}
-                </ul>
+                </CarrosselMinicardsFavoritos>
               )}
             </ChevronPasta>
 
@@ -475,9 +574,9 @@ export default function FavoritosPage() {
               {tickets.length === 0 ? (
                 <p className="text-center text-sm text-gray-500">Nenhum ticket salvo ainda.</p>
               ) : (
-                <ul className="space-y-3">
+                <CarrosselMinicardsFavoritos>
                   {tickets.map((t) => (
-                    <li
+                    <article
                       key={t.id}
                       className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
                     >
@@ -519,9 +618,9 @@ export default function FavoritosPage() {
                           </button>
                         ) : null}
                       </div>
-                    </li>
+                    </article>
                   ))}
-                </ul>
+                </CarrosselMinicardsFavoritos>
               )}
             </ChevronPasta>
 
@@ -537,11 +636,11 @@ export default function FavoritosPage() {
                   Nenhuma acomodação salva ainda.
                 </p>
               ) : (
-                <ul className="space-y-3">
+                <CarrosselMinicardsFavoritos>
                   {acomodacoes.map((a) => {
                     const sub = rotuloAcomodacaoFavorita(a)
                     return (
-                      <li
+                      <article
                         key={a.id}
                         className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
                       >
@@ -590,10 +689,10 @@ export default function FavoritosPage() {
                             </button>
                           ) : null}
                         </div>
-                      </li>
+                      </article>
                     )
                   })}
-                </ul>
+                </CarrosselMinicardsFavoritos>
               )}
             </ChevronPasta>
 
@@ -607,54 +706,55 @@ export default function FavoritosPage() {
               {empresas.length === 0 ? (
                 <p className="text-center text-sm text-gray-500">Nenhuma página salva ainda.</p>
               ) : (
-                <ul className="space-y-2">
+                <CarrosselMinicardsFavoritos>
                   {empresas.map((e) => {
                     const username = String(e.nome_usuario ?? '')
                       .replace(/^@+/, '')
                       .trim()
                     return (
-                      <li key={e.id}>
-                        <div className="flex items-center gap-2.5 rounded-xl bg-[#0097b2] p-2.5 shadow-sm">
-                          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-white bg-white/20">
-                            {e.foto_url ? (
-                              <AvatarImage
-                                src={e.foto_url}
-                                alt=""
-                                fill
-                                className="object-cover"
-                                sizes="48px"
-                              />
-                            ) : null}
-                          </div>
-                          <div className="min-w-0 flex-1 overflow-hidden pr-1">
-                            <p className="truncate text-sm font-bold leading-tight text-white">
-                              {e.nome_fantasia}
-                            </p>
-                            {username ? (
-                              <p className="mt-0.5 truncate text-xs leading-tight text-white/90">
-                                @{username}
-                              </p>
-                            ) : null}
-                            {e.nota_media != null && e.nota_media > 0 ? (
-                              <p className="mt-0.5 inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
-                                <span aria-hidden>★</span>
-                                {e.nota_media.toFixed(1).replace(/\.0$/, '')}
-                              </p>
-                            ) : null}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => router.push(`/empresa/${e.id}`)}
-                            className="flex h-11 w-[4.5rem] shrink-0 flex-col items-center justify-center rounded-lg bg-white px-1 text-center text-[10px] font-bold leading-tight text-[#0097b2]"
-                          >
-                            <span>VISITAR</span>
-                            <span>PÁGINA</span>
-                          </button>
+                      <div
+                        key={e.id}
+                        className="flex items-center gap-2.5 rounded-xl bg-[#0097b2] p-2.5 shadow-sm"
+                      >
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-white bg-white/20">
+                          {e.foto_url ? (
+                            <AvatarImage
+                              src={e.foto_url}
+                              alt=""
+                              fill
+                              className="object-cover"
+                              sizes="48px"
+                            />
+                          ) : null}
                         </div>
-                      </li>
+                        <div className="min-w-0 flex-1 overflow-hidden pr-1">
+                          <p className="truncate text-sm font-bold leading-tight text-white">
+                            {e.nome_fantasia}
+                          </p>
+                          {username ? (
+                            <p className="mt-0.5 truncate text-xs leading-tight text-white/90">
+                              @{username}
+                            </p>
+                          ) : null}
+                          {e.nota_media != null && e.nota_media > 0 ? (
+                            <p className="mt-0.5 inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                              <span aria-hidden>★</span>
+                              {e.nota_media.toFixed(1).replace(/\.0$/, '')}
+                            </p>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/empresa/${e.id}`)}
+                          className="flex h-11 w-[4.5rem] shrink-0 flex-col items-center justify-center rounded-lg bg-white px-1 text-center text-[10px] font-bold leading-tight text-[#0097b2]"
+                        >
+                          <span>VISITAR</span>
+                          <span>PÁGINA</span>
+                        </button>
+                      </div>
                     )
                   })}
-                </ul>
+                </CarrosselMinicardsFavoritos>
               )}
             </ChevronPasta>
           </>
